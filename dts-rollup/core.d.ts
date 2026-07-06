@@ -471,12 +471,14 @@ interface ModelChoice {
 * that enters AgentIdentityInput.modelSpec (docs/03, section "Identity
 * model"). providerOptions and fallbacks NEVER enter this form: they are
 * delivery options, excluded from identity exactly like label, phase,
-* onError, retry, and replay.
+* onError, retry, and replay. `effort` is absent exactly when no layer of
+* the chain and no role effort default resolves one (docs/04, section
+* "Router and resolution chain").
 */
 type CanonicalModelSpec = {
   kind: "model";
   model: ModelRef;
-  effort: Effort;
+  effort?: Effort;
 } | {
   kind: "ladder";
   ladder: CanonicalLadderSpec;
@@ -742,6 +744,99 @@ type SchemaValidationResult<T = unknown> = {
 */
 declare function validateSchemaSpec<S extends SchemaSpec>(spec: S, value: unknown): Promise<SchemaValidationResult<Out<S>>>;
 //#endregion
+//#region src/l0/entries.d.ts
+/**
+* Versions the ENTIRE identity and replay pipeline as one unit: canonical
+* JSON algorithm, identity field sets, hash function, schema/toolset hash
+* derivation, scope grammar and ordinal rules, replay predicate, fold
+* defaults, and the kind/status vocabularies (docs/03, section
+* "hashVersion").
+*/
+type HashVersion = number;
+/** 1 = round 1; 2 = current. */
+declare const CURRENT_HASH_VERSION: HashVersion;
+/**
+* The single kinds registry v2 (docs/03, section "Kinds registry v2").
+* Readers MUST tolerate unknown kinds; stores pass them through
+* byte-for-byte (obligation A4).
+*/
+type EntryKind = "agent" | "step" | "child" | "external" | "approval" | "rand" | "decision" | "plan.revision" | "plan.decision" | "ledger.op" | "resolution" | "abandon" | "node.link" | "termination.init" | "termination.denied";
+/**
+* The stored status vocabulary, exactly. 'skipped' is DELIBERATELY absent:
+* it is a derived fold status, never persisted (docs/03, section "Stored
+* status vocabulary").
+*/
+type EntryStatus = "running" | "ok" | "error" | "limit" | "suspended" | "cancelled" | "escalated";
+/** The canonical EntryRef between entries is seq (docs/03, section "Full entry identity"). */
+type EntryRef = number;
+/** Payload of resolution ref-entries; the full schema lands with DEF-4 in M2. */
+type ResolutionPayload = {
+  by: string;
+  value?: Json;
+  [key: string]: Json | undefined;
+};
+/** Payload of abandon ref-entries; the full schema lands with DEF-5 in M2/M7. */
+type AbandonPayload = {
+  reason: string;
+  authorizedBy?: EntryRef;
+  retainCheckpoint?: boolean;
+  retainWorktree?: boolean;
+  [key: string]: Json | undefined;
+};
+/**
+* Final entry form (hashVersion 2; docs/03, section "JournalEntry form").
+* All journaled values MUST be JSON-serializable; a violation raises a
+* typed NonSerializableValueError at the call site. append is serialized
+* by a per-run queue.
+*/
+type JournalEntry = {
+  /** Identity-derivation and replay-semantics version of THIS entry. */hashVersion: HashVersion; /** Total order per run; canonical EntryRef = seq. */
+  seq: number;
+  /**
+  * Backward reference by seq, always ref < seq: on ref-entries
+  * (resolution/abandon) the seq of the target; on terminal phase entries
+  * the seq of the running entry.
+  */
+  ref?: number;
+  scope: string;
+  key: string;
+  ordinal: number;
+  kind: EntryKind;
+  status: EntryStatus;
+  value?: Json;
+  error?: WireError;
+  usage?: Usage; /** True when the stream was cut at the budget ceiling or by a stream failure. */
+  usageApprox?: boolean; /** Who actually served (failover changes only this, never the key). */
+  servedBy?: ModelRef;
+  transcriptRef?: string;
+  checkpointRef?: string; /** Only when kind === 'resolution'. */
+  resolution?: ResolutionPayload; /** Only when kind === 'abandon'. */
+  abandon?: AbandonPayload; /** On suspended entries: the journaled deadline. */
+  deadlineAt?: string;
+  spanId: string;
+  startedAt: string;
+  endedAt?: string;
+};
+/** Rand-entry payload (docs/03, section "Normative payload schemas"). */
+type RandPayload = {
+  subtype: "now";
+  value: number;
+} | {
+  subtype: "random";
+  value: number;
+  key?: string;
+} | {
+  subtype: "uuid";
+  value: string;
+};
+/**
+* Round-1 normalization: hashVersion is taken from `hashVersion`, else
+* from the legacy `v` field, else 1. Stores are never rewritten;
+* normalization happens at read (docs/03, section "The single versioning
+* mechanism").
+*/
+declare function normalizeEntry(raw: unknown): JournalEntry;
+//#endregion
 //#region src/l0/spi/provider.d.ts
 /**
 * Per-model pricing in USD per million tokens (docs/04, section
@@ -803,4 +898,390 @@ interface IsolationProvider {
   }>;
 }
 //#endregion
-export { AgentError, BudgetExhaustedError, type Bytes, CacheHint, CacheTtl, CanonicalId, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, ConfigError, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, Effort, ErrorCode, FinishInfo, Gate, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalMissError, JournalOrderViolation, type Json, JsonSchema, LadderSpec, LeaseHeldError, LurkerError, LurkerErrorCode, type ModelCaps, ModelChoice, ModelRef, ModelSpec, Msg, NonSerializableValueError, OrchestratorCapConfigError, Out, Part, PlanInvariantError, type Pricing, type ProviderAdapter, RefusalInfo, ReplayPlanHashMismatch, Role, SchemaPair, SchemaSpec, SchemaValidationResult, ScriptRejected, type StandardJSONSchemaV1, type StandardSchemaV1, ToolChoice, ToolContract, TriggerClass, Usage, WireError, agentErrorFromWire, agentErrorToWire, canonicalizeSchema, createCanonicalIdMinter, isSchemaPairSpec, isStandardSchemaSpec, projectToJsonSchema, schemaHash, schemaHashOfSpec, toolsetHash, validateSchemaSpec };
+//#region src/l0/spi/store.d.ts
+/** Lease token for queue-mode ownership; epoch is the fencing token. */
+type Lease = {
+  runId: string;
+  owner: string;
+  epoch: number;
+};
+/**
+* Run-level metadata written by the ENGINE via putMeta as a separate
+* record, so listRuns never parses payloads. The hashVersion range fields
+* are advisory only; the journal is authoritative (docs/03, section
+* "RunMeta").
+*/
+type RunMeta = {
+  runId: string;
+  status: string;
+  name?: string;
+  tags?: string[];
+  updatedAt: string;
+  hashVersionLow?: number;
+  hashVersionHigh?: number; /** Registered workflow name (in-process Workflow). */
+  workflowName?: string; /** Content hash of the body or of the compiled source. */
+  workflowHash?: string; /** TranscriptStore ref of the persisted CompiledWorkflow source. */
+  workflowSourceRef?: string;
+};
+type RunFilter = {
+  status?: string;
+  tags?: string[];
+  name?: string;
+};
+interface JournalStore {
+  append(runId: string, e: JournalEntry, lease?: Lease): Promise<void>;
+  load(runId: string): Promise<JournalEntry[]>;
+  putMeta(m: RunMeta): Promise<void>;
+  listRuns(f?: RunFilter): Promise<RunMeta[]>;
+  delete(runId: string): Promise<void>;
+}
+/**
+* Lease capability: acquire on a held lease MUST reject with a typed
+* LeaseHeldError; renew MUST run at an interval of at most ttl/3; an
+* append carrying a stale epoch MUST be rejected and never appear in load
+* (docs/03, section "LeasableStore").
+*/
+interface LeasableStore extends JournalStore {
+  acquire(runId: string, owner: string): Promise<Lease>;
+  renew(l: Lease): Promise<void>;
+  release(l: Lease): Promise<void>;
+}
+//#endregion
+//#region src/l0/spi/transcript.d.ts
+interface TranscriptStore {
+  put(ref: string, blob: Bytes): Promise<void>;
+  get(ref: string): Promise<Bytes | null>;
+  list(runId: string): Promise<string[]>;
+}
+//#endregion
+//#region src/journal/identity.d.ts
+/** Spawn entries: ctx.agent and orchestrator spawn tools (kind 'agent'). */
+interface AgentIdentityInput {
+  kind: "agent";
+  agentType: string;
+  /**
+  * The REQUESTED model spec, including canonical effort where resolved;
+  * for laddered spawns it embeds the declared ladder together with
+  * startTier (docs/04, section "Router and resolution chain").
+  */
+  modelSpec: CanonicalModelSpec;
+  /** Replaced verbatim by opts.key when opts.key is set. */
+  prompt: string;
+  schemaHash: string;
+  toolsetHash: string;
+  /** Canonical encoding per docs/08, section "IsolationSpec". */
+  isolation: IsolationSpec;
+}
+/** Nested workflow spawns: ctx.workflow (kind 'child'). */
+interface ChildIdentityInput {
+  kind: "child";
+  /** Registered workflow name. */
+  workflow: string;
+  /** Canonical JSON of the arguments; opts.key, when set, replaces args. */
+  args: Json;
+}
+/** Journaled effectful steps: ctx.step (kind 'step'). */
+interface StepIdentityInput {
+  kind: "step";
+  /** opts.key when set, otherwise the step label. */
+  key: string;
+  /** Declared dependency values (useMemo-style keying). */
+  deps: Json[];
+}
+/** External inputs: ctx.awaitExternal (kind 'external'). */
+interface ExternalIdentityInput {
+  kind: "external";
+  key: string;
+}
+/** Tool-approval suspensions (kind 'approval'). */
+interface ApprovalIdentityInput {
+  kind: "approval";
+  toolName: string;
+  /** The tool input as submitted to the permission chain. */
+  input: Json;
+}
+/** Deterministic shims: ctx.now / ctx.random / ctx.uuid (kind 'rand'). */
+interface RandIdentityInput {
+  kind: "rand";
+  subtype: "now" | "random" | "uuid";
+  /** ctx.random(key) provides a stable alternative to positional binding. */
+  key?: string;
+}
+type IdentityInput = AgentIdentityInput | ChildIdentityInput | StepIdentityInput | ExternalIdentityInput | ApprovalIdentityInput | RandIdentityInput;
+/**
+* The identity projection of a CanonicalModelSpec. For the plain-model
+* kind the projection is `{ model, effort? }` WITHOUT the kind
+* discriminant, exactly as fixed by the docs/03 section 1.5 worked
+* example; `effort` is omitted when unresolved. The ladder embedding lands
+* with ladder execution (M7).
+*/
+declare function modelSpecIdentity(spec: CanonicalModelSpec): {
+  model: ModelRef;
+  effort?: Effort;
+} | {
+  ladder: Json;
+};
+/**
+* The JCS form of an IdentityInput under the hashVersion 2 profile. The
+* agent kind projects modelSpec through modelSpecIdentity; every other
+* kind serializes its fields verbatim. Fields not listed for a kind are
+* never included (the types make them unrepresentable).
+*/
+declare function identityJcs(input: IdentityInput): string;
+/**
+* key = sha256(JCS(IdentityInput)) (docs/03, section "Content key").
+*/
+declare function deriveContentKey(input: IdentityInput): string;
+//#endregion
+//#region src/journal/scope.d.ts
+/**
+* Scope-path grammar (M1-T04): deterministic structural paths, independent
+* of wall-clock (invariant I3: structure comes from call-and-return only).
+* The grammar is part of the hashVersion 2 profile.
+*
+* Owning spec: docs/03-journal-spec.md, section "Scope-path grammar".
+*
+* Segment rules: a sequential body is ONE scope (sequential calls add no
+* segment; they are distinguished by key and ordinal only). ctx.phase is
+* cosmetic for identity and adds no segment. Parallel site numbers come
+* from a monotonic counter per enclosing scope in execution order; the
+* pipeline item index is the index of the ORIGINAL input item, so
+* streaming reorder never shifts identity.
+*/
+/** The root sequential body of the run is the empty path. */
+declare const ROOT_SCOPE: string;
+/** Branch `branch` of parallel site `site`: `par:<site>:<branch>`. */
+declare function parallelScope(parent: string, site: number, branch: number): string;
+/** Stage `stage` processing source item `item`: `pipe:<stage>:<item>`. */
+declare function pipelineScope(parent: string, stage: number, item: number): string;
+/** ctx.workflow child scope: `wf:<name>:<ordinal>` (ordinal counts invocations of that name). */
+declare function workflowScope(parent: string, name: string, ordinal: number): string;
+/** Orchestrator handle spawns nest under the orchestrator's own spawn entry: `agent:<seq>`. */
+declare function agentScope(parent: string, seq: number): string;
+/** PlanRunner node scopes: `plan/<NodeId>` (NodeIds are engine-minted ULIDs). */
+declare function planNodeScope(nodeId: string): string;
+/**
+* Allocates parallel site numbers per enclosing scope: a monotonic counter
+* in execution order, not source position. Because every scope body is
+* sequential by construction (I3), allocation order is deterministic and
+* identical on every replay.
+*/
+declare class ParallelSiteCounter {
+  private readonly bySite;
+  next(enclosingScope: string): number;
+}
+//#endregion
+//#region src/journal/serializable.d.ts
+/**
+* Validates and snapshots a value for the journal: the returned value is a
+* JSON round-trip clone, decoupled from later caller mutations, with
+* undefined object members dropped.
+*/
+declare function toJournalValue(value: unknown, site: string): Json;
+//#endregion
+//#region src/journal/replayer.d.ts
+type ReplayMode = "scoped" | "cache" | "never";
+interface Ledger {
+  usage: Usage;
+  usd: number;
+  agentsSpawned: number;
+}
+/** Fields common to every append through the kernel. */
+interface BaseAppend {
+  scope: string;
+  key: string;
+  kind: EntryKind;
+  spanId: string;
+  /** Call-site label used in NonSerializableValueError messages. */
+  site?: string;
+}
+interface SinglePhaseAppend extends BaseAppend {
+  status: "ok";
+  value?: unknown;
+  usage?: Usage;
+  servedBy?: ModelRef;
+}
+interface SuspendedAppend extends BaseAppend {
+  deadlineAt?: string;
+  value?: unknown;
+}
+interface TerminalPatch {
+  status: Exclude<EntryStatus, "running" | "suspended">;
+  value?: unknown;
+  error?: WireError;
+  usage?: Usage;
+  usageApprox?: boolean;
+  servedBy?: ModelRef;
+  transcriptRef?: string;
+  checkpointRef?: string;
+  site?: string;
+}
+/**
+* Per-run journal kernel front end. Everything is per instance: no module
+* state anywhere (docs/02, section "Dependency rules").
+*/
+declare class Replayer {
+  private readonly runId;
+  private readonly store;
+  private readonly now;
+  private readonly priceUsd?;
+  private readonly entries;
+  private readonly ordinals;
+  private queue;
+  private seq;
+  constructor(options: {
+    runId: string;
+    store: JournalStore;
+    now?: () => number;
+    priceUsd?: (servedBy: ModelRef | undefined, usage: Usage) => number | undefined;
+  });
+  /**
+  * Scoped forward-matching lands with resume in M2; a fresh M1 run has no
+  * prior journal, so every lookup is live by construction.
+  */
+  lookup(_scope: string, _key: string, _ordinal: number, _mode: ReplayMode): JournalEntry | "live";
+  /** Single-phase fact entries: rand, decisions, termination facts. */
+  appendSinglePhase(input: SinglePhaseAppend): Promise<JournalEntry>;
+  /** Two-phase dispatch: the running entry (kinds agent, step, child). */
+  appendRunning(input: BaseAppend): Promise<JournalEntry>;
+  /**
+  * Two-phase completion: a terminal entry referencing the running entry
+  * by ref. Scope, key, ordinal, kind, and hashVersion are inherited from
+  * the running entry (running/terminal pairs are always single-version;
+  * the pair shares one ordinal because it is one logical operation).
+  */
+  appendTerminal(runningSeq: number, patch: TerminalPatch): Promise<JournalEntry>;
+  /** Suspended kinds (external, approval): appended once, closed by ref-entries (M2). */
+  appendSuspended(input: SuspendedAppend): Promise<JournalEntry>;
+  /**
+  * The budget ledger fold (docs/03, section "Budget ledger fold on
+  * resume"): usage sums over terminal entries exactly once; agentsSpawned
+  * counts agent dispatches.
+  */
+  ledger(): Ledger;
+  /** Read-only view of the appended entries, in per-run total order. */
+  snapshot(): readonly JournalEntry[];
+  private mint;
+  private persist;
+  private enqueue;
+}
+//#endregion
+//#region src/stores/inmemory.d.ts
+declare class InMemoryStore implements JournalStore {
+  private readonly runs;
+  private readonly metas;
+  private warned;
+  append(runId: string, e: JournalEntry): Promise<void>;
+  load(runId: string): Promise<JournalEntry[]>;
+  putMeta(m: RunMeta): Promise<void>;
+  listRuns(f?: RunFilter): Promise<RunMeta[]>;
+  delete(runId: string): Promise<void>;
+  private warnOnce;
+}
+/**
+* In-memory TranscriptStore. Refs follow the `<runId>/<name>` convention
+* so list(runId) can filter without a side index.
+*/
+declare class InMemoryTranscriptStore implements TranscriptStore {
+  private readonly blobs;
+  put(ref: string, blob: Bytes): Promise<void>;
+  get(ref: string): Promise<Bytes | null>;
+  list(runId: string): Promise<string[]>;
+}
+//#endregion
+//#region src/model/caps.d.ts
+type StructuredOutputTier = "native" | "forced-tool" | "prompt";
+/**
+* Strict-schema compatibility as both first-class providers define it:
+* every object node declares `additionalProperties: false` and lists every
+* property in `required` (docs/04, section 5.2). Boolean schemas and
+* non-object shapes are trivially compatible.
+*/
+declare function isStrictCompatibleSchema(schema: JsonSchema | boolean): boolean;
+/**
+* Tier selection (docs/04, section 8.4): the model's declared ceiling
+* bounds the tier; the native tier additionally requires a
+* strict-compatible canonical schema (docs/04, section 5.2: relying on
+* silent server-side fallback is forbidden), degrading to forced-tool.
+* Prefill is not a tier.
+*/
+declare function selectStructuredOutputTier(caps: ModelCaps, canonicalSchema: JsonSchema): StructuredOutputTier;
+/** True when `tier` is at or below the model's declared ceiling. */
+declare function tierWithinCaps(tier: StructuredOutputTier, caps: ModelCaps): boolean;
+//#endregion
+//#region src/model/router.d.ts
+/**
+* Per-engine adapter registry: strictly per engine, no global mutable
+* registry exists. A duplicate adapterId is a typed ConfigError
+* (docs/04, section "Registry and ModelRef").
+*/
+declare function buildAdapterRegistry(adapters: ProviderAdapter[]): ReadonlyMap<string, ProviderAdapter>;
+/**
+* ModelRef is strictly 'adapterId:model', no query parameters. The wire
+* model id may itself contain colons (for example ollama tags), so only
+* the FIRST colon splits.
+*/
+declare function parseModelRef(ref: ModelRef): {
+  adapterId: string;
+  model: string;
+};
+/**
+* Role effort defaults (docs/04, section "Invocation roles and firing
+* protocol"): orchestrate and plan default to high; summarize and extract
+* default to low. loop and finalize have NO role default: when the chain
+* resolves nothing, the wire omits effort and identity records the spec
+* with the effort member absent (docs/04, section "Router and resolution
+* chain", as amended).
+*/
+declare const ROLE_EFFORT_DEFAULTS: Partial<Record<InvocationRole, Effort>>;
+/** One layer's contribution to the resolution merge. */
+interface ResolutionLayer {
+  /** Applies to all roles at once (AgentOpts.model / profile.model). */
+  model?: ModelSpec;
+  /** Per-role override; wins over `model` within the same layer. */
+  routing?: Partial<Record<InvocationRole, ModelSpec>>;
+  /** Explicit effort field; wins over a ModelChoice-carried effort within the layer. */
+  effort?: Effort;
+}
+/** A scrub performed by the router; surfaced as a warning-level event by the engine. */
+interface ScrubNote {
+  scrubbed: "effort" | "sampling";
+  model: ModelRef;
+  detail: string;
+}
+/** The resolved, scrubbed result of one invocation's resolution. */
+interface ResolvedInvocation {
+  ref: ModelRef;
+  adapterId: string;
+  /** Wire model id: the segment after 'adapterId:'. */
+  model: string;
+  /** Effort to SEND (post-scrub); absent when unresolved or scrubbed. */
+  wireEffort?: Effort;
+  /** Effort REQUESTED (pre-scrub); this one enters identity. */
+  requestedEffort?: Effort;
+  providerOptions?: Record<string, Record<string, unknown>>;
+  fallbacks?: ModelRef[];
+  /** Identity-facing canonical form (docs/04, section "Router and resolution chain"). */
+  canonical: CanonicalModelSpec;
+  scrubs: ScrubNote[];
+}
+/**
+* Resolution runs on every model invocation, not once per agent: a layered
+* merge of { model, effort, providerOptions, fallbacks } in the order call
+* override > agent profile > workflow defaults > engine defaults, with the
+* invocation role attached as a tag (docs/04, section "Resolution chain").
+* After resolution the router reads ModelCaps and scrubs illegal
+* parameters visibly: unsupported effort is removed from the wire but
+* kept in identity; sampling params rejected by the model are removed
+* from the adapter's namespace, never silently sent.
+*/
+declare function resolveModelInvocation(options: {
+  role: InvocationRole;
+  call?: ResolutionLayer;
+  profile?: ResolutionLayer;
+  workflow?: ResolutionLayer;
+  engine?: ResolutionLayer;
+  capsOf: (ref: ModelRef) => ModelCaps;
+}): ResolvedInvocation;
+//#endregion
+export { AbandonPayload, AgentError, AgentIdentityInput, ApprovalIdentityInput, BudgetExhaustedError, type Bytes, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanonicalId, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, ChildIdentityInput, ConfigError, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, Effort, EntryKind, EntryRef, EntryStatus, ErrorCode, ExternalIdentityInput, FinishInfo, Gate, HashVersion, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMissError, JournalOrderViolation, type JournalStore, type Json, JsonSchema, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, type ModelCaps, ModelChoice, ModelRef, ModelSpec, Msg, NonSerializableValueError, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PlanInvariantError, type Pricing, type ProviderAdapter, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefusalInfo, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionLayer, ResolutionPayload, ResolvedInvocation, Role, type RunFilter, type RunMeta, SchemaPair, SchemaSpec, SchemaValidationResult, ScriptRejected, ScrubNote, SinglePhaseAppend, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, TerminalPatch, ToolChoice, ToolContract, type TranscriptStore, TriggerClass, Usage, WireError, agentErrorFromWire, agentErrorToWire, agentScope, buildAdapterRegistry, canonicalizeSchema, createCanonicalIdMinter, deriveContentKey, identityJcs, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, modelSpecIdentity, normalizeEntry, parallelScope, parseModelRef, pipelineScope, planNodeScope, projectToJsonSchema, resolveModelInvocation, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, tierWithinCaps, toJournalValue, toolsetHash, validateSchemaSpec, workflowScope };

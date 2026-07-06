@@ -17,6 +17,15 @@ export default tseslint.config(
         tsconfigRootDir: import.meta.dirname,
       },
     },
+    rules: {
+      // An underscore prefix marks a deliberately unused binding: SPI
+      // signatures keep their full parameter lists (docs/02 interfaces)
+      // even where an M1 implementation does not consume every argument.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
+    },
   },
   {
     // Repo rule (docs/13, section "Module format: ESM-only"): no top-level

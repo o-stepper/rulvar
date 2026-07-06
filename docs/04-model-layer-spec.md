@@ -425,9 +425,11 @@ export interface ModelChoice {
 }
 
 /** Identity-facing canonical form of a RESOLVED model request; the value that
-    enters AgentIdentityInput.modelSpec (03-journal-spec.md, section "Identity model"). */
+    enters AgentIdentityInput.modelSpec (03-journal-spec.md, section "Identity model").
+    `effort` is absent exactly when no layer of the chain and no role effort
+    default resolves one (amended during M1-T05; see the canonicalization rules). */
 export type CanonicalModelSpec =
-  | { kind: 'model'; model: ModelRef; effort: Effort }
+  | { kind: 'model'; model: ModelRef; effort?: Effort }
   | { kind: 'ladder'; ladder: CanonicalLadderSpec };
 
 /** LadderSpec after canonicalization: every rung's effort resolved to an explicit value. */
@@ -442,7 +444,7 @@ export interface CanonicalLadderSpec {
 Canonicalization rules (normative; these feed the frozen hash-v2 identity fixtures):
 
 - The router produces CanonicalModelSpec at dispatch from the RESOLVED ModelSpec of the resolution chain (section 8.2). Identity records the requested spec; failover changes only `servedBy` (section 11).
-- `effort` is explicit at every site: the resolved value after role effort defaults (section 8.3). The hash-v1 predicate strips effort; the fold default for legacy entries is `'medium'` (section 3.2).
+- `effort` is explicit wherever the chain or a role effort default (section 8.3) resolves one. The four role defaults cover orchestrate, plan, summarize, and extract; a loop- or finalize-role invocation whose chain resolves no effort canonicalizes with the `effort` member ABSENT (JCS omits absent members), and the wire request omits effort so the provider default applies (section 3.3). The engine never invents an effort value (Appendix A rule in 06-execution-spec.md). The hash-v1 predicate strips effort; the fold default for legacy entries is `'medium'` (section 3.2). (Amended during M1-T05: the original line claimed effort is explicit at every site, which is unsatisfiable for roles without a default when no layer resolves one.)
 - At the call layer, `AgentOpts.effort` and `AgentOpts.model` contribute to the same merge layer; when `AgentOpts.model` is a ModelChoice carrying `effort`, the explicit `AgentOpts.effort` field wins.
 - A bare `ModelRef` canonicalizes as `{ kind: 'model' }` with the resolved effort. A ladder canonicalizes as `{ kind: 'ladder' }` embedding the declared LadderSpec with explicit efforts; each rung ATTEMPT then spawns its own agent scope whose CanonicalModelSpec is that rung's `{ kind: 'model' }` form (section 12).
 - `providerOptions` and `fallbacks` NEVER enter CanonicalModelSpec: they are delivery options, excluded from identity exactly like label, phase, onError, retry, and replay (03-journal-spec.md, section "Identity model"). A caller that needs identity separation for a providerOptions change uses `opts.key`.
