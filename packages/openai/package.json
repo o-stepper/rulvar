@@ -29,7 +29,8 @@
     "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only"
   },
   "dependencies": {
-    "@lurker/core": "workspace:*"
+    "@lurker/core": "workspace:*",
+    "openai": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
