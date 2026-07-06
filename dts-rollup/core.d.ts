@@ -1751,6 +1751,20 @@ declare function defineWorkflow<A, R, P extends ErrorPolicy = "strict">(meta: {
   args?: SchemaSpec<A>;
   errorPolicy?: P;
 }, body: (ctx: Ctx<P>, args: A) => Promise<R>): Workflow<A, R>;
+/**
+* Span-aware event sink: bodies are stamped into the WorkflowEvent
+* envelope by the per-run EventBus (M1-T10); spanId defaults to the run
+* root span when omitted.
+*/
+interface RunEventSink {
+  emit(body: {
+    type: string;
+  } & Record<string, unknown>, spanId?: string): void;
+}
+/** Mints span ids in the run > phase > agent > tool > child hierarchy. */
+interface SpanMinter {
+  mint(parentSpanId?: string): string;
+}
 /** Per-run cost attribution buckets consumed by CostReport (M1-T10/T11). */
 interface CostAttribution {
   byModel: Map<string, number>;
@@ -1768,7 +1782,10 @@ interface RunInternals {
   replayer: Replayer;
   budget: RunBudget;
   semaphore: Semaphore;
-  events: RuntimeEventSink;
+  events: RunEventSink;
+  spans: SpanMinter;
+  /** The run root span; every top-level span parents on it. */
+  rootSpanId: string;
   transcripts: TranscriptStore;
   adapters: ReadonlyMap<string, ProviderAdapter>;
   defaults: {
@@ -1781,7 +1798,6 @@ interface RunInternals {
   cost: CostAttribution;
   priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
   runSignal?: AbortSignal;
-  mintSpanId: () => string;
   mintTranscriptRef: () => string;
   now: () => number;
 }
@@ -1799,4 +1815,295 @@ declare function createCtx(internals: RunInternals): Ctx<ErrorPolicy>;
 */
 declare function executeWorkflow<A, R>(internals: RunInternals, wf: Workflow<A, R>, args: A): Promise<R>;
 //#endregion
-export { AbandonPayload, AgentCallError, AgentError, AgentIdentityInput, AgentOpts, AgentProfile, AgentResult, AgentStatus, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetExhaustedError, BudgetHooks, type Bytes, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanonicalId, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, ChildIdentityInput, CollectOpts, CollectedTurn, ConfigError, CostAttribution, Ctx, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, EffectiveUsageLimits, Effort, EntryKind, EntryRef, EntryStatus, ErrorCode, ErrorPolicy, EscalatedResult, EscalationReport, ExternalIdentityInput, FinishInfo, Gate, HashVersion, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMissError, JournalOrderViolation, type JournalStore, type Json, JsonSchema, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, type ModelCaps, ModelChoice, ModelRef, ModelRetry, ModelSpec, Msg, NonSerializableValueError, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PipelineCollected, PipelineOpts, PlanInvariantError, type Pricing, type ProviderAdapter, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefusalInfo, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionLayer, ResolutionPayload, ResolvedInvocation, Role, RunAgentOptions, RunBudget, type RunFilter, RunInternals, type RunMeta, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScriptRejected, ScrubNote, Semaphore, Settled, SinglePhaseAppend, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, TerminalPatch, ToolChoice, ToolContract, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, buildAdapterRegistry, canonicalizeSchema, createCanonicalIdMinter, createCtx, defineWorkflow, deriveContentKey, executeWorkflow, extractCandidate, formatRePrompt, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, mergeUsageLimits, modelSpecIdentity, normalizeEntry, parallelScope, parseModelRef, pipelineScope, planNodeScope, projectToJsonSchema, resolveModelInvocation, runAgent, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, tierWithinCaps, toJournalValue, toolsetHash, validateSchemaSpec, workflowScope };
+//#region src/l0/events.d.ts
+/** docs/09 section 1.4, run lifecycle and core telemetry (M1 subset). */
+type CoreEvents = {
+  type: "run:start";
+  workflow: string;
+  resumed: boolean;
+} | {
+  type: "run:end";
+  status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
+  totalUsd: number;
+} | {
+  type: "phase:start";
+  phase: string;
+} | {
+  type: "log";
+  level: "debug" | "info" | "warn" | "error";
+  msg: string;
+  data?: Json;
+} | {
+  type: "budget:update";
+  spentUsd: number;
+  remainingUsd: number | null;
+  committedReserveUsd: number;
+} | {
+  type: "external:waiting";
+  key: string;
+  entryRef: number;
+  prompt?: string;
+  deadlineAt?: string;
+} | {
+  type: "approval:pending";
+  toolName: string;
+  entryRef: number;
+  deadlineAt?: string;
+} | {
+  type: "child:start";
+  workflow: string;
+  scope: string;
+} | {
+  type: "child:end";
+  workflow: string;
+  scope: string;
+  status: string;
+};
+/** docs/09 section 1.4, agent lifecycle. */
+type AgentEvents = {
+  type: "agent:queued";
+  agentType: string;
+  label?: string;
+} | {
+  type: "agent:start";
+  agentType: string;
+  label?: string;
+  model: string;
+  role: string;
+} | {
+  type: "agent:end";
+  agentType: string;
+  label?: string;
+  status: string;
+  usage: Usage;
+  costUsd: number;
+  entryRef: number;
+} | {
+  type: "agent:error";
+  agentType: string;
+  label?: string;
+  error: WireError;
+  willRetry: boolean;
+} | {
+  type: "agent:schema-retry";
+  agentType: string;
+  attempt: number;
+  maxAttempts: number;
+} | {
+  type: "agent:stream";
+  delta: string;
+};
+/** docs/09 section 1.4, tool lifecycle (emitters arrive with the tool system, M3). */
+type ToolEvents = {
+  type: "tool:start";
+  toolName: string;
+  risk?: Json;
+} | {
+  type: "tool:end";
+  toolName: string;
+  outcome: "ok" | "error" | "denied";
+  durationMs: number;
+};
+type WorkflowEventBody = CoreEvents | AgentEvents | ToolEvents;
+/**
+* The envelope (docs/09 section 1.1): seq is an independent per-run
+* telemetry counter, strictly increasing in emission order and DISTINCT
+* from JournalEntry.seq (never compare or join the two; entryRef fields
+* carry journal seqs explicitly). ts is wall clock, telemetry only.
+* replayed is true only on re-emitted journal-backed lifecycle events
+* (docs/09 section 1.5); stream deltas are never re-emitted.
+*/
+type WorkflowEvent = {
+  runId: string;
+  seq: number;
+  ts: string;
+  spanId: string;
+  parentSpanId?: string;
+  replayed?: boolean;
+} & WorkflowEventBody;
+//#endregion
+//#region src/engine/events.d.ts
+/**
+* Spans form a tree per run; spanId values are engine-minted opaque
+* strings, unique per run, pure telemetry, never identity (docs/09,
+* section "Span hierarchy").
+*/
+declare class SpanRegistry {
+  private readonly parents;
+  private counter;
+  mint(parentSpanId?: string): string;
+  parentOf(spanId: string): string | undefined;
+}
+/**
+* The per-run event bus. seq is strictly increasing in emission order;
+* `iterate()` yields events from subscription onward; `on()` is the
+* callback form over the same stream and the same seq values.
+*/
+declare class EventBus {
+  private readonly runId;
+  private readonly spans;
+  private readonly now;
+  private readonly subscribers;
+  private readonly listeners;
+  private seq;
+  private ended;
+  constructor(options: {
+    runId: string;
+    spans: SpanRegistry;
+    now?: () => number;
+  });
+  emit(body: WorkflowEventBody, spanId: string): WorkflowEvent;
+  on<T extends WorkflowEvent["type"]>(type: T, cb: (event: Extract<WorkflowEvent, {
+    type: T;
+  }>) => void): () => void;
+  /** Ends every open iterator once the run has settled. */
+  end(): void;
+  iterate(): AsyncIterable<WorkflowEvent>;
+}
+//#endregion
+//#region src/engine/run-handle.d.ts
+/** Suspensions still open at settle time; producers arrive with M2. */
+interface PendingExternal {
+  key: string;
+  scope: string;
+  entryRef: number;
+  prompt?: string;
+  /** Approvals and Flavor B escalations only. */
+  deadlineAt?: string;
+}
+/** docs/09, section "CostReport". */
+interface CostReport {
+  totalUsd: number;
+  /** Keyed by canonical ModelRef 'adapterId:model'. */
+  byModel: Record<string, number>;
+  /** ctx.phase names; phase is structural for this map. */
+  byPhase: Record<string, number>;
+  byAgentType: Record<string, number>;
+  byRole: Record<InvocationRole, number>;
+  /** All-zero with forcedFinish false in runs without a dynamic orchestrator. */
+  orchestrator: {
+    spentUsd: number; /** spentUsd / max(totalUsd, 0.01): the epsilon-floored H-OrchShare input. */
+    share: number;
+    wakes: number;
+    forcedFinish: boolean;
+    reserveUsedUsd: number;
+  };
+  /** Usage on models absent from pricing; never a silent zero. */
+  unpriced: Array<{
+    model: string;
+    usage: Usage;
+  }>;
+}
+type RunOutcome<R> = {
+  status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
+  value?: R;
+  error?: WireError; /** Pipeline drops and onError:'null' losses; silent losses are forbidden. */
+  dropped: DroppedItem[]; /** Suspensions open at settle time (M2). */
+  pending: PendingExternal[];
+  usage: Usage;
+  cost: CostReport;
+};
+/** Adds 'running' for in-flight inspection (docs/06, section "Engine and ops API"). */
+type RunStatus = RunOutcome<unknown>["status"] | "running";
+interface RunHandle<R> {
+  runId: string;
+  result: Promise<RunOutcome<R>>;
+  events: AsyncIterable<WorkflowEvent>;
+  on<T extends WorkflowEvent["type"]>(type: T, cb: (e: Extract<WorkflowEvent, {
+    type: T;
+  }>) => void): () => void;
+  /** Cooperative cancellation; the run settles 'cancelled' with a complete CostReport. */
+  cancel(reason?: string): Promise<void>;
+}
+/** Folds the per-run attribution buckets into the normative CostReport. */
+declare function buildCostReport(attribution: CostAttribution, totalUsd: number): CostReport;
+//#endregion
+//#region src/runner/inprocess.d.ts
+/**
+* Source-backed workflow admissible to the worker sandbox; produced by
+* compileScript (M6). Declared now so the ScriptRunner seam is shaped
+* once; feeding a closure to the sandbox stays impossible by types.
+*/
+interface CompiledWorkflow {
+  readonly kind: "compiled-workflow";
+  readonly name: string;
+  readonly source: string;
+  readonly errorPolicy: ErrorPolicy;
+}
+interface ScriptRunner {
+  execute<A, R>(wf: Workflow<A, R> | CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R>;
+}
+/** Escalation hook shape; consumed from M3 (docs/06, section 2.10). */
+type OnEscalation = (report: unknown) => unknown;
+/**
+* The mode (a) runner for human-authored closures. Determinism is enforced
+* by convention, lint, and the ctx shims, NOT by a VM: only the sequence
+* of keys must be stable. Dev mode (NODE_ENV !== 'production') patches
+* Date.now and Math.random for the duration of execute to emit one warning
+* per run pointing at ctx.now()/ctx.random(); the patch preserves behavior
+* and restores the prior functions on exit (nesting-safe by capturing the
+* prior value; concurrent runs may lose the warning, never correctness).
+*/
+declare class InProcessRunner implements ScriptRunner {
+  private readonly onEscalation?;
+  constructor(o?: {
+    onEscalation?: OnEscalation;
+  });
+  /** The hook is read by the escalation delivery path from M3 onward. */
+  get escalationHook(): OnEscalation | undefined;
+  execute<A, R>(wf: Workflow<A, R> | CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R>;
+}
+//#endregion
+//#region src/engine/engine.d.ts
+interface EngineDefaults {
+  routing?: Partial<Record<InvocationRole, ModelSpec>>;
+  profiles?: Record<string, AgentProfile>;
+  limits?: UsageLimits;
+}
+interface BudgetDefaults {
+  /** Last resort of the admission reserve formula; default 0.50. */
+  flatReserveUsd?: number;
+  /** Engine kill switch; default 500 spawns per run. */
+  lifetimeSpawnCap?: number;
+}
+interface CreateEngineOptions {
+  adapters: ProviderAdapter[];
+  stores?: {
+    /** Default InMemoryStore (resume disabled, loud warning). */journal?: JournalStore;
+    transcripts?: TranscriptStore;
+  };
+  defaults?: EngineDefaults;
+  budgetDefaults?: BudgetDefaults;
+  concurrency?: {
+    perRun?: number;
+  };
+  /**
+  * KeyDeriver registry extension (docs/03, section "hashVersion").
+  * Plumbed now, consumed by the matching kernel from M2.
+  */
+  extraDerivers?: readonly unknown[];
+}
+interface RunOptions {
+  /** Explicit id; otherwise the engine mints a ULID. */
+  runId?: string;
+  /** Run ceiling B0; immutable after start. */
+  budgetUsd?: number;
+  /** Run-level defaults merged over engine defaults. */
+  limits?: UsageLimits;
+  /** Run-level deadline (ISO 8601); crossing cancels the run. */
+  deadlineAt?: string;
+  name?: string;
+  tags?: string[];
+  /** Host-initiated cancellation. */
+  signal?: AbortSignal;
+}
+interface Engine {
+  run<A, R>(wf: Workflow<A, R>, args: A, opts?: RunOptions): RunHandle<R>;
+  /** Lands with the journal kernel in M2; throws a typed ConfigError until then. */
+  resume(runId: string, wf?: Workflow<unknown, unknown> | CompiledWorkflow): RunHandle<unknown>;
+}
+/** Content hash of an in-process workflow body (run-to-definition binding, docs/06 10.2). */
+declare function hashWorkflowBody(wf: Workflow<never, never> | Workflow<unknown, unknown>): string;
+declare function createEngine(options: CreateEngineOptions): Engine;
+//#endregion
+export { AbandonPayload, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentResult, AgentStatus, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetDefaults, BudgetExhaustedError, BudgetHooks, type Bytes, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanonicalId, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, ChildIdentityInput, CollectOpts, CollectedTurn, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorCode, ErrorPolicy, EscalatedResult, EscalationReport, EventBus, ExternalIdentityInput, FinishInfo, Gate, HashVersion, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMissError, JournalOrderViolation, type JournalStore, type Json, JsonSchema, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, type ModelCaps, ModelChoice, ModelRef, ModelRetry, ModelSpec, Msg, NonSerializableValueError, OnEscalation, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PipelineCollected, PipelineOpts, PlanInvariantError, type Pricing, type ProviderAdapter, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefusalInfo, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionLayer, ResolutionPayload, ResolvedInvocation, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, SinglePhaseAppend, SpanMinter, SpanRegistry, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, TerminalPatch, ToolChoice, ToolContract, type ToolEvents, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, type WorkflowEvent, type WorkflowEventBody, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, buildAdapterRegistry, buildCostReport, canonicalizeSchema, createCanonicalIdMinter, createCtx, createEngine, defineWorkflow, deriveContentKey, executeWorkflow, extractCandidate, formatRePrompt, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, mergeUsageLimits, modelSpecIdentity, normalizeEntry, parallelScope, parseModelRef, pipelineScope, planNodeScope, projectToJsonSchema, resolveModelInvocation, runAgent, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, tierWithinCaps, toJournalValue, toolsetHash, validateSchemaSpec, workflowScope };

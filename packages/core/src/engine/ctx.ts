@@ -43,7 +43,7 @@ import {
   type ResolutionLayer,
   type ResolvedInvocation,
 } from '../model/router.js';
-import { runAgent, type AgentResult, type RuntimeEventSink } from '../runtime/agent-loop.js';
+import { runAgent, type AgentResult } from '../runtime/agent-loop.js';
 import { mergeUsageLimits, type UsageLimits } from '../runtime/usage-limits.js';
 import { admissionReserveUsd, type RunBudget, type Spend } from './budget.js';
 import { Semaphore } from './scheduler.js';
@@ -327,6 +327,20 @@ interface ScopeState {
   signal?: AbortSignal;
 }
 
+/**
+ * Span-aware event sink: bodies are stamped into the WorkflowEvent
+ * envelope by the per-run EventBus (M1-T10); spanId defaults to the run
+ * root span when omitted.
+ */
+export interface RunEventSink {
+  emit(body: { type: string } & Record<string, unknown>, spanId?: string): void;
+}
+
+/** Mints span ids in the run > phase > agent > tool > child hierarchy. */
+export interface SpanMinter {
+  mint(parentSpanId?: string): string;
+}
+
 /** Per-run cost attribution buckets consumed by CostReport (M1-T10/T11). */
 export interface CostAttribution {
   byModel: Map<string, number>;
@@ -342,7 +356,10 @@ export interface RunInternals {
   replayer: Replayer;
   budget: RunBudget;
   semaphore: Semaphore;
-  events: RuntimeEventSink;
+  events: RunEventSink;
+  spans: SpanMinter;
+  /** The run root span; every top-level span parents on it. */
+  rootSpanId: string;
   transcripts: TranscriptStore;
   adapters: ReadonlyMap<string, ProviderAdapter>;
   defaults: {
@@ -355,7 +372,6 @@ export interface RunInternals {
   cost: CostAttribution;
   priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
   runSignal?: AbortSignal;
-  mintSpanId: () => string;
   mintTranscriptRef: () => string;
   now: () => number;
 }
@@ -373,7 +389,7 @@ function bump(map: Map<string, number>, key: string, usd: number): void {
 export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
   const als = new AsyncLocalStorage<ScopeState>();
   const sites = new ParallelSiteCounter();
-  const rootState: ScopeState = { scope: ROOT_SCOPE, spanId: internals.mintSpanId() };
+  const rootState: ScopeState = { scope: ROOT_SCOPE, spanId: internals.rootSpanId };
   const current = (): ScopeState => als.getStore() ?? rootState;
 
   const capsOf = (ref: ModelRef): ReturnType<ProviderAdapter['caps']> => {
@@ -476,7 +492,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       capsOf,
     });
     for (const scrub of loopResolved.scrubs) {
-      internals.events.emit({ type: 'log', level: 'warn', msg: scrub.detail });
+      internals.events.emit({ type: 'log', level: 'warn', msg: scrub.detail }, state.spanId);
     }
 
     // Role trigger protocol (docs/06, section "Agent runtime binding"):
@@ -537,7 +553,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     const reserve = admissionReserveUsd(reserveOptions);
     internals.budget.admitSpawn(reserve);
 
-    const spanId = internals.mintSpanId();
+    const spanId = internals.spans.mint(state.spanId);
     // memoizeOutcome is a policy field fixed in the entry payload at
     // dispatch time (docs/03, section "Normative payload schemas"); the M2
     // predicate reads it from the ENTRY, never from current code.
@@ -553,12 +569,16 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     const running = await internals.replayer.appendRunning(runningInput);
 
     const limits = mergeUsageLimits(opts.limits, profile?.limits, internals.defaults.limits);
+    const agentSink = {
+      emit: (body: { type: string } & Record<string, unknown>) =>
+        internals.events.emit(body, spanId),
+    };
     const runAgentOptions: Parameters<typeof runAgent<S>>[0] = {
       prompt,
       adapter,
       resolved: loopResolved,
       limits,
-      events: internals.events,
+      events: agentSink,
       transcript: {
         mintRef: internals.mintTranscriptRef,
         put: (ref, blob) => internals.transcripts.put(ref, blob),
@@ -594,7 +614,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
 
     const result = await internals.semaphore.withSlot(
       () => runAgent<S>(runAgentOptions),
-      () => internals.events.emit({ type: 'agent:queued', agentType, label: opts.label }),
+      () => internals.events.emit({ type: 'agent:queued', agentType, label: opts.label }, spanId),
     );
     internals.budget.releaseReserve(reserve);
 
@@ -618,6 +638,18 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       terminalPatch.usageApprox = true;
     }
     const terminal = await internals.replayer.appendTerminal(running.seq, terminalPatch);
+    internals.events.emit(
+      {
+        type: 'agent:end',
+        agentType,
+        label: opts.label,
+        status: result.status,
+        usage: result.usage,
+        costUsd: result.costUsd,
+        entryRef: terminal.seq,
+      },
+      spanId,
+    );
 
     // Cost attribution buckets (CostReport, docs/09).
     const usd = result.costUsd;
@@ -685,7 +717,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
             : AbortSignal.any([upstream, controllers[branch].signal]);
         const branchState: ScopeState = {
           scope: parallelScope(state.scope, site, branch),
-          spanId: internals.mintSpanId(),
+          spanId: internals.spans.mint(state.spanId),
           signal: branchSignal,
         };
         if (state.phase !== undefined) {
@@ -800,7 +832,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       for (let stageIndex = 0; stageIndex < stages.length; stageIndex += 1) {
         const stageState: ScopeState = {
           scope: pipelineScope(state.scope, stageIndex, index),
-          spanId: internals.mintSpanId(),
+          spanId: internals.spans.mint(state.spanId),
         };
         if (state.phase !== undefined) {
           stageState.phase = state.phase;
@@ -893,7 +925,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         key: o?.key ?? label,
         deps: o?.deps ?? [],
       });
-      const spanId = internals.mintSpanId();
+      const spanId = internals.spans.mint(state.spanId);
       const running = await internals.replayer.appendRunning({
         scope: state.scope,
         key,
@@ -924,14 +956,19 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
 
     phase: async <T>(name: string, fn: () => Promise<T>): Promise<T> => {
       const state = current();
-      const phaseState: ScopeState = { ...state, phase: name, spanId: internals.mintSpanId() };
-      internals.events.emit({ type: 'phase:start', phase: name });
+      const phaseState: ScopeState = {
+        ...state,
+        phase: name,
+        spanId: internals.spans.mint(state.spanId),
+      };
+      internals.events.emit({ type: 'phase:start', phase: name }, phaseState.spanId);
       return als.run(phaseState, fn);
     },
 
     log: (level, msg, data) => {
       internals.events.emit(
         data === undefined ? { type: 'log', level, msg } : { type: 'log', level, msg, data },
+        current().spanId,
       );
     },
 
