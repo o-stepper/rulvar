@@ -1,9 +1,433 @@
 import { describe, expect, it } from 'vitest';
 
-import { M0_SCAFFOLD } from './index.js';
+import { ConfigError, createCanonicalIdMinter, type ChatEvent, type Part } from '@lurker/core';
+import type { OpenAiClientLike } from './adapter.js';
+import { openai } from './adapter.js';
+import {
+  buildChatCompletionsParams,
+  buildResponsesParams,
+  mapChatCompletionsStream,
+  mapOpenAiEffort,
+  mapResponsesStream,
+  normalizeOpenAiUsage,
+  OpenAiIdMap,
+  type ResponsesStreamEvent,
+} from './wire.js';
 
-describe('@lurker/openai scaffold', () => {
-  it('exports the M0 scaffold marker', () => {
-    expect(M0_SCAFFOLD).toBe('@lurker/openai');
+function ids(): OpenAiIdMap {
+  return new OpenAiIdMap(createCanonicalIdMinter());
+}
+
+describe('buildResponsesParams (M1-T13)', () => {
+  it('uses manual item replay: store false plus encrypted reasoning include', () => {
+    const { params } = buildResponsesParams(
+      {
+        model: 'gpt-5.5',
+        messages: [
+          { role: 'system', parts: [{ type: 'text', text: 'be terse' }] },
+          { role: 'user', parts: [{ type: 'text', text: 'go' }] },
+        ],
+      },
+      ids(),
+    );
+    expect(params.store).toBe(false);
+    expect(params.include).toEqual(['reasoning.encrypted_content']);
+    // System messages project into top-level instructions on every request.
+    expect(params.instructions).toBe('be terse');
+    expect(params.input).toEqual([{ role: 'user', content: [{ type: 'input_text', text: 'go' }] }]);
   });
+
+  it('echoes reasoning items VERBATIM between function calls', () => {
+    const reasoning = {
+      type: 'reasoning',
+      id: 'rs_1',
+      encrypted_content: 'opaque-bytes==',
+      summary: [{ type: 'summary_text', text: 's' }],
+    };
+    const idMap = ids();
+    const canonicalId = idMap.canonicalFor('call_original');
+    const parts: Part[] = [
+      { type: 'provider-raw', provider: 'openai', block: reasoning },
+      { type: 'tool-call', id: canonicalId, name: 'search', args: { q: 'x' } },
+    ];
+    const { params } = buildResponsesParams(
+      {
+        model: 'gpt-5.5',
+        messages: [
+          { role: 'user', parts: [{ type: 'text', text: 'go' }] },
+          { role: 'assistant', parts },
+          {
+            role: 'tool',
+            parts: [{ type: 'tool-result', id: canonicalId, name: 'search', result: { hits: 1 } }],
+          },
+        ],
+      },
+      idMap,
+    );
+    const input = params.input as Array<Record<string, unknown>>;
+    // Byte-exact echo: the reasoning item rides unmodified, ordered before
+    // the function_call it precedes, with the bijective call id restored.
+    expect(input[1]).toEqual(reasoning);
+    expect(input[2]).toEqual({
+      type: 'function_call',
+      call_id: 'call_original',
+      name: 'search',
+      arguments: '{"q":"x"}',
+    });
+    expect(input[3]).toEqual({
+      type: 'function_call_output',
+      call_id: 'call_original',
+      output: '{"hits":1}',
+    });
+  });
+
+  it('rejects server-side conversation state with a typed ConfigError', () => {
+    for (const key of ['previous_response_id', 'conversation']) {
+      expect(() =>
+        buildResponsesParams(
+          {
+            model: 'gpt-5.5',
+            messages: [{ role: 'user', parts: [{ type: 'text', text: 'x' }] }],
+            providerOptions: { openai: { [key]: 'resp_123' } },
+          },
+          ids(),
+        ),
+      ).toThrow(ConfigError);
+    }
+  });
+
+  it('sends flattened function tools and explicit strict semantics', () => {
+    const strictSchema = {
+      type: 'object',
+      additionalProperties: false,
+      required: ['q'],
+      properties: { q: { type: 'string' } },
+    };
+    const { params } = buildResponsesParams(
+      {
+        model: 'gpt-5.5',
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'x' }] }],
+        tools: [
+          { name: 'search', description: 'd', parameters: strictSchema },
+          { name: 'loose', description: 'd', parameters: { type: 'object' } },
+        ],
+        schema: strictSchema,
+      },
+      ids(),
+    );
+    const tools = params.tools as Array<Record<string, unknown>>;
+    // Flattened: no nested { type, function } wrapper.
+    expect(tools[0]).toMatchObject({ type: 'function', name: 'search', strict: true });
+    expect(tools[0]).not.toHaveProperty('function');
+    expect(tools[1]?.strict).toBe(false);
+    expect(params.text).toEqual({
+      format: { type: 'json_schema', name: 'output', schema: strictSchema, strict: true },
+    });
+  });
+
+  it('maps effort with the documented lossy max downmap and none via the namespace', () => {
+    expect(mapOpenAiEffort('xhigh')).toEqual({ wire: 'xhigh', downmapped: false });
+    expect(mapOpenAiEffort('max')).toEqual({ wire: 'xhigh', downmapped: true });
+
+    const maxed = buildResponsesParams(
+      {
+        model: 'gpt-5.5',
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'x' }] }],
+        effort: 'max',
+      },
+      ids(),
+    );
+    expect(maxed.params.reasoning).toEqual({ effort: 'xhigh' });
+    expect(maxed.effortDownmapped).toBe(true);
+
+    const none = buildResponsesParams(
+      {
+        model: 'gpt-5.5',
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'x' }] }],
+        providerOptions: { openai: { reasoningEffort: 'none' } },
+      },
+      ids(),
+    );
+    expect(none.params.reasoning).toEqual({ effort: 'none' });
+  });
+});
+
+describe('Responses stream mapping (M1-T13; docs/04 section 5.4)', () => {
+  async function* fixture(events: ResponsesStreamEvent[]): AsyncIterable<ResponsesStreamEvent> {
+    for (const event of events) {
+      yield await Promise.resolve(event);
+    }
+  }
+
+  it('maps the typed SSE catalog to ChatEvents', async () => {
+    const outputItems = [
+      { type: 'reasoning', id: 'rs_1', encrypted_content: 'opaque==' },
+      {
+        type: 'function_call',
+        id: 'fc_1',
+        call_id: 'call_9',
+        name: 'search',
+        arguments: '{"q":"x"}',
+      },
+    ];
+    const events: ChatEvent[] = [];
+    await mapResponsesStream(
+      fixture([
+        { type: 'response.created' },
+        { type: 'response.output_item.added', item: { type: 'reasoning', id: 'rs_1' } },
+        { type: 'response.reasoning_summary_text.delta', delta: 'thinking...' },
+        {
+          type: 'response.output_item.added',
+          item: { type: 'function_call', id: 'fc_1', call_id: 'call_9', name: 'search' },
+        },
+        { type: 'response.function_call_arguments.delta', item_id: 'fc_1', delta: '{"q":' },
+        { type: 'response.function_call_arguments.delta', item_id: 'fc_1', delta: '"x"}' },
+        {
+          type: 'response.output_item.done',
+          item: {
+            type: 'function_call',
+            id: 'fc_1',
+            call_id: 'call_9',
+            name: 'search',
+            arguments: '{"q":"x"}',
+          },
+        },
+        { type: 'response.output_text.delta', delta: 'partial' },
+        { type: 'response.output_text.done', text: 'partial' },
+        {
+          type: 'response.completed',
+          response: {
+            id: 'resp_1',
+            output: outputItems,
+            usage: {
+              input_tokens: 90,
+              input_tokens_details: { cached_tokens: 40 },
+              output_tokens: 12,
+              output_tokens_details: { reasoning_tokens: 6 },
+            },
+          },
+        },
+      ]),
+      ids(),
+      (event) => events.push(event),
+      { effortDownmapped: true },
+    );
+
+    const types = events.map((e) => e.type);
+    expect(types).toEqual([
+      'reasoning-delta',
+      'tool-call-start',
+      'tool-call-delta',
+      'tool-call-delta',
+      'tool-call-end',
+      'text-delta',
+      'usage',
+      'finish',
+    ]);
+    const finish = events.at(-1) as Extract<ChatEvent, { type: 'finish' }>;
+    expect(finish.finish).toEqual({ reason: 'tool-calls' });
+    // input_tokens already includes cached reads; no write premium.
+    expect(finish.usage).toEqual({
+      inputTokens: 90,
+      outputTokens: 12,
+      cacheReadTokens: 40,
+      cacheWriteTokens: 0,
+      reasoningTokens: 6,
+    });
+    const meta = finish.providerMetadata?.openai as Record<string, unknown>;
+    // Raw output items ride providerMetadata for provider-raw retention.
+    expect(meta.outputItems).toEqual(outputItems);
+    expect(meta.effortDownmapped).toBe('max->xhigh');
+    expect(meta.responseId).toBe('resp_1');
+  });
+
+  it('maps response.incomplete per incomplete_details', async () => {
+    const events: ChatEvent[] = [];
+    await mapResponsesStream(
+      fixture([
+        {
+          type: 'response.incomplete',
+          response: {
+            incomplete_details: { reason: 'max_output_tokens' },
+            usage: { input_tokens: 5, output_tokens: 64 },
+          },
+        },
+      ]),
+      ids(),
+      (event) => events.push(event),
+    );
+    const finish = events.at(-1) as Extract<ChatEvent, { type: 'finish' }>;
+    expect(finish.finish).toEqual({ reason: 'max-tokens' });
+  });
+
+  it('normalizes usage from the Responses shape', () => {
+    expect(
+      normalizeOpenAiUsage({
+        input_tokens: 100,
+        input_tokens_details: { cached_tokens: 30 },
+        output_tokens: 10,
+      }),
+    ).toEqual({ inputTokens: 100, outputTokens: 10, cacheReadTokens: 30, cacheWriteTokens: 0 });
+  });
+});
+
+describe('Chat Completions degraded path (M1-T13; docs/04 section 5.6)', () => {
+  it('builds nested tools and response_format', () => {
+    const strictSchema = {
+      type: 'object',
+      additionalProperties: false,
+      required: ['q'],
+      properties: { q: { type: 'string' } },
+    };
+    const params = buildChatCompletionsParams(
+      {
+        model: 'legacy-model',
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'x' }] }],
+        tools: [{ name: 'search', description: 'd', parameters: strictSchema }],
+        schema: strictSchema,
+      },
+      ids(),
+    );
+    const tools = params.tools as Array<Record<string, unknown>>;
+    // The chat dialect keeps the nested { type, function } wrapper.
+    expect(tools[0]).toEqual({
+      type: 'function',
+      function: { name: 'search', description: 'd', parameters: strictSchema, strict: true },
+    });
+    expect(params.response_format).toMatchObject({ type: 'json_schema' });
+  });
+
+  it('assembles delta-patched chunks into canonical events', async () => {
+    async function* chunks(): AsyncIterable<Record<string, unknown>> {
+      yield await Promise.resolve({
+        choices: [{ delta: { content: 'hel' } }],
+      });
+      yield {
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                { index: 0, id: 'call_1', function: { name: 'search', arguments: '{"q":' } },
+              ],
+            },
+          },
+        ],
+      };
+      yield {
+        choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '"x"}' } }] } }],
+      };
+      yield { choices: [{ delta: {}, finish_reason: 'tool_calls' }] };
+      yield {
+        choices: [],
+        usage: {
+          prompt_tokens: 20,
+          completion_tokens: 4,
+          prompt_tokens_details: { cached_tokens: 8 },
+        },
+      };
+    }
+    const events: ChatEvent[] = [];
+    await mapChatCompletionsStream(chunks(), ids(), (event) => events.push(event));
+    expect(events.map((e) => e.type)).toEqual([
+      'text-delta',
+      'tool-call-start',
+      'tool-call-delta',
+      'tool-call-delta',
+      'tool-call-end',
+      'usage',
+      'finish',
+    ]);
+    const finish = events.at(-1) as Extract<ChatEvent, { type: 'finish' }>;
+    expect(finish.finish).toEqual({ reason: 'tool-calls' });
+    expect(finish.usage.cacheReadTokens).toBe(8);
+    expect((finish.providerMetadata?.openai as Record<string, unknown>).degradedPath).toBe('chat');
+  });
+});
+
+describe('adapter surface (M1-T13)', () => {
+  it('streams through the Responses API with caps from the July 2026 family', async () => {
+    const calls: Array<Record<string, unknown>> = [];
+    const client: OpenAiClientLike = {
+      responses: {
+        create(params: Record<string, unknown>): Promise<unknown> {
+          calls.push(params);
+          return Promise.resolve(
+            (async function* stream(): AsyncIterable<ResponsesStreamEvent> {
+              yield await Promise.resolve({
+                type: 'response.output_text.delta',
+                delta: 'ok',
+              });
+              yield {
+                type: 'response.completed',
+                response: { id: 'r1', output: [], usage: { input_tokens: 3, output_tokens: 1 } },
+              };
+            })(),
+          );
+        },
+      },
+      chat: { completions: { create: () => Promise.reject(new Error('unused')) } },
+    };
+    const adapter = openai({ client });
+    expect(adapter.id).toBe('openai');
+    expect(adapter.caps('gpt-5.5').structuredOutput).toBe('native');
+    expect(adapter.caps('gpt-5.5').supportsTemperature).toBe(false);
+    expect(adapter.caps('gpt-5.5').reasoningEfforts).toContain('max');
+
+    const events: ChatEvent[] = [];
+    for await (const event of adapter.stream({
+      model: 'gpt-5.5',
+      messages: [{ role: 'user', parts: [{ type: 'text', text: 'go' }] }],
+      effort: 'high',
+    })) {
+      events.push(event);
+    }
+    expect(events.map((e) => e.type)).toEqual(['text-delta', 'usage', 'finish']);
+    expect(calls[0]?.store).toBe(false);
+    expect(calls[0]?.stream).toBe(true);
+    expect(calls[0]?.reasoning).toEqual({ effort: 'high' });
+  });
+
+  it('projects request errors into the retryable vocabulary', async () => {
+    const client: OpenAiClientLike = {
+      responses: {
+        create: () =>
+          Promise.reject(
+            Object.assign(new Error('rate limited'), {
+              status: 429,
+              headers: { 'retry-after': '3' },
+            }),
+          ),
+      },
+      chat: { completions: { create: () => Promise.reject(new Error('unused')) } },
+    };
+    const adapter = openai({ client });
+    const events: ChatEvent[] = [];
+    for await (const event of adapter.stream({
+      model: 'gpt-5.5',
+      messages: [{ role: 'user', parts: [{ type: 'text', text: 'go' }] }],
+    })) {
+      events.push(event);
+    }
+    expect(events).toHaveLength(1);
+    const error = events[0] as Extract<ChatEvent, { type: 'error' }>;
+    expect(error.error.retryable).toBe(true);
+    expect(error.error.data).toMatchObject({ kind: 'rate-limit', retryAfterMs: 3000 });
+  });
+
+  it.skipIf(process.env.OPENAI_API_KEY === undefined)(
+    'live smoke: one small call (manual, key-gated)',
+    async () => {
+      const adapter = openai({});
+      const events: ChatEvent[] = [];
+      for await (const event of adapter.stream({
+        model: 'gpt-5.4-mini',
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'Reply with the word ok.' }] }],
+        maxOutputTokens: 32,
+      })) {
+        events.push(event);
+      }
+      expect(events.find((e) => e.type === 'finish')).toBeDefined();
+    },
+    30_000,
+  );
 });

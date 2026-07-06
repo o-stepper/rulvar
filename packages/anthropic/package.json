@@ -29,6 +29,7 @@
     "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "catalog:",
     "@lurker/core": "workspace:*"
   },
   "devDependencies": {

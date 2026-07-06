@@ -1,13 +1,17 @@
 /**
- * @lurker/anthropic: lurker first-class provider adapter over @anthropic-ai/sdk.
- *
- * M0 scaffold (v0.1.0): no public API yet. The first real surface of this
- * package ships in milestone M1 per docs/10-implementation-plan.md.
+ * @lurker/anthropic: the first-class Anthropic adapter on the July 2026
+ * Messages API surface (docs/04, section "@lurker/anthropic").
  */
-
-/**
- * Temporary M0 scaffold marker (M0-T02 acceptance: a sample exported symbol
- * round-trips through build and packs). Removed when the package's first
- * real API lands.
- */
-export const M0_SCAFFOLD = '@lurker/anthropic' as const;
+export { anthropic, ANTHROPIC_MODELS, DEFAULT_PAUSE_TURN_MAX_CONTINUATIONS } from './adapter.js';
+export type { AnthropicAdapterOptions, AnthropicClientLike } from './adapter.js';
+export { anthropicModelInfo } from './caps.js';
+export type { AnthropicModelInfo } from './caps.js';
+export {
+  anthropicErrorToWire,
+  buildAnthropicParams,
+  IdMap,
+  mapAnthropicStream,
+  mapStopReason,
+  normalizeAnthropicUsage,
+} from './wire.js';
+export type { AnthropicStreamEvent, TurnMapping } from './wire.js';

@@ -1,13 +1,20 @@
 /**
- * @lurker/openai: lurker first-class provider adapter for the OpenAI Responses API, plus the openaiCompatible factory.
- *
- * M0 scaffold (v0.1.0): no public API yet. The first real surface of this
- * package ships in milestone M1 per docs/10-implementation-plan.md.
+ * @lurker/openai: the first-class OpenAI Responses API adapter with the
+ * Chat Completions degraded path (docs/04, section "@lurker/openai").
+ * The openaiCompatible factory ships in M3.
  */
-
-/**
- * Temporary M0 scaffold marker (M0-T02 acceptance: a sample exported symbol
- * round-trips through build and packs). Removed when the package's first
- * real API lands.
- */
-export const M0_SCAFFOLD = '@lurker/openai' as const;
+export { openai, OPENAI_MODELS } from './adapter.js';
+export type { OpenAiAdapterOptions, OpenAiClientLike } from './adapter.js';
+export { openAiModelInfo } from './caps.js';
+export type { OpenAiModelInfo } from './caps.js';
+export {
+  buildChatCompletionsParams,
+  buildResponsesParams,
+  mapChatCompletionsStream,
+  mapOpenAiEffort,
+  mapResponsesStream,
+  normalizeOpenAiUsage,
+  OpenAiIdMap,
+  openAiErrorToWire,
+} from './wire.js';
+export type { ResponsesStreamEvent } from './wire.js';
