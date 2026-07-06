@@ -1,0 +1,28 @@
+# Live adapter contract tests (docs/13, section "CI workflow spec";
+# docs/11, section "Live contract tests (cron)").
+#
+# Ships DISABLED until M5: the cron trigger stays commented out and the job
+# is additionally gated on the CONTRACT_TESTS_ENABLED repository variable.
+# When enabled at M5: weekly per first-class adapter, non-blocking for
+# merges, MUST alert on failure rather than silently rerecording, keys from
+# repository secrets, spend governed by the founder budget item
+# (docs/14, section "Founder-only decisions").
+name: Contract tests (live)
+
+on:
+  workflow_dispatch:
+  # Enabled at M5 (M5 tasks wire the cassette replay against live APIs):
+  # schedule:
+  #   - cron: '0 6 * * 1'
+
+jobs:
+  contract:
+    name: Live adapter contract tests
+    if: vars.CONTRACT_TESTS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder until M5
+        run: |
+          echo "Live adapter contract tests ship at M5 (docs/11, section 5.3)."
+          echo "This workflow is a disabled placeholder; do not enable before M5."
+          exit 1

@@ -1,0 +1,105 @@
+# CI pipeline (M0-T05; docs/13, section "CI workflow spec").
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build, typecheck, lint (Node 24)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo build
+      - run: pnpm exec turbo typecheck
+      - run: pnpm exec turbo lint
+      - run: pnpm exec prettier --check .
+      - name: Rolled-up .d.ts drift gate
+        run: |
+          node scripts/dts-baseline.mjs
+          git diff --exit-code dts-rollup
+      - name: Changesets fixed-group check
+        run: node scripts/check-fixed-group.mjs
+
+  changeset:
+    name: Changeset presence
+    if: github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec changeset status --since=origin/${{ github.base_ref }}
+
+  test:
+    name: Test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec vitest run
+
+  # Optional and non-blocking per docs/13: Node 26 is Current, not LTS.
+  test-node-26:
+    name: Test (Node 26, non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec vitest run
+
+  pack-gates:
+    name: publint + attw on packed tarballs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo pack-check
+
+  docs-lint:
+    name: Docs conventions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/docs-lint.mjs

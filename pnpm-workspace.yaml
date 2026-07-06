@@ -1,0 +1,43 @@
+# Workspace and shared external versions (docs/13, section "Package manager:
+# pnpm 11.x workspaces"). Shared external versions are pinned once here via
+# the catalog: protocol so the 14 package.json files cannot drift apart.
+packages:
+  - packages/*
+
+catalog:
+  '@arethetypeswrong/cli': ^0.18.4
+  '@changesets/cli': ^2.31.0
+  '@eslint/js': ^9.39.4
+  '@types/node': ^22.20.0
+  '@vitest/coverage-v8': ^4.1.10
+  eslint: ^9.39.4
+  fast-check: ^4.8.0
+  prettier: ^3.9.4
+  publint: ^0.3.21
+  tsdown: ^0.22.3
+  turbo: ^2.10.3
+  typescript: ~6.0.3
+  typescript-eslint: ^8.63.0
+  vitest: ^4.1.10
+
+minimumReleaseAgeExclude:
+  - '@typescript-eslint/eslint-plugin@8.63.0'
+  - '@typescript-eslint/parser@8.63.0'
+  - '@typescript-eslint/project-service@8.63.0'
+  - '@typescript-eslint/scope-manager@8.63.0'
+  - '@typescript-eslint/tsconfig-utils@8.63.0'
+  - '@typescript-eslint/type-utils@8.63.0'
+  - '@typescript-eslint/types@8.63.0'
+  - '@typescript-eslint/typescript-estree@8.63.0'
+  - '@typescript-eslint/utils@8.63.0'
+  - '@typescript-eslint/visitor-keys@8.63.0'
+  - '@vitest/coverage-v8@4.1.10'
+  - '@vitest/expect@4.1.10'
+  - '@vitest/mocker@4.1.10'
+  - '@vitest/pretty-format@4.1.10'
+  - '@vitest/runner@4.1.10'
+  - '@vitest/snapshot@4.1.10'
+  - '@vitest/spy@4.1.10'
+  - '@vitest/utils@4.1.10'
+  - typescript-eslint@8.63.0
+  - vitest@4.1.10
