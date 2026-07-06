@@ -161,6 +161,8 @@ cacheHint is a transport-level cost optimization: it MUST NOT enter IdentityInpu
 
 `providerOptions` on ChatRequest is namespaced by adapter id: `{ anthropic: {...}, openai: {...}, ollama: {...} }`. An adapter MUST read only its own namespace and MUST ignore unknown namespaces without error. Symmetrically, adapters report provider-specific response facts under their own namespace in `providerMetadata` on the finish event (for example, the matched stop sequence, response ids, service tier). Namespaced options are escape hatches: canonical fields always win where both express the same thing, and adapters MUST NOT let a namespaced option silently contradict a canonical field (typed ConfigError instead).
 
+The engine additionally populates one reserved namespace, `lurker`, on every request with spawn telemetry `{ agentType?: string, label?: string }`. It is telemetry, not configuration: adapters MAY consume it (FakeAdapter's agentType and label pattern matching, 09-observability-testing-spec.md, section "Tier 1"), MUST otherwise ignore it, and like every providerOptions namespace it never enters journal identity. (Amended during M1-T14: the FakeAdapter contract requires call metadata at the adapter boundary.)
+
 ## 2 ProviderAdapter SPI
 
 ### 2.1 Interface

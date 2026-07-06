@@ -484,13 +484,26 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       engineLayer.routing = internals.defaults.routing;
     }
 
-    const loopResolved = resolveModelInvocation({
-      role: 'loop',
-      call: callLayer,
-      profile: profileLayer,
-      engine: engineLayer,
-      capsOf,
+    const telemetryNamespace: Record<string, unknown> = { agentType };
+    if (opts.label !== undefined) {
+      telemetryNamespace.label = opts.label;
+    }
+    const withTelemetry = (resolved: ResolvedInvocation): ResolvedInvocation => ({
+      ...resolved,
+      // The reserved engine-populated telemetry namespace (docs/04,
+      // section 1.8, as amended): never identity, consumable by
+      // FakeAdapter's agentType/label matching.
+      providerOptions: { ...resolved.providerOptions, lurker: telemetryNamespace },
     });
+    const loopResolved = withTelemetry(
+      resolveModelInvocation({
+        role: 'loop',
+        call: callLayer,
+        profile: profileLayer,
+        engine: engineLayer,
+        capsOf,
+      }),
+    );
     for (const scrub of loopResolved.scrubs) {
       internals.events.emit({ type: 'log', level: 'warn', msg: scrub.detail }, state.spanId);
     }
@@ -505,13 +518,15 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     if (opts.schema !== undefined) {
       canonicalSchema = canonicalizeSchema(projectToJsonSchema(opts.schema));
       derivedSchemaHash = schemaHash(canonicalSchema);
-      const extractResolved = resolveModelInvocation({
-        role: 'extract',
-        call: callLayer,
-        profile: profileLayer,
-        engine: engineLayer,
-        capsOf,
-      });
+      const extractResolved = withTelemetry(
+        resolveModelInvocation({
+          role: 'extract',
+          call: callLayer,
+          profile: profileLayer,
+          engine: engineLayer,
+          capsOf,
+        }),
+      );
       if (extractResolved.ref !== loopResolved.ref) {
         extract = { adapter: adapterOf(extractResolved), resolved: extractResolved };
       }
@@ -631,7 +646,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     if (result.error !== undefined) {
       terminalPatch.error = agentErrorToWire(
         result.error,
-        `agent terminated with status ${result.status}`,
+        result.errorMessage ?? `agent terminated with status ${result.status}`,
       );
     }
     if ((result as { usageApprox?: boolean }).usageApprox === true) {
@@ -680,7 +695,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       opts.onError ?? (internals.errorPolicy === 'lenient' ? 'null' : 'throw');
     const wire = agentErrorToWire(
       result.error ?? { kind: 'terminal', retryable: false },
-      `agent terminated with status ${result.status}`,
+      result.errorMessage ?? `agent terminated with status ${result.status}`,
     );
     if (effectiveOnError === 'null') {
       const droppedItem: DroppedItem = {

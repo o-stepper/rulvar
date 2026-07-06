@@ -76,6 +76,12 @@ export interface AgentResult<T> {
   transcriptRef: string;
   artifacts?: Artifact[];
   error?: AgentError;
+  /**
+   * Human-readable detail behind `error` (provider message, first schema
+   * issue): feeds the journaled WireError message. Additive to the
+   * docs/06 sketch; never part of identity.
+   */
+  errorMessage?: string;
   /** Present if and only if status === 'escalated'. */
   escalation?: EscalationReport;
 }
@@ -372,6 +378,7 @@ export async function runAgent<S extends SchemaSpec>(
   let output: Out<S> | null = null;
   let status: AgentStatus = 'ok';
   let agentError: AgentError | undefined;
+  let errorMessage: string | undefined;
   let usageApprox = false;
 
   const servedBy: ModelRef = options.resolved.ref;
@@ -474,6 +481,7 @@ export async function runAgent<S extends SchemaSpec>(
     if (invariantViolation !== undefined) {
       status = 'error';
       agentError = { kind: 'transport', retryable: false };
+      errorMessage = invariantViolation;
       events?.emit({
         type: 'agent:error',
         agentType,
@@ -496,6 +504,7 @@ export async function runAgent<S extends SchemaSpec>(
     if (outcome.aborted === 'idle') {
       status = 'error';
       agentError = { kind: 'transport', retryable: true };
+      errorMessage = `stream idle for ${limits.streamIdleTimeoutMs}ms`;
       events?.emit({
         type: 'agent:error',
         agentType,
@@ -512,6 +521,7 @@ export async function runAgent<S extends SchemaSpec>(
     if (outcome.wireError !== undefined) {
       status = 'error';
       agentError = classifyWireError(outcome.wireError);
+      errorMessage = outcome.wireError.message;
       events?.emit({
         type: 'agent:error',
         agentType,
@@ -525,6 +535,9 @@ export async function runAgent<S extends SchemaSpec>(
       status = 'error';
       const refusal = outcome.finish.refusal;
       agentError = { kind: 'terminal', retryable: false };
+      errorMessage =
+        `model refusal (${refusal.provider})` +
+        (refusal.stopDetails?.category === undefined ? '' : `: ${refusal.stopDetails.category}`);
       events?.emit({
         type: 'agent:error',
         agentType,
@@ -574,6 +587,7 @@ export async function runAgent<S extends SchemaSpec>(
     if (schemaAttempts >= maxSchemaAttempts) {
       status = 'error';
       agentError = { kind: 'schema-mismatch', retryable: false, issues };
+      errorMessage = issues[0]?.message;
       break;
     }
     events?.emit({
@@ -705,6 +719,9 @@ export async function runAgent<S extends SchemaSpec>(
   };
   if (agentError !== undefined) {
     result.error = agentError;
+  }
+  if (errorMessage !== undefined) {
+    result.errorMessage = errorMessage;
   }
   if (usageApprox) {
     (result as { usageApprox?: boolean }).usageApprox = true;
