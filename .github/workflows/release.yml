@@ -1,0 +1,45 @@
+# Release pipeline (M0-T06; docs/12, section "Release pipeline").
+#
+# changesets/action maintains the standing "Version Packages" PR; merging it
+# publishes via npm trusted publishing (OIDC): id-token: write, no long-lived
+# npm tokens, automatic provenance once the repository is public. Publishing
+# uses `pnpm publish -r`, which rewrites workspace:* and catalog: ranges at
+# pack time. The pnpm version comes from the root packageManager pin, which
+# is the known-good pin required by the risk register (docs/13, section
+# "Risk register": early pnpm 11.0.x OIDC regression).
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency: release-${{ github.ref }}
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  release:
+    name: Version packages or publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: 'https://registry.npmjs.org'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo build
+      - name: Create Version Packages PR or publish
+        uses: changesets/action@v1
+        with:
+          version: pnpm exec changeset version
+          publish: pnpm run release
+          commit: 'Version packages'
+          title: 'Version Packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [
+    [
+      "@lurker/anthropic",
+      "@lurker/bridge-ai-sdk",
+      "@lurker/cli",
+      "@lurker/core",
+      "@lurker/evals",
+      "@lurker/lurker",
+      "@lurker/openai",
+      "@lurker/plan",
+      "@lurker/planner",
+      "@lurker/store-conformance",
+      "@lurker/store-sqlite",
+      "@lurker/testing",
+      "eslint-plugin-lurker"
+    ]
+  ],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": ["@lurker/compat"],
+  "privatePackages": {
+    "version": true,
+    "tag": false
+  }
+}
