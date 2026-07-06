@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Turborepo
+.turbo/
+
+# Test output
+coverage/
+
+# Pack artifacts
+*.tgz
+
+# Logs
+*.log
+
+# OS noise
+.DS_Store
+
+# Editor state
+.idea/
+.vscode/
