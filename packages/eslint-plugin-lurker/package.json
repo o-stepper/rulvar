@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-lurker",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "lurker determinism lint rules with structural JSON diagnostics for the planner self-repair loop.",
   "type": "module",
   "license": "UNLICENSED",
