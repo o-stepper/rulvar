@@ -209,10 +209,12 @@ export interface ModelChoice {
  * that enters AgentIdentityInput.modelSpec (docs/03, section "Identity
  * model"). providerOptions and fallbacks NEVER enter this form: they are
  * delivery options, excluded from identity exactly like label, phase,
- * onError, retry, and replay.
+ * onError, retry, and replay. `effort` is absent exactly when no layer of
+ * the chain and no role effort default resolves one (docs/04, section
+ * "Router and resolution chain").
  */
 export type CanonicalModelSpec =
-  | { kind: 'model'; model: ModelRef; effort: Effort }
+  | { kind: 'model'; model: ModelRef; effort?: Effort }
   | { kind: 'ladder'; ladder: CanonicalLadderSpec };
 
 export type TriggerClass = 'error' | 'limit' | 'schema-exhausted' | 'verify-failed' | 'no-progress';
