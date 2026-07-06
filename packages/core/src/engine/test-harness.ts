@@ -19,11 +19,11 @@ import type { ModelCaps, ProviderAdapter } from '../l0/spi/provider.js';
 import { Replayer } from '../journal/replayer.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { buildAdapterRegistry } from '../model/router.js';
-import type { RuntimeEventSink } from '../runtime/agent-loop.js';
 import type { UsageLimits } from '../runtime/usage-limits.js';
 import { RunBudget } from './budget.js';
+import { SpanRegistry } from './events.js';
 import { Semaphore } from './scheduler.js';
-import type { AgentProfile, RunInternals } from './ctx.js';
+import type { AgentProfile, RunEventSink, RunInternals } from './ctx.js';
 
 export interface ScriptedTurn {
   /** Text emitted as a single text-delta. */
@@ -121,7 +121,7 @@ export function scriptedAdapter(
   };
 }
 
-export interface RecordedEvents extends RuntimeEventSink {
+export interface RecordedEvents extends RunEventSink {
   all: Array<{ type: string } & Record<string, unknown>>;
   ofType(type: string): Array<Record<string, unknown>>;
 }
@@ -130,8 +130,8 @@ export function recordingSink(): RecordedEvents {
   const all: Array<{ type: string } & Record<string, unknown>> = [];
   return {
     all,
-    emit(body) {
-      all.push(body);
+    emit(body, spanId) {
+      all.push(spanId === undefined ? body : { ...body, spanId });
     },
     ofType(type: string) {
       return all.filter((event) => event.type === type);
@@ -183,14 +183,16 @@ export function makeInternals(options: TestInternalsOptions = {}): {
   }
   const budget = new RunBudget(budgetOptions);
   const replayer = new Replayer({ runId: 'test-run', store, priceUsd });
-  let spanCounter = 0;
   let refCounter = 0;
+  const spans = new SpanRegistry();
   const internals: RunInternals = {
     runId: 'test-run',
     replayer,
     budget,
     semaphore: new Semaphore(options.perRun ?? 12),
     events,
+    spans,
+    rootSpanId: spans.mint(),
     transcripts: new InMemoryTranscriptStore(),
     adapters,
     defaults: {
@@ -208,7 +210,6 @@ export function makeInternals(options: TestInternalsOptions = {}): {
       unpriced: [],
     },
     priceUsd,
-    mintSpanId: () => `span-${spanCounter++}`,
     mintTranscriptRef: () => `test-run/t${refCounter++}`,
     now: options.now ?? Date.now,
   };

@@ -64,6 +64,7 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo build
       - run: pnpm exec vitest run
 
   # Optional and non-blocking per docs/13: Node 26 is Current, not LTS.
@@ -79,6 +80,7 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo build
       - run: pnpm exec vitest run
 
   pack-gates:

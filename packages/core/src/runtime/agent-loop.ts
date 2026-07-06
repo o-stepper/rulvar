@@ -709,13 +709,7 @@ export async function runAgent<S extends SchemaSpec>(
   if (usageApprox) {
     (result as { usageApprox?: boolean }).usageApprox = true;
   }
-  events?.emit({
-    type: 'agent:end',
-    agentType,
-    label: options.label,
-    status,
-    usage: totalUsage,
-    costUsd,
-  });
+  // agent:end (with entryRef) is emitted by the ctx layer after the
+  // terminal journal entry is appended (docs/09, section 1.4).
   return result;
 }

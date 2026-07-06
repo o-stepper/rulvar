@@ -30,3 +30,8 @@ export * from './runtime/agent-loop.js';
 export * from './engine/budget.js';
 export * from './engine/scheduler.js';
 export * from './engine/ctx.js';
+export type * from './l0/events.js';
+export * from './engine/events.js';
+export * from './engine/run-handle.js';
+export * from './engine/engine.js';
+export * from './runner/inprocess.js';
