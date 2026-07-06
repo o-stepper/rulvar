@@ -260,6 +260,19 @@ This section is the canonical home of the naming risk; README.md and 00-overview
 - **Trademark.** Informal searches show no live conflict in software classes; formal USPTO/EUIPO clearance is a pre-1.0 gate alongside the license decision (12-release-versioning.md, section "The 1.0 gate").
 - **Resolution deadline.** The contingency MUST be resolved, or consciously carried with a written founder decision, before v1.0.0 ships.
 
+### 6.1 Naming checklist execution record (M0-T07)
+
+Status as of 2026-07-06 (M0 bootstrap). Items (a) through (e) require founder-held accounts (npmjs.com, github.com) and remain open founder actions; the local scaffold does not block on them. The umbrella package is named `@lurker/lurker` in the workspace per the rule in 10-implementation-plan.md, section "Planning rules" (rule 1.4.1), until the unscoped contingency closes.
+
+| Item | Status | Notes |
+|---|---|---|
+| (a) npm org/scope claim for `@lurker` | Pending founder execution | First checklist item; MUST precede any name freeze and the first placeholder publish |
+| (b) GitHub org variant selection | Pending founder decision | Candidates: lurker-dev, lurkerjs, getlurker; repository creation (branch protection, squash-merge) follows |
+| (c) Trusted-publisher entries per package | Pending founder execution | One entry per package on npmjs.com; entries created after 2026-05-20 must explicitly select allowed actions; completed at first publish |
+| (d) Placeholder publish of `@lurker/core` (and others as capacity allows) at v0.1.0 | Pending founder execution | All packages are `"private": true` in the workspace; flip a package to publishable as part of its placeholder publish (rule 1.4.6 in 10-implementation-plan.md) |
+| (e) Unscoped `lurker` contingency status | Recorded, unresolved | Squatted 2014 GPLv3 package; paths: dispute, transfer, or fallback (lurkerjs / lurker-ai / `@lurker/lurker`); tracked as OQ-24 |
+| pnpm pin selection (rule from section 1.4) | pnpm 11.10.0 pinned | Newest 11.x at bootstrap; passes the local M0-T06 release dry-run (identical fixed-group versions; workspace:* and catalog: ranges convert at pack time). OIDC trusted publishing remains to be verified at the first CI publish, after (a) and (c) |
+
 ## 7. Risk register
 
 Accepted toolchain risks, each with its revisit trigger and fallback. Reviewing this register is part of every milestone exit.
