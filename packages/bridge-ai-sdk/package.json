@@ -1,6 +1,6 @@
 {
   "name": "@lurker/bridge-ai-sdk",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "lurker bridge adapter wrapping any Vercel AI SDK LanguageModelV4 as a ProviderAdapter.",
   "type": "module",
   "license": "UNLICENSED",
