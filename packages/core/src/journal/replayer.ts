@@ -124,10 +124,13 @@ export class Replayer {
   }
 
   /** Two-phase dispatch: the running entry (kinds agent, step, child). */
-  appendRunning(input: BaseAppend): Promise<JournalEntry> {
+  appendRunning(input: BaseAppend & { memoizeOutcome?: boolean }): Promise<JournalEntry> {
     return this.enqueue(() => {
       const entry = this.mint(input.scope, input.key, input.kind, 'running');
       entry.spanId = input.spanId;
+      if (input.memoizeOutcome !== undefined) {
+        entry.memoizeOutcome = input.memoizeOutcome;
+      }
       return this.persist(entry);
     });
   }
@@ -246,6 +249,15 @@ export class Replayer {
   /** Read-only view of the appended entries, in per-run total order. */
   snapshot(): readonly JournalEntry[] {
     return this.entries;
+  }
+
+  /**
+   * Resolves when every append enqueued so far has persisted. Deterministic
+   * shims journal fire-and-forget; the engine awaits this before settling a
+   * run.
+   */
+  async flush(): Promise<void> {
+    await this.queue;
   }
 
   private mint(scope: string, key: string, kind: EntryKind, status: EntryStatus): JournalEntry {

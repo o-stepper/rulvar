@@ -811,7 +811,14 @@ type JournalEntry = {
   transcriptRef?: string;
   checkpointRef?: string; /** Only when kind === 'resolution'. */
   resolution?: ResolutionPayload; /** Only when kind === 'abandon'. */
-  abandon?: AbandonPayload; /** On suspended entries: the journaled deadline. */
+  abandon?: AbandonPayload;
+  /**
+  * Policy field on agent entries, fixed in the payload at dispatch time
+  * (docs/03, section "Normative payload schemas"): the M2 predicate reads
+  * the flag from the ENTRY, never from current code. Excluded from
+  * identity like every policy field.
+  */
+  memoizeOutcome?: boolean; /** On suspended entries: the journaled deadline. */
   deadlineAt?: string;
   spanId: string;
   startedAt: string;
@@ -1143,7 +1150,9 @@ declare class Replayer {
   /** Single-phase fact entries: rand, decisions, termination facts. */
   appendSinglePhase(input: SinglePhaseAppend): Promise<JournalEntry>;
   /** Two-phase dispatch: the running entry (kinds agent, step, child). */
-  appendRunning(input: BaseAppend): Promise<JournalEntry>;
+  appendRunning(input: BaseAppend & {
+    memoizeOutcome?: boolean;
+  }): Promise<JournalEntry>;
   /**
   * Two-phase completion: a terminal entry referencing the running entry
   * by ref. Scope, key, ordinal, kind, and hashVersion are inherited from
@@ -1161,6 +1170,12 @@ declare class Replayer {
   ledger(): Ledger;
   /** Read-only view of the appended entries, in per-run total order. */
   snapshot(): readonly JournalEntry[];
+  /**
+  * Resolves when every append enqueued so far has persisted. Deterministic
+  * shims journal fire-and-forget; the engine awaits this before settling a
+  * run.
+  */
+  flush(): Promise<void>;
   private mint;
   private persist;
   private enqueue;
@@ -1284,4 +1299,504 @@ declare function resolveModelInvocation(options: {
   capsOf: (ref: ModelRef) => ModelCaps;
 }): ResolvedInvocation;
 //#endregion
-export { AbandonPayload, AgentError, AgentIdentityInput, ApprovalIdentityInput, BudgetExhaustedError, type Bytes, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanonicalId, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, ChildIdentityInput, ConfigError, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, Effort, EntryKind, EntryRef, EntryStatus, ErrorCode, ExternalIdentityInput, FinishInfo, Gate, HashVersion, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMissError, JournalOrderViolation, type JournalStore, type Json, JsonSchema, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, type ModelCaps, ModelChoice, ModelRef, ModelSpec, Msg, NonSerializableValueError, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PlanInvariantError, type Pricing, type ProviderAdapter, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefusalInfo, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionLayer, ResolutionPayload, ResolvedInvocation, Role, type RunFilter, type RunMeta, SchemaPair, SchemaSpec, SchemaValidationResult, ScriptRejected, ScrubNote, SinglePhaseAppend, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, TerminalPatch, ToolChoice, ToolContract, type TranscriptStore, TriggerClass, Usage, WireError, agentErrorFromWire, agentErrorToWire, agentScope, buildAdapterRegistry, canonicalizeSchema, createCanonicalIdMinter, deriveContentKey, identityJcs, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, modelSpecIdentity, normalizeEntry, parallelScope, parseModelRef, pipelineScope, planNodeScope, projectToJsonSchema, resolveModelInvocation, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, tierWithinCaps, toJournalValue, toolsetHash, validateSchemaSpec, workflowScope };
+//#region src/runtime/usage-limits.d.ts
+/**
+* UsageLimits (M1-T06): normative limit vocabulary and the per-spawn merge.
+*
+* Owning spec: docs/06-execution-spec.md, section "UsageLimits
+* (normative)"; defaults from Appendix A. Expiry of maxTurns, maxToolCalls,
+* or timeoutMs produces the terminal status 'limit' (paid partial work);
+* streamIdleTimeoutMs expiry is a retryable transport-class AgentError,
+* never 'limit'. The run-level deadline is RunOptions.deadlineAt, not a
+* UsageLimits field.
+*/
+interface UsageLimits {
+  /** Default 32. */
+  maxTurns?: number;
+  /** Unlimited by default. */
+  maxToolCalls?: number;
+  /** Unlimited by default (model caps still apply). */
+  maxOutputTokensPerTurn?: number;
+  /** Per-agent wall clock; unlimited by default. */
+  timeoutMs?: number;
+  /** Gap between stream events; default 120000. */
+  streamIdleTimeoutMs?: number;
+}
+declare const DEFAULT_MAX_TURNS = 32;
+declare const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 12e4;
+interface EffectiveUsageLimits {
+  maxTurns: number;
+  maxToolCalls?: number;
+  maxOutputTokensPerTurn?: number;
+  timeoutMs?: number;
+  streamIdleTimeoutMs: number;
+}
+/**
+* Limits merge per spawn: AgentOpts.limits over profile limits over engine
+* defaults.limits (docs/06, section "UsageLimits").
+*/
+declare function mergeUsageLimits(call?: UsageLimits, profile?: UsageLimits, engine?: UsageLimits): EffectiveUsageLimits;
+//#endregion
+//#region src/runtime/model-retry.d.ts
+declare class ModelRetry extends Error {
+  readonly data?: Json;
+  constructor(message: string, opts?: {
+    data?: Json;
+  });
+}
+/** Bounded semantic retries per tool call chain (docs/06, Appendix A). */
+declare const DEFAULT_MODEL_RETRY_ATTEMPTS = 2;
+//#endregion
+//#region src/runtime/structured-output.d.ts
+/** The synthesized forced-tool contract name. */
+declare const EMIT_RESULT_TOOL = "emit_result";
+/**
+* Applies the selected tier to an outgoing request. Native rides
+* ChatRequest.schema; forced-tool synthesizes a single emit_result tool
+* with toolChoice pinned to it; prompt injects the schema into the last
+* user message.
+*/
+declare function applyStructuredOutputTier(req: ChatRequest, tier: StructuredOutputTier, schema: JsonSchema): ChatRequest;
+/** One collected model turn, assembled from the stream by the agent loop. */
+interface CollectedTurn {
+  text: string;
+  toolCalls: Array<{
+    id: string;
+    name: string;
+    args: unknown;
+  }>;
+}
+/**
+* Extracts the structured-output candidate from a collected turn per tier.
+* Returns `undefined` when the turn carries no candidate (for example the
+* model answered prose without the forced tool call).
+*/
+declare function extractCandidate(turn: CollectedTurn, tier: StructuredOutputTier): {
+  raw: unknown;
+} | undefined;
+/** The bounded re-prompt message sent back to the model on a validation miss. */
+declare function formatRePrompt(issues: Issue$1[], attempt: number, maxAttempts: number): Msg;
+//#endregion
+//#region src/runtime/agent-loop.d.ts
+type AgentStatus = "ok" | "error" | "limit" | "cancelled" | "skipped" | "escalated";
+/**
+* EscalationReport is owned by docs/07 (EscalationProtocol) and its
+* producers ship in M3; the field exists now so AgentResult is shaped
+* once. costToDate and salvage are filled by the runtime, never the model.
+*/
+interface EscalationReport {
+  kind: string;
+  scopeDelta?: Json;
+  revisedEstimate?: Json;
+  blockers?: Json;
+  proposedDecomposition?: Json;
+  costToDate?: number;
+  salvage?: Json;
+}
+/** Artifact: the normative shape of AgentResult.artifacts entries (docs/06, section 2.1). */
+interface Artifact {
+  /** Stable within the result. */
+  id: string;
+  /** Closed in v1. */
+  kind: "file" | "patch" | "json" | "text";
+  /** Telemetry only. */
+  label?: string;
+  /** Changed-file list (kind 'patch': worktree collect()). */
+  files?: string[];
+  /** TranscriptStore blob ref for offloaded content. */
+  ref?: string;
+  /** Inline JSON content for small values. */
+  data?: Json;
+}
+interface AgentResult<T> {
+  status: AgentStatus;
+  output: T | null;
+  usage: Usage;
+  costUsd: number;
+  turns: number;
+  transcriptRef: string;
+  artifacts?: Artifact[];
+  error?: AgentError;
+  /** Present if and only if status === 'escalated'. */
+  escalation?: EscalationReport;
+}
+type EscalatedResult<T> = AgentResult<T> & {
+  status: "escalated";
+  escalation: EscalationReport;
+};
+declare function isEscalated<T>(r: AgentResult<T>): r is EscalatedResult<T>;
+/** Minimal internal event sink; the typed WorkflowEvent envelope wraps it in M1-T10. */
+interface RuntimeEventSink {
+  emit(body: {
+    type: string;
+  } & Record<string, unknown>): void;
+}
+/** Budget hooks bound by the three-layer budget (docs/06, section "Three-layer budget"). */
+interface BudgetHooks {
+  /** Layer 2: before every turn; throws BudgetExhaustedError to block dispatch. */
+  beforeTurn(): void;
+  /** Live usage accounting; layer 3 may respond by aborting `signal`. */
+  onUsage(usage: Usage, servedBy: ModelRef): void;
+  /** Layer 3: the ceiling AbortSignal. */
+  signal?: AbortSignal;
+}
+/** Reason marker distinguishing a budget-ceiling abort from host cancellation. */
+declare const BUDGET_ABORT_REASON = "lurker:budget-ceiling";
+interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
+  prompt: string;
+  schema?: S;
+  /** Canonicalized JSON Schema projection of `schema` (precomputed for identity). */
+  canonicalSchema?: JsonSchema;
+  adapter: ProviderAdapter;
+  resolved: ResolvedInvocation;
+  /**
+  * Separate final extract invocation, present only when the role trigger
+  * protocol demands one: schema set AND (routing directs extract to a
+  * different model OR the loop model's caps cannot serve the required
+  * tier). Otherwise the schema rides the last loop turn (docs/06,
+  * section "Agent runtime binding").
+  */
+  extract?: {
+    adapter: ProviderAdapter;
+    resolved: ResolvedInvocation;
+  };
+  limits: EffectiveUsageLimits;
+  /** Emits agent:stream deltas when true (telemetry only). */
+  stream?: boolean;
+  /** Host or sibling cancellation. */
+  signal?: AbortSignal;
+  budget?: BudgetHooks;
+  events?: RuntimeEventSink;
+  transcript?: {
+    mintRef(): string;
+    put(ref: string, blob: Uint8Array): Promise<void>;
+  };
+  priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
+  /** Bounded schema re-prompt attempts; default 2 (docs/06, Appendix A). */
+  schemaRetryAttempts?: number;
+  agentType?: string;
+  label?: string;
+  now?: () => number;
+}
+/**
+* Runs one agent to a typed AgentResult. Never throws past policy: every
+* failure mode becomes a typed status on the result.
+*/
+declare function runAgent<S extends SchemaSpec>(options: RunAgentOptions<S>): Promise<AgentResult<Out<S>>>;
+//#endregion
+//#region src/engine/budget.d.ts
+type Spend = {
+  usd: number;
+  usage: Usage;
+  agentsSpawned: number;
+};
+/** Last resort of the admission reserve formula (docs/06, Appendix A). */
+declare const DEFAULT_FLAT_RESERVE_USD = .5;
+/**
+* The admission reserve for a spawn (docs/06, section "Layer 1: admission
+* before spawn"): opts.estCost, else profile.estCost, else
+* price(countTokens(input) + caps.maxOutputTokens), else the engine flat
+* default.
+*/
+declare function admissionReserveUsd(options: {
+  estCost?: number;
+  profileEstCost?: number;
+  inputTokens?: number;
+  caps?: ModelCaps;
+  flatReserveUsd?: number;
+}): number;
+/**
+* The run-root budget account. All spend accounting is per instance; the
+* journal remains the durable source (the ledger fold restores spend on
+* resume, M2).
+*/
+declare class RunBudget {
+  /** B0; immutable after start. Undefined means no USD ceiling. */
+  readonly ceilingUsd?: number;
+  private readonly lifetimeSpawnCap;
+  private readonly events?;
+  private readonly priceUsd?;
+  private readonly controller;
+  private spentUsdInternal;
+  private usageInternal;
+  private committedReserveUsdInternal;
+  private agentsSpawnedInternal;
+  private exhaustedInternal;
+  constructor(options: {
+    ceilingUsd?: number;
+    lifetimeSpawnCap?: number;
+    events?: RuntimeEventSink;
+    priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
+  });
+  /** Layer 3 ceiling signal; live streams are severed through it. */
+  get signal(): AbortSignal;
+  get exhausted(): boolean;
+  get committedReserveUsd(): number;
+  /**
+  * Layer 1: admission before spawn. Blocks when spent + committedReserve
+  * has reached the ceiling, otherwise commits the reserve. Also enforces
+  * the engine lifetime spawn cap (docs/06, section "Scheduler").
+  */
+  admitSpawn(reserveUsd: number): void;
+  /** The reserve is replaced by real spend when the spawn settles. */
+  releaseReserve(reserveUsd: number): void;
+  /** Layer 2: the per-turn guard. A turn that would cross the ceiling is not dispatched. */
+  beforeTurn(): void;
+  /**
+  * Live accounting; crossing the ceiling severs in-flight streams via the
+  * layer-3 AbortSignal (overshoot bounded by one turn per in-flight
+  * agent; providers bill severed streams).
+  */
+  onUsage(usage: Usage, servedBy: ModelRef): void;
+  spent(): Spend;
+  /** Null when the run has no USD ceiling (docs/06, section "Canonical Ctx interface"). */
+  remaining(): Spend | null;
+  private emitUpdate;
+}
+//#endregion
+//#region src/engine/scheduler.d.ts
+/**
+* Scheduler and concurrency (M1-T08): the per-run semaphore with a FIFO
+* queue (default 12 concurrent model calls). The engine lifetime spawn cap
+* is enforced by the budget layer at admission; parallel/pipeline
+* composition semantics live with ctx (docs/06, section "Scheduler").
+* Per-provider concurrency keys land with M4.
+*/
+/** FIFO semaphore; default per-run width is 12 (docs/06, Appendix A). */
+declare const DEFAULT_PER_RUN_CONCURRENCY = 12;
+declare class Semaphore {
+  private readonly limit;
+  private active;
+  private readonly waiters;
+  constructor(limit: number);
+  get pending(): number;
+  /**
+  * Acquires a slot, resolving in FIFO order. `onQueued` fires only when
+  * the caller actually has to wait (feeds the agent:queued event).
+  */
+  acquire(onQueued?: () => void): Promise<() => void>;
+  withSlot<T>(fn: () => Promise<T>, onQueued?: () => void): Promise<T>;
+  private release;
+}
+//#endregion
+//#region src/engine/ctx.d.ts
+type ErrorPolicy = "strict" | "lenient";
+/**
+* The canonical, complete AgentProfile shape (docs/06, section
+* "AgentProfile"); M1 honors description, model, routing, effort, limits,
+* and estCost. A profile never carries a prompt or a schema.
+*/
+interface AgentProfile {
+  description?: string;
+  model?: ModelSpec;
+  routing?: Partial<Record<InvocationRole, ModelSpec>>;
+  effort?: Effort;
+  limits?: UsageLimits;
+  /** Admission reserve hint in USD (budget layer 1). */
+  estCost?: number;
+}
+/**
+* Per-spawn options (docs/06, section "ctx.agent and AgentOpts"). The
+* identity split is normative: agentType, model/routing/effort (the
+* requested modelSpec), schema (schemaHash), and key enter the content
+* key; everything else is policy or telemetry and never re-keys entries.
+* Fields whose machinery lands later (tools, isolation, escalation,
+* lineage, ladder, retry) arrive with their milestones.
+*/
+interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
+  agentType?: string;
+  /** Overrides all roles at once. */
+  model?: ModelSpec;
+  /** Per-role, wins over profile.routing. */
+  routing?: Partial<Record<InvocationRole, ModelSpec>>;
+  /** Canonical effort, part of identity. */
+  effort?: Effort;
+  /** schemaHash enters identity. */
+  schema?: S;
+  /** docs/08; enters identity. Only 'none' is executable before M3. */
+  isolation?: IsolationSpec;
+  /** Explicit discriminator; replaces the prompt in the content key. */
+  key?: string;
+  onError?: "throw" | "null";
+  /** Journaled as a policy field from day one; consumed by the M2 predicate. */
+  memoizeOutcome?: boolean;
+  /** Admission reserve hint (USD). */
+  estCost?: number;
+  /** Merged over profile and engine limits (docs/06, section "UsageLimits"). */
+  limits?: UsageLimits;
+  result?: "value" | "full";
+  /** Telemetry only. */
+  label?: string;
+  /** Enables agent:stream delta events. */
+  stream?: boolean;
+}
+/** docs/06, section "Error policy and dropped results". */
+interface DroppedItem {
+  source: "pipeline" | "agent-onerror-null" | "parallel-settled";
+  /** Scope path of the failed call. */
+  scope: string;
+  /** Seq of the terminal journal entry when one exists. */
+  entryRef?: number;
+  label?: string;
+  error: WireError;
+}
+/**
+* The discriminated union over AgentStatus carrying the underlying
+* AgentResult where one exists (docs/06, section "ctx.parallel and
+* Settled").
+*/
+type Settled<T> = {
+  status: "ok";
+  value: T;
+  result?: AgentResult<unknown>;
+} | {
+  status: "error";
+  error: WireError;
+  result?: AgentResult<unknown>;
+} | {
+  status: "limit";
+  result: AgentResult<unknown>;
+} | {
+  status: "cancelled";
+  result?: AgentResult<unknown>;
+} | {
+  status: "skipped";
+  result: AgentResult<unknown>;
+} | {
+  status: "escalated";
+  result: AgentResult<unknown>;
+};
+type Stage<I, O> = (item: I) => Promise<O>;
+/**
+* The rejection carrier of ctx.agent value-form calls: a real Error that
+* structurally satisfies the typed AgentError (docs/06, section "ctx.agent
+* and AgentOpts") and carries the full AgentResult for Settled mapping.
+* Deliberately not a LurkerError: AgentError is not in the closed code
+* registry (docs/02, section "Error taxonomy").
+*/
+declare class AgentCallError extends Error implements AgentError {
+  readonly kind: AgentError["kind"];
+  readonly retryable: boolean;
+  readonly retryAfterMs?: number;
+  readonly issues?: Issue$1[];
+  readonly result: AgentResult<unknown>;
+  readonly scope: string;
+  readonly entryRef?: number;
+  constructor(message: string, result: AgentResult<unknown>, scope: string, entryRef?: number);
+}
+/** Pipeline results plus the dropped evidence, returned by onItemError: 'collect'. */
+interface PipelineCollected<T> {
+  results: T[];
+  dropped: DroppedItem[];
+}
+/** The canonical Ctx interface, M1 members (docs/06, section "Canonical Ctx interface"). */
+interface Ctx<P extends ErrorPolicy = "strict"> {
+  agent(prompt: string): Promise<P extends "lenient" ? string | null : string>;
+  agent<S extends SchemaSpec>(prompt: string, o: AgentOpts<S> & {
+    result: "full";
+  }): Promise<AgentResult<Out<S>>>;
+  agent<S extends SchemaSpec>(prompt: string, o: AgentOpts<S> & {
+    onError: "throw";
+  }): Promise<Out<S>>;
+  agent<S extends SchemaSpec>(prompt: string, o?: AgentOpts<S>): Promise<P extends "lenient" ? Out<S> | null : Out<S>>;
+  parallel<T>(tasks: Array<() => Promise<T>>, o?: {
+    settle?: false;
+    abortSiblings?: boolean;
+  }): Promise<T[]>;
+  parallel<T>(tasks: Array<() => Promise<T>>, o: {
+    settle: true;
+  }): Promise<Settled<T>[]>;
+  pipeline<I, A>(items: I[], s1: Stage<I, A>, o: CollectOpts): Promise<PipelineCollected<A>>;
+  pipeline<I, A>(items: I[], s1: Stage<I, A>, o?: PipelineOpts): Promise<A[]>;
+  pipeline<I, A, B>(items: I[], s1: Stage<I, A>, s2: Stage<A, B>, o: CollectOpts): Promise<PipelineCollected<B>>;
+  pipeline<I, A, B>(items: I[], s1: Stage<I, A>, s2: Stage<A, B>, o?: PipelineOpts): Promise<B[]>;
+  pipeline<I, A, B, C>(items: I[], s1: Stage<I, A>, s2: Stage<A, B>, s3: Stage<B, C>, o: CollectOpts): Promise<PipelineCollected<C>>;
+  pipeline<I, A, B, C>(items: I[], s1: Stage<I, A>, s2: Stage<A, B>, s3: Stage<B, C>, o?: PipelineOpts): Promise<C[]>;
+  pipeline<I, A, B, C, D>(items: I[], s1: Stage<I, A>, s2: Stage<A, B>, s3: Stage<B, C>, s4: Stage<C, D>, o: CollectOpts): Promise<PipelineCollected<D>>;
+  pipeline<I, A, B, C, D>(items: I[], s1: Stage<I, A>, s2: Stage<A, B>, s3: Stage<B, C>, s4: Stage<C, D>, o?: PipelineOpts): Promise<D[]>;
+  pipeline<I, A, B, C, D, E>(items: I[], s1: Stage<I, A>, s2: Stage<A, B>, s3: Stage<B, C>, s4: Stage<C, D>, s5: Stage<D, E>, o: CollectOpts): Promise<PipelineCollected<E>>;
+  pipeline<I, A, B, C, D, E>(items: I[], s1: Stage<I, A>, s2: Stage<A, B>, s3: Stage<B, C>, s4: Stage<C, D>, s5: Stage<D, E>, o?: PipelineOpts): Promise<E[]>;
+  pipeline<I, A, B, C, D, E, F>(items: I[], s1: Stage<I, A>, s2: Stage<A, B>, s3: Stage<B, C>, s4: Stage<C, D>, s5: Stage<D, E>, s6: Stage<E, F>, o: CollectOpts): Promise<PipelineCollected<F>>;
+  pipeline<I, A, B, C, D, E, F>(items: I[], s1: Stage<I, A>, s2: Stage<A, B>, s3: Stage<B, C>, s4: Stage<C, D>, s5: Stage<D, E>, s6: Stage<E, F>, o?: PipelineOpts): Promise<F[]>;
+  step<T extends Json>(label: string, fn: () => Promise<T> | T, o?: {
+    deps?: Json[];
+    key?: string;
+  }): Promise<T>;
+  phase<T>(name: string, fn: () => Promise<T>): Promise<T>;
+  log(level: "debug" | "info" | "warn" | "error", msg: string, data?: Json): void;
+  budget: {
+    spent(): Spend;
+    remaining(): Spend | null;
+  };
+  now(): number;
+  random(key?: string): number;
+  uuid(): string;
+}
+interface PipelineOpts {
+  onItemError?: "drop" | "throw";
+}
+interface CollectOpts {
+  onItemError: "collect";
+}
+/** Closure-form workflow value; in-process only (docs/06, section "Execution model"). */
+interface Workflow<A = unknown, R = unknown> {
+  readonly kind: "workflow";
+  readonly name: string;
+  readonly argsSchema?: SchemaSpec<A>;
+  readonly errorPolicy: ErrorPolicy;
+  readonly body: (ctx: Ctx<never>, args: A) => Promise<R>;
+}
+declare function defineWorkflow<A, R, P extends ErrorPolicy = "strict">(meta: {
+  name: string;
+  args?: SchemaSpec<A>;
+  errorPolicy?: P;
+}, body: (ctx: Ctx<P>, args: A) => Promise<R>): Workflow<A, R>;
+/** Per-run cost attribution buckets consumed by CostReport (M1-T10/T11). */
+interface CostAttribution {
+  byModel: Map<string, number>;
+  byPhase: Map<string, number>;
+  byAgentType: Map<string, number>;
+  byRole: Map<InvocationRole, number>;
+  unpriced: Array<{
+    model: string;
+    usage: Usage;
+  }>;
+}
+/** Everything one run's ctx needs; created per run by the engine (M1-T11). */
+interface RunInternals {
+  runId: string;
+  replayer: Replayer;
+  budget: RunBudget;
+  semaphore: Semaphore;
+  events: RuntimeEventSink;
+  transcripts: TranscriptStore;
+  adapters: ReadonlyMap<string, ProviderAdapter>;
+  defaults: {
+    routing?: Partial<Record<InvocationRole, ModelSpec>>;
+    profiles?: Record<string, AgentProfile>;
+    limits?: UsageLimits;
+  };
+  errorPolicy: ErrorPolicy;
+  dropped: DroppedItem[];
+  cost: CostAttribution;
+  priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
+  runSignal?: AbortSignal;
+  mintSpanId: () => string;
+  mintTranscriptRef: () => string;
+  now: () => number;
+}
+/**
+* Creates the per-run Ctx bound to `internals`. The current scope travels
+* through AsyncLocalStorage so parallel branches and pipeline stages keep
+* one ctx object while journaling under their own scope paths (I3:
+* structure from call-and-return only).
+*/
+declare function createCtx(internals: RunInternals): Ctx<ErrorPolicy>;
+/**
+* Runs a workflow body against a fresh ctx: the engine core that
+* engine.run wraps with RunHandle, events, and outcome assembly (M1-T11).
+* Validates args against the declared schema, then executes single-pass.
+*/
+declare function executeWorkflow<A, R>(internals: RunInternals, wf: Workflow<A, R>, args: A): Promise<R>;
+//#endregion
+export { AbandonPayload, AgentCallError, AgentError, AgentIdentityInput, AgentOpts, AgentProfile, AgentResult, AgentStatus, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetExhaustedError, BudgetHooks, type Bytes, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanonicalId, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, ChildIdentityInput, CollectOpts, CollectedTurn, ConfigError, CostAttribution, Ctx, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, EffectiveUsageLimits, Effort, EntryKind, EntryRef, EntryStatus, ErrorCode, ErrorPolicy, EscalatedResult, EscalationReport, ExternalIdentityInput, FinishInfo, Gate, HashVersion, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMissError, JournalOrderViolation, type JournalStore, type Json, JsonSchema, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, type ModelCaps, ModelChoice, ModelRef, ModelRetry, ModelSpec, Msg, NonSerializableValueError, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PipelineCollected, PipelineOpts, PlanInvariantError, type Pricing, type ProviderAdapter, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefusalInfo, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionLayer, ResolutionPayload, ResolvedInvocation, Role, RunAgentOptions, RunBudget, type RunFilter, RunInternals, type RunMeta, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScriptRejected, ScrubNote, Semaphore, Settled, SinglePhaseAppend, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, TerminalPatch, ToolChoice, ToolContract, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, buildAdapterRegistry, canonicalizeSchema, createCanonicalIdMinter, createCtx, defineWorkflow, deriveContentKey, executeWorkflow, extractCandidate, formatRePrompt, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, mergeUsageLimits, modelSpecIdentity, normalizeEntry, parallelScope, parseModelRef, pipelineScope, planNodeScope, projectToJsonSchema, resolveModelInvocation, runAgent, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, tierWithinCaps, toJournalValue, toolsetHash, validateSchemaSpec, workflowScope };
