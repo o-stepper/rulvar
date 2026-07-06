@@ -1,0 +1,36 @@
+{
+  "name": "@lurker/core",
+  "version": "0.0.0",
+  "description": "lurker core: L0 contracts, journal kernel, ctx primitives, agent runtime, model router, tool system, dynamic orchestrator, InMemory and JSONL stores, event stream.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
+  }
+}

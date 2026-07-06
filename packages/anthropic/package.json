@@ -1,0 +1,39 @@
+{
+  "name": "@lurker/anthropic",
+  "version": "0.0.0",
+  "description": "lurker first-class provider adapter over @anthropic-ai/sdk.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only"
+  },
+  "dependencies": {
+    "@lurker/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
+  }
+}

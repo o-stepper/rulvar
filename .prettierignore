@@ -1,0 +1,15 @@
+# Generated or externally-governed content.
+node_modules/
+dist/
+.turbo/
+coverage/
+dts-rollup/
+pnpm-lock.yaml
+CHANGELOG.md
+
+# The docs canon is hand-formatted; its conventions are enforced by
+# scripts/docs-lint.mjs, not by Prettier.
+docs/
+
+# Vendored sources keep upstream formatting for diffability against upstream.
+packages/core/src/vendor/json-schema/
