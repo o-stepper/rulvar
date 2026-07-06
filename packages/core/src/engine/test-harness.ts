@@ -1,0 +1,216 @@
+/**
+ * Minimal inline test doubles for M1-T05/T06/T07/T08/T09 unit tests: a
+ * scripted ProviderAdapter and a RunInternals factory. Superseded for
+ * consumers by @lurker/testing's FakeAdapter and createTestEngine
+ * (M1-T14); these stay as the package-internal harness. Not exported from
+ * the package index.
+ */
+import type { WireError } from '../l0/errors.js';
+import type {
+  ChatEvent,
+  ChatRequest,
+  FinishInfo,
+  InvocationRole,
+  ModelRef,
+  ModelSpec,
+  Usage,
+} from '../l0/messages.js';
+import type { ModelCaps, ProviderAdapter } from '../l0/spi/provider.js';
+import { Replayer } from '../journal/replayer.js';
+import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
+import { buildAdapterRegistry } from '../model/router.js';
+import type { RuntimeEventSink } from '../runtime/agent-loop.js';
+import type { UsageLimits } from '../runtime/usage-limits.js';
+import { RunBudget } from './budget.js';
+import { Semaphore } from './scheduler.js';
+import type { AgentProfile, RunInternals } from './ctx.js';
+
+export interface ScriptedTurn {
+  /** Text emitted as a single text-delta. */
+  text?: string;
+  /** A tool call emitted with assembled args. */
+  toolCall?: { name: string; args: unknown };
+  finish?: FinishInfo['reason'] | FinishInfo;
+  usage?: Partial<Usage>;
+  /** Emit a terminal error event instead of finish. */
+  error?: WireError;
+  /** Delay before the terminal event; lets idle timers and aborts fire. */
+  hangMs?: number;
+}
+
+export function testCaps(overrides?: Partial<ModelCaps>): ModelCaps {
+  return {
+    structuredOutput: 'native',
+    supportsTemperature: false,
+    supportsParallelTools: true,
+    reasoningEfforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+    contextWindow: 200_000,
+    maxOutputTokens: 4_096,
+    pricing: { inputUsdPerMTok: 1, outputUsdPerMTok: 10 },
+    ...overrides,
+  };
+}
+
+const DEFAULT_USAGE: Usage = {
+  inputTokens: 10,
+  outputTokens: 5,
+  cacheReadTokens: 0,
+  cacheWriteTokens: 0,
+};
+
+/**
+ * A ProviderAdapter that replays a script. The script function receives
+ * the request and the zero-based call number and returns the turn to
+ * stream.
+ */
+export function scriptedAdapter(
+  script: (req: ChatRequest, call: number) => ScriptedTurn,
+  options?: { id?: string; caps?: ModelCaps },
+): ProviderAdapter & { calls: ChatRequest[] } {
+  const calls: ChatRequest[] = [];
+  const caps = options?.caps ?? testCaps();
+  return {
+    id: options?.id ?? 'fake',
+    calls,
+    caps: () => caps,
+    async *stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent> {
+      const call = calls.length;
+      calls.push(req);
+      const turn = script(req, call);
+      if (turn.text !== undefined) {
+        yield { type: 'text-delta', text: turn.text };
+      }
+      if (turn.toolCall !== undefined) {
+        const id = `id-${call}`;
+        yield { type: 'tool-call-start', id, name: turn.toolCall.name };
+        yield {
+          type: 'tool-call-delta',
+          id,
+          argsTextDelta: JSON.stringify(turn.toolCall.args),
+        };
+        yield { type: 'tool-call-end', id, args: turn.toolCall.args };
+      }
+      if (turn.usage !== undefined) {
+        yield { type: 'usage', usage: turn.usage };
+      }
+      if (turn.hangMs !== undefined) {
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, turn.hangMs);
+          signal?.addEventListener('abort', () => {
+            clearTimeout(timer);
+            resolve();
+          });
+        });
+        if (signal?.aborted === true) {
+          return;
+        }
+      }
+      if (turn.error !== undefined) {
+        yield { type: 'error', error: turn.error };
+        return;
+      }
+      const finish: FinishInfo =
+        turn.finish === undefined
+          ? { reason: 'stop' }
+          : typeof turn.finish === 'string'
+            ? ({ reason: turn.finish } as FinishInfo)
+            : turn.finish;
+      const usage: Usage = { ...DEFAULT_USAGE, ...turn.usage };
+      yield { type: 'finish', finish, usage };
+    },
+  };
+}
+
+export interface RecordedEvents extends RuntimeEventSink {
+  all: Array<{ type: string } & Record<string, unknown>>;
+  ofType(type: string): Array<Record<string, unknown>>;
+}
+
+export function recordingSink(): RecordedEvents {
+  const all: Array<{ type: string } & Record<string, unknown>> = [];
+  return {
+    all,
+    emit(body) {
+      all.push(body);
+    },
+    ofType(type: string) {
+      return all.filter((event) => event.type === type);
+    },
+  };
+}
+
+export interface TestInternalsOptions {
+  adapters?: ProviderAdapter[];
+  routing?: Partial<Record<InvocationRole, ModelSpec>>;
+  profiles?: Record<string, AgentProfile>;
+  limits?: UsageLimits;
+  budgetUsd?: number;
+  lifetimeSpawnCap?: number;
+  perRun?: number;
+  errorPolicy?: 'strict' | 'lenient';
+  now?: () => number;
+}
+
+export function makeInternals(options: TestInternalsOptions = {}): {
+  internals: RunInternals;
+  store: InMemoryStore;
+  events: RecordedEvents;
+} {
+  const store = new InMemoryStore();
+  const events = recordingSink();
+  const adapters = buildAdapterRegistry(options.adapters ?? []);
+  const priceUsd = (servedBy: ModelRef | undefined, usage: Usage): number | undefined => {
+    if (servedBy === undefined) {
+      return undefined;
+    }
+    const colon = servedBy.indexOf(':');
+    const adapter = adapters.get(servedBy.slice(0, colon));
+    const pricing = adapter?.caps(servedBy.slice(colon + 1)).pricing;
+    if (pricing === undefined) {
+      return undefined;
+    }
+    return (
+      (usage.inputTokens / 1_000_000) * pricing.inputUsdPerMTok +
+      (usage.outputTokens / 1_000_000) * pricing.outputUsdPerMTok
+    );
+  };
+  const budgetOptions: ConstructorParameters<typeof RunBudget>[0] = { events, priceUsd };
+  if (options.budgetUsd !== undefined) {
+    budgetOptions.ceilingUsd = options.budgetUsd;
+  }
+  if (options.lifetimeSpawnCap !== undefined) {
+    budgetOptions.lifetimeSpawnCap = options.lifetimeSpawnCap;
+  }
+  const budget = new RunBudget(budgetOptions);
+  const replayer = new Replayer({ runId: 'test-run', store, priceUsd });
+  let spanCounter = 0;
+  let refCounter = 0;
+  const internals: RunInternals = {
+    runId: 'test-run',
+    replayer,
+    budget,
+    semaphore: new Semaphore(options.perRun ?? 12),
+    events,
+    transcripts: new InMemoryTranscriptStore(),
+    adapters,
+    defaults: {
+      ...(options.routing === undefined ? {} : { routing: options.routing }),
+      ...(options.profiles === undefined ? {} : { profiles: options.profiles }),
+      ...(options.limits === undefined ? {} : { limits: options.limits }),
+    },
+    errorPolicy: options.errorPolicy ?? 'strict',
+    dropped: [],
+    cost: {
+      byModel: new Map(),
+      byPhase: new Map(),
+      byAgentType: new Map(),
+      byRole: new Map(),
+      unpriced: [],
+    },
+    priceUsd,
+    mintSpanId: () => `span-${spanCounter++}`,
+    mintTranscriptRef: () => `test-run/t${refCounter++}`,
+    now: options.now ?? Date.now,
+  };
+  return { internals, store, events };
+}

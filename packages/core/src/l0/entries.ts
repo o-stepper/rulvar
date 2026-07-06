@@ -105,6 +105,13 @@ export type JournalEntry = {
   resolution?: ResolutionPayload;
   /** Only when kind === 'abandon'. */
   abandon?: AbandonPayload;
+  /**
+   * Policy field on agent entries, fixed in the payload at dispatch time
+   * (docs/03, section "Normative payload schemas"): the M2 predicate reads
+   * the flag from the ENTRY, never from current code. Excluded from
+   * identity like every policy field.
+   */
+  memoizeOutcome?: boolean;
   /** On suspended entries: the journaled deadline. */
   deadlineAt?: string;
   spanId: string;
