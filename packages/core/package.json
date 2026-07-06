@@ -30,7 +30,11 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "arktype": "catalog:",
+    "fast-check": "catalog:",
     "tsdown": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "valibot": "catalog:",
+    "zod": "catalog:"
   }
 }

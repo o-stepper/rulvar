@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { M0_SCAFFOLD } from './index.js';
+import {
+  ConfigError,
+  createCanonicalIdMinter,
+  EMPTY_SCHEMA_HASH,
+  LurkerError,
+  schemaHash,
+} from './index.js';
 
-describe('@lurker/core scaffold', () => {
-  it('exports the M0 scaffold marker', () => {
-    expect(M0_SCAFFOLD).toBe('@lurker/core');
+describe('@lurker/core public surface', () => {
+  it('exposes the M1 L0 contracts', () => {
+    expect(new ConfigError('x')).toBeInstanceOf(LurkerError);
+    expect(createCanonicalIdMinter()()).toHaveLength(26);
+    expect(schemaHash(undefined)).toBe(EMPTY_SCHEMA_HASH);
   });
 });
