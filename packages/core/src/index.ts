@@ -1,13 +1,15 @@
 /**
- * @lurker/core: lurker core: L0 contracts, journal kernel, ctx primitives, agent runtime, model router, tool system, dynamic orchestrator, InMemory and JSONL stores, event stream.
+ * @lurker/core: L0 contracts, journal kernel, ctx primitives, agent
+ * runtime, model router, tool system, dynamic orchestrator, InMemory and
+ * JSONL stores, event stream.
  *
- * M0 scaffold (v0.1.0): no public API yet. The first real surface of this
- * package ships in milestone M1 per docs/10-implementation-plan.md.
+ * Public surface as of M1: the L0 contracts (wire vocabulary, error
+ * taxonomy, SchemaSpec, SPI seams). The remaining layers land per
+ * docs/10-implementation-plan.md.
  */
-
-/**
- * Temporary M0 scaffold marker (M0-T02 acceptance: a sample exported symbol
- * round-trips through build and packs). Removed when the package's first
- * real API lands.
- */
-export const M0_SCAFFOLD = '@lurker/core' as const;
+export type { Json, Bytes } from './l0/json.js';
+export * from './l0/errors.js';
+export * from './l0/messages.js';
+export * from './l0/schema.js';
+export type * from './l0/spi/provider.js';
+export type * from './l0/spi/isolation.js';

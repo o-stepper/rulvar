@@ -222,7 +222,7 @@ Exit criteria: an example workflow using `ctx.agent`/`parallel`/`pipeline` runs 
 - Build: `SchemaSpec` three forms (Standard Schema; `{ jsonSchema, validate }` pair; bare JSON Schema); `Out<S>` inference (Standard Schema output type; validate() type-guard target; unknown for bare JSON Schema); JSON Schema projection via StandardJSONSchemaV1 `'~standard'.jsonSchema.input()` targeting draft-2020-12 with draft-07 fallback, typed ConfigError at definition time when projection is unavailable; canonical schema derivation (JCS ordering, local `$ref` inlining, remote/dynamic `$ref` forbidden, annotation keywords stripped) feeding `schemaHash`.
 - Inputs: docs/08 section "SchemaSpec"; docs/03 section "schemaHash/toolsetHash derivation"; FR-4xx, FR-0xx.
 - Deliverables: `SchemaSpec`, `Out`, `projectToJsonSchema`, `canonicalizeSchema`.
-- Acceptance: Zod 4.2+/ArkType 2.1.28+/Valibot 1.2+ schemas project; a transforming schema uses the input projection; remote `$ref` rejects with ConfigError.
+- Acceptance: Zod 4.2+ and ArkType 2.1.28+ schemas project; Valibot 1.x accepts as form 1 (StandardSchemaV1) but, not implementing StandardJSONSchemaV1 as of 1.4, raises the documented definition-time ConfigError on projection (docs/08, section "JSON Schema derivation and acceptance rules") until it ships the converter; a transforming schema uses the input projection; remote `$ref` rejects with ConfigError. (Amended during M1-T03: the original line asserted Valibot 1.2+ projects, which is not factual for the released Valibot 1.x line.)
 - Tests: unit tests per form; property test: canonicalization is idempotent and order-insensitive.
 - Depends on: M1-T02.
 

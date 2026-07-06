@@ -10,6 +10,7 @@ catalog:
   '@eslint/js': ^9.39.4
   '@types/node': ^22.20.0
   '@vitest/coverage-v8': ^4.1.10
+  arktype: ^2.2.2
   eslint: ^9.39.4
   fast-check: ^4.8.0
   prettier: ^3.9.4
@@ -18,7 +19,9 @@ catalog:
   turbo: ^2.10.3
   typescript: ~6.0.3
   typescript-eslint: ^8.63.0
+  valibot: ^1.4.2
   vitest: ^4.1.10
+  zod: ^4.4.3
 
 minimumReleaseAgeExclude:
   - '@typescript-eslint/eslint-plugin@8.63.0'

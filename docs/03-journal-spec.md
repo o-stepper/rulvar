@@ -192,9 +192,9 @@ Both hashes are computed from a canonicalized derivative of the JSON Schema, nev
 
 Schema canonicalization (ambiguity ruling, frozen in the hashVersion 2 profile):
 
-1. Local `$ref` (fragment-only, `#/...`) MUST be inlined.
+1. Local `$ref` (fragment-only: `#/...` JSON Pointers, `#anchor` references, and the root `#`) MUST be inlined. A recursive local `$ref` cannot be inlined and MUST produce a typed ConfigError at definition time. A `$ref` carrying sibling keywords (legal in draft 2020-12) canonicalizes as the explicit conjunction: the siblings are kept and the inlined target is appended to the node's `allOf`. (Amended during M1-T03: these three sub-rules make the inlining rule total.)
 2. Remote `$ref` and dynamic references (`$dynamicRef`, `$dynamicAnchor`) are FORBIDDEN; their presence MUST produce a typed ConfigError at definition time (consistent with the vendored validator subset; 08-tools-permissions-spec.md, section "SchemaSpec").
-3. Annotation-only keywords MUST be stripped: `title`, `description`, `default`, `deprecated`, `readOnly`, `writeOnly`, `examples`, `$comment`. `format` is retained (it is validation-relevant in the vendored validator).
+3. Annotation-only keywords MUST be stripped: `title`, `description`, `default`, `deprecated`, `readOnly`, `writeOnly`, `examples`, `$comment`. `format` is retained (it is validation-relevant in the vendored validator). Reference infrastructure (`$defs`, `definitions`, `$anchor`) is removed after inlining: once every local reference is resolved it is dead weight, and an unused or renamed definition MUST NOT shift a content key. (Amended during M1-T03.)
 4. The result is serialized with JCS (RFC 8785) ordering and hashed with sha256.
 
 Derivations:
@@ -294,7 +294,8 @@ The engine MUST read and resume entries with hashVersion in the window `[CURRENT
 
 ```ts
 export class JournalCompatibilityError extends LurkerError {
-  code: 'HASH_VERSION_TOO_OLD' | 'HASH_VERSION_TOO_NEW';
+  code: 'journal_compat';           // the closed registry code (02-architecture.md, section "Error taxonomy")
+  subCode: 'HASH_VERSION_TOO_OLD' | 'HASH_VERSION_TOO_NEW';
   runId: string;
   entrySeq: number;                 // first violating entry
   entryHashVersion: number;
@@ -303,7 +304,9 @@ export class JournalCompatibilityError extends LurkerError {
 }
 ```
 
-- Outside the window without extraDerivers: typed `JournalCompatibilityError` with code `HASH_VERSION_TOO_OLD`.
+(Amended during M1-T02: the field previously named `code` here is `subCode`; `code` is reserved for the closed registry code `journal_compat`, whose row in 02-architecture.md already describes these two values as sub-codes. The sub-code also rides `data` in the WireError projection.)
+
+- Outside the window without extraDerivers: typed `JournalCompatibilityError` with subCode `HASH_VERSION_TOO_OLD`.
 - An entry from the future (partial downgrade): `HASH_VERSION_TOO_NEW`.
 - The check runs as ONE scan immediately after load, strictly BEFORE any live call, any append, and any admission reserve: the refusal is free of side effects.
 - In queue mode the check MUST be repeated at lease acquire: a worker with an older library cannot write into a journal containing newer entries (fencing epoch plus version check; section 12.3).
