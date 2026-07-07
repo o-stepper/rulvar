@@ -39,5 +39,13 @@
   },
   "bin": {
     "lurker": "./dist/cli.js"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9"
+  },
+  "peerDependenciesMeta": {
+    "@opentelemetry/api": {
+      "optional": true
+    }
   }
 }

@@ -33,6 +33,7 @@ function parseRunFlags(argv: string[]): {
   store?: string;
   args?: string;
   budgetUsd?: number;
+  profile?: string;
 } {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -41,11 +42,15 @@ function parseRunFlags(argv: string[]): {
       args: { type: 'string' },
       store: { type: 'string' },
       'budget-usd': { type: 'string' },
+      profile: { type: 'string' },
     },
   });
   const parsed: ReturnType<typeof parseRunFlags> = { positionals };
   if (values.store !== undefined) {
     parsed.store = values.store;
+  }
+  if (values.profile !== undefined) {
+    parsed.profile = values.profile;
   }
   if (values.args !== undefined) {
     parsed.args = values.args;
@@ -85,6 +90,7 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
     config,
     ...(module === undefined ? {} : { module }),
     ...(flags.store === undefined ? {} : { storePath: flags.store }),
+    ...(flags.profile === undefined ? {} : { profile: flags.profile }),
     cwd: context.cwd,
   });
   const workflow = module?.workflow ?? assembled.workflows[target];
