@@ -1,5 +1,17 @@
 # @lurker/planner
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies [fa05007]
+- Updated dependencies [9234dc8]
+- Updated dependencies [644512c]
+- Updated dependencies [8a41656]
+- Updated dependencies [02f7f7a]
+  - @lurker/core@0.6.0
+  - eslint-plugin-lurker@0.6.0
+
 ## 0.5.0
 
 ### Patch Changes
