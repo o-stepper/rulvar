@@ -19,7 +19,7 @@ M5-T01 workflow registry and the @lurker/cli base.
   `lurker run <file|name> [--args JSON] [--store PATH] [--budget-usd N]`,
   `lurker resume <runId> [--args JSON] [--store PATH]`,
   `lurker runs ls [--store PATH]`, `lurker inspect <runId> [--store
-  PATH]` (no aliases), a line-oriented TUI progress renderer over the
+PATH]` (no aliases), a line-oriented TUI progress renderer over the
   event stream, and interactive resolution of suspended approvals and
   externals (EOF leaves the run suspended, never errors). Engine
   assembly follows the host-config convention: `lurker.config.mjs`

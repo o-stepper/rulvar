@@ -9,9 +9,15 @@ import { resolve } from 'node:path';
 import {
   createEngine,
   JsonlFileStore,
+  parseModelRef,
+  priceUsdOf,
+  resolvePricing,
   type CreateEngineOptions,
   type Engine,
   type JournalStore,
+  type ModelRef,
+  type ProviderAdapter,
+  type Usage,
   type WorkflowRegistry,
 } from '@lurker/core';
 
@@ -23,6 +29,8 @@ export interface AssembledCli {
   engine: Engine;
   store: JournalStore;
   workflows: WorkflowRegistry;
+  /** The journal-fold price function (table wins over caps; docs/04, section 10). */
+  priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
 }
 
 export function assembleEngine(options: {
@@ -43,11 +51,22 @@ export function assembleEngine(options: {
     ...config.workflows,
     ...module?.workflows,
   };
+  const adapters: ProviderAdapter[] = engineOptions.adapters ?? [];
   const engine = createEngine({
-    adapters: engineOptions.adapters ?? [],
+    adapters,
     ...engineOptions,
     stores: { ...engineOptions.stores, journal: store },
     defaults: { ...engineOptions.defaults, workflows },
   });
-  return { engine, store, workflows };
+  const byId = new Map(adapters.map((adapter) => [adapter.id, adapter]));
+  const priceUsd = (servedBy: ModelRef, usage: Usage): number | undefined => {
+    const { adapterId, model } = parseModelRef(servedBy);
+    const pricing = resolvePricing(
+      servedBy,
+      engineOptions.pricing,
+      byId.get(adapterId)?.caps(model).pricing,
+    );
+    return pricing === undefined ? undefined : priceUsdOf(pricing, usage);
+  };
+  return { engine, store, workflows, priceUsd };
 }

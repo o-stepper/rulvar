@@ -12,7 +12,7 @@
  */
 import { parseArgs } from 'node:util';
 
-import { ConfigError, type RunOptions, type Workflow } from '@lurker/core';
+import { ConfigError, costReportFromJournal, type RunOptions, type Workflow } from '@lurker/core';
 
 import { loadCliConfig, loadWorkflowModule, looksLikeFile } from './config.js';
 import { assembleEngine } from './engine-assembly.js';
@@ -242,6 +242,18 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
     context.io.out(`  ${kind}: ${count}`);
   }
   context.io.out(`open suspensions: ${openSuspensions}`);
+  // Cost view (M5-T03): the pure journal fold, priced through the
+  // config's adapters and table; unpriced surfaces, never silent zero.
+  const cost = costReportFromJournal(entries, assembled.priceUsd);
+  context.io.out(`cost: $${cost.totalUsd.toFixed(4)}`);
+  for (const [model, usd] of Object.entries(cost.byModel)) {
+    context.io.out(`  ${model}: $${usd.toFixed(4)}`);
+  }
+  for (const item of cost.unpriced) {
+    context.io.out(
+      `  unpriced: ${item.model} (${item.usage.inputTokens + item.usage.outputTokens} tok)`,
+    );
+  }
   for (const entry of entries) {
     const status = entry.status === undefined ? '' : ` ${entry.status}`;
     const served = entry.servedBy === undefined ? '' : ` servedBy=${entry.servedBy}`;

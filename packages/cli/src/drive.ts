@@ -126,6 +126,14 @@ export function reportOutcome(outcome: RunOutcome<unknown>, io: CliIo): number {
     io.err(`pending: ${pending.key} (entry ${pending.entryRef})`);
   }
   io.err(`cost: $${outcome.cost.totalUsd.toFixed(4)}`);
+  for (const [model, usd] of Object.entries(outcome.cost.byModel)) {
+    io.err(`  by model ${model}: $${usd.toFixed(4)}`);
+  }
+  for (const [phase, usd] of Object.entries(outcome.cost.byPhase)) {
+    if (phase !== '') {
+      io.err(`  by phase ${phase}: $${usd.toFixed(4)}`);
+    }
+  }
   if (outcome.cost.unpriced.length > 0) {
     io.err(`unpriced models: ${outcome.cost.unpriced.map((u) => u.model).join(', ')}`);
   }
