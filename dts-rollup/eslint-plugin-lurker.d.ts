@@ -1,15 +1,25 @@
-//#region src/index.d.ts
-/**
-* eslint-plugin-lurker: lurker determinism lint rules with structural JSON diagnostics for the planner self-repair loop.
-*
-* M0 scaffold (v0.1.0): no public API yet. The first real surface of this
-* package ships in milestone M6 per docs/10-implementation-plan.md.
-*/
-/**
-* Temporary M0 scaffold marker (M0-T02 acceptance: a sample exported symbol
-* round-trips through build and packs). Removed when the package's first
-* real API lands.
-*/
-declare const M0_SCAFFOLD: "eslint-plugin-lurker";
+import { ESLint, Linter, Rule } from "eslint";
+
+//#region src/diagnostics.d.ts
+interface LurkerLintDiagnostic {
+  ruleId: string;
+  message: string;
+  line: number;
+  column: number;
+  severity: "error" | "warning";
+  endLine?: number;
+  endColumn?: number;
+}
+declare function toJsonDiagnostics(messages: readonly Linter.LintMessage[]): LurkerLintDiagnostic[];
 //#endregion
-export { M0_SCAFFOLD };
+//#region src/index.d.ts
+declare const rules: Record<string, Rule.RuleModule>;
+declare const plugin: ESLint.Plugin;
+/**
+* The flat-config preset for workflow modules: the determinism bans as
+* errors, the duplicate-identical-call advisory as a warning (docs/06,
+* 8.4).
+*/
+declare const workflowsConfig: Linter.Config;
+//#endregion
+export { type LurkerLintDiagnostic, plugin as default, rules, toJsonDiagnostics, workflowsConfig };

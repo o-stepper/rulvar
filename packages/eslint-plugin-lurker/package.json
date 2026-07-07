@@ -31,6 +31,11 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "tsdown": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "eslint": "catalog:",
+    "@types/estree": "^1.0.6"
+  },
+  "peerDependencies": {
+    "eslint": ">=9"
   }
 }
