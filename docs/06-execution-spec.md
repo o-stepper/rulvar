@@ -745,8 +745,8 @@ This is the single consolidated defaults table for the whole docs set; every oth
 | abortSiblings | ctx.parallel (docs/06) | true under strict | per call | settle: true disables |
 | onItemError | ctx.pipeline (docs/06) | 'drop' | per call | 'throw' / 'collect' |
 | per-run concurrency | scheduler (docs/06) | 12 | createEngine concurrency.perRun | |
-| per-provider concurrency keys | scheduler (docs/04) | TBD before M4 | per adapter | keys land with M4; interim: absent, only the per-run semaphore bounds concurrency |
-| transport RetryPolicy | model layer (docs/04, section "RetryPolicy") | TBD before M4 (attempts, backoff, retryOn) | per call/profile/engine | lives under the journal; honors retryAfterMs; interim: no transport auto-retry (attempts 1), failures surface as typed retryable errors |
+| per-provider concurrency keys | scheduler (docs/04) | unlimited (no per-provider cap unless configured; committed during M4 entry per the TBD rule) | per adapter via createEngine concurrency.perProvider | the keyed limiter ships with M4-T07; an embeddable library must not surprise-throttle hosts, so the per-run semaphore stays the only default bound and provider 429s ride RetryPolicy; hosts with known tier limits opt in per adapter id |
+| transport RetryPolicy | model layer (docs/04, section "RetryPolicy") | attempts 3; backoff initialMs 500, factor 2, maxMs 8000, jitter true; retryOn transport, rate-limit, overloaded (committed during M4 entry per the TBD rule) | per call/profile/engine | lives under the journal (a retried-then-successful call is ONE entry); a provider-supplied retryAfterMs replaces the computed delay; task-class failures never retry by construction |
 | pauseTurnMaxContinuations | @lurker/anthropic adapter (docs/04) | 5 | per adapter | pause_turn continuation cap; never a canonical finish |
 | lifetime spawn cap | scheduler (docs/06) | 500 | budgetDefaults.lifetimeSpawnCap | engine kill switch |
 | maxDepth | AdmissionController (docs/07) | 1 | yes, hard ceiling 4 | nesting depth |
