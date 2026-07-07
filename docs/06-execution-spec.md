@@ -225,6 +225,8 @@ Runs a child workflow under the AdmissionController. The child gets a nested jou
 
 The string form `ctx.workflow('name', args)` resolves against the per-engine workflow registry (section 10.4) and is the ONLY form available inside the worker sandbox, mirroring tools-by-profile-name.
 
+Journal shape (amended during M6-T06, coordinated with 03-journal-spec.md section 5.3 and 07-adaptive-orchestration-spec.md section 7.1): every ctx.workflow admission appends exactly one `decision` entry (`decisionType: 'spawn-admission'`) carrying the embedded verdict, reserves, and statsBefore strictly BEFORE the child's two-phase `child` dispatch entry; rejections are journaled the same way and re-delivered from the entry on resume, never re-evaluated. The `child` running entry carries the dispatch payload `{ workflow, childScope }`; the terminal carries the child result. Structural rejections surface as the typed `AdmissionRejectedError` (02-architecture.md, section "Error taxonomy"); budget-code and lifetime-cap rejections surface as `BudgetExhaustedError`, keeping section 5.7 exhaustion semantics. The child identity is `{ kind: 'child', workflow: name, args }` with `opts.key` replacing args when set (03-journal-spec.md, section 1.2).
+
 ### 2.6 ctx.orchestrate
 
 `ctx.orchestrate(goal, opts)` and the top-level `orchestrate(engine, goal, opts)` (section 9.3) are two surfaces over ONE implementation. The nested form runs under the AdmissionController `maxDepth`; its orchestrator budget cap is additionally clamped by the parent account remainder minus the parent `finalizeReserveUsd` (DEF-7, section 5.5). `OrchestratorCapConfigError` applies to both surfaces and is thrown before the first LLM call and before any journal entry.

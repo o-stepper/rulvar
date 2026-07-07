@@ -27,6 +27,7 @@ import type { JournalEntry } from '../l0/entries.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { buildAdapterRegistry } from '../model/router.js';
 import type { UsageLimits } from '../runtime/usage-limits.js';
+import { AdmissionController } from '../orchestrator/admission.js';
 import { RunBudget } from './budget.js';
 import { SpanRegistry } from './events.js';
 import { Semaphore } from './scheduler.js';
@@ -172,6 +173,8 @@ export interface TestInternalsOptions {
   adapters?: ProviderAdapter[];
   routing?: Partial<Record<InvocationRole, ModelSpec>>;
   profiles?: Record<string, AgentProfile>;
+  /** The per-engine workflow registry (docs/06, 10.4; M6-T06). */
+  workflows?: Record<string, unknown>;
   limits?: UsageLimits;
   permissions?: PermissionConfig;
   isolation?: IsolationProvider;
@@ -180,6 +183,12 @@ export interface TestInternalsOptions {
   ) => EscalationDecision | Promise<EscalationDecision>;
   budgetUsd?: number;
   lifetimeSpawnCap?: number;
+  /** AdmissionController knobs (docs/07, 7.3; M6-T06). */
+  maxDepth?: number;
+  maxChildrenPerNode?: number;
+  childBudgetFraction?: number;
+  flatReserveUsd?: number;
+  admissionMintId?: () => string;
   perRun?: number;
   /** Versioned price table; wins over caps.pricing (M4-T06). */
   pricing?: PriceTable;
@@ -249,6 +258,18 @@ export function makeInternals(options: TestInternalsOptions = {}): {
     budgetOptions.seed = { usd: prior.usd, usage: prior.usage, agentsSpawned: prior.agentsSpawned };
   }
   const budget = new RunBudget(budgetOptions);
+  const admission = new AdmissionController({
+    budget,
+    ...(options.maxDepth === undefined ? {} : { maxDepth: options.maxDepth }),
+    ...(options.maxChildrenPerNode === undefined
+      ? {}
+      : { maxChildrenPerNode: options.maxChildrenPerNode }),
+    ...(options.childBudgetFraction === undefined
+      ? {}
+      : { childBudgetFraction: options.childBudgetFraction }),
+    ...(options.flatReserveUsd === undefined ? {} : { flatReserveUsd: options.flatReserveUsd }),
+    ...(options.admissionMintId === undefined ? {} : { mintId: options.admissionMintId }),
+  });
   const replayer = seededReplayer;
   let refCounter = 0;
   const spans = new SpanRegistry();
@@ -256,6 +277,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
     runId: 'test-run',
     replayer,
     budget,
+    admission,
     semaphore: new Semaphore(options.perRun ?? 12),
     providerLimiter: new KeyedLimiter(options.perProvider),
     ...(options.pricing === undefined ? {} : { pricingVersion: options.pricing.pricingVersion }),
@@ -268,6 +290,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
     defaults: {
       ...(options.routing === undefined ? {} : { routing: options.routing }),
       ...(options.profiles === undefined ? {} : { profiles: options.profiles }),
+      ...(options.workflows === undefined ? {} : { workflows: options.workflows }),
       ...(options.limits === undefined ? {} : { limits: options.limits }),
       ...(options.permissions === undefined ? {} : { permissions: options.permissions }),
     },

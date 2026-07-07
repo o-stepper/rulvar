@@ -37,6 +37,7 @@ import type { EscalationDecision } from '../runtime/escalation.js';
 import type { EscalatedResult } from '../runtime/agent-loop.js';
 import type { PermissionConfig } from '../runtime/permission-chain.js';
 import type { UsageLimits } from '../runtime/usage-limits.js';
+import { AdmissionController } from '../orchestrator/admission.js';
 import { RunBudget } from './budget.js';
 import {
   AgentCallError,
@@ -93,6 +94,13 @@ export interface BudgetDefaults {
   flatReserveUsd?: number;
   /** Engine kill switch; default 500 spawns per run. */
   lifetimeSpawnCap?: number;
+  /**
+   * Fraction of the parent remainder (minus the parent finalize reserve)
+   * a child sub-account may take; default 0.3 (docs/06, 5.4; M6-T06).
+   */
+  childBudgetFraction?: number;
+  /** AdmissionController nesting depth; default 1, hard ceiling 4 (docs/07, 7.3). */
+  maxDepth?: number;
 }
 
 export interface CreateEngineOptions {
@@ -304,15 +312,31 @@ export function createEngine(options: CreateEngineOptions): Engine {
     }
 
     const budget = makeBudget();
+    const admission = new AdmissionController({
+      budget,
+      ...(options.budgetDefaults?.maxDepth === undefined
+        ? {}
+        : { maxDepth: options.budgetDefaults.maxDepth }),
+      ...(options.budgetDefaults?.childBudgetFraction === undefined
+        ? {}
+        : { childBudgetFraction: options.budgetDefaults.childBudgetFraction }),
+      ...(options.budgetDefaults?.flatReserveUsd === undefined
+        ? {}
+        : { flatReserveUsd: options.budgetDefaults.flatReserveUsd }),
+    });
     const external = new ExternalRegistry(replayer);
     let transcriptCounter = 0;
     const internals: RunInternals = {
       runId,
       replayer,
       budget,
+      admission,
       semaphore: new Semaphore(options.concurrency?.perRun ?? DEFAULT_PER_RUN_CONCURRENCY),
       providerLimiter,
       ...(options.pricing === undefined ? {} : { pricingVersion: options.pricing.pricingVersion }),
+      ...(options.budgetDefaults?.flatReserveUsd === undefined
+        ? {}
+        : { flatReserveUsd: options.budgetDefaults.flatReserveUsd }),
       ...(defaults.roleFloors === undefined ? {} : { floors: defaults.roleFloors }),
       events: { emit: (body, spanId) => bus.emit(body as WorkflowEventBody, spanId ?? rootSpanId) },
       spans,

@@ -30,7 +30,7 @@ type WireError = {
 * 'agent' is carried by the AgentError value projection, not by a
 * LurkerError subclass.
 */
-type ErrorCode = "agent" | "config" | "non_serializable_value" | "script_rejected" | "journal_compat" | "invalid_resolution" | "journal_order_violation" | "plan_invariant" | "replay_plan_hash_mismatch" | "orchestrator_cap_config" | "journal_miss" | "budget_exhausted" | "lease_held";
+type ErrorCode = "agent" | "config" | "non_serializable_value" | "script_rejected" | "journal_compat" | "invalid_resolution" | "journal_order_violation" | "plan_invariant" | "replay_plan_hash_mismatch" | "orchestrator_cap_config" | "journal_miss" | "budget_exhausted" | "admission_rejected" | "lease_held";
 /** docs/02 names the registry type LurkerErrorCode; both names are public. */
 type LurkerErrorCode = ErrorCode;
 /**
@@ -190,6 +190,23 @@ declare class JournalMissError extends LurkerError {
 */
 declare class BudgetExhaustedError extends LurkerError {
   readonly code = "budget_exhausted";
+  constructor(message: string, opts?: {
+    data?: Json;
+    cause?: unknown;
+  });
+}
+/**
+* A structural admission rejection (maxDepth, maxChildrenPerNode,
+* maxTotalSpawns) from the AdmissionController (docs/07, section
+* "AdmissionController"; M6-T06). The rejection verdict is embedded in
+* the carrying spawn-admission decision entry and replays identically;
+* the error surfaces the embedded AdmitRejectReason in `data` to the
+* caller (a typed tool error for orchestrators) and MUST NOT tear down
+* the run. Budget-code rejections throw BudgetExhaustedError instead,
+* keeping the docs/06 5.7 exhaustion semantics.
+*/
+declare class AdmissionRejectedError extends LurkerError {
+  readonly code = "admission_rejected";
   constructor(message: string, opts?: {
     data?: Json;
     cause?: unknown;
@@ -1730,6 +1747,15 @@ type ErrorClass = "transport" | "task";
 */
 declare function classifyAgentError(e: AgentError): ErrorClass;
 /**
+* The child scope-prefix an abandon over `target` covers transitively.
+* Agent spawns nest under agent:<seq> (docs/03, section 2.2); a child
+* workflow's subtree runs under the wf:<name>:<ordinal> scope recorded in
+* its dispatch payload (M6-T06). A child entry without the payload
+* (foreign journals) degrades to the agent:<seq> convention, which covers
+* nothing real and keeps the fold total.
+*/
+declare function childCoveragePrefix(target: JournalEntry): string;
+/**
 * Builds the AbandonFold in ONE pass at load, in append order, pinned for
 * the entire resume (DEF-1 ordering rule 4). Coverage is the target seq
 * itself plus, transitively, every entry under the target's child
@@ -1992,9 +2018,16 @@ declare class Replayer {
   private warnIfLarge;
   /** Single-phase fact entries: rand, decisions, termination facts. */
   appendSinglePhase(input: SinglePhaseAppend): Promise<JournalEntry>;
-  /** Two-phase dispatch: the running entry (kinds agent, step, child). */
+  /**
+  * Two-phase dispatch: the running entry (kinds agent, step, child).
+  * `value` is legal on child dispatches only: the child payload
+  * `{ workflow, childScope }` lets the abandon fold compute the child's
+  * transitive scope coverage (docs/03, section 8.4; M6-T06). Values
+  * never enter identity.
+  */
   appendRunning(input: BaseAppend & {
     memoizeOutcome?: boolean;
+    value?: unknown;
   }): Promise<JournalEntry>;
   /**
   * Two-phase completion: a terminal entry referencing the running entry
@@ -2766,6 +2799,8 @@ type Spend = {
 };
 /** Last resort of the admission reserve formula (docs/06, Appendix A). */
 declare const DEFAULT_FLAT_RESERVE_USD = .5;
+/** The run-root account scope (docs/06, section 5.4 scope vocabulary). */
+declare const ROOT_ACCOUNT = "run";
 /**
 * The admission reserve for a spawn (docs/06, section "Layer 1: admission
 * before spawn"): opts.estCost, else profile.estCost, else
@@ -2779,10 +2814,20 @@ declare function admissionReserveUsd(options: {
   caps?: ModelCaps;
   flatReserveUsd?: number;
 }): number;
+/** Read-only projection of one account (docs/06, section 5.4). */
+interface BudgetAccountView {
+  scope: string;
+  ceilingUsd?: number;
+  spentUsd: number;
+  committedReserveUsd: number;
+  finalizeReserveUsd: number;
+  parentScope?: string;
+}
 /**
-* The run-root budget account. All spend accounting is per instance; the
-* journal remains the durable source (the ledger fold restores spend on
-* resume, M2).
+* The per-run budget account tree. All spend accounting is per instance;
+* the journal remains the durable source (the root is seeded by the
+* ledger fold on resume, M2; sub-account reserves are recovered from
+* spawn-admission decision entries, M6).
 */
 declare class RunBudget {
   /** B0; immutable after start. Undefined means no USD ceiling. */
@@ -2790,10 +2835,8 @@ declare class RunBudget {
   private readonly lifetimeSpawnCap;
   private readonly events?;
   private readonly priceUsd?;
-  private readonly controller;
-  private spentUsdInternal;
+  private readonly accounts;
   private usageInternal;
-  private committedReserveUsdInternal;
   private agentsSpawnedInternal;
   private exhaustedInternal;
   constructor(options: {
@@ -2812,30 +2855,215 @@ declare class RunBudget {
       agentsSpawned: number;
     };
   });
-  /** Layer 3 ceiling signal; live streams are severed through it. */
+  private get root();
+  /** The account chain from `scope` up to and including the root. */
+  private chainOf;
+  /**
+  * Opens a child sub-account under `parentScope` (docs/06, section 5.4).
+  * Re-opening an existing scope is the resume roll-forward path: the
+  * recorded ceiling wins once and the accumulated state is kept.
+  */
+  openAccount(scope: string, options: {
+    parentScope?: string;
+    ceilingUsd?: number;
+    finalizeReserveUsd?: number;
+  }): void;
+  accountView(scope: string): BudgetAccountView | undefined;
+  /**
+  * The admission remainder of one account: ceiling minus spend minus
+  * committed reserves minus the finalize reserve (DEF-7: childBudget
+  * fractions never eat finalization money). Undefined when uncapped.
+  */
+  remainderOf(scope: string): number | undefined;
+  /** Layer 3 ceiling signal of the run root; live streams sever through it. */
   get signal(): AbortSignal;
+  /** The layer-3 signal of one sub-account's subtree, when it exists. */
+  signalOf(scope: string): AbortSignal | undefined;
   get exhausted(): boolean;
   get committedReserveUsd(): number;
+  /** Spawn headroom under the engine lifetime cap (embedded in admission verdicts). */
+  get spawnHeadroom(): number;
   /**
   * Layer 1: admission before spawn. Blocks when spent + committedReserve
-  * has reached the ceiling, otherwise commits the reserve. Also enforces
-  * the engine lifetime spawn cap (docs/06, section "Scheduler").
+  * has reached the ceiling on ANY account in the ancestor chain of
+  * `accountScope`, otherwise commits the reserve along the whole chain.
+  * Also enforces the engine lifetime spawn cap (docs/06, "Scheduler").
   */
-  admitSpawn(reserveUsd: number): void;
-  /** The reserve is replaced by real spend when the spawn settles. */
-  releaseReserve(reserveUsd: number): void;
-  /** Layer 2: the per-turn guard. A turn that would cross the ceiling is not dispatched. */
-  beforeTurn(): void;
+  admitSpawn(reserveUsd: number, accountScope?: string): void;
   /**
-  * Live accounting; crossing the ceiling severs in-flight streams via the
-  * layer-3 AbortSignal (overshoot bounded by one turn per in-flight
-  * agent; providers bill severed streams).
+  * Resume roll-forward: commits a reserve recovered from a journaled
+  * spawn-admission decision entry without re-evaluating admission
+  * (docs/06, 5.1: reserves are recovered, never re-estimated).
   */
-  onUsage(usage: Usage, servedBy: ModelRef): void;
+  admitRecovered(reserveUsd: number, accountScope?: string): void;
+  /** The reserve is replaced by real spend when the spawn settles. */
+  releaseReserve(reserveUsd: number, accountScope?: string): void;
+  /** Layer 2: the per-turn guard. A turn that would cross any ceiling in the chain is not dispatched. */
+  beforeTurn(accountScope?: string): void;
+  /**
+  * Live accounting; spend propagates from `accountScope` to every
+  * ancestor. Crossing a ceiling severs the crossing account's subtree
+  * via its layer-3 AbortSignal (overshoot bounded by one turn per
+  * in-flight agent; providers bill severed streams).
+  */
+  onUsage(usage: Usage, servedBy: ModelRef, accountScope?: string): void;
   spent(): Spend;
   /** Null when the run has no USD ceiling (docs/06, section "Canonical Ctx interface"). */
   remaining(): Spend | null;
   private emitUpdate;
+}
+//#endregion
+//#region src/orchestrator/admission.d.ts
+/** Logical-task identity across rebirths (DEF-3); engine-minted ULID. */
+type LogicalTaskId = string;
+/** Plan-node identity; engine-minted ULID (docs/07, section 3.1). */
+type NodeId = string;
+/** Kernel contentHash of a spawn's root entry (DEF-5). */
+type SpawnKey = string;
+/** Donor addressed by the seq of its root entry (DEF-5; producers in M7). */
+type DonorRef = number;
+/** Graft bootstrap payload; fields complete with M7-T07 (DEF-5). */
+interface GraftBoot {
+  donorRef: DonorRef;
+}
+/** Layer-1 reservation embedded in the carrying decision entry. */
+interface BudgetReserve {
+  reserveUsd: number;
+  /** The child sub-account ceiling; absent when the parent is uncapped. */
+  childCeilingUsd?: number;
+}
+/** Telemetry note for a byte-identical repeat admitted fresh (DEF-5). */
+interface DedupNote {
+  spawnKey: SpawnKey;
+  priorRef: number;
+}
+/** The lineage block every non-reject verdict carries (DEF-3). */
+interface AdmitLineage {
+  logicalTaskId: LogicalTaskId;
+  isNew: boolean;
+  depth: number;
+}
+/**
+* The unified admission verdict (docs/07, section 7.2; XF-11). One union,
+* closed now; every debit is atomic with its carrying decision entry and
+* embeds the balance-after (DEF-2).
+*/
+type AdmitVerdict = {
+  kind: "admit";
+  reserve: BudgetReserve;
+  dedup?: DedupNote;
+  spawnUnitsAfter: number;
+  lineage: AdmitLineage;
+} | {
+  kind: "reuse_full";
+  donor: DonorRef;
+  spawnUnitsAfter: number;
+  lineage: AdmitLineage & {
+    isNew: false;
+  };
+} | {
+  kind: "admit_graft";
+  donor: DonorRef;
+  reserve: BudgetReserve;
+  boot: GraftBoot;
+  spawnUnitsAfter: number;
+  lineage: AdmitLineage;
+} | {
+  kind: "reject";
+  reason: AdmitRejectReason;
+};
+/** The merged reject-code set (docs/07, section 7.2). */
+type AdmitRejectReason = {
+  code: "depth" | "quota" | "budget" | "lifetime" | "termination_exhausted" | "ladder_exceeds_frozen" | "lineage_exhausted" | "lineage_busy";
+} | {
+  code: "osc_guard";
+  spawnKey: SpawnKey;
+  oscillationCount: number;
+};
+/** Every spawn origin routed through the single admission point (docs/07, 7.1). */
+type SpawnOrigin = "ctx.workflow" | "ctx.orchestrate" | "spawn_agent" | "parallel_agents" | "escalation-decomposition" | "rung-respawn" | "reuse-link";
+/** What the admission point needs to know about one spawn. */
+interface AdmitSpec {
+  origin: SpawnOrigin;
+  /** Registered workflow name or agent profile name; telemetry and cards only. */
+  name: string;
+  /** The child's journal scope; doubles as its budget account scope. */
+  childScope: string;
+  /** The nearest enclosing budget account of the spawner. */
+  parentAccountScope: string;
+  /** Explicit child budget; clamped by childBudgetFraction (docs/07, 4.1). */
+  budgetUsd?: number;
+  /** Reserve hint; falls back to the flat engine default (docs/06, 5.1). */
+  estCostUsd?: number;
+  /** Lineage continuation (DEF-3); absence mints a fresh lineage root. */
+  lineage?: {
+    continues: LogicalTaskId;
+  };
+}
+/** Live pre-append snapshot embedded in the decision entry (DEF-2/DEF-3). */
+interface AdmissionStatsBefore {
+  spawnsBefore: number;
+  childrenOfParentBefore: number;
+  depth: number;
+}
+/** The full admission decision embedded in the carrying entry. */
+interface AdmissionDecision {
+  verdict: AdmitVerdict;
+  statsBefore: AdmissionStatsBefore;
+  /** Node identity minted inside the decision (docs/07, section 5); absent on reject. */
+  nodeId?: NodeId;
+}
+declare const DEFAULT_MAX_DEPTH = 1;
+declare const MAX_DEPTH_CEILING = 4;
+declare const DEFAULT_MAX_CHILDREN_PER_NODE = 16;
+declare const DEFAULT_CHILD_BUDGET_FRACTION = .3;
+/** Nesting depth of a child scope: its workflow, agent, and plan-node segments. */
+declare function spawnDepthOf(childScope: string): number;
+declare class AdmissionController {
+  private readonly budget;
+  private readonly maxDepth;
+  private readonly maxChildrenPerNode;
+  private readonly childBudgetFraction;
+  private readonly flatReserveUsd;
+  private readonly maxTotalSpawns?;
+  private readonly mintId;
+  /** Children admitted per parent node this process lifetime. */
+  private readonly childrenOf;
+  private admittedTotal;
+  constructor(options: {
+    budget: RunBudget;
+    maxDepth?: number;
+    maxChildrenPerNode?: number;
+    childBudgetFraction?: number;
+    flatReserveUsd?: number; /** Per-orchestrate spawn cap (docs/06, 9.3 maxSpawns); engine lifetime cap applies regardless. */
+    maxTotalSpawns?: number;
+    mintId?: () => string;
+  });
+  /**
+  * Evaluates one spawn live, strictly BEFORE its decision entry is
+  * appended. On admit the reserve is committed on the whole ancestor
+  * account chain atomically with the evaluation; the caller journals the
+  * returned decision and only then produces effects (child account,
+  * dispatch). On reject nothing is committed and the reject verdict is
+  * journaled by the caller so replay re-delivers it without
+  * re-evaluation.
+  */
+  admit(spec: AdmitSpec): AdmissionDecision;
+  /**
+  * Resume roll-forward for a child that already SETTLED before the
+  * resume: re-registers the counters (maxChildrenPerNode, the lifetime
+  * cap, statsBefore fidelity) without committing any reserve; the spend
+  * itself sits in the root ledger seed (docs/03, 13.3).
+  */
+  recoverSettled(parentAccountScope: string): void;
+  /**
+  * Resume roll-forward for an admission whose decision entry exists but
+  * whose child has NOT settled: re-applies the recorded reserve and
+  * counters without re-evaluating any limit (docs/07, 7.1: replay never
+  * re-evaluates admission; docs/06, 5.1: reserves are recovered, never
+  * re-estimated).
+  */
+  recoverInFlight(parentAccountScope: string, verdict: AdmitVerdict): void;
 }
 //#endregion
 //#region src/engine/scheduler.d.ts
@@ -3041,6 +3269,18 @@ interface Ctx<P extends ErrorPolicy = "strict"> {
     key?: string;
   }): Promise<T>;
   /**
+  * Runs a child workflow under the AdmissionController (docs/06, section
+  * 2.5; M6-T06). The child gets a nested journal scope (registered name
+  * plus ordinal) and a hierarchical budget sub-account whose spend
+  * propagates to every ancestor. Structural limit violations throw the
+  * typed AdmissionRejectedError and never tear the run down; budget
+  * rejections throw BudgetExhaustedError. The string form resolves
+  * against the per-engine workflow registry (section 10.4) and is the
+  * only form available inside the worker sandbox.
+  */
+  workflow<A, R>(wf: Workflow<A, R>, args: A, o?: WorkflowCallOpts): Promise<R>;
+  workflow(name: string, args?: Json, o?: WorkflowCallOpts): Promise<unknown>;
+  /**
   * Suspends this position on a journaled entry until an external
   * resolution arrives (docs/06, section 2.7). NO deadline in v1.
   */
@@ -3063,6 +3303,10 @@ interface PipelineOpts {
 }
 interface CollectOpts {
   onItemError: "collect";
+}
+/** Options of ctx.workflow; `key` replaces args in the child identity (docs/03, 1.2). */
+interface WorkflowCallOpts {
+  key?: string;
 }
 /** Closure-form workflow value; in-process only (docs/06, section "Execution model"). */
 interface Workflow<A = unknown, R = unknown> {
@@ -3107,6 +3351,8 @@ interface RunInternals {
   runId: string;
   replayer: Replayer;
   budget: RunBudget;
+  /** The single admission point for all spawns (docs/07, section 7; M6-T06). */
+  admission?: AdmissionController;
   semaphore: Semaphore;
   events: RunEventSink;
   spans: SpanMinter;
@@ -3126,6 +3372,8 @@ interface RunInternals {
   providerLimiter?: KeyedLimiter;
   /** The configured price table's version; pinned in decision entries (M4-T06). */
   pricingVersion?: string;
+  /** budgetDefaults.flatReserveUsd; last resort of the reserve formula (docs/06, 5.1). */
+  flatReserveUsd?: number;
   /** Hard router constraints from engine config (docs/04, section 9; M4-T09). */
   floors?: QualityFloors;
   errorPolicy: ErrorPolicy;
@@ -3659,6 +3907,13 @@ interface BudgetDefaults {
   flatReserveUsd?: number;
   /** Engine kill switch; default 500 spawns per run. */
   lifetimeSpawnCap?: number;
+  /**
+  * Fraction of the parent remainder (minus the parent finalize reserve)
+  * a child sub-account may take; default 0.3 (docs/06, 5.4; M6-T06).
+  */
+  childBudgetFraction?: number;
+  /** AdmissionController nesting depth; default 1, hard ceiling 4 (docs/07, 7.3). */
+  maxDepth?: number;
 }
 interface CreateEngineOptions {
   adapters: ProviderAdapter[];
@@ -3777,4 +4032,4 @@ declare class InProcessRunner implements ScriptRunner {
   execute<A, R>(wf: Workflow<A, R> | CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R>;
 }
 //#endregion
-export { AbandonAttempt, AbandonFold, AbandonPayload, AbortClass, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApprovalDecision, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetDefaults, BudgetExhaustedError, BudgetHooks, type Bytes, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationKind, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FinishInfo, Gate, GateAudit, GitWorktreeProvider, GitWorktreeProviderOptions, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NonSerializableValueError, OnEscalation, OperationDisposition, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskSpec, TerminalPatch, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildToolContext, canRideLoopTurn, canonicalizeSchema, checkFloors, checkpointRefFor, classifyAgentError, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, formatRePrompt, formatScopePath, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, lexShellCommand, liftRetainedParts, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, normalizeEntry, normalizeFallbacks, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, priceUsdOf, projectHistory, projectIdentity, projectToJsonSchema, providerOf, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, summarizeInstruction, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationReport, validateSchemaSpec, workflowScope };
+export { AbandonAttempt, AbandonFold, AbandonPayload, AbortClass, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApprovalDecision, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationKind, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FinishInfo, Gate, GateAudit, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LogicalTaskId, LurkerError, LurkerErrorCode, MAX_DEPTH_CEILING, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NonSerializableValueError, OnEscalation, OperationDisposition, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnKey, SpawnOrigin, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskSpec, TerminalPatch, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildToolContext, canRideLoopTurn, canonicalizeSchema, checkFloors, checkpointRefFor, childCoveragePrefix, classifyAgentError, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, formatRePrompt, formatScopePath, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, lexShellCommand, liftRetainedParts, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, normalizeEntry, normalizeFallbacks, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, priceUsdOf, projectHistory, projectIdentity, projectToJsonSchema, providerOf, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationReport, validateSchemaSpec, workflowScope };

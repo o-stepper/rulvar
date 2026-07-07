@@ -384,7 +384,7 @@ Round-1 base kinds: `agent`, `step`, `external`, `rand`, `child`, `approval`. Ad
 |---|---|---|---|---|---|
 | agent | content-keyed | two-phase | running; ok, error, limit, cancelled, escalated | section 5.4 | this doc |
 | step | content-keyed | two-phase | running; ok, error | terminal `value` = JSON result of fn; `error` = WireError on failure | 06-execution-spec.md |
-| child | content-keyed | two-phase | running; ok, error, limit, cancelled | terminal `value` = child workflow result | 06-execution-spec.md |
+| child | content-keyed | two-phase | running; ok, error, limit, cancelled | running `value` = `{ workflow, childScope }` (the dispatch payload letting the abandon fold cover the child's `wf:` scope transitively; amended during M6-T06); terminal `value` = child workflow result | 06-execution-spec.md |
 | external | content-keyed | suspended, closed by resolution | suspended | the awaitExternal key; resolved value delivered via the closing resolution; NO deadlineAt in v1 | section 8; 06-execution-spec.md |
 | approval | content-keyed | suspended, closed by resolution | suspended | tool-approval request (toolName, input, risk metadata); carries `deadlineAt` | section 8; 08-tools-permissions-spec.md |
 | rand | content-keyed | single-phase | ok | `{ subtype: 'now'\|'random'\|'uuid', value }`; bound by (scope, ordinal) within its key space | section 5.4 |
