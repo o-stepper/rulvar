@@ -1,6 +1,6 @@
 {
   "name": "@lurker/plan",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "lurker adaptive orchestration extension: PlanRunner, RunLedger, escalation extensions, ModelLadder configuration.",
   "type": "module",
   "license": "UNLICENSED",

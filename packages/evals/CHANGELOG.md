@@ -1,5 +1,18 @@
 # @lurker/evals
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies [43444f6]
+- Updated dependencies [279881b]
+- Updated dependencies [9fd0966]
+- Updated dependencies [24ebadf]
+- Updated dependencies [a1b35d3]
+- Updated dependencies [18a5821]
+  - @lurker/core@0.3.0
+  - @lurker/testing@0.3.0
+
 ## 0.2.0
 
 ### Patch Changes
