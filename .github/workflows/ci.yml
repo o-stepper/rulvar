@@ -32,6 +32,8 @@ jobs:
           git diff --exit-code dts-rollup
       - name: Changesets fixed-group check
         run: node scripts/check-fixed-group.mjs
+      - name: Frozen-fixture write protection (M2-T12)
+        run: node scripts/check-frozen-fixtures.mjs
 
   changeset:
     name: Changeset presence

@@ -1,0 +1,87 @@
+{
+  "id": "memoize-classifier",
+  "note": "DEF-1: memoizeOutcome pins the task-class failure (schema mismatch) for replay; the transport-class failure (rate limit) reruns and is the expected strict miss.",
+  "entries": [
+    {
+      "hashVersion": 2,
+      "scope": "",
+      "key": "d926fface2a04df18d4603d657e7afa2d7bba7ed7fb2da2a87577daac4234605",
+      "kind": "agent",
+      "status": "running",
+      "memoizeOutcome": true,
+      "seq": 0,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "ref": 0,
+      "scope": "",
+      "key": "d926fface2a04df18d4603d657e7afa2d7bba7ed7fb2da2a87577daac4234605",
+      "kind": "agent",
+      "status": "error",
+      "error": {
+        "code": "agent",
+        "message": "output failed schema validation after 2 attempts",
+        "retryable": false,
+        "data": {
+          "kind": "schema-mismatch"
+        }
+      },
+      "usage": {
+        "inputTokens": 300,
+        "outputTokens": 10,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "endedAt": "2026-02-01T00:00:01.000Z",
+      "seq": 1,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "scope": "",
+      "key": "555e5c8bbdf0c964ad9264fa14a60a7d5439169569cbffdde958fd6b9ad22ea7",
+      "kind": "agent",
+      "status": "running",
+      "memoizeOutcome": true,
+      "seq": 2,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "ref": 2,
+      "scope": "",
+      "key": "555e5c8bbdf0c964ad9264fa14a60a7d5439169569cbffdde958fd6b9ad22ea7",
+      "kind": "agent",
+      "status": "error",
+      "error": {
+        "code": "agent",
+        "message": "429 too many requests",
+        "retryable": true,
+        "data": {
+          "kind": "rate-limit",
+          "retryAfterMs": 1000
+        }
+      },
+      "usage": {
+        "inputTokens": 50,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "endedAt": "2026-02-01T00:00:03.000Z",
+      "seq": 3,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:03.000Z"
+    }
+  ]
+}

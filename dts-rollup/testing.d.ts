@@ -25,4 +25,26 @@ declare function replayRun<A, R>(wf: Workflow<A, R>, args: A, options: ReplayRun
   preview: ResumePreview;
 }>;
 //#endregion
-export { type CreateTestEngineOptions, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type ReplayRunOptions, type TestEngine, type TestRunHandle, createTestEngine, replayRun };
+//#region src/cassettes/build-fixtures.d.ts
+/** One cassette fixture file: id, provenance note, and the journal. */
+interface CassetteFixture {
+  id: string;
+  note: string;
+  entries: JournalEntry[];
+}
+declare function buildM2CassetteFixtures(): CassetteFixture[];
+/**
+* The frozen v1 journal (docs/11, section "Frozen journal fixtures"): a
+* round-1 JSONL file with kinds agent, step, rand, external, approval and
+* the legacy `v: 1` field (no hashVersion member). Returned as raw
+* JSON-ready objects, one per line.
+*/
+declare function buildFrozenV1JournalRaw(): Array<Record<string, unknown>>;
+/**
+* v2 golden identity fixtures: worked examples per spawn kind (M2-T12).
+* The keys freeze the hashVersion 2 profile; the v1 members freeze the
+* effort-insensitive projection and the incomparable domain.
+*/
+declare function buildV2GoldenIdentity(): Record<string, unknown>;
+//#endregion
+export { type CassetteFixture, type CreateTestEngineOptions, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type ReplayRunOptions, type TestEngine, type TestRunHandle, buildFrozenV1JournalRaw, buildM2CassetteFixtures, buildV2GoldenIdentity, createTestEngine, replayRun };

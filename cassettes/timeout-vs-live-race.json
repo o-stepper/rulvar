@@ -1,0 +1,103 @@
+{
+  "id": "timeout-vs-live-race",
+  "note": "DEF-4: the live decision wins in journal order; the timeout attempt lands as a journaled noop whose effects are never re-issued.",
+  "entries": [
+    {
+      "hashVersion": 2,
+      "scope": "",
+      "key": "1cdda66658302cb36772fb0a943e9dbd9e10554ed44c81697258f7078c9a00cd",
+      "kind": "agent",
+      "status": "running",
+      "seq": 0,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "ref": 0,
+      "scope": "",
+      "key": "1cdda66658302cb36772fb0a943e9dbd9e10554ed44c81697258f7078c9a00cd",
+      "kind": "agent",
+      "status": "ok",
+      "value": "analysis: rollback recommended",
+      "usage": {
+        "inputTokens": 120,
+        "outputTokens": 30,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "endedAt": "2026-02-01T00:00:01.000Z",
+      "seq": 1,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "scope": "",
+      "key": "f386e47323556640f8ec0d00bfc8694b6d705dd1d8aee57c02962c56cf8eb364",
+      "kind": "external",
+      "status": "suspended",
+      "value": {
+        "key": "escalation-report",
+        "prompt": "Escalation decision required",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "decision"
+          ],
+          "properties": {
+            "decision": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "seq": 2,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "ref": 2,
+      "scope": "",
+      "key": "",
+      "kind": "resolution",
+      "status": "ok",
+      "resolution": {
+        "target": 2,
+        "by": "external",
+        "value": {
+          "decision": "rollback"
+        }
+      },
+      "seq": 3,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:03.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "ref": 2,
+      "scope": "",
+      "key": "",
+      "kind": "resolution",
+      "status": "ok",
+      "resolution": {
+        "target": 2,
+        "by": "timeout",
+        "value": {
+          "decision": "proceed-default"
+        }
+      },
+      "seq": 4,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:04.000Z"
+    }
+  ]
+}

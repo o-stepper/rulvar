@@ -347,6 +347,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@lurker/compat':
+        specifier: workspace:*
+        version: link:../compat
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.0

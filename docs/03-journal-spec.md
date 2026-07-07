@@ -1153,7 +1153,7 @@ Third-party stores MUST pass the kit. Mandatory checks (see also 11-testing-stra
 - Lease contract: acquire on a held lease rejects with the typed `LeaseHeldError`; renew cadence at most ttl/3.
 - Golden journal fixture with resolution/noop/invalid/abandon entries: the hash of the materialized fold state MUST be identical to the reference on every store.
 - End-to-end decide-once oracle: a scripted race of two attempts, exactly one applied classification, then replay-strict with zero live calls.
-- Abandon fixture: resume issues not a single live call inside a skipped subtree (FakeAdapter call counter).
+- Abandon fixture: resume issues not a single live call inside a skipped subtree. The kit proves this kernel-level (a replay-strict Replayer over the store under test: the covered dispatch MUST derive skipped and the ledger fold MUST contribute zero), which keeps the kit's dependency graph at @lurker/core only (02-architecture.md, section "Dependency rules"); the engine-level FakeAdapter call-counter variant lives in the M2 cassette suite (@lurker/testing).
 
 ## 13. Two-phase entries, dispatch, and the budget ledger
 

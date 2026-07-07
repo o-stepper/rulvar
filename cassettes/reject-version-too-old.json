@@ -1,0 +1,38 @@
+{
+  "id": "reject-version-too-old",
+  "note": "DEF-6: hashVersion 0 sits outside the [1,2] window: JournalCompatibilityError HASH_VERSION_TOO_OLD with zero side effects; deriverV0Synthetic from @lurker/compat reopens the window via extraDerivers.",
+  "entries": [
+    {
+      "hashVersion": 0,
+      "scope": "",
+      "key": "6e1f808c13670c546ba6c80f823845d7b081d1562d6ebe81fd42ec58a1c40a82",
+      "kind": "agent",
+      "status": "running",
+      "seq": 0,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 0,
+      "ref": 0,
+      "scope": "",
+      "key": "6e1f808c13670c546ba6c80f823845d7b081d1562d6ebe81fd42ec58a1c40a82",
+      "kind": "agent",
+      "status": "ok",
+      "value": "relic out",
+      "usage": {
+        "inputTokens": 40,
+        "outputTokens": 5,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "endedAt": "2026-02-01T00:00:01.000Z",
+      "seq": 1,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z"
+    }
+  ]
+}

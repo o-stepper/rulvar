@@ -174,6 +174,17 @@ export class ResolutionFold {
     if (this.isCoveredEntry(target)) {
       return { classification: 'noop', supersededBy: entry.seq, reason: 'target_abandoned' };
     }
+    const suspendedTarget = this.targets.get(target.seq);
+    if (suspendedTarget?.closedBy !== undefined) {
+      // First-closing-wins per target: a suspended target already closed
+      // by a resolution cannot be re-closed; the late abandon folds to
+      // noop (docs/09, section 6.4: abandon-vs-resolution-race).
+      return {
+        classification: 'noop',
+        supersededBy: suspendedTarget.closedBy,
+        reason: 'already_resolved',
+      };
+    }
     this.coveredSeqs.add(target.seq);
     this.coveredPrefixes.push(agentScope(target.scope, target.seq));
     // A covering abandon closes any suspended entries under it.
@@ -363,11 +374,18 @@ export class ResolutionArbiter {
       if (classification.classification === 'applied') {
         return { applied: true, seq: entry.seq };
       }
+      if (classification.classification === 'noop') {
+        return {
+          applied: false,
+          seq: entry.seq,
+          supersededBy: classification.supersededBy,
+          reason: classification.reason,
+        };
+      }
       return {
         applied: false,
         seq: entry.seq,
-        supersededBy:
-          classification.classification === 'noop' ? classification.supersededBy : attempt.target,
+        supersededBy: attempt.target,
         reason: 'target_abandoned',
       };
     });

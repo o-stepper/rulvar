@@ -13,3 +13,8 @@ docs/
 
 # Vendored sources keep upstream formatting for diffability against upstream.
 packages/core/src/vendor/json-schema/
+
+# Frozen fixtures are byte-locked (fixtures.sha256); formatting churn is drift.
+cassettes/
+packages/testing/fixtures/frozen/
+fixtures.sha256

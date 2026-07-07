@@ -1,0 +1,38 @@
+{
+  "id": "reject-version-from-future",
+  "note": "DEF-6: a hashVersion 3 entry on the v2 engine: HASH_VERSION_TOO_NEW at load with zero side effects; the lease-acquire repetition of the scan re-records with queue mode in M5.",
+  "entries": [
+    {
+      "hashVersion": 3,
+      "scope": "",
+      "key": "3ae39388522fa0f57a31bf9b0174a2b8c6211e2138fa0906a3fb4967f39bfd39",
+      "kind": "agent",
+      "status": "running",
+      "seq": 0,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 3,
+      "ref": 0,
+      "scope": "",
+      "key": "3ae39388522fa0f57a31bf9b0174a2b8c6211e2138fa0906a3fb4967f39bfd39",
+      "kind": "agent",
+      "status": "ok",
+      "value": "future out",
+      "usage": {
+        "inputTokens": 40,
+        "outputTokens": 5,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "endedAt": "2026-02-01T00:00:01.000Z",
+      "seq": 1,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z"
+    }
+  ]
+}

@@ -36,6 +36,7 @@
     "@lurker/core": "workspace:*"
   },
   "devDependencies": {
+    "@lurker/compat": "workspace:*",
     "@types/node": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
