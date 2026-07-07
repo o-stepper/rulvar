@@ -6,6 +6,8 @@
  * "RunHandle" and "CostReport".
  */
 import type { WireError } from '../l0/errors.js';
+import type { Json } from '../l0/json.js';
+import type { ResolutionOutcome } from '../journal/resolution.js';
 import type { WorkflowEvent } from '../l0/events.js';
 import type { InvocationRole, Usage } from '../l0/messages.js';
 import type { DroppedItem, CostAttribution } from './ctx.js';
@@ -65,6 +67,13 @@ export interface RunHandle<R> {
     type: T,
     cb: (e: Extract<WorkflowEvent, { type: T }>) => void,
   ): () => void;
+  /**
+   * Resolves an open awaitExternal suspension (DEF-4 signature): applied
+   * when this attempt wins the first-closing-wins fold; repeated
+   * resolution is defined behavior, not an error. An invalid live payload
+   * throws InvalidResolutionError and journals nothing.
+   */
+  resolveExternal(key: string, value: Json): Promise<ResolutionOutcome>;
   /** Cooperative cancellation; the run settles 'cancelled' with a complete CostReport. */
   cancel(reason?: string): Promise<void>;
 }
