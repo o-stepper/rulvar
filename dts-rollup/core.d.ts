@@ -3569,6 +3569,12 @@ interface Ctx<P extends ErrorPolicy = "strict"> {
   */
   orchestrate(goal: string, opts?: OrchestrateOptions): Promise<unknown>;
   /**
+  * A journaled summarize invocation for handing an inheritable brief to
+  * a child (docs/06, section 2.8; M6-T10): one agent-kind entry under
+  * role 'summarize', therefore free on replay.
+  */
+  brief(o: BriefOpts): Promise<string>;
+  /**
   * Suspends this position on a journaled entry until an external
   * resolution arrives (docs/06, section 2.7). NO deadline in v1.
   */
@@ -3595,6 +3601,18 @@ interface CollectOpts {
 /** Options of ctx.workflow; `key` replaces args in the child identity (docs/03, 1.2). */
 interface WorkflowCallOpts {
   key?: string;
+}
+/**
+* Options of ctx.brief (docs/06, 2.8; amended during M6-T10 with the
+* concrete shape): the content to distill plus an optional instruction;
+* the invocation resolves role 'summarize', so it needs
+* defaults.routing.summarize, a profile, or the explicit model.
+*/
+interface BriefOpts {
+  content: string;
+  instruction?: string;
+  model?: ModelSpec;
+  agentType?: string;
 }
 /** Closure-form workflow value; in-process only (docs/06, section "Execution model"). */
 interface Workflow<A = unknown, R = unknown> {
@@ -4179,6 +4197,8 @@ interface OrchestratorRuntime {
     cancelled: boolean;
     handle: number;
   }>;
+  /** docs/07 4.8: sleep until a coalesced WakeDigest (M6-T09). */
+  waitForEvents(triggers: unknown): Promise<unknown>;
 }
 /**
 * The M6 outputSummary: a deterministic truncation of the child's
@@ -4238,6 +4258,43 @@ interface SpawnAgentParams {
 * vocabulary (docs/06 9.3; M6-T04).
 */
 declare function buildOrchestratorTools(runtime: OrchestratorRuntime, profileCardText: string): ToolDef[];
+//#endregion
+//#region src/orchestrator/wake.d.ts
+/** docs/07 4.8: the wait_for_events parameter schema (normative). */
+declare const WAIT_FOR_EVENTS_SCHEMA: SchemaSpec;
+declare const WAIT_FOR_EVENTS_TOOL_NAME = "wait_for_events";
+/** The closed v1 trigger vocabulary (docs/07 4.8). */
+type WakeTrigger = {
+  kind: "quiescence";
+} | {
+  kind: "child_terminal";
+  handles?: number[];
+} | {
+  kind: "escalation";
+} | {
+  kind: "budget_threshold";
+  percent: 50 | 80;
+};
+/** docs/07 section 5: the escalation block of a digest. */
+interface EscalationDigest {
+  nodeId: string;
+  logicalTaskId: string;
+  /** seq of the terminal escalated entry. */
+  reportRef: number;
+  kind: string;
+  flavor: "A" | "B";
+}
+/**
+* The M6 substrate WakeDigest (docs/07 section 5; the termination,
+* budget, and reuse blocks complete the shape in M7 as one coordinated
+* hashVersion-2 change).
+*/
+interface WakeDigest {
+  digestSeq: number;
+  coversToOrdinal: number;
+  completedDigests: TaskDigest[];
+  escalations: EscalationDigest[];
+}
 //#endregion
 //#region src/engine/events.d.ts
 /**
@@ -4342,4 +4399,4 @@ interface SandboxBridge {
 }
 declare function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptions): SandboxBridge;
 //#endregion
-export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbortClass, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApprovalDecision, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationKind, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINISH_SCHEMA, FINISH_TOOL_NAME, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileTranscriptStore, FinishInfo, Gate, GateAudit, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LogicalTaskId, LurkerError, LurkerErrorCode, MAX_DEPTH_CEILING, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateOptions, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskDigest, TaskSpec, TerminalPatch, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildToolContext, canRideLoopTurn, canonicalizeSchema, checkFloors, checkpointRefFor, childCoveragePrefix, classifyAgentError, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, formatRePrompt, formatScopePath, hashWorkflowBody, hashWorkflowSource, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, lexShellCommand, liftRetainedParts, makeOrchestratorWorkflow, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, priceUsdOf, profileCard, projectHistory, projectIdentity, projectToJsonSchema, providerOf, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, summarizeOutput, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationReport, validateSchemaSpec, workflowScope, workflowSourceRef };
+export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbortClass, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApprovalDecision, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDigest, EscalationKind, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINISH_SCHEMA, FINISH_TOOL_NAME, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileTranscriptStore, FinishInfo, Gate, GateAudit, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LogicalTaskId, LurkerError, LurkerErrorCode, MAX_DEPTH_CEILING, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateOptions, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskDigest, TaskSpec, TerminalPatch, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildToolContext, canRideLoopTurn, canonicalizeSchema, checkFloors, checkpointRefFor, childCoveragePrefix, classifyAgentError, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, formatRePrompt, formatScopePath, hashWorkflowBody, hashWorkflowSource, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, lexShellCommand, liftRetainedParts, makeOrchestratorWorkflow, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, priceUsdOf, profileCard, projectHistory, projectIdentity, projectToJsonSchema, providerOf, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, summarizeOutput, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationReport, validateSchemaSpec, workflowScope, workflowSourceRef };

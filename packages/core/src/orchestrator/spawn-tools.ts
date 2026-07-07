@@ -17,6 +17,7 @@ import type { SchemaSpec } from '../l0/schema.js';
 import { tool } from '../tools/tool.js';
 import type { ToolDef } from '../l0/spi/toolsource.js';
 import type { OrchestratorRuntime } from './handles.js';
+import { WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME } from './wake.js';
 
 /** docs/07 4.2: the spawn_agent parameter schema (normative). */
 export const SPAWN_AGENT_SCHEMA: SchemaSpec = {
@@ -177,6 +178,15 @@ export function buildOrchestratorTools(
       return runtime.cancel(params.handle, params.reason);
     },
   });
+  const waitForEvents = tool({
+    name: WAIT_FOR_EVENTS_TOOL_NAME,
+    description:
+      'Sleep until a coalesced WakeDigest: quiescence (always armed), child_terminal, ' +
+      'escalation, or budget_threshold at 50/80 percent. A trigger set that can never ' +
+      'fire is a typed error.',
+    parameters: WAIT_FOR_EVENTS_SCHEMA,
+    execute: (input) => runtime.waitForEvents((input as { triggers: unknown }).triggers),
+  });
   const finish = tool({
     name: FINISH_TOOL_NAME,
     description: 'Terminate the orchestration with a result (run outcome ok).',
@@ -185,5 +195,5 @@ export function buildOrchestratorTools(
       throw new Error('finish is intercepted by the agent runtime, never executed');
     },
   });
-  return [spawnAgent, parallelAgents, awaitAny, awaitAll, cancelAgent, finish];
+  return [spawnAgent, parallelAgents, awaitAny, awaitAll, cancelAgent, waitForEvents, finish];
 }

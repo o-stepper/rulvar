@@ -45,6 +45,7 @@ import {
   type TaskDigest,
 } from './handles.js';
 import { buildOrchestratorTools, FINISH_TOOL_NAME, type SpawnAgentParams } from './spawn-tools.js';
+import type { EscalationDigest, WakeDigest, WakeTrigger } from './wake.js';
 
 /** docs/06 5.5; the cap machinery (reserves, freeze) completes in M7 (DEF-7). */
 export interface OrchestratorBudgetSpec {
@@ -152,6 +153,11 @@ export function makeOrchestratorWorkflow(
     const rejectedByOrdinal = new Map<number, AdmissionDecision>();
     let nextOrdinal = 0;
     let orchSeq: number | undefined;
+    // Wake substrate (M6-T09): coalescing state plus settle listeners.
+    const deliveredNodeIds = new Set<string>();
+    const settleListeners = new Set<() => void>();
+    let wakeOrdinal = 0;
+    let coversToOrdinal = -1;
     let releaseRecovery: () => void = () => undefined;
     const recoveryDone = new Promise<void>((resolve) => {
       releaseRecovery = resolve;
@@ -225,6 +231,9 @@ export function makeOrchestratorWorkflow(
       };
       void settledResult.then((settled) => {
         record.settled = settled;
+        for (const listener of [...settleListeners]) {
+          listener();
+        }
       });
       records.set(handle, record);
       byOrdinal.set(spawnOrdinal, record);
@@ -265,6 +274,67 @@ export function makeOrchestratorWorkflow(
           logicalTaskId: decision.verdict.lineage.logicalTaskId,
         });
       }
+      // Wake recovery (M6-T09): prior wake suspensions restore the
+      // coalescing state; resolved digests are authoritative (pinned).
+      const wakePrefix = `wake:${String(orchSeq ?? -1)}:`;
+      for (const entry of internals.replayer.snapshot()) {
+        if (entry.status !== 'suspended' || entry.kind !== 'external') {
+          continue;
+        }
+        const payload = entry.value as { key?: string } | undefined;
+        if (typeof payload?.key !== 'string' || !payload.key.startsWith(wakePrefix)) {
+          continue;
+        }
+        wakeOrdinal = Math.max(wakeOrdinal, Number(payload.key.slice(wakePrefix.length)) + 1);
+        const suspension = internals.replayer.suspensionState(entry.seq);
+        if (suspension.state === 'resolved') {
+          markDelivered(suspension.value as unknown as WakeDigest);
+        }
+      }
+    };
+
+    const markDelivered = (digest: WakeDigest): void => {
+      for (const item of digest.completedDigests) {
+        deliveredNodeIds.add(item.nodeId);
+      }
+      coversToOrdinal = Math.max(coversToOrdinal, digest.coversToOrdinal);
+    };
+
+    const buildDigest = (ordinal: number): WakeDigest => {
+      const undelivered = [...records.values()]
+        .filter((record) => record.settled !== undefined && !deliveredNodeIds.has(record.nodeId))
+        .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal);
+      const escalations: EscalationDigest[] = [];
+      for (const record of undelivered) {
+        const settled = record.settled;
+        if (settled?.status !== 'escalated') {
+          continue;
+        }
+        const terminal = internals.replayer
+          .snapshot()
+          .find(
+            (entry) =>
+              entry.kind === 'agent' && entry.ref === record.handle && entry.status === 'escalated',
+          );
+        escalations.push({
+          nodeId: record.nodeId,
+          logicalTaskId: record.logicalTaskId,
+          reportRef: terminal?.seq ?? record.handle,
+          kind: (settled.escalation as { kind?: string } | undefined)?.kind ?? 'scope_bigger',
+          flavor: 'A',
+        });
+      }
+      return {
+        digestSeq: ordinal + 1,
+        coversToOrdinal: undelivered.reduce(
+          (max, record) => Math.max(max, record.spawnOrdinal),
+          coversToOrdinal,
+        ),
+        completedDigests: undelivered.map((record) =>
+          digestOf(record, record.settled as AgentResult<unknown>),
+        ),
+        escalations,
+      };
     };
 
     const orchestratorRuntime: OrchestratorRuntime = {
@@ -385,6 +455,137 @@ export function makeOrchestratorWorkflow(
           return record;
         });
         return Promise.all(waited.map(async (record) => digestOf(record, await record.result)));
+      },
+      async waitForEvents(rawTriggers: unknown): Promise<unknown> {
+        await recoveryDone;
+        if (internals.external === undefined) {
+          throw new ConfigError('wait_for_events requires the engine run context (createEngine)');
+        }
+        const external = internals.external;
+        const triggers = rawTriggers as WakeTrigger[];
+        // An embedded run can never hang unrecoverably: a REQUESTED
+        // trigger set that can never fire is an immediate typed error
+        // (docs/07 4.8), even though quiescence is engine-armed anyway.
+        for (const trigger of triggers) {
+          if (trigger.kind === 'budget_threshold' && internals.budget.ceilingUsd === undefined) {
+            throw new ConfigError('budget_threshold can never fire: the run has no USD ceiling');
+          }
+          if (trigger.kind === 'child_terminal' && trigger.handles !== undefined) {
+            for (const handle of trigger.handles) {
+              if (!records.has(handle)) {
+                throw new ConfigError(`child_terminal references unknown handle ${String(handle)}`);
+              }
+            }
+            const canFire = trigger.handles.some((handle) => {
+              const record = records.get(handle);
+              return (
+                record !== undefined &&
+                (record.settled === undefined || !deliveredNodeIds.has(record.nodeId))
+              );
+            });
+            if (!canFire) {
+              throw new ConfigError(
+                'child_terminal can never fire: every referenced child already settled ' +
+                  'and was delivered in a prior digest',
+              );
+            }
+          }
+          if (trigger.kind === 'escalation') {
+            const possible = [...records.values()].some(
+              (record) =>
+                record.settled === undefined ||
+                (record.settled.status === 'escalated' && !deliveredNodeIds.has(record.nodeId)),
+            );
+            if (!possible) {
+              throw new ConfigError(
+                'escalation can never fire: no live or undelivered escalated children',
+              );
+            }
+          }
+        }
+        const ordinal = wakeOrdinal;
+        wakeOrdinal += 1;
+        const wakeScope = childScopeOf();
+        const wakeKey = `wake:${String(orchSeq ?? -1)}:${String(ordinal)}`;
+        const digestPromise = external.awaitExternal(
+          wakeScope,
+          internals.spans.mint(callingState.spanId),
+          wakeKey,
+          {},
+        );
+        // The suspended append rides the serialized queue; flush before
+        // looking the entry up for engine-side resolution.
+        await internals.replayer.flush();
+        const entryRef = external
+          .pending()
+          .find((item) => item.key === wakeKey && item.scope === wakeScope)?.entryRef;
+        const isReady = (trigger: WakeTrigger): boolean => {
+          const undelivered = [...records.values()].filter(
+            (record) => record.settled !== undefined && !deliveredNodeIds.has(record.nodeId),
+          );
+          switch (trigger.kind) {
+            case 'quiescence':
+              return [...records.values()].every((record) => record.settled !== undefined);
+            case 'child_terminal':
+              if (trigger.handles === undefined) {
+                return undelivered.length > 0;
+              }
+              return trigger.handles.some((handle) =>
+                undelivered.some((record) => record.handle === handle),
+              );
+            case 'escalation':
+              return undelivered.some((record) => record.settled?.status === 'escalated');
+            case 'budget_threshold': {
+              const ceiling = internals.budget.ceilingUsd;
+              if (ceiling === undefined) {
+                return false;
+              }
+              return internals.budget.spent().usd >= (trigger.percent / 100) * ceiling;
+            }
+          }
+        };
+        const withQuiescence: WakeTrigger[] = triggers.some((t) => t.kind === 'quiescence')
+          ? triggers
+          : [...triggers, { kind: 'quiescence' }];
+        const evaluateAndFire = (): void => {
+          if (entryRef === undefined) {
+            return;
+          }
+          const ready = withQuiescence.filter((trigger) => isReady(trigger));
+          if (ready.length === 0) {
+            return;
+          }
+          const digest = buildDigest(ordinal) as unknown as Json;
+          // Every ready trigger submits its attempt; the DEF-4
+          // first-closing-wins fold classifies the losers noop (the
+          // race semantics of docs/07 section 5).
+          for (const trigger of ready) {
+            void external.submitResolution(entryRef, {
+              by: trigger.kind === 'quiescence' ? 'quiescence' : 'engine_fallback',
+              value: digest,
+            });
+          }
+        };
+        if (entryRef !== undefined) {
+          settleListeners.add(evaluateAndFire);
+          evaluateAndFire();
+        }
+        try {
+          const digest = (await digestPromise) as unknown as WakeDigest;
+          markDelivered(digest);
+          internals.events.emit(
+            {
+              type: 'orchestrator:woke',
+              digestSeq: digest.digestSeq,
+              completed: digest.completedDigests.length,
+              escalations: digest.escalations.length,
+            },
+            callingState.spanId,
+          );
+          return digest;
+        } finally {
+          settleListeners.delete(evaluateAndFire);
+        }
       },
       async cancel(
         handle: number,
