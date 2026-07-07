@@ -1,19 +1,24 @@
-# Live adapter contract tests (docs/13, section "CI workflow spec";
-# docs/11, section "Live contract tests (cron)").
+# Live adapter contract tests (M5-T04; docs/11, section "Live contract
+# tests (cron)"; docs/13, section "CI workflow spec").
 #
-# Ships DISABLED until M5: the cron trigger stays commented out and the job
-# is additionally gated on the CONTRACT_TESTS_ENABLED repository variable.
-# When enabled at M5: weekly per first-class adapter, non-blocking for
-# merges, MUST alert on failure rather than silently rerecording, keys from
-# repository secrets, spend governed by the founder budget item
-# (docs/14, section "Founder-only decisions").
+# Weekly cron, NON-BLOCKING for merges: provider drift turns THIS run red
+# and opens an issue; it never turns a PR red and never rerecords
+# automatically (rerecording is a deliberate fixtures update). The job is
+# gated on the CONTRACT_TESTS_ENABLED repository variable and on provider
+# keys in repository secrets; spend and key custody are the founder
+# budget item (docs/14, section "Founder-only decisions"). Until keys and
+# provider cassettes exist, an enabled run reports "nothing to test" and
+# exits green.
 name: Contract tests (live)
 
 on:
   workflow_dispatch:
-  # Enabled at M5 (M5 tasks wire the cassette replay against live APIs):
-  # schedule:
-  #   - cron: '0 6 * * 1'
+  schedule:
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+  issues: write
 
 jobs:
   contract:
@@ -21,8 +26,44 @@ jobs:
     if: vars.CONTRACT_TESTS_ENABLED == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Placeholder until M5
-        run: |
-          echo "Live adapter contract tests ship at M5 (docs/11, section 5.3)."
-          echo "This workflow is a disabled placeholder; do not enable before M5."
-          exit 1
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
+      - run: corepack pnpm exec turbo build
+      - name: Replay provider cassettes against live APIs
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: node scripts/contract-tests.mjs
+      - name: Page on drift (issue, never a silent rerecord)
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Live adapter contract tests failed (provider drift?)';
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'contract-drift',
+            });
+            const body = `The scheduled live contract run failed: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n\nPer docs/11 section 5.3 this means provider drift (fix the adapter, rerecord deliberately) or a flaky provider surface (document and quarantine). Automatic rerecording is forbidden.`;
+            if (issues.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues[0].number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['contract-drift'],
+              });
+            }
