@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { ConfigError } from '../l0/errors.js';
 import type { ToolContext } from '../l0/spi/toolsource.js';
 import {
   compilePermissionChain,
@@ -163,13 +162,14 @@ describe('permission chain (M3-T03)', () => {
     expect(calls).toEqual(['engine-hook', 'profile-hook', 'profile-canUse']);
   });
 
-  it('argv, domain, and preset configuration fail early until M5', () => {
-    expect(() => compilePermissionChain({ deny: [{ tool: 'sh', argv: 'rm **' }] })).toThrow(
-      ConfigError,
-    );
+  it('argv, domain, and preset configuration compile from M5 on', () => {
+    expect(() => compilePermissionChain({ deny: [{ tool: 'sh', argv: 'rm **' }] })).not.toThrow();
     expect(() =>
       compilePermissionChain({ ask: [{ tool: 'fetch', domains: ['example.com'] }] }),
-    ).toThrow(ConfigError);
-    expect(() => compilePermissionChain(undefined, { preset: 'strict' })).toThrow(ConfigError);
+    ).not.toThrow();
+    const chain = compilePermissionChain(undefined, { preset: 'strict' });
+    // The preset compiled INTO the layers (docs/08, 4.2), never a fifth.
+    expect(chain.deny).toEqual([{ risk: 'destructive' }]);
+    expect(chain.ask).toEqual([{ risk: ['write', 'network', 'execute'] }, { risk: 'undeclared' }]);
   });
 });
