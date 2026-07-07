@@ -83,6 +83,8 @@ export interface TerminalPatch {
   servedBy?: ModelRef;
   transcriptRef?: string;
   checkpointRef?: string;
+  /** Terminal agent entries: Artifact list (docs/06, section 2.1). */
+  artifacts?: unknown;
   site?: string;
 }
 
@@ -394,6 +396,9 @@ export class Replayer {
       }
       if (patch.checkpointRef !== undefined) {
         entry.checkpointRef = patch.checkpointRef;
+      }
+      if (patch.artifacts !== undefined) {
+        entry.artifacts = toJournalValue(patch.artifacts, 'terminal artifacts');
       }
       return this.persist(entry);
     });

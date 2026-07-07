@@ -31,6 +31,7 @@ import { RunBudget } from './budget.js';
 import { SpanRegistry } from './events.js';
 import { Semaphore } from './scheduler.js';
 import type { AgentProfile, RunEventSink, RunInternals } from './ctx.js';
+import type { IsolationProvider } from '../l0/spi/isolation.js';
 import type { PermissionConfig } from '../runtime/permission-chain.js';
 import { ExternalRegistry } from './external.js';
 
@@ -160,6 +161,7 @@ export interface TestInternalsOptions {
   profiles?: Record<string, AgentProfile>;
   limits?: UsageLimits;
   permissions?: PermissionConfig;
+  isolation?: IsolationProvider;
   budgetUsd?: number;
   lifetimeSpawnCap?: number;
   perRun?: number;
@@ -250,6 +252,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
       unpriced: [],
     },
     priceUsd,
+    ...(options.isolation === undefined ? {} : { isolation: options.isolation }),
     external: new ExternalRegistry(replayer),
     mintTranscriptRef: () => `test-run/t${refCounter++}`,
     now: options.now ?? Date.now,

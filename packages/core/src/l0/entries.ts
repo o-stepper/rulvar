@@ -119,6 +119,12 @@ export type JournalEntry = {
   servedBy?: ModelRef;
   transcriptRef?: string;
   checkpointRef?: string;
+  /**
+   * Terminal agent entries: the Artifact list (worktree patch refs and
+   * inline values); rides the terminal payload so replay reconstructs
+   * AgentResult.artifacts without live calls (docs/06, section 2.1).
+   */
+  artifacts?: Json;
   /** Only when kind === 'resolution'. */
   resolution?: ResolutionPayload;
   /** Only when kind === 'abandon'. */

@@ -25,7 +25,7 @@ import type { Json } from '../l0/json.js';
 import type { Effort, InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
 import type { ProviderAdapter } from '../l0/spi/provider.js';
 import type { TranscriptStore } from '../l0/spi/transcript.js';
-import type { IsolationSpec } from '../l0/spi/isolation.js';
+import type { IsolationProvider, IsolationSpec } from '../l0/spi/isolation.js';
 import {
   canonicalizeSchema,
   EMPTY_SCHEMA_HASH,
@@ -51,7 +51,12 @@ import {
   type ResolutionLayer,
   type ResolvedInvocation,
 } from '../model/router.js';
-import { runAgent, type AgentResult, type ToolRuntime } from '../runtime/agent-loop.js';
+import {
+  runAgent,
+  type AgentResult,
+  type Artifact,
+  type ToolRuntime,
+} from '../runtime/agent-loop.js';
 import {
   compilePermissionChain,
   evaluatePermission,
@@ -81,6 +86,8 @@ export interface AgentProfile {
   tools?: ToolsOption;
   /** Chain layers merged over engine defaults (docs/08, section 3.7). */
   permissions?: AgentProfilePermissions;
+  /** Isolation default; the RESOLVED value enters identity (docs/08). */
+  isolation?: IsolationSpec;
   limits?: UsageLimits;
   /** Admission reserve hint in USD (budget layer 1). */
   estCost?: number;
@@ -106,7 +113,7 @@ export interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   schema?: S;
   /** toolsetHash enters identity; wins over profile.tools (docs/08). */
   tools?: ToolsOption;
-  /** docs/08; enters identity. Only 'none' is executable before M3-T05. */
+  /** docs/08; the RESOLVED value enters identity; worktree needs defaults.isolation. */
   isolation?: IsolationSpec;
   /** Explicit discriminator; replaces the prompt in the content key. */
   key?: string;
@@ -405,6 +412,8 @@ export interface RunInternals {
   cost: CostAttribution;
   priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
   runSignal?: AbortSignal;
+  /** The worktree lifecycle provider (docs/08, section 8). */
+  isolation?: IsolationProvider;
   /** Open external suspensions plus the quiescence activity counter (M2-T08). */
   external?: ExternalRegistry;
   mintTranscriptRef: () => string;
@@ -496,9 +505,18 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         );
       }
     }
-    if (opts.isolation !== undefined && opts.isolation !== 'none') {
+    // Isolation resolves call over profile; the RESOLVED value enters
+    // identity (docs/08, section 8.1). The worktree lifecycle needs the
+    // engine-configured provider.
+    const isolation: IsolationSpec = opts.isolation ?? profile?.isolation ?? 'none';
+    if (
+      typeof isolation === 'object' &&
+      isolation.kind === 'worktree' &&
+      internals.isolation === undefined
+    ) {
       throw new ConfigError(
-        "isolation lands with the tool system in M3; only 'none' is executable",
+        'worktree isolation requires an IsolationProvider: pass defaults.isolation to ' +
+          'createEngine (docs/08, section 8.2)',
       );
     }
 
@@ -589,7 +607,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       prompt: opts.key ?? prompt,
       schemaHash: derivedSchemaHash,
       toolsetHash: toolset.hash,
-      isolation: opts.isolation ?? 'none',
+      isolation,
     } as const;
     const identityKey = deriveContentKey(identityInput);
 
@@ -624,6 +642,9 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       if (terminal?.error !== undefined) {
         result.error = agentErrorFromWire(terminal.error);
         (result as { errorMessage?: string }).errorMessage = terminal.error.message;
+      }
+      if (terminal?.artifacts !== undefined) {
+        result.artifacts = terminal.artifacts as unknown as Artifact[];
       }
       // Tool results reconstructed from the replayed turn checkpoint are
       // re-emitted with the replay marker (docs/09, section "Replay
@@ -748,6 +769,23 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     const reserve = admissionReserveUsd(reserveOptions);
     internals.budget.admitSpawn(reserve);
 
+    // Worktree lifecycle (docs/08, section 8.3): acquired before the
+    // dispatch entry so an acquire failure never leaves a dangling
+    // running entry. A dangling redispatch acquires a FRESH tree from the
+    // same ref; tools are at-least-once and SHOULD be idempotent.
+    let acquired:
+      Awaited<ReturnType<NonNullable<RunInternals['isolation']>['acquire']>> | undefined;
+    if (typeof isolation === 'object' && isolation.kind === 'worktree') {
+      const acquireInput: { runId: string; spanId: string; ref?: string } = {
+        runId: internals.runId,
+        spanId: state.spanId,
+      };
+      if (isolation.ref !== undefined) {
+        acquireInput.ref = isolation.ref;
+      }
+      acquired = await internals.isolation?.acquire(acquireInput);
+    }
+
     const spanId = internals.spans.mint(state.spanId);
     // memoizeOutcome is a policy field fixed in the entry payload at
     // dispatch time (docs/03, section "Normative payload schemas"); the M2
@@ -811,8 +849,8 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           runId: internals.runId,
           agentType,
           ...(opts.label === undefined ? {} : { label: opts.label }),
-          cwd: process.cwd(),
-          isolation: opts.isolation ?? 'none',
+          cwd: acquired?.cwd ?? process.cwd(),
+          isolation,
           signal: toolSignal,
           mintSpan: () => internals.spans.mint(spanId),
           emitLog: (toolSpanId, level, msg, data) =>
@@ -931,6 +969,29 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     }
     internals.budget.releaseReserve(reserve);
 
+    // collect() before dispose: the patch lands in TranscriptStore and
+    // its reference in AgentResult.artifacts; applying it stays with the
+    // caller (docs/08, section 8.3).
+    if (acquired !== undefined) {
+      try {
+        const { files, patch } = await acquired.collect();
+        const patchRef = internals.mintTranscriptRef();
+        await internals.transcripts.put(patchRef, patch);
+        const artifact: Artifact = { id: 'worktree-patch', kind: 'patch', files, ref: patchRef };
+        result.artifacts = [...(result.artifacts ?? []), artifact];
+      } catch (thrown) {
+        internals.events.emit(
+          {
+            type: 'log',
+            level: 'warn',
+            msg: `worktree collect failed: ${thrown instanceof Error ? thrown.message : String(thrown)}`,
+          },
+          spanId,
+        );
+      }
+      await acquired.dispose(result.status !== 'ok');
+    }
+
     const terminalPatch: Parameters<Replayer['appendTerminal']>[1] = {
       status:
         result.status === 'skipped' || result.status === 'escalated' ? 'error' : result.status,
@@ -949,6 +1010,9 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     }
     if ((result as { usageApprox?: boolean }).usageApprox === true) {
       terminalPatch.usageApprox = true;
+    }
+    if (result.artifacts !== undefined) {
+      terminalPatch.artifacts = result.artifacts;
     }
     if (checkpointWritten) {
       terminalPatch.checkpointRef = ckptRef;
