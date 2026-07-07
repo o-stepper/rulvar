@@ -1,13 +1,24 @@
 /**
- * @lurker/cli: lurker shell: run/resume/runs/inspect/plan/kb commands, TUI progress, createServer, createWorker, OTel exporter.
+ * @lurker/cli: the lurker shell (docs/02, section 8.1; docs/06, section
+ * 10.5). M5 surface: run/resume/runs ls/inspect over the canonical
+ * grammar, TUI progress on the event stream, interactive resolution of
+ * suspended approvals and externals. plan/kb commands land M6+/M10;
+ * createServer/createWorker land M8; the OTel exporter lands M5-T08.
  *
- * M0 scaffold (v0.1.0): no public API yet. The first real surface of this
- * package ships in milestone M5 per docs/10-implementation-plan.md.
+ * The CLI builds exclusively from the public @lurker/core API; adapters
+ * and defaults come from the host's `lurker.config.mjs` (or the
+ * workflow module's exports), never from CLI dependencies.
  */
-
-/**
- * Temporary M0 scaffold marker (M0-T02 acceptance: a sample exported symbol
- * round-trips through build and packs). Removed when the package's first
- * real API lands.
- */
-export const M0_SCAFFOLD = '@lurker/cli' as const;
+export { runCli, HELP } from './cli-main.js';
+export {
+  runCommand,
+  resumeCommand,
+  runsLsCommand,
+  inspectCommand,
+  type CommandContext,
+} from './commands.js';
+export { loadCliConfig, loadWorkflowModule, looksLikeFile, type CliConfig } from './config.js';
+export { assembleEngine, DEFAULT_STORE_DIR, type AssembledCli } from './engine-assembly.js';
+export { driveRun, reportOutcome } from './drive.js';
+export { attachProgress, renderEventLine } from './tui.js';
+export { processIo, type CliIo } from './io.js';
