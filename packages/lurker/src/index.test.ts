@@ -1,7 +1,11 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import type { WorkflowEvent } from './index.js';
-import { createEngine, defineWorkflow, renderProgress } from './index.js';
+import { checkFloors, ConfigError, createEngine, defineWorkflow, renderProgress } from './index.js';
+import { recommendedDefaults } from './defaults.js';
 
 describe('@lurker/lurker umbrella (M1-T10)', () => {
   it('re-exports the core surface', () => {
@@ -66,5 +70,50 @@ describe('@lurker/lurker umbrella (M1-T10)', () => {
       'budget: spent 0.0123 USD, remaining 0.9877 USD',
       'run finished: ok (total 0.0123 USD)',
     ]);
+  });
+});
+
+describe('quality floors and umbrella opinions (M4-T09)', () => {
+  it('core ships no named model strings; opinions live only here', () => {
+    const coreSrc = fileURLToPath(new URL('../../core/src', import.meta.url));
+    const offenders: string[] = [];
+    const namedModel = /claude-|gpt-\d|grok-|gemini-/i;
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(path);
+          continue;
+        }
+        // Shipped code only: identity fixtures in tests legitimately use
+        // realistic-looking refs and are never published.
+        if (!entry.name.endsWith('.ts') || entry.name.endsWith('.test.ts')) {
+          continue;
+        }
+        if (namedModel.test(readFileSync(path, 'utf8'))) {
+          offenders.push(path);
+        }
+      }
+    };
+    walk(coreSrc);
+    expect(offenders).toEqual([]);
+  });
+
+  it('recommendedDefaults pins strong orchestrate/plan floors that the router enforces', () => {
+    expect(recommendedDefaults.floors.byRole?.orchestrate?.allow?.length).toBeGreaterThan(0);
+    expect(() =>
+      checkFloors({
+        ref: 'openai:gpt-5.4-mini',
+        role: 'orchestrate',
+        floors: recommendedDefaults.floors,
+      }),
+    ).toThrow(ConfigError);
+    expect(() =>
+      checkFloors({
+        ref: 'anthropic:claude-fable-5',
+        role: 'orchestrate',
+        floors: recommendedDefaults.floors,
+      }),
+    ).not.toThrow();
   });
 });

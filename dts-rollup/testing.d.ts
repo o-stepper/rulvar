@@ -50,10 +50,6 @@ declare function buildFrozenV1JournalRaw(): Array<Record<string, unknown>>;
 declare function buildV2GoldenIdentity(): Record<string, unknown>;
 //#endregion
 //#region src/cassettes/record-live.d.ts
-/**
-* Records the five live cassettes. Deterministic by construction:
-* scripted FakeAdapter responders, fixed runId, normalized stamps.
-*/
 declare function recordLiveCassettes(): Promise<CassetteFixture[]>;
 //#endregion
 export { type CassetteFixture, type CreateTestEngineOptions, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type FakeToolCallsValue, type FakeWireErrorValue, type ReplayRunOptions, type TestEngine, type TestRunHandle, buildFrozenV1JournalRaw, buildM2CassetteFixtures, buildV2GoldenIdentity, createTestEngine, fakeToolCalls, fakeWireError, recordLiveCassettes, replayRun };

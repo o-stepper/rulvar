@@ -44,6 +44,7 @@ describe('frozen fixtures match their builders exactly', () => {
   it('every committed live-recorded cassette equals its recorder output', async () => {
     const fixtures = await recordLiveCassettes();
     expect(fixtures.map((fixture) => fixture.id)).toEqual([
+      'effort-defaults-shift',
       'abandon-subtree',
       'memoize-classifier',
       'escalate-replay',

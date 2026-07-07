@@ -1,0 +1,261 @@
+{
+  "id": "effort-defaults-shift",
+  "note": "DEF-6 (recorded through the live runtime in M4-T08): the frozen v1 prefix recorded without effort, closed offline, then resumed live under explicit high effort with the completed effort semantics; every v1 entry matches (the v1 predicate strips effort) and the one new spawn carries canonical effort in v2 identity.",
+  "entries": [
+    {
+      "scope": "",
+      "key": "61993e237800746037a89eef8429f28ef93d30a2d341e4304b7978c812b903ad",
+      "kind": "agent",
+      "status": "running",
+      "seq": 0,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "hashVersion": 1
+    },
+    {
+      "ref": 0,
+      "scope": "",
+      "key": "61993e237800746037a89eef8429f28ef93d30a2d341e4304b7978c812b903ad",
+      "kind": "agent",
+      "status": "ok",
+      "value": "summary text, first draft",
+      "usage": {
+        "inputTokens": 220,
+        "outputTokens": 80,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "endedAt": "2026-02-01T00:00:01.000Z",
+      "seq": 1,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z",
+      "hashVersion": 1
+    },
+    {
+      "scope": "",
+      "key": "7d32b9c53f8a87d5524fdf361ef8fef36d531ea5b25d24caccb21378f16f5293",
+      "kind": "step",
+      "status": "running",
+      "seq": 2,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z",
+      "hashVersion": 1
+    },
+    {
+      "ref": 2,
+      "scope": "",
+      "key": "7d32b9c53f8a87d5524fdf361ef8fef36d531ea5b25d24caccb21378f16f5293",
+      "kind": "step",
+      "status": "ok",
+      "value": {
+        "written": true,
+        "path": "drafts/summary.md"
+      },
+      "endedAt": "2026-02-01T00:00:03.000Z",
+      "seq": 3,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:03.000Z",
+      "hashVersion": 1
+    },
+    {
+      "scope": "",
+      "key": "6c60111d0dcc006febb08f6e903ec3dd5f19d5bd3deee568fd3664ce8a48464e",
+      "kind": "rand",
+      "status": "ok",
+      "value": {
+        "subtype": "now",
+        "value": 1706745600000
+      },
+      "endedAt": "2026-02-01T00:00:04.000Z",
+      "seq": 4,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:04.000Z",
+      "hashVersion": 1
+    },
+    {
+      "scope": "",
+      "key": "aab80fc35dd6f2169f684b8f9d690cead72d813b167ab60024f190fe1d4cd001",
+      "kind": "external",
+      "status": "suspended",
+      "value": {
+        "key": "editor-approval",
+        "prompt": "Approve the draft?",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "approved"
+          ],
+          "properties": {
+            "approved": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "seq": 5,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:05.000Z",
+      "hashVersion": 1
+    },
+    {
+      "scope": "",
+      "key": "634d6ece92473f5a579a09bf1c562111c700dcf851bbdc0eb8a83ac30f90d5bc",
+      "kind": "approval",
+      "status": "suspended",
+      "value": {
+        "toolName": "publish",
+        "input": {
+          "channel": "blog"
+        }
+      },
+      "seq": 6,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:06.000Z",
+      "hashVersion": 1
+    },
+    {
+      "scope": "",
+      "key": "cb0711fc7dab1521dcae5f3d9617c49669f0f6a6cc8956a746b24d4b9627f26b",
+      "kind": "agent",
+      "status": "running",
+      "seq": 7,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:07.000Z",
+      "hashVersion": 1
+    },
+    {
+      "ref": 7,
+      "scope": "",
+      "key": "cb0711fc7dab1521dcae5f3d9617c49669f0f6a6cc8956a746b24d4b9627f26b",
+      "kind": "agent",
+      "status": "ok",
+      "value": "intro pass one",
+      "usage": {
+        "inputTokens": 60,
+        "outputTokens": 12,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "endedAt": "2026-02-01T00:00:08.000Z",
+      "seq": 8,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:08.000Z",
+      "hashVersion": 1
+    },
+    {
+      "scope": "",
+      "key": "cb0711fc7dab1521dcae5f3d9617c49669f0f6a6cc8956a746b24d4b9627f26b",
+      "kind": "agent",
+      "status": "running",
+      "seq": 9,
+      "ordinal": 1,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:09.000Z",
+      "hashVersion": 1
+    },
+    {
+      "ref": 9,
+      "scope": "",
+      "key": "cb0711fc7dab1521dcae5f3d9617c49669f0f6a6cc8956a746b24d4b9627f26b",
+      "kind": "agent",
+      "status": "ok",
+      "value": "intro pass two",
+      "usage": {
+        "inputTokens": 61,
+        "outputTokens": 13,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "endedAt": "2026-02-01T00:00:10.000Z",
+      "seq": 10,
+      "ordinal": 1,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:10.000Z",
+      "hashVersion": 1
+    },
+    {
+      "hashVersion": 2,
+      "seq": 11,
+      "ref": 5,
+      "scope": "",
+      "key": "",
+      "ordinal": 0,
+      "kind": "resolution",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:11.000Z",
+      "resolution": {
+        "target": 5,
+        "by": "external",
+        "value": {
+          "approved": true
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 12,
+      "ref": 6,
+      "scope": "",
+      "key": "",
+      "ordinal": 0,
+      "kind": "abandon",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:12.000Z",
+      "abandon": {
+        "target": 6,
+        "authorizedBy": 11,
+        "reason": "approval flow superseded by the operator",
+        "retainCheckpoint": true,
+        "retainWorktree": false
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 13,
+      "scope": "",
+      "key": "a07dd869231fde845eaeafa0b67f878872ccec438c7908df939fd0cd2d2d2016",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:13.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 14,
+      "ref": 13,
+      "scope": "",
+      "key": "a07dd869231fde845eaeafa0b67f878872ccec438c7908df939fd0cd2d2d2016",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:14.000Z",
+      "endedAt": "2026-02-01T00:00:14.000Z",
+      "value": "tone assessed",
+      "usage": {
+        "inputTokens": 4,
+        "outputTokens": 4,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "RUNV1/t0"
+    }
+  ]
+}

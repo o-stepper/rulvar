@@ -38,6 +38,7 @@ import type { PermissionConfig } from '../runtime/permission-chain.js';
 import { ExternalRegistry } from './external.js';
 import { KeyedLimiter } from '../model/concurrency.js';
 import { resolvePricing, type PriceTable } from '../model/pricing.js';
+import type { QualityFloors } from '../model/floors.js';
 
 export interface ScriptedTurn {
   /** Text emitted as a single text-delta. */
@@ -184,6 +185,8 @@ export interface TestInternalsOptions {
   pricing?: PriceTable;
   /** Per-adapter-id concurrency caps (M4-T07). */
   perProvider?: Record<string, number>;
+  /** Hard per-role model constraints (M4-T09). */
+  floors?: QualityFloors;
   errorPolicy?: 'strict' | 'lenient';
   now?: () => number;
   /** Resume simulation: the loaded prior journal. */
@@ -256,6 +259,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
     semaphore: new Semaphore(options.perRun ?? 12),
     providerLimiter: new KeyedLimiter(options.perProvider),
     ...(options.pricing === undefined ? {} : { pricingVersion: options.pricing.pricingVersion }),
+    ...(options.floors === undefined ? {} : { floors: options.floors }),
     events,
     spans,
     rootSpanId: spans.mint(),

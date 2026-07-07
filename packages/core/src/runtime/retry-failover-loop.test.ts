@@ -174,6 +174,36 @@ describe('transport failover (M4-T04)', () => {
     expect(warns).toHaveLength(1);
   });
 
+  it("surfaces the takeover target's scrubs visibly at failover time (M4-T08)", async () => {
+    const primary = scriptedAdapter(() => ({ error: transient('down') }));
+    const backup = scriptedAdapter(() => ({ text: 'served' }), { id: 'backup' });
+    const events = recordingSink();
+    const scrubbed = {
+      ...resolvedOf('backup:model-b'),
+      scrubs: [
+        {
+          scrubbed: 'effort' as const,
+          model: 'backup:model-b' as const,
+          detail: "effort 'max' is not in caps.reasoningEfforts for backup:model-b",
+        },
+      ],
+    };
+    const result = await runAgent({
+      prompt: 'x',
+      adapter: primary,
+      resolved: resolvedOf('fake:model'),
+      fallbacks: [{ adapter: backup, resolved: scrubbed }],
+      limits: mergeUsageLimits(),
+      retry: instantRetry([]),
+      events,
+    });
+    expect(result.status).toBe('ok');
+    const warns = events.ofType('log').map((e) => String(e.msg));
+    expect(warns.some((msg) => msg.includes("effort 'max' is not in caps.reasoningEfforts"))).toBe(
+      true,
+    );
+  });
+
   it('exhausting the whole chain surfaces the last error', async () => {
     const primary = scriptedAdapter(() => ({ error: transient('down A') }));
     const backup = scriptedAdapter(() => ({ error: transient('down B') }), { id: 'backup' });

@@ -38,6 +38,7 @@ export * from './stores/jsonl.js';
 export * from './model/caps.js';
 export * from './model/concurrency.js';
 export * from './model/failover.js';
+export * from './model/floors.js';
 export * from './model/pricing.js';
 export * from './model/projector.js';
 export * from './model/retry.js';
