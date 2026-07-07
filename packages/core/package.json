@@ -36,5 +36,8 @@
     "typescript": "catalog:",
     "valibot": "catalog:",
     "zod": "catalog:"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
   }
 }

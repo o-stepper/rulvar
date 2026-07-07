@@ -20,6 +20,7 @@ export type * from './l0/spi/toolsource.js';
 export * from './tools/tool.js';
 export * from './tools/toolset-hash.js';
 export * from './tools/context.js';
+export * from './tools/mcp.js';
 export * from './journal/identity.js';
 export * from './journal/checkpoint.js';
 export * from './journal/scope.js';
