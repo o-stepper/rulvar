@@ -143,7 +143,13 @@ export function createEngine(options: CreateEngineOptions): Engine {
       events: { emit: (body) => bus.emit(body as WorkflowEventBody, rootSpanId) },
       priceUsd,
     });
-    const replayer = new Replayer({ runId, store: journal, now: realNow, priceUsd });
+    const replayer = new Replayer({
+      runId,
+      store: journal,
+      now: realNow,
+      priceUsd,
+      onWarn: (msg) => bus.emit({ type: 'log', level: 'warn', msg }, rootSpanId),
+    });
     const controller = new AbortController();
     let cancelReason: string | undefined;
     const requestCancel = (reason: string): void => {

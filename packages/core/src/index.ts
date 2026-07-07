@@ -21,6 +21,7 @@ export * from './journal/scope.js';
 export * from './journal/serializable.js';
 export * from './journal/replayer.js';
 export * from './stores/inmemory.js';
+export * from './stores/jsonl.js';
 export * from './model/caps.js';
 export * from './model/router.js';
 export * from './runtime/usage-limits.js';
