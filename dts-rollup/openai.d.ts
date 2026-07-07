@@ -37,6 +37,29 @@ interface OpenAiAdapterOptions {
 /** Creates the first-class OpenAI adapter (id 'openai'); maxRetries 0. */
 declare function openai(options?: OpenAiAdapterOptions): ProviderAdapter;
 //#endregion
+//#region src/compatible.d.ts
+/**
+* Gateways cannot be introspected reliably: when caps are not supplied
+* the factory assumes the most conservative capability set (docs/04,
+* section 6). Callers SHOULD supply caps for anything beyond it; the
+* window and output floors here are deliberately small so an unprobed
+* endpoint is never overcommitted. Absent pricing is legitimate for
+* local models: they surface as unpriced in CostReport.
+*/
+declare const CONSERVATIVE_COMPATIBLE_CAPS: ModelCaps;
+interface OpenAiCompatibleConfig {
+  /** Explicit adapter id, e.g. 'ollama', 'vllm', 'openrouter'. */
+  id: string;
+  baseURL: string;
+  apiKey?: string;
+  /** Per-model capability overrides merged over the conservative set. */
+  caps?: (model: string) => ModelCaps | Partial<ModelCaps>;
+  /** Test seam: a preconstructed client; production uses the openai SDK. */
+  client?: OpenAiClientLike;
+}
+/** Creates a Chat Completions dialect adapter for a compatible endpoint. */
+declare function openaiCompatible(cfg: OpenAiCompatibleConfig): ProviderAdapter;
+//#endregion
 //#region src/wire.d.ts
 /** Bijective canonical-to-wire (call_*) id map (docs/04, section 1.2). */
 declare class OpenAiIdMap {
@@ -97,4 +120,4 @@ declare function buildChatCompletionsParams(req: ChatRequest, ids: OpenAiIdMap):
 /** Delta-patched chunk assembly for the degraded path. */
 declare function mapChatCompletionsStream(stream: AsyncIterable<Record<string, unknown>>, ids: OpenAiIdMap, emit: (event: ChatEvent) => void): Promise<void>;
 //#endregion
-export { OPENAI_MODELS, type OpenAiAdapterOptions, type OpenAiClientLike, OpenAiIdMap, type OpenAiModelInfo, type ResponsesStreamEvent, buildChatCompletionsParams, buildResponsesParams, mapChatCompletionsStream, mapOpenAiEffort, mapResponsesStream, normalizeOpenAiUsage, openAiErrorToWire, openAiModelInfo, openai };
+export { CONSERVATIVE_COMPATIBLE_CAPS, OPENAI_MODELS, type OpenAiAdapterOptions, type OpenAiClientLike, type OpenAiCompatibleConfig, OpenAiIdMap, type OpenAiModelInfo, type ResponsesStreamEvent, buildChatCompletionsParams, buildResponsesParams, mapChatCompletionsStream, mapOpenAiEffort, mapResponsesStream, normalizeOpenAiUsage, openAiErrorToWire, openAiModelInfo, openai, openaiCompatible };

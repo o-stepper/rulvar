@@ -16,6 +16,7 @@ import {
 } from '../l0/errors.js';
 import type { WorkflowEventBody } from '../l0/events.js';
 import type { InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
+import type { IsolationProvider } from '../l0/spi/isolation.js';
 import type { ProviderAdapter } from '../l0/spi/provider.js';
 import type { JournalStore } from '../l0/spi/store.js';
 import type { TranscriptStore } from '../l0/spi/transcript.js';
@@ -62,6 +63,8 @@ export interface EngineDefaults {
   limits?: UsageLimits;
   /** Engine-wide permission chain layers (docs/08, section 3). */
   permissions?: PermissionConfig;
+  /** The worktree lifecycle provider (docs/08, section 8). */
+  isolation?: IsolationProvider;
 }
 
 export interface BudgetDefaults {
@@ -288,6 +291,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       },
       priceUsd: (servedBy, usage) => priceUsd(servedBy, usage),
       runSignal: controller.signal,
+      ...(defaults.isolation === undefined ? {} : { isolation: defaults.isolation }),
       external,
       mintTranscriptRef: () => `${runId}/t${transcriptCounter++}`,
       now: realNow,

@@ -21,6 +21,7 @@ export * from './tools/tool.js';
 export * from './tools/toolset-hash.js';
 export * from './tools/context.js';
 export * from './tools/mcp.js';
+export * from './tools/isolation.js';
 export * from './journal/identity.js';
 export * from './journal/checkpoint.js';
 export * from './journal/scope.js';
