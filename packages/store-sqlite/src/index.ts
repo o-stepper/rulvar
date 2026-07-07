@@ -1,13 +1,8 @@
 /**
- * @lurker/store-sqlite: lurker SQLite store implementing JournalStore and LeasableStore with a fencing epoch.
- *
- * M0 scaffold (v0.1.0): no public API yet. The first real surface of this
- * package ships in milestone M5 per docs/10-implementation-plan.md.
+ * @lurker/store-sqlite: SqliteStore implementing JournalStore and
+ * LeasableStore with fencing epochs over the builtin node:sqlite driver;
+ * the reference implementation for community stores (docs/03, section
+ * 12.6; M5-T02). Requires a Node.js with node:sqlite available
+ * (unflagged in the 22.13+/23.4+ lines).
  */
-
-/**
- * Temporary M0 scaffold marker (M0-T02 acceptance: a sample exported symbol
- * round-trips through build and packs). Removed when the package's first
- * real API lands.
- */
-export const M0_SCAFFOLD = '@lurker/store-sqlite' as const;
+export { SqliteStore, DEFAULT_LEASE_TTL_MS, type SqliteStoreOptions } from './store.js';

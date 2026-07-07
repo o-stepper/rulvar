@@ -338,6 +338,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@lurker/store-conformance':
+        specifier: workspace:*
+        version: link:../store-conformance
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.0
