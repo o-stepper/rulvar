@@ -1,6 +1,6 @@
 {
   "name": "@lurker/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "lurker shell: run/resume/runs/inspect/plan/kb commands, TUI progress, createServer, createWorker, OTel exporter.",
   "type": "module",
   "license": "UNLICENSED",
