@@ -328,6 +328,8 @@ The orchestrator never sees or names concrete models; `model_hint.startTier` is 
 
 Result: `{ handle: number }` where `handle` is the spawn entry seq. Admission (section 7) runs before the entry is journaled; a rejection surfaces as a typed tool error carrying the embedded `AdmitRejectReason`.
 
+M6 delivery notes (amended during M6-T07): `outputSchemaRef` and `toolsetRef` are part of the normative schema (they enter toolsetHash) but their registries land in M7; using them in M6 is a typed tool error, never a run failure. `model_hint` and `lineage` are accepted and journaled; ladder clamping and the lineage folds activate in M7. For spawn-tool admissions the budget reserve is committed by the child's own ctx.agent dispatch moments after the decision entry (one debit, never two); the admission decision still embeds the verdict, the evaluated reserve, and statsBefore, and replay recovers them without re-evaluation.
+
 ### 4.3 parallel_agents
 
 ```json
@@ -380,7 +382,7 @@ Result: `{ handle: number }` where `handle` is the spawn entry seq. Admission (s
 }
 ```
 
-Cancellation of an in-flight child sends AbortSignal and compiles to an abandon entry over the child's scope (03-journal-spec.md, section "Abandon, derived skipped, reuse-by-reference and node.link (DEF-5)").
+Cancellation of an in-flight child sends AbortSignal and compiles to an abandon entry over the child's scope (03-journal-spec.md, section "Abandon, derived skipped, reuse-by-reference and node.link (DEF-5)"). (Amended during M6-T08: the abandon compilation activates with the PlanRunner cancel_task machinery in M7; in M6 mode (c) the cancelled child journals terminal status `cancelled`, which reruns on a later resume unless covered by abandon, exactly the caller-intent semantics of 10-implementation-plan.md M6-T08.)
 
 ### 4.6 plan_view
 
