@@ -36,6 +36,7 @@ import {
   type SchemaSpec,
 } from '../l0/schema.js';
 import { deriveContentKey } from '../journal/identity.js';
+import { checkpointRefFor, decodeCheckpoint, encodeCheckpoint } from '../journal/checkpoint.js';
 import { ParallelSiteCounter, parallelScope, pipelineScope, ROOT_SCOPE } from '../journal/scope.js';
 import type { Replayer } from '../journal/replayer.js';
 import type { JournalEntry } from '../l0/entries.js';
@@ -598,14 +599,34 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         output: matched.kind === 'skip' ? null : (terminal?.value ?? null),
         usage,
         costUsd,
-        // Turn counts are not journaled in v1; the fold recovers them
-        // with the checkpoint format (M3).
+        // Best-effort recovery below: turns are not journaled; the last
+        // turn-boundary checkpoint carries the paid-turn count (docs/03,
+        // section 11.1).
         turns: 0,
         transcriptRef: terminal?.transcriptRef ?? '',
       };
       if (terminal?.error !== undefined) {
         result.error = agentErrorFromWire(terminal.error);
         (result as { errorMessage?: string }).errorMessage = terminal.error.message;
+      }
+      // Tool results reconstructed from the replayed turn checkpoint are
+      // re-emitted with the replay marker (docs/09, section "Replay
+      // re-emission").
+      let replayedToolResults: Array<{ name: string; isError: boolean }> = [];
+      if (matched.kind === 'replay' && terminal?.checkpointRef !== undefined) {
+        const blob = await internals.transcripts.get(terminal.checkpointRef);
+        const checkpoint = blob === null ? undefined : decodeCheckpoint(blob);
+        if (checkpoint !== undefined) {
+          result.turns = checkpoint.turns;
+          replayedToolResults = checkpoint.messages
+            .filter((msg) => msg.role === 'tool')
+            .flatMap((msg) => msg.parts)
+            .filter((part) => part.type === 'tool-result')
+            .map((part) => ({
+              name: part.name,
+              isError: (part as { isError?: boolean }).isError === true,
+            }));
+        }
       }
       internals.events.emit(
         {
@@ -618,6 +639,19 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         spanId,
         true,
       );
+      for (const toolResult of replayedToolResults) {
+        internals.events.emit({ type: 'tool:start', toolName: toolResult.name }, spanId, true);
+        internals.events.emit(
+          {
+            type: 'tool:end',
+            toolName: toolResult.name,
+            outcome: toolResult.isError ? 'error' : 'ok',
+            durationMs: 0,
+          },
+          spanId,
+          true,
+        );
+      }
       internals.events.emit(
         {
           type: 'agent:end',
@@ -725,6 +759,25 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       emit: (body: { type: string } & Record<string, unknown>) =>
         internals.events.emit(body, spanId),
     };
+    // Turn-boundary checkpoints live at a deterministic ref derived from
+    // the dispatch seq, overwritten per boundary; only a dangling
+    // redispatch restores (cancelled entries rerun from scratch per the
+    // predicate; docs/03, sections 6.3 and 11.1).
+    const ckptRef = checkpointRefFor(internals.runId, running.seq);
+    let checkpointWritten = false;
+    const checkpointPlumbing: NonNullable<Parameters<typeof runAgent<S>>[0]['checkpoint']> = {
+      load: async () => {
+        if (danglingRunning === undefined) {
+          return undefined;
+        }
+        const blob = await internals.transcripts.get(ckptRef);
+        return blob === null ? undefined : decodeCheckpoint(blob);
+      },
+      save: async (checkpointState) => {
+        await internals.transcripts.put(ckptRef, encodeCheckpoint(checkpointState));
+        checkpointWritten = true;
+      },
+    };
     const branchOrRunSignal = state.signal ?? internals.runSignal;
     let toolRuntime: ToolRuntime | undefined;
     if (toolset.tools.length > 0) {
@@ -781,6 +834,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     if (toolRuntime !== undefined) {
       runAgentOptions.tools = toolRuntime;
     }
+    runAgentOptions.checkpoint = checkpointPlumbing;
     if (opts.schema !== undefined) {
       runAgentOptions.schema = opts.schema;
     }
@@ -830,6 +884,9 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     }
     if ((result as { usageApprox?: boolean }).usageApprox === true) {
       terminalPatch.usageApprox = true;
+    }
+    if (checkpointWritten) {
+      terminalPatch.checkpointRef = ckptRef;
     }
     const terminal = await internals.replayer.appendTerminal(running.seq, terminalPatch);
     internals.events.emit(
