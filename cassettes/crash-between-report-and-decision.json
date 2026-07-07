@@ -1,0 +1,58 @@
+{
+  "id": "crash-between-report-and-decision",
+  "note": "DEF-1 live set: the terminal escalated entry landed, the process died before any decision; the first resume replays escalated and pays for the decision live exactly once; the second resume replays both with zero live calls.",
+  "entries": [
+    {
+      "hashVersion": 2,
+      "seq": 0,
+      "scope": "",
+      "key": "4a401a3b674bc272f6becd5e0985bcc67af797f39ca0b82d425f22836dbaf9b6",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 1,
+      "ref": 0,
+      "scope": "",
+      "key": "4a401a3b674bc272f6becd5e0985bcc67af797f39ca0b82d425f22836dbaf9b6",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "escalated",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z",
+      "endedAt": "2026-02-01T00:00:01.000Z",
+      "usage": {
+        "inputTokens": 9,
+        "outputTokens": 8,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "record/t0",
+      "escalation": {
+        "kind": "scope_bigger",
+        "scopeDelta": "the billing migration spans nine services, not one",
+        "revisedEstimate": {
+          "usd": 40,
+          "turns": 90
+        },
+        "blockers": [
+          "schema ownership is unclear"
+        ],
+        "proposedDecomposition": [],
+        "costToDate": {
+          "usd": 0,
+          "turns": 1
+        },
+        "salvage": {
+          "transcriptRef": "record/t0",
+          "artifacts": []
+        }
+      }
+    }
+  ]
+}

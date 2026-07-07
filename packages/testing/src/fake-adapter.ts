@@ -12,6 +12,7 @@ import {
   type ModelCaps,
   type ProviderAdapter,
   type Usage,
+  type WireError,
 } from '@lurker/core';
 
 /** What a responder sees about the call. */
@@ -25,8 +26,50 @@ export interface FakeCall {
 /**
  * A static string (plain text output), a static value (structured output),
  * or a function of the call. Thrown errors become terminal error events.
+ * fakeToolCalls() and fakeWireError() values script tool-calling turns and
+ * typed wire failures (M3).
  */
 export type FakeResponder = string | ((call: FakeCall) => unknown) | object;
+
+/** Marker value: the model answers this turn with tool calls (M3). */
+export interface FakeToolCallsValue {
+  __fake: 'tool-calls';
+  calls: Array<{ name: string; args: unknown }>;
+}
+
+/** Scripts a tool-calling turn from a responder. */
+export function fakeToolCalls(
+  ...calls: Array<{ name: string; args: unknown }>
+): FakeToolCallsValue {
+  return { __fake: 'tool-calls', calls };
+}
+
+/** Marker value: the stream terminates with this typed wire error (M3). */
+export interface FakeWireErrorValue {
+  __fake: 'wire-error';
+  error: WireError;
+}
+
+/** Scripts a typed wire failure (e.g. a retryable rate limit). */
+export function fakeWireError(error: WireError): FakeWireErrorValue {
+  return { __fake: 'wire-error', error };
+}
+
+function isFakeToolCalls(value: unknown): value is FakeToolCallsValue {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as { __fake?: unknown }).__fake === 'tool-calls'
+  );
+}
+
+function isFakeWireError(value: unknown): value is FakeWireErrorValue {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as { __fake?: unknown }).__fake === 'wire-error'
+  );
+}
 
 export interface FakeAdapterOptions {
   /**
@@ -147,6 +190,25 @@ export class FakeAdapter implements ProviderAdapter {
       return;
     }
 
+    if (isFakeWireError(value)) {
+      yield { type: 'error', error: value.error };
+      return;
+    }
+    if (isFakeToolCalls(value)) {
+      const usage: Usage = {
+        inputTokens: Math.max(1, Math.ceil(call.prompt.length / 4)),
+        outputTokens: Math.max(1, value.calls.length * 8),
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+      };
+      for (const toolCall of value.calls) {
+        const id = this.mintId();
+        yield { type: 'tool-call-start', id, name: toolCall.name };
+        yield { type: 'tool-call-end', id, args: toolCall.args };
+      }
+      yield { type: 'finish', finish: { reason: 'tool-calls' }, usage };
+      return;
+    }
     const text = typeof value === 'string' ? value : JSON.stringify(value);
     const usage: Usage = {
       inputTokens: Math.max(1, Math.ceil(call.prompt.length / 4)),

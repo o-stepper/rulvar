@@ -1,36 +1,41 @@
 {
   "id": "abandon-subtree",
-  "note": "DEF-1: abandon over a subtree with ok, escalated, and a hanging running entry; all derive skipped, zero live calls, zero spend increment.",
+  "note": "DEF-1 (re-recorded through the kernel write APIs in M3): abandon over a subtree with ok, escalated, and a hanging running entry, authorized by the owner cancel decision; all derive skipped, zero live calls, zero spend increment.",
   "entries": [
     {
       "hashVersion": 2,
+      "seq": 0,
       "scope": "",
       "key": "9899aa5a9dda8e99b7574d47b5f06acc92baef13d6ea5e3bca99c3e6ce3e59b2",
+      "ordinal": 0,
       "kind": "agent",
       "status": "running",
-      "seq": 0,
-      "ordinal": 0,
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:00.000Z"
     },
     {
       "hashVersion": 2,
+      "seq": 1,
       "scope": "agent:0",
       "key": "c74294cffd9db2a18b54e230c5052c7748b6bbf2190be5e06b10ed834de91ec2",
+      "ordinal": 0,
       "kind": "agent",
       "status": "running",
-      "seq": 1,
-      "ordinal": 0,
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:01.000Z"
     },
     {
       "hashVersion": 2,
+      "seq": 2,
       "ref": 1,
       "scope": "agent:0",
       "key": "c74294cffd9db2a18b54e230c5052c7748b6bbf2190be5e06b10ed834de91ec2",
+      "ordinal": 0,
       "kind": "agent",
       "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z",
+      "endedAt": "2026-02-01T00:00:02.000Z",
       "value": "child ok out",
       "usage": {
         "inputTokens": 100,
@@ -38,32 +43,31 @@
         "cacheReadTokens": 0,
         "cacheWriteTokens": 0
       },
-      "servedBy": "fake:fake-model",
-      "endedAt": "2026-02-01T00:00:02.000Z",
-      "seq": 2,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:02.000Z"
+      "servedBy": "fake:fake-model"
     },
     {
       "hashVersion": 2,
+      "seq": 3,
       "scope": "agent:0",
       "key": "a7279b942fbb88329bd7c74bc21549233b67c912e4692d55efdc9967de32930f",
+      "ordinal": 0,
       "kind": "agent",
       "status": "running",
-      "seq": 3,
-      "ordinal": 0,
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:03.000Z"
     },
     {
       "hashVersion": 2,
+      "seq": 4,
       "ref": 3,
       "scope": "agent:0",
       "key": "a7279b942fbb88329bd7c74bc21549233b67c912e4692d55efdc9967de32930f",
+      "ordinal": 0,
       "kind": "agent",
       "status": "escalated",
-      "value": "partial result",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:04.000Z",
+      "endedAt": "2026-02-01T00:00:04.000Z",
       "usage": {
         "inputTokens": 200,
         "outputTokens": 40,
@@ -71,41 +75,75 @@
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:fake-model",
-      "endedAt": "2026-02-01T00:00:04.000Z",
-      "seq": 4,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:04.000Z"
+      "escalation": {
+        "kind": "scope_bigger",
+        "scopeDelta": "the child branch needs the whole schema registry",
+        "revisedEstimate": {
+          "usd": 12,
+          "turns": 30
+        },
+        "blockers": [],
+        "proposedDecomposition": [],
+        "costToDate": {
+          "usd": 0,
+          "turns": 2
+        },
+        "salvage": {
+          "transcriptRef": "record/t-child",
+          "artifacts": []
+        }
+      }
     },
     {
       "hashVersion": 2,
+      "seq": 5,
       "scope": "agent:0",
       "key": "c6e2d0d88d20a73916fd7f78a8325924641dbdf8eeb49b1366cadc88ae75b4f1",
+      "ordinal": 0,
       "kind": "agent",
       "status": "running",
-      "seq": 5,
-      "ordinal": 0,
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:05.000Z"
     },
     {
       "hashVersion": 2,
+      "seq": 6,
+      "scope": "",
+      "key": "",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:06.000Z",
+      "value": {
+        "decisionType": "escalation.decision",
+        "targetRef": 3,
+        "decision": {
+          "kind": "cancel",
+          "reason": "owner cancelled the branch"
+        },
+        "countsAgainstLimit": true
+      },
+      "endedAt": "2026-02-01T00:00:06.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 7,
       "ref": 0,
       "scope": "",
       "key": "",
+      "ordinal": 0,
       "kind": "abandon",
       "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:07.000Z",
       "abandon": {
         "target": 0,
-        "authorizedBy": 0,
+        "authorizedBy": 6,
         "reason": "cancel_task",
         "retainCheckpoint": true,
         "retainWorktree": false
-      },
-      "seq": 6,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:06.000Z"
+      }
     }
   ]
 }

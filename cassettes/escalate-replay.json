@@ -1,0 +1,112 @@
+{
+  "id": "escalate-replay",
+  "note": "DEF-1 live set: the worker finishes escalated with a report, the parent decides retry (journaled escalation.decision), and the respawn completes; replay-strict resume yields zero live calls, the byte-identical report, and the decision from the entry.",
+  "entries": [
+    {
+      "hashVersion": 2,
+      "seq": 0,
+      "scope": "",
+      "key": "83b2f0944e101b8a67da0556f95d5f37ed76c2f280a009085b7ad437e8f8e656",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 1,
+      "ref": 0,
+      "scope": "",
+      "key": "83b2f0944e101b8a67da0556f95d5f37ed76c2f280a009085b7ad437e8f8e656",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "escalated",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z",
+      "endedAt": "2026-02-01T00:00:01.000Z",
+      "usage": {
+        "inputTokens": 7,
+        "outputTokens": 8,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "record/t0",
+      "escalation": {
+        "kind": "scope_bigger",
+        "scopeDelta": "the billing migration spans nine services, not one",
+        "revisedEstimate": {
+          "usd": 40,
+          "turns": 90
+        },
+        "blockers": [
+          "schema ownership is unclear"
+        ],
+        "proposedDecomposition": [],
+        "costToDate": {
+          "usd": 0,
+          "turns": 1
+        },
+        "salvage": {
+          "transcriptRef": "record/t0",
+          "artifacts": []
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
+      "scope": "",
+      "key": "",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z",
+      "value": {
+        "decisionType": "escalation.decision",
+        "targetRef": 0,
+        "decision": {
+          "kind": "retry",
+          "amendedPrompt": "split by service"
+        },
+        "countsAgainstLimit": true
+      },
+      "endedAt": "2026-02-01T00:00:02.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 3,
+      "scope": "",
+      "key": "14c990b4a490ad41049d2fe38d692a1d0c25bc406c89a9d57f28687ccfad6c49",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:03.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 4,
+      "ref": 3,
+      "scope": "",
+      "key": "14c990b4a490ad41049d2fe38d692a1d0c25bc406c89a9d57f28687ccfad6c49",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:04.000Z",
+      "endedAt": "2026-02-01T00:00:04.000Z",
+      "value": "migration retried per service",
+      "usage": {
+        "inputTokens": 12,
+        "outputTokens": 8,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "record/t1"
+    }
+  ]
+}

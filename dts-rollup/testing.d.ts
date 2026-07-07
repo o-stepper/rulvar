@@ -1,5 +1,5 @@
-import { a as FAKE_MODEL, c as FakeAdapterOptions, i as createTestEngine, l as FakeCall, n as TestEngine, o as FAKE_MODEL_REF, r as TestRunHandle, s as FakeAdapter, t as CreateTestEngineOptions, u as FakeResponder } from "./test-engine-CGAx93YX.js";
-import { AgentProfile, InvocationRole, JournalEntry, JournalStore, ModelSpec, ProviderAdapter, ResumePreview, RunOutcome, Workflow } from "@lurker/core";
+import { a as FAKE_MODEL, c as FakeAdapterOptions, d as FakeToolCallsValue, f as FakeWireErrorValue, i as createTestEngine, l as FakeCall, m as fakeWireError, n as TestEngine, o as FAKE_MODEL_REF, p as fakeToolCalls, r as TestRunHandle, s as FakeAdapter, t as CreateTestEngineOptions, u as FakeResponder } from "./test-engine-CPLAIzLl.js";
+import { AgentProfile, InvocationRole, JournalEntry, JournalStore, ModelSpec, ProviderAdapter, ResumePreview, RunOutcome, WireError, Workflow, createEngine } from "@lurker/core";
 
 //#region src/replay-strict.d.ts
 interface ReplayRunOptions {
@@ -19,6 +19,8 @@ interface ReplayRunOptions {
   adapters?: ProviderAdapter[];
   routing?: Partial<Record<InvocationRole, ModelSpec>>;
   profiles?: Record<string, AgentProfile>;
+  /** Escalation hook for value-form workflows (should stay cold on replay). */
+  onEscalation?: Parameters<typeof createEngine>[0]["onEscalation"];
 }
 declare function replayRun<A, R>(wf: Workflow<A, R>, args: A, options: ReplayRunOptions): Promise<{
   outcome: RunOutcome<unknown>;
@@ -47,4 +49,11 @@ declare function buildFrozenV1JournalRaw(): Array<Record<string, unknown>>;
 */
 declare function buildV2GoldenIdentity(): Record<string, unknown>;
 //#endregion
-export { type CassetteFixture, type CreateTestEngineOptions, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type ReplayRunOptions, type TestEngine, type TestRunHandle, buildFrozenV1JournalRaw, buildM2CassetteFixtures, buildV2GoldenIdentity, createTestEngine, replayRun };
+//#region src/cassettes/record-live.d.ts
+/**
+* Records the five live cassettes. Deterministic by construction:
+* scripted FakeAdapter responders, fixed runId, normalized stamps.
+*/
+declare function recordLiveCassettes(): Promise<CassetteFixture[]>;
+//#endregion
+export { type CassetteFixture, type CreateTestEngineOptions, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type FakeToolCallsValue, type FakeWireErrorValue, type ReplayRunOptions, type TestEngine, type TestRunHandle, buildFrozenV1JournalRaw, buildM2CassetteFixtures, buildV2GoldenIdentity, createTestEngine, fakeToolCalls, fakeWireError, recordLiveCassettes, replayRun };

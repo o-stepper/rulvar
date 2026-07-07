@@ -15,17 +15,16 @@ import {
   buildM2CassetteFixtures,
   buildV2GoldenIdentity,
 } from './build-fixtures.js';
+import { recordLiveCassettes } from './record-live.js';
 
 function readRepo(path: string): string {
   return readFileSync(new URL(`../../../../${path}`, import.meta.url), 'utf8');
 }
 
 describe('frozen fixtures match their builders exactly', () => {
-  it('every committed cassette equals its builder output', () => {
+  it('every committed synthetic cassette equals its builder output', () => {
     const fixtures = buildM2CassetteFixtures();
     expect(fixtures.map((fixture) => fixture.id)).toEqual([
-      'abandon-subtree',
-      'memoize-classifier',
       'v1-journal-on-v2',
       'timeout-vs-live-race',
       'class-decision-fanout',
@@ -35,6 +34,21 @@ describe('frozen fixtures match their builders exactly', () => {
       'double-abandon-idempotent',
       'reject-version-too-old',
       'reject-version-from-future',
+    ]);
+    for (const fixture of fixtures) {
+      const committed: unknown = JSON.parse(readRepo(`cassettes/${fixture.id}.json`));
+      expect(committed, fixture.id).toEqual(fixture);
+    }
+  });
+
+  it('every committed live-recorded cassette equals its recorder output', async () => {
+    const fixtures = await recordLiveCassettes();
+    expect(fixtures.map((fixture) => fixture.id)).toEqual([
+      'abandon-subtree',
+      'memoize-classifier',
+      'escalate-replay',
+      'crash-between-report-and-decision',
+      'flavor-b-timeout',
     ]);
     for (const fixture of fixtures) {
       const committed: unknown = JSON.parse(readRepo(`cassettes/${fixture.id}.json`));

@@ -37,6 +37,8 @@ export interface ReplayRunOptions {
   adapters?: ProviderAdapter[];
   routing?: Partial<Record<InvocationRole, ModelSpec>>;
   profiles?: Record<string, AgentProfile>;
+  /** Escalation hook for value-form workflows (should stay cold on replay). */
+  onEscalation?: Parameters<typeof createEngine>[0]['onEscalation'];
 }
 
 const FAKE_ROUTING: Partial<Record<InvocationRole, ModelSpec>> = {
@@ -81,6 +83,7 @@ export async function replayRun<A, R>(
       routing: options.routing ?? FAKE_ROUTING,
       ...(options.profiles === undefined ? {} : { profiles: options.profiles }),
     },
+    ...(options.onEscalation === undefined ? {} : { onEscalation: options.onEscalation }),
   });
   const handle = engine.resume(runId, wf, { args, dryRun: true });
   const outcome = await handle.result;
