@@ -284,7 +284,7 @@ Accepted toolchain risks, each with its revisit trigger and fallback. Reviewing 
 | pnpm 11 OIDC regression history | Early 11.0.x broke trusted publishing (404) | Any pnpm bump in the release workflow | Pin known-good pnpm in release.yml; bump only after verifying a publish dry run |
 | ESM-only consumer floor | Excludes consumers below Node 22.12 that cannot require(esm) | Adoption data contradicting the assumption | None planned; moot given Node 20 EOL (2026-04-30) |
 | Turborepo lock-in | None by design: thin layer over pnpm scripts | CI maintenance burden exceeding its caching win | Remove turbo.json; `pnpm -r run` fallback verified at M0 |
-| MCP SDK v2 migration | v2 stable targeted 2026-07-27; v1 supported about 6 months after | v2 stable release | Pin ^1.29; migration logged as a post-M3 task (10-implementation-plan.md) |
+| MCP SDK v2 migration | v2 stable targeted 2026-07-27; v1 supported about 6 months after | v2 stable release | Pin ^1.29; migration logged as a post-M3 task (10-implementation-plan.md). Assessed and deferred at M5-T10 (2026-07-07): no v2 published (1.29.0 is the highest); re-owns to M8. |
 | @ai-sdk/provider churn | V2 to V4 within about 18 months | Any provider major | Bridge pins exact major with runtime specificationVersion check; highest-churn package by policy (04-model-layer-spec.md) |
 
 ## 8. Contributor workflow

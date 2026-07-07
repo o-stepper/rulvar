@@ -301,7 +301,7 @@ function mcp(cfg: {
 - Exactly the config keys matching the chosen transport MUST be set (`command`/`args` for stdio, `url` for streamable-http, `server` for inprocess); anything else is a `ConfigError`.
 - `approval: true` sets `needsApproval: true` on every imported tool; the record form sets it per tool name. Imported tools then flow through the permission chain exactly like native tools (section 3).
 - `risk` attaches ToolRisk labels to imported tools so presets can govern them; unlabeled imported tools fall under the undeclared-risk preset row (section 4.3).
-- The pinned SDK is `@modelcontextprotocol/sdk` `^1.29`; the SDK v2 migration is a logged post-M3 task ([docs/10-implementation-plan.md](10-implementation-plan.md) section "External dependency and risk notes", [docs/13-toolchain-repo.md](13-toolchain-repo.md) risk register).
+- The pinned SDK is `@modelcontextprotocol/sdk` `^1.29`; the SDK v2 migration is a logged post-M3 task ([docs/10-implementation-plan.md](10-implementation-plan.md) section "External dependency and risk notes", [docs/13-toolchain-repo.md](13-toolchain-repo.md) risk register). ASSESSED AND DEFERRED at M5-T10 (2026-07-07): no v2 line exists on npm (1.29.0 is the highest published version), so the bus stays on ^1.29 with the wire surface and journal shapes unchanged; the migration re-owns to M8 (risk R1).
 
 ### 6.3 tools/list, caching, and listChanged
 
