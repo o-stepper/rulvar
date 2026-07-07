@@ -42,6 +42,7 @@ import {
   type EscalationReport,
   type EscalationRequest,
 } from './escalation.js';
+import { compactMessages, shouldCompact, summarizeInstruction } from './compaction.js';
 import { DEFAULT_MODEL_RETRY_ATTEMPTS, ModelRetry } from './model-retry.js';
 import { NoProgressDetector, type AbortClass } from './no-progress.js';
 import {
@@ -193,6 +194,16 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * extract, the finalize invocation is not checkpointed in v1.
    */
   finalize?: { adapter: ProviderAdapter; resolved: ResolvedInvocation };
+  /**
+   * Summarize invocation target for compaction (M4-T03): resolved
+   * through the chain with role 'summarize', falling back to the loop
+   * model when routing resolves nothing (docs/06, section 7). Compaction
+   * is ON by default; absence of this option disables it (direct
+   * runAgent callers).
+   */
+  summarize?: { adapter: ProviderAdapter; resolved: ResolvedInvocation };
+  /** Per-profile compaction config; threshold default 0.8 (Appendix A). */
+  compaction?: { threshold?: number };
   /**
    * Turn-boundary checkpointing (M3-T02; docs/03, section "Checkpoints").
    * load() restores the last boundary on a dangling-dispatch resume;
@@ -563,6 +574,12 @@ export async function runAgent<S extends SchemaSpec>(
   let abortClass: AbortClass | undefined;
   const noProgress = new NoProgressDetector(limits.noProgressTurns);
   const modelRetryCounts = new Map<string, number>();
+  // Compaction state (M4-T03): the estimate is the last loop turn's
+  // inputTokens + outputTokens; points record the turns at which
+  // compaction fired and ride every checkpoint.
+  let lastTurnUsage = { inputTokens: 0, outputTokens: 0 };
+  let compactionDisabled = false;
+  const compactionPoints: number[] = [];
 
   const servedBy: ModelRef = options.resolved.ref;
 
@@ -578,6 +595,9 @@ export async function runAgent<S extends SchemaSpec>(
     totalUsage = restored.usage;
     toolCallsUsed = restored.toolCallsUsed;
     schemaAttempts = restored.schemaAttempts;
+    // Points restore verbatim: the history is already compact, so a
+    // resumed run never re-summarizes it (docs/06, M4-T03).
+    compactionPoints.push(...restored.compaction);
     options.budget?.onUsage(restored.usage, servedBy);
   }
 
@@ -592,7 +612,7 @@ export async function runAgent<S extends SchemaSpec>(
       usage: totalUsage,
       toolCallsUsed,
       schemaAttempts,
-      compaction: [],
+      compaction: [...compactionPoints],
       ...(pending === undefined ? {} : { pending }),
     });
   };
@@ -894,6 +914,10 @@ export async function runAgent<S extends SchemaSpec>(
     const outcome = await streamTurn(options.adapter, req, streamTurnOptions);
     recordUsage(outcome.usage, outcome.reported, options.adapter.id, servedBy);
     usageApprox = usageApprox || outcome.usageApprox;
+    lastTurnUsage = {
+      inputTokens: outcome.usage.inputTokens,
+      outputTokens: outcome.usage.outputTokens,
+    };
     messages.push(
       assistantMsg(outcome.turn, liftRetainedParts(outcome.providerMetadata, options.adapter)),
     );
@@ -1001,6 +1025,102 @@ export async function runAgent<S extends SchemaSpec>(
       if (limitHit) {
         status = 'limit';
         break;
+      }
+      // Compaction check at the tool turn boundary (M4-T03): the
+      // estimate is the last loop turn's usage against the loop model's
+      // contextWindow. Compaction runs BEFORE the boundary checkpoint,
+      // so a crash after it resumes compact.
+      if (
+        options.summarize !== undefined &&
+        !compactionDisabled &&
+        shouldCompact({
+          lastTurnUsage,
+          contextWindow: options.adapter.caps(options.resolved.model).contextWindow,
+          ...(options.compaction?.threshold === undefined
+            ? {}
+            : { threshold: options.compaction.threshold }),
+        })
+      ) {
+        const summarizeResolved = options.summarize.resolved;
+        events?.emit({
+          type: 'agent:start',
+          agentType,
+          label: options.label,
+          model: summarizeResolved.ref,
+          role: 'summarize',
+        });
+        try {
+          options.budget?.beforeTurn();
+        } catch {
+          status = 'error';
+          agentError = { kind: 'budget', retryable: false };
+          break;
+        }
+        turns += 1;
+        const projected = projectHistory(messages, providerOf(options.summarize.adapter));
+        let req = buildRequest(
+          summarizeResolved,
+          [...projected, summarizeInstruction()],
+          limits,
+          options.tools?.contracts,
+        );
+        if (req.tools !== undefined) {
+          req = { ...req, toolChoice: 'none' };
+        }
+        const summarizeStreamOptions: Parameters<typeof streamTurn>[2] = {
+          idleTimeoutMs: limits.streamIdleTimeoutMs,
+          signals: options.signal === undefined ? [] : [options.signal],
+          onUsage: (delta) => options.budget?.onUsage(delta, summarizeResolved.ref),
+        };
+        if (options.budget?.signal !== undefined) {
+          summarizeStreamOptions.budgetSignal = options.budget.signal;
+        }
+        const summary = await streamTurn(options.summarize.adapter, req, summarizeStreamOptions);
+        recordUsage(
+          summary.usage,
+          summary.reported,
+          options.summarize.adapter.id,
+          summarizeResolved.ref,
+        );
+        usageApprox = usageApprox || summary.usageApprox;
+        if (summary.aborted === 'budget') {
+          status = 'cancelled';
+          agentError = { kind: 'budget', retryable: false };
+          break;
+        }
+        if (summary.aborted === 'external') {
+          status = 'cancelled';
+          break;
+        }
+        if (
+          summary.wireError !== undefined ||
+          summary.aborted === 'idle' ||
+          summary.turn.text.trim() === ''
+        ) {
+          // A failed or empty summarize disables compaction for the
+          // rest of the run instead of failing paid work (docs/06,
+          // M4-T03); the threshold would re-trip every boundary.
+          compactionDisabled = true;
+          events?.emit({
+            type: 'log',
+            level: 'warn',
+            msg:
+              'compaction disabled for this run: the summarize invocation ' +
+              (summary.wireError !== undefined
+                ? `failed (${summary.wireError.message})`
+                : summary.aborted === 'idle'
+                  ? 'timed out'
+                  : 'returned an empty summary'),
+          });
+        } else {
+          const compacted = compactMessages(messages, summary.turn.text);
+          messages.length = 0;
+          messages.push(...compacted);
+          compactionPoints.push(turns);
+          // The next turn's prompt is the compact history; the stale
+          // estimate must not re-trip the threshold.
+          lastTurnUsage = { inputTokens: 0, outputTokens: 0 };
+        }
       }
       // Turn boundary: tools executed, results appended. A crash after
       // this write resumes here; a crash before it re-runs the turn's

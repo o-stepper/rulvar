@@ -103,6 +103,12 @@ export interface AgentProfile {
   /** Flavor B opt-in lives here or on the call (docs/07, section 6). */
   escalation?: EscalationOptions;
   limits?: UsageLimits;
+  /**
+   * Per-profile compaction threshold; default 0.8 of the loop model's
+   * contextWindow (docs/06, Appendix A; M4-T03). Compaction is ON by
+   * default; history-processor plumbing stays engine-internal.
+   */
+  compaction?: { threshold?: number };
   /** Admission reserve hint in USD (budget layer 1). */
   estCost?: number;
 }
@@ -712,6 +718,33 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       }
     }
 
+    // Compaction target (M4-T03): the summarize role through the same
+    // chain; when no layer resolves a summarize model, fall back to the
+    // loop-resolved model (the low role-effort default still applies;
+    // docs/06, section 7 as amended).
+    let summarizeResolved: ResolvedInvocation;
+    try {
+      summarizeResolved = resolveModelInvocation({
+        role: 'summarize',
+        call: callLayer,
+        profile: profileLayer,
+        engine: engineLayer,
+        capsOf,
+      });
+    } catch {
+      summarizeResolved = resolveModelInvocation({
+        role: 'summarize',
+        call: callLayer,
+        profile: profileLayer,
+        engine: { ...engineLayer, model: loopResolved.ref },
+        capsOf,
+      });
+    }
+    const summarize = {
+      adapter: adapterOf(summarizeResolved),
+      resolved: withTelemetry(summarizeResolved),
+    };
+
     const identityInput = {
       kind: 'agent',
       agentType,
@@ -1118,6 +1151,10 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     }
     if (finalize !== undefined) {
       runAgentOptions.finalize = finalize;
+    }
+    runAgentOptions.summarize = summarize;
+    if (profile?.compaction !== undefined) {
+      runAgentOptions.compaction = profile.compaction;
     }
     if (opts.stream !== undefined) {
       runAgentOptions.stream = opts.stream;
