@@ -1,5 +1,158 @@
 # @lurker/core
 
+## 0.4.0
+
+### Minor Changes
+
+- dfe03b5: M3-T11 gating cassettes and the v0.4.0 BREAKING release notes.
+
+  BREAKING (pre-1.0 convention, docs/12): `AgentStatus` now produces
+  `'escalated'` at runtime and `AgentResult` carries the optional
+  `escalation: EscalationReport` field (present if and only if the status
+  is escalated). This is the third kernel amendment of the replay
+  predicate (escalated-replays-as-ok, DEF-1) whose table row shipped
+  frozen in M2; the producers ship here. Migration: add an `escalated`
+  branch to every switch over `AgentStatus`; consumers not adopting the
+  protocol are advised to map `escalated` to `limit` (paid partial work,
+  output null, the report stays available for logs). `isEscalated` and
+  `EscalatedResult` are exported for narrowing. Status production stays
+  gated by opt-in: workflows that never pass `escalation` options cannot
+  observe the new status at runtime.
+
+  Cassettes: the DEF-1 live set (escalate-replay,
+  crash-between-report-and-decision, flavor-b-timeout) is recorded through
+  the live runtime and replayed strict; the M2 synthetic DEF-1 subset is
+  re-recorded (memoize-classifier fully live; abandon-subtree through the
+  kernel write APIs with a realistic escalated child report and an
+  authorizing owner cancel decision; both re-record again with the
+  orchestrator producers in M7). FakeAdapter gains fakeToolCalls and
+  fakeWireError responder markers; replayRun gains the onEscalation
+  pass-through so replay tests can prove the hook stays cold. The
+  deliberate fixture regeneration updates fixtures.sha256 in the same
+  change (the identity profile is UNCHANGED; this is the docs/10 M3-T11
+  ordered re-record, not an identity-pipeline revision).
+
+- d2089a7: M3-T02 turn-boundary checkpoints. The runtime writes a canonical-history
+  checkpoint into TranscriptStore at every turn boundary where the loop
+  continues (tool boundaries and schema re-prompts), at a deterministic ref
+  derived from the dispatch seq; the terminal entry records checkpointRef.
+  A dangling-dispatch resume (kill-and-resume) re-enters at the last
+  boundary with zero re-paid turns, restored usage folds into the terminal
+  exactly once, and an unreadable or unknown-format blob falls back to a
+  full redispatch (tools stay at-least-once between execution and the
+  checkpoint write). The blob format is engine-internal with a leading
+  format byte; replayed agents recover their turn count from the checkpoint
+  and re-emit tool:start/tool:end with the replay marker.
+- 3f60234: M3-T07 terminal escalated status and EscalationProtocol producers (the
+  BREAKING section for v0.4.0 rides the milestone release notes). Typed
+  EscalationKind/EscalationReport/EscalationDecision/EscalationOptions;
+  the escalate tool registers under escalation opt-in of either flavor
+  through the same path as any tool (opting in changes toolsetHash by
+  design) and is engine-intercepted after the permission chain. Status
+  production is gated: without opt-in the escalate tool does not exist and
+  'escalated' is physically unproducible. Flavor A terminates the worker
+  with a runtime-completed report (costToDate and salvage are never
+  model-authored; the request schema rejects them; the full report is
+  validated BEFORE append; usage/costUsd/turns/transcriptRef as for ok,
+  output null). Flavor B suspends on the approval machinery with a
+  journaled deadlineAt (explicit deadlineMs required); a live decision and
+  the deadline timer race through the ResolutionArbiter first-closing-wins
+  (timeout applies defaultDecision, default accept); dispose collects the
+  worktree patch into salvage BEFORE destruction; the terminal escalated
+  entry and the authoritative escalation-decision entry follow strictly
+  after, with countsAgainstLimit derived once (true iff scope_bigger).
+  Replays synthesize the byte-identical report with zero adapter calls and
+  read the owner's decision from the decision entry (a crash between
+  report and decision pays the decision live exactly once). In ctx.parallel
+  an escalated child is a settled outcome that never aborts siblings; a
+  plain value-form call opting in requires the onEscalation hook
+  (ConfigError before any LLM call otherwise). The in-run minSpend gate
+  (M3-T09) rejects early scope_bigger escalations with a bounded "keep
+  working" re-prompt; scope_different and blocked_with_evidence are
+  exempt and never debit the counter.
+- f668890: M3-T05 worktree isolation and M3-T06 openaiCompatible. GitWorktreeProvider
+  implements the IsolationProvider seam: acquire creates a detached
+  worktree from HEAD or a given ref (non-git host is a typed ConfigError),
+  tools receive cwd inside the tree, collect() snapshots changed files and
+  a binary patch, dispose removes the tree with keepOnError retention
+  under the shared maxPinnedWorktrees cap (default 4). ctx.agent resolves
+  isolation call-over-profile into spawn identity, stores the collected
+  patch in TranscriptStore, and surfaces it as a kind 'patch' Artifact on
+  AgentResult.artifacts and the terminal journal entry, so replays
+  reconstruct artifacts with zero live calls; applying the patch stays
+  with the caller. isolation 'readonly' is accepted as a declaration (its
+  compiled deny rule ships with risk presets in M5).
+
+  @lurker/openai gains openaiCompatible({ id, baseURL, apiKey?, caps? })
+  for Ollama, vLLM, and gateways: the Chat Completions dialect by
+  construction, explicit ids so several endpoints coexist (duplicate id
+  stays a ConfigError at createEngine), and the most conservative caps
+  when unprobed (prompt-tier structured output, no parallel tools, no
+  pricing; supplied caps merge over the floor).
+
+- 16d7aa6: M3-T04 MCP ToolSource. `mcp(cfg)` imports Model Context Protocol tools
+  over stdio, streamable-http, or an in-process server instance (pinned
+  SDK line @modelcontextprotocol/sdk ^1.29; the v2 migration is the
+  logged post-M3 task M5-T10). tools/list is fetched with cursor
+  pagination until exhaustion and cached per session; a listChanged
+  notification invalidates the cache for subsequently spawned agents only
+  (a spawn's toolset snapshot stays immutable). allow/deny filters apply
+  to pre-prefix names with deny winning; `prefix` namespaces collisions;
+  `approval` maps to needsApproval per tool; host-supplied `risk` labels
+  feed the permission presets. inputSchema becomes bare-JSON-Schema
+  parameters (form 3); outputSchema validates structuredContent;
+  isError maps to an error tool result surfaced to the model, never a
+  protocol error; MCP tools hash version as absent, so provider-side
+  contract drift re-keys new spawns by design.
+- 6513ce8: M3-T08 no-progress abort class and M3-T10 UsageLimits completion. The
+  engine-defined detector implements the committed docs/06 Appendix A
+  interim rule (N consecutive turns without tool calls or artifact deltas,
+  N = 3, configurable via the new UsageLimits.noProgressTurns knob): the
+  abort journals as the agent's terminal entry with status 'limit', the
+  dedicated 'no-progress' class marker in the error payload
+  (AgentResult.abortClass), and memoizeOutcome stamped by the ENGINE on
+  the terminal entry, so it replays on every resume without a live rerun
+  regardless of the user's dispatch-time memoize policy (the predicate's
+  entry-read consults the terminal stamp first; docs/03 section 6.6
+  amendment). Tool-calling turns reset the streak: a working agent never
+  trips. UsageLimits is complete: maxTurns, maxToolCalls,
+  maxOutputTokensPerTurn, timeoutMs, streamIdleTimeoutMs, noProgressTurns,
+  and the run-level deadline each independently produce their documented
+  outcome, with per-limit tests including the memoized-limit
+  replay/unmemoized rerun predicate integration. The M3-T09 minSpend gate
+  gains the accumulation path test (scope_bigger passes once spend crosses
+  minSpendUsd).
+- 7dad493: M3-T03 permission chain and ask suspensions. The normative layered chain
+  (hooks -> deny rules -> ask rules -> canUseTool -> terminal default) is
+  the single approval surface for every tool dispatch; hooks run in
+  deterministic registration order with modifiedInput substitution; rules
+  never yield allow; an explicit canUseTool allow is decisive including
+  over needsApproval; argv/domain rules and presets fail early until M5.
+  Engine-wide defaults.permissions merges under profile permissions;
+  inheritPermissions is carried as data for subagent spawning (mode c).
+  An ask verdict journals a suspended approval entry (kind 'approval',
+  identity {toolName, post-hook input}, agent child scope) together with
+  the turn checkpoint; the run settles 'suspended' with the synthesized
+  approval:<seq> key; RunHandle.resolveExternal validates
+  { decision: 'allow' | 'deny' } and a denial surfaces to the model as an
+  error tool result carrying the reason. An approval round-trip across
+  process exit resumes the SAME turn: executed tool results are reused
+  from the checkpoint, the resolved decision applies without
+  re-suspension, and only post-approval turns are paid live.
+- 2bbf180: M3-T01 tool system core plus the M3 entry-gate docs amendment. `tool()`
+  definitions over the three SchemaSpec forms with definition-time
+  validation (name pattern, schema projection, recursive/remote ref
+  rejection); the ToolSource SPI seam types (ToolDef, ToolRisk, ToolContext,
+  ToolSourceSession); per-spawn toolset resolution with duplicate-name and
+  executor fail-early ConfigErrors; toolsetHash derived from contracts only
+  (editing an execute body never re-keys a journal, bumping `version` does)
+  and wired into spawn identity; agent-loop tool dispatch with argument
+  validation, bounded ModelRetry conversion, NonSerializableValueError
+  surfacing, maxToolCalls expiry as terminal `limit`, and tool:start /
+  tool:end telemetry. The docs/06 Appendix A knob "no-progress detector N"
+  is committed at 3 consecutive turns without tool calls or artifact deltas
+  (consumed by M3-T08).
+
 ## 0.3.0
 
 ### Minor Changes

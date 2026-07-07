@@ -1,6 +1,6 @@
 {
   "name": "@lurker/store-conformance",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "lurker executable store conformance kit (DEF-4).",
   "type": "module",
   "license": "UNLICENSED",
