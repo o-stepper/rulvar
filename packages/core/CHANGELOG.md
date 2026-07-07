@@ -1,5 +1,175 @@
 # @lurker/core
 
+## 0.5.0
+
+### Minor Changes
+
+- ac274f4: M4-T01 role protocol completion. The full trigger protocol for the six
+  invocation roles lands in `@lurker/core` (`model/roles.ts`):
+
+  - Extract necessity is completed per docs/04 section 8.3: a separate
+    final structured-output invocation fires when a schema is set AND
+    (routing directs extract to a different model OR the loop model's
+    required tier cannot ride a tools-available turn OR finalize is
+    routed). The required-tier rule is new: a `forced-tool` tier pins
+    toolChoice to `emit_result` and cannot ride while the agent's tools
+    must remain available, so such agents now pay one separate extract
+    call instead of silently losing tool access. Agents without tools
+    keep the M1 single-shot behavior byte for byte.
+  - The finalize role fires for the first time: only when configured in
+    routing and only for tool-bearing agents, as one synthesis invocation
+    with toolChoice `'none'` over the full transcript after tools stop.
+    Its text is the output for schema-less calls; with a schema the
+    separate extract runs over the transcript including the synthesis.
+  - A separate extract invocation over a tool-bearing transcript now
+    carries the agent's tool contracts (both providers reject tool-use
+    history without tool definitions) with toolChoice pinned to `'none'`
+    or to `emit_result` per tier.
+  - Both adapters map `toolChoice: 'none'` to the provider's explicit
+    none choice with the tools param present instead of dropping tools
+    from the request.
+  - `createTestEngine` no longer routes `finalize` by default: the
+    routing key is the firing opt-in, and the old default would have
+    summoned a synthesis call for every tool-bearing test agent. Tests
+    that want finalize route it explicitly.
+
+  Identity is untouched: extract and finalize resolutions never enter
+  the spawn content key, and existing journals replay unchanged.
+
+- 5735d92: M4-T02 HistoryProjector. Cross-provider history projection lands in
+  `@lurker/core` (`model/projector.ts`) and the retention pipeline that
+  feeds it:
+
+  - `projectHistory` projects the canonical history into a target
+    provider's view: provider-raw parts ride if and only if the target
+    adapter's provider family matches the part's provider; everything
+    else passes through untouched. The agent loop projects EVERY outgoing
+    request (loop turns, finalize, extract), so per-role provider mixing
+    inside one agent yields a valid wire history on each side.
+  - Retention transport: adapters ship a turn's blocks-to-retain in
+    stream order via `finish.providerMetadata[<adapter id>].retainedParts`;
+    the runtime lifts them into provider-raw parts at the HEAD of the
+    turn's canonical assistant message. `@lurker/anthropic` ships thinking
+    and redacted_thinking blocks (signatures intact, pause_turn
+    continuations included); `@lurker/openai` ships reasoning items with
+    their encrypted_content. Retained blocks now actually reach the
+    canonical history, survive checkpoints, and echo byte-exact to their
+    own provider on every subsequent turn.
+  - `ProviderAdapter` gains an optional `provider` field: the provider
+    family for provider-raw matching (default = adapter id). The
+    first-class adapters declare 'anthropic' and 'openai';
+    `openaiCompatible` gateways declare 'openai' whatever their custom id,
+    so same-family adapters share retained blocks and projections.
+
+  Identity is untouched: projection state never enters content keys, and
+  adapters that ship no retention payload (FakeAdapter included) produce
+  byte-identical histories.
+
+- 46ca98e: M4-T03 compaction ownership. The Agent Runtime owns compaction
+  (`runtime/compaction.ts`):
+
+  - Compaction is ON by default for every agent at threshold 0.8 of the
+    loop model's contextWindow (docs/06 Appendix A);
+    `AgentProfile.compaction.threshold` adjusts it per profile. The
+    context estimate is the last loop turn's inputTokens + outputTokens.
+  - At a tool turn boundary past the threshold the summarize role fires
+    through the resolution chain (falling back to the loop model when
+    routing resolves no summarize model; the low role-effort default
+    applies either way), and the transcript after the first message is
+    replaced by one user-role summary message. The summarize request is
+    projected like any other and carries the tool contracts with
+    toolChoice 'none'.
+  - Compaction points (the turn numbers at which compaction fired) ride
+    every checkpoint and restore verbatim: a resumed run continues from
+    the compacted history and never re-summarizes it. Full-journal replay
+    stays free as before.
+  - A failed or empty summarize disables compaction for the rest of the
+    run with a warning instead of failing paid work; budget and
+    cancellation aborts propagate normally.
+
+- 8ae129e: M4-T04 failover and M4-T05 RetryPolicy under the journal.
+
+  - Transport RetryPolicy (`model/retry.ts`): the Appendix A defaults
+    (attempts 3; backoff 500ms x2 max 8000ms with equal jitter; retryOn
+    transport, rate-limit, overloaded) now actually retry around every
+    adapter.stream dispatch: loop turns, extract, finalize, and summarize
+    alike. Retries live UNDER the journal: a retried-then-successful call
+    is one journal entry with one usage total, one turn, and no lineage
+    attempts (DEF-3). A provider retryAfterMs replaces the computed
+    delay; task-class failures never retry by construction; stream-idle
+    severance retries as transport-class. Configure per call
+    (`AgentOpts.retry`), per profile, or engine-wide
+    (`defaults.retry`).
+  - Transport failover (`model/failover.ts`): `ModelChoice.fallbacks`
+    now works. When a serving model exhausts its tries on a transport or
+    rate-limit failure, the sticky chain advances to the next resolved
+    fallback (per-phase, effort defaults and caps scrubbing re-applied
+    per serving model). The content key hashes the REQUESTED spec, so a
+    failover-served response replays for free; only `servedBy` records
+    the actual server (now surfaced on AgentResult and stamped on the
+    terminal entry). Budget is explicitly excluded as a trigger.
+  - The degenerate fallback field (`AgentOpts.fallback`, docs/04 11.3):
+    an agent-level second attempt on a stronger model when the terminal
+    matches `on` (error, limit, schema-exhausted), with exactly one
+    journaled decision entry (`decisionType: 'model.fallback'`) reused on
+    resume, and the fallback attempt under its own content key. Cancelled,
+    escalated, and budget outcomes never trigger it.
+
+  `AgentResult` gains the required `servedBy` field (additive for
+  consumers reading results; literal constructions in tests need the new
+  member).
+
+- d1c4525: M4-T06 versioned price table and M4-T07 per-provider concurrency keys.
+
+  - `model/pricing.ts`: `PriceTable { pricingVersion, models }` configured
+    via `createEngine({ pricing })`. The table wins over adapter-reported
+    `caps.pricing` (a fallback only); unpriced models keep surfacing in
+    CostReport, never as a silent zero. Engine-written `model.fallback`
+    decision entries pin the active `pricingVersion` so replayed cost
+    attribution is stable against later table bumps; a price update is a
+    registry update with a version bump, never a caps refresh side effect
+    (`refreshCaps()` remains the adapter-level caps path).
+  - `model/concurrency.ts`: `KeyedLimiter`, engine-scoped, configured via
+    `createEngine({ concurrency: { perProvider } })` per adapter id. The
+    Appendix A default stays unlimited: the per-run semaphore remains the
+    only default bound and provider 429s ride RetryPolicy. When
+    configured, every wire dispatch (retries and failover re-acquire)
+    gates under its serving adapter's key, adapters throttle
+    independently, and queueing surfaces as agent:queued telemetry with
+    the provider key. There is deliberately no distributed cross-process
+    limiter (docs/14).
+
+- b840aba: M4-T08 canonical effort completion and M4-T09 role quality floors.
+
+  - Effort semantics are complete: the role effort defaults and the
+    per-adapter mapping tables (Anthropic passthrough including max,
+    OpenAI max downmapped to xhigh and recorded in providerMetadata,
+    provider none only via namespaced providerOptions) shipped earlier
+    milestones; this change completes VISIBLE scrubbing everywhere it was
+    still silent: the summarize invocation surfaces its scrubs at fire
+    time and a failover takeover surfaces the fallback's scrubs the
+    moment it starts serving. Scrubbed effort is never mapped into
+    max_tokens.
+  - The effort-defaults-shift cassette is now RECORDED through the live
+    runtime (docs/10 M4 gating row): the frozen v1 prefix, closed offline
+    the way an operator would, resumes live under explicit high effort
+    with the completed semantics; every v1 entry matches and the one new
+    spawn carries canonical effort in v2 identity. The recorder output is
+    pinned byte-for-byte by the frozen-drift suite and the fixture lock
+    now covers 18 files.
+  - Quality floors (`model/floors.ts`, M4-T09): per-role and
+    per-declared-taskClass allow/deny lists supplied via
+    `createEngine({ floors })`, enforced INSIDE the router at resolution,
+    before any live call and before any journal entry, for every
+    invocation the chain produces (primaries, failover fallbacks, and the
+    summarize fallback alike). `AgentProfile.taskClass` declares the
+    class; unclassified profiles see only byRole floors. A violation is a
+    typed ConfigError.
+  - The umbrella `lurker` package now ships floors opinions next to its
+    strong routing defaults: `recommendedDefaults.floors` pins orchestrate
+    and plan to strong named models. The core itself ships no named model
+    strings, and the umbrella suite enforces that with a source scan.
+
 ## 0.4.0
 
 ### Minor Changes

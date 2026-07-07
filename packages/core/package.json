@@ -1,6 +1,6 @@
 {
   "name": "@lurker/core",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "lurker core: L0 contracts, journal kernel, ctx primitives, agent runtime, model router, tool system, dynamic orchestrator, InMemory and JSONL stores, event stream.",
   "type": "module",
   "license": "UNLICENSED",
