@@ -173,7 +173,7 @@ export function buildResponsesParams(
     params.max_output_tokens = req.maxOutputTokens;
   }
 
-  if (req.tools !== undefined && req.toolChoice !== 'none') {
+  if (req.tools !== undefined) {
     // Flattened function tools: top-level type/name/parameters/strict, no
     // nested wrapper. Explicit strict, never the silent server fallback
     // (docs/04, section 5.2).
@@ -190,6 +190,12 @@ export function buildResponsesParams(
       params.tool_choice = { type: 'function', name: req.toolChoice.name };
     } else if (req.toolChoice === 'auto') {
       params.tool_choice = 'auto';
+    } else if (req.toolChoice === 'none') {
+      // Explicit none with the tools param PRESENT: function-call items
+      // in the input need their definitions, and finalize and extract
+      // project tool-bearing histories (docs/04, section 8.4 as amended
+      // in M4-T01).
+      params.tool_choice = 'none';
     }
   }
 
@@ -503,7 +509,7 @@ export function buildChatCompletionsParams(
   if (req.stopSequences !== undefined) {
     params.stop = req.stopSequences;
   }
-  if (req.tools !== undefined && req.toolChoice !== 'none') {
+  if (req.tools !== undefined) {
     params.tools = req.tools.map((tool) => ({
       type: 'function',
       function: {
@@ -519,6 +525,10 @@ export function buildChatCompletionsParams(
       params.tool_choice = 'required';
     } else if (typeof req.toolChoice === 'object') {
       params.tool_choice = { type: 'function', function: { name: req.toolChoice.name } };
+    } else if (req.toolChoice === 'none') {
+      // Explicit none with the tools param present (docs/04, section 8.4
+      // as amended in M4-T01).
+      params.tool_choice = 'none';
     }
   }
   if (req.schema !== undefined) {

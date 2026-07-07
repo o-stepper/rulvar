@@ -46,6 +46,8 @@ import {
 } from '../journal/scope.js';
 import type { Replayer } from '../journal/replayer.js';
 import type { JournalEntry } from '../l0/entries.js';
+import { selectStructuredOutputTier } from '../model/caps.js';
+import { finalizeFires, needsSeparateExtract, roleConfiguredInRouting } from '../model/roles.js';
 import {
   resolveModelInvocation,
   type ResolutionLayer,
@@ -617,28 +619,11 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       internals.events.emit({ type: 'log', level: 'warn', msg: scrub.detail }, state.spanId);
     }
 
-    // Role trigger protocol (docs/06, section "Agent runtime binding"):
-    // extract fires separately only when a schema is set AND routing sends
-    // extract to a different model (the prompt tier makes every schema
-    // servable in M1, so caps alone never force a separate call).
-    let extract: { adapter: ProviderAdapter; resolved: ResolvedInvocation } | undefined;
     let canonicalSchema: ReturnType<typeof canonicalizeSchema> | undefined;
     let derivedSchemaHash = EMPTY_SCHEMA_HASH;
     if (opts.schema !== undefined) {
       canonicalSchema = canonicalizeSchema(projectToJsonSchema(opts.schema));
       derivedSchemaHash = schemaHash(canonicalSchema);
-      const extractResolved = withTelemetry(
-        resolveModelInvocation({
-          role: 'extract',
-          call: callLayer,
-          profile: profileLayer,
-          engine: engineLayer,
-          capsOf,
-        }),
-      );
-      if (extractResolved.ref !== loopResolved.ref) {
-        extract = { adapter: adapterOf(extractResolved), resolved: extractResolved };
-      }
     }
 
     // Escalation opt-in resolves call over profile; without it the
@@ -672,6 +657,60 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       escalation === undefined ? declaredTools : [...declaredTools, escalateTool()],
       { runId: internals.runId },
     );
+
+    // Role trigger protocol (M4-T01; docs/04, sections 8.3-8.4 as
+    // amended; predicates in model/roles.ts): extract fires separately
+    // only when a schema is set AND (routing sends extract to a
+    // different model OR the loop model's required tier cannot ride a
+    // tools-available turn OR finalize is routed); finalize fires only
+    // when configured in routing and the toolset is non-empty.
+    const layers = [callLayer, profileLayer, engineLayer];
+    const toolsAvailable = toolset.contracts.length > 0;
+    const finalizeRouted = roleConfiguredInRouting('finalize', layers);
+    let extract: { adapter: ProviderAdapter; resolved: ResolvedInvocation } | undefined;
+    if (opts.schema !== undefined && canonicalSchema !== undefined) {
+      const extractResolved = withTelemetry(
+        resolveModelInvocation({
+          role: 'extract',
+          call: callLayer,
+          profile: profileLayer,
+          engine: engineLayer,
+          capsOf,
+        }),
+      );
+      const loopTier = selectStructuredOutputTier(capsOf(loopResolved.ref), canonicalSchema);
+      if (
+        needsSeparateExtract({
+          schemaSet: true,
+          loopRef: loopResolved.ref,
+          extractRef: extractResolved.ref,
+          loopTier,
+          toolsAvailable,
+          finalizeRouted,
+        })
+      ) {
+        extract = { adapter: adapterOf(extractResolved), resolved: extractResolved };
+        for (const scrub of extractResolved.scrubs) {
+          internals.events.emit({ type: 'log', level: 'warn', msg: scrub.detail }, state.spanId);
+        }
+      }
+    }
+    let finalize: { adapter: ProviderAdapter; resolved: ResolvedInvocation } | undefined;
+    if (finalizeFires({ routed: finalizeRouted, toolsAvailable })) {
+      const finalizeResolved = withTelemetry(
+        resolveModelInvocation({
+          role: 'finalize',
+          call: callLayer,
+          profile: profileLayer,
+          engine: engineLayer,
+          capsOf,
+        }),
+      );
+      finalize = { adapter: adapterOf(finalizeResolved), resolved: finalizeResolved };
+      for (const scrub of finalizeResolved.scrubs) {
+        internals.events.emit({ type: 'log', level: 'warn', msg: scrub.detail }, state.spanId);
+      }
+    }
 
     const identityInput = {
       kind: 'agent',
@@ -1076,6 +1115,9 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     }
     if (extract !== undefined) {
       runAgentOptions.extract = extract;
+    }
+    if (finalize !== undefined) {
+      runAgentOptions.finalize = finalize;
     }
     if (opts.stream !== undefined) {
       runAgentOptions.stream = opts.stream;

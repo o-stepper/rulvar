@@ -125,6 +125,22 @@ describe('buildResponsesParams (M1-T13)', () => {
     });
   });
 
+  it("maps toolChoice 'none' to explicit none with the tools param present (M4-T01)", () => {
+    const { params } = buildResponsesParams(
+      {
+        model: 'gpt-5.5',
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'x' }] }],
+        tools: [{ name: 'clock', description: 'd', parameters: { type: 'object' } }],
+        toolChoice: 'none',
+      },
+      ids(),
+    );
+    // Function-call items in the input need their definitions: the tools
+    // param stays present, the choice pins none (docs/04, section 8.4).
+    expect((params.tools as unknown[]).length).toBe(1);
+    expect(params.tool_choice).toBe('none');
+  });
+
   it('maps effort with the documented lossy max downmap and none via the namespace', () => {
     expect(mapOpenAiEffort('xhigh')).toEqual({ wire: 'xhigh', downmapped: false });
     expect(mapOpenAiEffort('max')).toEqual({ wire: 'xhigh', downmapped: true });
@@ -295,6 +311,20 @@ describe('Chat Completions degraded path (M1-T13; docs/04 section 5.6)', () => {
       function: { name: 'search', description: 'd', parameters: strictSchema, strict: true },
     });
     expect(params.response_format).toMatchObject({ type: 'json_schema' });
+  });
+
+  it("maps toolChoice 'none' explicitly with tools present (M4-T01)", () => {
+    const params = buildChatCompletionsParams(
+      {
+        model: 'legacy-model',
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'x' }] }],
+        tools: [{ name: 'clock', description: 'd', parameters: { type: 'object' } }],
+        toolChoice: 'none',
+      },
+      ids(),
+    );
+    expect((params.tools as unknown[]).length).toBe(1);
+    expect(params.tool_choice).toBe('none');
   });
 
   it('assembles delta-patched chunks into canonical events', async () => {

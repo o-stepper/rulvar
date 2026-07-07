@@ -486,6 +486,14 @@ After resolution the router reads ModelCaps and:
 - scrubs unsupported effort per section 3.4;
 - applies fallbacks on transport-class failures (section 11).
 
+Required tier and ride-ability (committed during M4-T01; this makes the extract row of section 8.3 operational):
+
+- The REQUIRED tier for a schema on a model is the tier selection of this section applied to that model's caps: the `caps.structuredOutput` ceiling, with `native` degrading to `forced-tool` for strict-incompatible schemas.
+- A tier can RIDE the last loop turn only if it coexists with tool availability. `native` and `prompt` do. `forced-tool` pins `toolChoice` to the synthesized `emit_result` contract and therefore CANNOT ride a turn on which the agent's tools must remain available; with a non-empty toolset and a `forced-tool` required tier, the separate extract invocation fires even when extract routing resolves to the loop model. For an agent with no tools every tier rides (the M1 behavior, unchanged).
+- Finalize and schema: when finalize is configured in routing AND a schema is set, the schema rides neither the loop nor the synthesis turn; the structured output always comes from the separate extract invocation, running over the full transcript INCLUDING the synthesis. Riding the loop turn would put the JSON mid-transcript before the synthesis; riding the synthesis would collapse finalize into extract.
+- Finalize fires only after tools stop: for agents whose toolset is non-empty and whose loop ended without an abort. A no-tools agent's single loop turn is already its synthesis; finalize never fires there even when routed.
+- `toolChoice: 'none'` with tools defined maps to the provider's explicit none choice (`tool_choice { type: 'none' }` on Anthropic, `'none'` on OpenAI) with the tools param PRESENT: both providers reject tool-use history without tool definitions, so any request whose projected history contains tool blocks MUST carry the tool contracts. The finalize invocation and a separate extract invocation over a tool-bearing transcript therefore send the agent's contracts (extract's `forced-tool` tier appends `emit_result` and pins `toolChoice` to it; the other tiers pin `'none'`).
+
 Per-provider concurrency keys and Retry-After-honoring retries live next to the router; the scheduler integration is specified in 06-execution-spec.md, section "Scheduler".
 
 ## 9 Role quality floors
