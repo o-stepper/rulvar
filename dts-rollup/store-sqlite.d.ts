@@ -1,15 +1,33 @@
-//#region src/index.d.ts
-/**
-* @lurker/store-sqlite: lurker SQLite store implementing JournalStore and LeasableStore with a fencing epoch.
-*
-* M0 scaffold (v0.1.0): no public API yet. The first real surface of this
-* package ships in milestone M5 per docs/10-implementation-plan.md.
-*/
-/**
-* Temporary M0 scaffold marker (M0-T02 acceptance: a sample exported symbol
-* round-trips through build and packs). Removed when the package's first
-* real API lands.
-*/
-declare const M0_SCAFFOLD: "@lurker/store-sqlite";
+import { JournalEntry, JournalStore, LeasableStore, Lease, RunFilter, RunMeta } from "@lurker/core";
+
+//#region src/store.d.ts
+/** Appendix A interim reference for the sqlite store (docs/06). */
+declare const DEFAULT_LEASE_TTL_MS = 6e4;
+interface SqliteStoreOptions {
+  /** Database file path, or ':memory:' for an in-process store. */
+  path: string;
+  /** Lease ttl; default the Appendix A interim reference (60000 ms). */
+  ttlMs?: number;
+  /** Injectable clock for lease-expiry tests. */
+  now?: () => number;
+}
+declare class SqliteStore implements JournalStore, LeasableStore {
+  private readonly db;
+  private readonly ttlMs;
+  private readonly now;
+  constructor(options: SqliteStoreOptions);
+  close(): void;
+  private liveLease;
+  /** Rejects unless `lease` is the CURRENT live lease for its run. */
+  private assertFencing;
+  append(runId: string, e: JournalEntry, lease?: Lease): Promise<void>;
+  load(runId: string): Promise<JournalEntry[]>;
+  putMeta(m: RunMeta): Promise<void>;
+  listRuns(f?: RunFilter): Promise<RunMeta[]>;
+  delete(runId: string): Promise<void>;
+  acquire(runId: string, owner: string): Promise<Lease>;
+  renew(l: Lease): Promise<void>;
+  release(l: Lease): Promise<void>;
+}
 //#endregion
-export { M0_SCAFFOLD };
+export { DEFAULT_LEASE_TTL_MS, SqliteStore, type SqliteStoreOptions };
