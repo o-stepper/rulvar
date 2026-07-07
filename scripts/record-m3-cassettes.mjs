@@ -1,7 +1,9 @@
-// Regenerates the LIVE-RECORDED cassettes (M3-T11): the DEF-1 live set
-// (escalate-replay, crash-between-report-and-decision, flavor-b-timeout)
-// plus the M2 DEF-1 subset re-recorded through the live runtime
-// (abandon-subtree, memoize-classifier).
+// Regenerates the LIVE-RECORDED cassettes: the M3-T11 DEF-1 live set
+// (escalate-replay, crash-between-report-and-decision, flavor-b-timeout),
+// the M2 DEF-1 subset re-recorded through the live runtime
+// (abandon-subtree, memoize-classifier), and the M4-T08 DEF-6
+// effort-defaults-shift (the frozen v1 prefix resumed live under the
+// completed effort semantics).
 //
 // Regeneration is DELIBERATE (docs/11, section "Frozen journal
 // fixtures"). Requires built packages (`corepack pnpm exec turbo build`).

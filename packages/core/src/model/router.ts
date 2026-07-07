@@ -8,6 +8,7 @@
  * structured-output tier selection".
  */
 import { ConfigError } from '../l0/errors.js';
+import { checkFloors, type QualityFloors } from './floors.js';
 import type {
   CanonicalModelSpec,
   Effort,
@@ -195,6 +196,10 @@ export function resolveModelInvocation(options: {
   workflow?: ResolutionLayer;
   engine?: ResolutionLayer;
   capsOf: (ref: ModelRef) => ModelCaps;
+  /** Hard router constraints; violation is a typed ConfigError (M4-T09). */
+  floors?: QualityFloors;
+  /** Profile-declared task class; absent = unclassified, byRole only. */
+  taskClass?: string;
 }): ResolvedInvocation {
   const { role } = options;
   // Merge from lowest to highest priority; higher layers override per field.
@@ -215,6 +220,16 @@ export function resolveModelInvocation(options: {
         'or engine defaults.routing',
     );
   }
+
+  // Quality floors are enforced AT resolution, before any live call,
+  // for every invocation the chain produces: primaries, failover
+  // fallbacks, and the summarize fallback alike (docs/04, section 9).
+  checkFloors({
+    ref: merged.model,
+    role,
+    ...(options.floors === undefined ? {} : { floors: options.floors }),
+    ...(options.taskClass === undefined ? {} : { taskClass: options.taskClass }),
+  });
 
   const requestedEffort = merged.effort ?? ROLE_EFFORT_DEFAULTS[role];
   const { adapterId, model } = parseModelRef(merged.model);

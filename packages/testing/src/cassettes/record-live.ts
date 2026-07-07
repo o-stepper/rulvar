@@ -10,12 +10,16 @@
  * them); regeneration is DELIBERATE per the frozen-fixture policy
  * (docs/11).
  */
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import {
   agentScope,
   createEngine,
   defineWorkflow,
   deriveContentKey,
   InMemoryStore,
+  normalizeEntry,
   Replayer,
   type EscalationOptions,
   type EscalationReport,
@@ -25,7 +29,13 @@ import {
 } from '@lurker/core';
 
 import { FakeAdapter, fakeToolCalls, fakeWireError, FAKE_MODEL_REF } from '../fake-adapter.js';
-import { fakeAgentIdentity, PROMPTS, usageOf, type CassetteFixture } from './build-fixtures.js';
+import {
+  APPROVED_SCHEMA,
+  fakeAgentIdentity,
+  PROMPTS,
+  usageOf,
+  type CassetteFixture,
+} from './build-fixtures.js';
 
 const BASE_MS = Date.parse('2026-02-01T00:00:00.000Z');
 const SPAN = 'fixture-span';
@@ -256,8 +266,114 @@ async function recordAbandonSubtree(): Promise<JournalEntry[]> {
  * Records the five live cassettes. Deterministic by construction:
  * scripted FakeAdapter responders, fixed runId, normalized stamps.
  */
+/**
+ * The v1 flow re-run under explicit high effort (DEF-6, M4-T08): the
+ * body matches the frozen v1 journal's call sequence; the assessTone
+ * call is the one genuinely new spawn and records with hashVersion 2
+ * and canonical effort in identity.
+ */
+export function effortShiftWorkflow(): Workflow<undefined, Record<string, unknown>> {
+  return defineWorkflow({ name: 'v1-flow' }, async (ctx) => {
+    const draft = await ctx.agent(PROMPTS.draftSummary, { effort: 'high' });
+    const saved = await ctx.step('persist-draft', () => ({
+      written: true,
+      path: 'drafts/summary.md',
+    }));
+    const stampMs = ctx.now();
+    const intro1 = await ctx.agent(PROMPTS.polishIntro, { effort: 'high' });
+    const intro2 = await ctx.agent(PROMPTS.polishIntro, { effort: 'high' });
+    const tone = await ctx.agent(PROMPTS.assessTone, { effort: 'high' });
+    const approval = await ctx.awaitExternal<{ approved: boolean }>('editor-approval', {
+      schema: APPROVED_SCHEMA,
+      prompt: 'Approve the draft?',
+    });
+    return { draft, saved, stampMs, intro1, intro2, tone, approved: approval.approved };
+  });
+}
+
+/** Locates the frozen v1 journal from both src (vitest) and dist (script) layouts. */
+function frozenV1JournalPath(): string {
+  const candidates = [
+    new URL('../../fixtures/frozen/v1-journal.jsonl', import.meta.url),
+    new URL('../fixtures/frozen/v1-journal.jsonl', import.meta.url),
+  ];
+  for (const candidate of candidates) {
+    const path = fileURLToPath(candidate);
+    if (existsSync(path)) {
+      return path;
+    }
+  }
+  throw new Error('frozen v1-journal.jsonl not found next to the recorder');
+}
+
+/**
+ * effort-defaults-shift (DEF-6; docs/10 M4 gating row): the frozen v1
+ * prefix (recorded without effort) is closed offline the way an
+ * operator would (the external resolves, the approval flow is
+ * abandoned under its authority), then the SAME flow resumes LIVE under
+ * a config requesting high effort with the completed effort semantics:
+ * every v1 entry matches (the v1 predicate strips effort), and the one
+ * new spawn records canonical effort in v2 identity.
+ */
+async function recordEffortDefaultsShift(): Promise<JournalEntry[]> {
+  const RUN = 'RUNV1';
+  const v1Entries = readFileSync(frozenV1JournalPath(), 'utf8')
+    .split('\n')
+    .filter((line) => line.trim() !== '')
+    .map((line) => normalizeEntry(JSON.parse(line) as JournalEntry));
+  const journal = new InMemoryStore();
+  for (const entry of v1Entries) {
+    await journal.append(RUN, entry);
+  }
+  await journal.putMeta({
+    runId: RUN,
+    status: 'suspended',
+    updatedAt: new Date(0).toISOString(),
+    workflowName: 'v1-flow',
+  });
+  const offline = new Replayer({ runId: RUN, store: journal, priorEntries: v1Entries });
+  const resolved = await offline.resolveSuspended(5, {
+    by: 'external',
+    value: { approved: true },
+  });
+  if (!resolved.applied) {
+    throw new Error('offline resolution of the v1 external did not apply');
+  }
+  const abandoned = await offline.abandonBranch({
+    target: 6,
+    authorizedBy: resolved.seq,
+    reason: 'approval flow superseded by the operator',
+  });
+  if (!abandoned.applied) {
+    throw new Error('offline abandon of the v1 approval did not apply');
+  }
+
+  const engine = createEngine({
+    adapters: [new FakeAdapter({ agents: { '*': 'tone assessed' } })],
+    stores: { journal },
+    defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+  });
+  const outcome = await engine.resume(RUN, effortShiftWorkflow()).result;
+  if (outcome.status !== 'ok') {
+    throw new Error(
+      `effort-defaults-shift recording ended '${outcome.status}': ${outcome.error?.message ?? ''}`,
+    );
+  }
+  return normalizeEntries(await journal.load(RUN));
+}
+
 export async function recordLiveCassettes(): Promise<CassetteFixture[]> {
   const fixtures: CassetteFixture[] = [];
+
+  fixtures.push({
+    id: 'effort-defaults-shift',
+    note:
+      'DEF-6 (recorded through the live runtime in M4-T08): the frozen v1 prefix recorded ' +
+      'without effort, closed offline, then resumed live under explicit high effort with ' +
+      'the completed effort semantics; every v1 entry matches (the v1 predicate strips ' +
+      'effort) and the one new spawn carries canonical effort in v2 identity.',
+    entries: await recordEffortDefaultsShift(),
+  });
 
   fixtures.push({
     id: 'abandon-subtree',

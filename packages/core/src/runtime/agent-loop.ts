@@ -977,6 +977,12 @@ export async function runAgent<S extends SchemaSpec>(
             `failover: ${takeover.resolved.ref} takes over from ${target.resolved.ref} ` +
             `after ${trigger} (the content key is unchanged; servedBy records the server)`,
         });
+        // Visible scrub (docs/04, section 3.4; M4-T08): the fallback's
+        // own caps scrubbing surfaces the moment the target starts
+        // serving, never silently.
+        for (const scrub of takeover.resolved.scrubs) {
+          events?.emit({ type: 'log', level: 'warn', msg: scrub.detail });
+        }
         site.cursor.index = next;
         break inner;
       }
@@ -1205,6 +1211,12 @@ export async function runAgent<S extends SchemaSpec>(
           model: summarizeResolved.ref,
           role: 'summarize',
         });
+        // Visible scrub at fire time (docs/04, section 3.4; M4-T08):
+        // the summarize resolution rarely fires, so its scrubs surface
+        // here rather than as spawn-time noise.
+        for (const scrub of summarizeResolved.scrubs) {
+          events?.emit({ type: 'log', level: 'warn', msg: scrub.detail });
+        }
         try {
           options.budget?.beforeTurn();
         } catch {

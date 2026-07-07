@@ -2068,6 +2068,30 @@ declare class KeyedLimiter {
   withSlot<T>(key: string, fn: () => Promise<T>, onQueued?: () => void): Promise<T>;
 }
 //#endregion
+//#region src/model/floors.d.ts
+/** An explicit allowlist and denylist; deny wins over allow. */
+type ModelListConstraint = {
+  allow?: ModelRef[];
+  deny?: ModelRef[];
+};
+/** Bridges the ModelKnowledge vocabulary (docs/05); default unclassified. */
+type TaskClass = string;
+interface QualityFloors {
+  byRole?: Partial<Record<InvocationRole, ModelListConstraint>>;
+  byTaskClass?: Partial<Record<TaskClass, ModelListConstraint>>;
+}
+/**
+* Enforces the floors for one resolved invocation. `taskClass` is the
+* profile-declared class; when absent (unclassified) only byRole floors
+* apply. Throws a typed ConfigError on violation.
+*/
+declare function checkFloors(options: {
+  ref: ModelRef;
+  role: InvocationRole;
+  floors?: QualityFloors;
+  taskClass?: TaskClass;
+}): void;
+//#endregion
 //#region src/model/router.d.ts
 /**
 * Per-engine adapter registry: strictly per engine, no global mutable
@@ -2140,7 +2164,9 @@ declare function resolveModelInvocation(options: {
   profile?: ResolutionLayer;
   workflow?: ResolutionLayer;
   engine?: ResolutionLayer;
-  capsOf: (ref: ModelRef) => ModelCaps;
+  capsOf: (ref: ModelRef) => ModelCaps; /** Hard router constraints; violation is a typed ConfigError (M4-T09). */
+  floors?: QualityFloors; /** Profile-declared task class; absent = unclassified, byRole only. */
+  taskClass?: string;
 }): ResolvedInvocation;
 //#endregion
 //#region src/runtime/escalation.d.ts
@@ -2766,6 +2792,8 @@ interface AgentProfile {
   limits?: UsageLimits;
   /** Transport RetryPolicy layer: call over profile over engine (M4-T05). */
   retry?: RetryPolicy;
+  /** Declared task class bridging ModelKnowledge; default unclassified (M4-T09). */
+  taskClass?: string;
   /**
   * Per-profile compaction threshold; default 0.8 of the loop model's
   * contextWindow (docs/06, Appendix A; M4-T03). Compaction is ON by
@@ -3003,6 +3031,8 @@ interface RunInternals {
   providerLimiter?: KeyedLimiter;
   /** The configured price table's version; pinned in decision entries (M4-T06). */
   pricingVersion?: string;
+  /** Hard router constraints from engine config (docs/04, section 9; M4-T09). */
+  floors?: QualityFloors;
   errorPolicy: ErrorPolicy;
   dropped: DroppedItem[];
   cost: CostAttribution;
@@ -3505,6 +3535,8 @@ interface CreateEngineOptions {
   };
   /** Versioned price table; wins over caps.pricing (docs/04, section 10; M4-T06). */
   pricing?: PriceTable;
+  /** Hard per-role model constraints (docs/04, section 9; M4-T09). */
+  floors?: QualityFloors;
   /**
   * The InProcessRunner escalation hook (docs/06, sections 2.10 and 8.1):
   * receives escalated results when the call form cannot carry them; the
@@ -3608,4 +3640,4 @@ declare class InProcessRunner implements ScriptRunner {
   execute<A, R>(wf: Workflow<A, R> | CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R>;
 }
 //#endregion
-export { AbandonAttempt, AbandonFold, AbandonPayload, AbortClass, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApprovalDecision, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetDefaults, BudgetExhaustedError, BudgetHooks, type Bytes, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationKind, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FinishInfo, Gate, GitWorktreeProvider, GitWorktreeProviderOptions, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NonSerializableValueError, OnEscalation, OperationDisposition, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, SinglePhaseAppend, SpanMinter, SpanRegistry, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskSpec, TerminalPatch, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, type WorkflowEvent, type WorkflowEventBody, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildToolContext, canRideLoopTurn, canonicalizeSchema, checkpointRefFor, classifyAgentError, compactMessages, compilePermissionChain, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, formatRePrompt, formatScopePath, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, liftRetainedParts, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, normalizeEntry, normalizeFallbacks, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, priceUsdOf, projectHistory, projectIdentity, projectToJsonSchema, providerOf, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, summarizeInstruction, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationReport, validateSchemaSpec, workflowScope };
+export { AbandonAttempt, AbandonFold, AbandonPayload, AbortClass, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApprovalDecision, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetDefaults, BudgetExhaustedError, BudgetHooks, type Bytes, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationKind, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FinishInfo, Gate, GitWorktreeProvider, GitWorktreeProviderOptions, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NonSerializableValueError, OnEscalation, OperationDisposition, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, SinglePhaseAppend, SpanMinter, SpanRegistry, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskSpec, TerminalPatch, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, type WorkflowEvent, type WorkflowEventBody, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildToolContext, canRideLoopTurn, canonicalizeSchema, checkFloors, checkpointRefFor, classifyAgentError, compactMessages, compilePermissionChain, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, formatRePrompt, formatScopePath, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, liftRetainedParts, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, normalizeEntry, normalizeFallbacks, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, priceUsdOf, projectHistory, projectIdentity, projectToJsonSchema, providerOf, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, summarizeInstruction, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationReport, validateSchemaSpec, workflowScope };

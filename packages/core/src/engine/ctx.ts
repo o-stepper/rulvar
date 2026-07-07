@@ -49,6 +49,7 @@ import type { JournalEntry } from '../l0/entries.js';
 import { selectStructuredOutputTier } from '../model/caps.js';
 import { fallbackTriggerOf, type FallbackField, type FallbackTrigger } from '../model/failover.js';
 import type { KeyedLimiter } from '../model/concurrency.js';
+import type { QualityFloors } from '../model/floors.js';
 import type { RetryPolicy } from '../model/retry.js';
 import { finalizeFires, needsSeparateExtract, roleConfiguredInRouting } from '../model/roles.js';
 import {
@@ -109,6 +110,8 @@ export interface AgentProfile {
   limits?: UsageLimits;
   /** Transport RetryPolicy layer: call over profile over engine (M4-T05). */
   retry?: RetryPolicy;
+  /** Declared task class bridging ModelKnowledge; default unclassified (M4-T09). */
+  taskClass?: string;
   /**
    * Per-profile compaction threshold; default 0.8 of the loop model's
    * contextWindow (docs/06, Appendix A; M4-T03). Compaction is ON by
@@ -449,6 +452,8 @@ export interface RunInternals {
   providerLimiter?: KeyedLimiter;
   /** The configured price table's version; pinned in decision entries (M4-T06). */
   pricingVersion?: string;
+  /** Hard router constraints from engine config (docs/04, section 9; M4-T09). */
+  floors?: QualityFloors;
   errorPolicy: ErrorPolicy;
   dropped: DroppedItem[];
   cost: CostAttribution;
@@ -648,6 +653,14 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       );
     }
 
+    // Floors ride every resolution of this spawn (M4-T09): the engine
+    // config supplies them; the profile's declared taskClass activates
+    // the byTaskClass axis.
+    const floorContext: { floors?: QualityFloors; taskClass?: string } = {
+      ...(internals.floors === undefined ? {} : { floors: internals.floors }),
+      ...(profile?.taskClass === undefined ? {} : { taskClass: profile.taskClass }),
+    };
+
     const callLayer: ResolutionLayer = {};
     if (opts.model !== undefined) {
       callLayer.model = opts.model;
@@ -691,6 +704,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         profile: profileLayer,
         engine: engineLayer,
         capsOf,
+        ...floorContext,
       }),
     );
     for (const scrub of loopResolved.scrubs) {
@@ -754,6 +768,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           profile: profileLayer,
           engine: engineLayer,
           capsOf,
+          ...floorContext,
         }),
       );
       const loopTier = selectStructuredOutputTier(capsOf(loopResolved.ref), canonicalSchema);
@@ -782,6 +797,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           profile: profileLayer,
           engine: engineLayer,
           capsOf,
+          ...floorContext,
         }),
       );
       finalize = { adapter: adapterOf(finalizeResolved), resolved: finalizeResolved };
@@ -802,6 +818,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         profile: profileLayer,
         engine: engineLayer,
         capsOf,
+        ...floorContext,
       });
     } catch {
       summarizeResolved = resolveModelInvocation({
@@ -810,6 +827,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         profile: profileLayer,
         engine: { ...engineLayer, model: loopResolved.ref },
         capsOf,
+        ...floorContext,
       });
     }
     const summarize: PhaseTarget & { fallbacks?: PhaseTarget[] } = {
@@ -835,6 +853,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
             profile: profileLayer,
             engine: engineLayer,
             capsOf,
+            ...floorContext,
           }),
         );
         return { adapter: adapterOf(fallbackResolved), resolved: fallbackResolved };

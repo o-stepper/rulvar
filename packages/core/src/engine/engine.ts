@@ -59,6 +59,7 @@ import { InProcessRunner, type ScriptRunner } from '../runner/inprocess.js';
 import type { RetryPolicy } from '../model/retry.js';
 import { KeyedLimiter } from '../model/concurrency.js';
 import { resolvePricing, priceUsdOf, type PriceTable } from '../model/pricing.js';
+import type { QualityFloors } from '../model/floors.js';
 
 export type { RunStatus };
 
@@ -97,6 +98,8 @@ export interface CreateEngineOptions {
   };
   /** Versioned price table; wins over caps.pricing (docs/04, section 10; M4-T06). */
   pricing?: PriceTable;
+  /** Hard per-role model constraints (docs/04, section 9; M4-T09). */
+  floors?: QualityFloors;
   /**
    * The InProcessRunner escalation hook (docs/06, sections 2.10 and 8.1):
    * receives escalated results when the call form cannot carry them; the
@@ -299,6 +302,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       semaphore: new Semaphore(options.concurrency?.perRun ?? DEFAULT_PER_RUN_CONCURRENCY),
       providerLimiter,
       ...(options.pricing === undefined ? {} : { pricingVersion: options.pricing.pricingVersion }),
+      ...(options.floors === undefined ? {} : { floors: options.floors }),
       events: { emit: (body, spanId) => bus.emit(body as WorkflowEventBody, spanId ?? rootSpanId) },
       spans,
       rootSpanId,
