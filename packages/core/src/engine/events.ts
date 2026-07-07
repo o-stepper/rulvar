@@ -57,7 +57,7 @@ export class EventBus {
     this.now = options.now ?? Date.now;
   }
 
-  emit(body: WorkflowEventBody, spanId: string): WorkflowEvent {
+  emit(body: WorkflowEventBody, spanId: string, replayed?: boolean): WorkflowEvent {
     const parentSpanId = this.spans.parentOf(spanId);
     const event: WorkflowEvent = {
       runId: this.runId,
@@ -65,6 +65,7 @@ export class EventBus {
       ts: new Date(this.now()).toISOString(),
       spanId,
       ...(parentSpanId === undefined ? {} : { parentSpanId }),
+      ...(replayed === true ? { replayed: true } : {}),
       ...body,
     };
     for (const listener of this.listeners) {

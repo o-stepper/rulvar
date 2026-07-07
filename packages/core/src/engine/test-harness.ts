@@ -17,6 +17,7 @@ import type {
 } from '../l0/messages.js';
 import type { ModelCaps, ProviderAdapter } from '../l0/spi/provider.js';
 import { Replayer } from '../journal/replayer.js';
+import type { JournalEntry } from '../l0/entries.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { buildAdapterRegistry } from '../model/router.js';
 import type { UsageLimits } from '../runtime/usage-limits.js';
@@ -149,6 +150,9 @@ export interface TestInternalsOptions {
   perRun?: number;
   errorPolicy?: 'strict' | 'lenient';
   now?: () => number;
+  /** Resume simulation: the loaded prior journal. */
+  priorEntries?: JournalEntry[];
+  store?: InMemoryStore;
 }
 
 export function makeInternals(options: TestInternalsOptions = {}): {
@@ -156,7 +160,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
   store: InMemoryStore;
   events: RecordedEvents;
 } {
-  const store = new InMemoryStore();
+  const store = options.store ?? new InMemoryStore();
   const events = recordingSink();
   const adapters = buildAdapterRegistry(options.adapters ?? []);
   const priceUsd = (servedBy: ModelRef | undefined, usage: Usage): number | undefined => {
@@ -181,8 +185,18 @@ export function makeInternals(options: TestInternalsOptions = {}): {
   if (options.lifetimeSpawnCap !== undefined) {
     budgetOptions.lifetimeSpawnCap = options.lifetimeSpawnCap;
   }
+  const seededReplayer = new Replayer({
+    runId: 'test-run',
+    store,
+    priceUsd,
+    ...(options.priorEntries === undefined ? {} : { priorEntries: options.priorEntries }),
+  });
+  if (options.priorEntries !== undefined) {
+    const prior = seededReplayer.ledger();
+    budgetOptions.seed = { usd: prior.usd, usage: prior.usage, agentsSpawned: prior.agentsSpawned };
+  }
   const budget = new RunBudget(budgetOptions);
-  const replayer = new Replayer({ runId: 'test-run', store, priceUsd });
+  const replayer = seededReplayer;
   let refCounter = 0;
   const spans = new SpanRegistry();
   const internals: RunInternals = {

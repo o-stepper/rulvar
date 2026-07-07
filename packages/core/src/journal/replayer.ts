@@ -21,6 +21,16 @@ import {
 import type { ModelRef, Usage } from '../l0/messages.js';
 import type { JournalStore } from '../l0/spi/store.js';
 import { toJournalValue } from './serializable.js';
+import { validateEntryShape } from './kinds.js';
+import {
+  JournalMatcher,
+  type JournalOperation,
+  type KeyRing,
+  type MatchResult,
+  type OperationDisposition,
+  type ResumeReport,
+} from './matching.js';
+import type { IdentityInput } from './identity.js';
 
 export type ReplayMode = 'scoped' | 'cache' | 'never';
 
@@ -80,6 +90,7 @@ export class Replayer {
   private readonly largeValueWarnBytes: number;
   private readonly entries: JournalEntry[] = [];
   private readonly ordinals = new Map<string, number>();
+  private readonly matcher: JournalMatcher;
   private queue: Promise<unknown> = Promise.resolve();
   private seq = 0;
 
@@ -91,6 +102,10 @@ export class Replayer {
     /** Receives large-value soft warnings (docs/03: never an error). */
     onWarn?: (msg: string) => void;
     largeValueWarnBytes?: number;
+    /** The loaded, normalized prior journal (resume; docs/03 section 7). */
+    priorEntries?: readonly JournalEntry[];
+    keyRing?: KeyRing;
+    disposition?: (op: JournalOperation) => OperationDisposition;
   }) {
     this.runId = options.runId;
     this.store = options.store;
@@ -102,6 +117,53 @@ export class Replayer {
       this.onWarn = options.onWarn;
     }
     this.largeValueWarnBytes = options.largeValueWarnBytes ?? LARGE_VALUE_WARN_BYTES;
+
+    const priors = options.priorEntries ?? [];
+    const matcherOptions: ConstructorParameters<typeof JournalMatcher>[1] = {};
+    if (options.keyRing !== undefined) {
+      matcherOptions.keyRing = options.keyRing;
+    }
+    if (options.disposition !== undefined) {
+      matcherOptions.disposition = options.disposition;
+    }
+    this.matcher = new JournalMatcher(priors, matcherOptions);
+    for (const entry of priors) {
+      this.entries.push(entry);
+      if (entry.seq >= this.seq) {
+        this.seq = entry.seq + 1;
+      }
+      // Ordinal spaces continue per (scope, hashVersion, key); new appends
+      // are always CURRENT_HASH_VERSION (docs/03, section 4.4).
+      if (
+        entry.ref === undefined &&
+        entry.kind !== 'resolution' &&
+        entry.kind !== 'abandon' &&
+        entry.hashVersion === CURRENT_HASH_VERSION
+      ) {
+        const ordinalKey = `${entry.scope} ${entry.hashVersion} ${entry.key}`;
+        const next = (this.ordinals.get(ordinalKey) ?? 0) + 1;
+        if (entry.ordinal + 1 > next - 1) {
+          this.ordinals.set(ordinalKey, entry.ordinal + 1);
+        }
+      }
+    }
+  }
+
+  /**
+   * Forward-matches one live call against the prior journal (docs/03,
+   * section 7). Fresh runs always miss; the M2-T06 predicate is injected
+   * through setDisposition once folds are built.
+   */
+  match(scope: string, identity: IdentityInput, mode: ReplayMode): MatchResult {
+    return this.matcher.match(scope, identity, mode);
+  }
+
+  setDisposition(disposition: (op: JournalOperation) => OperationDisposition): void {
+    this.matcher.setDisposition(disposition);
+  }
+
+  resumeReport(): ResumeReport {
+    return this.matcher.report();
   }
 
   /**
@@ -120,14 +182,6 @@ export class Replayer {
           `${this.largeValueWarnBytes}); large artifacts belong in TranscriptStore by reference`,
       );
     }
-  }
-
-  /**
-   * Scoped forward-matching lands with resume in M2; a fresh M1 run has no
-   * prior journal, so every lookup is live by construction.
-   */
-  lookup(_scope: string, _key: string, _ordinal: number, _mode: ReplayMode): JournalEntry | 'live' {
-    return 'live';
   }
 
   /** Single-phase fact entries: rand, decisions, termination facts. */
@@ -312,6 +366,13 @@ export class Replayer {
   }
 
   private async persist(entry: JournalEntry): Promise<JournalEntry> {
+    const shapeIssues = validateEntryShape(entry);
+    if (shapeIssues.length > 0) {
+      throw new ConfigError(
+        `journal entry shape violation (kind '${entry.kind}'): ` +
+          shapeIssues.map((i) => i.message).join('; '),
+      );
+    }
     await this.store.append(this.runId, entry);
     this.entries.push(entry);
     return entry;
