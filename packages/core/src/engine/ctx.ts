@@ -29,7 +29,6 @@ import type { IsolationSpec } from '../l0/spi/isolation.js';
 import {
   canonicalizeSchema,
   EMPTY_SCHEMA_HASH,
-  EMPTY_TOOLSET_HASH,
   projectToJsonSchema,
   schemaHash,
   validateSchemaSpec,
@@ -45,8 +44,10 @@ import {
   type ResolutionLayer,
   type ResolvedInvocation,
 } from '../model/router.js';
-import { runAgent, type AgentResult } from '../runtime/agent-loop.js';
+import { runAgent, type AgentResult, type ToolRuntime } from '../runtime/agent-loop.js';
 import { mergeUsageLimits, type UsageLimits } from '../runtime/usage-limits.js';
+import { buildToolContext } from '../tools/context.js';
+import { resolveToolset, type ToolsOption } from '../tools/toolset-hash.js';
 import { admissionReserveUsd, type RunBudget, type Spend } from './budget.js';
 import { Semaphore } from './scheduler.js';
 import type { ExternalRegistry } from './external.js';
@@ -63,6 +64,8 @@ export interface AgentProfile {
   model?: ModelSpec;
   routing?: Partial<Record<InvocationRole, ModelSpec>>;
   effort?: Effort;
+  /** Toolset default; the resolved snapshot enters identity via toolsetHash. */
+  tools?: ToolsOption;
   limits?: UsageLimits;
   /** Admission reserve hint in USD (budget layer 1). */
   estCost?: number;
@@ -86,7 +89,9 @@ export interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   effort?: Effort;
   /** schemaHash enters identity. */
   schema?: S;
-  /** docs/08; enters identity. Only 'none' is executable before M3. */
+  /** toolsetHash enters identity; wins over profile.tools (docs/08). */
+  tools?: ToolsOption;
+  /** docs/08; enters identity. Only 'none' is executable before M3-T05. */
   isolation?: IsolationSpec;
   /** Explicit discriminator; replaces the prompt in the content key. */
   key?: string;
@@ -553,13 +558,20 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       }
     }
 
+    // The toolset snapshot is captured at spawn time and hashed into the
+    // spawn's identity; a mid-run source change never mutates an in-flight
+    // agent's toolset (docs/08, sections "toolsetHash contract" and 6.3).
+    const toolset = await resolveToolset(opts.tools ?? profile?.tools, {
+      runId: internals.runId,
+    });
+
     const identityInput = {
       kind: 'agent',
       agentType,
       modelSpec: loopResolved.canonical,
       prompt: opts.key ?? prompt,
       schemaHash: derivedSchemaHash,
-      toolsetHash: EMPTY_TOOLSET_HASH,
+      toolsetHash: toolset.hash,
       isolation: opts.isolation ?? 'none',
     } as const;
     const identityKey = deriveContentKey(identityInput);
@@ -713,6 +725,40 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       emit: (body: { type: string } & Record<string, unknown>) =>
         internals.events.emit(body, spanId),
     };
+    const branchOrRunSignal = state.signal ?? internals.runSignal;
+    let toolRuntime: ToolRuntime | undefined;
+    if (toolset.tools.length > 0) {
+      const toolSignals: AbortSignal[] = [];
+      if (branchOrRunSignal !== undefined) {
+        toolSignals.push(branchOrRunSignal);
+      }
+      if (internals.budget.signal !== undefined) {
+        toolSignals.push(internals.budget.signal);
+      }
+      const toolSignal =
+        toolSignals.length > 0 ? AbortSignal.any(toolSignals) : new AbortController().signal;
+      toolRuntime = {
+        defs: toolset.tools,
+        contracts: toolset.contracts,
+        contextFor: () =>
+          buildToolContext({
+            runId: internals.runId,
+            agentType,
+            ...(opts.label === undefined ? {} : { label: opts.label }),
+            cwd: process.cwd(),
+            isolation: opts.isolation ?? 'none',
+            signal: toolSignal,
+            mintSpan: () => internals.spans.mint(spanId),
+            emitLog: (toolSpanId, level, msg, data) =>
+              internals.events.emit(
+                data === undefined
+                  ? { type: 'log', level, msg }
+                  : { type: 'log', level, msg, data },
+                toolSpanId,
+              ),
+          }),
+      };
+    }
     const runAgentOptions: Parameters<typeof runAgent<S>>[0] = {
       prompt,
       adapter,
@@ -732,6 +778,9 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       agentType,
       now: internals.now,
     };
+    if (toolRuntime !== undefined) {
+      runAgentOptions.tools = toolRuntime;
+    }
     if (opts.schema !== undefined) {
       runAgentOptions.schema = opts.schema;
     }
@@ -747,9 +796,8 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     if (opts.label !== undefined) {
       runAgentOptions.label = opts.label;
     }
-    const branchSignal = state.signal ?? internals.runSignal;
-    if (branchSignal !== undefined) {
-      runAgentOptions.signal = branchSignal;
+    if (branchOrRunSignal !== undefined) {
+      runAgentOptions.signal = branchOrRunSignal;
     }
 
     const exitActivity = internals.external?.enter();

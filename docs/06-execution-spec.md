@@ -786,6 +786,6 @@ This is the single consolidated defaults table for the whole docs set; every oth
 | lease renew interval | LeasableStore (docs/03) | at most ttl/3 (normative bound) | per store | |
 | lease ttl | LeasableStore (docs/03) | TBD before M8 | per store | interim reference for the sqlite store: 60000 ms (renew bound ttl/3 applies) |
 | createWorker concurrency | queue shell (docs/02) | TBD before M8 | per worker | interim: 1 (one leased run per worker process) |
-| no-progress detector N | agent runtime (docs/14) | engine-defined conservative default, TBD before M3 | yes | journaled abort class |
+| no-progress detector N | agent runtime (docs/14) | 3 consecutive turns without tool calls or artifact deltas (committed during M3 entry per the TBD rule; the broader heuristic stays OQ-15, revisited on dogfood traces before 1.0) | yes | journaled abort class |
 | KB active-claims cap | ModelKnowledge (docs/05) | 8 per (model, taskClass) | yes | |
 | renderBudget (WakeDigest, ledger render, KB card) | docs/07, docs/05 | TBD before M10 | yes | OQ: measure choice, docs/14 |
