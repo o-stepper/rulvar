@@ -1,13 +1,22 @@
 /**
- * @lurker/compat: lurker frozen KeyDeriver profiles for hashVersions outside the support window (DEF-6); independently versioned.
+ * @lurker/compat: frozen KeyDeriver profiles for hashVersions that left
+ * the support window, attached via EngineOptions.extraDerivers, the only
+ * window extender (docs/03, section "hashVersion"; docs/12, section
+ * "Exemptions": independently versioned, the sole lockstep exemption).
  *
- * M0 scaffold (v0.1.0): no public API yet. The first real surface of this
- * package ships in milestone M2 per docs/10-implementation-plan.md.
+ * No real profile has aged out yet: this package ships the plumbing plus
+ * a synthetic hashVersion 0 deriver used by the reject-version-too-old
+ * cassette (docs/10, M2-T05). Real derivers move in as versions retire.
  */
+import { deriverV1, type KeyDeriver } from '@lurker/core';
 
 /**
- * Temporary M0 scaffold marker (M0-T02 acceptance: a sample exported symbol
- * round-trips through build and packs). Removed when the package's first
- * real API lands.
+ * Synthetic out-of-window profile for compatibility testing: hashVersion
+ * 0 with the round-1 projection and table. NOT a historical profile.
  */
-export const M0_SCAFFOLD = '@lurker/compat' as const;
+export const deriverV0Synthetic: KeyDeriver = {
+  ...deriverV1,
+  hashVersion: 0,
+};
+
+export type { KeyDeriver } from '@lurker/core';
