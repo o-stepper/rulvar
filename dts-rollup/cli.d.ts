@@ -63,6 +63,7 @@ declare function assembleEngine(options: {
   config: CliConfig;
   module?: LoadedWorkflowModule;
   storePath?: string;
+  profile?: string;
   cwd: string;
 }): AssembledCli;
 //#endregion
@@ -87,4 +88,45 @@ declare function renderEventLine(event: WorkflowEvent): string | undefined;
 /** Attaches the renderer to a handle's event stream; returns a detach. */
 declare function attachProgress(handle: RunHandle<unknown>, io: CliIo): () => void;
 //#endregion
-export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, DEFAULT_STORE_DIR, HELP, assembleEngine, attachProgress, driveRun, inspectCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand };
+//#region src/otel.d.ts
+/** The tiny subset of the OTel Tracer/Span API the exporter uses. */
+interface SpanLike {
+  setAttribute(key: string, value: string | number | boolean): void;
+  addEvent(name: string, attributes?: Record<string, string | number | boolean>): void;
+  setStatus(status: {
+    code: number;
+    message?: string;
+  }): void;
+  end(endTime?: number): void;
+}
+interface TracerLike {
+  startSpan(name: string, options?: {
+    startTime?: number;
+    attributes?: Record<string, string | number | boolean>;
+  }, context?: unknown): SpanLike;
+}
+/** Minimal OTel context surface (setSpan/with) for parentage. */
+interface OtelContextApi {
+  active(): unknown;
+  with<T>(context: unknown, fn: () => T): T;
+}
+interface ToOtelOptions {
+  /** OTel context API for parentage; when absent, spans are flat but attributed. */
+  contextApi?: OtelContextApi;
+  /** trace.setSpan(context, span) equivalent; required with contextApi. */
+  setSpan?: (context: unknown, span: SpanLike) => unknown;
+}
+/**
+* Exports one settled run's event stream onto a tracer. The run's
+* events are consumed in seq order; span openers start spans, the
+* matching closers end them, and payload-only events attach as span
+* events on the innermost open span. Returns the number of spans
+* created.
+*/
+declare function toOtel(run: {
+  runId: string;
+  events: AsyncIterable<WorkflowEvent>;
+  result: Promise<RunOutcome<unknown>>;
+}, tracer: TracerLike, options?: ToOtelOptions): Promise<number>;
+//#endregion
+export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, DEFAULT_STORE_DIR, HELP, type SpanLike, type ToOtelOptions, type TracerLike, assembleEngine, attachProgress, driveRun, inspectCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, toOtel };

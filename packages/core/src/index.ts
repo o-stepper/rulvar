@@ -38,6 +38,7 @@ export * from './engine/external.js';
 export * from './stores/inmemory.js';
 export * from './stores/jsonl.js';
 export * from './engine/cost-report.js';
+export * from './engine/run-profiles.js';
 export * from './model/caps.js';
 export * from './model/concurrency.js';
 export * from './model/failover.js';

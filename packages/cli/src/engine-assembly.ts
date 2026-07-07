@@ -12,14 +12,18 @@ import {
   parseModelRef,
   priceUsdOf,
   resolvePricing,
+  runProfile,
   type CreateEngineOptions,
   type Engine,
   type JournalStore,
   type ModelRef,
   type ProviderAdapter,
+  type RunProfile,
   type Usage,
   type WorkflowRegistry,
 } from '@lurker/core';
+
+import { compilePermissionPreset, ConfigError } from '@lurker/core';
 
 import type { CliConfig, LoadedWorkflowModule } from './config.js';
 
@@ -37,13 +41,26 @@ export function assembleEngine(options: {
   config: CliConfig;
   module?: LoadedWorkflowModule;
   storePath?: string;
+  profile?: string;
   cwd: string;
 }): AssembledCli {
   const { config, module } = options;
-  const engineOptions: Partial<CreateEngineOptions> = {
+  let engineOptions: Partial<CreateEngineOptions> = {
     ...config.engineOptions,
     ...module?.engineOptions,
   };
+  // A RunProfile is pure data applied UNDER the host's own options: the
+  // host always wins, and the engine sees only ordinary options
+  // afterward (docs/06, section 11; M5-T07).
+  if (options.profile !== undefined) {
+    const profile = runProfile(options.profile);
+    if (profile === undefined) {
+      throw new ConfigError(
+        `unknown run profile '${options.profile}'; shipped: fast, standard, deep, ultra`,
+      );
+    }
+    engineOptions = applyRunProfile(profile, engineOptions);
+  }
   const store: JournalStore =
     engineOptions.stores?.journal ??
     new JsonlFileStore({ dir: resolve(options.cwd, options.storePath ?? DEFAULT_STORE_DIR) });
@@ -69,4 +86,37 @@ export function assembleEngine(options: {
     return pricing === undefined ? undefined : priceUsdOf(pricing, usage);
   };
   return { engine, store, workflows, priceUsd };
+}
+
+/**
+ * Merges a RunProfile UNDER host engineOptions (host wins). Effort hints
+ * seed per-role defaults on routing entries that carry none; concurrency
+ * and budget defaults fill unset slots; the permission preset applies to
+ * the engine-wide chain when the host set none.
+ */
+function applyRunProfile(
+  profile: RunProfile,
+  host: Partial<CreateEngineOptions>,
+): Partial<CreateEngineOptions> {
+  const merged: Partial<CreateEngineOptions> = { ...host };
+  if (profile.perRunConcurrency !== undefined) {
+    merged.concurrency = { perRun: profile.perRunConcurrency, ...host.concurrency };
+  }
+  if (profile.lifetimeSpawnCap !== undefined || profile.maxDepth !== undefined) {
+    merged.budgetDefaults = {
+      ...(profile.lifetimeSpawnCap === undefined
+        ? {}
+        : { lifetimeSpawnCap: profile.lifetimeSpawnCap }),
+      ...(profile.maxDepth === undefined ? {} : { maxDepth: profile.maxDepth }),
+      ...host.budgetDefaults,
+    };
+  }
+  if (profile.permissionPreset !== undefined && host.defaults?.permissions === undefined) {
+    // The preset compiles into the engine-wide deny/ask layers as data
+    // (docs/08, section 4.2): the engine config carries no `preset`
+    // field, so the profile emits the compiled rules directly.
+    const compiled = compilePermissionPreset(profile.permissionPreset);
+    merged.defaults = { ...host.defaults, permissions: compiled };
+  }
+  return merged;
 }
