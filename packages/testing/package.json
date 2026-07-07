@@ -1,6 +1,6 @@
 {
   "name": "@lurker/testing",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "lurker test harness: createTestEngine, FakeAdapter, VCR cassettes, replay-strict runs, matchers.",
   "type": "module",
   "license": "UNLICENSED",
