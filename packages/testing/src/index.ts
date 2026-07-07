@@ -23,3 +23,4 @@ export {
 } from './cassettes/build-fixtures.js';
 export type { CassetteFixture } from './cassettes/build-fixtures.js';
 export { recordLiveCassettes } from './cassettes/record-live.js';
+export * from './vcr.js';
