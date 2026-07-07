@@ -1476,6 +1476,7 @@ declare class Replayer {
   private readonly matcher;
   private readonly foldInternal;
   private readonly arbiter;
+  private readonly strict;
   private readonly invalidated;
   private queue;
   private seq;
@@ -1488,7 +1489,8 @@ declare class Replayer {
     largeValueWarnBytes?: number; /** The loaded, normalized prior journal (resume; docs/03 section 7). */
     priorEntries?: readonly JournalEntry[];
     keyRing?: KeyRing;
-    disposition?: (op: JournalOperation) => OperationDisposition;
+    disposition?: (op: JournalOperation) => OperationDisposition; /** Replay-strict: any live-class match throws JournalMissError. */
+    strict?: boolean;
   });
   /**
   * Forward-matches one live call against the prior journal (docs/03,
@@ -2496,42 +2498,6 @@ declare class EventBus {
   iterate(): AsyncIterable<WorkflowEvent>;
 }
 //#endregion
-//#region src/runner/inprocess.d.ts
-/**
-* Source-backed workflow admissible to the worker sandbox; produced by
-* compileScript (M6). Declared now so the ScriptRunner seam is shaped
-* once; feeding a closure to the sandbox stays impossible by types.
-*/
-interface CompiledWorkflow {
-  readonly kind: "compiled-workflow";
-  readonly name: string;
-  readonly source: string;
-  readonly errorPolicy: ErrorPolicy;
-}
-interface ScriptRunner {
-  execute<A, R>(wf: Workflow<A, R> | CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R>;
-}
-/** Escalation hook shape; consumed from M3 (docs/06, section 2.10). */
-type OnEscalation = (report: unknown) => unknown;
-/**
-* The mode (a) runner for human-authored closures. Determinism is enforced
-* by convention, lint, and the ctx shims, NOT by a VM: only the sequence
-* of keys must be stable. Dev mode (NODE_ENV !== 'production') patches
-* Date.now and Math.random for the duration of execute to emit one warning
-* per run pointing at ctx.now()/ctx.random(); the patch preserves behavior
-* and restores the prior functions on exit (nesting-safe by capturing the
-* prior value; concurrent runs may lose the warning, never correctness).
-*/
-declare class InProcessRunner implements ScriptRunner {
-  private readonly onEscalation?;
-  constructor(o?: {
-    onEscalation?: OnEscalation;
-  });
-  /** The hook is read by the escalation delivery path from M3 onward. */
-  get escalationHook(): OnEscalation | undefined;
-  execute<A, R>(wf: Workflow<A, R> | CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R>;
-}
-//#endregion
 //#region src/engine/engine.d.ts
 interface EngineDefaults {
   routing?: Partial<Record<InvocationRole, ModelSpec>>;
@@ -2575,13 +2541,80 @@ interface RunOptions {
   /** Host-initiated cancellation. */
   signal?: AbortSignal;
 }
+/** Resume-time hit/miss/orphan accounting (docs/03, section 11.3). */
+interface ResumePreview extends ResumeReport {
+  invalidResolutions: Array<{
+    seq: number;
+    detail: string;
+  }>;
+}
+interface ResumeOptions {
+  /**
+  * The run's original arguments: not journaled for in-process workflows
+  * in v1, so the host supplies them (resume binding residuals, docs/14).
+  */
+  args?: unknown;
+  /**
+  * Dry-run: replay-strict matching; the first would-be-live call throws
+  * JournalMissError and the run settles with that typed error, zero live
+  * calls performed (docs/03, section 11.3).
+  */
+  dryRun?: boolean;
+  /** invalidate/retry: entries to unpin before matching (docs/03, section 6.5). */
+  invalidate?: number[];
+}
+interface ResumeHandle<R> extends RunHandle<R> {
+  /** Resolves at settle with the replay accounting. */
+  preview: Promise<ResumePreview>;
+}
 interface Engine {
   run<A, R>(wf: Workflow<A, R>, args: A, opts?: RunOptions): RunHandle<R>;
-  /** Lands with the journal kernel in M2; throws a typed ConfigError until then. */
-  resume(runId: string, wf?: Workflow<unknown, unknown> | CompiledWorkflow): RunHandle<unknown>;
+  /**
+  * Rebinds a journal to a workflow definition and resumes (docs/06,
+  * section "Engine and ops API"). Requires wf for in-process workflows;
+  * a name mismatch is a typed ConfigError; a body-hash mismatch warns
+  * loudly and proceeds (the journal decides replay per content keys).
+  */
+  resume<A, R>(runId: string, wf?: Workflow<A, R>, options?: ResumeOptions): ResumeHandle<R>;
 }
 /** Content hash of an in-process workflow body (run-to-definition binding, docs/06 10.2). */
 declare function hashWorkflowBody(wf: Workflow<never, never> | Workflow<unknown, unknown>): string;
 declare function createEngine(options: CreateEngineOptions): Engine;
 //#endregion
-export { AbandonAttempt, AbandonFold, AbandonPayload, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentResult, AgentStatus, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetDefaults, BudgetExhaustedError, BudgetHooks, type Bytes, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, ChildIdentityInput, CollectOpts, CollectedTurn, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationReport, EventBus, ExternalIdentityInput, ExternalRegistry, FinishInfo, Gate, HashVersion, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, MatchResult, type ModelCaps, ModelChoice, ModelRef, ModelRetry, ModelSpec, Msg, NonSerializableValueError, OnEscalation, OperationDisposition, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PipelineCollected, PipelineOpts, PlanInvariantError, type Pricing, type ProviderAdapter, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResumeReport, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, SinglePhaseAppend, SpanMinter, SpanRegistry, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TerminalPatch, ToolChoice, ToolContract, type ToolEvents, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, type WorkflowEvent, type WorkflowEventBody, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, canonicalizeSchema, classifyAgentError, createCanonicalIdMinter, createCtx, createEngine, currentOnlyKeyRing, defineWorkflow, deriveContentKey, deriverV1, deriverV2, dispositionHook, executeWorkflow, extractCandidate, formatRePrompt, formatScopePath, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, mergeUsageLimits, modelSpecIdentity, normalizeEntry, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, projectIdentity, projectToJsonSchema, registryKeyRing, replayDisposition, resolveModelInvocation, roundOneDisposition, runAgent, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, tierWithinCaps, toJournalValue, toolsetHash, validateEntryShape, validateSchemaSpec, workflowScope };
+//#region src/runner/inprocess.d.ts
+/**
+* Source-backed workflow admissible to the worker sandbox; produced by
+* compileScript (M6). Declared now so the ScriptRunner seam is shaped
+* once; feeding a closure to the sandbox stays impossible by types.
+*/
+interface CompiledWorkflow {
+  readonly kind: "compiled-workflow";
+  readonly name: string;
+  readonly source: string;
+  readonly errorPolicy: ErrorPolicy;
+}
+interface ScriptRunner {
+  execute<A, R>(wf: Workflow<A, R> | CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R>;
+}
+/** Escalation hook shape; consumed from M3 (docs/06, section 2.10). */
+type OnEscalation = (report: unknown) => unknown;
+/**
+* The mode (a) runner for human-authored closures. Determinism is enforced
+* by convention, lint, and the ctx shims, NOT by a VM: only the sequence
+* of keys must be stable. Dev mode (NODE_ENV !== 'production') patches
+* Date.now and Math.random for the duration of execute to emit one warning
+* per run pointing at ctx.now()/ctx.random(); the patch preserves behavior
+* and restores the prior functions on exit (nesting-safe by capturing the
+* prior value; concurrent runs may lose the warning, never correctness).
+*/
+declare class InProcessRunner implements ScriptRunner {
+  private readonly onEscalation?;
+  constructor(o?: {
+    onEscalation?: OnEscalation;
+  });
+  /** The hook is read by the escalation delivery path from M3 onward. */
+  get escalationHook(): OnEscalation | undefined;
+  execute<A, R>(wf: Workflow<A, R> | CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R>;
+}
+//#endregion
+export { AbandonAttempt, AbandonFold, AbandonPayload, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentResult, AgentStatus, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetDefaults, BudgetExhaustedError, BudgetHooks, type Bytes, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, ChildIdentityInput, CollectOpts, CollectedTurn, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationReport, EventBus, ExternalIdentityInput, ExternalRegistry, FinishInfo, Gate, HashVersion, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, MatchResult, type ModelCaps, ModelChoice, ModelRef, ModelRetry, ModelSpec, Msg, NonSerializableValueError, OnEscalation, OperationDisposition, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PipelineCollected, PipelineOpts, PlanInvariantError, type Pricing, type ProviderAdapter, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, SinglePhaseAppend, SpanMinter, SpanRegistry, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TerminalPatch, ToolChoice, ToolContract, type ToolEvents, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, type WorkflowEvent, type WorkflowEventBody, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, canonicalizeSchema, classifyAgentError, createCanonicalIdMinter, createCtx, createEngine, currentOnlyKeyRing, defineWorkflow, deriveContentKey, deriverV1, deriverV2, dispositionHook, executeWorkflow, extractCandidate, formatRePrompt, formatScopePath, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, mergeUsageLimits, modelSpecIdentity, normalizeEntry, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, projectIdentity, projectToJsonSchema, registryKeyRing, replayDisposition, resolveModelInvocation, roundOneDisposition, runAgent, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, tierWithinCaps, toJournalValue, toolsetHash, validateEntryShape, validateSchemaSpec, workflowScope };

@@ -100,7 +100,6 @@ export class FakeAdapter implements ProviderAdapter {
     return fallback;
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   async *stream(req: ChatRequest): AsyncIterable<ChatEvent> {
     const telemetry = (req.providerOptions?.lurker ?? {}) as {
       agentType?: string;

@@ -21,7 +21,15 @@ import type { JournalStore } from '../l0/spi/store.js';
 import type { TranscriptStore } from '../l0/spi/transcript.js';
 import { createCanonicalIdMinter } from '../l0/messages.js';
 import { validateSchemaSpec } from '../l0/schema.js';
+import { normalizeEntry, type JournalEntry } from '../l0/entries.js';
 import { Replayer } from '../journal/replayer.js';
+import {
+  buildDeriverRegistry,
+  registryKeyRing,
+  scanJournalCompatibility,
+} from '../journal/keyderiver.js';
+import { dispositionHook } from '../journal/disposition.js';
+import type { ResumeReport } from '../journal/matching.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { buildAdapterRegistry, parseModelRef } from '../model/router.js';
 import type { UsageLimits } from '../runtime/usage-limits.js';
@@ -43,7 +51,7 @@ import {
   type RunStatus,
 } from './run-handle.js';
 import { DEFAULT_PER_RUN_CONCURRENCY, Semaphore } from './scheduler.js';
-import { InProcessRunner, type CompiledWorkflow, type ScriptRunner } from '../runner/inprocess.js';
+import { InProcessRunner, type ScriptRunner } from '../runner/inprocess.js';
 
 export type { RunStatus };
 
@@ -92,10 +100,41 @@ export interface RunOptions {
   signal?: AbortSignal;
 }
 
+/** Resume-time hit/miss/orphan accounting (docs/03, section 11.3). */
+export interface ResumePreview extends ResumeReport {
+  invalidResolutions: Array<{ seq: number; detail: string }>;
+}
+
+export interface ResumeOptions {
+  /**
+   * The run's original arguments: not journaled for in-process workflows
+   * in v1, so the host supplies them (resume binding residuals, docs/14).
+   */
+  args?: unknown;
+  /**
+   * Dry-run: replay-strict matching; the first would-be-live call throws
+   * JournalMissError and the run settles with that typed error, zero live
+   * calls performed (docs/03, section 11.3).
+   */
+  dryRun?: boolean;
+  /** invalidate/retry: entries to unpin before matching (docs/03, section 6.5). */
+  invalidate?: number[];
+}
+
+export interface ResumeHandle<R> extends RunHandle<R> {
+  /** Resolves at settle with the replay accounting. */
+  preview: Promise<ResumePreview>;
+}
+
 export interface Engine {
   run<A, R>(wf: Workflow<A, R>, args: A, opts?: RunOptions): RunHandle<R>;
-  /** Lands with the journal kernel in M2; throws a typed ConfigError until then. */
-  resume(runId: string, wf?: Workflow<unknown, unknown> | CompiledWorkflow): RunHandle<unknown>;
+  /**
+   * Rebinds a journal to a workflow definition and resumes (docs/06,
+   * section "Engine and ops API"). Requires wf for in-process workflows;
+   * a name mismatch is a typed ConfigError; a body-hash mismatch warns
+   * loudly and proceeds (the journal decides replay per content keys).
+   */
+  resume<A, R>(runId: string, wf?: Workflow<A, R>, options?: ResumeOptions): ResumeHandle<R>;
 }
 
 /** Content hash of an in-process workflow body (run-to-definition binding, docs/06 10.2). */
@@ -133,30 +172,61 @@ export function createEngine(options: CreateEngineOptions): Engine {
     );
   };
 
-  function run<A, R>(wf: Workflow<A, R>, args: A, opts?: RunOptions): RunHandle<R> {
+  interface ResumeContext {
+    runId: string;
+    priorEntries: JournalEntry[];
+    strict: boolean;
+    invalidate: number[];
+    previewResolve: (preview: ResumePreview) => void;
+  }
+
+  function run<A, R>(
+    wf: Workflow<A, R>,
+    args: A,
+    opts?: RunOptions,
+    resumeCtx?: ResumeContext,
+  ): RunHandle<R> {
     if (wf.kind !== 'workflow') {
       throw new ConfigError(
         'engine.run accepts in-process Workflow values only before M6 (CompiledWorkflow ' +
           'values first exist with compileScript in @lurker/planner)',
       );
     }
-    const runId = opts?.runId ?? mintRunId();
+    const runId = resumeCtx?.runId ?? opts?.runId ?? mintRunId();
+    const registry = buildDeriverRegistry(options.extraDerivers);
     const spans = new SpanRegistry();
     const bus = new EventBus({ runId, spans, now: realNow });
     const rootSpanId = spans.mint();
-    const budget = new RunBudget({
-      ...(opts?.budgetUsd === undefined ? {} : { ceilingUsd: opts.budgetUsd }),
-      lifetimeSpawnCap: options.budgetDefaults?.lifetimeSpawnCap ?? 500,
-      events: { emit: (body) => bus.emit(body as WorkflowEventBody, rootSpanId) },
-      priceUsd,
-    });
+    let budgetSeed: { usd: number; usage: Usage; agentsSpawned: number } | undefined;
+    const makeBudget = (): RunBudget =>
+      new RunBudget({
+        ...(opts?.budgetUsd === undefined ? {} : { ceilingUsd: opts.budgetUsd }),
+        lifetimeSpawnCap: options.budgetDefaults?.lifetimeSpawnCap ?? 500,
+        events: { emit: (body) => bus.emit(body as WorkflowEventBody, rootSpanId) },
+        priceUsd,
+        ...(budgetSeed === undefined ? {} : { seed: budgetSeed }),
+      });
+    const invalidated = new Set(resumeCtx?.invalidate ?? []);
     const replayer = new Replayer({
       runId,
       store: journal,
       now: realNow,
       priceUsd,
       onWarn: (msg) => bus.emit({ type: 'log', level: 'warn', msg }, rootSpanId),
+      keyRing: registryKeyRing(registry),
+      ...(resumeCtx === undefined ? {} : { priorEntries: resumeCtx.priorEntries }),
+      strict: resumeCtx?.strict ?? false,
     });
+    for (const seqToInvalidate of invalidated) {
+      replayer.invalidate(seqToInvalidate);
+    }
+    replayer.setDisposition(
+      dispositionHook(replayer.fold.abandonFold, registry, replayer.invalidatedSeqs),
+    );
+    if (resumeCtx !== undefined) {
+      const prior = replayer.ledger();
+      budgetSeed = { usd: prior.usd, usage: prior.usage, agentsSpawned: prior.agentsSpawned };
+    }
     const controller = new AbortController();
     let cancelReason: string | undefined;
     const requestCancel = (reason: string): void => {
@@ -183,6 +253,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       );
     }
 
+    const budget = makeBudget();
     const external = new ExternalRegistry(replayer);
     let transcriptCounter = 0;
     const internals: RunInternals = {
@@ -235,7 +306,25 @@ export function createEngine(options: CreateEngineOptions): Engine {
       let wireError: WireError | undefined;
       let pending: PendingExternal[] = [];
       await putMeta('running');
-      bus.emit({ type: 'run:start', workflow: wf.name, resumed: false }, rootSpanId);
+      bus.emit(
+        { type: 'run:start', workflow: wf.name, resumed: resumeCtx !== undefined },
+        rootSpanId,
+      );
+      if (resumeCtx !== undefined) {
+        for (const open of replayer.fold.openSuspensions()) {
+          const payload = open.value as { key?: string; prompt?: string } | undefined;
+          bus.emit(
+            {
+              type: 'external:waiting',
+              key: payload?.key ?? '',
+              entryRef: open.seq,
+              ...(payload?.prompt === undefined ? {} : { prompt: payload.prompt }),
+            },
+            rootSpanId,
+            true,
+          );
+        }
+      }
       const quiesced = new Promise<PendingExternal[]>((resolve) => {
         external.onQuiesce(resolve);
       });
@@ -340,6 +429,10 @@ export function createEngine(options: CreateEngineOptions): Engine {
       await putMeta(status).catch(() => undefined);
       bus.emit({ type: 'run:end', status, totalUsd: spend.usd }, rootSpanId);
       bus.end();
+      resumeCtx?.previewResolve({
+        ...replayer.resumeReport(),
+        invalidResolutions: replayer.fold.invalidResolutions(),
+      });
       return outcome;
     })();
 
@@ -363,13 +456,85 @@ export function createEngine(options: CreateEngineOptions): Engine {
     };
   }
 
-  return {
-    run,
-    resume: () => {
+  function resume<A, R>(
+    runId: string,
+    wf?: Workflow<A, R>,
+    resumeOptions?: ResumeOptions,
+  ): ResumeHandle<R> {
+    if (wf === undefined) {
       throw new ConfigError(
-        'engine.resume lands with the journal kernel in M2 (docs/10, section 3.3); ' +
-          'InMemoryStore runs are not resumable in any case',
+        'engine.resume requires the workflow for in-process runs; CompiledWorkflow source ' +
+          'persistence arrives with M6-T05 (docs/06, section "Engine and ops API")',
       );
-    },
-  };
+    }
+    let previewResolve: (preview: ResumePreview) => void = () => undefined;
+    const preview = new Promise<ResumePreview>((resolve) => {
+      previewResolve = resolve;
+    });
+    const handlePromise = (async () => {
+      const metas = await journal.listRuns();
+      const meta = metas.find((candidate) => candidate.runId === runId);
+      if (meta?.workflowName !== undefined && meta.workflowName !== wf.name) {
+        throw new ConfigError(
+          `resume binding mismatch: run '${runId}' was started by workflow ` +
+            `'${meta.workflowName}', not '${wf.name}'`,
+        );
+      }
+      const expectedHash = hashWorkflowBody(wf as unknown as Workflow<unknown, unknown>);
+      if (meta?.workflowHash !== undefined && meta.workflowHash !== expectedHash) {
+        // The journal itself decides replay versus live per content keys.
+        process.emitWarning(
+          `resume: the body of workflow '${wf.name}' changed since run '${runId}' started; ` +
+            'orphans and misses will be reported honestly',
+          { code: 'LURKER_RESUME_HASH_MISMATCH', type: 'LurkerWarning' },
+        );
+      }
+      const raw = await journal.load(runId);
+      const priorEntries = raw.map((entry) => normalizeEntry(entry));
+      // One scan, strictly before any live call, append, or reserve.
+      scanJournalCompatibility(runId, priorEntries, buildDeriverRegistry(options.extraDerivers));
+      return run(wf as unknown as Workflow<unknown, unknown>, resumeOptions?.args, undefined, {
+        runId,
+        priorEntries,
+        strict: resumeOptions?.dryRun ?? false,
+        invalidate: resumeOptions?.invalidate ?? [],
+        previewResolve,
+      });
+    })();
+
+    // The handle facade defers to the async-loaded inner handle.
+    const result = handlePromise.then((handle) => handle.result);
+    return {
+      runId,
+      result: result as Promise<RunOutcome<R>>,
+      events: (async function* stream() {
+        const handle = await handlePromise;
+        yield* handle.events;
+      })(),
+      on: (type, cb) => {
+        let unsub: (() => void) | undefined;
+        let cancelled = false;
+        void handlePromise.then((handle) => {
+          if (!cancelled) {
+            unsub = handle.on(type, cb);
+          }
+        });
+        return () => {
+          cancelled = true;
+          unsub?.();
+        };
+      },
+      resolveExternal: async (key, value) => {
+        const handle = await handlePromise;
+        return handle.resolveExternal(key, value);
+      },
+      cancel: async (reason?: string) => {
+        const handle = await handlePromise;
+        await handle.cancel(reason);
+      },
+      preview,
+    };
+  }
+
+  return { run, resume };
 }

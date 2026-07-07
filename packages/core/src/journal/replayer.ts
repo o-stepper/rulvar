@@ -10,7 +10,7 @@
  * "Two-phase entries, dispatch, and the budget ledger"; component sketch
  * in docs/02-architecture.md, section "Journal Kernel".
  */
-import { ConfigError } from '../l0/errors.js';
+import { ConfigError, JournalMissError } from '../l0/errors.js';
 import type { WireError } from '../l0/errors.js';
 import {
   CURRENT_HASH_VERSION,
@@ -102,6 +102,7 @@ export class Replayer {
   private readonly matcher: JournalMatcher;
   private readonly foldInternal: ResolutionFold;
   private readonly arbiter: ResolutionArbiter;
+  private readonly strict: boolean;
   private readonly invalidated = new Set<number>();
   private queue: Promise<unknown> = Promise.resolve();
   private seq = 0;
@@ -118,6 +119,8 @@ export class Replayer {
     priorEntries?: readonly JournalEntry[];
     keyRing?: KeyRing;
     disposition?: (op: JournalOperation) => OperationDisposition;
+    /** Replay-strict: any live-class match throws JournalMissError. */
+    strict?: boolean;
   }) {
     this.runId = options.runId;
     this.store = options.store;
@@ -129,6 +132,7 @@ export class Replayer {
       this.onWarn = options.onWarn;
     }
     this.largeValueWarnBytes = options.largeValueWarnBytes ?? LARGE_VALUE_WARN_BYTES;
+    this.strict = options.strict ?? false;
 
     const priors = options.priorEntries ?? [];
     const matcherOptions: ConstructorParameters<typeof JournalMatcher>[1] = {};
@@ -171,7 +175,20 @@ export class Replayer {
    * through setDisposition once folds are built.
    */
   match(scope: string, identity: IdentityInput, mode: ReplayMode): MatchResult {
-    return this.matcher.match(scope, identity, mode);
+    const result = this.matcher.match(scope, identity, mode);
+    if (
+      this.strict &&
+      (result.kind === 'live' || result.kind === 'rerun' || result.kind === 'rerun-dangling')
+    ) {
+      // Replay-strict (docs/09, section "Tier 3"): zero live calls or a
+      // loud failure at the exact miss.
+      throw new JournalMissError(
+        `replay-strict miss: a '${identity.kind}' call in scope '${scope || '(root)'}' ` +
+          `would go live (${result.kind})`,
+        { data: { scope, kind: identity.kind, miss: result.kind } },
+      );
+    }
+    return result;
   }
 
   setDisposition(disposition: (op: JournalOperation) => OperationDisposition): void {
