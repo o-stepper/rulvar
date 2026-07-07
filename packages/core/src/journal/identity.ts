@@ -99,14 +99,15 @@ export function modelSpecIdentity(
 }
 
 /**
- * The JCS form of an IdentityInput under the hashVersion 2 profile. The
- * agent kind projects modelSpec through modelSpecIdentity; every other
- * kind serializes its fields verbatim. Fields not listed for a kind are
- * never included (the types make them unrepresentable).
+ * The canonical identity object of an IdentityInput under the hashVersion
+ * 2 profile: what JCS serializes and sha256 hashes. The agent kind
+ * projects modelSpec through modelSpecIdentity; every other kind
+ * serializes its fields verbatim. Fields not listed for a kind are never
+ * included (the types make them unrepresentable).
  */
-export function identityJcs(input: IdentityInput): string {
+export function projectIdentity(input: IdentityInput): Record<string, unknown> {
   if (input.kind === 'agent') {
-    return jcsSerialize({
+    return {
       kind: input.kind,
       agentType: input.agentType,
       modelSpec: modelSpecIdentity(input.modelSpec),
@@ -114,9 +115,14 @@ export function identityJcs(input: IdentityInput): string {
       schemaHash: input.schemaHash,
       toolsetHash: input.toolsetHash,
       isolation: input.isolation,
-    });
+    };
   }
-  return jcsSerialize(input);
+  return input as unknown as Record<string, unknown>;
+}
+
+/** The JCS form of an IdentityInput under the hashVersion 2 profile. */
+export function identityJcs(input: IdentityInput): string {
+  return jcsSerialize(projectIdentity(input));
 }
 
 /**

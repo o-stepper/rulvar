@@ -17,6 +17,12 @@ import type {
 } from '../l0/messages.js';
 import type { ModelCaps, ProviderAdapter } from '../l0/spi/provider.js';
 import { Replayer } from '../journal/replayer.js';
+import { buildAbandonFold, dispositionHook } from '../journal/disposition.js';
+import {
+  buildDeriverRegistry,
+  registryKeyRing,
+  scanJournalCompatibility,
+} from '../journal/keyderiver.js';
 import type { JournalEntry } from '../l0/entries.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { buildAdapterRegistry } from '../model/router.js';
@@ -153,6 +159,7 @@ export interface TestInternalsOptions {
   /** Resume simulation: the loaded prior journal. */
   priorEntries?: JournalEntry[];
   store?: InMemoryStore;
+  extraDerivers?: readonly unknown[];
 }
 
 export function makeInternals(options: TestInternalsOptions = {}): {
@@ -185,10 +192,17 @@ export function makeInternals(options: TestInternalsOptions = {}): {
   if (options.lifetimeSpawnCap !== undefined) {
     budgetOptions.lifetimeSpawnCap = options.lifetimeSpawnCap;
   }
+  const registry = buildDeriverRegistry(options.extraDerivers);
+  if (options.priorEntries !== undefined) {
+    scanJournalCompatibility('test-run', options.priorEntries, registry);
+  }
+  const fold = buildAbandonFold(options.priorEntries ?? []);
   const seededReplayer = new Replayer({
     runId: 'test-run',
     store,
     priceUsd,
+    keyRing: registryKeyRing(registry),
+    disposition: dispositionHook(fold, registry),
     ...(options.priorEntries === undefined ? {} : { priorEntries: options.priorEntries }),
   });
   if (options.priorEntries !== undefined) {

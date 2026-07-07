@@ -1,6 +1,6 @@
 {
   "name": "@lurker/compat",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "lurker frozen KeyDeriver profiles for hashVersions outside the support window (DEF-6); independently versioned.",
   "type": "module",
   "license": "UNLICENSED",

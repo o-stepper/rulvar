@@ -1029,11 +1029,14 @@ declare function modelSpecIdentity(spec: CanonicalModelSpec): {
   ladder: Json;
 };
 /**
-* The JCS form of an IdentityInput under the hashVersion 2 profile. The
-* agent kind projects modelSpec through modelSpecIdentity; every other
-* kind serializes its fields verbatim. Fields not listed for a kind are
-* never included (the types make them unrepresentable).
+* The canonical identity object of an IdentityInput under the hashVersion
+* 2 profile: what JCS serializes and sha256 hashes. The agent kind
+* projects modelSpec through modelSpecIdentity; every other kind
+* serializes its fields verbatim. Fields not listed for a kind are never
+* included (the types make them unrepresentable).
 */
+declare function projectIdentity(input: IdentityInput): Record<string, unknown>;
+/** The JCS form of an IdentityInput under the hashVersion 2 profile. */
 declare function identityJcs(input: IdentityInput): string;
 /**
 * key = sha256(JCS(IdentityInput)) (docs/03, section "Content key").
@@ -1143,7 +1146,10 @@ type DerivedKey = {
 interface KeyRing {
   keyFor(identity: IdentityInput, hashVersion: number): DerivedKey;
 }
+declare function currentOnlyKeyRing(): KeyRing;
 type OperationDisposition = "replay" | "rerun" | "skip";
+/** The round-1 interim disposition; replaced by replayDisposition (M2-T06). */
+declare function roundOneDisposition(op: JournalOperation): OperationDisposition;
 type MatchResult = {
   kind: "replay";
   running: JournalEntry;
@@ -1168,6 +1174,41 @@ interface ResumeReport {
   reruns: number;
   /** Journaled operations never consumed by any live call (deleted calls). */
   orphaned: number[];
+}
+/**
+* The matching engine over a loaded journal. Consumption is per logical
+* operation (running/terminal pairs count once); candidates are consumed
+* in journal order, first unconsumed match wins (this also resolves
+* cross-version double matches deterministically).
+*/
+declare class JournalMatcher {
+  private readonly byScope;
+  private readonly all;
+  private readonly consumed;
+  private readonly keyRing;
+  private disposition;
+  private readonly keyCache;
+  private hitsInternal;
+  private missesInternal;
+  private skippedInternal;
+  private rerunsInternal;
+  constructor(entries: readonly JournalEntry[], options?: {
+    keyRing?: KeyRing;
+    disposition?: (op: JournalOperation) => OperationDisposition;
+  });
+  /** M2-T06 swaps in the full DEF-1 predicate after folds are built. */
+  setDisposition(disposition: (op: JournalOperation) => OperationDisposition): void;
+  private keyOf;
+  /**
+  * Forward-matches one live call. A miss does not advance any cursor and
+  * does not extinguish future hits: the scan always starts at the scope
+  * head and skips consumed operations, so insertion stability holds by
+  * construction (docs/03, section 7.1).
+  */
+  match(scope: string, identity: IdentityInput, mode: "scoped" | "cache" | "never"): MatchResult;
+  /** Marks an operation consumed without matching (fold-driven paths). */
+  consume(runningSeq: number): void;
+  report(): ResumeReport;
 }
 //#endregion
 //#region src/journal/replayer.d.ts
@@ -1223,6 +1264,7 @@ declare class Replayer {
   private readonly entries;
   private readonly ordinals;
   private readonly matcher;
+  private readonly invalidated;
   private queue;
   private seq;
   constructor(options: {
@@ -1243,6 +1285,13 @@ declare class Replayer {
   */
   match(scope: string, identity: IdentityInput, mode: ReplayMode): MatchResult;
   setDisposition(disposition: (op: JournalOperation) => OperationDisposition): void;
+  /**
+  * invalidate/retry (docs/03, section 6.5): explicit unpinning of a
+  * memoized failure; the invalidated entry reruns on this resume. The
+  * safety boundary is an open question (docs/14).
+  */
+  invalidate(seq: number): void;
+  get invalidatedSeqs(): ReadonlySet<number>;
   resumeReport(): ResumeReport;
   /**
   * Value size policy (docs/03, section "Normative payload schemas"):
@@ -1283,6 +1332,105 @@ declare class Replayer {
   private persist;
   private enqueue;
 }
+//#endregion
+//#region src/journal/kinds.d.ts
+/**
+* Validates the shape the engine is about to append. Returns issues;
+* empty means valid. Unknown kinds are rejected here (the engine never
+* writes them); stores still pass them through on read.
+*/
+declare function validateEntryShape(entry: JournalEntry): Issue$1[];
+//#endregion
+//#region src/journal/keyderiver.d.ts
+/** The projected, JCS-serializable identity under one profile. */
+type CanonicalIdentity = Record<string, unknown>;
+/**
+* Per-effective-status disposition rules; DATA on the profile, consumed
+* only by the single canonical replayDisposition function (docs/03,
+* section 4.2: there is NO replayAction method).
+*/
+type DispositionRule = "replay" | "rerun" | "memoize-limit" | "memoize-task-error";
+type DispositionTable = Readonly<Partial<Record<"ok" | "escalated" | "limit" | "error" | "cancelled" | "running", DispositionRule>>>;
+interface KeyDeriver {
+  readonly hashVersion: HashVersion;
+  /** Features not expressible in this profile yield 'incomparable' (a guaranteed non-match). */
+  project(input: IdentityInput): CanonicalIdentity | "incomparable";
+  deriveKey(c: CanonicalIdentity): string;
+  schemaHash(schema: JsonSchema): string;
+  toolsetHash(tools: ToolContract[]): string;
+  readonly dispositionTable: DispositionTable;
+  readonly foldDefaults: Readonly<{
+    effort: Effort;
+    memoizeOutcome: boolean;
+    budgetAccount: "root";
+  }>;
+}
+/** The current (hashVersion 2) frozen profile. */
+declare const deriverV2: KeyDeriver;
+/**
+* The frozen v1 (round 1) profile: the projection removes effort from the
+* requested modelSpec (the v1 predicate is effort-insensitive by
+* construction); features outside the v1 domain are incomparable.
+*/
+declare const deriverV1: KeyDeriver;
+type DeriverRegistry = ReadonlyMap<HashVersion, KeyDeriver>;
+/**
+* Builds the per-engine deriver registry: the shipped v1/v2 profiles plus
+* EngineOptions.extraDerivers, the ONLY window extender (docs/03, section
+* 4.5). A malformed extra deriver is a ConfigError before any run effect.
+*/
+declare function buildDeriverRegistry(extraDerivers?: readonly unknown[]): DeriverRegistry;
+/**
+* The one compatibility scan: immediately after load, strictly BEFORE any
+* live call, any append, and any admission reserve; repeated at lease
+* acquire in queue mode (docs/03, section 4.5). Side-effect free.
+*/
+declare function scanJournalCompatibility(runId: string, entries: readonly JournalEntry[], registry: DeriverRegistry): void;
+/**
+* KeyRing over the registry: the live call is projected DOWN into the
+* profile of the stored entry; there is no upward canonization (docs/03,
+* section 4.7).
+*/
+declare function registryKeyRing(registry: DeriverRegistry): KeyRing;
+//#endregion
+//#region src/journal/disposition.d.ts
+type ReplayDisposition = OperationDisposition;
+interface AbandonFold {
+  /** Projection of the DEF-4 first-wins fold over kind 'abandon' entries. */
+  isAbandoned(ref: number): boolean;
+}
+type ErrorClass = "transport" | "task";
+/**
+* task-class: schema-mismatch, terminal, non-retryable tool. transport,
+* rate-limit, and budget are never memoized (docs/03, section 6.4).
+*/
+declare function classifyAgentError(e: AgentError): ErrorClass;
+/**
+* Builds the AbandonFold in ONE pass at load, in append order, pinned for
+* the entire resume (DEF-1 ordering rule 4). Coverage is the target seq
+* itself plus, transitively, every entry under the target's child
+* scope-prefix (docs/03, sections 6.2 and 8.4). Repeated abandons over an
+* already-covered target fold to noop.
+*/
+declare function buildAbandonFold(entries: readonly JournalEntry[]): AbandonFold;
+/**
+* The single canonical predicate, dispatched on the entry's own
+* hashVersion (compatibility lemma: on the v1 domain the tables
+* coincide). Suspended entries are outside the table (the DEF-4 fold
+* consumes them); the alias column (DEF-5) activates with node.link
+* producers in M7: a skipped entry WITHOUT an incoming alias is always
+* skipped.
+*/
+declare function replayDisposition(entry: JournalEntry, fold: AbandonFold, options?: {
+  registry?: DeriverRegistry;
+  terminal?: JournalEntry;
+  invalidated?: ReadonlySet<number>;
+}): ReplayDisposition;
+/**
+* Adapts the predicate to the matcher's disposition hook: two-phase
+* operations dispatch on their terminal, single-phase on themselves.
+*/
+declare function dispositionHook(fold: AbandonFold, registry: DeriverRegistry, invalidated?: ReadonlySet<number>): (op: JournalOperation) => ReplayDisposition;
 //#endregion
 //#region src/stores/inmemory.d.ts
 declare class InMemoryStore implements JournalStore {
@@ -2243,4 +2391,4 @@ interface Engine {
 declare function hashWorkflowBody(wf: Workflow<never, never> | Workflow<unknown, unknown>): string;
 declare function createEngine(options: CreateEngineOptions): Engine;
 //#endregion
-export { AbandonPayload, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentResult, AgentStatus, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetDefaults, BudgetExhaustedError, BudgetHooks, type Bytes, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanonicalId, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, ChildIdentityInput, CollectOpts, CollectedTurn, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorCode, ErrorPolicy, EscalatedResult, EscalationReport, EventBus, ExternalIdentityInput, FinishInfo, Gate, HashVersion, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMissError, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, type ModelCaps, ModelChoice, ModelRef, ModelRetry, ModelSpec, Msg, NonSerializableValueError, OnEscalation, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PipelineCollected, PipelineOpts, PlanInvariantError, type Pricing, type ProviderAdapter, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefusalInfo, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionLayer, ResolutionPayload, ResolvedInvocation, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, SinglePhaseAppend, SpanMinter, SpanRegistry, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, TerminalPatch, ToolChoice, ToolContract, type ToolEvents, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, type WorkflowEvent, type WorkflowEventBody, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, buildAdapterRegistry, buildCostReport, canonicalizeSchema, createCanonicalIdMinter, createCtx, createEngine, defineWorkflow, deriveContentKey, executeWorkflow, extractCandidate, formatRePrompt, formatScopePath, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, mergeUsageLimits, modelSpecIdentity, normalizeEntry, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, projectToJsonSchema, resolveModelInvocation, runAgent, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, tierWithinCaps, toJournalValue, toolsetHash, validateSchemaSpec, workflowScope };
+export { AbandonFold, AbandonPayload, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentResult, AgentStatus, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetDefaults, BudgetExhaustedError, BudgetHooks, type Bytes, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, ChildIdentityInput, CollectOpts, CollectedTurn, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationReport, EventBus, ExternalIdentityInput, FinishInfo, Gate, HashVersion, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, MatchResult, type ModelCaps, ModelChoice, ModelRef, ModelRetry, ModelSpec, Msg, NonSerializableValueError, OnEscalation, OperationDisposition, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PipelineCollected, PipelineOpts, PlanInvariantError, type Pricing, type ProviderAdapter, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionLayer, ResolutionPayload, ResolvedInvocation, ResumeReport, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, SinglePhaseAppend, SpanMinter, SpanRegistry, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, TerminalPatch, ToolChoice, ToolContract, type ToolEvents, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, type WorkflowEvent, type WorkflowEventBody, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, canonicalizeSchema, classifyAgentError, createCanonicalIdMinter, createCtx, createEngine, currentOnlyKeyRing, defineWorkflow, deriveContentKey, deriverV1, deriverV2, dispositionHook, executeWorkflow, extractCandidate, formatRePrompt, formatScopePath, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, mergeUsageLimits, modelSpecIdentity, normalizeEntry, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, projectIdentity, projectToJsonSchema, registryKeyRing, replayDisposition, resolveModelInvocation, roundOneDisposition, runAgent, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, tierWithinCaps, toJournalValue, toolsetHash, validateEntryShape, validateSchemaSpec, workflowScope };

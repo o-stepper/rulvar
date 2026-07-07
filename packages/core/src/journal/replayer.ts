@@ -91,6 +91,7 @@ export class Replayer {
   private readonly entries: JournalEntry[] = [];
   private readonly ordinals = new Map<string, number>();
   private readonly matcher: JournalMatcher;
+  private readonly invalidated = new Set<number>();
   private queue: Promise<unknown> = Promise.resolve();
   private seq = 0;
 
@@ -160,6 +161,19 @@ export class Replayer {
 
   setDisposition(disposition: (op: JournalOperation) => OperationDisposition): void {
     this.matcher.setDisposition(disposition);
+  }
+
+  /**
+   * invalidate/retry (docs/03, section 6.5): explicit unpinning of a
+   * memoized failure; the invalidated entry reruns on this resume. The
+   * safety boundary is an open question (docs/14).
+   */
+  invalidate(seq: number): void {
+    this.invalidated.add(seq);
+  }
+
+  get invalidatedSeqs(): ReadonlySet<number> {
+    return this.invalidated;
   }
 
   resumeReport(): ResumeReport {
