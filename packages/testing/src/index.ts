@@ -10,3 +10,13 @@ export { createTestEngine } from './test-engine.js';
 export type { CreateTestEngineOptions, TestEngine, TestRunHandle } from './test-engine.js';
 export { replayRun } from './replay-strict.js';
 export type { ReplayRunOptions } from './replay-strict.js';
+// Frozen-fixture regeneration tooling (M2-T12): regenerating committed
+// fixtures is DELIBERATE and requires a hashVersion-bump changeset
+// (scripts/record-m2-cassettes.mjs; docs/11, section "Frozen journal
+// fixtures").
+export {
+  buildFrozenV1JournalRaw,
+  buildM2CassetteFixtures,
+  buildV2GoldenIdentity,
+} from './cassettes/build-fixtures.js';
+export type { CassetteFixture } from './cassettes/build-fixtures.js';

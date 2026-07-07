@@ -9,6 +9,9 @@ import { createEngine, defineWorkflow } from '../index.js';
 import { scriptedAdapter } from '../engine/test-harness.js';
 import { InMemoryStore } from '../stores/inmemory.js';
 import { JsonlFileStore } from '../stores/jsonl.js';
+import { deriveContentKey, type IdentityInput } from './identity.js';
+import { buildDeriverRegistry } from './keyderiver.js';
+import { dispositionHook } from './disposition.js';
 import { Replayer } from './replayer.js';
 import { ResolutionFold } from './resolution.js';
 import { agentScope } from './scope.js';
@@ -118,6 +121,35 @@ describe('first-closing-wins fold (M2-T07; docs/03 section 8.4)', () => {
     expect(foldB.classificationOf(abandonB.seq)).toEqual({ classification: 'applied' });
   });
 
+  it('an abandon over an already-resolved suspension folds to noop', () => {
+    // First-closing-wins per target, both closer kinds (docs/09, section
+    // 6.4: the reverse order yields an applied resolution and a noop
+    // abandon).
+    seq = 0;
+    const suspended = entry({ value: { key: 'gate' } });
+    const resolution = entry({
+      kind: 'resolution',
+      status: 'ok',
+      ref: suspended.seq,
+      resolution: { target: suspended.seq, by: 'external', value: { go: true } },
+    });
+    const abandon = entry({
+      kind: 'abandon',
+      status: 'ok',
+      ref: suspended.seq,
+      abandon: { target: suspended.seq, authorizedBy: 0, reason: 'late cancel' },
+    });
+    const fold = new ResolutionFold([suspended, resolution, abandon]);
+    expect(fold.classificationOf(resolution.seq)).toEqual({ classification: 'applied' });
+    expect(fold.classificationOf(abandon.seq)).toMatchObject({
+      classification: 'noop',
+      supersededBy: resolution.seq,
+      reason: 'already_resolved',
+    });
+    expect(fold.suspensionState(suspended.seq)).toMatchObject({ state: 'resolved' });
+    expect(fold.abandonFold.isAbandoned(suspended.seq)).toBe(false);
+  });
+
   it('double abandon folds the second to noop (idempotent)', () => {
     seq = 0;
     const spawn = entry({ kind: 'agent', status: 'running' });
@@ -166,6 +198,46 @@ describe('ResolutionArbiter races (M2-T07; docs/03 section 8.5)', () => {
       state: 'resolved',
       value: { decision: expect.any(String) as string },
     });
+  });
+
+  it('abandon-covered operations: skip on match, zero ledger increment, skipped not orphaned', async () => {
+    // The three DEF-1 kernel consequences of a covering abandon
+    // (docs/03, sections 6.9 and 13.3; docs/09, section 6.4).
+    const store = new InMemoryStore();
+    const first = new Replayer({ runId: 'r', store });
+    const branchIdentity: IdentityInput = { kind: 'step', key: 'branch', deps: [] };
+    const spawn = await first.appendRunning({
+      scope: '',
+      key: deriveContentKey(branchIdentity),
+      kind: 'agent',
+      spanId: 's',
+    });
+    const child = await first.appendRunning({
+      scope: agentScope('', spawn.seq),
+      key: 'child',
+      kind: 'agent',
+      spanId: 's',
+    });
+    await first.appendTerminal(child.seq, {
+      status: 'ok',
+      value: 'child out',
+      usage: { inputTokens: 100, outputTokens: 50, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    });
+    await first.abandonBranch({ target: spawn.seq, authorizedBy: spawn.seq, reason: 'cancel' });
+
+    const prior = await store.load('r');
+    const resumed = new Replayer({ runId: 'r', store, priorEntries: prior, strict: true });
+    resumed.setDisposition(dispositionHook(resumed.fold.abandonFold, buildDeriverRegistry()));
+    // The hanging, abandon-covered dispatch derives skipped instead of
+    // redispatching; strict mode proves no live class is reached.
+    const matched = resumed.match('', branchIdentity, 'scoped');
+    expect(matched.kind).toBe('skip');
+    const ledger = resumed.ledger();
+    expect(ledger.usage.inputTokens).toBe(0);
+    expect(ledger.agentsSpawned).toBe(0);
+    const report = resumed.resumeReport();
+    expect(report.orphaned).toEqual([]);
+    expect(report.skipped).toBe(2);
   });
 
   it('abandonBranch covers a subtree and later resolutions fold to noop', async () => {

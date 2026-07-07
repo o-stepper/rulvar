@@ -185,6 +185,13 @@ export class JournalMatcher {
           return { kind: 'skip', running: op.running };
         }
         if (op.running.status === 'running') {
+          if (this.disposition({ running: op.running }) === 'skip') {
+            // Abandon is stronger than any status, including a hanging
+            // running entry: covered dispatches derive skipped instead of
+            // redispatching (DEF-1; docs/03, section 6.9).
+            this.skippedInternal += 1;
+            return { kind: 'skip', running: op.running };
+          }
           // Dangling two-phase dispatch: redispatch, at-least-once
           // (docs/03, section 13.1).
           this.rerunsInternal += 1;

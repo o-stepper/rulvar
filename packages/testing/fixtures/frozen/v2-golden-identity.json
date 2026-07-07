@@ -1,0 +1,125 @@
+{
+  "note": "FROZEN v2 identity contract (DEF-6). Any diff requires a hashVersion-bump changeset.",
+  "workedExampleKey": "66ef15922e576a8f6884b28176c8c21fee9b4d3bb98c76592ed6ca1d3c8f1062",
+  "emptySchemaHash": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+  "emptyToolsetHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "perKind": [
+    {
+      "name": "agent (docs/03 1.5 worked example)",
+      "input": {
+        "kind": "agent",
+        "agentType": "reviewer",
+        "modelSpec": {
+          "kind": "model",
+          "model": "anthropic:claude-sonnet-4",
+          "effort": "high"
+        },
+        "prompt": "Review the attached diff for correctness.",
+        "schemaHash": "f1342f68c9dbb49e8056d0414479659414776dfa4c599b3bebd166c8fdc416ba",
+        "toolsetHash": "d2c59d7e8cb64de34366877e8764eab84d615942f14167d8715a15d8dbff105c",
+        "isolation": "none"
+      },
+      "key": "66ef15922e576a8f6884b28176c8c21fee9b4d3bb98c76592ed6ca1d3c8f1062"
+    },
+    {
+      "name": "agent (fake model, no effort)",
+      "input": {
+        "kind": "agent",
+        "agentType": "",
+        "modelSpec": {
+          "kind": "model",
+          "model": "fake:fake-model"
+        },
+        "prompt": "draft the summary",
+        "schemaHash": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+        "toolsetHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "isolation": "none"
+      },
+      "key": "61993e237800746037a89eef8429f28ef93d30a2d341e4304b7978c812b903ad"
+    },
+    {
+      "name": "child",
+      "input": {
+        "kind": "child",
+        "workflow": "sub-flow",
+        "args": {
+          "topic": "lurker"
+        }
+      },
+      "key": "27a58af6c397b4e8612f3643ec7f666362dc4f48332b2613ea299b0802751d41"
+    },
+    {
+      "name": "step",
+      "input": {
+        "kind": "step",
+        "key": "persist-draft",
+        "deps": []
+      },
+      "key": "7d32b9c53f8a87d5524fdf361ef8fef36d531ea5b25d24caccb21378f16f5293"
+    },
+    {
+      "name": "step (deps)",
+      "input": {
+        "kind": "step",
+        "key": "fetch",
+        "deps": [
+          {
+            "page": 2
+          }
+        ]
+      },
+      "key": "a005fb5048643dda7c2cd018720b2789774e82a01e554f316528d8232530333b"
+    },
+    {
+      "name": "external",
+      "input": {
+        "kind": "external",
+        "key": "editor-approval"
+      },
+      "key": "aab80fc35dd6f2169f684b8f9d690cead72d813b167ab60024f190fe1d4cd001"
+    },
+    {
+      "name": "approval",
+      "input": {
+        "kind": "approval",
+        "toolName": "publish",
+        "input": {
+          "channel": "blog"
+        }
+      },
+      "key": "634d6ece92473f5a579a09bf1c562111c700dcf851bbdc0eb8a83ac30f90d5bc"
+    },
+    {
+      "name": "rand now",
+      "input": {
+        "kind": "rand",
+        "subtype": "now"
+      },
+      "key": "6c60111d0dcc006febb08f6e903ec3dd5f19d5bd3deee568fd3664ce8a48464e"
+    },
+    {
+      "name": "rand keyed",
+      "input": {
+        "kind": "rand",
+        "subtype": "random",
+        "key": "jitter"
+      },
+      "key": "283104dd83599bb5ab94a8b184623af78cc634269c90b8b17d8a7e36a13f51db"
+    }
+  ],
+  "v1": {
+    "agentEffortInsensitive": {
+      "withEffort": "61993e237800746037a89eef8429f28ef93d30a2d341e4304b7978c812b903ad",
+      "withoutEffort": "61993e237800746037a89eef8429f28ef93d30a2d341e4304b7978c812b903ad"
+    },
+    "incomparableKinds": [
+      "decision",
+      "plan.revision",
+      "plan.decision",
+      "ledger.op",
+      "node.link",
+      "termination.init",
+      "termination.denied"
+    ]
+  }
+}

@@ -209,7 +209,21 @@ export class Replayer {
   }
 
   resumeReport(): ResumeReport {
-    return this.matcher.report();
+    // Entries never consumed by any live call split by the abandon fold:
+    // covered operations are derived skipped, never orphaned (docs/09,
+    // section 6.4: abandon-then-crash-then-resume).
+    const report = this.matcher.report();
+    const abandonFold = this.foldInternal.abandonFold;
+    const orphaned: number[] = [];
+    let coveredSkipped = 0;
+    for (const seq of report.orphaned) {
+      if (abandonFold.isAbandoned(seq)) {
+        coveredSkipped += 1;
+      } else {
+        orphaned.push(seq);
+      }
+    }
+    return { ...report, skipped: report.skipped + coveredSkipped, orphaned };
   }
 
   /** The DEF-4 fold over this run's journal (prior plus live appends). */
@@ -419,7 +433,18 @@ export class Replayer {
     let reasoning = 0;
     let usd = 0;
     let agentsSpawned = 0;
+    const abandonFold = this.foldInternal.abandonFold;
     for (const entry of this.entries) {
+      if (
+        entry.kind !== 'resolution' &&
+        entry.kind !== 'abandon' &&
+        abandonFold.isAbandoned(entry.ref ?? entry.seq)
+      ) {
+        // Derived-skipped operations contribute a zero increment
+        // (docs/03, section 13.3; DEF-1: zero spend inside an abandoned
+        // subtree).
+        continue;
+      }
       if (entry.kind === 'agent' && entry.status === 'running') {
         agentsSpawned += 1;
       }

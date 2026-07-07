@@ -1,0 +1,71 @@
+{
+  "id": "offline-invalid-then-valid",
+  "note": "DEF-4: the schema-invalid offline resolution classifies invalid and never closes; the valid one applies; resume consumes the valid value deterministically.",
+  "entries": [
+    {
+      "hashVersion": 2,
+      "scope": "",
+      "key": "7dc697415175540b76d979b67b5b4dfeb930e221e9bf7bb131830ac1e1323c92",
+      "kind": "external",
+      "status": "suspended",
+      "value": {
+        "key": "deploy-approval",
+        "prompt": "Approve the deployment?",
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "approved"
+          ],
+          "properties": {
+            "approved": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "seq": 0,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "ref": 0,
+      "scope": "",
+      "key": "",
+      "kind": "resolution",
+      "status": "ok",
+      "resolution": {
+        "target": 0,
+        "by": "external",
+        "value": {
+          "approved": "yes"
+        }
+      },
+      "seq": 1,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "ref": 0,
+      "scope": "",
+      "key": "",
+      "kind": "resolution",
+      "status": "ok",
+      "resolution": {
+        "target": 0,
+        "by": "operator",
+        "value": {
+          "approved": true
+        }
+      },
+      "seq": 2,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z"
+    }
+  ]
+}

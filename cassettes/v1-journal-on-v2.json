@@ -1,0 +1,108 @@
+{
+  "id": "v1-journal-on-v2",
+  "note": "DEF-1: a journal without the new statuses and kinds resumes on the v2 engine; ok replays, error and cancelled rerun, byte-identical to the round-1 table.",
+  "entries": [
+    {
+      "hashVersion": 1,
+      "scope": "",
+      "key": "2627d6421754f69ff51993fe08456b968b07ee8ab4068ccf9bda59ecdf11df11",
+      "kind": "agent",
+      "status": "running",
+      "seq": 0,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 1,
+      "ref": 0,
+      "scope": "",
+      "key": "2627d6421754f69ff51993fe08456b968b07ee8ab4068ccf9bda59ecdf11df11",
+      "kind": "agent",
+      "status": "ok",
+      "value": "alpha out",
+      "usage": {
+        "inputTokens": 100,
+        "outputTokens": 10,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "endedAt": "2026-02-01T00:00:01.000Z",
+      "seq": 1,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z"
+    },
+    {
+      "hashVersion": 1,
+      "scope": "",
+      "key": "88ed15eaf9158b8e1f8841c0f5e9d1cea5359e15b03edd04b4699072dbd46c51",
+      "kind": "agent",
+      "status": "running",
+      "seq": 2,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z"
+    },
+    {
+      "hashVersion": 1,
+      "ref": 2,
+      "scope": "",
+      "key": "88ed15eaf9158b8e1f8841c0f5e9d1cea5359e15b03edd04b4699072dbd46c51",
+      "kind": "agent",
+      "status": "error",
+      "error": {
+        "code": "agent",
+        "message": "upstream disconnected",
+        "retryable": true,
+        "data": {
+          "kind": "transport"
+        }
+      },
+      "usage": {
+        "inputTokens": 10,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "endedAt": "2026-02-01T00:00:03.000Z",
+      "seq": 3,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:03.000Z"
+    },
+    {
+      "hashVersion": 1,
+      "scope": "",
+      "key": "2d35149e96e6aa3fa79591281858810a966e463d29e4d3647461b2ef062c4bb9",
+      "kind": "agent",
+      "status": "running",
+      "seq": 4,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:04.000Z"
+    },
+    {
+      "hashVersion": 1,
+      "ref": 4,
+      "scope": "",
+      "key": "2d35149e96e6aa3fa79591281858810a966e463d29e4d3647461b2ef062c4bb9",
+      "kind": "agent",
+      "status": "cancelled",
+      "usage": {
+        "inputTokens": 5,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "endedAt": "2026-02-01T00:00:05.000Z",
+      "seq": 5,
+      "ordinal": 0,
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:05.000Z"
+    }
+  ]
+}
