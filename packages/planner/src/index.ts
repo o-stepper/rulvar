@@ -13,6 +13,18 @@ export {
 } from './compile.js';
 export { apiCard } from './api-card.js';
 export {
+  normalizeCassetteEntries,
+  runPlannerSelfRepair,
+  runSandboxDeterminism,
+  SANDBOX_DETERMINISM_RUN_ID,
+  SANDBOX_DETERMINISM_SOURCE,
+  SELF_REPAIR_BAD_DRAFT,
+  SELF_REPAIR_GOOD_DRAFT,
+  SELF_REPAIR_GOAL,
+  SELF_REPAIR_RUN_ID,
+  type M6CassetteFixture,
+} from './cassettes.js';
+export {
   extractScript,
   lintScript,
   plan,

@@ -1,4 +1,4 @@
-import { CompiledWorkflow, Ctx, Engine, Json, ModelSpec, RunHandle, ScriptRejected, ScriptRunner } from "@lurker/core";
+import { CompiledWorkflow, Ctx, Engine, InMemoryStore, JournalEntry, Json, ModelSpec, RunHandle, ScriptRejected, ScriptRunner } from "@lurker/core";
 
 //#region src/compile.d.ts
 /**
@@ -81,6 +81,52 @@ declare function plan(engine: Engine, goal: string, o?: PlanOptions): Promise<Pl
 */
 declare function runPlanned(engine: Engine, goal: string, args?: Json): Promise<RunHandle<unknown>>;
 //#endregion
+//#region src/cassettes.d.ts
+/** The M3-convention cassette normalization: wall clock and spans only. */
+declare function normalizeCassetteEntries(entries: readonly JournalEntry[]): JournalEntry[];
+declare const SANDBOX_DETERMINISM_RUN_ID = "m6-sandbox-determinism";
+/** A script exercising agents, parallel, step, and every seeded shim. */
+declare const SANDBOX_DETERMINISM_SOURCE: string;
+/**
+* One fresh sandbox-determinism run on a fresh store; two invocations
+* with the same worker produce byte-identical normalized journals (the
+* cassette assertion). The adapter factory keeps @lurker/testing out of
+* the planner's dependency graph.
+*/
+declare function runSandboxDeterminism(options: {
+  workerUrl: URL;
+  makeAdapter: () => unknown;
+  modelRef: string;
+}): Promise<JournalEntry[]>;
+declare const SELF_REPAIR_GOAL = "m6 cassette: summarize the corpus";
+/** The failing first draft: bare Date.now trips lurker/no-bare-date. */
+declare const SELF_REPAIR_BAD_DRAFT: string;
+/** The repaired draft the fake planner returns once diagnostics arrive. */
+declare const SELF_REPAIR_GOOD_DRAFT: string;
+declare const SELF_REPAIR_RUN_ID: string;
+/**
+* One planner-self-repair run: the first draft fails lint, the JSON
+* diagnostics ride the repair prompt, the second draft compiles. Returns
+* the normalized planning journal plus the plan result.
+*/
+declare function runPlannerSelfRepair(options: {
+  makeAdapter: () => unknown;
+  modelRef: string;
+  store?: InMemoryStore;
+  seedEntries?: JournalEntry[];
+}): Promise<{
+  entries: JournalEntry[];
+  planned: PlanResult;
+  engine: Engine;
+}>;
+/** The cassette file shape shared with the M3 sets. */
+interface M6CassetteFixture {
+  id: string;
+  note: string;
+  entries: JournalEntry[];
+  extra?: Json;
+}
+//#endregion
 //#region src/sandbox-runner.d.ts
 declare const DEFAULT_SANDBOX_TIMEOUT_MS = 3e5;
 declare const DEFAULT_SANDBOX_MEMORY_MB = 512;
@@ -104,4 +150,4 @@ declare class WorkerSandboxRunner implements ScriptRunner {
   execute<A, R>(wf: CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R>;
 }
 //#endregion
-export { type CompileScriptOptions, DEFAULT_SANDBOX_MEMORY_MB, DEFAULT_SANDBOX_TIMEOUT_MS, type PlanDiagnostic, type PlanOptions, type PlanResult, SANDBOX_GLOBALS, type ScriptDiagnostic, WorkerSandboxRunner, type WorkerSandboxRunnerOptions, apiCard, compileScript, extractScript, lintScript, plan, planRunIdOf, runPlanned, scriptDiagnosticsOf };
+export { type CompileScriptOptions, DEFAULT_SANDBOX_MEMORY_MB, DEFAULT_SANDBOX_TIMEOUT_MS, type M6CassetteFixture, type PlanDiagnostic, type PlanOptions, type PlanResult, SANDBOX_DETERMINISM_RUN_ID, SANDBOX_DETERMINISM_SOURCE, SANDBOX_GLOBALS, SELF_REPAIR_BAD_DRAFT, SELF_REPAIR_GOAL, SELF_REPAIR_GOOD_DRAFT, SELF_REPAIR_RUN_ID, type ScriptDiagnostic, WorkerSandboxRunner, type WorkerSandboxRunnerOptions, apiCard, compileScript, extractScript, lintScript, normalizeCassetteEntries, plan, planRunIdOf, runPlanned, runPlannerSelfRepair, runSandboxDeterminism, scriptDiagnosticsOf };

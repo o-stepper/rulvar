@@ -1,0 +1,194 @@
+{
+  "id": "sandbox-determinism",
+  "note": "M6 gate: two runs of the same CompiledWorkflow under WorkerSandboxRunner produce identical journals (seeded shims, JSON boundary; docs/06 8.2). Wall clock and spans normalized at record time; everything else is byte-exact.",
+  "entries": [
+    {
+      "hashVersion": 2,
+      "seq": 0,
+      "scope": "",
+      "key": "bcd63ae56ce1f274e91de79e12ed1bee946e8484ffcf92a583503e3240b3ac38",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 1,
+      "ref": 0,
+      "scope": "",
+      "key": "bcd63ae56ce1f274e91de79e12ed1bee946e8484ffcf92a583503e3240b3ac38",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "value": "answer to probe alpha",
+      "usage": {
+        "inputTokens": 3,
+        "outputTokens": 6,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "m6-sandbox-determinism/t0"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
+      "scope": "par:0:0",
+      "key": "6435b422b68a9851278541010135a502a77f231f93ddd0f4e3bb4fcff2b30f51",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 3,
+      "ref": 2,
+      "scope": "par:0:0",
+      "key": "6435b422b68a9851278541010135a502a77f231f93ddd0f4e3bb4fcff2b30f51",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "value": "answer to branch zero",
+      "usage": {
+        "inputTokens": 3,
+        "outputTokens": 6,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "m6-sandbox-determinism/t1"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 4,
+      "scope": "par:0:1",
+      "key": "22845d09543c5a41e92ebfb55afa1450676f2f410fcc1d318bd7da84baa0f527",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 5,
+      "ref": 4,
+      "scope": "par:0:1",
+      "key": "22845d09543c5a41e92ebfb55afa1450676f2f410fcc1d318bd7da84baa0f527",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "value": "answer to branch one",
+      "usage": {
+        "inputTokens": 3,
+        "outputTokens": 5,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "m6-sandbox-determinism/t2"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 6,
+      "scope": "",
+      "key": "6c60111d0dcc006febb08f6e903ec3dd5f19d5bd3deee568fd3664ce8a48464e",
+      "ordinal": 0,
+      "kind": "rand",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "subtype": "now",
+        "value": 1700625522956
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 7,
+      "scope": "",
+      "key": "c5b8d13c2fa0478047c2832cadd90c9a2d53e2c4d562abbb24b8f9ba0c8cd2d2",
+      "ordinal": 0,
+      "kind": "step",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 8,
+      "ref": 7,
+      "scope": "",
+      "key": "c5b8d13c2fa0478047c2832cadd90c9a2d53e2c4d562abbb24b8f9ba0c8cd2d2",
+      "ordinal": 0,
+      "kind": "step",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "value": "answer to probe alpha | answer to branch zero | answer to branch one"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 9,
+      "scope": "",
+      "key": "6b4a14b25869089d273c87703b2155a4dc006c77240af50cd63439410e1b0407",
+      "ordinal": 0,
+      "kind": "rand",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "subtype": "random",
+        "value": 0.020098502514883876
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 10,
+      "scope": "",
+      "key": "f34e53ce273a0ae1b64c57d9a339e37ec825857f3a9a3a6f2f3fa7eed4e34b56",
+      "ordinal": 0,
+      "kind": "rand",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "subtype": "uuid",
+        "value": "3d961cae-d88b-4704-b3be-8c96a3aefbb5"
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 11,
+      "scope": "",
+      "key": "6c60111d0dcc006febb08f6e903ec3dd5f19d5bd3deee568fd3664ce8a48464e",
+      "ordinal": 1,
+      "kind": "rand",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "subtype": "now",
+        "value": 1700625522957
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    }
+  ]
+}

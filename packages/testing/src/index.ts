@@ -23,4 +23,12 @@ export {
 } from './cassettes/build-fixtures.js';
 export type { CassetteFixture } from './cassettes/build-fixtures.js';
 export { recordLiveCassettes } from './cassettes/record-live.js';
+export {
+  handlesInRequest,
+  M6_ORCH_GOAL,
+  M6_ORCH_PROFILES,
+  M6_ORCH_RUN_ID,
+  normalizeM6Entries,
+  recordOrchestratorCrash,
+} from './cassettes/m6-orchestrator.js';
 export * from './vcr.js';
