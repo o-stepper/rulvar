@@ -1,6 +1,6 @@
 {
   "name": "@lurker/anthropic",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "lurker first-class provider adapter over @anthropic-ai/sdk.",
   "type": "module",
   "license": "UNLICENSED",

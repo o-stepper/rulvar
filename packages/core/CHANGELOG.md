@@ -1,5 +1,111 @@
 # @lurker/core
 
+## 0.6.0
+
+### Minor Changes
+
+- fa05007: M5-T01 workflow registry and the @lurker/cli base.
+
+  - `@lurker/core` gains the per-engine `WorkflowRegistry` type and
+    `defaults.workflows` on createEngine (docs/06 section 10.4): an
+    explicit first-class value, no module-level registry; shells resolve
+    by-name runs against it (ctx.workflow's string form arrives M6, the
+    queue worker M8).
+  - Spec-conformance fix: the M4-T09 quality floors option moves from the
+    createEngine top level to its canonical home `defaults.roleFloors`
+    (docs/06 section 10.1). Update `createEngine({ floors })` call sites
+    to `createEngine({ defaults: { roleFloors } })`.
+  - `@lurker/cli` ships its first real surface: the canonical grammar
+    `lurker run <file|name> [--args JSON] [--store PATH] [--budget-usd N]`,
+    `lurker resume <runId> [--args JSON] [--store PATH]`,
+    `lurker runs ls [--store PATH]`, `lurker inspect <runId> [--store
+PATH]` (no aliases), a line-oriented TUI progress renderer over the
+    event stream, and interactive resolution of suspended approvals and
+    externals (EOF leaves the run suspended, never errors). Engine
+    assembly follows the host-config convention: `lurker.config.mjs`
+    default-exports `{ engineOptions?, workflows? }`, a workflow module
+    may export `workflow`/`engineOptions`/`workflows`, and --store selects
+    the JsonlFileStore directory (default `.lurker`), so the CLI itself
+    depends only on @lurker/core. The `lurker` bin is included; the
+    resume/inspect grammar amendment (--args re-supply, --store symmetry)
+    is recorded in docs/06 section 10.5.
+
+- 9234dc8: M5-T03 cost reports. The CostReport builder moves to its own module
+  (`engine/cost-report.ts`) and report totals become the LEDGER FOLD
+  totals at settle: RunOutcome.usage and cost.totalUsd are computed from
+  the journal's terminal entries (the same summation the kernel budget
+  seed uses), so report totals equal ledger fold totals exactly, live and
+  across resume, by construction. The new `costReportFromJournal(entries,
+priceUsd)` is the pure fold for STORED runs: byModel and totals from
+  terminal servedBy with abandoned subtrees contributing zero; phase,
+  agentType, and role attribution are live-run facts that entries do not
+  carry (byRole and the orchestrator block complete in M7 per DEF-7).
+  Unpriced models keep surfacing, never as silent zeros. `lurker inspect`
+  gains the cost view (total, byModel, unpriced) over the config-assembled
+  price function (table wins over caps.pricing), and live run output
+  prints the byModel/byPhase buckets.
+- 644512c: M5-T05 permission presets, audit, dry-run and M5-T06 argv shell matcher.
+
+  - `compilePermissionPreset('strict' | 'standard' | 'open')`
+    (`tools/presets.ts`) compiles the shipped presets to the documented
+    verdict-by-risk tables and folds INTO the existing deny/ask chain
+    layers, after host-authored rules, never a fifth layer and never an
+    allow-override (a needsApproval tool still asks under every preset).
+    `open` compiles to empty tables. `AgentProfilePermissions.preset` now
+    compiles instead of throwing; undeclared tool risk is matched
+    conservatively via a first-class `{ risk: 'undeclared' }` rule.
+  - The argv shell matcher (`tools/shell-matcher.ts`) replaces the M5
+    fail-early stub for `{ tool, argv }` rules: a POSIX-like lexer honors
+    quotes and escapes with no expansion, splits on `;`/`&&`/`||`/`|`/`&`/
+    newline, poisons segments containing command or process substitution
+    or here-docs to ask, strips leading env assignments, and retains
+    redirections as tokens. Verdicts compose strictest-across-segments, so
+    `npm test; rm -rf /` yields deny (or ask) even with `npm test`
+    allow-listed, and any unmatched segment yields ask.
+  - `evaluatePermission` gains an offline overload (by tool name, no
+    execution) for the docs/08 4.5 dry-run/shell-tooling API, and every
+    verdict carries the audit payload (verdict, deciding layer, matched
+    rule) that now rides `tool:end` events; advisory network-domain rules
+    are reported there but never enforced outside first-party fetch
+    (honest posture, docs/08 4.4).
+
+- 8a41656: M5-T07 RunProfile presets and M5-T08 OTel exporter.
+
+  - `engine/run-profiles.ts`: `RUN_PROFILES` (fast/standard/deep/ultra) and
+    `runProfile(name)` ship the presets as pure DATA, bundles of per-role
+    effort hints, per-run concurrency, budget, permission preset, and
+    spawn limits, with no functions and no named model strings (named
+    strong defaults stay in the umbrella). They are never engine
+    semantics: a source-scan test asserts the engine has zero branches
+    keyed on profile names. `lurker run --profile <name>` applies the
+    chosen profile UNDER the host's own engine options (host always wins;
+    the engine then sees only ordinary options), compiling the profile's
+    permission preset into the engine deny/ask layers as data.
+  - `@lurker/cli` gains `toOtel(run, tracer)`: it maps a settled run's
+    spanId tree 1:1 onto OpenTelemetry spans (run > phase > agent > tool >
+    child), with lurker.* and gen_ai.* attributes, start/end timestamps
+    from the lifecycle events, and payload-only events attached as span
+    events. Prompts, completions, and tool payloads are NEVER exported;
+    replayed events never create duplicate spans. `@opentelemetry/api`
+    ^1.9 is an optional peer dependency and the exporter is typed against
+    a minimal structural TracerLike, so an absent OTel package never
+    breaks the CLI.
+
+### Patch Changes
+
+- 02f7f7a: M5-T09 examples corpus. A new (unpublished) `examples/` vitest project
+  ships runnable reference implementations of the documented quality
+  patterns as recipes over the public `ctx` API, never engine flags:
+  adversarial panel (N independent skeptics prompted to refute; majority
+  survives), judge panel (N angled attempts each scored; top wins),
+  loop-until-dry (keep finding until K consecutive empty rounds), and
+  completeness critic (draft, then gap-driven revision passes). Each
+  example is a real `defineWorkflow` and doubles as an integration test
+  under FakeAdapter with zero live calls, so an example that stops
+  compiling fails CI like any test. The corpus is registered in the
+  pnpm workspace and the single Vitest project set; the umbrella marker
+  package is unchanged (patch to carry the changeset).
+
 ## 0.5.0
 
 ### Minor Changes
