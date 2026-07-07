@@ -152,7 +152,7 @@ export function buildAnthropicParams(
     params.stop_sequences = req.stopSequences;
   }
 
-  if (req.tools !== undefined && req.toolChoice !== 'none') {
+  if (req.tools !== undefined) {
     params.tools = req.tools.map((tool) => ({
       name: tool.name,
       description: tool.description,
@@ -168,6 +168,12 @@ export function buildAnthropicParams(
       params.tool_choice = { type: 'tool', name: req.toolChoice.name };
     } else if (req.toolChoice === 'auto') {
       params.tool_choice = { type: 'auto' };
+    } else if (req.toolChoice === 'none') {
+      // Explicit none with the tools param PRESENT: tool-use history
+      // without tool definitions is rejected by the API, and finalize
+      // and extract project such histories (docs/04, section 8.4 as
+      // amended in M4-T01).
+      params.tool_choice = { type: 'none' };
     }
   }
 

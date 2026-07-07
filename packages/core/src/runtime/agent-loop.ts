@@ -177,10 +177,21 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * Separate final extract invocation, present only when the role trigger
    * protocol demands one: schema set AND (routing directs extract to a
    * different model OR the loop model's caps cannot serve the required
-   * tier). Otherwise the schema rides the last loop turn (docs/06,
-   * section "Agent runtime binding").
+   * tier OR finalize is routed). Otherwise the schema rides the last loop
+   * turn (docs/06, section "Agent runtime binding"; the necessity rule is
+   * decided by the ctx layer via model/roles.ts).
    */
   extract?: { adapter: ProviderAdapter; resolved: ResolvedInvocation };
+  /**
+   * Finalize synthesis invocation (M4-T01), present only when the role
+   * trigger protocol fires it: configured in routing AND the toolset is
+   * non-empty. Runs after tools stop with toolChoice 'none' over the
+   * full transcript; its text becomes the output for schema-less calls,
+   * and a schema-bearing call always pairs it with a separate extract
+   * (the ctx layer guarantees `extract` is present in that case). Like
+   * extract, the finalize invocation is not checkpointed in v1.
+   */
+  finalize?: { adapter: ProviderAdapter; resolved: ResolvedInvocation };
   /**
    * Turn-boundary checkpointing (M3-T02; docs/03, section "Checkpoints").
    * load() restores the last boundary on a dangling-dispatch resume;
@@ -1024,6 +1035,90 @@ export async function runAgent<S extends SchemaSpec>(
     continue loop;
   }
 
+  // Finalize synthesis invocation (role 'finalize', M4-T01): after tools
+  // stop, one invocation with toolChoice 'none' over the full transcript.
+  // Fires only when routed AND tools were available; the ctx layer
+  // decides via model/roles.ts and passes the option. Its text is the
+  // output for schema-less calls; with a schema the separate extract
+  // below runs over the transcript INCLUDING the synthesis (docs/04,
+  // section 8.4 as amended).
+  if (status === 'ok' && options.finalize !== undefined) {
+    const finalizeResolved = options.finalize.resolved;
+    events?.emit({
+      type: 'agent:start',
+      agentType,
+      label: options.label,
+      model: finalizeResolved.ref,
+      role: 'finalize',
+    });
+    let proceed = true;
+    try {
+      options.budget?.beforeTurn();
+    } catch {
+      status = 'error';
+      agentError = { kind: 'budget', retryable: false };
+      proceed = false;
+    }
+    if (proceed) {
+      turns += 1;
+      const req: ChatRequest = {
+        ...buildRequest(finalizeResolved, messages, limits, options.tools?.contracts),
+        toolChoice: 'none',
+      };
+      const finalizeStreamOptions: Parameters<typeof streamTurn>[2] = {
+        idleTimeoutMs: limits.streamIdleTimeoutMs,
+        signals: options.signal === undefined ? [] : [options.signal],
+        onUsage: (delta) => options.budget?.onUsage(delta, finalizeResolved.ref),
+      };
+      if (options.budget?.signal !== undefined) {
+        finalizeStreamOptions.budgetSignal = options.budget.signal;
+      }
+      if (options.stream === true) {
+        finalizeStreamOptions.onDelta = (delta) => events?.emit({ type: 'agent:stream', delta });
+      }
+      const outcome = await streamTurn(options.finalize.adapter, req, finalizeStreamOptions);
+      recordUsage(
+        outcome.usage,
+        outcome.reported,
+        options.finalize.adapter.id,
+        finalizeResolved.ref,
+      );
+      usageApprox = usageApprox || outcome.usageApprox;
+      messages.push(assistantMsg(outcome.turn));
+      if (invariantViolation !== undefined) {
+        status = 'error';
+        agentError = { kind: 'transport', retryable: false };
+        errorMessage = invariantViolation;
+      } else if (outcome.aborted !== undefined || outcome.wireError !== undefined) {
+        status = outcome.aborted === 'external' ? 'cancelled' : 'error';
+        if (outcome.wireError !== undefined) {
+          agentError = classifyWireError(outcome.wireError);
+          errorMessage = outcome.wireError.message;
+        } else if (outcome.aborted === 'budget') {
+          status = 'cancelled';
+          agentError = { kind: 'budget', retryable: false };
+        } else if (outcome.aborted === 'idle') {
+          status = 'error';
+          agentError = { kind: 'transport', retryable: true };
+          errorMessage = `stream idle for ${limits.streamIdleTimeoutMs}ms`;
+        }
+      } else if (
+        outcome.finish?.reason === 'refusal' ||
+        outcome.finish?.reason === 'context-window-exceeded'
+      ) {
+        status = 'error';
+        agentError = { kind: 'terminal', retryable: false };
+        if (outcome.finish.reason === 'refusal') {
+          errorMessage = `model refusal (${outcome.finish.refusal.provider})`;
+        }
+      } else if (options.schema === undefined) {
+        // The synthesis is the final answer for schema-less calls; a
+        // schema-bearing call reads its output from the extract phase.
+        output = outcome.turn.text as Out<S>;
+      }
+    }
+  }
+
   // Separate extract invocation (role 'extract'): one structured-output
   // call over the loop transcript, on the extract-resolved model.
   if (
@@ -1064,7 +1159,15 @@ export async function runAgent<S extends SchemaSpec>(
         break;
       }
       turns += 1;
-      let req = buildRequest(extractResolved, extractMessages, limits);
+      // A tool-bearing transcript must carry the tool contracts: both
+      // providers reject tool-use history without tool definitions. The
+      // forced-tool tier pins toolChoice to emit_result below; the other
+      // tiers pin 'none' so the extract call cannot re-enter tools
+      // (docs/04, section 8.4 as amended in M4-T01).
+      let req = buildRequest(extractResolved, extractMessages, limits, options.tools?.contracts);
+      if (req.tools !== undefined && extractTier !== 'forced-tool') {
+        req = { ...req, toolChoice: 'none' };
+      }
       req = applyStructuredOutputTier(req, extractTier, options.canonicalSchema ?? {});
       const extractStreamOptions: Parameters<typeof streamTurn>[2] = {
         idleTimeoutMs: limits.streamIdleTimeoutMs,

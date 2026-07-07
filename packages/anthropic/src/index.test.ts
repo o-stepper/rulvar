@@ -68,6 +68,21 @@ describe('buildAnthropicParams (M1-T12)', () => {
     expect(params.tool_choice).toEqual({ type: 'tool', name: 'emit_result' });
   });
 
+  it("maps toolChoice 'none' to explicit none with the tools param present (M4-T01)", () => {
+    const params = buildAnthropicParams(
+      {
+        ...baseReq,
+        tools: [{ name: 'clock', description: 'd', parameters: { type: 'object' } }],
+        toolChoice: 'none',
+      },
+      { ids: ids(), maxOutputTokens: 1024, thinkingForm: 'adaptive' },
+    );
+    // Tool-use history without tool definitions is rejected by the API:
+    // the tools param stays present, the choice pins none (docs/04, 8.4).
+    expect((params.tools as unknown[]).length).toBe(1);
+    expect(params.tool_choice).toEqual({ type: 'none' });
+  });
+
   it('compiles cacheHint keeping the deepest breakpoints at the cap', () => {
     const params = buildAnthropicParams(
       {

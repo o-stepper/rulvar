@@ -55,12 +55,16 @@ export function createTestEngine(options: CreateTestEngineOptions): TestEngine {
     adapters: [fake],
     stores: { journal: store },
     defaults: {
+      // finalize is deliberately NOT routed: its routing key is the
+      // firing opt-in (docs/04, section 8.3; M4-T01), and the test
+      // engine must not summon a synthesis call for every tool-bearing
+      // agent. Tests that want finalize route it per call or profile.
+      // The other keys only pick models and never summon invocations.
       routing: {
         loop: FAKE_MODEL_REF,
         extract: FAKE_MODEL_REF,
         orchestrate: FAKE_MODEL_REF,
         plan: FAKE_MODEL_REF,
-        finalize: FAKE_MODEL_REF,
         summarize: FAKE_MODEL_REF,
       },
       profiles,
