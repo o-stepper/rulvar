@@ -54,20 +54,38 @@ export type EntryStatus =
 /** The canonical EntryRef between entries is seq (docs/03, section "Full entry identity"). */
 export type EntryRef = number;
 
-/** Payload of resolution ref-entries; the full schema lands with DEF-4 in M2. */
+/** The journaled by-source of a resolution (docs/03, section 8.6 mapping table). */
+export type ResolutionBy =
+  'external' | 'timeout' | 'class_decision' | 'operator' | 'quiescence' | 'engine_fallback';
+
+/** Payload of resolution ref-entries (docs/03, section 8.6; DEF-4). */
 export type ResolutionPayload = {
-  by: string;
-  value?: Json;
-  [key: string]: Json | undefined;
+  /** Duplicates ref for self-description. */
+  target: number;
+  by: ResolutionBy;
+  /** awaitExternal resolution / EscalationDecision / WakeDigest. */
+  value: Json;
+  /** Seq of the class-level EscalationDecision when by = 'class_decision'. */
+  decisionRef?: number;
+  /** Lineage-fold attribution (DEF-3, M7). */
+  logicalTaskId?: string;
+  /** Only on escalation resolutions (DEF-3, M7). */
+  countsAgainstLimit?: boolean;
 };
 
-/** Payload of abandon ref-entries; the full schema lands with DEF-5 in M2/M7. */
+/** Payload of abandon ref-entries (docs/03, section 8.6; DEF-4/DEF-5). */
 export type AbandonPayload = {
+  /** Seq of the abandoned branch's spawn entry. */
+  target: number;
+  /** Seq of the plan.revision or decision entry sanctioning it. */
+  authorizedBy: number;
+  nodeId?: string;
+  logicalTaskId?: string;
   reason: string;
-  authorizedBy?: EntryRef;
+  /** Default true (DEF-5). */
   retainCheckpoint?: boolean;
+  /** Default false; counts against the pin cap (DEF-5). */
   retainWorktree?: boolean;
-  [key: string]: Json | undefined;
 };
 
 /**

@@ -34,7 +34,14 @@ import {
   type Workflow,
 } from './ctx.js';
 import { EventBus, SpanRegistry } from './events.js';
-import { buildCostReport, type RunHandle, type RunOutcome, type RunStatus } from './run-handle.js';
+import { ExternalRegistry } from './external.js';
+import {
+  buildCostReport,
+  type PendingExternal,
+  type RunHandle,
+  type RunOutcome,
+  type RunStatus,
+} from './run-handle.js';
 import { DEFAULT_PER_RUN_CONCURRENCY, Semaphore } from './scheduler.js';
 import { InProcessRunner, type CompiledWorkflow, type ScriptRunner } from '../runner/inprocess.js';
 
@@ -176,6 +183,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       );
     }
 
+    const external = new ExternalRegistry(replayer);
     let transcriptCounter = 0;
     const internals: RunInternals = {
       runId,
@@ -205,6 +213,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       },
       priceUsd: (servedBy, usage) => priceUsd(servedBy, usage),
       runSignal: controller.signal,
+      external,
       mintTranscriptRef: () => `${runId}/t${transcriptCounter++}`,
       now: realNow,
     };
@@ -224,8 +233,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
       let status: RunOutcome<R>['status'] = 'ok';
       let value: R | undefined;
       let wireError: WireError | undefined;
+      let pending: PendingExternal[] = [];
       await putMeta('running');
       bus.emit({ type: 'run:start', workflow: wf.name, resumed: false }, rootSpanId);
+      const quiesced = new Promise<PendingExternal[]>((resolve) => {
+        external.onQuiesce(resolve);
+      });
       try {
         if (wf.argsSchema !== undefined) {
           const validation = await validateSchemaSpec(wf.argsSchema, args);
@@ -237,11 +250,35 @@ export function createEngine(options: CreateEngineOptions): Engine {
           }
         }
         const ctx = createCtx(internals);
-        value = await runner.execute(wf, ctx, args);
-        if (budget.exhausted) {
+        const bodyPromise = runner.execute(wf, ctx, args);
+        // Every in-flight branch blocked on suspensions settles the run
+        // 'suspended' with the open keys (docs/06, section 2.7).
+        const raced = await Promise.race([
+          bodyPromise.then((result) => ({ kind: 'done' as const, result })),
+          quiesced.then((open) => ({ kind: 'suspended' as const, open })),
+        ]);
+        if (raced.kind === 'suspended') {
+          bodyPromise.catch(() => undefined);
+          status = 'suspended';
+          pending = raced.open;
+          for (const item of pending) {
+            bus.emit(
+              {
+                type: 'external:waiting',
+                key: item.key,
+                entryRef: item.entryRef,
+                ...(item.prompt === undefined ? {} : { prompt: item.prompt }),
+              },
+              rootSpanId,
+            );
+          }
+        } else {
+          value = raced.result;
+        }
+        if (status !== 'suspended' && budget.exhausted) {
           status = 'exhausted';
           value = undefined;
-        } else if (controller.signal.aborted) {
+        } else if (status !== 'suspended' && controller.signal.aborted) {
           status = 'cancelled';
           wireError = {
             code: 'error',
@@ -290,7 +327,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       const outcome: RunOutcome<R> = {
         status,
         dropped: internals.dropped,
-        pending: [],
+        pending,
         usage: spend.usage,
         cost: buildCostReport(internals.cost, spend.usd),
       };
@@ -315,6 +352,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       result,
       events: bus.iterate(),
       on: (type, cb) => bus.on(type, cb),
+      resolveExternal: (key, value) => external.resolveExternal(key, value),
       cancel: async (reason?: string) => {
         requestCancel(reason ?? 'cancelled by host');
         await result.then(

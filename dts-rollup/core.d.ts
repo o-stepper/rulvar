@@ -769,19 +769,26 @@ type EntryKind = "agent" | "step" | "child" | "external" | "approval" | "rand" |
 type EntryStatus = "running" | "ok" | "error" | "limit" | "suspended" | "cancelled" | "escalated";
 /** The canonical EntryRef between entries is seq (docs/03, section "Full entry identity"). */
 type EntryRef = number;
-/** Payload of resolution ref-entries; the full schema lands with DEF-4 in M2. */
+/** The journaled by-source of a resolution (docs/03, section 8.6 mapping table). */
+type ResolutionBy = "external" | "timeout" | "class_decision" | "operator" | "quiescence" | "engine_fallback";
+/** Payload of resolution ref-entries (docs/03, section 8.6; DEF-4). */
 type ResolutionPayload = {
-  by: string;
-  value?: Json;
-  [key: string]: Json | undefined;
+  /** Duplicates ref for self-description. */target: number;
+  by: ResolutionBy; /** awaitExternal resolution / EscalationDecision / WakeDigest. */
+  value: Json; /** Seq of the class-level EscalationDecision when by = 'class_decision'. */
+  decisionRef?: number; /** Lineage-fold attribution (DEF-3, M7). */
+  logicalTaskId?: string; /** Only on escalation resolutions (DEF-3, M7). */
+  countsAgainstLimit?: boolean;
 };
-/** Payload of abandon ref-entries; the full schema lands with DEF-5 in M2/M7. */
+/** Payload of abandon ref-entries (docs/03, section 8.6; DEF-4/DEF-5). */
 type AbandonPayload = {
-  reason: string;
-  authorizedBy?: EntryRef;
-  retainCheckpoint?: boolean;
+  /** Seq of the abandoned branch's spawn entry. */target: number; /** Seq of the plan.revision or decision entry sanctioning it. */
+  authorizedBy: number;
+  nodeId?: string;
+  logicalTaskId?: string;
+  reason: string; /** Default true (DEF-5). */
+  retainCheckpoint?: boolean; /** Default false; counts against the pin cap (DEF-5). */
   retainWorktree?: boolean;
-  [key: string]: Json | undefined;
 };
 /**
 * Final entry form (hashVersion 2; docs/03, section "JournalEntry form").
@@ -1211,136 +1218,6 @@ declare class JournalMatcher {
   report(): ResumeReport;
 }
 //#endregion
-//#region src/journal/replayer.d.ts
-type ReplayMode = "scoped" | "cache" | "never";
-/** docs/06 Appendix A: large-value soft warn threshold (committed for M2). */
-declare const LARGE_VALUE_WARN_BYTES = 262144;
-interface Ledger {
-  usage: Usage;
-  usd: number;
-  agentsSpawned: number;
-}
-/** Fields common to every append through the kernel. */
-interface BaseAppend {
-  scope: string;
-  key: string;
-  kind: EntryKind;
-  spanId: string;
-  /** Call-site label used in NonSerializableValueError messages. */
-  site?: string;
-}
-interface SinglePhaseAppend extends BaseAppend {
-  status: "ok";
-  value?: unknown;
-  usage?: Usage;
-  servedBy?: ModelRef;
-}
-interface SuspendedAppend extends BaseAppend {
-  deadlineAt?: string;
-  value?: unknown;
-}
-interface TerminalPatch {
-  status: Exclude<EntryStatus, "running" | "suspended">;
-  value?: unknown;
-  error?: WireError;
-  usage?: Usage;
-  usageApprox?: boolean;
-  servedBy?: ModelRef;
-  transcriptRef?: string;
-  checkpointRef?: string;
-  site?: string;
-}
-/**
-* Per-run journal kernel front end. Everything is per instance: no module
-* state anywhere (docs/02, section "Dependency rules").
-*/
-declare class Replayer {
-  private readonly runId;
-  private readonly store;
-  private readonly now;
-  private readonly priceUsd?;
-  private readonly onWarn?;
-  private readonly largeValueWarnBytes;
-  private readonly entries;
-  private readonly ordinals;
-  private readonly matcher;
-  private readonly invalidated;
-  private queue;
-  private seq;
-  constructor(options: {
-    runId: string;
-    store: JournalStore;
-    now?: () => number;
-    priceUsd?: (servedBy: ModelRef | undefined, usage: Usage) => number | undefined; /** Receives large-value soft warnings (docs/03: never an error). */
-    onWarn?: (msg: string) => void;
-    largeValueWarnBytes?: number; /** The loaded, normalized prior journal (resume; docs/03 section 7). */
-    priorEntries?: readonly JournalEntry[];
-    keyRing?: KeyRing;
-    disposition?: (op: JournalOperation) => OperationDisposition;
-  });
-  /**
-  * Forward-matches one live call against the prior journal (docs/03,
-  * section 7). Fresh runs always miss; the M2-T06 predicate is injected
-  * through setDisposition once folds are built.
-  */
-  match(scope: string, identity: IdentityInput, mode: ReplayMode): MatchResult;
-  setDisposition(disposition: (op: JournalOperation) => OperationDisposition): void;
-  /**
-  * invalidate/retry (docs/03, section 6.5): explicit unpinning of a
-  * memoized failure; the invalidated entry reruns on this resume. The
-  * safety boundary is an open question (docs/14).
-  */
-  invalidate(seq: number): void;
-  get invalidatedSeqs(): ReadonlySet<number>;
-  resumeReport(): ResumeReport;
-  /**
-  * Value size policy (docs/03, section "Normative payload schemas"):
-  * there is NO automatic offload in v1; oversized values warn and
-  * proceed. Large artifacts belong in TranscriptStore by reference.
-  */
-  private warnIfLarge;
-  /** Single-phase fact entries: rand, decisions, termination facts. */
-  appendSinglePhase(input: SinglePhaseAppend): Promise<JournalEntry>;
-  /** Two-phase dispatch: the running entry (kinds agent, step, child). */
-  appendRunning(input: BaseAppend & {
-    memoizeOutcome?: boolean;
-  }): Promise<JournalEntry>;
-  /**
-  * Two-phase completion: a terminal entry referencing the running entry
-  * by ref. Scope, key, ordinal, kind, and hashVersion are inherited from
-  * the running entry (running/terminal pairs are always single-version;
-  * the pair shares one ordinal because it is one logical operation).
-  */
-  appendTerminal(runningSeq: number, patch: TerminalPatch): Promise<JournalEntry>;
-  /** Suspended kinds (external, approval): appended once, closed by ref-entries (M2). */
-  appendSuspended(input: SuspendedAppend): Promise<JournalEntry>;
-  /**
-  * The budget ledger fold (docs/03, section "Budget ledger fold on
-  * resume"): usage sums over terminal entries exactly once; agentsSpawned
-  * counts agent dispatches.
-  */
-  ledger(): Ledger;
-  /** Read-only view of the appended entries, in per-run total order. */
-  snapshot(): readonly JournalEntry[];
-  /**
-  * Resolves when every append enqueued so far has persisted. Deterministic
-  * shims journal fire-and-forget; the engine awaits this before settling a
-  * run.
-  */
-  flush(): Promise<void>;
-  private mint;
-  private persist;
-  private enqueue;
-}
-//#endregion
-//#region src/journal/kinds.d.ts
-/**
-* Validates the shape the engine is about to append. Returns issues;
-* empty means valid. Unknown kinds are rejected here (the engine never
-* writes them); stores still pass them through on read.
-*/
-declare function validateEntryShape(entry: JournalEntry): Issue$1[];
-//#endregion
 //#region src/journal/keyderiver.d.ts
 /** The projected, JCS-serializable identity under one profile. */
 type CanonicalIdentity = Record<string, unknown>;
@@ -1432,64 +1309,375 @@ declare function replayDisposition(entry: JournalEntry, fold: AbandonFold, optio
 */
 declare function dispositionHook(fold: AbandonFold, registry: DeriverRegistry, invalidated?: ReadonlySet<number>): (op: JournalOperation) => ReplayDisposition;
 //#endregion
-//#region src/stores/inmemory.d.ts
-declare class InMemoryStore implements JournalStore {
-  private readonly runs;
-  private readonly metas;
-  private warned;
-  append(runId: string, e: JournalEntry): Promise<void>;
-  load(runId: string): Promise<JournalEntry[]>;
-  putMeta(m: RunMeta): Promise<void>;
-  listRuns(f?: RunFilter): Promise<RunMeta[]>;
-  delete(runId: string): Promise<void>;
-  private warnOnce;
+//#region src/journal/resolution.d.ts
+type ResolutionAttempt = {
+  by: ResolutionBy;
+  value: Json;
+  decisionRef?: number;
+};
+type AbandonAttempt = {
+  target: number;
+  authorizedBy: number;
+  nodeId?: string;
+  reason: string;
+  retainCheckpoint?: boolean;
+  retainWorktree?: boolean;
+};
+type ResolutionOutcome = {
+  applied: true;
+  seq: number;
+} | {
+  applied: false;
+  seq: number;
+  supersededBy: number;
+  reason: "already_resolved" | "target_abandoned";
+};
+type SuspensionState = {
+  state: "suspended";
+  deadlineAt?: string;
+} | {
+  state: "resolved";
+  by: number;
+  value: Json;
+} | {
+  state: "abandoned";
+  by: number;
+};
+/** Fold classification of one ref-entry; NEVER persisted (docs/03, section 8.4). */
+type RefEntryClassification = {
+  classification: "applied";
+} | {
+  classification: "noop";
+  supersededBy: number;
+  reason: "already_resolved" | "target_abandoned";
+} | {
+  classification: "invalid";
+  detail: string;
+};
+/**
+* The first-closing-wins fold over a loaded journal: one pass by seq,
+* bit-identical on every store returning the same entries. Resolution
+* values are validated at consumption against the schema pinned INSIDE
+* the suspended entry payload (canonical bare JSON Schema); a
+* schema-invalid offline resolution classifies invalid and does NOT close
+* the target. Abandon coverage is the target seq plus the transitive
+* child scope-prefix; the AbandonFold consumed by the replay predicate is
+* a projection of THIS fold (docs/03, section 6.2: not a separate pass).
+*/
+declare class ResolutionFold {
+  private readonly targets;
+  private readonly bySeq;
+  private readonly classifications;
+  private readonly coveredSeqs;
+  private readonly coveredPrefixes;
+  constructor(entries: readonly JournalEntry[]);
+  private isCoveredEntry;
+  private applyResolution;
+  private applyAbandon;
+  /** Registers a live-appended suspended entry with the fold. */
+  registerSuspended(entry: JournalEntry): void;
+  /** Registers a live-appended ref-entry, returning its classification. */
+  registerRefEntry(entry: JournalEntry): RefEntryClassification;
+  /** Registers any other live-appended entry (abandon coverage needs scopes). */
+  registerEntry(entry: JournalEntry): void;
+  suspensionState(target: number): SuspensionState;
+  classificationOf(seq: number): RefEntryClassification | undefined;
+  /** Invalid offline resolutions surfaced in the resume report. */
+  invalidResolutions(): Array<{
+    seq: number;
+    detail: string;
+  }>;
+  /** The AbandonFold projection consumed by the replay predicate. */
+  get abandonFold(): AbandonFold;
+  /** Open suspended entries (for pending[] and re-arming at resume). */
+  openSuspensions(): JournalEntry[];
+}
+/** The append surface the arbiter drives (implemented by the Replayer). */
+interface RefEntryAppender {
+  appendRefEntry(input: {
+    kind: "resolution" | "abandon";
+    ref: number;
+    scope: string;
+    spanId: string;
+    resolution?: ResolutionPayload;
+    abandon?: AbandonPayload;
+  }): Promise<JournalEntry>;
 }
 /**
-* In-memory TranscriptStore. Refs follow the `<runId>/<name>` convention
-* so list(runId) can filter without a side index.
+* Per-run, per-target FIFO serializer of resolution/abandon attempts
+* (docs/03, section 8.5): classification against the in-memory fold ->
+* durable append -> settle exactly once; losing attempts are ALSO
+* appended and become journaled noops by fold classification. Winner
+* effects run strictly after the critical section (the caller's job).
+* Cross-process protection remains the LeasableStore fencing epoch.
 */
-declare class InMemoryTranscriptStore implements TranscriptStore {
-  private readonly blobs;
-  put(ref: string, blob: Bytes): Promise<void>;
-  get(ref: string): Promise<Bytes | null>;
-  list(runId: string): Promise<string[]>;
+declare class ResolutionArbiter {
+  private readonly fold;
+  private readonly appender;
+  private readonly queues;
+  constructor(fold: ResolutionFold, appender: RefEntryAppender);
+  private enqueue;
+  submitResolution(target: number, targetScope: string, spanId: string, attempt: ResolutionAttempt): Promise<ResolutionOutcome>;
+  submitAbandon(targetScope: string, spanId: string, attempt: AbandonAttempt): Promise<ResolutionOutcome>;
 }
 //#endregion
-//#region src/stores/jsonl.d.ts
-declare class JsonlFileStore implements JournalStore {
-  private readonly dir;
+//#region src/journal/replayer.d.ts
+type ReplayMode = "scoped" | "cache" | "never";
+/** docs/06 Appendix A: large-value soft warn threshold (committed for M2). */
+declare const LARGE_VALUE_WARN_BYTES = 262144;
+interface Ledger {
+  usage: Usage;
+  usd: number;
+  agentsSpawned: number;
+}
+/** Fields common to every append through the kernel. */
+interface BaseAppend {
+  scope: string;
+  key: string;
+  kind: EntryKind;
+  spanId: string;
+  /** Call-site label used in NonSerializableValueError messages. */
+  site?: string;
+}
+interface SinglePhaseAppend extends BaseAppend {
+  status: "ok";
+  value?: unknown;
+  usage?: Usage;
+  servedBy?: ModelRef;
+}
+interface SuspendedAppend extends BaseAppend {
+  deadlineAt?: string;
+  value?: unknown;
+}
+interface TerminalPatch {
+  status: Exclude<EntryStatus, "running" | "suspended">;
+  value?: unknown;
+  error?: WireError;
+  usage?: Usage;
+  usageApprox?: boolean;
+  servedBy?: ModelRef;
+  transcriptRef?: string;
+  checkpointRef?: string;
+  site?: string;
+}
+/**
+* Per-run journal kernel front end. Everything is per instance: no module
+* state anywhere (docs/02, section "Dependency rules").
+*/
+declare class Replayer {
+  private readonly runId;
+  private readonly store;
+  private readonly now;
+  private readonly priceUsd?;
+  private readonly onWarn?;
+  private readonly largeValueWarnBytes;
+  private readonly entries;
+  private readonly ordinals;
+  private readonly matcher;
+  private readonly foldInternal;
+  private readonly arbiter;
+  private readonly invalidated;
+  private queue;
+  private seq;
   constructor(options: {
-    dir: string;
+    runId: string;
+    store: JournalStore;
+    now?: () => number;
+    priceUsd?: (servedBy: ModelRef | undefined, usage: Usage) => number | undefined; /** Receives large-value soft warnings (docs/03: never an error). */
+    onWarn?: (msg: string) => void;
+    largeValueWarnBytes?: number; /** The loaded, normalized prior journal (resume; docs/03 section 7). */
+    priorEntries?: readonly JournalEntry[];
+    keyRing?: KeyRing;
+    disposition?: (op: JournalOperation) => OperationDisposition;
   });
-  private journalPath;
-  private metaPath;
-  append(runId: string, e: JournalEntry): Promise<void>;
-  load(runId: string): Promise<JournalEntry[]>;
-  private repairTornTail;
-  putMeta(m: RunMeta): Promise<void>;
-  listRuns(f?: RunFilter): Promise<RunMeta[]>;
-  delete(runId: string): Promise<void>;
+  /**
+  * Forward-matches one live call against the prior journal (docs/03,
+  * section 7). Fresh runs always miss; the M2-T06 predicate is injected
+  * through setDisposition once folds are built.
+  */
+  match(scope: string, identity: IdentityInput, mode: ReplayMode): MatchResult;
+  setDisposition(disposition: (op: JournalOperation) => OperationDisposition): void;
+  /**
+  * invalidate/retry (docs/03, section 6.5): explicit unpinning of a
+  * memoized failure; the invalidated entry reruns on this resume. The
+  * safety boundary is an open question (docs/14).
+  */
+  invalidate(seq: number): void;
+  get invalidatedSeqs(): ReadonlySet<number>;
+  resumeReport(): ResumeReport;
+  /** The DEF-4 fold over this run's journal (prior plus live appends). */
+  get fold(): ResolutionFold;
+  /** Ref-entry append used by the ResolutionArbiter; O2-checked by shape validation. */
+  appendRefEntry(input: {
+    kind: "resolution" | "abandon";
+    ref: number;
+    scope: string;
+    spanId: string;
+    resolution?: ResolutionPayload;
+    abandon?: AbandonPayload;
+  }): Promise<JournalEntry>;
+  /**
+  * Submits a resolution attempt through the per-target FIFO arbiter
+  * (docs/03, section 8.7). Losing attempts are journaled noops.
+  */
+  resolveSuspended(target: number, attempt: ResolutionAttempt): Promise<ResolutionOutcome>;
+  abandonBranch(attempt: AbandonAttempt): Promise<ResolutionOutcome>;
+  /** Pure fold view, snapshot-pinned (docs/03, section 8.7). */
+  suspensionState(target: number): SuspensionState;
+  /**
+  * Value size policy (docs/03, section "Normative payload schemas"):
+  * there is NO automatic offload in v1; oversized values warn and
+  * proceed. Large artifacts belong in TranscriptStore by reference.
+  */
+  private warnIfLarge;
+  /** Single-phase fact entries: rand, decisions, termination facts. */
+  appendSinglePhase(input: SinglePhaseAppend): Promise<JournalEntry>;
+  /** Two-phase dispatch: the running entry (kinds agent, step, child). */
+  appendRunning(input: BaseAppend & {
+    memoizeOutcome?: boolean;
+  }): Promise<JournalEntry>;
+  /**
+  * Two-phase completion: a terminal entry referencing the running entry
+  * by ref. Scope, key, ordinal, kind, and hashVersion are inherited from
+  * the running entry (running/terminal pairs are always single-version;
+  * the pair shares one ordinal because it is one logical operation).
+  */
+  appendTerminal(runningSeq: number, patch: TerminalPatch): Promise<JournalEntry>;
+  /** Suspended kinds (external, approval): appended once, closed by ref-entries (M2). */
+  appendSuspended(input: SuspendedAppend): Promise<JournalEntry>;
+  /**
+  * The budget ledger fold (docs/03, section "Budget ledger fold on
+  * resume"): usage sums over terminal entries exactly once; agentsSpawned
+  * counts agent dispatches.
+  */
+  ledger(): Ledger;
+  /** Read-only view of the appended entries, in per-run total order. */
+  snapshot(): readonly JournalEntry[];
+  /**
+  * Resolves when every append enqueued so far has persisted. Deterministic
+  * shims journal fire-and-forget; the engine awaits this before settling a
+  * run.
+  */
+  flush(): Promise<void>;
+  private mint;
+  private persist;
+  private enqueue;
 }
 //#endregion
-//#region src/model/caps.d.ts
-type StructuredOutputTier = "native" | "forced-tool" | "prompt";
+//#region src/journal/kinds.d.ts
 /**
-* Strict-schema compatibility as both first-class providers define it:
-* every object node declares `additionalProperties: false` and lists every
-* property in `required` (docs/04, section 5.2). Boolean schemas and
-* non-object shapes are trivially compatible.
+* Validates the shape the engine is about to append. Returns issues;
+* empty means valid. Unknown kinds are rejected here (the engine never
+* writes them); stores still pass them through on read.
 */
-declare function isStrictCompatibleSchema(schema: JsonSchema | boolean): boolean;
+declare function validateEntryShape(entry: JournalEntry): Issue$1[];
+//#endregion
+//#region src/l0/events.d.ts
+/** docs/09 section 1.4, run lifecycle and core telemetry (M1 subset). */
+type CoreEvents = {
+  type: "run:start";
+  workflow: string;
+  resumed: boolean;
+} | {
+  type: "run:end";
+  status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
+  totalUsd: number;
+} | {
+  type: "phase:start";
+  phase: string;
+} | {
+  type: "log";
+  level: "debug" | "info" | "warn" | "error";
+  msg: string;
+  data?: Json;
+} | {
+  type: "budget:update";
+  spentUsd: number;
+  remainingUsd: number | null;
+  committedReserveUsd: number;
+} | {
+  type: "external:waiting";
+  key: string;
+  entryRef: number;
+  prompt?: string;
+  deadlineAt?: string;
+} | {
+  type: "approval:pending";
+  toolName: string;
+  entryRef: number;
+  deadlineAt?: string;
+} | {
+  type: "child:start";
+  workflow: string;
+  scope: string;
+} | {
+  type: "child:end";
+  workflow: string;
+  scope: string;
+  status: string;
+};
+/** docs/09 section 1.4, agent lifecycle. */
+type AgentEvents = {
+  type: "agent:queued";
+  agentType: string;
+  label?: string;
+} | {
+  type: "agent:start";
+  agentType: string;
+  label?: string;
+  model: string;
+  role: string;
+} | {
+  type: "agent:end";
+  agentType: string;
+  label?: string;
+  status: string;
+  usage: Usage;
+  costUsd: number;
+  entryRef: number;
+} | {
+  type: "agent:error";
+  agentType: string;
+  label?: string;
+  error: WireError;
+  willRetry: boolean;
+} | {
+  type: "agent:schema-retry";
+  agentType: string;
+  attempt: number;
+  maxAttempts: number;
+} | {
+  type: "agent:stream";
+  delta: string;
+};
+/** docs/09 section 1.4, tool lifecycle (emitters arrive with the tool system, M3). */
+type ToolEvents = {
+  type: "tool:start";
+  toolName: string;
+  risk?: Json;
+} | {
+  type: "tool:end";
+  toolName: string;
+  outcome: "ok" | "error" | "denied";
+  durationMs: number;
+};
+type WorkflowEventBody = CoreEvents | AgentEvents | ToolEvents;
 /**
-* Tier selection (docs/04, section 8.4): the model's declared ceiling
-* bounds the tier; the native tier additionally requires a
-* strict-compatible canonical schema (docs/04, section 5.2: relying on
-* silent server-side fallback is forbidden), degrading to forced-tool.
-* Prefill is not a tier.
+* The envelope (docs/09 section 1.1): seq is an independent per-run
+* telemetry counter, strictly increasing in emission order and DISTINCT
+* from JournalEntry.seq (never compare or join the two; entryRef fields
+* carry journal seqs explicitly). ts is wall clock, telemetry only.
+* replayed is true only on re-emitted journal-backed lifecycle events
+* (docs/09 section 1.5); stream deltas are never re-emitted.
 */
-declare function selectStructuredOutputTier(caps: ModelCaps, canonicalSchema: JsonSchema): StructuredOutputTier;
-/** True when `tier` is at or below the model's declared ceiling. */
-declare function tierWithinCaps(tier: StructuredOutputTier, caps: ModelCaps): boolean;
+type WorkflowEvent = {
+  runId: string;
+  seq: number;
+  ts: string;
+  spanId: string;
+  parentSpanId?: string;
+  replayed?: boolean;
+} & WorkflowEventBody;
 //#endregion
 //#region src/model/router.d.ts
 /**
@@ -1603,46 +1791,6 @@ interface EffectiveUsageLimits {
 * defaults.limits (docs/06, section "UsageLimits").
 */
 declare function mergeUsageLimits(call?: UsageLimits, profile?: UsageLimits, engine?: UsageLimits): EffectiveUsageLimits;
-//#endregion
-//#region src/runtime/model-retry.d.ts
-declare class ModelRetry extends Error {
-  readonly data?: Json;
-  constructor(message: string, opts?: {
-    data?: Json;
-  });
-}
-/** Bounded semantic retries per tool call chain (docs/06, Appendix A). */
-declare const DEFAULT_MODEL_RETRY_ATTEMPTS = 2;
-//#endregion
-//#region src/runtime/structured-output.d.ts
-/** The synthesized forced-tool contract name. */
-declare const EMIT_RESULT_TOOL = "emit_result";
-/**
-* Applies the selected tier to an outgoing request. Native rides
-* ChatRequest.schema; forced-tool synthesizes a single emit_result tool
-* with toolChoice pinned to it; prompt injects the schema into the last
-* user message.
-*/
-declare function applyStructuredOutputTier(req: ChatRequest, tier: StructuredOutputTier, schema: JsonSchema): ChatRequest;
-/** One collected model turn, assembled from the stream by the agent loop. */
-interface CollectedTurn {
-  text: string;
-  toolCalls: Array<{
-    id: string;
-    name: string;
-    args: unknown;
-  }>;
-}
-/**
-* Extracts the structured-output candidate from a collected turn per tier.
-* Returns `undefined` when the turn carries no candidate (for example the
-* model answered prose without the forced tool call).
-*/
-declare function extractCandidate(turn: CollectedTurn, tier: StructuredOutputTier): {
-  raw: unknown;
-} | undefined;
-/** The bounded re-prompt message sent back to the model on a validation miss. */
-declare function formatRePrompt(issues: Issue$1[], attempt: number, maxAttempts: number): Msg;
 //#endregion
 //#region src/runtime/agent-loop.d.ts
 type AgentStatus = "ok" | "error" | "limit" | "cancelled" | "skipped" | "escalated";
@@ -2007,6 +2155,14 @@ interface Ctx<P extends ErrorPolicy = "strict"> {
     deps?: Json[];
     key?: string;
   }): Promise<T>;
+  /**
+  * Suspends this position on a journaled entry until an external
+  * resolution arrives (docs/06, section 2.7). NO deadline in v1.
+  */
+  awaitExternal<T = Json>(key: string, o?: {
+    schema?: SchemaSpec;
+    prompt?: string;
+  }): Promise<T>;
   phase<T>(name: string, fn: () => Promise<T>): Promise<T>;
   log(level: "debug" | "info" | "warn" | "error", msg: string, data?: Json): void;
   budget: {
@@ -2083,6 +2239,8 @@ interface RunInternals {
   cost: CostAttribution;
   priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
   runSignal?: AbortSignal;
+  /** Open external suspensions plus the quiescence activity counter (M2-T08). */
+  external?: ExternalRegistry;
   mintTranscriptRef: () => string;
   now: () => number;
 }
@@ -2099,152 +2257,6 @@ declare function createCtx(internals: RunInternals): Ctx<ErrorPolicy>;
 * Validates args against the declared schema, then executes single-pass.
 */
 declare function executeWorkflow<A, R>(internals: RunInternals, wf: Workflow<A, R>, args: A): Promise<R>;
-//#endregion
-//#region src/l0/events.d.ts
-/** docs/09 section 1.4, run lifecycle and core telemetry (M1 subset). */
-type CoreEvents = {
-  type: "run:start";
-  workflow: string;
-  resumed: boolean;
-} | {
-  type: "run:end";
-  status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
-  totalUsd: number;
-} | {
-  type: "phase:start";
-  phase: string;
-} | {
-  type: "log";
-  level: "debug" | "info" | "warn" | "error";
-  msg: string;
-  data?: Json;
-} | {
-  type: "budget:update";
-  spentUsd: number;
-  remainingUsd: number | null;
-  committedReserveUsd: number;
-} | {
-  type: "external:waiting";
-  key: string;
-  entryRef: number;
-  prompt?: string;
-  deadlineAt?: string;
-} | {
-  type: "approval:pending";
-  toolName: string;
-  entryRef: number;
-  deadlineAt?: string;
-} | {
-  type: "child:start";
-  workflow: string;
-  scope: string;
-} | {
-  type: "child:end";
-  workflow: string;
-  scope: string;
-  status: string;
-};
-/** docs/09 section 1.4, agent lifecycle. */
-type AgentEvents = {
-  type: "agent:queued";
-  agentType: string;
-  label?: string;
-} | {
-  type: "agent:start";
-  agentType: string;
-  label?: string;
-  model: string;
-  role: string;
-} | {
-  type: "agent:end";
-  agentType: string;
-  label?: string;
-  status: string;
-  usage: Usage;
-  costUsd: number;
-  entryRef: number;
-} | {
-  type: "agent:error";
-  agentType: string;
-  label?: string;
-  error: WireError;
-  willRetry: boolean;
-} | {
-  type: "agent:schema-retry";
-  agentType: string;
-  attempt: number;
-  maxAttempts: number;
-} | {
-  type: "agent:stream";
-  delta: string;
-};
-/** docs/09 section 1.4, tool lifecycle (emitters arrive with the tool system, M3). */
-type ToolEvents = {
-  type: "tool:start";
-  toolName: string;
-  risk?: Json;
-} | {
-  type: "tool:end";
-  toolName: string;
-  outcome: "ok" | "error" | "denied";
-  durationMs: number;
-};
-type WorkflowEventBody = CoreEvents | AgentEvents | ToolEvents;
-/**
-* The envelope (docs/09 section 1.1): seq is an independent per-run
-* telemetry counter, strictly increasing in emission order and DISTINCT
-* from JournalEntry.seq (never compare or join the two; entryRef fields
-* carry journal seqs explicitly). ts is wall clock, telemetry only.
-* replayed is true only on re-emitted journal-backed lifecycle events
-* (docs/09 section 1.5); stream deltas are never re-emitted.
-*/
-type WorkflowEvent = {
-  runId: string;
-  seq: number;
-  ts: string;
-  spanId: string;
-  parentSpanId?: string;
-  replayed?: boolean;
-} & WorkflowEventBody;
-//#endregion
-//#region src/engine/events.d.ts
-/**
-* Spans form a tree per run; spanId values are engine-minted opaque
-* strings, unique per run, pure telemetry, never identity (docs/09,
-* section "Span hierarchy").
-*/
-declare class SpanRegistry {
-  private readonly parents;
-  private counter;
-  mint(parentSpanId?: string): string;
-  parentOf(spanId: string): string | undefined;
-}
-/**
-* The per-run event bus. seq is strictly increasing in emission order;
-* `iterate()` yields events from subscription onward; `on()` is the
-* callback form over the same stream and the same seq values.
-*/
-declare class EventBus {
-  private readonly runId;
-  private readonly spans;
-  private readonly now;
-  private readonly subscribers;
-  private readonly listeners;
-  private seq;
-  private ended;
-  constructor(options: {
-    runId: string;
-    spans: SpanRegistry;
-    now?: () => number;
-  });
-  emit(body: WorkflowEventBody, spanId: string, replayed?: boolean): WorkflowEvent;
-  on<T extends WorkflowEvent["type"]>(type: T, cb: (event: Extract<WorkflowEvent, {
-    type: T;
-  }>) => void): () => void;
-  /** Ends every open iterator once the run has settled. */
-  end(): void;
-  iterate(): AsyncIterable<WorkflowEvent>;
-}
 //#endregion
 //#region src/engine/run-handle.d.ts
 /** Suspensions still open at settle time; producers arrive with M2. */
@@ -2297,11 +2309,192 @@ interface RunHandle<R> {
   on<T extends WorkflowEvent["type"]>(type: T, cb: (e: Extract<WorkflowEvent, {
     type: T;
   }>) => void): () => void;
+  /**
+  * Resolves an open awaitExternal suspension (DEF-4 signature): applied
+  * when this attempt wins the first-closing-wins fold; repeated
+  * resolution is defined behavior, not an error. An invalid live payload
+  * throws InvalidResolutionError and journals nothing.
+  */
+  resolveExternal(key: string, value: Json): Promise<ResolutionOutcome>;
   /** Cooperative cancellation; the run settles 'cancelled' with a complete CostReport. */
   cancel(reason?: string): Promise<void>;
 }
 /** Folds the per-run attribution buckets into the normative CostReport. */
 declare function buildCostReport(attribution: CostAttribution, totalUsd: number): CostReport;
+//#endregion
+//#region src/engine/external.d.ts
+/**
+* Per-run registry of open external suspensions plus the run's activity
+* counter: when every in-flight branch is blocked on suspensions
+* (activity zero, waiters open), the run quiesces into outcome
+* 'suspended' (docs/06, section 2.7).
+*/
+declare class ExternalRegistry {
+  private readonly replayer;
+  private readonly waiters;
+  private readonly keysByScope;
+  private activity;
+  private quiesceListener?;
+  private quiesceScheduled;
+  constructor(replayer: Replayer);
+  /** Wraps every non-suspension async operation (agents, steps). */
+  enter(): () => void;
+  onQuiesce(listener: (pending: PendingExternal[]) => void): void;
+  pending(): PendingExternal[];
+  private scheduleQuiesceCheck;
+  /**
+  * ctx.awaitExternal: journal (or re-match) the suspended entry and park
+  * until a resolution wins the first-closing-wins fold.
+  */
+  awaitExternal(scope: string, spanId: string, key: string, options?: {
+    schema?: SchemaSpec;
+    prompt?: string;
+  }): Promise<Json>;
+  /**
+  * RunHandle.resolveExternal: the live path validates BEFORE append and
+  * throws InvalidResolutionError without journaling; a winning attempt
+  * settles the waiting promise in place (docs/03, section 8.7).
+  */
+  resolveExternal(key: string, value: Json): Promise<ResolutionOutcome>;
+}
+//#endregion
+//#region src/stores/inmemory.d.ts
+declare class InMemoryStore implements JournalStore {
+  private readonly runs;
+  private readonly metas;
+  private warned;
+  append(runId: string, e: JournalEntry): Promise<void>;
+  load(runId: string): Promise<JournalEntry[]>;
+  putMeta(m: RunMeta): Promise<void>;
+  listRuns(f?: RunFilter): Promise<RunMeta[]>;
+  delete(runId: string): Promise<void>;
+  private warnOnce;
+}
+/**
+* In-memory TranscriptStore. Refs follow the `<runId>/<name>` convention
+* so list(runId) can filter without a side index.
+*/
+declare class InMemoryTranscriptStore implements TranscriptStore {
+  private readonly blobs;
+  put(ref: string, blob: Bytes): Promise<void>;
+  get(ref: string): Promise<Bytes | null>;
+  list(runId: string): Promise<string[]>;
+}
+//#endregion
+//#region src/stores/jsonl.d.ts
+declare class JsonlFileStore implements JournalStore {
+  private readonly dir;
+  constructor(options: {
+    dir: string;
+  });
+  private journalPath;
+  private metaPath;
+  append(runId: string, e: JournalEntry): Promise<void>;
+  load(runId: string): Promise<JournalEntry[]>;
+  private repairTornTail;
+  putMeta(m: RunMeta): Promise<void>;
+  listRuns(f?: RunFilter): Promise<RunMeta[]>;
+  delete(runId: string): Promise<void>;
+}
+//#endregion
+//#region src/model/caps.d.ts
+type StructuredOutputTier = "native" | "forced-tool" | "prompt";
+/**
+* Strict-schema compatibility as both first-class providers define it:
+* every object node declares `additionalProperties: false` and lists every
+* property in `required` (docs/04, section 5.2). Boolean schemas and
+* non-object shapes are trivially compatible.
+*/
+declare function isStrictCompatibleSchema(schema: JsonSchema | boolean): boolean;
+/**
+* Tier selection (docs/04, section 8.4): the model's declared ceiling
+* bounds the tier; the native tier additionally requires a
+* strict-compatible canonical schema (docs/04, section 5.2: relying on
+* silent server-side fallback is forbidden), degrading to forced-tool.
+* Prefill is not a tier.
+*/
+declare function selectStructuredOutputTier(caps: ModelCaps, canonicalSchema: JsonSchema): StructuredOutputTier;
+/** True when `tier` is at or below the model's declared ceiling. */
+declare function tierWithinCaps(tier: StructuredOutputTier, caps: ModelCaps): boolean;
+//#endregion
+//#region src/runtime/model-retry.d.ts
+declare class ModelRetry extends Error {
+  readonly data?: Json;
+  constructor(message: string, opts?: {
+    data?: Json;
+  });
+}
+/** Bounded semantic retries per tool call chain (docs/06, Appendix A). */
+declare const DEFAULT_MODEL_RETRY_ATTEMPTS = 2;
+//#endregion
+//#region src/runtime/structured-output.d.ts
+/** The synthesized forced-tool contract name. */
+declare const EMIT_RESULT_TOOL = "emit_result";
+/**
+* Applies the selected tier to an outgoing request. Native rides
+* ChatRequest.schema; forced-tool synthesizes a single emit_result tool
+* with toolChoice pinned to it; prompt injects the schema into the last
+* user message.
+*/
+declare function applyStructuredOutputTier(req: ChatRequest, tier: StructuredOutputTier, schema: JsonSchema): ChatRequest;
+/** One collected model turn, assembled from the stream by the agent loop. */
+interface CollectedTurn {
+  text: string;
+  toolCalls: Array<{
+    id: string;
+    name: string;
+    args: unknown;
+  }>;
+}
+/**
+* Extracts the structured-output candidate from a collected turn per tier.
+* Returns `undefined` when the turn carries no candidate (for example the
+* model answered prose without the forced tool call).
+*/
+declare function extractCandidate(turn: CollectedTurn, tier: StructuredOutputTier): {
+  raw: unknown;
+} | undefined;
+/** The bounded re-prompt message sent back to the model on a validation miss. */
+declare function formatRePrompt(issues: Issue$1[], attempt: number, maxAttempts: number): Msg;
+//#endregion
+//#region src/engine/events.d.ts
+/**
+* Spans form a tree per run; spanId values are engine-minted opaque
+* strings, unique per run, pure telemetry, never identity (docs/09,
+* section "Span hierarchy").
+*/
+declare class SpanRegistry {
+  private readonly parents;
+  private counter;
+  mint(parentSpanId?: string): string;
+  parentOf(spanId: string): string | undefined;
+}
+/**
+* The per-run event bus. seq is strictly increasing in emission order;
+* `iterate()` yields events from subscription onward; `on()` is the
+* callback form over the same stream and the same seq values.
+*/
+declare class EventBus {
+  private readonly runId;
+  private readonly spans;
+  private readonly now;
+  private readonly subscribers;
+  private readonly listeners;
+  private seq;
+  private ended;
+  constructor(options: {
+    runId: string;
+    spans: SpanRegistry;
+    now?: () => number;
+  });
+  emit(body: WorkflowEventBody, spanId: string, replayed?: boolean): WorkflowEvent;
+  on<T extends WorkflowEvent["type"]>(type: T, cb: (event: Extract<WorkflowEvent, {
+    type: T;
+  }>) => void): () => void;
+  /** Ends every open iterator once the run has settled. */
+  end(): void;
+  iterate(): AsyncIterable<WorkflowEvent>;
+}
 //#endregion
 //#region src/runner/inprocess.d.ts
 /**
@@ -2391,4 +2584,4 @@ interface Engine {
 declare function hashWorkflowBody(wf: Workflow<never, never> | Workflow<unknown, unknown>): string;
 declare function createEngine(options: CreateEngineOptions): Engine;
 //#endregion
-export { AbandonFold, AbandonPayload, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentResult, AgentStatus, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetDefaults, BudgetExhaustedError, BudgetHooks, type Bytes, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, ChildIdentityInput, CollectOpts, CollectedTurn, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationReport, EventBus, ExternalIdentityInput, FinishInfo, Gate, HashVersion, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, MatchResult, type ModelCaps, ModelChoice, ModelRef, ModelRetry, ModelSpec, Msg, NonSerializableValueError, OnEscalation, OperationDisposition, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PipelineCollected, PipelineOpts, PlanInvariantError, type Pricing, type ProviderAdapter, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionLayer, ResolutionPayload, ResolvedInvocation, ResumeReport, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, SinglePhaseAppend, SpanMinter, SpanRegistry, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, TerminalPatch, ToolChoice, ToolContract, type ToolEvents, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, type WorkflowEvent, type WorkflowEventBody, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, canonicalizeSchema, classifyAgentError, createCanonicalIdMinter, createCtx, createEngine, currentOnlyKeyRing, defineWorkflow, deriveContentKey, deriverV1, deriverV2, dispositionHook, executeWorkflow, extractCandidate, formatRePrompt, formatScopePath, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, mergeUsageLimits, modelSpecIdentity, normalizeEntry, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, projectIdentity, projectToJsonSchema, registryKeyRing, replayDisposition, resolveModelInvocation, roundOneDisposition, runAgent, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, tierWithinCaps, toJournalValue, toolsetHash, validateEntryShape, validateSchemaSpec, workflowScope };
+export { AbandonAttempt, AbandonFold, AbandonPayload, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentResult, AgentStatus, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetDefaults, BudgetExhaustedError, BudgetHooks, type Bytes, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, ChildIdentityInput, CollectOpts, CollectedTurn, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationReport, EventBus, ExternalIdentityInput, ExternalRegistry, FinishInfo, Gate, HashVersion, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, MatchResult, type ModelCaps, ModelChoice, ModelRef, ModelRetry, ModelSpec, Msg, NonSerializableValueError, OnEscalation, OperationDisposition, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PipelineCollected, PipelineOpts, PlanInvariantError, type Pricing, type ProviderAdapter, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResumeReport, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, SinglePhaseAppend, SpanMinter, SpanRegistry, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TerminalPatch, ToolChoice, ToolContract, type ToolEvents, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, type WorkflowEvent, type WorkflowEventBody, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, canonicalizeSchema, classifyAgentError, createCanonicalIdMinter, createCtx, createEngine, currentOnlyKeyRing, defineWorkflow, deriveContentKey, deriverV1, deriverV2, dispositionHook, executeWorkflow, extractCandidate, formatRePrompt, formatScopePath, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, mergeUsageLimits, modelSpecIdentity, normalizeEntry, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, projectIdentity, projectToJsonSchema, registryKeyRing, replayDisposition, resolveModelInvocation, roundOneDisposition, runAgent, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, tierWithinCaps, toJournalValue, toolsetHash, validateEntryShape, validateSchemaSpec, workflowScope };

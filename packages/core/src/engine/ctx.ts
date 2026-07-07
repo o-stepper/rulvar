@@ -49,6 +49,7 @@ import { runAgent, type AgentResult } from '../runtime/agent-loop.js';
 import { mergeUsageLimits, type UsageLimits } from '../runtime/usage-limits.js';
 import { admissionReserveUsd, type RunBudget, type Spend } from './budget.js';
 import { Semaphore } from './scheduler.js';
+import type { ExternalRegistry } from './external.js';
 
 export type ErrorPolicy = 'strict' | 'lenient';
 
@@ -281,6 +282,12 @@ export interface Ctx<P extends ErrorPolicy = 'strict'> {
     o?: { deps?: Json[]; key?: string },
   ): Promise<T>;
 
+  /**
+   * Suspends this position on a journaled entry until an external
+   * resolution arrives (docs/06, section 2.7). NO deadline in v1.
+   */
+  awaitExternal<T = Json>(key: string, o?: { schema?: SchemaSpec; prompt?: string }): Promise<T>;
+
   phase<T>(name: string, fn: () => Promise<T>): Promise<T>;
   log(level: 'debug' | 'info' | 'warn' | 'error', msg: string, data?: Json): void;
 
@@ -376,6 +383,8 @@ export interface RunInternals {
   cost: CostAttribution;
   priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
   runSignal?: AbortSignal;
+  /** Open external suspensions plus the quiescence activity counter (M2-T08). */
+  external?: ExternalRegistry;
   mintTranscriptRef: () => string;
   now: () => number;
 }
@@ -743,10 +752,16 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       runAgentOptions.signal = branchSignal;
     }
 
-    const result = await internals.semaphore.withSlot(
-      () => runAgent<S>(runAgentOptions),
-      () => internals.events.emit({ type: 'agent:queued', agentType, label: opts.label }, spanId),
-    );
+    const exitActivity = internals.external?.enter();
+    let result: Awaited<ReturnType<typeof runAgent<S>>>;
+    try {
+      result = await internals.semaphore.withSlot(
+        () => runAgent<S>(runAgentOptions),
+        () => internals.events.emit({ type: 'agent:queued', agentType, label: opts.label }, spanId),
+      );
+    } finally {
+      exitActivity?.();
+    }
     internals.budget.releaseReserve(reserve);
 
     const terminalPatch: Parameters<Replayer['appendTerminal']>[1] = {
@@ -1070,6 +1085,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
               kind: 'step',
               spanId,
             });
+      const exitActivity = internals.external?.enter();
       try {
         const value = await fn();
         await internals.replayer.appendTerminal(running.seq, {
@@ -1089,7 +1105,25 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
               };
         await internals.replayer.appendTerminal(running.seq, { status: 'error', error: wire });
         throw thrown;
+      } finally {
+        exitActivity?.();
       }
+    },
+
+    awaitExternal: async <T = Json>(
+      key: string,
+      o?: { schema?: SchemaSpec; prompt?: string },
+    ): Promise<T> => {
+      if (internals.external === undefined) {
+        throw new ConfigError('awaitExternal requires the engine run context (createEngine)');
+      }
+      const state = current();
+      return internals.external.awaitExternal(
+        state.scope,
+        internals.spans.mint(state.spanId),
+        key,
+        o,
+      ) as Promise<T>;
     },
 
     phase: async <T>(name: string, fn: () => Promise<T>): Promise<T> => {

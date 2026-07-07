@@ -23,6 +23,15 @@ import type { JournalStore } from '../l0/spi/store.js';
 import { toJournalValue } from './serializable.js';
 import { validateEntryShape } from './kinds.js';
 import {
+  ResolutionArbiter,
+  ResolutionFold,
+  type AbandonAttempt,
+  type ResolutionAttempt,
+  type ResolutionOutcome,
+  type SuspensionState,
+} from './resolution.js';
+import type { AbandonPayload, ResolutionPayload } from '../l0/entries.js';
+import {
   JournalMatcher,
   type JournalOperation,
   type KeyRing,
@@ -91,6 +100,8 @@ export class Replayer {
   private readonly entries: JournalEntry[] = [];
   private readonly ordinals = new Map<string, number>();
   private readonly matcher: JournalMatcher;
+  private readonly foldInternal: ResolutionFold;
+  private readonly arbiter: ResolutionArbiter;
   private readonly invalidated = new Set<number>();
   private queue: Promise<unknown> = Promise.resolve();
   private seq = 0;
@@ -128,6 +139,10 @@ export class Replayer {
       matcherOptions.disposition = options.disposition;
     }
     this.matcher = new JournalMatcher(priors, matcherOptions);
+    this.foldInternal = new ResolutionFold(priors);
+    this.arbiter = new ResolutionArbiter(this.foldInternal, {
+      appendRefEntry: (input) => this.appendRefEntry(input),
+    });
     for (const entry of priors) {
       this.entries.push(entry);
       if (entry.seq >= this.seq) {
@@ -178,6 +193,67 @@ export class Replayer {
 
   resumeReport(): ResumeReport {
     return this.matcher.report();
+  }
+
+  /** The DEF-4 fold over this run's journal (prior plus live appends). */
+  get fold(): ResolutionFold {
+    return this.foldInternal;
+  }
+
+  /** Ref-entry append used by the ResolutionArbiter; O2-checked by shape validation. */
+  appendRefEntry(input: {
+    kind: 'resolution' | 'abandon';
+    ref: number;
+    scope: string;
+    spanId: string;
+    resolution?: ResolutionPayload;
+    abandon?: AbandonPayload;
+  }): Promise<JournalEntry> {
+    return this.enqueue(() => {
+      const entry: JournalEntry = {
+        hashVersion: CURRENT_HASH_VERSION,
+        seq: this.seq,
+        ref: input.ref,
+        // The scope duplicates the target's scope for telemetry only;
+        // ref-entries never enter cursors (docs/03, section 8.2).
+        scope: input.scope,
+        key: '',
+        ordinal: 0,
+        kind: input.kind,
+        status: 'ok',
+        spanId: input.spanId,
+        startedAt: new Date(this.now()).toISOString(),
+        ...(input.resolution === undefined ? {} : { resolution: input.resolution }),
+        ...(input.abandon === undefined ? {} : { abandon: input.abandon }),
+      };
+      this.seq += 1;
+      return this.persist(entry);
+    });
+  }
+
+  /**
+   * Submits a resolution attempt through the per-target FIFO arbiter
+   * (docs/03, section 8.7). Losing attempts are journaled noops.
+   */
+  resolveSuspended(target: number, attempt: ResolutionAttempt): Promise<ResolutionOutcome> {
+    const targetEntry = this.entries.find((entry) => entry.seq === target);
+    if (targetEntry === undefined || targetEntry.status !== 'suspended') {
+      throw new ConfigError(`resolveSuspended: seq ${target} is not a suspended entry`);
+    }
+    return this.arbiter.submitResolution(target, targetEntry.scope, targetEntry.spanId, attempt);
+  }
+
+  abandonBranch(attempt: AbandonAttempt): Promise<ResolutionOutcome> {
+    const targetEntry = this.entries.find((entry) => entry.seq === attempt.target);
+    if (targetEntry === undefined) {
+      throw new ConfigError(`abandonBranch: seq ${attempt.target} does not exist`);
+    }
+    return this.arbiter.submitAbandon(targetEntry.scope, targetEntry.spanId, attempt);
+  }
+
+  /** Pure fold view, snapshot-pinned (docs/03, section 8.7). */
+  suspensionState(target: number): SuspensionState {
+    return this.foldInternal.suspensionState(target);
   }
 
   /**
@@ -389,6 +465,11 @@ export class Replayer {
     }
     await this.store.append(this.runId, entry);
     this.entries.push(entry);
+    if (entry.status === 'suspended') {
+      this.foldInternal.registerSuspended(entry);
+    } else if (entry.kind !== 'resolution' && entry.kind !== 'abandon') {
+      this.foldInternal.registerEntry(entry);
+    }
     return entry;
   }
 
