@@ -87,6 +87,13 @@ export interface TerminalPatch {
   artifacts?: unknown;
   /** Terminal escalated entries: the validated EscalationReport. */
   escalation?: unknown;
+  /**
+   * Engine-decided terminal abort classes (the no-progress abort) stamp
+   * memoizeOutcome on the TERMINAL entry so the frozen memoize rules
+   * replay them on every resume; the running entry keeps the user's
+   * policy verbatim (docs/03, section 6.6, M3 amendment).
+   */
+  memoizeOutcome?: boolean;
   site?: string;
 }
 
@@ -404,6 +411,9 @@ export class Replayer {
       }
       if (patch.escalation !== undefined) {
         entry.escalation = toJournalValue(patch.escalation, 'escalation report');
+      }
+      if (patch.memoizeOutcome !== undefined) {
+        entry.memoizeOutcome = patch.memoizeOutcome;
       }
       return this.persist(entry);
     });

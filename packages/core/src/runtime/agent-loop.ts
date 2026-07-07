@@ -42,6 +42,7 @@ import {
   type EscalationRequest,
 } from './escalation.js';
 import { DEFAULT_MODEL_RETRY_ATTEMPTS, ModelRetry } from './model-retry.js';
+import { NoProgressDetector, type AbortClass } from './no-progress.js';
 import {
   applyStructuredOutputTier,
   extractCandidate,
@@ -91,6 +92,12 @@ export interface AgentResult<T> {
    * consumes and removes it; consumers read `escalation`.
    */
   escalationRequest?: EscalationRequest;
+  /**
+   * The dedicated first-class abort class (M3-T08): present on the
+   * engine-decided no-progress abort (status 'limit'), never on user
+   * cancellation or ordinary cap hits.
+   */
+  abortClass?: AbortClass;
 }
 
 export type EscalatedResult<T> = AgentResult<T> & {
@@ -527,6 +534,8 @@ export async function runAgent<S extends SchemaSpec>(
   let usageApprox = false;
   let toolCallsUsed = 0;
   let escalationRequest: EscalationRequest | undefined;
+  let abortClass: AbortClass | undefined;
+  const noProgress = new NoProgressDetector(limits.noProgressTurns);
   const modelRetryCounts = new Map<string, number>();
 
   const servedBy: ModelRef = options.resolved.ref;
@@ -942,6 +951,7 @@ export async function runAgent<S extends SchemaSpec>(
     // next model turn (docs/08, sections "Permission chain" and "Verdict
     // semantics"; docs/06, section "Agent runtime binding").
     if (options.tools !== undefined && outcome.turn.toolCalls.length > 0) {
+      noProgress.recordTurn({ toolCalls: outcome.turn.toolCalls.length });
       const { parts, limitHit, escalated } = await runToolCalls(outcome.turn.toolCalls, []);
       if (parts.length > 0) {
         messages.push({ role: 'tool', parts });
@@ -990,6 +1000,17 @@ export async function runAgent<S extends SchemaSpec>(
       status = 'error';
       agentError = { kind: 'schema-mismatch', retryable: false, issues };
       errorMessage = issues[0]?.message;
+      break;
+    }
+    // A schema re-prompt turn produced neither tool calls nor artifact
+    // deltas; the loop is about to continue, so the no-progress detector
+    // consumes it (M3-T08; docs/06 Appendix A, N = 3).
+    noProgress.recordTurn({ toolCalls: 0 });
+    if (noProgress.tripped) {
+      status = 'limit';
+      abortClass = 'no-progress';
+      agentError = { kind: 'terminal', retryable: false };
+      errorMessage = noProgress.describe();
       break;
     }
     events?.emit({
@@ -1125,6 +1146,9 @@ export async function runAgent<S extends SchemaSpec>(
   }
   if (escalationRequest !== undefined) {
     result.escalationRequest = escalationRequest;
+  }
+  if (abortClass !== undefined) {
+    result.abortClass = abortClass;
   }
   if (errorMessage !== undefined) {
     result.errorMessage = errorMessage;

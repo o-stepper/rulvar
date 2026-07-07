@@ -442,6 +442,7 @@ interface UsageLimits {
   maxOutputTokensPerTurn?: number; // unlimited by default (model caps still apply)
   timeoutMs?: number;              // per-agent wall clock; unlimited by default
   streamIdleTimeoutMs?: number;    // default 120000
+  noProgressTurns?: number;        // the no-progress detector N; default 3 (Appendix A; M3 amendment)
 }
 // The run-level deadline is RunOptions.deadlineAt (section 10.3), not a UsageLimits field.
 ```
@@ -453,7 +454,7 @@ Normative semantics:
 - Interaction with `abortSiblings`: a `'limit'` branch is a settled outcome inside `ctx.parallel`; it does NOT fire `onError` and does NOT abort siblings. Only a thrown error aborts siblings under `'strict'`.
 - `streamIdleTimeoutMs` measures the gap between stream events; expiry severs the stream and surfaces as a retryable transport-class `AgentError`, subject to `RetryPolicy` under the journal (04-model-layer-spec.md, section "RetryPolicy under the journal"), not as `'limit'`.
 - The run-level deadline (`deadlineAt`) crossing cancels in-flight work; the run reports `'cancelled'` with the deadline recorded in the outcome error.
-- The no-progress abort class (N turns without tool calls or artifact deltas) is an engine-defined heuristic journaled as a first-class abort; its detector is an open question (14-open-questions.md, no-progress detector heuristic). It lands with M3.
+- The no-progress abort class (N turns without tool calls or artifact deltas; `noProgressTurns`, default 3 per Appendix A) is an engine-defined heuristic journaled as a first-class abort: the terminal entry carries status `limit` with the `no-progress` class marker and an engine-stamped `memoizeOutcome` on the terminal, so it replays without a live rerun and is never re-paid (03-journal-spec.md, section 6.6). The broader heuristic stays open (14-open-questions.md, OQ-15). Shipped with M3-T08.
 
 ## 7 Agent runtime binding
 
