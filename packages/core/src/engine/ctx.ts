@@ -37,7 +37,13 @@ import {
 } from '../l0/schema.js';
 import { deriveContentKey } from '../journal/identity.js';
 import { checkpointRefFor, decodeCheckpoint, encodeCheckpoint } from '../journal/checkpoint.js';
-import { ParallelSiteCounter, parallelScope, pipelineScope, ROOT_SCOPE } from '../journal/scope.js';
+import {
+  agentScope,
+  ParallelSiteCounter,
+  parallelScope,
+  pipelineScope,
+  ROOT_SCOPE,
+} from '../journal/scope.js';
 import type { Replayer } from '../journal/replayer.js';
 import type { JournalEntry } from '../l0/entries.js';
 import {
@@ -46,6 +52,12 @@ import {
   type ResolvedInvocation,
 } from '../model/router.js';
 import { runAgent, type AgentResult, type ToolRuntime } from '../runtime/agent-loop.js';
+import {
+  compilePermissionChain,
+  evaluatePermission,
+  type AgentProfilePermissions,
+  type PermissionConfig,
+} from '../runtime/permission-chain.js';
 import { mergeUsageLimits, type UsageLimits } from '../runtime/usage-limits.js';
 import { buildToolContext } from '../tools/context.js';
 import { resolveToolset, type ToolsOption } from '../tools/toolset-hash.js';
@@ -67,6 +79,8 @@ export interface AgentProfile {
   effort?: Effort;
   /** Toolset default; the resolved snapshot enters identity via toolsetHash. */
   tools?: ToolsOption;
+  /** Chain layers merged over engine defaults (docs/08, section 3.7). */
+  permissions?: AgentProfilePermissions;
   limits?: UsageLimits;
   /** Admission reserve hint in USD (budget layer 1). */
   estCost?: number;
@@ -383,6 +397,8 @@ export interface RunInternals {
     routing?: Partial<Record<InvocationRole, ModelSpec>>;
     profiles?: Record<string, AgentProfile>;
     limits?: UsageLimits;
+    /** Engine-wide permission chain layers (docs/08, section 3). */
+    permissions?: PermissionConfig;
   };
   errorPolicy: ErrorPolicy;
   dropped: DroppedItem[];
@@ -790,26 +806,75 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       }
       const toolSignal =
         toolSignals.length > 0 ? AbortSignal.any(toolSignals) : new AbortController().signal;
+      const contextFor = (): ReturnType<typeof buildToolContext> =>
+        buildToolContext({
+          runId: internals.runId,
+          agentType,
+          ...(opts.label === undefined ? {} : { label: opts.label }),
+          cwd: process.cwd(),
+          isolation: opts.isolation ?? 'none',
+          signal: toolSignal,
+          mintSpan: () => internals.spans.mint(spanId),
+          emitLog: (toolSpanId, level, msg, data) =>
+            internals.events.emit(
+              data === undefined ? { type: 'log', level, msg } : { type: 'log', level, msg, data },
+              toolSpanId,
+            ),
+        });
+      // The chain is the single approval surface for every dispatch,
+      // regardless of tool origin (docs/08, section 3.1). Profile layers
+      // merge over engine defaults; an ask verdict suspends on the
+      // journal in the agent's child scope.
+      const chain = compilePermissionChain(internals.defaults.permissions, profile?.permissions);
       toolRuntime = {
         defs: toolset.tools,
         contracts: toolset.contracts,
-        contextFor: () =>
-          buildToolContext({
-            runId: internals.runId,
-            agentType,
-            ...(opts.label === undefined ? {} : { label: opts.label }),
-            cwd: process.cwd(),
-            isolation: opts.isolation ?? 'none',
-            signal: toolSignal,
-            mintSpan: () => internals.spans.mint(spanId),
-            emitLog: (toolSpanId, level, msg, data) =>
-              internals.events.emit(
-                data === undefined
-                  ? { type: 'log', level, msg }
-                  : { type: 'log', level, msg, data },
-                toolSpanId,
-              ),
-          }),
+        contextFor,
+        permission: async (call) => {
+          const def = toolset.tools.find((candidate) => candidate.name === call.name);
+          if (def === undefined) {
+            // Unknown names fall through: the loop reports them to the
+            // model as error tool results.
+            return { kind: 'allow', input: call.args };
+          }
+          const verdict = await evaluatePermission(chain, def, call.args, contextFor());
+          if (verdict.verdict === 'allow') {
+            return { kind: 'allow', input: verdict.input };
+          }
+          if (verdict.verdict === 'deny') {
+            return {
+              kind: 'deny',
+              reason:
+                verdict.decidedBy === 'deny-rule'
+                  ? 'a deny rule matched'
+                  : `denied by ${verdict.decidedBy}`,
+            };
+          }
+          return {
+            kind: 'ask',
+            input: verdict.input,
+            suspend: async () => {
+              if (internals.external === undefined) {
+                throw new ConfigError(
+                  'tool approvals require the engine run context (createEngine)',
+                );
+              }
+              return internals.external.awaitApproval({
+                scope: agentScope(state.scope, running.seq),
+                spanId: internals.spans.mint(spanId),
+                toolName: call.name,
+                input: verdict.input as Json,
+                ...(def.risk === undefined ? {} : { risk: def.risk }),
+                onPending: (entry, replayed) =>
+                  internals.events.emit(
+                    { type: 'approval:pending', toolName: call.name, entryRef: entry.seq },
+                    spanId,
+                    replayed,
+                  ),
+              });
+            },
+          };
+        },
       };
     }
     const runAgentOptions: Parameters<typeof runAgent<S>>[0] = {

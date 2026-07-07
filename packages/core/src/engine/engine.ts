@@ -32,6 +32,7 @@ import { dispositionHook } from '../journal/disposition.js';
 import type { ResumeReport } from '../journal/matching.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { buildAdapterRegistry, parseModelRef } from '../model/router.js';
+import type { PermissionConfig } from '../runtime/permission-chain.js';
 import type { UsageLimits } from '../runtime/usage-limits.js';
 import { RunBudget } from './budget.js';
 import {
@@ -59,6 +60,8 @@ export interface EngineDefaults {
   routing?: Partial<Record<InvocationRole, ModelSpec>>;
   profiles?: Record<string, AgentProfile>;
   limits?: UsageLimits;
+  /** Engine-wide permission chain layers (docs/08, section 3). */
+  permissions?: PermissionConfig;
 }
 
 export interface BudgetDefaults {
@@ -272,6 +275,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         ...(defaults.limits === undefined && opts?.limits === undefined
           ? {}
           : { limits: { ...defaults.limits, ...opts?.limits } }),
+        ...(defaults.permissions === undefined ? {} : { permissions: defaults.permissions }),
       },
       errorPolicy: wf.errorPolicy,
       dropped: [],
