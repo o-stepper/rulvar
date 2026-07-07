@@ -1,6 +1,6 @@
 {
   "name": "@lurker/openai",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "lurker first-class provider adapter for the OpenAI Responses API, plus the openaiCompatible factory.",
   "type": "module",
   "license": "UNLICENSED",
