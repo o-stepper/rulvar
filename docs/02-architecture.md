@@ -325,7 +325,7 @@ Internal dependencies use workspace:* and shared external versions come from pnp
 eslint-plugin-lurker      -> (ESLint 9 peer only; no dependency on @lurker/core)
 @lurker/testing           -> @lurker/core (public API only)
 @lurker/evals             -> @lurker/core (public API only), @lurker/testing (VCR-deterministic eval CI)
-@lurker/cli               -> @lurker/core (public API only), @opentelemetry/api ^1.9 (optional peer), @lurker/planner (optional peer, loaded DYNAMICALLY by the plan command only; a missing install is a clear CLI error, never a load failure of the other commands; amended during M6-T11)
+@lurker/cli               -> @lurker/core (public API only), @opentelemetry/api ^1.9 (optional peer), @lurker/planner (loaded DYNAMICALLY by the plan command only and deliberately NOT a declared peer dependency: a workspace peer would major-cascade the fixed group on every planner bump under the changesets peer rule; a missing install is a clear CLI error, never a load failure of the other commands; amended during M6-T11)
 lurker (umbrella)         -> @lurker/core, @lurker/anthropic, @lurker/openai
 ```
 
