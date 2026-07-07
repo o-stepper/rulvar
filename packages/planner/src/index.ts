@@ -11,3 +11,9 @@ export {
   type CompileScriptOptions,
   type ScriptDiagnostic,
 } from './compile.js';
+export {
+  DEFAULT_SANDBOX_MEMORY_MB,
+  DEFAULT_SANDBOX_TIMEOUT_MS,
+  WorkerSandboxRunner,
+  type WorkerSandboxRunnerOptions,
+} from './sandbox-runner.js';

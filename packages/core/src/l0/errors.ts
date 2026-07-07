@@ -39,6 +39,7 @@ export type ErrorCode =
   | 'journal_miss'
   | 'budget_exhausted'
   | 'admission_rejected'
+  | 'sandbox_limit'
   | 'lease_held';
 
 /** docs/02 names the registry type LurkerErrorCode; both names are public. */
@@ -262,6 +263,21 @@ export class BudgetExhaustedError extends LurkerError {
  */
 export class AdmissionRejectedError extends LurkerError {
   readonly code = 'admission_rejected' as const;
+
+  constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
+    super(message, { retryable: false, ...opts });
+  }
+}
+
+/**
+ * A WorkerSandboxRunner resource-limit breach (docs/06, section 8.2;
+ * M6-T02): crossing timeoutMs or memoryMb terminates the worker and the
+ * run completes with outcome 'error' carrying this error's WireError
+ * projection; `data` records { reason: 'timeout' | 'memory', limit }.
+ * The class itself is never journaled as an entry of its own.
+ */
+export class SandboxError extends LurkerError {
+  readonly code = 'sandbox_limit' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
     super(message, { retryable: false, ...opts });

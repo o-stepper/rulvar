@@ -1,7 +1,9 @@
 import { defineConfig } from 'tsdown';
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  // sandbox-worker.js is the worker_threads entry loaded by
+  // WorkerSandboxRunner at runtime (new URL('./sandbox-worker.js', ...)).
+  entry: ['src/index.ts', 'src/sandbox-worker.ts'],
   platform: 'node',
   dts: true,
   // Emit dist/index.js and dist/index.d.ts to match the committed exports

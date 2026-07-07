@@ -24,12 +24,15 @@ import {
   readFileSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { JournalOrderViolation } from '../l0/errors.js';
 import type { JournalEntry } from '../l0/entries.js';
+import type { Bytes } from '../l0/json.js';
 import type { JournalStore, RunFilter, RunMeta } from '../l0/spi/store.js';
+import type { TranscriptStore } from '../l0/spi/transcript.js';
 
 const JOURNAL_SUFFIX = '.jsonl';
 const META_SUFFIX = '.meta.json';
@@ -159,5 +162,81 @@ export class JsonlFileStore implements JournalStore {
   async delete(runId: string): Promise<void> {
     rmSync(this.journalPath(runId), { force: true });
     rmSync(this.metaPath(runId), { force: true });
+  }
+}
+
+const TRANSCRIPT_SUFFIX = '.bin';
+
+/**
+ * File-backed TranscriptStore (M6-T02): blobs (transcripts, checkpoints,
+ * persisted CompiledWorkflow sources) as one file per ref under `dir`,
+ * so compiled runs resume across processes (docs/06, 10.2). Refs follow
+ * the `<runId>/<name>` convention; each path segment is checked
+ * filesystem-safe and nested segments become directories.
+ */
+export class FileTranscriptStore implements TranscriptStore {
+  private readonly dir: string;
+
+  constructor(options: { dir: string }) {
+    this.dir = options.dir;
+    mkdirSync(this.dir, { recursive: true });
+  }
+
+  private blobPath(ref: string): string {
+    const segments = ref.split('/');
+    for (const segment of segments) {
+      if (!/^[A-Za-z0-9._-]+$/.test(segment)) {
+        throw new JournalOrderViolation(
+          `FileTranscriptStore: ref segment '${segment}' is not filesystem-safe`,
+        );
+      }
+    }
+    const name = segments.pop() ?? '';
+    return join(this.dir, ...segments, `${name}${TRANSCRIPT_SUFFIX}`);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async put(ref: string, blob: Bytes): Promise<void> {
+    const path = this.blobPath(ref);
+    mkdirSync(dirname(path), { recursive: true });
+    const temp = `${path}.tmp`;
+    writeFileSync(temp, blob);
+    renameSync(temp, path);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async get(ref: string): Promise<Bytes | null> {
+    try {
+      return new Uint8Array(readFileSync(this.blobPath(ref)));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async list(runId: string): Promise<string[]> {
+    const root = join(this.dir, safeName(runId));
+    const refs: string[] = [];
+    const walk = (dir: string, prefix: string): void => {
+      let names: string[];
+      try {
+        names = readdirSync(dir);
+      } catch {
+        return;
+      }
+      for (const name of names) {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) {
+          walk(path, `${prefix}${name}/`);
+        } else if (name.endsWith(TRANSCRIPT_SUFFIX)) {
+          refs.push(`${prefix}${name.slice(0, -TRANSCRIPT_SUFFIX.length)}`);
+        }
+      }
+    };
+    walk(root, `${runId}/`);
+    return refs.sort();
   }
 }

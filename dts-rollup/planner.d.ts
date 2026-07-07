@@ -1,4 +1,4 @@
-import { CompiledWorkflow, ScriptRejected } from "@lurker/core";
+import { CompiledWorkflow, Ctx, ScriptRejected, ScriptRunner } from "@lurker/core";
 
 //#region src/compile.d.ts
 /**
@@ -29,4 +29,27 @@ declare function compileScript(source: string, o?: CompileScriptOptions): Compil
 /** Typed accessor for the diagnostics carried on a ScriptRejected. */
 declare function scriptDiagnosticsOf(error: ScriptRejected): ScriptDiagnostic[];
 //#endregion
-export { type CompileScriptOptions, SANDBOX_GLOBALS, type ScriptDiagnostic, compileScript, scriptDiagnosticsOf };
+//#region src/sandbox-runner.d.ts
+declare const DEFAULT_SANDBOX_TIMEOUT_MS = 3e5;
+declare const DEFAULT_SANDBOX_MEMORY_MB = 512;
+interface WorkerSandboxRunnerOptions {
+  /** Wall-clock ceiling for one execution; default 300000 (Appendix A). */
+  timeoutMs?: number;
+  /** Worker old-generation heap ceiling; default 512 (Appendix A). */
+  memoryMb?: number;
+  /**
+  * The worker entry module; defaults to the built sandbox-worker.js next
+  * to this module. Tests running from source point at the built dist.
+  */
+  workerUrl?: URL;
+}
+/** Accepts CompiledWorkflow ONLY: feeding a closure is a type error (docs/06, 8). */
+declare class WorkerSandboxRunner implements ScriptRunner {
+  private readonly timeoutMs;
+  private readonly memoryMb;
+  private readonly workerUrl;
+  constructor(options?: WorkerSandboxRunnerOptions);
+  execute<A, R>(wf: CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R>;
+}
+//#endregion
+export { type CompileScriptOptions, DEFAULT_SANDBOX_MEMORY_MB, DEFAULT_SANDBOX_TIMEOUT_MS, SANDBOX_GLOBALS, type ScriptDiagnostic, WorkerSandboxRunner, type WorkerSandboxRunnerOptions, compileScript, scriptDiagnosticsOf };

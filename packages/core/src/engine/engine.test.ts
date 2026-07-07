@@ -212,9 +212,11 @@ describe('createEngine and engine.run (M1-T11)', () => {
     expect(outcome.error?.code).toBe('config');
   });
 
-  it('engine.resume throws a typed ConfigError until M2', () => {
+  it('bare engine.resume of a non-compiled run rejects with a typed ConfigError', async () => {
+    // Since M6-T02 only compiled runs with a persisted source resume
+    // without a workflow value (docs/06, 10.2).
     const engine = createEngine({ adapters: [] });
-    expect(() => engine.resume('run-1')).toThrow(ConfigError);
+    await expect(engine.resume('run-1').result).rejects.toThrow(ConfigError);
   });
 
   it('dev mode warns once on bare Date.now inside a run, never for ctx.now', async () => {

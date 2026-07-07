@@ -56,7 +56,7 @@ import {
   type RunStatus,
 } from './run-handle.js';
 import { DEFAULT_PER_RUN_CONCURRENCY, Semaphore } from './scheduler.js';
-import { InProcessRunner, type ScriptRunner } from '../runner/inprocess.js';
+import { InProcessRunner, type CompiledWorkflow, type ScriptRunner } from '../runner/inprocess.js';
 import type { RetryPolicy } from '../model/retry.js';
 import { KeyedLimiter } from '../model/concurrency.js';
 import { resolvePricing, priceUsdOf, type PriceTable } from '../model/pricing.js';
@@ -120,6 +120,13 @@ export interface CreateEngineOptions {
   /** Versioned price table; wins over caps.pricing (docs/04, section 10; M4-T06). */
   pricing?: PriceTable;
   /**
+   * Runner registrations beyond the built-in InProcessRunner (docs/06,
+   * sections 8 and 10.1; M6-T02). `sandbox` executes CompiledWorkflow
+   * values (WorkerSandboxRunner ships in @lurker/planner); running or
+   * resuming a compiled workflow without one is a typed ConfigError.
+   */
+  runners?: { sandbox?: ScriptRunner };
+  /**
    * The InProcessRunner escalation hook (docs/06, sections 2.10 and 8.1):
    * receives escalated results when the call form cannot carry them; the
    * returned decision is journaled as the authoritative
@@ -177,14 +184,22 @@ export interface ResumeHandle<R> extends RunHandle<R> {
 }
 
 export interface Engine {
-  run<A, R>(wf: Workflow<A, R>, args: A, opts?: RunOptions): RunHandle<R>;
+  run<A, R>(wf: Workflow<A, R> | CompiledWorkflow, args: A, opts?: RunOptions): RunHandle<R>;
   /**
    * Rebinds a journal to a workflow definition and resumes (docs/06,
    * section "Engine and ops API"). Requires wf for in-process workflows;
    * a name mismatch is a typed ConfigError; a body-hash mismatch warns
    * loudly and proceeds (the journal decides replay per content keys).
+   * A compiled run resumes WITHOUT wf: the engine rehydrates the
+   * persisted source pinned by workflowHash; supplying a compiled wf
+   * whose source hash differs from the recorded one is a typed
+   * ConfigError (docs/06, 10.2; M6-T02).
    */
-  resume<A, R>(runId: string, wf?: Workflow<A, R>, options?: ResumeOptions): ResumeHandle<R>;
+  resume<A, R>(
+    runId: string,
+    wf?: Workflow<A, R> | CompiledWorkflow,
+    options?: ResumeOptions,
+  ): ResumeHandle<R>;
 }
 
 /** Content hash of an in-process workflow body (run-to-definition binding, docs/06 10.2). */
@@ -192,6 +207,16 @@ export function hashWorkflowBody(wf: Workflow<never, never> | Workflow<unknown, 
   return createHash('sha256')
     .update((wf as Workflow<unknown, unknown>).body.toString(), 'utf8')
     .digest('hex');
+}
+
+/** Content hash of a compiled workflow source (run-to-definition binding, docs/06 10.2). */
+export function hashWorkflowSource(source: string): string {
+  return createHash('sha256').update(source, 'utf8').digest('hex');
+}
+
+/** TranscriptStore ref of the persisted CompiledWorkflow source blob. */
+export function workflowSourceRef(runId: string): string {
+  return `${runId}/workflow-source`;
 }
 
 export function createEngine(options: CreateEngineOptions): Engine {
@@ -239,15 +264,22 @@ export function createEngine(options: CreateEngineOptions): Engine {
   }
 
   function run<A, R>(
-    wf: Workflow<A, R>,
+    wf: Workflow<A, R> | CompiledWorkflow,
     args: A,
     opts?: RunOptions,
     resumeCtx?: ResumeContext,
   ): RunHandle<R> {
-    if (wf.kind !== 'workflow') {
+    if (wf.kind !== 'workflow' && wf.kind !== 'compiled-workflow') {
       throw new ConfigError(
-        'engine.run accepts in-process Workflow values only before M6 (CompiledWorkflow ' +
-          'values first exist with compileScript in @lurker/planner)',
+        'engine.run accepts in-process Workflow values or compileScript CompiledWorkflow values',
+      );
+    }
+    const compiled = wf.kind === 'compiled-workflow' ? wf : undefined;
+    if (compiled !== undefined && options.runners?.sandbox === undefined) {
+      throw new ConfigError(
+        'running a CompiledWorkflow requires a sandbox runner: pass ' +
+          'createEngine({ runners: { sandbox: new WorkerSandboxRunner() } }) from @lurker/planner ' +
+          '(docs/06, sections 8.2 and 10.1)',
       );
     }
     const runId = resumeCtx?.runId ?? opts?.runId ?? mintRunId();
@@ -379,7 +411,11 @@ export function createEngine(options: CreateEngineOptions): Engine {
         ...(opts?.name === undefined ? {} : { name: opts.name }),
         ...(opts?.tags === undefined ? {} : { tags: opts.tags }),
         workflowName: wf.name,
-        workflowHash: hashWorkflowBody(wf as unknown as Workflow<unknown, unknown>),
+        workflowHash:
+          compiled === undefined
+            ? hashWorkflowBody(wf as unknown as Workflow<unknown, unknown>)
+            : hashWorkflowSource(compiled.source),
+        ...(compiled === undefined ? {} : { workflowSourceRef: workflowSourceRef(runId) }),
       });
 
     const result: Promise<RunOutcome<R>> = (async () => {
@@ -387,6 +423,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
       let value: R | undefined;
       let wireError: WireError | undefined;
       let pending: PendingExternal[] = [];
+      if (compiled !== undefined) {
+        // The binding contract (docs/06, 10.2): the compiled source and
+        // its content hash persist AT START so planned runs are
+        // resumable by construction; resume rehydrates from this blob.
+        await transcripts.put(workflowSourceRef(runId), new TextEncoder().encode(compiled.source));
+      }
       await putMeta('running');
       bus.emit(
         { type: 'run:start', workflow: wf.name, resumed: resumeCtx !== undefined },
@@ -411,7 +453,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         external.onQuiesce(resolve);
       });
       try {
-        if (wf.argsSchema !== undefined) {
+        if (compiled === undefined && wf.kind === 'workflow' && wf.argsSchema !== undefined) {
           const validation = await validateSchemaSpec(wf.argsSchema, args);
           if (!validation.valid) {
             throw new ConfigError(
@@ -421,7 +463,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
           }
         }
         const ctx = createCtx(internals);
-        const bodyPromise = runner.execute(wf, ctx, args);
+        const selectedRunner =
+          compiled === undefined ? runner : (options.runners?.sandbox as ScriptRunner);
+        const bodyPromise = selectedRunner.execute(wf, ctx, args);
         // Every in-flight branch blocked on suspensions settles the run
         // 'suspended' with the open keys (docs/06, section 2.7).
         const raced = await Promise.race([
@@ -544,15 +588,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
 
   function resume<A, R>(
     runId: string,
-    wf?: Workflow<A, R>,
+    wf?: Workflow<A, R> | CompiledWorkflow,
     resumeOptions?: ResumeOptions,
   ): ResumeHandle<R> {
-    if (wf === undefined) {
-      throw new ConfigError(
-        'engine.resume requires the workflow for in-process runs; CompiledWorkflow source ' +
-          'persistence arrives with M6-T05 (docs/06, section "Engine and ops API")',
-      );
-    }
     let previewResolve: (preview: ResumePreview) => void = () => undefined;
     const preview = new Promise<ResumePreview>((resolve) => {
       previewResolve = resolve;
@@ -560,26 +598,72 @@ export function createEngine(options: CreateEngineOptions): Engine {
     const handlePromise = (async () => {
       const metas = await journal.listRuns();
       const meta = metas.find((candidate) => candidate.runId === runId);
-      if (meta?.workflowName !== undefined && meta.workflowName !== wf.name) {
-        throw new ConfigError(
-          `resume binding mismatch: run '${runId}' was started by workflow ` +
-            `'${meta.workflowName}', not '${wf.name}'`,
-        );
-      }
-      const expectedHash = hashWorkflowBody(wf as unknown as Workflow<unknown, unknown>);
-      if (meta?.workflowHash !== undefined && meta.workflowHash !== expectedHash) {
-        // The journal itself decides replay versus live per content keys.
-        process.emitWarning(
-          `resume: the body of workflow '${wf.name}' changed since run '${runId}' started; ` +
-            'orphans and misses will be reported honestly',
-          { code: 'LURKER_RESUME_HASH_MISMATCH', type: 'LurkerWarning' },
-        );
+      let bound: Workflow<unknown, unknown> | CompiledWorkflow;
+      if (wf === undefined) {
+        // The compiled-run binding (docs/06, 10.2): rehydrate the
+        // persisted source pinned by workflowHash. Dialect validation is
+        // not re-run: the hash proves byte identity with the source
+        // compileScript validated at run start.
+        if (meta?.workflowSourceRef === undefined) {
+          throw new ConfigError(
+            'engine.resume requires the workflow for in-process runs (docs/06, section ' +
+              '"Engine and ops API"); only compiled runs with a persisted source resume bare',
+          );
+        }
+        const blob = await transcripts.get(meta.workflowSourceRef);
+        if (blob === null) {
+          throw new ConfigError(
+            `resume: run '${runId}' records workflowSourceRef '${meta.workflowSourceRef}' ` +
+              'but the transcript store has no such blob',
+          );
+        }
+        const source = new TextDecoder().decode(blob);
+        if (meta.workflowHash !== undefined && hashWorkflowSource(source) !== meta.workflowHash) {
+          throw new ConfigError(
+            `resume: the persisted source of run '${runId}' does not match the recorded ` +
+              'workflowHash; the store is inconsistent',
+          );
+        }
+        bound = {
+          kind: 'compiled-workflow',
+          name: meta.workflowName ?? 'compiled',
+          source,
+          errorPolicy: 'lenient',
+        };
+      } else {
+        if (meta?.workflowName !== undefined && meta.workflowName !== wf.name) {
+          throw new ConfigError(
+            `resume binding mismatch: run '${runId}' was started by workflow ` +
+              `'${meta.workflowName}', not '${wf.name}'`,
+          );
+        }
+        if (wf.kind === 'compiled-workflow') {
+          // A differing compiled source is a hard mismatch (docs/06, 10.2).
+          const expectedHash = hashWorkflowSource(wf.source);
+          if (meta?.workflowHash !== undefined && meta.workflowHash !== expectedHash) {
+            throw new ConfigError(
+              `resume binding mismatch: the supplied CompiledWorkflow source hash differs ` +
+                `from the one recorded for run '${runId}' (docs/06, 10.2)`,
+            );
+          }
+        } else {
+          const expectedHash = hashWorkflowBody(wf as unknown as Workflow<unknown, unknown>);
+          if (meta?.workflowHash !== undefined && meta.workflowHash !== expectedHash) {
+            // The journal itself decides replay versus live per content keys.
+            process.emitWarning(
+              `resume: the body of workflow '${wf.name}' changed since run '${runId}' started; ` +
+                'orphans and misses will be reported honestly',
+              { code: 'LURKER_RESUME_HASH_MISMATCH', type: 'LurkerWarning' },
+            );
+          }
+        }
+        bound = wf as Workflow<unknown, unknown> | CompiledWorkflow;
       }
       const raw = await journal.load(runId);
       const priorEntries = raw.map((entry) => normalizeEntry(entry));
       // One scan, strictly before any live call, append, or reserve.
       scanJournalCompatibility(runId, priorEntries, buildDeriverRegistry(options.extraDerivers));
-      return run(wf as unknown as Workflow<unknown, unknown>, resumeOptions?.args, undefined, {
+      return run(bound, resumeOptions?.args, undefined, {
         runId,
         priorEntries,
         strict: resumeOptions?.dryRun ?? false,

@@ -420,6 +420,7 @@ Rules:
 | JournalMissError | @lurker/testing replay-strict | journal_miss | No | Never journaled; a strict replay encountered a call that would go live |
 | BudgetExhaustedError | L4 budget (surfaces via ctx primitives) | budget_exhausted | No | The budget guard denial is a decision entry (I2); ctx primitives throw it as AgentError kind 'budget'; the run reports outcome 'exhausted', overriding 'error' (06-execution-spec.md, section "Three-layer budget") |
 | AdmissionRejectedError | L4 AdmissionController (07-adaptive-orchestration-spec.md) | admission_rejected | No | The rejection verdict is embedded in the carrying spawn-admission decision entry and replays identically (DEF-2); the error surfaces the embedded AdmitRejectReason in data to the caller (a typed tool error for orchestrators) and never tears the run down; budget-code rejections throw BudgetExhaustedError instead. (Amended during M6-T06: structural rejections needed a registry home distinct from exhaustion.) |
+| SandboxError | L5 WorkerSandboxRunner (06-execution-spec.md, section "Script runners") | sandbox_limit | No | Crossing timeoutMs or memoryMb terminates the worker; the run completes with outcome 'error' carrying the WireError projection; data records { reason: 'timeout' \| 'memory', limit }; never journaled as its own entry. (Amended during M6-T02: docs/06 8.2 promised a typed code without registering one.) |
 | LeaseHeldError | L0/L1 store contract | lease_held | Yes | Never journaled; acquire on a held lease MUST reject with it; retry after the lease ttl elapses or the holder releases |
 
 ## 7. Engine anatomy
@@ -437,6 +438,7 @@ function createEngine(o: {
   defaults?: EngineDefaults;          // routing defaults, role floors, permission presets
   budgetDefaults?: BudgetDefaults;
   concurrency?: ConcurrencyOptions;   // per-run semaphore, per-provider keys
+  runners?: { sandbox?: ScriptRunner }; // CompiledWorkflow execution seam (M6-T02 amendment; 06-execution-spec.md 10.1)
   extraDerivers?: KeyDeriver[];       // @lurker/compat frozen profiles attach here
 }): Engine;
 
