@@ -16,7 +16,7 @@ interface CliIo {
 declare function processIo(): CliIo;
 //#endregion
 //#region src/cli-main.d.ts
-declare const HELP = "lurker: durable multi-agent workflows (docs/06, section 10.5)\n\n  lurker run <file|name> [--args JSON] [--store PATH] [--budget-usd N]\n  lurker resume <runId>  [--store PATH]\n  lurker runs ls         [--store PATH]\n  lurker inspect <runId> [--store PATH]\n\nEngine assembly: adapters, defaults, and the workflow registry come from\nlurker.config.mjs in the working directory (default export\n{ engineOptions?, workflows? }) or from the workflow module's named\nexports. --store selects the JsonlFileStore directory (default .lurker).\nplan and kb commands arrive in later milestones.";
+declare const HELP = "lurker: durable multi-agent workflows (docs/06, section 10.5)\n\n  lurker run <file|name> [--args JSON] [--store PATH] [--budget-usd N]\n  lurker resume <runId>  [--store PATH]\n  lurker runs ls         [--store PATH]\n  lurker inspect <runId> [--store PATH]\n  lurker plan \"<goal>\"   [--dry-run]\n\nEngine assembly: adapters, defaults, and the workflow registry come from\nlurker.config.mjs in the working directory (default export\n{ engineOptions?, workflows? }) or from the workflow module's named\nexports. --store selects the JsonlFileStore directory (default .lurker).\nplan asks the planner model (role plan) to write a workflow script,\nlints and self-repairs it, then runs it in the worker sandbox; --dry-run\nprints the accepted script without running. Requires @lurker/planner\ninstalled. kb commands arrive with M10.";
 declare function runCli(argv: string[], options: {
   cwd: string;
   io: CliIo;

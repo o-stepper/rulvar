@@ -52,6 +52,29 @@ declare function buildV2GoldenIdentity(): Record<string, unknown>;
 //#region src/cassettes/record-live.d.ts
 declare function recordLiveCassettes(): Promise<CassetteFixture[]>;
 //#endregion
+//#region src/cassettes/m6-orchestrator.d.ts
+declare const M6_ORCH_RUN_ID = "m6-orchestrator-crash";
+declare const M6_ORCH_GOAL = "m6 cassette: gather two facts";
+declare const M6_ORCH_PROFILES: {
+  worker: {
+    description: string;
+  };
+};
+/** Extracts spawn handles from the tool results the model saw. */
+declare function handlesInRequest(req: ChatRequest): number[];
+/** Fixes wall clock and spans; everything else is deterministic already. */
+declare function normalizeM6Entries(entries: readonly JournalEntry[]): JournalEntry[];
+/**
+* Phase 1: record the pre-crash journal. The transcripts store carries
+* the boundary checkpoint the resume restores from; the recorder keeps
+* it in memory because the cassette pins only journal bytes (checkpoint
+* blobs are engine-internal at-least-once state, docs/03 section 11).
+*/
+declare function recordOrchestratorCrash(): Promise<{
+  entries: JournalEntry[]; /** Boundary checkpoint blobs by ref, base64: the resume restores from them. */
+  checkpoints: Record<string, string>;
+}>;
+//#endregion
 //#region src/vcr.d.ts
 /** One recorded exchange; a cassette is one JSON header line plus rows. */
 interface VcrRow {
@@ -119,4 +142,4 @@ declare function replay(options: {
   adapters?: ProviderAdapter[];
 }): ProviderAdapter[];
 //#endregion
-export { type CassetteFixture, type CreateTestEngineOptions, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type FakeToolCallsValue, type FakeWireErrorValue, RedactFn, type ReplayRunOptions, type TestEngine, type TestRunHandle, VcrCassette, VcrMissError, VcrRow, buildFrozenV1JournalRaw, buildM2CassetteFixtures, buildV2GoldenIdentity, createTestEngine, defaultRedact, fakeToolCalls, fakeWireError, readCassette, record, recordLiveCassettes, replay, replayRun, requestHash };
+export { type CassetteFixture, type CreateTestEngineOptions, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type FakeToolCallsValue, type FakeWireErrorValue, M6_ORCH_GOAL, M6_ORCH_PROFILES, M6_ORCH_RUN_ID, RedactFn, type ReplayRunOptions, type TestEngine, type TestRunHandle, VcrCassette, VcrMissError, VcrRow, buildFrozenV1JournalRaw, buildM2CassetteFixtures, buildV2GoldenIdentity, createTestEngine, defaultRedact, fakeToolCalls, fakeWireError, handlesInRequest, normalizeM6Entries, readCassette, record, recordLiveCassettes, recordOrchestratorCrash, replay, replayRun, requestHash };

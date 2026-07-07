@@ -1,0 +1,178 @@
+{
+  "id": "orchestrator-crash-resume",
+  "note": "M6 gate: the orchestrator spawned two children (both settled and paid) and died before its terminal was written; the fixture is the cut journal plus the boundary checkpoint blobs. Resume must restore the transcript, find the children by content keys, and never re-pay or re-decide a spawn (docs/09 6.10).",
+  "entries": [
+    {
+      "hashVersion": 2,
+      "seq": 0,
+      "scope": "",
+      "key": "add02ff9396902fae1d4e8c0e687071f89da9cb3423cdf9cf4e839dc5f172622",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 1,
+      "scope": "",
+      "key": "",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "spawn-admission",
+        "origin": "spawn_agent",
+        "orchestratorScope": "agent:0",
+        "spawnOrdinal": 0,
+        "name": "worker",
+        "childScope": "agent:0",
+        "parentAccountScope": "run",
+        "spec": {
+          "agentType": "worker",
+          "prompt": "expensive A"
+        },
+        "decision": {
+          "verdict": {
+            "kind": "admit",
+            "reserve": {
+              "reserveUsd": 0.5
+            },
+            "spawnUnitsAfter": 499,
+            "lineage": {
+              "logicalTaskId": "01KWYD8TVP18SQ3CEAP0BJ3SSQ",
+              "isNew": true,
+              "depth": 1
+            }
+          },
+          "statsBefore": {
+            "spawnsBefore": 1,
+            "childrenOfParentBefore": 0,
+            "depth": 1
+          },
+          "nodeId": "01KWYD8TVP18SQ3CEAP0BJ3SSR"
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
+      "scope": "agent:0",
+      "key": "ae9d47dac55afe83901ae91d0ad7f854bd72b63d3ac6e6869890ddf8554ff1e3",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 3,
+      "scope": "",
+      "key": "",
+      "ordinal": 1,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "spawn-admission",
+        "origin": "spawn_agent",
+        "orchestratorScope": "agent:0",
+        "spawnOrdinal": 1,
+        "name": "worker",
+        "childScope": "agent:0",
+        "parentAccountScope": "run",
+        "spec": {
+          "agentType": "worker",
+          "prompt": "expensive B"
+        },
+        "decision": {
+          "verdict": {
+            "kind": "admit",
+            "reserve": {
+              "reserveUsd": 0.5
+            },
+            "spawnUnitsAfter": 498,
+            "lineage": {
+              "logicalTaskId": "01KWYD8TVP18SQ3CEAP0BJ3SSS",
+              "isNew": true,
+              "depth": 1
+            }
+          },
+          "statsBefore": {
+            "spawnsBefore": 2,
+            "childrenOfParentBefore": 1,
+            "depth": 1
+          },
+          "nodeId": "01KWYD8TVP18SQ3CEAP0BJ3SST"
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 4,
+      "scope": "agent:0",
+      "key": "3e440c3fca12e017f0382ba048046b39fb80c5f2352333b2e06f4cf8c21080ff",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 5,
+      "ref": 2,
+      "scope": "agent:0",
+      "key": "ae9d47dac55afe83901ae91d0ad7f854bd72b63d3ac6e6869890ddf8554ff1e3",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "value": "paid: expensive A",
+      "usage": {
+        "inputTokens": 3,
+        "outputTokens": 5,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "m6-orchestrator-crash/t0"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 6,
+      "ref": 4,
+      "scope": "agent:0",
+      "key": "3e440c3fca12e017f0382ba048046b39fb80c5f2352333b2e06f4cf8c21080ff",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "value": "paid: expensive B",
+      "usage": {
+        "inputTokens": 3,
+        "outputTokens": 5,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "m6-orchestrator-crash/t1"
+    }
+  ],
+  "extra": {
+    "checkpoints": {
+      "m6-orchestrator-crash/ckpt/0": "AXsidiI6MSwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwicGFydHMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IllvdSBhcmUgdGhlIG9yY2hlc3RyYXRvciBvZiBhIG11bHRpLWFnZW50IHJ1bi5cbkdPQUw6IG02IGNhc3NldHRlOiBnYXRoZXIgdHdvIGZhY3RzXG5cbkRlY29tcG9zZSB0aGUgZ29hbCBpbnRvIGNoaWxkIGFnZW50cyB3aXRoIHNwYXduX2FnZW50IG9yIHBhcmFsbGVsX2FnZW50cyxcbndhaXQgb24gdGhlaXIgaGFuZGxlcyB3aXRoIGF3YWl0X2FueSBvciBhd2FpdF9hbGwsIGNhbmNlbCBzdHJhZ2dsZXJzIHdpdGhcbmNhbmNlbF9hZ2VudCwgYW5kIHRlcm1pbmF0ZSB3aXRoIGZpbmlzaCh7IHJlc3VsdCB9KSB3aGVuIHRoZSBnb2FsIGlzIG1ldC5cblNwYXduIG9ubHkgd2hhdCB0aGUgZ29hbCBuZWVkcy4ifV19LHsicm9sZSI6ImFzc2lzdGFudCIsInBhcnRzIjpbeyJ0eXBlIjoidG9vbC1jYWxsIiwiaWQiOiIwMUtXWUQ4VFZNWFdEUzZESlhZRzhIUEFDOSIsIm5hbWUiOiJzcGF3bl9hZ2VudCIsImFyZ3MiOnsiYWdlbnRUeXBlIjoid29ya2VyIiwicHJvbXB0IjoiZXhwZW5zaXZlIEEifX0seyJ0eXBlIjoidG9vbC1jYWxsIiwiaWQiOiIwMUtXWUQ4VFZNWFdEUzZESlhZRzhIUEFDQSIsIm5hbWUiOiJzcGF3bl9hZ2VudCIsImFyZ3MiOnsiYWdlbnRUeXBlIjoid29ya2VyIiwicHJvbXB0IjoiZXhwZW5zaXZlIEIifX1dfSx7InJvbGUiOiJ0b29sIiwicGFydHMiOlt7InR5cGUiOiJ0b29sLXJlc3VsdCIsImlkIjoiMDFLV1lEOFRWTVhXRFM2REpYWUc4SFBBQzkiLCJuYW1lIjoic3Bhd25fYWdlbnQiLCJyZXN1bHQiOnsiaGFuZGxlIjoyfX0seyJ0eXBlIjoidG9vbC1yZXN1bHQiLCJpZCI6IjAxS1dZRDhUVk1YV0RTNkRKWFlHOEhQQUNBIiwibmFtZSI6InNwYXduX2FnZW50IiwicmVzdWx0Ijp7ImhhbmRsZSI6NH19XX1dLCJ0dXJucyI6MSwidXNhZ2UiOnsiaW5wdXRUb2tlbnMiOjg1LCJvdXRwdXRUb2tlbnMiOjE2LCJjYWNoZVJlYWRUb2tlbnMiOjAsImNhY2hlV3JpdGVUb2tlbnMiOjB9LCJ0b29sQ2FsbHNVc2VkIjoyLCJzY2hlbWFBdHRlbXB0cyI6MCwiY29tcGFjdGlvbiI6W119"
+    }
+  }
+}

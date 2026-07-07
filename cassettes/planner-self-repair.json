@@ -1,0 +1,72 @@
+{
+  "id": "planner-self-repair",
+  "note": "M6 gate: a mode (b) plan whose first draft fails lint (bare Date.now) round-trips through the self-repair loop within repairRounds and compiles; recorded on FakeAdapter (docs/09 6.10). The journal is the planner conversation under its goal-derived runId.",
+  "entries": [
+    {
+      "hashVersion": 2,
+      "seq": 0,
+      "scope": "",
+      "key": "8111e1ab4912cc7680a4b503f34cfabfaab8850360db035dae93e66ba4e45d80",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 1,
+      "ref": 0,
+      "scope": "",
+      "key": "8111e1ab4912cc7680a4b503f34cfabfaab8850360db035dae93e66ba4e45d80",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "value": "```js\nconst startedAt = Date.now();\nconst summary = await agent('summarize the corpus');\nreturn { startedAt, summary };\n```",
+      "usage": {
+        "inputTokens": 762,
+        "outputTokens": 31,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "plan-68a6611f52f56567c84b641e/t0"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
+      "scope": "",
+      "key": "765e983a18d29e0a9377485a28dda486c0b37874967615081a28c5b249a16855",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 3,
+      "ref": 2,
+      "scope": "",
+      "key": "765e983a18d29e0a9377485a28dda486c0b37874967615081a28c5b249a16855",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "value": "```js\nconst startedAt = now();\nconst summary = await agent('summarize the corpus');\nreturn { startedAt, summary };\n```",
+      "usage": {
+        "inputTokens": 132,
+        "outputTokens": 30,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "plan-68a6611f52f56567c84b641e/t1"
+    }
+  ]
+}

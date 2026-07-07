@@ -267,3 +267,62 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
   }
   return 0;
 }
+
+/**
+ * lurker plan "<goal>" [--dry-run] (docs/06, 10.5; M6-T11): plans a
+ * workflow script through @lurker/planner (loaded dynamically: the CLI's
+ * static dependency stays @lurker/core only, docs/02 dependency rules),
+ * prints the accepted script and its advisories, and runs it in the
+ * worker sandbox unless --dry-run.
+ */
+export async function planCommand(argv: string[], context: CommandContext): Promise<number> {
+  const parsed = parseArgs({
+    args: argv,
+    allowPositionals: true,
+    options: { 'dry-run': { type: 'boolean' } },
+  });
+  const goal = parsed.positionals[0];
+  if (goal === undefined || parsed.positionals.length > 1) {
+    throw new ConfigError('usage: lurker plan "<goal>" [--dry-run]');
+  }
+  let plannerModule: {
+    plan: (
+      engine: unknown,
+      goal: string,
+    ) => Promise<{
+      source: string;
+      workflow: unknown;
+      lint: Array<{ ruleId: string; message: string }>;
+    }>;
+  };
+  try {
+    plannerModule = (await import('@lurker/planner')) as unknown as typeof plannerModule;
+  } catch {
+    throw new ConfigError(
+      'lurker plan requires @lurker/planner (the plan agent, compileScript, and the worker ' +
+        'sandbox live there); install it next to the CLI',
+    );
+  }
+  const config = await loadCliConfig(context.cwd);
+  const assembled = assembleEngine({ config, cwd: context.cwd });
+  const planned = await plannerModule.plan(assembled.engine, goal);
+  context.io.err(`plan: accepted with ${String(planned.lint.length)} advisory diagnostic(s)`);
+  for (const diagnostic of planned.lint) {
+    context.io.err(`  ${diagnostic.ruleId}: ${diagnostic.message}`);
+  }
+  if (parsed.values['dry-run'] === true) {
+    context.io.out(planned.source);
+    return 0;
+  }
+  const workflow = planned.workflow as Workflow<unknown, unknown>;
+  const first = assembled.engine.run(workflow, null);
+  context.io.err(`runId: ${first.runId}`);
+  const outcome = await driveRun({
+    engine: assembled.engine,
+    workflow: workflow as never,
+    first,
+    io: context.io,
+    args: null,
+  });
+  return reportOutcome(outcome, context.io);
+}

@@ -36,16 +36,21 @@
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "@lurker/testing": "workspace:*",
-    "@lurker/store-sqlite": "workspace:*"
+    "@lurker/store-sqlite": "workspace:*",
+    "@lurker/planner": "workspace:*"
   },
   "bin": {
     "lurker": "./dist/cli.js"
   },
   "peerDependencies": {
-    "@opentelemetry/api": "^1.9"
+    "@opentelemetry/api": "^1.9",
+    "@lurker/planner": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@opentelemetry/api": {
+      "optional": true
+    },
+    "@lurker/planner": {
       "optional": true
     }
   }
