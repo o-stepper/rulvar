@@ -1,15 +1,32 @@
-//#region src/index.d.ts
+import { CompiledWorkflow, ScriptRejected } from "@lurker/core";
+
+//#region src/compile.d.ts
 /**
-* @lurker/planner: lurker flagship hybrid mode: plan agent, compileScript, WorkerSandboxRunner, self-repair loop.
-*
-* M0 scaffold (v0.1.0): no public API yet. The first real surface of this
-* package ships in milestone M6 per docs/10-implementation-plan.md.
+* The exact curated sandbox global set, in docs order (docs/06, 8.2).
+* The worker binds the ctx methods as bare globals under these names and
+* the API card teaches exactly this list.
 */
+declare const SANDBOX_GLOBALS: readonly string[];
+/** One machine-readable compileScript diagnostic (docs/02, ScriptRejected row). */
+interface ScriptDiagnostic {
+  ruleId: string;
+  message: string;
+  line?: number;
+  column?: number;
+}
+interface CompileScriptOptions {
+  /** Dynamic-import specifiers permitted in the source; default [] (none). */
+  allowImports?: string[];
+}
 /**
-* Temporary M0 scaffold marker (M0-T02 acceptance: a sample exported symbol
-* round-trips through build and packs). Removed when the package's first
-* real API lands.
+* Validates and compiles planner-generated source into a CompiledWorkflow
+* (docs/06, 8.3). The source is an async function body over the sandbox
+* globals; its `return` value is the workflow result. The compiled form is
+* pure data (the source is evaluated only inside the worker sandbox);
+* machine scripts run under errorPolicy 'lenient' (docs/06, Appendix A).
 */
-declare const M0_SCAFFOLD: "@lurker/planner";
+declare function compileScript(source: string, o?: CompileScriptOptions): CompiledWorkflow;
+/** Typed accessor for the diagnostics carried on a ScriptRejected. */
+declare function scriptDiagnosticsOf(error: ScriptRejected): ScriptDiagnostic[];
 //#endregion
-export { M0_SCAFFOLD };
+export { type CompileScriptOptions, SANDBOX_GLOBALS, type ScriptDiagnostic, compileScript, scriptDiagnosticsOf };
