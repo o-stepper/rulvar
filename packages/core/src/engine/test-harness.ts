@@ -36,6 +36,8 @@ import type { EscalationDecision } from '../runtime/escalation.js';
 import type { EscalatedResult } from '../runtime/agent-loop.js';
 import type { PermissionConfig } from '../runtime/permission-chain.js';
 import { ExternalRegistry } from './external.js';
+import { KeyedLimiter } from '../model/concurrency.js';
+import { resolvePricing, type PriceTable } from '../model/pricing.js';
 
 export interface ScriptedTurn {
   /** Text emitted as a single text-delta. */
@@ -178,6 +180,10 @@ export interface TestInternalsOptions {
   budgetUsd?: number;
   lifetimeSpawnCap?: number;
   perRun?: number;
+  /** Versioned price table; wins over caps.pricing (M4-T06). */
+  pricing?: PriceTable;
+  /** Per-adapter-id concurrency caps (M4-T07). */
+  perProvider?: Record<string, number>;
   errorPolicy?: 'strict' | 'lenient';
   now?: () => number;
   /** Resume simulation: the loaded prior journal. */
@@ -202,7 +208,11 @@ export function makeInternals(options: TestInternalsOptions = {}): {
     }
     const colon = servedBy.indexOf(':');
     const adapter = adapters.get(servedBy.slice(0, colon));
-    const pricing = adapter?.caps(servedBy.slice(colon + 1)).pricing;
+    const pricing = resolvePricing(
+      servedBy,
+      options.pricing,
+      adapter?.caps(servedBy.slice(colon + 1)).pricing,
+    );
     if (pricing === undefined) {
       return undefined;
     }
@@ -244,6 +254,8 @@ export function makeInternals(options: TestInternalsOptions = {}): {
     replayer,
     budget,
     semaphore: new Semaphore(options.perRun ?? 12),
+    providerLimiter: new KeyedLimiter(options.perProvider),
+    ...(options.pricing === undefined ? {} : { pricingVersion: options.pricing.pricingVersion }),
     events,
     spans,
     rootSpanId: spans.mint(),
