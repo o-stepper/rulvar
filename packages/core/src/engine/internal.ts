@@ -28,6 +28,27 @@ export interface CtxRuntime {
 /** Registered by createCtx; keyed by the ctx object identity. */
 export const ctxRuntimes: WeakMap<Ctx<never>, CtxRuntime> = new WeakMap();
 
+/**
+ * Internal AgentOpts channel (M6-T07): agentImpl reports the agent
+ * dispatch seq (the spawn handle) through this symbol-keyed callback on
+ * the running append, on a dangling redispatch, AND on the replay
+ * branch, so the orchestrator learns handles that are stable across
+ * resume. Never part of the public AgentOpts surface.
+ */
+export const kOnRunning: unique symbol = Symbol('lurker.onRunning');
+
+/**
+ * Internal AgentOpts channel (M6-T07): names the terminal tool whose
+ * accepted call ends the loop with status ok (the orchestrator finish
+ * tool). Never part of the public AgentOpts surface.
+ */
+export const kTerminalTool: unique symbol = Symbol('lurker.terminalTool');
+
+export interface InternalAgentHooks {
+  [kOnRunning]?: (seq: number) => void;
+  [kTerminalTool]?: { name: string };
+}
+
 /** Typed accessor used by the in-package consumers. */
 export function runtimeOf(ctx: Ctx<never>): CtxRuntime {
   const runtime = ctxRuntimes.get(ctx);

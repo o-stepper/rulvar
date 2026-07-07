@@ -127,6 +127,12 @@ export interface AdmitSpec {
   estCostUsd?: number;
   /** Lineage continuation (DEF-3); absence mints a fresh lineage root. */
   lineage?: { continues: LogicalTaskId };
+  /**
+   * The children-quota key (maxChildrenPerNode); defaults to
+   * parentAccountScope. Orchestrators pass their own scope so each node
+   * counts its own children (docs/07, 7.3).
+   */
+  nodeKey?: string;
 }
 
 /** Live pre-append snapshot embedded in the decision entry (DEF-2/DEF-3). */
@@ -206,9 +212,11 @@ export class AdmissionController {
    * journaled by the caller so replay re-delivers it without
    * re-evaluation.
    */
-  admit(spec: AdmitSpec): AdmissionDecision {
+  admit(spec: AdmitSpec, options?: { commitReserve?: boolean }): AdmissionDecision {
+    const commitReserve = options?.commitReserve ?? true;
+    const nodeKey = spec.nodeKey ?? spec.parentAccountScope;
     const depth = spawnDepthOf(spec.childScope);
-    const childrenBefore = this.childrenOf.get(spec.parentAccountScope) ?? 0;
+    const childrenBefore = this.childrenOf.get(nodeKey) ?? 0;
     const statsBefore: AdmissionStatsBefore = {
       spawnsBefore: this.budget.spent().agentsSpawned,
       childrenOfParentBefore: childrenBefore,
@@ -233,18 +241,29 @@ export class AdmissionController {
     } else if (spec.budgetUsd !== undefined) {
       reserve.childCeilingUsd = spec.budgetUsd;
     }
-    try {
-      if (this.budget.spawnHeadroom <= 0) {
-        return { verdict: { kind: 'reject', reason: { code: 'lifetime' } }, statsBefore };
-      }
-      this.budget.admitSpawn(reserveUsd, spec.parentAccountScope);
-    } catch {
-      // The layer-1 refusal maps onto the embedded verdict: the caller
-      // journals the rejection and surfaces the typed error; the run
-      // never tears down here (docs/07, 7.3).
-      return { verdict: { kind: 'reject', reason: { code: 'budget' } }, statsBefore };
+    if (this.budget.spawnHeadroom <= 0) {
+      return { verdict: { kind: 'reject', reason: { code: 'lifetime' } }, statsBefore };
     }
-    this.childrenOf.set(spec.parentAccountScope, childrenBefore + 1);
+    if (commitReserve) {
+      try {
+        this.budget.admitSpawn(reserveUsd, spec.parentAccountScope);
+      } catch {
+        // The layer-1 refusal maps onto the embedded verdict: the caller
+        // journals the rejection and surfaces the typed error; the run
+        // never tears down here (docs/07, 7.3).
+        return { verdict: { kind: 'reject', reason: { code: 'budget' } }, statsBefore };
+      }
+    } else {
+      // The spawn tools dispatch through ctx.agent, whose OWN layer-1
+      // admission commits the real reserve moments later (one debit,
+      // never two); admission still evaluates the chain read-only so a
+      // rejection embeds before any dispatch (M6-T07).
+      const remainder = this.budget.remainderOf(spec.parentAccountScope);
+      if (remainder !== undefined && remainder <= 0) {
+        return { verdict: { kind: 'reject', reason: { code: 'budget' } }, statsBefore };
+      }
+    }
+    this.childrenOf.set(nodeKey, childrenBefore + 1);
     this.admittedTotal += 1;
     const logicalTaskId = spec.lineage?.continues ?? this.mintId();
     const verdict: AdmitVerdict = {
@@ -258,6 +277,17 @@ export class AdmissionController {
       },
     };
     return { verdict, statsBefore, nodeId: this.mintId() };
+  }
+
+  /**
+   * Resume roll-forward for an orchestrator child (M6-T07): restores the
+   * children-quota counter only. The budget seed already counts settled
+   * agent dispatches, and an in-flight child re-commits its reserve
+   * through the ctx.agent dispatch path.
+   */
+  recoverChild(nodeKey: string): void {
+    this.childrenOf.set(nodeKey, (this.childrenOf.get(nodeKey) ?? 0) + 1);
+    this.admittedTotal += 1;
   }
 
   /**

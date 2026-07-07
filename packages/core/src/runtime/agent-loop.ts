@@ -286,6 +286,13 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * "keep working" error tool result (M3-T09, docs/07 section 6.4).
    */
   escalation?: { minSpendUsd: number };
+  /**
+   * Terminal-tool interception (M6-T07): an accepted call to the named
+   * tool ends the loop with status ok; the call's validated `result`
+   * argument becomes the agent output (the orchestrator finish tool,
+   * docs/07 4.11). The tool's execute never runs, mirroring escalate.
+   */
+  terminalTool?: { name: string };
   agentType?: string;
   /** The primary invocation role of the tool loop; default 'loop' (M6-T05). */
   role?: 'loop' | 'plan' | 'orchestrate';
@@ -621,6 +628,9 @@ export async function runAgent<S extends SchemaSpec>(
   let schemaAttempts = 0;
   let output: Out<S> | null = null;
   let status: AgentStatus = 'ok';
+  // Terminal-tool short circuit (M6-T07): once finish fires, no further
+  // model turns run and extract/finalize never fire.
+  let finishedViaTool = false;
   let agentError: AgentError | undefined;
   let errorMessage: string | undefined;
   let usageApprox = false;
@@ -692,7 +702,12 @@ export async function runAgent<S extends SchemaSpec>(
   const runToolCalls = async (
     calls: ToolCallRequest[],
     priorParts: Part[],
-  ): Promise<{ parts: Part[]; limitHit: boolean; escalated?: EscalationRequest }> => {
+  ): Promise<{
+    parts: Part[];
+    limitHit: boolean;
+    escalated?: EscalationRequest;
+    finished?: unknown;
+  }> => {
     const runtime = options.tools;
     if (runtime === undefined) {
       return { parts: priorParts, limitHit: false };
@@ -822,6 +837,46 @@ export async function runAgent<S extends SchemaSpec>(
         });
         return { parts, limitHit: false, escalated: request };
       }
+      // The terminal tool (M6-T07): an accepted, schema-valid call ends
+      // the loop with status ok and its `result` argument as the agent
+      // output (the orchestrator finish tool, docs/07 4.11). Invalid
+      // arguments surface as an error tool result and the turn continues.
+      if (options.terminalTool !== undefined && gatedCall.name === options.terminalTool.name) {
+        const terminalDef = runtime.defs.find((candidate) => candidate.name === gatedCall.name);
+        const validation =
+          terminalDef === undefined
+            ? undefined
+            : await validateSchemaSpec(terminalDef.parameters, gatedCall.args);
+        if (validation === undefined || !validation.valid) {
+          events?.emit({
+            type: 'tool:end',
+            toolName: gatedCall.name,
+            outcome: 'error',
+            durationMs: now() - gateStartedAt,
+          });
+          parts.push(
+            errorPart(call, {
+              error: `the '${gatedCall.name}' call failed validation`,
+              issues: validation === undefined ? [] : validation.issues.map((i) => i.message),
+            }),
+          );
+          continue;
+        }
+        events?.emit({
+          type: 'tool:end',
+          toolName: gatedCall.name,
+          outcome: 'ok',
+          durationMs: now() - gateStartedAt,
+        });
+        parts.push({
+          type: 'tool-result',
+          id: call.id,
+          name: call.name,
+          result: { finished: true },
+        });
+        const finishArgs = validation.value as { result?: unknown };
+        return { parts, limitHit: false, finished: finishArgs.result ?? null };
+      }
       toolCallsUsed += 1;
       parts.push(
         await executeToolCall({
@@ -855,7 +910,7 @@ export async function runAgent<S extends SchemaSpec>(
       }
       return part;
     });
-    const { parts, limitHit, escalated } = await runToolCalls(
+    const { parts, limitHit, escalated, finished } = await runToolCalls(
       [restored.pending.awaiting, ...restored.pending.remaining],
       priorParts,
     );
@@ -865,6 +920,10 @@ export async function runAgent<S extends SchemaSpec>(
     if (escalated !== undefined) {
       status = 'escalated';
       escalationRequest = escalated;
+    } else if (finished !== undefined) {
+      output = finished as Out<S>;
+      finishedViaTool = true;
+      await saveBoundary();
     } else if (limitHit) {
       status = 'limit';
     } else {
@@ -1033,7 +1092,7 @@ export async function runAgent<S extends SchemaSpec>(
   const loopCursor = { index: 0 };
 
   // A pending-turn limit hit above skips the loop entirely.
-  loop: while (status === 'ok') {
+  loop: while (status === 'ok' && !finishedViaTool) {
     // Per-agent wall clock (docs/06, section "UsageLimits").
     if (limits.timeoutMs !== undefined && now() - startedAt >= limits.timeoutMs) {
       status = 'limit';
@@ -1193,7 +1252,10 @@ export async function runAgent<S extends SchemaSpec>(
     // semantics"; docs/06, section "Agent runtime binding").
     if (options.tools !== undefined && outcome.turn.toolCalls.length > 0) {
       noProgress.recordTurn({ toolCalls: outcome.turn.toolCalls.length });
-      const { parts, limitHit, escalated } = await runToolCalls(outcome.turn.toolCalls, []);
+      const { parts, limitHit, escalated, finished } = await runToolCalls(
+        outcome.turn.toolCalls,
+        [],
+      );
       if (parts.length > 0) {
         messages.push({ role: 'tool', parts });
       }
@@ -1202,6 +1264,14 @@ export async function runAgent<S extends SchemaSpec>(
         // ctx layer; the loop terminates with the accepted request.
         status = 'escalated';
         escalationRequest = escalated;
+        break;
+      }
+      if (finished !== undefined) {
+        // Terminal tool: the loop ends ok with the finish result as the
+        // output; extract and finalize never fire (docs/07 4.11).
+        output = finished as Out<S>;
+        finishedViaTool = true;
+        await saveBoundary();
         break;
       }
       if (limitHit) {
@@ -1379,7 +1449,7 @@ export async function runAgent<S extends SchemaSpec>(
   // output for schema-less calls; with a schema the separate extract
   // below runs over the transcript INCLUDING the synthesis (docs/04,
   // section 8.4 as amended).
-  if (status === 'ok' && options.finalize !== undefined) {
+  if (status === 'ok' && !finishedViaTool && options.finalize !== undefined) {
     const finalizeResolved = options.finalize.resolved;
     events?.emit({
       type: 'agent:start',
@@ -1474,6 +1544,7 @@ export async function runAgent<S extends SchemaSpec>(
   // call over the loop transcript, on the extract-resolved model.
   if (
     status === 'ok' &&
+    !finishedViaTool &&
     separateExtract &&
     options.extract !== undefined &&
     options.schema !== undefined

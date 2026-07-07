@@ -86,9 +86,10 @@ import { mergeUsageLimits, type UsageLimits } from '../runtime/usage-limits.js';
 import { buildToolContext } from '../tools/context.js';
 import { resolveToolset, type ToolsOption } from '../tools/toolset-hash.js';
 import { AdmissionController, type AdmitVerdict } from '../orchestrator/admission.js';
+import { makeOrchestratorWorkflow, type OrchestrateOptions } from '../orchestrator/orchestrate.js';
 import { toJournalValue } from '../journal/serializable.js';
 import { admissionReserveUsd, ROOT_ACCOUNT, type RunBudget, type Spend } from './budget.js';
-import { ctxRuntimes } from './internal.js';
+import { ctxRuntimes, kOnRunning, kTerminalTool, type InternalAgentHooks } from './internal.js';
 import { Semaphore } from './scheduler.js';
 import type { ExternalRegistry } from './external.js';
 
@@ -374,6 +375,14 @@ export interface Ctx<P extends ErrorPolicy = 'strict'> {
    */
   workflow<A, R>(wf: Workflow<A, R>, args: A, o?: WorkflowCallOpts): Promise<R>;
   workflow(name: string, args?: Json, o?: WorkflowCallOpts): Promise<unknown>;
+
+  /**
+   * Nests a dynamic orchestrator under the AdmissionController (docs/06,
+   * section 2.6; M6-T07): one implementation with the top-level
+   * orchestrate(engine, goal, opts) surface, clamped by maxDepth and the
+   * parent budget account through the ordinary ctx.workflow admission.
+   */
+  orchestrate(goal: string, opts?: OrchestrateOptions): Promise<unknown>;
 
   /**
    * Suspends this position on a journaled entry until an external
@@ -940,6 +949,9 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     // result entirely from the journal with zero adapter calls.
     const matched = internals.replayer.match(state.scope, identityInput, opts.replay ?? 'scoped');
     if (matched.kind === 'replay' || matched.kind === 'skip') {
+      // Handles are journal-derived and stable across resume (M6-T07):
+      // a replayed spawn reports its original dispatch seq.
+      (opts as InternalAgentHooks)[kOnRunning]?.(matched.running.seq);
       const terminal = matched.kind === 'replay' ? matched.terminal : matched.terminal;
       const spanId = internals.spans.mint(state.spanId);
       const usage: Usage = terminal?.usage ?? {
@@ -1200,6 +1212,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       }
       running = await internals.replayer.appendRunning(runningInput);
     }
+    (opts as InternalAgentHooks)[kOnRunning]?.(running.seq);
 
     const limits = mergeUsageLimits(opts.limits, profile?.limits, internals.defaults.limits);
     const agentSink = {
@@ -1355,6 +1368,10 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     }
     if (escalation !== undefined) {
       runAgentOptions.escalation = { minSpendUsd: escalation.minSpendUsd ?? 0 };
+    }
+    const terminalTool = (opts as InternalAgentHooks)[kTerminalTool];
+    if (terminalTool !== undefined) {
+      runAgentOptions.terminalTool = terminalTool;
     }
     runAgentOptions.checkpoint = checkpointPlumbing;
     if (opts.schema !== undefined) {
@@ -2164,6 +2181,11 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     agent: agentImpl as Ctx<ErrorPolicy>['agent'],
     parallel: parallelImpl,
     workflow: workflowImpl as Ctx<ErrorPolicy>['workflow'],
+    orchestrate: (goal: string, orchestrateOpts?: OrchestrateOptions) =>
+      workflowImpl(
+        makeOrchestratorWorkflow(goal, orchestrateOpts) as unknown as Workflow<never, unknown>,
+        undefined,
+      ),
     pipeline: ((items: unknown[], ...rest: unknown[]) => {
       const last = rest[rest.length - 1];
       const hasOpts = typeof last === 'object' && last !== null;
