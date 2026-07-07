@@ -1,66 +1,78 @@
 {
   "id": "memoize-classifier",
-  "note": "DEF-1: memoizeOutcome pins the task-class failure (schema mismatch) for replay; the transport-class failure (rate limit) reruns and is the expected strict miss.",
+  "note": "DEF-1 (re-recorded through the live runtime in M3): memoizeOutcome pins the task-class failure (schema mismatch) for replay; the transport-class failure (rate limit) reruns and is the expected strict miss.",
   "entries": [
     {
       "hashVersion": 2,
+      "seq": 0,
       "scope": "",
-      "key": "d926fface2a04df18d4603d657e7afa2d7bba7ed7fb2da2a87577daac4234605",
+      "key": "3698eb437b45ad62cfe6ef1523250a4c359ed6f89fa971254d59f93c4e6830aa",
+      "ordinal": 0,
       "kind": "agent",
       "status": "running",
-      "memoizeOutcome": true,
-      "seq": 0,
-      "ordinal": 0,
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:00.000Z"
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "memoizeOutcome": true
     },
     {
       "hashVersion": 2,
+      "seq": 1,
       "ref": 0,
       "scope": "",
-      "key": "d926fface2a04df18d4603d657e7afa2d7bba7ed7fb2da2a87577daac4234605",
+      "key": "3698eb437b45ad62cfe6ef1523250a4c359ed6f89fa971254d59f93c4e6830aa",
+      "ordinal": 0,
       "kind": "agent",
       "status": "error",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z",
+      "endedAt": "2026-02-01T00:00:01.000Z",
       "error": {
         "code": "agent",
-        "message": "output failed schema validation after 2 attempts",
+        "message": "no JSON value found in the model response",
         "retryable": false,
         "data": {
-          "kind": "schema-mismatch"
+          "kind": "schema-mismatch",
+          "issues": [
+            {
+              "message": "no JSON value found in the model response"
+            }
+          ]
         }
       },
       "usage": {
-        "inputTokens": 300,
-        "outputTokens": 10,
+        "inputTokens": 106,
+        "outputTokens": 33,
         "cacheReadTokens": 0,
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:fake-model",
-      "endedAt": "2026-02-01T00:00:01.000Z",
-      "seq": 1,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:01.000Z"
+      "transcriptRef": "record/t0",
+      "checkpointRef": "record/ckpt/0"
     },
     {
       "hashVersion": 2,
+      "seq": 2,
       "scope": "",
       "key": "555e5c8bbdf0c964ad9264fa14a60a7d5439169569cbffdde958fd6b9ad22ea7",
+      "ordinal": 0,
       "kind": "agent",
       "status": "running",
-      "memoizeOutcome": true,
-      "seq": 2,
-      "ordinal": 0,
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:02.000Z"
+      "startedAt": "2026-02-01T00:00:02.000Z",
+      "memoizeOutcome": true
     },
     {
       "hashVersion": 2,
+      "seq": 3,
       "ref": 2,
       "scope": "",
       "key": "555e5c8bbdf0c964ad9264fa14a60a7d5439169569cbffdde958fd6b9ad22ea7",
+      "ordinal": 0,
       "kind": "agent",
       "status": "error",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:03.000Z",
+      "endedAt": "2026-02-01T00:00:03.000Z",
       "error": {
         "code": "agent",
         "message": "429 too many requests",
@@ -71,17 +83,14 @@
         }
       },
       "usage": {
-        "inputTokens": 50,
+        "inputTokens": 0,
         "outputTokens": 0,
         "cacheReadTokens": 0,
         "cacheWriteTokens": 0
       },
+      "usageApprox": true,
       "servedBy": "fake:fake-model",
-      "endedAt": "2026-02-01T00:00:03.000Z",
-      "seq": 3,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:03.000Z"
+      "transcriptRef": "record/t1"
     }
   ]
 }

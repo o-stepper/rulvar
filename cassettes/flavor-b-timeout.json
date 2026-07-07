@@ -1,0 +1,125 @@
+{
+  "id": "flavor-b-timeout",
+  "note": "DEF-1 live set: the escalate tool suspends the agent with a journaled deadline; the timer appends the resolution by timeout applying the defaultDecision (first-wins); dispose and the terminal escalated entry follow as effects; resume replays the closing resolution and the terminal entry with no re-suspension.",
+  "entries": [
+    {
+      "hashVersion": 2,
+      "seq": 0,
+      "scope": "",
+      "key": "fe70742ce9ee59412418bf25957894272a08b80551a4ba87186c35c0d135efee",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 1,
+      "scope": "agent:0",
+      "key": "76e6254b282221fffa475528580d084a62a9082829cd4bfe88a2fb77cdbb5e5d",
+      "ordinal": 0,
+      "kind": "approval",
+      "status": "suspended",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z",
+      "value": {
+        "toolName": "escalate",
+        "input": {
+          "kind": "scope_bigger",
+          "scopeDelta": "the billing migration spans nine services, not one",
+          "revisedEstimate": {
+            "usd": 40,
+            "turns": 90
+          },
+          "blockers": [
+            "schema ownership is unclear"
+          ]
+        }
+      },
+      "deadlineAt": "2026-02-01T00:01:01.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
+      "ref": 1,
+      "scope": "agent:0",
+      "key": "",
+      "ordinal": 0,
+      "kind": "resolution",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z",
+      "resolution": {
+        "target": 1,
+        "by": "timeout",
+        "value": {
+          "kind": "cancel",
+          "reason": "nobody decided before the deadline"
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 3,
+      "ref": 0,
+      "scope": "",
+      "key": "fe70742ce9ee59412418bf25957894272a08b80551a4ba87186c35c0d135efee",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "escalated",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:03.000Z",
+      "endedAt": "2026-02-01T00:00:03.000Z",
+      "usage": {
+        "inputTokens": 9,
+        "outputTokens": 8,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "record/t0",
+      "escalation": {
+        "kind": "scope_bigger",
+        "scopeDelta": "the billing migration spans nine services, not one",
+        "revisedEstimate": {
+          "usd": 40,
+          "turns": 90
+        },
+        "blockers": [
+          "schema ownership is unclear"
+        ],
+        "proposedDecomposition": [],
+        "costToDate": {
+          "usd": 0,
+          "turns": 1
+        },
+        "salvage": {
+          "transcriptRef": "record/t0",
+          "artifacts": []
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 4,
+      "scope": "",
+      "key": "",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:04.000Z",
+      "value": {
+        "decisionType": "escalation.decision",
+        "targetRef": 0,
+        "decision": {
+          "kind": "cancel",
+          "reason": "nobody decided before the deadline"
+        },
+        "countsAgainstLimit": true
+      },
+      "endedAt": "2026-02-01T00:00:04.000Z"
+    }
+  ]
+}

@@ -1144,7 +1144,6 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
             },
             Math.max(0, dueAt - internals.now()),
           );
-          timer.unref?.();
           // A live decision races the timer through the arbiter;
           // first-closing-wins, the loser journals as noop (DEF-4).
           if (internals.onEscalation !== undefined) {

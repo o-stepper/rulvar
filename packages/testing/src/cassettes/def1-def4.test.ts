@@ -25,6 +25,7 @@ import {
 import { FakeAdapter, FAKE_MODEL_REF } from '../fake-adapter.js';
 import { replayRun } from '../replay-strict.js';
 import { APPROVED_SCHEMA, DECISION_SCHEMA, GO_SCHEMA, PROMPTS } from './build-fixtures.js';
+import { CLASSIFY_SCHEMA } from './record-live.js';
 
 interface Cassette {
   id: string;
@@ -72,9 +73,12 @@ describe('DEF-1 cassettes (docs/09, section 6.1)', () => {
     const { outcome, preview } = await replayRun(wf, undefined as never, { journal: entries });
     expect(outcome.status).toBe('ok');
     expect(outcome.value).toBe('skipped');
-    // The whole subtree is skipped, never orphaned, never re-paid.
+    // The whole subtree is skipped, never re-paid; the authorizing
+    // escalation.decision fact is reported orphaned honestly until its
+    // plan-surface consumers arrive (M7; class-decision-fanout precedent).
     expect(preview.misses).toBe(0);
-    expect(preview.orphaned).toEqual([]);
+    const decisionSeq = entries.find((e) => e.kind === 'decision')?.seq;
+    expect(preview.orphaned).toEqual([decisionSeq]);
     expect(preview.skipped).toBe(4);
     // Zero spend increment: the ok and escalated children carry usage in
     // the fixture; the covered fold contributes nothing (docs/03, 13.3).
@@ -93,10 +97,11 @@ describe('DEF-1 cassettes (docs/09, section 6.1)', () => {
     const probe: Array<AgentResult<unknown>> = [];
     const wf = defineWorkflow({ name: 'memoize-classifier' }, async (ctx) => {
       probe.push(
-        (await ctx.agent(PROMPTS.classify, {
+        await ctx.agent(PROMPTS.classify, {
+          schema: CLASSIFY_SCHEMA,
           memoizeOutcome: true,
           result: 'full',
-        })),
+        }),
       );
       await ctx.agent(PROMPTS.summarize, { memoizeOutcome: true });
       return 'unreachable';

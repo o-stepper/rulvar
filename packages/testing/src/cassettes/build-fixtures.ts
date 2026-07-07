@@ -369,51 +369,9 @@ export interface CassetteFixture {
 export function buildM2CassetteFixtures(): CassetteFixture[] {
   const fixtures: CassetteFixture[] = [];
 
-  // DEF-1: abandon-subtree (docs/09, section 6.1).
-  {
-    const j = new FixtureJournal();
-    const spawn = j.danglingAgent({ prompt: PROMPTS.branchWork });
-    const subtree = agentScope('', spawn.seq);
-    j.agentOp({ prompt: PROMPTS.childOk, scope: subtree, value: 'child ok out', usage: usageOf(100, 20) });
-    j.agentOp({
-      prompt: PROMPTS.childEscalated,
-      scope: subtree,
-      status: 'escalated',
-      value: 'partial result',
-      usage: usageOf(200, 40),
-    });
-    j.danglingAgent({ prompt: PROMPTS.childHanging, scope: subtree });
-    j.abandon({ target: spawn.seq, authorizedBy: spawn.seq, reason: 'cancel_task' });
-    fixtures.push({
-      id: 'abandon-subtree',
-      note: 'DEF-1: abandon over a subtree with ok, escalated, and a hanging running entry; all derive skipped, zero live calls, zero spend increment.',
-      entries: j.entries,
-    });
-  }
-
-  // DEF-1: memoize-classifier (docs/09, section 6.1).
-  {
-    const j = new FixtureJournal();
-    j.agentOp({
-      prompt: PROMPTS.classify,
-      memoizeOutcome: true,
-      status: 'error',
-      error: agentWireError('schema-mismatch', 'output failed schema validation after 2 attempts', false),
-      usage: usageOf(300, 10),
-    });
-    j.agentOp({
-      prompt: PROMPTS.summarize,
-      memoizeOutcome: true,
-      status: 'error',
-      error: agentWireError('rate-limit', '429 too many requests', true, { retryAfterMs: 1000 }),
-      usage: usageOf(50, 0),
-    });
-    fixtures.push({
-      id: 'memoize-classifier',
-      note: 'DEF-1: memoizeOutcome pins the task-class failure (schema mismatch) for replay; the transport-class failure (rate limit) reruns and is the expected strict miss.',
-      entries: j.entries,
-    });
-  }
+  // DEF-1: abandon-subtree and memoize-classifier moved to the live
+  // recorder in M3-T11 (record-live.ts); they re-record again with the
+  // orchestrator producers in M7 (docs/10, cassette plan).
 
   // DEF-1: v1-journal-on-v2 (docs/09, section 6.1): round-1 dispositions.
   {
