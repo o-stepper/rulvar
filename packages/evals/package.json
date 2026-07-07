@@ -1,6 +1,6 @@
 {
   "name": "@lurker/evals",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "lurker evals: eval cases, golden outputs, rubric and judge graders, matrix sweeps, canary fingerprint.",
   "type": "module",
   "license": "UNLICENSED",

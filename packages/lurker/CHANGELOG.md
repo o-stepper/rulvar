@@ -1,5 +1,19 @@
 # @lurker/lurker
 
+## 0.7.0
+
+### Patch Changes
+
+- Updated dependencies [fd1d06c]
+- Updated dependencies [6fcf296]
+- Updated dependencies [dcc97a9]
+- Updated dependencies [434dc83]
+- Updated dependencies [03173c1]
+- Updated dependencies [11c0afc]
+  - @lurker/core@0.7.0
+  - @lurker/anthropic@0.7.0
+  - @lurker/openai@0.7.0
+
 ## 0.6.0
 
 ### Minor Changes
