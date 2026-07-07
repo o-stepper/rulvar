@@ -1,0 +1,19 @@
+{
+  "name": "@lurker/examples",
+  "version": "0.0.0",
+  "description": "Runnable reference implementations of the lurker quality patterns; integration tests, never published.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@lurker/core": "workspace:*",
+    "@lurker/testing": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "zod": "catalog:"
+  }
+}

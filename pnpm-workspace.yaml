@@ -3,6 +3,7 @@
 # the catalog: protocol so the 14 package.json files cannot drift apart.
 packages:
   - packages/*
+  - examples
 
 catalog:
   '@anthropic-ai/sdk': ^0.110.0
