@@ -137,6 +137,15 @@ export interface AgentProfile {
  */
 export interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   agentType?: string;
+  /**
+   * The primary invocation role of the agent's tool loop; default
+   * 'loop'. The plan and orchestrate entry points set it so the
+   * resolution chain, role effort defaults, quality floors, and cost
+   * buckets see the right role; extract/finalize/summarize stay
+   * trigger-derived and are never settable here (docs/06, 2.1;
+   * M6-T05 amendment).
+   */
+  role?: 'loop' | 'plan' | 'orchestrate';
   /** Overrides all roles at once. */
   model?: ModelSpec;
   /** Per-role, wins over profile.routing. */
@@ -728,9 +737,12 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       // FakeAdapter's agentType/label matching.
       providerOptions: { ...resolved.providerOptions, lurker: telemetryNamespace },
     });
+    // The primary role of the tool loop: 'loop' unless the plan or
+    // orchestrate entry points override it (docs/06, 2.1; M6-T05).
+    const primaryRole = opts.role ?? 'loop';
     const loopResolved = withTelemetry(
       resolveModelInvocation({
-        role: 'loop',
+        role: primaryRole,
         call: callLayer,
         profile: profileLayer,
         engine: engineLayer,
@@ -889,7 +901,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         );
         return { adapter: adapterOf(fallbackResolved), resolved: fallbackResolved };
       });
-    const loopFallbacks = failoverChainFor('loop', loopResolved);
+    const loopFallbacks = failoverChainFor(primaryRole, loopResolved);
     if (extract !== undefined) {
       const chain = failoverChainFor('extract', extract.resolved);
       if (chain.length > 0) {
@@ -995,7 +1007,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           agentType,
           label: opts.label,
           model: loopResolved.ref,
-          role: 'loop',
+          role: primaryRole,
         },
         spanId,
         true,
@@ -1031,7 +1043,10 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       bump(internals.cost.byModel, terminal?.servedBy ?? loopResolved.ref, costUsd);
       bump(internals.cost.byPhase, state.phase ?? '', costUsd);
       bump(internals.cost.byAgentType, agentType, costUsd);
-      internals.cost.byRole.set('loop', (internals.cost.byRole.get('loop') ?? 0) + costUsd);
+      internals.cost.byRole.set(
+        primaryRole,
+        (internals.cost.byRole.get(primaryRole) ?? 0) + costUsd,
+      );
       if (result.status === 'escalated' && result.escalation !== undefined) {
         // The owner's decision is read from the decision entry, never
         // re-evaluated; a crash between the report and the decision pays
@@ -1332,6 +1347,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       },
       priceUsd: internals.priceUsd,
       agentType,
+      role: primaryRole,
       now: internals.now,
     };
     if (toolRuntime !== undefined) {
@@ -1601,7 +1617,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     bump(internals.cost.byModel, loopResolved.ref, usd);
     bump(internals.cost.byPhase, state.phase ?? '', usd);
     bump(internals.cost.byAgentType, agentType, usd);
-    internals.cost.byRole.set('loop', (internals.cost.byRole.get('loop') ?? 0) + usd);
+    internals.cost.byRole.set(primaryRole, (internals.cost.byRole.get(primaryRole) ?? 0) + usd);
     if (internals.priceUsd(loopResolved.ref, result.usage) === undefined) {
       internals.cost.unpriced.push({ model: loopResolved.ref, usage: result.usage });
     }

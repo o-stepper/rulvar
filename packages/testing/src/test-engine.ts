@@ -77,6 +77,7 @@ export function createTestEngine(options: CreateTestEngineOptions): TestEngine {
     fake,
     store,
     resume: (runId, wf, options) => engine.resume(runId, wf, options),
+    profileCard: (names) => engine.profileCard(names),
     run<A, R>(wf: Workflow<A, R>, args: A, opts?: RunOptions): TestRunHandle<R> {
       const handle = engine.run(wf, args, opts);
       const eventsSeen: WorkflowEvent[] = [];

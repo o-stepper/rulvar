@@ -37,6 +37,7 @@ import type { EscalationDecision } from '../runtime/escalation.js';
 import type { EscalatedResult } from '../runtime/agent-loop.js';
 import type { PermissionConfig } from '../runtime/permission-chain.js';
 import type { UsageLimits } from '../runtime/usage-limits.js';
+import { profileCard } from '../model/profile-card.js';
 import { AdmissionController } from '../orchestrator/admission.js';
 import { RunBudget } from './budget.js';
 import {
@@ -200,6 +201,13 @@ export interface Engine {
     wf?: Workflow<A, R> | CompiledWorkflow,
     options?: ResumeOptions,
   ): ResumeHandle<R>;
+  /**
+   * Renders the registered agent profiles into the shared vocabulary
+   * card (docs/06, 9.3), optionally filtered to `names`; the registry
+   * itself stays private to the engine (docs/06, 10.2; M6-T05
+   * amendment). Unknown names are ignored.
+   */
+  profileCard(names?: readonly string[]): string;
 }
 
 /** Content hash of an in-process workflow body (run-to-definition binding, docs/06 10.2). */
@@ -706,5 +714,21 @@ export function createEngine(options: CreateEngineOptions): Engine {
     };
   }
 
-  return { run, resume };
+  return {
+    run,
+    resume,
+    profileCard: (names) => {
+      const registered = defaults.profiles ?? {};
+      if (names === undefined) {
+        return profileCard(registered);
+      }
+      const filtered: Record<string, AgentProfile> = {};
+      for (const name of names) {
+        if (registered[name] !== undefined) {
+          filtered[name] = registered[name];
+        }
+      }
+      return profileCard(filtered);
+    },
+  };
 }

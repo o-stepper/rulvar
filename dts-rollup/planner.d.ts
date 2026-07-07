@@ -1,4 +1,4 @@
-import { CompiledWorkflow, Ctx, ScriptRejected, ScriptRunner } from "@lurker/core";
+import { CompiledWorkflow, Ctx, Engine, Json, ModelSpec, RunHandle, ScriptRejected, ScriptRunner } from "@lurker/core";
 
 //#region src/compile.d.ts
 /**
@@ -33,6 +33,54 @@ declare function scriptDiagnosticsOf(error: ScriptRejected): ScriptDiagnostic[];
 /** Renders the sandbox-dialect API card; pure and byte-stable. */
 declare function apiCard(): string;
 //#endregion
+//#region src/plan.d.ts
+/** One repair-loop diagnostic: lint and compile findings share the shape. */
+interface PlanDiagnostic {
+  ruleId: string;
+  message: string;
+  line?: number;
+  column?: number;
+  severity: "error" | "warning";
+}
+interface PlanOptions {
+  /** The planner model; otherwise the chain resolves role 'plan'. */
+  model?: ModelSpec;
+  /** Registered profile names to advertise; default: every profile. */
+  profiles?: string[];
+  /** Self-repair rounds from JSON diagnostics; default 3 (Appendix A). */
+  repairRounds?: number;
+}
+interface PlanResult {
+  source: string;
+  workflow: CompiledWorkflow;
+  /** Diagnostics of the ACCEPTED draft: advisories only, never errors. */
+  lint: PlanDiagnostic[];
+}
+/** The deterministic planner runId: one goal, one journal (docs/06, 9.2). */
+declare function planRunIdOf(goal: string): string;
+/**
+* The model may fence the script; the extractor takes the first fenced
+* block when one exists, else the whole reply, and is deterministic.
+*/
+declare function extractScript(reply: string): string;
+/**
+* Lints a script BODY with the workflows preset plus compileScript.
+* The body is wrapped in an async function for parsing (top-level
+* return/await are legal in the dialect); reported lines shift back so
+* they index into the body source.
+*/
+declare function lintScript(source: string): {
+  diagnostics: PlanDiagnostic[];
+  errors: PlanDiagnostic[];
+  workflow?: CompiledWorkflow;
+};
+declare function plan(engine: Engine, goal: string, o?: PlanOptions): Promise<PlanResult>;
+/**
+* plan-then-run in one call (docs/06, section 9; amended during M6-T05:
+* the composition is async because planning itself is a run).
+*/
+declare function runPlanned(engine: Engine, goal: string, args?: Json): Promise<RunHandle<unknown>>;
+//#endregion
 //#region src/sandbox-runner.d.ts
 declare const DEFAULT_SANDBOX_TIMEOUT_MS = 3e5;
 declare const DEFAULT_SANDBOX_MEMORY_MB = 512;
@@ -56,4 +104,4 @@ declare class WorkerSandboxRunner implements ScriptRunner {
   execute<A, R>(wf: CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R>;
 }
 //#endregion
-export { type CompileScriptOptions, DEFAULT_SANDBOX_MEMORY_MB, DEFAULT_SANDBOX_TIMEOUT_MS, SANDBOX_GLOBALS, type ScriptDiagnostic, WorkerSandboxRunner, type WorkerSandboxRunnerOptions, apiCard, compileScript, scriptDiagnosticsOf };
+export { type CompileScriptOptions, DEFAULT_SANDBOX_MEMORY_MB, DEFAULT_SANDBOX_TIMEOUT_MS, type PlanDiagnostic, type PlanOptions, type PlanResult, SANDBOX_GLOBALS, type ScriptDiagnostic, WorkerSandboxRunner, type WorkerSandboxRunnerOptions, apiCard, compileScript, extractScript, lintScript, plan, planRunIdOf, runPlanned, scriptDiagnosticsOf };

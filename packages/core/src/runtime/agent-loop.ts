@@ -287,6 +287,8 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    */
   escalation?: { minSpendUsd: number };
   agentType?: string;
+  /** The primary invocation role of the tool loop; default 'loop' (M6-T05). */
+  role?: 'loop' | 'plan' | 'orchestrate';
   label?: string;
   now?: () => number;
 }
@@ -876,7 +878,7 @@ export async function runAgent<S extends SchemaSpec>(
     agentType,
     label: options.label,
     model: servedBy,
-    role: 'loop',
+    role: options.role ?? 'loop',
   });
 
   // The runtime never throws past policy: an adapter violating the Usage

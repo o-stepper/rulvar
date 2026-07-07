@@ -115,6 +115,14 @@ interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   // identity-bearing fields (exact IdentityInput: 03-journal-spec.md,
   // section "Identity model (DEF-6 framing)")
   agentType?: string;                                  // profile name
+  role?: 'loop' | 'plan' | 'orchestrate';              // primary invocation role of the tool loop;
+                                                       // default 'loop'; set by the plan and orchestrate
+                                                       // entry points so the resolution chain, role effort
+                                                       // defaults, floors, and cost buckets see the right
+                                                       // role; extract/finalize/summarize stay
+                                                       // trigger-derived and are never settable here. The
+                                                       // role itself is not hashed; the resolved modelSpec
+                                                       // it selects is. (Amended during M6-T05.)
   model?: ModelSpec;                                   // overrides all roles at once
   routing?: Partial<Record<InvocationRole, ModelSpec>>; // per-role, wins over profile.routing
   effort?: Effort;                                     // canonical effort, part of identity
@@ -569,7 +577,10 @@ function plan(engine: Engine, goal: string,
   o?: { model?: ModelSpec; profiles?: string[]; repairRounds?: number }
 ): Promise<{ source: string; workflow: CompiledWorkflow; lint: Diagnostic[] }>;
 
-function runPlanned(engine: Engine, goal: string, args?: Json): RunHandle<unknown>;
+function runPlanned(engine: Engine, goal: string, args?: Json): Promise<RunHandle<unknown>>;
+// (Amended during M6-T05: runPlanned is async because planning itself is a
+// journaled run; a sync facade would fabricate a handle before the plan
+// exists.)
 
 function orchestrate(engine: Engine, goal: string,
   o?: { model?: ModelSpec; profiles?: string[]; maxSpawns?: number; budget?: OrchestratorBudgetSpec }
@@ -582,7 +593,7 @@ function orchestrate(engine: Engine, goal: string,
 
 ### 9.2 Mode (b): flagship hybrid
 
-`plan()` asks a planner model (role `'plan'`) to write a script against the API card of the ctx dialect and the profile cards, lints it, self-repairs up to `repairRounds` rounds (default 3) from the JSON diagnostics, then `compileScript` and deterministic execution in WorkerSandboxRunner. Replanning after a failure replays the unchanged prefix for free (invariant I1). `runPlanned` composes plan-then-run in one call. Packages: @lurker/planner (02-architecture.md, section "Package map"; note the @lurker/plan vs @lurker/planner disambiguation table there).
+`plan()` asks a planner model (role `'plan'`) to write a script against the API card of the ctx dialect and the profile cards, lints it, self-repairs up to `repairRounds` rounds (default 3) from the JSON diagnostics, then `compileScript` and deterministic execution in WorkerSandboxRunner. Replanning after a failure replays the unchanged prefix for free (invariant I1): the planner conversation is an ordinary journaled run whose runId derives deterministically from the goal (`plan-` plus a hash prefix), so plan() resumes the same journal on the same store. (Amended during M6-T05: the runId derivation committed.) `runPlanned` composes plan-then-run in one call. Packages: @lurker/planner (02-architecture.md, section "Package map"; note the @lurker/plan vs @lurker/planner disambiguation table there).
 
 ### 9.3 Mode (c): dynamic orchestrator
 
@@ -672,6 +683,11 @@ Normative rules:
 interface Engine {
   run<A, R>(wf: Workflow<A, R> | CompiledWorkflow, args: A, o?: RunOptions): RunHandle<R>;
   resume(runId: string, wf?: Workflow<any, any> | CompiledWorkflow): RunHandle<unknown>;
+  profileCard(names?: string[]): string;  // the shared vocabulary card of the registered
+                                          // agent profiles (section 9.3), optionally
+                                          // filtered; the registry itself stays private.
+                                          // (Amended during M6-T05: plan() renders the
+                                          // profile cards through the public API.)
 }
 ```
 

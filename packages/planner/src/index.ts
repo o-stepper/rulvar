@@ -13,6 +13,16 @@ export {
 } from './compile.js';
 export { apiCard } from './api-card.js';
 export {
+  extractScript,
+  lintScript,
+  plan,
+  planRunIdOf,
+  runPlanned,
+  type PlanDiagnostic,
+  type PlanOptions,
+  type PlanResult,
+} from './plan.js';
+export {
   DEFAULT_SANDBOX_MEMORY_MB,
   DEFAULT_SANDBOX_TIMEOUT_MS,
   WorkerSandboxRunner,

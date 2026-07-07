@@ -2796,6 +2796,8 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
     minSpendUsd: number;
   };
   agentType?: string;
+  /** The primary invocation role of the tool loop; default 'loop' (M6-T05). */
+  role?: "loop" | "plan" | "orchestrate";
   label?: string;
   now?: () => number;
 }
@@ -3151,6 +3153,15 @@ interface AgentProfile {
 */
 interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   agentType?: string;
+  /**
+  * The primary invocation role of the agent's tool loop; default
+  * 'loop'. The plan and orchestrate entry points set it so the
+  * resolution chain, role effort defaults, quality floors, and cost
+  * buckets see the right role; extract/finalize/summarize stay
+  * trigger-derived and are never settable here (docs/06, 2.1;
+  * M6-T05 amendment).
+  */
+  role?: "loop" | "plan" | "orchestrate";
   /** Overrides all roles at once. */
   model?: ModelSpec;
   /** Per-role, wins over profile.routing. */
@@ -4079,6 +4090,13 @@ interface Engine {
   * ConfigError (docs/06, 10.2; M6-T02).
   */
   resume<A, R>(runId: string, wf?: Workflow<A, R> | CompiledWorkflow, options?: ResumeOptions): ResumeHandle<R>;
+  /**
+  * Renders the registered agent profiles into the shared vocabulary
+  * card (docs/06, 9.3), optionally filtered to `names`; the registry
+  * itself stays private to the engine (docs/06, 10.2; M6-T05
+  * amendment). Unknown names are ignored.
+  */
+  profileCard(names?: readonly string[]): string;
 }
 /** Content hash of an in-process workflow body (run-to-definition binding, docs/06 10.2). */
 declare function hashWorkflowBody(wf: Workflow<never, never> | Workflow<unknown, unknown>): string;
