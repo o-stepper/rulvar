@@ -19,6 +19,12 @@ export interface UsageLimits {
   timeoutMs?: number;
   /** Gap between stream events; default 120000. */
   streamIdleTimeoutMs?: number;
+  /**
+   * The no-progress detector N (docs/06 Appendix A, committed at 3):
+   * consecutive turns without tool calls or artifact deltas before the
+   * engine aborts with the dedicated class (M3-T08).
+   */
+  noProgressTurns?: number;
 }
 
 export const DEFAULT_MAX_TURNS = 32;
@@ -30,6 +36,8 @@ export interface EffectiveUsageLimits {
   maxOutputTokensPerTurn?: number;
   timeoutMs?: number;
   streamIdleTimeoutMs: number;
+  /** Default DEFAULT_NO_PROGRESS_TURNS (docs/06 Appendix A). */
+  noProgressTurns?: number;
 }
 
 /**
@@ -58,6 +66,10 @@ export function mergeUsageLimits(
   const timeoutMs = pick('timeoutMs');
   if (timeoutMs !== undefined) {
     merged.timeoutMs = timeoutMs;
+  }
+  const noProgressTurns = pick('noProgressTurns');
+  if (noProgressTurns !== undefined) {
+    merged.noProgressTurns = noProgressTurns;
   }
   return merged;
 }

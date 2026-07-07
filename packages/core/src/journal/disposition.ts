@@ -101,11 +101,15 @@ function applyRule(rule: DispositionRule | undefined, op: JournalOperation): Rep
     case 'memoize-limit': {
       // limit is always task-class: the model ran to its cap, the work is
       // paid; memoizeOutcome is read from the ENTRY, never current code.
-      const memoize = op.running.memoizeOutcome ?? terminal.memoizeOutcome ?? false;
+      // The terminal stamp wins: engine-decided abort classes (the
+      // no-progress abort, M3-T08) fix the flag on the terminal at abort
+      // time, and MUST replay regardless of the user's dispatch-time
+      // policy (docs/03, section 6.6, M3 amendment).
+      const memoize = terminal.memoizeOutcome ?? op.running.memoizeOutcome ?? false;
       return memoize ? 'replay' : 'rerun';
     }
     case 'memoize-task-error': {
-      const memoize = op.running.memoizeOutcome ?? terminal.memoizeOutcome ?? false;
+      const memoize = terminal.memoizeOutcome ?? op.running.memoizeOutcome ?? false;
       if (!memoize || terminal.error === undefined) {
         return 'rerun';
       }

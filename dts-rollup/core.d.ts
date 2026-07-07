@@ -1744,6 +1744,13 @@ interface TerminalPatch {
   artifacts?: unknown;
   /** Terminal escalated entries: the validated EscalationReport. */
   escalation?: unknown;
+  /**
+  * Engine-decided terminal abort classes (the no-progress abort) stamp
+  * memoizeOutcome on the TERMINAL entry so the frozen memoize rules
+  * replay them on every resume; the running entry keeps the user's
+  * policy verbatim (docs/03, section 6.6, M3 amendment).
+  */
+  memoizeOutcome?: boolean;
   site?: string;
 }
 /**
@@ -2133,6 +2140,48 @@ declare function validateEscalationReport(report: EscalationReport): Promise<Iss
 */
 declare function countsAgainstLimit(kind: EscalationKind): boolean;
 //#endregion
+//#region src/runtime/no-progress.d.ts
+/**
+* The no-progress abort class (M3-T08): an engine-defined detector
+* journaled as a first-class terminal abort distinct from user
+* cancellation (a cancelled entry always reruns; a no-progress abort
+* must replay, or every resume would re-pay the stuck turns). The
+* interim heuristic is committed in docs/06 Appendix A: N consecutive
+* turns without tool calls or artifact deltas, N = 3; the broader
+* heuristic stays OQ-15 (docs/14), revisited on dogfood traces.
+*
+* Encoding (docs/03, sections 6.3 and 6.6): the abort is the agent's
+* terminal entry with status 'limit', an error payload carrying
+* abortClass 'no-progress', and memoizeOutcome stamped by the ENGINE on
+* the terminal entry, so the frozen memoize-limit rule replays it on
+* every subsequent resume without a live rerun. In M3 the runtime has no
+* per-turn artifact channel, so the tool-call test subsumes artifact
+* deltas; per-turn artifact producers arrive with M4 compaction.
+*/
+/** docs/06 Appendix A: the committed no-progress detector N. */
+declare const DEFAULT_NO_PROGRESS_TURNS = 3;
+/** The consumer-visible dedicated class marker (FR-424). */
+type AbortClass = "no-progress";
+/**
+* Counts consecutive progress-free turns. A turn with at least one tool
+* call (or, later, an artifact delta) resets the streak; a turn with
+* neither lengthens it; the detector trips when the streak reaches the
+* threshold AND the loop would otherwise continue.
+*/
+declare class NoProgressDetector {
+  private streakInternal;
+  private readonly threshold;
+  constructor(threshold?: number);
+  get streak(): number;
+  /** Records one completed model turn. */
+  recordTurn(progress: {
+    toolCalls: number;
+    artifactDeltas?: number;
+  }): void;
+  get tripped(): boolean;
+  describe(): string;
+}
+//#endregion
 //#region src/runtime/usage-limits.d.ts
 /**
 * UsageLimits (M1-T06): normative limit vocabulary and the per-spawn merge.
@@ -2155,6 +2204,12 @@ interface UsageLimits {
   timeoutMs?: number;
   /** Gap between stream events; default 120000. */
   streamIdleTimeoutMs?: number;
+  /**
+  * The no-progress detector N (docs/06 Appendix A, committed at 3):
+  * consecutive turns without tool calls or artifact deltas before the
+  * engine aborts with the dedicated class (M3-T08).
+  */
+  noProgressTurns?: number;
 }
 declare const DEFAULT_MAX_TURNS = 32;
 declare const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 12e4;
@@ -2164,6 +2219,8 @@ interface EffectiveUsageLimits {
   maxOutputTokensPerTurn?: number;
   timeoutMs?: number;
   streamIdleTimeoutMs: number;
+  /** Default DEFAULT_NO_PROGRESS_TURNS (docs/06 Appendix A). */
+  noProgressTurns?: number;
 }
 /**
 * Limits merge per spawn: AgentOpts.limits over profile limits over engine
@@ -2211,6 +2268,12 @@ interface AgentResult<T> {
   * consumes and removes it; consumers read `escalation`.
   */
   escalationRequest?: EscalationRequest;
+  /**
+  * The dedicated first-class abort class (M3-T08): present on the
+  * engine-decided no-progress abort (status 'limit'), never on user
+  * cancellation or ordinary cap hits.
+  */
+  abortClass?: AbortClass;
 }
 type EscalatedResult<T> = AgentResult<T> & {
   status: "escalated";
@@ -3226,4 +3289,4 @@ declare class InProcessRunner implements ScriptRunner {
   execute<A, R>(wf: Workflow<A, R> | CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R>;
 }
 //#endregion
-export { AbandonAttempt, AbandonFold, AbandonPayload, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApprovalDecision, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetDefaults, BudgetExhaustedError, BudgetHooks, type Bytes, CHECKPOINT_FORMAT_V1, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationKind, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExternalIdentityInput, ExternalRegistry, FinishInfo, Gate, GitWorktreeProvider, GitWorktreeProviderOptions, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelRef, ModelRetry, ModelSpec, Msg, NonSerializableValueError, OnEscalation, OperationDisposition, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionRule, PermissionVerdict, PipelineCollected, PipelineOpts, PlanInvariantError, type Pricing, type ProviderAdapter, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, SinglePhaseAppend, SpanMinter, SpanRegistry, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskSpec, TerminalPatch, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, type WorkflowEvent, type WorkflowEventBody, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildToolContext, canonicalizeSchema, checkpointRefFor, classifyAgentError, compilePermissionChain, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, extractCandidate, formatRePrompt, formatScopePath, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, mcp, mergeUsageLimits, modelSpecIdentity, normalizeEntry, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, projectIdentity, projectToJsonSchema, registryKeyRing, replayDisposition, resolveModelInvocation, resolveToolset, roundOneDisposition, runAgent, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationReport, validateSchemaSpec, workflowScope };
+export { AbandonAttempt, AbandonFold, AbandonPayload, AbortClass, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApprovalDecision, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetDefaults, BudgetExhaustedError, BudgetHooks, type Bytes, CHECKPOINT_FORMAT_V1, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationKind, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExternalIdentityInput, ExternalRegistry, FinishInfo, Gate, GitWorktreeProvider, GitWorktreeProviderOptions, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NonSerializableValueError, OnEscalation, OperationDisposition, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionRule, PermissionVerdict, PipelineCollected, PipelineOpts, PlanInvariantError, type Pricing, type ProviderAdapter, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, SinglePhaseAppend, SpanMinter, SpanRegistry, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskSpec, TerminalPatch, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, type WorkflowEvent, type WorkflowEventBody, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildToolContext, canonicalizeSchema, checkpointRefFor, classifyAgentError, compilePermissionChain, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, extractCandidate, formatRePrompt, formatScopePath, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, mcp, mergeUsageLimits, modelSpecIdentity, normalizeEntry, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, projectIdentity, projectToJsonSchema, registryKeyRing, replayDisposition, resolveModelInvocation, resolveToolset, roundOneDisposition, runAgent, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationReport, validateSchemaSpec, workflowScope };

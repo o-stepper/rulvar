@@ -483,6 +483,7 @@ A memoized failure comes with an invalidate/retry API for explicit unpinning (th
 
 - The predicate is applied with the table of the ENTRY'S OWN hashVersion: v1 entries under the round-1 table, v2 entries under the full table above; on the v1 domain the tables coincide, so a mixed journal is deterministic (compatibility lemma, section 4.6).
 - `memoizeOutcome` is fixed in the entry payload at dispatch time as a policy field (it does NOT enter the content key, exactly like `onError`/`retry`); the predicate reads the flag from the entry, not from current code. Entry identity is untouched: neither status nor policy fields enter the hash; there is no re-keying.
+- Engine-decided terminal abort classes (the no-progress abort, M3) stamp `memoizeOutcome: true` on the TERMINAL entry of the pair at abort time: the abort is a task-class, engine-decided final outcome by definition, and replaying it on every subsequent resume is the entire point of the dedicated class. The predicate's entry-read consults the terminal stamp first; the running entry keeps the user's dispatch-time policy verbatim. (Amended during M3-T08; the plan-surface `plan.decision` origin `no-progress` arrives with M7.)
 - The status and kind vocabulary change has no versioning mechanism of its own: it rides the entry's `hashVersion` field (the v2 profile) with the single failure type `JournalCompatibilityError`; `JOURNAL_FORMAT_VERSION` and `JournalFormatError` are abolished (DEF-1 cross-review ruling).
 
 ### 6.7 Consumer surface

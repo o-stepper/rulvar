@@ -724,6 +724,11 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         // escalated entry replays as completed, paid work).
         result.escalation = terminal.escalation as unknown as EscalationReport;
       }
+      if (
+        (terminal?.error?.data as { abortClass?: string } | undefined)?.abortClass === 'no-progress'
+      ) {
+        result.abortClass = 'no-progress';
+      }
       // Tool results reconstructed from the replayed turn checkpoint are
       // re-emitted with the replay marker (docs/09, section "Replay
       // re-emission").
@@ -1227,6 +1232,23 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     }
     if (result.artifacts !== undefined) {
       terminalPatch.artifacts = result.artifacts;
+    }
+    if (result.abortClass === 'no-progress') {
+      // The engine-decided abort replays on every resume: memoizeOutcome
+      // stamped on the TERMINAL, the class marker in the error payload
+      // (docs/03, section 6.6, M3 amendment; M3-T08).
+      terminalPatch.memoizeOutcome = true;
+      if (terminalPatch.error !== undefined) {
+        const priorData = terminalPatch.error.data;
+        const dataRecord =
+          typeof priorData === 'object' && priorData !== null && !Array.isArray(priorData)
+            ? priorData
+            : {};
+        terminalPatch.error = {
+          ...terminalPatch.error,
+          data: { ...dataRecord, abortClass: 'no-progress' },
+        };
+      }
     }
     if (checkpointWritten) {
       terminalPatch.checkpointRef = ckptRef;
