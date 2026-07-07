@@ -1,4 +1,4 @@
-import { CreateEngineOptions, Engine, JournalStore, RunHandle, RunOutcome, Workflow, WorkflowEvent, WorkflowRegistry } from "@lurker/core";
+import { CreateEngineOptions, Engine, JournalStore, ModelRef, RunHandle, RunOutcome, Usage, Workflow, WorkflowEvent, WorkflowRegistry } from "@lurker/core";
 
 //#region src/io.d.ts
 interface CliIo {
@@ -56,6 +56,8 @@ interface AssembledCli {
   engine: Engine;
   store: JournalStore;
   workflows: WorkflowRegistry;
+  /** The journal-fold price function (table wins over caps; docs/04, section 10). */
+  priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
 }
 declare function assembleEngine(options: {
   config: CliConfig;

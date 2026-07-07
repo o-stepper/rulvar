@@ -10,7 +10,7 @@ import type { Json } from '../l0/json.js';
 import type { ResolutionOutcome } from '../journal/resolution.js';
 import type { WorkflowEvent } from '../l0/events.js';
 import type { InvocationRole, Usage } from '../l0/messages.js';
-import type { DroppedItem, CostAttribution } from './ctx.js';
+import type { DroppedItem } from './ctx.js';
 
 /** Suspensions still open at settle time; producers arrive with M2. */
 export interface PendingExternal {
@@ -78,30 +78,4 @@ export interface RunHandle<R> {
   cancel(reason?: string): Promise<void>;
 }
 
-const ROLES: InvocationRole[] = ['orchestrate', 'plan', 'loop', 'finalize', 'extract', 'summarize'];
-
-/** Folds the per-run attribution buckets into the normative CostReport. */
-export function buildCostReport(attribution: CostAttribution, totalUsd: number): CostReport {
-  const byRole = Object.fromEntries(ROLES.map((role) => [role, 0])) as Record<
-    InvocationRole,
-    number
-  >;
-  for (const [role, usd] of attribution.byRole) {
-    byRole[role] = usd;
-  }
-  return {
-    totalUsd,
-    byModel: Object.fromEntries(attribution.byModel),
-    byPhase: Object.fromEntries(attribution.byPhase),
-    byAgentType: Object.fromEntries(attribution.byAgentType),
-    byRole,
-    orchestrator: {
-      spentUsd: 0,
-      share: 0,
-      wakes: 0,
-      forcedFinish: false,
-      reserveUsedUsd: 0,
-    },
-    unpriced: attribution.unpriced,
-  };
-}
+export { buildCostReport } from './cost-report.js';

@@ -470,13 +470,17 @@ export function createEngine(options: CreateEngineOptions): Engine {
         }
         await replayer.flush().catch(() => undefined);
       }
-      const spend = budget.spent();
+      // Report totals are the LEDGER FOLD totals at settle, not the live
+      // budget accumulator: the journal is the truth cost reconciles
+      // against, and one summation order keeps the equality exact
+      // (M5-T03 acceptance; docs/09, section "CostReport").
+      const ledger = replayer.ledger();
       const outcome: RunOutcome<R> = {
         status,
         dropped: internals.dropped,
         pending,
-        usage: spend.usage,
-        cost: buildCostReport(internals.cost, spend.usd),
+        usage: ledger.usage,
+        cost: buildCostReport(internals.cost, ledger.usd),
       };
       if (value !== undefined && status === 'ok') {
         outcome.value = value;
@@ -485,7 +489,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         outcome.error = wireError;
       }
       await putMeta(status).catch(() => undefined);
-      bus.emit({ type: 'run:end', status, totalUsd: spend.usd }, rootSpanId);
+      bus.emit({ type: 'run:end', status, totalUsd: ledger.usd }, rootSpanId);
       bus.end();
       resumeCtx?.previewResolve({
         ...replayer.resumeReport(),

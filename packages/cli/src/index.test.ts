@@ -141,6 +141,11 @@ describe('lurker CLI (M5-T01)', () => {
     expect(text).toContain('external: 1');
     expect(text).toContain('resolution: 1');
     expect(text).toContain('open suspensions: 0');
+    // The cost view (M5-T03): FakeAdapter prices at zero by
+    // construction, so the fold reports $0 with no unpriced noise.
+    expect(text).toContain('cost: $0.0000');
+    expect(text).toContain('fake:fake-model: $0.0000');
+    expect(text).not.toContain('unpriced:');
   });
 
   it('inspect shows an open suspension while the run is parked', async () => {
