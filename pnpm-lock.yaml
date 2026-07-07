@@ -332,6 +332,9 @@ importers:
       '@lurker/core':
         specifier: workspace:*
         version: link:../core
+      eslint:
+        specifier: 'catalog:'
+        version: 9.39.4
       eslint-plugin-lurker:
         specifier: workspace:*
         version: link:../eslint-plugin-lurker

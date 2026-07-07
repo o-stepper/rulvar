@@ -30,7 +30,8 @@
   },
   "dependencies": {
     "@lurker/core": "workspace:*",
-    "eslint-plugin-lurker": "workspace:*"
+    "eslint-plugin-lurker": "workspace:*",
+    "eslint": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
