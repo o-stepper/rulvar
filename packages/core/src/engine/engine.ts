@@ -63,9 +63,20 @@ import type { QualityFloors } from '../model/floors.js';
 
 export type { RunStatus };
 
+/**
+ * The per-engine workflow registry (docs/06, section 10.4; M5-T01): an
+ * explicit, first-class value; no module-level registry exists. Shells
+ * resolve by-name runs against it; ctx.workflow's string form (M6) and
+ * the queue worker (M8) resolve against it too. CompiledWorkflow values
+ * join the union when they first exist (M6).
+ */
+export type WorkflowRegistry = Record<string, Workflow<never, unknown>>;
+
 export interface EngineDefaults {
   routing?: Partial<Record<InvocationRole, ModelSpec>>;
   profiles?: Record<string, AgentProfile>;
+  /** The workflow registry for shells and by-name resolution (10.4). */
+  workflows?: WorkflowRegistry;
   limits?: UsageLimits;
   /** Engine-wide permission chain layers (docs/08, section 3). */
   permissions?: PermissionConfig;
@@ -73,6 +84,8 @@ export interface EngineDefaults {
   isolation?: IsolationProvider;
   /** Engine-wide transport RetryPolicy (docs/04, 11.1; M4-T05). */
   retry?: RetryPolicy;
+  /** Hard per-role model constraints (docs/04, section 9; M4-T09). */
+  roleFloors?: QualityFloors;
 }
 
 export interface BudgetDefaults {
@@ -98,8 +111,6 @@ export interface CreateEngineOptions {
   };
   /** Versioned price table; wins over caps.pricing (docs/04, section 10; M4-T06). */
   pricing?: PriceTable;
-  /** Hard per-role model constraints (docs/04, section 9; M4-T09). */
-  floors?: QualityFloors;
   /**
    * The InProcessRunner escalation hook (docs/06, sections 2.10 and 8.1):
    * receives escalated results when the call form cannot carry them; the
@@ -302,7 +313,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       semaphore: new Semaphore(options.concurrency?.perRun ?? DEFAULT_PER_RUN_CONCURRENCY),
       providerLimiter,
       ...(options.pricing === undefined ? {} : { pricingVersion: options.pricing.pricingVersion }),
-      ...(options.floors === undefined ? {} : { floors: options.floors }),
+      ...(defaults.roleFloors === undefined ? {} : { floors: defaults.roleFloors }),
       events: { emit: (body, spanId) => bus.emit(body as WorkflowEventBody, spanId ?? rootSpanId) },
       spans,
       rootSpanId,
@@ -316,6 +327,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
           : { limits: { ...defaults.limits, ...opts?.limits } }),
         ...(defaults.permissions === undefined ? {} : { permissions: defaults.permissions }),
         ...(defaults.retry === undefined ? {} : { retry: defaults.retry }),
+        ...(defaults.workflows === undefined ? {} : { workflows: defaults.workflows }),
       },
       errorPolicy: wf.errorPolicy,
       dropped: [],

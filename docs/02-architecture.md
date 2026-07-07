@@ -468,12 +468,16 @@ Canonical grammar (no aliases in v1):
 
 ```text
 lurker run <workflow> --args '{"pr":42}' --store .lurker --budget-usd 20
-lurker resume <runId>
-lurker runs ls
-lurker inspect <runId>
+lurker resume <runId> --args '{"pr":42}' --store .lurker
+lurker runs ls --store .lurker
+lurker inspect <runId> --store .lurker
 lurker plan "goal" --dry-run
 lurker kb list | inbox | sweep
 ```
+
+(resume/inspect flags amended during M5-T01; the normative grammar and
+the rationale live in 06-execution-spec.md, section "Canonical CLI
+grammar".)
 
 The CLI renders TUI progress from the event stream and performs interactive resolution of suspended approvals and external inputs (the resolution source mapping is 03-journal-spec.md, section "Suspension and resolutions").
 

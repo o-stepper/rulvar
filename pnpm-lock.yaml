@@ -146,6 +146,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@lurker/testing':
+        specifier: workspace:*
+        version: link:../testing
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.0

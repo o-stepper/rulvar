@@ -718,12 +718,19 @@ The canonical v1 grammar of @lurker/cli (M5; kb subcommands from M10). No aliase
 
 ```
 lurker run <file|name> [--args JSON] [--store PATH] [--budget-usd N] [--profile NAME]
-lurker resume <runId>
+lurker resume <runId> [--args JSON] [--store PATH]
 lurker runs ls [--store PATH]
-lurker inspect <runId>
+lurker inspect <runId> [--store PATH]
 lurker plan "<goal>" [--dry-run]
 lurker kb <list | inbox | sweep>
 ```
+
+(Amended during M5-T01: `resume` carries `--args` because original run
+arguments are not journaled for in-process workflows in v1 and the host
+re-supplies them at resume (ResumeOptions.args; the residual is tracked
+in 14-open-questions.md, resume binding residuals); `resume` and
+`inspect` carry `--store` for symmetry with `run` and `runs ls`: every
+command that opens a journal store selects it the same way.)
 
 Example: `lurker run wf.ts --args '{"pr":42}' --store .lurker --budget-usd 20`. Install commands always use `@lurker/<name>`, never the bare unscoped name (naming risk note: 13-toolchain-repo.md, section "Naming risk note").
 

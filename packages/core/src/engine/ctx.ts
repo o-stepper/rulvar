@@ -447,6 +447,8 @@ export interface RunInternals {
     permissions?: PermissionConfig;
     /** Engine-wide transport RetryPolicy (docs/04, 11.1; M4-T05). */
     retry?: RetryPolicy;
+    /** The per-engine workflow registry (docs/06, 10.4; consumers: M6 ctx.workflow, M8 worker). */
+    workflows?: Record<string, unknown>;
   };
   /** Engine-scoped per-provider keyed limiter (docs/06, section 4; M4-T07). */
   providerLimiter?: KeyedLimiter;

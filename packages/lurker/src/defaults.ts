@@ -9,7 +9,7 @@ import type { InvocationRole, ModelSpec, QualityFloors } from '@lurker/core';
 
 /**
  * Drop-in engine defaults: `createEngine({ ..., defaults: { routing:
- * recommendedDefaults.routing }, floors: recommendedDefaults.floors })`.
+ * recommendedDefaults.routing, roleFloors: recommendedDefaults.floors } })`.
  * Hosts override freely; these are data, not engine semantics. The
  * floors pin orchestrate and plan to strong models as hard router
  * constraints (docs/04, section "Role quality floors"; M4-T09): weak
