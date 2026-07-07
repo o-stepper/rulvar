@@ -31,6 +31,8 @@ import { RunBudget } from './budget.js';
 import { SpanRegistry } from './events.js';
 import { Semaphore } from './scheduler.js';
 import type { AgentProfile, RunEventSink, RunInternals } from './ctx.js';
+import type { PermissionConfig } from '../runtime/permission-chain.js';
+import { ExternalRegistry } from './external.js';
 
 export interface ScriptedTurn {
   /** Text emitted as a single text-delta. */
@@ -157,6 +159,7 @@ export interface TestInternalsOptions {
   routing?: Partial<Record<InvocationRole, ModelSpec>>;
   profiles?: Record<string, AgentProfile>;
   limits?: UsageLimits;
+  permissions?: PermissionConfig;
   budgetUsd?: number;
   lifetimeSpawnCap?: number;
   perRun?: number;
@@ -235,6 +238,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
       ...(options.routing === undefined ? {} : { routing: options.routing }),
       ...(options.profiles === undefined ? {} : { profiles: options.profiles }),
       ...(options.limits === undefined ? {} : { limits: options.limits }),
+      ...(options.permissions === undefined ? {} : { permissions: options.permissions }),
     },
     errorPolicy: options.errorPolicy ?? 'strict',
     dropped: [],
@@ -246,6 +250,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
       unpriced: [],
     },
     priceUsd,
+    external: new ExternalRegistry(replayer),
     mintTranscriptRef: () => `test-run/t${refCounter++}`,
     now: options.now ?? Date.now,
   };

@@ -32,7 +32,7 @@ import type { ToolContext, ToolDef } from '../l0/spi/toolsource.js';
 import type { Out, SchemaSpec } from '../l0/schema.js';
 import { validateSchemaSpec } from '../l0/schema.js';
 import { toJournalValue } from '../journal/serializable.js';
-import type { CheckpointState } from '../journal/checkpoint.js';
+import type { CheckpointState, PendingToolTurn } from '../journal/checkpoint.js';
 import type { ResolvedInvocation } from '../model/router.js';
 import { selectStructuredOutputTier, type StructuredOutputTier } from '../model/caps.js';
 import { DEFAULT_MODEL_RETRY_ATTEMPTS, ModelRetry } from './model-retry.js';
@@ -123,6 +123,28 @@ export interface BudgetHooks {
 /** Reason marker distinguishing a budget-ceiling abort from host cancellation. */
 export const BUDGET_ABORT_REASON = 'lurker:budget-ceiling';
 
+/** One model-issued tool call as the loop dispatches it. */
+export interface ToolCallRequest {
+  id: string;
+  name: string;
+  args: unknown;
+}
+
+/**
+ * The ctx-side verdict for one dispatch, produced by the permission
+ * chain (M3-T03). For 'ask' the loop writes the turn checkpoint with the
+ * pending state FIRST, then suspend() journals the approval entry (or
+ * re-matches an existing one) and parks until a resolution closes it.
+ */
+export type PermissionGate =
+  | { kind: 'allow'; input: unknown }
+  | { kind: 'deny'; reason: string }
+  | {
+      kind: 'ask';
+      input: unknown;
+      suspend: () => Promise<{ decision: 'allow' | 'deny'; reason?: string }>;
+    };
+
 /**
  * The spawn's frozen toolset plus the per-call context factory, prepared
  * by the ctx layer (M3-T01). The contracts are the canonical identity
@@ -134,6 +156,8 @@ export interface ToolRuntime {
   contracts: ToolContract[];
   /** Mints a per-call ToolContext (fresh tool span under the agent span). */
   contextFor(toolName: string): ToolContext;
+  /** Permission chain evaluation (M3-T03); absent = every call allowed. */
+  permission?: (call: ToolCallRequest) => Promise<PermissionGate>;
 }
 
 export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
@@ -418,11 +442,6 @@ async function executeToolCall(options: {
 }): Promise<Part> {
   const { call, runtime } = options;
   const def = runtime.defs.find((candidate) => candidate.name === call.name);
-  options.events?.emit({
-    type: 'tool:start',
-    toolName: call.name,
-    ...(def?.risk === undefined ? {} : { risk: def.risk }),
-  });
   const startedAt = options.now();
   const finish = (result: unknown, outcome: 'ok' | 'error'): Part => {
     options.events?.emit({
@@ -522,7 +541,7 @@ export async function runAgent<S extends SchemaSpec>(
     options.budget?.onUsage(restored.usage, servedBy);
   }
 
-  const saveBoundary = async (): Promise<void> => {
+  const saveBoundary = async (pending?: PendingToolTurn): Promise<void> => {
     if (options.checkpoint === undefined) {
       return;
     }
@@ -534,8 +553,146 @@ export async function runAgent<S extends SchemaSpec>(
       toolCallsUsed,
       schemaAttempts,
       compaction: [],
+      ...(pending === undefined ? {} : { pending }),
     });
   };
+
+  const toPendingRecords = (parts: Part[]): PendingToolTurn['executed'] =>
+    parts
+      .filter((part) => part.type === 'tool-result')
+      .map((part) => ({
+        id: part.id,
+        name: part.name,
+        result: part.result,
+        ...((part as { isError?: boolean }).isError === true ? { isError: true } : {}),
+      }));
+
+  /**
+   * Gates and executes one turn's tool calls in source order. priorParts
+   * carries results already executed before a mid-turn suspension; the
+   * pending state checkpointed at an ask verdict stores RAW model args so
+   * a resume re-runs the chain (hooks apply exactly once) and re-matches
+   * the same approval identity.
+   */
+  const runToolCalls = async (
+    calls: ToolCallRequest[],
+    priorParts: Part[],
+  ): Promise<{ parts: Part[]; limitHit: boolean }> => {
+    const runtime = options.tools;
+    if (runtime === undefined) {
+      return { parts: priorParts, limitHit: false };
+    }
+    const parts: Part[] = [...priorParts];
+    const errorPart = (call: ToolCallRequest, error: string): Part => {
+      const part: Part = { type: 'tool-result', id: call.id, name: call.name, result: { error } };
+      (part as { isError?: boolean }).isError = true;
+      return part;
+    };
+    for (const [index, call] of calls.entries()) {
+      if (limits.maxToolCalls !== undefined && toolCallsUsed >= limits.maxToolCalls) {
+        // Expiry of maxToolCalls is terminal 'limit': paid partial work;
+        // already-executed results stand (docs/06, section "UsageLimits").
+        return { parts, limitHit: true };
+      }
+      const def = runtime.defs.find((candidate) => candidate.name === call.name);
+      events?.emit({
+        type: 'tool:start',
+        toolName: call.name,
+        ...(def?.risk === undefined ? {} : { risk: def.risk }),
+      });
+      const gateStartedAt = now();
+      let gatedCall = call;
+      if (runtime.permission !== undefined && def !== undefined) {
+        const gate = await runtime.permission(call);
+        if (gate.kind === 'deny') {
+          // The denial is surfaced to the model as an error tool result
+          // carrying the policy reason; the turn continues (docs/08 3.6).
+          events?.emit({
+            type: 'tool:end',
+            toolName: call.name,
+            outcome: 'denied',
+            durationMs: now() - gateStartedAt,
+          });
+          parts.push(errorPart(call, `tool '${call.name}' denied by policy: ${gate.reason}`));
+          continue;
+        }
+        if (gate.kind === 'ask') {
+          // The ask verdict is journaled as a suspended approval entry
+          // together with the turn checkpoint: durable pending state
+          // first, then the suspension (docs/08 3.6; docs/03 11.1).
+          await saveBoundary({
+            executed: toPendingRecords(parts),
+            awaiting: { id: call.id, name: call.name, args: call.args },
+            remaining: calls.slice(index + 1),
+          });
+          const decision = await gate.suspend();
+          if (decision.decision === 'deny') {
+            events?.emit({
+              type: 'tool:end',
+              toolName: call.name,
+              outcome: 'denied',
+              durationMs: now() - gateStartedAt,
+            });
+            parts.push(
+              errorPart(
+                call,
+                decision.reason === undefined
+                  ? `tool '${call.name}' denied by the approval decision`
+                  : `tool '${call.name}' denied: ${decision.reason}`,
+              ),
+            );
+            continue;
+          }
+          gatedCall = { ...call, args: gate.input };
+        } else {
+          gatedCall = { ...call, args: gate.input };
+        }
+      }
+      toolCallsUsed += 1;
+      parts.push(
+        await executeToolCall({
+          call: gatedCall,
+          runtime,
+          retryCounts: modelRetryCounts,
+          maxModelRetries: options.modelRetryAttempts ?? DEFAULT_MODEL_RETRY_ATTEMPTS,
+          ...(events === undefined ? {} : { events }),
+          now,
+        }),
+      );
+    }
+    return { parts, limitHit: false };
+  };
+
+  // A restored mid-turn suspension finishes ITS turn before the loop
+  // re-enters: executed results are reused verbatim, the awaiting call
+  // consults the journaled approval, remaining calls follow (docs/08
+  // 3.6: resume continues the same turn without re-running tools).
+  if (restored?.pending !== undefined && options.tools !== undefined) {
+    const priorParts: Part[] = restored.pending.executed.map((record) => {
+      const part: Part = {
+        type: 'tool-result',
+        id: record.id,
+        name: record.name,
+        result: record.result,
+      };
+      if (record.isError === true) {
+        (part as { isError?: boolean }).isError = true;
+      }
+      return part;
+    });
+    const { parts, limitHit } = await runToolCalls(
+      [restored.pending.awaiting, ...restored.pending.remaining],
+      priorParts,
+    );
+    if (parts.length > 0) {
+      messages.push({ role: 'tool', parts });
+    }
+    if (limitHit) {
+      status = 'limit';
+    } else {
+      await saveBoundary();
+    }
+  }
   const tier: StructuredOutputTier | undefined =
     options.schema !== undefined && options.canonicalSchema !== undefined
       ? selectStructuredOutputTier(
@@ -588,7 +745,8 @@ export async function runAgent<S extends SchemaSpec>(
     }
   };
 
-  loop: while (true) {
+  // A pending-turn limit hit above skips the loop entirely.
+  loop: while (status === 'ok') {
     // Per-agent wall clock (docs/06, section "UsageLimits").
     if (limits.timeoutMs !== undefined && now() - startedAt >= limits.timeoutMs) {
       status = 'limit';
@@ -716,36 +874,16 @@ export async function runAgent<S extends SchemaSpec>(
       break;
     }
 
-    // Tool dispatch: execute the turn's calls in source order, feed the
-    // results back as one tool-role message, and loop for the next model
-    // turn (docs/08, section "Verdict semantics"; docs/06, section "Agent
-    // runtime binding").
+    // Tool dispatch: gate and execute the turn's calls in source order,
+    // feed the results back as one tool-role message, and loop for the
+    // next model turn (docs/08, sections "Permission chain" and "Verdict
+    // semantics"; docs/06, section "Agent runtime binding").
     if (options.tools !== undefined && outcome.turn.toolCalls.length > 0) {
-      const toolParts: Part[] = [];
-      let toolCallLimitHit = false;
-      for (const call of outcome.turn.toolCalls) {
-        if (limits.maxToolCalls !== undefined && toolCallsUsed >= limits.maxToolCalls) {
-          // Expiry of maxToolCalls is terminal 'limit': paid partial work;
-          // already-executed results stand (docs/06, section "UsageLimits").
-          toolCallLimitHit = true;
-          break;
-        }
-        toolCallsUsed += 1;
-        toolParts.push(
-          await executeToolCall({
-            call,
-            runtime: options.tools,
-            retryCounts: modelRetryCounts,
-            maxModelRetries: options.modelRetryAttempts ?? DEFAULT_MODEL_RETRY_ATTEMPTS,
-            ...(events === undefined ? {} : { events }),
-            now,
-          }),
-        );
+      const { parts, limitHit } = await runToolCalls(outcome.turn.toolCalls, []);
+      if (parts.length > 0) {
+        messages.push({ role: 'tool', parts });
       }
-      if (toolParts.length > 0) {
-        messages.push({ role: 'tool', parts: toolParts });
-      }
-      if (toolCallLimitHit) {
+      if (limitHit) {
         status = 'limit';
         break;
       }
