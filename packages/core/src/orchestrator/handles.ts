@@ -56,6 +56,8 @@ export interface OrchestratorRuntime {
   awaitAny(handles: number[]): Promise<TaskDigest>;
   awaitAll(handles: number[]): Promise<TaskDigest[]>;
   cancel(handle: number, reason?: string): Promise<{ cancelled: boolean; handle: number }>;
+  /** docs/07 4.8: sleep until a coalesced WakeDigest (M6-T09). */
+  waitForEvents(triggers: unknown): Promise<unknown>;
 }
 
 /** Deterministic distillation cap; a summarize-model distillation is M7. */

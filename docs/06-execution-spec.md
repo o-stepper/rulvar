@@ -253,7 +253,7 @@ Resolution channels and their journaled `by` values are enumerated in 03-journal
 
 - `phase<T>(name, fn)` is cosmetic for identity (the phase name never enters content keys) and structural for observability: it opens a `phase` span, emits `phase:start`, and buckets `CostReport.byPhase` (09-observability-testing-spec.md, section "Event stream"). Phases MAY nest; cost attribution uses the innermost enclosing phase.
 - `log(level, msg, data?)` emits a `log` telemetry event. It is not journaled, never enters identity, and is not re-emitted on replay.
-- `brief(opts)` is a journaled summarize invocation: it runs a model call under role `'summarize'` over the current transcript/context and returns a string intended to be embedded into a child prompt as an inheritable summary. It journals as an ordinary agent-kind entry and is therefore free on replay. Lands with M6 (10-implementation-plan.md).
+- `brief(opts)` is a journaled summarize invocation: it runs a model call under role `'summarize'` over the current transcript/context and returns a string intended to be embedded into a child prompt as an inheritable summary. It journals as an ordinary agent-kind entry and is therefore free on replay. Lands with M6 (10-implementation-plan.md). (Amended during M6-T10: the committed opts shape is `{ content: string; instruction?: string; model?: ModelSpec; agentType?: string }`; the caller supplies the context to distill, and the invocation resolves role `'summarize'` through the ordinary chain, so it needs a summarize routing entry, a profile, or the explicit model.)
 
 ### 2.9 Deterministic shims: now, random, uuid
 

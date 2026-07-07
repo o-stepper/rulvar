@@ -385,6 +385,13 @@ export interface Ctx<P extends ErrorPolicy = 'strict'> {
   orchestrate(goal: string, opts?: OrchestrateOptions): Promise<unknown>;
 
   /**
+   * A journaled summarize invocation for handing an inheritable brief to
+   * a child (docs/06, section 2.8; M6-T10): one agent-kind entry under
+   * role 'summarize', therefore free on replay.
+   */
+  brief(o: BriefOpts): Promise<string>;
+
+  /**
    * Suspends this position on a journaled entry until an external
    * resolution arrives (docs/06, section 2.7). NO deadline in v1.
    */
@@ -411,6 +418,19 @@ export interface CollectOpts {
 /** Options of ctx.workflow; `key` replaces args in the child identity (docs/03, 1.2). */
 export interface WorkflowCallOpts {
   key?: string;
+}
+
+/**
+ * Options of ctx.brief (docs/06, 2.8; amended during M6-T10 with the
+ * concrete shape): the content to distill plus an optional instruction;
+ * the invocation resolves role 'summarize', so it needs
+ * defaults.routing.summarize, a profile, or the explicit model.
+ */
+export interface BriefOpts {
+  content: string;
+  instruction?: string;
+  model?: ModelSpec;
+  agentType?: string;
 }
 
 /** Closure-form workflow value; in-process only (docs/06, section "Execution model"). */
@@ -2186,6 +2206,23 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         makeOrchestratorWorkflow(goal, orchestrateOpts) as unknown as Workflow<never, unknown>,
         undefined,
       ),
+    brief: async (o: BriefOpts): Promise<string> => {
+      const prompt = `${
+        o.instruction ??
+        'Distill the following context into a brief a child agent can inherit. Reply with the brief only.'
+      }\n\n${o.content}`;
+      // An ordinary agent-kind entry under the summarize role: the role
+      // is an internal override here (the public AgentOpts.role union
+      // stays primary-only; docs/06 2.1).
+      const briefOpts: AgentOpts = {
+        role: 'summarize' as unknown as 'loop',
+        onError: 'throw',
+        ...(o.model === undefined ? {} : { model: o.model }),
+        ...(o.agentType === undefined ? {} : { agentType: o.agentType }),
+      };
+      const value = await agentImpl(prompt, briefOpts);
+      return String(value);
+    },
     pipeline: ((items: unknown[], ...rest: unknown[]) => {
       const last = rest[rest.length - 1];
       const hasOpts = typeof last === 'object' && last !== null;

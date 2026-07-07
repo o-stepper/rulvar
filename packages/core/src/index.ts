@@ -63,6 +63,7 @@ export * from './orchestrator/admission.js';
 export * from './orchestrator/handles.js';
 export * from './orchestrator/spawn-tools.js';
 export * from './orchestrator/orchestrate.js';
+export * from './orchestrator/wake.js';
 export * from './engine/ctx.js';
 export type * from './l0/events.js';
 export * from './engine/events.js';
