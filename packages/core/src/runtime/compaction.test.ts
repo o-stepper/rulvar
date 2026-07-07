@@ -207,8 +207,10 @@ describe('compaction in the agent loop (M4-T03)', () => {
         ? { toolCall: { name: 'clock', args: {} }, usage: bigTurnUsage }
         : { text: 'survived' },
     );
+    // Non-retryable (task-class) so the failure is immediate; retryable
+    // summarize failures first ride RetryPolicy like any dispatch.
     const summarizer = scriptedAdapter(() => ({
-      error: { code: 'agent', message: 'summarizer down', retryable: true },
+      error: { code: 'agent', message: 'summarizer down', retryable: false },
     }));
     const events = recordingSink();
     const result = await runAgent({

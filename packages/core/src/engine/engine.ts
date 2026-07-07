@@ -56,6 +56,7 @@ import {
 } from './run-handle.js';
 import { DEFAULT_PER_RUN_CONCURRENCY, Semaphore } from './scheduler.js';
 import { InProcessRunner, type ScriptRunner } from '../runner/inprocess.js';
+import type { RetryPolicy } from '../model/retry.js';
 
 export type { RunStatus };
 
@@ -67,6 +68,8 @@ export interface EngineDefaults {
   permissions?: PermissionConfig;
   /** The worktree lifecycle provider (docs/08, section 8). */
   isolation?: IsolationProvider;
+  /** Engine-wide transport RetryPolicy (docs/04, 11.1; M4-T05). */
+  retry?: RetryPolicy;
 }
 
 export interface BudgetDefaults {
@@ -292,6 +295,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
           ? {}
           : { limits: { ...defaults.limits, ...opts?.limits } }),
         ...(defaults.permissions === undefined ? {} : { permissions: defaults.permissions }),
+        ...(defaults.retry === undefined ? {} : { retry: defaults.retry }),
       },
       errorPolicy: wf.errorPolicy,
       dropped: [],

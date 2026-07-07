@@ -583,6 +583,8 @@ fallback?: { model: ModelRef; on: Array<'error' | 'limit' | 'schema-exhausted'> 
 
 `on` is a subset of `error | limit | schema-exhausted`. Unlike section 11.2 failover (transport-level, same entry, servedBy only), the degenerate fallback is an agent-level second attempt: it writes a decision entry and the fallback attempt is a new content key.
 
+Committed during M4-T04: the field lives on `AgentOpts` (policy, excluded from identity; 06-execution-spec.md, section "ctx.agent and AgentOpts"). Trigger classification of the failed attempt: terminal `error` with `AgentError.kind = 'schema-mismatch'` is `schema-exhausted`; any other terminal `error` is `error`; terminal `limit` (the no-progress abort included) is `limit`; cancelled, escalated, and skipped never trigger. The decision entry is written strictly AFTER the failed attempt's terminal and BEFORE the fallback spawn's running entry, with `decisionType: 'model.fallback'` and value `{ targetRef: <failed running seq>, trigger, model }`; on resume an existing decision entry with a matching `targetRef` is reused, never duplicated. The fallback attempt runs with `model` overriding all roles and no further fallback (one rung); its outcome is what the caller observes, under the caller's own `onError` and `result` semantics.
+
 ## 12 ModelLadder summary
 
 Full specification in 07-adaptive-orchestration-spec.md, section "ModelLadder". This section fixes the model-layer-facing contract, and the types below are the SINGLE declaration of the ladder family: 07 references them and never redeclares.

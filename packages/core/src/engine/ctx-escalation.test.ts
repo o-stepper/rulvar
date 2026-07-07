@@ -440,6 +440,7 @@ describe('escalation type exports (M3-T07)', () => {
       usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
       costUsd: 0,
       turns: 1,
+      servedBy: 'fake:model',
       transcriptRef: 't',
       escalation: report,
     };

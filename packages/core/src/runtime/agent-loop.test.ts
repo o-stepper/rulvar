@@ -214,14 +214,25 @@ describe('agent runtime v1 (M1-T06)', () => {
         data: { kind: 'rate-limit', retryAfterMs: 3000 },
       },
     }));
+    const slept: number[] = [];
     const result = await runAgent({
       prompt: 'x',
       adapter,
       resolved,
       limits: mergeUsageLimits(),
+      retry: {
+        sleep: (ms) => {
+          slept.push(ms);
+          return Promise.resolve();
+        },
+      },
     });
     expect(result.status).toBe('error');
     expect(result.error).toEqual({ kind: 'rate-limit', retryable: true, retryAfterMs: 3000 });
+    // The Appendix A default retried the retryable class before the
+    // terminal (M4-T05); retryAfterMs replaced the computed delays.
+    expect(adapter.calls).toHaveLength(3);
+    expect(slept).toEqual([3000, 3000]);
   });
 
   it('severs an idle stream as a retryable transport error, not limit', async () => {
