@@ -1221,12 +1221,24 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
             return { kind: 'allow', input: call.args };
           }
           const verdict = await evaluatePermission(chain, def, call.args, contextFor());
+          // Audit telemetry rides tool:end (docs/08, 4.5; M5-T05).
+          const audit = {
+            verdict: verdict.verdict,
+            decidedBy: verdict.decidedBy,
+            ...('rule' in verdict && verdict.rule !== undefined
+              ? { rule: verdict.rule as unknown as Json }
+              : {}),
+            ...(verdict.advisory === undefined
+              ? {}
+              : { advisory: verdict.advisory as unknown as Json }),
+          };
           if (verdict.verdict === 'allow') {
-            return { kind: 'allow', input: verdict.input };
+            return { kind: 'allow', input: verdict.input, audit };
           }
           if (verdict.verdict === 'deny') {
             return {
               kind: 'deny',
+              audit,
               reason:
                 verdict.decidedBy === 'deny-rule'
                   ? 'a deny rule matched'
@@ -1235,6 +1247,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           }
           return {
             kind: 'ask',
+            audit,
             input: verdict.input,
             suspend: async () => {
               if (internals.external === undefined) {

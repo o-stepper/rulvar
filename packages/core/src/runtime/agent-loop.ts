@@ -154,14 +154,25 @@ export interface ToolCallRequest {
  * pending state FIRST, then suspend() journals the approval entry (or
  * re-matches an existing one) and parks until a resolution closes it.
  */
-export type PermissionGate =
+export interface GateAudit {
+  verdict: 'allow' | 'deny' | 'ask';
+  decidedBy: string;
+  rule?: Json;
+  advisory?: Json;
+}
+
+export type PermissionGate = (
   | { kind: 'allow'; input: unknown }
   | { kind: 'deny'; reason: string }
   | {
       kind: 'ask';
       input: unknown;
       suspend: () => Promise<{ decision: 'allow' | 'deny'; reason?: string }>;
-    };
+    }
+) & {
+  /** Chain audit payload ridden into tool:end telemetry (docs/08, 4.5). */
+  audit?: GateAudit;
+};
 
 /**
  * The spawn's frozen toolset plus the per-call context factory, prepared
@@ -526,6 +537,7 @@ async function executeToolCall(options: {
   retryCounts: Map<string, number>;
   maxModelRetries: number;
   events?: RuntimeEventSink;
+  audit?: GateAudit;
   now: () => number;
 }): Promise<Part> {
   const { call, runtime } = options;
@@ -537,6 +549,7 @@ async function executeToolCall(options: {
       toolName: call.name,
       outcome,
       durationMs: options.now() - startedAt,
+      ...options.audit,
     });
     const part: Part = { type: 'tool-result', id: call.id, name: call.name, result };
     if (outcome !== 'ok') {
@@ -703,8 +716,10 @@ export async function runAgent<S extends SchemaSpec>(
       });
       const gateStartedAt = now();
       let gatedCall = call;
+      let gateAudit: GateAudit | undefined;
       if (runtime.permission !== undefined && def !== undefined) {
         const gate = await runtime.permission(call);
+        gateAudit = gate.audit;
         if (gate.kind === 'deny') {
           // The denial is surfaced to the model as an error tool result
           // carrying the policy reason; the turn continues (docs/08 3.6).
@@ -713,6 +728,7 @@ export async function runAgent<S extends SchemaSpec>(
             toolName: call.name,
             outcome: 'denied',
             durationMs: now() - gateStartedAt,
+            ...gate.audit,
           });
           parts.push(errorPart(call, `tool '${call.name}' denied by policy: ${gate.reason}`));
           continue;
@@ -733,6 +749,7 @@ export async function runAgent<S extends SchemaSpec>(
               toolName: call.name,
               outcome: 'denied',
               durationMs: now() - gateStartedAt,
+              ...gate.audit,
             });
             parts.push(
               errorPart(
@@ -811,6 +828,7 @@ export async function runAgent<S extends SchemaSpec>(
           retryCounts: modelRetryCounts,
           maxModelRetries: options.modelRetryAttempts ?? DEFAULT_MODEL_RETRY_ATTEMPTS,
           ...(events === undefined ? {} : { events }),
+          ...(gateAudit === undefined ? {} : { audit: gateAudit }),
           now,
         }),
       );

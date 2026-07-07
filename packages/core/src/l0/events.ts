@@ -61,7 +61,22 @@ export type AgentEvents =
 /** docs/09 section 1.4, tool lifecycle (emitters arrive with the tool system, M3). */
 export type ToolEvents =
   | { type: 'tool:start'; toolName: string; risk?: Json }
-  | { type: 'tool:end'; toolName: string; outcome: 'ok' | 'error' | 'denied'; durationMs: number };
+  | {
+      type: 'tool:end';
+      toolName: string;
+      outcome: 'ok' | 'error' | 'denied';
+      durationMs: number;
+      /**
+       * Audit fields (docs/08, section 4.5; M5-T05): the chain verdict,
+       * the deciding layer, the matched rule, and advisory domain-rule
+       * matches. Telemetry, never identity; ask verdicts additionally
+       * journal as suspended approvals.
+       */
+      verdict?: 'allow' | 'deny' | 'ask';
+      decidedBy?: string;
+      rule?: Json;
+      advisory?: Json;
+    };
 
 export type WorkflowEventBody = CoreEvents | AgentEvents | ToolEvents;
 

@@ -1060,6 +1060,165 @@ interface ToolSource {
   tools(session: ToolSourceSession): Promise<ToolDef[]>;
 }
 //#endregion
+//#region src/runtime/permission-chain.d.ts
+type HookVerdict = "allow" | "deny" | "ask" | {
+  modifiedInput: unknown;
+} | undefined;
+type PermissionHook = (toolName: string, input: unknown, ctx: ToolContext) => HookVerdict | Promise<HookVerdict>;
+/**
+* Declarative rule tables (no closures). `'undeclared'` in risk
+* position matches every tool WITHOUT declared risk: presets treat the
+* undeclared state conservatively (docs/08, section 4.3). Argv rules
+* match through the real shell matcher (section 5); domain rules are
+* ADVISORY outside the first-party fetch tool (section 4.4): they never
+* change a verdict in M5, and matches surface in audit events.
+*/
+type RiskRuleValue = ToolRisk | "undeclared";
+type PermissionRule = {
+  tool: string | string[];
+} | {
+  risk: RiskRuleValue | RiskRuleValue[];
+} | {
+  tool: string;
+  argv: string | string[];
+} | {
+  tool: string;
+  domains: string[];
+};
+type CanUseTool = (toolName: string, input: unknown, ctx: ToolContext) => "allow" | "deny" | {
+  modifiedInput: unknown;
+} | Promise<"allow" | "deny" | {
+  modifiedInput: unknown;
+}>;
+/** Host-side permission configuration (engine defaults.permissions). */
+interface PermissionConfig {
+  hooks?: PermissionHook[];
+  deny?: PermissionRule[];
+  ask?: PermissionRule[];
+  canUseTool?: CanUseTool;
+}
+/**
+* Profile-level permissions (docs/08, section "Subagent inheritance").
+* inheritPermissions governs SUBAGENT inheritance (mode c orchestrators,
+* M6+): children get their own config only unless explicitly opted in.
+* It is carried as data here and consumed by the spawning layers.
+*/
+interface AgentProfilePermissions extends PermissionConfig {
+  /** Compiles into deny/ask rules; ships in M5. */
+  preset?: "strict" | "standard" | "open";
+  /** Default false. */
+  inheritPermissions?: boolean;
+}
+interface CompiledPermissionChain {
+  hooks: PermissionHook[];
+  deny: PermissionRule[];
+  ask: PermissionRule[];
+  canUseTool?: CanUseTool;
+}
+type PermissionVerdict = ({
+  verdict: "allow";
+  decidedBy: "hook" | "canUseTool" | "default";
+  input: unknown;
+} | {
+  verdict: "deny";
+  decidedBy: "hook" | "deny-rule" | "canUseTool";
+  rule?: PermissionRule;
+  input: unknown;
+} | {
+  verdict: "ask";
+  decidedBy: "hook" | "ask-rule" | "default";
+  rule?: PermissionRule;
+  input: unknown;
+}) & {
+  /**
+  * Advisory domain-rule matches (docs/08, 4.4): reported in audit
+  * events, never enforced outside the first-party fetch tool.
+  */
+  advisory?: PermissionRule[];
+};
+/**
+* Merges the engine-wide config and the profile config into one chain.
+* Layers concatenate engine-first; since rules only deny or ask, ordering
+* within a layer cannot change the verdict (docs/08, section 4.2). The
+* profile's canUseTool wins over the engine's (a single slot by
+* construction). A declared preset compiles INTO the same layers, after
+* the host-authored rules, never as a fifth layer (M5-T05).
+*/
+declare function compilePermissionChain(engine?: PermissionConfig, profile?: AgentProfilePermissions): CompiledPermissionChain;
+/**
+* Evaluates the chain for one dispatch, or OFFLINE against a
+* hypothetical call by tool name (the dry-run API of docs/08, section
+* 4.5: nothing executes; shells and tests read the verdict, the
+* deciding layer, and the matched rule). Hooks run in deterministic
+* registration order; { modifiedInput } substitutes the input and
+* continues; the first decisive verdict wins. The returned input is what
+* execute receives and what the approval identity hashes (docs/03,
+* section 1.2: post hook modification). Advisory domain-rule matches
+* ride every verdict for the audit payload (docs/08, 4.4).
+*/
+declare function evaluatePermission(chain: CompiledPermissionChain, tool: string | Pick<ToolDef, "name" | "needsApproval" | "risk">, input: unknown, ctx?: ToolContext): Promise<PermissionVerdict>;
+//#endregion
+//#region src/tools/presets.d.ts
+type PermissionPreset = "strict" | "standard" | "open";
+declare function compilePermissionPreset(preset: PermissionPreset): {
+  deny: PermissionRule[];
+  ask: PermissionRule[];
+};
+//#endregion
+//#region src/tools/shell-matcher.d.ts
+/**
+* Argv-parsing shell matcher (M5-T06; docs/08, section 5): shell
+* allow/ask/deny is matched through a real argv parser, never a string
+* prefix. The composition rule is the entire point: for a compound
+* command the verdict is the strictest across segments, and any
+* unmatched segment yields ask, never a silent allow: `npm test; rm -rf
+* /` MUST yield ask (or deny when rm patterns are denied) even when
+* `npm test` is allow-listed.
+*
+* Matching algorithm (5.2):
+* 1. Lex with a POSIX-like shell lexer: quotes and escapes honored, no
+*    expansion of any kind.
+* 2. Split into segments at `;`, `&&`, `||`, `|`, `&`, and newline.
+* 3. A segment containing command substitution ($(...) or backticks),
+*    process substitution, or a here-doc is unmatchable: ask, always.
+* 4. Leading environment assignments (FOO=bar cmd) are stripped; a
+*    segment of only assignments is treated as unmatched.
+* 5. Redirection operators and their targets are retained as tokens; a
+*    pattern that does not account for them fails to match.
+* 6. Each segment is evaluated deny, then ask, then allow.
+*/
+interface ShellSegment {
+  /** Argv tokens after lexing and env-assignment stripping. */
+  argv: string[];
+  /** Substitutions and here-docs make a segment unmatchable (ask). */
+  unmatchable: boolean;
+}
+/**
+* Lexes a command into segments per the docs/08 5.2 algorithm. Quotes
+* and escapes are honored; nothing is expanded; `$(`, backticks, `<(`,
+* `>(`, and `<<` (outside single quotes) poison their segment.
+*/
+declare function lexShellCommand(command: string): ShellSegment[];
+/**
+* Pattern grammar (5.1): literal words match one identical token; `*`
+* matches exactly one token; `**` matches zero or more remaining tokens
+* and may appear only as the final word. A pattern matches only if it
+* consumes the segment's ENTIRE argv.
+*/
+declare function matchArgvPattern(pattern: string, argv: string[]): boolean;
+type ShellVerdict = "allow" | "ask" | "deny";
+interface ShellPatternRules {
+  deny?: string[];
+  ask?: string[];
+  allow?: string[];
+}
+/**
+* The strictest-across-segments composition (5.3): deny if ANY segment
+* denies; otherwise ask if ANY segment asks or fails to match an allow
+* pattern; otherwise allow.
+*/
+declare function matchShellCommand(command: string, rules: ShellPatternRules): ShellVerdict;
+//#endregion
 //#region src/tools/tool.d.ts
 /** First-party provider tool-name constraint intersection (docs/08, section 1.1). */
 declare const TOOL_NAME_PATTERN: RegExp;
@@ -1961,6 +2120,16 @@ type ToolEvents = {
   toolName: string;
   outcome: "ok" | "error" | "denied";
   durationMs: number;
+  /**
+  * Audit fields (docs/08, section 4.5; M5-T05): the chain verdict,
+  * the deciding layer, the matched rule, and advisory domain-rule
+  * matches. Telemetry, never identity; ask verdicts additionally
+  * journal as suspended approvals.
+  */
+  verdict?: "allow" | "deny" | "ask";
+  decidedBy?: string;
+  rule?: Json;
+  advisory?: Json;
 };
 type WorkflowEventBody = CoreEvents | AgentEvents | ToolEvents;
 /**
@@ -2434,7 +2603,13 @@ interface ToolCallRequest {
 * pending state FIRST, then suspend() journals the approval entry (or
 * re-matches an existing one) and parks until a resolution closes it.
 */
-type PermissionGate = {
+interface GateAudit {
+  verdict: "allow" | "deny" | "ask";
+  decidedBy: string;
+  rule?: Json;
+  advisory?: Json;
+}
+type PermissionGate = ({
   kind: "allow";
   input: unknown;
 } | {
@@ -2447,6 +2622,8 @@ type PermissionGate = {
     decision: "allow" | "deny";
     reason?: string;
   }>;
+}) & {
+  /** Chain audit payload ridden into tool:end telemetry (docs/08, 4.5). */audit?: GateAudit;
 };
 /**
 * The spawn's frozen toolset plus the per-call context factory, prepared
@@ -2580,89 +2757,6 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
 * failure mode becomes a typed status on the result.
 */
 declare function runAgent<S extends SchemaSpec>(options: RunAgentOptions<S>): Promise<AgentResult<Out<S>>>;
-//#endregion
-//#region src/runtime/permission-chain.d.ts
-type HookVerdict = "allow" | "deny" | "ask" | {
-  modifiedInput: unknown;
-} | undefined;
-type PermissionHook = (toolName: string, input: unknown, ctx: ToolContext) => HookVerdict | Promise<HookVerdict>;
-/**
-* Declarative rule tables (no closures). The argv and domain forms are
-* part of the normative vocabulary but their matchers land in M5;
-* compiling them before that is a fail-early ConfigError.
-*/
-type PermissionRule = {
-  tool: string | string[];
-} | {
-  risk: ToolRisk | ToolRisk[];
-} | {
-  tool: string;
-  argv: string | string[];
-} | {
-  tool: string;
-  domains: string[];
-};
-type CanUseTool = (toolName: string, input: unknown, ctx: ToolContext) => "allow" | "deny" | {
-  modifiedInput: unknown;
-} | Promise<"allow" | "deny" | {
-  modifiedInput: unknown;
-}>;
-/** Host-side permission configuration (engine defaults.permissions). */
-interface PermissionConfig {
-  hooks?: PermissionHook[];
-  deny?: PermissionRule[];
-  ask?: PermissionRule[];
-  canUseTool?: CanUseTool;
-}
-/**
-* Profile-level permissions (docs/08, section "Subagent inheritance").
-* inheritPermissions governs SUBAGENT inheritance (mode c orchestrators,
-* M6+): children get their own config only unless explicitly opted in.
-* It is carried as data here and consumed by the spawning layers.
-*/
-interface AgentProfilePermissions extends PermissionConfig {
-  /** Compiles into deny/ask rules; ships in M5. */
-  preset?: "strict" | "standard" | "open";
-  /** Default false. */
-  inheritPermissions?: boolean;
-}
-interface CompiledPermissionChain {
-  hooks: PermissionHook[];
-  deny: PermissionRule[];
-  ask: PermissionRule[];
-  canUseTool?: CanUseTool;
-}
-type PermissionVerdict = {
-  verdict: "allow";
-  decidedBy: "hook" | "canUseTool" | "default";
-  input: unknown;
-} | {
-  verdict: "deny";
-  decidedBy: "hook" | "deny-rule" | "canUseTool";
-  rule?: PermissionRule;
-  input: unknown;
-} | {
-  verdict: "ask";
-  decidedBy: "hook" | "ask-rule" | "default";
-  rule?: PermissionRule;
-  input: unknown;
-};
-/**
-* Merges the engine-wide config and the profile config into one chain.
-* Layers concatenate engine-first; since rules only deny or ask, ordering
-* within a layer cannot change the verdict (docs/08, section 4.2). The
-* profile's canUseTool wins over the engine's (a single slot by
-* construction).
-*/
-declare function compilePermissionChain(engine?: PermissionConfig, profile?: AgentProfilePermissions): CompiledPermissionChain;
-/**
-* Evaluates the chain for one dispatch. Hooks run in deterministic
-* registration order; { modifiedInput } substitutes the input and
-* continues; the first decisive verdict wins. The returned input is what
-* execute receives and what the approval identity hashes (docs/03,
-* section 1.2: post hook modification).
-*/
-declare function evaluatePermission(chain: CompiledPermissionChain, def: Pick<ToolDef, "name" | "needsApproval" | "risk">, input: unknown, ctx: ToolContext): Promise<PermissionVerdict>;
 //#endregion
 //#region src/engine/budget.d.ts
 type Spend = {
@@ -3659,4 +3753,4 @@ declare class InProcessRunner implements ScriptRunner {
   execute<A, R>(wf: Workflow<A, R> | CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R>;
 }
 //#endregion
-export { AbandonAttempt, AbandonFold, AbandonPayload, AbortClass, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApprovalDecision, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetDefaults, BudgetExhaustedError, BudgetHooks, type Bytes, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationKind, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FinishInfo, Gate, GitWorktreeProvider, GitWorktreeProviderOptions, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NonSerializableValueError, OnEscalation, OperationDisposition, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, SinglePhaseAppend, SpanMinter, SpanRegistry, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskSpec, TerminalPatch, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildToolContext, canRideLoopTurn, canonicalizeSchema, checkFloors, checkpointRefFor, classifyAgentError, compactMessages, compilePermissionChain, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, formatRePrompt, formatScopePath, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, liftRetainedParts, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, normalizeEntry, normalizeFallbacks, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, priceUsdOf, projectHistory, projectIdentity, projectToJsonSchema, providerOf, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, summarizeInstruction, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationReport, validateSchemaSpec, workflowScope };
+export { AbandonAttempt, AbandonFold, AbandonPayload, AbortClass, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApprovalDecision, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetDefaults, BudgetExhaustedError, BudgetHooks, type Bytes, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationKind, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FinishInfo, Gate, GateAudit, GitWorktreeProvider, GitWorktreeProviderOptions, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NonSerializableValueError, OnEscalation, OperationDisposition, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskSpec, TerminalPatch, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildToolContext, canRideLoopTurn, canonicalizeSchema, checkFloors, checkpointRefFor, classifyAgentError, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, formatRePrompt, formatScopePath, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, lexShellCommand, liftRetainedParts, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, normalizeEntry, normalizeFallbacks, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, priceUsdOf, projectHistory, projectIdentity, projectToJsonSchema, providerOf, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, summarizeInstruction, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationReport, validateSchemaSpec, workflowScope };

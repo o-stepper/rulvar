@@ -17,6 +17,8 @@ export type * from './l0/spi/isolation.js';
 export type * from './l0/spi/store.js';
 export type * from './l0/spi/transcript.js';
 export type * from './l0/spi/toolsource.js';
+export * from './tools/presets.js';
+export * from './tools/shell-matcher.js';
 export * from './tools/tool.js';
 export * from './tools/toolset-hash.js';
 export * from './tools/context.js';
