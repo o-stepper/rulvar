@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { M0_SCAFFOLD } from './index.js';
+import { SANDBOX_GLOBALS, compileScript } from './index.js';
 
-describe('@lurker/planner scaffold', () => {
-  it('exports the M0 scaffold marker', () => {
-    expect(M0_SCAFFOLD).toBe('@lurker/planner');
+describe('@lurker/planner package surface', () => {
+  it('exports the compile surface', () => {
+    expect(typeof compileScript).toBe('function');
+    expect(SANDBOX_GLOBALS).toHaveLength(12);
   });
 });
