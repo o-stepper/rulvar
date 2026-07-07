@@ -43,14 +43,10 @@
     "lurker": "./dist/cli.js"
   },
   "peerDependencies": {
-    "@opentelemetry/api": "^1.9",
-    "@lurker/planner": "workspace:*"
+    "@opentelemetry/api": "^1.9"
   },
   "peerDependenciesMeta": {
     "@opentelemetry/api": {
-      "optional": true
-    },
-    "@lurker/planner": {
       "optional": true
     }
   }
