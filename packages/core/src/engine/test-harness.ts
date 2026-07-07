@@ -46,6 +46,8 @@ export interface ScriptedTurn {
   toolCalls?: Array<{ name: string; args: unknown }>;
   finish?: FinishInfo['reason'] | FinishInfo;
   usage?: Partial<Usage>;
+  /** Rides the finish event; carries retention payloads (docs/04, 2.3). */
+  providerMetadata?: Record<string, unknown>;
   /** Emit a terminal error event instead of finish. */
   error?: WireError;
   /** Delay before the terminal event; lets idle timers and aborts fire. */
@@ -79,12 +81,13 @@ const DEFAULT_USAGE: Usage = {
  */
 export function scriptedAdapter(
   script: (req: ChatRequest, call: number) => ScriptedTurn,
-  options?: { id?: string; caps?: ModelCaps },
+  options?: { id?: string; caps?: ModelCaps; provider?: string },
 ): ProviderAdapter & { calls: ChatRequest[] } {
   const calls: ChatRequest[] = [];
   const caps = options?.caps ?? testCaps();
   return {
     id: options?.id ?? 'fake',
+    ...(options?.provider === undefined ? {} : { provider: options.provider }),
     calls,
     caps: () => caps,
     async *stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent> {
@@ -134,7 +137,12 @@ export function scriptedAdapter(
             ? ({ reason: turn.finish } as FinishInfo)
             : turn.finish;
       const usage: Usage = { ...DEFAULT_USAGE, ...turn.usage };
-      yield { type: 'finish', finish, usage };
+      yield {
+        type: 'finish',
+        finish,
+        usage,
+        ...(turn.providerMetadata === undefined ? {} : { providerMetadata: turn.providerMetadata }),
+      };
     },
   };
 }

@@ -57,6 +57,9 @@ export function openai(options: OpenAiAdapterOptions = {}): ProviderAdapter {
 
   return {
     id: 'openai',
+    // Provider family for provider-raw matching and retention (docs/04,
+    // section 2.3, M4-T02).
+    provider: 'openai',
 
     caps(model: string): ModelCaps {
       return openAiModelInfo(model).caps;

@@ -218,6 +218,51 @@ describe('stream mapping (M1-T12)', () => {
     );
   });
 
+  it('ships thinking blocks as the retention payload, carry included (M4-T02)', async () => {
+    const thinkingTurn: AnthropicStreamEvent[] = [
+      {
+        type: 'message_start',
+        message: { id: 'msg_2', usage: { input_tokens: 10, output_tokens: 0 } },
+      },
+      { type: 'content_block_start', index: 0, content_block: { type: 'thinking' } },
+      { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'hm' } },
+      {
+        type: 'content_block_delta',
+        index: 0,
+        delta: { type: 'signature_delta', signature: 'sig-1' },
+      },
+      { type: 'content_block_stop', index: 0 },
+      { type: 'content_block_start', index: 1, content_block: { type: 'text', text: '' } },
+      { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: 'answer' } },
+      { type: 'content_block_stop', index: 1 },
+      { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 4 } },
+      { type: 'message_stop' },
+    ];
+    const carried = { type: 'thinking', thinking: 'earlier continuation', signature: 'sig-0' };
+    const events: ChatEvent[] = [];
+    await mapAnthropicStream(fixture(thinkingTurn), ids(), (e) => events.push(e), {
+      carryRetained: [carried],
+    });
+    const finish = events.at(-1) as Extract<ChatEvent, { type: 'finish' }>;
+    const meta = finish.providerMetadata?.anthropic as Record<string, unknown>;
+    // Whole-turn payload in stream order: the pause_turn carry first,
+    // then this continuation's block, signature intact (docs/04, 4.5).
+    expect(meta.retainedParts).toEqual([
+      carried,
+      { type: 'thinking', thinking: 'hm', signature: 'sig-1' },
+    ]);
+  });
+
+  it('fabricates bijective wire ids for canonical ids minted elsewhere (M4-T02)', () => {
+    const idMap = ids();
+    const foreign = '01ARZ3NDEKTSV4RRFFQ69G5FAV';
+    const wire = idMap.wireFor(foreign);
+    expect(wire).toBe(`toolu_${foreign}`);
+    // Round-trip: the fabricated wire id maps back to the SAME canonical.
+    expect(idMap.canonicalFor(wire)).toBe(foreign);
+    expect(idMap.wireFor(foreign)).toBe(wire);
+  });
+
   it('maps every stop reason to its typed outcome', () => {
     expect(mapStopReason('end_turn', null).finish).toEqual({ reason: 'stop' });
     expect(mapStopReason('stop_sequence', null).finish).toEqual({ reason: 'stop' });
