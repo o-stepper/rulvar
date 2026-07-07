@@ -57,6 +57,8 @@ import {
 import { DEFAULT_PER_RUN_CONCURRENCY, Semaphore } from './scheduler.js';
 import { InProcessRunner, type ScriptRunner } from '../runner/inprocess.js';
 import type { RetryPolicy } from '../model/retry.js';
+import { KeyedLimiter } from '../model/concurrency.js';
+import { resolvePricing, priceUsdOf, type PriceTable } from '../model/pricing.js';
 
 export type { RunStatus };
 
@@ -88,7 +90,13 @@ export interface CreateEngineOptions {
   };
   defaults?: EngineDefaults;
   budgetDefaults?: BudgetDefaults;
-  concurrency?: { perRun?: number };
+  concurrency?: {
+    perRun?: number;
+    /** Per-adapter-id caps; unlimited unless configured (Appendix A; M4-T07). */
+    perProvider?: Record<string, number>;
+  };
+  /** Versioned price table; wins over caps.pricing (docs/04, section 10; M4-T06). */
+  pricing?: PriceTable;
   /**
    * The InProcessRunner escalation hook (docs/06, sections 2.10 and 8.1):
    * receives escalated results when the call form cannot carry them; the
@@ -182,17 +190,23 @@ export function createEngine(options: CreateEngineOptions): Engine {
       return undefined;
     }
     const { adapterId, model } = parseModelRef(servedBy);
-    const pricing = adapters.get(adapterId)?.caps(model).pricing;
+    // The versioned price table wins; adapter-reported caps.pricing is
+    // the fallback; undefined stays undefined so the CostReport surfaces
+    // the model as unpriced, never a silent zero (docs/04, section 10).
+    const pricing = resolvePricing(
+      servedBy,
+      options.pricing,
+      adapters.get(adapterId)?.caps(model).pricing,
+    );
     if (pricing === undefined) {
       return undefined;
     }
-    return (
-      (usage.inputTokens / 1_000_000) * pricing.inputUsdPerMTok +
-      (usage.outputTokens / 1_000_000) * pricing.outputUsdPerMTok +
-      (usage.cacheReadTokens / 1_000_000) * (pricing.cacheReadUsdPerMTok ?? 0) +
-      (usage.cacheWriteTokens / 1_000_000) * (pricing.cacheWriteUsdPerMTok ?? 0)
-    );
+    return priceUsdOf(pricing, usage);
   };
+
+  // Per-provider concurrency keys are ENGINE-scoped: every run of this
+  // engine shares the same keyed limiter (docs/06, section 4; M4-T07).
+  const providerLimiter = new KeyedLimiter(options.concurrency?.perProvider);
 
   interface ResumeContext {
     runId: string;
@@ -283,6 +297,8 @@ export function createEngine(options: CreateEngineOptions): Engine {
       replayer,
       budget,
       semaphore: new Semaphore(options.concurrency?.perRun ?? DEFAULT_PER_RUN_CONCURRENCY),
+      providerLimiter,
+      ...(options.pricing === undefined ? {} : { pricingVersion: options.pricing.pricingVersion }),
       events: { emit: (body, spanId) => bus.emit(body as WorkflowEventBody, spanId ?? rootSpanId) },
       spans,
       rootSpanId,

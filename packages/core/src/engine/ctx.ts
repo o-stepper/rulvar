@@ -48,6 +48,7 @@ import type { Replayer } from '../journal/replayer.js';
 import type { JournalEntry } from '../l0/entries.js';
 import { selectStructuredOutputTier } from '../model/caps.js';
 import { fallbackTriggerOf, type FallbackField, type FallbackTrigger } from '../model/failover.js';
+import type { KeyedLimiter } from '../model/concurrency.js';
 import type { RetryPolicy } from '../model/retry.js';
 import { finalizeFires, needsSeparateExtract, roleConfiguredInRouting } from '../model/roles.js';
 import {
@@ -444,6 +445,10 @@ export interface RunInternals {
     /** Engine-wide transport RetryPolicy (docs/04, 11.1; M4-T05). */
     retry?: RetryPolicy;
   };
+  /** Engine-scoped per-provider keyed limiter (docs/06, section 4; M4-T07). */
+  providerLimiter?: KeyedLimiter;
+  /** The configured price table's version; pinned in decision entries (M4-T06). */
+  pricingVersion?: string;
   errorPolicy: ErrorPolicy;
   dropped: DroppedItem[];
   cost: CostAttribution;
@@ -614,6 +619,11 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
             targetRef,
             trigger,
             model: fallback.model,
+            // Replayed cost attribution stays stable against later
+            // price-table updates (docs/04, section 10; M4-T06).
+            ...(internals.pricingVersion === undefined
+              ? {}
+              : { pricingVersion: internals.pricingVersion }),
           },
         });
       }
@@ -1276,6 +1286,16 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     }
     if (retryPolicy !== undefined) {
       runAgentOptions.retry = { policy: retryPolicy };
+    }
+    if (internals.providerLimiter !== undefined) {
+      const limiter = internals.providerLimiter;
+      runAgentOptions.providerSlot = (key, fn) =>
+        limiter.withSlot(key, fn, () =>
+          internals.events.emit(
+            { type: 'agent:queued', agentType, label: opts.label, providerKey: key },
+            spanId,
+          ),
+        );
     }
     if (opts.stream !== undefined) {
       runAgentOptions.stream = opts.stream;

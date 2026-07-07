@@ -208,6 +208,11 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
     sleep?: (ms: number) => Promise<void>;
     random?: () => number;
   };
+  /**
+   * Per-provider keyed limiter hook (M4-T07): wraps every wire dispatch
+   * under the serving adapter's key; absent = unlimited (Appendix A).
+   */
+  providerSlot?: <T>(key: string, fn: () => Promise<T>) => Promise<T>;
   /** The resolved toolset; absent = no tools declared (docs/08). */
   tools?: ToolRuntime;
   /**
@@ -916,11 +921,14 @@ export async function runAgent<S extends SchemaSpec>(
       const target = site.chain[site.cursor.index] ?? site.chain[0];
       let tries = 0;
       inner: for (;;) {
-        const outcome = await streamTurn(
-          target.adapter,
-          site.requestFor(target),
-          site.streamOptionsFor(target),
-        );
+        const dispatch = (): Promise<TurnOutcome> =>
+          streamTurn(target.adapter, site.requestFor(target), site.streamOptionsFor(target));
+        // The keyed limiter gates the wire call itself; retries and
+        // failover each re-acquire, so a stalled provider never holds
+        // its slot through a backoff sleep (M4-T07).
+        const outcome = await (options.providerSlot === undefined
+          ? dispatch()
+          : options.providerSlot(target.adapter.id, dispatch));
         recordUsage(outcome.usage, outcome.reported, target.adapter.id, target.resolved.ref);
         tries += 1;
         const retryClass =
