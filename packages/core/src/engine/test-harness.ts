@@ -32,6 +32,8 @@ import { SpanRegistry } from './events.js';
 import { Semaphore } from './scheduler.js';
 import type { AgentProfile, RunEventSink, RunInternals } from './ctx.js';
 import type { IsolationProvider } from '../l0/spi/isolation.js';
+import type { EscalationDecision } from '../runtime/escalation.js';
+import type { EscalatedResult } from '../runtime/agent-loop.js';
 import type { PermissionConfig } from '../runtime/permission-chain.js';
 import { ExternalRegistry } from './external.js';
 
@@ -162,6 +164,9 @@ export interface TestInternalsOptions {
   limits?: UsageLimits;
   permissions?: PermissionConfig;
   isolation?: IsolationProvider;
+  onEscalation?: (
+    result: EscalatedResult<unknown>,
+  ) => EscalationDecision | Promise<EscalationDecision>;
   budgetUsd?: number;
   lifetimeSpawnCap?: number;
   perRun?: number;
@@ -253,6 +258,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
     },
     priceUsd,
     ...(options.isolation === undefined ? {} : { isolation: options.isolation }),
+    ...(options.onEscalation === undefined ? {} : { onEscalation: options.onEscalation }),
     external: new ExternalRegistry(replayer),
     mintTranscriptRef: () => `test-run/t${refCounter++}`,
     now: options.now ?? Date.now,

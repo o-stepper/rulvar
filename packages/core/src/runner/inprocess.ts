@@ -26,8 +26,13 @@ export interface ScriptRunner {
   execute<A, R>(wf: Workflow<A, R> | CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R>;
 }
 
-/** Escalation hook shape; consumed from M3 (docs/06, section 2.10). */
-export type OnEscalation = (report: unknown) => unknown;
+import type { EscalatedResult } from '../runtime/agent-loop.js';
+import type { EscalationDecision } from '../runtime/escalation.js';
+
+/** Escalation hook (docs/06, section 2.10): decides for value-form calls. */
+export type OnEscalation = (
+  result: EscalatedResult<unknown>,
+) => EscalationDecision | Promise<EscalationDecision>;
 
 /**
  * The mode (a) runner for human-authored closures. Determinism is enforced

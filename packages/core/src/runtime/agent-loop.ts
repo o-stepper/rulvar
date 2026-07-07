@@ -35,6 +35,12 @@ import { toJournalValue } from '../journal/serializable.js';
 import type { CheckpointState, PendingToolTurn } from '../journal/checkpoint.js';
 import type { ResolvedInvocation } from '../model/router.js';
 import { selectStructuredOutputTier, type StructuredOutputTier } from '../model/caps.js';
+import {
+  ESCALATE_TOOL_NAME,
+  countsAgainstLimit,
+  type EscalationReport,
+  type EscalationRequest,
+} from './escalation.js';
 import { DEFAULT_MODEL_RETRY_ATTEMPTS, ModelRetry } from './model-retry.js';
 import {
   applyStructuredOutputTier,
@@ -45,21 +51,6 @@ import {
 import type { EffectiveUsageLimits } from './usage-limits.js';
 
 export type AgentStatus = 'ok' | 'error' | 'limit' | 'cancelled' | 'skipped' | 'escalated';
-
-/**
- * EscalationReport is owned by docs/07 (EscalationProtocol) and its
- * producers ship in M3; the field exists now so AgentResult is shaped
- * once. costToDate and salvage are filled by the runtime, never the model.
- */
-export interface EscalationReport {
-  kind: string;
-  scopeDelta?: Json;
-  revisedEstimate?: Json;
-  blockers?: Json;
-  proposedDecomposition?: Json;
-  costToDate?: number;
-  salvage?: Json;
-}
 
 /** Artifact: the normative shape of AgentResult.artifacts entries (docs/06, section 2.1). */
 export interface Artifact {
@@ -94,6 +85,12 @@ export interface AgentResult<T> {
   errorMessage?: string;
   /** Present if and only if status === 'escalated'. */
   escalation?: EscalationReport;
+  /**
+   * Engine-internal: the accepted escalate request before the runtime
+   * fills costToDate and salvage into the full report. The ctx layer
+   * consumes and removes it; consumers read `escalation`.
+   */
+  escalationRequest?: EscalationRequest;
 }
 
 export type EscalatedResult<T> = AgentResult<T> & {
@@ -201,6 +198,13 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   schemaRetryAttempts?: number;
   /** Bounded ModelRetry conversions per tool call chain; default 2 (Appendix A). */
   modelRetryAttempts?: number;
+  /**
+   * Escalation opt-in (M3-T07): the loop intercepts accepted calls to
+   * the escalate tool and terminates with status 'escalated'; the
+   * in-run minSpend gate rejects early scope_bigger escalations with a
+   * "keep working" error tool result (M3-T09, docs/07 section 6.4).
+   */
+  escalation?: { minSpendUsd: number };
   agentType?: string;
   label?: string;
   now?: () => number;
@@ -522,6 +526,7 @@ export async function runAgent<S extends SchemaSpec>(
   let errorMessage: string | undefined;
   let usageApprox = false;
   let toolCallsUsed = 0;
+  let escalationRequest: EscalationRequest | undefined;
   const modelRetryCounts = new Map<string, number>();
 
   const servedBy: ModelRef = options.resolved.ref;
@@ -577,14 +582,15 @@ export async function runAgent<S extends SchemaSpec>(
   const runToolCalls = async (
     calls: ToolCallRequest[],
     priorParts: Part[],
-  ): Promise<{ parts: Part[]; limitHit: boolean }> => {
+  ): Promise<{ parts: Part[]; limitHit: boolean; escalated?: EscalationRequest }> => {
     const runtime = options.tools;
     if (runtime === undefined) {
       return { parts: priorParts, limitHit: false };
     }
     const parts: Part[] = [...priorParts];
-    const errorPart = (call: ToolCallRequest, error: string): Part => {
-      const part: Part = { type: 'tool-result', id: call.id, name: call.name, result: { error } };
+    const errorPart = (call: ToolCallRequest, payload: string | Record<string, unknown>): Part => {
+      const result = typeof payload === 'string' ? { error: payload } : payload;
+      const part: Part = { type: 'tool-result', id: call.id, name: call.name, result };
       (part as { isError?: boolean }).isError = true;
       return part;
     };
@@ -648,6 +654,60 @@ export async function runAgent<S extends SchemaSpec>(
           gatedCall = { ...call, args: gate.input };
         }
       }
+      // The escalate tool is engine-intercepted AFTER the permission
+      // chain (docs/08, section 6.6): validation against its request
+      // schema, the in-run minSpend gate, then loop termination with
+      // status 'escalated'. Remaining calls of the turn are moot.
+      if (options.escalation !== undefined && gatedCall.name === ESCALATE_TOOL_NAME) {
+        const def = runtime.defs.find((candidate) => candidate.name === ESCALATE_TOOL_NAME);
+        const validation =
+          def === undefined ? undefined : await validateSchemaSpec(def.parameters, gatedCall.args);
+        if (validation === undefined || !validation.valid) {
+          events?.emit({
+            type: 'tool:end',
+            toolName: gatedCall.name,
+            outcome: 'error',
+            durationMs: now() - gateStartedAt,
+          });
+          parts.push(
+            errorPart(call, {
+              error: 'escalation request failed validation',
+              issues: validation === undefined ? [] : validation.issues.map((i) => i.message),
+            }),
+          );
+          continue;
+        }
+        const request = validation.value as EscalationRequest;
+        const spentSoFar = options.priceUsd?.(servedBy, totalUsage) ?? 0;
+        if (countsAgainstLimit(request.kind) && spentSoFar < options.escalation.minSpendUsd) {
+          // Early scope_bigger escalation below minSpend: a bounded
+          // "keep working" re-prompt; exempt kinds pass through
+          // (docs/07, section 6.4; M3-T09).
+          events?.emit({
+            type: 'tool:end',
+            toolName: gatedCall.name,
+            outcome: 'error',
+            durationMs: now() - gateStartedAt,
+          });
+          parts.push(
+            errorPart(call, {
+              error:
+                'keep working: the minimum spend before a scope_bigger escalation has not ' +
+                'been reached yet',
+              minSpendUsd: options.escalation.minSpendUsd,
+              spentUsd: spentSoFar,
+            }),
+          );
+          continue;
+        }
+        events?.emit({
+          type: 'tool:end',
+          toolName: gatedCall.name,
+          outcome: 'ok',
+          durationMs: now() - gateStartedAt,
+        });
+        return { parts, limitHit: false, escalated: request };
+      }
       toolCallsUsed += 1;
       parts.push(
         await executeToolCall({
@@ -680,14 +740,17 @@ export async function runAgent<S extends SchemaSpec>(
       }
       return part;
     });
-    const { parts, limitHit } = await runToolCalls(
+    const { parts, limitHit, escalated } = await runToolCalls(
       [restored.pending.awaiting, ...restored.pending.remaining],
       priorParts,
     );
     if (parts.length > 0) {
       messages.push({ role: 'tool', parts });
     }
-    if (limitHit) {
+    if (escalated !== undefined) {
+      status = 'escalated';
+      escalationRequest = escalated;
+    } else if (limitHit) {
       status = 'limit';
     } else {
       await saveBoundary();
@@ -879,9 +942,16 @@ export async function runAgent<S extends SchemaSpec>(
     // next model turn (docs/08, sections "Permission chain" and "Verdict
     // semantics"; docs/06, section "Agent runtime binding").
     if (options.tools !== undefined && outcome.turn.toolCalls.length > 0) {
-      const { parts, limitHit } = await runToolCalls(outcome.turn.toolCalls, []);
+      const { parts, limitHit, escalated } = await runToolCalls(outcome.turn.toolCalls, []);
       if (parts.length > 0) {
         messages.push({ role: 'tool', parts });
+      }
+      if (escalated !== undefined) {
+        // Flavor semantics (suspension, decision, salvage) live in the
+        // ctx layer; the loop terminates with the accepted request.
+        status = 'escalated';
+        escalationRequest = escalated;
+        break;
       }
       if (limitHit) {
         status = 'limit';
@@ -1052,6 +1122,9 @@ export async function runAgent<S extends SchemaSpec>(
   };
   if (agentError !== undefined) {
     result.error = agentError;
+  }
+  if (escalationRequest !== undefined) {
+    result.escalationRequest = escalationRequest;
   }
   if (errorMessage !== undefined) {
     result.errorMessage = errorMessage;

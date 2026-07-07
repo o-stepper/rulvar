@@ -125,6 +125,13 @@ export type JournalEntry = {
    * AgentResult.artifacts without live calls (docs/06, section 2.1).
    */
   artifacts?: Json;
+  /**
+   * Terminal escalated entries ONLY: the schema-validated
+   * EscalationReport with runtime-filled costToDate and salvage; replay
+   * synthesizes the byte-identical report from here (docs/03, section
+   * 5.4; DEF-1).
+   */
+  escalation?: Json;
   /** Only when kind === 'resolution'. */
   resolution?: ResolutionPayload;
   /** Only when kind === 'abandon'. */

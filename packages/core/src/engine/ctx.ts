@@ -55,8 +55,18 @@ import {
   runAgent,
   type AgentResult,
   type Artifact,
+  type EscalatedResult,
   type ToolRuntime,
 } from '../runtime/agent-loop.js';
+import {
+  countsAgainstLimit,
+  escalateTool,
+  validateEscalationReport,
+  type EscalationDecision,
+  type EscalationOptions,
+  type EscalationReport,
+  type EscalationRequest,
+} from '../runtime/escalation.js';
 import {
   compilePermissionChain,
   evaluatePermission,
@@ -88,6 +98,8 @@ export interface AgentProfile {
   permissions?: AgentProfilePermissions;
   /** Isolation default; the RESOLVED value enters identity (docs/08). */
   isolation?: IsolationSpec;
+  /** Flavor B opt-in lives here or on the call (docs/07, section 6). */
+  escalation?: EscalationOptions;
   limits?: UsageLimits;
   /** Admission reserve hint in USD (budget layer 1). */
   estCost?: number;
@@ -123,6 +135,8 @@ export interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   replay?: 'cache' | 'never';
   /** Journaled as a policy field from day one; consumed by the M2 predicate. */
   memoizeOutcome?: boolean;
+  /** Opt-in; without it 'escalated' is physically unproducible (docs/07 6.4). */
+  escalation?: EscalationOptions;
   /** Admission reserve hint (USD). */
   estCost?: number;
   /** Merged over profile and engine limits (docs/06, section "UsageLimits"). */
@@ -157,7 +171,7 @@ export type Settled<T> =
   | { status: 'limit'; result: AgentResult<unknown> }
   | { status: 'cancelled'; result?: AgentResult<unknown> }
   | { status: 'skipped'; result: AgentResult<unknown> }
-  | { status: 'escalated'; result: AgentResult<unknown> };
+  | { status: 'escalated'; result: EscalatedResult<unknown> };
 
 export type Stage<I, O> = (item: I) => Promise<O>;
 
@@ -414,6 +428,14 @@ export interface RunInternals {
   runSignal?: AbortSignal;
   /** The worktree lifecycle provider (docs/08, section 8). */
   isolation?: IsolationProvider;
+  /**
+   * The InProcessRunner escalation hook (docs/06, section 2.10): receives
+   * escalated results when the call form cannot carry them; its decision
+   * is journaled as the authoritative escalation-decision entry.
+   */
+  onEscalation?: (
+    result: EscalatedResult<unknown>,
+  ) => EscalationDecision | Promise<EscalationDecision>;
   /** Open external suspensions plus the quiescence activity counter (M2-T08). */
   external?: ExternalRegistry;
   mintTranscriptRef: () => string;
@@ -422,6 +444,32 @@ export interface RunInternals {
 
 function bump(map: Map<string, number>, key: string, usd: number): void {
   map.set(key, (map.get(key) ?? 0) + usd);
+}
+
+/**
+ * Completes a model-authored escalation request into the full report:
+ * costToDate and salvage are runtime-filled, never model-filled (docs/07,
+ * section 6.3). The worktree patch ref lands after collect(); the
+ * pre-dispose preview for flavor B decision-makers omits it.
+ */
+function buildEscalationReport(
+  request: EscalationRequest,
+  result: AgentResult<unknown>,
+  worktreePatchRef: string | undefined,
+): EscalationReport {
+  return {
+    kind: request.kind,
+    scopeDelta: request.scopeDelta,
+    revisedEstimate: request.revisedEstimate,
+    blockers: request.blockers ?? [],
+    proposedDecomposition: request.proposedDecomposition ?? [],
+    costToDate: { usd: result.costUsd, turns: result.turns },
+    salvage: {
+      transcriptRef: result.transcriptRef,
+      artifacts: (result.artifacts ?? []).map((artifact) => artifact.id),
+      ...(worktreePatchRef === undefined ? {} : { worktreePatchRef }),
+    },
+  };
 }
 
 /**
@@ -593,12 +641,37 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       }
     }
 
+    // Escalation opt-in resolves call over profile; without it the
+    // escalated status is physically unproducible (docs/07, section 6.4).
+    const escalation = opts.escalation ?? profile?.escalation;
+    if (escalation !== undefined) {
+      if (opts.result !== 'full' && internals.onEscalation === undefined) {
+        // No channel able to carry the report: fail BEFORE any LLM call
+        // and before any journal entry (docs/06, section 2.10).
+        throw new ConfigError(
+          'a spawn that opts into escalation from a plain value-form call needs an ' +
+            "onEscalation hook (or use result: 'full')",
+        );
+      }
+      if (escalation.flavor === 'B' && escalation.deadlineMs === undefined) {
+        // Appendix A interim rule: no engine default deadline; enabling
+        // Flavor B requires an explicit deadlineMs.
+        throw new ConfigError(
+          "escalation flavor 'B' requires an explicit deadlineMs (docs/06, Appendix A)",
+        );
+      }
+    }
+
     // The toolset snapshot is captured at spawn time and hashed into the
     // spawn's identity; a mid-run source change never mutates an in-flight
     // agent's toolset (docs/08, sections "toolsetHash contract" and 6.3).
-    const toolset = await resolveToolset(opts.tools ?? profile?.tools, {
-      runId: internals.runId,
-    });
+    // The escalate tool registers through the same path as any opt-in
+    // tool, so opting in changes toolsetHash by design (docs/08, 6.6).
+    const declaredTools = opts.tools ?? profile?.tools ?? [];
+    const toolset = await resolveToolset(
+      escalation === undefined ? declaredTools : [...declaredTools, escalateTool()],
+      { runId: internals.runId },
+    );
 
     const identityInput = {
       kind: 'agent',
@@ -645,6 +718,11 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       }
       if (terminal?.artifacts !== undefined) {
         result.artifacts = terminal.artifacts as unknown as Artifact[];
+      }
+      if (terminal?.status === 'escalated' && terminal.escalation !== undefined) {
+        // The byte-identical report, zero adapter calls (DEF-1: an
+        // escalated entry replays as completed, paid work).
+        result.escalation = terminal.escalation as unknown as EscalationReport;
       }
       // Tool results reconstructed from the replayed turn checkpoint are
       // re-emitted with the replay marker (docs/09, section "Replay
@@ -708,11 +786,55 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       bump(internals.cost.byPhase, state.phase ?? '', costUsd);
       bump(internals.cost.byAgentType, agentType, costUsd);
       internals.cost.byRole.set('loop', (internals.cost.byRole.get('loop') ?? 0) + costUsd);
+      if (result.status === 'escalated' && result.escalation !== undefined) {
+        // The owner's decision is read from the decision entry, never
+        // re-evaluated; a crash between the report and the decision pays
+        // for the decision live exactly once (docs/09,
+        // crash-between-report-and-decision).
+        const priorDecision = internals.replayer
+          .snapshot()
+          .find(
+            (entry) =>
+              entry.kind === 'decision' &&
+              (entry.value as { targetRef?: number } | undefined)?.targetRef ===
+                matched.running.seq,
+          );
+        if (
+          priorDecision === undefined &&
+          opts.result !== 'full' &&
+          internals.onEscalation !== undefined
+        ) {
+          const decision = await Promise.resolve(
+            internals.onEscalation(result as EscalatedResult<unknown>),
+          );
+          await internals.replayer.appendSinglePhase({
+            scope: state.scope,
+            key: '',
+            kind: 'decision',
+            status: 'ok',
+            spanId,
+            value: {
+              decisionType: 'escalation.decision',
+              targetRef: matched.running.seq,
+              decision: decision as unknown as Json,
+              countsAgainstLimit: countsAgainstLimit(result.escalation.kind),
+            },
+          });
+        }
+      }
       if (opts.result === 'full') {
         return result;
       }
       if (result.status === 'ok') {
         return result.output;
+      }
+      if (result.status === 'escalated') {
+        throw new AgentCallError(
+          `agent escalated: ${result.escalation?.scopeDelta ?? ''}`,
+          result,
+          state.scope,
+          terminal?.seq ?? matched.running.seq,
+        );
       }
       const effectivePolicy =
         opts.onError ?? (internals.errorPolicy === 'lenient' ? 'null' : 'throw');
@@ -937,6 +1059,9 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     if (toolRuntime !== undefined) {
       runAgentOptions.tools = toolRuntime;
     }
+    if (escalation !== undefined) {
+      runAgentOptions.escalation = { minSpendUsd: escalation.minSpendUsd ?? 0 };
+    }
     runAgentOptions.checkpoint = checkpointPlumbing;
     if (opts.schema !== undefined) {
       runAgentOptions.schema = opts.schema;
@@ -969,6 +1094,77 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     }
     internals.budget.releaseReserve(reserve);
 
+    // Flavor B (docs/07, section 6.2; docs/03, section 6.8): the accepted
+    // escalate call suspends on the approval machinery with a journaled
+    // deadline; the decision resolution closes it FIRST, and dispose plus
+    // the terminal escalated entry are effects strictly after it. The
+    // worktree stays alive until the decision so salvage collection
+    // precedes destruction.
+    let flavorBDecision: EscalationDecision | undefined;
+    if (
+      result.status === 'escalated' &&
+      escalation?.flavor === 'B' &&
+      result.escalationRequest !== undefined
+    ) {
+      if (internals.external === undefined) {
+        throw new ConfigError('flavor B escalation requires the engine run context');
+      }
+      const request = result.escalationRequest;
+      const deadlineMs = escalation.deadlineMs ?? 0;
+      const defaultDecision: EscalationDecision = escalation.defaultDecision ?? {
+        kind: 'accept',
+      };
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const decisionOutcome = await internals.external.awaitDecision({
+        scope: agentScope(state.scope, running.seq),
+        spanId: internals.spans.mint(spanId),
+        toolName: 'escalate',
+        input: request as unknown as Json,
+        deadlineAt: new Date(internals.now() + deadlineMs).toISOString(),
+        onPending: (entry, replayed) => {
+          internals.events.emit(
+            { type: 'approval:pending', toolName: 'escalate', entryRef: entry.seq },
+            spanId,
+            replayed,
+          );
+          // The journaled deadlineAt survives resume: the timer re-arms
+          // from the ENTRY, not from config (docs/03, section 8.1).
+          const registry = internals.external;
+          const dueAt = Date.parse(entry.deadlineAt ?? '') || internals.now();
+          timer = setTimeout(
+            () => {
+              void registry
+                ?.submitResolution(entry.seq, { by: 'timeout', value: defaultDecision })
+                .catch(() => undefined);
+            },
+            Math.max(0, dueAt - internals.now()),
+          );
+          timer.unref?.();
+          // A live decision races the timer through the arbiter;
+          // first-closing-wins, the loser journals as noop (DEF-4).
+          if (internals.onEscalation !== undefined) {
+            const preview = buildEscalationReport(request, result, undefined);
+            const previewResult = {
+              ...result,
+              escalation: preview,
+            } as EscalatedResult<unknown>;
+            void Promise.resolve(internals.onEscalation(previewResult))
+              .then((decision) =>
+                registry?.submitResolution(entry.seq, {
+                  by: 'external',
+                  value: decision,
+                }),
+              )
+              .catch(() => undefined);
+          }
+        },
+      });
+      if (timer !== undefined) {
+        clearTimeout(timer);
+      }
+      flavorBDecision = decisionOutcome.value as unknown as EscalationDecision;
+    }
+
     // collect() before dispose: the patch lands in TranscriptStore and
     // its reference in AgentResult.artifacts; applying it stays with the
     // caller (docs/08, section 8.3).
@@ -989,16 +1185,34 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           spanId,
         );
       }
-      await acquired.dispose(result.status !== 'ok');
+      await acquired.dispose(result.status !== 'ok' && result.status !== 'escalated');
+    }
+
+    // The full report: runtime fills costToDate and salvage, validated
+    // BEFORE append (docs/03, section 5.4; docs/07, section 6.3).
+    if (result.status === 'escalated' && result.escalationRequest !== undefined) {
+      const patchRef = result.artifacts?.find((artifact) => artifact.kind === 'patch')?.ref;
+      const report = buildEscalationReport(result.escalationRequest, result, patchRef);
+      const issues = await validateEscalationReport(report);
+      if (issues.length > 0) {
+        throw new ConfigError(
+          'escalation report failed validation before append: ' +
+            issues.map((issue) => issue.message).join('; '),
+        );
+      }
+      result.escalation = report;
+      delete result.escalationRequest;
     }
 
     const terminalPatch: Parameters<Replayer['appendTerminal']>[1] = {
-      status:
-        result.status === 'skipped' || result.status === 'escalated' ? 'error' : result.status,
+      status: result.status === 'skipped' ? 'error' : result.status,
       usage: result.usage,
       servedBy: loopResolved.ref,
       transcriptRef: result.transcriptRef,
     };
+    if (result.status === 'escalated' && result.escalation !== undefined) {
+      terminalPatch.escalation = result.escalation;
+    }
     if (result.output !== null && result.status === 'ok') {
       terminalPatch.value = result.output;
     }
@@ -1031,6 +1245,38 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       spanId,
     );
 
+    // Ordering (docs/03, section 6.8): the terminal escalated entry
+    // strictly BEFORE the decision entry recording the owner's decision;
+    // the decision entry strictly before its effects. countsAgainstLimit
+    // derives once, live, from the report kind (XF-06).
+    if (result.status === 'escalated' && result.escalation !== undefined) {
+      let decision = flavorBDecision;
+      if (
+        decision === undefined &&
+        opts.result !== 'full' &&
+        internals.onEscalation !== undefined
+      ) {
+        decision = await Promise.resolve(
+          internals.onEscalation(result as EscalatedResult<unknown>),
+        );
+      }
+      if (decision !== undefined) {
+        await internals.replayer.appendSinglePhase({
+          scope: state.scope,
+          key: '',
+          kind: 'decision',
+          status: 'ok',
+          spanId,
+          value: {
+            decisionType: 'escalation.decision',
+            targetRef: running.seq,
+            decision: decision as unknown as Json,
+            countsAgainstLimit: countsAgainstLimit(result.escalation.kind),
+          },
+        });
+      }
+    }
+
     // Cost attribution buckets (CostReport, docs/09).
     const usd = result.costUsd;
     bump(internals.cost.byModel, loopResolved.ref, usd);
@@ -1054,6 +1300,17 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     }
     if (result.status === 'ok') {
       return result.output;
+    }
+    if (result.status === 'escalated') {
+      // Never an error: onError does not fire and 'null' never swallows
+      // the report; the typed carrier reaches the caller (and Settled
+      // maps it to a settled outcome; docs/06, sections 2.1 and 2.10).
+      throw new AgentCallError(
+        `agent escalated: ${result.escalation?.scopeDelta ?? ''}`,
+        result,
+        state.scope,
+        terminal.seq,
+      );
     }
 
     const effectiveOnError =
@@ -1111,7 +1368,9 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
             // "Scheduler"). Budget exhaustion severs globally by itself.
             const isLimitLike =
               thrown instanceof AgentCallError &&
-              (thrown.result.status === 'limit' || thrown.result.status === 'cancelled');
+              (thrown.result.status === 'limit' ||
+                thrown.result.status === 'cancelled' ||
+                thrown.result.status === 'escalated');
             if (!isLimitLike && !(thrown instanceof BudgetExhaustedError)) {
               for (const [i, controller] of controllers.entries()) {
                 if (i !== branch) {
@@ -1146,6 +1405,11 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           }
           if (status === 'cancelled') {
             return { status: 'cancelled', result: reason.result };
+          }
+          if (status === 'escalated') {
+            // A settled outcome, exactly like limit: onError does not
+            // fire and no DroppedItem is recorded (docs/06, section 4).
+            return { status: 'escalated', result: reason.result as EscalatedResult<unknown> };
           }
           const wire = agentErrorToWire(
             reason.result.error ?? { kind: 'terminal', retryable: false },
@@ -1187,7 +1451,9 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         (r) =>
           !(
             r.reason instanceof AgentCallError &&
-            (r.reason.result.status === 'limit' || r.reason.result.status === 'cancelled')
+            (r.reason.result.status === 'limit' ||
+              r.reason.result.status === 'cancelled' ||
+              r.reason.result.status === 'escalated')
           ),
       );
       throw (errorClass ?? rejections[0]).reason;

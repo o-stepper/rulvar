@@ -132,5 +132,14 @@ export function validateEntryShape(entry: JournalEntry): Issue[] {
     issues.push(issue('deadlineAt is legal only on suspended entries'));
   }
 
+  if (entry.status === 'escalated' && entry.escalation === undefined) {
+    issues.push(
+      issue('terminal escalated entries carry the validated EscalationReport (docs/03 5.4)'),
+    );
+  }
+  if (entry.escalation !== undefined && entry.status !== 'escalated') {
+    issues.push(issue("the escalation payload is legal only on status 'escalated'"));
+  }
+
   return issues;
 }
