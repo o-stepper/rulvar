@@ -33,6 +33,8 @@ import { dispositionHook } from '../journal/disposition.js';
 import type { ResumeReport } from '../journal/matching.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { buildAdapterRegistry, parseModelRef } from '../model/router.js';
+import type { EscalationDecision } from '../runtime/escalation.js';
+import type { EscalatedResult } from '../runtime/agent-loop.js';
 import type { PermissionConfig } from '../runtime/permission-chain.js';
 import type { UsageLimits } from '../runtime/usage-limits.js';
 import { RunBudget } from './budget.js';
@@ -84,6 +86,15 @@ export interface CreateEngineOptions {
   defaults?: EngineDefaults;
   budgetDefaults?: BudgetDefaults;
   concurrency?: { perRun?: number };
+  /**
+   * The InProcessRunner escalation hook (docs/06, sections 2.10 and 8.1):
+   * receives escalated results when the call form cannot carry them; the
+   * returned decision is journaled as the authoritative
+   * escalation-decision entry.
+   */
+  onEscalation?: (
+    result: EscalatedResult<unknown>,
+  ) => EscalationDecision | Promise<EscalationDecision>;
   /**
    * KeyDeriver registry extension (docs/03, section "hashVersion").
    * Plumbed now, consumed by the matching kernel from M2.
@@ -155,7 +166,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
   const journal = options.stores?.journal ?? new InMemoryStore();
   const transcripts = options.stores?.transcripts ?? new InMemoryTranscriptStore();
   const defaults = options.defaults ?? {};
-  const runner: ScriptRunner = new InProcessRunner();
+  const runner: ScriptRunner = new InProcessRunner(
+    options.onEscalation === undefined ? undefined : { onEscalation: options.onEscalation },
+  );
   const mintRunId = createCanonicalIdMinter();
   // Captured before any dev-mode patch so engine internals never trip the
   // bare-Date.now warning.
@@ -292,6 +305,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       priceUsd: (servedBy, usage) => priceUsd(servedBy, usage),
       runSignal: controller.signal,
       ...(defaults.isolation === undefined ? {} : { isolation: defaults.isolation }),
+      ...(options.onEscalation === undefined ? {} : { onEscalation: options.onEscalation }),
       external,
       mintTranscriptRef: () => `${runId}/t${transcriptCounter++}`,
       now: realNow,

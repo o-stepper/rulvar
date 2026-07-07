@@ -85,6 +85,8 @@ export interface TerminalPatch {
   checkpointRef?: string;
   /** Terminal agent entries: Artifact list (docs/06, section 2.1). */
   artifacts?: unknown;
+  /** Terminal escalated entries: the validated EscalationReport. */
+  escalation?: unknown;
   site?: string;
 }
 
@@ -399,6 +401,9 @@ export class Replayer {
       }
       if (patch.artifacts !== undefined) {
         entry.artifacts = toJournalValue(patch.artifacts, 'terminal artifacts');
+      }
+      if (patch.escalation !== undefined) {
+        entry.escalation = toJournalValue(patch.escalation, 'escalation report');
       }
       return this.persist(entry);
     });

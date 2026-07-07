@@ -39,6 +39,7 @@ export * from './model/caps.js';
 export * from './model/router.js';
 export * from './runtime/usage-limits.js';
 export * from './runtime/model-retry.js';
+export * from './runtime/escalation.js';
 export * from './runtime/permission-chain.js';
 export * from './runtime/structured-output.js';
 export * from './runtime/agent-loop.js';
