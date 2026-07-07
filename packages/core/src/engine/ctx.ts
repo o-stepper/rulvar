@@ -12,6 +12,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID, getRandomValues } from 'node:crypto';
 import {
+  AdmissionRejectedError,
   agentErrorFromWire,
   agentErrorToWire,
   BudgetExhaustedError,
@@ -43,6 +44,7 @@ import {
   parallelScope,
   pipelineScope,
   ROOT_SCOPE,
+  workflowScope,
 } from '../journal/scope.js';
 import type { Replayer } from '../journal/replayer.js';
 import type { JournalEntry } from '../l0/entries.js';
@@ -83,7 +85,9 @@ import {
 import { mergeUsageLimits, type UsageLimits } from '../runtime/usage-limits.js';
 import { buildToolContext } from '../tools/context.js';
 import { resolveToolset, type ToolsOption } from '../tools/toolset-hash.js';
-import { admissionReserveUsd, type RunBudget, type Spend } from './budget.js';
+import { AdmissionController, type AdmitVerdict } from '../orchestrator/admission.js';
+import { toJournalValue } from '../journal/serializable.js';
+import { admissionReserveUsd, ROOT_ACCOUNT, type RunBudget, type Spend } from './budget.js';
 import { Semaphore } from './scheduler.js';
 import type { ExternalRegistry } from './external.js';
 
@@ -349,6 +353,19 @@ export interface Ctx<P extends ErrorPolicy = 'strict'> {
   ): Promise<T>;
 
   /**
+   * Runs a child workflow under the AdmissionController (docs/06, section
+   * 2.5; M6-T06). The child gets a nested journal scope (registered name
+   * plus ordinal) and a hierarchical budget sub-account whose spend
+   * propagates to every ancestor. Structural limit violations throw the
+   * typed AdmissionRejectedError and never tear the run down; budget
+   * rejections throw BudgetExhaustedError. The string form resolves
+   * against the per-engine workflow registry (section 10.4) and is the
+   * only form available inside the worker sandbox.
+   */
+  workflow<A, R>(wf: Workflow<A, R>, args: A, o?: WorkflowCallOpts): Promise<R>;
+  workflow(name: string, args?: Json, o?: WorkflowCallOpts): Promise<unknown>;
+
+  /**
    * Suspends this position on a journaled entry until an external
    * resolution arrives (docs/06, section 2.7). NO deadline in v1.
    */
@@ -370,6 +387,11 @@ export interface PipelineOpts {
 
 export interface CollectOpts {
   onItemError: 'collect';
+}
+
+/** Options of ctx.workflow; `key` replaces args in the child identity (docs/03, 1.2). */
+export interface WorkflowCallOpts {
+  key?: string;
 }
 
 /** Closure-form workflow value; in-process only (docs/06, section "Execution model"). */
@@ -402,6 +424,8 @@ interface ScopeState {
   spanId: string;
   phase?: string;
   signal?: AbortSignal;
+  /** The nearest enclosing budget account; the run root when absent (M6-T06). */
+  budgetScope?: string;
 }
 
 /**
@@ -432,6 +456,8 @@ export interface RunInternals {
   runId: string;
   replayer: Replayer;
   budget: RunBudget;
+  /** The single admission point for all spawns (docs/07, section 7; M6-T06). */
+  admission?: AdmissionController;
   semaphore: Semaphore;
   events: RunEventSink;
   spans: SpanMinter;
@@ -454,6 +480,8 @@ export interface RunInternals {
   providerLimiter?: KeyedLimiter;
   /** The configured price table's version; pinned in decision entries (M4-T06). */
   pricingVersion?: string;
+  /** budgetDefaults.flatReserveUsd; last resort of the reserve formula (docs/06, 5.1). */
+  flatReserveUsd?: number;
   /** Hard router constraints from engine config (docs/04, section 9; M4-T09). */
   floors?: QualityFloors;
   errorPolicy: ErrorPolicy;
@@ -1111,8 +1139,12 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     if (inputTokens !== undefined) {
       reserveOptions.inputTokens = inputTokens;
     }
+    if (internals.flatReserveUsd !== undefined) {
+      reserveOptions.flatReserveUsd = internals.flatReserveUsd;
+    }
     const reserve = admissionReserveUsd(reserveOptions);
-    internals.budget.admitSpawn(reserve);
+    const budgetAccount = state.budgetScope ?? ROOT_ACCOUNT;
+    internals.budget.admitSpawn(reserve, budgetAccount);
 
     // Worktree lifecycle (docs/08, section 8.3): acquired before the
     // dispatch entry so an acquire failure never leaves a dangling
@@ -1284,9 +1316,18 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         put: (ref, blob) => internals.transcripts.put(ref, blob),
       },
       budget: {
-        beforeTurn: () => internals.budget.beforeTurn(),
-        onUsage: (usage, servedBy) => internals.budget.onUsage(usage, servedBy),
-        signal: internals.budget.signal,
+        beforeTurn: () => internals.budget.beforeTurn(budgetAccount),
+        onUsage: (usage, servedBy) => internals.budget.onUsage(usage, servedBy, budgetAccount),
+        // Layer 3 severs through the whole account chain: the account's
+        // own subtree signal composed with the run root (M6-T06).
+        signal:
+          budgetAccount === ROOT_ACCOUNT
+            ? internals.budget.signal
+            : AbortSignal.any(
+                [internals.budget.signal, internals.budget.signalOf(budgetAccount)].filter(
+                  (signal): signal is AbortSignal => signal !== undefined,
+                ),
+              ),
       },
       priceUsd: internals.priceUsd,
       agentType,
@@ -1351,7 +1392,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     } finally {
       exitActivity?.();
     }
-    internals.budget.releaseReserve(reserve);
+    internals.budget.releaseReserve(reserve, budgetAccount);
 
     // Flavor B (docs/07, section 6.2; docs/03, section 6.8): the accepted
     // escalate call suspends on the approval machinery with a journaled
@@ -1644,6 +1685,9 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         if (state.phase !== undefined) {
           branchState.phase = state.phase;
         }
+        if (state.budgetScope !== undefined) {
+          branchState.budgetScope = state.budgetScope;
+        }
         const promise = als.run(branchState, task);
         if (abortSiblings) {
           promise.catch((thrown: unknown) => {
@@ -1770,6 +1814,9 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         if (state.signal !== undefined) {
           stageState.signal = state.signal;
         }
+        if (state.budgetScope !== undefined) {
+          stageState.budgetScope = state.budgetScope;
+        }
         try {
           value = await als.run(stageState, () => stages[stageIndex](value));
         } catch (thrown) {
@@ -1830,9 +1877,276 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     return results;
   }
 
+  /**
+   * Per-(scope, name) invocation ordinals of ctx.workflow, in execution
+   * order (docs/03, section 2.2: nested workflow scopes).
+   */
+  const workflowOrdinals = new Map<string, number>();
+  const nextWorkflowOrdinal = (scope: string, name: string): number => {
+    const counterKey = `${scope} ${name}`;
+    const ordinal = workflowOrdinals.get(counterKey) ?? 0;
+    workflowOrdinals.set(counterKey, ordinal + 1);
+    return ordinal;
+  };
+
+  /** Rebuilds the typed error a journaled child failure recorded. */
+  const childErrorFromWire = (wire: WireError): Error => {
+    if (wire.code === 'budget_exhausted') {
+      return new BudgetExhaustedError(
+        wire.message,
+        wire.data === undefined ? {} : { data: wire.data },
+      );
+    }
+    if (wire.code === 'admission_rejected') {
+      return new AdmissionRejectedError(
+        wire.message,
+        wire.data === undefined ? {} : { data: wire.data },
+      );
+    }
+    if (wire.code === 'config') {
+      return new ConfigError(wire.message, wire.data === undefined ? {} : { data: wire.data });
+    }
+    const rebuilt = new Error(wire.message);
+    rebuilt.name = wire.code;
+    return rebuilt;
+  };
+
+  /** Maps an embedded admission rejection onto its typed error (docs/07, 7.3). */
+  const rejectionError = (
+    reason: { code: string } & Record<string, unknown>,
+    name: string,
+  ): Error => {
+    if (reason.code === 'budget' || reason.code === 'lifetime') {
+      return new BudgetExhaustedError(
+        `admission rejected child workflow '${name}' (${reason.code})`,
+        { data: { reason: reason as Json } },
+      );
+    }
+    return new AdmissionRejectedError(
+      `admission rejected child workflow '${name}' (${reason.code}; ` +
+        'maxDepth/maxChildrenPerNode are set via createEngine budgetDefaults)',
+      { data: { reason: reason as Json } },
+    );
+  };
+
+  async function workflowImpl(
+    wfOrName: Workflow<never, unknown> | string,
+    args?: unknown,
+    o?: WorkflowCallOpts,
+  ): Promise<unknown> {
+    const state = current();
+    let wf: Workflow<never, unknown>;
+    let name: string;
+    if (typeof wfOrName === 'string') {
+      const registered = internals.defaults.workflows?.[wfOrName];
+      if (registered === undefined) {
+        throw new ConfigError(
+          `unknown workflow '${wfOrName}': register it under defaults.workflows (docs/06, 10.4)`,
+        );
+      }
+      const candidate = registered as Workflow<never, unknown>;
+      if (candidate.kind !== 'workflow') {
+        throw new ConfigError(
+          `registry entry '${wfOrName}' is not a defineWorkflow value (docs/06, 10.4)`,
+        );
+      }
+      wf = candidate;
+      name = wfOrName;
+    } else {
+      wf = wfOrName;
+      name = wf.name;
+    }
+    if (wf.argsSchema !== undefined) {
+      const validation = await validateSchemaSpec(wf.argsSchema, args);
+      if (!validation.valid) {
+        throw new ConfigError(
+          `arguments for child workflow '${name}' do not validate: ` +
+            validation.issues.map((issue) => issue.message).join('; '),
+          { data: { issues: validation.issues.map((issue) => issue.message) } },
+        );
+      }
+    }
+    const argsJson =
+      o?.key !== undefined ? o.key : toJournalValue(args ?? null, `ctx.workflow('${name}') args`);
+    const ordinal = nextWorkflowOrdinal(state.scope, name);
+    const childScope = workflowScope(state.scope, name, ordinal);
+    const identity = { kind: 'child', workflow: name, args: argsJson } as const;
+    const key = deriveContentKey(identity);
+    const spanId = internals.spans.mint(state.spanId);
+    const budgetAccount = state.budgetScope ?? ROOT_ACCOUNT;
+
+    const matched = internals.replayer.match(state.scope, identity, 'scoped');
+    if (matched.kind === 'replay') {
+      // Counters (maxChildrenPerNode, the lifetime cap) survive resume:
+      // the ledger seed counts agent dispatches only, so replayed
+      // children re-register here without re-committing any reserve.
+      internals.admission?.recoverSettled(budgetAccount);
+      internals.events.emit(
+        { type: 'child:start', workflow: name, scope: childScope },
+        spanId,
+        true,
+      );
+      const terminal = matched.terminal;
+      internals.events.emit(
+        { type: 'child:end', workflow: name, scope: childScope, status: terminal.status },
+        spanId,
+        true,
+      );
+      if (terminal.status === 'ok') {
+        return terminal.value;
+      }
+      throw childErrorFromWire(
+        terminal.error ?? {
+          code: 'error',
+          message: `child workflow '${name}' replayed terminal status ${terminal.status}`,
+          retryable: false,
+        },
+      );
+    }
+    if (matched.kind === 'skip') {
+      // Derived-skipped children (abandon coverage) are DEF-5 territory;
+      // reuse-by-reference delivery lands in M7. Unreachable from M6
+      // producers, kept total for foreign journals.
+      throw new ConfigError(
+        `child workflow '${name}' is covered by an abandon entry; ` +
+          'reuse-by-reference delivery lands with DEF-5 in M7',
+      );
+    }
+    const danglingRunning = matched.kind === 'rerun-dangling' ? matched.running : undefined;
+
+    // Admission (docs/07, section 7.1): the verdict is evaluated live
+    // strictly BEFORE the carrying decision entry is appended and is
+    // embedded IN it; on resume the journaled decision is recovered and
+    // never re-evaluated.
+    if (internals.admission === undefined) {
+      throw new ConfigError('ctx.workflow requires the engine run context (createEngine)');
+    }
+    const admission = internals.admission;
+    const prior = internals.replayer.snapshot().find((entry) => {
+      if (entry.kind !== 'decision') {
+        return false;
+      }
+      const value = entry.value as { decisionType?: string; childScope?: string } | undefined;
+      return value?.decisionType === 'spawn-admission' && value.childScope === childScope;
+    });
+    let verdict: AdmitVerdict;
+    if (prior !== undefined) {
+      const recorded = (prior.value as { decision: { verdict: AdmitVerdict } }).decision;
+      verdict = recorded.verdict;
+      if (verdict.kind !== 'reject') {
+        admission.recoverInFlight(budgetAccount, verdict);
+      }
+    } else {
+      const decision = admission.admit({
+        origin: 'ctx.workflow',
+        name,
+        childScope,
+        parentAccountScope: budgetAccount,
+      });
+      verdict = decision.verdict;
+      await internals.replayer.appendSinglePhase({
+        scope: state.scope,
+        key: '',
+        kind: 'decision',
+        status: 'ok',
+        spanId,
+        value: {
+          decisionType: 'spawn-admission',
+          origin: 'ctx.workflow',
+          name,
+          childScope,
+          parentAccountScope: budgetAccount,
+          decision: decision as unknown as Json,
+        },
+      });
+    }
+    if (verdict.kind === 'reject') {
+      throw rejectionError(verdict.reason, name);
+    }
+    if (verdict.kind !== 'admit') {
+      throw new ConfigError(
+        `admission verdict '${verdict.kind}' has no producer before M7 (DEF-5)`,
+      );
+    }
+    const reserve = verdict.reserve;
+    const openOptions: Parameters<RunBudget['openAccount']>[1] = {
+      parentScope: budgetAccount,
+    };
+    if (reserve.childCeilingUsd !== undefined) {
+      openOptions.ceilingUsd = reserve.childCeilingUsd;
+    }
+    internals.budget.openAccount(childScope, openOptions);
+
+    const running =
+      danglingRunning ??
+      (await internals.replayer.appendRunning({
+        scope: state.scope,
+        key,
+        kind: 'child',
+        spanId,
+        value: { workflow: name, childScope },
+        site: `ctx.workflow('${name}')`,
+      }));
+
+    const upstream = state.signal ?? internals.runSignal;
+    const accountSignal = internals.budget.signalOf(childScope);
+    const signals = [upstream, accountSignal].filter(
+      (signal): signal is AbortSignal => signal !== undefined,
+    );
+    const childState: ScopeState = {
+      scope: childScope,
+      spanId,
+      budgetScope: childScope,
+    };
+    if (signals.length === 1) {
+      childState.signal = signals[0];
+    } else if (signals.length > 1) {
+      childState.signal = AbortSignal.any(signals);
+    }
+    if (state.phase !== undefined) {
+      childState.phase = state.phase;
+    }
+
+    internals.events.emit({ type: 'child:start', workflow: name, scope: childScope }, spanId);
+    try {
+      const result = await als.run(childState, () => wf.body(ctx as Ctx<never>, args as never));
+      const value = toJournalValue(result ?? null, `ctx.workflow('${name}') result`);
+      await internals.replayer.appendTerminal(running.seq, {
+        status: 'ok',
+        value,
+        site: `ctx.workflow('${name}')`,
+      });
+      internals.events.emit(
+        { type: 'child:end', workflow: name, scope: childScope, status: 'ok' },
+        spanId,
+      );
+      return result;
+    } catch (thrown) {
+      const cancelled = childState.signal?.aborted === true;
+      const wire: WireError =
+        thrown instanceof LurkerError
+          ? thrown.toWire()
+          : {
+              code: 'error',
+              message: thrown instanceof Error ? thrown.message : String(thrown),
+              retryable: false,
+            };
+      const status = cancelled ? 'cancelled' : 'error';
+      await internals.replayer.appendTerminal(running.seq, { status, error: wire });
+      internals.events.emit(
+        { type: 'child:end', workflow: name, scope: childScope, status },
+        spanId,
+      );
+      throw thrown;
+    } finally {
+      internals.budget.releaseReserve(reserve.reserveUsd, budgetAccount);
+    }
+  }
+
   const ctx: Ctx<ErrorPolicy> = {
     agent: agentImpl as Ctx<ErrorPolicy>['agent'],
     parallel: parallelImpl,
+    workflow: workflowImpl as Ctx<ErrorPolicy>['workflow'],
     pipeline: ((items: unknown[], ...rest: unknown[]) => {
       const last = rest[rest.length - 1];
       const hasOpts = typeof last === 'object' && last !== null;

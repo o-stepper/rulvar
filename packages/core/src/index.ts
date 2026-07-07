@@ -58,6 +58,7 @@ export * from './runtime/structured-output.js';
 export * from './runtime/agent-loop.js';
 export * from './engine/budget.js';
 export * from './engine/scheduler.js';
+export * from './orchestrator/admission.js';
 export * from './engine/ctx.js';
 export type * from './l0/events.js';
 export * from './engine/events.js';

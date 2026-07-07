@@ -38,6 +38,24 @@ export function classifyAgentError(e: AgentError): ErrorClass {
 }
 
 /**
+ * The child scope-prefix an abandon over `target` covers transitively.
+ * Agent spawns nest under agent:<seq> (docs/03, section 2.2); a child
+ * workflow's subtree runs under the wf:<name>:<ordinal> scope recorded in
+ * its dispatch payload (M6-T06). A child entry without the payload
+ * (foreign journals) degrades to the agent:<seq> convention, which covers
+ * nothing real and keeps the fold total.
+ */
+export function childCoveragePrefix(target: JournalEntry): string {
+  if (target.kind === 'child') {
+    const payload = target.value as { childScope?: unknown } | undefined;
+    if (payload !== undefined && typeof payload.childScope === 'string') {
+      return payload.childScope;
+    }
+  }
+  return agentScope(target.scope, target.seq);
+}
+
+/**
  * Builds the AbandonFold in ONE pass at load, in append order, pinned for
  * the entire resume (DEF-1 ordering rule 4). Coverage is the target seq
  * itself plus, transitively, every entry under the target's child
@@ -76,10 +94,9 @@ export function buildAbandonFold(entries: readonly JournalEntry[]): AbandonFold 
     }
     coveredSeqs.add(target.seq);
     // The child scope-prefix of the target: the scope its children run
-    // under. Orchestrator handle spawns and synthetic fixtures use the
-    // agent:<seq> convention (docs/03, section 2.2); child-workflow
-    // coverage extends with ctx.workflow in M6.
-    coveredPrefixes.push(agentScope(target.scope, target.seq));
+    // under (agent:<seq> for agent spawns, the recorded wf: scope for
+    // child workflows; M6-T06).
+    coveredPrefixes.push(childCoveragePrefix(target));
   }
 
   return {

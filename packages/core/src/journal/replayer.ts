@@ -340,11 +340,26 @@ export class Replayer {
     });
   }
 
-  /** Two-phase dispatch: the running entry (kinds agent, step, child). */
-  appendRunning(input: BaseAppend & { memoizeOutcome?: boolean }): Promise<JournalEntry> {
+  /**
+   * Two-phase dispatch: the running entry (kinds agent, step, child).
+   * `value` is legal on child dispatches only: the child payload
+   * `{ workflow, childScope }` lets the abandon fold compute the child's
+   * transitive scope coverage (docs/03, section 8.4; M6-T06). Values
+   * never enter identity.
+   */
+  appendRunning(
+    input: BaseAppend & { memoizeOutcome?: boolean; value?: unknown },
+  ): Promise<JournalEntry> {
+    const value =
+      input.value === undefined
+        ? undefined
+        : toJournalValue(input.value, input.site ?? `${input.kind} dispatch payload`);
     return this.enqueue(() => {
       const entry = this.mint(input.scope, input.key, input.kind, 'running');
       entry.spanId = input.spanId;
+      if (value !== undefined) {
+        entry.value = value;
+      }
       if (input.memoizeOutcome !== undefined) {
         entry.memoizeOutcome = input.memoizeOutcome;
       }

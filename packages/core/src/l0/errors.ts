@@ -38,6 +38,7 @@ export type ErrorCode =
   | 'orchestrator_cap_config'
   | 'journal_miss'
   | 'budget_exhausted'
+  | 'admission_rejected'
   | 'lease_held';
 
 /** docs/02 names the registry type LurkerErrorCode; both names are public. */
@@ -243,6 +244,24 @@ export class JournalMissError extends LurkerError {
  */
 export class BudgetExhaustedError extends LurkerError {
   readonly code = 'budget_exhausted' as const;
+
+  constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
+    super(message, { retryable: false, ...opts });
+  }
+}
+
+/**
+ * A structural admission rejection (maxDepth, maxChildrenPerNode,
+ * maxTotalSpawns) from the AdmissionController (docs/07, section
+ * "AdmissionController"; M6-T06). The rejection verdict is embedded in
+ * the carrying spawn-admission decision entry and replays identically;
+ * the error surfaces the embedded AdmitRejectReason in `data` to the
+ * caller (a typed tool error for orchestrators) and MUST NOT tear down
+ * the run. Budget-code rejections throw BudgetExhaustedError instead,
+ * keeping the docs/06 5.7 exhaustion semantics.
+ */
+export class AdmissionRejectedError extends LurkerError {
+  readonly code = 'admission_rejected' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
     super(message, { retryable: false, ...opts });

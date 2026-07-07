@@ -16,8 +16,7 @@ import type {
   ResolutionPayload,
 } from '../l0/entries.js';
 import { Validator } from '../vendor/json-schema/index.js';
-import { agentScope } from './scope.js';
-import type { AbandonFold } from './disposition.js';
+import { childCoveragePrefix, type AbandonFold } from './disposition.js';
 
 export type ResolutionAttempt = {
   by: ResolutionBy;
@@ -186,7 +185,7 @@ export class ResolutionFold {
       };
     }
     this.coveredSeqs.add(target.seq);
-    this.coveredPrefixes.push(agentScope(target.scope, target.seq));
+    this.coveredPrefixes.push(childCoveragePrefix(target));
     // A covering abandon closes any suspended entries under it.
     for (const state of this.targets.values()) {
       if (state.closedBy === undefined && this.isCoveredEntry(state.entry)) {
