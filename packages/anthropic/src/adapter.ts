@@ -74,6 +74,9 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
 
   return {
     id: 'anthropic',
+    // Provider family for provider-raw matching and retention (docs/04,
+    // section 2.3, M4-T02).
+    provider: 'anthropic',
 
     caps(model: string): ModelCaps {
       return infoFor(model).caps;
@@ -122,6 +125,10 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
 
       const pending: ChatEvent[] = [];
       let continuations = 0;
+      // Thinking blocks from earlier pause_turn continuations of this
+      // turn: the terminal finish ships the whole turn's retention
+      // payload (docs/04, section 2.3, M4-T02).
+      const carryRetained: Array<Record<string, unknown>> = [];
       while (true) {
         let stream: AsyncIterable<AnthropicStreamEvent>;
         try {
@@ -135,7 +142,9 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
         }
         let mapping;
         try {
-          mapping = await mapAnthropicStream(stream, ids, (event) => pending.push(event));
+          mapping = await mapAnthropicStream(stream, ids, (event) => pending.push(event), {
+            carryRetained,
+          });
         } catch (thrown) {
           if (signal?.aborted === true) {
             return;
@@ -150,6 +159,11 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
         if (!mapping.pauseTurn) {
           return;
         }
+        carryRetained.push(
+          ...mapping.assistantContent.filter(
+            (block) => block.type === 'thinking' || block.type === 'redacted_thinking',
+          ),
+        );
         // pause_turn: append the partial assistant content and re-send,
         // WITHOUT a synthetic user message, up to the continuation cap;
         // never a canonical finish (docs/04, section 4.6).

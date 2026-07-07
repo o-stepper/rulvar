@@ -77,6 +77,10 @@ export function openaiCompatible(cfg: OpenAiCompatibleConfig): ProviderAdapter {
 
   return {
     id: cfg.id,
+    // The provider FAMILY stays 'openai' whatever the custom adapter id:
+    // gateways of the same dialect share projections; the chat dialect
+    // itself never ships retainedParts (docs/04, sections 2.3 and 5.6).
+    provider: 'openai',
 
     caps(model: string): ModelCaps {
       const overrides = cfg.caps?.(model);

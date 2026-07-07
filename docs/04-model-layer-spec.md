@@ -170,6 +170,7 @@ The engine additionally populates one reserved namespace, `lurker`, on every req
 ```ts
 export interface ProviderAdapter {
   id: string;                                   // stable adapter id; left segment of ModelRef
+  provider?: string;                            // provider family for provider-raw matching; default = id (committed during M4-T02)
   caps(model: string): ModelCaps;
   refreshCaps?(): Promise<void>;                // refresh capability table from live model lists
   stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent>;
@@ -203,7 +204,11 @@ HistoryProjector projects the canonical history into the wire view of a specific
 - on projection, a provider-raw part is included if and only if the target model's provider matches the part's `provider` field. Matching is at provider granularity, not model granularity: the adapter MUST send retained thinking blocks and reasoning items to any model of the same provider and let the server handle cross-model drops. Client-side per-model stripping is forbidden for Anthropic targets because it risks 400 ordering and signature errors; the Anthropic API itself silently drops mismatched-model thinking blocks unbilled. (Reopened nuance against the earlier drop-unless-model-matches phrasing.)
 - provider-raw parts of a different provider are omitted from the projection (and only from the projection).
 
-HistoryProjector is what makes per-role provider mixing inside one agent correct: the loop turns can run on one provider while extract or finalize runs on another, each seeing a valid wire history. The Agent Runtime binds the projector into the turn loop (06-execution-spec.md, section "Agent Runtime binding").
+Retention transport (committed during M4-T02): the adapter ships the turn's blocks-to-retain in stream order via `finish.providerMetadata[<adapter id>].retainedParts: unknown[]` (the namespace follows section 1.8; the openai `outputItems` diagnostic is unaffected). The Agent Runtime lifts each into a `provider-raw` part tagged with the adapter's PROVIDER name (`ProviderAdapter.provider`, default = id) and prepends them at the HEAD of the turn's canonical assistant message: on both first-class providers the retained blocks (thinking blocks, reasoning items) precede the turn's text and tool calls, and head placement reproduces that order on re-projection. Adapters whose dialect retains nothing (chat-completions, section 5.6) simply never ship the key.
+
+The provider-family tag is `ProviderAdapter.provider`, not the adapter id: two adapters of the same family (for example a differently-keyed second `openaiCompatible` gateway) MUST share retained blocks and projections, and a custom adapter id never splits the family. Matching in the projection rule above compares the part's `provider` field against the target adapter's provider.
+
+HistoryProjector is what makes per-role provider mixing inside one agent correct: the loop turns can run on one provider while extract or finalize runs on another, each seeing a valid wire history. The Agent Runtime binds the projector into the turn loop (06-execution-spec.md, section "Agent Runtime binding") and projects EVERY outgoing request, loop turns included: a checkpointed or failover-mixed history stays valid on any target. The canonical-id maps stay adapter-instance state (bijective for the adapter's lifetime, which covers every canonical history it serves); the projector owns the projection rule and the retention lift.
 
 ## 3 Canonical effort
 

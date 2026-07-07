@@ -107,8 +107,13 @@ interface TurnMapping {
 * Maps one Messages API stream into ChatEvents. Emits an early usage event
 * from message_start (the input side is known immediately) and exactly one
 * terminal finish unless the turn paused (pause_turn) or errored.
+* `carryRetained` holds thinking blocks from earlier pause_turn
+* continuations of the same turn so the terminal finish ships the whole
+* turn's retention payload (docs/04, section 2.3, M4-T02).
 */
-declare function mapAnthropicStream(stream: AsyncIterable<AnthropicStreamEvent>, ids: IdMap, emit: (event: ChatEvent) => void): Promise<TurnMapping>;
+declare function mapAnthropicStream(stream: AsyncIterable<AnthropicStreamEvent>, ids: IdMap, emit: (event: ChatEvent) => void, options?: {
+  carryRetained?: Block[];
+}): Promise<TurnMapping>;
 /**
 * Projects an SDK/API error into the retryable WireError vocabulary:
 * 429 rate limits surface retryAfterMs and the x-ratelimit-* buckets; 529

@@ -50,6 +50,12 @@ export type ModelCaps = {
 export interface ProviderAdapter {
   /** Stable adapter id; the left segment of ModelRef. */
   id: string;
+  /**
+   * Provider family for provider-raw matching and retention (docs/04,
+   * section 2.3; committed during M4-T02). Two adapters of the same
+   * family share retained blocks and projections; default = id.
+   */
+  provider?: string;
   caps(model: string): ModelCaps;
   /** Refresh the capability table from live model lists. */
   refreshCaps?(): Promise<void>;

@@ -36,6 +36,7 @@ export * from './engine/external.js';
 export * from './stores/inmemory.js';
 export * from './stores/jsonl.js';
 export * from './model/caps.js';
+export * from './model/projector.js';
 export * from './model/roles.js';
 export * from './model/router.js';
 export * from './runtime/usage-limits.js';

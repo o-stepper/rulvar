@@ -253,8 +253,21 @@ describe('Responses stream mapping (M1-T13; docs/04 section 5.4)', () => {
     const meta = finish.providerMetadata?.openai as Record<string, unknown>;
     // Raw output items ride providerMetadata for provider-raw retention.
     expect(meta.outputItems).toEqual(outputItems);
+    // The retention payload is EXACTLY the reasoning items, in output
+    // order, encrypted_content intact (docs/04, sections 2.3 and 5.1;
+    // M4-T02).
+    expect(meta.retainedParts).toEqual([outputItems[0]]);
     expect(meta.effortDownmapped).toBe('max->xhigh');
     expect(meta.responseId).toBe('resp_1');
+  });
+
+  it('fabricates bijective wire ids for canonical ids minted elsewhere (M4-T02)', () => {
+    const idMap = ids();
+    const foreign = '01ARZ3NDEKTSV4RRFFQ69G5FAV';
+    const wire = idMap.wireFor(foreign);
+    expect(wire).toBe(`call_${foreign}`);
+    expect(idMap.canonicalFor(wire)).toBe(foreign);
+    expect(idMap.wireFor(foreign)).toBe(wire);
   });
 
   it('maps response.incomplete per incomplete_details', async () => {

@@ -33,6 +33,7 @@ import type { Out, SchemaSpec } from '../l0/schema.js';
 import { validateSchemaSpec } from '../l0/schema.js';
 import { toJournalValue } from '../journal/serializable.js';
 import type { CheckpointState, PendingToolTurn } from '../journal/checkpoint.js';
+import { liftRetainedParts, projectHistory, providerOf } from '../model/projector.js';
 import type { ResolvedInvocation } from '../model/router.js';
 import { selectStructuredOutputTier, type StructuredOutputTier } from '../model/caps.js';
 import {
@@ -273,6 +274,8 @@ interface TurnOutcome {
   usageApprox: boolean;
   wireError?: WireError;
   aborted?: 'budget' | 'external' | 'idle';
+  /** The finish event's metadata; carries the retention payload (docs/04, 2.3). */
+  providerMetadata?: Record<string, unknown>;
 }
 
 async function streamTurn(
@@ -300,6 +303,7 @@ async function streamTurn(
   let reported: Usage = ZERO_USAGE;
   let sawFinish = false;
   let finish: FinishInfo | undefined;
+  let providerMetadata: Record<string, unknown> | undefined;
   let wireError: WireError | undefined;
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
   const armIdle = (): void => {
@@ -356,6 +360,7 @@ async function streamTurn(
           sawFinish = true;
           finish = event.finish;
           usage = event.usage;
+          providerMetadata = event.providerMetadata;
           break;
         case 'error':
           wireError = event.error;
@@ -392,6 +397,9 @@ async function streamTurn(
   const outcome: TurnOutcome = { turn, usage, reported, usageApprox: !sawFinish };
   if (finish !== undefined) {
     outcome.finish = finish;
+  }
+  if (providerMetadata !== undefined) {
+    outcome.providerMetadata = providerMetadata;
   }
   if (wireError !== undefined) {
     outcome.wireError = wireError;
@@ -434,8 +442,15 @@ function buildRequest(
   return req;
 }
 
-function assistantMsg(turn: CollectedTurn): Msg {
-  const parts: Part[] = [];
+/**
+ * Builds the turn's canonical assistant message. Retained provider-raw
+ * parts go at the HEAD: on both first-class providers the retained
+ * blocks (thinking blocks, reasoning items) precede the turn's text and
+ * tool calls, and head placement reproduces that order on re-projection
+ * (docs/04, section 2.3, M4-T02).
+ */
+function assistantMsg(turn: CollectedTurn, retained: Part[] = []): Msg {
+  const parts: Part[] = [...retained];
   if (turn.text !== '') {
     parts.push({ type: 'text', text: turn.text });
   }
@@ -849,7 +864,14 @@ export async function runAgent<S extends SchemaSpec>(
     }
     turns += 1;
 
-    let req = buildRequest(options.resolved, messages, limits, options.tools?.contracts);
+    // Every outgoing request is a projection of the canonical history
+    // into the target provider's view (docs/04, section 2.3, M4-T02).
+    let req = buildRequest(
+      options.resolved,
+      projectHistory(messages, providerOf(options.adapter)),
+      limits,
+      options.tools?.contracts,
+    );
     if (options.schema !== undefined && options.canonicalSchema !== undefined && !separateExtract) {
       req = applyStructuredOutputTier(req, tier ?? 'prompt', options.canonicalSchema);
     }
@@ -872,7 +894,9 @@ export async function runAgent<S extends SchemaSpec>(
     const outcome = await streamTurn(options.adapter, req, streamTurnOptions);
     recordUsage(outcome.usage, outcome.reported, options.adapter.id, servedBy);
     usageApprox = usageApprox || outcome.usageApprox;
-    messages.push(assistantMsg(outcome.turn));
+    messages.push(
+      assistantMsg(outcome.turn, liftRetainedParts(outcome.providerMetadata, options.adapter)),
+    );
     if (invariantViolation !== undefined) {
       status = 'error';
       agentError = { kind: 'transport', retryable: false };
@@ -1062,7 +1086,12 @@ export async function runAgent<S extends SchemaSpec>(
     if (proceed) {
       turns += 1;
       const req: ChatRequest = {
-        ...buildRequest(finalizeResolved, messages, limits, options.tools?.contracts),
+        ...buildRequest(
+          finalizeResolved,
+          projectHistory(messages, providerOf(options.finalize.adapter)),
+          limits,
+          options.tools?.contracts,
+        ),
         toolChoice: 'none',
       };
       const finalizeStreamOptions: Parameters<typeof streamTurn>[2] = {
@@ -1084,7 +1113,12 @@ export async function runAgent<S extends SchemaSpec>(
         finalizeResolved.ref,
       );
       usageApprox = usageApprox || outcome.usageApprox;
-      messages.push(assistantMsg(outcome.turn));
+      messages.push(
+        assistantMsg(
+          outcome.turn,
+          liftRetainedParts(outcome.providerMetadata, options.finalize.adapter),
+        ),
+      );
       if (invariantViolation !== undefined) {
         status = 'error';
         agentError = { kind: 'transport', retryable: false };
@@ -1164,7 +1198,12 @@ export async function runAgent<S extends SchemaSpec>(
       // forced-tool tier pins toolChoice to emit_result below; the other
       // tiers pin 'none' so the extract call cannot re-enter tools
       // (docs/04, section 8.4 as amended in M4-T01).
-      let req = buildRequest(extractResolved, extractMessages, limits, options.tools?.contracts);
+      let req = buildRequest(
+        extractResolved,
+        projectHistory(extractMessages, providerOf(options.extract.adapter)),
+        limits,
+        options.tools?.contracts,
+      );
       if (req.tools !== undefined && extractTier !== 'forced-tool') {
         req = { ...req, toolChoice: 'none' };
       }
@@ -1185,7 +1224,12 @@ export async function runAgent<S extends SchemaSpec>(
         agentError = { kind: 'transport', retryable: false };
         break;
       }
-      extractMessages.push(assistantMsg(outcome.turn));
+      extractMessages.push(
+        assistantMsg(
+          outcome.turn,
+          liftRetainedParts(outcome.providerMetadata, options.extract.adapter),
+        ),
+      );
       if (outcome.aborted !== undefined || outcome.wireError !== undefined) {
         status = outcome.aborted === 'external' ? 'cancelled' : 'error';
         if (outcome.wireError !== undefined) {

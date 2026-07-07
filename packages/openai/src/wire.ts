@@ -358,6 +358,15 @@ export async function mapResponsesStream(
         const meta: Record<string, unknown> = {
           outputItems: response?.output ?? [],
         };
+        // Retention transport (docs/04, section 2.3, M4-T02): reasoning
+        // items (including encrypted_content, requested via include) are
+        // echoed verbatim on replay; ship them in output order.
+        const reasoningItems = ((response?.output as Item[] | undefined) ?? []).filter(
+          (item) => item.type === 'reasoning',
+        );
+        if (reasoningItems.length > 0) {
+          meta.retainedParts = reasoningItems;
+        }
         if (typeof response?.id === 'string') {
           meta.responseId = response.id;
         }

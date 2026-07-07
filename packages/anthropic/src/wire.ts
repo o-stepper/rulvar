@@ -342,11 +342,15 @@ export interface TurnMapping {
  * Maps one Messages API stream into ChatEvents. Emits an early usage event
  * from message_start (the input side is known immediately) and exactly one
  * terminal finish unless the turn paused (pause_turn) or errored.
+ * `carryRetained` holds thinking blocks from earlier pause_turn
+ * continuations of the same turn so the terminal finish ships the whole
+ * turn's retention payload (docs/04, section 2.3, M4-T02).
  */
 export async function mapAnthropicStream(
   stream: AsyncIterable<AnthropicStreamEvent>,
   ids: IdMap,
   emit: (event: ChatEvent) => void,
+  options?: { carryRetained?: Block[] },
 ): Promise<TurnMapping> {
   const mapping: TurnMapping = {
     events: [],
@@ -477,6 +481,19 @@ export async function mapAnthropicStream(
         }
         if (stopSequence !== undefined) {
           meta.stopSequence = stopSequence;
+        }
+        // Retention transport (docs/04, section 2.3): thinking blocks
+        // with signatures MUST be echoed byte-exact back to Anthropic
+        // targets; ship the whole turn's blocks (earlier pause_turn
+        // continuations included) in stream order.
+        const retained = [
+          ...(options?.carryRetained ?? []),
+          ...mapping.assistantContent.filter(
+            (block) => block.type === 'thinking' || block.type === 'redacted_thinking',
+          ),
+        ];
+        if (retained.length > 0) {
+          meta.retainedParts = retained;
         }
         push({
           type: 'finish',
