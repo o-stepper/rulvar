@@ -24,6 +24,9 @@ import { toJournalValue } from './serializable.js';
 
 export type ReplayMode = 'scoped' | 'cache' | 'never';
 
+/** docs/06 Appendix A: large-value soft warn threshold (committed for M2). */
+export const LARGE_VALUE_WARN_BYTES = 262_144;
+
 export interface Ledger {
   usage: Usage;
   usd: number;
@@ -73,6 +76,8 @@ export class Replayer {
   private readonly store: JournalStore;
   private readonly now: () => number;
   private readonly priceUsd?: (servedBy: ModelRef | undefined, usage: Usage) => number | undefined;
+  private readonly onWarn?: (msg: string) => void;
+  private readonly largeValueWarnBytes: number;
   private readonly entries: JournalEntry[] = [];
   private readonly ordinals = new Map<string, number>();
   private queue: Promise<unknown> = Promise.resolve();
@@ -83,12 +88,37 @@ export class Replayer {
     store: JournalStore;
     now?: () => number;
     priceUsd?: (servedBy: ModelRef | undefined, usage: Usage) => number | undefined;
+    /** Receives large-value soft warnings (docs/03: never an error). */
+    onWarn?: (msg: string) => void;
+    largeValueWarnBytes?: number;
   }) {
     this.runId = options.runId;
     this.store = options.store;
     this.now = options.now ?? Date.now;
     if (options.priceUsd !== undefined) {
       this.priceUsd = options.priceUsd;
+    }
+    if (options.onWarn !== undefined) {
+      this.onWarn = options.onWarn;
+    }
+    this.largeValueWarnBytes = options.largeValueWarnBytes ?? LARGE_VALUE_WARN_BYTES;
+  }
+
+  /**
+   * Value size policy (docs/03, section "Normative payload schemas"):
+   * there is NO automatic offload in v1; oversized values warn and
+   * proceed. Large artifacts belong in TranscriptStore by reference.
+   */
+  private warnIfLarge(value: unknown, site: string): void {
+    if (value === undefined || this.onWarn === undefined) {
+      return;
+    }
+    const bytes = Buffer.byteLength(JSON.stringify(value), 'utf8');
+    if (bytes > this.largeValueWarnBytes) {
+      this.onWarn(
+        `journal value at ${site} is ${bytes} bytes (soft threshold ` +
+          `${this.largeValueWarnBytes}); large artifacts belong in TranscriptStore by reference`,
+      );
     }
   }
 
@@ -106,6 +136,7 @@ export class Replayer {
       input.value === undefined
         ? undefined
         : toJournalValue(input.value, input.site ?? `${input.kind} value`);
+    this.warnIfLarge(value, input.site ?? `${input.kind} value`);
     return this.enqueue(() => {
       const entry = this.mint(input.scope, input.key, input.kind, 'ok');
       if (value !== undefined) {
@@ -146,6 +177,7 @@ export class Replayer {
       patch.value === undefined
         ? undefined
         : toJournalValue(patch.value, patch.site ?? 'terminal value');
+    this.warnIfLarge(value, patch.site ?? 'terminal value');
     return this.enqueue(() => {
       const running = this.entries.find((e) => e.seq === runningSeq);
       if (running === undefined || running.status !== 'running') {

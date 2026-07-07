@@ -1,0 +1,163 @@
+/**
+ * JsonlFileStore (M2-T01): the durable file store. One JSON entry per
+ * line per run; the journal doubles as an event log. Meta records live
+ * beside the journal and are replaced atomically, so listRuns never
+ * parses payloads.
+ *
+ * Contract (docs/03, section "Storage SPI", DEF-4 tightening):
+ * - A1 atomicity: a torn trailing line (crash mid-append) is never
+ *   visible in load; it is dropped and overwritten by the next append.
+ * - A2 total per-run order: load returns append order, stable across
+ *   calls (the kernel's per-run queue serializes appends).
+ * - A3 read-your-writes: append resolves after the line is written.
+ * - A4 opaque payload: entries round-trip byte-for-byte as JSON; unknown
+ *   kinds and fields pass through untouched.
+ *
+ * Leasing is NOT implemented here: LeasableStore ships with
+ * @lurker/store-sqlite (M5); JsonlFileStore is single-writer by
+ * convention (docs/03, section "Shipped stores").
+ */
+import {
+  appendFileSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { join } from 'node:path';
+import { JournalOrderViolation } from '../l0/errors.js';
+import type { JournalEntry } from '../l0/entries.js';
+import type { JournalStore, RunFilter, RunMeta } from '../l0/spi/store.js';
+
+const JOURNAL_SUFFIX = '.jsonl';
+const META_SUFFIX = '.meta.json';
+
+function safeName(runId: string): string {
+  if (!/^[A-Za-z0-9._-]+$/.test(runId)) {
+    throw new JournalOrderViolation(
+      `JsonlFileStore: runId '${runId}' is not filesystem-safe ([A-Za-z0-9._-] only)`,
+    );
+  }
+  return runId;
+}
+
+export class JsonlFileStore implements JournalStore {
+  private readonly dir: string;
+
+  constructor(options: { dir: string }) {
+    this.dir = options.dir;
+    mkdirSync(this.dir, { recursive: true });
+  }
+
+  private journalPath(runId: string): string {
+    return join(this.dir, `${safeName(runId)}${JOURNAL_SUFFIX}`);
+  }
+
+  private metaPath(runId: string): string {
+    return join(this.dir, `${safeName(runId)}${META_SUFFIX}`);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async append(runId: string, e: JournalEntry): Promise<void> {
+    // One serialized line per entry; a crash can only tear the final
+    // line, which load discards (A1). The kernel's per-run queue is the
+    // single writer (A2).
+    appendFileSync(this.journalPath(runId), `${JSON.stringify(e)}\n`, 'utf8');
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async load(runId: string): Promise<JournalEntry[]> {
+    let raw: string;
+    try {
+      raw = readFileSync(this.journalPath(runId), 'utf8');
+    } catch (thrown) {
+      if ((thrown as NodeJS.ErrnoException).code === 'ENOENT') {
+        return [];
+      }
+      throw thrown;
+    }
+    const lines = raw.split('\n');
+    const entries: JournalEntry[] = [];
+    for (let i = 0; i < lines.length; i += 1) {
+      const line = lines[i] ?? '';
+      if (line === '') {
+        continue;
+      }
+      try {
+        entries.push(JSON.parse(line) as JournalEntry);
+      } catch (thrown) {
+        const isLastContent = lines.slice(i + 1).every((rest) => rest === '');
+        if (isLastContent) {
+          // Torn trailing write from a crash: invisible per A1. The next
+          // append will start a fresh line after repair.
+          this.repairTornTail(runId, entries);
+          break;
+        }
+        throw new JournalOrderViolation(
+          `JsonlFileStore: corrupt journal line ${i + 1} of run '${runId}' ` +
+            '(not the trailing line, so this is not a torn append)',
+          { cause: thrown },
+        );
+      }
+    }
+    return entries;
+  }
+
+  private repairTornTail(runId: string, whole: JournalEntry[]): void {
+    // Rewrite the journal to only the whole entries via temp+rename so a
+    // torn tail never accumulates.
+    const path = this.journalPath(runId);
+    const temp = `${path}.tmp`;
+    writeFileSync(
+      temp,
+      whole.map((entry) => JSON.stringify(entry)).join('\n') + (whole.length > 0 ? '\n' : ''),
+      'utf8',
+    );
+    renameSync(temp, path);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async putMeta(m: RunMeta): Promise<void> {
+    // Atomic replace: temp write plus rename.
+    const path = this.metaPath(m.runId);
+    const temp = `${path}.tmp`;
+    writeFileSync(temp, JSON.stringify(m, null, 2), 'utf8');
+    renameSync(temp, path);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async listRuns(f?: RunFilter): Promise<RunMeta[]> {
+    const metas: RunMeta[] = [];
+    for (const file of readdirSync(this.dir)) {
+      if (!file.endsWith(META_SUFFIX)) {
+        continue;
+      }
+      try {
+        metas.push(JSON.parse(readFileSync(join(this.dir, file), 'utf8')) as RunMeta);
+      } catch {
+        // A torn meta replace is repaired on the next putMeta; skip it.
+      }
+    }
+    const filtered = metas.filter((meta) => {
+      if (f?.status !== undefined && meta.status !== f.status) {
+        return false;
+      }
+      if (f?.name !== undefined && meta.name !== f.name) {
+        return false;
+      }
+      if (f?.tags !== undefined && !f.tags.every((tag) => meta.tags?.includes(tag))) {
+        return false;
+      }
+      return true;
+    });
+    return filtered;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async delete(runId: string): Promise<void> {
+    rmSync(this.journalPath(runId), { force: true });
+    rmSync(this.metaPath(runId), { force: true });
+  }
+}

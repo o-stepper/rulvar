@@ -782,7 +782,7 @@ This is the single consolidated defaults table for the whole docs set; every oth
 | droppedRevisionLimit | PlanRunner guards (docs/07, DEF-8) | 3 consecutive | yes | triggers RevisionGuards fallback |
 | RunLedger section caps | RunLedger (docs/07) | facts 64, lessons 32, observations 16 | yes | |
 | maxPinnedWorktrees | isolation (docs/08) | 4 | yes | shared by park/unpark and retainWorktree |
-| large-value soft warn threshold | journal append (docs/03) | TBD before M2 | yes | no automatic value offload in v1; interim reference: 262144 bytes |
+| large-value soft warn threshold | journal append (docs/03) | 262144 bytes | yes | no automatic value offload in v1; a warning event only, never an error. (Committed during M2 entry per the TBD rule: the interim reference value is adopted unchanged) |
 | lease renew interval | LeasableStore (docs/03) | at most ttl/3 (normative bound) | per store | |
 | lease ttl | LeasableStore (docs/03) | TBD before M8 | per store | interim reference for the sqlite store: 60000 ms (renew bound ttl/3 applies) |
 | createWorker concurrency | queue shell (docs/02) | TBD before M8 | per worker | interim: 1 (one leased run per worker process) |
