@@ -1137,6 +1137,7 @@ RunMeta is written by the ENGINE via putMeta as a separate record, so `listRuns`
 |---|---|---|
 | InMemoryStore | @lurker/core | resume disabled; one-time loud warning |
 | JsonlFileStore | @lurker/core | the journal doubles as an event log; ships in M2 |
+| FileTranscriptStore | @lurker/core | file-backed TranscriptStore (one blob file per ref beside the journal); required for cross-process resume of compiled runs, whose source blob lives in the TranscriptStore (06-execution-spec.md, 10.2). (Amended during M6-T02: the in-memory transcript default cannot honor the compiled-run binding across processes.) |
 | SqliteStore | @lurker/store-sqlite | implements LeasableStore with fencing epochs; the reference for community stores (M5) |
 
 ### 12.7 Conformance obligations

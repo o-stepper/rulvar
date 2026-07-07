@@ -330,6 +330,9 @@ importers:
         specifier: workspace:*
         version: link:../eslint-plugin-lurker
     devDependencies:
+      '@lurker/testing':
+        specifier: workspace:*
+        version: link:../testing
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.0

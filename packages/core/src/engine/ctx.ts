@@ -88,6 +88,7 @@ import { resolveToolset, type ToolsOption } from '../tools/toolset-hash.js';
 import { AdmissionController, type AdmitVerdict } from '../orchestrator/admission.js';
 import { toJournalValue } from '../journal/serializable.js';
 import { admissionReserveUsd, ROOT_ACCOUNT, type RunBudget, type Spend } from './budget.js';
+import { ctxRuntimes } from './internal.js';
 import { Semaphore } from './scheduler.js';
 import type { ExternalRegistry } from './external.js';
 
@@ -2260,6 +2261,13 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       ),
     uuid: () => randValue('uuid', () => randomUUID()),
   };
+  // In-package runtime access for the sandbox bridge and the mode (c)
+  // orchestrator (M6): never part of the public surface.
+  ctxRuntimes.set(ctx, {
+    internals,
+    currentState: current,
+    runInScope: (state, fn) => als.run(state, fn),
+  });
   return ctx;
 }
 

@@ -529,6 +529,13 @@ Mandatory for machine-generated scripts (mode b). Contract:
 - `ctx.workflow` is available only in the registered-name string form (section 2.5).
 - Breaching `timeoutMs` or `memoryMb` terminates the worker; the run completes with outcome `'error'` carrying a typed `LurkerError` code (registry: 02-architecture.md, section "Error taxonomy").
 
+Committed mechanics (amended during M6-T02):
+
+- The host half of the contract is the core-owned `createSandboxBridge(ctx, { post })` (public API): it serves every proxied primitive against the canonical run ctx, runs parallel-branch, pipeline-stage, and phase thunks under host-allocated scope tokens (the worker executes the thunk bodies and reports JSON results), and is the reason the runner builds exclusively from the public core API.
+- `now`, `random`, `uuid`, and the `Date.now`/`Math.random` replacements are SYNC seeded generators inside the worker (one stream, seed derived from runId); every generated value is mirrored over the port and journaled by the bridge as an ordinary kind `rand` entry with match-first semantics, so a resumed worker regenerates identical values and the mirrors forward-match instead of duplicating. `now()` is a seeded logical clock, not wall clock: two fresh runs with one runId produce identical journals.
+- `budget.spent()` and `budget.remaining()` are ASYNC in the sandbox dialect (`await budget.spent()`): a sync cross-thread read does not exist; the API card teaches the await form.
+- Quiescence fidelity: the worker reports busy-state transitions (any frame computing versus every frame blocked on a host call); the bridge holds the run's activity token while busy and re-acquires it before posting any response, so a sandbox run suspends on `awaitExternal` and quiesces exactly like an in-process one, and the runner mirrors the same signal into the port's ref/unref so a computing worker keeps the process alive while a suspended run lets it exit.
+
 Honest boundary statement (normative posture, NFR security posture in 01-requirements.md): the sandbox is a DETERMINISM and BLAST-RADIUS boundary, not a security boundary. Containment of hostile code is provided by executors (`subprocess`/`container`) and worktree isolation (08-tools-permissions-spec.md, sections "Executors" and "IsolationProvider and worktree lifecycle"). A QuickJS runner for untrusted third-party scripts is a future plugin behind the same seam and is explicitly not in v1 (EXC registry, 01-requirements.md).
 
 ### 8.3 compileScript and the sanctioned dialect
@@ -618,6 +625,11 @@ function createEngine(o: {
     maxDepth?: number;                        // default 1, ceiling 4
   };
   concurrency?: { perRun?: number; perProvider?: Record<string, number> }; // perRun default 12
+  runners?: { sandbox?: ScriptRunner };       // executes CompiledWorkflow values (section 8.2);
+                                              // WorkerSandboxRunner ships in @lurker/planner; running or
+                                              // resuming a compiled workflow without one is a typed
+                                              // ConfigError. (Amended during M6-T02: the runner seam
+                                              // needed an engine registration point.)
   extraDerivers?: KeyDeriver[];               // hashVersion registry extension, docs/03 (DEF-6)
 }): Engine;
 ```
@@ -665,7 +677,7 @@ interface Engine {
 
 The binding contract (residuals tracked in 14-open-questions.md, resume binding residuals):
 
-- CompiledWorkflow: at `engine.run` the engine MUST persist the compiled source and its content hash (source blob in TranscriptStore; `workflowSourceRef` and `workflowHash` recorded in RunMeta, 03-journal-spec.md, section "RunMeta"). `engine.resume(runId)` with no `wf` MUST reload and recompile the stored source, so planned runs (mode b) are resumable by construction. Supplying a `wf` whose hash differs from the recorded one is a typed `ConfigError`. Delivery note: `CompiledWorkflow` values first exist at M6 (compileScript ships in @lurker/planner; 10-implementation-plan.md), and this persistence contract binds from that first release, so a planner-generated run without persisted source never exists; before M6, `engine.run` and `engine.resume` accept only in-process `Workflow` values.
+- CompiledWorkflow: at `engine.run` the engine MUST persist the compiled source and its content hash (source blob in TranscriptStore at `workflowSourceRef`; `workflowSourceRef` and `workflowHash` recorded in RunMeta, 03-journal-spec.md, section "RunMeta"). `engine.resume(runId)` with no `wf` MUST reload the stored source and rehydrate the CompiledWorkflow from it, verifying byte identity against the recorded `workflowHash`; the compileScript dialect validation is NOT re-run at resume because the hash proves the source is exactly the one validated at run start (the sandbox boundary enforces the hard rules at runtime regardless). Planned runs (mode b) are therefore resumable by construction; cross-process resume requires a durable TranscriptStore (FileTranscriptStore; 03-journal-spec.md, section "Shipped stores"). Supplying a `wf` whose source hash differs from the recorded one is a typed `ConfigError`. Compiled workflows execute on the engine-registered `runners.sandbox` (section 10.1); its absence is a typed `ConfigError` before any journal entry. Delivery note: `CompiledWorkflow` values first exist at M6 (compileScript ships in @lurker/planner; 10-implementation-plan.md), and this persistence contract binds from that first release, so a planner-generated run without persisted source never exists. (Amended during M6-T02: "recompile" committed as hash-pinned rehydration; runner selection and the durable-transcripts requirement made explicit.)
 - In-process Workflow: `engine.run` records the registered workflow name and a content hash of the body in RunMeta (`workflowName`/`workflowHash`). `engine.resume(runId, wf)` REQUIRES `wf`; a name mismatch is a typed `ConfigError`; a content-hash mismatch produces a LOUD warning and proceeds, because the journal itself decides replay versus live per content keys.
 
 ### 10.3 RunOptions, RunHandle, RunOutcome, RunStatus

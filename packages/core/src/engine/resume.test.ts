@@ -77,7 +77,9 @@ describe('engine.resume (M2-T09; docs/06 section 10.2)', () => {
     const { engine } = makeEngine(store);
     await engine.run(approvalWf, undefined, { runId: 'RUN2' }).result;
 
-    expect(() => engine.resume('RUN2')).toThrow(ConfigError);
+    // In-process runs have no persisted source: a bare resume is a typed
+    // ConfigError delivered through the handle (M6-T02 semantics).
+    await expect(engine.resume('RUN2').result).rejects.toThrow(ConfigError);
     const other = defineWorkflow({ name: 'other' }, async () => Promise.resolve(1));
     await expect(engine.resume('RUN2', other).result).rejects.toThrow('binding mismatch');
   });
