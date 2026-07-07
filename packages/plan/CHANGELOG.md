@@ -1,5 +1,17 @@
 # @lurker/plan
 
+## 0.5.0
+
+### Patch Changes
+
+- Updated dependencies [ac274f4]
+- Updated dependencies [5735d92]
+- Updated dependencies [46ca98e]
+- Updated dependencies [8ae129e]
+- Updated dependencies [d1c4525]
+- Updated dependencies [b840aba]
+  - @lurker/core@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes

@@ -1,5 +1,82 @@
 # @lurker/testing
 
+## 0.5.0
+
+### Minor Changes
+
+- ac274f4: M4-T01 role protocol completion. The full trigger protocol for the six
+  invocation roles lands in `@lurker/core` (`model/roles.ts`):
+
+  - Extract necessity is completed per docs/04 section 8.3: a separate
+    final structured-output invocation fires when a schema is set AND
+    (routing directs extract to a different model OR the loop model's
+    required tier cannot ride a tools-available turn OR finalize is
+    routed). The required-tier rule is new: a `forced-tool` tier pins
+    toolChoice to `emit_result` and cannot ride while the agent's tools
+    must remain available, so such agents now pay one separate extract
+    call instead of silently losing tool access. Agents without tools
+    keep the M1 single-shot behavior byte for byte.
+  - The finalize role fires for the first time: only when configured in
+    routing and only for tool-bearing agents, as one synthesis invocation
+    with toolChoice `'none'` over the full transcript after tools stop.
+    Its text is the output for schema-less calls; with a schema the
+    separate extract runs over the transcript including the synthesis.
+  - A separate extract invocation over a tool-bearing transcript now
+    carries the agent's tool contracts (both providers reject tool-use
+    history without tool definitions) with toolChoice pinned to `'none'`
+    or to `emit_result` per tier.
+  - Both adapters map `toolChoice: 'none'` to the provider's explicit
+    none choice with the tools param present instead of dropping tools
+    from the request.
+  - `createTestEngine` no longer routes `finalize` by default: the
+    routing key is the firing opt-in, and the old default would have
+    summoned a synthesis call for every tool-bearing test agent. Tests
+    that want finalize route it explicitly.
+
+  Identity is untouched: extract and finalize resolutions never enter
+  the spawn content key, and existing journals replay unchanged.
+
+- b840aba: M4-T08 canonical effort completion and M4-T09 role quality floors.
+
+  - Effort semantics are complete: the role effort defaults and the
+    per-adapter mapping tables (Anthropic passthrough including max,
+    OpenAI max downmapped to xhigh and recorded in providerMetadata,
+    provider none only via namespaced providerOptions) shipped earlier
+    milestones; this change completes VISIBLE scrubbing everywhere it was
+    still silent: the summarize invocation surfaces its scrubs at fire
+    time and a failover takeover surfaces the fallback's scrubs the
+    moment it starts serving. Scrubbed effort is never mapped into
+    max_tokens.
+  - The effort-defaults-shift cassette is now RECORDED through the live
+    runtime (docs/10 M4 gating row): the frozen v1 prefix, closed offline
+    the way an operator would, resumes live under explicit high effort
+    with the completed semantics; every v1 entry matches and the one new
+    spawn carries canonical effort in v2 identity. The recorder output is
+    pinned byte-for-byte by the frozen-drift suite and the fixture lock
+    now covers 18 files.
+  - Quality floors (`model/floors.ts`, M4-T09): per-role and
+    per-declared-taskClass allow/deny lists supplied via
+    `createEngine({ floors })`, enforced INSIDE the router at resolution,
+    before any live call and before any journal entry, for every
+    invocation the chain produces (primaries, failover fallbacks, and the
+    summarize fallback alike). `AgentProfile.taskClass` declares the
+    class; unclassified profiles see only byRole floors. A violation is a
+    typed ConfigError.
+  - The umbrella `lurker` package now ships floors opinions next to its
+    strong routing defaults: `recommendedDefaults.floors` pins orchestrate
+    and plan to strong named models. The core itself ships no named model
+    strings, and the umbrella suite enforces that with a source scan.
+
+### Patch Changes
+
+- Updated dependencies [ac274f4]
+- Updated dependencies [5735d92]
+- Updated dependencies [46ca98e]
+- Updated dependencies [8ae129e]
+- Updated dependencies [d1c4525]
+- Updated dependencies [b840aba]
+  - @lurker/core@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
