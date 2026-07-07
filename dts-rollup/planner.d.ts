@@ -29,6 +29,10 @@ declare function compileScript(source: string, o?: CompileScriptOptions): Compil
 /** Typed accessor for the diagnostics carried on a ScriptRejected. */
 declare function scriptDiagnosticsOf(error: ScriptRejected): ScriptDiagnostic[];
 //#endregion
+//#region src/api-card.d.ts
+/** Renders the sandbox-dialect API card; pure and byte-stable. */
+declare function apiCard(): string;
+//#endregion
 //#region src/sandbox-runner.d.ts
 declare const DEFAULT_SANDBOX_TIMEOUT_MS = 3e5;
 declare const DEFAULT_SANDBOX_MEMORY_MB = 512;
@@ -52,4 +56,4 @@ declare class WorkerSandboxRunner implements ScriptRunner {
   execute<A, R>(wf: CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R>;
 }
 //#endregion
-export { type CompileScriptOptions, DEFAULT_SANDBOX_MEMORY_MB, DEFAULT_SANDBOX_TIMEOUT_MS, SANDBOX_GLOBALS, type ScriptDiagnostic, WorkerSandboxRunner, type WorkerSandboxRunnerOptions, compileScript, scriptDiagnosticsOf };
+export { type CompileScriptOptions, DEFAULT_SANDBOX_MEMORY_MB, DEFAULT_SANDBOX_TIMEOUT_MS, SANDBOX_GLOBALS, type ScriptDiagnostic, WorkerSandboxRunner, type WorkerSandboxRunnerOptions, apiCard, compileScript, scriptDiagnosticsOf };

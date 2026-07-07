@@ -11,6 +11,7 @@ export {
   type CompileScriptOptions,
   type ScriptDiagnostic,
 } from './compile.js';
+export { apiCard } from './api-card.js';
 export {
   DEFAULT_SANDBOX_MEMORY_MB,
   DEFAULT_SANDBOX_TIMEOUT_MS,
