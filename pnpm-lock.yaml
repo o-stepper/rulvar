@@ -229,9 +229,15 @@ importers:
 
   packages/eslint-plugin-lurker:
     devDependencies:
+      '@types/estree':
+        specifier: ^1.0.6
+        version: 1.0.9
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.0
+      eslint:
+        specifier: 'catalog:'
+        version: 9.39.4
       tsdown:
         specifier: 'catalog:'
         version: 0.22.3(@arethetypeswrong/core@0.18.4)(publint@0.3.21)(typescript@6.0.3)
