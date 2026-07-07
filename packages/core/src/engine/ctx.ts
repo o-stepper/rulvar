@@ -47,6 +47,8 @@ import {
 import type { Replayer } from '../journal/replayer.js';
 import type { JournalEntry } from '../l0/entries.js';
 import { selectStructuredOutputTier } from '../model/caps.js';
+import { fallbackTriggerOf, type FallbackField, type FallbackTrigger } from '../model/failover.js';
+import type { RetryPolicy } from '../model/retry.js';
 import { finalizeFires, needsSeparateExtract, roleConfiguredInRouting } from '../model/roles.js';
 import {
   resolveModelInvocation,
@@ -58,6 +60,7 @@ import {
   type AgentResult,
   type Artifact,
   type EscalatedResult,
+  type PhaseTarget,
   type ToolRuntime,
 } from '../runtime/agent-loop.js';
 import {
@@ -103,6 +106,8 @@ export interface AgentProfile {
   /** Flavor B opt-in lives here or on the call (docs/07, section 6). */
   escalation?: EscalationOptions;
   limits?: UsageLimits;
+  /** Transport RetryPolicy layer: call over profile over engine (M4-T05). */
+  retry?: RetryPolicy;
   /**
    * Per-profile compaction threshold; default 0.8 of the loop model's
    * contextWindow (docs/06, Appendix A; M4-T03). Compaction is ON by
@@ -139,6 +144,14 @@ export interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   key?: string;
 
   onError?: 'throw' | 'null';
+  /** Transport RetryPolicy under the journal (docs/04, 11.1; M4-T05). */
+  retry?: RetryPolicy;
+  /**
+   * The degenerate fallback (docs/04, 11.3; M4-T04): an agent-level
+   * second attempt on `model` when the terminal matches `on`; one
+   * journaled decision entry; the fallback attempt is a NEW content key.
+   */
+  fallback?: FallbackField;
   /** Per-call replay mode; default scoped forward-matching (docs/03, section 7.3). */
   replay?: 'cache' | 'never';
   /** Journaled as a policy field from day one; consumed by the M2 predicate. */
@@ -428,6 +441,8 @@ export interface RunInternals {
     limits?: UsageLimits;
     /** Engine-wide permission chain layers (docs/08, section 3). */
     permissions?: PermissionConfig;
+    /** Engine-wide transport RetryPolicy (docs/04, 11.1; M4-T05). */
+    retry?: RetryPolicy;
   };
   errorPolicy: ErrorPolicy;
   dropped: DroppedItem[];
@@ -561,6 +576,53 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         );
       }
     }
+    // The degenerate fallback (docs/04, 11.3; M4-T04): one decision
+    // entry per failed attempt, re-used on resume by targetRef so a
+    // crash between the decision and the fallback spawn never
+    // duplicates it; then the whole agent re-enters with the fallback
+    // model overriding all roles and no further fallback.
+    const runFallbackAttempt = async (
+      targetRef: number,
+      trigger: FallbackTrigger,
+      decisionSpanId: string,
+    ): Promise<unknown> => {
+      const fallback = opts.fallback as FallbackField;
+      const prior = internals.replayer.snapshot().find((entry) => {
+        if (entry.kind !== 'decision') {
+          return false;
+        }
+        const value = entry.value as { decisionType?: string; targetRef?: number } | undefined;
+        return value?.decisionType === 'model.fallback' && value.targetRef === targetRef;
+      });
+      if (prior === undefined) {
+        internals.events.emit(
+          {
+            type: 'log',
+            level: 'warn',
+            msg: `model.fallback: re-attempting on ${fallback.model} after ${trigger}`,
+          },
+          decisionSpanId,
+        );
+        await internals.replayer.appendSinglePhase({
+          scope: state.scope,
+          key: '',
+          kind: 'decision',
+          status: 'ok',
+          spanId: decisionSpanId,
+          value: {
+            decisionType: 'model.fallback',
+            targetRef,
+            trigger,
+            model: fallback.model,
+          },
+        });
+      }
+      const { fallback: _fallback, routing: _routing, ...rest } = opts;
+      void _fallback;
+      void _routing;
+      return agentImpl<S>(prompt, { ...rest, model: fallback.model });
+    };
+
     // Isolation resolves call over profile; the RESOLVED value enters
     // identity (docs/08, section 8.1). The worktree lifecycle needs the
     // engine-configured provider.
@@ -673,7 +735,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     const layers = [callLayer, profileLayer, engineLayer];
     const toolsAvailable = toolset.contracts.length > 0;
     const finalizeRouted = roleConfiguredInRouting('finalize', layers);
-    let extract: { adapter: ProviderAdapter; resolved: ResolvedInvocation } | undefined;
+    let extract: (PhaseTarget & { fallbacks?: PhaseTarget[] }) | undefined;
     if (opts.schema !== undefined && canonicalSchema !== undefined) {
       const extractResolved = withTelemetry(
         resolveModelInvocation({
@@ -701,7 +763,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         }
       }
     }
-    let finalize: { adapter: ProviderAdapter; resolved: ResolvedInvocation } | undefined;
+    let finalize: (PhaseTarget & { fallbacks?: PhaseTarget[] }) | undefined;
     if (finalizeFires({ routed: finalizeRouted, toolsAvailable })) {
       const finalizeResolved = withTelemetry(
         resolveModelInvocation({
@@ -740,10 +802,56 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         capsOf,
       });
     }
-    const summarize = {
+    const summarize: PhaseTarget & { fallbacks?: PhaseTarget[] } = {
       adapter: adapterOf(summarizeResolved),
       resolved: withTelemetry(summarizeResolved),
     };
+
+    // Transport failover chains (M4-T04; docs/04, section 11.2): each
+    // phase's resolved fallbacks re-resolve through the chain with the
+    // fallback model overriding all roles, so effort defaults and caps
+    // scrubbing apply per serving model. Identity keeps the REQUESTED
+    // spec; failover changes only servedBy.
+    const failoverChainFor = (role: InvocationRole, resolved: ResolvedInvocation): PhaseTarget[] =>
+      (resolved.fallbacks ?? []).map((ref) => {
+        const fallbackLayer: ResolutionLayer = { model: ref };
+        if (callLayer.effort !== undefined) {
+          fallbackLayer.effort = callLayer.effort;
+        }
+        const fallbackResolved = withTelemetry(
+          resolveModelInvocation({
+            role,
+            call: fallbackLayer,
+            profile: profileLayer,
+            engine: engineLayer,
+            capsOf,
+          }),
+        );
+        return { adapter: adapterOf(fallbackResolved), resolved: fallbackResolved };
+      });
+    const loopFallbacks = failoverChainFor('loop', loopResolved);
+    if (extract !== undefined) {
+      const chain = failoverChainFor('extract', extract.resolved);
+      if (chain.length > 0) {
+        extract.fallbacks = chain;
+      }
+    }
+    if (finalize !== undefined) {
+      const chain = failoverChainFor('finalize', finalize.resolved);
+      if (chain.length > 0) {
+        finalize.fallbacks = chain;
+      }
+    }
+    {
+      const chain = failoverChainFor('summarize', summarizeResolved);
+      if (chain.length > 0) {
+        summarize.fallbacks = chain;
+      }
+    }
+
+    // Transport RetryPolicy merge: call over profile over engine; the
+    // loop applies the Appendix A default when nothing is configured.
+    const retryPolicy = opts.retry ?? profile?.retry ?? internals.defaults.retry;
 
     const identityInput = {
       kind: 'agent',
@@ -778,6 +886,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         output: matched.kind === 'skip' ? null : (terminal?.value ?? null),
         usage,
         costUsd,
+        servedBy: terminal?.servedBy ?? loopResolved.ref,
         // Best-effort recovery below: turns are not journaled; the last
         // turn-boundary checkpoint carries the paid-turn count (docs/03,
         // section 11.1).
@@ -897,6 +1006,12 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
               countsAgainstLimit: countsAgainstLimit(result.escalation.kind),
             },
           });
+        }
+      }
+      if (opts.fallback !== undefined) {
+        const trigger = fallbackTriggerOf(result);
+        if (trigger !== undefined && opts.fallback.on.includes(trigger)) {
+          return runFallbackAttempt(matched.running.seq, trigger, spanId);
         }
       }
       if (opts.result === 'full') {
@@ -1156,6 +1271,12 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     if (profile?.compaction !== undefined) {
       runAgentOptions.compaction = profile.compaction;
     }
+    if (loopFallbacks.length > 0) {
+      runAgentOptions.fallbacks = loopFallbacks;
+    }
+    if (retryPolicy !== undefined) {
+      runAgentOptions.retry = { policy: retryPolicy };
+    }
     if (opts.stream !== undefined) {
       runAgentOptions.stream = opts.stream;
     }
@@ -1290,7 +1411,9 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     const terminalPatch: Parameters<Replayer['appendTerminal']>[1] = {
       status: result.status === 'skipped' ? 'error' : result.status,
       usage: result.usage,
-      servedBy: loopResolved.ref,
+      // Under transport failover only servedBy changes, never the
+      // content key (docs/04, section 11.2; M4-T04).
+      servedBy: result.servedBy,
       transcriptRef: result.transcriptRef,
     };
     if (result.status === 'escalated' && result.escalation !== undefined) {
@@ -1393,6 +1516,13 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       throw new BudgetExhaustedError('run budget ceiling reached during agent execution', {
         data: { scope: state.scope, entryRef: terminal.seq },
       });
+    }
+
+    if (opts.fallback !== undefined) {
+      const trigger = fallbackTriggerOf(result);
+      if (trigger !== undefined && opts.fallback.on.includes(trigger)) {
+        return runFallbackAttempt(running.seq, trigger, spanId);
+      }
     }
 
     if (opts.result === 'full') {

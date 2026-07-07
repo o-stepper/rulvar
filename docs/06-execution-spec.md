@@ -126,6 +126,7 @@ interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   // policy fields, excluded from identity
   onError?: 'throw' | 'null';
   retry?: RetryPolicy;                                 // docs/04, runs under the journal
+  fallback?: { model: ModelRef; on: Array<'error' | 'limit' | 'schema-exhausted'> }; // docs/04, section 11.3 (M4-T04): agent-level second attempt, new content key, one decision entry
   replay?: 'cache' | 'never';                          // default: scoped forward-matching
   memoizeOutcome?: boolean;                            // default false; error/limit only, never cancelled
   escalation?: EscalationOptions;                      // opt-in; without it 'escalated' cannot be produced
@@ -141,7 +142,7 @@ interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
 }
 ```
 
-The identity split is normative and owned by 03-journal-spec.md: `kind`, `agentType`, the requested `modelSpec` including canonical effort, the prompt, `schemaHash`, `toolsetHash`, and `isolation` enter the content key; `label`, phase, `onError`, `retry`, `replay`, `memoizeOutcome`, `lineage`, `estCost`, `limits`, `result`, `stream`, and `spanId` do not. Because fallback keys hash the REQUESTED spec, a transport failover changes only `servedBy` and never the content key (04-model-layer-spec.md, section "RetryPolicy under the journal").
+The identity split is normative and owned by 03-journal-spec.md: `kind`, `agentType`, the requested `modelSpec` including canonical effort, the prompt, `schemaHash`, `toolsetHash`, and `isolation` enter the content key; `label`, phase, `onError`, `retry`, `fallback`, `replay`, `memoizeOutcome`, `lineage`, `estCost`, `limits`, `result`, `stream`, and `spanId` do not. Because fallback keys hash the REQUESTED spec, a transport failover changes only `servedBy` and never the content key (04-model-layer-spec.md, section "RetryPolicy under the journal").
 
 Return semantics per terminal status:
 
@@ -634,6 +635,7 @@ interface AgentProfile {
   tools?: Array<ToolDef | ToolSource | string>;           // toolset default; the sandbox references profiles by name only
   isolation?: IsolationSpec;                              // docs/08
   limits?: UsageLimits;                                   // merged below AgentOpts.limits, above engine defaults (section 6)
+  retry?: RetryPolicy;                                    // transport RetryPolicy layer: call over profile over engine (Appendix A row; M4-T05)
   permissions?: AgentProfilePermissions;                  // docs/08, section "Subagent inheritance"
   escalation?: EscalationOptions;                         // Flavor B opt-in lives here or on the call (docs/07, section "EscalationProtocol")
   ladder?: LadderSpec;                                    // docs/07, section "ModelLadder"

@@ -33,7 +33,14 @@ import type { Out, SchemaSpec } from '../l0/schema.js';
 import { validateSchemaSpec } from '../l0/schema.js';
 import { toJournalValue } from '../journal/serializable.js';
 import type { CheckpointState, PendingToolTurn } from '../journal/checkpoint.js';
+import { failoverTriggerOf, nextFailover, type FailoverTrigger } from '../model/failover.js';
 import { liftRetainedParts, projectHistory, providerOf } from '../model/projector.js';
+import {
+  DEFAULT_RETRY_POLICY,
+  retryClassOf,
+  retryDelayMs,
+  type RetryPolicy,
+} from '../model/retry.js';
 import type { ResolvedInvocation } from '../model/router.js';
 import { selectStructuredOutputTier, type StructuredOutputTier } from '../model/caps.js';
 import {
@@ -77,6 +84,11 @@ export interface AgentResult<T> {
   usage: Usage;
   costUsd: number;
   turns: number;
+  /**
+   * The model that actually served the loop phase at the end (M4-T04):
+   * differs from the requested spec only under transport failover.
+   */
+  servedBy: ModelRef;
   transcriptRef: string;
   artifacts?: Artifact[];
   error?: AgentError;
@@ -166,6 +178,12 @@ export interface ToolRuntime {
   permission?: (call: ToolCallRequest) => Promise<PermissionGate>;
 }
 
+/** One serving target of a phase: the primary or a failover fallback. */
+export interface PhaseTarget {
+  adapter: ProviderAdapter;
+  resolved: ResolvedInvocation;
+}
+
 export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   prompt: string;
   schema?: S;
@@ -173,6 +191,23 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   canonicalSchema?: JsonSchema;
   adapter: ProviderAdapter;
   resolved: ResolvedInvocation;
+  /**
+   * Transport failover chain for the loop phase (M4-T04; docs/04,
+   * section 11.2): resolved fallback targets tried in order on
+   * transport or rate-limit failures after retries exhaust. Failover is
+   * sticky and changes only servedBy, never the content key.
+   */
+  fallbacks?: PhaseTarget[];
+  /**
+   * Transport RetryPolicy (M4-T05; docs/04, section 11.1): lives UNDER
+   * the journal, wired around every adapter.stream dispatch. sleep and
+   * random are injectable for tests; the core owns wall-clock.
+   */
+  retry?: {
+    policy?: RetryPolicy;
+    sleep?: (ms: number) => Promise<void>;
+    random?: () => number;
+  };
   /** The resolved toolset; absent = no tools declared (docs/08). */
   tools?: ToolRuntime;
   /**
@@ -183,7 +218,7 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * turn (docs/06, section "Agent runtime binding"; the necessity rule is
    * decided by the ctx layer via model/roles.ts).
    */
-  extract?: { adapter: ProviderAdapter; resolved: ResolvedInvocation };
+  extract?: PhaseTarget & { fallbacks?: PhaseTarget[] };
   /**
    * Finalize synthesis invocation (M4-T01), present only when the role
    * trigger protocol fires it: configured in routing AND the toolset is
@@ -193,7 +228,7 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * (the ctx layer guarantees `extract` is present in that case). Like
    * extract, the finalize invocation is not checkpointed in v1.
    */
-  finalize?: { adapter: ProviderAdapter; resolved: ResolvedInvocation };
+  finalize?: PhaseTarget & { fallbacks?: PhaseTarget[] };
   /**
    * Summarize invocation target for compaction (M4-T03): resolved
    * through the chain with role 'summarize', falling back to the loop
@@ -201,7 +236,7 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * is ON by default; absence of this option disables it (direct
    * runAgent callers).
    */
-  summarize?: { adapter: ProviderAdapter; resolved: ResolvedInvocation };
+  summarize?: PhaseTarget & { fallbacks?: PhaseTarget[] };
   /** Per-profile compaction config; threshold default 0.8 (Appendix A). */
   compaction?: { threshold?: number };
   /**
@@ -581,7 +616,7 @@ export async function runAgent<S extends SchemaSpec>(
   let compactionDisabled = false;
   const compactionPoints: number[] = [];
 
-  const servedBy: ModelRef = options.resolved.ref;
+  let servedBy: ModelRef = options.resolved.ref;
 
   // Kill-and-resume re-enters at the last turn boundary: paid turns are
   // restored, not re-called (docs/03, section 11.1). The restored usage
@@ -811,13 +846,6 @@ export async function runAgent<S extends SchemaSpec>(
       await saveBoundary();
     }
   }
-  const tier: StructuredOutputTier | undefined =
-    options.schema !== undefined && options.canonicalSchema !== undefined
-      ? selectStructuredOutputTier(
-          options.adapter.caps(options.resolved.model),
-          options.canonicalSchema,
-        )
-      : undefined;
   const separateExtract = options.extract !== undefined && options.schema !== undefined;
 
   events?.emit({
@@ -863,6 +891,113 @@ export async function runAgent<S extends SchemaSpec>(
     }
   };
 
+  // Retry and failover engine (M4-T04/T05): RetryPolicy lives UNDER the
+  // journal around every adapter.stream dispatch (a retried-then-
+  // successful call is one entry with one usage total, and transport
+  // retries never count as lineage attempts, DEF-3). When a serving
+  // model exhausts its tries on a failover trigger, the chain advances
+  // (sticky) and the turn re-dispatches on the fallback: only servedBy
+  // changes, never the content key. Stream-idle severance is retryable
+  // transport-class per docs/06, section 6.
+  const retryPolicy = options.retry?.policy ?? DEFAULT_RETRY_POLICY;
+  const retryOn = retryPolicy.retryOn ?? DEFAULT_RETRY_POLICY.retryOn ?? [];
+  const retrySleep =
+    options.retry?.sleep ??
+    ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const retryRandom = options.retry?.random ?? Math.random;
+
+  const dispatchPhase = async (site: {
+    chain: Array<PhaseTarget & { on?: FailoverTrigger[] }>;
+    cursor: { index: number };
+    requestFor: (target: PhaseTarget) => ChatRequest;
+    streamOptionsFor: (target: PhaseTarget) => Parameters<typeof streamTurn>[2];
+  }): Promise<{ outcome: TurnOutcome; target: PhaseTarget }> => {
+    for (;;) {
+      const target = site.chain[site.cursor.index] ?? site.chain[0];
+      let tries = 0;
+      inner: for (;;) {
+        const outcome = await streamTurn(
+          target.adapter,
+          site.requestFor(target),
+          site.streamOptionsFor(target),
+        );
+        recordUsage(outcome.usage, outcome.reported, target.adapter.id, target.resolved.ref);
+        tries += 1;
+        const retryClass =
+          outcome.aborted === 'idle'
+            ? 'transport'
+            : outcome.wireError === undefined
+              ? undefined
+              : retryClassOf(outcome.wireError);
+        if (retryClass === undefined) {
+          return { outcome, target };
+        }
+        usageApprox = usageApprox || outcome.usageApprox;
+        if (retryOn.includes(retryClass) && tries < retryPolicy.attempts) {
+          const retryAfter = (outcome.wireError?.data as { retryAfterMs?: unknown } | undefined)
+            ?.retryAfterMs;
+          if (outcome.wireError !== undefined) {
+            events?.emit({
+              type: 'agent:error',
+              agentType,
+              label: options.label,
+              error: outcome.wireError,
+              willRetry: true,
+            });
+          }
+          await retrySleep(
+            retryDelayMs(
+              retryPolicy,
+              tries - 1,
+              typeof retryAfter === 'number' ? retryAfter : undefined,
+              retryRandom,
+            ),
+          );
+          continue inner;
+        }
+        const trigger = failoverTriggerOf(retryClass);
+        const next =
+          trigger === undefined ? undefined : nextFailover(site.chain, trigger, site.cursor.index);
+        if (next === undefined) {
+          return { outcome, target };
+        }
+        const takeover = site.chain[next] as PhaseTarget;
+        events?.emit({
+          type: 'log',
+          level: 'warn',
+          msg:
+            `failover: ${takeover.resolved.ref} takes over from ${target.resolved.ref} ` +
+            `after ${trigger} (the content key is unchanged; servedBy records the server)`,
+        });
+        site.cursor.index = next;
+        break inner;
+      }
+    }
+  };
+
+  // The ride tier follows the SERVING model's caps; a forced-tool target
+  // with tools available degrades to prompt rather than pinning
+  // toolChoice mid-loop (docs/04, section 8.4; the ride/separate
+  // decision itself keys on the PRIMARY model at the ctx layer).
+  const rideTierFor = (target: PhaseTarget): StructuredOutputTier => {
+    if (options.canonicalSchema === undefined) {
+      return 'prompt';
+    }
+    const selected = selectStructuredOutputTier(
+      target.adapter.caps(target.resolved.model),
+      options.canonicalSchema,
+    );
+    return selected === 'forced-tool' && (options.tools?.contracts.length ?? 0) > 0
+      ? 'prompt'
+      : selected;
+  };
+
+  const loopChain: PhaseTarget[] = [
+    { adapter: options.adapter, resolved: options.resolved },
+    ...(options.fallbacks ?? []),
+  ];
+  const loopCursor = { index: 0 };
+
   // A pending-turn limit hit above skips the loop entirely.
   loop: while (status === 'ok') {
     // Per-agent wall clock (docs/06, section "UsageLimits").
@@ -884,42 +1019,55 @@ export async function runAgent<S extends SchemaSpec>(
     }
     turns += 1;
 
-    // Every outgoing request is a projection of the canonical history
-    // into the target provider's view (docs/04, section 2.3, M4-T02).
-    let req = buildRequest(
-      options.resolved,
-      projectHistory(messages, providerOf(options.adapter)),
-      limits,
-      options.tools?.contracts,
-    );
-    if (options.schema !== undefined && options.canonicalSchema !== undefined && !separateExtract) {
-      req = applyStructuredOutputTier(req, tier ?? 'prompt', options.canonicalSchema);
-    }
-
     const signals: AbortSignal[] = [];
     if (options.signal !== undefined) {
       signals.push(options.signal);
     }
-    const streamTurnOptions: Parameters<typeof streamTurn>[2] = {
-      idleTimeoutMs: limits.streamIdleTimeoutMs,
-      signals,
-      onUsage: (delta) => options.budget?.onUsage(delta, servedBy),
-    };
-    if (options.budget?.signal !== undefined) {
-      streamTurnOptions.budgetSignal = options.budget.signal;
-    }
-    if (options.stream === true) {
-      streamTurnOptions.onDelta = (delta) => events?.emit({ type: 'agent:stream', delta });
-    }
-    const outcome = await streamTurn(options.adapter, req, streamTurnOptions);
-    recordUsage(outcome.usage, outcome.reported, options.adapter.id, servedBy);
+    // Every outgoing request is a projection of the canonical history
+    // into the SERVING provider's view (docs/04, section 2.3, M4-T02);
+    // the dispatch engine may serve the turn from a failover target.
+    const { outcome, target: servedTarget } = await dispatchPhase({
+      chain: loopChain,
+      cursor: loopCursor,
+      requestFor: (target) => {
+        let req = buildRequest(
+          target.resolved,
+          projectHistory(messages, providerOf(target.adapter)),
+          limits,
+          options.tools?.contracts,
+        );
+        if (
+          options.schema !== undefined &&
+          options.canonicalSchema !== undefined &&
+          !separateExtract
+        ) {
+          req = applyStructuredOutputTier(req, rideTierFor(target), options.canonicalSchema);
+        }
+        return req;
+      },
+      streamOptionsFor: (target) => {
+        const streamTurnOptions: Parameters<typeof streamTurn>[2] = {
+          idleTimeoutMs: limits.streamIdleTimeoutMs,
+          signals,
+          onUsage: (delta) => options.budget?.onUsage(delta, target.resolved.ref),
+        };
+        if (options.budget?.signal !== undefined) {
+          streamTurnOptions.budgetSignal = options.budget.signal;
+        }
+        if (options.stream === true) {
+          streamTurnOptions.onDelta = (delta) => events?.emit({ type: 'agent:stream', delta });
+        }
+        return streamTurnOptions;
+      },
+    });
+    servedBy = servedTarget.resolved.ref;
     usageApprox = usageApprox || outcome.usageApprox;
     lastTurnUsage = {
       inputTokens: outcome.usage.inputTokens,
       outputTokens: outcome.usage.outputTokens,
     };
     messages.push(
-      assistantMsg(outcome.turn, liftRetainedParts(outcome.providerMetadata, options.adapter)),
+      assistantMsg(outcome.turn, liftRetainedParts(outcome.providerMetadata, servedTarget.adapter)),
     );
     if (invariantViolation !== undefined) {
       status = 'error';
@@ -1057,31 +1205,36 @@ export async function runAgent<S extends SchemaSpec>(
           break;
         }
         turns += 1;
-        const projected = projectHistory(messages, providerOf(options.summarize.adapter));
-        let req = buildRequest(
-          summarizeResolved,
-          [...projected, summarizeInstruction()],
-          limits,
-          options.tools?.contracts,
-        );
-        if (req.tools !== undefined) {
-          req = { ...req, toolChoice: 'none' };
-        }
-        const summarizeStreamOptions: Parameters<typeof streamTurn>[2] = {
-          idleTimeoutMs: limits.streamIdleTimeoutMs,
-          signals: options.signal === undefined ? [] : [options.signal],
-          onUsage: (delta) => options.budget?.onUsage(delta, summarizeResolved.ref),
-        };
-        if (options.budget?.signal !== undefined) {
-          summarizeStreamOptions.budgetSignal = options.budget.signal;
-        }
-        const summary = await streamTurn(options.summarize.adapter, req, summarizeStreamOptions);
-        recordUsage(
-          summary.usage,
-          summary.reported,
-          options.summarize.adapter.id,
-          summarizeResolved.ref,
-        );
+        const { outcome: summary } = await dispatchPhase({
+          chain: [
+            { adapter: options.summarize.adapter, resolved: options.summarize.resolved },
+            ...(options.summarize.fallbacks ?? []),
+          ],
+          cursor: { index: 0 },
+          requestFor: (target) => {
+            let req = buildRequest(
+              target.resolved,
+              [...projectHistory(messages, providerOf(target.adapter)), summarizeInstruction()],
+              limits,
+              options.tools?.contracts,
+            );
+            if (req.tools !== undefined) {
+              req = { ...req, toolChoice: 'none' };
+            }
+            return req;
+          },
+          streamOptionsFor: (target) => {
+            const summarizeStreamOptions: Parameters<typeof streamTurn>[2] = {
+              idleTimeoutMs: limits.streamIdleTimeoutMs,
+              signals: options.signal === undefined ? [] : [options.signal],
+              onUsage: (delta) => options.budget?.onUsage(delta, target.resolved.ref),
+            };
+            if (options.budget?.signal !== undefined) {
+              summarizeStreamOptions.budgetSignal = options.budget.signal;
+            }
+            return summarizeStreamOptions;
+          },
+        });
         usageApprox = usageApprox || summary.usageApprox;
         if (summary.aborted === 'budget') {
           status = 'cancelled';
@@ -1138,7 +1291,7 @@ export async function runAgent<S extends SchemaSpec>(
       break;
     }
 
-    const candidate = extractCandidate(outcome.turn, tier ?? 'prompt');
+    const candidate = extractCandidate(outcome.turn, rideTierFor(servedTarget));
     const issues: Issue[] = [];
     if (candidate !== undefined) {
       const validation = await validateSchemaSpec(options.schema, candidate.raw);
@@ -1205,38 +1358,42 @@ export async function runAgent<S extends SchemaSpec>(
     }
     if (proceed) {
       turns += 1;
-      const req: ChatRequest = {
-        ...buildRequest(
-          finalizeResolved,
-          projectHistory(messages, providerOf(options.finalize.adapter)),
-          limits,
-          options.tools?.contracts,
-        ),
-        toolChoice: 'none',
-      };
-      const finalizeStreamOptions: Parameters<typeof streamTurn>[2] = {
-        idleTimeoutMs: limits.streamIdleTimeoutMs,
-        signals: options.signal === undefined ? [] : [options.signal],
-        onUsage: (delta) => options.budget?.onUsage(delta, finalizeResolved.ref),
-      };
-      if (options.budget?.signal !== undefined) {
-        finalizeStreamOptions.budgetSignal = options.budget.signal;
-      }
-      if (options.stream === true) {
-        finalizeStreamOptions.onDelta = (delta) => events?.emit({ type: 'agent:stream', delta });
-      }
-      const outcome = await streamTurn(options.finalize.adapter, req, finalizeStreamOptions);
-      recordUsage(
-        outcome.usage,
-        outcome.reported,
-        options.finalize.adapter.id,
-        finalizeResolved.ref,
-      );
+      const { outcome, target: finalizeTarget } = await dispatchPhase({
+        chain: [
+          { adapter: options.finalize.adapter, resolved: options.finalize.resolved },
+          ...(options.finalize.fallbacks ?? []),
+        ],
+        cursor: { index: 0 },
+        requestFor: (target) => ({
+          ...buildRequest(
+            target.resolved,
+            projectHistory(messages, providerOf(target.adapter)),
+            limits,
+            options.tools?.contracts,
+          ),
+          toolChoice: 'none',
+        }),
+        streamOptionsFor: (target) => {
+          const finalizeStreamOptions: Parameters<typeof streamTurn>[2] = {
+            idleTimeoutMs: limits.streamIdleTimeoutMs,
+            signals: options.signal === undefined ? [] : [options.signal],
+            onUsage: (delta) => options.budget?.onUsage(delta, target.resolved.ref),
+          };
+          if (options.budget?.signal !== undefined) {
+            finalizeStreamOptions.budgetSignal = options.budget.signal;
+          }
+          if (options.stream === true) {
+            finalizeStreamOptions.onDelta = (delta) =>
+              events?.emit({ type: 'agent:stream', delta });
+          }
+          return finalizeStreamOptions;
+        },
+      });
       usageApprox = usageApprox || outcome.usageApprox;
       messages.push(
         assistantMsg(
           outcome.turn,
-          liftRetainedParts(outcome.providerMetadata, options.finalize.adapter),
+          liftRetainedParts(outcome.providerMetadata, finalizeTarget.adapter),
         ),
       );
       if (invariantViolation !== undefined) {
@@ -1282,8 +1439,6 @@ export async function runAgent<S extends SchemaSpec>(
     options.schema !== undefined
   ) {
     const extractResolved = options.extract.resolved;
-    const extractCaps = options.extract.adapter.caps(extractResolved.model);
-    const extractTier = selectStructuredOutputTier(extractCaps, options.canonicalSchema ?? {});
     events?.emit({
       type: 'agent:start',
       agentType,
@@ -1291,6 +1446,18 @@ export async function runAgent<S extends SchemaSpec>(
       model: extractResolved.ref,
       role: 'extract',
     });
+    // The extract tier follows the SERVING model's caps; forced-tool is
+    // legitimate here (the pinned emit_result IS the mechanism).
+    const extractTierFor = (target: PhaseTarget): StructuredOutputTier =>
+      selectStructuredOutputTier(
+        target.adapter.caps(target.resolved.model),
+        options.canonicalSchema ?? {},
+      );
+    const extractChain: PhaseTarget[] = [
+      { adapter: options.extract.adapter, resolved: options.extract.resolved },
+      ...(options.extract.fallbacks ?? []),
+    ];
+    const extractCursor = { index: 0 };
     let extractAttempts = 0;
     const extractMessages: Msg[] = [
       ...messages,
@@ -1313,31 +1480,39 @@ export async function runAgent<S extends SchemaSpec>(
         break;
       }
       turns += 1;
-      // A tool-bearing transcript must carry the tool contracts: both
-      // providers reject tool-use history without tool definitions. The
-      // forced-tool tier pins toolChoice to emit_result below; the other
-      // tiers pin 'none' so the extract call cannot re-enter tools
-      // (docs/04, section 8.4 as amended in M4-T01).
-      let req = buildRequest(
-        extractResolved,
-        projectHistory(extractMessages, providerOf(options.extract.adapter)),
-        limits,
-        options.tools?.contracts,
-      );
-      if (req.tools !== undefined && extractTier !== 'forced-tool') {
-        req = { ...req, toolChoice: 'none' };
-      }
-      req = applyStructuredOutputTier(req, extractTier, options.canonicalSchema ?? {});
-      const extractStreamOptions: Parameters<typeof streamTurn>[2] = {
-        idleTimeoutMs: limits.streamIdleTimeoutMs,
-        signals: options.signal === undefined ? [] : [options.signal],
-        onUsage: (delta) => options.budget?.onUsage(delta, extractResolved.ref),
-      };
-      if (options.budget?.signal !== undefined) {
-        extractStreamOptions.budgetSignal = options.budget.signal;
-      }
-      const outcome = await streamTurn(options.extract.adapter, req, extractStreamOptions);
-      recordUsage(outcome.usage, outcome.reported, options.extract.adapter.id, extractResolved.ref);
+      const { outcome, target: extractTarget } = await dispatchPhase({
+        chain: extractChain,
+        cursor: extractCursor,
+        requestFor: (target) => {
+          // A tool-bearing transcript must carry the tool contracts:
+          // both providers reject tool-use history without tool
+          // definitions. The forced-tool tier pins toolChoice to
+          // emit_result; the other tiers pin 'none' so the extract call
+          // cannot re-enter tools (docs/04, section 8.4, M4-T01).
+          const targetTier = extractTierFor(target);
+          let req = buildRequest(
+            target.resolved,
+            projectHistory(extractMessages, providerOf(target.adapter)),
+            limits,
+            options.tools?.contracts,
+          );
+          if (req.tools !== undefined && targetTier !== 'forced-tool') {
+            req = { ...req, toolChoice: 'none' };
+          }
+          return applyStructuredOutputTier(req, targetTier, options.canonicalSchema ?? {});
+        },
+        streamOptionsFor: (target) => {
+          const extractStreamOptions: Parameters<typeof streamTurn>[2] = {
+            idleTimeoutMs: limits.streamIdleTimeoutMs,
+            signals: options.signal === undefined ? [] : [options.signal],
+            onUsage: (delta) => options.budget?.onUsage(delta, target.resolved.ref),
+          };
+          if (options.budget?.signal !== undefined) {
+            extractStreamOptions.budgetSignal = options.budget.signal;
+          }
+          return extractStreamOptions;
+        },
+      });
       usageApprox = usageApprox || outcome.usageApprox;
       if (invariantViolation !== undefined) {
         status = 'error';
@@ -1347,7 +1522,7 @@ export async function runAgent<S extends SchemaSpec>(
       extractMessages.push(
         assistantMsg(
           outcome.turn,
-          liftRetainedParts(outcome.providerMetadata, options.extract.adapter),
+          liftRetainedParts(outcome.providerMetadata, extractTarget.adapter),
         ),
       );
       if (outcome.aborted !== undefined || outcome.wireError !== undefined) {
@@ -1360,7 +1535,7 @@ export async function runAgent<S extends SchemaSpec>(
         }
         break;
       }
-      const candidate = extractCandidate(outcome.turn, extractTier);
+      const candidate = extractCandidate(outcome.turn, extractTierFor(extractTarget));
       if (candidate !== undefined) {
         const validation = await validateSchemaSpec(options.schema, candidate.raw);
         if (validation.valid) {
@@ -1406,6 +1581,7 @@ export async function runAgent<S extends SchemaSpec>(
     usage: totalUsage,
     costUsd,
     turns,
+    servedBy,
     transcriptRef,
   };
   if (agentError !== undefined) {
