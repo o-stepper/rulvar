@@ -78,6 +78,12 @@ export class RunBudget {
     lifetimeSpawnCap?: number;
     events?: RuntimeEventSink;
     priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
+    /**
+     * The resume ledger fold (docs/03, section 13.3): spend is never
+     * reset and never double-counted; replayed entries are already inside
+     * this seed and add no increments.
+     */
+    seed?: { usd: number; usage: Usage; agentsSpawned: number };
   }) {
     if (options.ceilingUsd !== undefined) {
       this.ceilingUsd = options.ceilingUsd;
@@ -88,6 +94,11 @@ export class RunBudget {
     }
     if (options.priceUsd !== undefined) {
       this.priceUsd = options.priceUsd;
+    }
+    if (options.seed !== undefined) {
+      this.spentUsdInternal = options.seed.usd;
+      this.usageInternal = { ...options.seed.usage };
+      this.agentsSpawnedInternal = options.seed.agentsSpawned;
     }
   }
 

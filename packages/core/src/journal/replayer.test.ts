@@ -215,8 +215,10 @@ describe('journal write path (M1-T04; docs/03 sections 5, 7.2, 13)', () => {
     );
   });
 
-  it('every lookup is live in M1 (resume lands in M2)', () => {
+  it('a fresh run with no prior journal always matches live', () => {
     const { replayer } = makeReplayer();
-    expect(replayer.lookup('', key, 0, 'scoped')).toBe('live');
+    expect(replayer.match('', { kind: 'rand', subtype: 'now' }, 'scoped')).toEqual({
+      kind: 'live',
+    });
   });
 });

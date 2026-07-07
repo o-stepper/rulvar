@@ -12,6 +12,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID, getRandomValues } from 'node:crypto';
 import {
+  agentErrorFromWire,
   agentErrorToWire,
   BudgetExhaustedError,
   ConfigError,
@@ -38,6 +39,7 @@ import {
 import { deriveContentKey } from '../journal/identity.js';
 import { ParallelSiteCounter, parallelScope, pipelineScope, ROOT_SCOPE } from '../journal/scope.js';
 import type { Replayer } from '../journal/replayer.js';
+import type { JournalEntry } from '../l0/entries.js';
 import {
   resolveModelInvocation,
   type ResolutionLayer,
@@ -89,6 +91,8 @@ export interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   key?: string;
 
   onError?: 'throw' | 'null';
+  /** Per-call replay mode; default scoped forward-matching (docs/03, section 7.3). */
+  replay?: 'cache' | 'never';
   /** Journaled as a policy field from day one; consumed by the M2 predicate. */
   memoizeOutcome?: boolean;
   /** Admission reserve hint (USD). */
@@ -333,7 +337,7 @@ interface ScopeState {
  * root span when omitted.
  */
 export interface RunEventSink {
-  emit(body: { type: string } & Record<string, unknown>, spanId?: string): void;
+  emit(body: { type: string } & Record<string, unknown>, spanId?: string, replayed?: boolean): void;
 }
 
 /** Mints span ids in the run > phase > agent > tool > child hierarchy. */
@@ -412,16 +416,23 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     return adapter;
   };
 
-  function journalRand(
+  function randValue<T extends number | string>(
     subtype: 'now' | 'random' | 'uuid',
-    value: number | string,
+    generate: () => T,
     key?: string,
-  ): void {
+  ): T {
     const state = current();
     const identity =
       key === undefined
         ? ({ kind: 'rand', subtype } as const)
         : ({ kind: 'rand', subtype, key } as const);
+    // The first execution records the live value; every replay returns
+    // the journaled value byte-for-byte (docs/06, section 2.9).
+    const matched = internals.replayer.match(state.scope, identity, 'scoped');
+    if (matched.kind === 'replay') {
+      return (matched.terminal.value as { value: T }).value;
+    }
+    const value = generate();
     const payload: Record<string, Json> = { subtype, value };
     if (key !== undefined) {
       payload.key = key;
@@ -436,6 +447,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       spanId: state.spanId,
       value: payload,
     });
+    return value;
   }
 
   async function agentImpl<S extends SchemaSpec>(
@@ -532,7 +544,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       }
     }
 
-    const identityKey = deriveContentKey({
+    const identityInput = {
       kind: 'agent',
       agentType,
       modelSpec: loopResolved.canonical,
@@ -540,7 +552,104 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       schemaHash: derivedSchemaHash,
       toolsetHash: EMPTY_TOOLSET_HASH,
       isolation: opts.isolation ?? 'none',
-    });
+    } as const;
+    const identityKey = deriveContentKey(identityInput);
+
+    // Scoped forward-matching (docs/03 section 7): a hit synthesizes the
+    // result entirely from the journal with zero adapter calls.
+    const matched = internals.replayer.match(state.scope, identityInput, opts.replay ?? 'scoped');
+    if (matched.kind === 'replay' || matched.kind === 'skip') {
+      const terminal = matched.kind === 'replay' ? matched.terminal : matched.terminal;
+      const spanId = internals.spans.mint(state.spanId);
+      const usage: Usage = terminal?.usage ?? {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+      };
+      const costUsd =
+        terminal?.servedBy === undefined ? 0 : (internals.priceUsd(terminal.servedBy, usage) ?? 0);
+      const result: AgentResult<unknown> = {
+        status:
+          matched.kind === 'skip'
+            ? 'skipped'
+            : ((terminal?.status ?? 'ok') as AgentResult<unknown>['status']),
+        output: matched.kind === 'skip' ? null : (terminal?.value ?? null),
+        usage,
+        costUsd,
+        // Turn counts are not journaled in v1; the fold recovers them
+        // with the checkpoint format (M3).
+        turns: 0,
+        transcriptRef: terminal?.transcriptRef ?? '',
+      };
+      if (terminal?.error !== undefined) {
+        result.error = agentErrorFromWire(terminal.error);
+        (result as { errorMessage?: string }).errorMessage = terminal.error.message;
+      }
+      internals.events.emit(
+        {
+          type: 'agent:start',
+          agentType,
+          label: opts.label,
+          model: loopResolved.ref,
+          role: 'loop',
+        },
+        spanId,
+        true,
+      );
+      internals.events.emit(
+        {
+          type: 'agent:end',
+          agentType,
+          label: opts.label,
+          status: result.status,
+          usage,
+          costUsd,
+          entryRef: terminal?.seq ?? matched.running.seq,
+        },
+        spanId,
+        true,
+      );
+      // Replayed spend is already inside the seeded budget fold; only the
+      // cost-report buckets accumulate here.
+      bump(internals.cost.byModel, terminal?.servedBy ?? loopResolved.ref, costUsd);
+      bump(internals.cost.byPhase, state.phase ?? '', costUsd);
+      bump(internals.cost.byAgentType, agentType, costUsd);
+      internals.cost.byRole.set('loop', (internals.cost.byRole.get('loop') ?? 0) + costUsd);
+      if (opts.result === 'full') {
+        return result;
+      }
+      if (result.status === 'ok') {
+        return result.output;
+      }
+      const effectivePolicy =
+        opts.onError ?? (internals.errorPolicy === 'lenient' ? 'null' : 'throw');
+      const replayWire = agentErrorToWire(
+        result.error ?? { kind: 'terminal', retryable: false },
+        (result as { errorMessage?: string }).errorMessage ??
+          `agent replayed with status ${result.status}`,
+      );
+      if (effectivePolicy === 'null') {
+        const droppedItem: DroppedItem = {
+          source: 'agent-onerror-null',
+          scope: state.scope,
+          entryRef: terminal?.seq ?? matched.running.seq,
+          error: replayWire,
+        };
+        if (opts.label !== undefined) {
+          droppedItem.label = opts.label;
+        }
+        internals.dropped.push(droppedItem);
+        return null;
+      }
+      throw new AgentCallError(
+        replayWire.message,
+        result,
+        state.scope,
+        terminal?.seq ?? matched.running.seq,
+      );
+    }
+    const danglingRunning = matched.kind === 'rerun-dangling' ? matched.running : undefined;
 
     const adapter = adapterOf(loopResolved);
     const caps = adapter.caps(loopResolved.model);
@@ -572,16 +681,23 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     // memoizeOutcome is a policy field fixed in the entry payload at
     // dispatch time (docs/03, section "Normative payload schemas"); the M2
     // predicate reads it from the ENTRY, never from current code.
-    const runningInput: Parameters<Replayer['appendRunning']>[0] = {
-      scope: state.scope,
-      key: identityKey,
-      kind: 'agent',
-      spanId,
-    };
-    if (opts.memoizeOutcome !== undefined) {
-      runningInput.memoizeOutcome = opts.memoizeOutcome;
+    let running: JournalEntry;
+    if (danglingRunning !== undefined) {
+      // At-least-once redispatch: the terminal will reference the
+      // original dispatch entry (docs/03, section 13.1).
+      running = danglingRunning;
+    } else {
+      const runningInput: Parameters<Replayer['appendRunning']>[0] = {
+        scope: state.scope,
+        key: identityKey,
+        kind: 'agent',
+        spanId,
+      };
+      if (opts.memoizeOutcome !== undefined) {
+        runningInput.memoizeOutcome = opts.memoizeOutcome;
+      }
+      running = await internals.replayer.appendRunning(runningInput);
     }
-    const running = await internals.replayer.appendRunning(runningInput);
 
     const limits = mergeUsageLimits(opts.limits, profile?.limits, internals.defaults.limits);
     const agentSink = {
@@ -935,18 +1051,25 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       o?: { deps?: Json[]; key?: string },
     ): Promise<T> => {
       const state = current();
-      const key = deriveContentKey({
-        kind: 'step',
-        key: o?.key ?? label,
-        deps: o?.deps ?? [],
-      });
+      const identity = { kind: 'step', key: o?.key ?? label, deps: o?.deps ?? [] } as const;
+      const key = deriveContentKey(identity);
       const spanId = internals.spans.mint(state.spanId);
-      const running = await internals.replayer.appendRunning({
-        scope: state.scope,
-        key,
-        kind: 'step',
-        spanId,
-      });
+      const matched = internals.replayer.match(state.scope, identity, 'scoped');
+      if (matched.kind === 'replay') {
+        return matched.terminal.value as T;
+      }
+      if (matched.kind === 'skip') {
+        return null as T;
+      }
+      const running =
+        matched.kind === 'rerun-dangling'
+          ? matched.running
+          : await internals.replayer.appendRunning({
+              scope: state.scope,
+              key,
+              kind: 'step',
+              spanId,
+            });
       try {
         const value = await fn();
         await internals.replayer.appendTerminal(running.seq, {
@@ -992,23 +1115,18 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       remaining: () => internals.budget.remaining(),
     },
 
-    now: () => {
-      const value = internals.now();
-      journalRand('now', value);
-      return value;
-    },
-    random: (key?: string) => {
-      const buffer = new Uint32Array(1);
-      getRandomValues(buffer);
-      const value = buffer[0] / 2 ** 32;
-      journalRand('random', value, key);
-      return value;
-    },
-    uuid: () => {
-      const value = randomUUID();
-      journalRand('uuid', value);
-      return value;
-    },
+    now: () => randValue('now', () => internals.now()),
+    random: (key?: string) =>
+      randValue(
+        'random',
+        () => {
+          const buffer = new Uint32Array(1);
+          getRandomValues(buffer);
+          return buffer[0] / 2 ** 32;
+        },
+        key,
+      ),
+    uuid: () => randValue('uuid', () => randomUUID()),
   };
   return ctx;
 }

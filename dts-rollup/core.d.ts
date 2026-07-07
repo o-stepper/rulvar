@@ -1067,6 +1067,43 @@ declare function workflowScope(parent: string, name: string, ordinal: number): s
 declare function agentScope(parent: string, seq: number): string;
 /** PlanRunner node scopes: `plan/<NodeId>` (NodeIds are engine-minted ULIDs). */
 declare function planNodeScope(nodeId: string): string;
+/** A parsed scope-path segment (docs/03, section 2.1). */
+type ScopeSegment = {
+  kind: "parallel";
+  site: number;
+  branch: number;
+} | {
+  kind: "pipeline";
+  stage: number;
+  item: number;
+} | {
+  kind: "workflow";
+  name: string;
+  ordinal: number;
+} | {
+  kind: "agent";
+  seq: number;
+} | {
+  kind: "plan-node";
+  nodeId: string;
+};
+/**
+* Parses a scope path against the frozen grammar (M2-T04):
+*
+*   scope-path   ::= "" | scope-path "/" segment
+*   segment      ::= "par:" site ":" branch
+*                  | "pipe:" stage ":" item
+*                  | "wf:" name ":" ordinal
+*                  | "agent:" seq
+*                  | "plan" ("/" NodeId follows as its own segment)
+*   NodeId       ::= Crockford ULID (26 chars)
+*
+* Registered workflow names may contain ':' (the ordinal is the final
+* segment field). Throws on malformed paths.
+*/
+declare function parseScopePath(path: string): ScopeSegment[];
+/** Serializes parsed segments back to the canonical path (round-trip). */
+declare function formatScopePath(segments: readonly ScopeSegment[]): string;
 /**
 * Allocates parallel site numbers per enclosing scope: a monotonic counter
 * in execution order, not source position. Because every scope body is
@@ -1085,6 +1122,53 @@ declare class ParallelSiteCounter {
 * undefined object members dropped.
 */
 declare function toJournalValue(value: unknown, site: string): Json;
+//#endregion
+//#region src/journal/matching.d.ts
+/** One logical journaled operation: its dispatch entry plus its terminal, when present. */
+interface JournalOperation {
+  running: JournalEntry;
+  terminal?: JournalEntry;
+}
+/**
+* Versioned key derivation for matching: the live call is compared
+* against every unconsumed entry with the key computed UNDER THAT ENTRY'S
+* VERSION; 'incomparable' is a guaranteed non-match (docs/03, section
+* 4.4). M2-T05 supplies the real registry; the default ring knows only
+* the current version.
+*/
+/** A derived key, or the guaranteed non-match marker. */
+type DerivedKey = {
+  key: string;
+} | "incomparable";
+interface KeyRing {
+  keyFor(identity: IdentityInput, hashVersion: number): DerivedKey;
+}
+type OperationDisposition = "replay" | "rerun" | "skip";
+type MatchResult = {
+  kind: "replay";
+  running: JournalEntry;
+  terminal: JournalEntry;
+} | {
+  kind: "skip";
+  running: JournalEntry;
+  terminal?: JournalEntry;
+} | {
+  /** A dangling running entry: redispatch live; the terminal reuses running.seq. */kind: "rerun-dangling";
+  running: JournalEntry;
+} | {
+  /** A terminal non-replayable entry: rerun live as a fresh operation. */kind: "rerun";
+  running: JournalEntry;
+} | {
+  kind: "live";
+};
+interface ResumeReport {
+  hits: number;
+  misses: number;
+  skipped: number;
+  reruns: number;
+  /** Journaled operations never consumed by any live call (deleted calls). */
+  orphaned: number[];
+}
 //#endregion
 //#region src/journal/replayer.d.ts
 type ReplayMode = "scoped" | "cache" | "never";
@@ -1138,6 +1222,7 @@ declare class Replayer {
   private readonly largeValueWarnBytes;
   private readonly entries;
   private readonly ordinals;
+  private readonly matcher;
   private queue;
   private seq;
   constructor(options: {
@@ -1146,19 +1231,25 @@ declare class Replayer {
     now?: () => number;
     priceUsd?: (servedBy: ModelRef | undefined, usage: Usage) => number | undefined; /** Receives large-value soft warnings (docs/03: never an error). */
     onWarn?: (msg: string) => void;
-    largeValueWarnBytes?: number;
+    largeValueWarnBytes?: number; /** The loaded, normalized prior journal (resume; docs/03 section 7). */
+    priorEntries?: readonly JournalEntry[];
+    keyRing?: KeyRing;
+    disposition?: (op: JournalOperation) => OperationDisposition;
   });
+  /**
+  * Forward-matches one live call against the prior journal (docs/03,
+  * section 7). Fresh runs always miss; the M2-T06 predicate is injected
+  * through setDisposition once folds are built.
+  */
+  match(scope: string, identity: IdentityInput, mode: ReplayMode): MatchResult;
+  setDisposition(disposition: (op: JournalOperation) => OperationDisposition): void;
+  resumeReport(): ResumeReport;
   /**
   * Value size policy (docs/03, section "Normative payload schemas"):
   * there is NO automatic offload in v1; oversized values warn and
   * proceed. Large artifacts belong in TranscriptStore by reference.
   */
   private warnIfLarge;
-  /**
-  * Scoped forward-matching lands with resume in M2; a fresh M1 run has no
-  * prior journal, so every lookup is live by construction.
-  */
-  lookup(_scope: string, _key: string, _ordinal: number, _mode: ReplayMode): JournalEntry | "live";
   /** Single-phase fact entries: rand, decisions, termination facts. */
   appendSinglePhase(input: SinglePhaseAppend): Promise<JournalEntry>;
   /** Two-phase dispatch: the running entry (kinds agent, step, child). */
@@ -1561,6 +1652,16 @@ declare class RunBudget {
     lifetimeSpawnCap?: number;
     events?: RuntimeEventSink;
     priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
+    /**
+    * The resume ledger fold (docs/03, section 13.3): spend is never
+    * reset and never double-counted; replayed entries are already inside
+    * this seed and add no increments.
+    */
+    seed?: {
+      usd: number;
+      usage: Usage;
+      agentsSpawned: number;
+    };
   });
   /** Layer 3 ceiling signal; live streams are severed through it. */
   get signal(): AbortSignal;
@@ -1652,6 +1753,8 @@ interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   /** Explicit discriminator; replaces the prompt in the content key. */
   key?: string;
   onError?: "throw" | "null";
+  /** Per-call replay mode; default scoped forward-matching (docs/03, section 7.3). */
+  replay?: "cache" | "never";
   /** Journaled as a policy field from day one; consumed by the M2 predicate. */
   memoizeOutcome?: boolean;
   /** Admission reserve hint (USD). */
@@ -1793,7 +1896,7 @@ declare function defineWorkflow<A, R, P extends ErrorPolicy = "strict">(meta: {
 interface RunEventSink {
   emit(body: {
     type: string;
-  } & Record<string, unknown>, spanId?: string): void;
+  } & Record<string, unknown>, spanId?: string, replayed?: boolean): void;
 }
 /** Mints span ids in the run > phase > agent > tool > child hierarchy. */
 interface SpanMinter {
@@ -1986,7 +2089,7 @@ declare class EventBus {
     spans: SpanRegistry;
     now?: () => number;
   });
-  emit(body: WorkflowEventBody, spanId: string): WorkflowEvent;
+  emit(body: WorkflowEventBody, spanId: string, replayed?: boolean): WorkflowEvent;
   on<T extends WorkflowEvent["type"]>(type: T, cb: (event: Extract<WorkflowEvent, {
     type: T;
   }>) => void): () => void;
@@ -2140,4 +2243,4 @@ interface Engine {
 declare function hashWorkflowBody(wf: Workflow<never, never> | Workflow<unknown, unknown>): string;
 declare function createEngine(options: CreateEngineOptions): Engine;
 //#endregion
-export { AbandonPayload, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentResult, AgentStatus, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetDefaults, BudgetExhaustedError, BudgetHooks, type Bytes, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanonicalId, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, ChildIdentityInput, CollectOpts, CollectedTurn, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorCode, ErrorPolicy, EscalatedResult, EscalationReport, EventBus, ExternalIdentityInput, FinishInfo, Gate, HashVersion, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMissError, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, type ModelCaps, ModelChoice, ModelRef, ModelRetry, ModelSpec, Msg, NonSerializableValueError, OnEscalation, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PipelineCollected, PipelineOpts, PlanInvariantError, type Pricing, type ProviderAdapter, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefusalInfo, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionLayer, ResolutionPayload, ResolvedInvocation, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, SinglePhaseAppend, SpanMinter, SpanRegistry, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, TerminalPatch, ToolChoice, ToolContract, type ToolEvents, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, type WorkflowEvent, type WorkflowEventBody, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, buildAdapterRegistry, buildCostReport, canonicalizeSchema, createCanonicalIdMinter, createCtx, createEngine, defineWorkflow, deriveContentKey, executeWorkflow, extractCandidate, formatRePrompt, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, mergeUsageLimits, modelSpecIdentity, normalizeEntry, parallelScope, parseModelRef, pipelineScope, planNodeScope, projectToJsonSchema, resolveModelInvocation, runAgent, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, tierWithinCaps, toJournalValue, toolsetHash, validateSchemaSpec, workflowScope };
+export { AbandonPayload, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentResult, AgentStatus, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BudgetDefaults, BudgetExhaustedError, BudgetHooks, type Bytes, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanonicalId, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, ChildIdentityInput, CollectOpts, CollectedTurn, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorCode, ErrorPolicy, EscalatedResult, EscalationReport, EventBus, ExternalIdentityInput, FinishInfo, Gate, HashVersion, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMissError, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LurkerError, LurkerErrorCode, type ModelCaps, ModelChoice, ModelRef, ModelRetry, ModelSpec, Msg, NonSerializableValueError, OnEscalation, OrchestratorCapConfigError, Out, ParallelSiteCounter, Part, PendingExternal, PipelineCollected, PipelineOpts, PlanInvariantError, type Pricing, type ProviderAdapter, ROLE_EFFORT_DEFAULTS, ROOT_SCOPE, RandIdentityInput, RandPayload, RefusalInfo, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionLayer, ResolutionPayload, ResolvedInvocation, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunStatus, RuntimeEventSink, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, SinglePhaseAppend, SpanMinter, SpanRegistry, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, TerminalPatch, ToolChoice, ToolContract, type ToolEvents, type TranscriptStore, TriggerClass, Usage, UsageLimits, WireError, Workflow, type WorkflowEvent, type WorkflowEventBody, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, buildAdapterRegistry, buildCostReport, canonicalizeSchema, createCanonicalIdMinter, createCtx, createEngine, defineWorkflow, deriveContentKey, executeWorkflow, extractCandidate, formatRePrompt, formatScopePath, hashWorkflowBody, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, mergeUsageLimits, modelSpecIdentity, normalizeEntry, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, projectToJsonSchema, resolveModelInvocation, runAgent, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, tierWithinCaps, toJournalValue, toolsetHash, validateSchemaSpec, workflowScope };
