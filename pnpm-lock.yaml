@@ -167,6 +167,9 @@ importers:
         specifier: ^1.9
         version: 1.9.1
     devDependencies:
+      '@lurker/store-sqlite':
+        specifier: workspace:*
+        version: link:../store-sqlite
       '@lurker/testing':
         specifier: workspace:*
         version: link:../testing

@@ -35,7 +35,8 @@
     "@types/node": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
-    "@lurker/testing": "workspace:*"
+    "@lurker/testing": "workspace:*",
+    "@lurker/store-sqlite": "workspace:*"
   },
   "bin": {
     "lurker": "./dist/cli.js"
