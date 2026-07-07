@@ -165,6 +165,8 @@ export interface TestInternalsOptions {
   /** Resume simulation: the loaded prior journal. */
   priorEntries?: JournalEntry[];
   store?: InMemoryStore;
+  /** Shared across simulated processes for checkpoint restore tests. */
+  transcripts?: InMemoryTranscriptStore;
   extraDerivers?: readonly unknown[];
 }
 
@@ -227,7 +229,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
     events,
     spans,
     rootSpanId: spans.mint(),
-    transcripts: new InMemoryTranscriptStore(),
+    transcripts: options.transcripts ?? new InMemoryTranscriptStore(),
     adapters,
     defaults: {
       ...(options.routing === undefined ? {} : { routing: options.routing }),

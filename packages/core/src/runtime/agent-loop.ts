@@ -32,6 +32,7 @@ import type { ToolContext, ToolDef } from '../l0/spi/toolsource.js';
 import type { Out, SchemaSpec } from '../l0/schema.js';
 import { validateSchemaSpec } from '../l0/schema.js';
 import { toJournalValue } from '../journal/serializable.js';
+import type { CheckpointState } from '../journal/checkpoint.js';
 import type { ResolvedInvocation } from '../model/router.js';
 import { selectStructuredOutputTier, type StructuredOutputTier } from '../model/caps.js';
 import { DEFAULT_MODEL_RETRY_ATTEMPTS, ModelRetry } from './model-retry.js';
@@ -152,6 +153,17 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * section "Agent runtime binding").
    */
   extract?: { adapter: ProviderAdapter; resolved: ResolvedInvocation };
+  /**
+   * Turn-boundary checkpointing (M3-T02; docs/03, section "Checkpoints").
+   * load() restores the last boundary on a dangling-dispatch resume;
+   * save() persists each boundary where the loop continues. The separate
+   * extract invocation is not checkpointed in v1: an extract-phase crash
+   * re-pays from the last loop boundary.
+   */
+  checkpoint?: {
+    load(): Promise<CheckpointState | undefined>;
+    save(state: CheckpointState): Promise<void>;
+  };
   limits: EffectiveUsageLimits;
   /** Emits agent:stream deltas when true (telemetry only). */
   stream?: boolean;
@@ -494,6 +506,36 @@ export async function runAgent<S extends SchemaSpec>(
   const modelRetryCounts = new Map<string, number>();
 
   const servedBy: ModelRef = options.resolved.ref;
+
+  // Kill-and-resume re-enters at the last turn boundary: paid turns are
+  // restored, not re-called (docs/03, section 11.1). The restored usage
+  // was never journaled (only terminals carry usage), so it is reported
+  // to the budget now.
+  const restored = await options.checkpoint?.load();
+  if (restored !== undefined) {
+    messages.length = 0;
+    messages.push(...restored.messages);
+    turns = restored.turns;
+    totalUsage = restored.usage;
+    toolCallsUsed = restored.toolCallsUsed;
+    schemaAttempts = restored.schemaAttempts;
+    options.budget?.onUsage(restored.usage, servedBy);
+  }
+
+  const saveBoundary = async (): Promise<void> => {
+    if (options.checkpoint === undefined) {
+      return;
+    }
+    await options.checkpoint.save({
+      v: 1,
+      messages: [...messages],
+      turns,
+      usage: totalUsage,
+      toolCallsUsed,
+      schemaAttempts,
+      compaction: [],
+    });
+  };
   const tier: StructuredOutputTier | undefined =
     options.schema !== undefined && options.canonicalSchema !== undefined
       ? selectStructuredOutputTier(
@@ -707,6 +749,10 @@ export async function runAgent<S extends SchemaSpec>(
         status = 'limit';
         break;
       }
+      // Turn boundary: tools executed, results appended. A crash after
+      // this write resumes here; a crash before it re-runs the turn's
+      // tools (at-least-once; docs/03, section 11.1).
+      await saveBoundary();
       continue loop;
     }
 
@@ -745,6 +791,7 @@ export async function runAgent<S extends SchemaSpec>(
       maxAttempts: maxSchemaAttempts - 1,
     });
     messages.push(formatRePrompt(issues, schemaAttempts, maxSchemaAttempts - 1));
+    await saveBoundary();
     continue loop;
   }
 
