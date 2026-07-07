@@ -28,6 +28,8 @@ export interface TestEngine extends Engine {
   run<A, R>(wf: Workflow<A, R>, args: A, opts?: RunOptions): TestRunHandle<R>;
   /** The adapter instance, for call-level assertions. */
   fake: FakeAdapter;
+  /** The backing journal store (journal capture for replay-strict tests). */
+  store: InMemoryStore;
 }
 
 export interface CreateTestEngineOptions {
@@ -40,6 +42,7 @@ export interface CreateTestEngineOptions {
 
 export function createTestEngine(options: CreateTestEngineOptions): TestEngine {
   const fake = new FakeAdapter({ agents: options.agents });
+  const store = new InMemoryStore();
   // Pattern keys double as agentTypes; register them as profiles so
   // ctx.agent({ agentType }) resolves without extra ceremony.
   const profiles: Record<string, AgentProfile> = { ...options.profiles };
@@ -50,7 +53,7 @@ export function createTestEngine(options: CreateTestEngineOptions): TestEngine {
   }
   const engine = createEngine({
     adapters: [fake],
-    stores: { journal: new InMemoryStore() },
+    stores: { journal: store },
     defaults: {
       routing: {
         loop: FAKE_MODEL_REF,
@@ -68,7 +71,8 @@ export function createTestEngine(options: CreateTestEngineOptions): TestEngine {
 
   return {
     fake,
-    resume: (runId, wf) => engine.resume(runId, wf),
+    store,
+    resume: (runId, wf, options) => engine.resume(runId, wf, options),
     run<A, R>(wf: Workflow<A, R>, args: A, opts?: RunOptions): TestRunHandle<R> {
       const handle = engine.run(wf, args, opts);
       const eventsSeen: WorkflowEvent[] = [];

@@ -1,0 +1,147 @@
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
+
+import { ConfigError } from '../l0/errors.js';
+import { createEngine } from './engine.js';
+import { defineWorkflow } from './ctx.js';
+import { scriptedAdapter } from './test-harness.js';
+import { JsonlFileStore } from '../stores/jsonl.js';
+import { Replayer } from '../journal/replayer.js';
+
+const approvalWf = defineWorkflow({ name: 'hitl' }, async (ctx) => {
+  const analysis = await ctx.agent('analyze the change');
+  const stamp = ctx.now();
+  const approval = await ctx.awaitExternal<{ approved: boolean }>('gate', {
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['approved'],
+      properties: { approved: { type: 'boolean' } },
+    },
+  });
+  return { analysis, stamp, approved: approval.approved };
+});
+
+function makeEngine(store: JsonlFileStore, text = 'analysis done') {
+  const adapter = scriptedAdapter(() => ({ text }));
+  const engine = createEngine({
+    adapters: [adapter],
+    stores: { journal: store },
+    defaults: { routing: { loop: 'fake:model' } },
+  });
+  return { engine, adapter };
+}
+
+describe('engine.resume (M2-T09; docs/06 section 10.2)', () => {
+  it('suspend, exit, offline-resolve, resume: completes with zero adapter calls', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'lurker-resume-'));
+    const store = new JsonlFileStore({ dir });
+
+    const first = makeEngine(store);
+    const firstOutcome = await first.engine.run(approvalWf, undefined, { runId: 'RUN1' }).result;
+    expect(firstOutcome.status).toBe('suspended');
+    const firstStamp = (await store.load('RUN1')).find((e) => e.kind === 'rand');
+
+    // Offline resolution between processes.
+    const prior = await store.load('RUN1');
+    const suspended = prior.find((e) => e.kind === 'external');
+    const offline = new Replayer({ runId: 'RUN1', store, priorEntries: prior });
+    await offline.resolveSuspended(suspended?.seq ?? -1, {
+      by: 'external',
+      value: { approved: true },
+    });
+
+    // Second process resumes: agent and shim replay, the external
+    // resolves from the fold, the body completes.
+    const second = makeEngine(store, 'MUST NOT RUN');
+    const handle = second.engine.resume('RUN1', approvalWf);
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.value).toEqual({
+      analysis: 'analysis done',
+      stamp: (firstStamp?.value as { value: number }).value,
+      approved: true,
+    });
+    expect(second.adapter.calls).toHaveLength(0);
+    const preview = await handle.preview;
+    expect(preview.misses).toBe(0);
+    expect(preview.orphaned).toEqual([]);
+    expect(preview.invalidResolutions).toEqual([]);
+  });
+
+  it('requires the workflow and rejects a name mismatch', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'lurker-resume-'));
+    const store = new JsonlFileStore({ dir });
+    const { engine } = makeEngine(store);
+    await engine.run(approvalWf, undefined, { runId: 'RUN2' }).result;
+
+    expect(() => engine.resume('RUN2')).toThrow(ConfigError);
+    const other = defineWorkflow({ name: 'other' }, async () => Promise.resolve(1));
+    await expect(engine.resume('RUN2', other).result).rejects.toThrow('binding mismatch');
+  });
+
+  it('warns loudly on a body-hash mismatch and reports orphans honestly', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'lurker-resume-'));
+    const store = new JsonlFileStore({ dir });
+    const { engine } = makeEngine(store);
+    const simpleWf = defineWorkflow({ name: 'simple' }, async (ctx) => {
+      await ctx.agent('a');
+      await ctx.agent('b');
+      return 'done';
+    });
+    await engine.run(simpleWf, undefined, { runId: 'RUN3' }).result;
+
+    const warnings: string[] = [];
+    const spy = vi
+      .spyOn(process, 'emitWarning')
+      .mockImplementation((warning: string | Error, opts?: { code?: string }) => {
+        warnings.push(typeof opts?.code === 'string' ? opts.code : String(warning));
+      });
+    try {
+      // Same name, edited body: 'b' deleted, 'c' inserted.
+      const editedWf = defineWorkflow({ name: 'simple' }, async (ctx) => {
+        await ctx.agent('a');
+        await ctx.agent('c');
+        return 'done-edited';
+      });
+      const { engine: second, adapter } = makeEngine(store, 'live-c');
+      const handle = second.resume('RUN3', editedWf);
+      const outcome = await handle.result;
+      expect(outcome.status).toBe('ok');
+      expect(warnings).toContain('LURKER_RESUME_HASH_MISMATCH');
+      // Exactly one live call ('c'); 'b' is orphaned, never re-paid.
+      expect(adapter.calls).toHaveLength(1);
+      const preview = await handle.preview;
+      expect(preview.hits).toBe(1);
+      expect(preview.misses).toBe(1);
+      expect(preview.orphaned).toHaveLength(1);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('dry-run performs zero live calls and stops at the exact divergence', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'lurker-resume-'));
+    const store = new JsonlFileStore({ dir });
+    const { engine } = makeEngine(store);
+    const wf = defineWorkflow({ name: 'w' }, async (ctx) => {
+      await ctx.agent('recorded');
+      await ctx.agent('new call');
+      return 'x';
+    });
+    const recordedOnly = defineWorkflow({ name: 'w' }, async (ctx) => {
+      await ctx.agent('recorded');
+      return 'x';
+    });
+    await engine.run(recordedOnly, undefined, { runId: 'RUN4' }).result;
+
+    const { engine: second, adapter } = makeEngine(store, 'MUST NOT RUN');
+    const outcome = await second.resume('RUN4', wf, { dryRun: true }).result;
+    expect(outcome.status).toBe('error');
+    expect(outcome.error?.code).toBe('journal_miss');
+    expect(outcome.error?.message).toContain('would go live');
+    expect(adapter.calls).toHaveLength(0);
+  });
+});

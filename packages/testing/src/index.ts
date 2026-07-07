@@ -8,3 +8,5 @@ export { FakeAdapter, FAKE_MODEL, FAKE_MODEL_REF } from './fake-adapter.js';
 export type { FakeAdapterOptions, FakeCall, FakeResponder } from './fake-adapter.js';
 export { createTestEngine } from './test-engine.js';
 export type { CreateTestEngineOptions, TestEngine, TestRunHandle } from './test-engine.js';
+export { replayRun } from './replay-strict.js';
+export type { ReplayRunOptions } from './replay-strict.js';
