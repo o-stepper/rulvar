@@ -1,6 +1,6 @@
 {
   "name": "@lurker/store-sqlite",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "lurker SQLite store implementing JournalStore and LeasableStore with a fencing epoch.",
   "type": "module",
   "license": "UNLICENSED",
