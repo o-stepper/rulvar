@@ -34,8 +34,10 @@
     "@lurker/openai": "workspace:*"
   },
   "devDependencies": {
+    "@lurker/testing": "workspace:*",
     "@types/node": "catalog:",
     "tsdown": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "zod": "catalog:"
   }
 }

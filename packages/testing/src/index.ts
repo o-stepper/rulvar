@@ -1,13 +1,10 @@
 /**
- * @lurker/testing: lurker test harness: createTestEngine, FakeAdapter, VCR cassettes, replay-strict runs, matchers.
- *
- * M0 scaffold (v0.1.0): no public API yet. The first real surface of this
- * package ships in milestone M1 per docs/10-implementation-plan.md.
+ * @lurker/testing tier 1 (M1-T14): FakeAdapter and createTestEngine for
+ * fast, fully typed, zero-network unit tests through the real engine.
+ * Matchers live at '@lurker/testing/matchers'. VCR cassettes and
+ * replay-strict arrive with M5/M2 (docs/09, section "Test harness").
  */
-
-/**
- * Temporary M0 scaffold marker (M0-T02 acceptance: a sample exported symbol
- * round-trips through build and packs). Removed when the package's first
- * real API lands.
- */
-export const M0_SCAFFOLD = '@lurker/testing' as const;
+export { FakeAdapter, FAKE_MODEL, FAKE_MODEL_REF } from './fake-adapter.js';
+export type { FakeAdapterOptions, FakeCall, FakeResponder } from './fake-adapter.js';
+export { createTestEngine } from './test-engine.js';
+export type { CreateTestEngineOptions, TestEngine, TestRunHandle } from './test-engine.js';

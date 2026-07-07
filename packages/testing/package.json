@@ -13,6 +13,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./matchers": {
+      "types": "./dist/matchers.d.ts",
+      "default": "./dist/matchers.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -34,6 +38,7 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "tsdown": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "zod": "catalog:"
   }
 }

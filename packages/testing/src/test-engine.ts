@@ -1,0 +1,85 @@
+/**
+ * createTestEngine (M1-T14): a full engine over FakeAdapter with zero
+ * network. Orchestration logic is exercised, not mocked around: journal,
+ * scheduler, budget layers, and event stream are all real (docs/09,
+ * section "Tier 1"). Returned handles record their event stream so the
+ * matchers can assert over settled runs.
+ */
+import {
+  createEngine,
+  InMemoryStore,
+  type AgentProfile,
+  type CreateEngineOptions,
+  type Engine,
+  type RunHandle,
+  type RunOptions,
+  type Workflow,
+  type WorkflowEvent,
+} from '@lurker/core';
+import { FakeAdapter, FAKE_MODEL_REF, type FakeResponder } from './fake-adapter.js';
+
+/** A RunHandle that records its own event stream for the matchers. */
+export interface TestRunHandle<R> extends RunHandle<R> {
+  /** Every event emitted by the run, in seq order. */
+  eventsSeen: WorkflowEvent[];
+}
+
+export interface TestEngine extends Engine {
+  run<A, R>(wf: Workflow<A, R>, args: A, opts?: RunOptions): TestRunHandle<R>;
+  /** The adapter instance, for call-level assertions. */
+  fake: FakeAdapter;
+}
+
+export interface CreateTestEngineOptions {
+  agents: Record<string, FakeResponder>;
+  /** Additional profiles; every agents key is auto-registered as an empty profile. */
+  profiles?: Record<string, AgentProfile>;
+  budgetDefaults?: CreateEngineOptions['budgetDefaults'];
+  concurrency?: CreateEngineOptions['concurrency'];
+}
+
+export function createTestEngine(options: CreateTestEngineOptions): TestEngine {
+  const fake = new FakeAdapter({ agents: options.agents });
+  // Pattern keys double as agentTypes; register them as profiles so
+  // ctx.agent({ agentType }) resolves without extra ceremony.
+  const profiles: Record<string, AgentProfile> = { ...options.profiles };
+  for (const key of Object.keys(options.agents)) {
+    if (key !== '*' && profiles[key] === undefined) {
+      profiles[key] = {};
+    }
+  }
+  const engine = createEngine({
+    adapters: [fake],
+    stores: { journal: new InMemoryStore() },
+    defaults: {
+      routing: {
+        loop: FAKE_MODEL_REF,
+        extract: FAKE_MODEL_REF,
+        orchestrate: FAKE_MODEL_REF,
+        plan: FAKE_MODEL_REF,
+        finalize: FAKE_MODEL_REF,
+        summarize: FAKE_MODEL_REF,
+      },
+      profiles,
+    },
+    ...(options.budgetDefaults === undefined ? {} : { budgetDefaults: options.budgetDefaults }),
+    ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),
+  });
+
+  return {
+    fake,
+    resume: (runId, wf) => engine.resume(runId, wf),
+    run<A, R>(wf: Workflow<A, R>, args: A, opts?: RunOptions): TestRunHandle<R> {
+      const handle = engine.run(wf, args, opts);
+      const eventsSeen: WorkflowEvent[] = [];
+      // Record every event type through the callback surface; the
+      // wildcard is emulated by iterating the stream.
+      void (async () => {
+        for await (const event of handle.events) {
+          eventsSeen.push(event);
+        }
+      })().catch(() => undefined);
+      return { ...handle, eventsSeen };
+    },
+  };
+}

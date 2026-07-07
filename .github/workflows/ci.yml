@@ -95,6 +95,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec turbo pack-check
+      - name: Umbrella install smoke on packed tarballs
+        run: node scripts/install-smoke.mjs
 
   docs-lint:
     name: Docs conventions

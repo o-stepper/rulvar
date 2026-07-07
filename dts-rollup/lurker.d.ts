@@ -1,4 +1,6 @@
-import { WorkflowEvent } from "@lurker/core";
+import { InvocationRole, ModelSpec, WorkflowEvent } from "@lurker/core";
+import { ANTHROPIC_MODELS, AnthropicAdapterOptions, anthropic } from "@lurker/anthropic";
+import { OPENAI_MODELS, OpenAiAdapterOptions, openai } from "@lurker/openai";
 export * from "@lurker/core";
 
 //#region src/render-progress.d.ts
@@ -14,4 +16,14 @@ interface RenderProgressOptions {
 */
 declare function renderProgress(events: AsyncIterable<WorkflowEvent>, options?: RenderProgressOptions): Promise<void>;
 //#endregion
-export { type RenderProgressOptions, renderProgress };
+//#region src/defaults.d.ts
+/**
+* Drop-in engine defaults: `createEngine({ ..., defaults: { routing:
+* recommendedDefaults.routing } })`. Hosts override freely; these are
+* data, not engine semantics.
+*/
+declare const recommendedDefaults: {
+  routing: Partial<Record<InvocationRole, ModelSpec>>;
+};
+//#endregion
+export { ANTHROPIC_MODELS, type AnthropicAdapterOptions, OPENAI_MODELS, type OpenAiAdapterOptions, type RenderProgressOptions, anthropic, openai, recommendedDefaults, renderProgress };

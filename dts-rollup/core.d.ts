@@ -1417,6 +1417,12 @@ interface AgentResult<T> {
   transcriptRef: string;
   artifacts?: Artifact[];
   error?: AgentError;
+  /**
+  * Human-readable detail behind `error` (provider message, first schema
+  * issue): feeds the journaled WireError message. Additive to the
+  * docs/06 sketch; never part of identity.
+  */
+  errorMessage?: string;
   /** Present if and only if status === 'escalated'. */
   escalation?: EscalationReport;
 }
