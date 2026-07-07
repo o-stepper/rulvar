@@ -1,0 +1,173 @@
+import { describe, expect, it } from 'vitest';
+
+import { ConfigError } from '../l0/errors.js';
+import { EMPTY_TOOLSET_HASH } from '../l0/schema.js';
+import type { ToolDef, ToolSource } from '../l0/spi/toolsource.js';
+import { tool } from './tool.js';
+import { emptyToolset, resolveToolset } from './toolset-hash.js';
+
+const SESSION = { runId: 'run-1' };
+
+function greet(
+  execute: ToolDef['execute'],
+  overrides?: { version?: string; description?: string },
+) {
+  return tool({
+    name: 'greet',
+    description: overrides?.description ?? 'greets the user',
+    parameters: { type: 'object', properties: { name: { type: 'string' } } },
+    ...(overrides?.version === undefined ? {} : { version: overrides.version }),
+    execute,
+  });
+}
+
+describe('toolset resolution and hashing (M3-T01)', () => {
+  it('an empty or absent tools option is the EMPTY_TOOLSET_HASH', async () => {
+    expect((await resolveToolset(undefined, SESSION)).hash).toBe(EMPTY_TOOLSET_HASH);
+    expect((await resolveToolset([], SESSION)).hash).toBe(EMPTY_TOOLSET_HASH);
+    expect(emptyToolset().hash).toBe(EMPTY_TOOLSET_HASH);
+  });
+
+  it('editing an execute body does not change toolsetHash; bumping version does', async () => {
+    const a = await resolveToolset([greet(() => Promise.resolve('v1 body'))], SESSION);
+    const b = await resolveToolset(
+      [greet(() => Promise.resolve('a completely different implementation body'))],
+      SESSION,
+    );
+    const c = await resolveToolset(
+      [greet(() => Promise.resolve('v1 body'), { version: '2' })],
+      SESSION,
+    );
+    expect(a.hash).toBe(b.hash);
+    expect(c.hash).not.toBe(a.hash);
+  });
+
+  it('changing name, description, or parameters changes toolsetHash', async () => {
+    const base = await resolveToolset([greet(() => Promise.resolve(null))], SESSION);
+    const description = await resolveToolset(
+      [greet(() => Promise.resolve(null), { description: 'greets the user loudly' })],
+      SESSION,
+    );
+    const parameters = await resolveToolset(
+      [
+        tool({
+          name: 'greet',
+          description: 'greets the user',
+          parameters: { type: 'object', properties: { name: { type: 'number' } } },
+          execute: () => Promise.resolve(null),
+        }),
+      ],
+      SESSION,
+    );
+    expect(description.hash).not.toBe(base.hash);
+    expect(parameters.hash).not.toBe(base.hash);
+  });
+
+  it('hash is order-insensitive: contracts sort by name', async () => {
+    const alpha = tool({
+      name: 'alpha',
+      description: 'a',
+      parameters: {},
+      execute: () => Promise.resolve(null),
+    });
+    const beta = tool({
+      name: 'beta',
+      description: 'b',
+      parameters: {},
+      execute: () => Promise.resolve(null),
+    });
+    const ab = await resolveToolset([alpha, beta], SESSION);
+    const ba = await resolveToolset([beta, alpha], SESSION);
+    expect(ab.hash).toBe(ba.hash);
+  });
+
+  it('schema annotations inside parameters do not move the hash', async () => {
+    const annotated = tool({
+      name: 'greet',
+      description: 'greets the user',
+      parameters: {
+        type: 'object',
+        title: 'Greeting arguments',
+        properties: { name: { type: 'string', description: 'who to greet' } },
+      },
+      execute: () => Promise.resolve(null),
+    });
+    const plain = greet(() => Promise.resolve(null));
+    const a = await resolveToolset([annotated], SESSION);
+    const b = await resolveToolset([plain], SESSION);
+    expect(a.hash).toBe(b.hash);
+  });
+
+  it('expands ToolSources and passes the session through', async () => {
+    let seenRunId: string | undefined;
+    const source: ToolSource = {
+      id: 'src',
+      tools: (session) => {
+        seenRunId = session.runId;
+        return Promise.resolve([
+          tool({
+            name: 'from-source',
+            description: 's',
+            parameters: {},
+            execute: () => Promise.resolve(1),
+          }),
+        ]);
+      },
+    };
+    const resolvedSet = await resolveToolset([greet(() => Promise.resolve(null)), source], SESSION);
+    expect(seenRunId).toBe('run-1');
+    expect(resolvedSet.tools.map((t) => t.name).sort()).toEqual(['from-source', 'greet']);
+  });
+
+  it('a duplicate tool name across the toolset is a ConfigError at spawn time', async () => {
+    const source: ToolSource = {
+      id: 'src',
+      tools: () =>
+        Promise.resolve([
+          tool({
+            name: 'greet',
+            description: 'clash',
+            parameters: {},
+            execute: () => Promise.resolve(1),
+          }),
+        ]),
+    };
+    await expect(
+      resolveToolset([greet(() => Promise.resolve(null)), source], SESSION),
+    ).rejects.toThrow(ConfigError);
+  });
+
+  it('tools by registered name are rejected until the sandbox lands (M6)', async () => {
+    await expect(resolveToolset(['by-name'], SESSION)).rejects.toThrow(ConfigError);
+  });
+
+  it('a declared non-inprocess executor fails registration early', async () => {
+    const subprocess = tool({
+      name: 'contained',
+      description: 'x',
+      parameters: {},
+      executor: 'subprocess',
+      execute: () => Promise.resolve(null),
+    });
+    await expect(resolveToolset([subprocess], SESSION)).rejects.toThrow(ConfigError);
+  });
+
+  it('an imported tool with an illegal name is a ConfigError naming the prefix escape hatch', async () => {
+    const source: ToolSource = {
+      id: 'src',
+      tools: () =>
+        Promise.resolve([
+          {
+            kind: 'tool' as const,
+            name: 'bad name',
+            description: 'x',
+            parameters: {},
+            executor: 'inprocess' as const,
+            needsApproval: false,
+            execute: () => Promise.resolve(null as unknown),
+          },
+        ]),
+    };
+    await expect(resolveToolset([source], SESSION)).rejects.toThrow(/prefix/);
+  });
+});

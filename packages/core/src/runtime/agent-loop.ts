@@ -10,7 +10,12 @@
  * Owning specs: docs/06-execution-spec.md, section "Agent runtime
  * binding"; docs/04-model-layer-spec.md (roles, tiers, refusal).
  */
-import type { AgentError, Issue, WireError } from '../l0/errors.js';
+import {
+  NonSerializableValueError,
+  type AgentError,
+  type Issue,
+  type WireError,
+} from '../l0/errors.js';
 import type { Json } from '../l0/json.js';
 import type {
   ChatRequest,
@@ -19,13 +24,17 @@ import type {
   ModelRef,
   Msg,
   Part,
+  ToolContract,
   Usage,
 } from '../l0/messages.js';
 import type { ProviderAdapter } from '../l0/spi/provider.js';
+import type { ToolContext, ToolDef } from '../l0/spi/toolsource.js';
 import type { Out, SchemaSpec } from '../l0/schema.js';
 import { validateSchemaSpec } from '../l0/schema.js';
+import { toJournalValue } from '../journal/serializable.js';
 import type { ResolvedInvocation } from '../model/router.js';
 import { selectStructuredOutputTier, type StructuredOutputTier } from '../model/caps.js';
+import { DEFAULT_MODEL_RETRY_ATTEMPTS, ModelRetry } from './model-retry.js';
 import {
   applyStructuredOutputTier,
   extractCandidate,
@@ -113,6 +122,19 @@ export interface BudgetHooks {
 /** Reason marker distinguishing a budget-ceiling abort from host cancellation. */
 export const BUDGET_ABORT_REASON = 'lurker:budget-ceiling';
 
+/**
+ * The spawn's frozen toolset plus the per-call context factory, prepared
+ * by the ctx layer (M3-T01). The contracts are the canonical identity
+ * projection already hashed into the spawn's content key; the loop sends
+ * exactly them to the model.
+ */
+export interface ToolRuntime {
+  defs: ToolDef[];
+  contracts: ToolContract[];
+  /** Mints a per-call ToolContext (fresh tool span under the agent span). */
+  contextFor(toolName: string): ToolContext;
+}
+
 export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   prompt: string;
   schema?: S;
@@ -120,6 +142,8 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   canonicalSchema?: JsonSchema;
   adapter: ProviderAdapter;
   resolved: ResolvedInvocation;
+  /** The resolved toolset; absent = no tools declared (docs/08). */
+  tools?: ToolRuntime;
   /**
    * Separate final extract invocation, present only when the role trigger
    * protocol demands one: schema set AND (routing directs extract to a
@@ -139,6 +163,8 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
   /** Bounded schema re-prompt attempts; default 2 (docs/06, Appendix A). */
   schemaRetryAttempts?: number;
+  /** Bounded ModelRetry conversions per tool call chain; default 2 (Appendix A). */
+  modelRetryAttempts?: number;
   agentType?: string;
   label?: string;
   now?: () => number;
@@ -332,6 +358,7 @@ function buildRequest(
   resolved: ResolvedInvocation,
   messages: Msg[],
   limits: EffectiveUsageLimits,
+  tools?: ToolContract[],
 ): ChatRequest {
   const req: ChatRequest = { model: resolved.model, messages };
   if (resolved.wireEffort !== undefined) {
@@ -342,6 +369,9 @@ function buildRequest(
   }
   if (limits.maxOutputTokensPerTurn !== undefined) {
     req.maxOutputTokens = limits.maxOutputTokensPerTurn;
+  }
+  if (tools !== undefined && tools.length > 0) {
+    req.tools = tools;
   }
   return req;
 }
@@ -355,6 +385,86 @@ function assistantMsg(turn: CollectedTurn): Msg {
     parts.push({ type: 'tool-call', id: call.id, name: call.name, args: call.args });
   }
   return { role: 'assistant', parts };
+}
+
+/**
+ * Executes one model-issued tool call to a tool-result part. Failures are
+ * surfaced to the model as error tool results and never thrown past
+ * policy: unknown names, argument-validation issues, ModelRetry (bounded
+ * per tool call chain), NonSerializableValueError, and arbitrary execute
+ * throws all land as { isError: true } results (docs/08, sections 1.1 and
+ * 2.4; docs/06, section "ModelRetry").
+ */
+async function executeToolCall(options: {
+  call: { id: string; name: string; args: unknown };
+  runtime: ToolRuntime;
+  /** Consecutive ModelRetry conversions per tool name. */
+  retryCounts: Map<string, number>;
+  maxModelRetries: number;
+  events?: RuntimeEventSink;
+  now: () => number;
+}): Promise<Part> {
+  const { call, runtime } = options;
+  const def = runtime.defs.find((candidate) => candidate.name === call.name);
+  options.events?.emit({
+    type: 'tool:start',
+    toolName: call.name,
+    ...(def?.risk === undefined ? {} : { risk: def.risk }),
+  });
+  const startedAt = options.now();
+  const finish = (result: unknown, outcome: 'ok' | 'error'): Part => {
+    options.events?.emit({
+      type: 'tool:end',
+      toolName: call.name,
+      outcome,
+      durationMs: options.now() - startedAt,
+    });
+    const part: Part = { type: 'tool-result', id: call.id, name: call.name, result };
+    if (outcome !== 'ok') {
+      (part as { isError?: boolean }).isError = true;
+    }
+    return part;
+  };
+
+  if (def === undefined) {
+    return finish({ error: `unknown tool '${call.name}'` }, 'error');
+  }
+  const validation = await validateSchemaSpec(def.parameters, call.args);
+  if (!validation.valid) {
+    return finish(
+      {
+        error: `arguments for '${call.name}' failed validation`,
+        issues: validation.issues.map((issue) => issue.message),
+      },
+      'error',
+    );
+  }
+  try {
+    const value = await def.execute(validation.value, runtime.contextFor(call.name));
+    // The returned value MUST be JSON-serializable; it is recorded in the
+    // canonical history and checkpointed (docs/08, section 1.1).
+    const serialized = toJournalValue(value === undefined ? null : value, `tool '${call.name}'`);
+    options.retryCounts.delete(call.name);
+    return finish(serialized, 'ok');
+  } catch (thrown) {
+    if (thrown instanceof ModelRetry) {
+      const used = options.retryCounts.get(call.name) ?? 0;
+      options.retryCounts.set(call.name, used + 1);
+      const exhausted = used >= options.maxModelRetries;
+      return finish(
+        {
+          error: thrown.message,
+          ...(thrown.data === undefined ? {} : { data: thrown.data }),
+          ...(exhausted ? { retriesExhausted: true } : {}),
+        },
+        'error',
+      );
+    }
+    if (thrown instanceof NonSerializableValueError) {
+      return finish({ error: thrown.message }, 'error');
+    }
+    return finish({ error: thrown instanceof Error ? thrown.message : String(thrown) }, 'error');
+  }
 }
 
 /**
@@ -380,6 +490,8 @@ export async function runAgent<S extends SchemaSpec>(
   let agentError: AgentError | undefined;
   let errorMessage: string | undefined;
   let usageApprox = false;
+  let toolCallsUsed = 0;
+  const modelRetryCounts = new Map<string, number>();
 
   const servedBy: ModelRef = options.resolved.ref;
   const tier: StructuredOutputTier | undefined =
@@ -454,7 +566,7 @@ export async function runAgent<S extends SchemaSpec>(
     }
     turns += 1;
 
-    let req = buildRequest(options.resolved, messages, limits);
+    let req = buildRequest(options.resolved, messages, limits, options.tools?.contracts);
     if (options.schema !== undefined && options.canonicalSchema !== undefined && !separateExtract) {
       req = applyStructuredOutputTier(req, tier ?? 'prompt', options.canonicalSchema);
     }
@@ -560,6 +672,42 @@ export async function runAgent<S extends SchemaSpec>(
       status = 'error';
       agentError = { kind: 'terminal', retryable: false };
       break;
+    }
+
+    // Tool dispatch: execute the turn's calls in source order, feed the
+    // results back as one tool-role message, and loop for the next model
+    // turn (docs/08, section "Verdict semantics"; docs/06, section "Agent
+    // runtime binding").
+    if (options.tools !== undefined && outcome.turn.toolCalls.length > 0) {
+      const toolParts: Part[] = [];
+      let toolCallLimitHit = false;
+      for (const call of outcome.turn.toolCalls) {
+        if (limits.maxToolCalls !== undefined && toolCallsUsed >= limits.maxToolCalls) {
+          // Expiry of maxToolCalls is terminal 'limit': paid partial work;
+          // already-executed results stand (docs/06, section "UsageLimits").
+          toolCallLimitHit = true;
+          break;
+        }
+        toolCallsUsed += 1;
+        toolParts.push(
+          await executeToolCall({
+            call,
+            runtime: options.tools,
+            retryCounts: modelRetryCounts,
+            maxModelRetries: options.modelRetryAttempts ?? DEFAULT_MODEL_RETRY_ATTEMPTS,
+            ...(events === undefined ? {} : { events }),
+            now,
+          }),
+        );
+      }
+      if (toolParts.length > 0) {
+        messages.push({ role: 'tool', parts: toolParts });
+      }
+      if (toolCallLimitHit) {
+        status = 'limit';
+        break;
+      }
+      continue loop;
     }
 
     if (options.schema === undefined) {

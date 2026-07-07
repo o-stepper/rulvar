@@ -37,6 +37,8 @@ export interface ScriptedTurn {
   text?: string;
   /** A tool call emitted with assembled args. */
   toolCall?: { name: string; args: unknown };
+  /** Several tool calls in one turn (emitted after toolCall when both set). */
+  toolCalls?: Array<{ name: string; args: unknown }>;
   finish?: FinishInfo['reason'] | FinishInfo;
   usage?: Partial<Usage>;
   /** Emit a terminal error event instead of finish. */
@@ -87,15 +89,19 @@ export function scriptedAdapter(
       if (turn.text !== undefined) {
         yield { type: 'text-delta', text: turn.text };
       }
-      if (turn.toolCall !== undefined) {
-        const id = `id-${call}`;
-        yield { type: 'tool-call-start', id, name: turn.toolCall.name };
+      const toolCalls = [
+        ...(turn.toolCall === undefined ? [] : [turn.toolCall]),
+        ...(turn.toolCalls ?? []),
+      ];
+      for (const [index, toolCall] of toolCalls.entries()) {
+        const id = `id-${call}-${index}`;
+        yield { type: 'tool-call-start', id, name: toolCall.name };
         yield {
           type: 'tool-call-delta',
           id,
-          argsTextDelta: JSON.stringify(turn.toolCall.args),
+          argsTextDelta: JSON.stringify(toolCall.args),
         };
-        yield { type: 'tool-call-end', id, args: turn.toolCall.args };
+        yield { type: 'tool-call-end', id, args: toolCall.args };
       }
       if (turn.usage !== undefined) {
         yield { type: 'usage', usage: turn.usage };
