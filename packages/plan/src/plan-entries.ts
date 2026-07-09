@@ -182,6 +182,8 @@ export type EnginePlanOp =
       to: PlanNodeStatus;
       cause: 'child-result' | 'no-progress' | 'park-landed' | 'cancel-landed';
       causeRef: EntryRef;
+      /** The retained checkpoint anchor recorded at park landing (M7-T08). */
+      checkpointRef?: EntryRef;
     }
   | {
       kind: 'resolve_escalation';
@@ -546,6 +548,14 @@ export function applyDecisionOps(
         // 3.9: no orphaned flags, no double checkpoints).
         next.parkRequested = false;
         next.cancelRequested = false;
+      }
+      if (op.to === 'parked') {
+        // The park landed: the request flag clears and the checkpoint
+        // anchor records (docs/03, 11.2; M7-T08).
+        next.parkRequested = false;
+        if (op.checkpointRef !== undefined) {
+          next.checkpointRef = op.checkpointRef;
+        }
       }
       if (op.to === 'done') {
         doneRefs[op.nodeId] = op.causeRef;

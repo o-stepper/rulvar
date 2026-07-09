@@ -95,7 +95,13 @@ import { AdmissionController, type AdmitVerdict } from '../orchestrator/admissio
 import { makeOrchestratorWorkflow, type OrchestrateOptions } from '../orchestrator/orchestrate.js';
 import { toJournalValue } from '../journal/serializable.js';
 import { admissionReserveUsd, ROOT_ACCOUNT, type RunBudget, type Spend } from './budget.js';
-import { ctxRuntimes, kOnRunning, kTerminalTool, type InternalAgentHooks } from './internal.js';
+import {
+  ctxRuntimes,
+  kBootCheckpoint,
+  kOnRunning,
+  kTerminalTool,
+  type InternalAgentHooks,
+} from './internal.js';
 import { Semaphore } from './scheduler.js';
 import type { ExternalRegistry } from './external.js';
 
@@ -1371,6 +1377,13 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     const checkpointPlumbing: NonNullable<Parameters<typeof runAgent<S>>[0]['checkpoint']> = {
       load: async () => {
         if (danglingRunning === undefined) {
+          // Park/unpark continuation and the DEF-5 graft boot (M7-T08):
+          // a fresh dispatch may boot from a retained donor checkpoint.
+          const bootRef = (opts as InternalAgentHooks)[kBootCheckpoint];
+          if (bootRef !== undefined) {
+            const donorBlob = await internals.transcripts.get(bootRef);
+            return donorBlob === null ? undefined : decodeCheckpoint(donorBlob);
+          }
           return undefined;
         }
         const blob = await internals.transcripts.get(ckptRef);

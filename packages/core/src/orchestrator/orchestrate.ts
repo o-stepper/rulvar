@@ -26,6 +26,7 @@ import type { AgentResult } from '../runtime/agent-loop.js';
 import type { UsageLimits } from '../runtime/usage-limits.js';
 import { profileCard } from '../model/profile-card.js';
 import {
+  kBootCheckpoint,
   kOnRunning,
   kTerminalTool,
   runtimeOf,
@@ -148,6 +149,9 @@ function resolveDispatchOpts(
   }
   if (extended.escalation !== undefined) {
     opts.escalation = extended.escalation;
+  }
+  if (extended.bootCheckpointRef !== undefined) {
+    (opts as Record<PropertyKey, unknown>)[kBootCheckpoint] = extended.bootCheckpointRef;
   }
   return opts;
 }
