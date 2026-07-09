@@ -311,6 +311,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
       byAgentType: new Map(),
       byRole: new Map(),
       unpriced: [],
+      orchestrator: { spentUsd: 0, wakes: 0, forcedFinish: false, reserveUsedUsd: 0 },
     },
     priceUsd,
     ...(options.isolation === undefined ? {} : { isolation: options.isolation }),

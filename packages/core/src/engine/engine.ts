@@ -436,6 +436,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         byAgentType: new Map(),
         byRole: new Map(),
         unpriced: [],
+        orchestrator: { spentUsd: 0, wakes: 0, forcedFinish: false, reserveUsedUsd: 0 },
       },
       priceUsd: (servedBy, usage) => priceUsd(servedBy, usage),
       runSignal: controller.signal,
@@ -534,8 +535,10 @@ export function createEngine(options: CreateEngineOptions): Engine {
           value = raced.result;
         }
         if (status !== 'suspended' && budget.exhausted) {
+          // The workflow-returned value SURVIVES exhaustion: the DEF-7
+          // finalize fallback synthesizes a partial result and exhaustion
+          // is never null (docs/07, 12.4).
           status = 'exhausted';
-          value = undefined;
         } else if (status !== 'suspended' && controller.signal.aborted) {
           status = 'cancelled';
           wireError = {
@@ -593,7 +596,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
         usage: ledger.usage,
         cost: buildCostReport(internals.cost, ledger.usd),
       };
-      if (value !== undefined && status === 'ok') {
+      if (value !== undefined && (status === 'ok' || status === 'exhausted')) {
+        // Exhaustion is never null when a value exists: the DEF-7
+        // finalize fallback synthesizes the partial (docs/07, 12.4).
         outcome.value = value;
       }
       if (wireError !== undefined) {

@@ -168,7 +168,7 @@ describe('ModelLadder integration (M7-T10)', () => {
         },
       },
     });
-    const handle = orchestratePlanned(engine, 'ladder run', {});
+    const handle = orchestratePlanned(engine, 'ladder run', { budget: { capUsd: 5 } });
     const outcome = await handle.result;
     expect(outcome.status).toBe('ok');
 
@@ -220,7 +220,7 @@ describe('ModelLadder integration (M7-T10)', () => {
     });
     const resumed = resumedEngine.resume(
       handle.runId,
-      makeOrchestratorWorkflow('ladder run', { extension: planRunner({}) }),
+      makeOrchestratorWorkflow('ladder run', { budget: { capUsd: 5 }, extension: planRunner({}) }),
     );
     const resumedOutcome = await resumed.result;
     expect(resumedOutcome.status).toBe('ok');
@@ -258,7 +258,7 @@ describe('ModelLadder integration (M7-T10)', () => {
         },
       },
     });
-    const handle = orchestratePlanned(engine, 'verify run', {});
+    const handle = orchestratePlanned(engine, 'verify run', { budget: { capUsd: 5 } });
     const outcome = await handle.result;
     expect(outcome.status).toBe('ok');
 
@@ -312,6 +312,7 @@ describe('ModelLadder integration (M7-T10)', () => {
     // ONE spawn unit: the add_task admission consumes it; the rung
     // respawn is then denied by the frozen vector (docs/07, 11.3).
     const handle = orchestratePlanned(engine, 'denied run', {
+      budget: { capUsd: 5 },
       plan: { limits: { maxTotalSpawns: 1 } },
     });
     const outcome = await handle.result;
@@ -366,7 +367,7 @@ describe('ModelLadder integration (M7-T10)', () => {
         profiles: { climber: { description: 'climbs', model: { ladder } } },
       },
     });
-    const handle = orchestratePlanned(engine, 'spot run', {});
+    const handle = orchestratePlanned(engine, 'spot run', { budget: { capUsd: 5 } });
     const outcome = await handle.result;
     expect(outcome.status).toBe('ok');
 
@@ -427,7 +428,7 @@ describe('half-escalated ladder resume (M7-T10)', () => {
         profiles,
       },
     });
-    const handle = orchestratePlanned(engine, 'half ladder', {});
+    const handle = orchestratePlanned(engine, 'half ladder', { budget: { capUsd: 5 } });
     for (;;) {
       if (adapter.calls.some((req) => req.model === 'strong')) {
         break;
@@ -493,7 +494,7 @@ describe('half-escalated ladder resume (M7-T10)', () => {
     });
     const resumed = resumedEngine.resume(
       handle.runId,
-      makeOrchestratorWorkflow('half ladder', { extension: planRunner({}) }),
+      makeOrchestratorWorkflow('half ladder', { budget: { capUsd: 5 }, extension: planRunner({}) }),
     );
     const outcome = await resumed.result;
     expect(outcome.status).toBe('ok');

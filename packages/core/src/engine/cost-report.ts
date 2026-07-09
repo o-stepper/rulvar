@@ -38,13 +38,23 @@ export function buildCostReport(attribution: CostAttribution, totalUsd: number):
   for (const [role, usd] of attribution.byRole) {
     byRole[role] = usd;
   }
+  const orchestrator = attribution.orchestrator ?? {
+    spentUsd: 0,
+    wakes: 0,
+    forcedFinish: false,
+    reserveUsedUsd: 0,
+  };
   return {
     totalUsd,
     byModel: Object.fromEntries(attribution.byModel),
     byPhase: Object.fromEntries(attribution.byPhase),
     byAgentType: Object.fromEntries(attribution.byAgentType),
     byRole,
-    orchestrator: zeroOrchestrator(),
+    orchestrator: {
+      ...orchestrator,
+      // H-OrchShare: the epsilon-floored share (docs/06, Appendix A).
+      share: orchestrator.spentUsd / Math.max(totalUsd, 0.01),
+    },
     unpriced: attribution.unpriced,
   };
 }

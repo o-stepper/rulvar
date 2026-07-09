@@ -94,7 +94,7 @@ describe('reuse-by-reference integration (DEF-5; M7-T07)', () => {
         profiles: { worker: { description: 'worker' } },
       },
     });
-    const handle = orchestratePlanned(engine, 'reuse test', {});
+    const handle = orchestratePlanned(engine, 'reuse test', { budget: { capUsd: 5 } });
     const outcome = await handle.result;
     expect(outcome.status).toBe('ok');
 

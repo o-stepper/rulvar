@@ -173,7 +173,7 @@ describe('park-unpark integration (round-2 cassette shape)', () => {
         profiles: { worker: { description: 'worker', tools: [echo] } },
       },
     });
-    const handle = orchestratePlanned(engine, 'park test', {});
+    const handle = orchestratePlanned(engine, 'park test', { budget: { capUsd: 5 } });
     const outcome = await handle.result;
     expect(outcome.status).toBe('ok');
 

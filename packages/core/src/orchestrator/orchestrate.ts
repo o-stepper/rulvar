@@ -34,6 +34,8 @@ import {
   type InternalAgentHooks,
 } from '../engine/internal.js';
 import { ROOT_ACCOUNT } from '../engine/budget.js';
+import { OrchestratorCapConfigError } from '../l0/errors.js';
+import { deriverV2 } from '../journal/keyderiver.js';
 import type { AgentOpts, AgentProfile, Workflow } from '../engine/ctx.js';
 import { defineWorkflow } from '../engine/ctx.js';
 import type { Engine } from '../engine/engine.js';
@@ -213,23 +215,77 @@ export function makeOrchestratorWorkflow(
     // The orchestrator's own sub-account (docs/06 5.5). M6 wires the
     // account and its layer-2/3 enforcement when a cap resolves; the
     // reserve decision entries and the at-cap freeze are M7 (DEF-7).
+    const extension = opts?.extension;
     let orchestratorAccount: string | undefined;
-    if (opts?.budget !== undefined) {
+    let capState:
+      | {
+          effectiveCapUsd: number;
+          finalizeReserveUsd: number;
+          finalizeTurns: number;
+          turnEstimateUsd: number;
+          atCap: 'finish-with-partial' | 'fail-run';
+          source: 'call' | 'profile' | 'engine';
+        }
+      | undefined;
+    {
       const runCeiling = internals.budget.accountView(
         callingState.budgetScope ?? ROOT_ACCOUNT,
       )?.ceilingUsd;
-      const fraction = opts.budget.capFraction ?? 0.2;
+      const spec = opts?.budget;
+      const fraction = spec?.capFraction ?? 0.2;
+      if (fraction > 1) {
+        throw new OrchestratorCapConfigError(
+          `capFraction ${String(fraction)} exceeds 1.0 (docs/07, 12.2: opting out of the cap ` +
+            'is explicit only, up to 1.0 inclusive)',
+        );
+      }
       const fromFraction = runCeiling === undefined ? undefined : fraction * runCeiling;
-      const bounds = [opts.budget.capUsd, fromFraction].filter(
+      const bounds = [spec?.capUsd, fromFraction].filter(
         (bound): bound is number => bound !== undefined,
       );
+      if (extension !== undefined && bounds.length === 0) {
+        // An uncapped orchestrator was precisely the defect (DEF-7):
+        // PlanRunner refuses to start BEFORE the first LLM call and
+        // before any journal entries (docs/07, 12.2).
+        throw new OrchestratorCapConfigError(
+          'the orchestrator cap is unresolvable: the run has no USD ceiling and no explicit ' +
+            'budget.capUsd; PlanRunner requires a resolved effectiveCap (docs/07, 12.2)',
+        );
+      }
       if (bounds.length > 0) {
+        const effectiveCapUsd = Math.min(...bounds);
+        // The deterministic per-turn estimate of v1: the engine flat
+        // reserve default; the journaled reserve entry freezes the
+        // ABSOLUTE dollars, so replay never re-derives (docs/06, 5.5).
+        const turnEstimateUsd = internals.flatReserveUsd ?? 0.5;
+        const finalizeTurns = spec?.finalizeTurns ?? 2;
+        const finalizeReserveUsd = spec?.finalizeReserveUsd ?? finalizeTurns * turnEstimateUsd;
+        if (extension !== undefined && effectiveCapUsd < finalizeReserveUsd) {
+          throw new OrchestratorCapConfigError(
+            `effectiveCap ${effectiveCapUsd.toFixed(4)} USD is below the finalize reserve ` +
+              `${finalizeReserveUsd.toFixed(4)} USD (docs/07, 12.2)`,
+          );
+        }
         orchestratorAccount =
           callingState.scope === '' ? 'orchestrator' : `${callingState.scope}/orchestrator`;
         internals.budget.openAccount(orchestratorAccount, {
           parentScope: callingState.budgetScope ?? ROOT_ACCOUNT,
-          ceilingUsd: Math.min(...bounds),
+          ceilingUsd: effectiveCapUsd,
         });
+        if (extension !== undefined) {
+          // The reserve registers in the orchestrator account AND the
+          // run root: admission never eats the finalization money, even
+          // against whole-run exhaustion (docs/07, 12.2, 12.6).
+          internals.budget.commitFinalizeReserve(orchestratorAccount, finalizeReserveUsd);
+        }
+        capState = {
+          effectiveCapUsd,
+          finalizeReserveUsd,
+          finalizeTurns,
+          turnEstimateUsd,
+          atCap: spec?.atCap ?? 'finish-with-partial',
+          source: spec?.capUsd !== undefined || spec?.capFraction !== undefined ? 'call' : 'engine',
+        };
       }
     }
 
@@ -247,7 +303,6 @@ export function makeOrchestratorWorkflow(
     const recoveryDone = new Promise<void>((resolve) => {
       releaseRecovery = resolve;
     });
-    const extension = opts?.extension;
     // Extension activity (scheduling edges) serializes on one chain and
     // always precedes wake-trigger evaluation for the settlement that
     // caused it (docs/07, 4.8: quiescence sees the post-scheduling state).
@@ -500,6 +555,95 @@ export function makeOrchestratorWorkflow(
       await runExtensionActivity();
     };
 
+    let capDecisionRef: number | undefined = internals.replayer
+      .snapshot()
+      .find(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+            'orchestrator_budget_cap',
+      )?.seq;
+    const forcedFinishController = new AbortController();
+    let capInFlight = false;
+
+    /**
+     * The at-cap freeze (docs/07, 12.4): EXACTLY one decision entry
+     * strictly before any effects; then the plan freezes for adaptation,
+     * wake triggers except quiescence disarm, and the orchestrator is
+     * driven to the reserved final wake. Crash between the entry and the
+     * effects is ordinary roll-forward: the frozen state re-derives from
+     * the journaled entry (capDecisionRef recovers it at boot).
+     */
+    const triggerCap = async (cause: 'pre-wake' | 'per-turn'): Promise<void> => {
+      // The DEF-7 freeze protocol engages only under PlanRunner (the
+      // extension); plain mode (c) keeps the M6 enforcement layers.
+      if (
+        capDecisionRef !== undefined ||
+        capInFlight ||
+        capState === undefined ||
+        extension === undefined
+      ) {
+        return;
+      }
+      // Exactly ONE cap decision (docs/07, 12.4): the latch closes the
+      // race between concurrently-evaluated wake ordinals.
+      capInFlight = true;
+      const view =
+        orchestratorAccount === undefined
+          ? undefined
+          : internals.budget.accountView(orchestratorAccount);
+      const extras = extension?.digestExtras?.(io) as { planHash?: string } | undefined;
+      const entry = await internals.replayer.appendSinglePhase({
+        scope: callingState.scope,
+        key: deriverV2.deriveKey({ kind: 'orchestrator-budget-cap' }),
+        kind: 'decision',
+        status: 'ok',
+        spanId: internals.spans.mint(callingState.spanId),
+        site: 'orchestrator-budget',
+        value: {
+          decisionType: 'orchestrator_budget_cap',
+          spentUsd: view?.spentUsd ?? 0,
+          capUsd: capState.effectiveCapUsd,
+          finalizeReserveUsd: capState.finalizeReserveUsd,
+          cause,
+          snapshot: {
+            planHash: extras?.planHash ?? '',
+            ledgerSnapshot: internals.replayer.snapshot().length,
+            wakeOrdinal,
+          },
+          fallback: capState.atCap,
+          disarmedTriggers: ['child_terminal', 'escalation', 'budget_threshold'],
+        },
+      });
+      capDecisionRef = entry.seq;
+      internals.events.emit(
+        {
+          type: 'orchestrator:budget',
+          atCap: true,
+          spentUsd: view?.spentUsd ?? 0,
+          capUsd: capState.effectiveCapUsd,
+          finalizeReserveUsd: capState.finalizeReserveUsd,
+        },
+        callingState.spanId,
+      );
+      // The orchestrator's own loop ends at the wake boundary; the
+      // reserved final wake is a FRESH agent entry with the restricted
+      // toolset (docs/07, 12.4 d).
+      forcedFinishController.abort('lurker:forced-finish');
+    };
+
+    /** Layer-1 soft boundary before delivering each wake (docs/07, 12.3). */
+    const overSoftBoundary = (): boolean => {
+      if (capState === undefined || orchestratorAccount === undefined || extension === undefined) {
+        return false;
+      }
+      const view = internals.budget.accountView(orchestratorAccount);
+      return (
+        (view?.spentUsd ?? 0) + capState.turnEstimateUsd >
+        capState.effectiveCapUsd - capState.finalizeReserveUsd
+      );
+    };
+
     const markDelivered = (digest: WakeDigest): void => {
       for (const item of digest.completedDigests) {
         deliveredNodeIds.add(item.nodeId);
@@ -548,6 +692,30 @@ export function makeOrchestratorWorkflow(
         ),
         escalations,
       };
+      if (capState !== undefined && orchestratorAccount !== undefined) {
+        // Passive visibility (docs/07, 12.5): the budget block rides
+        // every digest; there is NO wake trigger on the orchestrator's
+        // own spend.
+        const view = internals.budget.accountView(orchestratorAccount);
+        const root = internals.budget.accountView(callingState.budgetScope ?? ROOT_ACCOUNT);
+        const orchestratorSpentUsd = view?.spentUsd ?? 0;
+        const runSpentUsd = root?.spentUsd ?? 0;
+        const block = {
+          runSpentUsd,
+          runCeilingUsd: root?.ceilingUsd ?? 0,
+          orchestratorSpentUsd,
+          orchestratorCapUsd: capState.effectiveCapUsd,
+          finalizeReserveUsd: capState.finalizeReserveUsd,
+          orchestratorShare: orchestratorSpentUsd / Math.max(runSpentUsd, 0.01),
+          softWarning:
+            orchestratorSpentUsd >= 0.8 * (capState.effectiveCapUsd - capState.finalizeReserveUsd),
+        };
+        (digest as unknown as { budget?: typeof block }).budget = block;
+        internals.events.emit(
+          { type: 'orchestrator:budget', atCap: capDecisionRef !== undefined, ...block },
+          callingState.spanId,
+        );
+      }
       // The extension merges its digest blocks (planHash now; the
       // termination, budget, and reuse blocks complete the coordinated
       // schema in M7-T13).
@@ -786,8 +954,26 @@ export function makeOrchestratorWorkflow(
           if (entryRef === undefined) {
             return;
           }
-          const ready = withQuiescence.filter((trigger) => isReady(trigger));
+          // After the cap only quiescence stays armed (docs/07, 12.4 b).
+          const armed =
+            capDecisionRef === undefined
+              ? withQuiescence
+              : withQuiescence.filter((trigger) => trigger.kind === 'quiescence');
+          const ready = armed.filter((trigger) => isReady(trigger));
           if (ready.length === 0) {
+            return;
+          }
+          if (capDecisionRef === undefined && overSoftBoundary()) {
+            // Layer 1 (docs/07, 12.3): crossing the soft boundary yields
+            // forced finalization INSTEAD of a normal wake. The pending
+            // suspension still resolves (the loop must unwind through the
+            // aborted signal to reach the reserved final wake).
+            void triggerCap('pre-wake').then(() =>
+              external.submitResolution(entryRef, {
+                by: 'engine_fallback',
+                value: buildDigest(ordinal) as unknown as Json,
+              }),
+            );
             return;
           }
           const digest = buildDigest(ordinal) as unknown as Json;
@@ -808,6 +994,7 @@ export function makeOrchestratorWorkflow(
         try {
           const digest = (await digestPromise) as unknown as WakeDigest;
           markDelivered(digest);
+          internals.cost.orchestrator.wakes += 1;
           internals.events.emit(
             {
               type: 'orchestrator:woke',
@@ -837,6 +1024,38 @@ export function makeOrchestratorWorkflow(
     if (extension?.boot !== undefined) {
       await extension.boot(io);
     }
+    const reserveKey = deriverV2.deriveKey({ kind: 'orchestrator-budget-reserve' });
+    if (
+      extension !== undefined &&
+      capState !== undefined &&
+      !internals.replayer
+        .snapshot()
+        .some((entry) => entry.kind === 'decision' && entry.key === reserveKey)
+    ) {
+      // ONE decision entry strictly AFTER termination.init and strictly
+      // BEFORE the orchestrator's first agent entry (XF-09): absolute
+      // dollars, recovered by content key on resume, never re-evaluated.
+      const initRef = internals.replayer
+        .snapshot()
+        .find((entry) => entry.kind === 'termination.init')?.seq;
+      await internals.replayer.appendSinglePhase({
+        scope: callingState.scope,
+        key: reserveKey,
+        kind: 'decision',
+        status: 'ok',
+        spanId: internals.spans.mint(callingState.spanId),
+        site: 'orchestrator-budget',
+        value: {
+          decisionType: 'orchestrator_budget_reserve',
+          capUsd: capState.effectiveCapUsd,
+          finalizeReserveUsd: capState.finalizeReserveUsd,
+          finalizeTurns: capState.finalizeTurns,
+          source: capState.source,
+          pricingVersion: internals.pricingVersion ?? 'unpriced',
+          ...(initRef === undefined ? {} : { terminationInitRef: initRef }),
+        },
+      });
+    }
     const tools = [
       ...buildOrchestratorTools(orchestratorRuntime, cardText),
       ...(extension?.tools(io) ?? []),
@@ -862,12 +1081,134 @@ export function makeOrchestratorWorkflow(
     if (orchestratorAccount !== undefined) {
       orchestratorState.budgetScope = orchestratorAccount;
     }
+    orchestratorState.signal =
+      callingState.signal === undefined
+        ? forcedFinishController.signal
+        : AbortSignal.any([callingState.signal, forcedFinishController.signal]);
+
+    /**
+     * The reserved final wake (docs/07, 12.4 d): a FRESH agent entry on
+     * the restricted single-tool toolset (a different toolsetHash), a
+     * prompt deterministically derived from the journaled cap decision
+     * and the pinned digest, and a finalizeTurns limit, paid from the
+     * reserve. On its failure the engine writes
+     * orchestrator_finalize_fallback and SYNTHESIZES a deterministic
+     * partial result by pure fold, without a single LLM call.
+     */
+    const runForcedFinish = async (): Promise<unknown> => {
+      const capEntry = internals.replayer.snapshot().find((entry) => entry.seq === capDecisionRef);
+      const capValue = capEntry?.value as
+        { snapshot?: { planHash?: string; wakeOrdinal?: number } } | undefined;
+      const finishOnly = buildOrchestratorTools(orchestratorRuntime, cardText).filter(
+        (tool) => tool.name === FINISH_TOOL_NAME,
+      );
+      internals.cost.orchestrator.forcedFinish = true;
+      const finalizeTurns = capState?.finalizeTurns ?? 2;
+      const finalOpts: AgentOpts & InternalAgentHooks & { result: 'full' } = {
+        role: 'orchestrate',
+        result: 'full',
+        tools: finishOnly,
+        limits: { maxTurns: finalizeTurns },
+        ...(opts?.model === undefined ? {} : { model: opts.model }),
+        [kTerminalTool]: { name: FINISH_TOOL_NAME },
+      };
+      const finalState: CtxScopeState = { ...callingState };
+      if (orchestratorAccount !== undefined) {
+        finalState.budgetScope = orchestratorAccount;
+      }
+      const digest = buildDigest(wakeOrdinal);
+      const reserveBaseline =
+        orchestratorAccount === undefined
+          ? 0
+          : (internals.budget.accountView(orchestratorAccount)?.spentUsd ?? 0);
+      const final = await runtime.runInScope(finalState, () =>
+        (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
+          [
+            'The orchestrator budget cap was reached (decision entry ' +
+              `${String(capDecisionRef ?? -1)}). The plan is frozen; admitted work has ` +
+              'settled. Produce the FINAL result of the run from the digest below by ' +
+              'calling finish({ result }) EXACTLY once. No other tool exists.',
+            `PLAN HASH: ${capValue?.snapshot?.planHash ?? ''}`,
+            `DIGEST: ${JSON.stringify(digest)}`,
+          ].join('\n'),
+          finalOpts,
+        ),
+      );
+      if (orchestratorAccount !== undefined) {
+        const view = internals.budget.accountView(orchestratorAccount);
+        internals.cost.orchestrator.spentUsd = view?.spentUsd ?? 0;
+        internals.cost.orchestrator.reserveUsedUsd = Math.max(
+          0,
+          (view?.spentUsd ?? 0) - reserveBaseline,
+        );
+      }
+      if (final.status === 'ok') {
+        return final.output;
+      }
+      const reason =
+        final.error?.kind === 'schema-mismatch'
+          ? 'schema-exhausted'
+          : final.error?.kind === 'budget'
+            ? 'ceiling-abort'
+            : 'turns-exhausted';
+      const fallbackKey = deriverV2.deriveKey({ kind: 'orchestrator-finalize-fallback' });
+      if (
+        !internals.replayer
+          .snapshot()
+          .some((entry) => entry.kind === 'decision' && entry.key === fallbackKey)
+      ) {
+        await internals.replayer.appendSinglePhase({
+          scope: callingState.scope,
+          key: fallbackKey,
+          kind: 'decision',
+          status: 'ok',
+          spanId: internals.spans.mint(callingState.spanId),
+          site: 'orchestrator-budget',
+          value: {
+            decisionType: 'orchestrator_finalize_fallback',
+            reason,
+            turnsUsed: final.turns,
+            foldParams: {
+              planHash: capValue?.snapshot?.planHash ?? '',
+              digestOrdinalMax: wakeOrdinal,
+            },
+          },
+        });
+      }
+      // The synthesized partial: a pure fold over the settled records
+      // and the frozen plan snapshot; exhaustion is never null.
+      internals.budget.markExhausted();
+      return {
+        forcedFinishFallback: true,
+        planHash: capValue?.snapshot?.planHash ?? '',
+        completed: [...records.values()]
+          .filter((record) => record.settled !== undefined)
+          .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal)
+          .map((record) => digestOf(record, record.settled as AgentResult<unknown>)),
+      };
+    };
+
+    if (capDecisionRef !== undefined) {
+      // Resume roll-forward (crash between the cap decision and its
+      // effects): the frozen state re-derives from the entry; the main
+      // loop is not re-entered.
+      return await runForcedFinish();
+    }
     const result = await runtime.runInScope(orchestratorState, () =>
       (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
         orchestratorPrompt(goal, opts?.maxSpawns, extension?.promptLines?.()),
         agentOpts,
       ),
     );
+    if (capDecisionRef !== undefined) {
+      // The cap fired while the loop was suspended in a wake; the
+      // forced-finish abort ended it (docs/07, 12.4 d).
+      return await runForcedFinish();
+    }
+    if (orchestratorAccount !== undefined) {
+      internals.cost.orchestrator.spentUsd =
+        internals.budget.accountView(orchestratorAccount)?.spentUsd ?? 0;
+    }
     if (result.status !== 'ok') {
       throw new ConfigError(
         `the orchestrator agent terminated with status '${result.status}'` +

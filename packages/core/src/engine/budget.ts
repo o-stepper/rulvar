@@ -256,6 +256,16 @@ export class RunBudget {
     return this.exhaustedInternal;
   }
 
+  /**
+   * Marks the run exhausted without a ceiling event: the orchestrator
+   * finalize fallback maps to outcome 'exhausted' with the synthesized
+   * partial value (DEF-7, docs/07 12.4; exhaustion is never null).
+   */
+  markExhausted(): void {
+    this.exhaustedInternal = true;
+    this.emitUpdate();
+  }
+
   get committedReserveUsd(): number {
     return this.root.committedReserveUsd;
   }
@@ -284,7 +294,9 @@ export class RunBudget {
     for (const account of chain) {
       if (
         account.ceilingUsd !== undefined &&
-        account.spentUsd + account.committedReserveUsd >= account.ceilingUsd
+        // The finalize reserve is untouchable by admission (DEF-7).
+        account.spentUsd + account.committedReserveUsd + account.finalizeReserveUsd >=
+          account.ceilingUsd
       ) {
         if (account.scope === ROOT_ACCOUNT) {
           this.exhaustedInternal = true;
@@ -322,6 +334,24 @@ export class RunBudget {
     for (const account of this.chainOf(accountScope)) {
       account.committedReserveUsd += reserveUsd;
     }
+    this.emitUpdate();
+  }
+
+  /**
+   * Registers the orchestrator finalize reserve (DEF-7, docs/07 12.2):
+   * absolute dollars set on the named account AND the run root, so
+   * admission never lets any spawn eat the finalization money even
+   * against whole-run exhaustion. Kept SEPARATE from committedReserveUsd
+   * (the block checks add both), so remainders never double-count.
+   * Idempotent: re-registering on resume keeps the journaled amount.
+   */
+  commitFinalizeReserve(scope: string, reserveUsd: number): void {
+    const account = this.accounts.get(scope);
+    if (account === undefined) {
+      throw new ConfigError(`unknown budget account '${scope}' for the finalize reserve`);
+    }
+    account.finalizeReserveUsd = reserveUsd;
+    this.root.finalizeReserveUsd = Math.max(this.root.finalizeReserveUsd, reserveUsd);
     this.emitUpdate();
   }
 
