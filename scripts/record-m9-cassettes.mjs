@@ -87,6 +87,50 @@ const SCENARIOS = [
     plan.runLegacyJournalResume,
   ],
   [
+    'oscillation-full-reuse',
+    'DEF-5: an escalated-terminal branch severed by cancel_task and re-added byte-identically ' +
+      'links reuse_full: the embedded verdict, the shared node.link, and the by-ref root are ' +
+      'present; the reused subtree costs zero live calls and reclaimedUsdAtLink carries the ' +
+      'donor spend (docs/03, 9.4/9.5).',
+    plan.runOscillationFullReuse,
+  ],
+  [
+    'graft-partial-subtree',
+    'DEF-5: the three-rung limit ladder severed mid-top-rung after two completed rung ' +
+      'attempts; the byte-identical re-add grafts exclusively, the completed rungs ' +
+      'forward-match through the scope alias, and only the interrupted rung reruns live, ' +
+      'exactly once (docs/03, 9.5).',
+    plan.runGraftPartialSubtree,
+  ],
+  [
+    'crash-between-link-and-root',
+    'DEF-5: the run is cut strictly AFTER the durable node.link and BEFORE the by-ref root; ' +
+      'the resume rolls forward, the link forward-matches, the root is re-issued, nothing is ' +
+      'paid twice (docs/03, 9.10).',
+    plan.runCrashBetweenLinkAndRoot,
+  ],
+  [
+    'oscillation-guard-trip',
+    'DEF-5: the third re-add of one SpawnKey at maxOscillationsPerKey 2 rejects osc_guard ' +
+      'with the embedded verdict; the run closes through the non-HITL path (docs/03, 9.4).',
+    plan.runOscillationGuardTrip,
+  ],
+  [
+    'worktree-disposed-degrade',
+    'DEF-5: an unpinned worktree graft donor degrades to a fresh admit with the embedded ' +
+      'DedupNote graft_unsafe; the second section verifies reuse_full stays allowed for a ' +
+      'worktree donor with a terminal root (docs/03, 9.4).',
+    plan.runWorktreeDisposedDegrade,
+  ],
+  [
+    'claim-exclusivity-and-chain',
+    'DEF-5: one revision adds two identical tasks (the first grafts exclusively, the second ' +
+      'admits fresh, donor_active); the grafted node is severed and the third add links to ' +
+      'the CHAIN HEAD with the transitive oldest-first drain; oscillationCount reaches 2 ' +
+      '(docs/03, 9.6).',
+    plan.runClaimExclusivityAndChain,
+  ],
+  [
     'oscillation-bounded',
     'DEF-2: an escalated branch is cancelled and re-added byte-identically twice; every ' +
       'plan_revise call debits one revisionUnit (including the drop on the linked done ' +

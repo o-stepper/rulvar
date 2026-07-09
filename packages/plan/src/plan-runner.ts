@@ -1989,6 +1989,10 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
               (candidate.value as { decisionType?: string } | undefined)?.decisionType ===
                 'orchestrator_budget_cap',
           );
+        // Exclusive captures are first-wins WITHIN one revision too
+        // (docs/03, 9.4: claim-exclusivity): the second identical add of
+        // the same revision degrades to a fresh admit, donor_active.
+        const claimedThisRevision = new Set<string>();
         const evaluation: RebaseEvaluation = rebasePlanRevision(request, {
           state: fold,
           // The cap decision freezes the plan for ADAPTATION, not for
@@ -2012,6 +2016,20 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
               if (outcome.kind === 'fresh') {
                 freshNotes.set(opIndex, outcome.note);
                 return undefined;
+              }
+              if (
+                outcome.kind === 'admit_graft' &&
+                claimedThisRevision.has(outcome.donor.rootScope)
+              ) {
+                freshNotes.set(opIndex, {
+                  spawnKey,
+                  donorNodeId: outcome.donor.nodeId ?? '',
+                  reason: 'donor_active',
+                });
+                return undefined;
+              }
+              if (outcome.kind === 'admit_graft') {
+                claimedThisRevision.add(outcome.donor.rootScope);
               }
               return buildReuseTransform(op, outcome.kind, outcome.donor);
             }

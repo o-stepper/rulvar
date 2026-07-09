@@ -967,6 +967,7 @@ declare const EMPTY_PLAN_HASH: string;
 declare function engineWith(adapter: ProviderAdapter, store: JournalStore, profiles: Record<string, unknown>, extras?: {
   schemas?: Record<string, unknown>;
   lineage?: Record<string, number>;
+  isolation?: unknown;
 }): Engine;
 declare const BUDGET: {
   readonly capUsd: 5;
@@ -1206,5 +1207,52 @@ declare function runStallStreakClassesAndPinning(): Promise<JournalEntry[]>;
 * admission entry carries sigVersion 1.
 */
 declare function runLegacyJournalResume(): Promise<JournalEntry[]>;
+/**
+* oscillation-full-reuse (DEF-5): a branch whose escalated-terminal root
+* is severed by cancel_task and re-added byte-identically links
+* reuse_full: the verdict is embedded in the plan.revision, the
+* node.link (mode full, claim shared) and the by-ref root are present,
+* the reused subtree costs zero live calls, and reclaimedUsdAtLink
+* equals the donor spend (docs/03, 9.4/9.5).
+*/
+declare function runOscillationFullReuse(): Promise<JournalEntry[]>;
+/**
+* graft-partial-subtree (DEF-5): the three-rung limit ladder is severed
+* mid-top-rung after two completed rung attempts; the byte-identical
+* re-add grafts (exclusive link), the completed rung attempts
+* forward-match through the scope alias, and only the interrupted rung
+* reruns live, exactly once (docs/03, 9.5).
+*/
+declare function runGraftPartialSubtree(): Promise<JournalEntry[]>;
+/**
+* crash-between-link-and-root (DEF-5): the full-reuse scenario is cut
+* strictly AFTER the durable node.link and BEFORE the by-ref root; the
+* resume rolls forward: the link forward-matches, the root is re-issued,
+* and nothing is paid twice (docs/03, 9.10).
+*/
+declare function runCrashBetweenLinkAndRoot(): Promise<JournalEntry[]>;
+/**
+* oscillation-guard-trip (DEF-5): the third re-add of one SpawnKey at
+* maxOscillationsPerKey 2 rejects osc_guard as a typed plan_revise
+* error; the run closes through the non-HITL path and the embedded
+* verdicts replay identically (docs/03, 9.4).
+*/
+declare function runOscillationGuardTrip(): Promise<JournalEntry[]>;
+/**
+* worktree-disposed-degrade (DEF-5): a worktree-isolated graft donor
+* whose tree was NOT retained degrades to a fresh admit with the
+* embedded DedupNote graft_unsafe; a second section verifies reuse_full
+* stays allowed for a worktree donor whose root is terminal (docs/03,
+* 9.4: the pin condition applies to grafts only).
+*/
+declare function runWorktreeDisposedDegrade(): Promise<JournalEntry[]>;
+/**
+* claim-exclusivity-and-chain (DEF-5): one revision adds TWO identical
+* tasks; the first grafts (exclusive claim), the second admits fresh;
+* the grafted node is severed and the key added a third time: the link
+* points at the chain head and the drain is transitive, oldest first;
+* oscillationCount for the key reaches 2 (docs/03, 9.6).
+*/
+declare function runClaimExclusivityAndChain(): Promise<JournalEntry[]>;
 //#endregion
-export { AppliedPlanOp, BUDGET, CassetteTurn, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_STALL_REPLAN_CAP, EMPTY_PLAN_HASH, EnginePlanOp, EscalationDebitRow, EscalationDecisionValue, GateVerdictValue, GuardFallback, GuardVerdictValue, GuardsState, JUDGE_VERDICT_SCHEMA, LEDGER_APPEND_SCHEMA, LEDGER_APPEND_TOOL_NAME, LEDGER_READ_SCHEMA, LEDGER_READ_TOOL_NAME, LEDGER_SECTION_CAPS, LadderVerdictValue, LedgerExport, LedgerFact, LedgerLesson, LedgerObservation, LedgerOp, LedgerRevisionRow, LedgerView, M7CassetteFixture, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, ParkDisposition, PinLedger, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, QueueFailoverDeps, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, UnparkPlacement, agentTypeOfRequest, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalLadderOf, canonicalPlanState, cassetteAdapter, chainEffortOf, clampStartTier, decisionOriginOf, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, engineWith, escalationDecisionKey, executingRungOf, exportLedger, foldLedger, gateVerdictKey, isTerminalPlanStatus, judgePrompt, ladderOfProfile, ladderTriggerOf, ladderVerdictKey, ledgerCapViolation, ledgerOpKey, ledgerSufficiency, normalizeAdaptiveJournal, orchestratePlanned, parkDispositionOf, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, resolvedByOf, runBudgetDeniedRung, runCapFreezeThenFinish, runClassStormSingleTurn, runCombinedLoopDescent, runConfigDriftResume, runCrashBetweenCapAndEffects, runCrashDuringRevision, runDecomposeMintsChildren, runEscalationStormFrozen, runFinalizeFallbackSynthesized, runHalfEscalatedLadder, runLegacyJournalResume, runOscillationBounded, runOscillationFreeze, runParkUnpark, runQueueFailoverDuringForcedFinish, runRaceTimeoutVsLive, runRespawnPreservesCounter, runReviseMidRun, runRevisionExhaustion, runRewordedLessonsCollide, runRungRetryLineage, runStallStreakClassesAndPinning, settled, unparkPlacementOf, wouldCreateDepCycle };
+export { AppliedPlanOp, BUDGET, CassetteTurn, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_STALL_REPLAN_CAP, EMPTY_PLAN_HASH, EnginePlanOp, EscalationDebitRow, EscalationDecisionValue, GateVerdictValue, GuardFallback, GuardVerdictValue, GuardsState, JUDGE_VERDICT_SCHEMA, LEDGER_APPEND_SCHEMA, LEDGER_APPEND_TOOL_NAME, LEDGER_READ_SCHEMA, LEDGER_READ_TOOL_NAME, LEDGER_SECTION_CAPS, LadderVerdictValue, LedgerExport, LedgerFact, LedgerLesson, LedgerObservation, LedgerOp, LedgerRevisionRow, LedgerView, M7CassetteFixture, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, ParkDisposition, PinLedger, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, QueueFailoverDeps, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, UnparkPlacement, agentTypeOfRequest, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalLadderOf, canonicalPlanState, cassetteAdapter, chainEffortOf, clampStartTier, decisionOriginOf, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, engineWith, escalationDecisionKey, executingRungOf, exportLedger, foldLedger, gateVerdictKey, isTerminalPlanStatus, judgePrompt, ladderOfProfile, ladderTriggerOf, ladderVerdictKey, ledgerCapViolation, ledgerOpKey, ledgerSufficiency, normalizeAdaptiveJournal, orchestratePlanned, parkDispositionOf, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, resolvedByOf, runBudgetDeniedRung, runCapFreezeThenFinish, runClaimExclusivityAndChain, runClassStormSingleTurn, runCombinedLoopDescent, runConfigDriftResume, runCrashBetweenCapAndEffects, runCrashBetweenLinkAndRoot, runCrashDuringRevision, runDecomposeMintsChildren, runEscalationStormFrozen, runFinalizeFallbackSynthesized, runGraftPartialSubtree, runHalfEscalatedLadder, runLegacyJournalResume, runOscillationBounded, runOscillationFreeze, runOscillationFullReuse, runOscillationGuardTrip, runParkUnpark, runQueueFailoverDuringForcedFinish, runRaceTimeoutVsLive, runRespawnPreservesCounter, runReviseMidRun, runRevisionExhaustion, runRewordedLessonsCollide, runRungRetryLineage, runStallStreakClassesAndPinning, runWorktreeDisposedDegrade, settled, unparkPlacementOf, wouldCreateDepCycle };

@@ -2038,6 +2038,8 @@ interface DonorCandidate {
 declare class DedupIndex {
   private readonly donors;
   private readonly links;
+  /** node.link values keyed by targetScope: chain ancestry for donors. */
+  private readonly linkByTargetScope;
   private readonly spend;
   static fold(entries: readonly JournalEntry[], options?: {
     priceUsd?: (servedBy: ModelRef | undefined, usage: Usage) => number | undefined;

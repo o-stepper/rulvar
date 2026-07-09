@@ -161,12 +161,17 @@ export function engineWith(
   adapter: ProviderAdapter,
   store: JournalStore,
   profiles: Record<string, unknown>,
-  extras?: { schemas?: Record<string, unknown>; lineage?: Record<string, number> },
+  extras?: {
+    schemas?: Record<string, unknown>;
+    lineage?: Record<string, number>;
+    isolation?: unknown;
+  },
 ): Engine {
   return createEngine({
     adapters: [adapter],
     stores: { journal: store },
     defaults: {
+      ...(extras?.isolation === undefined ? {} : { isolation: extras.isolation as never }),
       // The full role map minus finalize, exactly the createTestEngine
       // posture: the deliberate finalize gap keeps synthesis calls out
       // of tool-bearing cassette agents (docs/04, section 8.3).
