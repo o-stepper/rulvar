@@ -1635,6 +1635,237 @@ declare class LineageIndex {
   knownLogicalTaskIds(): LogicalTaskId[];
 }
 //#endregion
+//#region src/journal/termination.d.ts
+/** The frozen limits vector written into termination.init (docs/07, 11.2). */
+interface TerminationLimits {
+  /** V0, default 32; absolute and non-replenishable. */
+  maxRevisionsPerRun: number;
+  /** S0, default 128; debited on every admitted spawn of any origin. */
+  maxTotalSpawns: number;
+  /** E0, default 2, per lineage; the old name is rejected (XF-10). */
+  maxEscalationsPerLogicalTask: number;
+  /** D0, default 1, ceiling 4; static per-branch limit. */
+  maxDepth: number;
+  /** Maximum declared ladder length per the profile-registry snapshot. */
+  kMax: number;
+  /** B0; immutable after start, no API including HITL can top up. */
+  runBudgetUsdCeiling: number;
+  /** From the orchestrator budget (DEF-7; XF-09). */
+  orchestratorCapUsd: number;
+  /** From the orchestrator budget (DEF-7; XF-09). */
+  finalizeReserveUsd: number;
+}
+/** Appendix A committed defaults for the countable resources. */
+declare const DEFAULT_MAX_REVISIONS_PER_RUN = 32;
+declare const DEFAULT_MAX_TOTAL_SPAWNS = 128;
+/** The countable resource vocabulary (docs/07, 11.5). */
+type TerminationResource = "revisionUnits" | "spawnUnits" | "escalationUnits" | "rungs" | "depth";
+interface LineageCounters {
+  escalationUnitsRemaining: number;
+  rungsRemaining: number;
+}
+interface TerminationAccountSnapshot {
+  revisionUnitsRemaining: number;
+  spawnUnitsRemaining: number;
+  perLineage: Record<LogicalTaskId, LineageCounters>;
+  /** The variant function, a pure fold over the journal (docs/07, 11.4). */
+  phi: number;
+}
+type DebitResult = {
+  ok: true;
+  balanceAfter: number;
+} | {
+  ok: false;
+  deniedEntryRef: EntryRef;
+  resource: TerminationResource;
+};
+/** The value payload of a termination.init entry (docs/07, 11.6). */
+interface TerminationInitValue {
+  limits: TerminationLimits;
+  profileRegistrySnapshotHash: string;
+  phiInitial: number;
+}
+/** The value payload of a termination.denied entry (docs/07, 11.6). */
+interface TerminationDeniedValue {
+  resource: TerminationResource;
+  logicalTaskId?: LogicalTaskId;
+  /** Seq of the calling tool-call or EscalationReport entry. */
+  requestedByRef?: EntryRef;
+  reasonCode: string;
+  snapshotAfter: TerminationAccountSnapshot;
+}
+/**
+* Reads the declared ladder length of one agent profile. The LadderSpec
+* surface ships with M7-T10; the reader is defensive so the snapshot is
+* total over every registry shape (an undeclared ladder has length 1:
+* the single implicit rung).
+*/
+declare function ladderLengthOf(profile: unknown): number;
+/** kMax: the maximum declared ladder length across the registry snapshot. */
+declare function kMaxOf(profiles: Record<string, unknown> | undefined): number;
+/**
+* The deterministic profile-registry snapshot hash frozen inside
+* termination.init: profile names mapped to their declared ladder
+* lengths, canonical JSON, sha256 (docs/07, 11.6).
+*/
+declare function profileRegistrySnapshotHash(profiles: Record<string, unknown> | undefined): string;
+/**
+* Validates a raw limits record into the frozen vector. The pre-rename
+* escalation knob is rejected with a migration hint (XF-10); counters
+* must be non-negative integers; kMax at least 1.
+*/
+declare function validateTerminationLimits(raw: Partial<TerminationLimits> | Record<string, unknown>): TerminationLimits;
+/** C = E0 + kMax: the per-spawn weight of the variant function. */
+declare function lineageWeightOf(limits: TerminationLimits): number;
+/** Phi0 = V0 + C * S0, finite and fixed in termination.init (docs/07, 11.4). */
+declare function phiInitialOf(limits: TerminationLimits): number;
+/** Builds the termination.init value payload (docs/07, 11.6). */
+declare function buildTerminationInitValue(limits: TerminationLimits, registrySnapshotHash: string): TerminationInitValue;
+/** Reads a termination.init entry's payload; undefined when malformed. */
+declare function readTerminationInit(entry: JournalEntry): TerminationInitValue | undefined;
+/**
+* Config-drift detection at resume (docs/07, 11.2): the journaled vector
+* always wins; every differing field is reported for the
+* `termination:config-drift` event. Dynamic budget top-up via restart is
+* excluded by construction.
+*/
+declare function terminationConfigDrift(frozen: TerminationLimits, live: Partial<TerminationLimits>): Array<{
+  field: keyof TerminationLimits;
+  frozenValue: Json;
+  liveValue: Json;
+}>;
+/** Injected appender for termination.denied entries (engine-owned I/O). */
+type TerminationDeniedWriter = (denied: TerminationDeniedValue) => Promise<EntryRef>;
+/**
+* The single per-run TerminationAccount (docs/07, 11.5): debit ONLY. No
+* credit operation exists by construction; reclaim never replenishes
+* anything (DEF-5 interaction, docs/07 7.3). Live: the engine debits the
+* in-memory account, writes the carrying entry with the balance-after,
+* then applies effects. Resume state is rebuilt by TerminationFold from
+* the journal, never from live config.
+*/
+declare class TerminationAccount {
+  readonly limits: TerminationLimits;
+  private revisionUnits;
+  private spawnUnits;
+  private readonly lineages;
+  private readonly deniedWriter?;
+  constructor(options: {
+    limits: TerminationLimits;
+    deniedWriter?: TerminationDeniedWriter;
+  });
+  snapshot(): TerminationAccountSnapshot;
+  /** Phi = V + C * S + sum over live lineages (E + R) (docs/07, 11.4). */
+  phi(): number;
+  /** The current rung index of a lineage (0 before any raise). */
+  rungIndexOf(logicalTaskId: LogicalTaskId): number;
+  /** True when a spawn-unit debit would underflow (pre-reserve check). */
+  get spawnUnitsExhausted(): boolean;
+  get revisionUnitsRemaining(): number;
+  /**
+  * The spawn-admission debit (docs/07, 11.3b): minus one spawnUnit for
+  * an admitted spawn of ANY origin; a NEW lineage receives E0 escalation
+  * units and (K_l - 1) rung transitions in the same atomic step, so the
+  * lemma's per-spawn decrease is C - (E0 + K_l - 1) = kMax - K_l + 1,
+  * at least 1. Synchronous: the caller embeds spawnUnitsAfter in the
+  * decision entry it appends next.
+  */
+  debitSpawn(lineage?: {
+    logicalTaskId: LogicalTaskId;
+    isNew: boolean;
+    ladderLength?: number;
+  }): {
+    ok: true;
+    spawnUnitsAfter: number;
+  } | {
+    ok: false;
+    resource: "spawnUnits";
+  };
+  /**
+  * The plan_revise debit (docs/07, 11.3a and 11.7): minus one
+  * revisionUnit on EVERY journaled plan.revision, regardless of the op
+  * count, guard verdicts, or the auto-rebase outcome; conflict spam is
+  * never a free retry.
+  */
+  debitRevision(): {
+    ok: true;
+    revisionUnitsAfter: number;
+  } | {
+    ok: false;
+    resource: "revisionUnits";
+  };
+  /**
+  * The escalation debit (docs/07, 11.3d): minus one escalationUnit of
+  * the affected lineage, including EACH lineage of a class-level
+  * decision and timeout defaultDecisions. Conditioned on the
+  * countsAgainstLimit flag embedded in the decision entry by the caller.
+  */
+  debitEscalation(logicalTaskId: LogicalTaskId): {
+    ok: true;
+    escalationUnitsAfter: number;
+  } | {
+    ok: false;
+    resource: "escalationUnits";
+  };
+  /**
+  * The ladder-raise debit (docs/07, 11.3c): minus one rung of the
+  * lineage; rungIndex is strictly monotone, there are no demotions and
+  * no runtime startTier promotion in v1.
+  */
+  debitRung(logicalTaskId: LogicalTaskId): {
+    ok: true;
+    rungIndexAfter: number;
+    rungsRemainingAfter: number;
+  } | {
+    ok: false;
+    resource: "rungs";
+  };
+  /**
+  * The docs/07 11.5 debit surface: attempts the named resource and, on
+  * underflow, writes `termination.denied` strictly BEFORE resolving with
+  * the typed failure (the caller surfaces the error only after this
+  * settles). Requires a deniedWriter; pure-fold contexts use the
+  * synchronous per-resource methods instead.
+  */
+  debit(resource: Exclude<TerminationResource, "depth">, lineage?: LogicalTaskId, context?: {
+    requestedByRef?: EntryRef;
+    reasonCode?: string;
+  }): Promise<DebitResult>;
+  private tryDebit;
+  /**
+  * Restores one lineage's counters from journaled balances (fold use
+  * only): never a credit path, the fold consumes recorded balances.
+  */
+  restoreLineage(logicalTaskId: LogicalTaskId, state: LineageCounters & {
+    rungIndex?: number;
+  }): void;
+  /** Fold use only: restores the run counters from journaled balances. */
+  restoreCounters(state: {
+    revisionUnitsRemaining?: number;
+    spawnUnitsRemaining?: number;
+  }): void;
+  private requireLineage;
+  private requireLineageId;
+}
+/** The typed error code surfaced after a denied debit (docs/07, 11.3). */
+declare function exhaustionCodeOf(resource: TerminationResource): string;
+/**
+* The replay fold (docs/07, 11.6): rebuilds the account from
+* termination.init and the debiting decision entries, asserting every
+* embedded balance-after against the recomputation. A divergence raises
+* the typed journal-integrity error at exactly the diverging entry;
+* denials are re-issued from termination.denied with zero live calls.
+*/
+declare function foldTermination(entries: readonly JournalEntry[]): {
+  account: TerminationAccount;
+  initRef: EntryRef;
+  init: TerminationInitValue;
+  denials: Array<{
+    seq: EntryRef;
+    value: TerminationDeniedValue;
+  }>;
+} | undefined;
+//#endregion
 //#region src/journal/checkpoint.d.ts
 /** Leading format byte of the v1 checkpoint blob. */
 declare const CHECKPOINT_FORMAT_V1 = 1;
@@ -2342,7 +2573,124 @@ type ToolEvents = {
   rule?: Json;
   advisory?: Json;
 };
-type WorkflowEventBody = CoreEvents | AgentEvents | ToolEvents;
+/**
+* docs/09 section 1.4, adaptive orchestration, resolutions, and
+* accounting: emitted only by runs where the corresponding machinery is
+* active (applicability per mode: docs/07, section 1). The types land as
+* one closed catalog with M7-T03; emitters arrive with their tasks.
+*/
+type AdaptiveEvents = {
+  type: "plan:revised";
+  entryRef: number;
+  planHash: string;
+  applied: number;
+  dropped: number;
+  revisionUnitsRemaining: number;
+} | {
+  type: "node:parked";
+  nodeId: string;
+  logicalTaskId: string;
+} | {
+  type: "node:cancelled";
+  nodeId: string;
+  logicalTaskId: string;
+} | {
+  type: "node:linked";
+  nodeId: string;
+  logicalTaskId: string;
+  donorRef: number;
+  reclaimedUsd: number;
+} | {
+  type: "orchestrator:woke";
+  digestSeq: number;
+  planHash: string;
+  coversToOrdinal: number;
+  renderSize: number;
+} | {
+  type: "orchestrator:budget";
+  entryRef: number;
+  spentUsd: number;
+  effectiveCapUsd: number;
+  reserveUsedUsd: number;
+  frozen: boolean;
+} | {
+  type: "escalation:raised";
+  entryRef: number;
+  kind: "scope_bigger" | "scope_different" | "blocked_with_evidence";
+  logicalTaskId: string;
+  costToDateUsd: number;
+} | {
+  type: "escalation:decided";
+  entryRef: number;
+  decision: "retry" | "decompose" | "cancel" | "accept";
+  by: ResolutionBy;
+  countsAgainstLimit: boolean;
+} | {
+  type: "spawn:admitted";
+  entryRef: number; /** The admitting arms of the unified AdmitVerdict union (docs/07, 7.2). */
+  verdict: "admit" | "reuse_full" | "admit_graft";
+  agentType: string;
+  logicalTaskId: string;
+  spawnUnitsAfter: number;
+} | {
+  type: "spawn:rejected";
+  entryRef: number;
+  code: string;
+  agentType: string;
+  logicalTaskId?: string;
+} | {
+  type: "verify:failed";
+  entryRef: number;
+  logicalTaskId: string;
+  rung: number;
+  gate: "mechanical" | "judge" | "spot-check";
+} | {
+  type: "ledger:op";
+  entryRef: number;
+  op: "brief_set" | "fact_add" | "fact_supersede" | "lesson_add" | "observation_add";
+} | {
+  type: "stall:detected";
+  logicalTaskId: string;
+  stallStreak: number;
+} | {
+  type: "guard:oscillation";
+  spawnKeyHash: string;
+  oscillationCount: number;
+  limit: number;
+} | {
+  type: "resolution:applied";
+  targetRef: number;
+  entryRef: number;
+  by: ResolutionBy;
+} | {
+  type: "resolution:superseded";
+  targetRef: number;
+  entryRef: number;
+  supersededBy: number;
+  reason: "already_resolved" | "target_abandoned";
+} | {
+  type: "termination:debit";
+  entryRef: number;
+  counter: string;
+  remaining: number;
+  phi: number;
+} | {
+  type: "termination:denied";
+  entryRef: number;
+  counter: string;
+  code: string;
+} | {
+  type: "termination:config-drift";
+  field: string;
+  frozenValue: Json;
+  liveValue: Json;
+} | {
+  type: "journal:compat";
+  code: "HASH_VERSION_TOO_OLD" | "HASH_VERSION_TOO_NEW";
+  found: number;
+  window: [number, number];
+};
+type WorkflowEventBody = CoreEvents | AgentEvents | ToolEvents | AdaptiveEvents;
 /**
 * The envelope (docs/09 section 1.1): seq is an independent per-run
 * telemetry counter, strictly increasing in emission order and DISTINCT
@@ -3199,6 +3547,13 @@ interface AdmitSpec {
   */
   signature?: Partial<ApproachSignatureInputs>;
   /**
+  * The declared ladder length of the resolved profile (K_l); default 1,
+  * the single implicit rung. Under a termination account, a length
+  * beyond the frozen kMax rejects with ladder_exceeds_frozen and a NEW
+  * lineage is allocated E0 escalation units plus K_l - 1 rungs (DEF-2).
+  */
+  ladderLength?: number;
+  /**
   * The children-quota key (maxChildrenPerNode); defaults to
   * parentAccountScope. Orchestrators pass their own scope so each node
   * counts its own children (docs/07, 7.3).
@@ -3224,6 +3579,12 @@ interface AdmissionDecision {
   * replay, never recomputed (docs/03, 10.6). Absent on reject.
   */
   lineage?: SpawnLineage;
+  /**
+  * The declared ladder length recorded for the termination fold
+  * (DEF-2): the replay recomputation reads K_l from the entry, never
+  * from the live registry. Present only under a termination account.
+  */
+  ladderLength?: number;
 }
 declare const DEFAULT_MAX_DEPTH = 1;
 declare const MAX_DEPTH_CEILING = 4;
@@ -3242,6 +3603,7 @@ declare class AdmissionController {
   private readonly journalView?;
   private readonly lineageIndex?;
   private readonly lineageLimits;
+  private terminationAccount?;
   /** Children admitted per parent node this process lifetime. */
   private readonly childrenOf;
   private admittedTotal;
@@ -3267,6 +3629,17 @@ declare class AdmissionController {
   lineage(): LineageIndex | undefined;
   /** The validated lineage limits this controller enforces (DEF-3). */
   get escalationLimits(): EscalationLimits;
+  /**
+  * Binds the run's TerminationAccount (DEF-2; PlanRunner runs only,
+  * docs/07 section 1): from bind time on, every admitted spawn of any
+  * origin debits one spawnUnit atomically with its decision entry, and
+  * a declared ladder longer than the frozen kMax rejects with
+  * ladder_exceeds_frozen. Non-PlanRunner runs never bind an account and
+  * keep the engine lifetime cap semantics unchanged.
+  */
+  bindTermination(account: TerminationAccount): void;
+  /** The bound account, when this is a PlanRunner run (DEF-2). */
+  get termination(): TerminationAccount | undefined;
   /**
   * The lineage half of admission (DEF-3, docs/03 section 10.5): folds are
   * computed live STRICTLY BEFORE the carrying decision entry is appended;
@@ -4655,4 +5028,4 @@ interface SandboxBridge {
 }
 declare function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptions): SandboxBridge;
 //#endregion
-export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbortClass, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, BUDGET_ABORT_REASON, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINISH_SCHEMA, FINISH_TOOL_NAME, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileTranscriptStore, FinishInfo, Gate, GateAudit, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, LurkerError, LurkerErrorCode, MAX_DEPTH_CEILING, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateOptions, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskDigest, TaskSpec, TerminalPatch, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, approachSigCoarse, approachSigOf, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeSchema, checkFloors, checkpointRefFor, childCoveragePrefix, classifyAgentError, classifyAttemptOutcome, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, formatRePrompt, formatScopePath, hashWorkflowBody, hashWorkflowSource, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, lexShellCommand, liftRetainedParts, makeOrchestratorWorkflow, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, priceUsdOf, profileCard, projectHistory, projectIdentity, projectToJsonSchema, providerOf, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, summarizeOutput, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateSchemaSpec, workflowScope, workflowSourceRef };
+export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbortClass, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, BUDGET_ABORT_REASON, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DebitResult, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINISH_SCHEMA, FINISH_TOOL_NAME, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileTranscriptStore, FinishInfo, Gate, GateAudit, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, LurkerError, LurkerErrorCode, MAX_DEPTH_CEILING, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateOptions, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskDigest, TaskSpec, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, approachSigCoarse, approachSigOf, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeSchema, checkFloors, checkpointRefFor, childCoveragePrefix, classifyAgentError, classifyAttemptOutcome, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, foldTermination, formatRePrompt, formatScopePath, hashWorkflowBody, hashWorkflowSource, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, kMaxOf, ladderLengthOf, lexShellCommand, liftRetainedParts, lineageWeightOf, makeOrchestratorWorkflow, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, priceUsdOf, profileCard, profileRegistrySnapshotHash, projectHistory, projectIdentity, projectToJsonSchema, providerOf, readTerminationInit, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, summarizeOutput, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateSchemaSpec, validateTerminationLimits, workflowScope, workflowSourceRef };

@@ -36,6 +36,7 @@ import {
   type SpawnLineage,
   type SpawnLineageOpt,
 } from '../journal/lineage.js';
+import type { TerminationAccount } from '../journal/termination.js';
 import { DEFAULT_FLAT_RESERVE_USD, type RunBudget } from '../engine/budget.js';
 
 export type { LogicalTaskId } from '../journal/lineage.js';
@@ -158,6 +159,13 @@ export interface AdmitSpec {
    */
   signature?: Partial<ApproachSignatureInputs>;
   /**
+   * The declared ladder length of the resolved profile (K_l); default 1,
+   * the single implicit rung. Under a termination account, a length
+   * beyond the frozen kMax rejects with ladder_exceeds_frozen and a NEW
+   * lineage is allocated E0 escalation units plus K_l - 1 rungs (DEF-2).
+   */
+  ladderLength?: number;
+  /**
    * The children-quota key (maxChildrenPerNode); defaults to
    * parentAccountScope. Orchestrators pass their own scope so each node
    * counts its own children (docs/07, 7.3).
@@ -185,6 +193,12 @@ export interface AdmissionDecision {
    * replay, never recomputed (docs/03, 10.6). Absent on reject.
    */
   lineage?: SpawnLineage;
+  /**
+   * The declared ladder length recorded for the termination fold
+   * (DEF-2): the replay recomputation reads K_l from the entry, never
+   * from the live registry. Present only under a termination account.
+   */
+  ladderLength?: number;
 }
 
 export const DEFAULT_MAX_DEPTH = 1;
@@ -211,6 +225,7 @@ export class AdmissionController {
   private readonly journalView?: () => readonly JournalEntry[];
   private readonly lineageIndex?: LineageIndex;
   private readonly lineageLimits: EscalationLimits;
+  private terminationAccount?: TerminationAccount;
   /** Children admitted per parent node this process lifetime. */
   private readonly childrenOf = new Map<string, number>();
   private admittedTotal = 0;
@@ -268,6 +283,26 @@ export class AdmissionController {
   /** The validated lineage limits this controller enforces (DEF-3). */
   get escalationLimits(): EscalationLimits {
     return this.lineageLimits;
+  }
+
+  /**
+   * Binds the run's TerminationAccount (DEF-2; PlanRunner runs only,
+   * docs/07 section 1): from bind time on, every admitted spawn of any
+   * origin debits one spawnUnit atomically with its decision entry, and
+   * a declared ladder longer than the frozen kMax rejects with
+   * ladder_exceeds_frozen. Non-PlanRunner runs never bind an account and
+   * keep the engine lifetime cap semantics unchanged.
+   */
+  bindTermination(account: TerminationAccount): void {
+    if (this.terminationAccount !== undefined && this.terminationAccount !== account) {
+      throw new ConfigError('one run carries exactly one TerminationAccount (docs/07, 11.2)');
+    }
+    this.terminationAccount = account;
+  }
+
+  /** The bound account, when this is a PlanRunner run (DEF-2). */
+  get termination(): TerminationAccount | undefined {
+    return this.terminationAccount;
   }
 
   /**
@@ -378,6 +413,25 @@ export class AdmissionController {
       // consumption (lineage_exhausted), never replenished (docs/03, 10.5).
       return { verdict: { kind: 'reject', reason: evaluated.decision.reason }, statsBefore };
     }
+    if (this.terminationAccount !== undefined) {
+      // DEF-2: a ladder longer than the frozen kMax would break the
+      // variant function's weight C; the new profile serves later runs
+      // (docs/07, 11.8).
+      if ((spec.ladderLength ?? 1) > this.terminationAccount.limits.kMax) {
+        return {
+          verdict: { kind: 'reject', reason: { code: 'ladder_exceeds_frozen' } },
+          statsBefore,
+        };
+      }
+      if (this.terminationAccount.spawnUnitsExhausted) {
+        // The caller writes termination.denied strictly before surfacing
+        // the typed error (docs/07, 11.3), then journals this verdict.
+        return {
+          verdict: { kind: 'reject', reason: { code: 'termination_exhausted' } },
+          statsBefore,
+        };
+      }
+    }
     if (depth > this.maxDepth) {
       return { verdict: { kind: 'reject', reason: { code: 'depth' } }, statsBefore };
     }
@@ -423,17 +477,44 @@ export class AdmissionController {
     this.admittedTotal += 1;
     const lineage = evaluated.decision.lineage;
     this.registerLineageAdmit(lineage.logicalTaskId);
+    // Under a termination account the spawn debit is atomic with this
+    // decision: minus one spawnUnit for an admitted spawn of ANY origin;
+    // a NEW lineage receives its frozen allocation in the same step, and
+    // the balance-after is embedded in the verdict (DEF-2, docs/07 11.3b).
+    let spawnUnitsAfter = this.budget.spawnHeadroom;
+    if (this.terminationAccount !== undefined) {
+      const debited = this.terminationAccount.debitSpawn({
+        logicalTaskId: lineage.logicalTaskId,
+        isNew: spec.lineage === undefined,
+        ladderLength: spec.ladderLength ?? 1,
+      });
+      if (!debited.ok) {
+        // Unreachable in a single-threaded admit (pre-checked above);
+        // kept total for safety.
+        return {
+          verdict: { kind: 'reject', reason: { code: 'termination_exhausted' } },
+          statsBefore,
+        };
+      }
+      spawnUnitsAfter = debited.spawnUnitsAfter;
+    }
     const verdict: AdmitVerdict = {
       kind: 'admit',
       reserve,
-      spawnUnitsAfter: this.budget.spawnHeadroom,
+      spawnUnitsAfter,
       lineage: {
         logicalTaskId: lineage.logicalTaskId,
         isNew: spec.lineage === undefined,
         depth,
       },
     };
-    return { verdict, statsBefore, nodeId: this.mintId(), lineage };
+    return {
+      verdict,
+      statsBefore,
+      nodeId: this.mintId(),
+      lineage,
+      ...(this.terminationAccount === undefined ? {} : { ladderLength: spec.ladderLength ?? 1 }),
+    };
   }
 
   /**
