@@ -1,4 +1,4 @@
-import { CreateEngineOptions, Engine, JournalStore, ModelRef, RunHandle, RunOutcome, Usage, Workflow, WorkflowEvent, WorkflowRegistry } from "@lurker/core";
+import { CreateEngineOptions, Engine, JournalStore, KeyDeriver, LeasableStore, ModelRef, RunHandle, RunMeta, RunOutcome, Usage, Workflow, WorkflowEvent, WorkflowRegistry } from "@lurker/core";
 
 //#region src/io.d.ts
 interface CliIo {
@@ -100,6 +100,55 @@ interface LurkerServer {
 }
 declare function createServer(options: CreateServerOptions): LurkerServer;
 //#endregion
+//#region src/worker.d.ts
+/** Appendix A: the committed reference lease ttl (docs/06). */
+declare const DEFAULT_WORKER_TTL_MS = 6e4;
+interface CreateWorkerOptions {
+  /**
+  * The LeasableStore to lease runs from; MUST be the same journal the
+  * engine writes (Engine.stores.journal), or the fencing epoch would
+  * protect a store nobody appends to. Verified at start.
+  */
+  store: LeasableStore;
+  /** Appendix A: leased runs per worker process; default 1. */
+  concurrency?: number;
+  /** Lease owner id; defaults to a per-process identity. */
+  owner?: string;
+  /**
+  * The store's lease ttl; the worker renews at ttl/3 (the normative
+  * bound, docs/03 12.3). Default: the Appendix A reference 60000 ms.
+  * MUST match the store's configured ttl.
+  */
+  ttlMs?: number;
+  /** Idle sweep cadence for start(); default 1000 ms. */
+  pollMs?: number;
+  /**
+  * The OQ-21 interim channel: original in-process run arguments are not
+  * journaled in v1, so the host re-supplies them per run. Absent means
+  * args resume as undefined (fully replayed prefixes never notice).
+  */
+  argsFor?: (meta: RunMeta) => unknown;
+  /** DEF-6 window extension, in lockstep with the engine assembly. */
+  extraDerivers?: KeyDeriver[];
+  /** Observability hook for per-run failures; never throws into the loop. */
+  onError?: (runId: string, error: unknown) => void;
+}
+interface Worker {
+  /** Begins sweeping on the poll cadence. Idempotent. */
+  start(): void;
+  /**
+  * One sweep: lease and resume eligible runs up to the concurrency
+  * cap. Returns the number of runs picked up. Exposed so hosts and
+  * tests can drive the worker deterministically without timers.
+  */
+  sweep(): Promise<number>;
+  /** Stops sweeping, cancels in-flight runs, releases held leases. */
+  stop(): Promise<void>;
+  /** runIds currently held by this worker. */
+  active(): string[];
+}
+declare function createWorker(engine: Engine, options: CreateWorkerOptions): Worker;
+//#endregion
 //#region src/tui.d.ts
 /** Renders one event to a line, or undefined for silent event types. */
 declare function renderEventLine(event: WorkflowEvent): string | undefined;
@@ -147,4 +196,4 @@ declare function toOtel(run: {
   result: Promise<RunOutcome<unknown>>;
 }, tracer: TracerLike, options?: ToOtelOptions): Promise<number>;
 //#endregion
-export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, DEFAULT_STORE_DIR, HELP, type LurkerServer, type SpanLike, type ToOtelOptions, type TracerLike, assembleEngine, attachProgress, createServer, driveRun, inspectCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, toOtel };
+export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type LurkerServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, assembleEngine, attachProgress, createServer, createWorker, driveRun, inspectCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, toOtel };

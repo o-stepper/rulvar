@@ -2543,6 +2543,7 @@ interface TerminalPatch {
 declare class Replayer {
   private readonly runId;
   private readonly store;
+  private readonly lease?;
   private readonly now;
   private readonly priceUsd?;
   private readonly onWarn?;
@@ -2567,6 +2568,13 @@ declare class Replayer {
     keyRing?: KeyRing;
     disposition?: (op: JournalOperation) => OperationDisposition; /** Replay-strict: any live-class match throws JournalMissError. */
     strict?: boolean;
+    /**
+    * Queue mode: every append carries this lease so a stale holder's
+    * writes are rejected by the fencing epoch (docs/03, section 12.3;
+    * M8 entry amendment). Absent means the single-writer precondition
+    * is asserted instead of fenced (the embedded default).
+    */
+    lease?: Lease;
   });
   /**
   * Forward-matches one live call against the prior journal (docs/03,
@@ -4117,6 +4125,15 @@ interface ResumeOptions {
   dryRun?: boolean;
   /** invalidate/retry: entries to unpin before matching (docs/03, section 6.5). */
   invalidate?: number[];
+  /**
+  * Queue mode: the worker's lease. The engine carries it on EVERY
+  * journal append of this resume (the kernel's single append site), so
+  * a stale worker's writes are rejected by the fencing epoch and never
+  * become visible (docs/06 10.2 and docs/03 12.3, M8 entry amendment;
+  * DEF-6; FR-703). putMeta and transcript blobs stay advisory and
+  * unfenced.
+  */
+  lease?: Lease;
 }
 interface ResumeHandle<R> extends RunHandle<R> {
   /** Resolves at settle with the replay accounting. */

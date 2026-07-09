@@ -18,7 +18,7 @@ import type { WorkflowEventBody } from '../l0/events.js';
 import type { InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
 import type { IsolationProvider } from '../l0/spi/isolation.js';
 import type { ProviderAdapter } from '../l0/spi/provider.js';
-import type { JournalStore } from '../l0/spi/store.js';
+import type { JournalStore, Lease } from '../l0/spi/store.js';
 import type { TranscriptStore } from '../l0/spi/transcript.js';
 import { createCanonicalIdMinter } from '../l0/messages.js';
 import { validateSchemaSpec, type SchemaSpec } from '../l0/schema.js';
@@ -196,6 +196,15 @@ export interface ResumeOptions {
   dryRun?: boolean;
   /** invalidate/retry: entries to unpin before matching (docs/03, section 6.5). */
   invalidate?: number[];
+  /**
+   * Queue mode: the worker's lease. The engine carries it on EVERY
+   * journal append of this resume (the kernel's single append site), so
+   * a stale worker's writes are rejected by the fencing epoch and never
+   * become visible (docs/06 10.2 and docs/03 12.3, M8 entry amendment;
+   * DEF-6; FR-703). putMeta and transcript blobs stay advisory and
+   * unfenced.
+   */
+  lease?: Lease;
 }
 
 export interface ResumeHandle<R> extends RunHandle<R> {
@@ -295,6 +304,8 @@ export function createEngine(options: CreateEngineOptions): Engine {
     priorEntries: JournalEntry[];
     strict: boolean;
     invalidate: number[];
+    /** Queue mode: every journal append of this resume carries it (docs/03, 12.3). */
+    lease?: Lease;
     previewResolve: (preview: ResumePreview) => void;
   }
 
@@ -340,6 +351,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       onWarn: (msg) => bus.emit({ type: 'log', level: 'warn', msg }, rootSpanId),
       keyRing: registryKeyRing(registry),
       ...(resumeCtx === undefined ? {} : { priorEntries: resumeCtx.priorEntries }),
+      ...(resumeCtx?.lease === undefined ? {} : { lease: resumeCtx.lease }),
       strict: resumeCtx?.strict ?? false,
     });
     for (const seqToInvalidate of invalidated) {
@@ -654,8 +666,29 @@ export function createEngine(options: CreateEngineOptions): Engine {
     const handlePromise = (async () => {
       const metas = await journal.listRuns();
       const meta = metas.find((candidate) => candidate.runId === runId);
+      // Bare resume of an in-process run resolves by the recorded name
+      // from defaults.workflows (docs/06, 10.2, M8 entry amendment: the
+      // queue worker resolves workflows through the engine's registry,
+      // never through a parameter of its own). The persisted compiled
+      // source keeps precedence below.
+      let supplied = wf as Workflow<unknown, unknown> | CompiledWorkflow | undefined;
+      if (supplied === undefined && meta?.workflowSourceRef === undefined) {
+        const name = meta?.workflowName;
+        const registered = name === undefined ? undefined : defaults.workflows?.[name];
+        if (registered === undefined) {
+          throw new ConfigError(
+            `engine.resume(runId) with no workflow resolves by the RunMeta-recorded name from ` +
+              `defaults.workflows (docs/06, 10.2); run '${runId}' records ` +
+              (name === undefined
+                ? 'no workflowName'
+                : `workflow '${name}', which is not registered`) +
+              '; register it under defaults.workflows or pass the workflow value',
+          );
+        }
+        supplied = registered as unknown as Workflow<unknown, unknown>;
+      }
       let bound: Workflow<unknown, unknown> | CompiledWorkflow;
-      if (wf === undefined) {
+      if (supplied === undefined) {
         // The compiled-run binding (docs/06, 10.2): rehydrate the
         // persisted source pinned by workflowHash. Dialect validation is
         // not re-run: the hash proves byte identity with the source
@@ -687,15 +720,15 @@ export function createEngine(options: CreateEngineOptions): Engine {
           errorPolicy: 'lenient',
         };
       } else {
-        if (meta?.workflowName !== undefined && meta.workflowName !== wf.name) {
+        if (meta?.workflowName !== undefined && meta.workflowName !== supplied.name) {
           throw new ConfigError(
             `resume binding mismatch: run '${runId}' was started by workflow ` +
-              `'${meta.workflowName}', not '${wf.name}'`,
+              `'${meta.workflowName}', not '${supplied.name}'`,
           );
         }
-        if (wf.kind === 'compiled-workflow') {
+        if (supplied.kind === 'compiled-workflow') {
           // A differing compiled source is a hard mismatch (docs/06, 10.2).
-          const expectedHash = hashWorkflowSource(wf.source);
+          const expectedHash = hashWorkflowSource(supplied.source);
           if (meta?.workflowHash !== undefined && meta.workflowHash !== expectedHash) {
             throw new ConfigError(
               `resume binding mismatch: the supplied CompiledWorkflow source hash differs ` +
@@ -703,17 +736,17 @@ export function createEngine(options: CreateEngineOptions): Engine {
             );
           }
         } else {
-          const expectedHash = hashWorkflowBody(wf as unknown as Workflow<unknown, unknown>);
+          const expectedHash = hashWorkflowBody(supplied);
           if (meta?.workflowHash !== undefined && meta.workflowHash !== expectedHash) {
             // The journal itself decides replay versus live per content keys.
             process.emitWarning(
-              `resume: the body of workflow '${wf.name}' changed since run '${runId}' started; ` +
-                'orphans and misses will be reported honestly',
+              `resume: the body of workflow '${supplied.name}' changed since run '${runId}' ` +
+                'started; orphans and misses will be reported honestly',
               { code: 'LURKER_RESUME_HASH_MISMATCH', type: 'LurkerWarning' },
             );
           }
         }
-        bound = wf as Workflow<unknown, unknown> | CompiledWorkflow;
+        bound = supplied;
       }
       const raw = await journal.load(runId);
       const priorEntries = raw.map((entry) => normalizeEntry(entry));
@@ -724,6 +757,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         priorEntries,
         strict: resumeOptions?.dryRun ?? false,
         invalidate: resumeOptions?.invalidate ?? [],
+        ...(resumeOptions?.lease === undefined ? {} : { lease: resumeOptions.lease }),
         previewResolve,
       });
     })();
