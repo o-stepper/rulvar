@@ -4,7 +4,7 @@ import type { JournalEntry } from '../l0/entries.js';
 import { buildDeriverRegistry, registryKeyRing } from './keyderiver.js';
 import { buildAbandonFold, dispositionHook } from './disposition.js';
 import { JournalMatcher } from './matching.js';
-import { deriveContentKey } from './identity.js';
+import { deriveContentKey, type IdentityInput } from './identity.js';
 import { DedupIndex, evaluateReuse, nodeLinkKey } from './reuse.js';
 
 let seqCounter = 0;
@@ -217,7 +217,7 @@ describe('scope-prefix aliasing (docs/03, 9.5): the matcher', () => {
   it('replays donor entries through the alias with pre-abandon status', () => {
     const registry = buildDeriverRegistry();
     // A donor completed inner step, covered by an abandon.
-    const stepIdentity = { kind: 'step', key: 'step-key', deps: [] } as const;
+    const stepIdentity: IdentityInput = { kind: 'step', key: 'step-key', deps: [] };
     const stepKey = deriveContentKey(stepIdentity);
     const donorRoot = mkEntry({
       kind: 'step',
