@@ -25,6 +25,7 @@ export * from './tools/context.js';
 export * from './tools/mcp.js';
 export * from './tools/isolation.js';
 export * from './journal/identity.js';
+export * from './journal/lineage.js';
 export * from './journal/checkpoint.js';
 export * from './journal/scope.js';
 export * from './journal/serializable.js';

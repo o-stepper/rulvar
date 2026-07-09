@@ -232,13 +232,21 @@ describe('AdmissionController', () => {
       name: 'retry',
       childScope: 'wf:retry:0',
       parentAccountScope: 'run',
-      lineage: { continues: '01PRIOR00000000000000000000' },
+      lineage: { continues: '01PRIOR00000000000000000000', causeRef: 3 },
     });
     if (decision.verdict.kind !== 'admit') {
       throw new Error('expected admit');
     }
     expect(decision.verdict.lineage.logicalTaskId).toBe('01PRIOR00000000000000000000');
     expect(decision.verdict.lineage.isNew).toBe(false);
+    // The computed value block rides the decision (DEF-3, docs/03 10.6).
+    expect(decision.lineage).toMatchObject({
+      logicalTaskId: '01PRIOR00000000000000000000',
+      relation: 'respawn',
+      causeRef: 3,
+      sigVersion: 1,
+      approachTag: 'default',
+    });
   });
 
   it('recoverSettled re-registers counters without committing a reserve', () => {

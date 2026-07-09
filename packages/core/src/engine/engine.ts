@@ -30,6 +30,7 @@ import {
   scanJournalCompatibility,
 } from '../journal/keyderiver.js';
 import { dispositionHook } from '../journal/disposition.js';
+import type { EscalationLimits } from '../journal/lineage.js';
 import type { ResumeReport } from '../journal/matching.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { buildAdapterRegistry, parseModelRef } from '../model/router.js';
@@ -102,6 +103,13 @@ export interface BudgetDefaults {
   childBudgetFraction?: number;
   /** AdmissionController nesting depth; default 1, hard ceiling 4 (docs/07, 7.3). */
   maxDepth?: number;
+  /**
+   * Lineage limits (DEF-3, docs/03 section 10.5): maxEscalationsPerLogicalTask
+   * (default 2) and maxAttemptsPerLogicalTask (default 8), monotonically
+   * consumed. The validator rejects the pre-rename knob name
+   * maxEscalationsPerNode with a migration hint (XF-10).
+   */
+  lineage?: Partial<EscalationLimits>;
 }
 
 export interface CreateEngineOptions {
@@ -363,6 +371,14 @@ export function createEngine(options: CreateEngineOptions): Engine {
       ...(options.budgetDefaults?.flatReserveUsd === undefined
         ? {}
         : { flatReserveUsd: options.budgetDefaults.flatReserveUsd }),
+      // The lineage counter folds read the run journal (DEF-3); limits
+      // ride budgetDefaults and are validated (XF-10 rename rejection).
+      lineage: {
+        journalView: () => replayer.snapshot(),
+        ...(options.budgetDefaults?.lineage === undefined
+          ? {}
+          : { limits: options.budgetDefaults.lineage }),
+      },
     });
     const external = new ExternalRegistry(replayer);
     let transcriptCounter = 0;

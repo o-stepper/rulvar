@@ -37,6 +37,12 @@ import {
   type SchemaSpec,
 } from '../l0/schema.js';
 import { deriveContentKey } from '../journal/identity.js';
+import {
+  canonicalIsolationTag,
+  type LineageStats,
+  type SpawnLineage,
+  type SpawnLineageOpt,
+} from '../journal/lineage.js';
 import { checkpointRefFor, decodeCheckpoint, encodeCheckpoint } from '../journal/checkpoint.js';
 import {
   agentScope,
@@ -177,6 +183,16 @@ export interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   memoizeOutcome?: boolean;
   /** Opt-in; without it 'escalated' is physically unproducible (docs/07 6.4). */
   escalation?: EscalationOptions;
+  /**
+   * Lineage continuation (DEF-3, docs/03 section 10.3): declares this
+   * spawn a rebirth of an existing logical task; absence means a new
+   * lineage root. Never enters the content key. Declaring lineage or
+   * approach journals a spawn-admission decision entry BEFORE dispatch,
+   * carrying the engine-minted LTID and the computed approach signature.
+   */
+  lineage?: SpawnLineageOpt;
+  /** Approach slug entering approachSig, normalized by the engine (DEF-3). */
+  approach?: string;
   /** Admission reserve hint (USD). */
   estCost?: number;
   /** Merged over profile and engine limits (docs/06, section "UsageLimits"). */
@@ -418,6 +434,10 @@ export interface CollectOpts {
 /** Options of ctx.workflow; `key` replaces args in the child identity (docs/03, 1.2). */
 export interface WorkflowCallOpts {
   key?: string;
+  /** Lineage continuation (DEF-3); embedded in the admission decision entry. */
+  lineage?: SpawnLineageOpt;
+  /** Approach slug entering approachSig (DEF-3). */
+  approach?: string;
 }
 
 /**
@@ -540,6 +560,12 @@ export interface RunInternals {
   ) => EscalationDecision | Promise<EscalationDecision>;
   /** Open external suspensions plus the quiescence activity counter (M2-T08). */
   external?: ExternalRegistry;
+  /**
+   * Seqs of spawn-admission decisions already paired with a live
+   * ctx.agent dispatch this process lifetime, so byte-identical repeats
+   * recover THEIR OWN decisions in journal order (DEF-3; M7-T02).
+   */
+  claimedLineageDecisions?: Set<number>;
   mintTranscriptRef: () => string;
   now: () => number;
 }
@@ -1163,6 +1189,99 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       );
     }
     const danglingRunning = matched.kind === 'rerun-dangling' ? matched.running : undefined;
+
+    // A declared lineage block or approach tag journals ONE
+    // spawn-admission decision entry strictly BEFORE dispatch (DEF-3,
+    // docs/03 section 10.6): the engine-minted LTID and the computed
+    // approach signature ride the entry's value part and are read back on
+    // resume, never re-minted. Applicability outside PlanRunner follows
+    // docs/07 section 1: per declared lineage only.
+    if (
+      (opts.lineage !== undefined || opts.approach !== undefined) &&
+      internals.admission !== undefined
+    ) {
+      const admission = internals.admission;
+      const claimed = (internals.claimedLineageDecisions ??= new Set<number>());
+      const prior = internals.replayer.snapshot().find((entry) => {
+        if (entry.kind !== 'decision' || claimed.has(entry.seq)) {
+          return false;
+        }
+        const value = entry.value as
+          | { decisionType?: string; origin?: string; attemptScope?: string; spawnKey?: string }
+          | undefined;
+        return (
+          value?.decisionType === 'spawn-admission' &&
+          value.origin === 'ctx.agent' &&
+          value.attemptScope === state.scope &&
+          value.spawnKey === identityKey
+        );
+      });
+      if (prior !== undefined) {
+        // Replay reads the recorded verdict; a journaled rejection is
+        // re-issued without re-evaluation (docs/03, 10.6).
+        claimed.add(prior.seq);
+        const recorded = prior.value as {
+          reject?: { code: string };
+        };
+        if (recorded.reject !== undefined) {
+          throw new AdmissionRejectedError(
+            `lineage admission rejected agent spawn (${recorded.reject.code}; recorded verdict)`,
+            { data: { reason: recorded.reject as unknown as Json } },
+          );
+        }
+      } else {
+        const evaluated = admission.evaluateLineage({
+          name: agentType,
+          ...(opts.lineage === undefined ? {} : { lineage: opts.lineage }),
+          ...(opts.approach === undefined ? {} : { approach: opts.approach }),
+          signature: {
+            agentType,
+            toolsetHash: toolset.hash,
+            schemaHash: derivedSchemaHash,
+            isolation: canonicalIsolationTag(isolation),
+          },
+        });
+        const decisionValue: {
+          decisionType: 'spawn-admission';
+          origin: 'ctx.agent';
+          attemptScope: string;
+          spawnKey: string;
+          childScope: string;
+          statsBefore?: LineageStats;
+          lineage?: SpawnLineage;
+          reject?: { code: string };
+        } = {
+          decisionType: 'spawn-admission',
+          origin: 'ctx.agent',
+          attemptScope: state.scope,
+          spawnKey: identityKey,
+          // ctx.agent roots are appended in the calling scope; the
+          // lineage fold binds attempts by this slot (docs/03, 2.2).
+          childScope: state.scope,
+          ...(evaluated.statsBefore === undefined ? {} : { statsBefore: evaluated.statsBefore }),
+        };
+        if (evaluated.decision.kind === 'reject') {
+          decisionValue.reject = { code: evaluated.decision.reason.code };
+        } else {
+          decisionValue.lineage = evaluated.decision.lineage;
+        }
+        await internals.replayer.appendSinglePhase({
+          scope: state.scope,
+          key: '',
+          kind: 'decision',
+          status: 'ok',
+          spanId: internals.spans.mint(state.spanId),
+          value: decisionValue,
+        });
+        if (evaluated.decision.kind === 'reject') {
+          throw new AdmissionRejectedError(
+            `lineage admission rejected agent spawn (${evaluated.decision.reason.code})`,
+            { data: { reason: evaluated.decision.reason as unknown as Json } },
+          );
+        }
+        admission.registerLineageAdmit(evaluated.decision.lineage.logicalTaskId);
+      }
+    }
 
     const adapter = adapterOf(loopResolved);
     const caps = adapter.caps(loopResolved.model);
@@ -2096,6 +2215,9 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         name,
         childScope,
         parentAccountScope: budgetAccount,
+        ...(o?.lineage === undefined ? {} : { lineage: o.lineage }),
+        ...(o?.approach === undefined ? {} : { approach: o.approach }),
+        signature: { agentType: name, isolation: 'none' },
       });
       verdict = decision.verdict;
       await internals.replayer.appendSinglePhase({

@@ -1471,6 +1471,170 @@ declare function identityJcs(input: IdentityInput): string;
 */
 declare function deriveContentKey(input: IdentityInput): string;
 //#endregion
+//#region src/journal/lineage.d.ts
+/** Logical-task identity across rebirths (DEF-3); engine-minted ULID. */
+type LogicalTaskId = string;
+/** The closed relation vocabulary of the minting and inheritance table. */
+type LineageRelation = "first" | "respawn" | "rung-retry" | "decompose-child" | "unpark-restart";
+/** approachSig/approachSigCoarse derivation version (docs/03, 10.7). */
+declare const LINEAGE_SIG_VERSION: 1;
+/** Deterministic LTIDs canonized onto legacy journals (docs/03, 10.7). */
+declare const LEGACY_LTID_PREFIX = "legacy:";
+/** The computed lineage record of one spawn-authorizing decision entry. */
+interface LineageRef {
+  logicalTaskId: LogicalTaskId;
+  relation: LineageRelation;
+  /** 0-based, journal order among the LTID's attempts, never wall clock. */
+  attemptOrdinal: number;
+  /** Seq of the causing entry; mandatory for every relation except 'first'. */
+  causeRef?: EntryRef;
+  /** Decomposition chain of parent LTIDs, length <= maxDepth. */
+  ancestry: LogicalTaskId[];
+  approachSig: string;
+  approachSigCoarse: string;
+  sigVersion: typeof LINEAGE_SIG_VERSION;
+}
+/**
+* The value-part lineage block embedded in decision entries: the computed
+* LineageRef plus the normalized tag (docs/03, 10.6: the request part
+* holds the RAW proposal; the value part holds what was COMPUTED and is
+* reused byte-exact on replay).
+*/
+interface SpawnLineage extends LineageRef {
+  approachTag: string;
+}
+/** Attempt outcome classes entering LineageStats (docs/03, 10.3). */
+type AttemptOutcomeClass = "ok" | "escalated" | "task-error" | "transient-error" | "no-progress" | "verify-failed" | "limit" | "abandoned";
+/**
+* The pure lineage fold rendered in plan_view and WakeDigest, always
+* pinned to a snapshot (`uptoSeq`), never a live read inside a turn.
+* `approaches` groups settled history by approachSig; a group whose
+* attempts have not settled yet is omitted (there is no outcome to learn
+* from), while `attemptsUsed` still counts every authorized attempt.
+*/
+interface LineageStats {
+  attemptsUsed: number;
+  escalationsUsed: number;
+  stallStreak: number;
+  approaches: Array<{
+    approachSig: string;
+    approachTag: string;
+    attempts: number;
+    lastOutcome: AttemptOutcomeClass;
+  }>;
+}
+/** The spawn-options lineage block (ctx.agent, ctx.workflow, spawn_agent, add_task). */
+interface SpawnLineageOpt {
+  continues: LogicalTaskId;
+  /** Default 'respawn'. */
+  relation?: Exclude<LineageRelation, "first">;
+  /** Seq of the journal entry that caused the rebirth; mandatory. */
+  causeRef: EntryRef;
+}
+/** Lineage limits, monotonically consumed and never replenished (DEF-3). */
+interface EscalationLimits {
+  /** Default 2; the old name maxEscalationsPerNode is rejected (XF-10). */
+  maxEscalationsPerLogicalTask: number;
+  /** Default 8. */
+  maxAttemptsPerLogicalTask: number;
+}
+declare const DEFAULT_ESCALATION_LIMITS: EscalationLimits;
+/**
+* Validates a lineage-limits config record. The pre-rename knob name is
+* rejected with a migration hint (XF-10): silently honoring it would
+* change semantics (per logical task, not per node).
+*/
+declare function validateEscalationLimits(raw?: Partial<EscalationLimits> | Record<string, unknown>): EscalationLimits;
+/**
+* Approach-tag normalization (docs/03, 10.2): NFC, lowercase, runs of
+* non-alphanumerics collapse into a hyphen, truncate to 32 characters; an
+* empty value canonicalizes to 'default'. Prompt prose never enters any
+* signature: rephrasings collide by construction, not by heuristic.
+*/
+declare function normalizeApproachTag(raw?: string): string;
+/** The isolation string entering approachSigCoarse (docs/03, 10.3). */
+declare function canonicalIsolationTag(spec: IsolationSpec | undefined): string;
+/** The identity inputs of the coarse signature (prompt prose excluded). */
+interface ApproachSignatureInputs {
+  agentType: string;
+  toolsetHash: string;
+  schemaHash: string;
+  isolation: string;
+}
+/**
+* approachSigCoarse = sha256(JCS({ sigVersion, agentType, toolsetHash,
+* schemaHash, isolation })). Feeds the stall detector and the oscillation
+* guard, which keys ACROSS LTID boundaries (docs/07, 3.8).
+*/
+declare function approachSigCoarse(inputs: ApproachSignatureInputs): string;
+/** approachSig = sha256(JCS({ sigVersion, coarse, approachTag })); keys lessons. */
+declare function approachSigOf(coarse: string, tag?: string): string;
+/**
+* The deterministic signature inputs assigned to legacy spawns (journals
+* written before lineage existed) and to attempts whose producers did not
+* record signature inputs: stable constants, never wall-clock, so replay
+* canonizes identically on every engine (docs/03, 10.7).
+*/
+declare const LEGACY_SIGNATURE_INPUTS: ApproachSignatureInputs;
+/** Classifies one settled root terminal into its attempt outcome class. */
+declare function classifyAttemptOutcome(terminal: JournalEntry): AttemptOutcomeClass;
+/**
+* The incremental lineage fold: attempts, escalation debits, stall
+* streaks, single-live-attempt, and legacy canonization, computed from
+* journal entries only. `absorb` is idempotent by seq cursor; every read
+* accepts an optional `uptoSeq` pin so renders stay snapshot-stable
+* (docs/03, 10.4; docs/07, 8.3).
+*/
+declare class LineageIndex {
+  private readonly attemptsByLtid;
+  private readonly escalationsByLtid;
+  /** Registration-order attempt queues per child (scope, key) slot. */
+  private readonly queueByScope;
+  private readonly recordByRootSeq;
+  /** First-closing-wins projection over resolution targets (DEF-4). */
+  private readonly closedTargets;
+  /** Live admits journaled a moment later (single-live-attempt window). */
+  private readonly pendingAdmits;
+  private cursor;
+  /** Registers a live admit strictly before its decision entry lands. */
+  noteAdmitted(logicalTaskId: LogicalTaskId): void;
+  /** Absorbs new entries (seq beyond the cursor); earlier ones are no-ops. */
+  absorb(entries: readonly JournalEntry[]): void;
+  private absorbEntry;
+  private absorbDecision;
+  private readEmbeddedAdmissions;
+  private registerAttempt;
+  private absorbResolution;
+  private absorbAbandon;
+  private absorbSpawnEntry;
+  /**
+  * Binds one dispatch entry to its attempt: the earliest registered
+  * attempt of the slot still waiting for its first dispatch; else the
+  * attempt whose bound key matches (an at-least-once redispatch of the
+  * same slot after cancelled/error/limit); else a legacy attempt is
+  * canonized with the deterministic 'legacy:' + contentHash LTID
+  * (docs/03, 10.7: random ULIDs on replay are forbidden).
+  */
+  private bindRoot;
+  private recordEscalation;
+  private attemptsOf;
+  attemptsUsed(logicalTaskId: LogicalTaskId, uptoSeq?: number): number;
+  escalationsUsed(logicalTaskId: LogicalTaskId, uptoSeq?: number): number;
+  /**
+  * True while the LTID has an unsettled attempt (admitted, dispatched, or
+  * redispatched without a terminal), including admits whose decision
+  * entries have not landed yet. Backs the single-live-attempt invariant:
+  * a competing admit gets `lineage_busy` (docs/03, 10.5).
+  */
+  hasLiveAttempt(logicalTaskId: LogicalTaskId): boolean;
+  /** The stall streak per docs/03, 10.4 (pinnable to a snapshot seq). */
+  stallStreak(logicalTaskId: LogicalTaskId, uptoSeq?: number): number;
+  /** The pinned LineageStats render (docs/03, 10.3). */
+  statsOf(logicalTaskId: LogicalTaskId, uptoSeq?: number): LineageStats;
+  /** Every LTID the fold has seen (diagnostics and renders). */
+  knownLogicalTaskIds(): LogicalTaskId[];
+}
+//#endregion
 //#region src/journal/checkpoint.d.ts
 /** Leading format byte of the v1 checkpoint blob. */
 declare const CHECKPOINT_FORMAT_V1 = 1;
@@ -2939,8 +3103,6 @@ declare class RunBudget {
 }
 //#endregion
 //#region src/orchestrator/admission.d.ts
-/** Logical-task identity across rebirths (DEF-3); engine-minted ULID. */
-type LogicalTaskId = string;
 /** Plan-node identity; engine-minted ULID (docs/07, section 3.1). */
 type NodeId = string;
 /** Kernel contentHash of a spawn's root entry (DEF-5). */
@@ -3020,10 +3182,22 @@ interface AdmitSpec {
   budgetUsd?: number;
   /** Reserve hint; falls back to the flat engine default (docs/06, 5.1). */
   estCostUsd?: number;
-  /** Lineage continuation (DEF-3); absence mints a fresh lineage root. */
-  lineage?: {
-    continues: LogicalTaskId;
-  };
+  /**
+  * Lineage continuation (DEF-3); absence mints a fresh lineage root. A
+  * continuation demands a causeRef: the seq of the entry that caused the
+  * rebirth (docs/03, 10.1, rule 2).
+  */
+  lineage?: SpawnLineageOpt;
+  /** Raw approach tag; normalized by the engine (docs/03, 10.2). */
+  approach?: string;
+  /** Decomposition parent-LTID chain (relation 'decompose-child' only). */
+  ancestry?: LogicalTaskId[];
+  /**
+  * Coarse-signature identity inputs; unspecified fields canonize onto
+  * the deterministic legacy constants so signatures stay byte-stable
+  * (docs/03, 10.2; the toolset/schema registries land in M7-T05).
+  */
+  signature?: Partial<ApproachSignatureInputs>;
   /**
   * The children-quota key (maxChildrenPerNode); defaults to
   * parentAccountScope. Orchestrators pass their own scope so each node
@@ -3036,6 +3210,8 @@ interface AdmissionStatsBefore {
   spawnsBefore: number;
   childrenOfParentBefore: number;
   depth: number;
+  /** The LTID's pinned lineage fold at admit time (DEF-3). */
+  lineage?: LineageStats;
 }
 /** The full admission decision embedded in the carrying entry. */
 interface AdmissionDecision {
@@ -3043,6 +3219,11 @@ interface AdmissionDecision {
   statsBefore: AdmissionStatsBefore;
   /** Node identity minted inside the decision (docs/07, section 5); absent on reject. */
   nodeId?: NodeId;
+  /**
+  * The computed value-part lineage block (DEF-3): reused byte-exact on
+  * replay, never recomputed (docs/03, 10.6). Absent on reject.
+  */
+  lineage?: SpawnLineage;
 }
 declare const DEFAULT_MAX_DEPTH = 1;
 declare const MAX_DEPTH_CEILING = 4;
@@ -3058,6 +3239,9 @@ declare class AdmissionController {
   private readonly flatReserveUsd;
   private readonly maxTotalSpawns?;
   private readonly mintId;
+  private readonly journalView?;
+  private readonly lineageIndex?;
+  private readonly lineageLimits;
   /** Children admitted per parent node this process lifetime. */
   private readonly childrenOf;
   private admittedTotal;
@@ -3069,7 +3253,52 @@ declare class AdmissionController {
     flatReserveUsd?: number; /** Per-orchestrate spawn cap (docs/06, 9.3 maxSpawns); engine lifetime cap applies regardless. */
     maxTotalSpawns?: number;
     mintId?: () => string;
+    /**
+    * The lineage binding (DEF-3): a journal view for the pure counter
+    * folds plus the configured limits. Without it the controller mints
+    * and embeds lineage but enforces no lineage limits (unit contexts).
+    */
+    lineage?: {
+      journalView: () => readonly JournalEntry[];
+      limits?: Partial<EscalationLimits> | Record<string, unknown>;
+    };
   });
+  /** The lineage counter folds over the run journal (absorbed lazily). */
+  lineage(): LineageIndex | undefined;
+  /** The validated lineage limits this controller enforces (DEF-3). */
+  get escalationLimits(): EscalationLimits;
+  /**
+  * The lineage half of admission (DEF-3, docs/03 section 10.5): folds are
+  * computed live STRICTLY BEFORE the carrying decision entry is appended;
+  * the caller embeds the returned block in the entry and replay reads it
+  * back byte-exact. Enforces the single-live-attempt invariant
+  * (`lineage_busy`) and monotonic attempt consumption
+  * (`lineage_exhausted`); never touches budget or structural limits.
+  */
+  evaluateLineage(spec: {
+    name: string;
+    lineage?: SpawnLineageOpt;
+    approach?: string;
+    ancestry?: LogicalTaskId[];
+    signature?: Partial<ApproachSignatureInputs>;
+  }): {
+    decision: {
+      kind: "ok";
+      lineage: SpawnLineage;
+    } | {
+      kind: "reject";
+      reason: {
+        code: "lineage_busy" | "lineage_exhausted";
+      };
+    };
+    statsBefore?: LineageStats;
+  };
+  /**
+  * Registers a live lineage admit the moment its caller commits to
+  * appending the decision entry, closing the single-live-attempt window
+  * until the journal absorbs the entry (DEF-3).
+  */
+  registerLineageAdmit(logicalTaskId: LogicalTaskId): void;
   /**
   * Evaluates one spawn live, strictly BEFORE its decision entry is
   * appended. On admit the reserve is committed on the whole ancestor
@@ -3199,6 +3428,13 @@ interface BudgetDefaults {
   childBudgetFraction?: number;
   /** AdmissionController nesting depth; default 1, hard ceiling 4 (docs/07, 7.3). */
   maxDepth?: number;
+  /**
+  * Lineage limits (DEF-3, docs/03 section 10.5): maxEscalationsPerLogicalTask
+  * (default 2) and maxAttemptsPerLogicalTask (default 8), monotonically
+  * consumed. The validator rejects the pre-rename knob name
+  * maxEscalationsPerNode with a migration hint (XF-10).
+  */
+  lineage?: Partial<EscalationLimits>;
 }
 interface CreateEngineOptions {
   adapters: ProviderAdapter[];
@@ -3447,6 +3683,16 @@ interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   memoizeOutcome?: boolean;
   /** Opt-in; without it 'escalated' is physically unproducible (docs/07 6.4). */
   escalation?: EscalationOptions;
+  /**
+  * Lineage continuation (DEF-3, docs/03 section 10.3): declares this
+  * spawn a rebirth of an existing logical task; absence means a new
+  * lineage root. Never enters the content key. Declaring lineage or
+  * approach journals a spawn-admission decision entry BEFORE dispatch,
+  * carrying the engine-minted LTID and the computed approach signature.
+  */
+  lineage?: SpawnLineageOpt;
+  /** Approach slug entering approachSig, normalized by the engine (DEF-3). */
+  approach?: string;
   /** Admission reserve hint (USD). */
   estCost?: number;
   /** Merged over profile and engine limits (docs/06, section "UsageLimits"). */
@@ -3601,6 +3847,10 @@ interface CollectOpts {
 /** Options of ctx.workflow; `key` replaces args in the child identity (docs/03, 1.2). */
 interface WorkflowCallOpts {
   key?: string;
+  /** Lineage continuation (DEF-3); embedded in the admission decision entry. */
+  lineage?: SpawnLineageOpt;
+  /** Approach slug entering approachSig (DEF-3). */
+  approach?: string;
 }
 /**
 * Options of ctx.brief (docs/06, 2.8; amended during M6-T10 with the
@@ -3697,6 +3947,12 @@ interface RunInternals {
   onEscalation?: (result: EscalatedResult<unknown>) => EscalationDecision | Promise<EscalationDecision>;
   /** Open external suspensions plus the quiescence activity counter (M2-T08). */
   external?: ExternalRegistry;
+  /**
+  * Seqs of spawn-admission decisions already paired with a live
+  * ctx.agent dispatch this process lifetime, so byte-identical repeats
+  * recover THEIR OWN decisions in journal order (DEF-3; M7-T02).
+  */
+  claimedLineageDecisions?: Set<number>;
   mintTranscriptRef: () => string;
   now: () => number;
 }
@@ -4399,4 +4655,4 @@ interface SandboxBridge {
 }
 declare function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptions): SandboxBridge;
 //#endregion
-export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbortClass, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApprovalDecision, ApprovalIdentityInput, Artifact, BUDGET_ABORT_REASON, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDigest, EscalationKind, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINISH_SCHEMA, FINISH_TOOL_NAME, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileTranscriptStore, FinishInfo, Gate, GateAudit, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LogicalTaskId, LurkerError, LurkerErrorCode, MAX_DEPTH_CEILING, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateOptions, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskDigest, TaskSpec, TerminalPatch, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildToolContext, canRideLoopTurn, canonicalizeSchema, checkFloors, checkpointRefFor, childCoveragePrefix, classifyAgentError, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, formatRePrompt, formatScopePath, hashWorkflowBody, hashWorkflowSource, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, lexShellCommand, liftRetainedParts, makeOrchestratorWorkflow, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, priceUsdOf, profileCard, projectHistory, projectIdentity, projectToJsonSchema, providerOf, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, summarizeOutput, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationReport, validateSchemaSpec, workflowScope, workflowSourceRef };
+export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbortClass, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, BUDGET_ABORT_REASON, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINISH_SCHEMA, FINISH_TOOL_NAME, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileTranscriptStore, FinishInfo, Gate, GateAudit, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, LurkerError, LurkerErrorCode, MAX_DEPTH_CEILING, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateOptions, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskDigest, TaskSpec, TerminalPatch, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, approachSigCoarse, approachSigOf, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeSchema, checkFloors, checkpointRefFor, childCoveragePrefix, classifyAgentError, classifyAttemptOutcome, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, formatRePrompt, formatScopePath, hashWorkflowBody, hashWorkflowSource, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, lexShellCommand, liftRetainedParts, makeOrchestratorWorkflow, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, pipelineScope, planNodeScope, priceUsdOf, profileCard, projectHistory, projectIdentity, projectToJsonSchema, providerOf, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, summarizeOutput, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateSchemaSpec, workflowScope, workflowSourceRef };

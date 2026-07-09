@@ -20,6 +20,7 @@
 import { AdmissionRejectedError, ConfigError } from '../l0/errors.js';
 import type { Json } from '../l0/json.js';
 import type { ModelSpec } from '../l0/messages.js';
+import { canonicalIsolationTag, type SpawnLineageOpt } from '../journal/lineage.js';
 import { agentScope } from '../journal/scope.js';
 import type { AgentResult } from '../runtime/agent-loop.js';
 import type { UsageLimits } from '../runtime/usage-limits.js';
@@ -368,6 +369,10 @@ export function makeOrchestratorWorkflow(
           );
         }
         const scope = childScopeOf();
+        // The approach signature is computed from the profile-resolved
+        // identity inputs available at admission (DEF-3); the toolset and
+        // schema registries land in M7-T05 and upgrade the hashes there.
+        const profile = internals.defaults.profiles?.[params.agentType];
         const decision = admission.admit(
           {
             origin: 'spawn_agent',
@@ -378,7 +383,21 @@ export function makeOrchestratorWorkflow(
             ...(params.budgetUsd === undefined ? {} : { budgetUsd: params.budgetUsd }),
             ...(params.lineage === undefined
               ? {}
-              : { lineage: { continues: params.lineage.continues } }),
+              : {
+                  lineage: {
+                    continues: params.lineage.continues,
+                    causeRef: params.lineage.causeRef,
+                    // The tool schema already validates the enum (4.2).
+                    ...(params.lineage.relation === undefined
+                      ? {}
+                      : { relation: params.lineage.relation as SpawnLineageOpt['relation'] }),
+                  },
+                }),
+            ...(params.approach === undefined ? {} : { approach: params.approach }),
+            signature: {
+              agentType: params.agentType,
+              isolation: canonicalIsolationTag(profile?.isolation),
+            },
           },
           // The child dispatches through ctx.agent, whose own layer-1
           // admission commits the reserve: one debit, never two.
