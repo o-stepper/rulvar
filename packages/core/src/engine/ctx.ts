@@ -833,6 +833,15 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     // escalated status is physically unproducible (docs/07, section 6.4).
     const escalation = opts.escalation ?? profile?.escalation;
     if (escalation !== undefined) {
+      if (escalation.flavor === 'B' && escalation.deadlineMs === undefined) {
+        // The knob has NO engine default (docs/06, Appendix A): enabling
+        // Flavor B requires an explicit per-spawn deadlineMs, enforced
+        // BEFORE any LLM call and before any journal entry.
+        throw new ConfigError(
+          "flavor 'B' escalation requires an explicit deadlineMs: the suspension deadline " +
+            'has no engine default (docs/06, Appendix A; docs/07, section 6.2)',
+        );
+      }
       if (opts.result !== 'full' && internals.onEscalation === undefined) {
         // No channel able to carry the report: fail BEFORE any LLM call
         // and before any journal entry (docs/06, section 2.10).
@@ -1603,7 +1612,14 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         throw new ConfigError('flavor B escalation requires the engine run context');
       }
       const request = result.escalationRequest;
-      const deadlineMs = escalation.deadlineMs ?? 0;
+      const deadlineMs = escalation.deadlineMs;
+      if (deadlineMs === undefined) {
+        throw new ConfigError(
+          "flavor 'B' escalation requires an explicit deadlineMs (docs/06, Appendix A)",
+        );
+      }
+      // An absent defaultDecision canonicalizes to accept at the timeout
+      // (docs/06, Appendix A).
       const defaultDecision: EscalationDecision = escalation.defaultDecision ?? {
         kind: 'accept',
       };

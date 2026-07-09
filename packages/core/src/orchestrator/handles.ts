@@ -38,6 +38,8 @@ export interface SpawnRecord {
   result: Promise<AgentResult<unknown>>;
   settled?: AgentResult<unknown>;
   abort: () => void;
+  /** The spawn's escalation flavor, captured at dispatch (docs/07, 5). */
+  escalationFlavor?: 'A' | 'B';
 }
 
 /** The engine seam the spawn tools close over (never on ToolContext). */

@@ -19,6 +19,7 @@ import {
   approachSigCoarse,
   buildTerminationInitValue,
   ConfigError,
+  countsAgainstLimit,
   DedupIndex,
   deriverV2,
   evaluateReuse,
@@ -43,6 +44,8 @@ import {
   type DonorRef,
   type EntryRef,
   type Engine,
+  type EscalationDecision,
+  type EscalationKind,
   type ExtensionDispatchSpec,
   type JournalEntry,
   type Json,
@@ -99,6 +102,12 @@ import { PlanWriteLock } from './write-lock.js';
 import { buildPlanTools, type PlanToolRuntime, type PlanViewRender } from './tools.js';
 import { RevisionGuards, type GuardVerdictValue, type RevisionGuardsOptions } from './guards.js';
 import { promptSpecHashOf, type TaskSpec } from './task-spec.js';
+import {
+  decisionOriginOf,
+  escalationDecisionKey,
+  resolvedByOf,
+  type EscalationDecisionValue,
+} from './escalation.js';
 import {
   canonicalLadderOf,
   clampStartTier,
@@ -1105,6 +1114,280 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     dispatched.set(node.nodeId, handle);
   };
 
+  /** The report kind behind a reportRef (terminal or suspended form). */
+  const reportKindOf = (reportRef: EntryRef): EscalationKind | undefined => {
+    const entry = io.snapshot().find((candidate) => candidate.seq === reportRef);
+    if (entry === undefined) {
+      return undefined;
+    }
+    const terminal = (entry.escalation as { kind?: EscalationKind } | undefined)?.kind;
+    if (terminal !== undefined) {
+      return terminal;
+    }
+    return ((entry.value as { input?: { kind?: EscalationKind } } | undefined)?.input ?? {}).kind;
+  };
+
+  /**
+   * Writes THE authoritative escalation-decision entry (docs/07, 6.5):
+   * idempotent by content key (decide-once per report); the counting
+   * debit is atomic with the append and a DENIED debit lands
+   * termination.denied strictly before, flipping the entry to
+   * `capExceeded` with `countsAgainstLimit: false` so the folds stay
+   * replay-strict (the denied entry is the counting record).
+   */
+  const writeEscalationDecision = async (input: {
+    node: PlanNode;
+    reportRef: EntryRef;
+    decision: EscalationDecision;
+    resolvedBy: 'default' | 'class' | 'live' | 'revision-transform';
+    admissions?: Json[];
+  }): Promise<JournalEntry> => {
+    const key = escalationDecisionKey(input.reportRef);
+    const existing = io
+      .snapshot()
+      .find((entry) => entry.kind === 'decision' && entry.scope === planScope && entry.key === key);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const kind = reportKindOf(input.reportRef);
+    const counts = kind !== undefined && countsAgainstLimit(kind);
+    const account = requireAccount();
+    let value: EscalationDecisionValue = {
+      decisionType: 'escalation-decision',
+      logicalTaskId: input.node.logicalTaskId,
+      nodeId: input.node.nodeId,
+      decision: input.decision,
+      reportRef: input.reportRef,
+      countsAgainstLimit: counts,
+      resolvedBy: input.resolvedBy,
+      ...(input.admissions === undefined ? {} : { admissions: input.admissions }),
+    };
+    if (counts) {
+      const debited = account.debitEscalation(input.node.logicalTaskId);
+      if (debited.ok) {
+        value = { ...value, escalationUnitsAfter: debited.escalationUnitsAfter };
+      } else {
+        // Cap exceeded (docs/07, 6.5): the denied entry precedes; the
+        // decision still resolves the fate, flagged, never a bare limit.
+        await account.debit('escalationUnits', input.node.logicalTaskId);
+        value = { ...value, countsAgainstLimit: false, capExceeded: true };
+      }
+    }
+    const entry = await io.append({
+      scope: planScope,
+      key,
+      kind: 'decision',
+      value: value as unknown as Json,
+    });
+    io.emit({
+      type: 'escalation:decided',
+      entryRef: entry.seq,
+      decision: input.decision.kind,
+      by: input.resolvedBy,
+      countsAgainstLimit: value.countsAgainstLimit,
+    });
+    if (value.escalationUnitsAfter !== undefined) {
+      io.emit({
+        type: 'termination:debit',
+        entryRef: entry.seq,
+        counter: 'escalationUnits',
+        remaining: value.escalationUnitsAfter,
+        phi: account.phi(),
+      });
+    }
+    return entry;
+  };
+
+  /**
+   * Applies one decided escalation to the plan (docs/07, 3.3): the
+   * resolve_escalation op (retry re-opens the node in place, accept
+   * closes it done, cancel closes it cancelled and severs the branch,
+   * decompose leaves it escalated while the admitted children carry the
+   * work through spawn_admitted ops in the SAME plan.decision).
+   */
+  const applyEscalationDecision = async (
+    node: PlanNode,
+    decisionEntry: JournalEntry,
+  ): Promise<void> => {
+    const value = decisionEntry.value as unknown as EscalationDecisionValue;
+    const ops: EnginePlanOp[] = [
+      {
+        kind: 'resolve_escalation',
+        nodeId: node.nodeId,
+        decision: value.decision,
+        resolvedBy: value.resolvedBy,
+        escalationRef: value.reportRef,
+      },
+    ];
+    if (value.decision.kind === 'decompose') {
+      for (const [index, raw] of value.decision.children.entries()) {
+        const admissionRow = (value.admissions ?? [])[index] as
+          { nodeId?: string; decision?: AdmissionDecision } | undefined;
+        const admitted = admissionRow?.decision;
+        const verdict = admitted?.verdict;
+        if (admitted === undefined || verdict === undefined || verdict.kind !== 'admit') {
+          continue;
+        }
+        ops.push({
+          kind: 'spawn_admitted',
+          nodes: [
+            {
+              nodeId: admissionRow?.nodeId ?? io.mintId(),
+              logicalTaskId: verdict.lineage.logicalTaskId,
+              spec: raw as unknown as TaskSpec,
+            },
+          ],
+          admission: admitted,
+        });
+      }
+    }
+    const planDecisionSeq = await appendPlanDecision(
+      decisionOriginOf(value.resolvedBy),
+      ops,
+      decisionEntry.seq,
+    );
+    if (value.decision.kind === 'cancel') {
+      // cancel compiles into the severing abandon (docs/03, 9.1),
+      // authorized by the plan.decision that landed the transition.
+      await abandonNode(node.nodeId, planDecisionSeq, 'escalation cancel');
+      io.emit({ type: 'node:cancelled', nodeId: node.nodeId, logicalTaskId: node.logicalTaskId });
+    }
+    await scheduleReady();
+  };
+
+  /**
+   * Decomposition admissions (docs/07, 11.3 b): each proposed child is an
+   * admitted spawn with a FRESH lineage minted inside the decision entry
+   * (docs/07, 8.1 rule 6); the spawn debits ride the decision.
+   */
+  const admitDecomposition = (children: readonly TaskSpec[]): Json[] => {
+    const rows: Json[] = [];
+    for (const spec of children) {
+      const nodeId = io.mintId();
+      const admitted = io.admission.admit(
+        {
+          origin: 'spawn_agent',
+          name: spec.agentType,
+          childScope: nodeScopeOf(nodeId),
+          parentAccountScope: ROOT_ACCOUNT,
+          nodeKey: planScope,
+          ...(spec.budgetUsd === undefined ? {} : { budgetUsd: spec.budgetUsd }),
+          signature: {
+            agentType: spec.agentType,
+            isolation: canonicalIsolationTag(
+              spec.isolation ??
+                (io.profiles[spec.agentType] as AgentProfile | undefined)?.isolation,
+            ),
+            ...(spec.approach === undefined ? {} : { approachTag: spec.approach }),
+          },
+          ladderLength: ladderLengthOf(io.profiles[spec.agentType]),
+        },
+        { commitReserve: false },
+      );
+      rows.push({ nodeId, decision: admitted } as unknown as Json);
+    }
+    return rows;
+  };
+
+  /**
+   * Absorbs the DEF-4 winner of a Flavor B suspension into the
+   * authoritative decision (docs/07, 3.7: the resolution entry closes the
+   * suspension FIRST; the plan.decision references it strictly after).
+   * The timeout defaultDecision, a live onEscalation decision, and a
+   * class-level fan-out all land here through their journaled `by`.
+   */
+  const landFlavorBDecision = async (node: PlanNode): Promise<boolean> => {
+    const prefix = nodeScopeOf(node.nodeId);
+    const suspended = io
+      .snapshot()
+      .find(
+        (entry) =>
+          entry.kind === 'approval' &&
+          (entry.scope === prefix || entry.scope.startsWith(`${prefix}/`)) &&
+          (entry.value as { toolName?: string } | undefined)?.toolName === 'escalate',
+      );
+    if (suspended === undefined) {
+      return false;
+    }
+    const winner = io
+      .snapshot()
+      .find((entry) => entry.kind === 'resolution' && entry.ref === suspended.seq);
+    if (winner === undefined) {
+      return false;
+    }
+    // The DEF-4 payload rides the entry's `resolution` field (docs/03,
+    // 8.6), never `value`.
+    const payload = winner.resolution as unknown as { by?: string; value?: Json } | undefined;
+    const decision = payload?.value as EscalationDecision | undefined;
+    if (decision === undefined || typeof decision !== 'object') {
+      return false;
+    }
+    const resolvedBy = resolvedByOf(payload?.by ?? 'external');
+    const admissions =
+      decision.kind === 'decompose'
+        ? admitDecomposition(decision.children as unknown as TaskSpec[])
+        : undefined;
+    const decisionEntry = await writeEscalationDecision({
+      node,
+      reportRef: suspended.seq,
+      decision,
+      resolvedBy,
+      ...(admissions === undefined ? {} : { admissions }),
+    });
+    await io.flush();
+    absorbPlan();
+    const landed = fold.plan.nodes[node.nodeId];
+    if (landed !== undefined && landed.status === 'escalated') {
+      await applyEscalationDecision(landed, decisionEntry);
+    }
+    return true;
+  };
+
+  /**
+   * Lands revision-transform escalation resolutions (docs/07, 3.6 row:
+   * cancel_task on an escalated node): the authoritative decision with
+   * verdict cancel, then the resolve_escalation plan.decision, then the
+   * severing abandon; all idempotent for the roll-forward path.
+   */
+  const landRevisionEscalations = async (value: PlanRevisionValue): Promise<void> => {
+    for (const outcome of value.outcomes) {
+      if (outcome.kind !== 'transformed' || outcome.reason !== 'resolved_escalation') {
+        continue;
+      }
+      const applied = outcome.applied;
+      if (applied.op !== 'cancel_task') {
+        continue;
+      }
+      const node = fold.plan.nodes[applied.nodeId];
+      if (node === undefined || node.status !== 'escalated') {
+        continue;
+      }
+      const root = nodeRootOf(applied.nodeId);
+      const terminal =
+        root === undefined
+          ? undefined
+          : io
+              .snapshot()
+              .find(
+                (entry) =>
+                  entry.kind === 'agent' && entry.ref === root.seq && entry.status === 'escalated',
+              );
+      if (terminal === undefined) {
+        continue;
+      }
+      const decisionEntry = await writeEscalationDecision({
+        node,
+        reportRef: terminal.seq,
+        decision: {
+          kind: 'cancel',
+          ...(applied.reason === undefined ? {} : { reason: applied.reason }),
+        },
+        resolvedBy: 'revision-transform',
+      });
+      await applyEscalationDecision(node, decisionEntry);
+    }
+  };
+
   /** Journals terminal transitions for settled dispatched children. */
   const landSettlements = async (): Promise<void> => {
     for (const [nodeId, handle] of dispatched) {
@@ -1206,11 +1489,57 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         await abandonNode(nodeId, decisionSeq, 'cancel_task');
         io.emit({ type: 'node:cancelled', nodeId, logicalTaskId: node.logicalTaskId });
       }
+      if (cause === 'child-result' && terminalTo === 'escalated') {
+        // A Flavor B report reaching settlement is already DECIDED by
+        // the DEF-4 winner (timeout default or live decision); absorb it
+        // into the authoritative entry and apply the fate (docs/07, 6.5).
+        const landed = fold.plan.nodes[nodeId];
+        if (landed !== undefined) {
+          await landFlavorBDecision(landed);
+        }
+      }
     }
   };
 
+  /**
+   * A retry decision's amendments (docs/07, 6.3): amendedPrompt and
+   * startTier ride the journaled decision, so the re-dispatch is a pure
+   * function of the journal, identical live and on replay.
+   */
+  const retryAmendmentsOf = (node: PlanNode): { prompt?: string; startTier?: number } => {
+    if (node.escalationRef === undefined) {
+      return {};
+    }
+    const key = escalationDecisionKey(node.escalationRef);
+    const entry = io
+      .snapshot()
+      .find(
+        (candidate) =>
+          candidate.kind === 'decision' && candidate.scope === planScope && candidate.key === key,
+      );
+    const decision = (entry?.value as EscalationDecisionValue | undefined)?.decision;
+    if (decision?.kind !== 'retry') {
+      return {};
+    }
+    return {
+      ...(decision.amendedPrompt === undefined ? {} : { prompt: decision.amendedPrompt }),
+      ...(decision.startTier === undefined ? {} : { startTier: decision.startTier }),
+    };
+  };
+
   /** The full dispatch spec of one plan node (shared by ready and recovery). */
-  const buildDispatchSpec = (node: PlanNode, spec: TaskSpec): ExtensionDispatchSpec => {
+  const buildDispatchSpec = (node: PlanNode, rawSpec: TaskSpec): ExtensionDispatchSpec => {
+    const amendments = retryAmendmentsOf(node);
+    const spec: TaskSpec =
+      amendments.prompt === undefined && amendments.startTier === undefined
+        ? rawSpec
+        : {
+            ...rawSpec,
+            ...(amendments.prompt === undefined ? {} : { prompt: amendments.prompt }),
+            ...(amendments.startTier === undefined
+              ? {}
+              : { model_hint: { startTier: amendments.startTier } }),
+          };
     const placement = unparkPlacementOf({
       ...(node.checkpointRef === undefined ? {} : { checkpointRef: node.checkpointRef }),
       ...(node.checkpointRef === undefined
@@ -1485,6 +1814,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           // idempotently from the recorded entry (docs/03, 9.10).
           await landReuseLinks(existing);
           await landCancelAbandons(value, existing.seq);
+          await landRevisionEscalations(value);
           await scheduleReady();
           return {
             outcomes: value.outcomes,
@@ -1697,6 +2027,10 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         // strictly after the deciding append and before scheduling.
         await landReuseLinks(entry);
         await landCancelAbandons(value, entry.seq);
+        // Escalation resolutions (docs/07, 3.6 transform row): the
+        // authoritative decision, the resolve op, and the sever land as
+        // effects strictly after the revision append.
+        await landRevisionEscalations(value);
         // Effects: schedule newly-ready nodes; land cancel requests on
         // running children (the final transition arrives cancel-landed).
         for (const outcome of evaluation.outcomes) {

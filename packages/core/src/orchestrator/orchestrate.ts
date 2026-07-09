@@ -353,6 +353,9 @@ export function makeOrchestratorWorkflow(
         abort: () => {
           controller.abort('lurker:cancel_agent');
         },
+        ...((spec as ExtensionDispatchSpec).escalation?.flavor === undefined
+          ? {}
+          : { escalationFlavor: (spec as ExtensionDispatchSpec).escalation?.flavor }),
       };
       void settledResult.then(async (settled) => {
         record.settled = settled;
@@ -528,7 +531,10 @@ export function makeOrchestratorWorkflow(
           logicalTaskId: record.logicalTaskId,
           reportRef: terminal?.seq ?? record.handle,
           kind: (settled.escalation as { kind?: string } | undefined)?.kind ?? 'scope_bigger',
-          flavor: 'A',
+          // The dispatch-captured flavor: a flavor B report reaching the
+          // digest is already DECIDED (the child terminates only after
+          // the suspension resolves; docs/07, 6.2).
+          flavor: record.escalationFlavor ?? 'A',
         });
       }
       const digest: WakeDigest = {
