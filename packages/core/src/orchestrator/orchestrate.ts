@@ -1014,6 +1014,11 @@ export function makeOrchestratorWorkflow(
             {
               type: 'orchestrator:woke',
               digestSeq: digest.digestSeq,
+              planHash: digest.planHash,
+              coversToOrdinal: digest.coversToOrdinal,
+              // wake-render-size (docs/09 metrics): the deterministic
+              // character measure of the delivered digest bytes.
+              renderSize: JSON.stringify(digest).length,
               completed: digest.completedDigests.length,
               escalations: digest.escalations.length,
             },

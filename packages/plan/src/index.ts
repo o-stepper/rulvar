@@ -18,5 +18,6 @@ export * from './park.js';
 export * from './ledger.js';
 export * from './ladder.js';
 export * from './escalation.js';
+export * from './cassettes.js';
 export * from './tools.js';
 export * from './plan-runner.js';

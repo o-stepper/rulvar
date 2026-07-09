@@ -1490,6 +1490,22 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         io.emit({ type: 'node:cancelled', nodeId, logicalTaskId: node.logicalTaskId });
       }
       if (cause === 'child-result' && terminalTo === 'escalated') {
+        // escalation-rate-by-agentType rides this event (docs/09
+        // metrics): the report kind plus the lineage attribution.
+        const report = settled.escalation as
+          | {
+              kind?: 'scope_bigger' | 'scope_different' | 'blocked_with_evidence';
+              costToDate?: { usd?: number };
+            }
+          | undefined;
+        io.emit({
+          type: 'escalation:raised',
+          entryRef: causeRef,
+          kind: report?.kind ?? 'scope_bigger',
+          logicalTaskId: node.logicalTaskId,
+          agentType: fold.specs[nodeId]?.agentType ?? '',
+          costToDateUsd: report?.costToDate?.usd ?? 0,
+        });
         // A Flavor B report reaching settlement is already DECIDED by
         // the DEF-4 winner (timeout default or live decision); absorb it
         // into the authoritative entry and apply the fate (docs/07, 6.5).
