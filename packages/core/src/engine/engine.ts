@@ -596,7 +596,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
         usage: ledger.usage,
         cost: buildCostReport(internals.cost, ledger.usd),
       };
-      if (value !== undefined && status === 'ok') {
+      if (value !== undefined && (status === 'ok' || status === 'exhausted')) {
+        // Exhaustion is never null when a value exists: the DEF-7
+        // finalize fallback synthesizes the partial (docs/07, 12.4).
         outcome.value = value;
       }
       if (wireError !== undefined) {

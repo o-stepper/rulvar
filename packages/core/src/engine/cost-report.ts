@@ -54,7 +54,7 @@ export function buildCostReport(attribution: CostAttribution, totalUsd: number):
       ...orchestrator,
       // H-OrchShare: the epsilon-floored share (docs/06, Appendix A).
       share: orchestrator.spentUsd / Math.max(totalUsd, 0.01),
-    } as CostReport['orchestrator'] & { share: number },
+    },
     unpriced: attribution.unpriced,
   };
 }

@@ -564,6 +564,7 @@ export function makeOrchestratorWorkflow(
             'orchestrator_budget_cap',
       )?.seq;
     const forcedFinishController = new AbortController();
+    let capInFlight = false;
 
     /**
      * The at-cap freeze (docs/07, 12.4): EXACTLY one decision entry
@@ -576,9 +577,17 @@ export function makeOrchestratorWorkflow(
     const triggerCap = async (cause: 'pre-wake' | 'per-turn'): Promise<void> => {
       // The DEF-7 freeze protocol engages only under PlanRunner (the
       // extension); plain mode (c) keeps the M6 enforcement layers.
-      if (capDecisionRef !== undefined || capState === undefined || extension === undefined) {
+      if (
+        capDecisionRef !== undefined ||
+        capInFlight ||
+        capState === undefined ||
+        extension === undefined
+      ) {
         return;
       }
+      // Exactly ONE cap decision (docs/07, 12.4): the latch closes the
+      // race between concurrently-evaluated wake ordinals.
+      capInFlight = true;
       const view =
         orchestratorAccount === undefined
           ? undefined
@@ -699,8 +708,7 @@ export function makeOrchestratorWorkflow(
           finalizeReserveUsd: capState.finalizeReserveUsd,
           orchestratorShare: orchestratorSpentUsd / Math.max(runSpentUsd, 0.01),
           softWarning:
-            orchestratorSpentUsd >=
-            0.8 * (capState.effectiveCapUsd - capState.finalizeReserveUsd),
+            orchestratorSpentUsd >= 0.8 * (capState.effectiveCapUsd - capState.finalizeReserveUsd),
         };
         (digest as unknown as { budget?: typeof block }).budget = block;
         internals.events.emit(
@@ -957,8 +965,15 @@ export function makeOrchestratorWorkflow(
           }
           if (capDecisionRef === undefined && overSoftBoundary()) {
             // Layer 1 (docs/07, 12.3): crossing the soft boundary yields
-            // forced finalization INSTEAD of a normal wake.
-            void triggerCap('pre-wake');
+            // forced finalization INSTEAD of a normal wake. The pending
+            // suspension still resolves (the loop must unwind through the
+            // aborted signal to reach the reserved final wake).
+            void triggerCap('pre-wake').then(() =>
+              external.submitResolution(entryRef, {
+                by: 'engine_fallback',
+                value: buildDigest(ordinal) as unknown as Json,
+              }),
+            );
             return;
           }
           const digest = buildDigest(ordinal) as unknown as Json;
@@ -1081,12 +1096,9 @@ export function makeOrchestratorWorkflow(
      * partial result by pure fold, without a single LLM call.
      */
     const runForcedFinish = async (): Promise<unknown> => {
-      const capEntry = internals.replayer
-        .snapshot()
-        .find((entry) => entry.seq === capDecisionRef);
+      const capEntry = internals.replayer.snapshot().find((entry) => entry.seq === capDecisionRef);
       const capValue = capEntry?.value as
-        | { snapshot?: { planHash?: string; wakeOrdinal?: number } }
-        | undefined;
+        { snapshot?: { planHash?: string; wakeOrdinal?: number } } | undefined;
       const finishOnly = buildOrchestratorTools(orchestratorRuntime, cardText).filter(
         (tool) => tool.name === FINISH_TOOL_NAME,
       );

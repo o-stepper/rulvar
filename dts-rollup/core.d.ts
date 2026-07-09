@@ -3642,6 +3642,12 @@ declare class RunBudget {
   /** The layer-3 signal of one sub-account's subtree, when it exists. */
   signalOf(scope: string): AbortSignal | undefined;
   get exhausted(): boolean;
+  /**
+  * Marks the run exhausted without a ceiling event: the orchestrator
+  * finalize fallback maps to outcome 'exhausted' with the synthesized
+  * partial value (DEF-7, docs/07 12.4; exhaustion is never null).
+  */
+  markExhausted(): void;
   get committedReserveUsd(): number;
   /** Spawn headroom under the engine lifetime cap (embedded in admission verdicts). */
   get spawnHeadroom(): number;
@@ -3658,6 +3664,15 @@ declare class RunBudget {
   * (docs/06, 5.1: reserves are recovered, never re-estimated).
   */
   admitRecovered(reserveUsd: number, accountScope?: string): void;
+  /**
+  * Registers the orchestrator finalize reserve (DEF-7, docs/07 12.2):
+  * absolute dollars set on the named account AND the run root, so
+  * admission never lets any spawn eat the finalization money even
+  * against whole-run exhaustion. Kept SEPARATE from committedReserveUsd
+  * (the block checks add both), so remainders never double-count.
+  * Idempotent: re-registering on resume keeps the journaled amount.
+  */
+  commitFinalizeReserve(scope: string, reserveUsd: number): void;
   /** The reserve is replaced by real spend when the spawn settles. */
   releaseReserve(reserveUsd: number, accountScope?: string): void;
   /** Layer 2: the per-turn guard. A turn that would cross any ceiling in the chain is not dispatched. */
@@ -4786,6 +4801,13 @@ interface CostAttribution {
     model: string;
     usage: Usage;
   }>;
+  /** The DEF-7 orchestrator block, mutated by the mode (c) machinery. */
+  orchestrator: {
+    spentUsd: number;
+    wakes: number;
+    forcedFinish: boolean;
+    reserveUsedUsd: number;
+  };
 }
 /** Everything one run's ctx needs; created per run by the engine (M1-T11). */
 interface RunInternals {
