@@ -515,6 +515,8 @@ export interface CostAttribution {
   byAgentType: Map<string, number>;
   byRole: Map<InvocationRole, number>;
   unpriced: Array<{ model: string; usage: Usage }>;
+  /** The DEF-7 orchestrator block, mutated by the mode (c) machinery. */
+  orchestrator: { spentUsd: number; wakes: number; forcedFinish: boolean; reserveUsedUsd: number };
 }
 
 /** Everything one run's ctx needs; created per run by the engine (M1-T11). */
