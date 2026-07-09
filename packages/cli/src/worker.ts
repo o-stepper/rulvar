@@ -196,9 +196,14 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
       store.renew(lease).catch((thrown: unknown) => {
         // The lease is lost (paused process, reclaim after ttl): every
         // further append already rejects by fencing; cancel to unwind
-        // the loop promptly instead of burning live calls.
+        // the loop promptly instead of burning live calls. A stale run
+        // whose landings all reject may never settle, so the slot is
+        // freed HERE: fencing keeps the journal safe either way, and
+        // the settled chain stays harmless if it ever completes.
         reportError(runId, thrown);
         void handle.cancel('lease lost: fencing epoch superseded');
+        clearInterval(renewTimer);
+        active.delete(runId);
       });
     }, renewMs);
     const settled = handle.result
