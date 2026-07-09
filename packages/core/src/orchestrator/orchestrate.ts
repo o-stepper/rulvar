@@ -393,20 +393,39 @@ export function makeOrchestratorWorkflow(
       );
       // The full-result form never throws on terminal statuses; infra
       // errors must not crash the orchestrator either: they settle the
-      // record with a synthesized error result.
+      // record with a synthesized error result. A rejection BEFORE the
+      // root entry lands additionally releases the handle await with the
+      // sentinel (the pre-root cousin of the stale-writer liveness rule),
+      // so a dispatch that dies pre-flight surfaces loudly instead of
+      // hanging the dispatching caller forever. The sentinel resolution
+      // is inert on healthy paths: the root seq always resolves first.
+      const PRE_ROOT_FAILED = -1;
+      let preRootFailure: unknown;
       const settledResult: Promise<AgentResult<unknown>> = result.catch(
-        (thrown: unknown): AgentResult<unknown> => ({
-          status: 'error',
-          output: null,
-          usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
-          costUsd: 0,
-          turns: 0,
-          servedBy: 'unknown:unknown',
-          transcriptRef: '',
-          errorMessage: thrown instanceof Error ? thrown.message : String(thrown),
-        }),
+        (thrown: unknown): AgentResult<unknown> => {
+          preRootFailure = thrown;
+          resolveHandle(PRE_ROOT_FAILED);
+          return {
+            status: 'error',
+            output: null,
+            usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+            costUsd: 0,
+            turns: 0,
+            servedBy: 'unknown:unknown',
+            transcriptRef: '',
+            errorMessage: thrown instanceof Error ? thrown.message : String(thrown),
+          };
+        },
       );
       const handle = await handlePromise;
+      if (handle === PRE_ROOT_FAILED) {
+        throw preRootFailure instanceof Error
+          ? preRootFailure
+          : new ConfigError(
+              'extension dispatch failed before the agent root entry landed' +
+                (preRootFailure === undefined ? '' : `: ${JSON.stringify(preRootFailure)}`),
+            );
+      }
       const record: SpawnRecord = {
         handle,
         spawnOrdinal,
