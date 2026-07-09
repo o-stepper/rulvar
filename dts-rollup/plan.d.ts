@@ -866,6 +866,48 @@ declare function judgePrompt(input: {
   artifactIds: readonly string[];
 }): string;
 //#endregion
+//#region src/escalation.d.ts
+/** One per-lineage debit row of a class-level decision (docs/07, 6.5). */
+interface EscalationDebitRow {
+  logicalTaskId: LogicalTaskId;
+  escalationUnitsAfter: number;
+}
+/**
+* The authoritative escalation-decision entry value (docs/07, 6.5; the
+* producer contract of LineageIndex and foldTermination). Exactly one
+* such entry per report; the debit is atomic with the append and the
+* balance-after is embedded (DEF-2). A decision whose counting debit was
+* DENIED carries `countsAgainstLimit: false` plus `capExceeded: true`:
+* the termination.denied entry written strictly before is the counting
+* record, and the folds stay replay-strict.
+*/
+interface EscalationDecisionValue {
+  decisionType: "escalation-decision";
+  /** Single-target form; the class form carries `debits` instead. */
+  logicalTaskId?: LogicalTaskId;
+  nodeId?: string;
+  decision: EscalationDecision;
+  /** Seq of the terminal escalated entry or the suspended escalate entry. */
+  reportRef: EntryRef;
+  countsAgainstLimit: boolean;
+  /** Present exactly when a counting debit executed (fold-asserted). */
+  escalationUnitsAfter?: number;
+  /** How the decision was reached (docs/07, 3.3 plan.decision origins). */
+  resolvedBy: "default" | "class" | "live" | "revision-transform";
+  /** Class-level form: one entry, an array of per-lineage debits. */
+  debits?: EscalationDebitRow[];
+  /** Decomposition admissions (spawn debits ride this entry; 11.3 b). */
+  admissions?: Json[];
+  /** The counting debit was denied: the cap is the message (docs/07, 6.5). */
+  capExceeded?: boolean;
+}
+/** Content key: one authoritative decision per report (decide-once). */
+declare function escalationDecisionKey(reportRef: EntryRef): string;
+/** Maps a resolution `by` value onto the decision's resolvedBy field. */
+declare function resolvedByOf(by: string): "default" | "class" | "live";
+/** The plan.decision origin of one resolvedBy value (docs/07, 3.3). */
+declare function decisionOriginOf(resolvedBy: "default" | "class" | "live" | "revision-transform"): "escalation-default" | "escalation-class" | "escalation-live";
+//#endregion
 //#region src/tools.d.ts
 /** docs/07, 4.6: plan_view takes no parameters. */
 declare const PLAN_VIEW_SCHEMA: SchemaSpec;
@@ -945,4 +987,4 @@ declare function orchestratePlanned(engine: Engine, goal: string, opts?: Orchest
   plan?: PlanRunnerOptions;
 }): RunHandle<unknown>;
 //#endregion
-export { AppliedPlanOp, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_STALL_REPLAN_CAP, EnginePlanOp, GateVerdictValue, GuardFallback, GuardVerdictValue, GuardsState, JUDGE_VERDICT_SCHEMA, LEDGER_APPEND_SCHEMA, LEDGER_APPEND_TOOL_NAME, LEDGER_READ_SCHEMA, LEDGER_READ_TOOL_NAME, LEDGER_SECTION_CAPS, LadderVerdictValue, LedgerExport, LedgerFact, LedgerLesson, LedgerObservation, LedgerOp, LedgerRevisionRow, LedgerView, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, ParkDisposition, PinLedger, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, UnparkPlacement, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalLadderOf, canonicalPlanState, chainEffortOf, clampStartTier, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, executingRungOf, exportLedger, foldLedger, gateVerdictKey, isTerminalPlanStatus, judgePrompt, ladderOfProfile, ladderTriggerOf, ladderVerdictKey, ledgerCapViolation, ledgerOpKey, ledgerSufficiency, orchestratePlanned, parkDispositionOf, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, unparkPlacementOf, wouldCreateDepCycle };
+export { AppliedPlanOp, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_STALL_REPLAN_CAP, EnginePlanOp, EscalationDebitRow, EscalationDecisionValue, GateVerdictValue, GuardFallback, GuardVerdictValue, GuardsState, JUDGE_VERDICT_SCHEMA, LEDGER_APPEND_SCHEMA, LEDGER_APPEND_TOOL_NAME, LEDGER_READ_SCHEMA, LEDGER_READ_TOOL_NAME, LEDGER_SECTION_CAPS, LadderVerdictValue, LedgerExport, LedgerFact, LedgerLesson, LedgerObservation, LedgerOp, LedgerRevisionRow, LedgerView, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, ParkDisposition, PinLedger, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, UnparkPlacement, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalLadderOf, canonicalPlanState, chainEffortOf, clampStartTier, decisionOriginOf, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, escalationDecisionKey, executingRungOf, exportLedger, foldLedger, gateVerdictKey, isTerminalPlanStatus, judgePrompt, ladderOfProfile, ladderTriggerOf, ladderVerdictKey, ledgerCapViolation, ledgerOpKey, ledgerSufficiency, orchestratePlanned, parkDispositionOf, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, resolvedByOf, unparkPlacementOf, wouldCreateDepCycle };
