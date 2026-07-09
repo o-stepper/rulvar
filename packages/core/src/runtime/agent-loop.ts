@@ -78,6 +78,21 @@ export interface Artifact {
   data?: Json;
 }
 
+/** The verdict of one mechanical acceptance gate evaluation (docs/07, section 10). */
+export interface MechanicalGateVerdict {
+  pass: boolean;
+  detail?: string;
+}
+
+/**
+ * A mechanical acceptance gate: an engine-registered NAMED pure function
+ * over AgentResult.artifacts (docs/04, section 12; docs/07, section 10).
+ * The registry is per engine like every other registry (docs/02); the
+ * ladder driver journals each evaluation as a decision entry, so the
+ * ladder fold consumes only journaled verdicts, never live re-evaluation.
+ */
+export type MechanicalGateProfile = (artifacts: readonly Artifact[]) => MechanicalGateVerdict;
+
 export interface AgentResult<T> {
   status: AgentStatus;
   output: T | null;

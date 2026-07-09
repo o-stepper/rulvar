@@ -1,4 +1,4 @@
-import { AdmissionDecision, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, Json, KeyDeriver, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, ReuseConfig, RunHandle, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, UsageLimits } from "@lurker/core";
+import { AdmissionDecision, AgentResult, CanonicalLadderSpec, Effort, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, Json, KeyDeriver, LadderSpec, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, ReuseConfig, RunHandle, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, TriggerClass, UsageLimits } from "@lurker/core";
 
 //#region src/plan-state.d.ts
 /**
@@ -745,6 +745,127 @@ interface LedgerExport {
 }
 declare function exportLedger(view: LedgerView): LedgerExport;
 //#endregion
+//#region src/ladder.d.ts
+/**
+* Extracts the declared ladder from an agent profile: the ModelSpec union
+* carries it (`model: { ladder }`), or the loop-role routing entry
+* (docs/04, section 12). The same declaration points feed ladderLengthOf
+* and the frozen kMax, so admission and execution can never disagree on
+* the ladder length.
+*/
+declare function ladderOfProfile(profile: unknown): LadderSpec | undefined;
+/** The profile's chain effort feeding canonicalization, when declared. */
+declare function chainEffortOf(profile: unknown): Effort | undefined;
+/** Canonicalizes the profile's declared ladder once per dispatch site. */
+declare function canonicalLadderOf(profile: unknown): CanonicalLadderSpec | undefined;
+/**
+* Clamps the orchestrator's `model_hint.startTier` to the declared ladder
+* (docs/07, section 4.2): the hint is the ONLY model influence the
+* orchestrator has, and it never names a model.
+*/
+declare function clampStartTier(ladder: CanonicalLadderSpec, hint?: number): number;
+/**
+* The rung an attempt executes on: the clamped start tier plus the
+* journaled raise count, hard-clamped at the top rung. `rungIndex` per
+* lineage is strictly monotone; there are no demotions (docs/07, 10).
+*/
+declare function executingRungOf(ladder: CanonicalLadderSpec, startTier: number, raises: number): number;
+/**
+* Classifies a settled attempt into the typed transition trigger
+* (docs/04, section 12): schema-mismatch errors are 'schema-exhausted';
+* the engine's no-progress abort is first-class 'no-progress' (it rides
+* status 'limit' with the dedicated abort class, distinct from user
+* cancellation by construction); cancelled, escalated, and skipped never
+* trigger. 'verify-failed' comes from the acceptance gates, never from
+* the terminal status.
+*/
+declare function ladderTriggerOf(settled: Pick<AgentResult<unknown>, "status"> & {
+  error?: {
+    kind?: string;
+  };
+  abortClass?: string;
+}): Exclude<TriggerClass, "verify-failed"> | undefined;
+/** One journaled acceptance-gate evaluation (docs/07, section 10). */
+interface GateVerdictValue {
+  decisionType: "gate-verdict";
+  logicalTaskId: LogicalTaskId;
+  nodeId: string;
+  /** The judged attempt's root dispatch seq. */
+  attemptRef: EntryRef;
+  gate: "mechanical" | "judge" | "spot-check";
+  /** The registered profile name (mechanical gates). */
+  profile?: string;
+  /** The executing rung of the judged attempt. */
+  rung: number;
+  pass: boolean;
+  detail?: string;
+  /** Spot-check only: the journaled draw and fraction behind `pass`. */
+  spotCheck?: {
+    draw: number;
+    fraction: number;
+    selected: boolean;
+  };
+}
+/** Content key of one gate verdict: attempt plus gate position. */
+declare function gateVerdictKey(attemptRef: EntryRef, gateIndex: number): string;
+/**
+* The ladder verdict decision entry (docs/07, sections 10 and 11.3): the
+* producer contract both folds already consume. A RAISING verdict debits
+* one rung unit (rungIndexAfter/rungsRemainingAfter embedded, checked by
+* foldTermination) and carries the rung RESPAWN's embedded admission
+* (spawn debit) plus `nextAttempt` (the lineage registration: relation
+* 'rung-retry', docs/03 10.1 row 4). A non-raising verdict records the
+* ladder's end (exhausted rungs, top rung, or a denied respawn) and
+* authorizes nothing.
+*/
+interface LadderVerdictValue {
+  decisionType: "ladder-verdict";
+  logicalTaskId: LogicalTaskId;
+  nodeId: string;
+  trigger: TriggerClass;
+  /** The judged attempt's root dispatch seq. */
+  attemptRef: EntryRef;
+  raisesRung: boolean;
+  rungIndexAfter?: number;
+  rungsRemainingAfter?: number;
+  /** Present exactly when raising: the authorized next rung attempt. */
+  nextAttempt?: {
+    childScope: string; /** The full admission-computed lineage block (registerAttempt input). */
+    lineage: Json; /** The concrete rung the next attempt executes on. */
+    rungIndex: number;
+  };
+  /** The embedded respawn admission (the spawn debit; docs/07, 11.3 b). */
+  admissions?: Json[];
+  /** Non-raising verdicts: why the ladder ended here. */
+  reason?: "rungs_exhausted" | "top_rung" | "respawn_denied" | "trigger_not_declared";
+}
+/** Content key of one ladder verdict: the judged attempt is unique. */
+declare function ladderVerdictKey(attemptRef: EntryRef): string;
+/** The forced verdict schema of the judge gate (docs/07, section 10). */
+declare const JUDGE_VERDICT_SCHEMA: {
+  readonly type: "object";
+  readonly properties: {
+    readonly pass: {
+      readonly type: "boolean";
+    };
+    readonly reason: {
+      readonly type: "string";
+    };
+  };
+  readonly required: readonly ["pass", "reason"];
+  readonly additionalProperties: false;
+};
+/**
+* The judge prompt: artifact-grounded, assembled from journaled values
+* only (the attempt's output summary and artifact index), so a replayed
+* judge dispatch hashes identically.
+*/
+declare function judgePrompt(input: {
+  taskPrompt: string;
+  outputSummary: string;
+  artifactIds: readonly string[];
+}): string;
+//#endregion
 //#region src/tools.d.ts
 /** docs/07, 4.6: plan_view takes no parameters. */
 declare const PLAN_VIEW_SCHEMA: SchemaSpec;
@@ -824,4 +945,4 @@ declare function orchestratePlanned(engine: Engine, goal: string, opts?: Orchest
   plan?: PlanRunnerOptions;
 }): RunHandle<unknown>;
 //#endregion
-export { AppliedPlanOp, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_STALL_REPLAN_CAP, EnginePlanOp, GuardFallback, GuardVerdictValue, GuardsState, LEDGER_APPEND_SCHEMA, LEDGER_APPEND_TOOL_NAME, LEDGER_READ_SCHEMA, LEDGER_READ_TOOL_NAME, LEDGER_SECTION_CAPS, LedgerExport, LedgerFact, LedgerLesson, LedgerObservation, LedgerOp, LedgerRevisionRow, LedgerView, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, ParkDisposition, PinLedger, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, UnparkPlacement, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalPlanState, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, exportLedger, foldLedger, isTerminalPlanStatus, ledgerCapViolation, ledgerOpKey, ledgerSufficiency, orchestratePlanned, parkDispositionOf, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, unparkPlacementOf, wouldCreateDepCycle };
+export { AppliedPlanOp, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_STALL_REPLAN_CAP, EnginePlanOp, GateVerdictValue, GuardFallback, GuardVerdictValue, GuardsState, JUDGE_VERDICT_SCHEMA, LEDGER_APPEND_SCHEMA, LEDGER_APPEND_TOOL_NAME, LEDGER_READ_SCHEMA, LEDGER_READ_TOOL_NAME, LEDGER_SECTION_CAPS, LadderVerdictValue, LedgerExport, LedgerFact, LedgerLesson, LedgerObservation, LedgerOp, LedgerRevisionRow, LedgerView, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, ParkDisposition, PinLedger, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, UnparkPlacement, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalLadderOf, canonicalPlanState, chainEffortOf, clampStartTier, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, executingRungOf, exportLedger, foldLedger, gateVerdictKey, isTerminalPlanStatus, judgePrompt, ladderOfProfile, ladderTriggerOf, ladderVerdictKey, ledgerCapViolation, ledgerOpKey, ledgerSufficiency, orchestratePlanned, parkDispositionOf, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, unparkPlacementOf, wouldCreateDepCycle };

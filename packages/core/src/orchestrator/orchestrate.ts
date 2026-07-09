@@ -153,6 +153,20 @@ function resolveDispatchOpts(
   if (extended.bootCheckpointRef !== undefined) {
     (opts as Record<PropertyKey, unknown>)[kBootCheckpoint] = extended.bootCheckpointRef;
   }
+  if (extended.model !== undefined) {
+    // The ladder driver's concrete rung resolution (docs/07, section
+    // 10): the call-layer override shadows the profile's declared ladder
+    // in the resolution chain, so the attempt hashes the concrete ref.
+    opts.model = extended.model;
+  }
+  if (extended.memoizeOutcome !== undefined) {
+    opts.memoizeOutcome = extended.memoizeOutcome;
+  }
+  if (extended.schema !== undefined && opts.schema === undefined) {
+    // Inline SchemaSpec for engine-synthesized children (the judge
+    // verdict); outputSchemaRef keeps precedence for authored specs.
+    opts.schema = extended.schema;
+  }
   return opts;
 }
 
@@ -361,10 +375,15 @@ export function makeOrchestratorWorkflow(
       baseScope: callingState.scope,
       orchestratorScope: () => childScopeOf(),
       profiles: advertisedProfiles,
+      gates: internals.defaults.gates ?? {},
       ...(internals.budget.ceilingUsd === undefined
         ? {}
         : { runCeilingUsd: internals.budget.ceilingUsd }),
       mintId: createCanonicalIdMinter(),
+      // The journaled draw lands in the orchestrate call's own scope so a
+      // re-executed turn replays the SAME value by content-key match.
+      random: (key?: string) =>
+        runtime.runInScope(callingState, () => Promise.resolve(ctx.random(key))),
       append: (input) =>
         internals.replayer.appendSinglePhase({
           scope: input.scope,

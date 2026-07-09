@@ -10,12 +10,16 @@
 import { ConfigError } from '../l0/errors.js';
 import { checkFloors, type QualityFloors } from './floors.js';
 import type {
+  CanonicalLadderSpec,
   CanonicalModelSpec,
   Effort,
+  Gate,
   InvocationRole,
+  LadderSpec,
   ModelChoice,
   ModelRef,
   ModelSpec,
+  TriggerClass,
 } from '../l0/messages.js';
 import type { ModelCaps, ProviderAdapter } from '../l0/spi/provider.js';
 
@@ -104,9 +108,11 @@ interface MergedFields {
   effort?: Effort;
   providerOptions?: Record<string, Record<string, unknown>>;
   fallbacks?: ModelRef[];
+  /** A declared ladder travelling the chain (docs/04, section 12). */
+  ladder?: LadderSpec;
 }
 
-function contribution(spec: ModelSpec | undefined, role: InvocationRole): MergedFields {
+function contribution(spec: ModelSpec | undefined, _role: InvocationRole): MergedFields {
   if (spec === undefined) {
     return {};
   }
@@ -114,10 +120,11 @@ function contribution(spec: ModelSpec | undefined, role: InvocationRole): Merged
     return { model: spec };
   }
   if ('ladder' in spec) {
-    throw new ConfigError(
-      `a ladder ModelSpec was resolved for role '${role}', but ModelLadder execution lands ` +
-        'with @lurker/plan in M7 (docs/10); use a plain ModelRef or ModelChoice',
-    );
+    // Ladders resolve through the existing chain like any ModelSpec
+    // (docs/04, section 12): a higher layer's concrete model shadows a
+    // lower ladder and vice versa; a ladder that WINS wire resolution is
+    // rejected below (rung attempts always carry a concrete override).
+    return { ladder: spec.ladder };
   }
   const choice: ModelChoice = spec;
   const fields: MergedFields = { model: choice.model };
@@ -212,8 +219,23 @@ export function resolveModelInvocation(options: {
       ...pruneUndefined(fields),
       providerOptions: mergeProviderOptions(merged.providerOptions, fields.providerOptions),
     };
+    // A model and a ladder are mutually exclusive winners: whichever the
+    // HIGHER layer contributes shadows the other (docs/04, section 12).
+    if (fields.ladder !== undefined) {
+      delete merged.model;
+    } else if (fields.model !== undefined) {
+      delete merged.ladder;
+    }
   }
 
+  if (merged.ladder !== undefined) {
+    throw new ConfigError(
+      `a ladder ModelSpec wins wire resolution for role '${role}': ladder execution is ` +
+        'owned by the PlanRunner ladder driver, which resolves each rung attempt to a ' +
+        'concrete model override (docs/07, section 10); dispatch laddered profiles ' +
+        'through orchestratePlanned or pass a plain ModelRef or ModelChoice',
+    );
+  }
   if (merged.model === undefined) {
     throw new ConfigError(
       `no model resolves for role '${role}': set AgentOpts.model, a profile model, ` +
@@ -292,4 +314,134 @@ export function resolveModelInvocation(options: {
     resolved.fallbacks = merged.fallbacks;
   }
   return resolved;
+}
+
+/** The closed trigger vocabulary guard (docs/04, section 12). */
+const TRIGGER_CLASSES: readonly TriggerClass[] = [
+  'error',
+  'limit',
+  'schema-exhausted',
+  'verify-failed',
+  'no-progress',
+];
+
+function validateGate(gate: Gate, rungCount: number, index: number): void {
+  if (gate.kind === 'mechanical') {
+    if (typeof gate.profile !== 'string' || gate.profile === '') {
+      throw new ConfigError(
+        `ladder acceptance gate ${String(index)}: a mechanical gate names a registered ` +
+          'gate profile (docs/04, section 12)',
+      );
+    }
+    return;
+  }
+  if (gate.kind === 'judge') {
+    if (typeof gate.rung === 'number') {
+      if (!Number.isInteger(gate.rung) || gate.rung < 0 || gate.rung >= rungCount) {
+        // FR-119: a ladder spec with an undeclared judge rung is a
+        // ConfigError; no cross-adapter quality ordering exists, so the
+        // ordering constraint is replaced by declaration.
+        throw new ConfigError(
+          `ladder acceptance gate ${String(index)}: judge rung ${String(gate.rung)} is not ` +
+            `a declared rung of a ${String(rungCount)}-rung ladder (FR-119)`,
+        );
+      }
+      return;
+    }
+    // An explicitly named override must at least parse as a ModelRef.
+    parseModelRef(gate.rung);
+    return;
+  }
+  if (!(gate.fraction > 0 && gate.fraction <= 1)) {
+    throw new ConfigError(
+      `ladder acceptance gate ${String(index)}: a spot-check fraction lies in (0, 1], ` +
+        `got ${String(gate.fraction)}`,
+    );
+  }
+}
+
+/**
+ * Canonicalizes a declared LadderSpec (docs/04, section 12): validates the
+ * shape once (FR-119 judge declaration included) and resolves every rung's
+ * effort to an explicit value. `chainEffort` is the effort the resolution
+ * chain would contribute at the declaring layer; a rung that resolves no
+ * effort at all is a ConfigError (the canonical form has no absent-effort
+ * member by declaration).
+ */
+export function canonicalizeLadder(
+  spec: LadderSpec,
+  options?: { chainEffort?: Effort },
+): CanonicalLadderSpec {
+  if (!Array.isArray(spec.rungs) || spec.rungs.length === 0) {
+    throw new ConfigError('a ladder declares at least one rung (docs/04, section 12)');
+  }
+  if (
+    !Number.isInteger(spec.startTier) ||
+    spec.startTier < 0 ||
+    spec.startTier >= spec.rungs.length
+  ) {
+    throw new ConfigError(
+      `ladder startTier ${String(spec.startTier)} is not a declared rung index of a ` +
+        `${String(spec.rungs.length)}-rung ladder`,
+    );
+  }
+  for (const trigger of spec.escalateOn) {
+    if (!TRIGGER_CLASSES.includes(trigger)) {
+      throw new ConfigError(
+        `unknown ladder trigger '${String(trigger)}': the vocabulary is closed to ` +
+          `${TRIGGER_CLASSES.join(', ')} (docs/04, section 12)`,
+      );
+    }
+  }
+  const rungs = spec.rungs.map((rung, index) => {
+    parseModelRef(rung.model);
+    if (!Number.isInteger(rung.maxTurns) || rung.maxTurns <= 0) {
+      throw new ConfigError(`ladder rung ${String(index)}: maxTurns is a positive integer`);
+    }
+    if (!Number.isInteger(rung.maxTokens) || rung.maxTokens <= 0) {
+      throw new ConfigError(`ladder rung ${String(index)}: maxTokens is a positive integer`);
+    }
+    if (rung.maxCostUsd !== undefined && !(rung.maxCostUsd > 0)) {
+      throw new ConfigError(`ladder rung ${String(index)}: maxCostUsd is positive when present`);
+    }
+    const effort = rung.effort ?? options?.chainEffort;
+    if (effort === undefined) {
+      throw new ConfigError(
+        `ladder rung ${String(index)} resolves no effort: the canonical ladder embeds ` +
+          'explicit efforts (docs/04, section 8.2); declare rung.effort or a chain effort',
+      );
+    }
+    return {
+      model: rung.model,
+      effort,
+      maxTurns: rung.maxTurns,
+      maxTokens: rung.maxTokens,
+      ...(rung.maxCostUsd === undefined ? {} : { maxCostUsd: rung.maxCostUsd }),
+      ...(rung.memoizeOutcome === undefined ? {} : { memoizeOutcome: rung.memoizeOutcome }),
+    };
+  });
+  for (const [index, gate] of (spec.acceptance ?? []).entries()) {
+    validateGate(gate, spec.rungs.length, index);
+  }
+  return {
+    rungs,
+    startTier: spec.startTier,
+    escalateOn: [...spec.escalateOn],
+    ...(spec.acceptance === undefined ? {} : { acceptance: spec.acceptance.map((gate) => gate) }),
+  };
+}
+
+/**
+ * The concrete ModelChoice of one rung attempt: each attempt is an
+ * ordinary agent scope whose CanonicalModelSpec is that rung's
+ * `{ kind: 'model' }` form (docs/04, section 8.2).
+ */
+export function ladderRungChoice(ladder: CanonicalLadderSpec, index: number): ModelChoice {
+  const rung = ladder.rungs[index];
+  if (rung === undefined) {
+    throw new ConfigError(
+      `rung ${String(index)} is not declared on a ${String(ladder.rungs.length)}-rung ladder`,
+    );
+  }
+  return { model: rung.model, effort: rung.effort };
 }

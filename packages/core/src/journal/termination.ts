@@ -93,17 +93,22 @@ function sha256Hex(text: string): string {
 }
 
 /**
- * Reads the declared ladder length of one agent profile. The LadderSpec
- * surface ships with M7-T10; the reader is defensive so the snapshot is
- * total over every registry shape (an undeclared ladder has length 1:
- * the single implicit rung).
+ * Reads the declared ladder length of one agent profile. Ladders are
+ * declared through the profile's ModelSpec (`model: { ladder }`, or the
+ * loop-role routing entry; docs/04, section 12). The reader is defensive
+ * so the snapshot is total over every registry shape (an undeclared
+ * ladder has length 1: the single implicit rung).
  */
 export function ladderLengthOf(profile: unknown): number {
-  const ladder = (profile as { ladder?: { rungs?: unknown[] } } | undefined)?.ladder;
-  if (ladder === undefined || !Array.isArray(ladder.rungs) || ladder.rungs.length === 0) {
-    return 1;
+  const record = profile as
+    { model?: unknown; routing?: { loop?: unknown } | undefined } | undefined;
+  for (const spec of [record?.model, record?.routing?.loop]) {
+    const ladder = (spec as { ladder?: { rungs?: unknown[] } } | undefined)?.ladder;
+    if (ladder !== undefined && Array.isArray(ladder.rungs) && ladder.rungs.length > 0) {
+      return ladder.rungs.length;
+    }
   }
-  return ladder.rungs.length;
+  return 1;
 }
 
 /** kMax: the maximum declared ladder length across the registry snapshot. */
@@ -704,6 +709,12 @@ export function foldTermination(entries: readonly JournalEntry[]):
           value.rungsRemainingAfter,
           result.rungsRemainingAfter,
         );
+        // The rung RESPAWN is an admitted spawn (docs/07, 11.3 rule b):
+        // its admission rides the raising verdict exactly like the
+        // decomposition admissions ride escalation decisions.
+        for (const admission of readAdmissions(entry)) {
+          applySpawnDebit(account, entry, admission, assertBalance);
+        }
       }
     }
   }
