@@ -19,7 +19,7 @@ import {
   type JournalEntry,
 } from '../l0/entries.js';
 import type { ModelRef, Usage } from '../l0/messages.js';
-import type { JournalStore } from '../l0/spi/store.js';
+import type { JournalStore, Lease } from '../l0/spi/store.js';
 import { toJournalValue } from './serializable.js';
 import { validateEntryShape } from './kinds.js';
 import {
@@ -104,6 +104,7 @@ export interface TerminalPatch {
 export class Replayer {
   private readonly runId: string;
   private readonly store: JournalStore;
+  private readonly lease?: Lease;
   private readonly now: () => number;
   private readonly priceUsd?: (servedBy: ModelRef | undefined, usage: Usage) => number | undefined;
   private readonly onWarn?: (msg: string) => void;
@@ -132,9 +133,19 @@ export class Replayer {
     disposition?: (op: JournalOperation) => OperationDisposition;
     /** Replay-strict: any live-class match throws JournalMissError. */
     strict?: boolean;
+    /**
+     * Queue mode: every append carries this lease so a stale holder's
+     * writes are rejected by the fencing epoch (docs/03, section 12.3;
+     * M8 entry amendment). Absent means the single-writer precondition
+     * is asserted instead of fenced (the embedded default).
+     */
+    lease?: Lease;
   }) {
     this.runId = options.runId;
     this.store = options.store;
+    if (options.lease !== undefined) {
+      this.lease = options.lease;
+    }
     this.now = options.now ?? Date.now;
     if (options.priceUsd !== undefined) {
       this.priceUsd = options.priceUsd;
@@ -558,7 +569,10 @@ export class Replayer {
           shapeIssues.map((i) => i.message).join('; '),
       );
     }
-    await this.store.append(this.runId, entry);
+    // The single append site: queue-mode fencing rides here (docs/03,
+    // 12.3): a stale lease makes the store reject and nothing becomes
+    // visible.
+    await this.store.append(this.runId, entry, this.lease);
     this.entries.push(entry);
     if (entry.status === 'suspended') {
       this.foldInternal.registerSuspended(entry);
