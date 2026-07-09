@@ -1872,6 +1872,162 @@ declare function foldTermination(entries: readonly JournalEntry[]): {
   }>;
 } | undefined;
 //#endregion
+//#region src/journal/reuse.d.ts
+/** Kernel contentHash of a spawn root entry (docs/03, 9.2). */
+type SpawnKey = string;
+/** Plan-node identity (docs/07, 3.1). */
+type NodeId$1 = string;
+/** The rich donor descriptor embedded in reuse verdicts (docs/03, 9.9). */
+interface DonorRef {
+  /** Head of the link chain. */
+  nodeId: NodeId$1;
+  /** Seq of the donor's root entry. */
+  rootEntryRef: EntryRef;
+  /** Transitive chain, oldest first. */
+  chain: NodeId$1[];
+  spawnKey: SpawnKey;
+  /** Lineage continues through the link (docs/03, 9.6; DEF-3). */
+  logicalTaskId: LogicalTaskId;
+  /** Paid under the chain at the verdict snapshot. */
+  paidUsd: number;
+}
+/** Graft bootstrap payload (docs/03, 9.9). */
+interface GraftBoot {
+  /** Retained by the abandon entry, when it was. */
+  checkpointRef?: string;
+  /** Deterministic sum of match-eligible payments. */
+  eligiblePaidUsd: number;
+  worktreePinned: boolean;
+}
+/** Telemetry for a SpawnKey match admitted fresh (docs/03, 9.9). */
+interface DedupNote {
+  spawnKey: SpawnKey;
+  donorNodeId: NodeId$1;
+  reason: "donor_failed" | "no_paid_entries" | "graft_unsafe" | "donor_active";
+}
+/** The reuse block of AdmissionConfig (docs/03, 9.9). */
+interface ReuseConfig {
+  /** Default true. */
+  enabled?: boolean;
+  /** Default true. */
+  allowGraft?: boolean;
+  /** Default 2 (Appendix A). */
+  maxOscillationsPerKey?: number;
+  /** Optional RevisionGuards trigger on netLostUsd (docs/07, 3.8). */
+  maxAbandonedNetUsdFraction?: number;
+}
+declare const DEFAULT_MAX_OSCILLATIONS_PER_KEY = 2;
+/** The consumer-facing reuse mark on results (docs/03, 9.9). */
+interface AgentResultMeta {
+  reusedFrom?: {
+    nodeId: NodeId$1;
+    rootEntryRef: EntryRef;
+    mode: "full" | "graft";
+    reclaimedUsd: number;
+  };
+}
+/** The node.link entry value (docs/03, 9.5): an ordinary content-keyed effect entry. */
+interface NodeLinkValue {
+  targetNodeId: NodeId$1;
+  /** plan/NewNodeId. */
+  targetScope: string;
+  /** plan/HeadNodeId (only the donor is addressed by seq elsewhere). */
+  donorScope: string;
+  /** Full chain for transitive drainage, oldest first. */
+  chain: string[];
+  spawnKey: SpawnKey;
+  logicalTaskId: LogicalTaskId;
+  mode: "full" | "graft";
+  /** full is shareable, graft is exclusive (docs/03, 9.5). */
+  claim: "shared" | "exclusive";
+  checkpointRef?: string;
+  reclaimedUsdAtLink: number;
+  donorRootRef: EntryRef;
+}
+/**
+* node.link identity (docs/03, 9.5): sha256 of {kind, spawnKey,
+* donorScope, targetNodeId}; targetNodeId is deterministic on replay
+* because NodeIds are assigned inside plan.revision.
+*/
+declare function nodeLinkKey(spawnKey: SpawnKey, donorScope: string, targetNodeId: NodeId$1): string;
+/** The abandoned-spend ledger fold (docs/03, 9.7). */
+interface AbandonedSpendView {
+  abandonedUsd: number;
+  reclaimedUsd: number;
+  netLostUsd: number;
+  byKey: Record<SpawnKey, {
+    oscillationCount: number;
+    abandonedUsd: number;
+    reclaimedUsd: number;
+  }>;
+}
+/** One donor candidate surfaced by the DedupIndex fold (docs/03, 9.3). */
+interface DonorCandidate {
+  rootEntryRef: EntryRef;
+  rootScope: string;
+  spawnKey: SpawnKey;
+  /** From the abandon payload when the sever named the node. */
+  nodeId?: NodeId$1;
+  logicalTaskId?: LogicalTaskId;
+  /** Effective root status BEFORE the abandon overlay. */
+  preAbandonStatus: "ok" | "escalated" | "running" | "cancelled" | "error" | "limit";
+  memoizedFailure: boolean;
+  /** Total paid under the donor's child coverage at fold time. */
+  paidUsd: number;
+  /** Match-eligible (completed, non-running, non-cancelled) payments. */
+  eligiblePaidUsd: number;
+  hasPaidEntries: boolean;
+  isolationWorktree: boolean;
+  worktreePinned: boolean;
+  checkpointRef?: string;
+  retainedCheckpoint: boolean;
+  /** Seq of the exclusive node.link that captured this donor, if any. */
+  claimedBy?: EntryRef;
+  /** Scope chain for transitive drainage, oldest first (docs/03, 9.6). */
+  chain: string[];
+}
+/**
+* The DedupIndex: a pure fold over spawn roots, severing abandons, and
+* node.link entries. Prices fold from journal facts (servedBy, usage)
+* through the injected price function; on replay the embedded verdict
+* values are authoritative and this fold serves integrity only.
+*/
+declare class DedupIndex {
+  private readonly donors;
+  private readonly links;
+  private readonly spend;
+  static fold(entries: readonly JournalEntry[], options?: {
+    priceUsd?: (servedBy: ModelRef | undefined, usage: Usage) => number | undefined;
+  }): DedupIndex;
+  /** Unclaimed donor candidates for a key, oldest (chain head) first. */
+  donorsOf(spawnKey: SpawnKey): DonorCandidate[];
+  /** Every donor for a key including claimed ones (diagnostics). */
+  allDonorsOf(spawnKey: SpawnKey): DonorCandidate[];
+  /** Link count per key: the oscillation counter (docs/03, 9.7). */
+  oscillationCountOf(spawnKey: SpawnKey): number;
+  abandonedSpend(): AbandonedSpendView;
+}
+/**
+* The four-outcome verdict evaluation on a SpawnKey match (docs/03,
+* 9.4), computed once live at the fold head and embedded into the
+* deciding entry; replay never re-evaluates.
+*/
+declare function evaluateReuse(index: DedupIndex, spawnKey: SpawnKey, config?: ReuseConfig): {
+  kind: "none";
+} | {
+  kind: "reject_osc_guard";
+  oscillationCount: number;
+} | {
+  kind: "reuse_full";
+  donor: DonorCandidate;
+} | {
+  kind: "admit_graft";
+  donor: DonorCandidate;
+} | {
+  kind: "fresh";
+  note: DedupNote;
+};
+//#endregion
 //#region src/journal/checkpoint.d.ts
 /** Leading format byte of the v1 checkpoint blob. */
 declare const CHECKPOINT_FORMAT_V1 = 1;
@@ -2073,6 +2229,9 @@ declare class JournalMatcher {
   private readonly consumed;
   private readonly keyRing;
   private disposition;
+  private aliasDisposition?;
+  /** Scope-prefix aliases (DEF-5, docs/03 9.5): donor prefix -> target prefix. */
+  private readonly aliases;
   private readonly keyCache;
   private hitsInternal;
   private missesInternal;
@@ -2084,6 +2243,22 @@ declare class JournalMatcher {
   });
   /** M2-T06 swaps in the full DEF-1 predicate after folds are built. */
   setDisposition(disposition: (op: JournalOperation) => OperationDisposition): void;
+  /**
+  * The disposition applied to alias-sourced candidates (DEF-5, docs/03
+  * 9.5): the skipped overlay from abandon is bypassed ONLY through the
+  * alias, so entries regain their pre-abandon terminal status for
+  * matching in the NEW scope; the standalone old scope stays skipped.
+  */
+  setAliasDisposition(disposition: (op: JournalOperation) => OperationDisposition): void;
+  /**
+  * Registers a scope-prefix rewrite (node.link, DEF-5): donorPrefix maps
+  * to targetPrefix for forward-matching purposes; the per-scope cursors
+  * work unchanged at every nested level, so partial subtree reuse falls
+  * out for free at any depth.
+  */
+  registerAlias(donorPrefix: string, targetPrefix: string): void;
+  /** Candidates for one scope: native ops plus alias-mapped donor ops. */
+  private candidatesOf;
   private keyOf;
   /**
   * Forward-matches one live call. A miss does not advance any cursor and
@@ -2206,7 +2381,8 @@ type ResolutionAttempt = {
 type AbandonAttempt = {
   target: number;
   authorizedBy: number;
-  nodeId?: string;
+  nodeId?: string; /** Lineage-fold attribution (XF-04; DEF-3). */
+  logicalTaskId?: string;
   reason: string;
   retainCheckpoint?: boolean;
   retainWorktree?: boolean;
@@ -2398,6 +2574,18 @@ declare class Replayer {
   */
   match(scope: string, identity: IdentityInput, mode: ReplayMode): MatchResult;
   setDisposition(disposition: (op: JournalOperation) => OperationDisposition): void;
+  /**
+  * The disposition for alias-sourced candidates (DEF-5, docs/03 9.5):
+  * bypasses the abandon overlay so donor entries regain their
+  * pre-abandon terminal status when matched through the alias.
+  */
+  setAliasDisposition(disposition: (op: JournalOperation) => OperationDisposition): void;
+  /**
+  * Registers a node.link scope-prefix rewrite (DEF-5, docs/03 9.5):
+  * donorPrefix forward-matches into targetPrefix at every nested level.
+  * Idempotent; the alias map is rebuilt by fold on resume.
+  */
+  registerAlias(donorPrefix: string, targetPrefix: string): void;
   /**
   * invalidate/retry (docs/03, section 6.5): explicit unpinning of a
   * memoized failure; the invalidated entry reruns on this resume. The
@@ -3459,24 +3647,11 @@ declare class RunBudget {
 //#region src/orchestrator/admission.d.ts
 /** Plan-node identity; engine-minted ULID (docs/07, section 3.1). */
 type NodeId = string;
-/** Kernel contentHash of a spawn's root entry (DEF-5). */
-type SpawnKey = string;
-/** Donor addressed by the seq of its root entry (DEF-5; producers in M7). */
-type DonorRef = number;
-/** Graft bootstrap payload; fields complete with M7-T07 (DEF-5). */
-interface GraftBoot {
-  donorRef: DonorRef;
-}
 /** Layer-1 reservation embedded in the carrying decision entry. */
 interface BudgetReserve {
   reserveUsd: number;
   /** The child sub-account ceiling; absent when the parent is uncapped. */
   childCeilingUsd?: number;
-}
-/** Telemetry note for a byte-identical repeat admitted fresh (DEF-5). */
-interface DedupNote {
-  spawnKey: SpawnKey;
-  priorRef: number;
 }
 /** The lineage block every non-reject verdict carries (DEF-3). */
 interface AdmitLineage {
@@ -4097,6 +4272,29 @@ interface OrchestratorExtensionIO {
     cancelled: boolean;
     handle: number;
   }>;
+  /**
+  * Appends the severing abandon ref-entry over a branch through the
+  * ResolutionArbiter (DEF-4/DEF-5; docs/03, sections 8.5 and 9.1).
+  */
+  abandonBranch(attempt: {
+    target: number;
+    authorizedBy: number;
+    nodeId?: string;
+    logicalTaskId?: string;
+    reason: string;
+    retainCheckpoint?: boolean;
+    retainWorktree?: boolean;
+  }): Promise<{
+    applied: boolean;
+    seq: number;
+  }>;
+  /**
+  * Registers a node.link scope-prefix alias for forward matching
+  * (DEF-5; docs/03, 9.5). Idempotent; rebuilt by fold on resume.
+  */
+  registerAlias(donorScope: string, targetScope: string): void;
+  /** The engine price fold (journal facts in, USD out; docs/04). */
+  priceUsd(servedBy: string | undefined, usage: Usage): number | undefined;
   /** Telemetry emission into the run event stream. */
   emit(event: {
     type: string;
@@ -5154,4 +5352,4 @@ interface SandboxBridge {
 }
 declare function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptions): SandboxBridge;
 //#endregion
-export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbortClass, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, BUDGET_ABORT_REASON, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DebitResult, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINISH_SCHEMA, FINISH_TOOL_NAME, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileTranscriptStore, FinishInfo, Gate, GateAudit, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, LurkerError, LurkerErrorCode, MAX_DEPTH_CEILING, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateOptions, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskDigest, TaskSpec, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, approachSigCoarse, approachSigOf, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeSchema, checkFloors, checkpointRefFor, childCoveragePrefix, classifyAgentError, classifyAttemptOutcome, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, foldTermination, formatRePrompt, formatScopePath, hashWorkflowBody, hashWorkflowSource, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, kMaxOf, ladderLengthOf, lexShellCommand, liftRetainedParts, lineageWeightOf, makeOrchestratorWorkflow, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, priceUsdOf, profileCard, profileRegistrySnapshotHash, projectHistory, projectIdentity, projectToJsonSchema, providerOf, readTerminationInit, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, summarizeOutput, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateSchemaSpec, validateTerminationLimits, workflowScope, workflowSourceRef };
+export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentResultMeta, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, BUDGET_ABORT_REASON, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DebitResult, DedupIndex, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorCandidate, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINISH_SCHEMA, FINISH_TOOL_NAME, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileTranscriptStore, FinishInfo, Gate, GateAudit, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, LurkerError, LurkerErrorCode, MAX_DEPTH_CEILING, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateOptions, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskDigest, TaskSpec, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, approachSigCoarse, approachSigOf, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeSchema, checkFloors, checkpointRefFor, childCoveragePrefix, classifyAgentError, classifyAttemptOutcome, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, evaluateReuse, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, foldTermination, formatRePrompt, formatScopePath, hashWorkflowBody, hashWorkflowSource, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, kMaxOf, ladderLengthOf, lexShellCommand, liftRetainedParts, lineageWeightOf, makeOrchestratorWorkflow, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, priceUsdOf, profileCard, profileRegistrySnapshotHash, projectHistory, projectIdentity, projectToJsonSchema, providerOf, readTerminationInit, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, summarizeOutput, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateSchemaSpec, validateTerminationLimits, workflowScope, workflowSourceRef };

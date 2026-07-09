@@ -255,6 +255,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
     disposition: dispositionHook(fold, registry),
     ...(options.priorEntries === undefined ? {} : { priorEntries: options.priorEntries }),
   });
+  seededReplayer.setAliasDisposition(dispositionHook({ isAbandoned: () => false }, registry));
   if (options.priorEntries !== undefined) {
     const prior = seededReplayer.ledger();
     budgetOptions.seed = { usd: prior.usd, usage: prior.usage, agentsSpawned: prior.agentsSpawned };

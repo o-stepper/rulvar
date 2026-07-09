@@ -40,32 +40,17 @@ import type { TerminationAccount } from '../journal/termination.js';
 import { DEFAULT_FLAT_RESERVE_USD, type RunBudget } from '../engine/budget.js';
 
 export type { LogicalTaskId } from '../journal/lineage.js';
+export type { DedupNote, DonorRef, GraftBoot, SpawnKey } from '../journal/reuse.js';
+import type { DedupNote, DonorRef, GraftBoot, SpawnKey } from '../journal/reuse.js';
 
 /** Plan-node identity; engine-minted ULID (docs/07, section 3.1). */
 export type NodeId = string;
-
-/** Kernel contentHash of a spawn's root entry (DEF-5). */
-export type SpawnKey = string;
-
-/** Donor addressed by the seq of its root entry (DEF-5; producers in M7). */
-export type DonorRef = number;
-
-/** Graft bootstrap payload; fields complete with M7-T07 (DEF-5). */
-export interface GraftBoot {
-  donorRef: DonorRef;
-}
 
 /** Layer-1 reservation embedded in the carrying decision entry. */
 export interface BudgetReserve {
   reserveUsd: number;
   /** The child sub-account ceiling; absent when the parent is uncapped. */
   childCeilingUsd?: number;
-}
-
-/** Telemetry note for a byte-identical repeat admitted fresh (DEF-5). */
-export interface DedupNote {
-  spawnKey: SpawnKey;
-  priorRef: number;
 }
 
 /** The lineage block every non-reject verdict carries (DEF-3). */

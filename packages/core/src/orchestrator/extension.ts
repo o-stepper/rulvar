@@ -17,6 +17,7 @@
  */
 import type { EntryKind, JournalEntry } from '../l0/entries.js';
 import type { Json } from '../l0/json.js';
+import type { Usage } from '../l0/messages.js';
 import type { ToolDef } from '../l0/spi/toolsource.js';
 import type { UsageLimits } from '../runtime/usage-limits.js';
 import type { EscalationOptions } from '../runtime/escalation.js';
@@ -85,6 +86,26 @@ export interface OrchestratorExtensionIO {
   settledOf(handle: number): AgentResult<unknown> | undefined;
   /** Cancels an in-flight child by handle (AbortSignal). */
   cancel(handle: number, reason?: string): Promise<{ cancelled: boolean; handle: number }>;
+  /**
+   * Appends the severing abandon ref-entry over a branch through the
+   * ResolutionArbiter (DEF-4/DEF-5; docs/03, sections 8.5 and 9.1).
+   */
+  abandonBranch(attempt: {
+    target: number;
+    authorizedBy: number;
+    nodeId?: string;
+    logicalTaskId?: string;
+    reason: string;
+    retainCheckpoint?: boolean;
+    retainWorktree?: boolean;
+  }): Promise<{ applied: boolean; seq: number }>;
+  /**
+   * Registers a node.link scope-prefix alias for forward matching
+   * (DEF-5; docs/03, 9.5). Idempotent; rebuilt by fold on resume.
+   */
+  registerAlias(donorScope: string, targetScope: string): void;
+  /** The engine price fold (journal facts in, USD out; docs/04). */
+  priceUsd(servedBy: string | undefined, usage: Usage): number | undefined;
   /** Telemetry emission into the run event stream. */
   emit(event: { type: string } & Record<string, unknown>): void;
 }

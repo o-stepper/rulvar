@@ -207,6 +207,24 @@ export class Replayer {
   }
 
   /**
+   * The disposition for alias-sourced candidates (DEF-5, docs/03 9.5):
+   * bypasses the abandon overlay so donor entries regain their
+   * pre-abandon terminal status when matched through the alias.
+   */
+  setAliasDisposition(disposition: (op: JournalOperation) => OperationDisposition): void {
+    this.matcher.setAliasDisposition(disposition);
+  }
+
+  /**
+   * Registers a node.link scope-prefix rewrite (DEF-5, docs/03 9.5):
+   * donorPrefix forward-matches into targetPrefix at every nested level.
+   * Idempotent; the alias map is rebuilt by fold on resume.
+   */
+  registerAlias(donorPrefix: string, targetPrefix: string): void {
+    this.matcher.registerAlias(donorPrefix, targetPrefix);
+  }
+
+  /**
    * invalidate/retry (docs/03, section 6.5): explicit unpinning of a
    * memoized failure; the invalidated entry reruns on this resume. The
    * safety boundary is an open question (docs/14).

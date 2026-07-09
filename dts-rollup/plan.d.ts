@@ -1,4 +1,4 @@
-import { AdmissionDecision, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, Json, KeyDeriver, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, RunHandle, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, UsageLimits } from "@lurker/core";
+import { AdmissionDecision, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, Json, KeyDeriver, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, ReuseConfig, RunHandle, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, UsageLimits } from "@lurker/core";
 
 //#region src/plan-state.d.ts
 /**
@@ -296,6 +296,11 @@ interface PlanRevisionAdmission {
   opIndex: number;
   nodeId?: NodeId;
   decision: AdmissionDecision;
+  /** Reuse placement recorded beside a reuse_full/admit_graft verdict (DEF-5). */
+  reuse?: {
+    donorScope: string;
+    chain: string[];
+  };
 }
 /** The value payload of a plan.revision entry (docs/07, 3.3; XF-11). */
 interface PlanRevisionValue {
@@ -428,11 +433,16 @@ declare function applyDecisionOps(state: Pick<PlanFoldState, "plan" | "specs" | 
 };
 //#endregion
 //#region src/rebase.d.ts
-/** The reuse-by-reference transform hook (DEF-5; producer lands in M7-T07). */
+/** The reuse-by-reference transform hook (DEF-5; M7-T07). */
 interface ReuseTransform {
   applied: AppliedPlanOp;
   admission: AdmissionDecision;
   nodeId: NodeId;
+  /** Donor placement recorded beside the verdict (docs/03, 9.5). */
+  reuse: {
+    donorScope: string;
+    chain: string[];
+  };
 }
 interface RebaseContext {
   /** The fold head (docs/07, 3.5 step 3). */
@@ -622,6 +632,8 @@ interface PlanRunnerOptions {
   guards?: RevisionGuardsOptions;
   /** Out-of-vocabulary tags get a typed tool error with bounded re-prompt (DEF-3). */
   approachVocabulary?: string[];
+  /** Reuse-by-reference configuration (DEF-5; docs/03, 9.9). */
+  reuse?: ReuseConfig;
   /** Frozen termination knobs beyond the revision budget (DEF-2). */
   limits?: Partial<Pick<TerminationLimits, "maxTotalSpawns" | "maxEscalationsPerLogicalTask" | "maxDepth">>;
 }

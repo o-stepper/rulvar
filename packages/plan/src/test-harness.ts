@@ -8,6 +8,8 @@ import type { ChatEvent, ChatRequest, ModelCaps, ProviderAdapter, Usage } from '
 export interface ScriptedTurn {
   text?: string;
   toolCall?: { name: string; args: unknown };
+  /** Park the stream until the abort signal fires (cancel determinism). */
+  hangUntilAborted?: boolean;
 }
 
 export const TEST_CAPS: ModelCaps = {
@@ -31,11 +33,20 @@ export function scriptedAdapter(
     id: 'fake',
     calls,
     caps: () => TEST_CAPS,
-    // eslint-disable-next-line @typescript-eslint/require-await
-    async *stream(req: ChatRequest): AsyncIterable<ChatEvent> {
+    async *stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent> {
       const call = calls.length;
       calls.push(req);
       const turn = script(req, call);
+      if (turn.hangUntilAborted === true) {
+        await new Promise<void>((resolve) => {
+          if (signal?.aborted === true) {
+            resolve();
+            return;
+          }
+          signal?.addEventListener('abort', () => resolve(), { once: true });
+        });
+        return;
+      }
       if (turn.text !== undefined) {
         yield { type: 'text-delta', text: turn.text };
       }

@@ -141,6 +141,8 @@ export interface PlanRevisionAdmission {
   opIndex: number;
   nodeId?: NodeId;
   decision: AdmissionDecision;
+  /** Reuse placement recorded beside a reuse_full/admit_graft verdict (DEF-5). */
+  reuse?: { donorScope: string; chain: string[] };
 }
 
 /** The value payload of a plan.revision entry (docs/07, 3.3; XF-11). */

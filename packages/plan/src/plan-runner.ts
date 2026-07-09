@@ -19,11 +19,14 @@ import {
   approachSigCoarse,
   buildTerminationInitValue,
   ConfigError,
+  DedupIndex,
   deriverV2,
+  evaluateReuse,
   foldTermination,
   kMaxOf,
   ladderLengthOf,
   LEGACY_SIGNATURE_INPUTS,
+  nodeLinkKey,
   normalizeApproachTag,
   orchestrate,
   planNodeScope,
@@ -31,8 +34,11 @@ import {
   ROOT_ACCOUNT,
   TerminationAccount,
   validateTerminationLimits,
+  type AdmissionDecision,
   type AgentProfile,
   type AgentResult,
+  type DonorCandidate,
+  type DonorRef,
   type EntryRef,
   type Engine,
   type ExtensionDispatchSpec,
@@ -40,9 +46,11 @@ import {
   type Json,
   type LogicalTaskId,
   type NodeId,
+  type NodeLinkValue,
   type OrchestrateOptions,
   type OrchestratorExtension,
   type OrchestratorExtensionIO,
+  type ReuseConfig,
   type RunHandle,
   type TerminationDeniedValue,
   type TerminationLimits,
@@ -71,7 +79,7 @@ import { rebasePlanRevision, type RebaseEvaluation } from './rebase.js';
 import { PlanWriteLock } from './write-lock.js';
 import { buildPlanTools, type PlanToolRuntime, type PlanViewRender } from './tools.js';
 import { RevisionGuards, type GuardVerdictValue, type RevisionGuardsOptions } from './guards.js';
-import type { TaskSpec } from './task-spec.js';
+import { promptSpecHashOf, type TaskSpec } from './task-spec.js';
 
 /** docs/07, 3.8. */
 export interface PlanRunnerOptions {
@@ -80,6 +88,8 @@ export interface PlanRunnerOptions {
   guards?: RevisionGuardsOptions;
   /** Out-of-vocabulary tags get a typed tool error with bounded re-prompt (DEF-3). */
   approachVocabulary?: string[];
+  /** Reuse-by-reference configuration (DEF-5; docs/03, 9.9). */
+  reuse?: ReuseConfig;
   /** Frozen termination knobs beyond the revision budget (DEF-2). */
   limits?: Partial<
     Pick<TerminationLimits, 'maxTotalSpawns' | 'maxEscalationsPerLogicalTask' | 'maxDepth'>
@@ -127,7 +137,15 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   let pinnedPlanSeq = -1;
   const dispatched = new Map<NodeId, number>();
   const consumedRevisionSeqs = new Set<number>();
-  const guards = new RevisionGuards(options?.guards);
+  /** Full-link targets: completed by reference, never dispatched (DEF-5). */
+  const linkedFull = new Map<NodeId, { donorRootRef: EntryRef; spawnKey: string }>();
+  const reuseConfig = options?.reuse;
+  const guards = new RevisionGuards({
+    ...options?.guards,
+    ...(reuseConfig?.maxOscillationsPerKey === undefined
+      ? {}
+      : { maxOscillationsPerKey: reuseConfig.maxOscillationsPerKey }),
+  });
   let guardCursor = -1;
   /** stall:detected emission bookkeeping: once per (ltid, streak). */
   const stallEmitted = new Set<string>();
@@ -206,6 +224,307 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         spec.isolation ?? (io.profiles[spec.agentType] as AgentProfile | undefined)?.isolation,
       ),
     });
+
+  const nodeScopeOf = (nodeId: NodeId): string =>
+    rootScope === '' ? planNodeScope(nodeId) : `${rootScope}/${planNodeScope(nodeId)}`;
+
+  /** The dispatched root entry of a plan node, when one exists. */
+  const nodeRootOf = (nodeId: NodeId): JournalEntry | undefined => {
+    const scope = nodeScopeOf(nodeId);
+    return io
+      .snapshot()
+      .find((entry) => entry.kind === 'agent' && entry.scope === scope && entry.ref === undefined);
+  };
+
+  /**
+   * SpawnKeys a byte-identical candidate would collide with: within one
+   * run, an identical TaskSpec resolves to the identical kernel content
+   * key, so donor discovery goes promptSpecHash -> prior nodes -> their
+   * root entry keys (docs/03, 9.2: strict byte equality, never fuzzy).
+   */
+  const donorKeysOf = (spec: TaskSpec): string[] => {
+    const specHash = promptSpecHashOf(spec);
+    const keys = new Set<string>();
+    for (const node of Object.values(fold.plan.nodes)) {
+      if (node.promptSpecHash !== specHash) {
+        continue;
+      }
+      const root = nodeRootOf(node.nodeId);
+      if (root !== undefined) {
+        keys.add(root.key);
+      }
+    }
+    return [...keys];
+  };
+
+  /**
+   * Re-issues the reuse effects recorded in one plan.revision entry
+   * (docs/03, 9.10: deciding entry, then node.link, then the child root,
+   * then scheduling; a crash between any two is ordinary roll-forward).
+   * Idempotent: every append scans for its own identity first.
+   */
+  const landReuseLinks = async (entry: JournalEntry): Promise<void> => {
+    const value = readPlanRevision(entry);
+    if (value === undefined) {
+      return;
+    }
+    for (const admission of value.admissions) {
+      const verdict = admission.decision.verdict;
+      if (verdict.kind !== 'reuse_full' && verdict.kind !== 'admit_graft') {
+        continue;
+      }
+      const donor = verdict.donor;
+      const targetNodeId = admission.nodeId ?? value.assignedNodeIds[admission.opIndex];
+      if (targetNodeId === undefined || admission.reuse === undefined) {
+        continue;
+      }
+      const targetScope = nodeScopeOf(targetNodeId);
+      const donorScope = admission.reuse.donorScope;
+      const mode: NodeLinkValue['mode'] = verdict.kind === 'reuse_full' ? 'full' : 'graft';
+      const linkKey = nodeLinkKey(donor.spawnKey, donorScope, targetNodeId);
+      const existing = io
+        .snapshot()
+        .find(
+          (candidate) =>
+            candidate.kind === 'node.link' &&
+            candidate.scope === planScope &&
+            candidate.key === linkKey,
+        );
+      let linkSeq = existing?.seq;
+      if (existing === undefined) {
+        const reclaimedUsdAtLink =
+          mode === 'full'
+            ? donor.paidUsd
+            : ((verdict as { boot?: { eligiblePaidUsd?: number } }).boot?.eligiblePaidUsd ?? 0);
+        const linkValue: NodeLinkValue = {
+          targetNodeId,
+          targetScope,
+          donorScope,
+          chain: [...admission.reuse.chain],
+          spawnKey: donor.spawnKey,
+          logicalTaskId: donor.logicalTaskId,
+          mode,
+          claim: mode === 'full' ? 'shared' : 'exclusive',
+          reclaimedUsdAtLink,
+          donorRootRef: donor.rootEntryRef,
+        };
+        const appended = await io.append({
+          scope: planScope,
+          key: linkKey,
+          kind: 'node.link',
+          value: linkValue as unknown as Json,
+        });
+        linkSeq = appended.seq;
+        io.emit({
+          type: 'node:linked',
+          nodeId: targetNodeId,
+          logicalTaskId: donor.logicalTaskId,
+          donorRef: donor.rootEntryRef,
+          reclaimedUsd: reclaimedUsdAtLink,
+        });
+      }
+      void linkSeq;
+      // Scope-prefix aliasing: every chain member forward-matches into
+      // the new scope, oldest first (docs/03, 9.5-9.6).
+      for (const member of admission.reuse.chain) {
+        io.registerAlias(member, targetScope);
+      }
+      if (mode === 'full') {
+        linkedFull.set(targetNodeId, {
+          donorRootRef: donor.rootEntryRef,
+          spawnKey: donor.spawnKey,
+        });
+      }
+    }
+  };
+
+  /** Rebuilds the alias map and full-link table from the journal (boot). */
+  const absorbLinks = (): void => {
+    for (const entry of io.snapshot()) {
+      if (entry.kind !== 'node.link' || entry.scope !== planScope) {
+        continue;
+      }
+      const value = entry.value as unknown as NodeLinkValue;
+      for (const member of value.chain) {
+        io.registerAlias(member, value.targetScope);
+      }
+      if (value.mode === 'full') {
+        linkedFull.set(value.targetNodeId, {
+          donorRootRef: value.donorRootRef,
+          spawnKey: value.spawnKey,
+        });
+      }
+    }
+  };
+
+  /**
+   * Builds the reuse transform for one add_task at the fold head
+   * (docs/03, 9.4): the verdict, the donor descriptor, and the placement
+   * embed into the revision entry; effects land after the append.
+   */
+  const buildReuseTransform = (
+    op: { spec: TaskSpec; deps?: NodeId[]; priority?: number },
+    kind: 'reuse_full' | 'admit_graft',
+    donor: DonorCandidate,
+  ): {
+    applied: {
+      op: 'add_task';
+      spec: TaskSpec;
+      deps?: NodeId[];
+      priority?: number;
+      nodeId: NodeId;
+    };
+    admission: AdmissionDecision;
+    nodeId: NodeId;
+    reuse: { donorScope: string; chain: string[] };
+  } => {
+    const nodeId = io.mintId();
+    const donorNode = donor.nodeId === undefined ? undefined : fold.plan.nodes[donor.nodeId];
+    const logicalTaskId = donor.logicalTaskId ?? donorNode?.logicalTaskId ?? io.mintId();
+    const donorRef: DonorRef = {
+      nodeId: donor.nodeId ?? '',
+      rootEntryRef: donor.rootEntryRef,
+      chain: donor.nodeId === undefined ? [] : [donor.nodeId],
+      spawnKey: donor.spawnKey,
+      logicalTaskId,
+      paidUsd: donor.paidUsd,
+    };
+    let decision: AdmissionDecision;
+    if (kind === 'reuse_full') {
+      // A reuse link is an admitted spawn of its own origin: minus one
+      // spawnUnit, zero live budget reserve (docs/07, 11.3b and 7.3).
+      const debited = requireAccount().debitSpawn({ logicalTaskId, isNew: false });
+      if (!debited.ok) {
+        throw new ConfigError(
+          'termination_exhausted: maxTotalSpawns reached at a reuse link (docs/07, 11.3)',
+        );
+      }
+      decision = {
+        verdict: {
+          kind: 'reuse_full',
+          donor: donorRef,
+          spawnUnitsAfter: debited.spawnUnitsAfter,
+          lineage: { logicalTaskId, isNew: false, depth: 1 },
+        },
+        statsBefore: { spawnsBefore: 0, childrenOfParentBefore: 0, depth: 1 },
+        nodeId,
+      };
+    } else {
+      // Graft takes the full standard reserve, no discount: reclaim is a
+      // realizable saving, not a prepayment (docs/03, 9.4).
+      const admitted = io.admission.admit(
+        {
+          origin: 'spawn_agent',
+          name: op.spec.agentType,
+          childScope: nodeScopeOf(nodeId),
+          parentAccountScope: ROOT_ACCOUNT,
+          nodeKey: planScope,
+          ...(op.spec.budgetUsd === undefined ? {} : { budgetUsd: op.spec.budgetUsd }),
+          lineage: { continues: logicalTaskId, causeRef: donor.rootEntryRef, relation: 'respawn' },
+          signature: {
+            agentType: op.spec.agentType,
+            isolation: canonicalIsolationTag(
+              op.spec.isolation ??
+                (io.profiles[op.spec.agentType] as AgentProfile | undefined)?.isolation,
+            ),
+          },
+          ladderLength: ladderLengthOf(io.profiles[op.spec.agentType]),
+        },
+        { commitReserve: false },
+      );
+      if (admitted.verdict.kind !== 'admit') {
+        throw new ConfigError(
+          `graft admission failed (${admitted.verdict.kind === 'reject' ? admitted.verdict.reason.code : admitted.verdict.kind})`,
+        );
+      }
+      decision = {
+        verdict: {
+          kind: 'admit_graft',
+          donor: donorRef,
+          reserve: admitted.verdict.reserve,
+          boot: {
+            eligiblePaidUsd: donor.eligiblePaidUsd,
+            worktreePinned: donor.worktreePinned,
+            ...(donor.checkpointRef === undefined ? {} : { checkpointRef: donor.checkpointRef }),
+          },
+          spawnUnitsAfter: admitted.verdict.spawnUnitsAfter,
+          lineage: admitted.verdict.lineage,
+        },
+        statsBefore: admitted.statsBefore,
+        nodeId,
+        ...(admitted.ladderLength === undefined ? {} : { ladderLength: admitted.ladderLength }),
+      };
+    }
+    return {
+      applied: {
+        op: 'add_task',
+        spec: op.spec,
+        ...(op.deps === undefined ? {} : { deps: op.deps }),
+        ...(op.priority === undefined ? {} : { priority: op.priority }),
+        nodeId,
+      },
+      admission: decision,
+      nodeId,
+      reuse: { donorScope: donor.rootScope, chain: [...donor.chain] },
+    };
+  };
+
+  /** Compiles applied cancels into severing abandons (docs/03, 9.1). */
+  const landCancelAbandons = async (
+    value: PlanRevisionValue,
+    authorizedBy: EntryRef,
+  ): Promise<void> => {
+    for (const outcome of value.outcomes) {
+      if (outcome.kind === 'dropped') {
+        continue;
+      }
+      const applied = outcome.kind === 'applied' ? outcome.op : outcome.applied;
+      if (applied.op !== 'cancel_task' || applied.requestOnly === true) {
+        continue;
+      }
+      await abandonNode(applied.nodeId, authorizedBy, applied.reason ?? 'cancel_task');
+      for (const cascaded of applied.cascadeNodeIds ?? []) {
+        await abandonNode(cascaded, authorizedBy, 'cancel_task cascade');
+      }
+    }
+  };
+
+  /** Severs a cancelled node's dispatched branch (docs/03, 9.1). */
+  const abandonNode = async (
+    nodeId: NodeId,
+    authorizedBy: EntryRef,
+    reason: string,
+  ): Promise<void> => {
+    const root = nodeRootOf(nodeId);
+    if (root === undefined) {
+      return;
+    }
+    const node = fold.plan.nodes[nodeId];
+    await io.abandonBranch({
+      target: root.seq,
+      authorizedBy,
+      nodeId,
+      ...(node === undefined ? {} : { logicalTaskId: node.logicalTaskId }),
+      reason,
+    });
+  };
+
+  /** The abandoned-spend view pinned to the plan_view snapshot (DEF-5). */
+  const pinnedAbandonedSpend = (): {
+    abandonedUsd: number;
+    reclaimedUsd: number;
+    netLostUsd: number;
+  } => {
+    const pinnedEntries = io.snapshot().filter((entry) => entry.seq <= pinnedPlanSeq);
+    const view = DedupIndex.fold(pinnedEntries, {
+      priceUsd: (servedBy, usage) => io.priceUsd(servedBy, usage),
+    }).abandonedSpend();
+    return {
+      abandonedUsd: view.abandonedUsd,
+      reclaimedUsd: view.reclaimedUsd,
+      netLostUsd: view.netLostUsd,
+    };
+  };
 
   const absorbPlan = (): void => {
     for (const entry of io.snapshot()) {
@@ -296,7 +615,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     origin: PlanDecisionOrigin,
     ops: EnginePlanOp[],
     causeRef: EntryRef,
-  ): Promise<void> => {
+  ): Promise<EntryRef> => {
     // Engine authorship happens at the fold head under PlanWriteLock
     // (docs/07, 3.3): preview computes planHashAfter before the append.
     const preview = applyDecisionOps(fold, ops, -1);
@@ -308,7 +627,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       planHashAfter: planHash(preview.plan),
       hashVersion: 2,
     };
-    await io.append({
+    const entry = await io.append({
       scope: planScope,
       key: planDecisionKey(origin, ops, causeRef),
       kind: 'plan.decision',
@@ -316,6 +635,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     });
     await io.flush();
     absorbPlan();
+    return entry.seq;
   };
 
   /** Journals terminal transitions for settled dispatched children. */
@@ -338,11 +658,16 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         .find((entry) => entry.kind === 'agent' && entry.ref === handle);
       const causeRef = terminal?.seq ?? handle;
       const cause = node.cancelRequested && to === 'cancelled' ? 'cancel-landed' : 'child-result';
-      await appendPlanDecision(
+      const decisionSeq = await appendPlanDecision(
         cause === 'cancel-landed' ? 'cancel-landed' : 'child-result',
         [{ kind: 'set_node_status', nodeId, from: 'running', to, cause, causeRef }],
         causeRef,
       );
+      if (cause === 'cancel-landed') {
+        // cancel_task compiles into abandon (docs/03, 9.3): the severing
+        // entry makes the interrupted branch a donor candidate.
+        await abandonNode(nodeId, decisionSeq, 'cancel_task');
+      }
     }
   };
 
@@ -350,6 +675,42 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   const scheduleReady = async (): Promise<void> => {
     for (const node of Object.values(fold.plan.nodes)) {
       if (node.status !== 'ready' || dispatched.has(node.nodeId)) {
+        continue;
+      }
+      const fullLink = linkedFull.get(node.nodeId);
+      if (fullLink !== undefined) {
+        // reuse_full completion (docs/03, 9.10): the by-ref root is
+        // written terminal ok with zero usage; the node goes done via
+        // an engine decision, never a dispatch.
+        const scope = nodeScopeOf(node.nodeId);
+        let root = io
+          .snapshot()
+          .find(
+            (candidate) =>
+              candidate.kind === 'agent' &&
+              candidate.scope === scope &&
+              candidate.ref === undefined,
+          );
+        root ??= await io.append({
+          scope,
+          key: fullLink.spawnKey,
+          kind: 'agent',
+          value: { byRef: fullLink.donorRootRef },
+        });
+        await appendPlanDecision(
+          'child-result',
+          [
+            {
+              kind: 'set_node_status',
+              nodeId: node.nodeId,
+              from: 'ready',
+              to: 'done',
+              cause: 'child-result',
+              causeRef: root.seq,
+            },
+          ],
+          root.seq,
+        );
         continue;
       }
       const spec = fold.specs[node.nodeId];
@@ -429,7 +790,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         nodes,
         termination: requireAccount().snapshot(),
         // The abandoned-spend ledger activates with DEF-5 (M7-T07).
-        abandonedSpend: { abandonedUsd: 0, reclaimedUsd: 0, netLostUsd: 0 },
+        abandonedSpend: pinnedAbandonedSpend(),
         guards: {
           ...(guards.state.engaged === undefined ? {} : { engaged: guards.state.engaged }),
           frozenSignatures: [...guards.state.frozenSignatures].sort(),
@@ -481,6 +842,10 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           consumedRevisionSeqs.add(existing.seq);
           const value = existing.value as unknown as PlanRevisionValue;
           await drainGuardVerdicts();
+          // Roll-forward: link, root, and abandon effects re-issue
+          // idempotently from the recorded entry (docs/03, 9.10).
+          await landReuseLinks(existing);
+          await landCancelAbandons(value, existing.seq);
           await scheduleReady();
           return {
             outcomes: value.outcomes,
@@ -500,11 +865,58 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
               `(termination.denied at seq ${String(debit.deniedEntryRef)})`,
           );
         }
+        // DEF-5: the DedupIndex folds at the fold head under the
+        // PlanWriteLock; verdicts compute once and embed (docs/03, 9.3).
+        const dedupIndex = DedupIndex.fold(io.snapshot(), {
+          priceUsd: (servedBy, usage) => io.priceUsd(servedBy, usage),
+        });
+        const oscRejects = new Map<number, { spawnKey: string; oscillationCount: number }>();
+        const freshNotes = new Map<
+          number,
+          { spawnKey: string; donorNodeId: string; reason: string }
+        >();
         const evaluation: RebaseEvaluation = rebasePlanRevision(request, {
           state: fold,
           digestPlanHashFor: (digestSeq) => digests.get(digestSeq)?.planHash,
           mintNodeId: () => io.mintId(),
-          admitAdd: (op, nodeId) => {
+          dedup: (op, opIndex) => {
+            if (reuseConfig?.enabled === false) {
+              return undefined;
+            }
+            for (const spawnKey of donorKeysOf(op.spec)) {
+              const outcome = evaluateReuse(dedupIndex, spawnKey, reuseConfig);
+              if (outcome.kind === 'none') {
+                continue;
+              }
+              if (outcome.kind === 'reject_osc_guard') {
+                oscRejects.set(opIndex, { spawnKey, oscillationCount: outcome.oscillationCount });
+                return undefined;
+              }
+              if (outcome.kind === 'fresh') {
+                freshNotes.set(opIndex, outcome.note);
+                return undefined;
+              }
+              return buildReuseTransform(op, outcome.kind, outcome.donor);
+            }
+            return undefined;
+          },
+          admitAdd: (op, nodeId, opIndex) => {
+            // The per-SpawnKey osc_guard (DEF-5): the third re-add of one
+            // key rejects with the embedded verdict.
+            const oscReject = oscRejects.get(opIndex);
+            if (oscReject !== undefined) {
+              return {
+                verdict: {
+                  kind: 'reject',
+                  reason: {
+                    code: 'osc_guard',
+                    spawnKey: oscReject.spawnKey,
+                    oscillationCount: oscReject.oscillationCount,
+                  },
+                },
+                statsBefore: { spawnsBefore: 0, childrenOfParentBefore: 0, depth: 1 },
+              };
+            }
             // The oscillation detector keys on approachSigCoarse ACROSS
             // LTID boundaries (docs/07, 3.8): a frozen signature rejects
             // further re-adds with the embedded osc_guard verdict.
@@ -522,7 +934,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
                 statsBefore: { spawnsBefore: 0, childrenOfParentBefore: 0, depth: 1 },
               };
             }
-            return io.admission.admit(
+            const admitted = io.admission.admit(
               {
                 origin: 'spawn_agent',
                 name: op.spec.agentType,
@@ -548,6 +960,21 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
               },
               { commitReserve: false },
             );
+            // A SpawnKey match served fresh embeds its DedupNote for
+            // telemetry (docs/03, 9.4).
+            const note = freshNotes.get(opIndex);
+            if (note !== undefined && admitted.verdict.kind === 'admit') {
+              return {
+                ...admitted,
+                verdict: {
+                  ...admitted.verdict,
+                  dedup: note as unknown as NonNullable<
+                    Extract<AdmissionDecision['verdict'], { kind: 'admit' }>['dedup']
+                  >,
+                },
+              };
+            }
+            return admitted;
           },
           lineageCheck: (continues: LogicalTaskId) => {
             const index = io.admission.lineage();
@@ -592,6 +1019,11 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         // Guard verdicts fired by this revision land strictly BEFORE the
         // scheduling effects (docs/07, 3.8).
         await drainGuardVerdicts();
+        // DEF-5 effects in the mandatory write order (docs/03, 9.10):
+        // node.link entries, by-ref roots, and severing abandons land
+        // strictly after the deciding append and before scheduling.
+        await landReuseLinks(entry);
+        await landCancelAbandons(value, entry.seq);
         // Effects: schedule newly-ready nodes; land cancel requests on
         // running children (the final transition arrives cancel-landed).
         for (const outcome of evaluation.outcomes) {
@@ -680,6 +1112,8 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       // never re-fires an already-journaled freeze (M7-T06).
       absorbGuardVerdicts();
       absorbPlan();
+      // The alias map and full-link table rebuild by fold (docs/03, 9.10).
+      absorbLinks();
       // Roll-forward: verdicts the fold fired whose appends were lost to
       // a crash land now, strictly before any effect.
       await drainGuardVerdicts();
@@ -733,7 +1167,14 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     },
     digestExtras: (): Record<string, Json> => {
       absorbPlan();
-      return { planHash: planHash(fold.plan), planSeq: planCursor };
+      const spend = DedupIndex.fold(io.snapshot(), {
+        priceUsd: (servedBy, usage) => io.priceUsd(servedBy, usage),
+      }).abandonedSpend();
+      return {
+        planHash: planHash(fold.plan),
+        planSeq: planCursor,
+        reuse: spend as unknown as Json,
+      };
     },
     onWake: (digest: WakeDigest): void => {
       const extras = digest as unknown as { planHash?: string; planSeq?: number };

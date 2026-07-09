@@ -27,6 +27,7 @@ export * from './tools/isolation.js';
 export * from './journal/identity.js';
 export * from './journal/lineage.js';
 export * from './journal/termination.js';
+export * from './journal/reuse.js';
 export * from './journal/checkpoint.js';
 export * from './journal/scope.js';
 export * from './journal/serializable.js';

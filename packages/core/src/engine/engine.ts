@@ -334,6 +334,11 @@ export function createEngine(options: CreateEngineOptions): Engine {
     replayer.setDisposition(
       dispositionHook(replayer.fold.abandonFold, registry, replayer.invalidatedSeqs),
     );
+    // Alias-sourced candidates bypass the abandon overlay (DEF-5, docs/03
+    // 9.5): donor entries regain their pre-abandon status through links.
+    replayer.setAliasDisposition(
+      dispositionHook({ isAbandoned: () => false }, registry, replayer.invalidatedSeqs),
+    );
     if (resumeCtx !== undefined) {
       const prior = replayer.ledger();
       budgetSeed = { usd: prior.usd, usage: prior.usage, agentsSpawned: prior.agentsSpawned };
