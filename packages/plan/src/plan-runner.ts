@@ -82,6 +82,13 @@ import {
   type PlanReviseRequest,
   type PlanReviseResult,
 } from './plan-entries.js';
+import {
+  foldLedger,
+  ledgerCapViolation,
+  ledgerOpKey,
+  type LedgerOp,
+  type LedgerView,
+} from './ledger.js';
 import { rebasePlanRevision, type RebaseEvaluation } from './rebase.js';
 import { PlanWriteLock } from './write-lock.js';
 import { buildPlanTools, type PlanToolRuntime, type PlanViewRender } from './tools.js';
@@ -144,6 +151,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   let pinnedPlanSeq = -1;
   const dispatched = new Map<NodeId, number>();
   const consumedRevisionSeqs = new Set<number>();
+  const consumedLedgerSeqs = new Set<number>();
   /** Full-link targets: completed by reference, never dispatched (DEF-5). */
   const linkedFull = new Map<NodeId, { donorRootRef: EntryRef; spawnKey: string }>();
   const reuseConfig = options?.reuse;
@@ -859,6 +867,66 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           stallReplansUsed: guards.state.stallReplansUsed,
         },
       };
+    },
+    ledgerRead: (): LedgerView =>
+      // Pinned to the turn snapshot, exactly like plan_view (docs/07,
+      // 9.3): a re-executed wake turn re-folds up to the SAME pinned seq
+      // and renders byte-identical ledger bytes. A live read here would
+      // diverge on resume (the re-executed turn would see later ops).
+      foldLedger(io.snapshot(), {
+        ledgerScope: rootScope,
+        planScope,
+        uptoSeq: pinnedPlanSeq,
+      }),
+    ledgerAppend: async (op: LedgerOp): Promise<{ entryRef: number }> => {
+      await io.flush();
+      const key = ledgerOpKey(op);
+      // Idempotent re-execution (docs/07, 3.9 roll-forward): a journaled
+      // op with this content key acks with the recorded ref and skips
+      // validation, so re-executed turns never spuriously reject against
+      // a fold that already contains the op itself.
+      const existing = io
+        .snapshot()
+        .find(
+          (entry) =>
+            entry.kind === 'ledger.op' &&
+            entry.scope === rootScope &&
+            entry.key === key &&
+            !consumedLedgerSeqs.has(entry.seq),
+        );
+      if (existing !== undefined) {
+        consumedLedgerSeqs.add(existing.seq);
+        return { entryRef: existing.seq };
+      }
+      const view = foldLedger(io.snapshot(), { ledgerScope: rootScope, planScope });
+      const violation = ledgerCapViolation(view, op);
+      if (violation !== undefined) {
+        throw new ConfigError(`ledger_append rejected: ${violation} (docs/06, Appendix A)`);
+      }
+      if (op.op === 'lesson_add') {
+        // The lesson key MUST match a journaled attempt of that LTID
+        // (docs/07, 9.2; DEF-3).
+        const stats = io.admission.lineage()?.statsOf(op.key.logicalTaskId);
+        const known =
+          stats !== undefined &&
+          stats.attemptsUsed > 0 &&
+          stats.approaches.some((approach) => approach.approachSig === op.key.approachSig);
+        if (!known) {
+          throw new ConfigError(
+            'lesson_add rejected: the key matches no journaled attempt of that logical task ' +
+              '(docs/07, 9.2)',
+          );
+        }
+      }
+      const entry = await io.append({
+        scope: rootScope,
+        key,
+        kind: 'ledger.op',
+        value: { op },
+      });
+      consumedLedgerSeqs.add(entry.seq);
+      io.emit({ type: 'ledger:op', entryRef: entry.seq, op: op.op });
+      return { entryRef: entry.seq };
     },
     planRevise: async (request: PlanReviseRequest): Promise<PlanReviseResult> =>
       writeLock.runExclusive(async () => {
