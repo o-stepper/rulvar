@@ -817,7 +817,7 @@ This is the single consolidated defaults table for the whole docs set; every oth
 | sandbox memoryMb | WorkerSandboxRunner (docs/06) | 512 | per runner | |
 | allowImports | compileScript (docs/06) | [] | per call | |
 | minSpendUsd | EscalationOptions (docs/07) | 0 | per spawn | in-run minSpend, M3 |
-| escalation deadlineMs (Flavor B) | EscalationOptions (docs/07) | TBD before M7 | per spawn | timer resolution by 'timeout'; interim: no engine default, enabling Flavor B requires an explicit deadlineMs (validator-enforced) |
+| escalation deadlineMs (Flavor B) | EscalationOptions (docs/07) | none (no engine default): enabling Flavor B requires an explicit per-spawn deadlineMs, validator-enforced (committed during M7 entry per the TBD rule: the interim rule is adopted unchanged) | per spawn | timer resolution by 'timeout' applies defaultDecision; an absent defaultDecision canonicalizes to { kind: 'accept' } at the timeout resolution (the report is accepted and the agent lands terminal escalated, the flavor-b-timeout cassette shape); a determinism-first embeddable library must not run hidden wall-clock timers, so hosts opt in explicitly |
 | approval deadlineAt | ask suspension (docs/03, docs/08) | none (suspends until resolved) | per rule | applies to approvals only |
 | droppedRevisionLimit | PlanRunner guards (docs/07, DEF-8) | 3 consecutive | yes | triggers RevisionGuards fallback |
 | RunLedger section caps | RunLedger (docs/07) | facts 64, lessons 32, observations 16 | yes | |
