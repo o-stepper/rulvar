@@ -20,6 +20,7 @@ import type {
 } from '@lurker/core';
 import type { PlanNodeStatus } from './plan-state.js';
 import type { PlanReviseRequest, PlanReviseResult } from './plan-entries.js';
+import type { LedgerOp, LedgerView } from './ledger.js';
 
 /** docs/07, 4.6: plan_view takes no parameters. */
 export const PLAN_VIEW_SCHEMA: SchemaSpec = {
@@ -179,6 +180,91 @@ export const PLAN_REVISE_SCHEMA: SchemaSpec = {
 
 export const PLAN_VIEW_TOOL_NAME = 'plan_view';
 export const PLAN_REVISE_TOOL_NAME = 'plan_revise';
+export const LEDGER_APPEND_TOOL_NAME = 'ledger_append';
+export const LEDGER_READ_TOOL_NAME = 'ledger_read';
+
+/** The closed authored op vocabulary as JSON Schema (docs/07, 9.2). */
+export const LEDGER_APPEND_SCHEMA: SchemaSpec = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['op'],
+  properties: {
+    op: {
+      oneOf: [
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['op', 'text'],
+          properties: { op: { const: 'brief_set' }, text: { type: 'string' } },
+        },
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['op', 'factId', 'text', 'provenance', 'confidence'],
+          properties: {
+            op: { const: 'fact_add' },
+            factId: { type: 'string' },
+            text: { type: 'string' },
+            provenance: { type: 'array', items: { type: 'integer', minimum: 1 } },
+            confidence: { enum: ['low', 'medium', 'high'] },
+          },
+        },
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['op', 'factId', 'supersededBy', 'text', 'provenance', 'confidence'],
+          properties: {
+            op: { const: 'fact_supersede' },
+            factId: { type: 'string' },
+            supersededBy: { type: 'string' },
+            text: { type: 'string' },
+            provenance: { type: 'array', items: { type: 'integer', minimum: 1 } },
+            confidence: { enum: ['low', 'medium', 'high'] },
+          },
+        },
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['op', 'key', 'text'],
+          properties: {
+            op: { const: 'lesson_add' },
+            key: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['logicalTaskId', 'approachSig'],
+              properties: {
+                logicalTaskId: { type: 'string' },
+                approachSig: { type: 'string' },
+              },
+            },
+            text: { type: 'string' },
+          },
+        },
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['op', 'taskClass', 'logicalTaskId', 'note', 'evidenceRefs'],
+          properties: {
+            op: { const: 'observation_add' },
+            taskClass: { type: 'string' },
+            logicalTaskId: { type: 'string' },
+            tierObserved: { type: 'integer', minimum: 0 },
+            outcomeClass: { type: 'string' },
+            note: { type: 'string', maxLength: 200 },
+            evidenceRefs: { type: 'array', items: { type: 'integer', minimum: 1 } },
+          },
+        },
+      ],
+    },
+  },
+};
+
+/** docs/07: ledger_read takes no parameters and pins to the turn snapshot. */
+export const LEDGER_READ_SCHEMA: SchemaSpec = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {},
+};
 
 /** One rendered node of the pinned plan_view fold. */
 export interface PlanViewNode {
@@ -212,6 +298,8 @@ export interface PlanViewRender {
 export interface PlanToolRuntime {
   planView(): PlanViewRender;
   planRevise(request: PlanReviseRequest): Promise<PlanReviseResult>;
+  ledgerAppend(op: LedgerOp): Promise<{ entryRef: number }>;
+  ledgerRead(): LedgerView;
 }
 
 /** Builds the PlanRunner tools (appended to the mode (c) toolset). */
@@ -235,5 +323,22 @@ export function buildPlanTools(runtime: PlanToolRuntime): ToolDef[] {
     parameters: PLAN_REVISE_SCHEMA,
     execute: (input) => runtime.planRevise(input as PlanReviseRequest),
   });
-  return [planView, planRevise];
+  const ledgerAppend = tool({
+    name: LEDGER_APPEND_TOOL_NAME,
+    description:
+      'Append ONE authored RunLedger op: brief_set (once), fact_add, fact_supersede, ' +
+      'lesson_add (key = logicalTaskId + approachSig of a journaled attempt), or ' +
+      'observation_add. The ledger is advisory; the journal always wins.',
+    parameters: LEDGER_APPEND_SCHEMA,
+    execute: (input) => runtime.ledgerAppend((input as { op: LedgerOp }).op),
+  });
+  const ledgerRead = tool({
+    name: LEDGER_READ_TOOL_NAME,
+    description:
+      'Read the RunLedger render pinned to this turn snapshot: brief, facts, lessons, ' +
+      'observations, revision history, task digests, and the world-delta index.',
+    parameters: LEDGER_READ_SCHEMA,
+    execute: () => Promise.resolve(runtime.ledgerRead() as unknown as Json),
+  });
+  return [planView, planRevise, ledgerAppend, ledgerRead];
 }

@@ -618,6 +618,133 @@ declare function unparkPlacementOf(input: {
   worktreePinned: boolean;
 }): UnparkPlacement;
 //#endregion
+//#region src/ledger.d.ts
+/** The CLOSED authored op vocabulary (docs/07, 9.2). */
+type LedgerOp = {
+  op: "brief_set";
+  text: string;
+} | {
+  op: "fact_add";
+  factId: string;
+  text: string;
+  provenance: EntryRef[];
+  confidence: "low" | "medium" | "high";
+} | {
+  op: "fact_supersede";
+  factId: string;
+  supersededBy: string;
+  text: string;
+  provenance: EntryRef[];
+  confidence: "low" | "medium" | "high";
+} | {
+  op: "lesson_add";
+  key: {
+    logicalTaskId: LogicalTaskId;
+    approachSig: string;
+  };
+  text: string;
+} | {
+  op: "observation_add";
+  taskClass: string;
+  logicalTaskId: LogicalTaskId;
+  tierObserved?: number;
+  outcomeClass?: string;
+  note: string;
+  evidenceRefs: EntryRef[];
+};
+/** Appendix A per-section caps. */
+declare const LEDGER_SECTION_CAPS: {
+  readonly facts: 64;
+  readonly lessons: 32;
+  readonly observations: 16;
+};
+/** The content key of one authored op (ordinal distinguishes repeats). */
+declare function ledgerOpKey(op: LedgerOp): string;
+interface LedgerFact {
+  factId: string;
+  text: string;
+  provenance: EntryRef[];
+  confidence: "low" | "medium" | "high";
+  supersededBy?: string;
+  entryRef: EntryRef;
+}
+interface LedgerLesson {
+  key: {
+    logicalTaskId: LogicalTaskId;
+    approachSig: string;
+  };
+  text: string;
+  entryRef: EntryRef;
+}
+interface LedgerObservation {
+  taskClass: string;
+  logicalTaskId: LogicalTaskId;
+  tierObserved?: number;
+  outcomeClass?: string;
+  note: string;
+  evidenceRefs: EntryRef[];
+  entryRef: EntryRef;
+}
+/** One auto-derived revision history row (fold join, never authored). */
+interface LedgerRevisionRow {
+  entryRef: EntryRef;
+  rationale: string;
+  applied: number;
+  dropped: number;
+}
+/** The pure ledger fold (docs/07, 9.3). */
+interface LedgerView {
+  brief?: {
+    text: string;
+    entryRef: EntryRef;
+  };
+  facts: LedgerFact[];
+  lessons: LedgerLesson[];
+  observations: LedgerObservation[];
+  /** Auto-derived: plan revision history with rationale. */
+  revisionHistory: LedgerRevisionRow[];
+  /** Auto-derived: task digests ordered by spawn ordinal (root seq). */
+  taskDigests: Array<{
+    nodeId?: string;
+    scope: string;
+    status: string;
+    entryRef: EntryRef;
+  }>;
+  /** Auto-derived: the world-delta index from terminal artifacts. */
+  worldDelta: Array<{
+    scope: string;
+    entryRef: EntryRef;
+    artifacts: number;
+  }>;
+  /** Journal-vs-ledger contradictions, flagged and never resolved here. */
+  discrepancies: string[];
+}
+/** Fold every ledger.op plus the auto-derived joins up to `uptoSeq`. */
+declare function foldLedger(entries: readonly JournalEntry[], options?: {
+  ledgerScope?: string;
+  planScope?: string;
+  uptoSeq?: number;
+}): LedgerView;
+/** Section-cap check for one authored op (docs/06, Appendix A). */
+declare function ledgerCapViolation(view: LedgerView, op: LedgerOp): string | undefined;
+/**
+* Compaction sufficiency (docs/07, 9.3): the orchestrate role may
+* compact aggressively only when the ledger measurably suffices (at
+* least one authored revision recorded and a minimum fact count);
+* otherwise the engine falls back to conservative summarize.
+*/
+declare function ledgerSufficiency(view: LedgerView, minimumFacts?: number): boolean;
+/** The draft-versioned outward seam (docs/07, 9.3; OQ in docs/14). */
+interface LedgerExport {
+  ledgerExportVersion: "draft-1";
+  brief?: string;
+  facts: Array<Omit<LedgerFact, "entryRef">>;
+  lessons: Array<Omit<LedgerLesson, "entryRef">>;
+  observations: Array<Omit<LedgerObservation, "entryRef">>;
+  revisionHistory: LedgerRevisionRow[];
+}
+declare function exportLedger(view: LedgerView): LedgerExport;
+//#endregion
 //#region src/tools.d.ts
 /** docs/07, 4.6: plan_view takes no parameters. */
 declare const PLAN_VIEW_SCHEMA: SchemaSpec;
@@ -625,6 +752,12 @@ declare const PLAN_VIEW_SCHEMA: SchemaSpec;
 declare const PLAN_REVISE_SCHEMA: SchemaSpec;
 declare const PLAN_VIEW_TOOL_NAME = "plan_view";
 declare const PLAN_REVISE_TOOL_NAME = "plan_revise";
+declare const LEDGER_APPEND_TOOL_NAME = "ledger_append";
+declare const LEDGER_READ_TOOL_NAME = "ledger_read";
+/** The closed authored op vocabulary as JSON Schema (docs/07, 9.2). */
+declare const LEDGER_APPEND_SCHEMA: SchemaSpec;
+/** docs/07: ledger_read takes no parameters and pins to the turn snapshot. */
+declare const LEDGER_READ_SCHEMA: SchemaSpec;
 /** One rendered node of the pinned plan_view fold. */
 interface PlanViewNode {
   nodeId: NodeId;
@@ -659,6 +792,10 @@ interface PlanViewRender {
 interface PlanToolRuntime {
   planView(): PlanViewRender;
   planRevise(request: PlanReviseRequest): Promise<PlanReviseResult>;
+  ledgerAppend(op: LedgerOp): Promise<{
+    entryRef: number;
+  }>;
+  ledgerRead(): LedgerView;
 }
 /** Builds the PlanRunner tools (appended to the mode (c) toolset). */
 declare function buildPlanTools(runtime: PlanToolRuntime): ToolDef[];
@@ -687,4 +824,4 @@ declare function orchestratePlanned(engine: Engine, goal: string, opts?: Orchest
   plan?: PlanRunnerOptions;
 }): RunHandle<unknown>;
 //#endregion
-export { AppliedPlanOp, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_STALL_REPLAN_CAP, EnginePlanOp, GuardFallback, GuardVerdictValue, GuardsState, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, ParkDisposition, PinLedger, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, UnparkPlacement, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalPlanState, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, isTerminalPlanStatus, orchestratePlanned, parkDispositionOf, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, unparkPlacementOf, wouldCreateDepCycle };
+export { AppliedPlanOp, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_STALL_REPLAN_CAP, EnginePlanOp, GuardFallback, GuardVerdictValue, GuardsState, LEDGER_APPEND_SCHEMA, LEDGER_APPEND_TOOL_NAME, LEDGER_READ_SCHEMA, LEDGER_READ_TOOL_NAME, LEDGER_SECTION_CAPS, LedgerExport, LedgerFact, LedgerLesson, LedgerObservation, LedgerOp, LedgerRevisionRow, LedgerView, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, ParkDisposition, PinLedger, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, UnparkPlacement, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalPlanState, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, exportLedger, foldLedger, isTerminalPlanStatus, ledgerCapViolation, ledgerOpKey, ledgerSufficiency, orchestratePlanned, parkDispositionOf, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, unparkPlacementOf, wouldCreateDepCycle };
