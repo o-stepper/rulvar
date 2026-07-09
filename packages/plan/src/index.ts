@@ -10,3 +10,6 @@
 export * from './plan-state.js';
 export * from './plan-hash.js';
 export * from './write-lock.js';
+export * from './task-spec.js';
+export * from './plan-entries.js';
+export * from './rebase.js';
