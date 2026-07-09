@@ -385,6 +385,16 @@ export function makeOrchestratorWorkflow(
       },
       settledOf: (handle) => records.get(handle)?.settled,
       cancel: (handle, reason) => cancelByHandle(handle, reason),
+      abandonBranch: async (attempt) => {
+        const outcome = await internals.replayer.abandonBranch(attempt);
+        return { applied: outcome.applied, seq: outcome.seq };
+      },
+      registerAlias: (donorScope, targetScope) =>
+        internals.replayer.registerAlias(donorScope, targetScope),
+      priceUsd: (servedBy, usage) =>
+        servedBy === undefined
+          ? undefined
+          : internals.priceUsd(servedBy as `${string}:${string}`, usage),
       emit: (event) => internals.events.emit(event, callingState.spanId),
     };
 

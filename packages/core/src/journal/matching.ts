@@ -92,6 +92,9 @@ export class JournalMatcher {
   private readonly consumed = new Set<number>();
   private readonly keyRing: KeyRing;
   private disposition: (op: JournalOperation) => OperationDisposition;
+  private aliasDisposition?: (op: JournalOperation) => OperationDisposition;
+  /** Scope-prefix aliases (DEF-5, docs/03 9.5): donor prefix -> target prefix. */
+  private readonly aliases: Array<{ donorPrefix: string; targetPrefix: string }> = [];
   private readonly keyCache = new Map<IdentityInput, Map<number, DerivedKey>>();
   private hitsInternal = 0;
   private missesInternal = 0;
@@ -138,6 +141,58 @@ export class JournalMatcher {
     this.disposition = disposition;
   }
 
+  /**
+   * The disposition applied to alias-sourced candidates (DEF-5, docs/03
+   * 9.5): the skipped overlay from abandon is bypassed ONLY through the
+   * alias, so entries regain their pre-abandon terminal status for
+   * matching in the NEW scope; the standalone old scope stays skipped.
+   */
+  setAliasDisposition(disposition: (op: JournalOperation) => OperationDisposition): void {
+    this.aliasDisposition = disposition;
+  }
+
+  /**
+   * Registers a scope-prefix rewrite (node.link, DEF-5): donorPrefix maps
+   * to targetPrefix for forward-matching purposes; the per-scope cursors
+   * work unchanged at every nested level, so partial subtree reuse falls
+   * out for free at any depth.
+   */
+  registerAlias(donorPrefix: string, targetPrefix: string): void {
+    if (
+      this.aliases.some(
+        (alias) => alias.donorPrefix === donorPrefix && alias.targetPrefix === targetPrefix,
+      )
+    ) {
+      return;
+    }
+    this.aliases.push({ donorPrefix, targetPrefix });
+  }
+
+  /** Candidates for one scope: native ops plus alias-mapped donor ops. */
+  private candidatesOf(scope: string): Array<{ op: JournalOperation; viaAlias: boolean }> {
+    const native = (this.byScope.get(scope) ?? []).map((op) => ({ op, viaAlias: false }));
+    const aliased: Array<{ op: JournalOperation; viaAlias: boolean }> = [];
+    for (const alias of this.aliases) {
+      let donorScope: string | undefined;
+      if (scope === alias.targetPrefix) {
+        donorScope = alias.donorPrefix;
+      } else if (scope.startsWith(`${alias.targetPrefix}/`)) {
+        donorScope = alias.donorPrefix + scope.slice(alias.targetPrefix.length);
+      }
+      if (donorScope === undefined) {
+        continue;
+      }
+      for (const op of this.byScope.get(donorScope) ?? []) {
+        aliased.push({ op, viaAlias: true });
+      }
+    }
+    if (aliased.length === 0) {
+      return native;
+    }
+    // Journal order across both sources (donor entries are older).
+    return [...native, ...aliased].sort((a, b) => a.op.running.seq - b.op.running.seq);
+  }
+
   private keyOf(identity: IdentityInput, hashVersion: number): DerivedKey {
     // Keys are memoized per (call, version): matching a mixed-version
     // journal costs one cheap hash per version present (docs/03, 1.5).
@@ -166,8 +221,9 @@ export class JournalMatcher {
       this.missesInternal += 1;
       return { kind: 'live' };
     }
-    const candidates = mode === 'cache' ? this.all : (this.byScope.get(scope) ?? []);
-    for (const op of candidates) {
+    const candidates =
+      mode === 'cache' ? this.all.map((op) => ({ op, viaAlias: false })) : this.candidatesOf(scope);
+    for (const { op, viaAlias } of candidates) {
       if (this.consumed.has(op.running.seq)) {
         continue;
       }
@@ -175,6 +231,8 @@ export class JournalMatcher {
       if (derived === 'incomparable' || derived.key !== op.running.key) {
         continue;
       }
+      const dispositionOf =
+        viaAlias && this.aliasDisposition !== undefined ? this.aliasDisposition : this.disposition;
       this.consumed.add(op.running.seq);
       if (op.terminal === undefined) {
         if (op.running.status === 'suspended') {
@@ -185,7 +243,7 @@ export class JournalMatcher {
           return { kind: 'skip', running: op.running };
         }
         if (op.running.status === 'running') {
-          if (this.disposition({ running: op.running }) === 'skip') {
+          if (dispositionOf({ running: op.running }) === 'skip') {
             // Abandon is stronger than any status, including a hanging
             // running entry: covered dispatches derive skipped instead of
             // redispatching (DEF-1; docs/03, section 6.9).
@@ -193,13 +251,15 @@ export class JournalMatcher {
             return { kind: 'skip', running: op.running };
           }
           // Dangling two-phase dispatch: redispatch, at-least-once
-          // (docs/03, section 13.1).
+          // (docs/03, section 13.1). Through an alias this IS the graft
+          // frontier: the donor's interrupted turn repays live, bounded
+          // by one turn (docs/03, 9.5).
           this.rerunsInternal += 1;
           return { kind: 'rerun-dangling', running: op.running };
         }
         // Single-phase kinds (rand, decisions, facts) are complete in one
         // entry: the entry is its own terminal.
-        const single = this.disposition({ running: op.running, terminal: op.running });
+        const single = dispositionOf({ running: op.running, terminal: op.running });
         if (single === 'replay') {
           this.hitsInternal += 1;
           return { kind: 'replay', running: op.running, terminal: op.running };
@@ -211,7 +271,7 @@ export class JournalMatcher {
         this.rerunsInternal += 1;
         return { kind: 'rerun', running: op.running };
       }
-      const disposition = this.disposition(op);
+      const disposition = dispositionOf(op);
       if (disposition === 'replay') {
         this.hitsInternal += 1;
         return { kind: 'replay', running: op.running, terminal: op.terminal };

@@ -33,11 +33,13 @@ import {
   type RebaseReasonCode,
 } from './plan-entries.js';
 
-/** The reuse-by-reference transform hook (DEF-5; producer lands in M7-T07). */
+/** The reuse-by-reference transform hook (DEF-5; M7-T07). */
 export interface ReuseTransform {
   applied: AppliedPlanOp;
   admission: AdmissionDecision;
   nodeId: NodeId;
+  /** Donor placement recorded beside the verdict (docs/03, 9.5). */
+  reuse: { donorScope: string; chain: string[] };
 }
 
 export interface RebaseContext {
@@ -196,7 +198,12 @@ function evaluateOp(
     if (op.fresh !== true && context.dedup !== undefined) {
       const reuse = context.dedup(op, opIndex);
       if (reuse !== undefined) {
-        admissions.push({ opIndex, nodeId: reuse.nodeId, decision: reuse.admission });
+        admissions.push({
+          opIndex,
+          nodeId: reuse.nodeId,
+          decision: reuse.admission,
+          reuse: reuse.reuse,
+        });
         assignedNodeIds[opIndex] = reuse.nodeId;
         return {
           kind: 'transformed',

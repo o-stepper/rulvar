@@ -28,6 +28,8 @@ export type AbandonAttempt = {
   target: number;
   authorizedBy: number;
   nodeId?: string;
+  /** Lineage-fold attribution (XF-04; DEF-3). */
+  logicalTaskId?: string;
   reason: string;
   retainCheckpoint?: boolean;
   retainWorktree?: boolean;
@@ -359,6 +361,7 @@ export class ResolutionArbiter {
         authorizedBy: attempt.authorizedBy,
         reason: attempt.reason,
         ...(attempt.nodeId === undefined ? {} : { nodeId: attempt.nodeId }),
+        ...(attempt.logicalTaskId === undefined ? {} : { logicalTaskId: attempt.logicalTaskId }),
         retainCheckpoint: attempt.retainCheckpoint ?? true,
         retainWorktree: attempt.retainWorktree ?? false,
       };
