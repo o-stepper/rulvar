@@ -332,7 +332,8 @@ type EnginePlanOp = {
   from: PlanNodeStatus;
   to: PlanNodeStatus;
   cause: "child-result" | "no-progress" | "park-landed" | "cancel-landed";
-  causeRef: EntryRef;
+  causeRef: EntryRef; /** The retained checkpoint anchor recorded at park landing (M7-T08). */
+  checkpointRef?: EntryRef;
 } | {
   kind: "resolve_escalation";
   nodeId: NodeId;
@@ -579,6 +580,44 @@ declare class RevisionGuards {
   static verdictJson(value: GuardVerdictValue): Json;
 }
 //#endregion
+//#region src/park.d.ts
+/** Appendix A: the single pin cap shared by park/unpark and retainWorktree. */
+declare const DEFAULT_MAX_PINNED_WORKTREES = 4;
+/**
+* The worktree pin ledger: a pure fold counting live pins from abandon
+* entries carrying `retainWorktree: true` (park pinning and DEF-5
+* retention share the cap by construction; docs/08).
+*/
+declare class PinLedger {
+  private readonly pinnedTargets;
+  private readonly byNode;
+  static fold(entries: readonly JournalEntry[]): PinLedger;
+  get count(): number;
+  hasCapacity(maxPinnedWorktrees?: number): boolean;
+  isPinnedNode(nodeId: string): boolean;
+}
+/** The park disposition computed at landing time (docs/03, 11.2). */
+interface ParkDisposition {
+  /** Checkpoints are always retained on park. */
+  retainCheckpoint: true;
+  /** True only for worktree isolation with pin capacity left. */
+  retainWorktree: boolean;
+}
+declare function parkDispositionOf(isolation: IsolationSpec | undefined, pins: PinLedger, maxPinnedWorktrees?: number): ParkDisposition;
+/** The unpark placement (docs/03, 11.2): continuation or restart. */
+interface UnparkPlacement {
+  /** True when the agent must restart (no checkpoint, or tree dropped). */
+  restart: boolean;
+  /** The retained checkpoint the continuation boots from. */
+  bootCheckpointRef?: string;
+}
+declare function unparkPlacementOf(input: {
+  /** The parked node's recorded checkpoint anchor (root dispatch seq). */checkpointRef?: number; /** The retained transcript ref derived from the anchor, when any. */
+  transcriptRef?: string;
+  isolation?: IsolationSpec;
+  worktreePinned: boolean;
+}): UnparkPlacement;
+//#endregion
 //#region src/tools.d.ts
 /** docs/07, 4.6: plan_view takes no parameters. */
 declare const PLAN_VIEW_SCHEMA: SchemaSpec;
@@ -648,4 +687,4 @@ declare function orchestratePlanned(engine: Engine, goal: string, opts?: Orchest
   plan?: PlanRunnerOptions;
 }): RunHandle<unknown>;
 //#endregion
-export { AppliedPlanOp, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_STALL_REPLAN_CAP, EnginePlanOp, GuardFallback, GuardVerdictValue, GuardsState, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalPlanState, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, isTerminalPlanStatus, orchestratePlanned, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, wouldCreateDepCycle };
+export { AppliedPlanOp, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_STALL_REPLAN_CAP, EnginePlanOp, GuardFallback, GuardVerdictValue, GuardsState, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, ParkDisposition, PinLedger, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, UnparkPlacement, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalPlanState, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, isTerminalPlanStatus, orchestratePlanned, parkDispositionOf, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, unparkPlacementOf, wouldCreateDepCycle };

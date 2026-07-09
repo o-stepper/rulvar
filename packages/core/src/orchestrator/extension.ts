@@ -49,6 +49,12 @@ export interface ExtensionDispatchSpec {
   escalation?: EscalationOptions;
   approach?: string;
   taskClass?: string;
+  /**
+   * A retained transcript checkpoint the dispatch boots from (park and
+   * unpark continuation, the DEF-5 graft boot; docs/03, sections 9.5 and
+   * 11.2). Dangling redispatch checkpoints take precedence.
+   */
+  bootCheckpointRef?: string;
 }
 
 /** The per-run IO the extension closes over (engine-owned effects). */

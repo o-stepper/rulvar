@@ -44,9 +44,17 @@ export const kOnRunning: unique symbol = Symbol('lurker.onRunning');
  */
 export const kTerminalTool: unique symbol = Symbol('lurker.terminalTool');
 
+/**
+ * Internal AgentOpts channel (M7-T08): a transcript checkpoint ref the
+ * fresh dispatch boots from (park/unpark continuation and the DEF-5
+ * graft boot). Dangling redispatch checkpoints take precedence.
+ */
+export const kBootCheckpoint: unique symbol = Symbol('lurker.bootCheckpoint');
+
 export interface InternalAgentHooks {
   [kOnRunning]?: (seq: number) => void;
   [kTerminalTool]?: { name: string };
+  [kBootCheckpoint]?: string;
 }
 
 /** Typed accessor used by the in-package consumers. */

@@ -10,6 +10,8 @@ export interface ScriptedTurn {
   toolCall?: { name: string; args: unknown };
   /** Park the stream until the abort signal fires (cancel determinism). */
   hangUntilAborted?: boolean;
+  /** Await this promise before emitting anything (cross-agent sequencing). */
+  awaitPromise?: Promise<void>;
 }
 
 export const TEST_CAPS: ModelCaps = {
@@ -37,6 +39,9 @@ export function scriptedAdapter(
       const call = calls.length;
       calls.push(req);
       const turn = script(req, call);
+      if (turn.awaitPromise !== undefined) {
+        await turn.awaitPromise;
+      }
       if (turn.hangUntilAborted === true) {
         await new Promise<void>((resolve) => {
           if (signal?.aborted === true) {

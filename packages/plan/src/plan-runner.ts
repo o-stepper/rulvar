@@ -57,7 +57,14 @@ import {
   type WakeDigest,
 } from '@lurker/core';
 import { canonicalIsolationTag } from '@lurker/core';
+import { checkpointRefFor } from '@lurker/core';
 import { planHash } from './plan-hash.js';
+import {
+  DEFAULT_MAX_PINNED_WORKTREES,
+  parkDispositionOf,
+  PinLedger,
+  unparkPlacementOf,
+} from './park.js';
 import { emptyPlan, type PlanNode, type PlanNodeStatus } from './plan-state.js';
 import {
   applyDecisionOps,
@@ -657,6 +664,49 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         .snapshot()
         .find((entry) => entry.kind === 'agent' && entry.ref === handle);
       const causeRef = terminal?.seq ?? handle;
+      if (node.parkRequested && !node.cancelRequested && to === 'cancelled') {
+        // The park lands at the turn boundary (docs/07, 3.6): the node
+        // parks with its checkpoint anchor; the branch is severed with
+        // the checkpoint retained and the worktree pinned under the
+        // shared cap when capacity remains (docs/03, 11.2).
+        const parkSeq = await appendPlanDecision(
+          'park-landed',
+          [
+            {
+              kind: 'set_node_status',
+              nodeId,
+              from: 'running',
+              to: 'parked',
+              cause: 'park-landed',
+              causeRef,
+              checkpointRef: handle,
+            },
+          ],
+          causeRef,
+        );
+        const spec = fold.specs[nodeId];
+        const disposition = parkDispositionOf(
+          spec?.isolation,
+          PinLedger.fold(io.snapshot()),
+          DEFAULT_MAX_PINNED_WORKTREES,
+        );
+        const root = nodeRootOf(nodeId);
+        if (root !== undefined) {
+          await io.abandonBranch({
+            target: root.seq,
+            authorizedBy: parkSeq,
+            nodeId,
+            logicalTaskId: node.logicalTaskId,
+            reason: 'park_task',
+            retainCheckpoint: disposition.retainCheckpoint,
+            retainWorktree: disposition.retainWorktree,
+          });
+        }
+        // The slot frees for the unpark re-dispatch.
+        dispatched.delete(nodeId);
+        io.emit({ type: 'node:parked', nodeId, logicalTaskId: node.logicalTaskId });
+        continue;
+      }
       const cause = node.cancelRequested && to === 'cancelled' ? 'cancel-landed' : 'child-result';
       const decisionSeq = await appendPlanDecision(
         cause === 'cancel-landed' ? 'cancel-landed' : 'child-result',
@@ -667,6 +717,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         // cancel_task compiles into abandon (docs/03, 9.3): the severing
         // entry makes the interrupted branch a donor candidate.
         await abandonNode(nodeId, decisionSeq, 'cancel_task');
+        io.emit({ type: 'node:cancelled', nodeId, logicalTaskId: node.logicalTaskId });
       }
     }
   };
@@ -721,9 +772,20 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         rootScope === ''
           ? planNodeScope(node.nodeId)
           : `${rootScope}/${planNodeScope(node.nodeId)}`;
+      const placement = unparkPlacementOf({
+        ...(node.checkpointRef === undefined ? {} : { checkpointRef: node.checkpointRef }),
+        ...(node.checkpointRef === undefined
+          ? {}
+          : { transcriptRef: checkpointRefFor(io.runId, node.checkpointRef) }),
+        ...(spec.isolation === undefined ? {} : { isolation: spec.isolation }),
+        worktreePinned: PinLedger.fold(io.snapshot()).isPinnedNode(node.nodeId),
+      });
       const dispatchSpec: ExtensionDispatchSpec = {
         agentType: spec.agentType,
         prompt: spec.prompt,
+        ...(placement.restart || placement.bootCheckpointRef === undefined
+          ? {}
+          : { bootCheckpointRef: placement.bootCheckpointRef }),
         ...(spec.outputSchemaRef === undefined ? {} : { outputSchemaRef: spec.outputSchemaRef }),
         ...(spec.toolsetRef === undefined ? {} : { toolsetRef: spec.toolsetRef }),
         ...(spec.isolation === undefined ? {} : { isolation: spec.isolation }),
@@ -976,6 +1038,40 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
             }
             return admitted;
           },
+          admitUnpark: (op, node) => {
+            const spec = fold.specs[op.nodeId];
+            // An unpark of a DISPATCHED branch is a lineage rebirth
+            // (docs/03, 10.1 rule 5); a never-started parked node just
+            // resumes scheduling under its existing attempt.
+            const wasDispatched = nodeRootOf(op.nodeId) !== undefined;
+            return io.admission.admit(
+              {
+                origin: 'spawn_agent',
+                name: spec?.agentType ?? 'unknown',
+                childScope: nodeScopeOf(op.nodeId),
+                parentAccountScope: ROOT_ACCOUNT,
+                nodeKey: planScope,
+                ...(wasDispatched
+                  ? {
+                      lineage: {
+                        continues: node.logicalTaskId,
+                        causeRef: node.checkpointRef ?? Math.max(planCursor, 1),
+                        relation: 'unpark-restart' as const,
+                      },
+                    }
+                  : {}),
+                signature: {
+                  agentType: spec?.agentType ?? 'unknown',
+                  isolation: canonicalIsolationTag(
+                    spec?.isolation ??
+                      (io.profiles[spec?.agentType ?? ''] as AgentProfile | undefined)?.isolation,
+                  ),
+                },
+                ladderLength: ladderLengthOf(io.profiles[spec?.agentType ?? '']),
+              },
+              { commitReserve: false },
+            );
+          },
           lineageCheck: (continues: LogicalTaskId) => {
             const index = io.admission.lineage();
             if (index === undefined) {
@@ -1031,10 +1127,13 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
             continue;
           }
           const applied = outcome.kind === 'applied' ? outcome.op : outcome.applied;
-          if (applied.op === 'cancel_task' && applied.requestOnly === true) {
+          if (
+            (applied.op === 'cancel_task' || applied.op === 'park_task') &&
+            applied.requestOnly === true
+          ) {
             const handle = dispatched.get(applied.nodeId);
             if (handle !== undefined) {
-              void io.cancel(handle, applied.reason);
+              void io.cancel(handle, applied.op === 'cancel_task' ? applied.reason : 'park_task');
             }
           }
         }
