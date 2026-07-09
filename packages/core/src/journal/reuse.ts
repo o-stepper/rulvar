@@ -157,6 +157,8 @@ export interface DonorCandidate {
 export class DedupIndex {
   private readonly donors = new Map<SpawnKey, DonorCandidate[]>();
   private readonly links = new Map<SpawnKey, number>();
+  /** node.link values keyed by targetScope: chain ancestry for donors. */
+  private readonly linkByTargetScope = new Map<string, NodeLinkValue>();
   private readonly spend: AbandonedSpendView = {
     abandonedUsd: 0,
     reclaimedUsd: 0,
@@ -240,6 +242,28 @@ export class DedupIndex {
         }
         const isolation = readIsolation(target);
         const donorScope = isPlanNodeScope(target.scope) ? target.scope : spawnPrefix;
+        // A severed GRAFTED node inherits its donor ancestry: the new
+        // head's chain extends the captured link's chain, and the
+        // chain-tail payments keep the head graft-eligible so the next
+        // add drains the whole chain transitively (docs/03, 9.6).
+        const chainTail = index.linkByTargetScope.get(donorScope)?.chain ?? [];
+        if (chainTail.length > 0 && eligiblePaidUsd <= 0) {
+          for (const member of entries) {
+            if (seen.has(member.seq)) {
+              continue;
+            }
+            const inTail = chainTail.some(
+              (prefix) => member.scope === prefix || member.scope.startsWith(`${prefix}/`),
+            );
+            if (!inTail) {
+              continue;
+            }
+            seen.add(member.seq);
+            if (member.status !== 'running' && member.status !== 'cancelled') {
+              eligiblePaidUsd += priceOf(member);
+            }
+          }
+        }
         const candidate: DonorCandidate = {
           rootEntryRef: target.seq,
           rootScope: donorScope,
@@ -252,14 +276,14 @@ export class DedupIndex {
             (terminal?.memoizeOutcome === true || target.memoizeOutcome === true),
           paidUsd,
           eligiblePaidUsd,
-          hasPaidEntries: paidUsd > 0,
+          hasPaidEntries: paidUsd > 0 || eligiblePaidUsd > 0,
           isolationWorktree: isolation === 'worktree',
           worktreePinned: payload?.retainWorktree === true,
           ...(terminal?.checkpointRef === undefined
             ? {}
             : { checkpointRef: terminal.checkpointRef }),
           retainedCheckpoint: payload?.retainCheckpoint !== false,
-          chain: [donorScope],
+          chain: [donorScope, ...chainTail],
         };
         const list = index.donors.get(target.key) ?? [];
         list.push(candidate);
@@ -275,6 +299,7 @@ export class DedupIndex {
       }
       if (entry.kind === 'node.link') {
         const value = entry.value as unknown as NodeLinkValue;
+        index.linkByTargetScope.set(value.targetScope, value);
         index.links.set(value.spawnKey, (index.links.get(value.spawnKey) ?? 0) + 1);
         index.spend.reclaimedUsd += value.reclaimedUsdAtLink;
         const byKey = (index.spend.byKey[value.spawnKey] ??= {
@@ -376,8 +401,16 @@ export function evaluateReuse(
   if (oscillationCount >= maxOscillations) {
     return { kind: 'reject_osc_guard', oscillationCount };
   }
-  // Oldest first: the chain drains from its head (docs/03, 9.6).
-  const donor = candidates[0];
+  // Oldest first among UNCLAIMED donors: an exclusive node.link captures
+  // its donor first-wins (docs/03, 9.3 rule 3); when every candidate is
+  // captured the add degrades to a fresh admit with reason donor_active.
+  const donor = candidates.find((candidate) => candidate.claimedBy === undefined);
+  if (donor === undefined) {
+    return {
+      kind: 'fresh',
+      note: { spawnKey, donorNodeId: candidates[0].nodeId ?? '', reason: 'donor_active' },
+    };
+  }
   if (donor.memoizedFailure || donor.preAbandonStatus === 'error') {
     return {
       kind: 'fresh',

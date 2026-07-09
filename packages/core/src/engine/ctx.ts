@@ -1373,6 +1373,16 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       if (opts.memoizeOutcome !== undefined) {
         runningInput.memoizeOutcome = opts.memoizeOutcome;
       }
+      {
+        // The resolved isolation is recorded on the dispatch root so the
+        // DedupIndex donor rules can read it from the journal (docs/03,
+        // 9.4: worktree grafts degrade unless pinned). 'none' stays
+        // implicit, so isolation-free journals are byte-identical.
+        const isolationTag = canonicalIsolationTag(isolation);
+        if (isolationTag !== 'none') {
+          runningInput.value = { isolation: isolationTag };
+        }
+      }
       running = await internals.replayer.appendRunning(runningInput);
     }
     (opts as InternalAgentHooks)[kOnRunning]?.(running.seq);

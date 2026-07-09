@@ -15,15 +15,21 @@ import { JsonlFileStore, type JournalEntry, type JournalStore } from '@lurker/co
 import { SqliteStore } from '@lurker/store-sqlite';
 
 import {
+  runClaimExclusivityAndChain,
   runClassStormSingleTurn,
   runCombinedLoopDescent,
   runConfigDriftResume,
+  runCrashBetweenLinkAndRoot,
+  runGraftPartialSubtree,
   runLegacyJournalResume,
   runOscillationBounded,
+  runOscillationFullReuse,
+  runOscillationGuardTrip,
   runRaceTimeoutVsLive,
   runRespawnPreservesCounter,
   runRewordedLessonsCollide,
   runStallStreakClassesAndPinning,
+  runWorktreeDisposedDegrade,
 } from './m9-cassettes.js';
 import { type M7CassetteFixture } from './cassettes.js';
 
@@ -42,6 +48,12 @@ const SCENARIOS: Array<[string, () => Promise<unknown>]> = [
   ['stall-streak-classes-and-pinning', runStallStreakClassesAndPinning],
   ['legacy-journal-resume', runLegacyJournalResume],
   ['oscillation-bounded', runOscillationBounded],
+  ['oscillation-full-reuse', runOscillationFullReuse],
+  ['graft-partial-subtree', runGraftPartialSubtree],
+  ['crash-between-link-and-root', runCrashBetweenLinkAndRoot],
+  ['oscillation-guard-trip', runOscillationGuardTrip],
+  ['worktree-disposed-degrade', runWorktreeDisposedDegrade],
+  ['claim-exclusivity-and-chain', runClaimExclusivityAndChain],
 ];
 
 describe('M9 catalog cassettes (M9-T04; docs/09 sections 6.2 and 6.3)', () => {

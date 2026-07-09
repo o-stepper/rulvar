@@ -1322,3 +1322,712 @@ export async function runLegacyJournalResume(): Promise<JournalEntry[]> {
   }
   return normalizeAdaptiveJournal(entries);
 }
+
+/**
+ * Shared DEF-5 fixtures: the three-rung limit ladder whose first two
+ * rungs burn their single turn on the echo tool (limit, raise) and whose
+ * top rung is scriptable. Severing the node mid-top-rung leaves the two
+ * completed rung attempts as ELIGIBLE PAID entries under the node's
+ * coverage, which is exactly what a graft donor needs (docs/03, 9.4).
+ */
+function graftLadderProfile(isolation?: unknown): Record<string, unknown> {
+  return {
+    description: 'climbs three rungs',
+    model: {
+      ladder: {
+        rungs: [
+          { model: 'fake:cheap', effort: 'low', maxTurns: 1, maxTokens: 1000 },
+          { model: 'fake:mid', effort: 'medium', maxTurns: 1, maxTokens: 1000 },
+          { model: 'fake:strong', effort: 'high', maxTurns: 4, maxTokens: 2000 },
+        ],
+        startTier: 0,
+        escalateOn: ['limit'],
+      },
+    },
+    ...(isolation === undefined ? {} : { isolation }),
+    tools: [
+      tool({
+        name: 'echo_tool',
+        description: 'echo',
+        parameters: { type: 'object', additionalProperties: false, properties: {} },
+        execute: () => Promise.resolve('ECHO'),
+      }),
+    ],
+  };
+}
+
+function reviseTurn(
+  base: { digestSeq: number; planHash: string } | undefined,
+  ops: unknown[],
+  rationale: string,
+): CassetteTurn {
+  return {
+    toolCall: {
+      name: 'plan_revise',
+      args: {
+        base: base ?? { digestSeq: 0, planHash: EMPTY_PLAN_HASH },
+        ops,
+        rationale,
+      },
+    },
+  };
+}
+
+function waitTurn(kind: 'quiescence' | 'escalation'): CassetteTurn {
+  return { toolCall: { name: 'wait_for_events', args: { triggers: [{ kind }] } } };
+}
+
+function linkEntriesOf(entries: readonly JournalEntry[]): JournalEntry[] {
+  return entries.filter((entry) => entry.kind === 'node.link');
+}
+
+/**
+ * oscillation-full-reuse (DEF-5): a branch whose escalated-terminal root
+ * is severed by cancel_task and re-added byte-identically links
+ * reuse_full: the verdict is embedded in the plan.revision, the
+ * node.link (mode full, claim shared) and the by-ref root are present,
+ * the reused subtree costs zero live calls, and reclaimedUsdAtLink
+ * equals the donor spend (docs/03, 9.4/9.5).
+ */
+export async function runOscillationFullReuse(): Promise<JournalEntry[]> {
+  let phase = 0;
+  let workerCalls = 0;
+  let escalatedNode: string | undefined;
+  const adapter = cassetteAdapter((req): CassetteTurn => {
+    if (agentTypeOfRequest(req) === 'worker') {
+      workerCalls += 1;
+      return {
+        toolCall: {
+          name: 'escalate',
+          args: {
+            kind: 'scope_bigger',
+            scopeDelta: 'grew beyond the estimate',
+            revisedEstimate: { usd: 1, turns: 4 },
+          },
+        },
+      };
+    }
+    const digest = digestIn(req);
+    escalatedNode = digest?.escalations[0]?.nodeId ?? escalatedNode;
+    const base =
+      digest === undefined ? undefined : { digestSeq: digest.digestSeq, planHash: digest.planHash };
+    phase += 1;
+    if (phase === 1) {
+      return reviseTurn(
+        undefined,
+        [{ op: 'add_task', spec: { agentType: 'worker', prompt: 'the reusable branch' } }],
+        'first add',
+      );
+    }
+    if (phase === 3 && escalatedNode !== undefined) {
+      return reviseTurn(
+        base,
+        [{ op: 'cancel_task', nodeId: escalatedNode, reason: 'sever the branch' }],
+        'sever',
+      );
+    }
+    if (phase === 4) {
+      return reviseTurn(
+        base,
+        [{ op: 'add_task', spec: { agentType: 'worker', prompt: 'the reusable branch' } }],
+        'byte-identical re-add',
+      );
+    }
+    if (phase === 2 || phase === 5) {
+      return waitTurn(phase === 2 ? 'escalation' : 'quiescence');
+    }
+    return { toolCall: { name: 'finish', args: { result: 'reused in full' } } };
+  });
+  const store = new InMemoryStore();
+  const engine = engineWith(adapter, store, {
+    worker: { description: 'w', escalation: { flavor: 'A' } },
+  });
+  const handle = orchestratePlanned(engine, 'full reuse', { budget: BUDGET });
+  await settled(handle);
+  const entries = await store.load(handle.runId);
+
+  if (workerCalls !== 1) {
+    throw new Error(`oscillation-full-reuse: the branch must be paid once, got ${workerCalls}`);
+  }
+  const reuseVerdict = entries.find((entry) =>
+    JSON.stringify(entry.value ?? {}).includes('"reuse_full"'),
+  );
+  if (reuseVerdict === undefined || reuseVerdict.kind !== 'plan.revision') {
+    throw new Error('oscillation-full-reuse: the embedded reuse_full verdict is missing');
+  }
+  const links = linkEntriesOf(entries);
+  if (links.length !== 1) {
+    throw new Error(`oscillation-full-reuse: expected one node.link, got ${links.length}`);
+  }
+  const link = links[0].value as unknown as {
+    mode?: string;
+    claim?: string;
+    reclaimedUsdAtLink?: number;
+  };
+  if (link.mode !== 'full' || link.claim !== 'shared') {
+    throw new Error(
+      `oscillation-full-reuse: expected a shared full link, got ${JSON.stringify(link)}`,
+    );
+  }
+  if ((link.reclaimedUsdAtLink ?? 0) <= 0) {
+    throw new Error('oscillation-full-reuse: reclaimedUsdAtLink must carry the donor spend');
+  }
+  const byRef = entries.find(
+    (entry) =>
+      entry.kind === 'agent' &&
+      (entry.value as { byRef?: number } | undefined)?.byRef !== undefined,
+  );
+  if (byRef === undefined) {
+    throw new Error('oscillation-full-reuse: the by-ref root entry is missing');
+  }
+  foldTermination(entries);
+  return normalizeAdaptiveJournal(entries);
+}
+
+/**
+ * graft-partial-subtree (DEF-5): the three-rung limit ladder is severed
+ * mid-top-rung after two completed rung attempts; the byte-identical
+ * re-add grafts (exclusive link), the completed rung attempts
+ * forward-match through the scope alias, and only the interrupted rung
+ * reruns live, exactly once (docs/03, 9.5).
+ */
+export async function runGraftPartialSubtree(): Promise<JournalEntry[]> {
+  let phase = 0;
+  let strongStreams = 0;
+  let cheapCalls = 0;
+  let midCalls = 0;
+  let node: string | undefined;
+  const adapter = cassetteAdapter((req): CassetteTurn => {
+    if (agentTypeOfRequest(req) === 'climber') {
+      if (req.model === 'cheap') {
+        cheapCalls += 1;
+        return { toolCall: { name: 'echo_tool', args: {} } };
+      }
+      if (req.model === 'mid') {
+        midCalls += 1;
+        return { toolCall: { name: 'echo_tool', args: {} } };
+      }
+      strongStreams += 1;
+      return strongStreams === 1 ? { hangUntilAborted: true } : { text: 'strong done' };
+    }
+    const digest = digestIn(req);
+    node = lastAssignedNode(req) ?? node;
+    const base =
+      digest === undefined ? undefined : { digestSeq: digest.digestSeq, planHash: digest.planHash };
+    phase += 1;
+    if (phase === 1) {
+      return reviseTurn(
+        undefined,
+        [{ op: 'add_task', spec: { agentType: 'climber', prompt: 'climb the wall' } }],
+        'first climb',
+      );
+    }
+    if (phase === 2 && node !== undefined) {
+      // Sever mid-top-rung: the poll below guarantees the two lower
+      // rungs already completed before this revision lands.
+      return {
+        awaitPromise: new Promise<void>((resolve) => {
+          const poll = setInterval(() => {
+            if (strongStreams >= 1) {
+              clearInterval(poll);
+              resolve();
+            }
+          }, 5);
+        }),
+        ...reviseTurn(
+          base,
+          [{ op: 'cancel_task', nodeId: node, reason: 'sever mid-climb' }],
+          'sever',
+        ),
+      };
+    }
+    if (phase === 3) {
+      return reviseTurn(
+        base,
+        [{ op: 'add_task', spec: { agentType: 'climber', prompt: 'climb the wall' } }],
+        'byte-identical re-add',
+      );
+    }
+    if (phase === 4) {
+      return waitTurn('quiescence');
+    }
+    return { toolCall: { name: 'finish', args: { result: 'grafted' } } };
+  });
+  const store = new InMemoryStore();
+  const engine = engineWith(adapter, store, { climber: graftLadderProfile() });
+  const handle = orchestratePlanned(engine, 'graft', { budget: BUDGET });
+  await settled(handle);
+  const entries = await store.load(handle.runId);
+
+  if (cheapCalls !== 1 || midCalls !== 1) {
+    throw new Error(
+      `graft-partial-subtree: completed rungs must forward-match through the alias ` +
+        `(cheap ${cheapCalls}, mid ${midCalls})`,
+    );
+  }
+  if (strongStreams !== 2) {
+    throw new Error(
+      `graft-partial-subtree: the interrupted rung must rerun live exactly once ` +
+        `(streams ${strongStreams})`,
+    );
+  }
+  const links = linkEntriesOf(entries);
+  const graft = links.find((entry) => (entry.value as { mode?: string }).mode === 'graft');
+  if (graft === undefined) {
+    throw new Error('graft-partial-subtree: the graft link is missing');
+  }
+  if ((graft.value as { claim?: string }).claim !== 'exclusive') {
+    throw new Error('graft-partial-subtree: the graft capture must be exclusive');
+  }
+  foldTermination(entries);
+  return normalizeAdaptiveJournal(entries);
+}
+
+/**
+ * crash-between-link-and-root (DEF-5): the full-reuse scenario is cut
+ * strictly AFTER the durable node.link and BEFORE the by-ref root; the
+ * resume rolls forward: the link forward-matches, the root is re-issued,
+ * and nothing is paid twice (docs/03, 9.10).
+ */
+export async function runCrashBetweenLinkAndRoot(): Promise<JournalEntry[]> {
+  const script = (state: { phase: number; workerCalls: number; escalated?: string }) => {
+    return (req: ChatRequest): CassetteTurn => {
+      if (agentTypeOfRequest(req) === 'worker') {
+        state.workerCalls += 1;
+        return {
+          toolCall: {
+            name: 'escalate',
+            args: {
+              kind: 'scope_bigger',
+              scopeDelta: 'grew beyond the estimate',
+              revisedEstimate: { usd: 1, turns: 4 },
+            },
+          },
+        };
+      }
+      const digest = digestIn(req);
+      state.escalated = digest?.escalations[0]?.nodeId ?? state.escalated;
+      const base =
+        digest === undefined
+          ? undefined
+          : { digestSeq: digest.digestSeq, planHash: digest.planHash };
+      state.phase += 1;
+      if (state.phase === 1) {
+        return reviseTurn(
+          undefined,
+          [{ op: 'add_task', spec: { agentType: 'worker', prompt: 'the reusable branch' } }],
+          'first add',
+        );
+      }
+      if (state.phase === 3 && state.escalated !== undefined) {
+        return reviseTurn(
+          base,
+          [{ op: 'cancel_task', nodeId: state.escalated, reason: 'sever the branch' }],
+          'sever',
+        );
+      }
+      if (state.phase === 4) {
+        return reviseTurn(
+          base,
+          [{ op: 'add_task', spec: { agentType: 'worker', prompt: 'the reusable branch' } }],
+          'byte-identical re-add',
+        );
+      }
+      if (state.phase === 2 || state.phase === 5) {
+        return waitTurn(state.phase === 2 ? 'escalation' : 'quiescence');
+      }
+      return { toolCall: { name: 'finish', args: { result: 'reused in full' } } };
+    };
+  };
+
+  const life1 = { phase: 0, workerCalls: 0 };
+  const store = new InMemoryStore();
+  const engine = engineWith(cassetteAdapter(script(life1)), store, {
+    worker: { description: 'w', escalation: { flavor: 'A' } },
+  });
+  const handle = orchestratePlanned(engine, 'link crash', { budget: BUDGET });
+  await settled(handle);
+  const full = await store.load(handle.runId);
+  const link = full.find((entry) => entry.kind === 'node.link');
+  if (link === undefined) {
+    throw new Error('crash-between-link-and-root: life 1 produced no link');
+  }
+  const crashStore = await cloneUpTo(store, handle.runId, link.seq);
+
+  const life2 = { phase: 0, workerCalls: 0 };
+  const adapter2 = cassetteAdapter(script(life2));
+  const engine2 = engineWith(adapter2, crashStore, {
+    worker: { description: 'w', escalation: { flavor: 'A' } },
+  });
+  const resumed = engine2.resume(
+    handle.runId,
+    makeOrchestratorWorkflow('link crash', { budget: BUDGET, extension: planRunner({}) }),
+  );
+  const outcome = await resumed.result;
+  if (outcome.status !== 'ok') {
+    throw new Error(`crash-between-link-and-root: the resume ended '${outcome.status}'`);
+  }
+  if (life2.workerCalls !== 0) {
+    throw new Error(
+      `crash-between-link-and-root: the roll-forward must pay nothing ` +
+        `(got ${life2.workerCalls} live worker calls)`,
+    );
+  }
+  const entries = await crashStore.load(handle.runId);
+  const links = linkEntriesOf(entries);
+  if (links.length !== 1) {
+    throw new Error(`crash-between-link-and-root: expected one link, got ${links.length}`);
+  }
+  const byRef = entries.find(
+    (entry) =>
+      entry.kind === 'agent' &&
+      (entry.value as { byRef?: number } | undefined)?.byRef !== undefined,
+  );
+  if (byRef === undefined || byRef.seq <= link.seq) {
+    throw new Error(
+      'crash-between-link-and-root: the by-ref root was not re-issued after the link',
+    );
+  }
+  foldTermination(entries);
+  return normalizeAdaptiveJournal(entries);
+}
+
+/**
+ * oscillation-guard-trip (DEF-5): the third re-add of one SpawnKey at
+ * maxOscillationsPerKey 2 rejects osc_guard as a typed plan_revise
+ * error; the run closes through the non-HITL path and the embedded
+ * verdicts replay identically (docs/03, 9.4).
+ */
+export async function runOscillationGuardTrip(): Promise<JournalEntry[]> {
+  let phase = 0;
+  let sawToolError = false;
+  const state: { escalated?: string; linked?: string } = {};
+  const adapter = cassetteAdapter((req): CassetteTurn => {
+    if (agentTypeOfRequest(req) === 'worker') {
+      return {
+        toolCall: {
+          name: 'escalate',
+          args: {
+            kind: 'scope_bigger',
+            scopeDelta: 'flip flop forever',
+            revisedEstimate: { usd: 1, turns: 4 },
+          },
+        },
+      };
+    }
+    sawToolError = sawToolError || JSON.stringify(req.messages).includes('osc_guard');
+    const digest = digestIn(req);
+    state.escalated = digest?.escalations[0]?.nodeId ?? state.escalated;
+    state.linked = lastAssignedNode(req) ?? state.linked;
+    const base =
+      digest === undefined ? undefined : { digestSeq: digest.digestSeq, planHash: digest.planHash };
+    phase += 1;
+    const ADD = { op: 'add_task', spec: { agentType: 'worker', prompt: 'flip flop task' } };
+    if (phase === 1) {
+      return reviseTurn(undefined, [ADD], 'the oscillating task');
+    }
+    if (phase === 3 && state.escalated !== undefined) {
+      return reviseTurn(base, [{ op: 'cancel_task', nodeId: state.escalated }], 'cancel one');
+    }
+    if (phase === 4) {
+      return reviseTurn(base, [ADD], 're-add one');
+    }
+    if (phase === 5 && state.linked !== undefined) {
+      return reviseTurn(base, [{ op: 'cancel_task', nodeId: state.linked }], 'cancel two');
+    }
+    if (phase === 6) {
+      return reviseTurn(base, [ADD], 're-add two');
+    }
+    if (phase === 7 && state.linked !== undefined) {
+      return reviseTurn(base, [{ op: 'cancel_task', nodeId: state.linked }], 'cancel three');
+    }
+    if (phase === 8) {
+      // The third re-add: osc_guard rejects with a typed tool error.
+      return reviseTurn(base, [ADD], 're-add three trips the guard');
+    }
+    if (phase === 2) {
+      return waitTurn('escalation');
+    }
+    return { toolCall: { name: 'finish', args: { result: 'guard tripped' } } };
+  });
+  const store = new InMemoryStore();
+  const engine = engineWith(adapter, store, {
+    worker: { description: 'w', escalation: { flavor: 'A' } },
+  });
+  const handle = orchestratePlanned(engine, 'guard trip', { budget: BUDGET });
+  const outcome = await handle.result;
+  if (outcome.status !== 'ok') {
+    throw new Error(`oscillation-guard-trip: the run must close non-HITL, got '${outcome.status}'`);
+  }
+  const entries = await store.load(handle.runId);
+  void sawToolError;
+  const rejected = entries.find(
+    (entry) =>
+      entry.kind === 'plan.revision' && JSON.stringify(entry.value ?? {}).includes('"osc_guard"'),
+  );
+  if (rejected === undefined) {
+    throw new Error('oscillation-guard-trip: the embedded osc_guard reject verdict is missing');
+  }
+  const links = linkEntriesOf(entries);
+  if (links.length !== 2) {
+    throw new Error(
+      `oscillation-guard-trip: expected two links before the trip, got ${links.length}`,
+    );
+  }
+  foldTermination(entries);
+  return normalizeAdaptiveJournal(entries);
+}
+
+/**
+ * worktree-disposed-degrade (DEF-5): a worktree-isolated graft donor
+ * whose tree was NOT retained degrades to a fresh admit with the
+ * embedded DedupNote graft_unsafe; a second section verifies reuse_full
+ * stays allowed for a worktree donor whose root is terminal (docs/03,
+ * 9.4: the pin condition applies to grafts only).
+ */
+export async function runWorktreeDisposedDegrade(): Promise<JournalEntry[]> {
+  let phase = 0;
+  let strongStreams = 0;
+  let wtwCalls = 0;
+  const state: { climber?: string; escalated?: string } = {};
+  const adapter = cassetteAdapter((req): CassetteTurn => {
+    const agentType = agentTypeOfRequest(req);
+    if (agentType === 'wtclimber') {
+      if (req.model === 'cheap' || req.model === 'mid') {
+        return { toolCall: { name: 'echo_tool', args: {} } };
+      }
+      strongStreams += 1;
+      return strongStreams === 1 ? { hangUntilAborted: true } : { text: 'strong done' };
+    }
+    if (agentType === 'wtworker') {
+      wtwCalls += 1;
+      return {
+        toolCall: {
+          name: 'escalate',
+          args: {
+            kind: 'scope_bigger',
+            scopeDelta: 'needs the whole tree',
+            revisedEstimate: { usd: 1, turns: 4 },
+          },
+        },
+      };
+    }
+    const digest = digestIn(req);
+    state.escalated = digest?.escalations[0]?.nodeId ?? state.escalated;
+    state.climber = lastAssignedNode(req) ?? state.climber;
+    const base =
+      digest === undefined ? undefined : { digestSeq: digest.digestSeq, planHash: digest.planHash };
+    phase += 1;
+    if (phase === 1) {
+      return reviseTurn(
+        undefined,
+        [{ op: 'add_task', spec: { agentType: 'wtclimber', prompt: 'isolated climb' } }],
+        'the worktree climb',
+      );
+    }
+    if (phase === 2 && state.climber !== undefined) {
+      return {
+        awaitPromise: new Promise<void>((resolve) => {
+          const poll = setInterval(() => {
+            if (strongStreams >= 1) {
+              clearInterval(poll);
+              resolve();
+            }
+          }, 5);
+        }),
+        ...reviseTurn(
+          base,
+          [{ op: 'cancel_task', nodeId: state.climber, reason: 'sever unpinned' }],
+          'sever the climb',
+        ),
+      };
+    }
+    if (phase === 3) {
+      // Graft attempt against the unpinned worktree donor: degrades to
+      // a fresh admit carrying DedupNote graft_unsafe.
+      return reviseTurn(
+        base,
+        [{ op: 'add_task', spec: { agentType: 'wtclimber', prompt: 'isolated climb' } }],
+        'unsafe graft degrades',
+      );
+    }
+    if (phase === 5) {
+      return reviseTurn(
+        undefined,
+        [{ op: 'add_task', spec: { agentType: 'wtworker', prompt: 'isolated escalator' } }],
+        'the terminal-root section',
+      );
+    }
+    if (phase === 7 && state.escalated !== undefined) {
+      return reviseTurn(base, [{ op: 'cancel_task', nodeId: state.escalated }], 'sever it');
+    }
+    if (phase === 8) {
+      return reviseTurn(
+        base,
+        [{ op: 'add_task', spec: { agentType: 'wtworker', prompt: 'isolated escalator' } }],
+        'reuse_full stays allowed',
+      );
+    }
+    if (phase === 4 || phase === 9) {
+      return waitTurn('quiescence');
+    }
+    if (phase === 6) {
+      return waitTurn('escalation');
+    }
+    return { toolCall: { name: 'finish', args: { result: 'degrade verified' } } };
+  });
+  const store = new InMemoryStore();
+  const fixtureIsolation = {
+    acquire: () =>
+      Promise.resolve({
+        cwd: '/fixture-worktree',
+        collect: () => Promise.resolve({ files: [], patch: new Uint8Array() }),
+        dispose: () => Promise.resolve(),
+      }),
+  };
+  const engine = engineWith(
+    adapter,
+    store,
+    {
+      wtclimber: graftLadderProfile({ kind: 'worktree' }),
+      wtworker: {
+        description: 'w',
+        isolation: { kind: 'worktree' },
+        escalation: { flavor: 'A' },
+      },
+    },
+    { isolation: fixtureIsolation },
+  );
+  const handle = orchestratePlanned(engine, 'worktree degrade', { budget: BUDGET });
+  await settled(handle);
+  const entries = await store.load(handle.runId);
+
+  const unsafeNote = entries.find((entry) =>
+    JSON.stringify(entry.value ?? {}).includes('graft_unsafe'),
+  );
+  if (unsafeNote === undefined) {
+    throw new Error('worktree-disposed-degrade: the graft_unsafe DedupNote is missing');
+  }
+  if (strongStreams !== 2) {
+    throw new Error(
+      `worktree-disposed-degrade: the degraded fresh admit must rerun the climb ` +
+        `(strong streams ${strongStreams})`,
+    );
+  }
+  const fullLink = linkEntriesOf(entries).find(
+    (entry) => (entry.value as { mode?: string }).mode === 'full',
+  );
+  if (fullLink === undefined) {
+    throw new Error('worktree-disposed-degrade: reuse_full must stay allowed for a terminal root');
+  }
+  if (wtwCalls !== 1) {
+    throw new Error(
+      `worktree-disposed-degrade: the terminal-root section must not repay (calls ${wtwCalls})`,
+    );
+  }
+  foldTermination(entries);
+  return normalizeAdaptiveJournal(entries);
+}
+
+/**
+ * claim-exclusivity-and-chain (DEF-5): one revision adds TWO identical
+ * tasks; the first grafts (exclusive claim), the second admits fresh;
+ * the grafted node is severed and the key added a third time: the link
+ * points at the chain head and the drain is transitive, oldest first;
+ * oscillationCount for the key reaches 2 (docs/03, 9.6).
+ */
+export async function runClaimExclusivityAndChain(): Promise<JournalEntry[]> {
+  let phase = 0;
+  let strongStreams = 0;
+  const nodes: string[] = [];
+  const adapter = cassetteAdapter((req): CassetteTurn => {
+    if (agentTypeOfRequest(req) === 'climber') {
+      if (req.model === 'cheap' || req.model === 'mid') {
+        return { toolCall: { name: 'echo_tool', args: {} } };
+      }
+      strongStreams += 1;
+      // Streams 1 (the donor) and 2 (the grafted continuation) hang and
+      // get severed; stream 3 (the fresh sibling) and the final drain
+      // complete.
+      return strongStreams <= 2 ? { hangUntilAborted: true } : { text: 'strong done' };
+    }
+    const digest = digestIn(req);
+    for (const msg of req.messages) {
+      for (const part of msg.parts) {
+        if (part.type === 'tool-result') {
+          const ids = (part.result as { assignedNodeIds?: Record<string, string> } | undefined)
+            ?.assignedNodeIds;
+          for (const nodeId of Object.values(ids ?? {})) {
+            if (!nodes.includes(nodeId)) {
+              nodes.push(nodeId);
+            }
+          }
+        }
+      }
+    }
+    const base =
+      digest === undefined ? undefined : { digestSeq: digest.digestSeq, planHash: digest.planHash };
+    phase += 1;
+    const ADD = { op: 'add_task', spec: { agentType: 'climber', prompt: 'climb the wall' } };
+    if (phase === 1) {
+      return reviseTurn(undefined, [ADD], 'the donor climb');
+    }
+    if (phase === 2 && nodes.length >= 1) {
+      return {
+        awaitPromise: new Promise<void>((resolve) => {
+          const poll = setInterval(() => {
+            if (strongStreams >= 1) {
+              clearInterval(poll);
+              resolve();
+            }
+          }, 5);
+        }),
+        ...reviseTurn(base, [{ op: 'cancel_task', nodeId: nodes[0] }], 'sever the donor'),
+      };
+    }
+    if (phase === 3) {
+      // ONE revision, TWO identical adds: the first claims the donor
+      // exclusively (graft), the second admits fresh.
+      return reviseTurn(base, [ADD, ADD], 'two identical adds');
+    }
+    if (phase === 4 && nodes.length >= 2) {
+      return {
+        awaitPromise: new Promise<void>((resolve) => {
+          const poll = setInterval(() => {
+            if (strongStreams >= 2) {
+              clearInterval(poll);
+              resolve();
+            }
+          }, 5);
+        }),
+        ...reviseTurn(base, [{ op: 'cancel_task', nodeId: nodes[1] }], 'sever the grafted node'),
+      };
+    }
+    if (phase === 5) {
+      return reviseTurn(base, [ADD], 'the third add drains the chain');
+    }
+    if (phase === 6) {
+      return waitTurn('quiescence');
+    }
+    return { toolCall: { name: 'finish', args: { result: 'chain drained' } } };
+  });
+  const store = new InMemoryStore();
+  const engine = engineWith(adapter, store, { climber: graftLadderProfile() });
+  const handle = orchestratePlanned(engine, 'claims', { budget: BUDGET });
+  await settled(handle);
+  const entries = await store.load(handle.runId);
+
+  const links = linkEntriesOf(entries);
+  if (links.length !== 2) {
+    throw new Error(`claim-exclusivity-and-chain: expected two links, got ${links.length}`);
+  }
+  const chains = links.map((entry) => (entry.value as { chain?: string[] }).chain ?? []);
+  if ((chains[1]?.length ?? 0) < 2) {
+    throw new Error(
+      `claim-exclusivity-and-chain: the second link must extend the chain ` +
+        `(got ${JSON.stringify(chains)})`,
+    );
+  }
+  foldTermination(entries);
+  return normalizeAdaptiveJournal(entries);
+}
