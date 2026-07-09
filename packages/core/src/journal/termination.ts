@@ -251,7 +251,7 @@ export class TerminationAccount {
   private revisionUnits: number;
   private spawnUnits: number;
   private readonly lineages = new Map<LogicalTaskId, LineageState>();
-  private readonly deniedWriter?: TerminationDeniedWriter;
+  private deniedWriter?: TerminationDeniedWriter;
 
   constructor(options: { limits: TerminationLimits; deniedWriter?: TerminationDeniedWriter }) {
     this.limits = options.limits;
@@ -260,6 +260,18 @@ export class TerminationAccount {
     if (options.deniedWriter !== undefined) {
       this.deniedWriter = options.deniedWriter;
     }
+  }
+
+  /**
+   * Binds the denied-entry appender onto an account rebuilt by the fold
+   * (resume path): the fold is pure and cannot own I/O. Never rebinds an
+   * existing writer.
+   */
+  bindDeniedWriter(writer: TerminationDeniedWriter): void {
+    if (this.deniedWriter !== undefined && this.deniedWriter !== writer) {
+      throw new ConfigError('the TerminationAccount deniedWriter is already bound');
+    }
+    this.deniedWriter = writer;
   }
 
   snapshot(): TerminationAccountSnapshot {

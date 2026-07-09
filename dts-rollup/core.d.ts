@@ -1749,11 +1749,17 @@ declare class TerminationAccount {
   private revisionUnits;
   private spawnUnits;
   private readonly lineages;
-  private readonly deniedWriter?;
+  private deniedWriter?;
   constructor(options: {
     limits: TerminationLimits;
     deniedWriter?: TerminationDeniedWriter;
   });
+  /**
+  * Binds the denied-entry appender onto an account rebuilt by the fold
+  * (resume path): the fold is pure and cannot own I/O. Never rebinds an
+  * existing writer.
+  */
+  bindDeniedWriter(writer: TerminationDeniedWriter): void;
   snapshot(): TerminationAccountSnapshot;
   /** Phi = V + C * S + sum over live lineages (E + R) (docs/07, 11.4). */
   phi(): number;
@@ -3779,6 +3785,10 @@ interface EngineDefaults {
   profiles?: Record<string, AgentProfile>;
   /** The workflow registry for shells and by-name resolution (10.4). */
   workflows?: WorkflowRegistry;
+  /** Registered SchemaSpec names for outputSchemaRef (docs/08; M7-T05). */
+  schemas?: Record<string, SchemaSpec>;
+  /** Registered tool profile names for toolsetRef (docs/08; M7-T05). */
+  toolsets?: Record<string, ToolsOption>;
   limits?: UsageLimits;
   /** Engine-wide permission chain layers (docs/08, section 3). */
   permissions?: PermissionConfig;
@@ -3914,6 +3924,222 @@ declare function hashWorkflowSource(source: string): string;
 declare function workflowSourceRef(runId: string): string;
 declare function createEngine(options: CreateEngineOptions): Engine;
 //#endregion
+//#region src/orchestrator/handles.d.ts
+/** docs/07 section 5: the per-child digest handed to the orchestrator. */
+interface TaskDigest {
+  nodeId: string;
+  logicalTaskId: string;
+  status: string;
+  outputSummary: string;
+  costUsd: number;
+  artifactsIndex: string[];
+}
+/** One spawned child tracked by the orchestrator runtime. */
+interface SpawnRecord {
+  handle: number;
+  spawnOrdinal: number;
+  nodeId: string;
+  logicalTaskId: string;
+  /** Settles with the child's full result; never rejects. */
+  result: Promise<AgentResult<unknown>>;
+  settled?: AgentResult<unknown>;
+  abort: () => void;
+}
+/** The engine seam the spawn tools close over (never on ToolContext). */
+interface OrchestratorRuntime {
+  spawn(params: {
+    agentType: string;
+    prompt: string;
+    outputSchemaRef?: string;
+    toolsetRef?: string;
+    budgetUsd?: number;
+    model_hint?: {
+      startTier?: number;
+    };
+    approach?: string;
+    lineage?: {
+      continues: string;
+      relation?: string;
+      causeRef: number;
+    };
+    taskClass?: string;
+  }): Promise<{
+    handle: number;
+  }>;
+  awaitAny(handles: number[]): Promise<TaskDigest>;
+  awaitAll(handles: number[]): Promise<TaskDigest[]>;
+  cancel(handle: number, reason?: string): Promise<{
+    cancelled: boolean;
+    handle: number;
+  }>;
+  /** docs/07 4.8: sleep until a coalesced WakeDigest (M6-T09). */
+  waitForEvents(triggers: unknown): Promise<unknown>;
+}
+/**
+* The M6 outputSummary: a deterministic truncation of the child's
+* output (or error message), identical live and on replay (docs/07
+* section 2, clause 3: distillation lives with the child, ordered by
+* spawn ordinal; the LLM distillation upgrade is M7 territory).
+*/
+declare function summarizeOutput(result: AgentResult<unknown>): string;
+/** Folds one settled child into its digest (spawn-ordinal ordering is the caller's). */
+declare function digestOf(record: SpawnRecord, result: AgentResult<unknown>): TaskDigest;
+/** The journaled spawn-admission payload the runtime writes and recovers. */
+interface SpawnAdmissionValue {
+  decisionType: "spawn-admission";
+  origin: "spawn_agent" | "parallel_agents";
+  orchestratorScope: string;
+  spawnOrdinal: number;
+  name: string;
+  childScope: string;
+  parentAccountScope: string;
+  spec: Json;
+  decision: Json;
+}
+//#endregion
+//#region src/orchestrator/wake.d.ts
+/** docs/07 4.8: the wait_for_events parameter schema (normative). */
+declare const WAIT_FOR_EVENTS_SCHEMA: SchemaSpec;
+declare const WAIT_FOR_EVENTS_TOOL_NAME = "wait_for_events";
+/** The closed v1 trigger vocabulary (docs/07 4.8). */
+type WakeTrigger = {
+  kind: "quiescence";
+} | {
+  kind: "child_terminal";
+  handles?: number[];
+} | {
+  kind: "escalation";
+} | {
+  kind: "budget_threshold";
+  percent: 50 | 80;
+};
+/** docs/07 section 5: the escalation block of a digest. */
+interface EscalationDigest {
+  nodeId: string;
+  logicalTaskId: string;
+  /** seq of the terminal escalated entry. */
+  reportRef: number;
+  kind: string;
+  flavor: "A" | "B";
+}
+/**
+* The M6 substrate WakeDigest (docs/07 section 5; the termination,
+* budget, and reuse blocks complete the shape in M7 as one coordinated
+* hashVersion-2 change).
+*/
+interface WakeDigest {
+  digestSeq: number;
+  coversToOrdinal: number;
+  completedDigests: TaskDigest[];
+  escalations: EscalationDigest[];
+}
+//#endregion
+//#region src/orchestrator/extension.d.ts
+/** One append into an extension-owned sequential scope. */
+interface ExtensionAppendInput {
+  scope: string;
+  /** The content key; extension kinds derive their own (docs/07, 3.3). */
+  key: string;
+  kind: EntryKind;
+  value: Json;
+}
+/** A child dispatch under an explicit scope (plan/NodeId). */
+interface ExtensionDispatchSpec {
+  agentType: string;
+  prompt: string;
+  /** Resolved against defaults.schemas (docs/08); unknown names are typed errors. */
+  outputSchemaRef?: string;
+  /** Resolved against defaults.toolsets (docs/08); unknown names are typed errors. */
+  toolsetRef?: string;
+  isolation?: IsolationSpec;
+  budgetUsd?: number;
+  usageLimits?: Partial<UsageLimits>;
+  escalation?: EscalationOptions;
+  approach?: string;
+  taskClass?: string;
+}
+/** The per-run IO the extension closes over (engine-owned effects). */
+interface OrchestratorExtensionIO {
+  readonly runId: string;
+  /** The scope the orchestrate call runs in ('' at the top level). */
+  readonly baseScope: string;
+  /** The orchestrator's child scope (agent:<seq>); throws before the loop starts. */
+  orchestratorScope(): string;
+  /** Registered agent profiles advertised to this orchestrate call. */
+  readonly profiles: Record<string, unknown>;
+  /** The run USD ceiling (B0), when one exists. */
+  readonly runCeilingUsd?: number;
+  /** ULID minting for engine-owned identifiers (NodeIds). */
+  mintId(): string;
+  /** Total-order append; the extension owns its scopes' content keys. */
+  append(input: ExtensionAppendInput): Promise<JournalEntry>;
+  /** The pinned journal view backing every pure fold. */
+  snapshot(): readonly JournalEntry[];
+  /** Flushes the serialized append queue before reading back. */
+  flush(): Promise<void>;
+  /** The single admission point for all spawns (docs/07, 7.1). */
+  readonly admission: AdmissionController;
+  /**
+  * Dispatches one child agent under the EXPLICIT child scope through
+  * the ordinary ctx.agent path (semaphore, budget layers, forward
+  * matching). Returns the journal-derived handle (the dispatch seq).
+  */
+  dispatch(spec: ExtensionDispatchSpec, childScope: string, identity: {
+    nodeId: string;
+    logicalTaskId: string;
+  }): Promise<{
+    handle: number;
+  }>;
+  /** The settled result of a dispatched child, when it settled. */
+  settledOf(handle: number): AgentResult<unknown> | undefined;
+  /** Cancels an in-flight child by handle (AbortSignal). */
+  cancel(handle: number, reason?: string): Promise<{
+    cancelled: boolean;
+    handle: number;
+  }>;
+  /** Telemetry emission into the run event stream. */
+  emit(event: {
+    type: string;
+  } & Record<string, unknown>): void;
+}
+/**
+* The extension contract. PlanRunner implements it in @lurker/plan; the
+* mode (c) orchestrator hosts it. Everything is optional except the
+* toolset: an extension that adds no tools has no reason to exist.
+*/
+interface OrchestratorExtension {
+  readonly name: string;
+  /**
+  * Runs strictly BEFORE the orchestrator agent's first entry (docs/07,
+  * 11.6: termination.init precedes the first scheduling entry and the
+  * budget reserve). On resume it rebuilds state from the journal.
+  */
+  boot?(io: OrchestratorExtensionIO): Promise<void> | void;
+  /** Extension tools appended to the mode (c) toolset (docs/07, section 4). */
+  tools(io: OrchestratorExtensionIO): ToolDef[];
+  /** Extra orchestrator prompt lines describing the extension's protocol. */
+  promptLines?(): string[];
+  /**
+  * Called after boot and after EVERY child settlement, strictly before
+  * wake triggers are evaluated: the scheduling edge (ready nodes
+  * dispatch here, terminal transitions journal here).
+  */
+  onActivity?(io: OrchestratorExtensionIO): Promise<void> | void;
+  /**
+  * Quiescence participation (docs/07, 4.8): the mandatory trigger fires
+  * only when every dispatched child settled AND the extension reports
+  * nothing running and nothing ready.
+  */
+  quiescent?(): boolean;
+  /**
+  * Extra fields merged into every WakeDigest (the hash-v2 coordinated
+  * schema lands in M7-T13; the substrate merges extras verbatim).
+  */
+  digestExtras?(io: OrchestratorExtensionIO): Record<string, Json> | undefined;
+  /** Observes every delivered digest, including recovered pinned ones. */
+  onWake?(digest: WakeDigest): void;
+}
+//#endregion
 //#region src/orchestrator/orchestrate.d.ts
 /** docs/06 5.5; the cap machinery (reserves, freeze) completes in M7 (DEF-7). */
 interface OrchestratorBudgetSpec {
@@ -3935,6 +4161,14 @@ interface OrchestrateOptions {
   budget?: OrchestratorBudgetSpec;
   /** UsageLimits of the orchestrator agent itself (maxTurns etc.). */
   limits?: UsageLimits;
+  /**
+  * The opt-in mode (c) extension seam (M7-T05): PlanRunner from
+  * @lurker/plan attaches here (docs/07, section 1). The extension boots
+  * strictly before the orchestrator's first agent entry, contributes
+  * tools, schedules ready plan nodes on every settlement, and
+  * participates in the mandatory quiescence trigger.
+  */
+  extension?: OrchestratorExtension;
 }
 declare const ORCHESTRATE_WORKFLOW_NAME = "lurker-orchestrate";
 /**
@@ -4295,7 +4529,9 @@ interface RunInternals {
     limits?: UsageLimits; /** Engine-wide permission chain layers (docs/08, section 3). */
     permissions?: PermissionConfig; /** Engine-wide transport RetryPolicy (docs/04, 11.1; M4-T05). */
     retry?: RetryPolicy; /** The per-engine workflow registry (docs/06, 10.4; consumers: M6 ctx.workflow, M8 worker). */
-    workflows?: Record<string, unknown>;
+    workflows?: Record<string, unknown>; /** Registered SchemaSpec names for outputSchemaRef (docs/08; M7-T05). */
+    schemas?: Record<string, SchemaSpec>; /** Registered tool profile names for toolsetRef (docs/08; M7-T05). */
+    toolsets?: Record<string, ToolsOption>;
   };
   /** Engine-scoped per-provider keyed limiter (docs/06, section 4; M4-T07). */
   providerLimiter?: KeyedLimiter;
@@ -4778,79 +5014,6 @@ declare function extractCandidate(turn: CollectedTurn, tier: StructuredOutputTie
 /** The bounded re-prompt message sent back to the model on a validation miss. */
 declare function formatRePrompt(issues: Issue$1[], attempt: number, maxAttempts: number): Msg;
 //#endregion
-//#region src/orchestrator/handles.d.ts
-/** docs/07 section 5: the per-child digest handed to the orchestrator. */
-interface TaskDigest {
-  nodeId: string;
-  logicalTaskId: string;
-  status: string;
-  outputSummary: string;
-  costUsd: number;
-  artifactsIndex: string[];
-}
-/** One spawned child tracked by the orchestrator runtime. */
-interface SpawnRecord {
-  handle: number;
-  spawnOrdinal: number;
-  nodeId: string;
-  logicalTaskId: string;
-  /** Settles with the child's full result; never rejects. */
-  result: Promise<AgentResult<unknown>>;
-  settled?: AgentResult<unknown>;
-  abort: () => void;
-}
-/** The engine seam the spawn tools close over (never on ToolContext). */
-interface OrchestratorRuntime {
-  spawn(params: {
-    agentType: string;
-    prompt: string;
-    outputSchemaRef?: string;
-    toolsetRef?: string;
-    budgetUsd?: number;
-    model_hint?: {
-      startTier?: number;
-    };
-    approach?: string;
-    lineage?: {
-      continues: string;
-      relation?: string;
-      causeRef: number;
-    };
-    taskClass?: string;
-  }): Promise<{
-    handle: number;
-  }>;
-  awaitAny(handles: number[]): Promise<TaskDigest>;
-  awaitAll(handles: number[]): Promise<TaskDigest[]>;
-  cancel(handle: number, reason?: string): Promise<{
-    cancelled: boolean;
-    handle: number;
-  }>;
-  /** docs/07 4.8: sleep until a coalesced WakeDigest (M6-T09). */
-  waitForEvents(triggers: unknown): Promise<unknown>;
-}
-/**
-* The M6 outputSummary: a deterministic truncation of the child's
-* output (or error message), identical live and on replay (docs/07
-* section 2, clause 3: distillation lives with the child, ordered by
-* spawn ordinal; the LLM distillation upgrade is M7 territory).
-*/
-declare function summarizeOutput(result: AgentResult<unknown>): string;
-/** Folds one settled child into its digest (spawn-ordinal ordering is the caller's). */
-declare function digestOf(record: SpawnRecord, result: AgentResult<unknown>): TaskDigest;
-/** The journaled spawn-admission payload the runtime writes and recovers. */
-interface SpawnAdmissionValue {
-  decisionType: "spawn-admission";
-  origin: "spawn_agent" | "parallel_agents";
-  orchestratorScope: string;
-  spawnOrdinal: number;
-  name: string;
-  childScope: string;
-  parentAccountScope: string;
-  spec: Json;
-  decision: Json;
-}
-//#endregion
 //#region src/orchestrator/spawn-tools.d.ts
 /** docs/07 4.2: the spawn_agent parameter schema (normative). */
 declare const SPAWN_AGENT_SCHEMA: SchemaSpec;
@@ -4887,43 +5050,6 @@ interface SpawnAgentParams {
 * vocabulary (docs/06 9.3; M6-T04).
 */
 declare function buildOrchestratorTools(runtime: OrchestratorRuntime, profileCardText: string): ToolDef[];
-//#endregion
-//#region src/orchestrator/wake.d.ts
-/** docs/07 4.8: the wait_for_events parameter schema (normative). */
-declare const WAIT_FOR_EVENTS_SCHEMA: SchemaSpec;
-declare const WAIT_FOR_EVENTS_TOOL_NAME = "wait_for_events";
-/** The closed v1 trigger vocabulary (docs/07 4.8). */
-type WakeTrigger = {
-  kind: "quiescence";
-} | {
-  kind: "child_terminal";
-  handles?: number[];
-} | {
-  kind: "escalation";
-} | {
-  kind: "budget_threshold";
-  percent: 50 | 80;
-};
-/** docs/07 section 5: the escalation block of a digest. */
-interface EscalationDigest {
-  nodeId: string;
-  logicalTaskId: string;
-  /** seq of the terminal escalated entry. */
-  reportRef: number;
-  kind: string;
-  flavor: "A" | "B";
-}
-/**
-* The M6 substrate WakeDigest (docs/07 section 5; the termination,
-* budget, and reuse blocks complete the shape in M7 as one coordinated
-* hashVersion-2 change).
-*/
-interface WakeDigest {
-  digestSeq: number;
-  coversToOrdinal: number;
-  completedDigests: TaskDigest[];
-  escalations: EscalationDigest[];
-}
 //#endregion
 //#region src/engine/events.d.ts
 /**
@@ -5028,4 +5154,4 @@ interface SandboxBridge {
 }
 declare function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptions): SandboxBridge;
 //#endregion
-export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbortClass, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, BUDGET_ABORT_REASON, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DebitResult, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINISH_SCHEMA, FINISH_TOOL_NAME, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileTranscriptStore, FinishInfo, Gate, GateAudit, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, LurkerError, LurkerErrorCode, MAX_DEPTH_CEILING, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateOptions, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskDigest, TaskSpec, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, approachSigCoarse, approachSigOf, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeSchema, checkFloors, checkpointRefFor, childCoveragePrefix, classifyAgentError, classifyAttemptOutcome, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, foldTermination, formatRePrompt, formatScopePath, hashWorkflowBody, hashWorkflowSource, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, kMaxOf, ladderLengthOf, lexShellCommand, liftRetainedParts, lineageWeightOf, makeOrchestratorWorkflow, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, priceUsdOf, profileCard, profileRegistrySnapshotHash, projectHistory, projectIdentity, projectToJsonSchema, providerOf, readTerminationInit, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, summarizeOutput, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateSchemaSpec, validateTerminationLimits, workflowScope, workflowSourceRef };
+export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbortClass, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, BUDGET_ABORT_REASON, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DebitResult, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINISH_SCHEMA, FINISH_TOOL_NAME, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileTranscriptStore, FinishInfo, Gate, GateAudit, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, LurkerError, LurkerErrorCode, MAX_DEPTH_CEILING, MatchResult, McpConfig, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateOptions, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskDigest, TaskSpec, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, approachSigCoarse, approachSigOf, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeSchema, checkFloors, checkpointRefFor, childCoveragePrefix, classifyAgentError, classifyAttemptOutcome, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, foldTermination, formatRePrompt, formatScopePath, hashWorkflowBody, hashWorkflowSource, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, kMaxOf, ladderLengthOf, lexShellCommand, liftRetainedParts, lineageWeightOf, makeOrchestratorWorkflow, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, priceUsdOf, profileCard, profileRegistrySnapshotHash, projectHistory, projectIdentity, projectToJsonSchema, providerOf, readTerminationInit, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, summarizeOutput, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateSchemaSpec, validateTerminationLimits, workflowScope, workflowSourceRef };

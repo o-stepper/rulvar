@@ -534,6 +534,10 @@ export interface RunInternals {
     retry?: RetryPolicy;
     /** The per-engine workflow registry (docs/06, 10.4; consumers: M6 ctx.workflow, M8 worker). */
     workflows?: Record<string, unknown>;
+    /** Registered SchemaSpec names for outputSchemaRef (docs/08; M7-T05). */
+    schemas?: Record<string, SchemaSpec>;
+    /** Registered tool profile names for toolsetRef (docs/08; M7-T05). */
+    toolsets?: Record<string, ToolsOption>;
   };
   /** Engine-scoped per-provider keyed limiter (docs/06, section 4; M4-T07). */
   providerLimiter?: KeyedLimiter;

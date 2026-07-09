@@ -21,7 +21,8 @@ import type { ProviderAdapter } from '../l0/spi/provider.js';
 import type { JournalStore } from '../l0/spi/store.js';
 import type { TranscriptStore } from '../l0/spi/transcript.js';
 import { createCanonicalIdMinter } from '../l0/messages.js';
-import { validateSchemaSpec } from '../l0/schema.js';
+import { validateSchemaSpec, type SchemaSpec } from '../l0/schema.js';
+import type { ToolsOption } from '../tools/toolset-hash.js';
 import { normalizeEntry, type JournalEntry } from '../l0/entries.js';
 import { Replayer } from '../journal/replayer.js';
 import {
@@ -80,6 +81,10 @@ export interface EngineDefaults {
   profiles?: Record<string, AgentProfile>;
   /** The workflow registry for shells and by-name resolution (10.4). */
   workflows?: WorkflowRegistry;
+  /** Registered SchemaSpec names for outputSchemaRef (docs/08; M7-T05). */
+  schemas?: Record<string, SchemaSpec>;
+  /** Registered tool profile names for toolsetRef (docs/08; M7-T05). */
+  toolsets?: Record<string, ToolsOption>;
   limits?: UsageLimits;
   /** Engine-wide permission chain layers (docs/08, section 3). */
   permissions?: PermissionConfig;
@@ -408,6 +413,8 @@ export function createEngine(options: CreateEngineOptions): Engine {
         ...(defaults.permissions === undefined ? {} : { permissions: defaults.permissions }),
         ...(defaults.retry === undefined ? {} : { retry: defaults.retry }),
         ...(defaults.workflows === undefined ? {} : { workflows: defaults.workflows }),
+        ...(defaults.schemas === undefined ? {} : { schemas: defaults.schemas }),
+        ...(defaults.toolsets === undefined ? {} : { toolsets: defaults.toolsets }),
       },
       errorPolicy: wf.errorPolicy,
       dropped: [],

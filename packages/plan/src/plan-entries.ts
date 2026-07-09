@@ -502,60 +502,80 @@ export function applyPlanEntry(
       });
     }
     verifyHash(entry, 'planHashBefore', value.planHashBefore, state.plan, options?.deriverFor);
-    let working: PlanWorking = { plan: state.plan, specs: state.specs };
-    const doneRefs = { ...state.doneRefs };
-    for (const op of value.ops) {
-      if (op.kind === 'set_node_status') {
-        const node = nodeOf(working.plan, op.nodeId, entry.seq);
-        if (node.status !== op.from) {
-          throw new PlanInvariantError(
-            `plan.decision at seq ${String(entry.seq)} records transition from '${op.from}' ` +
-              `but node ${op.nodeId} is '${node.status}'`,
-            { data: { entryRef: entry.seq, nodeId: op.nodeId } },
-          );
-        }
-        assertPlanTransition(node, op.to);
-        const next: PlanNode = { ...node, status: op.to };
-        if (isTerminalPlanStatus(op.to)) {
-          // A terminal transition extinguishes pending flags (docs/07,
-          // 3.9: no orphaned flags, no double checkpoints).
-          next.parkRequested = false;
-          next.cancelRequested = false;
-        }
-        if (op.to === 'done') {
-          doneRefs[op.nodeId] = op.causeRef;
-        }
-        working = withNode(working, next);
-        continue;
-      }
-      if (op.kind === 'resolve_escalation') {
-        const node = nodeOf(working.plan, op.nodeId, entry.seq);
-        working = withNode(working, resolveEscalatedNode(node, op.decision, op.escalationRef));
-        continue;
-      }
-      // spawn_admitted: decomposition children enter the plan as pending
-      // nodes with FRESH LTIDs minted inside this decision (docs/07, 8.1
-      // rule 6).
-      for (const child of op.nodes) {
-        const node: PlanNode = {
-          nodeId: child.nodeId,
-          logicalTaskId: child.logicalTaskId,
-          status: 'pending',
-          deps: [],
-          waivedDeps: [],
-          parkRequested: false,
-          cancelRequested: false,
-          priority: 0,
-          promptSpecHash: promptSpecHashOf(child.spec),
-        };
-        working = withNode(working, node, child.spec);
-      }
-    }
-    const plan = recomputePlanReadiness(working.plan);
-    verifyHash(entry, 'planHashAfter', value.planHashAfter, plan, options?.deriverFor);
-    return { plan, specs: working.specs, badBaseStreak: state.badBaseStreak, doneRefs };
+    const applied = applyDecisionOps(state, value.ops, entry.seq);
+    verifyHash(entry, 'planHashAfter', value.planHashAfter, applied.plan, options?.deriverFor);
+    return {
+      plan: applied.plan,
+      specs: applied.specs,
+      badBaseStreak: state.badBaseStreak,
+      doneRefs: applied.doneRefs,
+    };
   }
   return state;
+}
+
+/**
+ * The shared plan.decision applier core: engine authorship happens at
+ * the fold head under PlanWriteLock (docs/07, 3.3), so the producer can
+ * PREVIEW the resulting state (and its planHashAfter) before appending,
+ * and the fold re-applies the recorded ops identically on replay.
+ */
+export function applyDecisionOps(
+  state: Pick<PlanFoldState, 'plan' | 'specs' | 'doneRefs'>,
+  ops: readonly EnginePlanOp[],
+  seq: number,
+): { plan: TaskPlan; specs: PlanWorking['specs']; doneRefs: Record<NodeId, EntryRef> } {
+  let working: PlanWorking = { plan: state.plan, specs: state.specs };
+  const doneRefs = { ...state.doneRefs };
+  for (const op of ops) {
+    if (op.kind === 'set_node_status') {
+      const node = nodeOf(working.plan, op.nodeId, seq);
+      if (node.status !== op.from) {
+        throw new PlanInvariantError(
+          `plan.decision at seq ${String(seq)} records transition from '${op.from}' ` +
+            `but node ${op.nodeId} is '${node.status}'`,
+          { data: { entryRef: seq, nodeId: op.nodeId } },
+        );
+      }
+      assertPlanTransition(node, op.to);
+      const next: PlanNode = { ...node, status: op.to };
+      if (isTerminalPlanStatus(op.to)) {
+        // A terminal transition extinguishes pending flags (docs/07,
+        // 3.9: no orphaned flags, no double checkpoints).
+        next.parkRequested = false;
+        next.cancelRequested = false;
+      }
+      if (op.to === 'done') {
+        doneRefs[op.nodeId] = op.causeRef;
+      }
+      working = withNode(working, next);
+      continue;
+    }
+    if (op.kind === 'resolve_escalation') {
+      const node = nodeOf(working.plan, op.nodeId, seq);
+      working = withNode(working, resolveEscalatedNode(node, op.decision, op.escalationRef));
+      continue;
+    }
+    // spawn_admitted: decomposition children enter the plan as pending
+    // nodes with FRESH LTIDs minted inside this decision (docs/07, 8.1
+    // rule 6).
+    for (const child of op.nodes) {
+      const node: PlanNode = {
+        nodeId: child.nodeId,
+        logicalTaskId: child.logicalTaskId,
+        status: 'pending',
+        deps: [],
+        waivedDeps: [],
+        parkRequested: false,
+        cancelRequested: false,
+        priority: 0,
+        promptSpecHash: promptSpecHashOf(child.spec),
+      };
+      working = withNode(working, node, child.spec);
+    }
+  }
+  const plan = recomputePlanReadiness(working.plan);
+  return { plan, specs: working.specs, doneRefs };
 }
 
 function lineageOfAdmission(
