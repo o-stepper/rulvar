@@ -189,6 +189,8 @@ export interface TestInternalsOptions {
   childBudgetFraction?: number;
   flatReserveUsd?: number;
   admissionMintId?: () => string;
+  /** Lineage limits (DEF-3; M7-T02). */
+  lineageLimits?: Record<string, unknown>;
   perRun?: number;
   /** Versioned price table; wins over caps.pricing (M4-T06). */
   pricing?: PriceTable;
@@ -269,6 +271,12 @@ export function makeInternals(options: TestInternalsOptions = {}): {
       : { childBudgetFraction: options.childBudgetFraction }),
     ...(options.flatReserveUsd === undefined ? {} : { flatReserveUsd: options.flatReserveUsd }),
     ...(options.admissionMintId === undefined ? {} : { mintId: options.admissionMintId }),
+    // The lineage counter folds read the run journal (DEF-3; M7-T02),
+    // exactly as the engine wires them.
+    lineage: {
+      journalView: () => seededReplayer.snapshot(),
+      ...(options.lineageLimits === undefined ? {} : { limits: options.lineageLimits }),
+    },
   });
   const replayer = seededReplayer;
   let refCounter = 0;

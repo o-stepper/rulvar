@@ -17,12 +17,28 @@
  * M7 with their reject codes already registered below.
  */
 import { ConfigError } from '../l0/errors.js';
+import type { JournalEntry } from '../l0/entries.js';
 import { createCanonicalIdMinter } from '../l0/messages.js';
 import { parseScopePath } from '../journal/scope.js';
+import {
+  approachSigCoarse,
+  approachSigOf,
+  LEGACY_SIGNATURE_INPUTS,
+  LINEAGE_SIG_VERSION,
+  LineageIndex,
+  normalizeApproachTag,
+  validateEscalationLimits,
+  type ApproachSignatureInputs,
+  type EscalationLimits,
+  type LineageRelation,
+  type LineageStats,
+  type LogicalTaskId,
+  type SpawnLineage,
+  type SpawnLineageOpt,
+} from '../journal/lineage.js';
 import { DEFAULT_FLAT_RESERVE_USD, type RunBudget } from '../engine/budget.js';
 
-/** Logical-task identity across rebirths (DEF-3); engine-minted ULID. */
-export type LogicalTaskId = string;
+export type { LogicalTaskId } from '../journal/lineage.js';
 
 /** Plan-node identity; engine-minted ULID (docs/07, section 3.1). */
 export type NodeId = string;
@@ -125,8 +141,22 @@ export interface AdmitSpec {
   budgetUsd?: number;
   /** Reserve hint; falls back to the flat engine default (docs/06, 5.1). */
   estCostUsd?: number;
-  /** Lineage continuation (DEF-3); absence mints a fresh lineage root. */
-  lineage?: { continues: LogicalTaskId };
+  /**
+   * Lineage continuation (DEF-3); absence mints a fresh lineage root. A
+   * continuation demands a causeRef: the seq of the entry that caused the
+   * rebirth (docs/03, 10.1, rule 2).
+   */
+  lineage?: SpawnLineageOpt;
+  /** Raw approach tag; normalized by the engine (docs/03, 10.2). */
+  approach?: string;
+  /** Decomposition parent-LTID chain (relation 'decompose-child' only). */
+  ancestry?: LogicalTaskId[];
+  /**
+   * Coarse-signature identity inputs; unspecified fields canonize onto
+   * the deterministic legacy constants so signatures stay byte-stable
+   * (docs/03, 10.2; the toolset/schema registries land in M7-T05).
+   */
+  signature?: Partial<ApproachSignatureInputs>;
   /**
    * The children-quota key (maxChildrenPerNode); defaults to
    * parentAccountScope. Orchestrators pass their own scope so each node
@@ -140,6 +170,8 @@ export interface AdmissionStatsBefore {
   spawnsBefore: number;
   childrenOfParentBefore: number;
   depth: number;
+  /** The LTID's pinned lineage fold at admit time (DEF-3). */
+  lineage?: LineageStats;
 }
 
 /** The full admission decision embedded in the carrying entry. */
@@ -148,6 +180,11 @@ export interface AdmissionDecision {
   statsBefore: AdmissionStatsBefore;
   /** Node identity minted inside the decision (docs/07, section 5); absent on reject. */
   nodeId?: NodeId;
+  /**
+   * The computed value-part lineage block (DEF-3): reused byte-exact on
+   * replay, never recomputed (docs/03, 10.6). Absent on reject.
+   */
+  lineage?: SpawnLineage;
 }
 
 export const DEFAULT_MAX_DEPTH = 1;
@@ -171,6 +208,9 @@ export class AdmissionController {
   private readonly flatReserveUsd: number;
   private readonly maxTotalSpawns?: number;
   private readonly mintId: () => string;
+  private readonly journalView?: () => readonly JournalEntry[];
+  private readonly lineageIndex?: LineageIndex;
+  private readonly lineageLimits: EscalationLimits;
   /** Children admitted per parent node this process lifetime. */
   private readonly childrenOf = new Map<string, number>();
   private admittedTotal = 0;
@@ -184,6 +224,15 @@ export class AdmissionController {
     /** Per-orchestrate spawn cap (docs/06, 9.3 maxSpawns); engine lifetime cap applies regardless. */
     maxTotalSpawns?: number;
     mintId?: () => string;
+    /**
+     * The lineage binding (DEF-3): a journal view for the pure counter
+     * folds plus the configured limits. Without it the controller mints
+     * and embeds lineage but enforces no lineage limits (unit contexts).
+     */
+    lineage?: {
+      journalView: () => readonly JournalEntry[];
+      limits?: Partial<EscalationLimits> | Record<string, unknown>;
+    };
   }) {
     const maxDepth = options.maxDepth ?? DEFAULT_MAX_DEPTH;
     if (maxDepth < 1 || maxDepth > MAX_DEPTH_CEILING) {
@@ -201,6 +250,104 @@ export class AdmissionController {
       this.maxTotalSpawns = options.maxTotalSpawns;
     }
     this.mintId = options.mintId ?? createCanonicalIdMinter();
+    this.lineageLimits = validateEscalationLimits(options.lineage?.limits);
+    if (options.lineage !== undefined) {
+      this.journalView = options.lineage.journalView;
+      this.lineageIndex = new LineageIndex();
+    }
+  }
+
+  /** The lineage counter folds over the run journal (absorbed lazily). */
+  lineage(): LineageIndex | undefined {
+    if (this.lineageIndex !== undefined && this.journalView !== undefined) {
+      this.lineageIndex.absorb(this.journalView());
+    }
+    return this.lineageIndex;
+  }
+
+  /** The validated lineage limits this controller enforces (DEF-3). */
+  get escalationLimits(): EscalationLimits {
+    return this.lineageLimits;
+  }
+
+  /**
+   * The lineage half of admission (DEF-3, docs/03 section 10.5): folds are
+   * computed live STRICTLY BEFORE the carrying decision entry is appended;
+   * the caller embeds the returned block in the entry and replay reads it
+   * back byte-exact. Enforces the single-live-attempt invariant
+   * (`lineage_busy`) and monotonic attempt consumption
+   * (`lineage_exhausted`); never touches budget or structural limits.
+   */
+  evaluateLineage(spec: {
+    name: string;
+    lineage?: SpawnLineageOpt;
+    approach?: string;
+    ancestry?: LogicalTaskId[];
+    signature?: Partial<ApproachSignatureInputs>;
+  }): {
+    decision:
+      | { kind: 'ok'; lineage: SpawnLineage }
+      | { kind: 'reject'; reason: { code: 'lineage_busy' | 'lineage_exhausted' } };
+    statsBefore?: LineageStats;
+  } {
+    if (spec.lineage !== undefined && typeof spec.lineage.causeRef !== 'number') {
+      throw new ConfigError(
+        'a lineage continuation demands a causeRef: the seq of the entry that caused the ' +
+          'rebirth (docs/03, 10.1, rule 2)',
+      );
+    }
+    const index = this.lineage();
+    const continued = spec.lineage?.continues;
+    const statsBefore =
+      index !== undefined && continued !== undefined ? index.statsOf(continued) : undefined;
+    if (index !== undefined && continued !== undefined) {
+      if (index.hasLiveAttempt(continued)) {
+        return {
+          decision: { kind: 'reject', reason: { code: 'lineage_busy' } },
+          ...(statsBefore === undefined ? {} : { statsBefore }),
+        };
+      }
+      if (index.attemptsUsed(continued) >= this.lineageLimits.maxAttemptsPerLogicalTask) {
+        return {
+          decision: { kind: 'reject', reason: { code: 'lineage_exhausted' } },
+          ...(statsBefore === undefined ? {} : { statsBefore }),
+        };
+      }
+    }
+    const logicalTaskId = continued ?? this.mintId();
+    const relation: LineageRelation =
+      spec.lineage === undefined ? 'first' : (spec.lineage.relation ?? 'respawn');
+    const signature: ApproachSignatureInputs = {
+      agentType: spec.signature?.agentType ?? spec.name,
+      toolsetHash: spec.signature?.toolsetHash ?? LEGACY_SIGNATURE_INPUTS.toolsetHash,
+      schemaHash: spec.signature?.schemaHash ?? LEGACY_SIGNATURE_INPUTS.schemaHash,
+      isolation: spec.signature?.isolation ?? LEGACY_SIGNATURE_INPUTS.isolation,
+    };
+    const coarse = approachSigCoarse(signature);
+    const lineage: SpawnLineage = {
+      logicalTaskId,
+      relation,
+      attemptOrdinal: index?.attemptsUsed(logicalTaskId) ?? 0,
+      ...(spec.lineage?.causeRef === undefined ? {} : { causeRef: spec.lineage.causeRef }),
+      ancestry: spec.ancestry ?? [],
+      approachSig: approachSigOf(coarse, spec.approach),
+      approachSigCoarse: coarse,
+      sigVersion: LINEAGE_SIG_VERSION,
+      approachTag: normalizeApproachTag(spec.approach),
+    };
+    return {
+      decision: { kind: 'ok', lineage },
+      ...(statsBefore === undefined ? {} : { statsBefore }),
+    };
+  }
+
+  /**
+   * Registers a live lineage admit the moment its caller commits to
+   * appending the decision entry, closing the single-live-attempt window
+   * until the journal absorbs the entry (DEF-3).
+   */
+  registerLineageAdmit(logicalTaskId: LogicalTaskId): void {
+    this.lineageIndex?.noteAdmitted(logicalTaskId);
   }
 
   /**
@@ -217,11 +364,20 @@ export class AdmissionController {
     const nodeKey = spec.nodeKey ?? spec.parentAccountScope;
     const depth = spawnDepthOf(spec.childScope);
     const childrenBefore = this.childrenOf.get(nodeKey) ?? 0;
+    // Lineage folds are computed live STRICTLY BEFORE the decision entry
+    // is appended (docs/03, 10.5); the pinned stats embed into the entry.
+    const evaluated = this.evaluateLineage(spec);
     const statsBefore: AdmissionStatsBefore = {
       spawnsBefore: this.budget.spent().agentsSpawned,
       childrenOfParentBefore: childrenBefore,
       depth,
+      ...(evaluated.statsBefore === undefined ? {} : { lineage: evaluated.statsBefore }),
     };
+    if (evaluated.decision.kind === 'reject') {
+      // Single-live-attempt (lineage_busy) and monotonic attempt
+      // consumption (lineage_exhausted), never replenished (docs/03, 10.5).
+      return { verdict: { kind: 'reject', reason: evaluated.decision.reason }, statsBefore };
+    }
     if (depth > this.maxDepth) {
       return { verdict: { kind: 'reject', reason: { code: 'depth' } }, statsBefore };
     }
@@ -265,18 +421,19 @@ export class AdmissionController {
     }
     this.childrenOf.set(nodeKey, childrenBefore + 1);
     this.admittedTotal += 1;
-    const logicalTaskId = spec.lineage?.continues ?? this.mintId();
+    const lineage = evaluated.decision.lineage;
+    this.registerLineageAdmit(lineage.logicalTaskId);
     const verdict: AdmitVerdict = {
       kind: 'admit',
       reserve,
       spawnUnitsAfter: this.budget.spawnHeadroom,
       lineage: {
-        logicalTaskId,
+        logicalTaskId: lineage.logicalTaskId,
         isNew: spec.lineage === undefined,
         depth,
       },
     };
-    return { verdict, statsBefore, nodeId: this.mintId() };
+    return { verdict, statsBefore, nodeId: this.mintId(), lineage };
   }
 
   /**
