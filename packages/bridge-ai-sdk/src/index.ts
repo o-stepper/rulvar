@@ -1,13 +1,8 @@
 /**
- * @lurker/bridge-ai-sdk: lurker bridge adapter wrapping any Vercel AI SDK LanguageModelV4 as a ProviderAdapter.
- *
- * M0 scaffold (v0.1.0): no public API yet. The first real surface of this
- * package ships in milestone M9 per docs/10-implementation-plan.md.
+ * @lurker/bridge-ai-sdk: wraps any Vercel AI SDK LanguageModelV4 as a
+ * lurker ProviderAdapter (docs/04-model-layer-spec.md, section
+ * "@lurker/bridge-ai-sdk"). Documented as the highest-churn package of the
+ * set: it tracks the @ai-sdk/provider major line and its provider-major
+ * bumps are the most likely driver of post-1.0 BREAKING majors.
  */
-
-/**
- * Temporary M0 scaffold marker (M0-T02 acceptance: a sample exported symbol
- * round-trips through build and packs). Removed when the package's first
- * real API lands.
- */
-export const M0_SCAFFOLD = '@lurker/bridge-ai-sdk' as const;
+export { bridgeAiSdk, aiSdkErrorToWire, type BridgeAiSdkOptions } from './bridge.js';

@@ -6,6 +6,8 @@ packages:
   - examples
 
 catalog:
+  '@ai-sdk/google': ^4.0.0
+  '@ai-sdk/provider': ^4.0.0
   '@anthropic-ai/sdk': ^0.110.0
   '@arethetypeswrong/cli': ^0.18.4
   '@changesets/cli': ^2.31.0

@@ -29,9 +29,11 @@
     "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only"
   },
   "dependencies": {
+    "@ai-sdk/provider": "catalog:",
     "@lurker/core": "workspace:*"
   },
   "devDependencies": {
+    "@ai-sdk/google": "catalog:",
     "@types/node": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:"
