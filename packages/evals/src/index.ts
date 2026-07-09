@@ -1,13 +1,32 @@
 /**
- * @lurker/evals: lurker evals: eval cases, golden outputs, rubric and judge graders, matrix sweeps, canary fingerprint.
- *
- * M0 scaffold (v0.1.0): no public API yet. The first real surface of this
- * package ships in milestone M9 per docs/10-implementation-plan.md.
+ * @lurker/evals: quality measurement strictly on the public APIs (L6).
+ * EvalCase with golden, rubric, and LLM-judge graders; judge calls run
+ * through the engine (journaled, budgeted, VCR-recordable), so eval CI is
+ * deterministic; config-matrix comparison reports pass-rate, cost, and
+ * latency per cell (docs/09, section "@lurker/evals"; docs/11, section
+ * "Eval CI"). Matrix sweeps feeding ModelKnowledge, the eval-committer
+ * identity, and canary fingerprints are the M11 round-3 extensions.
  */
-
-/**
- * Temporary M0 scaffold marker (M0-T02 acceptance: a sample exported symbol
- * round-trips through build and packs). Removed when the package's first
- * real API lands.
- */
-export const M0_SCAFFOLD = '@lurker/evals' as const;
+export {
+  runEvalCase,
+  runEvalSuite,
+  EvalJudgeError,
+  type EvalCase,
+  type EvalCaseResult,
+  type EvalSuiteResult,
+  type Grader,
+  type GraderContext,
+  type GraderVerdict,
+  type JudgeSpec,
+  type RunEvalCaseOptions,
+  type RunEvalSuiteOptions,
+} from './case.js';
+export {
+  runEvalMatrix,
+  type EvalMatrixReport,
+  type MatrixCell,
+  type MatrixCellReport,
+} from './matrix.js';
+export { goldenGrader, type GoldenGraderOptions } from './graders/golden.js';
+export { rubricGrader, type RubricCriterion, type RubricGraderOptions } from './graders/rubric.js';
+export { judgeGrader, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions } from './graders/judge.js';
