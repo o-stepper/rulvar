@@ -1844,8 +1844,19 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           number,
           { spawnKey: string; donorNodeId: string; reason: string }
         >();
+        const frozen = io
+          .snapshot()
+          .some(
+            (candidate) =>
+              candidate.kind === 'decision' &&
+              (candidate.value as { decisionType?: string } | undefined)?.decisionType ===
+                'orchestrator_budget_cap',
+          );
         const evaluation: RebaseEvaluation = rebasePlanRevision(request, {
           state: fold,
+          // The cap decision freezes the plan for ADAPTATION, not for
+          // work: every op drops plan_frozen (DEF-7, docs/07 12.4 a).
+          frozen,
           digestPlanHashFor: (digestSeq) => digests.get(digestSeq)?.planHash,
           mintNodeId: () => io.mintId(),
           dedup: (op, opIndex) => {

@@ -150,7 +150,7 @@ describe('EscalationProtocol completion (M7-T11)', () => {
         profiles: { worker: { description: 'w', escalation: { flavor: 'A' } } },
       },
     });
-    const handle = orchestratePlanned(engine, 'escalation A', {});
+    const handle = orchestratePlanned(engine, 'escalation A', { budget: { capUsd: 5 } });
     const outcome = await handle.result;
     expect(outcome.status).toBe('ok');
 
@@ -225,7 +225,7 @@ describe('EscalationProtocol completion (M7-T11)', () => {
         },
       },
     });
-    const handle = orchestratePlanned(engine, 'escalation B timeout', {});
+    const handle = orchestratePlanned(engine, 'escalation B timeout', { budget: { capUsd: 5 } });
     const outcome = await handle.result;
     expect(outcome.status).toBe('ok');
 
@@ -307,7 +307,7 @@ describe('EscalationProtocol completion (M7-T11)', () => {
         },
       },
     });
-    const handle = orchestratePlanned(engine, 'escalation B decompose', {});
+    const handle = orchestratePlanned(engine, 'escalation B decompose', { budget: { capUsd: 5 } });
     const outcome = await handle.result;
     expect(outcome.status).toBe('ok');
 
@@ -383,6 +383,7 @@ describe('EscalationProtocol completion (M7-T11)', () => {
       },
     });
     const handle = orchestratePlanned(engine, 'cap exceeded', {
+      budget: { capUsd: 5 },
       plan: { limits: { maxEscalationsPerLogicalTask: 0 } },
     });
     const outcome = await handle.result;

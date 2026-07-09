@@ -193,7 +193,7 @@ describe('RunLedger integration (M7-T09)', () => {
         profiles: { worker: { description: 'worker' } },
       },
     });
-    const handle = orchestratePlanned(engine, 'ledger test', {});
+    const handle = orchestratePlanned(engine, 'ledger test', { budget: { capUsd: 5 } });
     const outcome = await handle.result;
     expect(outcome.status).toBe('ok');
 

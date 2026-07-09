@@ -535,8 +535,10 @@ export function createEngine(options: CreateEngineOptions): Engine {
           value = raced.result;
         }
         if (status !== 'suspended' && budget.exhausted) {
+          // The workflow-returned value SURVIVES exhaustion: the DEF-7
+          // finalize fallback synthesizes a partial result and exhaustion
+          // is never null (docs/07, 12.4).
           status = 'exhausted';
-          value = undefined;
         } else if (status !== 'suspended' && controller.signal.aborted) {
           status = 'cancelled';
           wireError = {

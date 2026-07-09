@@ -122,7 +122,7 @@ describe('RevisionGuards integration (bad-base-streak-terminates shape)', () => 
         profiles: { worker: { description: 'worker' } },
       },
     });
-    const handle = orchestratePlanned(engine, 'streak test', {});
+    const handle = orchestratePlanned(engine, 'streak test', { budget: { capUsd: 5 } });
     const outcome = await handle.result;
     expect(outcome.status).toBe('ok');
     expect(outcome.value).toEqual({ partial: true });
@@ -245,7 +245,7 @@ describe('oscillation detector integration (oscillation-freeze shape)', () => {
         profiles: { worker: { description: 'worker' } },
       },
     });
-    const handle = orchestratePlanned(engine, 'oscillation test', {});
+    const handle = orchestratePlanned(engine, 'oscillation test', { budget: { capUsd: 5 } });
     const outcome = await handle.result;
     expect(outcome.status).toBe('ok');
 

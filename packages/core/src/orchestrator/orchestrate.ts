@@ -574,7 +574,9 @@ export function makeOrchestratorWorkflow(
      * the journaled entry (capDecisionRef recovers it at boot).
      */
     const triggerCap = async (cause: 'pre-wake' | 'per-turn'): Promise<void> => {
-      if (capDecisionRef !== undefined || capState === undefined) {
+      // The DEF-7 freeze protocol engages only under PlanRunner (the
+      // extension); plain mode (c) keeps the M6 enforcement layers.
+      if (capDecisionRef !== undefined || capState === undefined || extension === undefined) {
         return;
       }
       const view =
@@ -623,7 +625,7 @@ export function makeOrchestratorWorkflow(
 
     /** Layer-1 soft boundary before delivering each wake (docs/07, 12.3). */
     const overSoftBoundary = (): boolean => {
-      if (capState === undefined || orchestratorAccount === undefined) {
+      if (capState === undefined || orchestratorAccount === undefined || extension === undefined) {
         return false;
       }
       const view = internals.budget.accountView(orchestratorAccount);
@@ -977,6 +979,7 @@ export function makeOrchestratorWorkflow(
         try {
           const digest = (await digestPromise) as unknown as WakeDigest;
           markDelivered(digest);
+          internals.cost.orchestrator.wakes += 1;
           internals.events.emit(
             {
               type: 'orchestrator:woke',
@@ -1006,16 +1009,23 @@ export function makeOrchestratorWorkflow(
     if (extension?.boot !== undefined) {
       await extension.boot(io);
     }
-    if (extension !== undefined && capState !== undefined) {
+    const reserveKey = deriverV2.deriveKey({ kind: 'orchestrator-budget-reserve' });
+    if (
+      extension !== undefined &&
+      capState !== undefined &&
+      !internals.replayer
+        .snapshot()
+        .some((entry) => entry.kind === 'decision' && entry.key === reserveKey)
+    ) {
       // ONE decision entry strictly AFTER termination.init and strictly
       // BEFORE the orchestrator's first agent entry (XF-09): absolute
-      // dollars, forward-matched on resume, never re-evaluated.
+      // dollars, recovered by content key on resume, never re-evaluated.
       const initRef = internals.replayer
         .snapshot()
         .find((entry) => entry.kind === 'termination.init')?.seq;
       await internals.replayer.appendSinglePhase({
         scope: callingState.scope,
-        key: deriverV2.deriveKey({ kind: 'orchestrator-budget-reserve' }),
+        key: reserveKey,
         kind: 'decision',
         status: 'ok',
         spanId: internals.spans.mint(callingState.spanId),
@@ -1095,6 +1105,10 @@ export function makeOrchestratorWorkflow(
         finalState.budgetScope = orchestratorAccount;
       }
       const digest = buildDigest(wakeOrdinal);
+      const reserveBaseline =
+        orchestratorAccount === undefined
+          ? 0
+          : (internals.budget.accountView(orchestratorAccount)?.spentUsd ?? 0);
       const final = await runtime.runInScope(finalState, () =>
         (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
           [
@@ -1108,6 +1122,14 @@ export function makeOrchestratorWorkflow(
           finalOpts,
         ),
       );
+      if (orchestratorAccount !== undefined) {
+        const view = internals.budget.accountView(orchestratorAccount);
+        internals.cost.orchestrator.spentUsd = view?.spentUsd ?? 0;
+        internals.cost.orchestrator.reserveUsedUsd = Math.max(
+          0,
+          (view?.spentUsd ?? 0) - reserveBaseline,
+        );
+      }
       if (final.status === 'ok') {
         return final.output;
       }
@@ -1117,23 +1139,30 @@ export function makeOrchestratorWorkflow(
           : final.error?.kind === 'budget'
             ? 'ceiling-abort'
             : 'turns-exhausted';
-      await internals.replayer.appendSinglePhase({
-        scope: callingState.scope,
-        key: deriverV2.deriveKey({ kind: 'orchestrator-finalize-fallback' }),
-        kind: 'decision',
-        status: 'ok',
-        spanId: internals.spans.mint(callingState.spanId),
-        site: 'orchestrator-budget',
-        value: {
-          decisionType: 'orchestrator_finalize_fallback',
-          reason,
-          turnsUsed: final.turns,
-          foldParams: {
-            planHash: capValue?.snapshot?.planHash ?? '',
-            digestOrdinalMax: wakeOrdinal,
+      const fallbackKey = deriverV2.deriveKey({ kind: 'orchestrator-finalize-fallback' });
+      if (
+        !internals.replayer
+          .snapshot()
+          .some((entry) => entry.kind === 'decision' && entry.key === fallbackKey)
+      ) {
+        await internals.replayer.appendSinglePhase({
+          scope: callingState.scope,
+          key: fallbackKey,
+          kind: 'decision',
+          status: 'ok',
+          spanId: internals.spans.mint(callingState.spanId),
+          site: 'orchestrator-budget',
+          value: {
+            decisionType: 'orchestrator_finalize_fallback',
+            reason,
+            turnsUsed: final.turns,
+            foldParams: {
+              planHash: capValue?.snapshot?.planHash ?? '',
+              digestOrdinalMax: wakeOrdinal,
+            },
           },
-        },
-      });
+        });
+      }
       // The synthesized partial: a pure fold over the settled records
       // and the frozen plan snapshot; exhaustion is never null.
       internals.budget.markExhausted();
@@ -1163,6 +1192,10 @@ export function makeOrchestratorWorkflow(
       // The cap fired while the loop was suspended in a wake; the
       // forced-finish abort ended it (docs/07, 12.4 d).
       return await runForcedFinish();
+    }
+    if (orchestratorAccount !== undefined) {
+      internals.cost.orchestrator.spentUsd =
+        internals.budget.accountView(orchestratorAccount)?.spentUsd ?? 0;
     }
     if (result.status !== 'ok') {
       throw new ConfigError(

@@ -172,6 +172,7 @@ describe('PlanRunner (M7-T05): the engine schedules, the model revises', () => {
       },
     });
     const handle = orchestratePlanned(engine, 'ship the feature', {
+      budget: { capUsd: 5 },
       plan: { maxRevisionsPerRun: 8 },
     });
     const outcome = await handle.result;
@@ -237,7 +238,7 @@ describe('PlanRunner (M7-T05): the engine schedules, the model revises', () => {
       },
     });
     const goal = 'ship the feature';
-    const first = orchestratePlanned(engine, goal, { plan: { maxRevisionsPerRun: 8 } });
+    const first = orchestratePlanned(engine, goal, { budget: { capUsd: 5 }, plan: { maxRevisionsPerRun: 8 } });
     const outcome = await first.result;
     expect(outcome.status).toBe('ok');
     const entriesBefore = (await store.load(first.runId)).length;
@@ -257,7 +258,7 @@ describe('PlanRunner (M7-T05): the engine schedules, the model revises', () => {
     });
     const resumed = resumedEngine.resume(
       first.runId,
-      makeOrchestratorWorkflow(goal, { extension: planRunner({ maxRevisionsPerRun: 8 }) }),
+      makeOrchestratorWorkflow(goal, { budget: { capUsd: 5 }, extension: planRunner({ maxRevisionsPerRun: 8 }) }),
     );
     const resumedOutcome = await resumed.result;
     expect(resumedOutcome.status).toBe('ok');
