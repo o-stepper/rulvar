@@ -1,4 +1,4 @@
-import { AdmissionDecision, AgentResult, CanonicalLadderSpec, Effort, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, Json, KeyDeriver, LadderSpec, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, ReuseConfig, RunHandle, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, TriggerClass, UsageLimits } from "@lurker/core";
+import { AdmissionDecision, AgentResult, CanonicalLadderSpec, ChatRequest, Effort, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, Json, KeyDeriver, LadderSpec, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, ProviderAdapter, ReuseConfig, RunHandle, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, TriggerClass, UsageLimits } from "@lurker/core";
 
 //#region src/plan-state.d.ts
 /**
@@ -908,6 +908,145 @@ declare function resolvedByOf(by: string): "default" | "class" | "live";
 /** The plan.decision origin of one resolvedBy value (docs/07, 3.3). */
 declare function decisionOriginOf(resolvedBy: "default" | "class" | "live" | "revision-transform"): "escalation-default" | "escalation-class" | "escalation-live";
 //#endregion
+//#region src/plan-runner.d.ts
+/** docs/07, 3.8. */
+interface PlanRunnerOptions {
+  /** Absolute, non-replenishable; default 32 (DEF-2). */
+  maxRevisionsPerRun?: number;
+  guards?: RevisionGuardsOptions;
+  /** Out-of-vocabulary tags get a typed tool error with bounded re-prompt (DEF-3). */
+  approachVocabulary?: string[];
+  /** Reuse-by-reference configuration (DEF-5; docs/03, 9.9). */
+  reuse?: ReuseConfig;
+  /** Frozen termination knobs beyond the revision budget (DEF-2). */
+  limits?: Partial<Pick<TerminationLimits, "maxTotalSpawns" | "maxEscalationsPerLogicalTask" | "maxDepth">>;
+}
+/**
+* Builds the PlanRunner orchestrator extension (docs/07, section 3).
+* Attach via `orchestrate(engine, goal, { extension: planRunner(o) })` or
+* the `orchestratePlanned` convenience surface.
+*/
+declare function planRunner(options?: PlanRunnerOptions): OrchestratorExtension;
+/** The PlanRunner entry surface: mode (c) plus the extension in one call. */
+declare function orchestratePlanned(engine: Engine, goal: string, opts?: OrchestrateOptions & {
+  plan?: PlanRunnerOptions;
+}): RunHandle<unknown>;
+//#endregion
+//#region src/cassettes.d.ts
+/** One normalized-cassette fixture file (cassettes/<id>.json). */
+interface M7CassetteFixture {
+  id: string;
+  note: string;
+  entries: JournalEntry[];
+}
+/**
+* Normalizes one journal for cassette comparison: ULIDs and sha256
+* strings map to first-appearance placeholders; wall clock, spans, and
+* transcript refs collapse to fixtures. Deterministic given a
+* deterministic entry stream.
+*/
+declare function normalizeAdaptiveJournal(entries: readonly JournalEntry[]): JournalEntry[];
+/** A minimal scripted adapter over the PUBLIC provider SPI. */
+interface CassetteTurn {
+  text?: string;
+  toolCall?: {
+    name: string;
+    args: unknown;
+  };
+  hangUntilAborted?: boolean;
+  /** Await this promise before emitting (cross-agent sequencing). */
+  awaitPromise?: Promise<void>;
+}
+declare function cassetteAdapter(script: (req: ChatRequest) => CassetteTurn): ProviderAdapter & {
+  calls: ChatRequest[];
+};
+declare function agentTypeOfRequest(req: ChatRequest): string;
+declare const EMPTY_PLAN_HASH: string;
+/**
+* revise-mid-run: a plan revision arrives while a worker subtree is
+* mid-flight (docs/09 round-2). The first worker HANGS until the
+* revision cancels it; the added replacement completes.
+*/
+declare function runReviseMidRun(): Promise<JournalEntry[]>;
+/**
+* crash-during-revision: process death INSIDE the revision window, at
+* the pre-append kill point (docs/09 round-2): life 1 is truncated
+* strictly BEFORE the second plan.revision entry; life 2 re-issues the
+* revision live and rolls its effects forward.
+*/
+declare function runCrashDuringRevision(): Promise<JournalEntry[]>;
+/**
+* oscillation-freeze: the coarse-signature oscillation detector freezes
+* further re-adds under hysteresis (docs/09 round-2; distinct from the
+* per-key osc_guard reject).
+*/
+declare function runOscillationFreeze(options?: PlanRunnerOptions): Promise<JournalEntry[]>;
+/**
+* park-unpark: park of a running node with checkpoint retention, later
+* unpark and continuation (docs/09 round-2; docs/03 11.2). The worker
+* pays one tool turn, hangs in its second, parks at the boundary, and
+* the unparked continuation resumes from the retained checkpoint (the
+* booted history carries the paid turn).
+*/
+declare function runParkUnpark(): Promise<JournalEntry[]>;
+/**
+* half-escalated-ladder: some rungs terminal, the active rung dangling
+* mid-attempt at the crash; resume continues the ladder without
+* repaying completed rungs (docs/09 round-2).
+*/
+declare function runHalfEscalatedLadder(): Promise<JournalEntry[]>;
+/**
+* budget-denied-rung: the budget guard denies the rung respawn; the
+* denial journals as termination.denied strictly before the verdict and
+* the ladder takes its declared fallback path (docs/09 round-2).
+*/
+declare function runBudgetDeniedRung(): Promise<JournalEntry[]>;
+/**
+* cap-freeze-then-finish (DEF-7): the soft boundary crossed with live
+* children; the cap decision precedes its effects; admitted nodes run to
+* completion; the final quiescence wake gets the finish-only toolset;
+* outcome ok with forcedFinish (docs/09).
+*/
+declare function runCapFreezeThenFinish(): Promise<JournalEntry[]>;
+/**
+* crash-between-cap-and-effects (DEF-7): process death right after the
+* cap decision entry, before any of its effects; resume re-derives the
+* frozen state from the entry and rolls the forced finish forward.
+*/
+declare function runCrashBetweenCapAndEffects(): Promise<JournalEntry[]>;
+/**
+* finalize-fallback-synthesized (DEF-7): the final finish fails inside
+* its turn limit; the engine journals orchestrator_finalize_fallback and
+* synthesizes the deterministic partial by pure fold; outcome exhausted
+* with the non-null value.
+*/
+declare function runFinalizeFallbackSynthesized(): Promise<JournalEntry[]>;
+/**
+* escalation-storm-frozen (DEF-7 set): three Flavor B escalations while
+* the plan is frozen at the cap; each resolves through its journaled
+* defaultDecision (the v1 deadline timers; the losers of any race
+* classify noop) and the lineage counters hold. Zero live calls on
+* replay is the frozen-fixture contract.
+*/
+declare function runEscalationStormFrozen(): Promise<JournalEntry[]>;
+/**
+* revision-exhaustion (DEF-2): the absolute revision budget hits zero;
+* termination.denied precedes the typed error; the guards chain closes
+* the run without HITL.
+*/
+declare function runRevisionExhaustion(): Promise<JournalEntry[]>;
+/**
+* rung-retry-lineage (DEF-3): the ladder raise continues the SAME
+* logical task with relation rung-retry; attemptsUsed counts both rungs.
+*/
+declare function runRungRetryLineage(): Promise<JournalEntry[]>;
+/**
+* decompose-mints-children (DEF-3): an escalation decomposition mints
+* FRESH logical tasks inside the decision entry; the spawn debits ride
+* the same entry (docs/07, 8.1 rule 6, 11.3 b).
+*/
+declare function runDecomposeMintsChildren(): Promise<JournalEntry[]>;
+//#endregion
 //#region src/tools.d.ts
 /** docs/07, 4.6: plan_view takes no parameters. */
 declare const PLAN_VIEW_SCHEMA: SchemaSpec;
@@ -963,28 +1102,4 @@ interface PlanToolRuntime {
 /** Builds the PlanRunner tools (appended to the mode (c) toolset). */
 declare function buildPlanTools(runtime: PlanToolRuntime): ToolDef[];
 //#endregion
-//#region src/plan-runner.d.ts
-/** docs/07, 3.8. */
-interface PlanRunnerOptions {
-  /** Absolute, non-replenishable; default 32 (DEF-2). */
-  maxRevisionsPerRun?: number;
-  guards?: RevisionGuardsOptions;
-  /** Out-of-vocabulary tags get a typed tool error with bounded re-prompt (DEF-3). */
-  approachVocabulary?: string[];
-  /** Reuse-by-reference configuration (DEF-5; docs/03, 9.9). */
-  reuse?: ReuseConfig;
-  /** Frozen termination knobs beyond the revision budget (DEF-2). */
-  limits?: Partial<Pick<TerminationLimits, "maxTotalSpawns" | "maxEscalationsPerLogicalTask" | "maxDepth">>;
-}
-/**
-* Builds the PlanRunner orchestrator extension (docs/07, section 3).
-* Attach via `orchestrate(engine, goal, { extension: planRunner(o) })` or
-* the `orchestratePlanned` convenience surface.
-*/
-declare function planRunner(options?: PlanRunnerOptions): OrchestratorExtension;
-/** The PlanRunner entry surface: mode (c) plus the extension in one call. */
-declare function orchestratePlanned(engine: Engine, goal: string, opts?: OrchestrateOptions & {
-  plan?: PlanRunnerOptions;
-}): RunHandle<unknown>;
-//#endregion
-export { AppliedPlanOp, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_STALL_REPLAN_CAP, EnginePlanOp, EscalationDebitRow, EscalationDecisionValue, GateVerdictValue, GuardFallback, GuardVerdictValue, GuardsState, JUDGE_VERDICT_SCHEMA, LEDGER_APPEND_SCHEMA, LEDGER_APPEND_TOOL_NAME, LEDGER_READ_SCHEMA, LEDGER_READ_TOOL_NAME, LEDGER_SECTION_CAPS, LadderVerdictValue, LedgerExport, LedgerFact, LedgerLesson, LedgerObservation, LedgerOp, LedgerRevisionRow, LedgerView, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, ParkDisposition, PinLedger, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, UnparkPlacement, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalLadderOf, canonicalPlanState, chainEffortOf, clampStartTier, decisionOriginOf, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, escalationDecisionKey, executingRungOf, exportLedger, foldLedger, gateVerdictKey, isTerminalPlanStatus, judgePrompt, ladderOfProfile, ladderTriggerOf, ladderVerdictKey, ledgerCapViolation, ledgerOpKey, ledgerSufficiency, orchestratePlanned, parkDispositionOf, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, resolvedByOf, unparkPlacementOf, wouldCreateDepCycle };
+export { AppliedPlanOp, CassetteTurn, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_STALL_REPLAN_CAP, EMPTY_PLAN_HASH, EnginePlanOp, EscalationDebitRow, EscalationDecisionValue, GateVerdictValue, GuardFallback, GuardVerdictValue, GuardsState, JUDGE_VERDICT_SCHEMA, LEDGER_APPEND_SCHEMA, LEDGER_APPEND_TOOL_NAME, LEDGER_READ_SCHEMA, LEDGER_READ_TOOL_NAME, LEDGER_SECTION_CAPS, LadderVerdictValue, LedgerExport, LedgerFact, LedgerLesson, LedgerObservation, LedgerOp, LedgerRevisionRow, LedgerView, M7CassetteFixture, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, ParkDisposition, PinLedger, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, UnparkPlacement, agentTypeOfRequest, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalLadderOf, canonicalPlanState, cassetteAdapter, chainEffortOf, clampStartTier, decisionOriginOf, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, escalationDecisionKey, executingRungOf, exportLedger, foldLedger, gateVerdictKey, isTerminalPlanStatus, judgePrompt, ladderOfProfile, ladderTriggerOf, ladderVerdictKey, ledgerCapViolation, ledgerOpKey, ledgerSufficiency, normalizeAdaptiveJournal, orchestratePlanned, parkDispositionOf, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, resolvedByOf, runBudgetDeniedRung, runCapFreezeThenFinish, runCrashBetweenCapAndEffects, runCrashDuringRevision, runDecomposeMintsChildren, runEscalationStormFrozen, runFinalizeFallbackSynthesized, runHalfEscalatedLadder, runOscillationFreeze, runParkUnpark, runReviseMidRun, runRevisionExhaustion, runRungRetryLineage, unparkPlacementOf, wouldCreateDepCycle };
