@@ -1,6 +1,6 @@
 {
   "name": "@lurker/lurker",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "lurker umbrella package: re-exports @lurker/core, both first-class adapters, the file store, and the terminal progress renderer. Published as @lurker/lurker while the unscoped name is contingent (docs/13, section \"Naming risk note\").",
   "type": "module",
   "license": "UNLICENSED",

@@ -1,5 +1,22 @@
 # @lurker/bridge-ai-sdk
 
+## 0.8.0
+
+### Patch Changes
+
+- Updated dependencies [85d55cf]
+- Updated dependencies [b88c9e3]
+- Updated dependencies [f3c4613]
+- Updated dependencies [a41c20f]
+- Updated dependencies [f4e70be]
+- Updated dependencies [75d1646]
+- Updated dependencies [0627413]
+- Updated dependencies [55c0f87]
+- Updated dependencies [fd33871]
+- Updated dependencies [e70e7f4]
+- Updated dependencies [bc9c903]
+  - @lurker/core@0.8.0
+
 ## 0.7.0
 
 ### Patch Changes
