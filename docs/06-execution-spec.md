@@ -642,6 +642,12 @@ function createEngine(o: {
                                               // ConfigError. (Amended during M6-T02: the runner seam
                                               // needed an engine registration point.)
   extraDerivers?: KeyDeriver[];               // hashVersion registry extension, docs/03 (DEF-6)
+  serialization?: SerializationHook;          // redact/encrypt at append/put, symmetric on
+                                              // load/get (docs/03, section "Serialization
+                                              // hook"; M8-T04, OQ-22 executed)
+  redaction?: { maskEvents?: boolean };       // default true: key-shaped strings are masked in
+                                              // every emitted WorkflowEvent (docs/09, section
+                                              // "Redaction and sensitive data"; M8-T04)
 }): Engine;
 ```
 
@@ -693,6 +699,16 @@ interface Engine {
     journal: JournalStore;                // shells and hosts (docs/02, section "Shells
     transcripts: TranscriptStore;         // overview": "the journal store comes from the
   };                                      // engine"). (Amended during M8 entry, see below.)
+                                          // With a serialization hook configured these are
+                                          // the HOOKED wrappers, so every reader passes the
+                                          // one policy point (docs/03, 12.8; M8-T04).
+  deleteRun(runId: string): Promise<void>;  // retention (OQ-20 executed, M8-T04): deletes
+                                            // every blob transcripts.list(runId) returns,
+                                            // then the journal; no orphan blobs survive.
+  pruneRun(runId: string): Promise<number>; // checkpoint pruning (OQ-20 executed, M8-T04):
+                                            // deletes checkpoint blobs of ok-terminal
+                                            // attempts that no other entry references;
+                                            // returns the count (docs/03, 12.4 note).
 }
 
 interface ResumeOptions {
@@ -844,6 +860,7 @@ This is the single consolidated defaults table for the whole docs set; every oth
 | RunLedger section caps | RunLedger (docs/07) | facts 64, lessons 32, observations 16 | yes | |
 | maxPinnedWorktrees | isolation (docs/08) | 4 | yes | shared by park/unpark and retainWorktree |
 | large-value soft warn threshold | journal append (docs/03) | 262144 bytes | yes | no automatic value offload in v1; a warning event only, never an error. (Committed during M2 entry per the TBD rule: the interim reference value is adopted unchanged) |
+| event secret masking | EventBus (docs/09; M8-T04) | on: key-shaped strings are masked in every emitted WorkflowEvent | createEngine redaction.maskEvents | telemetry only, never the journal; journal-side redact/encrypt is the opt-in serialization hook (docs/03, 12.8) |
 | lease renew interval | LeasableStore (docs/03) | at most ttl/3 (normative bound) | per store | |
 | lease ttl | LeasableStore (docs/03) | 60000 ms (committed during M8 entry per the TBD rule: the interim reference is adopted unchanged) | per store | the reference default for the sqlite store; a store MAY configure its own ttl; the renew bound ttl/3 always applies |
 | createWorker concurrency | queue shell (docs/02) | 1 (committed during M8 entry per the TBD rule: the interim value is adopted unchanged) | per worker | one leased run per worker process; hosts scale out by adding worker processes, which the fencing epoch makes safe by construction |
