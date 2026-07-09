@@ -16,12 +16,14 @@
  * rule).
  */
 import {
+  approachSigCoarse,
   buildTerminationInitValue,
   ConfigError,
   deriverV2,
   foldTermination,
   kMaxOf,
   ladderLengthOf,
+  LEGACY_SIGNATURE_INPUTS,
   normalizeApproachTag,
   orchestrate,
   planNodeScope,
@@ -34,6 +36,7 @@ import {
   type EntryRef,
   type Engine,
   type ExtensionDispatchSpec,
+  type JournalEntry,
   type Json,
   type LogicalTaskId,
   type NodeId,
@@ -51,9 +54,11 @@ import { emptyPlan, type PlanNode, type PlanNodeStatus } from './plan-state.js';
 import {
   applyDecisionOps,
   applyPlanEntry,
+  effectiveDroppedStreak,
   emptyPlanFold,
   planDecisionKey,
   planRevisionKey,
+  readPlanRevision,
   type EnginePlanOp,
   type PlanDecisionOrigin,
   type PlanDecisionValue,
@@ -65,16 +70,8 @@ import {
 import { rebasePlanRevision, type RebaseEvaluation } from './rebase.js';
 import { PlanWriteLock } from './write-lock.js';
 import { buildPlanTools, type PlanToolRuntime, type PlanViewRender } from './tools.js';
-
-/** RevisionGuards configuration (docs/07, 3.8); enforcement lands in M7-T06. */
-export interface RevisionGuardsOptions {
-  /** Default 'finish-with-partial'; the chain is non-HITL and terminating. */
-  fallback?: 'reject-revision' | 'finish-with-partial' | 'fail-run';
-  /** Default 3 consecutive fully-dropped revisions. */
-  droppedRevisionLimit?: number;
-  /** Optional netLostUsd trigger (DEF-5). */
-  maxAbandonedNetUsdFraction?: number;
-}
+import { RevisionGuards, type GuardVerdictValue, type RevisionGuardsOptions } from './guards.js';
+import type { TaskSpec } from './task-spec.js';
 
 /** docs/07, 3.8. */
 export interface PlanRunnerOptions {
@@ -130,10 +127,85 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   let pinnedPlanSeq = -1;
   const dispatched = new Map<NodeId, number>();
   const consumedRevisionSeqs = new Set<number>();
+  const guards = new RevisionGuards(options?.guards);
+  let guardCursor = -1;
+  /** stall:detected emission bookkeeping: once per (ltid, streak). */
+  const stallEmitted = new Set<string>();
   const vocabulary =
     options?.approachVocabulary === undefined
       ? undefined
       : new Set(options.approachVocabulary.map((tag) => normalizeApproachTag(tag)));
+
+  /** Verdicts fired by the fold, awaiting their journal append. */
+  const pendingGuardVerdicts: GuardVerdictValue[] = [];
+  /** Content keys of journaled guard verdicts (dedup on roll-forward). */
+  const journaledGuardKeys = new Set<string>();
+
+  const guardVerdictKey = (verdict: GuardVerdictValue): string =>
+    deriverV2.deriveKey({
+      kind: 'decision',
+      decisionType: 'guard-verdict',
+      guard: verdict.guard,
+      ...(verdict.approachSigCoarse === undefined
+        ? {}
+        : { approachSigCoarse: verdict.approachSigCoarse }),
+    });
+
+  /** Guard verdict state is a pure fold of journaled verdicts (M7-T06). */
+  const absorbGuardVerdicts = (): void => {
+    for (const entry of io.snapshot()) {
+      if (entry.seq <= guardCursor || entry.scope !== planScope || entry.kind !== 'decision') {
+        continue;
+      }
+      const value = entry.value as Partial<GuardVerdictValue> | undefined;
+      if (value?.decisionType === 'guard-verdict') {
+        guards.absorbVerdict(value as GuardVerdictValue);
+        journaledGuardKeys.add(entry.key);
+      }
+      guardCursor = entry.seq;
+    }
+  };
+
+  /**
+   * Appends fold-fired verdicts strictly BEFORE their effects (docs/07,
+   * 3.8); a verdict already journaled (replay absorb) never duplicates.
+   */
+  const drainGuardVerdicts = async (): Promise<void> => {
+    while (pendingGuardVerdicts.length > 0) {
+      const verdict = pendingGuardVerdicts.shift() as GuardVerdictValue;
+      const key = guardVerdictKey(verdict);
+      if (journaledGuardKeys.has(key)) {
+        continue;
+      }
+      const entry = await io.append({
+        scope: planScope,
+        key,
+        kind: 'decision',
+        value: RevisionGuards.verdictJson(verdict),
+      });
+      journaledGuardKeys.add(key);
+      guardCursor = Math.max(guardCursor, entry.seq);
+      if (verdict.guard === 'oscillation-freeze') {
+        io.emit({
+          type: 'guard:oscillation',
+          spawnKeyHash: verdict.approachSigCoarse ?? '',
+          oscillationCount: verdict.oscillationCount ?? 0,
+          limit: verdict.oscillationCount ?? 0,
+        });
+      }
+    }
+  };
+
+  /** The coarse approach signature of a spec (mirrors admission's inputs). */
+  const coarseOf = (spec: TaskSpec): string =>
+    approachSigCoarse({
+      agentType: spec.agentType,
+      toolsetHash: LEGACY_SIGNATURE_INPUTS.toolsetHash,
+      schemaHash: LEGACY_SIGNATURE_INPUTS.schemaHash,
+      isolation: canonicalIsolationTag(
+        spec.isolation ?? (io.profiles[spec.agentType] as AgentProfile | undefined)?.isolation,
+      ),
+    });
 
   const absorbPlan = (): void => {
     for (const entry of io.snapshot()) {
@@ -145,6 +217,50 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       }
       fold = applyPlanEntry(fold, entry);
       planCursor = entry.seq;
+      if (entry.kind === 'plan.revision') {
+        feedGuards(entry);
+      }
+    }
+  };
+
+  /**
+   * Feeds the guard counters from one landed revision (M7-T06): identical
+   * on the live path and on replay absorb, so the freeze thresholds never
+   * shift across a resume. Fired verdicts queue for the journal append
+   * (deduplicated against already-journaled verdicts by content key).
+   */
+  const feedGuards = (entry: JournalEntry): void => {
+    const value = readPlanRevision(entry);
+    if (value === undefined) {
+      return;
+    }
+    for (const outcome of value.outcomes) {
+      if (outcome.kind === 'dropped') {
+        continue;
+      }
+      const applied = outcome.kind === 'applied' ? outcome.op : outcome.applied;
+      if (applied.op === 'cancel_task' && applied.requestOnly !== true) {
+        const spec = fold.specs[applied.nodeId];
+        if (spec !== undefined) {
+          guards.onSevered(coarseOf(spec));
+        }
+        for (const cascaded of applied.cascadeNodeIds ?? []) {
+          const cascadedSpec = fold.specs[cascaded];
+          if (cascadedSpec !== undefined) {
+            guards.onSevered(coarseOf(cascadedSpec));
+          }
+        }
+      }
+      if (applied.op === 'add_task') {
+        const verdict = guards.onReAdd(coarseOf(applied.spec));
+        if (verdict !== undefined) {
+          pendingGuardVerdicts.push(verdict);
+        }
+      }
+    }
+    const streakVerdict = guards.onRevisionLanded(effectiveDroppedStreak(fold));
+    if (streakVerdict !== undefined) {
+      pendingGuardVerdicts.push(streakVerdict);
     }
   };
 
@@ -314,12 +430,26 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         termination: requireAccount().snapshot(),
         // The abandoned-spend ledger activates with DEF-5 (M7-T07).
         abandonedSpend: { abandonedUsd: 0, reclaimedUsd: 0, netLostUsd: 0 },
+        guards: {
+          ...(guards.state.engaged === undefined ? {} : { engaged: guards.state.engaged }),
+          frozenSignatures: [...guards.state.frozenSignatures].sort(),
+          stallReplansUsed: guards.state.stallReplansUsed,
+        },
       };
     },
     planRevise: async (request: PlanReviseRequest): Promise<PlanReviseResult> =>
       writeLock.runExclusive(async () => {
         await io.flush();
         absorbPlan();
+        absorbGuardVerdicts();
+        if (guards.revisionsRejected) {
+          // The engaged terminating fallback (docs/07, 3.8): further
+          // revisions are rejected; finish with the partial result.
+          throw new ConfigError(
+            `revision guards engaged (${guards.state.engaged ?? 'unknown'}): the plan is ` +
+              'closed for adaptation; call finish with the partial result',
+          );
+        }
         // approachVocabulary rejection: a typed tool error with bounded
         // re-prompt, never run death (docs/07, 8.2).
         if (vocabulary !== undefined) {
@@ -350,6 +480,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         if (existing !== undefined) {
           consumedRevisionSeqs.add(existing.seq);
           const value = existing.value as unknown as PlanRevisionValue;
+          await drainGuardVerdicts();
           await scheduleReady();
           return {
             outcomes: value.outcomes,
@@ -373,8 +504,25 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           state: fold,
           digestPlanHashFor: (digestSeq) => digests.get(digestSeq)?.planHash,
           mintNodeId: () => io.mintId(),
-          admitAdd: (op, nodeId) =>
-            io.admission.admit(
+          admitAdd: (op, nodeId) => {
+            // The oscillation detector keys on approachSigCoarse ACROSS
+            // LTID boundaries (docs/07, 3.8): a frozen signature rejects
+            // further re-adds with the embedded osc_guard verdict.
+            const coarse = coarseOf(op.spec);
+            if (guards.isFrozenSignature(coarse)) {
+              return {
+                verdict: {
+                  kind: 'reject',
+                  reason: {
+                    code: 'osc_guard',
+                    spawnKey: coarse,
+                    oscillationCount: guards.oscillationCountOf(coarse),
+                  },
+                },
+                statsBefore: { spawnsBefore: 0, childrenOfParentBefore: 0, depth: 1 },
+              };
+            }
+            return io.admission.admit(
               {
                 origin: 'spawn_agent',
                 name: op.spec.agentType,
@@ -399,7 +547,8 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
                 ladderLength: ladderLengthOf(io.profiles[op.spec.agentType]),
               },
               { commitReserve: false },
-            ),
+            );
+          },
           lineageCheck: (continues: LogicalTaskId) => {
             const index = io.admission.lineage();
             if (index === undefined) {
@@ -440,6 +589,9 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         consumedRevisionSeqs.add(entry.seq);
         await io.flush();
         absorbPlan();
+        // Guard verdicts fired by this revision land strictly BEFORE the
+        // scheduling effects (docs/07, 3.8).
+        await drainGuardVerdicts();
         // Effects: schedule newly-ready nodes; land cancel requests on
         // running children (the final transition arrives cancel-landed).
         for (const outcome of evaluation.outcomes) {
@@ -524,7 +676,13 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         account = new TerminationAccount({ limits, deniedWriter });
       }
       io.admission.bindTermination(account);
+      // Journaled guard verdicts absorb FIRST so replay counter feeding
+      // never re-fires an already-journaled freeze (M7-T06).
+      absorbGuardVerdicts();
       absorbPlan();
+      // Roll-forward: verdicts the fold fired whose appends were lost to
+      // a crash land now, strictly before any effect.
+      await drainGuardVerdicts();
       // The bootstrap snapshot: digestSeq 0 is the empty plan, so the
       // FIRST plan_revise has a recorded base before any wake exists.
       // Its hash is a constant of the empty fold, stable across resumes;
@@ -537,9 +695,34 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     onActivity: async (): Promise<void> => {
       await writeLock.runExclusive(async () => {
         await io.flush();
+        absorbGuardVerdicts();
         absorbPlan();
+        await drainGuardVerdicts();
         await landSettlements();
         await scheduleReady();
+        // Stall detection (docs/07, 3.8): the streak already excludes
+        // transient and environment classes; emission is hard-bounded
+        // per run by the stall replan cap.
+        const index = io.admission.lineage();
+        if (index !== undefined && !guards.stallReplanExhausted) {
+          for (const node of Object.values(fold.plan.nodes)) {
+            const streak = index.stallStreak(node.logicalTaskId);
+            const marker = `${node.logicalTaskId}:${String(streak)}`;
+            if (streak >= 3 && !stallEmitted.has(marker)) {
+              stallEmitted.add(marker);
+              io.emit({
+                type: 'stall:detected',
+                logicalTaskId: node.logicalTaskId,
+                stallStreak: streak,
+              });
+              const capVerdict = guards.onStallReplan();
+              if (capVerdict !== undefined) {
+                pendingGuardVerdicts.push(capVerdict);
+                await drainGuardVerdicts();
+              }
+            }
+          }
+        }
       });
     },
     quiescent: (): boolean => {
