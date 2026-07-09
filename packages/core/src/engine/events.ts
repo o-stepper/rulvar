@@ -8,6 +8,7 @@
  * Owning spec: docs/09-observability-testing-spec.md, section "Event
  * stream".
  */
+import { maskSecretsDeep } from '../l0/serialization.js';
 import type { WorkflowEvent, WorkflowEventBody } from '../l0/events.js';
 
 /**
@@ -46,19 +47,33 @@ export class EventBus {
   private readonly runId: string;
   private readonly spans: SpanRegistry;
   private readonly now: () => number;
+  private readonly maskEvents: boolean;
   private readonly subscribers = new Set<Subscriber>();
   private readonly listeners = new Set<(event: WorkflowEvent) => void>();
   private seq = 0;
   private ended = false;
 
-  constructor(options: { runId: string; spans: SpanRegistry; now?: () => number }) {
+  constructor(options: {
+    runId: string;
+    spans: SpanRegistry;
+    now?: () => number;
+    /**
+     * Default true (M8-T04; docs/09, section "Redaction and sensitive
+     * data"): key-shaped strings in every emitted body are masked.
+     * Telemetry only, never the journal: events are excluded from
+     * identity by construction, so masking cannot perturb replay.
+     */
+    maskEvents?: boolean;
+  }) {
     this.runId = options.runId;
     this.spans = options.spans;
     this.now = options.now ?? Date.now;
+    this.maskEvents = options.maskEvents ?? true;
   }
 
   emit(body: WorkflowEventBody, spanId: string, replayed?: boolean): WorkflowEvent {
     const parentSpanId = this.spans.parentOf(spanId);
+    const safeBody = this.maskEvents ? maskSecretsDeep(body) : body;
     const event: WorkflowEvent = {
       runId: this.runId,
       seq: this.seq++,
@@ -66,7 +81,7 @@ export class EventBus {
       spanId,
       ...(parentSpanId === undefined ? {} : { parentSpanId }),
       ...(replayed === true ? { replayed: true } : {}),
-      ...body,
+      ...safeBody,
     };
     for (const listener of this.listeners) {
       listener(event);

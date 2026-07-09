@@ -14,7 +14,7 @@
  * `lurker.*` and `gen_ai.*` attributes. Replayed events do not create
  * duplicate spans; the single span is marked `lurker.replayed = true`.
  */
-import type { RunOutcome, WorkflowEvent } from '@lurker/core';
+import { maskSecrets, type RunOutcome, type WorkflowEvent } from '@lurker/core';
 
 /** The tiny subset of the OTel Tracer/Span API the exporter uses. */
 export interface SpanLike {
@@ -106,6 +106,14 @@ function openAttributes(
   }
   if (event.type === 'tool:start') {
     attrs['lurker.tool_name'] = event.toolName;
+  }
+  // Defense in depth (M8-T04; docs/09, section 8): an id-shaped field
+  // that happens to carry a credential still cannot leak. Events are
+  // masked at the bus already; this covers the exporter's own strings.
+  for (const [key, value] of Object.entries(attrs)) {
+    if (typeof value === 'string') {
+      attrs[key] = maskSecrets(value);
+    }
   }
   return attrs;
 }

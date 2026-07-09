@@ -342,4 +342,28 @@ describe('createWorker (M8-T02)', () => {
     const entries = (await hostStore.load(first.runId)).map((raw) => normalizeEntry(raw));
     expect(entries.filter((entry) => entry.kind === 'agent')).toHaveLength(4);
   });
+
+  it('opt-in retention: a sweep deletes settled runs under a brief lease, cascade included', async () => {
+    const path = dbPath();
+    const store = new SqliteStore({ path, now: wallClock });
+    const gated = gatedWorkflow();
+    const engine = makeEngine(store, { gated });
+    const first = engine.run(gated as unknown as Workflow<unknown, unknown>, { item: 4 });
+    expect((await first.result).status).toBe('suspended');
+    await offlineResolve(store, first.runId, { approved: true });
+
+    const worker = createWorker(engine, {
+      store,
+      argsFor: () => ({ item: 4 }),
+      retention: (meta) => meta.status === 'ok',
+    });
+    // First sweep completes the run; the next one applies retention.
+    expect(await worker.sweep()).toBe(1);
+    await untilMeta(store, first.runId, 'ok');
+    await worker.sweep();
+    expect(await metaStatus(store, first.runId)).toBe('missing');
+    expect(await store.load(first.runId)).toEqual([]);
+    expect(await engine.stores.transcripts.list(first.runId)).toEqual([]);
+    await worker.stop();
+  });
 });
