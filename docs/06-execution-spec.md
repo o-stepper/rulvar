@@ -824,8 +824,8 @@ This is the single consolidated defaults table for the whole docs set; every oth
 | maxPinnedWorktrees | isolation (docs/08) | 4 | yes | shared by park/unpark and retainWorktree |
 | large-value soft warn threshold | journal append (docs/03) | 262144 bytes | yes | no automatic value offload in v1; a warning event only, never an error. (Committed during M2 entry per the TBD rule: the interim reference value is adopted unchanged) |
 | lease renew interval | LeasableStore (docs/03) | at most ttl/3 (normative bound) | per store | |
-| lease ttl | LeasableStore (docs/03) | TBD before M8 | per store | interim reference for the sqlite store: 60000 ms (renew bound ttl/3 applies) |
-| createWorker concurrency | queue shell (docs/02) | TBD before M8 | per worker | interim: 1 (one leased run per worker process) |
+| lease ttl | LeasableStore (docs/03) | 60000 ms (committed during M8 entry per the TBD rule: the interim reference is adopted unchanged) | per store | the reference default for the sqlite store; a store MAY configure its own ttl; the renew bound ttl/3 always applies |
+| createWorker concurrency | queue shell (docs/02) | 1 (committed during M8 entry per the TBD rule: the interim value is adopted unchanged) | per worker | one leased run per worker process; hosts scale out by adding worker processes, which the fencing epoch makes safe by construction |
 | no-progress detector N | agent runtime (docs/14) | 3 consecutive turns without tool calls or artifact deltas (committed during M3 entry per the TBD rule; the broader heuristic stays OQ-15, revisited on dogfood traces before 1.0) | yes | journaled abort class |
 | KB active-claims cap | ModelKnowledge (docs/05) | 8 per (model, taskClass) | yes | |
 | renderBudget (WakeDigest, ledger render, KB card) | docs/07, docs/05 | TBD before M10 | yes | OQ: measure choice, docs/14 |
