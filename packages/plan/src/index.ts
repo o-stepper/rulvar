@@ -13,5 +13,6 @@ export * from './write-lock.js';
 export * from './task-spec.js';
 export * from './plan-entries.js';
 export * from './rebase.js';
+export * from './guards.js';
 export * from './tools.js';
 export * from './plan-runner.js';

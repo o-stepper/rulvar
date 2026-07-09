@@ -1,4 +1,4 @@
-import { AdmissionDecision, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, KeyDeriver, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, RunHandle, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, UsageLimits } from "@lurker/core";
+import { AdmissionDecision, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, Json, KeyDeriver, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, RunHandle, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, UsageLimits } from "@lurker/core";
 
 //#region src/plan-state.d.ts
 /**
@@ -477,6 +477,98 @@ interface RebaseEvaluation {
 */
 declare function rebasePlanRevision(request: PlanReviseRequest, context: RebaseContext): RebaseEvaluation;
 //#endregion
+//#region src/guards.d.ts
+/** RevisionGuards configuration (docs/07, 3.8). */
+interface RevisionGuardsOptions {
+  /** Default 'finish-with-partial'; the chain is non-HITL and terminating. */
+  fallback?: "reject-revision" | "finish-with-partial" | "fail-run";
+  /** Default 3 consecutive fully-dropped revisions. */
+  droppedRevisionLimit?: number;
+  /** Optional netLostUsd trigger as a fraction of the starting budget (DEF-5). */
+  maxAbandonedNetUsdFraction?: number;
+}
+type GuardFallback = NonNullable<RevisionGuardsOptions["fallback"]>;
+/** The journaled guard verdict payload (kind 'decision'). */
+interface GuardVerdictValue {
+  decisionType: "guard-verdict";
+  guard: "dropped-revision-streak" | "oscillation-freeze" | "stall-replan-cap" | "net-lost";
+  fallback: GuardFallback | "freeze-key";
+  /** The streak at trip time (dropped-revision-streak). */
+  streak?: number;
+  /** The frozen coarse signature (oscillation-freeze). */
+  approachSigCoarse?: string;
+  oscillationCount?: number;
+  /** The capped counter (stall-replan-cap). */
+  stallReplans?: number;
+  netLostUsd?: number;
+}
+/** Appendix A: osc_guard reject threshold per key (shared default). */
+declare const DEFAULT_MAX_OSCILLATIONS_PER_KEY = 2;
+/** The hard per-run stall replan bound (docs/07, 9.3). */
+declare const DEFAULT_STALL_REPLAN_CAP = 4;
+declare const DEFAULT_DROPPED_REVISION_LIMIT = 3;
+interface GuardsState {
+  /** The engaged terminating fallback, once tripped (single-shot). */
+  engaged?: GuardFallback;
+  /** Coarse signatures whose re-adds are frozen. */
+  frozenSignatures: ReadonlySet<string>;
+  stallReplansUsed: number;
+}
+/**
+* The guard state machine. All counting inputs arrive from pure folds
+* (the caller feeds landed revisions, severs, and re-adds in journal
+* order), so live and replay converge on identical verdicts; the caller
+* journals each verdict BEFORE applying its effects.
+*/
+declare class RevisionGuards {
+  private readonly fallback;
+  private readonly droppedRevisionLimit;
+  private readonly maxOscillationsPerKey;
+  private readonly stallReplanCap;
+  private engaged?;
+  /** Severed (cancelled/abandoned) spend per coarse signature. */
+  private readonly severedSignatures;
+  /** Oscillation counts per coarse signature, across LTID boundaries. */
+  private readonly oscillations;
+  private readonly frozen;
+  private stallReplans;
+  constructor(options?: RevisionGuardsOptions & {
+    maxOscillationsPerKey?: number;
+    stallReplanCap?: number;
+  });
+  get state(): GuardsState;
+  /** True once a terminating fallback engaged: the plan is frozen for adaptation. */
+  get planFrozen(): boolean;
+  /** True when further plan_revise calls are rejected outright. */
+  get revisionsRejected(): boolean;
+  /**
+  * Feeds one landed revision's effective streak; returns the verdict to
+  * journal when the limit is reached (single-shot).
+  */
+  onRevisionLanded(effectiveDroppedStreak: number): GuardVerdictValue | undefined;
+  /** Feeds a severing cancel/abandon of a node with this coarse signature. */
+  onSevered(approachSigCoarse: string): void;
+  /**
+  * Feeds one admitted add of this coarse signature; a re-add after a
+  * sever counts one oscillation ACROSS LTID boundaries. Returns the
+  * freeze verdict to journal when the per-key limit is reached.
+  */
+  onReAdd(approachSigCoarse: string): GuardVerdictValue | undefined;
+  /** True when further re-adds of this coarse signature are frozen. */
+  isFrozenSignature(approachSigCoarse: string): boolean;
+  oscillationCountOf(approachSigCoarse: string): number;
+  /**
+  * Consumes one stall-triggered replan slot; returns the cap verdict
+  * when the hard per-run bound is exhausted (single-shot per call site).
+  */
+  onStallReplan(): GuardVerdictValue | undefined;
+  get stallReplanExhausted(): boolean;
+  /** Rebuilds guard state from a journaled verdict (replay path). */
+  absorbVerdict(value: GuardVerdictValue): void;
+  /** Serializes a verdict for the journal append. */
+  static verdictJson(value: GuardVerdictValue): Json;
+}
+//#endregion
 //#region src/tools.d.ts
 /** docs/07, 4.6: plan_view takes no parameters. */
 declare const PLAN_VIEW_SCHEMA: SchemaSpec;
@@ -507,6 +599,12 @@ interface PlanViewRender {
     reclaimedUsd: number;
     netLostUsd: number;
   };
+  /** RevisionGuards state (docs/07, 3.8; M7-T06). */
+  guards?: {
+    engaged?: "reject-revision" | "finish-with-partial" | "fail-run";
+    frozenSignatures: string[];
+    stallReplansUsed: number;
+  };
 }
 /** The engine seam the plan tools close over. */
 interface PlanToolRuntime {
@@ -517,15 +615,6 @@ interface PlanToolRuntime {
 declare function buildPlanTools(runtime: PlanToolRuntime): ToolDef[];
 //#endregion
 //#region src/plan-runner.d.ts
-/** RevisionGuards configuration (docs/07, 3.8); enforcement lands in M7-T06. */
-interface RevisionGuardsOptions {
-  /** Default 'finish-with-partial'; the chain is non-HITL and terminating. */
-  fallback?: "reject-revision" | "finish-with-partial" | "fail-run";
-  /** Default 3 consecutive fully-dropped revisions. */
-  droppedRevisionLimit?: number;
-  /** Optional netLostUsd trigger (DEF-5). */
-  maxAbandonedNetUsdFraction?: number;
-}
 /** docs/07, 3.8. */
 interface PlanRunnerOptions {
   /** Absolute, non-replenishable; default 32 (DEF-2). */
@@ -547,4 +636,4 @@ declare function orchestratePlanned(engine: Engine, goal: string, opts?: Orchest
   plan?: PlanRunnerOptions;
 }): RunHandle<unknown>;
 //#endregion
-export { AppliedPlanOp, EnginePlanOp, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalPlanState, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, isTerminalPlanStatus, orchestratePlanned, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, wouldCreateDepCycle };
+export { AppliedPlanOp, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_STALL_REPLAN_CAP, EnginePlanOp, GuardFallback, GuardVerdictValue, GuardsState, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalPlanState, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, isTerminalPlanStatus, orchestratePlanned, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, wouldCreateDepCycle };

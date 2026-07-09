@@ -200,6 +200,12 @@ export interface PlanViewRender {
   termination: TerminationAccountSnapshot;
   /** The abandoned-spend ledger (DEF-5); zeros until M7-T07 activates it. */
   abandonedSpend: { abandonedUsd: number; reclaimedUsd: number; netLostUsd: number };
+  /** RevisionGuards state (docs/07, 3.8; M7-T06). */
+  guards?: {
+    engaged?: 'reject-revision' | 'finish-with-partial' | 'fail-run';
+    frozenSignatures: string[];
+    stallReplansUsed: number;
+  };
 }
 
 /** The engine seam the plan tools close over. */
