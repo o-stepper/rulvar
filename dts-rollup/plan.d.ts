@@ -1,4 +1,4 @@
-import { AdmissionDecision, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, KeyDeriver, LogicalTaskId, NodeId, SpawnLineageOpt, UsageLimits } from "@lurker/core";
+import { AdmissionDecision, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, KeyDeriver, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, RunHandle, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, UsageLimits } from "@lurker/core";
 
 //#region src/plan-state.d.ts
 /**
@@ -415,6 +415,17 @@ declare function readPlanDecision(entry: JournalEntry): PlanDecisionValue | unde
 declare function applyPlanEntry(state: PlanFoldState, entry: JournalEntry, options?: {
   deriverFor?: (hashVersion: HashVersion) => KeyDeriver | undefined;
 }): PlanFoldState;
+/**
+* The shared plan.decision applier core: engine authorship happens at
+* the fold head under PlanWriteLock (docs/07, 3.3), so the producer can
+* PREVIEW the resulting state (and its planHashAfter) before appending,
+* and the fold re-applies the recorded ops identically on replay.
+*/
+declare function applyDecisionOps(state: Pick<PlanFoldState, "plan" | "specs" | "doneRefs">, ops: readonly EnginePlanOp[], seq: number): {
+  plan: TaskPlan;
+  specs: PlanWorking["specs"];
+  doneRefs: Record<NodeId, EntryRef>;
+};
 //#endregion
 //#region src/rebase.d.ts
 /** The reuse-by-reference transform hook (DEF-5; producer lands in M7-T07). */
@@ -466,4 +477,74 @@ interface RebaseEvaluation {
 */
 declare function rebasePlanRevision(request: PlanReviseRequest, context: RebaseContext): RebaseEvaluation;
 //#endregion
-export { AppliedPlanOp, EnginePlanOp, PLAN_HASH_VERSION, PLAN_SCOPE, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanSnapshotRef, PlanWorking, PlanWriteLock, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, TaskPlan, TaskSpec, TaskSpecPatch, applyAppliedOp, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, canonicalPlanState, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, isTerminalPlanStatus, planDecisionKey, planHash, planRevisionKey, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, wouldCreateDepCycle };
+//#region src/tools.d.ts
+/** docs/07, 4.6: plan_view takes no parameters. */
+declare const PLAN_VIEW_SCHEMA: SchemaSpec;
+/** docs/07, 4.7: the plan_revise parameter schema (normative). */
+declare const PLAN_REVISE_SCHEMA: SchemaSpec;
+declare const PLAN_VIEW_TOOL_NAME = "plan_view";
+declare const PLAN_REVISE_TOOL_NAME = "plan_revise";
+/** One rendered node of the pinned plan_view fold. */
+interface PlanViewNode {
+  nodeId: NodeId;
+  logicalTaskId: string;
+  status: PlanNodeStatus;
+  deps: NodeId[];
+  waivedDeps: NodeId[];
+  priority: number;
+  lineage?: LineageStats;
+}
+/** The plan_view render (docs/07, 4.6): plan state, lineage, termination, reuse. */
+interface PlanViewRender {
+  planHash: string;
+  revisionCount: number;
+  droppedRevisionStreak: number;
+  nodes: PlanViewNode[];
+  termination: TerminationAccountSnapshot;
+  /** The abandoned-spend ledger (DEF-5); zeros until M7-T07 activates it. */
+  abandonedSpend: {
+    abandonedUsd: number;
+    reclaimedUsd: number;
+    netLostUsd: number;
+  };
+}
+/** The engine seam the plan tools close over. */
+interface PlanToolRuntime {
+  planView(): PlanViewRender;
+  planRevise(request: PlanReviseRequest): Promise<PlanReviseResult>;
+}
+/** Builds the PlanRunner tools (appended to the mode (c) toolset). */
+declare function buildPlanTools(runtime: PlanToolRuntime): ToolDef[];
+//#endregion
+//#region src/plan-runner.d.ts
+/** RevisionGuards configuration (docs/07, 3.8); enforcement lands in M7-T06. */
+interface RevisionGuardsOptions {
+  /** Default 'finish-with-partial'; the chain is non-HITL and terminating. */
+  fallback?: "reject-revision" | "finish-with-partial" | "fail-run";
+  /** Default 3 consecutive fully-dropped revisions. */
+  droppedRevisionLimit?: number;
+  /** Optional netLostUsd trigger (DEF-5). */
+  maxAbandonedNetUsdFraction?: number;
+}
+/** docs/07, 3.8. */
+interface PlanRunnerOptions {
+  /** Absolute, non-replenishable; default 32 (DEF-2). */
+  maxRevisionsPerRun?: number;
+  guards?: RevisionGuardsOptions;
+  /** Out-of-vocabulary tags get a typed tool error with bounded re-prompt (DEF-3). */
+  approachVocabulary?: string[];
+  /** Frozen termination knobs beyond the revision budget (DEF-2). */
+  limits?: Partial<Pick<TerminationLimits, "maxTotalSpawns" | "maxEscalationsPerLogicalTask" | "maxDepth">>;
+}
+/**
+* Builds the PlanRunner orchestrator extension (docs/07, section 3).
+* Attach via `orchestrate(engine, goal, { extension: planRunner(o) })` or
+* the `orchestratePlanned` convenience surface.
+*/
+declare function planRunner(options?: PlanRunnerOptions): OrchestratorExtension;
+/** The PlanRunner entry surface: mode (c) plus the extension in one call. */
+declare function orchestratePlanned(engine: Engine, goal: string, opts?: OrchestrateOptions & {
+  plan?: PlanRunnerOptions;
+}): RunHandle<unknown>;
+//#endregion
+export { AppliedPlanOp, EnginePlanOp, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalPlanState, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, isTerminalPlanStatus, orchestratePlanned, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, wouldCreateDepCycle };

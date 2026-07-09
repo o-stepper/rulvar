@@ -62,6 +62,7 @@ export * from './runtime/agent-loop.js';
 export * from './engine/budget.js';
 export * from './engine/scheduler.js';
 export * from './orchestrator/admission.js';
+export * from './orchestrator/extension.js';
 export * from './orchestrator/handles.js';
 export * from './orchestrator/spawn-tools.js';
 export * from './orchestrator/orchestrate.js';

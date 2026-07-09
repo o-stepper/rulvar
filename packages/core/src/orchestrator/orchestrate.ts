@@ -19,7 +19,7 @@
  */
 import { AdmissionRejectedError, ConfigError } from '../l0/errors.js';
 import type { Json } from '../l0/json.js';
-import type { ModelSpec } from '../l0/messages.js';
+import { createCanonicalIdMinter, type ModelSpec } from '../l0/messages.js';
 import { canonicalIsolationTag, type SpawnLineageOpt } from '../journal/lineage.js';
 import { agentScope } from '../journal/scope.js';
 import type { AgentResult } from '../runtime/agent-loop.js';
@@ -46,6 +46,11 @@ import {
   type TaskDigest,
 } from './handles.js';
 import { buildOrchestratorTools, FINISH_TOOL_NAME, type SpawnAgentParams } from './spawn-tools.js';
+import type {
+  ExtensionDispatchSpec,
+  OrchestratorExtension,
+  OrchestratorExtensionIO,
+} from './extension.js';
 import type { EscalationDigest, WakeDigest, WakeTrigger } from './wake.js';
 
 /** docs/06 5.5; the cap machinery (reserves, freeze) completes in M7 (DEF-7). */
@@ -69,11 +74,23 @@ export interface OrchestrateOptions {
   budget?: OrchestratorBudgetSpec;
   /** UsageLimits of the orchestrator agent itself (maxTurns etc.). */
   limits?: UsageLimits;
+  /**
+   * The opt-in mode (c) extension seam (M7-T05): PlanRunner from
+   * @lurker/plan attaches here (docs/07, section 1). The extension boots
+   * strictly before the orchestrator's first agent entry, contributes
+   * tools, schedules ready plan nodes on every settlement, and
+   * participates in the mandatory quiescence trigger.
+   */
+  extension?: OrchestratorExtension;
 }
 
 export const ORCHESTRATE_WORKFLOW_NAME = 'lurker-orchestrate';
 
-function orchestratorPrompt(goal: string, maxSpawns: number | undefined): string {
+function orchestratorPrompt(
+  goal: string,
+  maxSpawns: number | undefined,
+  extensionLines?: string[],
+): string {
   return [
     'You are the orchestrator of a multi-agent run.',
     `GOAL: ${goal}`,
@@ -84,7 +101,55 @@ function orchestratorPrompt(goal: string, maxSpawns: number | undefined): string
     maxSpawns === undefined
       ? 'Spawn only what the goal needs.'
       : `You may spawn at most ${String(maxSpawns)} children.`,
+    ...(extensionLines ?? []),
   ].join('\n');
+}
+
+/**
+ * Resolves per-spawn dispatch options against the engine registries
+ * (docs/08: registered SchemaSpec and tool profile names; M7-T05). An
+ * unknown ref is a typed ConfigError, surfaced as a tool error to the
+ * orchestrator and never a run failure.
+ */
+function resolveDispatchOpts(
+  spec: SpawnAgentParams | ExtensionDispatchSpec,
+  defaults: {
+    schemas?: Record<string, unknown>;
+    toolsets?: Record<string, unknown>;
+  },
+): Record<string, unknown> {
+  const opts: Record<string, unknown> = {};
+  if (spec.outputSchemaRef !== undefined) {
+    const schema = defaults.schemas?.[spec.outputSchemaRef];
+    if (schema === undefined) {
+      throw new ConfigError(
+        `unknown outputSchemaRef '${spec.outputSchemaRef}': register it under ` +
+          'defaults.schemas (docs/08, section "SchemaSpec"; docs/07, 4.2)',
+      );
+    }
+    opts.schema = schema;
+  }
+  if (spec.toolsetRef !== undefined) {
+    const tools = defaults.toolsets?.[spec.toolsetRef];
+    if (tools === undefined) {
+      throw new ConfigError(
+        `unknown toolsetRef '${spec.toolsetRef}': register it under ` +
+          'defaults.toolsets (docs/08, section "tool() definition"; docs/07, 4.2)',
+      );
+    }
+    opts.tools = tools;
+  }
+  const extended = spec as ExtensionDispatchSpec;
+  if (extended.isolation !== undefined) {
+    opts.isolation = extended.isolation;
+  }
+  if (extended.usageLimits !== undefined) {
+    opts.limits = extended.usageLimits;
+  }
+  if (extended.escalation !== undefined) {
+    opts.escalation = extended.escalation;
+  }
+  return opts;
 }
 
 function filterProfiles(
@@ -124,7 +189,8 @@ export function makeOrchestratorWorkflow(
     }
     const admission = internals.admission;
     const callingState = runtime.currentState();
-    const cardText = profileCard(filterProfiles(internals.defaults.profiles, opts?.profiles));
+    const advertisedProfiles = filterProfiles(internals.defaults.profiles, opts?.profiles);
+    const cardText = profileCard(advertisedProfiles);
 
     // The orchestrator's own sub-account (docs/06 5.5). M6 wires the
     // account and its layer-2/3 enforcement when a cap resolves; the
@@ -163,6 +229,11 @@ export function makeOrchestratorWorkflow(
     const recoveryDone = new Promise<void>((resolve) => {
       releaseRecovery = resolve;
     });
+    const extension = opts?.extension;
+    // Extension activity (scheduling edges) serializes on one chain and
+    // always precedes wake-trigger evaluation for the settlement that
+    // caused it (docs/07, 4.8: quiescence sees the post-scheduling state).
+    let activityChain: Promise<void> = Promise.resolve();
 
     const childScopeOf = (): string => {
       if (orchSeq === undefined) {
@@ -171,24 +242,58 @@ export function makeOrchestratorWorkflow(
       return agentScope(callingState.scope, orchSeq);
     };
 
+    const runExtensionActivity = (): Promise<void> => {
+      if (extension?.onActivity === undefined) {
+        return Promise.resolve();
+      }
+      activityChain = activityChain.then(async () => {
+        try {
+          await extension.onActivity?.(io);
+        } catch (thrown) {
+          // A scheduling fault never tears the run down silently: it is
+          // surfaced as telemetry and the plan stalls toward quiescence.
+          internals.events.emit(
+            {
+              type: 'log',
+              level: 'error',
+              msg: `orchestrator extension '${extension.name}' onActivity failed`,
+              data: { message: thrown instanceof Error ? thrown.message : String(thrown) },
+            },
+            callingState.spanId,
+          );
+        }
+      });
+      return activityChain;
+    };
+
     const dispatchChild = async (
-      spec: SpawnAgentParams,
+      spec: SpawnAgentParams | ExtensionDispatchSpec,
       spawnOrdinal: number,
       identity: { nodeId: string; logicalTaskId: string },
+      placement?: { childScope: string; childCeilingUsd?: number },
     ): Promise<SpawnRecord> => {
       const controller = new AbortController();
       const upstream = callingState.signal ?? internals.runSignal;
+      const scope = placement?.childScope ?? childScopeOf();
+      if (placement !== undefined) {
+        // Plan nodes get their own sub-account beside the orchestrator
+        // account (docs/07, 12.1); reopening on resume keeps state.
+        internals.budget.openAccount(scope, {
+          parentScope: callingState.budgetScope ?? ROOT_ACCOUNT,
+          ...(placement.childCeilingUsd === undefined
+            ? {}
+            : { ceilingUsd: placement.childCeilingUsd }),
+        });
+      }
       const childState: CtxScopeState = {
-        scope: childScopeOf(),
+        scope,
         spanId: internals.spans.mint(callingState.spanId),
         signal:
           upstream === undefined
             ? controller.signal
             : AbortSignal.any([upstream, controller.signal]),
+        budgetScope: placement !== undefined ? scope : (callingState.budgetScope ?? ROOT_ACCOUNT),
       };
-      if (callingState.budgetScope !== undefined) {
-        childState.budgetScope = callingState.budgetScope;
-      }
       let resolveHandle: (seq: number) => void = () => undefined;
       const handlePromise = new Promise<number>((resolve) => {
         resolveHandle = resolve;
@@ -196,6 +301,7 @@ export function makeOrchestratorWorkflow(
       const agentOpts: AgentOpts & InternalAgentHooks & { result: 'full' } = {
         agentType: spec.agentType,
         result: 'full',
+        ...resolveDispatchOpts(spec, internals.defaults),
         [kOnRunning]: (seq: number) => resolveHandle(seq),
       };
       const result = runtime.runInScope(childState, () =>
@@ -230,8 +336,11 @@ export function makeOrchestratorWorkflow(
           controller.abort('lurker:cancel_agent');
         },
       };
-      void settledResult.then((settled) => {
+      void settledResult.then(async (settled) => {
         record.settled = settled;
+        // The scheduling edge runs BEFORE wake evaluation so quiescence
+        // sees newly-ready nodes (docs/07, 4.8).
+        await runExtensionActivity();
         for (const listener of [...settleListeners]) {
           listener();
         }
@@ -239,6 +348,64 @@ export function makeOrchestratorWorkflow(
       records.set(handle, record);
       byOrdinal.set(spawnOrdinal, record);
       return record;
+    };
+
+    // The public extension IO (M7-T05): every capability maps to a
+    // docs/07 requirement; see orchestrator/extension.ts.
+    const io: OrchestratorExtensionIO = {
+      runId: internals.runId,
+      baseScope: callingState.scope,
+      orchestratorScope: () => childScopeOf(),
+      profiles: advertisedProfiles,
+      ...(internals.budget.ceilingUsd === undefined
+        ? {}
+        : { runCeilingUsd: internals.budget.ceilingUsd }),
+      mintId: createCanonicalIdMinter(),
+      append: (input) =>
+        internals.replayer.appendSinglePhase({
+          scope: input.scope,
+          key: input.key,
+          kind: input.kind,
+          status: 'ok',
+          spanId: internals.spans.mint(callingState.spanId),
+          value: input.value,
+          site: `extension:${extension?.name ?? 'none'}`,
+        }),
+      snapshot: () => internals.replayer.snapshot(),
+      flush: () => internals.replayer.flush(),
+      admission,
+      dispatch: async (spec, childScope, identity) => {
+        const spawnOrdinal = nextOrdinal;
+        nextOrdinal += 1;
+        const record = await dispatchChild(spec, spawnOrdinal, identity, {
+          childScope,
+          ...(spec.budgetUsd === undefined ? {} : { childCeilingUsd: spec.budgetUsd }),
+        });
+        return { handle: record.handle };
+      },
+      settledOf: (handle) => records.get(handle)?.settled,
+      cancel: (handle, reason) => cancelByHandle(handle, reason),
+      emit: (event) => internals.events.emit(event, callingState.spanId),
+    };
+
+    const cancelByHandle = async (
+      handle: number,
+      _reason?: string,
+    ): Promise<{ cancelled: boolean; handle: number }> => {
+      const record = records.get(handle);
+      if (record === undefined) {
+        throw new ConfigError(`cancel_agent: unknown handle ${String(handle)}`);
+      }
+      if (record.settled !== undefined) {
+        return { cancelled: false, handle };
+      }
+      // Caller intent (docs/07 4.5, M6 note): the child terminal
+      // journals 'cancelled' and reruns on a later resume unless
+      // covered by abandon; the abandon compilation rides the DEF-5
+      // machinery (M7-T07).
+      record.abort();
+      await record.result;
+      return { cancelled: true, handle };
     };
 
     /** Rebuilds spawn records from the journal (the crash-resume contract). */
@@ -292,6 +459,9 @@ export function makeOrchestratorWorkflow(
           markDelivered(suspension.value as unknown as WakeDigest);
         }
       }
+      // The extension re-schedules ready plan nodes after recovery
+      // (forward matching pays nothing for settled children).
+      await runExtensionActivity();
     };
 
     const markDelivered = (digest: WakeDigest): void => {
@@ -299,6 +469,9 @@ export function makeOrchestratorWorkflow(
         deliveredNodeIds.add(item.nodeId);
       }
       coversToOrdinal = Math.max(coversToOrdinal, digest.coversToOrdinal);
+      // Pinning bookkeeping for the extension (plan_view and rebase base
+      // validation consume recorded digests, docs/07 3.5).
+      extension?.onWake?.(digest);
     };
 
     const buildDigest = (ordinal: number): WakeDigest => {
@@ -325,7 +498,7 @@ export function makeOrchestratorWorkflow(
           flavor: 'A',
         });
       }
-      return {
+      const digest: WakeDigest = {
         digestSeq: ordinal + 1,
         coversToOrdinal: undelivered.reduce(
           (max, record) => Math.max(max, record.spawnOrdinal),
@@ -336,17 +509,16 @@ export function makeOrchestratorWorkflow(
         ),
         escalations,
       };
+      // The extension merges its digest blocks (planHash now; the
+      // termination, budget, and reuse blocks complete the coordinated
+      // schema in M7-T13).
+      const extras = extension?.digestExtras?.(io);
+      return extras === undefined ? digest : { ...digest, ...extras };
     };
 
     const orchestratorRuntime: OrchestratorRuntime = {
       async spawn(params: SpawnAgentParams): Promise<{ handle: number }> {
         await recoveryDone;
-        if (params.outputSchemaRef !== undefined || params.toolsetRef !== undefined) {
-          throw new ConfigError(
-            'outputSchemaRef and toolsetRef resolve against registries that land in M7 ' +
-              '(docs/07, 4.2 M6 note); omit them for now',
-          );
-        }
         const spawnOrdinal = nextOrdinal;
         nextOrdinal += 1;
         // Idempotent re-execution after a mid-turn resume: the recovery
@@ -544,7 +716,12 @@ export function makeOrchestratorWorkflow(
           );
           switch (trigger.kind) {
             case 'quiescence':
-              return [...records.values()].every((record) => record.settled !== undefined);
+              // Nothing running AND nothing ready: the extension owns the
+              // "nothing ready" half (docs/07, 4.8; M7-T05).
+              return (
+                [...records.values()].every((record) => record.settled !== undefined) &&
+                (extension?.quiescent?.() ?? true)
+              );
             case 'child_terminal':
               if (trigger.handles === undefined) {
                 return undelivered.length > 0;
@@ -608,27 +785,23 @@ export function makeOrchestratorWorkflow(
       },
       async cancel(
         handle: number,
-        _reason?: string,
+        reason?: string,
       ): Promise<{ cancelled: boolean; handle: number }> {
         await recoveryDone;
-        const record = records.get(handle);
-        if (record === undefined) {
-          throw new ConfigError(`cancel_agent: unknown handle ${String(handle)}`);
-        }
-        if (record.settled !== undefined) {
-          return { cancelled: false, handle };
-        }
-        // Caller intent (docs/07 4.5, M6 note): the child terminal
-        // journals 'cancelled' and reruns on a later resume unless
-        // covered by abandon; the abandon compilation activates with
-        // PlanRunner cancel_task in M7.
-        record.abort();
-        await record.result;
-        return { cancelled: true, handle };
+        return cancelByHandle(handle, reason);
       },
     };
 
-    const tools = buildOrchestratorTools(orchestratorRuntime, cardText);
+    // The extension boots strictly BEFORE the orchestrator agent's first
+    // entry (docs/07, 11.6: termination.init precedes the first
+    // scheduling entry); on resume it rebuilds state from the journal.
+    if (extension?.boot !== undefined) {
+      await extension.boot(io);
+    }
+    const tools = [
+      ...buildOrchestratorTools(orchestratorRuntime, cardText),
+      ...(extension?.tools(io) ?? []),
+    ];
     const agentOpts: AgentOpts & InternalAgentHooks & { result: 'full' } = {
       role: 'orchestrate',
       result: 'full',
@@ -652,7 +825,7 @@ export function makeOrchestratorWorkflow(
     }
     const result = await runtime.runInScope(orchestratorState, () =>
       (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
-        orchestratorPrompt(goal, opts?.maxSpawns),
+        orchestratorPrompt(goal, opts?.maxSpawns, extension?.promptLines?.()),
         agentOpts,
       ),
     );
