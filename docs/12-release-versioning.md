@@ -50,6 +50,8 @@ Known planned BREAKING minors (traceability; the changelog of each release resta
 | v0.8.0 | M7 | The plan-size-scaled revision budget option is removed without deprecation; `maxRevisionsPerRun` is an absolute, non-replenishable counter (DEF-2) | config |
 | v0.8.0 | M7 | `plan_revise` result and error schemas widen and WakeDigest gains the mandatory `termination` field; schemaHash and toolsetHash of orchestrator scopes change, so affected VCR cassettes invalidate and must be re-recorded (DEF-2/DEF-8) | tool/journal schema |
 | v0.8.0 | M7 | B0, the run budget ceiling, is declared immutable after start: no API, including HITL decisions, can top it up; code that mutated the run budget mid-run or expected HITL top-up breaks deliberately (DEF-2) | API removal (typed runtime error) |
+| v0.9.0 | M8 | TranscriptStore gains the REQUIRED `delete(ref)` method (OQ-20 executed; retention is impossible without blob deletion): third-party TranscriptStore implementations stop compiling; the shipped stores implement it | compile-time (SPI widening, pre-freeze) |
+| v0.9.0 | M8 | The Engine interface gains required members `stores`, `deleteRun`, `pruneRun` (the M8 seam and retention amendments): custom Engine implementations and structural test doubles stop compiling; consumers of createEngine are unaffected | compile-time |
 
 The DEF-5 journal-format additions (new kind `node.link`, new abandon-entry fields) are part of the hashVersion 2 profile; reader tolerance to unknown kinds is normative, and journals without links replay unchanged. Entry identity does not change: SpawnKey reuses the existing content hash, and the DEF-5 fix introduces no hash migration.
 
