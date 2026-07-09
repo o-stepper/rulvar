@@ -192,3 +192,63 @@ export default {
     expect(err.join('\n')).toContain("unknown run profile 'turbo'");
   });
 });
+
+describe('OTel attribute masking (M8-T04; docs/09 section 8)', () => {
+  it('masks key-shaped strings in span attributes, defense in depth', async () => {
+    const SECRET = 'sk-abc123def456ghi789jkl012';
+    const ts = '2026-01-01T00:00:00.000Z';
+    // eslint-disable-next-line @typescript-eslint/require-await
+    async function* synthetic(): AsyncIterable<WorkflowEvent> {
+      yield {
+        runId: 'r1',
+        seq: 0,
+        ts,
+        spanId: 's0',
+        type: 'run:start',
+        workflow: 'wf',
+        resumed: false,
+      };
+      yield {
+        runId: 'r1',
+        seq: 1,
+        ts,
+        spanId: 's1',
+        parentSpanId: 's0',
+        type: 'agent:start',
+        agentType: 'reviewer',
+        model: SECRET,
+        role: 'loop',
+      };
+      yield {
+        runId: 'r1',
+        seq: 2,
+        ts,
+        spanId: 's1',
+        type: 'agent:end',
+        status: 'ok',
+      } as unknown as WorkflowEvent;
+      yield {
+        runId: 'r1',
+        seq: 3,
+        ts,
+        spanId: 's0',
+        type: 'run:end',
+        status: 'ok',
+        totalUsd: 0,
+      } as unknown as WorkflowEvent;
+    }
+    const { tracer, spans } = inMemoryTracer();
+    const result = Promise.resolve({
+      status: 'ok',
+      dropped: [],
+      pending: [],
+      usage: { inputTokens: 0, outputTokens: 0 },
+      cost: { totalUsd: 0, byModel: {}, byPhase: {}, byAgentType: {}, byRole: {}, unpriced: [] },
+    } as unknown as import('@lurker/core').RunOutcome<unknown>);
+    await toOtel({ runId: 'r1', events: synthetic(), result }, tracer);
+    const agent = spans.find((span) => span.name.startsWith('agent'));
+    expect(agent).toBeDefined();
+    expect(agent?.attributes['gen_ai.request.model']).toBe('[masked-secret]');
+    expect(JSON.stringify(spans)).not.toContain(SECRET);
+  });
+});

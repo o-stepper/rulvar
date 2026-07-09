@@ -27,7 +27,7 @@ interface GatedValue {
   item: number;
 }
 
-function assemble(): {
+function assemble(options?: { retention?: (meta: { status: string }) => boolean }): {
   engine: Engine;
   server: LurkerServer;
   workflows: WorkflowRegistry;
@@ -51,7 +51,11 @@ function assemble(): {
     defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
   });
   const workflows: WorkflowRegistry = { gated };
-  const server = createServer({ engine, workflows });
+  const server = createServer({
+    engine,
+    workflows,
+    ...(options?.retention === undefined ? {} : { retention: options.retention }),
+  });
   return { engine, server, workflows, gated };
 }
 
@@ -332,5 +336,25 @@ describe('createServer (M8-T01)', () => {
 
     const noBody = await post(server, '/runs', {});
     expect(noBody.status).toBe(400);
+  });
+
+  it('opt-in retention deletes settled runs: cascade leaves no journal, no meta, no track', async () => {
+    const { engine, server } = assemble({ retention: (meta) => meta.status === 'ok' });
+    const started = await post(server, '/runs', { workflow: 'gated', args: { item: 8 } });
+    const { runId } = (await bodyOf(started)) as { runId: string };
+    await untilStatus(server, runId, 'suspended');
+    await post(server, `/runs/${runId}/external/editor-approval`, { approved: true });
+
+    // The run settles ok, then retention removes every trace.
+    for (let attempt = 0; attempt < 500; attempt += 1) {
+      const status = (await get(server, `/runs/${runId}`)).status;
+      if (status === 404) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect((await get(server, `/runs/${runId}`)).status).toBe(404);
+    expect(await engine.stores.journal.load(runId)).toEqual([]);
+    expect(await engine.stores.transcripts.list(runId)).toEqual([]);
   });
 });

@@ -12,4 +12,11 @@ export interface TranscriptStore {
   put(ref: string, blob: Bytes): Promise<void>;
   get(ref: string): Promise<Bytes | null>;
   list(runId: string): Promise<string[]>;
+  /**
+   * Deletes one blob; a missing ref is a no-op, never an error (M8-T04
+   * amendment, OQ-20: retention is impossible without blob deletion).
+   * The cascade over a run's blobs is ENGINE-side (Engine.deleteRun),
+   * never a store obligation.
+   */
+  delete(ref: string): Promise<void>;
 }

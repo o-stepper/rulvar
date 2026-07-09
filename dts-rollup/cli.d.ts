@@ -94,6 +94,13 @@ interface CreateServerOptions {
   * never a silent zero (docs/04, section 10).
   */
   priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
+  /**
+  * Opt-in retention (docs/02, 8.2; OQ-20 executed at M8-T04): evaluated
+  * when a tracked run settles terminally; a true verdict applies
+  * engine.deleteRun (transcript cascade, then the journal) and
+  * untracks the run. Absent means everything persists indefinitely.
+  */
+  retention?: (meta: RunMeta) => boolean;
 }
 interface LurkerServer {
   fetch(req: Request): Promise<Response>;
@@ -132,6 +139,13 @@ interface CreateWorkerOptions {
   extraDerivers?: KeyDeriver[];
   /** Observability hook for per-run failures; never throws into the loop. */
   onError?: (runId: string, error: unknown) => void;
+  /**
+  * Opt-in retention (docs/02, 8.3; OQ-20 executed at M8-T04): evaluated
+  * during sweeps over SETTLED runs (terminal meta); a true verdict
+  * applies engine.deleteRun under a briefly held lease. Absent means
+  * everything persists indefinitely.
+  */
+  retention?: (meta: RunMeta) => boolean;
 }
 interface Worker {
   /** Begins sweeping on the poll cadence. Idempotent. */

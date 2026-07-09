@@ -66,6 +66,13 @@ export interface CreateServerOptions {
    * never a silent zero (docs/04, section 10).
    */
   priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
+  /**
+   * Opt-in retention (docs/02, 8.2; OQ-20 executed at M8-T04): evaluated
+   * when a tracked run settles terminally; a true verdict applies
+   * engine.deleteRun (transcript cascade, then the journal) and
+   * untracks the run. Absent means everything persists indefinitely.
+   */
+  retention?: (meta: RunMeta) => boolean;
 }
 
 export interface LurkerServer {
@@ -191,6 +198,16 @@ export function createServer(options: CreateServerOptions): LurkerServer {
             feed(null);
           }
           run.feeds.clear();
+          if (options.retention !== undefined) {
+            // Opt-in retention at the terminal settle (docs/02, 8.2).
+            void (async () => {
+              const meta = await metaOf(run.runId);
+              if (meta !== undefined && options.retention?.(meta) === true) {
+                await engine.deleteRun(run.runId);
+                runs.delete(run.runId);
+              }
+            })().catch(() => undefined);
+          }
         }
       })
       .catch(() => undefined);

@@ -239,4 +239,16 @@ export class FileTranscriptStore implements TranscriptStore {
     walk(root, `${runId}/`);
     return refs.sort();
   }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async delete(ref: string): Promise<void> {
+    try {
+      rmSync(this.blobPath(ref));
+    } catch (error) {
+      // A missing ref is a no-op, never an error (docs/03, 12.4).
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+    }
+  }
 }

@@ -563,6 +563,224 @@ interface CanonicalLadderSpec {
   acceptance?: Gate[];
 }
 //#endregion
+//#region src/l0/entries.d.ts
+/**
+* Versions the ENTIRE identity and replay pipeline as one unit: canonical
+* JSON algorithm, identity field sets, hash function, schema/toolset hash
+* derivation, scope grammar and ordinal rules, replay predicate, fold
+* defaults, and the kind/status vocabularies (docs/03, section
+* "hashVersion").
+*/
+type HashVersion = number;
+/** 1 = round 1; 2 = current. */
+declare const CURRENT_HASH_VERSION: HashVersion;
+/**
+* The single kinds registry v2 (docs/03, section "Kinds registry v2").
+* Readers MUST tolerate unknown kinds; stores pass them through
+* byte-for-byte (obligation A4).
+*/
+type EntryKind = "agent" | "step" | "child" | "external" | "approval" | "rand" | "decision" | "plan.revision" | "plan.decision" | "ledger.op" | "resolution" | "abandon" | "node.link" | "termination.init" | "termination.denied";
+/**
+* The stored status vocabulary, exactly. 'skipped' is DELIBERATELY absent:
+* it is a derived fold status, never persisted (docs/03, section "Stored
+* status vocabulary").
+*/
+type EntryStatus = "running" | "ok" | "error" | "limit" | "suspended" | "cancelled" | "escalated";
+/** The canonical EntryRef between entries is seq (docs/03, section "Full entry identity"). */
+type EntryRef = number;
+/** The journaled by-source of a resolution (docs/03, section 8.6 mapping table). */
+type ResolutionBy = "external" | "timeout" | "class_decision" | "operator" | "quiescence" | "engine_fallback";
+/** Payload of resolution ref-entries (docs/03, section 8.6; DEF-4). */
+type ResolutionPayload = {
+  /** Duplicates ref for self-description. */target: number;
+  by: ResolutionBy; /** awaitExternal resolution / EscalationDecision / WakeDigest. */
+  value: Json; /** Seq of the class-level EscalationDecision when by = 'class_decision'. */
+  decisionRef?: number; /** Lineage-fold attribution (DEF-3, M7). */
+  logicalTaskId?: string; /** Only on escalation resolutions (DEF-3, M7). */
+  countsAgainstLimit?: boolean;
+};
+/** Payload of abandon ref-entries (docs/03, section 8.6; DEF-4/DEF-5). */
+type AbandonPayload = {
+  /** Seq of the abandoned branch's spawn entry. */target: number; /** Seq of the plan.revision or decision entry sanctioning it. */
+  authorizedBy: number;
+  nodeId?: string;
+  logicalTaskId?: string;
+  reason: string; /** Default true (DEF-5). */
+  retainCheckpoint?: boolean; /** Default false; counts against the pin cap (DEF-5). */
+  retainWorktree?: boolean;
+};
+/**
+* Final entry form (hashVersion 2; docs/03, section "JournalEntry form").
+* All journaled values MUST be JSON-serializable; a violation raises a
+* typed NonSerializableValueError at the call site. append is serialized
+* by a per-run queue.
+*/
+type JournalEntry = {
+  /** Identity-derivation and replay-semantics version of THIS entry. */hashVersion: HashVersion; /** Total order per run; canonical EntryRef = seq. */
+  seq: number;
+  /**
+  * Backward reference by seq, always ref < seq: on ref-entries
+  * (resolution/abandon) the seq of the target; on terminal phase entries
+  * the seq of the running entry.
+  */
+  ref?: number;
+  scope: string;
+  key: string;
+  ordinal: number;
+  kind: EntryKind;
+  status: EntryStatus;
+  value?: Json;
+  error?: WireError;
+  usage?: Usage; /** True when the stream was cut at the budget ceiling or by a stream failure. */
+  usageApprox?: boolean; /** Who actually served (failover changes only this, never the key). */
+  servedBy?: ModelRef;
+  transcriptRef?: string;
+  checkpointRef?: string;
+  /**
+  * Terminal agent entries: the Artifact list (worktree patch refs and
+  * inline values); rides the terminal payload so replay reconstructs
+  * AgentResult.artifacts without live calls (docs/06, section 2.1).
+  */
+  artifacts?: Json;
+  /**
+  * Terminal escalated entries ONLY: the schema-validated
+  * EscalationReport with runtime-filled costToDate and salvage; replay
+  * synthesizes the byte-identical report from here (docs/03, section
+  * 5.4; DEF-1).
+  */
+  escalation?: Json; /** Only when kind === 'resolution'. */
+  resolution?: ResolutionPayload; /** Only when kind === 'abandon'. */
+  abandon?: AbandonPayload;
+  /**
+  * Policy field on agent entries, fixed in the payload at dispatch time
+  * (docs/03, section "Normative payload schemas"): the M2 predicate reads
+  * the flag from the ENTRY, never from current code. Excluded from
+  * identity like every policy field.
+  */
+  memoizeOutcome?: boolean; /** On suspended entries: the journaled deadline. */
+  deadlineAt?: string;
+  spanId: string;
+  startedAt: string;
+  endedAt?: string;
+};
+/** Rand-entry payload (docs/03, section "Normative payload schemas"). */
+type RandPayload = {
+  subtype: "now";
+  value: number;
+} | {
+  subtype: "random";
+  value: number;
+  key?: string;
+} | {
+  subtype: "uuid";
+  value: string;
+};
+/**
+* Round-1 normalization: hashVersion is taken from `hashVersion`, else
+* from the legacy `v` field, else 1. Stores are never rewritten;
+* normalization happens at read (docs/03, section "The single versioning
+* mechanism").
+*/
+declare function normalizeEntry(raw: unknown): JournalEntry;
+//#endregion
+//#region src/l0/spi/store.d.ts
+/** Lease token for queue-mode ownership; epoch is the fencing token. */
+type Lease = {
+  runId: string;
+  owner: string;
+  epoch: number;
+};
+/**
+* Run-level metadata written by the ENGINE via putMeta as a separate
+* record, so listRuns never parses payloads. The hashVersion range fields
+* are advisory only; the journal is authoritative (docs/03, section
+* "RunMeta").
+*/
+type RunMeta = {
+  runId: string;
+  status: string;
+  name?: string;
+  tags?: string[];
+  updatedAt: string;
+  hashVersionLow?: number;
+  hashVersionHigh?: number; /** Registered workflow name (in-process Workflow). */
+  workflowName?: string; /** Content hash of the body or of the compiled source. */
+  workflowHash?: string; /** TranscriptStore ref of the persisted CompiledWorkflow source. */
+  workflowSourceRef?: string;
+};
+type RunFilter = {
+  status?: string;
+  tags?: string[];
+  name?: string;
+};
+interface JournalStore {
+  append(runId: string, e: JournalEntry, lease?: Lease): Promise<void>;
+  load(runId: string): Promise<JournalEntry[]>;
+  putMeta(m: RunMeta): Promise<void>;
+  listRuns(f?: RunFilter): Promise<RunMeta[]>;
+  delete(runId: string): Promise<void>;
+}
+/**
+* Lease capability: acquire on a held lease MUST reject with a typed
+* LeaseHeldError; renew MUST run at an interval of at most ttl/3; an
+* append carrying a stale epoch MUST be rejected and never appear in load
+* (docs/03, section "LeasableStore").
+*/
+interface LeasableStore extends JournalStore {
+  acquire(runId: string, owner: string): Promise<Lease>;
+  renew(l: Lease): Promise<void>;
+  release(l: Lease): Promise<void>;
+}
+//#endregion
+//#region src/l0/spi/transcript.d.ts
+interface TranscriptStore {
+  put(ref: string, blob: Bytes): Promise<void>;
+  get(ref: string): Promise<Bytes | null>;
+  list(runId: string): Promise<string[]>;
+  /**
+  * Deletes one blob; a missing ref is a no-op, never an error (M8-T04
+  * amendment, OQ-20: retention is impossible without blob deletion).
+  * The cascade over a run's blobs is ENGINE-side (Engine.deleteRun),
+  * never a store obligation.
+  */
+  delete(ref: string): Promise<void>;
+}
+//#endregion
+//#region src/l0/serialization.d.ts
+interface JournalSerializationHook {
+  /** Applied at append; kernel ordering/identity fields MUST pass through. */
+  toStored(e: JournalEntry): JournalEntry;
+  /** Applied at load; MUST be symmetric with toStored for replay to hold. */
+  fromStored(e: JournalEntry): JournalEntry;
+}
+interface TranscriptSerializationHook {
+  /** Applied at put. */
+  toStored(ref: string, blob: Bytes): Bytes;
+  /** Applied at get; MUST be symmetric with toStored. */
+  fromStored(ref: string, blob: Bytes): Bytes;
+}
+/** createEngine({ serialization }): absent means identity, no wrapping. */
+interface SerializationHook {
+  journal?: JournalSerializationHook;
+  transcripts?: TranscriptSerializationHook;
+}
+/** Wraps a journal store with the hook; lease capability is preserved. */
+declare function wrapJournalStore(inner: JournalStore, hook: JournalSerializationHook): JournalStore;
+/** Wraps a transcript store with the hook. */
+declare function wrapTranscriptStore(inner: TranscriptStore, hook: TranscriptSerializationHook): TranscriptStore;
+/** The replacement marker; deterministic and greppable. */
+declare const MASKED_SECRET = "[masked-secret]";
+/** Masks credential-shaped substrings in one string. */
+declare function maskSecrets(text: string): string;
+/**
+* Deep-masks every string value in a JSON tree; non-strings pass
+* through. Returns the input identity when nothing matched, so the
+* default-on policy costs no allocation on clean events.
+*/
+declare function maskSecretsDeep<T>(value: T): T;
+/** Convenience for hosts: masks a Json value (alias of the deep walk). */
+declare function maskSecretsJson(value: Json): Json;
+//#endregion
 //#region src/vendor/standard-schema.d.ts
 // Vendored from @standard-schema/spec@1.1.0 (MIT, Copyright (c) 2024 Colin
 // McDonnell), file dist/index.d.ts, byte-identical below this header.
@@ -775,126 +993,6 @@ type SchemaValidationResult<T = unknown> = {
 */
 declare function validateSchemaSpec<S extends SchemaSpec>(spec: S, value: unknown): Promise<SchemaValidationResult<Out<S>>>;
 //#endregion
-//#region src/l0/entries.d.ts
-/**
-* Versions the ENTIRE identity and replay pipeline as one unit: canonical
-* JSON algorithm, identity field sets, hash function, schema/toolset hash
-* derivation, scope grammar and ordinal rules, replay predicate, fold
-* defaults, and the kind/status vocabularies (docs/03, section
-* "hashVersion").
-*/
-type HashVersion = number;
-/** 1 = round 1; 2 = current. */
-declare const CURRENT_HASH_VERSION: HashVersion;
-/**
-* The single kinds registry v2 (docs/03, section "Kinds registry v2").
-* Readers MUST tolerate unknown kinds; stores pass them through
-* byte-for-byte (obligation A4).
-*/
-type EntryKind = "agent" | "step" | "child" | "external" | "approval" | "rand" | "decision" | "plan.revision" | "plan.decision" | "ledger.op" | "resolution" | "abandon" | "node.link" | "termination.init" | "termination.denied";
-/**
-* The stored status vocabulary, exactly. 'skipped' is DELIBERATELY absent:
-* it is a derived fold status, never persisted (docs/03, section "Stored
-* status vocabulary").
-*/
-type EntryStatus = "running" | "ok" | "error" | "limit" | "suspended" | "cancelled" | "escalated";
-/** The canonical EntryRef between entries is seq (docs/03, section "Full entry identity"). */
-type EntryRef = number;
-/** The journaled by-source of a resolution (docs/03, section 8.6 mapping table). */
-type ResolutionBy = "external" | "timeout" | "class_decision" | "operator" | "quiescence" | "engine_fallback";
-/** Payload of resolution ref-entries (docs/03, section 8.6; DEF-4). */
-type ResolutionPayload = {
-  /** Duplicates ref for self-description. */target: number;
-  by: ResolutionBy; /** awaitExternal resolution / EscalationDecision / WakeDigest. */
-  value: Json; /** Seq of the class-level EscalationDecision when by = 'class_decision'. */
-  decisionRef?: number; /** Lineage-fold attribution (DEF-3, M7). */
-  logicalTaskId?: string; /** Only on escalation resolutions (DEF-3, M7). */
-  countsAgainstLimit?: boolean;
-};
-/** Payload of abandon ref-entries (docs/03, section 8.6; DEF-4/DEF-5). */
-type AbandonPayload = {
-  /** Seq of the abandoned branch's spawn entry. */target: number; /** Seq of the plan.revision or decision entry sanctioning it. */
-  authorizedBy: number;
-  nodeId?: string;
-  logicalTaskId?: string;
-  reason: string; /** Default true (DEF-5). */
-  retainCheckpoint?: boolean; /** Default false; counts against the pin cap (DEF-5). */
-  retainWorktree?: boolean;
-};
-/**
-* Final entry form (hashVersion 2; docs/03, section "JournalEntry form").
-* All journaled values MUST be JSON-serializable; a violation raises a
-* typed NonSerializableValueError at the call site. append is serialized
-* by a per-run queue.
-*/
-type JournalEntry = {
-  /** Identity-derivation and replay-semantics version of THIS entry. */hashVersion: HashVersion; /** Total order per run; canonical EntryRef = seq. */
-  seq: number;
-  /**
-  * Backward reference by seq, always ref < seq: on ref-entries
-  * (resolution/abandon) the seq of the target; on terminal phase entries
-  * the seq of the running entry.
-  */
-  ref?: number;
-  scope: string;
-  key: string;
-  ordinal: number;
-  kind: EntryKind;
-  status: EntryStatus;
-  value?: Json;
-  error?: WireError;
-  usage?: Usage; /** True when the stream was cut at the budget ceiling or by a stream failure. */
-  usageApprox?: boolean; /** Who actually served (failover changes only this, never the key). */
-  servedBy?: ModelRef;
-  transcriptRef?: string;
-  checkpointRef?: string;
-  /**
-  * Terminal agent entries: the Artifact list (worktree patch refs and
-  * inline values); rides the terminal payload so replay reconstructs
-  * AgentResult.artifacts without live calls (docs/06, section 2.1).
-  */
-  artifacts?: Json;
-  /**
-  * Terminal escalated entries ONLY: the schema-validated
-  * EscalationReport with runtime-filled costToDate and salvage; replay
-  * synthesizes the byte-identical report from here (docs/03, section
-  * 5.4; DEF-1).
-  */
-  escalation?: Json; /** Only when kind === 'resolution'. */
-  resolution?: ResolutionPayload; /** Only when kind === 'abandon'. */
-  abandon?: AbandonPayload;
-  /**
-  * Policy field on agent entries, fixed in the payload at dispatch time
-  * (docs/03, section "Normative payload schemas"): the M2 predicate reads
-  * the flag from the ENTRY, never from current code. Excluded from
-  * identity like every policy field.
-  */
-  memoizeOutcome?: boolean; /** On suspended entries: the journaled deadline. */
-  deadlineAt?: string;
-  spanId: string;
-  startedAt: string;
-  endedAt?: string;
-};
-/** Rand-entry payload (docs/03, section "Normative payload schemas"). */
-type RandPayload = {
-  subtype: "now";
-  value: number;
-} | {
-  subtype: "random";
-  value: number;
-  key?: string;
-} | {
-  subtype: "uuid";
-  value: string;
-};
-/**
-* Round-1 normalization: hashVersion is taken from `hashVersion`, else
-* from the legacy `v` field, else 1. Stores are never rewritten;
-* normalization happens at read (docs/03, section "The single versioning
-* mechanism").
-*/
-declare function normalizeEntry(raw: unknown): JournalEntry;
-//#endregion
 //#region src/l0/spi/provider.d.ts
 /**
 * Per-model pricing in USD per million tokens (docs/04, section
@@ -960,62 +1058,6 @@ interface IsolationProvider {
     }>;
     dispose(keep?: boolean): Promise<void>;
   }>;
-}
-//#endregion
-//#region src/l0/spi/store.d.ts
-/** Lease token for queue-mode ownership; epoch is the fencing token. */
-type Lease = {
-  runId: string;
-  owner: string;
-  epoch: number;
-};
-/**
-* Run-level metadata written by the ENGINE via putMeta as a separate
-* record, so listRuns never parses payloads. The hashVersion range fields
-* are advisory only; the journal is authoritative (docs/03, section
-* "RunMeta").
-*/
-type RunMeta = {
-  runId: string;
-  status: string;
-  name?: string;
-  tags?: string[];
-  updatedAt: string;
-  hashVersionLow?: number;
-  hashVersionHigh?: number; /** Registered workflow name (in-process Workflow). */
-  workflowName?: string; /** Content hash of the body or of the compiled source. */
-  workflowHash?: string; /** TranscriptStore ref of the persisted CompiledWorkflow source. */
-  workflowSourceRef?: string;
-};
-type RunFilter = {
-  status?: string;
-  tags?: string[];
-  name?: string;
-};
-interface JournalStore {
-  append(runId: string, e: JournalEntry, lease?: Lease): Promise<void>;
-  load(runId: string): Promise<JournalEntry[]>;
-  putMeta(m: RunMeta): Promise<void>;
-  listRuns(f?: RunFilter): Promise<RunMeta[]>;
-  delete(runId: string): Promise<void>;
-}
-/**
-* Lease capability: acquire on a held lease MUST reject with a typed
-* LeaseHeldError; renew MUST run at an interval of at most ttl/3; an
-* append carrying a stale epoch MUST be rejected and never appear in load
-* (docs/03, section "LeasableStore").
-*/
-interface LeasableStore extends JournalStore {
-  acquire(runId: string, owner: string): Promise<Lease>;
-  renew(l: Lease): Promise<void>;
-  release(l: Lease): Promise<void>;
-}
-//#endregion
-//#region src/l0/spi/transcript.d.ts
-interface TranscriptStore {
-  put(ref: string, blob: Bytes): Promise<void>;
-  get(ref: string): Promise<Bytes | null>;
-  list(runId: string): Promise<string[]>;
 }
 //#endregion
 //#region src/l0/spi/toolsource.d.ts
@@ -4089,6 +4131,22 @@ interface CreateEngineOptions {
   * Plumbed now, consumed by the matching kernel from M2.
   */
   extraDerivers?: readonly unknown[];
+  /**
+  * Redact/encrypt at the append/put boundaries, symmetric on load/get
+  * (docs/03, section "Serialization hook"; M8-T04, OQ-22 executed).
+  * Applied by wrapping the configured stores; Engine.stores exposes
+  * the wrapped instances, so every reader passes one policy point.
+  */
+  serialization?: SerializationHook;
+  /**
+  * The default key-masking policy at the telemetry boundary (docs/09,
+  * section "Redaction and sensitive data"; docs/06 Appendix A row
+  * "event secret masking"). Default ON: key-shaped strings in every
+  * emitted WorkflowEvent are masked; never touches the journal.
+  */
+  redaction?: {
+    maskEvents?: boolean;
+  };
 }
 interface RunOptions {
   /** Explicit id; otherwise the engine mints a ULID. */
@@ -4164,12 +4222,28 @@ interface Engine {
   * (docs/06, 10.2, M8 entry amendment; docs/02, section "Shells
   * overview": "the journal store comes from the engine"). Exactly the
   * instances createEngine received, or the defaults it built; no store
-  * contract widens through this accessor.
+  * contract widens through this accessor. With a serialization hook
+  * configured these are the HOOKED wrappers, so every reader passes
+  * the one policy point (docs/03, 12.8; M8-T04).
   */
   readonly stores: {
     journal: JournalStore;
     transcripts: TranscriptStore;
   };
+  /**
+  * Retention (docs/06, 10.2; OQ-20 executed at M8-T04): deletes every
+  * blob transcripts.list(runId) returns, then the journal; no orphan
+  * blobs survive. The caller owns the decision that the run is done.
+  */
+  deleteRun(runId: string): Promise<void>;
+  /**
+  * Checkpoint pruning (docs/03, 12.4 note; OQ-20 executed at M8-T04):
+  * deletes checkpoint blobs of ok-terminal attempts that no other
+  * entry references; returns the count. Parked, cancelled, escalated,
+  * and hanging attempts keep theirs (park/unpark, DEF-5 retention, and
+  * dangling redispatch boot from them).
+  */
+  pruneRun(runId: string): Promise<number>;
 }
 /** Content hash of an in-process workflow body (run-to-definition binding, docs/06 10.2). */
 declare function hashWorkflowBody(wf: Workflow<never, never> | Workflow<unknown, unknown>): string;
@@ -5149,6 +5223,7 @@ declare class InMemoryTranscriptStore implements TranscriptStore {
   put(ref: string, blob: Bytes): Promise<void>;
   get(ref: string): Promise<Bytes | null>;
   list(runId: string): Promise<string[]>;
+  delete(ref: string): Promise<void>;
 }
 //#endregion
 //#region src/stores/jsonl.d.ts
@@ -5182,6 +5257,7 @@ declare class FileTranscriptStore implements TranscriptStore {
   put(ref: string, blob: Bytes): Promise<void>;
   get(ref: string): Promise<Bytes | null>;
   list(runId: string): Promise<string[]>;
+  delete(ref: string): Promise<void>;
 }
 //#endregion
 //#region src/engine/run-profiles.d.ts
@@ -5452,6 +5528,7 @@ declare class EventBus {
   private readonly runId;
   private readonly spans;
   private readonly now;
+  private readonly maskEvents;
   private readonly subscribers;
   private readonly listeners;
   private seq;
@@ -5460,6 +5537,13 @@ declare class EventBus {
     runId: string;
     spans: SpanRegistry;
     now?: () => number;
+    /**
+    * Default true (M8-T04; docs/09, section "Redaction and sensitive
+    * data"): key-shaped strings in every emitted body are masked.
+    * Telemetry only, never the journal: events are excluded from
+    * identity by construction, so masking cannot perturb replay.
+    */
+    maskEvents?: boolean;
   });
   emit(body: WorkflowEventBody, spanId: string, replayed?: boolean): WorkflowEvent;
   on<T extends WorkflowEvent["type"]>(type: T, cb: (event: Extract<WorkflowEvent, {
@@ -5534,4 +5618,4 @@ interface SandboxBridge {
 }
 declare function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptions): SandboxBridge;
 //#endregion
-export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentResultMeta, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, BUDGET_ABORT_REASON, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DebitResult, DedupIndex, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorCandidate, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINISH_SCHEMA, FINISH_TOOL_NAME, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileTranscriptStore, FinishInfo, Gate, GateAudit, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, LurkerError, LurkerErrorCode, MAX_DEPTH_CEILING, MatchResult, McpConfig, MechanicalGateProfile, MechanicalGateVerdict, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateOptions, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskDigest, TaskSpec, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, type TranscriptStore, TriggerClass, Usage, UsageLimits, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WakeBudgetBlock, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, approachSigCoarse, approachSigOf, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeLadder, canonicalizeSchema, checkFloors, checkpointRefFor, childCoveragePrefix, classifyAgentError, classifyAttemptOutcome, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyDigestBlocks, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, evaluateReuse, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, foldTermination, formatRePrompt, formatScopePath, hashWorkflowBody, hashWorkflowSource, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, kMaxOf, ladderLengthOf, ladderRungChoice, lexShellCommand, liftRetainedParts, lineageWeightOf, makeOrchestratorWorkflow, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, priceUsdOf, profileCard, profileRegistrySnapshotHash, projectHistory, projectIdentity, projectToJsonSchema, providerOf, readTerminationInit, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, summarizeOutput, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateSchemaSpec, validateTerminationLimits, workflowScope, workflowSourceRef };
+export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentResultMeta, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, BUDGET_ABORT_REASON, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DebitResult, DedupIndex, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorCandidate, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINISH_SCHEMA, FINISH_TOOL_NAME, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileTranscriptStore, FinishInfo, Gate, GateAudit, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, JournalSerializationHook, type JournalStore, type Json, JsonSchema, JsonlFileStore, KeyDeriver, KeyRing, KeyedLimiter, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, LurkerError, LurkerErrorCode, MASKED_SECRET, MAX_DEPTH_CEILING, MatchResult, McpConfig, MechanicalGateProfile, MechanicalGateVerdict, type ModelCaps, ModelChoice, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateOptions, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, SerializationHook, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, TaskClass, TaskDigest, TaskSpec, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, TranscriptSerializationHook, type TranscriptStore, TriggerClass, Usage, UsageLimits, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WakeBudgetBlock, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyStructuredOutputTier, approachSigCoarse, approachSigOf, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeLadder, canonicalizeSchema, checkFloors, checkpointRefFor, childCoveragePrefix, classifyAgentError, classifyAttemptOutcome, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyDigestBlocks, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, evaluateReuse, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, foldTermination, formatRePrompt, formatScopePath, hashWorkflowBody, hashWorkflowSource, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, kMaxOf, ladderLengthOf, ladderRungChoice, lexShellCommand, liftRetainedParts, lineageWeightOf, makeOrchestratorWorkflow, maskSecrets, maskSecretsDeep, maskSecretsJson, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, priceUsdOf, profileCard, profileRegistrySnapshotHash, projectHistory, projectIdentity, projectToJsonSchema, providerOf, readTerminationInit, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, summarizeOutput, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateSchemaSpec, validateTerminationLimits, workflowScope, workflowSourceRef, wrapJournalStore, wrapTranscriptStore };

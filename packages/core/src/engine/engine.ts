@@ -20,6 +20,11 @@ import type { IsolationProvider } from '../l0/spi/isolation.js';
 import type { ProviderAdapter } from '../l0/spi/provider.js';
 import type { JournalStore, Lease } from '../l0/spi/store.js';
 import type { TranscriptStore } from '../l0/spi/transcript.js';
+import {
+  wrapJournalStore,
+  wrapTranscriptStore,
+  type SerializationHook,
+} from '../l0/serialization.js';
 import { createCanonicalIdMinter } from '../l0/messages.js';
 import { validateSchemaSpec, type SchemaSpec } from '../l0/schema.js';
 import type { ToolsOption } from '../tools/toolset-hash.js';
@@ -160,6 +165,20 @@ export interface CreateEngineOptions {
    * Plumbed now, consumed by the matching kernel from M2.
    */
   extraDerivers?: readonly unknown[];
+  /**
+   * Redact/encrypt at the append/put boundaries, symmetric on load/get
+   * (docs/03, section "Serialization hook"; M8-T04, OQ-22 executed).
+   * Applied by wrapping the configured stores; Engine.stores exposes
+   * the wrapped instances, so every reader passes one policy point.
+   */
+  serialization?: SerializationHook;
+  /**
+   * The default key-masking policy at the telemetry boundary (docs/09,
+   * section "Redaction and sensitive data"; docs/06 Appendix A row
+   * "event secret masking"). Default ON: key-shaped strings in every
+   * emitted WorkflowEvent are masked; never touches the journal.
+   */
+  redaction?: { maskEvents?: boolean };
 }
 
 export interface RunOptions {
@@ -241,9 +260,25 @@ export interface Engine {
    * (docs/06, 10.2, M8 entry amendment; docs/02, section "Shells
    * overview": "the journal store comes from the engine"). Exactly the
    * instances createEngine received, or the defaults it built; no store
-   * contract widens through this accessor.
+   * contract widens through this accessor. With a serialization hook
+   * configured these are the HOOKED wrappers, so every reader passes
+   * the one policy point (docs/03, 12.8; M8-T04).
    */
   readonly stores: { journal: JournalStore; transcripts: TranscriptStore };
+  /**
+   * Retention (docs/06, 10.2; OQ-20 executed at M8-T04): deletes every
+   * blob transcripts.list(runId) returns, then the journal; no orphan
+   * blobs survive. The caller owns the decision that the run is done.
+   */
+  deleteRun(runId: string): Promise<void>;
+  /**
+   * Checkpoint pruning (docs/03, 12.4 note; OQ-20 executed at M8-T04):
+   * deletes checkpoint blobs of ok-terminal attempts that no other
+   * entry references; returns the count. Parked, cancelled, escalated,
+   * and hanging attempts keep theirs (park/unpark, DEF-5 retention, and
+   * dangling redispatch boot from them).
+   */
+  pruneRun(runId: string): Promise<number>;
 }
 
 /** Content hash of an in-process workflow body (run-to-definition binding, docs/06 10.2). */
@@ -265,8 +300,20 @@ export function workflowSourceRef(runId: string): string {
 
 export function createEngine(options: CreateEngineOptions): Engine {
   const adapters = buildAdapterRegistry(options.adapters);
-  const journal = options.stores?.journal ?? new InMemoryStore();
-  const transcripts = options.stores?.transcripts ?? new InMemoryTranscriptStore();
+  const rawJournal = options.stores?.journal ?? new InMemoryStore();
+  const rawTranscripts = options.stores?.transcripts ?? new InMemoryTranscriptStore();
+  // The serialization hook wraps the stores, so stored bytes and every
+  // reader (including Engine.stores consumers) pass ONE policy point
+  // (docs/03, 12.8; M8-T04). Absent hook, the raw instances flow.
+  const journal =
+    options.serialization?.journal === undefined
+      ? rawJournal
+      : wrapJournalStore(rawJournal, options.serialization.journal);
+  const transcripts =
+    options.serialization?.transcripts === undefined
+      ? rawTranscripts
+      : wrapTranscriptStore(rawTranscripts, options.serialization.transcripts);
+  const maskEvents = options.redaction?.maskEvents ?? true;
   const defaults = options.defaults ?? {};
   const runner: ScriptRunner = new InProcessRunner(
     options.onEscalation === undefined ? undefined : { onEscalation: options.onEscalation },
@@ -331,7 +378,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
     const runId = resumeCtx?.runId ?? opts?.runId ?? mintRunId();
     const registry = buildDeriverRegistry(options.extraDerivers);
     const spans = new SpanRegistry();
-    const bus = new EventBus({ runId, spans, now: realNow });
+    const bus = new EventBus({ runId, spans, now: realNow, maskEvents });
     const rootSpanId = spans.mint();
     let budgetSeed: { usd: number; usage: Usage; agentsSpawned: number } | undefined;
     const makeBudget = (): RunBudget =>
@@ -796,10 +843,56 @@ export function createEngine(options: CreateEngineOptions): Engine {
     };
   }
 
+  /** Retention cascade (OQ-20 executed at M8-T04): blobs, then journal. */
+  async function deleteRun(runId: string): Promise<void> {
+    const refs = await transcripts.list(runId);
+    for (const ref of refs) {
+      await transcripts.delete(ref);
+    }
+    await journal.delete(runId);
+  }
+
+  /**
+   * Checkpoint pruning (OQ-20 executed at M8-T04): ok-terminal attempts
+   * replay from the journal and never boot their checkpoint again;
+   * everything else (parked, cancelled, escalated, hanging) keeps its
+   * blob for park/unpark, DEF-5 retention, and dangling redispatch.
+   */
+  async function pruneRun(runId: string): Promise<number> {
+    const entries = (await journal.load(runId)).map((entry) => normalizeEntry(entry));
+    const existing = new Set(await transcripts.list(runId));
+    let pruned = 0;
+    for (const terminal of entries) {
+      if (
+        terminal.kind !== 'agent' ||
+        terminal.status !== 'ok' ||
+        terminal.ref === undefined ||
+        terminal.checkpointRef === undefined ||
+        !existing.has(terminal.checkpointRef)
+      ) {
+        continue;
+      }
+      const ref = terminal.checkpointRef;
+      // Conservative reference scan: ANY other entry mentioning the ref
+      // (park anchors, boot reuse, links) keeps the blob.
+      const referencedElsewhere = entries.some(
+        (entry) => entry.seq !== terminal.seq && JSON.stringify(entry).includes(ref),
+      );
+      if (referencedElsewhere) {
+        continue;
+      }
+      await transcripts.delete(ref);
+      pruned += 1;
+    }
+    return pruned;
+  }
+
   return {
     run,
     resume,
     stores: { journal, transcripts },
+    deleteRun,
+    pruneRun,
     profileCard: (names) => {
       const registered = defaults.profiles ?? {};
       if (names === undefined) {

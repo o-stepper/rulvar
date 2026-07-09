@@ -94,4 +94,10 @@ export class InMemoryTranscriptStore implements TranscriptStore {
     const prefix = `${runId}/`;
     return Promise.resolve([...this.blobs.keys()].filter((ref) => ref.startsWith(prefix)));
   }
+
+  delete(ref: string): Promise<void> {
+    // A missing ref is a no-op, never an error (docs/03, 12.4).
+    this.blobs.delete(ref);
+    return Promise.resolve();
+  }
 }

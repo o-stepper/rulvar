@@ -82,6 +82,13 @@ export interface CreateWorkerOptions {
   extraDerivers?: KeyDeriver[];
   /** Observability hook for per-run failures; never throws into the loop. */
   onError?: (runId: string, error: unknown) => void;
+  /**
+   * Opt-in retention (docs/02, 8.3; OQ-20 executed at M8-T04): evaluated
+   * during sweeps over SETTLED runs (terminal meta); a true verdict
+   * applies engine.deleteRun under a briefly held lease. Absent means
+   * everything persists indefinitely.
+   */
+  retention?: (meta: RunMeta) => boolean;
 }
 
 export interface Worker {
@@ -229,6 +236,31 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
     await settled;
   }
 
+  /** Opt-in retention over settled runs (docs/02, 8.3; M8-T04). */
+  async function applyRetention(meta: RunMeta): Promise<void> {
+    if (options.retention?.(meta) !== true) {
+      return;
+    }
+    let lease: Lease;
+    try {
+      // The brief lease excludes a concurrent worker mid-decision; the
+      // deletion removes the lease row with the run.
+      lease = await store.acquire(meta.runId, owner);
+    } catch (thrown) {
+      if (thrown instanceof LeaseHeldError) {
+        return;
+      }
+      throw thrown;
+    }
+    try {
+      await engine.deleteRun(meta.runId);
+      suspendedAt.delete(meta.runId);
+      poisoned.delete(meta.runId);
+    } finally {
+      await releaseQuietly(lease);
+    }
+  }
+
   async function sweep(): Promise<number> {
     if (stopping) {
       return 0;
@@ -240,6 +272,12 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
         break;
       }
       if (!CANDIDATE_STATUSES.has(meta.status)) {
+        // Terminal meta: never resumed, only retention applies here.
+        if (options.retention !== undefined && !active.has(meta.runId)) {
+          await applyRetention(meta).catch((thrown: unknown) => {
+            reportError(meta.runId, thrown);
+          });
+        }
         continue;
       }
       if (active.has(meta.runId) || poisoned.has(meta.runId)) {
