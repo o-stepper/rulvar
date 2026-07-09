@@ -682,19 +682,40 @@ Normative rules:
 ```ts
 interface Engine {
   run<A, R>(wf: Workflow<A, R> | CompiledWorkflow, args: A, o?: RunOptions): RunHandle<R>;
-  resume(runId: string, wf?: Workflow<any, any> | CompiledWorkflow): RunHandle<unknown>;
+  resume(runId: string, wf?: Workflow<any, any> | CompiledWorkflow,
+         o?: ResumeOptions): RunHandle<unknown>;
   profileCard(names?: string[]): string;  // the shared vocabulary card of the registered
                                           // agent profiles (section 9.3), optionally
                                           // filtered; the registry itself stays private.
                                           // (Amended during M6-T05: plan() renders the
                                           // profile cards through the public API.)
+  readonly stores: {                      // the engine's configured stores, exposed for
+    journal: JournalStore;                // shells and hosts (docs/02, section "Shells
+    transcripts: TranscriptStore;         // overview": "the journal store comes from the
+  };                                      // engine"). (Amended during M8 entry, see below.)
+}
+
+interface ResumeOptions {
+  args?: unknown;        // the run's original arguments: not journaled for in-process
+                         // workflows in v1, the host re-supplies them (docs/14, OQ-21)
+  dryRun?: boolean;      // replay-strict preview (docs/03, section 11.3)
+  invalidate?: number[]; // invalidate/retry: entries to unpin (docs/03, section 6.5)
+  lease?: Lease;         // queue mode: the worker's lease; the engine carries it on every
+                         // journal append of this resume (docs/03, section "LeasableStore").
+                         // (Amended during M8 entry, see below.)
 }
 ```
+
+M8 entry amendments (the shells are a permanent seam-sufficiency test: 02-architecture.md, section "Shells overview"; building createServer/createWorker strictly from the public surface per FR-700 exposed three missing seams, committed here):
+
+- `Engine.stores` exposes exactly the instances `createEngine` received (or defaulted): the HTTP server reads run status, journals, and cost for runs that are not live in its process ("the journal store comes from the engine", so the server takes no store parameter of its own), and the queue worker verifies it leases the same journal the engine writes. The accessor widens no store contract and adds no store method.
+- Bare resume resolves through the workflow registry: `engine.resume(runId)` with no `wf` first tries the persisted CompiledWorkflow source (the M6-T02 contract below), then resolves the in-process workflow by the RunMeta-recorded `workflowName` from the engine's `defaults.workflows` registry (section 10.4: the queue worker resolves workflows "through the engine's defaults.workflows registry ..., never through a parameter of its own"); an unrecorded or unregistered name stays a typed `ConfigError`. A supplied `wf` keeps the existing checks unchanged.
+- `ResumeOptions.lease`: when present, the engine passes the lease on every journal append of the resumed run (the kernel has a single append site), so a stale worker's writes are rejected by the fencing epoch and never become visible (docs/03, section "LeasableStore"; DEF-6; FR-703). Nothing else consumes the lease: `putMeta` and transcript blobs stay advisory and unfenced.
 
 The binding contract (residuals tracked in 14-open-questions.md, resume binding residuals):
 
 - CompiledWorkflow: at `engine.run` the engine MUST persist the compiled source and its content hash (source blob in TranscriptStore at `workflowSourceRef`; `workflowSourceRef` and `workflowHash` recorded in RunMeta, 03-journal-spec.md, section "RunMeta"). `engine.resume(runId)` with no `wf` MUST reload the stored source and rehydrate the CompiledWorkflow from it, verifying byte identity against the recorded `workflowHash`; the compileScript dialect validation is NOT re-run at resume because the hash proves the source is exactly the one validated at run start (the sandbox boundary enforces the hard rules at runtime regardless). Planned runs (mode b) are therefore resumable by construction; cross-process resume requires a durable TranscriptStore (FileTranscriptStore; 03-journal-spec.md, section "Shipped stores"). Supplying a `wf` whose source hash differs from the recorded one is a typed `ConfigError`. Compiled workflows execute on the engine-registered `runners.sandbox` (section 10.1); its absence is a typed `ConfigError` before any journal entry. Delivery note: `CompiledWorkflow` values first exist at M6 (compileScript ships in @lurker/planner; 10-implementation-plan.md), and this persistence contract binds from that first release, so a planner-generated run without persisted source never exists. (Amended during M6-T02: "recompile" committed as hash-pinned rehydration; runner selection and the durable-transcripts requirement made explicit.)
-- In-process Workflow: `engine.run` records the registered workflow name and a content hash of the body in RunMeta (`workflowName`/`workflowHash`). `engine.resume(runId, wf)` REQUIRES `wf`; a name mismatch is a typed `ConfigError`; a content-hash mismatch produces a LOUD warning and proceeds, because the journal itself decides replay versus live per content keys.
+- In-process Workflow: `engine.run` records the registered workflow name and a content hash of the body in RunMeta (`workflowName`/`workflowHash`). `engine.resume(runId, wf)` with an explicit `wf` checks binding: a name mismatch is a typed `ConfigError`; a content-hash mismatch produces a LOUD warning and proceeds, because the journal itself decides replay versus live per content keys. `engine.resume(runId)` with no `wf` resolves the workflow by the recorded `workflowName` from `defaults.workflows` (M8 entry amendment above); a run with no recorded name, or a name absent from the registry, is a typed `ConfigError` naming the registration remedy.
 
 ### 10.3 RunOptions, RunHandle, RunOutcome, RunStatus
 

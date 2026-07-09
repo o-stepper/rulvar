@@ -1101,6 +1101,7 @@ interface LeasableStore extends JournalStore {
 - Leases carry a store-configured TTL; the holder MUST renew at an interval no greater than ttl/3.
 - Fencing: a store with leases MUST reject an append carrying a stale epoch, and the rejected entry MUST never appear in load. Split-brain in queue mode is excluded by construction. The fencing epoch is the ONLY cross-process protection; the first-wins fold (section 8.4) is the last line of determinism beneath it.
 - The hashVersion compatibility check MUST be repeated at acquire (section 4.5): a worker with an older library cannot write into a journal with newer entries.
+- Binding the lease to engine appends (M8 entry amendment; DEF-6, FR-703): the queue worker passes its lease via `ResumeOptions.lease` (06-execution-spec.md, section "Engine and ops API") and the engine carries it on EVERY journal append of that resume through the kernel's single append site, so fencing rejects a stale worker's writes rather than trusting it to stop. An append carrying no lease is not fenced: it asserts the single-writer precondition instead (the embedded default), which is exactly the honest contract of offline resolution "under a lease where the store is leasable" (section 8): the offline writer holds the lease for the duration of its append even though the entry composition is unchanged.
 
 ### 12.4 TranscriptStore
 
