@@ -76,6 +76,7 @@ export function createTestEngine(options: CreateTestEngineOptions): TestEngine {
   return {
     fake,
     store,
+    stores: engine.stores,
     resume: (runId, wf, options) => engine.resume(runId, wf, options),
     profileCard: (names) => engine.profileCard(names),
     run<A, R>(wf: Workflow<A, R>, args: A, opts?: RunOptions): TestRunHandle<R> {
