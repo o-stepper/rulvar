@@ -1,4 +1,4 @@
-import { EntryRef, HashVersion, KeyDeriver, LogicalTaskId, NodeId } from "@lurker/core";
+import { AdmissionDecision, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, KeyDeriver, LogicalTaskId, NodeId, SpawnLineageOpt, UsageLimits } from "@lurker/core";
 
 //#region src/plan-state.d.ts
 /**
@@ -143,4 +143,327 @@ declare class PlanWriteLock {
   runExclusive<T>(fn: () => Promise<T> | T): Promise<T>;
 }
 //#endregion
-export { PLAN_HASH_VERSION, PLAN_SCOPE, PlanNode, PlanNodeStatus, PlanWriteLock, TaskPlan, assertPlanHead, assertPlanTransition, canonicalPlanState, depsSatisfied, emptyPlan, isTerminalPlanStatus, planHash, recomputePlanReadiness, wouldCreateDepCycle };
+//#region src/task-spec.d.ts
+interface TaskSpec {
+  /** Registered agent profile name; models are never named here. */
+  agentType: string;
+  prompt: string;
+  /** Registered SchemaSpec name (docs/08); registry lands in M7-T05. */
+  outputSchemaRef?: string;
+  /** Registered tool profile name (docs/08); registry lands in M7-T05. */
+  toolsetRef?: string;
+  isolation?: IsolationSpec;
+  usageLimits?: Partial<UsageLimits>;
+  /** Clamped by childBudgetFraction at admission. */
+  budgetUsd?: number;
+  /** The ONLY model influence the orchestrator has (docs/07, 4.1). */
+  model_hint?: {
+    startTier: number;
+  };
+  /** Slug entering approachSig, at most 32 chars after normalization. */
+  approach?: string;
+  /** Absence means a new lineage root (docs/07, 8.1). */
+  lineage?: SpawnLineageOpt;
+  /** Default 'unclassified' (taskClass binding OQ, docs/14). */
+  taskClass?: string;
+  /** Absence means the child cannot escalate (docs/07, 6.4). */
+  escalation?: EscalationOptions;
+}
+/** The amend_task patch form: every field optional (docs/07, 4.7). */
+type TaskSpecPatch = Partial<TaskSpec>;
+/**
+* The deterministic spec digest entering PlanNode.promptSpecHash
+* (docs/07, 3.1): the canonical JSON of the full TaskSpec through the
+* frozen hashVersion 2 canonicalization. A plan-internal digest, not a
+* kernel content key: the paid-call identity stays with the child's own
+* spawn entry.
+*/
+declare function promptSpecHashOf(spec: TaskSpec): string;
+/** Applies an amend_task patch onto a spec (undefined fields untouched). */
+declare function applyTaskSpecPatch(spec: TaskSpec, patch: TaskSpecPatch): TaskSpec;
+//#endregion
+//#region src/plan-entries.d.ts
+/** The orchestrator-facing PlanOp union (docs/07, 4.7). */
+type PlanOp = {
+  op: "add_task";
+  spec: TaskSpec;
+  deps?: NodeId[];
+  priority?: number;
+  lineage?: SpawnLineageOpt;
+  approach?: string; /** Forbids reuse-by-reference for this addition (DEF-5). */
+  fresh?: boolean;
+} | {
+  op: "amend_task";
+  nodeId: NodeId;
+  spec: TaskSpecPatch;
+} | {
+  op: "park_task";
+  nodeId: NodeId;
+} | {
+  op: "unpark_task";
+  nodeId: NodeId;
+} | {
+  op: "cancel_task";
+  nodeId: NodeId;
+  reason?: string;
+} | {
+  op: "reprioritize";
+  nodeId: NodeId;
+  priority: number;
+} | {
+  op: "rewire_deps";
+  nodeId: NodeId;
+  deps: NodeId[];
+} | {
+  op: "waive_dep";
+  nodeId: NodeId;
+  dep: NodeId;
+};
+/**
+* Applied forms the fold consumes. cancel_task gains the engine-computed
+* cascade (docs/07, 3.6: computed at apply time, never a parameter);
+* park/cancel against running nodes apply as flag requests landing later
+* via plan.decision (park-landed, cancel-landed).
+*/
+type AppliedPlanOp = (Extract<PlanOp, {
+  op: "add_task";
+}> & {
+  nodeId: NodeId;
+}) | Extract<PlanOp, {
+  op: "amend_task";
+}> | {
+  op: "park_task";
+  nodeId: NodeId;
+  requestOnly?: boolean;
+} | {
+  op: "unpark_task";
+  nodeId: NodeId;
+  restart?: boolean;
+} | {
+  op: "cancel_task";
+  nodeId: NodeId;
+  reason?: string;
+  requestOnly?: boolean;
+  cascadeNodeIds?: NodeId[];
+} | Extract<PlanOp, {
+  op: "reprioritize";
+}> | {
+  op: "rewire_deps";
+  nodeId: NodeId;
+  deps: NodeId[];
+} | Extract<PlanOp, {
+  op: "waive_dep";
+}>;
+/** The complete machine reason vocabulary, normative and closed (docs/07, 3.5). */
+type RebaseReasonCode = "admission_denied" | "node_already_done" | "dep_already_resolved" | "node_escalated" | "node_running" | "terminal_status" | "dep_cycle" | "already_parked" | "not_parked" | "no_such_dep" | "already_waived" | "bad_base" | "lineage_exhausted" | "lineage_busy" | "plan_frozen" | "checkpoint_discarded" | "reuse_by_reference" | "resolved_escalation" | "immediate_satisfaction";
+type RebaseOutcome = {
+  kind: "applied";
+  op: AppliedPlanOp;
+} | {
+  kind: "transformed";
+  requested: PlanOp;
+  applied: AppliedPlanOp;
+  reason: RebaseReasonCode;
+} | {
+  kind: "dropped";
+  requested: PlanOp;
+  reason: RebaseReasonCode;
+  blockingRef?: EntryRef;
+};
+interface PlanSnapshotRef {
+  /** Ordinal of the WakeDigest that plan_view is pinned to. */
+  digestSeq: number;
+  /** Plan hash recorded in that WakeDigest. */
+  planHash: string;
+}
+interface PlanReviseRequest {
+  /** Mandatory; the call is rejected without it (docs/07, 3.5). */
+  base: PlanSnapshotRef;
+  ops: PlanOp[];
+  rationale: string;
+}
+/** The canonical result form (XF-11): DEF-8 shape plus the DEF-2 balance. */
+interface PlanReviseResult {
+  outcomes: RebaseOutcome[];
+  assignedNodeIds: Record<number, NodeId>;
+  planHashAfter: string;
+  droppedAll: boolean;
+  revisionUnitsRemaining: number;
+}
+type PlanReviseErrorCode = "revision_budget_exhausted" | RebaseReasonCode;
+/** One embedded admission beside its op (docs/07, 3.3; DEF-2/DEF-3 folds read it). */
+interface PlanRevisionAdmission {
+  opIndex: number;
+  nodeId?: NodeId;
+  decision: AdmissionDecision;
+}
+/** The value payload of a plan.revision entry (docs/07, 3.3; XF-11). */
+interface PlanRevisionValue {
+  base: PlanSnapshotRef;
+  requestedOps: PlanOp[];
+  /** Same length and order as requestedOps. */
+  outcomes: RebaseOutcome[];
+  assignedNodeIds: Record<number, NodeId>;
+  admissions: PlanRevisionAdmission[];
+  planHashBefore: string;
+  planHashAfter: string;
+  hashVersion: HashVersion;
+  /** Cosmetic: never enters the content key. */
+  rationale: string;
+  /** DEF-2 extensions. */
+  revisionUnitsAfter?: number;
+  debits?: Array<{
+    resource: string;
+    logicalTaskId?: LogicalTaskId;
+    balanceAfter: number;
+  }>;
+}
+/** Engine authorship origins of plan.decision entries (docs/07, 3.3). */
+type PlanDecisionOrigin = "escalation-default" | "escalation-class" | "escalation-live" | "no-progress" | "child-result" | "park-landed" | "cancel-landed";
+/** The closed EnginePlanOp set (docs/07, 3.3). */
+type EnginePlanOp = {
+  kind: "set_node_status";
+  nodeId: NodeId;
+  from: PlanNodeStatus;
+  to: PlanNodeStatus;
+  cause: "child-result" | "no-progress" | "park-landed" | "cancel-landed";
+  causeRef: EntryRef;
+} | {
+  kind: "resolve_escalation";
+  nodeId: NodeId;
+  decision: EscalationDecision;
+  resolvedBy: "default" | "class" | "live" | "revision-transform";
+  escalationRef: EntryRef;
+} | {
+  kind: "spawn_admitted";
+  nodes: Array<{
+    nodeId: NodeId;
+    logicalTaskId: LogicalTaskId;
+    spec: TaskSpec;
+  }>;
+  admission: AdmissionDecision;
+};
+/** The value payload of a plan.decision entry (docs/07, 3.3). */
+interface PlanDecisionValue {
+  origin: PlanDecisionOrigin;
+  ops: EnginePlanOp[];
+  causeRef: EntryRef;
+  planHashBefore: string;
+  planHashAfter: string;
+  hashVersion: HashVersion;
+}
+/**
+* Content keys (docs/07, 3.3): plan.revision keys over {kind, base,
+* requestedOps}; plan.decision over {kind, origin, ops, causeRef}.
+* Cosmetics (rationale) never enter a key; ordinal within scope "plan"
+* distinguishes repeats, so forward-matching works without kernel
+* changes.
+*/
+declare function planRevisionKey(base: PlanSnapshotRef, requestedOps: readonly PlanOp[]): string;
+declare function planDecisionKey(origin: PlanDecisionOrigin, ops: readonly EnginePlanOp[], causeRef: EntryRef): string;
+/**
+* The working state the applier threads: the hashed TaskPlan plus the
+* resolved spec table. Specs stay OUT of planHash by construction (the
+* hashed projection is promptSpecHash per node, docs/07 3.1) but are
+* themselves a pure fold of add_task specs, amend patches, and
+* decomposition specs, so live and replay converge byte-identically.
+*/
+interface PlanWorking {
+  plan: TaskPlan;
+  specs: Readonly<Record<NodeId, TaskSpec>>;
+}
+/**
+* The plan fold state: the working state plus fold-side records that
+* deliberately stay OUT of planHash. `badBaseStreak` reconciles two
+* normative clauses: a bad_base revision leaves the hashed state
+* byte-identical (docs/07, 3.5 step 2: planHashAfter == planHashBefore)
+* yet still lengthens the guard streak (docs/07, 3.6 last row): the
+* guards therefore consume `effectiveDroppedStreak`, the hashed counter
+* plus the trailing bad_base entries. `doneRefs` remembers which entry
+* resolved each done node so waive_dep drops can point blockingRef at
+* it.
+*/
+interface PlanFoldState extends PlanWorking {
+  badBaseStreak: number;
+  doneRefs: Record<NodeId, EntryRef>;
+}
+declare function emptyPlanFold(plan: TaskPlan): PlanFoldState;
+/** The streak RevisionGuards consume (docs/07, 3.8). */
+declare function effectiveDroppedStreak(state: PlanFoldState): number;
+/**
+* Applies ONE applied op to the working state. The applier consumes
+* recorded outcomes; op-level legality was decided at rebase time and is
+* never re-evaluated here. Exported for the rebase engine, which applies
+* each op of a revision against the state already changed by the earlier
+* applied ops of the same revision (docs/07, 3.5, step 3).
+*/
+declare function applyAppliedOp(working: PlanWorking, op: AppliedPlanOp, context: {
+  seq: number;
+  opIndex?: number;
+  lineageOf?: (opIndex: number) => LogicalTaskId | undefined;
+}): PlanWorking;
+/** Reads a plan.revision entry's payload (tolerant of foreign journals). */
+declare function readPlanRevision(entry: JournalEntry): PlanRevisionValue | undefined;
+/** Reads a plan.decision entry's payload. */
+declare function readPlanDecision(entry: JournalEntry): PlanDecisionValue | undefined;
+/**
+* THE single applier (docs/07, 3.2): folds one plan-scope entry into the
+* state. Replay consumes recorded outcomes (the APPLIED diff), never
+* re-runs rebase, and timers do not run; hash verification runs under
+* the entry's own hashVersion profile.
+*/
+declare function applyPlanEntry(state: PlanFoldState, entry: JournalEntry, options?: {
+  deriverFor?: (hashVersion: HashVersion) => KeyDeriver | undefined;
+}): PlanFoldState;
+//#endregion
+//#region src/rebase.d.ts
+/** The reuse-by-reference transform hook (DEF-5; producer lands in M7-T07). */
+interface ReuseTransform {
+  applied: AppliedPlanOp;
+  admission: AdmissionDecision;
+  nodeId: NodeId;
+}
+interface RebaseContext {
+  /** The fold head (docs/07, 3.5 step 3). */
+  state: PlanFoldState;
+  /** The plan hash recorded in the WakeDigest the base references. */
+  digestPlanHashFor: (digestSeq: number) => string | undefined;
+  /** Engine NodeId minting (ULIDs; never the model). */
+  mintNodeId: () => NodeId;
+  /** The plan is frozen for adaptation by orchestrator_budget_cap (DEF-7). */
+  frozen?: boolean;
+  /** Embedded admission for add_task (docs/07, 3.6); absent admits nothing. */
+  admitAdd?: (op: Extract<PlanOp, {
+    op: "add_task";
+  }>, nodeId: NodeId, opIndex: number) => AdmissionDecision;
+  /** Embedded admission reserve for unpark_task (docs/07, 3.6). */
+  admitUnpark?: (op: Extract<PlanOp, {
+    op: "unpark_task";
+  }>, node: PlanNode, opIndex: number) => AdmissionDecision;
+  /** Lineage-at-head check for add_task lineage blocks (DEF-3). */
+  lineageCheck?: (continues: LogicalTaskId) => "ok" | "lineage_busy" | "lineage_exhausted";
+  /** Reuse-by-reference dedup at the fold head (DEF-5; M7-T07). */
+  dedup?: (op: Extract<PlanOp, {
+    op: "add_task";
+  }>, opIndex: number) => ReuseTransform | undefined;
+}
+interface RebaseEvaluation {
+  outcomes: RebaseOutcome[];
+  assignedNodeIds: Record<number, NodeId>;
+  admissions: PlanRevisionAdmission[];
+  planHashBefore: string;
+  planHashAfter: string;
+  droppedAll: boolean;
+  badBase: boolean;
+  /** The post-revision working state (counters updated, readiness recomputed). */
+  working: PlanWorking;
+}
+/**
+* Steps 2-4 of the committed algorithm (docs/07, 3.5): base validation,
+* sequential per-op conflict resolution against the mutating head, and
+* the post-revision counter update. Pure: the caller owns the lock, the
+* append, and every effect.
+*/
+declare function rebasePlanRevision(request: PlanReviseRequest, context: RebaseContext): RebaseEvaluation;
+//#endregion
+export { AppliedPlanOp, EnginePlanOp, PLAN_HASH_VERSION, PLAN_SCOPE, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanSnapshotRef, PlanWorking, PlanWriteLock, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, TaskPlan, TaskSpec, TaskSpecPatch, applyAppliedOp, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, canonicalPlanState, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, isTerminalPlanStatus, planDecisionKey, planHash, planRevisionKey, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, wouldCreateDepCycle };
