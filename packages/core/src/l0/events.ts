@@ -12,6 +12,7 @@
 import type { Json } from './json.js';
 import type { Usage } from './messages.js';
 import type { WireError } from './errors.js';
+import type { ResolutionBy } from './entries.js';
 
 /** docs/09 section 1.4, run lifecycle and core telemetry (M1 subset). */
 export type CoreEvents =
@@ -78,7 +79,108 @@ export type ToolEvents =
       advisory?: Json;
     };
 
-export type WorkflowEventBody = CoreEvents | AgentEvents | ToolEvents;
+/**
+ * docs/09 section 1.4, adaptive orchestration, resolutions, and
+ * accounting: emitted only by runs where the corresponding machinery is
+ * active (applicability per mode: docs/07, section 1). The types land as
+ * one closed catalog with M7-T03; emitters arrive with their tasks.
+ */
+export type AdaptiveEvents =
+  | {
+      type: 'plan:revised';
+      entryRef: number;
+      planHash: string;
+      applied: number;
+      dropped: number;
+      revisionUnitsRemaining: number;
+    }
+  | { type: 'node:parked'; nodeId: string; logicalTaskId: string }
+  | { type: 'node:cancelled'; nodeId: string; logicalTaskId: string }
+  | {
+      type: 'node:linked';
+      nodeId: string;
+      logicalTaskId: string;
+      donorRef: number;
+      reclaimedUsd: number;
+    }
+  | {
+      type: 'orchestrator:woke';
+      digestSeq: number;
+      planHash: string;
+      coversToOrdinal: number;
+      renderSize: number;
+    }
+  | {
+      type: 'orchestrator:budget';
+      entryRef: number;
+      spentUsd: number;
+      effectiveCapUsd: number;
+      reserveUsedUsd: number;
+      frozen: boolean;
+    }
+  | {
+      type: 'escalation:raised';
+      entryRef: number;
+      kind: 'scope_bigger' | 'scope_different' | 'blocked_with_evidence';
+      logicalTaskId: string;
+      costToDateUsd: number;
+    }
+  | {
+      type: 'escalation:decided';
+      entryRef: number;
+      decision: 'retry' | 'decompose' | 'cancel' | 'accept';
+      by: ResolutionBy;
+      countsAgainstLimit: boolean;
+    }
+  | {
+      type: 'spawn:admitted';
+      entryRef: number;
+      /** The admitting arms of the unified AdmitVerdict union (docs/07, 7.2). */
+      verdict: 'admit' | 'reuse_full' | 'admit_graft';
+      agentType: string;
+      logicalTaskId: string;
+      spawnUnitsAfter: number;
+    }
+  | {
+      type: 'spawn:rejected';
+      entryRef: number;
+      code: string;
+      agentType: string;
+      logicalTaskId?: string;
+    }
+  | {
+      type: 'verify:failed';
+      entryRef: number;
+      logicalTaskId: string;
+      rung: number;
+      gate: 'mechanical' | 'judge' | 'spot-check';
+    }
+  | {
+      type: 'ledger:op';
+      entryRef: number;
+      op: 'brief_set' | 'fact_add' | 'fact_supersede' | 'lesson_add' | 'observation_add';
+    }
+  | { type: 'stall:detected'; logicalTaskId: string; stallStreak: number }
+  | { type: 'guard:oscillation'; spawnKeyHash: string; oscillationCount: number; limit: number }
+  | { type: 'resolution:applied'; targetRef: number; entryRef: number; by: ResolutionBy }
+  | {
+      type: 'resolution:superseded';
+      targetRef: number;
+      entryRef: number;
+      supersededBy: number;
+      reason: 'already_resolved' | 'target_abandoned';
+    }
+  | { type: 'termination:debit'; entryRef: number; counter: string; remaining: number; phi: number }
+  | { type: 'termination:denied'; entryRef: number; counter: string; code: string }
+  | { type: 'termination:config-drift'; field: string; frozenValue: Json; liveValue: Json }
+  | {
+      type: 'journal:compat';
+      code: 'HASH_VERSION_TOO_OLD' | 'HASH_VERSION_TOO_NEW';
+      found: number;
+      window: [number, number];
+    };
+
+export type WorkflowEventBody = CoreEvents | AgentEvents | ToolEvents | AdaptiveEvents;
 
 /**
  * The envelope (docs/09 section 1.1): seq is an independent per-run
