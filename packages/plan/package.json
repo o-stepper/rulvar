@@ -34,6 +34,7 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "tsdown": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "@lurker/store-sqlite": "workspace:*"
   }
 }

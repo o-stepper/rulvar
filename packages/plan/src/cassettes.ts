@@ -17,6 +17,8 @@ import type {
   ChatRequest,
   Engine,
   JournalEntry,
+  JournalStore,
+  LeasableStore,
   ModelCaps,
   ProviderAdapter,
   RunHandle,
@@ -150,7 +152,7 @@ export const EMPTY_PLAN_HASH: string = planHash(emptyPlan());
 
 function engineWith(
   adapter: ProviderAdapter,
-  store: InMemoryStore,
+  store: JournalStore,
   profiles: Record<string, unknown>,
 ): Engine {
   return createEngine({
@@ -887,4 +889,123 @@ export async function runDecomposeMintsChildren(): Promise<JournalEntry[]> {
   const handle = orchestratePlanned(engine, 'decompose', { budget: BUDGET });
   await settled(handle);
   return normalizeAdaptiveJournal(await store.load(handle.runId));
+}
+
+/**
+ * queue-failover-during-forced-finish (the DEF-7 final cassette;
+ * docs/09, section 6.9; M8-T03): worker A loses its lease strictly
+ * between the cap decision and the final wake; worker B reclaims with a
+ * bumped fencing epoch and rolls the forced finish forward. The stale
+ * writer's appends are rejected and invisible, exactly one cap decision
+ * exists, and finalization is paid once.
+ *
+ * The LeasableStore is INJECTED so this package stays core-only: the
+ * replay test and the record script supply the reference SqliteStore
+ * (docs/03, 12.6). One deterministic clock drives lease expiry.
+ */
+export interface QueueFailoverDeps {
+  /** A fresh LeasableStore over the injected clock (SqliteStore ':memory:' in the suite). */
+  makeStore: (now: () => number) => JournalStore & LeasableStore;
+}
+
+export async function runQueueFailoverDuringForcedFinish(
+  deps: QueueFailoverDeps,
+): Promise<JournalEntry[]> {
+  // Phase 0: the full scenario on a scratch store yields the byte
+  // prefix up to the cap decision. A lost lease and a dead process
+  // leave the same journal, so the M7 crash-simulation technique
+  // (clone the prefix) reproduces "stalled between the cap decision
+  // and the final wake" exactly.
+  const finishTurn = (): CassetteTurn => ({
+    toolCall: { name: 'finish', args: { result: 'after failover' } },
+  });
+  const scratch = new InMemoryStore();
+  const scratchEngine = engineWith(cassetteAdapter(capScript(finishTurn)), scratch, {
+    worker: { description: 'w' },
+  });
+  const handle = orchestratePlanned(scratchEngine, 'queue failover', { budget: TINY_CAP });
+  await settled(handle);
+  const full = await scratch.load(handle.runId);
+  const capSeq = full.find(
+    (entry) =>
+      (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+      'orchestrator_budget_cap',
+  )?.seq;
+  if (capSeq === undefined) {
+    throw new Error('queue-failover: the cap decision is missing');
+  }
+
+  // The shared leasable store both workers see, on one deterministic
+  // clock; the run's meta says 'running': a crashed primary.
+  let nowMs = 1_000_000;
+  const store = deps.makeStore(() => nowMs);
+  for (const meta of await scratch.listRuns()) {
+    if (meta.runId === handle.runId) {
+      await store.putMeta({ ...meta, status: 'running' });
+    }
+  }
+  for (const entry of full) {
+    if (entry.seq <= capSeq) {
+      await store.append(handle.runId, entry);
+    }
+  }
+  const before = (await store.load(handle.runId)).length;
+
+  // Worker A held the lease when it stalled; the ttl expires unrenewed
+  // and worker B reclaims with a bumped epoch (docs/03, 12.3).
+  const leaseA = await store.acquire(handle.runId, 'worker-a');
+  nowMs += 61_000;
+  const leaseB = await store.acquire(handle.runId, 'worker-b');
+  if (leaseB.epoch <= leaseA.epoch) {
+    throw new Error('queue-failover: the reclaim did not bump the fencing epoch');
+  }
+
+  const failoverWorkflow = (): ReturnType<typeof makeOrchestratorWorkflow> =>
+    makeOrchestratorWorkflow('queue failover', { budget: TINY_CAP, extension: planRunner({}) });
+
+  // The stale writer resumes anyway (a paused process never notices):
+  // replay reaches the cap decision, the forced finish dispatches LIVE,
+  // and its first append is rejected by the fencing epoch. Rejected and
+  // invisible: the run dies loudly, the journal does not move.
+  const staleEngine = engineWith(cassetteAdapter(capScript(finishTurn)), store, {
+    worker: { description: 'w' },
+  });
+  const stale = staleEngine.resume(handle.runId, failoverWorkflow(), { lease: leaseA });
+  const staleOutcome = await stale.result;
+  if (staleOutcome.status === 'ok') {
+    throw new Error('queue-failover: the stale writer was not fenced');
+  }
+  if ((await store.load(handle.runId)).length !== before) {
+    throw new Error('queue-failover: stale appends became visible');
+  }
+
+  // Worker B rolls the forced finish forward under its live lease.
+  const freshEngine = engineWith(cassetteAdapter(capScript(finishTurn)), store, {
+    worker: { description: 'w' },
+  });
+  const resumed = freshEngine.resume(handle.runId, failoverWorkflow(), { lease: leaseB });
+  const outcome = await resumed.result;
+  if (outcome.status !== 'ok') {
+    throw new Error(`queue-failover: worker B ended '${outcome.status}'`);
+  }
+  await store.release(leaseB);
+
+  const entries = await store.load(handle.runId);
+  const caps = entries.filter(
+    (entry) =>
+      (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+      'orchestrator_budget_cap',
+  );
+  if (caps.length !== 1) {
+    throw new Error(`queue-failover: expected exactly one cap decision, got ${caps.length}`);
+  }
+  // Finalization paid once: the only agent entries past the cap
+  // decision are the single finalize two-phase pair.
+  const finalizeEntries = entries.filter((entry) => entry.kind === 'agent' && entry.seq > capSeq);
+  if (finalizeEntries.length !== 2) {
+    throw new Error(
+      `queue-failover: expected one finalize pair after the cap, got ${finalizeEntries.length}`,
+    );
+  }
+  return normalizeAdaptiveJournal(entries);
 }
