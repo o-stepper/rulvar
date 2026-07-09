@@ -23,6 +23,7 @@ import type {
   ProviderAdapter,
   RunHandle,
   Usage,
+  WireError,
 } from '@lurker/core';
 
 import { planHash } from './plan-hash.js';
@@ -86,6 +87,8 @@ export interface CassetteTurn {
   hangUntilAborted?: boolean;
   /** Await this promise before emitting (cross-agent sequencing). */
   awaitPromise?: Promise<void>;
+  /** The stream terminates with this typed wire error (M9 DEF-2/3 rows). */
+  wireError?: WireError;
 }
 
 const CASSETTE_CAPS: ModelCaps = {
@@ -130,6 +133,10 @@ export function cassetteAdapter(
         });
         return;
       }
+      if (turn.wireError !== undefined) {
+        yield { type: 'error', error: turn.wireError };
+        return;
+      }
       if (turn.text !== undefined) {
         yield { type: 'text-delta', text: turn.text };
       }
@@ -150,24 +157,36 @@ export function agentTypeOfRequest(req: ChatRequest): string {
 
 export const EMPTY_PLAN_HASH: string = planHash(emptyPlan());
 
-function engineWith(
+export function engineWith(
   adapter: ProviderAdapter,
   store: JournalStore,
   profiles: Record<string, unknown>,
+  extras?: { schemas?: Record<string, unknown>; lineage?: Record<string, number> },
 ): Engine {
   return createEngine({
     adapters: [adapter],
     stores: { journal: store },
     defaults: {
-      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      // The full role map minus finalize, exactly the createTestEngine
+      // posture: the deliberate finalize gap keeps synthesis calls out
+      // of tool-bearing cassette agents (docs/04, section 8.3).
+      routing: {
+        loop: 'fake:model',
+        extract: 'fake:model',
+        orchestrate: 'fake:model',
+        plan: 'fake:model',
+        summarize: 'fake:model',
+      },
       profiles: profiles as never,
+      ...(extras?.schemas === undefined ? {} : { schemas: extras.schemas as never }),
     },
+    ...(extras?.lineage === undefined ? {} : { budgetDefaults: { lineage: extras.lineage } }),
   });
 }
 
-const BUDGET = { capUsd: 5, finalizeReserveUsd: 1 } as const;
+export const BUDGET = { capUsd: 5, finalizeReserveUsd: 1 } as const;
 
-async function settled(handle: RunHandle<unknown>): Promise<void> {
+export async function settled(handle: RunHandle<unknown>): Promise<void> {
   await handle.result;
 }
 

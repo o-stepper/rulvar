@@ -1208,6 +1208,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   const applyEscalationDecision = async (
     node: PlanNode,
     decisionEntry: JournalEntry,
+    reportRefOverride?: EntryRef,
   ): Promise<void> => {
     const value = decisionEntry.value as unknown as EscalationDecisionValue;
     const ops: EnginePlanOp[] = [
@@ -1216,7 +1217,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         nodeId: node.nodeId,
         decision: value.decision,
         resolvedBy: value.resolvedBy,
-        escalationRef: value.reportRef,
+        escalationRef: reportRefOverride ?? value.reportRef,
       },
     ];
     if (value.decision.kind === 'decompose') {
@@ -1251,6 +1252,12 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       // authorized by the plan.decision that landed the transition.
       await abandonNode(node.nodeId, planDecisionSeq, 'escalation cancel');
       io.emit({ type: 'node:cancelled', nodeId: node.nodeId, logicalTaskId: node.logicalTaskId });
+    }
+    if (value.decision.kind === 'retry') {
+      // The retry re-opens the node in place (docs/07, 6.5); the stale
+      // dispatch handle must not shadow the re-dispatch or the re-opened
+      // node sits ready forever while scheduleReady skips it.
+      dispatched.delete(node.nodeId);
     }
     await scheduleReady();
   };
@@ -1350,6 +1357,17 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
    * severing abandon; all idempotent for the roll-forward path.
    */
   const landRevisionEscalations = async (value: PlanRevisionValue): Promise<void> => {
+    // Collect the revision's resolvable targets first: two or more
+    // same-kind reports resolved by ONE revision merge into ONE
+    // class-level decision entry with per-lineage debits (docs/07, 6.5;
+    // DEF-2 class-storm-single-turn).
+    interface EscalationTarget {
+      node: PlanNode;
+      reportRef: EntryRef;
+      kind: EscalationKind | undefined;
+      reason?: string;
+    }
+    const targets: EscalationTarget[] = [];
     for (const outcome of value.outcomes) {
       if (outcome.kind !== 'transformed' || outcome.reason !== 'resolved_escalation') {
         continue;
@@ -1375,17 +1393,119 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       if (terminal === undefined) {
         continue;
       }
-      const decisionEntry = await writeEscalationDecision({
+      targets.push({
         node,
         reportRef: terminal.seq,
-        decision: {
-          kind: 'cancel',
-          ...(applied.reason === undefined ? {} : { reason: applied.reason }),
-        },
-        resolvedBy: 'revision-transform',
+        kind: reportKindOf(terminal.seq),
+        ...(applied.reason === undefined ? {} : { reason: applied.reason }),
       });
-      await applyEscalationDecision(node, decisionEntry);
     }
+    const byKind = new Map<string, EscalationTarget[]>();
+    for (const target of targets) {
+      const kindKey = target.kind ?? 'unknown';
+      byKind.set(kindKey, [...(byKind.get(kindKey) ?? []), target]);
+    }
+    for (const group of byKind.values()) {
+      if (group.length === 1) {
+        const target = group[0];
+        const decisionEntry = await writeEscalationDecision({
+          node: target.node,
+          reportRef: target.reportRef,
+          decision: {
+            kind: 'cancel',
+            ...(target.reason === undefined ? {} : { reason: target.reason }),
+          },
+          resolvedBy: 'revision-transform',
+        });
+        await applyEscalationDecision(target.node, decisionEntry);
+        continue;
+      }
+      const classEntry = await writeClassEscalationDecision(group);
+      if (classEntry === undefined) {
+        // A denied per-lineage debit degrades the group to the
+        // single-target path so the denial semantics stay per report.
+        for (const target of group) {
+          const decisionEntry = await writeEscalationDecision({
+            node: target.node,
+            reportRef: target.reportRef,
+            decision: {
+              kind: 'cancel',
+              ...(target.reason === undefined ? {} : { reason: target.reason }),
+            },
+            resolvedBy: 'revision-transform',
+          });
+          await applyEscalationDecision(target.node, decisionEntry);
+        }
+        continue;
+      }
+      for (const target of group) {
+        await applyEscalationDecision(target.node, classEntry, target.reportRef);
+      }
+    }
+  };
+
+  /**
+   * The class-level decision (docs/07, 6.5): ONE entry resolving N
+   * same-kind reports, per-lineage debits embedded as `debits` rows,
+   * resolvedBy 'class'. Returns undefined when any counting debit would
+   * be denied (the caller degrades to single-target decisions).
+   */
+  const writeClassEscalationDecision = async (
+    group: Array<{
+      node: PlanNode;
+      reportRef: EntryRef;
+      kind: EscalationKind | undefined;
+      reason?: string;
+    }>,
+  ): Promise<JournalEntry | undefined> => {
+    const reportRefs = group.map((target) => target.reportRef).sort((a, b) => a - b);
+    const key = deriverV2.deriveKey({ kind: 'escalation-decision', reportRefs });
+    const existing = io
+      .snapshot()
+      .find((entry) => entry.kind === 'decision' && entry.scope === planScope && entry.key === key);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const counts = group[0].kind !== undefined && countsAgainstLimit(group[0].kind);
+    const account = requireAccount();
+    if (counts) {
+      const snapshot = account.snapshot();
+      for (const target of group) {
+        const state = snapshot.perLineage[target.node.logicalTaskId];
+        if (state !== undefined && state.escalationUnitsRemaining <= 0) {
+          return undefined;
+        }
+      }
+    }
+    const debits: Array<{ logicalTaskId: string; escalationUnitsAfter: number }> = [];
+    if (counts) {
+      for (const target of group) {
+        const debited = account.debitEscalation(target.node.logicalTaskId);
+        if (!debited.ok) {
+          // Unreachable after the pre-check; degrade defensively.
+          return undefined;
+        }
+        debits.push({
+          logicalTaskId: target.node.logicalTaskId,
+          escalationUnitsAfter: debited.escalationUnitsAfter,
+        });
+      }
+    }
+    const reason = group.find((target) => target.reason !== undefined)?.reason;
+    const value: EscalationDecisionValue = {
+      decisionType: 'escalation-decision',
+      decision: { kind: 'cancel', ...(reason === undefined ? {} : { reason }) },
+      reportRef: reportRefs[0],
+      countsAgainstLimit: counts,
+      resolvedBy: 'class',
+      debits,
+    };
+    return io.append({
+      scope: planScope,
+      key,
+      kind: 'decision',
+      value: value as unknown as Json,
+    });
   };
 
   /** Journals terminal transitions for settled dispatched children. */
@@ -1739,15 +1859,16 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       // op with this content key acks with the recorded ref and skips
       // validation, so re-executed turns never spuriously reject against
       // a fold that already contains the op itself.
-      const existing = io
-        .snapshot()
-        .find(
-          (entry) =>
-            entry.kind === 'ledger.op' &&
-            entry.scope === rootScope &&
-            entry.key === key &&
-            !consumedLedgerSeqs.has(entry.seq),
-        );
+      const existing = io.snapshot().find(
+        (entry) =>
+          entry.kind === 'ledger.op' &&
+          entry.scope === rootScope &&
+          entry.key === key &&
+          // lesson_add keys ONCE (docs/07, 9.2; DEF-3
+          // reworded-lessons-collide): a repeated add with the same key
+          // acks the recorded lesson instead of appending a duplicate.
+          (op.op === 'lesson_add' || !consumedLedgerSeqs.has(entry.seq)),
+      );
       if (existing !== undefined) {
         consumedLedgerSeqs.add(existing.seq);
         return { entryRef: existing.seq };
@@ -2119,9 +2240,28 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       const folded = foldTermination(io.snapshot());
       if (folded !== undefined) {
         // Resume: the journal always wins over live config (docs/07,
-        // 11.2); the fold rebuilt every balance.
+        // 11.2); the fold rebuilt every balance. A diverging live knob
+        // is REPORTED, never honored (DEF-2 config-drift-resume).
         account = folded.account;
         account.bindDeniedWriter(deniedWriter);
+        const live: Record<string, number> = {
+          maxRevisionsPerRun: options?.maxRevisionsPerRun ?? 32,
+          maxTotalSpawns: options?.limits?.maxTotalSpawns ?? 128,
+          maxEscalationsPerLogicalTask: options?.limits?.maxEscalationsPerLogicalTask ?? 2,
+          maxDepth: options?.limits?.maxDepth ?? 1,
+        };
+        const frozen = folded.init.limits as unknown as Record<string, unknown>;
+        for (const [field, liveValue] of Object.entries(live)) {
+          const frozenValue = frozen[field];
+          if (typeof frozenValue === 'number' && frozenValue !== liveValue) {
+            io.emit({
+              type: 'termination:config-drift',
+              field,
+              frozenValue,
+              liveValue,
+            });
+          }
+        }
       } else {
         const limits = validateTerminationLimits({
           maxRevisionsPerRun: options?.maxRevisionsPerRun ?? 32,

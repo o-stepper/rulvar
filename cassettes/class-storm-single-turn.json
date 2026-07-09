@@ -1,0 +1,2153 @@
+{
+  "id": "class-storm-single-turn",
+  "note": "DEF-2: five dependency-free workers escalate (Flavor A); ONE revision resolves all five; the class-level decision carries five per-lineage debits inside one entry (docs/07, 6.5); store-independence asserted by the replay suite over JSONL and SQLite.",
+  "entries": [
+    {
+      "hashVersion": 2,
+      "seq": 0,
+      "scope": "",
+      "key": "hash-0001-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "termination.init",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "limits": {
+          "maxRevisionsPerRun": 32,
+          "maxTotalSpawns": 128,
+          "maxEscalationsPerLogicalTask": 8,
+          "maxDepth": 1,
+          "kMax": 1,
+          "runBudgetUsdCeiling": 0,
+          "orchestratorCapUsd": 0,
+          "finalizeReserveUsd": 0
+        },
+        "profileRegistrySnapshotHash": "hash-0002-------------------------------------------------------",
+        "phiInitial": 1184
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 1,
+      "scope": "",
+      "key": "hash-0003-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "orchestrator_budget_reserve",
+        "capUsd": 5,
+        "finalizeReserveUsd": 1,
+        "finalizeTurns": 2,
+        "source": "call",
+        "pricingVersion": "unpriced",
+        "terminationInitRef": 0
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
+      "scope": "",
+      "key": "hash-0004-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 3,
+      "scope": "plan",
+      "key": "hash-0005-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.revision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "base": {
+          "digestSeq": 0,
+          "planHash": "hash-0006-------------------------------------------------------"
+        },
+        "requestedOps": [
+          {
+            "op": "add_task",
+            "spec": {
+              "agentType": "worker",
+              "prompt": "storm 1"
+            }
+          }
+        ],
+        "outcomes": [
+          {
+            "kind": "applied",
+            "op": {
+              "op": "add_task",
+              "spec": {
+                "agentType": "worker",
+                "prompt": "storm 1"
+              },
+              "nodeId": "ULID-0001--------------------"
+            }
+          }
+        ],
+        "assignedNodeIds": {
+          "0": "ULID-0001--------------------"
+        },
+        "admissions": [
+          {
+            "opIndex": 0,
+            "nodeId": "ULID-0001--------------------",
+            "decision": {
+              "verdict": {
+                "kind": "admit",
+                "reserve": {
+                  "reserveUsd": 0.5
+                },
+                "spawnUnitsAfter": 127,
+                "lineage": {
+                  "logicalTaskId": "ULID-0002--------------------",
+                  "isNew": true,
+                  "depth": 1
+                }
+              },
+              "statsBefore": {
+                "spawnsBefore": 1,
+                "childrenOfParentBefore": 0,
+                "depth": 1
+              },
+              "nodeId": "ULID-0003--------------------",
+              "lineage": {
+                "logicalTaskId": "ULID-0002--------------------",
+                "relation": "first",
+                "attemptOrdinal": 0,
+                "ancestry": [],
+                "approachSig": "hash-0007-------------------------------------------------------",
+                "approachSigCoarse": "hash-0008-------------------------------------------------------",
+                "sigVersion": 1,
+                "approachTag": "default"
+              },
+              "ladderLength": 1
+            }
+          }
+        ],
+        "planHashBefore": "hash-0006-------------------------------------------------------",
+        "planHashAfter": "hash-0009-------------------------------------------------------",
+        "hashVersion": 2,
+        "rationale": "storm branch 1",
+        "revisionUnitsAfter": 31,
+        "debits": [
+          {
+            "resource": "revisionUnits",
+            "balanceAfter": 31
+          }
+        ]
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 4,
+      "scope": "plan/ULID-0001--------------------",
+      "key": "hash-0010-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 5,
+      "scope": "plan",
+      "key": "hash-0011-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "child-result",
+        "ops": [
+          {
+            "kind": "set_node_status",
+            "nodeId": "ULID-0001--------------------",
+            "from": "ready",
+            "to": "running",
+            "cause": "child-result",
+            "causeRef": 4
+          }
+        ],
+        "causeRef": 4,
+        "planHashBefore": "hash-0009-------------------------------------------------------",
+        "planHashAfter": "hash-0012-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 6,
+      "ref": 4,
+      "scope": "plan/ULID-0001--------------------",
+      "key": "hash-0010-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "escalated",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "usage": {
+        "inputTokens": 10,
+        "outputTokens": 5,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:model",
+      "transcriptRef": "fixture-transcript",
+      "escalation": {
+        "kind": "scope_bigger",
+        "scopeDelta": "the storm grows",
+        "revisedEstimate": {
+          "usd": 2,
+          "turns": 8
+        },
+        "blockers": [],
+        "proposedDecomposition": [],
+        "costToDate": {
+          "usd": 0.00006,
+          "turns": 1
+        },
+        "salvage": {
+          "transcriptRef": "ULID-0004--------------------/t0",
+          "artifacts": []
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 7,
+      "scope": "plan",
+      "key": "hash-0013-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "child-result",
+        "ops": [
+          {
+            "kind": "set_node_status",
+            "nodeId": "ULID-0001--------------------",
+            "from": "running",
+            "to": "escalated",
+            "cause": "child-result",
+            "causeRef": 6
+          }
+        ],
+        "causeRef": 6,
+        "planHashBefore": "hash-0012-------------------------------------------------------",
+        "planHashAfter": "hash-0014-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 8,
+      "scope": "plan",
+      "key": "hash-0015-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.revision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "base": {
+          "digestSeq": 0,
+          "planHash": "hash-0006-------------------------------------------------------"
+        },
+        "requestedOps": [
+          {
+            "op": "add_task",
+            "spec": {
+              "agentType": "worker",
+              "prompt": "storm 2"
+            }
+          }
+        ],
+        "outcomes": [
+          {
+            "kind": "applied",
+            "op": {
+              "op": "add_task",
+              "spec": {
+                "agentType": "worker",
+                "prompt": "storm 2"
+              },
+              "nodeId": "ULID-0005--------------------"
+            }
+          }
+        ],
+        "assignedNodeIds": {
+          "0": "ULID-0005--------------------"
+        },
+        "admissions": [
+          {
+            "opIndex": 0,
+            "nodeId": "ULID-0005--------------------",
+            "decision": {
+              "verdict": {
+                "kind": "admit",
+                "reserve": {
+                  "reserveUsd": 0.5
+                },
+                "spawnUnitsAfter": 126,
+                "lineage": {
+                  "logicalTaskId": "ULID-0006--------------------",
+                  "isNew": true,
+                  "depth": 1
+                }
+              },
+              "statsBefore": {
+                "spawnsBefore": 2,
+                "childrenOfParentBefore": 1,
+                "depth": 1
+              },
+              "nodeId": "ULID-0007--------------------",
+              "lineage": {
+                "logicalTaskId": "ULID-0006--------------------",
+                "relation": "first",
+                "attemptOrdinal": 0,
+                "ancestry": [],
+                "approachSig": "hash-0007-------------------------------------------------------",
+                "approachSigCoarse": "hash-0008-------------------------------------------------------",
+                "sigVersion": 1,
+                "approachTag": "default"
+              },
+              "ladderLength": 1
+            }
+          }
+        ],
+        "planHashBefore": "hash-0014-------------------------------------------------------",
+        "planHashAfter": "hash-0016-------------------------------------------------------",
+        "hashVersion": 2,
+        "rationale": "storm branch 2",
+        "revisionUnitsAfter": 30,
+        "debits": [
+          {
+            "resource": "revisionUnits",
+            "balanceAfter": 30
+          }
+        ]
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 9,
+      "scope": "plan/ULID-0005--------------------",
+      "key": "hash-0017-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 10,
+      "scope": "plan",
+      "key": "hash-0018-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "child-result",
+        "ops": [
+          {
+            "kind": "set_node_status",
+            "nodeId": "ULID-0005--------------------",
+            "from": "ready",
+            "to": "running",
+            "cause": "child-result",
+            "causeRef": 9
+          }
+        ],
+        "causeRef": 9,
+        "planHashBefore": "hash-0016-------------------------------------------------------",
+        "planHashAfter": "hash-0019-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 11,
+      "ref": 9,
+      "scope": "plan/ULID-0005--------------------",
+      "key": "hash-0017-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "escalated",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "usage": {
+        "inputTokens": 10,
+        "outputTokens": 5,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:model",
+      "transcriptRef": "fixture-transcript",
+      "escalation": {
+        "kind": "scope_bigger",
+        "scopeDelta": "the storm grows",
+        "revisedEstimate": {
+          "usd": 2,
+          "turns": 8
+        },
+        "blockers": [],
+        "proposedDecomposition": [],
+        "costToDate": {
+          "usd": 0.00006,
+          "turns": 1
+        },
+        "salvage": {
+          "transcriptRef": "ULID-0004--------------------/t1",
+          "artifacts": []
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 12,
+      "scope": "plan",
+      "key": "hash-0020-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "child-result",
+        "ops": [
+          {
+            "kind": "set_node_status",
+            "nodeId": "ULID-0005--------------------",
+            "from": "running",
+            "to": "escalated",
+            "cause": "child-result",
+            "causeRef": 11
+          }
+        ],
+        "causeRef": 11,
+        "planHashBefore": "hash-0019-------------------------------------------------------",
+        "planHashAfter": "hash-0021-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 13,
+      "scope": "plan",
+      "key": "hash-0022-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.revision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "base": {
+          "digestSeq": 0,
+          "planHash": "hash-0006-------------------------------------------------------"
+        },
+        "requestedOps": [
+          {
+            "op": "add_task",
+            "spec": {
+              "agentType": "worker",
+              "prompt": "storm 3"
+            }
+          }
+        ],
+        "outcomes": [
+          {
+            "kind": "applied",
+            "op": {
+              "op": "add_task",
+              "spec": {
+                "agentType": "worker",
+                "prompt": "storm 3"
+              },
+              "nodeId": "ULID-0008--------------------"
+            }
+          }
+        ],
+        "assignedNodeIds": {
+          "0": "ULID-0008--------------------"
+        },
+        "admissions": [
+          {
+            "opIndex": 0,
+            "nodeId": "ULID-0008--------------------",
+            "decision": {
+              "verdict": {
+                "kind": "admit",
+                "reserve": {
+                  "reserveUsd": 0.5
+                },
+                "spawnUnitsAfter": 125,
+                "lineage": {
+                  "logicalTaskId": "ULID-0009--------------------",
+                  "isNew": true,
+                  "depth": 1
+                }
+              },
+              "statsBefore": {
+                "spawnsBefore": 3,
+                "childrenOfParentBefore": 2,
+                "depth": 1
+              },
+              "nodeId": "ULID-0010--------------------",
+              "lineage": {
+                "logicalTaskId": "ULID-0009--------------------",
+                "relation": "first",
+                "attemptOrdinal": 0,
+                "ancestry": [],
+                "approachSig": "hash-0007-------------------------------------------------------",
+                "approachSigCoarse": "hash-0008-------------------------------------------------------",
+                "sigVersion": 1,
+                "approachTag": "default"
+              },
+              "ladderLength": 1
+            }
+          }
+        ],
+        "planHashBefore": "hash-0021-------------------------------------------------------",
+        "planHashAfter": "hash-0023-------------------------------------------------------",
+        "hashVersion": 2,
+        "rationale": "storm branch 3",
+        "revisionUnitsAfter": 29,
+        "debits": [
+          {
+            "resource": "revisionUnits",
+            "balanceAfter": 29
+          }
+        ]
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 14,
+      "scope": "plan/ULID-0008--------------------",
+      "key": "hash-0024-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 15,
+      "scope": "plan",
+      "key": "hash-0025-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "child-result",
+        "ops": [
+          {
+            "kind": "set_node_status",
+            "nodeId": "ULID-0008--------------------",
+            "from": "ready",
+            "to": "running",
+            "cause": "child-result",
+            "causeRef": 14
+          }
+        ],
+        "causeRef": 14,
+        "planHashBefore": "hash-0023-------------------------------------------------------",
+        "planHashAfter": "hash-0026-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 16,
+      "ref": 14,
+      "scope": "plan/ULID-0008--------------------",
+      "key": "hash-0024-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "escalated",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "usage": {
+        "inputTokens": 10,
+        "outputTokens": 5,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:model",
+      "transcriptRef": "fixture-transcript",
+      "escalation": {
+        "kind": "scope_bigger",
+        "scopeDelta": "the storm grows",
+        "revisedEstimate": {
+          "usd": 2,
+          "turns": 8
+        },
+        "blockers": [],
+        "proposedDecomposition": [],
+        "costToDate": {
+          "usd": 0.00006,
+          "turns": 1
+        },
+        "salvage": {
+          "transcriptRef": "ULID-0004--------------------/t2",
+          "artifacts": []
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 17,
+      "scope": "plan",
+      "key": "hash-0027-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "child-result",
+        "ops": [
+          {
+            "kind": "set_node_status",
+            "nodeId": "ULID-0008--------------------",
+            "from": "running",
+            "to": "escalated",
+            "cause": "child-result",
+            "causeRef": 16
+          }
+        ],
+        "causeRef": 16,
+        "planHashBefore": "hash-0026-------------------------------------------------------",
+        "planHashAfter": "hash-0028-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 18,
+      "scope": "plan",
+      "key": "hash-0029-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.revision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "base": {
+          "digestSeq": 0,
+          "planHash": "hash-0006-------------------------------------------------------"
+        },
+        "requestedOps": [
+          {
+            "op": "add_task",
+            "spec": {
+              "agentType": "worker",
+              "prompt": "storm 4"
+            }
+          }
+        ],
+        "outcomes": [
+          {
+            "kind": "applied",
+            "op": {
+              "op": "add_task",
+              "spec": {
+                "agentType": "worker",
+                "prompt": "storm 4"
+              },
+              "nodeId": "ULID-0011--------------------"
+            }
+          }
+        ],
+        "assignedNodeIds": {
+          "0": "ULID-0011--------------------"
+        },
+        "admissions": [
+          {
+            "opIndex": 0,
+            "nodeId": "ULID-0011--------------------",
+            "decision": {
+              "verdict": {
+                "kind": "admit",
+                "reserve": {
+                  "reserveUsd": 0.5
+                },
+                "spawnUnitsAfter": 124,
+                "lineage": {
+                  "logicalTaskId": "ULID-0012--------------------",
+                  "isNew": true,
+                  "depth": 1
+                }
+              },
+              "statsBefore": {
+                "spawnsBefore": 4,
+                "childrenOfParentBefore": 3,
+                "depth": 1
+              },
+              "nodeId": "ULID-0013--------------------",
+              "lineage": {
+                "logicalTaskId": "ULID-0012--------------------",
+                "relation": "first",
+                "attemptOrdinal": 0,
+                "ancestry": [],
+                "approachSig": "hash-0007-------------------------------------------------------",
+                "approachSigCoarse": "hash-0008-------------------------------------------------------",
+                "sigVersion": 1,
+                "approachTag": "default"
+              },
+              "ladderLength": 1
+            }
+          }
+        ],
+        "planHashBefore": "hash-0028-------------------------------------------------------",
+        "planHashAfter": "hash-0030-------------------------------------------------------",
+        "hashVersion": 2,
+        "rationale": "storm branch 4",
+        "revisionUnitsAfter": 28,
+        "debits": [
+          {
+            "resource": "revisionUnits",
+            "balanceAfter": 28
+          }
+        ]
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 19,
+      "scope": "plan/ULID-0011--------------------",
+      "key": "hash-0031-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 20,
+      "scope": "plan",
+      "key": "hash-0032-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "child-result",
+        "ops": [
+          {
+            "kind": "set_node_status",
+            "nodeId": "ULID-0011--------------------",
+            "from": "ready",
+            "to": "running",
+            "cause": "child-result",
+            "causeRef": 19
+          }
+        ],
+        "causeRef": 19,
+        "planHashBefore": "hash-0030-------------------------------------------------------",
+        "planHashAfter": "hash-0033-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 21,
+      "ref": 19,
+      "scope": "plan/ULID-0011--------------------",
+      "key": "hash-0031-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "escalated",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "usage": {
+        "inputTokens": 10,
+        "outputTokens": 5,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:model",
+      "transcriptRef": "fixture-transcript",
+      "escalation": {
+        "kind": "scope_bigger",
+        "scopeDelta": "the storm grows",
+        "revisedEstimate": {
+          "usd": 2,
+          "turns": 8
+        },
+        "blockers": [],
+        "proposedDecomposition": [],
+        "costToDate": {
+          "usd": 0.00006,
+          "turns": 1
+        },
+        "salvage": {
+          "transcriptRef": "ULID-0004--------------------/t3",
+          "artifacts": []
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 22,
+      "scope": "plan",
+      "key": "hash-0034-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "child-result",
+        "ops": [
+          {
+            "kind": "set_node_status",
+            "nodeId": "ULID-0011--------------------",
+            "from": "running",
+            "to": "escalated",
+            "cause": "child-result",
+            "causeRef": 21
+          }
+        ],
+        "causeRef": 21,
+        "planHashBefore": "hash-0033-------------------------------------------------------",
+        "planHashAfter": "hash-0035-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 23,
+      "scope": "plan",
+      "key": "hash-0036-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.revision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "base": {
+          "digestSeq": 0,
+          "planHash": "hash-0006-------------------------------------------------------"
+        },
+        "requestedOps": [
+          {
+            "op": "add_task",
+            "spec": {
+              "agentType": "worker",
+              "prompt": "storm 5"
+            }
+          }
+        ],
+        "outcomes": [
+          {
+            "kind": "applied",
+            "op": {
+              "op": "add_task",
+              "spec": {
+                "agentType": "worker",
+                "prompt": "storm 5"
+              },
+              "nodeId": "ULID-0014--------------------"
+            }
+          }
+        ],
+        "assignedNodeIds": {
+          "0": "ULID-0014--------------------"
+        },
+        "admissions": [
+          {
+            "opIndex": 0,
+            "nodeId": "ULID-0014--------------------",
+            "decision": {
+              "verdict": {
+                "kind": "admit",
+                "reserve": {
+                  "reserveUsd": 0.5
+                },
+                "spawnUnitsAfter": 123,
+                "lineage": {
+                  "logicalTaskId": "ULID-0015--------------------",
+                  "isNew": true,
+                  "depth": 1
+                }
+              },
+              "statsBefore": {
+                "spawnsBefore": 5,
+                "childrenOfParentBefore": 4,
+                "depth": 1
+              },
+              "nodeId": "ULID-0016--------------------",
+              "lineage": {
+                "logicalTaskId": "ULID-0015--------------------",
+                "relation": "first",
+                "attemptOrdinal": 0,
+                "ancestry": [],
+                "approachSig": "hash-0007-------------------------------------------------------",
+                "approachSigCoarse": "hash-0008-------------------------------------------------------",
+                "sigVersion": 1,
+                "approachTag": "default"
+              },
+              "ladderLength": 1
+            }
+          }
+        ],
+        "planHashBefore": "hash-0035-------------------------------------------------------",
+        "planHashAfter": "hash-0037-------------------------------------------------------",
+        "hashVersion": 2,
+        "rationale": "storm branch 5",
+        "revisionUnitsAfter": 27,
+        "debits": [
+          {
+            "resource": "revisionUnits",
+            "balanceAfter": 27
+          }
+        ]
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 24,
+      "scope": "plan/ULID-0014--------------------",
+      "key": "hash-0038-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 25,
+      "scope": "plan",
+      "key": "hash-0039-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "child-result",
+        "ops": [
+          {
+            "kind": "set_node_status",
+            "nodeId": "ULID-0014--------------------",
+            "from": "ready",
+            "to": "running",
+            "cause": "child-result",
+            "causeRef": 24
+          }
+        ],
+        "causeRef": 24,
+        "planHashBefore": "hash-0037-------------------------------------------------------",
+        "planHashAfter": "hash-0040-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 26,
+      "ref": 24,
+      "scope": "plan/ULID-0014--------------------",
+      "key": "hash-0038-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "escalated",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "usage": {
+        "inputTokens": 10,
+        "outputTokens": 5,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:model",
+      "transcriptRef": "fixture-transcript",
+      "escalation": {
+        "kind": "scope_bigger",
+        "scopeDelta": "the storm grows",
+        "revisedEstimate": {
+          "usd": 2,
+          "turns": 8
+        },
+        "blockers": [],
+        "proposedDecomposition": [],
+        "costToDate": {
+          "usd": 0.00006,
+          "turns": 1
+        },
+        "salvage": {
+          "transcriptRef": "ULID-0004--------------------/t4",
+          "artifacts": []
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 27,
+      "scope": "plan",
+      "key": "hash-0041-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "child-result",
+        "ops": [
+          {
+            "kind": "set_node_status",
+            "nodeId": "ULID-0014--------------------",
+            "from": "running",
+            "to": "escalated",
+            "cause": "child-result",
+            "causeRef": 26
+          }
+        ],
+        "causeRef": 26,
+        "planHashBefore": "hash-0040-------------------------------------------------------",
+        "planHashAfter": "hash-0042-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 28,
+      "scope": "agent:2",
+      "key": "hash-0043-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "external",
+      "status": "suspended",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "key": "wake:2:0"
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 29,
+      "ref": 28,
+      "scope": "agent:2",
+      "key": "",
+      "ordinal": 0,
+      "kind": "resolution",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "resolution": {
+        "target": 28,
+        "by": "engine_fallback",
+        "value": {
+          "digestSeq": 1,
+          "planHash": "hash-0042-------------------------------------------------------",
+          "termination": {
+            "revisionUnitsRemaining": 27,
+            "spawnUnitsRemaining": 123,
+            "perLineage": {
+              "ULID-0002--------------------": {
+                "escalationUnitsRemaining": 8,
+                "rungsRemaining": 0
+              },
+              "ULID-0006--------------------": {
+                "escalationUnitsRemaining": 8,
+                "rungsRemaining": 0
+              },
+              "ULID-0009--------------------": {
+                "escalationUnitsRemaining": 8,
+                "rungsRemaining": 0
+              },
+              "ULID-0012--------------------": {
+                "escalationUnitsRemaining": 8,
+                "rungsRemaining": 0
+              },
+              "ULID-0015--------------------": {
+                "escalationUnitsRemaining": 8,
+                "rungsRemaining": 0
+              }
+            },
+            "phi": 1174
+          },
+          "budget": {
+            "runSpentUsd": 0.0006600000000000001,
+            "runCeilingUsd": 0,
+            "orchestratorSpentUsd": 0.00036,
+            "orchestratorCapUsd": 5,
+            "finalizeReserveUsd": 1,
+            "orchestratorShare": 0.036000000000000004,
+            "softWarning": false
+          },
+          "reuse": {
+            "abandonedUsd": 0,
+            "reclaimedUsd": 0,
+            "netLostUsd": 0,
+            "byKey": {}
+          },
+          "coversToOrdinal": 4,
+          "completedDigests": [
+            {
+              "nodeId": "ULID-0001--------------------",
+              "logicalTaskId": "ULID-0002--------------------",
+              "status": "escalated",
+              "outputSummary": "terminal status escalated",
+              "costUsd": 0.00006,
+              "artifactsIndex": []
+            },
+            {
+              "nodeId": "ULID-0005--------------------",
+              "logicalTaskId": "ULID-0006--------------------",
+              "status": "escalated",
+              "outputSummary": "terminal status escalated",
+              "costUsd": 0.00006,
+              "artifactsIndex": []
+            },
+            {
+              "nodeId": "ULID-0008--------------------",
+              "logicalTaskId": "ULID-0009--------------------",
+              "status": "escalated",
+              "outputSummary": "terminal status escalated",
+              "costUsd": 0.00006,
+              "artifactsIndex": []
+            },
+            {
+              "nodeId": "ULID-0011--------------------",
+              "logicalTaskId": "ULID-0012--------------------",
+              "status": "escalated",
+              "outputSummary": "terminal status escalated",
+              "costUsd": 0.00006,
+              "artifactsIndex": []
+            },
+            {
+              "nodeId": "ULID-0014--------------------",
+              "logicalTaskId": "ULID-0015--------------------",
+              "status": "escalated",
+              "outputSummary": "terminal status escalated",
+              "costUsd": 0.00006,
+              "artifactsIndex": []
+            }
+          ],
+          "escalations": [
+            {
+              "nodeId": "ULID-0001--------------------",
+              "logicalTaskId": "ULID-0002--------------------",
+              "reportRef": 6,
+              "kind": "scope_bigger",
+              "flavor": "A"
+            },
+            {
+              "nodeId": "ULID-0005--------------------",
+              "logicalTaskId": "ULID-0006--------------------",
+              "reportRef": 11,
+              "kind": "scope_bigger",
+              "flavor": "A"
+            },
+            {
+              "nodeId": "ULID-0008--------------------",
+              "logicalTaskId": "ULID-0009--------------------",
+              "reportRef": 16,
+              "kind": "scope_bigger",
+              "flavor": "A"
+            },
+            {
+              "nodeId": "ULID-0011--------------------",
+              "logicalTaskId": "ULID-0012--------------------",
+              "reportRef": 21,
+              "kind": "scope_bigger",
+              "flavor": "A"
+            },
+            {
+              "nodeId": "ULID-0014--------------------",
+              "logicalTaskId": "ULID-0015--------------------",
+              "reportRef": 26,
+              "kind": "scope_bigger",
+              "flavor": "A"
+            }
+          ],
+          "planSeq": 27
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 30,
+      "ref": 28,
+      "scope": "agent:2",
+      "key": "",
+      "ordinal": 0,
+      "kind": "resolution",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "resolution": {
+        "target": 28,
+        "by": "quiescence",
+        "value": {
+          "digestSeq": 1,
+          "planHash": "hash-0042-------------------------------------------------------",
+          "termination": {
+            "revisionUnitsRemaining": 27,
+            "spawnUnitsRemaining": 123,
+            "perLineage": {
+              "ULID-0002--------------------": {
+                "escalationUnitsRemaining": 8,
+                "rungsRemaining": 0
+              },
+              "ULID-0006--------------------": {
+                "escalationUnitsRemaining": 8,
+                "rungsRemaining": 0
+              },
+              "ULID-0009--------------------": {
+                "escalationUnitsRemaining": 8,
+                "rungsRemaining": 0
+              },
+              "ULID-0012--------------------": {
+                "escalationUnitsRemaining": 8,
+                "rungsRemaining": 0
+              },
+              "ULID-0015--------------------": {
+                "escalationUnitsRemaining": 8,
+                "rungsRemaining": 0
+              }
+            },
+            "phi": 1174
+          },
+          "budget": {
+            "runSpentUsd": 0.0006600000000000001,
+            "runCeilingUsd": 0,
+            "orchestratorSpentUsd": 0.00036,
+            "orchestratorCapUsd": 5,
+            "finalizeReserveUsd": 1,
+            "orchestratorShare": 0.036000000000000004,
+            "softWarning": false
+          },
+          "reuse": {
+            "abandonedUsd": 0,
+            "reclaimedUsd": 0,
+            "netLostUsd": 0,
+            "byKey": {}
+          },
+          "coversToOrdinal": 4,
+          "completedDigests": [
+            {
+              "nodeId": "ULID-0001--------------------",
+              "logicalTaskId": "ULID-0002--------------------",
+              "status": "escalated",
+              "outputSummary": "terminal status escalated",
+              "costUsd": 0.00006,
+              "artifactsIndex": []
+            },
+            {
+              "nodeId": "ULID-0005--------------------",
+              "logicalTaskId": "ULID-0006--------------------",
+              "status": "escalated",
+              "outputSummary": "terminal status escalated",
+              "costUsd": 0.00006,
+              "artifactsIndex": []
+            },
+            {
+              "nodeId": "ULID-0008--------------------",
+              "logicalTaskId": "ULID-0009--------------------",
+              "status": "escalated",
+              "outputSummary": "terminal status escalated",
+              "costUsd": 0.00006,
+              "artifactsIndex": []
+            },
+            {
+              "nodeId": "ULID-0011--------------------",
+              "logicalTaskId": "ULID-0012--------------------",
+              "status": "escalated",
+              "outputSummary": "terminal status escalated",
+              "costUsd": 0.00006,
+              "artifactsIndex": []
+            },
+            {
+              "nodeId": "ULID-0014--------------------",
+              "logicalTaskId": "ULID-0015--------------------",
+              "status": "escalated",
+              "outputSummary": "terminal status escalated",
+              "costUsd": 0.00006,
+              "artifactsIndex": []
+            }
+          ],
+          "escalations": [
+            {
+              "nodeId": "ULID-0001--------------------",
+              "logicalTaskId": "ULID-0002--------------------",
+              "reportRef": 6,
+              "kind": "scope_bigger",
+              "flavor": "A"
+            },
+            {
+              "nodeId": "ULID-0005--------------------",
+              "logicalTaskId": "ULID-0006--------------------",
+              "reportRef": 11,
+              "kind": "scope_bigger",
+              "flavor": "A"
+            },
+            {
+              "nodeId": "ULID-0008--------------------",
+              "logicalTaskId": "ULID-0009--------------------",
+              "reportRef": 16,
+              "kind": "scope_bigger",
+              "flavor": "A"
+            },
+            {
+              "nodeId": "ULID-0011--------------------",
+              "logicalTaskId": "ULID-0012--------------------",
+              "reportRef": 21,
+              "kind": "scope_bigger",
+              "flavor": "A"
+            },
+            {
+              "nodeId": "ULID-0014--------------------",
+              "logicalTaskId": "ULID-0015--------------------",
+              "reportRef": 26,
+              "kind": "scope_bigger",
+              "flavor": "A"
+            }
+          ],
+          "planSeq": 27
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 31,
+      "scope": "plan",
+      "key": "hash-0044-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.revision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "base": {
+          "digestSeq": 1,
+          "planHash": "hash-0042-------------------------------------------------------"
+        },
+        "requestedOps": [
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0001--------------------",
+            "reason": "class-level close"
+          },
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0005--------------------",
+            "reason": "class-level close"
+          },
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0008--------------------",
+            "reason": "class-level close"
+          },
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0011--------------------",
+            "reason": "class-level close"
+          },
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0014--------------------",
+            "reason": "class-level close"
+          }
+        ],
+        "outcomes": [
+          {
+            "kind": "transformed",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0001--------------------",
+              "reason": "class-level close"
+            },
+            "applied": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0001--------------------",
+              "reason": "class-level close",
+              "requestOnly": true
+            },
+            "reason": "resolved_escalation"
+          },
+          {
+            "kind": "transformed",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0005--------------------",
+              "reason": "class-level close"
+            },
+            "applied": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0005--------------------",
+              "reason": "class-level close",
+              "requestOnly": true
+            },
+            "reason": "resolved_escalation"
+          },
+          {
+            "kind": "transformed",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0008--------------------",
+              "reason": "class-level close"
+            },
+            "applied": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0008--------------------",
+              "reason": "class-level close",
+              "requestOnly": true
+            },
+            "reason": "resolved_escalation"
+          },
+          {
+            "kind": "transformed",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0011--------------------",
+              "reason": "class-level close"
+            },
+            "applied": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0011--------------------",
+              "reason": "class-level close",
+              "requestOnly": true
+            },
+            "reason": "resolved_escalation"
+          },
+          {
+            "kind": "transformed",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0014--------------------",
+              "reason": "class-level close"
+            },
+            "applied": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0014--------------------",
+              "reason": "class-level close",
+              "requestOnly": true
+            },
+            "reason": "resolved_escalation"
+          }
+        ],
+        "assignedNodeIds": {},
+        "admissions": [],
+        "planHashBefore": "hash-0042-------------------------------------------------------",
+        "planHashAfter": "hash-0045-------------------------------------------------------",
+        "hashVersion": 2,
+        "rationale": "one class-level decision for the whole storm",
+        "revisionUnitsAfter": 26,
+        "debits": [
+          {
+            "resource": "revisionUnits",
+            "balanceAfter": 26
+          }
+        ]
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 32,
+      "scope": "plan",
+      "key": "hash-0046-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "escalation-decision",
+        "decision": {
+          "kind": "cancel",
+          "reason": "class-level close"
+        },
+        "reportRef": 6,
+        "countsAgainstLimit": true,
+        "resolvedBy": "class",
+        "debits": [
+          {
+            "logicalTaskId": "ULID-0002--------------------",
+            "escalationUnitsAfter": 7
+          },
+          {
+            "logicalTaskId": "ULID-0006--------------------",
+            "escalationUnitsAfter": 7
+          },
+          {
+            "logicalTaskId": "ULID-0009--------------------",
+            "escalationUnitsAfter": 7
+          },
+          {
+            "logicalTaskId": "ULID-0012--------------------",
+            "escalationUnitsAfter": 7
+          },
+          {
+            "logicalTaskId": "ULID-0015--------------------",
+            "escalationUnitsAfter": 7
+          }
+        ]
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 33,
+      "scope": "plan",
+      "key": "hash-0047-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "escalation-class",
+        "ops": [
+          {
+            "kind": "resolve_escalation",
+            "nodeId": "ULID-0001--------------------",
+            "decision": {
+              "kind": "cancel",
+              "reason": "class-level close"
+            },
+            "resolvedBy": "class",
+            "escalationRef": 6
+          }
+        ],
+        "causeRef": 32,
+        "planHashBefore": "hash-0045-------------------------------------------------------",
+        "planHashAfter": "hash-0048-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 34,
+      "ref": 4,
+      "scope": "plan/ULID-0001--------------------",
+      "key": "",
+      "ordinal": 0,
+      "kind": "abandon",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "abandon": {
+        "target": 4,
+        "authorizedBy": 33,
+        "reason": "escalation cancel",
+        "nodeId": "ULID-0001--------------------",
+        "logicalTaskId": "ULID-0002--------------------",
+        "retainCheckpoint": true,
+        "retainWorktree": false
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 35,
+      "scope": "plan",
+      "key": "hash-0049-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "escalation-class",
+        "ops": [
+          {
+            "kind": "resolve_escalation",
+            "nodeId": "ULID-0005--------------------",
+            "decision": {
+              "kind": "cancel",
+              "reason": "class-level close"
+            },
+            "resolvedBy": "class",
+            "escalationRef": 11
+          }
+        ],
+        "causeRef": 32,
+        "planHashBefore": "hash-0048-------------------------------------------------------",
+        "planHashAfter": "hash-0050-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 36,
+      "ref": 9,
+      "scope": "plan/ULID-0005--------------------",
+      "key": "",
+      "ordinal": 0,
+      "kind": "abandon",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "abandon": {
+        "target": 9,
+        "authorizedBy": 35,
+        "reason": "escalation cancel",
+        "nodeId": "ULID-0005--------------------",
+        "logicalTaskId": "ULID-0006--------------------",
+        "retainCheckpoint": true,
+        "retainWorktree": false
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 37,
+      "scope": "plan",
+      "key": "hash-0051-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "escalation-class",
+        "ops": [
+          {
+            "kind": "resolve_escalation",
+            "nodeId": "ULID-0008--------------------",
+            "decision": {
+              "kind": "cancel",
+              "reason": "class-level close"
+            },
+            "resolvedBy": "class",
+            "escalationRef": 16
+          }
+        ],
+        "causeRef": 32,
+        "planHashBefore": "hash-0050-------------------------------------------------------",
+        "planHashAfter": "hash-0052-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 38,
+      "ref": 14,
+      "scope": "plan/ULID-0008--------------------",
+      "key": "",
+      "ordinal": 0,
+      "kind": "abandon",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "abandon": {
+        "target": 14,
+        "authorizedBy": 37,
+        "reason": "escalation cancel",
+        "nodeId": "ULID-0008--------------------",
+        "logicalTaskId": "ULID-0009--------------------",
+        "retainCheckpoint": true,
+        "retainWorktree": false
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 39,
+      "scope": "plan",
+      "key": "hash-0053-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "escalation-class",
+        "ops": [
+          {
+            "kind": "resolve_escalation",
+            "nodeId": "ULID-0011--------------------",
+            "decision": {
+              "kind": "cancel",
+              "reason": "class-level close"
+            },
+            "resolvedBy": "class",
+            "escalationRef": 21
+          }
+        ],
+        "causeRef": 32,
+        "planHashBefore": "hash-0052-------------------------------------------------------",
+        "planHashAfter": "hash-0054-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 40,
+      "ref": 19,
+      "scope": "plan/ULID-0011--------------------",
+      "key": "",
+      "ordinal": 0,
+      "kind": "abandon",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "abandon": {
+        "target": 19,
+        "authorizedBy": 39,
+        "reason": "escalation cancel",
+        "nodeId": "ULID-0011--------------------",
+        "logicalTaskId": "ULID-0012--------------------",
+        "retainCheckpoint": true,
+        "retainWorktree": false
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 41,
+      "scope": "plan",
+      "key": "hash-0055-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "escalation-class",
+        "ops": [
+          {
+            "kind": "resolve_escalation",
+            "nodeId": "ULID-0014--------------------",
+            "decision": {
+              "kind": "cancel",
+              "reason": "class-level close"
+            },
+            "resolvedBy": "class",
+            "escalationRef": 26
+          }
+        ],
+        "causeRef": 32,
+        "planHashBefore": "hash-0054-------------------------------------------------------",
+        "planHashAfter": "hash-0056-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 42,
+      "ref": 24,
+      "scope": "plan/ULID-0014--------------------",
+      "key": "",
+      "ordinal": 0,
+      "kind": "abandon",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "abandon": {
+        "target": 24,
+        "authorizedBy": 41,
+        "reason": "escalation cancel",
+        "nodeId": "ULID-0014--------------------",
+        "logicalTaskId": "ULID-0015--------------------",
+        "retainCheckpoint": true,
+        "retainWorktree": false
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 43,
+      "scope": "plan",
+      "key": "hash-0044-------------------------------------------------------",
+      "ordinal": 1,
+      "kind": "plan.revision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "base": {
+          "digestSeq": 1,
+          "planHash": "hash-0042-------------------------------------------------------"
+        },
+        "requestedOps": [
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0001--------------------",
+            "reason": "class-level close"
+          },
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0005--------------------",
+            "reason": "class-level close"
+          },
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0008--------------------",
+            "reason": "class-level close"
+          },
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0011--------------------",
+            "reason": "class-level close"
+          },
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0014--------------------",
+            "reason": "class-level close"
+          }
+        ],
+        "outcomes": [
+          {
+            "kind": "dropped",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0001--------------------",
+              "reason": "class-level close"
+            },
+            "reason": "terminal_status"
+          },
+          {
+            "kind": "dropped",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0005--------------------",
+              "reason": "class-level close"
+            },
+            "reason": "terminal_status"
+          },
+          {
+            "kind": "dropped",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0008--------------------",
+              "reason": "class-level close"
+            },
+            "reason": "terminal_status"
+          },
+          {
+            "kind": "dropped",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0011--------------------",
+              "reason": "class-level close"
+            },
+            "reason": "terminal_status"
+          },
+          {
+            "kind": "dropped",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0014--------------------",
+              "reason": "class-level close"
+            },
+            "reason": "terminal_status"
+          }
+        ],
+        "assignedNodeIds": {},
+        "admissions": [],
+        "planHashBefore": "hash-0056-------------------------------------------------------",
+        "planHashAfter": "hash-0057-------------------------------------------------------",
+        "hashVersion": 2,
+        "rationale": "one class-level decision for the whole storm",
+        "revisionUnitsAfter": 25,
+        "debits": [
+          {
+            "resource": "revisionUnits",
+            "balanceAfter": 25
+          }
+        ]
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 44,
+      "scope": "plan",
+      "key": "hash-0044-------------------------------------------------------",
+      "ordinal": 2,
+      "kind": "plan.revision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "base": {
+          "digestSeq": 1,
+          "planHash": "hash-0042-------------------------------------------------------"
+        },
+        "requestedOps": [
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0001--------------------",
+            "reason": "class-level close"
+          },
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0005--------------------",
+            "reason": "class-level close"
+          },
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0008--------------------",
+            "reason": "class-level close"
+          },
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0011--------------------",
+            "reason": "class-level close"
+          },
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0014--------------------",
+            "reason": "class-level close"
+          }
+        ],
+        "outcomes": [
+          {
+            "kind": "dropped",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0001--------------------",
+              "reason": "class-level close"
+            },
+            "reason": "terminal_status"
+          },
+          {
+            "kind": "dropped",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0005--------------------",
+              "reason": "class-level close"
+            },
+            "reason": "terminal_status"
+          },
+          {
+            "kind": "dropped",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0008--------------------",
+              "reason": "class-level close"
+            },
+            "reason": "terminal_status"
+          },
+          {
+            "kind": "dropped",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0011--------------------",
+              "reason": "class-level close"
+            },
+            "reason": "terminal_status"
+          },
+          {
+            "kind": "dropped",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0014--------------------",
+              "reason": "class-level close"
+            },
+            "reason": "terminal_status"
+          }
+        ],
+        "assignedNodeIds": {},
+        "admissions": [],
+        "planHashBefore": "hash-0057-------------------------------------------------------",
+        "planHashAfter": "hash-0058-------------------------------------------------------",
+        "hashVersion": 2,
+        "rationale": "one class-level decision for the whole storm",
+        "revisionUnitsAfter": 24,
+        "debits": [
+          {
+            "resource": "revisionUnits",
+            "balanceAfter": 24
+          }
+        ]
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 45,
+      "scope": "plan",
+      "key": "hash-0044-------------------------------------------------------",
+      "ordinal": 3,
+      "kind": "plan.revision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "base": {
+          "digestSeq": 1,
+          "planHash": "hash-0042-------------------------------------------------------"
+        },
+        "requestedOps": [
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0001--------------------",
+            "reason": "class-level close"
+          },
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0005--------------------",
+            "reason": "class-level close"
+          },
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0008--------------------",
+            "reason": "class-level close"
+          },
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0011--------------------",
+            "reason": "class-level close"
+          },
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0014--------------------",
+            "reason": "class-level close"
+          }
+        ],
+        "outcomes": [
+          {
+            "kind": "dropped",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0001--------------------",
+              "reason": "class-level close"
+            },
+            "reason": "terminal_status"
+          },
+          {
+            "kind": "dropped",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0005--------------------",
+              "reason": "class-level close"
+            },
+            "reason": "terminal_status"
+          },
+          {
+            "kind": "dropped",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0008--------------------",
+              "reason": "class-level close"
+            },
+            "reason": "terminal_status"
+          },
+          {
+            "kind": "dropped",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0011--------------------",
+              "reason": "class-level close"
+            },
+            "reason": "terminal_status"
+          },
+          {
+            "kind": "dropped",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0014--------------------",
+              "reason": "class-level close"
+            },
+            "reason": "terminal_status"
+          }
+        ],
+        "assignedNodeIds": {},
+        "admissions": [],
+        "planHashBefore": "hash-0058-------------------------------------------------------",
+        "planHashAfter": "hash-0059-------------------------------------------------------",
+        "hashVersion": 2,
+        "rationale": "one class-level decision for the whole storm",
+        "revisionUnitsAfter": 23,
+        "debits": [
+          {
+            "resource": "revisionUnits",
+            "balanceAfter": 23
+          }
+        ]
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 46,
+      "scope": "plan",
+      "key": "hash-0060-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "guard-verdict",
+        "guard": "dropped-revision-streak",
+        "fallback": "finish-with-partial",
+        "streak": 3
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 47,
+      "ref": 2,
+      "scope": "",
+      "key": "hash-0004-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "limit",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "usage": {
+        "inputTokens": 320,
+        "outputTokens": 160,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:model",
+      "transcriptRef": "fixture-transcript",
+      "checkpointRef": "fixture-checkpoint"
+    }
+  ]
+}

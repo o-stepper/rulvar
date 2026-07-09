@@ -1,4 +1,4 @@
-import { AdmissionDecision, AgentResult, CanonicalLadderSpec, ChatRequest, Effort, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, JournalStore, Json, KeyDeriver, LadderSpec, LeasableStore, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, ProviderAdapter, ReuseConfig, RunHandle, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, TriggerClass, UsageLimits } from "@lurker/core";
+import { AdmissionDecision, AgentResult, CanonicalLadderSpec, ChatRequest, Effort, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, JournalStore, Json, KeyDeriver, LadderSpec, LeasableStore, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, ProviderAdapter, ReuseConfig, RunHandle, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, TriggerClass, UsageLimits, WireError } from "@lurker/core";
 
 //#region src/plan-state.d.ts
 /**
@@ -956,12 +956,23 @@ interface CassetteTurn {
   hangUntilAborted?: boolean;
   /** Await this promise before emitting (cross-agent sequencing). */
   awaitPromise?: Promise<void>;
+  /** The stream terminates with this typed wire error (M9 DEF-2/3 rows). */
+  wireError?: WireError;
 }
 declare function cassetteAdapter(script: (req: ChatRequest) => CassetteTurn): ProviderAdapter & {
   calls: ChatRequest[];
 };
 declare function agentTypeOfRequest(req: ChatRequest): string;
 declare const EMPTY_PLAN_HASH: string;
+declare function engineWith(adapter: ProviderAdapter, store: JournalStore, profiles: Record<string, unknown>, extras?: {
+  schemas?: Record<string, unknown>;
+  lineage?: Record<string, number>;
+}): Engine;
+declare const BUDGET: {
+  readonly capUsd: 5;
+  readonly finalizeReserveUsd: 1;
+};
+declare function settled(handle: RunHandle<unknown>): Promise<void>;
 /**
 * revise-mid-run: a plan revision arrives while a worker subtree is
 * mid-flight (docs/09 round-2). The first worker HANGS until the
@@ -1120,4 +1131,80 @@ interface PlanToolRuntime {
 /** Builds the PlanRunner tools (appended to the mode (c) toolset). */
 declare function buildPlanTools(runtime: PlanToolRuntime): ToolDef[];
 //#endregion
-export { AppliedPlanOp, CassetteTurn, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_STALL_REPLAN_CAP, EMPTY_PLAN_HASH, EnginePlanOp, EscalationDebitRow, EscalationDecisionValue, GateVerdictValue, GuardFallback, GuardVerdictValue, GuardsState, JUDGE_VERDICT_SCHEMA, LEDGER_APPEND_SCHEMA, LEDGER_APPEND_TOOL_NAME, LEDGER_READ_SCHEMA, LEDGER_READ_TOOL_NAME, LEDGER_SECTION_CAPS, LadderVerdictValue, LedgerExport, LedgerFact, LedgerLesson, LedgerObservation, LedgerOp, LedgerRevisionRow, LedgerView, M7CassetteFixture, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, ParkDisposition, PinLedger, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, QueueFailoverDeps, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, UnparkPlacement, agentTypeOfRequest, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalLadderOf, canonicalPlanState, cassetteAdapter, chainEffortOf, clampStartTier, decisionOriginOf, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, escalationDecisionKey, executingRungOf, exportLedger, foldLedger, gateVerdictKey, isTerminalPlanStatus, judgePrompt, ladderOfProfile, ladderTriggerOf, ladderVerdictKey, ledgerCapViolation, ledgerOpKey, ledgerSufficiency, normalizeAdaptiveJournal, orchestratePlanned, parkDispositionOf, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, resolvedByOf, runBudgetDeniedRung, runCapFreezeThenFinish, runCrashBetweenCapAndEffects, runCrashDuringRevision, runDecomposeMintsChildren, runEscalationStormFrozen, runFinalizeFallbackSynthesized, runHalfEscalatedLadder, runOscillationFreeze, runParkUnpark, runQueueFailoverDuringForcedFinish, runReviseMidRun, runRevisionExhaustion, runRungRetryLineage, unparkPlacementOf, wouldCreateDepCycle };
+//#region src/m9-cassettes.d.ts
+/**
+* combined-loop-descent (DEF-2): a verify-failed gate raises the ladder
+* rung; the raised rung hits its turn limit at the top (trigger 'limit')
+* and the node fails; the failure wakes a replan that decomposes the
+* work into two depth-1 children; one child completes and the other
+* escalates until its escalationUnits deny; Phi strictly decreases on
+* every debiting entry and matches the embedded balances.
+*/
+declare function runCombinedLoopDescent(): Promise<JournalEntry[]>;
+/**
+* config-drift-resume (DEF-2): life 1 runs under maxRevisionsPerRun 2
+* and crashes at the pre-append kill point of its second revision; life
+* 2 resumes with the knob DOUBLED. Balances continue from the journaled
+* termination.init (the live config is ignored), a
+* termination:config-drift event fires, and nothing is repaid.
+*/
+declare function runConfigDriftResume(): Promise<JournalEntry[]>;
+/**
+* class-storm-single-turn (DEF-2): five dependency-chained workers each
+* escalate (Flavor A); the orchestrator resolves all five in ONE
+* revision; the class-level decision carries five per-lineage debits in
+* one entry. Store-independence (identical fold on JSONL and SQLite) is
+* asserted by the replay suite over the frozen bytes.
+*/
+declare function runClassStormSingleTurn(): Promise<JournalEntry[]>;
+/**
+* race-timeout-vs-live (DEF-2): a Flavor B deadline resolution and a
+* live class decision race on one suspension; first-wins applies the
+* timeout, the live attempt lands as a noop, and exactly ONE
+* escalationUnits debit exists. Store-independence is asserted by the
+* replay suite.
+*/
+declare function runRaceTimeoutVsLive(): Promise<JournalEntry[]>;
+/**
+* respawn-preserves-counter (DEF-3): the worker escalates, the
+* orchestrator respawns the SAME logical task with an amended prompt
+* (new content key, same LTID) twice; the third escalation exceeds
+* maxEscalationsPerLogicalTask, is denied on escalationUnits, and the
+* run closes through the non-HITL fallback with identical verdicts and
+* statsBefore on replay.
+*/
+declare function runRespawnPreservesCounter(): Promise<JournalEntry[]>;
+/**
+* reworded-lessons-collide (DEF-3): two attempts of one LTID whose
+* prompts differ but whose signature inputs are identical and share the
+* 'binary-search' tag; the engine computes equal approachSig values,
+* lesson_add keys once, and plan_view groups both attempts into one
+* approach.
+*/
+declare function runRewordedLessonsCollide(): Promise<JournalEntry[]>;
+/**
+* oscillation-bounded (DEF-2): an escalated branch is cancelled and
+* re-added byte-identically twice; every plan_revise call debits one
+* revisionUnit (including the drop on the linked done node), each link
+* debits one spawnUnit, the worker is paid exactly once, and the
+* lineage counters never reset.
+*/
+declare function runOscillationBounded(): Promise<JournalEntry[]>;
+/**
+* stall-streak-classes-and-pinning (DEF-3): four attempts of one LTID
+* land transient-error, task-error, no-progress, and ok; the pinned
+* admission snapshots show stallStreak 0, 1, 2 and the post-ok pinned
+* view shows 0; a wake turn re-executed after a crash reads the SAME
+* LineageStats from its snapshot, not a fresh fold.
+*/
+declare function runStallStreakClassesAndPinning(): Promise<JournalEntry[]>;
+/**
+* legacy-journal-resume (DEF-3): a journal whose spawns carry no lineage
+* records (the pre-lineage shape) resumes on the current engine; the
+* legacy spawns canonize onto deterministic 'legacy:' LTIDs, forward
+* matching pays nothing for them, and the NEW lineage-declaring spawn's
+* admission entry carries sigVersion 1.
+*/
+declare function runLegacyJournalResume(): Promise<JournalEntry[]>;
+//#endregion
+export { AppliedPlanOp, BUDGET, CassetteTurn, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_STALL_REPLAN_CAP, EMPTY_PLAN_HASH, EnginePlanOp, EscalationDebitRow, EscalationDecisionValue, GateVerdictValue, GuardFallback, GuardVerdictValue, GuardsState, JUDGE_VERDICT_SCHEMA, LEDGER_APPEND_SCHEMA, LEDGER_APPEND_TOOL_NAME, LEDGER_READ_SCHEMA, LEDGER_READ_TOOL_NAME, LEDGER_SECTION_CAPS, LadderVerdictValue, LedgerExport, LedgerFact, LedgerLesson, LedgerObservation, LedgerOp, LedgerRevisionRow, LedgerView, M7CassetteFixture, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, ParkDisposition, PinLedger, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, QueueFailoverDeps, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, UnparkPlacement, agentTypeOfRequest, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, buildPlanTools, canonicalLadderOf, canonicalPlanState, cassetteAdapter, chainEffortOf, clampStartTier, decisionOriginOf, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, engineWith, escalationDecisionKey, executingRungOf, exportLedger, foldLedger, gateVerdictKey, isTerminalPlanStatus, judgePrompt, ladderOfProfile, ladderTriggerOf, ladderVerdictKey, ledgerCapViolation, ledgerOpKey, ledgerSufficiency, normalizeAdaptiveJournal, orchestratePlanned, parkDispositionOf, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, resolvedByOf, runBudgetDeniedRung, runCapFreezeThenFinish, runClassStormSingleTurn, runCombinedLoopDescent, runConfigDriftResume, runCrashBetweenCapAndEffects, runCrashDuringRevision, runDecomposeMintsChildren, runEscalationStormFrozen, runFinalizeFallbackSynthesized, runHalfEscalatedLadder, runLegacyJournalResume, runOscillationBounded, runOscillationFreeze, runParkUnpark, runQueueFailoverDuringForcedFinish, runRaceTimeoutVsLive, runRespawnPreservesCounter, runReviseMidRun, runRevisionExhaustion, runRewordedLessonsCollide, runRungRetryLineage, runStallStreakClassesAndPinning, settled, unparkPlacementOf, wouldCreateDepCycle };

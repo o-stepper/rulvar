@@ -1,0 +1,148 @@
+{
+  "id": "legacy-journal-resume",
+  "note": "DEF-3: a journal whose spawns carry no lineage records resumes on the current engine; legacy spawns canonize onto deterministic 'legacy:' LTIDs, forward matching pays nothing, and the new lineage-declaring admission carries sigVersion 1 (docs/03, 10.7).",
+  "entries": [
+    {
+      "hashVersion": 2,
+      "seq": 0,
+      "scope": "",
+      "key": "hash-0001-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 1,
+      "ref": 0,
+      "scope": "",
+      "key": "hash-0001-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "value": "legacy step done",
+      "usage": {
+        "inputTokens": 10,
+        "outputTokens": 5,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:model",
+      "transcriptRef": "fixture-transcript"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
+      "scope": "",
+      "key": "hash-0002-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 3,
+      "ref": 2,
+      "scope": "",
+      "key": "hash-0002-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "value": "legacy step done",
+      "usage": {
+        "inputTokens": 10,
+        "outputTokens": 5,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:model",
+      "transcriptRef": "fixture-transcript"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 4,
+      "scope": "",
+      "key": "",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "spawn-admission",
+        "origin": "ctx.agent",
+        "attemptScope": "",
+        "spawnKey": "hash-0003-------------------------------------------------------",
+        "childScope": "",
+        "statsBefore": {
+          "attemptsUsed": 1,
+          "escalationsUsed": 0,
+          "stallStreak": 0,
+          "approaches": [
+            {
+              "approachSig": "hash-0004-------------------------------------------------------",
+              "approachTag": "default",
+              "attempts": 1,
+              "lastOutcome": "ok"
+            }
+          ]
+        },
+        "lineage": {
+          "logicalTaskId": "legacy:hash-0001-------------------------------------------------------",
+          "relation": "respawn",
+          "attemptOrdinal": 1,
+          "causeRef": 1,
+          "ancestry": [],
+          "approachSig": "hash-0005-------------------------------------------------------",
+          "approachSigCoarse": "hash-0006-------------------------------------------------------",
+          "sigVersion": 1,
+          "approachTag": "legacy-continuation"
+        }
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 5,
+      "scope": "",
+      "key": "hash-0003-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 6,
+      "ref": 5,
+      "scope": "",
+      "key": "hash-0003-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "value": "continuation done",
+      "usage": {
+        "inputTokens": 10,
+        "outputTokens": 5,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:model",
+      "transcriptRef": "fixture-transcript"
+    }
+  ]
+}

@@ -1,0 +1,727 @@
+{
+  "id": "race-timeout-vs-live",
+  "note": "DEF-2: a Flavor B deadline resolution and a live revision cancel race on one suspension; first-wins applies the timeout, the live attempt lands as a noop, exactly ONE escalationUnits debit exists (docs/07, 6.3); store-independence asserted by the replay suite.",
+  "entries": [
+    {
+      "hashVersion": 2,
+      "seq": 0,
+      "scope": "",
+      "key": "hash-0001-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "termination.init",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "limits": {
+          "maxRevisionsPerRun": 32,
+          "maxTotalSpawns": 128,
+          "maxEscalationsPerLogicalTask": 2,
+          "maxDepth": 1,
+          "kMax": 1,
+          "runBudgetUsdCeiling": 0,
+          "orchestratorCapUsd": 0,
+          "finalizeReserveUsd": 0
+        },
+        "profileRegistrySnapshotHash": "hash-0002-------------------------------------------------------",
+        "phiInitial": 416
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 1,
+      "scope": "",
+      "key": "hash-0003-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "orchestrator_budget_reserve",
+        "capUsd": 5,
+        "finalizeReserveUsd": 1,
+        "finalizeTurns": 2,
+        "source": "call",
+        "pricingVersion": "unpriced",
+        "terminationInitRef": 0
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
+      "scope": "",
+      "key": "hash-0004-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 3,
+      "scope": "plan",
+      "key": "hash-0005-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.revision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "base": {
+          "digestSeq": 0,
+          "planHash": "hash-0006-------------------------------------------------------"
+        },
+        "requestedOps": [
+          {
+            "op": "add_task",
+            "spec": {
+              "agentType": "worker",
+              "prompt": "racy task"
+            }
+          }
+        ],
+        "outcomes": [
+          {
+            "kind": "applied",
+            "op": {
+              "op": "add_task",
+              "spec": {
+                "agentType": "worker",
+                "prompt": "racy task"
+              },
+              "nodeId": "ULID-0001--------------------"
+            }
+          }
+        ],
+        "assignedNodeIds": {
+          "0": "ULID-0001--------------------"
+        },
+        "admissions": [
+          {
+            "opIndex": 0,
+            "nodeId": "ULID-0001--------------------",
+            "decision": {
+              "verdict": {
+                "kind": "admit",
+                "reserve": {
+                  "reserveUsd": 0.5
+                },
+                "spawnUnitsAfter": 127,
+                "lineage": {
+                  "logicalTaskId": "ULID-0002--------------------",
+                  "isNew": true,
+                  "depth": 1
+                }
+              },
+              "statsBefore": {
+                "spawnsBefore": 1,
+                "childrenOfParentBefore": 0,
+                "depth": 1
+              },
+              "nodeId": "ULID-0003--------------------",
+              "lineage": {
+                "logicalTaskId": "ULID-0002--------------------",
+                "relation": "first",
+                "attemptOrdinal": 0,
+                "ancestry": [],
+                "approachSig": "hash-0007-------------------------------------------------------",
+                "approachSigCoarse": "hash-0008-------------------------------------------------------",
+                "sigVersion": 1,
+                "approachTag": "default"
+              },
+              "ladderLength": 1
+            }
+          }
+        ],
+        "planHashBefore": "hash-0006-------------------------------------------------------",
+        "planHashAfter": "hash-0009-------------------------------------------------------",
+        "hashVersion": 2,
+        "rationale": "one racy worker",
+        "revisionUnitsAfter": 31,
+        "debits": [
+          {
+            "resource": "revisionUnits",
+            "balanceAfter": 31
+          }
+        ]
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 4,
+      "scope": "plan/ULID-0001--------------------",
+      "key": "hash-0010-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 5,
+      "scope": "plan",
+      "key": "hash-0011-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "child-result",
+        "ops": [
+          {
+            "kind": "set_node_status",
+            "nodeId": "ULID-0001--------------------",
+            "from": "ready",
+            "to": "running",
+            "cause": "child-result",
+            "causeRef": 4
+          }
+        ],
+        "causeRef": 4,
+        "planHashBefore": "hash-0009-------------------------------------------------------",
+        "planHashAfter": "hash-0012-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 6,
+      "scope": "plan/ULID-0001--------------------/agent:4",
+      "key": "hash-0013-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "approval",
+      "status": "suspended",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "toolName": "escalate",
+        "input": {
+          "kind": "scope_bigger",
+          "scopeDelta": "racing",
+          "revisedEstimate": {
+            "usd": 1,
+            "turns": 4
+          }
+        }
+      },
+      "deadlineAt": "2026-02-01T00:00:05.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 7,
+      "scope": "agent:2",
+      "key": "hash-0014-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "external",
+      "status": "suspended",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "key": "wake:2:0"
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 8,
+      "ref": 6,
+      "scope": "plan/ULID-0001--------------------/agent:4",
+      "key": "",
+      "ordinal": 0,
+      "kind": "resolution",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "resolution": {
+        "target": 6,
+        "by": "timeout",
+        "value": {
+          "kind": "accept"
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 9,
+      "ref": 4,
+      "scope": "plan/ULID-0001--------------------",
+      "key": "hash-0010-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "escalated",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "usage": {
+        "inputTokens": 10,
+        "outputTokens": 5,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:model",
+      "transcriptRef": "fixture-transcript",
+      "escalation": {
+        "kind": "scope_bigger",
+        "scopeDelta": "racing",
+        "revisedEstimate": {
+          "usd": 1,
+          "turns": 4
+        },
+        "blockers": [],
+        "proposedDecomposition": [],
+        "costToDate": {
+          "usd": 0.00006,
+          "turns": 1
+        },
+        "salvage": {
+          "transcriptRef": "ULID-0004--------------------/t0",
+          "artifacts": []
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 10,
+      "scope": "plan/ULID-0001--------------------",
+      "key": "",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "escalation.decision",
+        "targetRef": 4,
+        "decision": {
+          "kind": "accept"
+        },
+        "countsAgainstLimit": true
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 11,
+      "scope": "plan",
+      "key": "hash-0015-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "child-result",
+        "ops": [
+          {
+            "kind": "set_node_status",
+            "nodeId": "ULID-0001--------------------",
+            "from": "running",
+            "to": "escalated",
+            "cause": "child-result",
+            "causeRef": 9
+          }
+        ],
+        "causeRef": 9,
+        "planHashBefore": "hash-0012-------------------------------------------------------",
+        "planHashAfter": "hash-0016-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 12,
+      "scope": "plan",
+      "key": "hash-0017-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "escalation-decision",
+        "logicalTaskId": "ULID-0002--------------------",
+        "nodeId": "ULID-0001--------------------",
+        "decision": {
+          "kind": "accept"
+        },
+        "reportRef": 6,
+        "countsAgainstLimit": true,
+        "resolvedBy": "default",
+        "escalationUnitsAfter": 1
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 13,
+      "scope": "plan",
+      "key": "hash-0018-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "escalation-default",
+        "ops": [
+          {
+            "kind": "resolve_escalation",
+            "nodeId": "ULID-0001--------------------",
+            "decision": {
+              "kind": "accept"
+            },
+            "resolvedBy": "default",
+            "escalationRef": 6
+          }
+        ],
+        "causeRef": 12,
+        "planHashBefore": "hash-0016-------------------------------------------------------",
+        "planHashAfter": "hash-0019-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 14,
+      "ref": 7,
+      "scope": "agent:2",
+      "key": "",
+      "ordinal": 0,
+      "kind": "resolution",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "resolution": {
+        "target": 7,
+        "by": "engine_fallback",
+        "value": {
+          "digestSeq": 1,
+          "planHash": "hash-0019-------------------------------------------------------",
+          "termination": {
+            "revisionUnitsRemaining": 31,
+            "spawnUnitsRemaining": 127,
+            "perLineage": {
+              "ULID-0002--------------------": {
+                "escalationUnitsRemaining": 1,
+                "rungsRemaining": 0
+              }
+            },
+            "phi": 413
+          },
+          "budget": {
+            "runSpentUsd": 0.00018,
+            "runCeilingUsd": 0,
+            "orchestratorSpentUsd": 0.00012,
+            "orchestratorCapUsd": 5,
+            "finalizeReserveUsd": 1,
+            "orchestratorShare": 0.012,
+            "softWarning": false
+          },
+          "reuse": {
+            "abandonedUsd": 0,
+            "reclaimedUsd": 0,
+            "netLostUsd": 0,
+            "byKey": {}
+          },
+          "coversToOrdinal": 0,
+          "completedDigests": [
+            {
+              "nodeId": "ULID-0001--------------------",
+              "logicalTaskId": "ULID-0002--------------------",
+              "status": "escalated",
+              "outputSummary": "terminal status escalated",
+              "costUsd": 0.00006,
+              "artifactsIndex": []
+            }
+          ],
+          "escalations": [
+            {
+              "nodeId": "ULID-0001--------------------",
+              "logicalTaskId": "ULID-0002--------------------",
+              "reportRef": 9,
+              "kind": "scope_bigger",
+              "flavor": "A"
+            }
+          ],
+          "planSeq": 13
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 15,
+      "ref": 7,
+      "scope": "agent:2",
+      "key": "",
+      "ordinal": 0,
+      "kind": "resolution",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "resolution": {
+        "target": 7,
+        "by": "quiescence",
+        "value": {
+          "digestSeq": 1,
+          "planHash": "hash-0019-------------------------------------------------------",
+          "termination": {
+            "revisionUnitsRemaining": 31,
+            "spawnUnitsRemaining": 127,
+            "perLineage": {
+              "ULID-0002--------------------": {
+                "escalationUnitsRemaining": 1,
+                "rungsRemaining": 0
+              }
+            },
+            "phi": 413
+          },
+          "budget": {
+            "runSpentUsd": 0.00018,
+            "runCeilingUsd": 0,
+            "orchestratorSpentUsd": 0.00012,
+            "orchestratorCapUsd": 5,
+            "finalizeReserveUsd": 1,
+            "orchestratorShare": 0.012,
+            "softWarning": false
+          },
+          "reuse": {
+            "abandonedUsd": 0,
+            "reclaimedUsd": 0,
+            "netLostUsd": 0,
+            "byKey": {}
+          },
+          "coversToOrdinal": 0,
+          "completedDigests": [
+            {
+              "nodeId": "ULID-0001--------------------",
+              "logicalTaskId": "ULID-0002--------------------",
+              "status": "escalated",
+              "outputSummary": "terminal status escalated",
+              "costUsd": 0.00006,
+              "artifactsIndex": []
+            }
+          ],
+          "escalations": [
+            {
+              "nodeId": "ULID-0001--------------------",
+              "logicalTaskId": "ULID-0002--------------------",
+              "reportRef": 9,
+              "kind": "scope_bigger",
+              "flavor": "A"
+            }
+          ],
+          "planSeq": 13
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 16,
+      "scope": "plan",
+      "key": "hash-0020-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.revision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "base": {
+          "digestSeq": 1,
+          "planHash": "hash-0019-------------------------------------------------------"
+        },
+        "requestedOps": [
+          {
+            "op": "cancel_task",
+            "nodeId": "ULID-0001--------------------",
+            "reason": "live cancel"
+          }
+        ],
+        "outcomes": [
+          {
+            "kind": "dropped",
+            "requested": {
+              "op": "cancel_task",
+              "nodeId": "ULID-0001--------------------",
+              "reason": "live cancel"
+            },
+            "reason": "node_already_done"
+          }
+        ],
+        "assignedNodeIds": {},
+        "admissions": [],
+        "planHashBefore": "hash-0019-------------------------------------------------------",
+        "planHashAfter": "hash-0021-------------------------------------------------------",
+        "hashVersion": 2,
+        "rationale": "the live decision arrives late",
+        "revisionUnitsAfter": 30,
+        "debits": [
+          {
+            "resource": "revisionUnits",
+            "balanceAfter": 30
+          }
+        ]
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 17,
+      "scope": "agent:2",
+      "key": "hash-0022-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "external",
+      "status": "suspended",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "key": "wake:2:1"
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 18,
+      "ref": 17,
+      "scope": "agent:2",
+      "key": "",
+      "ordinal": 0,
+      "kind": "resolution",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "resolution": {
+        "target": 17,
+        "by": "quiescence",
+        "value": {
+          "digestSeq": 2,
+          "planHash": "hash-0021-------------------------------------------------------",
+          "termination": {
+            "revisionUnitsRemaining": 30,
+            "spawnUnitsRemaining": 127,
+            "perLineage": {
+              "ULID-0002--------------------": {
+                "escalationUnitsRemaining": 1,
+                "rungsRemaining": 0
+              }
+            },
+            "phi": 412
+          },
+          "budget": {
+            "runSpentUsd": 0.00030000000000000003,
+            "runCeilingUsd": 0,
+            "orchestratorSpentUsd": 0.00024,
+            "orchestratorCapUsd": 5,
+            "finalizeReserveUsd": 1,
+            "orchestratorShare": 0.024,
+            "softWarning": false
+          },
+          "reuse": {
+            "abandonedUsd": 0,
+            "reclaimedUsd": 0,
+            "netLostUsd": 0,
+            "byKey": {}
+          },
+          "coversToOrdinal": 0,
+          "completedDigests": [],
+          "escalations": [],
+          "planSeq": 16
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 19,
+      "scope": "agent:2",
+      "key": "hash-0023-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "external",
+      "status": "suspended",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "key": "wake:2:2"
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 20,
+      "ref": 19,
+      "scope": "agent:2",
+      "key": "",
+      "ordinal": 0,
+      "kind": "resolution",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "resolution": {
+        "target": 19,
+        "by": "quiescence",
+        "value": {
+          "digestSeq": 3,
+          "planHash": "hash-0021-------------------------------------------------------",
+          "termination": {
+            "revisionUnitsRemaining": 30,
+            "spawnUnitsRemaining": 127,
+            "perLineage": {
+              "ULID-0002--------------------": {
+                "escalationUnitsRemaining": 1,
+                "rungsRemaining": 0
+              }
+            },
+            "phi": 412
+          },
+          "budget": {
+            "runSpentUsd": 0.00036,
+            "runCeilingUsd": 0,
+            "orchestratorSpentUsd": 0.00030000000000000003,
+            "orchestratorCapUsd": 5,
+            "finalizeReserveUsd": 1,
+            "orchestratorShare": 0.030000000000000002,
+            "softWarning": false
+          },
+          "reuse": {
+            "abandonedUsd": 0,
+            "reclaimedUsd": 0,
+            "netLostUsd": 0,
+            "byKey": {}
+          },
+          "coversToOrdinal": 0,
+          "completedDigests": [],
+          "escalations": [],
+          "planSeq": 16
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 21,
+      "ref": 2,
+      "scope": "",
+      "key": "hash-0004-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "endedAt": "2026-02-01T00:00:00.000Z",
+      "value": "race closed",
+      "usage": {
+        "inputTokens": 60,
+        "outputTokens": 30,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:model",
+      "transcriptRef": "fixture-transcript",
+      "checkpointRef": "fixture-checkpoint"
+    }
+  ]
+}
