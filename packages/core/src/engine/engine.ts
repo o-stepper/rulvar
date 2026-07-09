@@ -36,7 +36,7 @@ import type { ResumeReport } from '../journal/matching.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { buildAdapterRegistry, parseModelRef } from '../model/router.js';
 import type { EscalationDecision } from '../runtime/escalation.js';
-import type { EscalatedResult } from '../runtime/agent-loop.js';
+import type { EscalatedResult, MechanicalGateProfile } from '../runtime/agent-loop.js';
 import type { PermissionConfig } from '../runtime/permission-chain.js';
 import type { UsageLimits } from '../runtime/usage-limits.js';
 import { profileCard } from '../model/profile-card.js';
@@ -85,6 +85,12 @@ export interface EngineDefaults {
   schemas?: Record<string, SchemaSpec>;
   /** Registered tool profile names for toolsetRef (docs/08; M7-T05). */
   toolsets?: Record<string, ToolsOption>;
+  /**
+   * Registered mechanical gate profiles: named pure functions over
+   * AgentResult.artifacts for ladder acceptance gates (docs/02, section
+   * "Registries"; docs/07, section 10; M7-T10).
+   */
+  gates?: Record<string, MechanicalGateProfile>;
   limits?: UsageLimits;
   /** Engine-wide permission chain layers (docs/08, section 3). */
   permissions?: PermissionConfig;
@@ -420,6 +426,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         ...(defaults.workflows === undefined ? {} : { workflows: defaults.workflows }),
         ...(defaults.schemas === undefined ? {} : { schemas: defaults.schemas }),
         ...(defaults.toolsets === undefined ? {} : { toolsets: defaults.toolsets }),
+        ...(defaults.gates === undefined ? {} : { gates: defaults.gates }),
       },
       errorPolicy: wf.errorPolicy,
       dropped: [],

@@ -182,7 +182,9 @@ describe('resolution chain (M1-T05; docs/04 section 8.2-8.3)', () => {
     });
   });
 
-  it('rejects ladder specs until M7 with a ConfigError', () => {
+  it('rejects a ladder that WINS wire resolution with a ConfigError', () => {
+    // Ladder execution is owned by the PlanRunner ladder driver: rung
+    // attempts always carry a concrete call-layer override (docs/07, 10).
     expect(() =>
       resolveModelInvocation({
         role: 'loop',
@@ -198,6 +200,49 @@ describe('resolution chain (M1-T05; docs/04 section 8.2-8.3)', () => {
         capsOf,
       }),
     ).toThrow(ConfigError);
+  });
+
+  it('lets a concrete call override SHADOW a declared profile ladder', () => {
+    // The rung attempt's own resolution: the ladder driver dispatches
+    // with a concrete ModelChoice at the call layer (docs/04, 12).
+    const resolved = resolveModelInvocation({
+      role: 'loop',
+      call: { model: { model: 'anthropic:claude-fable-5', effort: 'high' } },
+      profile: {
+        model: {
+          ladder: {
+            rungs: [{ model: 'openai:gpt-5.4-mini', effort: 'low', maxTurns: 4, maxTokens: 1000 }],
+            startTier: 0,
+            escalateOn: ['error'],
+          },
+        },
+      },
+      capsOf,
+    });
+    expect(resolved.ref).toBe('anthropic:claude-fable-5');
+    expect(resolved.canonical).toEqual({
+      kind: 'model',
+      model: 'anthropic:claude-fable-5',
+      effort: 'high',
+    });
+    // And the other direction: a HIGHER ladder shadows a lower model,
+    // so the winner check still fires.
+    expect(() =>
+      resolveModelInvocation({
+        role: 'loop',
+        call: {
+          model: {
+            ladder: {
+              rungs: [{ model: 'openai:gpt-5.4-mini', maxTurns: 4, maxTokens: 1000 }],
+              startTier: 0,
+              escalateOn: ['error'],
+            },
+          },
+        },
+        profile: { model: 'anthropic:claude-fable-5' },
+        capsOf,
+      }),
+    ).toThrow(/ladder ModelSpec wins wire resolution/);
   });
 });
 

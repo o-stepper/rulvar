@@ -70,6 +70,7 @@ import {
   type AgentResult,
   type Artifact,
   type EscalatedResult,
+  type MechanicalGateProfile,
   type PhaseTarget,
   type ToolRuntime,
 } from '../runtime/agent-loop.js';
@@ -544,6 +545,8 @@ export interface RunInternals {
     schemas?: Record<string, SchemaSpec>;
     /** Registered tool profile names for toolsetRef (docs/08; M7-T05). */
     toolsets?: Record<string, ToolsOption>;
+    /** Registered mechanical gate profiles (docs/07, section 10; M7-T10). */
+    gates?: Record<string, MechanicalGateProfile>;
   };
   /** Engine-scoped per-provider keyed limiter (docs/06, section 4; M4-T07). */
   providerLimiter?: KeyedLimiter;

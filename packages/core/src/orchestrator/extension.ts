@@ -17,7 +17,7 @@
  */
 import type { EntryKind, JournalEntry } from '../l0/entries.js';
 import type { Json } from '../l0/json.js';
-import type { Usage } from '../l0/messages.js';
+import type { Effort, ModelRef, Usage } from '../l0/messages.js';
 import type { ToolDef } from '../l0/spi/toolsource.js';
 import type { UsageLimits } from '../runtime/usage-limits.js';
 import type { EscalationOptions } from '../runtime/escalation.js';
@@ -55,6 +55,26 @@ export interface ExtensionDispatchSpec {
    * 11.2). Dangling redispatch checkpoints take precedence.
    */
   bootCheckpointRef?: string;
+  /**
+   * The CONCRETE model of this attempt: the ladder driver resolves each
+   * rung to its `{ model, effort }` form and dispatches with it, so the
+   * attempt's identity hash includes the concrete ModelRef (docs/07,
+   * section 10). The orchestrator itself never names models; only the
+   * engine-side driver populates this from the declared ladder.
+   */
+  model?: { model: ModelRef; effort?: Effort };
+  /**
+   * Rung/fallback opt-in (docs/04, section 12): a memoized terminal
+   * outcome replays by match instead of re-running live; the global
+   * default errors-re-run-live is preserved (DEF-1).
+   */
+  memoizeOutcome?: boolean;
+  /**
+   * An INLINE SchemaSpec for engine-synthesized children (the ladder
+   * judge verdict); user-authored plan specs use `outputSchemaRef`
+   * against the registry instead (docs/07, 4.2).
+   */
+  schema?: unknown;
 }
 
 /** The per-run IO the extension closes over (engine-owned effects). */
@@ -66,10 +86,22 @@ export interface OrchestratorExtensionIO {
   orchestratorScope(): string;
   /** Registered agent profiles advertised to this orchestrate call. */
   readonly profiles: Record<string, unknown>;
+  /**
+   * The per-engine mechanical gate registry (docs/07, section 10):
+   * named pure functions over AgentResult.artifacts. Typed loose at the
+   * seam exactly like `profiles`.
+   */
+  readonly gates: Record<string, unknown>;
   /** The run USD ceiling (B0), when one exists. */
   readonly runCeilingUsd?: number;
   /** ULID minting for engine-owned identifiers (NodeIds). */
   mintId(): string;
+  /**
+   * A journaled random draw in [0, 1) under the orchestrate scope: the
+   * ctx.random primitive, computed once live and replayed by match. The
+   * spot-check gate draws HERE, never Math.random (docs/04, section 12).
+   */
+  random(key?: string): Promise<number>;
   /** Total-order append; the extension owns its scopes' content keys. */
   append(input: ExtensionAppendInput): Promise<JournalEntry>;
   /** The pinned journal view backing every pure fold. */

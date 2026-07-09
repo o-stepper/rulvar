@@ -25,6 +25,7 @@ import {
   foldTermination,
   kMaxOf,
   ladderLengthOf,
+  ladderRungChoice,
   LEGACY_SIGNATURE_INPUTS,
   nodeLinkKey,
   normalizeApproachTag,
@@ -37,6 +38,7 @@ import {
   type AdmissionDecision,
   type AgentProfile,
   type AgentResult,
+  type CanonicalLadderSpec,
   type DonorCandidate,
   type DonorRef,
   type EntryRef,
@@ -45,6 +47,8 @@ import {
   type JournalEntry,
   type Json,
   type LogicalTaskId,
+  type MechanicalGateProfile,
+  type ModelRef,
   type NodeId,
   type NodeLinkValue,
   type OrchestrateOptions,
@@ -54,6 +58,7 @@ import {
   type RunHandle,
   type TerminationDeniedValue,
   type TerminationLimits,
+  type TriggerClass,
   type WakeDigest,
 } from '@lurker/core';
 import { canonicalIsolationTag } from '@lurker/core';
@@ -94,6 +99,18 @@ import { PlanWriteLock } from './write-lock.js';
 import { buildPlanTools, type PlanToolRuntime, type PlanViewRender } from './tools.js';
 import { RevisionGuards, type GuardVerdictValue, type RevisionGuardsOptions } from './guards.js';
 import { promptSpecHashOf, type TaskSpec } from './task-spec.js';
+import {
+  canonicalLadderOf,
+  clampStartTier,
+  executingRungOf,
+  gateVerdictKey,
+  JUDGE_VERDICT_SCHEMA,
+  judgePrompt,
+  ladderTriggerOf,
+  ladderVerdictKey,
+  type GateVerdictValue,
+  type LadderVerdictValue,
+} from './ladder.js';
 
 /** docs/07, 3.8. */
 export interface PlanRunnerOptions {
@@ -653,6 +670,441 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     return entry.seq;
   };
 
+  /**
+   * The rung-resolved dispatch fields of a laddered node (docs/07, 10):
+   * the concrete ModelRef enters the attempt's identity hash, the rung
+   * caps bind as usage limits (maxTokens reads as the per-turn output
+   * cap, so maxTurns x maxTokens bounds the worst-case failed attempt),
+   * maxCostUsd binds the child ceiling, and memoizeOutcome opts the rung
+   * into terminal memoization. Mechanical gate profiles are validated
+   * against the per-engine registry BEFORE paying for the attempt.
+   */
+  const ladderDispatchFields = (
+    node: PlanNode,
+    spec: TaskSpec,
+    ladder: CanonicalLadderSpec,
+  ): Partial<ExtensionDispatchSpec> => {
+    for (const gate of ladder.acceptance ?? []) {
+      if (gate.kind === 'mechanical' && io.gates[gate.profile] === undefined) {
+        throw new ConfigError(
+          `mechanical gate profile '${gate.profile}' is not registered under defaults.gates ` +
+            '(docs/07, section 10)',
+        );
+      }
+    }
+    const startTier = clampStartTier(ladder, spec.model_hint?.startTier);
+    const raises = requireAccount().rungIndexOf(node.logicalTaskId);
+    const rungIndex = executingRungOf(ladder, startTier, raises);
+    const rung = ladder.rungs[rungIndex];
+    if (rung === undefined) {
+      throw new ConfigError(`ladder rung ${String(rungIndex)} is undeclared`);
+    }
+    return {
+      model: ladderRungChoice(ladder, rungIndex),
+      usageLimits: {
+        ...spec.usageLimits,
+        maxTurns: rung.maxTurns,
+        maxOutputTokensPerTurn: rung.maxTokens,
+      },
+      ...(rung.maxCostUsd === undefined
+        ? spec.budgetUsd === undefined
+          ? {}
+          : { budgetUsd: spec.budgetUsd }
+        : { budgetUsd: rung.maxCostUsd }),
+      ...(rung.memoizeOutcome === undefined ? {} : { memoizeOutcome: rung.memoizeOutcome }),
+    };
+  };
+
+  /**
+   * Runs the acceptance gates of one settled ok attempt in declaration
+   * order, fail fast (docs/07, 10). Every evaluation is a decision entry
+   * (kind 'decision', decisionType 'gate-verdict') computed once live and
+   * recovered by content key on re-execution; the spot-check draw is
+   * io.random (journaled ctx.random, never Math.random).
+   */
+  const runAcceptanceGates = async (
+    node: PlanNode,
+    spec: TaskSpec,
+    settled: AgentResult<unknown>,
+    attemptRef: EntryRef,
+    rungIndex: number,
+    ladder: CanonicalLadderSpec,
+  ): Promise<{ pass: boolean; failedGate?: GateVerdictValue }> => {
+    const gates = ladder.acceptance ?? [];
+    for (const [gateIndex, gate] of gates.entries()) {
+      const key = gateVerdictKey(attemptRef, gateIndex);
+      const existing = io
+        .snapshot()
+        .find(
+          (entry) => entry.kind === 'decision' && entry.scope === planScope && entry.key === key,
+        );
+      let verdict: GateVerdictValue;
+      if (existing !== undefined) {
+        // Roll-forward: the journaled verdict is the truth; gates never
+        // re-evaluate live on a re-executed turn (docs/07, 10).
+        verdict = existing.value as unknown as GateVerdictValue;
+      } else {
+        const base = {
+          decisionType: 'gate-verdict' as const,
+          logicalTaskId: node.logicalTaskId,
+          nodeId: node.nodeId,
+          attemptRef,
+          rung: rungIndex,
+        };
+        if (gate.kind === 'mechanical') {
+          const profile = io.gates[gate.profile] as MechanicalGateProfile | undefined;
+          if (profile === undefined) {
+            throw new ConfigError(
+              `mechanical gate profile '${gate.profile}' is not registered under defaults.gates`,
+            );
+          }
+          const outcome = profile(settled.artifacts ?? []);
+          verdict = {
+            ...base,
+            gate: 'mechanical',
+            profile: gate.profile,
+            pass: outcome.pass,
+            ...(outcome.detail === undefined ? {} : { detail: outcome.detail }),
+          };
+        } else if (gate.kind === 'judge') {
+          const judged = await dispatchJudge(node, spec, settled, attemptRef, gateIndex, {
+            // FR-119: the judge runs on a declared rung with index >= the
+            // executing rung (raised to the executing rung when the
+            // declaration sits below it), or an explicit named override.
+            rung: typeof gate.rung === 'number' ? Math.max(gate.rung, rungIndex) : gate.rung,
+            ladder,
+          });
+          verdict = { ...base, gate: 'judge', ...judged };
+        } else {
+          const draw = await io.random(`spot-check:${String(attemptRef)}:${String(gateIndex)}`);
+          const selected = draw < gate.fraction;
+          if (!selected) {
+            verdict = {
+              ...base,
+              gate: 'spot-check',
+              pass: true,
+              spotCheck: { draw, fraction: gate.fraction, selected },
+            };
+          } else {
+            // A selected spot-check judges on the TOP rung: always a
+            // declared rung with index >= the executing one.
+            const judged = await dispatchJudge(node, spec, settled, attemptRef, gateIndex, {
+              rung: ladder.rungs.length - 1,
+              ladder,
+            });
+            verdict = {
+              ...base,
+              gate: 'spot-check',
+              ...judged,
+              spotCheck: { draw, fraction: gate.fraction, selected },
+            };
+          }
+        }
+        await io.append({
+          scope: planScope,
+          key,
+          kind: 'decision',
+          value: verdict as unknown as Json,
+        });
+      }
+      if (!verdict.pass) {
+        return { pass: false, failedGate: verdict };
+      }
+    }
+    return { pass: true };
+  };
+
+  /**
+   * One judge invocation (docs/07, 10): a bounded child dispatch on the
+   * declared rung with the forced verdict schema. Identity is DERIVED
+   * (never minted live) so a re-executed turn replays the same judge by
+   * content match. A judge that itself errors fails CLOSED: acceptance
+   * exists to catch bad work, and the failure stays bounded by the
+   * declared rungs.
+   */
+  const dispatchJudge = async (
+    node: PlanNode,
+    spec: TaskSpec,
+    settled: AgentResult<unknown>,
+    attemptRef: EntryRef,
+    gateIndex: number,
+    target: { rung: number | string; ladder: CanonicalLadderSpec },
+  ): Promise<{ pass: boolean; detail?: string }> => {
+    const model =
+      typeof target.rung === 'number'
+        ? ladderRungChoice(target.ladder, target.rung)
+        : // The explicit override was parseModelRef-validated at
+          // canonicalization (FR-119).
+          { model: target.rung as ModelRef };
+    const prompt = judgePrompt({
+      taskPrompt: spec.prompt,
+      outputSummary:
+        typeof settled.output === 'string' ? settled.output : JSON.stringify(settled.output),
+      artifactIds: (settled.artifacts ?? []).map((artifact) => artifact.id),
+    });
+    const { handle } = await io.dispatch(
+      {
+        agentType: spec.agentType,
+        prompt,
+        model,
+        schema: JUDGE_VERDICT_SCHEMA,
+        usageLimits: { maxTurns: 2 },
+      },
+      `${nodeScopeOf(node.nodeId)}/judge:${String(gateIndex)}`,
+      {
+        // DERIVED identity, never minted live: a re-executed turn replays
+        // the same judge by content match and the digest stays stable.
+        nodeId: `${node.nodeId}:judge:${String(gateIndex)}`,
+        logicalTaskId: `judge:${String(attemptRef)}:${String(gateIndex)}`,
+      },
+    );
+    const result = await settledJudge(handle);
+    if (result?.status === 'ok') {
+      const output = result.output as { pass?: boolean; reason?: string } | null;
+      return {
+        pass: output?.pass === true,
+        ...(output?.reason === undefined ? {} : { detail: output.reason }),
+      };
+    }
+    return { pass: false, detail: `judge ${result?.status ?? 'missing'}` };
+  };
+
+  /** Awaits a judge settlement (bounded by the judge's own maxTurns). */
+  const settledJudge = async (handle: number): Promise<AgentResult<unknown> | undefined> => {
+    for (;;) {
+      const settled = io.settledOf(handle);
+      if (settled !== undefined) {
+        return settled;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+  };
+
+  /**
+   * The ladder driver of one settled attempt (docs/07, 10; DEF-2/DEF-3).
+   * Returns 'raised' when the next rung attempt was authorized and
+   * dispatched (the node STAYS running under a new handle); 'none' when
+   * the ordinary terminal landing proceeds; or a forced terminal status
+   * (an ok attempt whose acceptance failed with no raise left lands
+   * failed, never done).
+   */
+  const ladderStep = async (
+    node: PlanNode,
+    spec: TaskSpec,
+    settled: AgentResult<unknown>,
+    attemptRef: EntryRef,
+  ): Promise<{ kind: 'raised' } | { kind: 'none' } | { kind: 'terminal'; to: PlanNodeStatus }> => {
+    const ladder = canonicalLadderOf(io.profiles[spec.agentType]);
+    if (ladder === undefined) {
+      return { kind: 'none' };
+    }
+    const account = requireAccount();
+    const startTier = clampStartTier(ladder, spec.model_hint?.startTier);
+    const verdictKey = ladderVerdictKey(attemptRef);
+    const existing = io
+      .snapshot()
+      .find(
+        (entry) =>
+          entry.kind === 'decision' && entry.scope === planScope && entry.key === verdictKey,
+      );
+    if (existing !== undefined) {
+      // Roll-forward: the verdict journaled before a crash; its debits
+      // folded at boot. Re-issue only the dispatch effect.
+      const recorded = existing.value as unknown as LadderVerdictValue;
+      if (recorded.raisesRung && recorded.nextAttempt !== undefined) {
+        await dispatchRung(node, spec, ladder, recorded.nextAttempt.rungIndex);
+        return { kind: 'raised' };
+      }
+      return recorded.trigger === 'verify-failed'
+        ? { kind: 'terminal', to: 'failed' }
+        : { kind: 'none' };
+    }
+    let trigger: TriggerClass | undefined;
+    let failedGate: GateVerdictValue | undefined;
+    if (settled.status === 'ok') {
+      const gates = await runAcceptanceGates(
+        node,
+        spec,
+        settled,
+        attemptRef,
+        executingRungOf(ladder, startTier, account.rungIndexOf(node.logicalTaskId)),
+        ladder,
+      );
+      if (gates.pass) {
+        return { kind: 'none' };
+      }
+      trigger = 'verify-failed';
+      failedGate = gates.failedGate;
+    } else {
+      trigger = ladderTriggerOf(settled);
+      if (trigger === undefined) {
+        return { kind: 'none' };
+      }
+    }
+    if (failedGate !== undefined) {
+      io.emit({
+        type: 'verify:failed',
+        entryRef: attemptRef,
+        logicalTaskId: node.logicalTaskId,
+        rung: failedGate.rung,
+        gate: failedGate.gate,
+      });
+    }
+    const verdictBase = {
+      decisionType: 'ladder-verdict' as const,
+      logicalTaskId: node.logicalTaskId,
+      nodeId: node.nodeId,
+      trigger,
+      attemptRef,
+    };
+    const landVerdict = async (
+      value: LadderVerdictValue,
+    ): Promise<
+      { kind: 'raised' } | { kind: 'none' } | { kind: 'terminal'; to: PlanNodeStatus }
+    > => {
+      await io.append({
+        scope: planScope,
+        key: verdictKey,
+        kind: 'decision',
+        value: value as unknown as Json,
+      });
+      if (value.raisesRung && value.nextAttempt !== undefined) {
+        io.emit({
+          type: 'termination:debit',
+          entryRef: attemptRef,
+          counter: 'rungs',
+          remaining: value.rungsRemainingAfter ?? 0,
+          phi: account.phi(),
+        });
+        await dispatchRung(node, spec, ladder, value.nextAttempt.rungIndex);
+        return { kind: 'raised' };
+      }
+      // The declared fallback path of an ended ladder (docs/09,
+      // budget-denied-rung): the ordinary terminal landing; a
+      // verify-failed ok attempt lands failed, never done.
+      return trigger === 'verify-failed' ? { kind: 'terminal', to: 'failed' } : { kind: 'none' };
+    };
+    if (!ladder.escalateOn.includes(trigger)) {
+      return await landVerdict({
+        ...verdictBase,
+        raisesRung: false,
+        reason: 'trigger_not_declared',
+      });
+    }
+    const raises = account.rungIndexOf(node.logicalTaskId);
+    const currentRung = executingRungOf(ladder, startTier, raises);
+    if (currentRung >= ladder.rungs.length - 1) {
+      return await landVerdict({ ...verdictBase, raisesRung: false, reason: 'top_rung' });
+    }
+    const counters = account.snapshot().perLineage[node.logicalTaskId];
+    if (counters === undefined || counters.rungsRemaining <= 0) {
+      if (counters !== undefined) {
+        // termination.denied writes strictly BEFORE the fallback surfaces
+        // (docs/07, 11.3): the async debit path owns the denied entry.
+        await account.debit('rungs', node.logicalTaskId);
+      }
+      return await landVerdict({ ...verdictBase, raisesRung: false, reason: 'rungs_exhausted' });
+    }
+    // The rung RESPAWN is an admitted spawn (docs/07, 11.3 b): admission
+    // computes the lineage block (relation 'rung-retry') and the spawn
+    // debit; the raising verdict embeds both, so the folds replay them.
+    const childScope = nodeScopeOf(node.nodeId);
+    const admitted = io.admission.admit(
+      {
+        origin: 'spawn_agent',
+        name: spec.agentType,
+        childScope,
+        parentAccountScope: ROOT_ACCOUNT,
+        nodeKey: planScope,
+        ...(spec.budgetUsd === undefined ? {} : { budgetUsd: spec.budgetUsd }),
+        lineage: { continues: node.logicalTaskId, causeRef: attemptRef, relation: 'rung-retry' },
+        signature: {
+          agentType: spec.agentType,
+          isolation: canonicalIsolationTag(
+            spec.isolation ?? (io.profiles[spec.agentType] as AgentProfile | undefined)?.isolation,
+          ),
+          ...(spec.approach === undefined ? {} : { approachTag: spec.approach }),
+        },
+        ladderLength: ladder.rungs.length,
+      },
+      { commitReserve: false },
+    );
+    if (admitted.verdict.kind !== 'admit') {
+      if (
+        admitted.verdict.kind === 'reject' &&
+        admitted.verdict.reason.code === 'termination_exhausted'
+      ) {
+        await account.debit('spawnUnits', node.logicalTaskId);
+      }
+      return await landVerdict({ ...verdictBase, raisesRung: false, reason: 'respawn_denied' });
+    }
+    const raised = account.debitRung(node.logicalTaskId);
+    if (!raised.ok) {
+      await account.debit('rungs', node.logicalTaskId);
+      return await landVerdict({ ...verdictBase, raisesRung: false, reason: 'rungs_exhausted' });
+    }
+    return await landVerdict({
+      ...verdictBase,
+      raisesRung: true,
+      rungIndexAfter: raised.rungIndexAfter,
+      rungsRemainingAfter: raised.rungsRemainingAfter,
+      nextAttempt: {
+        childScope,
+        // The FULL computed lineage block (relation 'rung-retry', the
+        // approach signatures): reused byte-exact on replay (docs/03,
+        // 10.6); the debit block stays inside the embedded admission.
+        lineage: admitted.lineage as unknown as Json,
+        rungIndex: executingRungOf(ladder, startTier, raised.rungIndexAfter),
+      },
+      admissions: [
+        {
+          opIndex: 0,
+          nodeId: node.nodeId,
+          decision: { verdict: admitted.verdict, statsBefore: admitted.statsBefore },
+          childScope,
+        } as unknown as Json,
+      ],
+    });
+  };
+
+  /** Dispatches the NEXT rung attempt; the node stays running. */
+  const dispatchRung = async (
+    node: PlanNode,
+    spec: TaskSpec,
+    ladder: CanonicalLadderSpec,
+    rungIndex: number,
+  ): Promise<void> => {
+    const rung = ladder.rungs[rungIndex];
+    if (rung === undefined) {
+      throw new ConfigError(`ladder rung ${String(rungIndex)} is undeclared`);
+    }
+    const { handle } = await io.dispatch(
+      {
+        agentType: spec.agentType,
+        prompt: spec.prompt,
+        model: ladderRungChoice(ladder, rungIndex),
+        usageLimits: {
+          ...spec.usageLimits,
+          maxTurns: rung.maxTurns,
+          maxOutputTokensPerTurn: rung.maxTokens,
+        },
+        ...(rung.maxCostUsd === undefined
+          ? spec.budgetUsd === undefined
+            ? {}
+            : { budgetUsd: spec.budgetUsd }
+          : { budgetUsd: rung.maxCostUsd }),
+        ...(rung.memoizeOutcome === undefined ? {} : { memoizeOutcome: rung.memoizeOutcome }),
+        ...(spec.outputSchemaRef === undefined ? {} : { outputSchemaRef: spec.outputSchemaRef }),
+        ...(spec.toolsetRef === undefined ? {} : { toolsetRef: spec.toolsetRef }),
+        ...(spec.isolation === undefined ? {} : { isolation: spec.isolation }),
+        ...(spec.escalation === undefined ? {} : { escalation: spec.escalation }),
+      },
+      nodeScopeOf(node.nodeId),
+      { nodeId: node.nodeId, logicalTaskId: node.logicalTaskId },
+    );
+    dispatched.set(node.nodeId, handle);
+  };
+
   /** Journals terminal transitions for settled dispatched children. */
   const landSettlements = async (): Promise<void> => {
     for (const [nodeId, handle] of dispatched) {
@@ -716,10 +1168,37 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         continue;
       }
       const cause = node.cancelRequested && to === 'cancelled' ? 'cancel-landed' : 'child-result';
+      let terminalTo = to;
+      let terminalCauseRef = causeRef;
+      if (cause === 'child-result') {
+        // The ladder driver (docs/07, 10): a declared trigger with rungs
+        // left authorizes the next attempt and the node STAYS running; a
+        // failed acceptance with no raise left forces failed, never done.
+        const spec = fold.specs[nodeId];
+        if (spec !== undefined) {
+          const step = await ladderStep(node, spec, settled, handle);
+          if (step.kind === 'raised') {
+            continue;
+          }
+          if (step.kind === 'terminal') {
+            terminalTo = step.to;
+            terminalCauseRef = causeRef;
+          }
+        }
+      }
       const decisionSeq = await appendPlanDecision(
         cause === 'cancel-landed' ? 'cancel-landed' : 'child-result',
-        [{ kind: 'set_node_status', nodeId, from: 'running', to, cause, causeRef }],
-        causeRef,
+        [
+          {
+            kind: 'set_node_status',
+            nodeId,
+            from: 'running',
+            to: terminalTo,
+            cause,
+            causeRef: terminalCauseRef,
+          },
+        ],
+        terminalCauseRef,
       );
       if (cause === 'cancel-landed') {
         // cancel_task compiles into abandon (docs/03, 9.3): the severing
@@ -730,9 +1209,60 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     }
   };
 
+  /** The full dispatch spec of one plan node (shared by ready and recovery). */
+  const buildDispatchSpec = (node: PlanNode, spec: TaskSpec): ExtensionDispatchSpec => {
+    const placement = unparkPlacementOf({
+      ...(node.checkpointRef === undefined ? {} : { checkpointRef: node.checkpointRef }),
+      ...(node.checkpointRef === undefined
+        ? {}
+        : { transcriptRef: checkpointRefFor(io.runId, node.checkpointRef) }),
+      ...(spec.isolation === undefined ? {} : { isolation: spec.isolation }),
+      worktreePinned: PinLedger.fold(io.snapshot()).isPinnedNode(node.nodeId),
+    });
+    const ladder = canonicalLadderOf(io.profiles[spec.agentType]);
+    return {
+      agentType: spec.agentType,
+      prompt: spec.prompt,
+      ...(placement.restart || placement.bootCheckpointRef === undefined
+        ? {}
+        : { bootCheckpointRef: placement.bootCheckpointRef }),
+      ...(spec.outputSchemaRef === undefined ? {} : { outputSchemaRef: spec.outputSchemaRef }),
+      ...(spec.toolsetRef === undefined ? {} : { toolsetRef: spec.toolsetRef }),
+      ...(spec.isolation === undefined ? {} : { isolation: spec.isolation }),
+      ...(spec.budgetUsd === undefined ? {} : { budgetUsd: spec.budgetUsd }),
+      ...(spec.usageLimits === undefined ? {} : { usageLimits: spec.usageLimits }),
+      ...(spec.escalation === undefined ? {} : { escalation: spec.escalation }),
+      // The rung resolution LAST: the concrete model, the rung caps, and
+      // the rung ceiling override the spec-level fields (docs/07, 10).
+      ...(ladder === undefined ? {} : ladderDispatchFields(node, spec, ladder)),
+    };
+  };
+
   /** Dispatches every ready node under its plan/NodeId scope. */
   const scheduleReady = async (): Promise<void> => {
     for (const node of Object.values(fold.plan.nodes)) {
+      if (node.status === 'running' && !dispatched.has(node.nodeId)) {
+        // Mid-flight resume (docs/07, 3.9 roll-forward): a running node
+        // with no live handle redispatches; forward matching re-attaches
+        // the recorded attempt (dangling redispatch) or replays a settled
+        // terminal instantly, so completed rungs are never repaid. A
+        // laddered node resolves the SAME rung from the folded account,
+        // reproducing the recorded content key. The already-journaled
+        // ready-to-running decision is NOT re-appended.
+        const spec = fold.specs[node.nodeId];
+        if (spec !== undefined) {
+          const { handle } = await io.dispatch(
+            buildDispatchSpec(node, spec),
+            nodeScopeOf(node.nodeId),
+            {
+              nodeId: node.nodeId,
+              logicalTaskId: node.logicalTaskId,
+            },
+          );
+          dispatched.set(node.nodeId, handle);
+        }
+        continue;
+      }
       if (node.status !== 'ready' || dispatched.has(node.nodeId)) {
         continue;
       }
@@ -776,35 +1306,14 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       if (spec === undefined) {
         continue;
       }
-      const childScope =
-        rootScope === ''
-          ? planNodeScope(node.nodeId)
-          : `${rootScope}/${planNodeScope(node.nodeId)}`;
-      const placement = unparkPlacementOf({
-        ...(node.checkpointRef === undefined ? {} : { checkpointRef: node.checkpointRef }),
-        ...(node.checkpointRef === undefined
-          ? {}
-          : { transcriptRef: checkpointRefFor(io.runId, node.checkpointRef) }),
-        ...(spec.isolation === undefined ? {} : { isolation: spec.isolation }),
-        worktreePinned: PinLedger.fold(io.snapshot()).isPinnedNode(node.nodeId),
-      });
-      const dispatchSpec: ExtensionDispatchSpec = {
-        agentType: spec.agentType,
-        prompt: spec.prompt,
-        ...(placement.restart || placement.bootCheckpointRef === undefined
-          ? {}
-          : { bootCheckpointRef: placement.bootCheckpointRef }),
-        ...(spec.outputSchemaRef === undefined ? {} : { outputSchemaRef: spec.outputSchemaRef }),
-        ...(spec.toolsetRef === undefined ? {} : { toolsetRef: spec.toolsetRef }),
-        ...(spec.isolation === undefined ? {} : { isolation: spec.isolation }),
-        ...(spec.budgetUsd === undefined ? {} : { budgetUsd: spec.budgetUsd }),
-        ...(spec.usageLimits === undefined ? {} : { usageLimits: spec.usageLimits }),
-        ...(spec.escalation === undefined ? {} : { escalation: spec.escalation }),
-      };
-      const { handle } = await io.dispatch(dispatchSpec, childScope, {
-        nodeId: node.nodeId,
-        logicalTaskId: node.logicalTaskId,
-      });
+      const { handle } = await io.dispatch(
+        buildDispatchSpec(node, spec),
+        nodeScopeOf(node.nodeId),
+        {
+          nodeId: node.nodeId,
+          logicalTaskId: node.logicalTaskId,
+        },
+      );
       dispatched.set(node.nodeId, handle);
       // ready -> running lands as an engine decision whose cause is the
       // child's own dispatch record (docs/07, 3.3; the closed cause set).
