@@ -54,6 +54,7 @@ import type {
   OrchestratorExtension,
   OrchestratorExtensionIO,
 } from './extension.js';
+import { emptyDigestBlocks } from './wake.js';
 import type { EscalationDigest, WakeDigest, WakeTrigger } from './wake.js';
 
 /** docs/06 5.5; the cap machinery (reserves, freeze) completes in M7 (DEF-7). */
@@ -75,6 +76,13 @@ export interface OrchestrateOptions {
   maxSpawns?: number;
   /** The orchestrator's own budget sub-account (cap enforcement layers only in M6). */
   budget?: OrchestratorBudgetSpec;
+  /**
+   * Deterministic digest render bound (docs/07, section 5): each
+   * TaskDigest outputSummary is clamped to this many CHARACTERS (the
+   * model-independent interim measure; the tokenizer choice is the
+   * docs/14 open question). The numeric default is TBD before M10.
+   */
+  renderBudgetChars?: number;
   /** UsageLimits of the orchestrator agent itself (maxTurns etc.). */
   limits?: UsageLimits;
   /**
@@ -683,13 +691,21 @@ export function makeOrchestratorWorkflow(
       }
       const digest: WakeDigest = {
         digestSeq: ordinal + 1,
+        ...emptyDigestBlocks(),
         coversToOrdinal: undelivered.reduce(
           (max, record) => Math.max(max, record.spawnOrdinal),
           coversToOrdinal,
         ),
-        completedDigests: undelivered.map((record) =>
-          digestOf(record, record.settled as AgentResult<unknown>),
-        ),
+        completedDigests: undelivered.map((record) => {
+          const row = digestOf(record, record.settled as AgentResult<unknown>);
+          const budgetChars = opts?.renderBudgetChars;
+          if (budgetChars !== undefined && row.outputSummary.length > budgetChars) {
+            // The deterministic character measure (docs/07, section 5):
+            // identical live and on replay, no tokenizer dependence.
+            return { ...row, outputSummary: `${row.outputSummary.slice(0, budgetChars)}...` };
+          }
+          return row;
+        }),
         escalations,
       };
       if (capState !== undefined && orchestratorAccount !== undefined) {
@@ -700,7 +716,7 @@ export function makeOrchestratorWorkflow(
         const root = internals.budget.accountView(callingState.budgetScope ?? ROOT_ACCOUNT);
         const orchestratorSpentUsd = view?.spentUsd ?? 0;
         const runSpentUsd = root?.spentUsd ?? 0;
-        const block = {
+        digest.budget = {
           runSpentUsd,
           runCeilingUsd: root?.ceilingUsd ?? 0,
           orchestratorSpentUsd,
@@ -710,9 +726,8 @@ export function makeOrchestratorWorkflow(
           softWarning:
             orchestratorSpentUsd >= 0.8 * (capState.effectiveCapUsd - capState.finalizeReserveUsd),
         };
-        (digest as unknown as { budget?: typeof block }).budget = block;
         internals.events.emit(
-          { type: 'orchestrator:budget', atCap: capDecisionRef !== undefined, ...block },
+          { type: 'orchestrator:budget', atCap: capDecisionRef !== undefined, ...digest.budget },
           callingState.spanId,
         );
       }

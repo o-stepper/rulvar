@@ -2195,6 +2195,10 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         planHash: planHash(fold.plan),
         planSeq: planCursor,
         reuse: spend as unknown as Json,
+        // The mandatory DEF-2 block of the final coordinated schema
+        // (docs/07, section 5; M7-T13): the account snapshot is a pure
+        // fold and costs nothing.
+        termination: requireAccount().snapshot() as unknown as Json,
       };
     },
     onWake: (digest: WakeDigest): void => {

@@ -78,20 +78,79 @@ export type WakeTrigger =
 export interface EscalationDigest {
   nodeId: string;
   logicalTaskId: string;
-  /** seq of the terminal escalated entry. */
+  /** seq of the terminal escalated entry or the suspended escalate entry. */
   reportRef: number;
   kind: string;
   flavor: 'A' | 'B';
+  /** Flavor B only. */
+  deadlineAt?: string;
+}
+
+/** Passive budget visibility in every digest (DEF-7; docs/07, 12.5). */
+export interface WakeBudgetBlock {
+  runSpentUsd: number;
+  runCeilingUsd: number;
+  orchestratorSpentUsd: number;
+  orchestratorCapUsd: number;
+  finalizeReserveUsd: number;
+  /** spent / max(runSpent, epsilon 0.01): the H-OrchShare input. */
+  orchestratorShare: number;
+  /** True at >= 0.8 x (cap - reserve); fixed in v1 (Appendix A). */
+  softWarning: boolean;
 }
 
 /**
- * The M6 substrate WakeDigest (docs/07 section 5; the termination,
- * budget, and reuse blocks complete the shape in M7 as one coordinated
- * hashVersion-2 change).
+ * The FINAL normative WakeDigest (docs/07 section 5): one coordinated
+ * schema change inside the hashVersion-2 profile (XF-12). The digest
+ * render enters the content key of orchestrator turns. In runs without
+ * the PlanRunner extension the termination, budget, and reuse blocks are
+ * all-zero and planHash is empty, mirroring the CostReport convention.
  */
 export interface WakeDigest {
   digestSeq: number;
+  /** Plan hash at emission time ('' outside PlanRunner). */
+  planHash: string;
   coversToOrdinal: number;
+  /** Ordered by spawn ordinal, never wall-clock (coalescing rule). */
   completedDigests: TaskDigest[];
+  /** Pending and newly decided reports. */
   escalations: EscalationDigest[];
+  /** Mandatory (DEF-2). */
+  termination: {
+    revisionUnitsRemaining: number;
+    spawnUnitsRemaining: number;
+    perLineage: Record<string, { escalationUnitsRemaining: number; rungsRemaining: number }>;
+    phi: number;
+  };
+  /** Mandatory (DEF-7). */
+  budget: WakeBudgetBlock;
+  /** Reuse and oscillation stats (DEF-5): the AbandonedSpendView shape. */
+  reuse: {
+    abandonedUsd: number;
+    reclaimedUsd: number;
+    netLostUsd: number;
+    /** Per-SpawnKey rows (present under PlanRunner). */
+    byKey?: Record<string, { abandonedUsd: number; reclaimedUsd: number }>;
+  };
+}
+
+/** The all-zero blocks of runs without the PlanRunner extension. */
+export function emptyDigestBlocks(): Pick<
+  WakeDigest,
+  'planHash' | 'termination' | 'budget' | 'reuse'
+> {
+  return {
+    planHash: '',
+    termination: { revisionUnitsRemaining: 0, spawnUnitsRemaining: 0, perLineage: {}, phi: 0 },
+    budget: {
+      runSpentUsd: 0,
+      runCeilingUsd: 0,
+      orchestratorSpentUsd: 0,
+      orchestratorCapUsd: 0,
+      finalizeReserveUsd: 0,
+      orchestratorShare: 0,
+      softWarning: false,
+    },
+    reuse: { abandonedUsd: 0, reclaimedUsd: 0, netLostUsd: 0 },
+  };
 }
