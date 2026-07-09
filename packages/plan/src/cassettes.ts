@@ -708,12 +708,14 @@ export async function runFinalizeFallbackSynthesized(): Promise<JournalEntry[]> 
 /**
  * escalation-storm-frozen (DEF-7 set): three Flavor B escalations while
  * the plan is frozen at the cap; each resolves through its journaled
- * defaultDecision (the v1 deadline timers; the losers of any race
- * classify noop) and the lineage counters hold. Zero live calls on
- * replay is the frozen-fixture contract.
+ * defaultDecision and the lineage counters hold. The branches CHAIN via
+ * dependencies so exactly one deadline timer is live at a time: the
+ * journal byte order stays deterministic (DEF-4 already guarantees the
+ * fold; the cassette asserts bytes).
  */
 export async function runEscalationStormFrozen(): Promise<JournalEntry[]> {
   let phase = 0;
+  let previousNode: string | undefined;
   const adapter = cassetteAdapter((req) => {
     if (agentTypeOfRequest(req) === 'worker') {
       return {
@@ -727,28 +729,31 @@ export async function runEscalationStormFrozen(): Promise<JournalEntry[]> {
         },
       };
     }
-    const prompt = JSON.stringify(req.messages);
-    if (prompt.includes('budget cap was reached')) {
-      return { toolCall: { name: 'finish', args: { result: 'storm closed' } } };
-    }
+    previousNode = assignedNodeIn(req) ?? previousNode;
     phase += 1;
-    if (phase === 1) {
+    if (phase <= 3) {
       return {
         toolCall: {
           name: 'plan_revise',
           args: {
             base: { digestSeq: 0, planHash: EMPTY_PLAN_HASH },
             ops: [
-              { op: 'add_task', spec: { agentType: 'worker', prompt: 'branch one' } },
-              { op: 'add_task', spec: { agentType: 'worker', prompt: 'branch two' } },
-              { op: 'add_task', spec: { agentType: 'worker', prompt: 'branch three' } },
+              {
+                op: 'add_task',
+                spec: { agentType: 'worker', prompt: `branch ${String(phase)}` },
+                ...(previousNode === undefined ? {} : { deps: [previousNode] }),
+              },
             ],
-            rationale: 'the storm',
+            rationale: `storm branch ${String(phase)}`,
           },
         },
       };
     }
-    if (phase === 2) {
+    const prompt = JSON.stringify(req.messages);
+    if (prompt.includes('budget cap was reached')) {
+      return { toolCall: { name: 'finish', args: { result: 'storm closed' } } };
+    }
+    if (phase === 4) {
       return {
         toolCall: { name: 'wait_for_events', args: { triggers: [{ kind: 'quiescence' }] } },
       };

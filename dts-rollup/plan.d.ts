@@ -1024,9 +1024,10 @@ declare function runFinalizeFallbackSynthesized(): Promise<JournalEntry[]>;
 /**
 * escalation-storm-frozen (DEF-7 set): three Flavor B escalations while
 * the plan is frozen at the cap; each resolves through its journaled
-* defaultDecision (the v1 deadline timers; the losers of any race
-* classify noop) and the lineage counters hold. Zero live calls on
-* replay is the frozen-fixture contract.
+* defaultDecision and the lineage counters hold. The branches CHAIN via
+* dependencies so exactly one deadline timer is live at a time: the
+* journal byte order stays deterministic (DEF-4 already guarantees the
+* fold; the cassette asserts bytes).
 */
 declare function runEscalationStormFrozen(): Promise<JournalEntry[]>;
 /**
