@@ -31,6 +31,8 @@ The set is self-contained by requirement: an implementer, human or LLM, MUST be 
 | 12-release-versioning.md | Lockstep semver policy, changesets fixed mode, hashVersion release discipline, the 1.0 gate, release pipeline. |
 | 13-toolchain-repo.md | Committed toolchain with rationale, repo layout, package templates, the canonical naming risk note, risk register. |
 | 14-open-questions.md | OQ register: open engineering questions, founder-only decisions, change process. |
+| guide-adapter-authors.md | Community guide (informative): building a third-party ProviderAdapter; wire mapping requirements, Usage invariant checklist, VCR contract tests, templates. |
+| guide-store-authors.md | Community guide (informative): building a third-party JournalStore/LeasableStore; conformance kit walkthrough, reference store, templates. |
 
 ## 3. Reading order
 
