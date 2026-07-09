@@ -520,12 +520,10 @@ Explicit exclusions, per the EXC registry (01-requirements.md, section "EXC regi
 
 ## 8 Redaction and sensitive data
 
-Current honest state: prompts, tool results, and provider-raw blocks are persisted in the journal and TranscriptStore and flow into the event stream, SSE, and OTel consumers; the only redaction hook that exists today is the VCR `redact` option (section 5.2).
+Executed state (M8-T04; the OQ-22 interim rules executed, the broader design stays open in 14-open-questions.md):
 
-Planned closure, tracked as an open question with its owner milestone in 14-open-questions.md (redaction defaults):
+- The L0 serialization hook exists: `createEngine({ serialization })` applies redact/encrypt at the append and put boundaries, symmetric on load/get, by wrapping the engine's stores; `Engine.stores` exposes the wrapped instances, so stored bytes and every reader pass ONE policy point (docs/03, section "Serialization hook"). The hook MUST be symmetric for replay to hold; lossy journal redaction is a deliberate host trade, never a default: the journal stays plaintext-by-default because replay is the product.
+- The default key-masking policy is ON at the telemetry boundary: every emitted WorkflowEvent (and therefore the SSE stream and every `events`/`on` consumer) passes `maskSecrets`, which replaces strings that look like credentials (provider API keys, OAuth/bearer tokens, PATs, AWS access keys, private-key blocks) with a `[masked-secret]` marker. Opt out per engine with `redaction: { maskEvents: false }` (docs/06, Appendix A row "event secret masking"). Masking applies to telemetry only and never to journaled values: events are excluded from identity by construction, so masking cannot perturb replay.
+- What reaches OTel attributes (normative restatement of section 3): identifiers, statuses, usage counters, and cost figures; prompts, completions, tool inputs, tool outputs, and provider-raw blocks are NEVER exported as span attributes or span events by default. The exporter additionally passes every string attribute through the same `maskSecrets` policy, so an id-shaped field that happens to carry a credential still cannot leak.
 
-- an L0 serialization hook applying redact/encrypt at the append and put boundaries, symmetric on load/get, so that stored bytes and emitted bytes pass through one policy point;
-- a default policy that at minimum masks strings that look like API keys and other credentials;
-- a documented statement of exactly what reaches OTel attributes (the conservative default is already normative in section 3: no prompt/completion/tool content).
-
-Until the hook lands, embedders MUST treat the event stream and SSE endpoints as exactly as sensitive as the journal itself, and shells MUST NOT widen exposure beyond the documented OTel attribute policy.
+Residual honesty: prompts, tool results, and provider-raw blocks still persist in the journal and TranscriptStore in plaintext unless the host configures the serialization hook; embedders MUST treat the journal and any raw store access as sensitive. The event stream and SSE carry masked telemetry, and event payloads may still embed non-key-shaped sensitive content the default policy cannot recognize; the VCR `redact` option (section 5.2) keeps its own recording-side role.

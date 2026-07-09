@@ -1110,10 +1110,13 @@ interface TranscriptStore {
   put(ref: string, blob: Bytes): Promise<void>;
   get(ref: string): Promise<Bytes | null>;
   list(runId: string): Promise<string[]>;
+  delete(ref: string): Promise<void>; // M8-T04 amendment (OQ-20): retention needs blob deletion
 }
 ```
 
 TranscriptStore holds transcripts, turn-boundary checkpoints, and worktree patches as separate blobs so the journal stays small and diffable. Blob contents are engine-internal (section 11.1).
+
+`delete(ref)` was added by the M8-T04 amendment (the OQ-20 interim rule executed): retention is impossible without blob deletion, and `JournalStore.delete(runId)` alone would orphan every transcript. Deleting a missing ref is a no-op, never an error. The cascade itself is ENGINE-side, never a store obligation: `Engine.deleteRun(runId)` deletes the blobs `list(runId)` returns and then the journal (06-execution-spec.md, section "Engine and ops API"); `Engine.pruneRun(runId)` deletes checkpoint blobs of attempts whose terminal status is `ok` and which no other entry references (completed, paid work replays from the journal and never boots its checkpoint again; parked, cancelled, escalated, and hanging attempts keep theirs: park/unpark, DEF-5 checkpoint retention, and dangling-redispatch boots depend on them).
 
 ### 12.5 RunMeta
 
@@ -1157,6 +1160,29 @@ Third-party stores MUST pass the kit. Mandatory checks (see also 11-testing-stra
 - Golden journal fixture with resolution/noop/invalid/abandon entries: the hash of the materialized fold state MUST be identical to the reference on every store.
 - End-to-end decide-once oracle: a scripted race of two attempts, exactly one applied classification, then replay-strict with zero live calls.
 - Abandon fixture: resume issues not a single live call inside a skipped subtree. The kit proves this kernel-level (a replay-strict Replayer over the store under test: the covered dispatch MUST derive skipped and the ledger fold MUST contribute zero), which keeps the kit's dependency graph at @lurker/core only (02-architecture.md, section "Dependency rules"); the engine-level FakeAdapter call-counter variant lives in the M2 cassette suite (@lurker/testing).
+
+### 12.8 Serialization hook (M8-T04; OQ-22 interim rule executed)
+
+The single policy point between the engine and persistence. Stores stay dumb: the engine applies the hook by wrapping its configured stores, so stored bytes and every reader through `Engine.stores` pass one policy point.
+
+```ts
+interface SerializationHook {
+  journal?: {
+    toStored(e: JournalEntry): JournalEntry; // applied at append
+    fromStored(e: JournalEntry): JournalEntry; // applied at load, symmetric
+  };
+  transcripts?: {
+    toStored(ref: string, blob: Bytes): Bytes; // applied at put
+    fromStored(ref: string, blob: Bytes): Bytes; // applied at get, symmetric
+  };
+}
+```
+
+- Configured per engine (`createEngine({ serialization })`, 06-execution-spec.md, section "Engine and ops API"); absent means identity (no wrapping, `Engine.stores` exposes the raw instances).
+- The hook MUST be symmetric for replay to hold: `fromStored(toStored(e))` MUST reproduce the entry byte-identically, because content keys, the replay predicate, and the folds all read loaded entries. Encryption satisfies this; LOSSY redaction of journaled content voids replay of the affected content keys (forward matching reports misses honestly) and is the host's deliberate trade, never a default.
+- The hook applies to journal entry VALUES and transcript blobs; `seq`, `scope`, `key`, `ordinal`, `kind`, `status`, and `hashVersion` MUST pass through unmodified (the kernel orders and matches on them before values are consulted).
+- Leases and `RunMeta` are not hooked: fencing tokens are not secrets and meta is advisory.
+- Default REDACTION lives elsewhere, at the telemetry boundary: the event stream masks key-shaped strings by default (09-observability-testing-spec.md, section "Redaction and sensitive data"); the journal stays plaintext-by-default because replay is the product.
 
 ## 13. Two-phase entries, dispatch, and the budget ledger
 

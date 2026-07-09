@@ -228,11 +228,11 @@ Closing an OQ follows the change process in section 4.
 ### OQ-20: Retention, GC, and cascade delete
 
 - Statement: retention and garbage collection: whether delete(runId) must cascade over TranscriptStore (or the engine performs the cascade via list(runId)), an optional retention policy at the server/queue layer, and pruning of intermediate checkpoints after an agent's terminal entry.
-- Why open: deletion semantics interact with the SPI freeze and with lease ownership; no storage-growth data yet.
+- Why open: the EXECUTED interim rules cover cascade delete, the retention hook, and ok-terminal checkpoint pruning; automatic retention defaults (TTLs, size budgets) and GC scheduling still need storage-growth data from dogfood.
 - Owner: dogfood telemetry.
-- Must close by: M8.
-- Decision trigger: the M8 server/queue implementation and observed storage growth in dogfood.
-- Interim rule: stores persist indefinitely; deletion and retention semantics beyond the five-method JournalStore surface are unspecified (03-journal-spec.md, section "Storage SPI").
+- Must close by: M8 (interim rules executed at M8-T04); defaults revisit at M9 with the SPI freeze.
+- Decision trigger: observed storage growth in dogfood.
+- Interim rule (normative, EXECUTED at M8-T04): the cascade is engine-side: `TranscriptStore.delete(ref)` exists (03-journal-spec.md, section "TranscriptStore") and `Engine.deleteRun(runId)` deletes every blob `list(runId)` returns, then the journal, leaving no orphan transcripts; `Engine.pruneRun(runId)` deletes checkpoint blobs of ok-terminal attempts that no other entry references; the server and the queue worker take an optional `retention` predicate over RunMeta and apply deleteRun to settled runs it selects (02-architecture.md, section "Shells overview"). No automatic retention runs by default: stores persist indefinitely unless the host opts in.
 
 ### OQ-21: Resume binding residuals
 
@@ -246,11 +246,11 @@ Closing an OQ follows the change process in section 4.
 ### OQ-22: Redaction defaults
 
 - Statement: redaction of secrets and sensitive data outside VCR cassettes: the planned L0 serialization hook (redact/encrypt at the append and put boundaries, symmetric on load and get), the default key-masking policy, and the OTel attribute content policy.
-- Why open: prompts, tool results, and provider-raw blocks persist and flow to the event stream, SSE, and OTel; only VCR cassettes redact today; the default policy needs design against real payloads.
+- Why open: the EXECUTED interim rules ship the hook seam, the default event masking, and the OTel statement; the masking pattern set needs tuning against real dogfood payloads, and stored-content encryption defaults (key management, at-rest posture) remain undesigned.
 - Owner: dogfood telemetry.
-- Must close by: M8 (before the server and OTel export expose persisted data beyond the process).
-- Decision trigger: the M8 server work and the OTel exporter.
-- Interim rule: only VCR cassettes redact; the planned hook and the default direction (mask strings that look like keys; document exactly what reaches OTel attributes) are recorded in 09-observability-testing-spec.md, section "Redaction and sensitive data".
+- Must close by: M8 (interim rules executed at M8-T04, before the server and OTel export expose persisted data beyond the process); pattern-set revisit before 1.0.
+- Decision trigger: dogfood payloads and any missed-credential report.
+- Interim rule (normative, EXECUTED at M8-T04): the serialization hook exists (`createEngine({ serialization })`, docs/03 section "Serialization hook": symmetric on load/get, one policy point through Engine.stores, plaintext journal by default because replay is the product); every emitted WorkflowEvent passes the default key-masking policy (`maskSecrets`, opt out via `redaction.maskEvents: false`; docs/06 Appendix A row "event secret masking"); the OTel attribute content policy is restated normatively and the exporter masks string attributes with the same policy (09-observability-testing-spec.md, section "Redaction and sensitive data").
 
 ### OQ-29: OpenAI Responses auxiliary state parameters under manual item replay
 
