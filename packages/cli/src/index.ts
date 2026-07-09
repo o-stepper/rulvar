@@ -20,6 +20,7 @@ export {
 export { loadCliConfig, loadWorkflowModule, looksLikeFile, type CliConfig } from './config.js';
 export { assembleEngine, DEFAULT_STORE_DIR, type AssembledCli } from './engine-assembly.js';
 export { driveRun, reportOutcome } from './drive.js';
+export { createServer, type CreateServerOptions, type LurkerServer } from './server.js';
 export { attachProgress, renderEventLine } from './tui.js';
 export { processIo, type CliIo } from './io.js';
 export { toOtel, type TracerLike, type SpanLike, type ToOtelOptions } from './otel.js';

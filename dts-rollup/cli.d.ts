@@ -82,6 +82,24 @@ declare function driveRun(options: {
 /** Renders the settled outcome; returns the process exit code. */
 declare function reportOutcome(outcome: RunOutcome<unknown>, io: CliIo): number;
 //#endregion
+//#region src/server.d.ts
+interface CreateServerOptions {
+  engine: Engine;
+  /** The explicit, first-class registry (docs/06, section 10.4). */
+  workflows: WorkflowRegistry;
+  /**
+  * Prices the journal fold behind GET /runs/:id/cost for runs without a
+  * settled in-process outcome (the host assembles pricing exactly as it
+  * does for the CLI); absent means those usages surface as `unpriced`,
+  * never a silent zero (docs/04, section 10).
+  */
+  priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
+}
+interface LurkerServer {
+  fetch(req: Request): Promise<Response>;
+}
+declare function createServer(options: CreateServerOptions): LurkerServer;
+//#endregion
 //#region src/tui.d.ts
 /** Renders one event to a line, or undefined for silent event types. */
 declare function renderEventLine(event: WorkflowEvent): string | undefined;
@@ -129,4 +147,4 @@ declare function toOtel(run: {
   result: Promise<RunOutcome<unknown>>;
 }, tracer: TracerLike, options?: ToOtelOptions): Promise<number>;
 //#endregion
-export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, DEFAULT_STORE_DIR, HELP, type SpanLike, type ToOtelOptions, type TracerLike, assembleEngine, attachProgress, driveRun, inspectCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, toOtel };
+export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, DEFAULT_STORE_DIR, HELP, type LurkerServer, type SpanLike, type ToOtelOptions, type TracerLike, assembleEngine, attachProgress, createServer, driveRun, inspectCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, toOtel };

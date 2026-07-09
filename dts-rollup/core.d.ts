@@ -4142,6 +4142,17 @@ interface Engine {
   * amendment). Unknown names are ignored.
   */
   profileCard(names?: readonly string[]): string;
+  /**
+  * The engine's configured stores, exposed for shells and hosts
+  * (docs/06, 10.2, M8 entry amendment; docs/02, section "Shells
+  * overview": "the journal store comes from the engine"). Exactly the
+  * instances createEngine received, or the defaults it built; no store
+  * contract widens through this accessor.
+  */
+  readonly stores: {
+    journal: JournalStore;
+    transcripts: TranscriptStore;
+  };
 }
 /** Content hash of an in-process workflow body (run-to-definition binding, docs/06 10.2). */
 declare function hashWorkflowBody(wf: Workflow<never, never> | Workflow<unknown, unknown>): string;
