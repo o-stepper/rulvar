@@ -43,6 +43,7 @@ import type { RunHandle } from '../engine/run-handle.js';
 import type { AdmissionDecision } from './admission.js';
 import {
   digestOf,
+  WAKE_SUMMARY_RENDER_BUDGET_CHARS,
   type OrchestratorRuntime,
   type SpawnAdmissionValue,
   type SpawnRecord,
@@ -79,8 +80,8 @@ export interface OrchestrateOptions {
   /**
    * Deterministic digest render bound (docs/07, section 5): each
    * TaskDigest outputSummary is clamped to this many CHARACTERS (the
-   * model-independent interim measure; the tokenizer choice is the
-   * docs/14 open question). The numeric default is TBD before M10.
+   * model-independent measure; OQ-04 closed at M10 entry). Default
+   * WAKE_SUMMARY_RENDER_BUDGET_CHARS (docs/06, Appendix A).
    */
   renderBudgetChars?: number;
   /** UsageLimits of the orchestrator agent itself (maxTurns etc.). */
@@ -717,8 +718,8 @@ export function makeOrchestratorWorkflow(
         ),
         completedDigests: undelivered.map((record) => {
           const row = digestOf(record, record.settled as AgentResult<unknown>);
-          const budgetChars = opts?.renderBudgetChars;
-          if (budgetChars !== undefined && row.outputSummary.length > budgetChars) {
+          const budgetChars = opts?.renderBudgetChars ?? WAKE_SUMMARY_RENDER_BUDGET_CHARS;
+          if (row.outputSummary.length > budgetChars) {
             // The deterministic character measure (docs/07, section 5):
             // identical live and on replay, no tokenizer dependence.
             return { ...row, outputSummary: `${row.outputSummary.slice(0, budgetChars)}...` };

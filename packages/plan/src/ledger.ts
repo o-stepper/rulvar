@@ -227,6 +227,72 @@ export function foldLedger(
   return view;
 }
 
+/**
+ * The committed ledger_read render budget (docs/06, Appendix A: 65536
+ * chars over the serialized view, the character measure; OQ-04 closed
+ * at M10 entry). The section caps stay the primary bound; under the
+ * default termination limits this belt never engages.
+ */
+export const LEDGER_RENDER_BUDGET_CHARS = 65536;
+
+/**
+ * Deterministic render bound (docs/07, 9.3): over budget, rows drop
+ * oldest-first, auto-derived joins before authored sections, and the
+ * mission brief slices last; every drop is a FLAGGED discrepancy line.
+ * A pure function of (view, budget): a re-executed wake turn renders
+ * byte-identical bounded bytes from the same pinned fold.
+ */
+export function boundLedgerRender(
+  view: LedgerView,
+  budgetChars: number = LEDGER_RENDER_BUDGET_CHARS,
+): LedgerView {
+  const size = (candidate: LedgerView): number => JSON.stringify(candidate).length;
+  if (size(view) <= budgetChars) {
+    return view;
+  }
+  const bounded: LedgerView = {
+    ...view,
+    facts: [...view.facts],
+    lessons: [...view.lessons],
+    observations: [...view.observations],
+    revisionHistory: [...view.revisionHistory],
+    taskDigests: [...view.taskDigests],
+    worldDelta: [...view.worldDelta],
+    discrepancies: [...view.discrepancies],
+  };
+  const sections = [
+    'worldDelta',
+    'taskDigests',
+    'revisionHistory',
+    'observations',
+    'lessons',
+    'facts',
+  ] as const;
+  for (const section of sections) {
+    let droppedRows = 0;
+    while (bounded[section].length > 0 && size(bounded) > budgetChars) {
+      bounded[section].shift();
+      droppedRows += 1;
+    }
+    if (droppedRows > 0) {
+      bounded.discrepancies.push(
+        `renderBudget: dropped the ${String(droppedRows)} oldest ${section} rows ` +
+          '(docs/06, Appendix A)',
+      );
+    }
+    if (size(bounded) <= budgetChars) {
+      return bounded;
+    }
+  }
+  if (bounded.brief !== undefined && size(bounded) > budgetChars) {
+    bounded.discrepancies.push('renderBudget: the mission brief was sliced (docs/06, Appendix A)');
+    const over = size(bounded) - budgetChars;
+    const keep = Math.max(0, bounded.brief.text.length - over);
+    bounded.brief = { ...bounded.brief, text: bounded.brief.text.slice(0, keep) };
+  }
+  return bounded;
+}
+
 /** Section-cap check for one authored op (docs/06, Appendix A). */
 export function ledgerCapViolation(view: LedgerView, op: LedgerOp): string | undefined {
   if (op.op === 'brief_set' && view.brief !== undefined) {

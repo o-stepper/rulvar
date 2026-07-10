@@ -130,7 +130,7 @@ The card is tier-relative and two-layered:
 - Verified layer: compiled EXCLUSIVELY from eval-measured claims into start-tier recommendations per (ladder, taskClass) pair. The compiler clamps any shift to at most ONE rung away from the ladder's default entry tier, so the price of any false belief is bounded by one rung.
 - Notes layer: human-editorial claims rendered tier-relatively with their date and the explicit marking "editorial note, no metrics, not confirmed by evals". They are never compiled into a tier.
 
-The round-2 invariant is preserved: the orchestrator never sees model names; `model_hint.startTier` is clamped to the declared ladder (04-model-layer-spec.md, section "ModelLadder summary"). Without evals in the deployment the verified layer is empty and the card degrades safely to marked notes (section 10, phase 1). The card's renderBudget is enforced by a model-independent deterministic measure (open question on the measure, 14-open-questions.md).
+The round-2 invariant is preserved: the orchestrator never sees model names; `model_hint.startTier` is clamped to the declared ladder (04-model-layer-spec.md, section "ModelLadder summary"). Without evals in the deployment the verified layer is empty and the card degrades safely to marked notes (section 10, phase 1). The card's renderBudget is enforced by the CHARACTER measure, model-independent and deterministic (OQ-04 closed at M10 entry); the committed budget is 4096 chars (06-execution-spec.md, Appendix A; sizing calibration stays with OQ-08, 14-open-questions.md).
 
 ### 4.4 Second consumption path
 

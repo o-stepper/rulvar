@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createEngine, emptyDigestBlocks, InMemoryStore } from '@lurker/core';
+import {
+  createEngine,
+  emptyDigestBlocks,
+  InMemoryStore,
+  WAKE_SUMMARY_RENDER_BUDGET_CHARS,
+} from '@lurker/core';
 import type { ChatRequest, WakeDigest } from '@lurker/core';
 
 import { planHash } from './plan-hash.js';
@@ -80,6 +85,59 @@ describe('WakeDigest final coordinated schema (M7-T13; docs/07, section 5)', () 
     expect(digest.reuse).toMatchObject({ abandonedUsd: 0, reclaimedUsd: 0, netLostUsd: 0 });
     // The deterministic render clamp (characters, docs/07 section 5).
     expect(digest.completedDigests[0]?.outputSummary).toBe('a worker output long eno...');
+  });
+
+  it('clamps outputSummary at the committed 400-char default (docs/06, Appendix A)', async () => {
+    let delivered: WakeDigest | undefined;
+    let phase = 0;
+    const adapter = scriptedAdapter((req: ChatRequest): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'y'.repeat(3000) };
+      }
+      phase += 1;
+      if (phase === 1) {
+        return {
+          toolCall: {
+            name: 'plan_revise',
+            args: {
+              base: { digestSeq: 0, planHash: EMPTY_PLAN_HASH },
+              ops: [{ op: 'add_task', spec: { agentType: 'worker', prompt: 'do it' } }],
+              rationale: 'one verbose worker',
+            },
+          },
+        };
+      }
+      if (phase === 2) {
+        return {
+          toolCall: { name: 'wait_for_events', args: { triggers: [{ kind: 'quiescence' }] } },
+        };
+      }
+      delivered ??= lastToolResult<WakeDigest>(
+        req,
+        (value) => typeof (value as { digestSeq?: unknown } | undefined)?.digestSeq === 'number',
+      );
+      return { toolCall: { name: 'finish', args: { result: 'end' } } };
+    });
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: { worker: { description: 'w' } },
+      },
+    });
+    // No renderBudgetChars: the engine default applies.
+    const handle = orchestratePlanned(engine, 'default render budget', {
+      budget: { capUsd: 5, finalizeReserveUsd: 1 },
+    });
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    const summary = (delivered as WakeDigest).completedDigests[0]?.outputSummary ?? '';
+    expect(summary).toBe(`${'y'.repeat(WAKE_SUMMARY_RENDER_BUDGET_CHARS)}...`);
+    // The committed Appendix A value: one constant serves the
+    // distillation cap and the render default.
+    expect(WAKE_SUMMARY_RENDER_BUDGET_CHARS).toBe(400);
   });
 
   it('ships all-zero blocks outside PlanRunner (the CostReport convention)', () => {

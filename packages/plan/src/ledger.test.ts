@@ -6,6 +6,7 @@ import { planHash } from './plan-hash.js';
 import { emptyPlan } from './plan-state.js';
 import { orchestratePlanned } from './plan-runner.js';
 import {
+  boundLedgerRender,
   exportLedger,
   foldLedger,
   LEDGER_SECTION_CAPS,
@@ -229,5 +230,74 @@ describe('RunLedger integration (M7-T09)', () => {
     expect(render?.revisionHistory[0]?.rationale).toBe('one worker');
     expect(render?.taskDigests[0]?.status).toBe('ok');
     expect(render?.lessons).toHaveLength(0);
+  });
+});
+
+describe('the ledger render budget (docs/06, Appendix A; M10 entry)', () => {
+  const fact = (index: number, textLength = 400) => ({
+    factId: `f${String(index)}`,
+    text: 'f'.repeat(textLength),
+    provenance: [index],
+    confidence: 'low' as const,
+    entryRef: index,
+  });
+  const bigView = () => ({
+    brief: { text: 'the mission brief', entryRef: 1 },
+    facts: [fact(101), fact(102), fact(103)],
+    lessons: [
+      { key: { logicalTaskId: 'lt', approachSig: 'a' }, text: 'l'.repeat(400), entryRef: 201 },
+    ],
+    observations: [],
+    revisionHistory: [
+      { entryRef: 301, rationale: 'r'.repeat(400), applied: 1, dropped: 0 },
+      { entryRef: 302, rationale: 'r'.repeat(400), applied: 1, dropped: 0 },
+    ],
+    taskDigests: [
+      { scope: 'plan/N1', status: 'ok', entryRef: 401 },
+      { scope: 'plan/N2', status: 'ok', entryRef: 402 },
+    ],
+    worldDelta: [
+      { scope: 'plan/N1', entryRef: 501, artifacts: 1 },
+      { scope: 'plan/N2', entryRef: 502, artifacts: 2 },
+    ],
+    discrepancies: [],
+  });
+
+  it('returns the view untouched under budget (identity, no copies)', () => {
+    const view = bigView();
+    expect(boundLedgerRender(view, 65536)).toBe(view);
+    expect(JSON.stringify(boundLedgerRender(view)).length).toBe(JSON.stringify(view).length);
+  });
+
+  it('drops auto-derived rows oldest-first before touching authored sections', () => {
+    const view = bigView();
+    const full = JSON.stringify(view).length;
+    // A budget that forces out the auto-derived joins but leaves the
+    // authored sections intact.
+    const bounded = boundLedgerRender(view, full - 250);
+    expect(bounded.worldDelta.length).toBeLessThan(2);
+    if (bounded.worldDelta.length === 1) {
+      // Oldest-first: the survivor is the NEWEST row.
+      expect(bounded.worldDelta[0]?.entryRef).toBe(502);
+    }
+    expect(bounded.facts).toHaveLength(3);
+    expect(bounded.lessons).toHaveLength(1);
+    expect(bounded.brief?.text).toBe('the mission brief');
+    expect(bounded.discrepancies.some((line) => line.includes('renderBudget'))).toBe(true);
+    expect(JSON.stringify(bounded).length).toBeLessThanOrEqual(full - 250);
+    // The input view is never mutated.
+    expect(view.worldDelta).toHaveLength(2);
+    expect(view.discrepancies).toHaveLength(0);
+  });
+
+  it('reaches authored sections and finally slices the brief, deterministically', () => {
+    const view = bigView();
+    const tiny = boundLedgerRender(view, 700);
+    expect(tiny.worldDelta).toHaveLength(0);
+    expect(tiny.taskDigests).toHaveLength(0);
+    expect(tiny.revisionHistory).toHaveLength(0);
+    expect(JSON.stringify(tiny).length).toBeLessThanOrEqual(700);
+    const again = boundLedgerRender(bigView(), 700);
+    expect(again).toEqual(tiny);
   });
 });
