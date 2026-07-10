@@ -105,6 +105,13 @@ export type GateRecord =
         contrastEvidence?: EvidenceRef;
       };
     }
+  /**
+   * The dedicated committer identity (docs/05, section 5.4; M11): the
+   * ONLY gate under which eval-measured claims and the metrics block
+   * commit. Coherence is schema-enforced in both directions.
+   */
+  | { kind: 'eval-committer'; committerId: string; reportId: string }
+  /** Reserved for v2: the proposal auto-gate, NOT the committer identity. */
   | { kind: 'eval-confirmed'; reportId: string; n: number; passRate: number };
 
 export type ClaimOp =

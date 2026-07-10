@@ -1,4 +1,4 @@
-import { CompiledWorkflow, Engine, Json, JsonSchema, ModelSpec, RunOutcome, SchemaSpec, Usage, WireError, Workflow } from "@lurker/core";
+import { CompiledWorkflow, Effort, Engine, EvidenceRef, Json, JsonSchema, ModelClaim, ModelKnowledgeStore, ModelRef, ModelSpec, RunOutcome, SchemaSpec, TaskClass, Usage, WireError, Workflow } from "@lurker/core";
 
 //#region src/case.d.ts
 /**
@@ -180,4 +180,49 @@ interface JudgeGraderOptions {
 }
 declare function judgeGrader(options: JudgeGraderOptions): Grader;
 //#endregion
-export { type EvalCase, type EvalCaseResult, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type RubricCriterion, type RubricGraderOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, goldenGrader, judgeGrader, rubricGrader, runEvalCase, runEvalMatrix, runEvalSuite };
+//#region src/committer.d.ts
+interface MeasuredClaimInput {
+  /** ULID (or any unique id); the caller mints it deterministically. */
+  id: string;
+  subject: {
+    model: ModelRef;
+    effort?: Effort;
+  };
+  taskClass: TaskClass;
+  polarity: "strength" | "weakness";
+  /** A typed template render, never a quote from tool output. */
+  statement: string;
+  metrics: {
+    passRate: number;
+    n: number;
+    graderId: string;
+    cost?: number;
+    baseline?: {
+      model: ModelRef;
+      passRate: number;
+    };
+  };
+  confidence: "high" | "medium" | "low";
+  /** ISO date of the sweep run. */
+  observedAt: string;
+  evidence: EvidenceRef[];
+  modelEpoch?: ModelClaim["modelEpoch"];
+}
+interface EvalCommitterOptions {
+  /** The dedicated identity recorded on the gate AND the author. */
+  committerId: string;
+  /** The emitting sweep report; every claim's gate references it. */
+  reportId: string;
+  /** CAS-rebase attempts (docs/05, 5.4); default 3. */
+  attempts?: number;
+}
+/** One measured claim, TTL applied per the docs/05 decay table. */
+declare function evalMeasuredClaim(input: MeasuredClaimInput, committerId: string): ModelClaim;
+/**
+* Commits measured claims through the eval-committer gate with the
+* documented rebase recipe: on a CAS rejection, re-read current() and
+* retry against the fresh version. Returns the committed version.
+*/
+declare function commitEvalMeasured(store: ModelKnowledgeStore, claims: readonly MeasuredClaimInput[], options: EvalCommitterOptions): Promise<number>;
+//#endregion
+export { type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type RubricCriterion, type RubricGraderOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, commitEvalMeasured, evalMeasuredClaim, goldenGrader, judgeGrader, rubricGrader, runEvalCase, runEvalMatrix, runEvalSuite };

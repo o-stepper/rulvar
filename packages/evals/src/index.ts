@@ -30,3 +30,9 @@ export {
 export { goldenGrader, type GoldenGraderOptions } from './graders/golden.js';
 export { rubricGrader, type RubricCriterion, type RubricGraderOptions } from './graders/rubric.js';
 export { judgeGrader, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions } from './graders/judge.js';
+export {
+  commitEvalMeasured,
+  evalMeasuredClaim,
+  type EvalCommitterOptions,
+  type MeasuredClaimInput,
+} from './committer.js';
