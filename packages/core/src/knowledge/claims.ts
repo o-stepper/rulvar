@@ -172,7 +172,8 @@ function committerCoherenceIssues(claim: ModelClaim, path: string): string[] {
  */
 export function claimOpIssues(op: ClaimOp, index: number): string[] {
   const path = `ops[${String(index)}]`;
-  if (op.op === 'archive') {
+  if (op.op === 'archive' || op.op === 'mark_stale') {
+    // Maintenance ops carry no gate and no claim body (docs/05).
     return [];
   }
   const claim = op.op === 'add' ? op.claim : op.by;

@@ -21,6 +21,7 @@ export type * from './l0/spi/toolsource.js';
 export type * from './l0/spi/knowledge.js';
 export * from './knowledge/claims.js';
 export * from './knowledge/decay.js';
+export * from './knowledge/epoch.js';
 export * from './knowledge/file-store.js';
 export * from './knowledge/card.js';
 export * from './tools/presets.js';

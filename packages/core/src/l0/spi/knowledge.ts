@@ -117,7 +117,13 @@ export type GateRecord =
 export type ClaimOp =
   | { op: 'add'; claim: ModelClaim; gate: GateRecord }
   | { op: 'supersede'; claimId: string; by: ModelClaim; gate: GateRecord }
-  | { op: 'archive'; claimId: string; reason: 'deprecated' | 'stale' | 'rejected' | 'falsified' };
+  | { op: 'archive'; claimId: string; reason: 'deprecated' | 'stale' | 'rejected' | 'falsified' }
+  /**
+   * Canary maintenance (docs/05, section "Grounding and decay"; added
+   * during M11-T04): fingerprint drift flips eval claims to 'stale'.
+   * Idempotent on already-stale claims; gate-free like archive.
+   */
+  | { op: 'mark_stale'; claimId: string; reason: 'canary-drift' };
 
 /**
  * The SPI seam (docs/05, section "Data model"). commit performs CAS on

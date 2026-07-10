@@ -225,6 +225,41 @@ declare function evalMeasuredClaim(input: MeasuredClaimInput, committerId: strin
 */
 declare function commitEvalMeasured(store: ModelKnowledgeStore, claims: readonly MeasuredClaimInput[], options: EvalCommitterOptions): Promise<number>;
 //#endregion
+//#region src/canary.d.ts
+interface CanaryProbeSet {
+  /** Registered agent profile the probes run under. */
+  agentType: string;
+  /** The fixed prompts; order matters and enters the fingerprint. */
+  prompts: string[];
+}
+/** The committed v1 normalization (OQ-06): NFC, trim, collapse whitespace. */
+declare function normalizeCanaryOutput(output: unknown): string;
+/**
+* Runs the fixed probe set through the ordinary engine and returns the
+* fingerprint. Probes run sequentially in declaration order, one run
+* per probe, so recordings replay deterministically.
+*/
+declare function canaryFingerprint(engine: Engine, probes: CanaryProbeSet): Promise<string>;
+interface CanaryDriftReport {
+  model: ModelRef;
+  freshFingerprint: string;
+  /** Claim ids flipped to stale by this call. */
+  flipped: string[];
+  /** The committed store version when anything flipped. */
+  version?: number;
+}
+/**
+* Flips the model's ACTIVE eval-measured claims to stale when their
+* recorded canary fingerprint differs from the fresh one (docs/05:
+* "a fingerprint change immediately flips the model's eval claims to
+* stale"). Claims without a recorded fingerprint have no baseline and
+* stay untouched (the documented no-probe posture); a second run is
+* an idempotent noop. CAS-rebased like every maintenance commit.
+*/
+declare function flipStaleOnCanaryDrift(store: ModelKnowledgeStore, model: ModelRef, freshFingerprint: string, options?: {
+  attempts?: number;
+}): Promise<CanaryDriftReport>;
+//#endregion
 //#region src/sweeps.d.ts
 /** One fixed pool member; effort is part of the claim subject identity. */
 interface SweepModel {
@@ -265,6 +300,11 @@ interface RunSweepOptions {
   suite?: RunEvalSuiteOptions;
   /** When given, emitted claims commit through the committer identity. */
   store?: ModelKnowledgeStore;
+  /**
+  * Optional epoch stamp per pool member (capture via the core
+  * modelEpochOf; the canary fingerprint rides it when probes ran).
+  */
+  modelEpochFor?: (member: SweepModel) => ModelClaim["modelEpoch"];
 }
 interface SweepCellReport {
   model: ModelRef;
@@ -292,4 +332,4 @@ declare const SWEEP_THRESHOLD_DEFAULTS: SweepThresholds;
 */
 declare function runSweepMatrix(pool: SweepPool, options: RunSweepOptions): Promise<SweepReport>;
 //#endregion
-export { type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type RubricCriterion, type RubricGraderOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, commitEvalMeasured, evalMeasuredClaim, goldenGrader, judgeGrader, rubricGrader, runEvalCase, runEvalMatrix, runEvalSuite, runSweepMatrix };
+export { type CanaryDriftReport, type CanaryProbeSet, type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type RubricCriterion, type RubricGraderOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, canaryFingerprint, commitEvalMeasured, evalMeasuredClaim, flipStaleOnCanaryDrift, goldenGrader, judgeGrader, normalizeCanaryOutput, rubricGrader, runEvalCase, runEvalMatrix, runEvalSuite, runSweepMatrix };
