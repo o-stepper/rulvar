@@ -177,3 +177,102 @@ describe('the editorial claim validators (M10-T02; docs/05)', () => {
     );
   });
 });
+
+describe('the eval-committer identity (M11-T01; docs/05, 5.4)', () => {
+  const EVAL_GATE = {
+    kind: 'eval-committer',
+    committerId: 'ci-evals',
+    reportId: 'sweep-2026-07-10',
+  } as const;
+  const measured = (id: string, extra?: Partial<ModelClaim>): ModelClaim =>
+    claim(id, {
+      class: 'eval-measured',
+      author: { kind: 'eval-pipeline', id: 'ci-evals' },
+      metrics: { passRate: 0.85, n: 24, graderId: 'golden' },
+      evidence: [{ kind: 'eval', reportId: 'sweep-2026-07-10', caseIds: ['a', 'b'] }],
+      ...extra,
+    });
+
+  it('the eval pipeline commit succeeds through the store', async () => {
+    const store = makeStore();
+    await expect(
+      store.commit([{ op: 'add', claim: measured('m1'), gate: EVAL_GATE }], 0),
+    ).resolves.toBe(1);
+    const snapshot = await store.current();
+    expect(snapshot.claims[0]?.class).toBe('eval-measured');
+    expect(snapshot.claims[0]?.metrics?.passRate).toBe(0.85);
+  });
+
+  it('a human-authored op with metrics rejects (the acceptance pair)', async () => {
+    const store = makeStore();
+    await expect(
+      store.commit(
+        [
+          {
+            op: 'add',
+            claim: claim('h1', { metrics: { passRate: 0.9, n: 5, graderId: 'g' } }),
+            gate: GATE,
+          },
+        ],
+        0,
+      ),
+    ).rejects.toThrowError(/eval-committer identity/);
+  });
+
+  it('enforces the coherence square under the eval-committer gate', () => {
+    // Editorial class under the eval gate.
+    expect(claimOpIssues({ op: 'add', claim: claim('x'), gate: EVAL_GATE }, 0).join('\n')).toMatch(
+      /eval-measured claims only/,
+    );
+    // Human author under the eval gate.
+    expect(
+      claimOpIssues(
+        {
+          op: 'add',
+          claim: measured('x', { author: { kind: 'human', id: 'f' } }),
+          gate: EVAL_GATE,
+        },
+        0,
+      ).join('\n'),
+    ).toMatch(/author\.kind 'eval-pipeline'/);
+    // Metrics mandatory under the eval gate.
+    expect(
+      claimOpIssues(
+        { op: 'add', claim: measured('x', { metrics: undefined }), gate: EVAL_GATE },
+        0,
+      ).join('\n'),
+    ).toMatch(/metrics block/);
+    // The gate itself requires its identity fields.
+    expect(
+      claimOpIssues(
+        {
+          op: 'add',
+          claim: measured('x'),
+          gate: { kind: 'eval-committer', committerId: '', reportId: '' },
+        },
+        0,
+      ).join('\n'),
+    ).toMatch(/committerId/);
+  });
+
+  it('supersede under the eval gate follows the same square', async () => {
+    const store = makeStore();
+    await store.commit([{ op: 'add', claim: measured('m1'), gate: EVAL_GATE }], 0);
+    await expect(
+      store.commit(
+        [
+          {
+            op: 'supersede',
+            claimId: 'm1',
+            by: measured('m2', { metrics: { passRate: 0.6, n: 40, graderId: 'golden' } }),
+            gate: EVAL_GATE,
+          },
+        ],
+        1,
+      ),
+    ).resolves.toBe(2);
+    const snapshot = await store.current();
+    expect(snapshot.claims.find((entry) => entry.id === 'm1')?.status).toBe('superseded');
+    expect(snapshot.claims.find((entry) => entry.id === 'm2')?.supersedes).toBe('m1');
+  });
+});

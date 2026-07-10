@@ -60,8 +60,19 @@ function gateIssues(gate: GateRecord, path: string): string[] {
   const issues: string[] = [];
   if (gate.kind === 'eval-confirmed') {
     // Reserved for v2, outside the committed roadmap (docs/05, section
-    // "Data model"): no auto-gate exists in phases 1..3.
+    // "Data model"): the proposal auto-gate is NOT the committer
+    // identity and commits nothing in phases 1..3.
     issues.push(`${path}: the eval-confirmed gate is reserved for v2 and commits nothing`);
+    return issues;
+  }
+  if (gate.kind === 'eval-committer') {
+    // The dedicated committer identity (docs/05, 5.4; M11-T01).
+    if (typeof gate.committerId !== 'string' || gate.committerId.length === 0) {
+      issues.push(`${path}: the eval-committer gate requires a committerId`);
+    }
+    if (typeof gate.reportId !== 'string' || gate.reportId.length === 0) {
+      issues.push(`${path}: the eval-committer gate requires the emitting reportId`);
+    }
     return issues;
   }
   const attribution = (gate as { attribution?: { ruledOut?: unknown } }).attribution;
@@ -86,9 +97,10 @@ function gateIssues(gate: GateRecord, path: string): string[] {
 
 export interface ClaimValidationOptions {
   /**
-   * The eval-committer identity ships in M11: only that path may pass
-   * true. Editorial commits (everything in phase 1) leave it false and
-   * both eval-measured claims and metrics reject.
+   * True on the eval-committer path (the eval-committer gate; docs/05,
+   * 5.4). Editorial validation leaves it false and both eval-measured
+   * claims and metrics reject. At the op level the GATE decides this
+   * flag; the option exists for direct claim-level validation.
    */
   evalCommitter?: boolean;
 }
@@ -134,13 +146,15 @@ export function claimIssues(
   if (options?.evalCommitter !== true) {
     if (claim.class === 'eval-measured') {
       issues.push(
-        `${path}: eval-measured claims are committable only through the ` +
-          'eval-committer identity (M11); the editorial path carries human-editorial only',
+        `${path}: eval-measured claims are committable only under the eval-committer gate ` +
+          '(the eval-committer identity; docs/05, 5.4); the editorial path carries ' +
+          'human-editorial only',
       );
     }
     if (claim.metrics !== undefined) {
       issues.push(
-        `${path}: the metrics block is writable only by the eval-committer identity (M11)`,
+        `${path}: the metrics block is writable only by the eval-committer identity ` +
+          '(docs/05, security channel 4)',
       );
     }
   }
@@ -152,21 +166,52 @@ export function claimIssues(
   return issues;
 }
 
-/** Issues of one op (empty = valid). Referential integrity stays with apply. */
-export function claimOpIssues(
-  op: ClaimOp,
-  index: number,
-  options?: ClaimValidationOptions,
-): string[] {
-  const path = `ops[${String(index)}]`;
-  switch (op.op) {
-    case 'add':
-      return [...gateIssues(op.gate, path), ...claimIssues(op.claim, `${path}.claim`, options)];
-    case 'supersede':
-      return [...gateIssues(op.gate, path), ...claimIssues(op.by, `${path}.by`, options)];
-    case 'archive':
-      return [];
+/**
+ * The coherence square of the committer identity (docs/05, 5.4;
+ * M11-T01): an eval-committer-gated claim MUST be eval-measured,
+ * authored by the eval pipeline, and carry metrics; anything else is
+ * an identity mismatch, schema-enforced.
+ */
+function committerCoherenceIssues(claim: ModelClaim, path: string): string[] {
+  const issues: string[] = [];
+  if (claim.class !== 'eval-measured') {
+    issues.push(
+      `${path}: the eval-committer gate carries eval-measured claims only; got '${claim.class}'`,
+    );
   }
+  if (claim.author.kind !== 'eval-pipeline') {
+    issues.push(
+      `${path}: the eval-committer gate requires author.kind 'eval-pipeline'; ` +
+        `got '${claim.author.kind}'`,
+    );
+  }
+  if (claim.metrics === undefined) {
+    issues.push(`${path}: an eval-committer-gated claim carries its metrics block`);
+  }
+  return issues;
+}
+
+/**
+ * Issues of one op (empty = valid). GATE-DRIVEN (M11-T01): the gate on
+ * the op decides which claim rules apply, so the identity is enforced
+ * by shape alone. Referential integrity stays with apply.
+ */
+export function claimOpIssues(op: ClaimOp, index: number): string[] {
+  const path = `ops[${String(index)}]`;
+  if (op.op === 'archive') {
+    return [];
+  }
+  const claim = op.op === 'add' ? op.claim : op.by;
+  const claimPath = op.op === 'add' ? `${path}.claim` : `${path}.by`;
+  const evalGated = op.gate.kind === 'eval-committer';
+  const issues = [
+    ...gateIssues(op.gate, path),
+    ...claimIssues(claim, claimPath, { evalCommitter: evalGated }),
+  ];
+  if (evalGated) {
+    issues.push(...committerCoherenceIssues(claim, claimPath));
+  }
+  return issues;
 }
 
 /**
@@ -200,10 +245,11 @@ export function capIssues(
 }
 
 /**
- * The editorial-path validation of one commit batch: op shapes and
- * gates first, the post-apply cap second. Throws one ConfigError
- * carrying every issue, so a maintenance caller fixes the batch in one
- * round trip.
+ * The commit-batch validation: op shapes and gates first (GATE-DRIVEN
+ * since M11-T01: the human gate carries editorial claims, the
+ * eval-committer gate carries eval-measured claims with metrics), the
+ * post-apply cap second. Throws one ConfigError carrying every issue,
+ * so a maintenance caller fixes the batch in one round trip.
  */
 export function validateEditorialCommit(
   ops: readonly ClaimOp[],
@@ -211,7 +257,7 @@ export function validateEditorialCommit(
   options?: ClaimValidationOptions & { cap?: number },
 ): void {
   const issues = [
-    ...ops.flatMap((op, index) => claimOpIssues(op, index, options)),
+    ...ops.flatMap((op, index) => claimOpIssues(op, index)),
     ...capIssues(claimsAfter, options?.cap),
   ];
   if (issues.length > 0) {

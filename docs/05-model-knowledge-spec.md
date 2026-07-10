@@ -82,7 +82,8 @@ export type GateRecord =
   | { kind: 'human'; approver: string; at: string;
       attribution: { ruledOut: Array<'prompt' | 'tools' | 'difficulty' | 'transient-provider'>;
                      contrastEvidence?: EvidenceRef } }   // without attribution a ClaimOp does not assemble
-  | { kind: 'eval-confirmed'; reportId: string; n: number; passRate: number }; // reserved for v2, outside the committed roadmap
+  | { kind: 'eval-committer'; committerId: string; reportId: string }          // the dedicated committer identity of section 5.4 (M11): the ONLY gate under which eval-measured claims and metrics commit; shape coherence is the schema enforcement (added during M11-T01)
+  | { kind: 'eval-confirmed'; reportId: string; n: number; passRate: number }; // reserved for v2, outside the committed roadmap (the proposal auto-gate, NOT the committer identity)
 
 export type ClaimOp =
   | { op: 'add'; claim: ModelClaim; gate: GateRecord }
@@ -155,6 +156,8 @@ A human MUST fill the attribution attestation to gate a proposal into a claim: `
 ### 5.4 Commit discipline
 
 `commit(ops, expectedVersion)` performs CAS on the monotonic snapshot version, mirroring the fencing-epoch discipline of LeasableStore (03-journal-spec.md, section "Storage SPI"); concurrent maintenance commits serialize through CAS rejection and rebase. Write authority: the eval pipeline (eval-measured claims with metrics, through a dedicated committer identity) and humans (editorial claims, supersede, archive). The runtime physically lacks `commit` on its handle: it holds `Pick<ModelKnowledgeStore, 'current'>`.
+
+The committer identity is the `eval-committer` GateRecord (section 3; added during M11-T01): commit validation is GATE-DRIVEN, and the coherence square is schema-enforced in both directions: an eval-committer-gated op MUST carry class `eval-measured`, author kind `eval-pipeline`, and the metrics block; a human-gated op MUST NOT carry any of the three. In a git-reviewed file world the identity authenticates the same way the human gate does: through the review of the committing change (the pipeline runs from CI under its committerId); the schema coherence is what makes rubber-stamping metrics into an editorial claim constructively impossible.
 
 ## 6 Grounding and decay
 

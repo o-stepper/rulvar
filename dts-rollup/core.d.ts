@@ -1241,6 +1241,10 @@ type GateRecord = {
     contrastEvidence?: EvidenceRef;
   };
 } | {
+  kind: "eval-committer";
+  committerId: string;
+  reportId: string;
+} | {
   kind: "eval-confirmed";
   reportId: string;
   n: number;
@@ -1304,16 +1308,21 @@ declare function claimExpiry(claimClass: ModelClaim["class"], polarity: ModelCla
 declare function claimExpired(claim: Pick<ModelClaim, "expiresAt">, at: string): boolean;
 interface ClaimValidationOptions {
   /**
-  * The eval-committer identity ships in M11: only that path may pass
-  * true. Editorial commits (everything in phase 1) leave it false and
-  * both eval-measured claims and metrics reject.
+  * True on the eval-committer path (the eval-committer gate; docs/05,
+  * 5.4). Editorial validation leaves it false and both eval-measured
+  * claims and metrics reject. At the op level the GATE decides this
+  * flag; the option exists for direct claim-level validation.
   */
   evalCommitter?: boolean;
 }
 /** Issues of one claim record (empty = valid). */
 declare function claimIssues(claim: ModelClaim, path: string, options?: ClaimValidationOptions): string[];
-/** Issues of one op (empty = valid). Referential integrity stays with apply. */
-declare function claimOpIssues(op: ClaimOp, index: number, options?: ClaimValidationOptions): string[];
+/**
+* Issues of one op (empty = valid). GATE-DRIVEN (M11-T01): the gate on
+* the op decides which claim rules apply, so the identity is enforced
+* by shape alone. Referential integrity stays with apply.
+*/
+declare function claimOpIssues(op: ClaimOp, index: number): string[];
 /**
 * The commit-time cap (docs/06, Appendix A): active claims per
 * (model, taskClass) after the batch applies. Supersede chains keep
@@ -1322,10 +1331,11 @@ declare function claimOpIssues(op: ClaimOp, index: number, options?: ClaimValida
 */
 declare function capIssues(claims: readonly ModelClaim[], cap?: number): string[];
 /**
-* The editorial-path validation of one commit batch: op shapes and
-* gates first, the post-apply cap second. Throws one ConfigError
-* carrying every issue, so a maintenance caller fixes the batch in one
-* round trip.
+* The commit-batch validation: op shapes and gates first (GATE-DRIVEN
+* since M11-T01: the human gate carries editorial claims, the
+* eval-committer gate carries eval-measured claims with metrics), the
+* post-apply cap second. Throws one ConfigError carrying every issue,
+* so a maintenance caller fixes the batch in one round trip.
 */
 declare function validateEditorialCommit(ops: readonly ClaimOp[], claimsAfter: readonly ModelClaim[], options?: ClaimValidationOptions & {
   cap?: number;
