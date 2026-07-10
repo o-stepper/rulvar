@@ -38,7 +38,8 @@
     "@lurker/testing": "workspace:*",
     "@lurker/store-sqlite": "workspace:*",
     "@lurker/planner": "workspace:*",
-    "@lurker/plan": "workspace:*"
+    "@lurker/plan": "workspace:*",
+    "@lurker/evals": "workspace:*"
   },
   "bin": {
     "lurker": "./dist/cli.js"
