@@ -21,6 +21,7 @@ export type * from './l0/spi/toolsource.js';
 export type * from './l0/spi/knowledge.js';
 export * from './knowledge/claims.js';
 export * from './knowledge/file-store.js';
+export * from './knowledge/card.js';
 export * from './tools/presets.js';
 export * from './tools/shell-matcher.js';
 export * from './tools/tool.js';

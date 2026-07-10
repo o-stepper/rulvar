@@ -27,6 +27,7 @@ import type { Effort, InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/m
 import type { ProviderAdapter } from '../l0/spi/provider.js';
 import type { TranscriptStore } from '../l0/spi/transcript.js';
 import type { IsolationProvider, IsolationSpec } from '../l0/spi/isolation.js';
+import type { ModelKnowledgeHandle } from '../l0/spi/knowledge.js';
 import {
   canonicalizeSchema,
   EMPTY_SCHEMA_HASH,
@@ -565,6 +566,13 @@ export interface RunInternals {
   runSignal?: AbortSignal;
   /** The worktree lifecycle provider (docs/08, section 8). */
   isolation?: IsolationProvider;
+  /**
+   * The ModelKnowledge runtime handle (docs/05; M10-T03): current()
+   * only, commit physically absent. Present only when the engine was
+   * given stores.modelKnowledge; absent means the feature is off and
+   * no kb entries are ever written.
+   */
+  knowledge?: ModelKnowledgeHandle;
   /**
    * The InProcessRunner escalation hook (docs/06, section 2.10): receives
    * escalated results when the call form cannot carry them; its decision
