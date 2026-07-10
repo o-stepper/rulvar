@@ -18,6 +18,7 @@ const lockPath = join(root, 'fixtures.sha256');
 /** Every frozen-fixture location; extend as later milestones freeze more. */
 const FROZEN_DIRS = [
   'cassettes',
+  'journals',
   'packages/testing/fixtures/frozen',
   'packages/store-conformance/src/fixtures',
 ];

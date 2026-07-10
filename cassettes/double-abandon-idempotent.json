@@ -1,108 +1,77 @@
 {
   "id": "double-abandon-idempotent",
-  "note": "DEF-4: the second abandon over an already-covered target folds to noop; abandon beats the terminal ok status; live and replayed states identical, no repayment.",
+  "note": "DEF-4 (re-recorded through the live producers in M9): two covering abandons over one target; the second folds noop, the terminal ok inside the coverage derives skipped, and replay pays nothing.",
   "entries": [
     {
       "hashVersion": 2,
+      "seq": 0,
       "scope": "",
       "key": "725510ad6bbd65f8c88bc7199a0f5ac4627acef4f9bc1f04c3b027fa92449ced",
+      "ordinal": 0,
       "kind": "agent",
       "status": "running",
-      "seq": 0,
-      "ordinal": 0,
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:00.000Z"
     },
     {
       "hashVersion": 2,
+      "seq": 1,
       "ref": 0,
       "scope": "",
       "key": "725510ad6bbd65f8c88bc7199a0f5ac4627acef4f9bc1f04c3b027fa92449ced",
+      "ordinal": 0,
       "kind": "agent",
       "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z",
+      "endedAt": "2026-02-01T00:00:01.000Z",
       "value": "alpha done",
       "usage": {
-        "inputTokens": 150,
-        "outputTokens": 30,
+        "inputTokens": 4,
+        "outputTokens": 3,
         "cacheReadTokens": 0,
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:fake-model",
-      "endedAt": "2026-02-01T00:00:01.000Z",
-      "seq": 1,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:01.000Z"
+      "transcriptRef": "record/t0"
     },
     {
       "hashVersion": 2,
-      "scope": "agent:0",
-      "key": "86a1ba6ad2dd1a138a897788bea6a4febb6eb94a9ab732f01c334e3253b21d8b",
-      "kind": "agent",
-      "status": "running",
       "seq": 2,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:02.000Z"
-    },
-    {
-      "hashVersion": 2,
-      "ref": 2,
-      "scope": "agent:0",
-      "key": "86a1ba6ad2dd1a138a897788bea6a4febb6eb94a9ab732f01c334e3253b21d8b",
-      "kind": "agent",
-      "status": "ok",
-      "value": "inner out",
-      "usage": {
-        "inputTokens": 70,
-        "outputTokens": 10,
-        "cacheReadTokens": 0,
-        "cacheWriteTokens": 0
-      },
-      "servedBy": "fake:fake-model",
-      "endedAt": "2026-02-01T00:00:03.000Z",
-      "seq": 3,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:03.000Z"
-    },
-    {
-      "hashVersion": 2,
       "ref": 0,
       "scope": "",
       "key": "",
+      "ordinal": 0,
       "kind": "abandon",
       "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z",
       "abandon": {
         "target": 0,
         "authorizedBy": 0,
-        "reason": "first revision",
+        "reason": "first cancel",
         "retainCheckpoint": true,
         "retainWorktree": false
-      },
-      "seq": 4,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:04.000Z"
+      }
     },
     {
       "hashVersion": 2,
-      "ref": 2,
-      "scope": "agent:0",
+      "seq": 3,
+      "ref": 0,
+      "scope": "",
       "key": "",
+      "ordinal": 0,
       "kind": "abandon",
       "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:03.000Z",
       "abandon": {
-        "target": 2,
+        "target": 0,
         "authorizedBy": 0,
-        "reason": "second revision overlaps",
+        "reason": "second cancel overlaps",
         "retainCheckpoint": true,
         "retainWorktree": false
-      },
-      "seq": 5,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:05.000Z"
+      }
     }
   ]
 }

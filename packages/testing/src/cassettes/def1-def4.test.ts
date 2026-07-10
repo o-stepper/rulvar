@@ -24,7 +24,13 @@ import {
 } from '@lurker/core';
 import { FakeAdapter, FAKE_MODEL_REF } from '../fake-adapter.js';
 import { replayRun } from '../replay-strict.js';
-import { APPROVED_SCHEMA, DECISION_SCHEMA, GO_SCHEMA, PROMPTS } from './build-fixtures.js';
+import {
+  APPROVED_SCHEMA,
+  buildM2CassetteFixtures,
+  DECISION_SCHEMA,
+  GO_SCHEMA,
+  PROMPTS,
+} from './build-fixtures.js';
 import { CLASSIFY_SCHEMA } from './record-live.js';
 
 interface Cassette {
@@ -148,9 +154,23 @@ describe('DEF-1 cassettes (docs/09, section 6.1)', () => {
   });
 });
 
-describe('DEF-4 cassettes (docs/09, section 6.4)', () => {
+/**
+ * The SYNTHETIC forms stay in the suite as the kernel regression after
+ * the M9 live re-record (docs/10, synthetic-fixture rule): these replay
+ * the BUILDER output; the committed files hold the live forms, replayed
+ * in def4-live.test.ts.
+ */
+function syntheticCassette(id: string): Cassette {
+  const fixture = buildM2CassetteFixtures().find((candidate) => candidate.id === id);
+  if (fixture === undefined) {
+    throw new Error(`no synthetic builder for '${id}'`);
+  }
+  return fixture;
+}
+
+describe('DEF-4 cassettes, synthetic kernel regression (docs/09, section 6.4)', () => {
   it('timeout-vs-live-race: the live decision wins; the timeout attempt is a journaled noop', async () => {
-    const { entries } = cassette('timeout-vs-live-race');
+    const { entries } = syntheticCassette('timeout-vs-live-race');
     const wf = defineWorkflow({ name: 'timeout-race' }, async (ctx) => {
       const analysis = await ctx.agent(PROMPTS.analyze);
       const decision = await ctx.awaitExternal<{ decision: string }>('escalation-report', {
@@ -176,7 +196,7 @@ describe('DEF-4 cassettes (docs/09, section 6.4)', () => {
   });
 
   it('class-decision-fanout: two applied, one noop, decisionRef preserved, fold bit-stable', async () => {
-    const { entries } = cassette('class-decision-fanout');
+    const { entries } = syntheticCassette('class-decision-fanout');
     const wf = defineWorkflow({ name: 'fanout' }, async (ctx) => {
       const one = await ctx.awaitExternal<{ action: string }>('report-1');
       const two = await ctx.awaitExternal<{ action: string }>('report-2');
@@ -205,7 +225,7 @@ describe('DEF-4 cassettes (docs/09, section 6.4)', () => {
   });
 
   it('abandon-then-crash-then-resume: subtree skipped (not orphaned), only the effects re-issue', async () => {
-    const { entries } = cassette('abandon-then-crash-then-resume');
+    const { entries } = syntheticCassette('abandon-then-crash-then-resume');
     const wf = defineWorkflow({ name: 'crash-resume' }, async (ctx) => {
       const branch = (await ctx.agent(PROMPTS.reviseReport, {
         result: 'full',
@@ -230,7 +250,7 @@ describe('DEF-4 cassettes (docs/09, section 6.4)', () => {
   });
 
   it('abandon-vs-resolution-race: journal order decides, both directions', async () => {
-    const { entries } = cassette('abandon-vs-resolution-race');
+    const { entries } = syntheticCassette('abandon-vs-resolution-race');
     const wf = defineWorkflow({ name: 'race-directions' }, async (ctx) => {
       const alpha = (await ctx.agent(PROMPTS.branchAlpha, {
         result: 'full',
@@ -261,7 +281,7 @@ describe('DEF-4 cassettes (docs/09, section 6.4)', () => {
   });
 
   it('offline-invalid-then-valid: invalid never closes; resume consumes the valid value', async () => {
-    const { entries } = cassette('offline-invalid-then-valid');
+    const { entries } = syntheticCassette('offline-invalid-then-valid');
     const wf = defineWorkflow({ name: 'invalid-then-valid' }, async (ctx) => {
       const approval = await ctx.awaitExternal<{ approved: boolean }>('deploy-approval', {
         schema: APPROVED_SCHEMA,
@@ -281,7 +301,7 @@ describe('DEF-4 cassettes (docs/09, section 6.4)', () => {
   });
 
   it('double-abandon-idempotent: the second abandon noops; abandon beats terminal ok; no repayment', async () => {
-    const { entries } = cassette('double-abandon-idempotent');
+    const { entries } = syntheticCassette('double-abandon-idempotent');
     const wf = defineWorkflow({ name: 'double-abandon' }, async (ctx) => {
       const alpha = (await ctx.agent(PROMPTS.subtreeAlpha, {
         result: 'full',

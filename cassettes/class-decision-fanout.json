@@ -1,148 +1,160 @@
 {
   "id": "class-decision-fanout",
-  "note": "DEF-4: a class-level decision closes three suspended reports, one already closed individually: two applied, one noop with decisionRef preserved. The decision fact itself gains a live consumer in M4.",
+  "note": "DEF-4 (re-recorded through the live producers in M9): report-1 closes individually; ONE class-level decision closes the remaining reports by class_decision with the decisionRef; the late class attempt on report-1 lands noop; the plan-side class producer has its own cassette (class-storm-single-turn).",
   "entries": [
     {
       "hashVersion": 2,
+      "seq": 0,
       "scope": "",
       "key": "9ce70a27d0a96138f07e69f08e5f96d9505ac6de747dd239266e528e6a1ef812",
+      "ordinal": 0,
       "kind": "external",
       "status": "suspended",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
       "value": {
         "key": "report-1"
-      },
-      "seq": 0,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:00.000Z"
+      }
     },
     {
       "hashVersion": 2,
-      "scope": "",
-      "key": "70c4d84538464ac58bc764d19928eda6f14ac8919da90bc3293e174801eab7f9",
-      "kind": "external",
-      "status": "suspended",
-      "value": {
-        "key": "report-2"
-      },
       "seq": 1,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:01.000Z"
-    },
-    {
-      "hashVersion": 2,
-      "scope": "",
-      "key": "be003ee139dd05e531cbe2b4577baa7ec38ff5d418faed46ccc5313171d0f9f9",
-      "kind": "external",
-      "status": "suspended",
-      "value": {
-        "key": "report-3"
-      },
-      "seq": 2,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:02.000Z"
-    },
-    {
-      "hashVersion": 2,
-      "ref": 1,
-      "scope": "",
-      "key": "",
-      "kind": "resolution",
-      "status": "ok",
-      "resolution": {
-        "target": 1,
-        "by": "operator",
-        "value": {
-          "action": "retry"
-        }
-      },
-      "seq": 3,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:03.000Z"
-    },
-    {
-      "hashVersion": 2,
-      "scope": "",
-      "key": "16bd18e325f764de8f6d94718d1903076e762a7c934a240179bc317c0314a477",
-      "kind": "decision",
-      "status": "ok",
-      "value": {
-        "decisionType": "escalation-class",
-        "action": "retry",
-        "appliesTo": [
-          0,
-          1,
-          2
-        ]
-      },
-      "endedAt": "2026-02-01T00:00:04.000Z",
-      "seq": 4,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:04.000Z"
-    },
-    {
-      "hashVersion": 2,
       "ref": 0,
       "scope": "",
       "key": "",
+      "ordinal": 0,
       "kind": "resolution",
       "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z",
       "resolution": {
         "target": 0,
-        "by": "class_decision",
+        "by": "external",
         "value": {
           "action": "retry"
-        },
-        "decisionRef": 4
-      },
-      "seq": 5,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:05.000Z"
+        }
+      }
     },
     {
       "hashVersion": 2,
-      "ref": 1,
+      "seq": 2,
+      "scope": "",
+      "key": "70c4d84538464ac58bc764d19928eda6f14ac8919da90bc3293e174801eab7f9",
+      "ordinal": 0,
+      "kind": "external",
+      "status": "suspended",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z",
+      "value": {
+        "key": "report-2"
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
+      "scope": "",
+      "key": "70c4d84538464ac58bc764d19928eda6f14ac8919da90bc3293e174801eab7f9",
+      "ordinal": 0,
+      "kind": "external",
+      "status": "suspended",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z",
+      "value": {
+        "key": "report-2"
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 3,
       "scope": "",
       "key": "",
-      "kind": "resolution",
-      "status": "ok",
-      "resolution": {
-        "target": 1,
-        "by": "class_decision",
-        "value": {
-          "action": "retry"
-        },
-        "decisionRef": 4
-      },
-      "seq": 6,
       "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:06.000Z"
+      "startedAt": "2026-02-01T00:00:03.000Z",
+      "value": {
+        "decisionType": "escalation.class",
+        "decision": {
+          "kind": "retry"
+        },
+        "coverage": "all pending reports of this class"
+      },
+      "endedAt": "2026-02-01T00:00:03.000Z"
     },
     {
       "hashVersion": 2,
+      "seq": 4,
       "ref": 2,
       "scope": "",
       "key": "",
+      "ordinal": 0,
       "kind": "resolution",
       "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:04.000Z",
       "resolution": {
         "target": 2,
         "by": "class_decision",
         "value": {
           "action": "retry"
         },
-        "decisionRef": 4
-      },
-      "seq": 7,
+        "decisionRef": 3
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 5,
+      "ref": 0,
+      "scope": "",
+      "key": "",
       "ordinal": 0,
+      "kind": "resolution",
+      "status": "ok",
       "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:07.000Z"
+      "startedAt": "2026-02-01T00:00:05.000Z",
+      "resolution": {
+        "target": 0,
+        "by": "class_decision",
+        "value": {
+          "action": "retry"
+        },
+        "decisionRef": 3
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 6,
+      "scope": "",
+      "key": "be003ee139dd05e531cbe2b4577baa7ec38ff5d418faed46ccc5313171d0f9f9",
+      "ordinal": 0,
+      "kind": "external",
+      "status": "suspended",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:06.000Z",
+      "value": {
+        "key": "report-3"
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 7,
+      "ref": 6,
+      "scope": "",
+      "key": "",
+      "ordinal": 0,
+      "kind": "resolution",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:07.000Z",
+      "resolution": {
+        "target": 6,
+        "by": "class_decision",
+        "value": {
+          "action": "retry"
+        },
+        "decisionRef": 3
+      }
     }
   ]
 }

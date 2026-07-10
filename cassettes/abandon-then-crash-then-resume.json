@@ -1,100 +1,91 @@
 {
   "id": "abandon-then-crash-then-resume",
-  "note": "DEF-4: crash strictly after the abandon and before any effects; resume derives skipped for the whole subtree (skipped, never orphaned) and re-issues only the revision effects.",
+  "note": "DEF-4 (re-recorded through the live producers in M9): the paid branch is abandoned through the offline kernel writer (decision plus abandon), the crash cut drops the effects, and the resume derives skipped while paying the effects exactly once.",
   "entries": [
     {
       "hashVersion": 2,
+      "seq": 0,
       "scope": "",
       "key": "bd3891e7ee06b39e256228c1e960ad23377446fd91e8c5bcc574f1d3dac176aa",
+      "ordinal": 0,
       "kind": "agent",
       "status": "running",
-      "seq": 0,
-      "ordinal": 0,
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:00.000Z"
     },
     {
       "hashVersion": 2,
-      "scope": "agent:0",
-      "key": "5335a75e319dda82bf062ee91000b1a65262c48a799436830d8e3e9533ca017e",
-      "kind": "agent",
-      "status": "running",
       "seq": 1,
+      "ref": 0,
+      "scope": "",
+      "key": "bd3891e7ee06b39e256228c1e960ad23377446fd91e8c5bcc574f1d3dac176aa",
       "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:01.000Z"
-    },
-    {
-      "hashVersion": 2,
-      "ref": 1,
-      "scope": "agent:0",
-      "key": "5335a75e319dda82bf062ee91000b1a65262c48a799436830d8e3e9533ca017e",
       "kind": "agent",
       "status": "ok",
-      "value": "notes",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z",
+      "endedAt": "2026-02-01T00:00:01.000Z",
+      "value": "branch out",
       "usage": {
-        "inputTokens": 80,
-        "outputTokens": 15,
+        "inputTokens": 5,
+        "outputTokens": 3,
         "cacheReadTokens": 0,
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:fake-model",
-      "endedAt": "2026-02-01T00:00:02.000Z",
-      "seq": 2,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:02.000Z"
+      "transcriptRef": "record/t0"
     },
     {
       "hashVersion": 2,
-      "scope": "agent:0",
-      "key": "dcadabeb8e680c4f6ea9ce94fdf2a1a88ae2bb6c47e46ef05004d636bb0ce955",
+      "seq": 2,
+      "ref": 0,
+      "scope": "",
+      "key": "",
+      "ordinal": 0,
+      "kind": "abandon",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z",
+      "abandon": {
+        "target": 0,
+        "authorizedBy": 0,
+        "reason": "plan revision",
+        "retainCheckpoint": true,
+        "retainWorktree": false
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 3,
+      "scope": "",
+      "key": "03cb0ade4e72a0bbecf92028a306fb7837890174d66dbfb94d5cacb9fc8fd55d",
+      "ordinal": 0,
       "kind": "agent",
       "status": "running",
-      "seq": 3,
-      "ordinal": 0,
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:03.000Z"
     },
     {
       "hashVersion": 2,
+      "seq": 4,
       "ref": 3,
-      "scope": "agent:0",
-      "key": "dcadabeb8e680c4f6ea9ce94fdf2a1a88ae2bb6c47e46ef05004d636bb0ce955",
+      "scope": "",
+      "key": "03cb0ade4e72a0bbecf92028a306fb7837890174d66dbfb94d5cacb9fc8fd55d",
+      "ordinal": 0,
       "kind": "agent",
       "status": "ok",
-      "value": "draft",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:04.000Z",
+      "endedAt": "2026-02-01T00:00:04.000Z",
+      "value": "fresh live output",
       "usage": {
-        "inputTokens": 90,
-        "outputTokens": 25,
+        "inputTokens": 7,
+        "outputTokens": 5,
         "cacheReadTokens": 0,
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:fake-model",
-      "endedAt": "2026-02-01T00:00:04.000Z",
-      "seq": 4,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:04.000Z"
-    },
-    {
-      "hashVersion": 2,
-      "ref": 0,
-      "scope": "",
-      "key": "",
-      "kind": "abandon",
-      "status": "ok",
-      "abandon": {
-        "target": 0,
-        "authorizedBy": 0,
-        "reason": "plan revision: cancel_task",
-        "retainCheckpoint": true,
-        "retainWorktree": false
-      },
-      "seq": 5,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:05.000Z"
+      "transcriptRef": "record/t0"
     }
   ]
 }

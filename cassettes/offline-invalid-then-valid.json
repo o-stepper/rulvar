@@ -1,13 +1,17 @@
 {
   "id": "offline-invalid-then-valid",
-  "note": "DEF-4: the schema-invalid offline resolution classifies invalid and never closes; the valid one applies; resume consumes the valid value deterministically.",
+  "note": "DEF-4 (re-recorded through the live producers in M9, the M8 offline machinery end to end): the offline writer appends an INVALID then a VALID resolution against the schema-validated suspension; the resume consumes the valid value.",
   "entries": [
     {
       "hashVersion": 2,
+      "seq": 0,
       "scope": "",
       "key": "7dc697415175540b76d979b67b5b4dfeb930e221e9bf7bb131830ac1e1323c92",
+      "ordinal": 0,
       "kind": "external",
       "status": "suspended",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
       "value": {
         "key": "deploy-approval",
         "prompt": "Approve the deployment?",
@@ -23,49 +27,45 @@
             }
           }
         }
-      },
-      "seq": 0,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:00.000Z"
+      }
     },
     {
       "hashVersion": 2,
+      "seq": 1,
       "ref": 0,
       "scope": "",
       "key": "",
+      "ordinal": 0,
       "kind": "resolution",
       "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z",
       "resolution": {
         "target": 0,
         "by": "external",
         "value": {
-          "approved": "yes"
+          "approved": "yes-ish"
         }
-      },
-      "seq": 1,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:01.000Z"
+      }
     },
     {
       "hashVersion": 2,
+      "seq": 2,
       "ref": 0,
       "scope": "",
       "key": "",
+      "ordinal": 0,
       "kind": "resolution",
       "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z",
       "resolution": {
         "target": 0,
-        "by": "operator",
+        "by": "external",
         "value": {
           "approved": true
         }
-      },
-      "seq": 2,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:02.000Z"
+      }
     }
   ]
 }
