@@ -6,6 +6,7 @@ import { ConfigError } from '@lurker/core';
 
 import {
   inspectCommand,
+  kbCommand,
   planCommand,
   resumeCommand,
   runCommand,
@@ -20,6 +21,7 @@ export const HELP = `lurker: durable multi-agent workflows (docs/06, section 10.
   lurker runs ls         [--store PATH]
   lurker inspect <runId> [--store PATH]
   lurker plan "<goal>"   [--dry-run]
+  lurker kb <list | inbox | sweep>
 
 Engine assembly: adapters, defaults, and the workflow registry come from
 lurker.config.mjs in the working directory (default export
@@ -28,7 +30,9 @@ exports. --store selects the JsonlFileStore directory (default .lurker).
 plan asks the planner model (role plan) to write a workflow script,
 lints and self-repairs it, then runs it in the worker sandbox; --dry-run
 prints the accepted script without running. Requires @lurker/planner
-installed. kb commands arrive with M10.`;
+installed. kb list shows the per-project claim store
+(./lurker.models.json) with full provenance; inbox and sweep arrive
+with ModelKnowledge phases 3 and 2.`;
 
 export async function runCli(argv: string[], options: { cwd: string; io: CliIo }): Promise<number> {
   const [command, ...rest] = argv;
@@ -50,6 +54,8 @@ export async function runCli(argv: string[], options: { cwd: string; io: CliIo }
         return await inspectCommand(rest, context);
       case 'plan':
         return await planCommand(rest, context);
+      case 'kb':
+        return await kbCommand(rest, context);
       case undefined:
       case 'help':
       case '--help':
