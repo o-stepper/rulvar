@@ -102,7 +102,8 @@ function tiersOf(claim: ModelClaim, ladders: readonly DeclaredLadder[]): string[
   return coordinates;
 }
 
-interface VerifiedRow {
+/** One compiled start-tier recommendation of the verified layer. */
+export interface VerifiedRecommendation {
   ladder: string;
   taskClass: TaskClass;
   defaultTier: number;
@@ -111,17 +112,23 @@ interface VerifiedRow {
 }
 
 /**
- * The verified layer: eval-measured claims vote a one-rung shift of
- * the start tier per (ladder, taskClass). A strength on a rung below
- * the default votes down (start cheaper); a weakness on the default
- * rung or below votes up. The net sign shifts EXACTLY one rung (the
- * clamp), bounded to the ladder; ties hold the default.
+ * The verified-layer compiler (M11-T06; docs/05, sections "Read path"
+ * and "Composition with the model layer"): start-tier recommendations
+ * per (ladder, taskClass) compiled EXCLUSIVELY from eval-measured
+ * claims. A strength on a rung below the default votes down (start
+ * cheaper); a weakness on the default rung or below votes up. The net
+ * sign shifts EXACTLY one rung, bounded to the ladder (the clamp: the
+ * price of any false belief is one rung); ties hold the default and
+ * compile nothing. Editorial claims NEVER compile. Floors and
+ * ModelCaps stay hard router constraints; budget is touched only
+ * through the existing admission path. A deterministic pure function:
+ * the M12 consumers read THIS, never the card text.
  */
-function verifiedRows(
+export function compileVerifiedLayer(
   claims: readonly ModelClaim[],
   ladders: readonly DeclaredLadder[],
-): VerifiedRow[] {
-  const rows: VerifiedRow[] = [];
+): VerifiedRecommendation[] {
+  const rows: VerifiedRecommendation[] = [];
   for (const ladder of ladders) {
     const byTaskClass = new Map<TaskClass, number>();
     const votesByTaskClass = new Map<TaskClass, number>();
@@ -180,7 +187,7 @@ export function modelKnowledgeCard(
   const lines: string[] = [
     'Model knowledge card (tier-relative; advisory within declared ladders and hard floors).',
   ];
-  const verified = verifiedRows(claims, ladders);
+  const verified = compileVerifiedLayer(claims, ladders);
   if (verified.length === 0) {
     lines.push('Verified layer: empty (no eval-measured claims).');
   } else {

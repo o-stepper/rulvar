@@ -28,10 +28,10 @@ Closing an OQ follows the change process in section 4.
 | OQ-04 | renderBudgetTokens measure | dogfood telemetry | Closed at M10 entry (character measure) |
 | OQ-05 | startTier demotion signals | dogfood telemetry | post-M11 (v2 planning) |
 | OQ-06 | Canary fingerprint design | dogfood telemetry | Closed at M11-T04 (fixed probes, NFC normalization, sha256) |
-| OQ-07 | Org-level knowledge store overlay | dogfood telemetry | M11 |
-| OQ-08 | Knowledge card renderBudget sizing | dogfood telemetry | M11 |
-| OQ-09 | Phase-3 value-checkpoint quantitative criteria | dogfood telemetry | end of M11 (gates M12) |
-| OQ-10 | TaskClass extension mapping to eval tags | dogfood telemetry | M11 |
+| OQ-07 | Org-level knowledge store overlay | dogfood telemetry | post-release (carried at M11-T06) |
+| OQ-08 | Knowledge card renderBudget sizing | dogfood telemetry | post-release calibration (carried at M11-T06) |
+| OQ-09 | Phase-3 value-checkpoint quantitative criteria | dogfood telemetry | Closed at M11-T06 (gate criteria defined) |
+| OQ-10 | TaskClass extension mapping to eval tags | dogfood telemetry | post-release (carried at M11-T06) |
 | OQ-11 | Editorial-note rendering for judge and orchestrate roles | dogfood telemetry | Closed at M10-T03 (render, no suppression) |
 | OQ-12 | ModelKnowledge taskClass binding | dogfood telemetry | Closed at M10-T05 (author-declared, unclassified default) |
 | OQ-13 | Checkpoint and transcript blob format | dogfood telemetry | Closed at M9-T05 |
@@ -120,6 +120,7 @@ Closing an OQ follows the change process in section 4.
 - Must close by: M11.
 - Decision trigger: phase-1 (M10) adoption feedback across more than one project.
 - Interim rule: a single per-project file store, lurker.models.json. See 05-model-knowledge-spec.md, section "Data model".
+- Carried (M11-T06, 2026-07-10): the decision trigger (phase-1 adoption feedback across more than one project) has not fired: every release is founder-deferred, so no external adoption exists. The single per-project file store stays normative; the overlay re-owns to post-release adoption data.
 
 ### OQ-08: Knowledge card renderBudget sizing
 
@@ -130,6 +131,7 @@ Closing an OQ follows the change process in section 4.
 - Decision trigger: phase-1 (M10) run telemetry.
 - Interim rule: renderBudget values are listed as TBD-before-M10 in 06-execution-spec.md, Appendix A; the card render itself is deterministic and bounded (05-model-knowledge-spec.md, section "Read path").
 - Status (M10 entry, 2026-07-10): initial values COMMITTED in 06-execution-spec.md, Appendix A (WakeDigest 400 chars per outputSummary row, adopting the implemented distillation cap unchanged; ledger_read render 65536 chars; KB card 4096 chars) per the TBD-before-M10 rule. The OQ stays open for the M11 calibration against phase-1 run telemetry.
+- Carried (M11-T06, 2026-07-10): the calibration trigger (phase-1 run telemetry) has not fired: every release is founder-deferred and no dogfood phase-1 runs exist. The committed initial values stand; calibration re-owns to post-release telemetry (the wake-render-size metric of docs/09 feeds it).
 
 ### OQ-09: Phase-3 value-checkpoint quantitative criteria
 
@@ -139,6 +141,10 @@ Closing an OQ follows the change process in section 4.
 - Must close by: end of M11 (the gate definition must exist before M12 can be scheduled).
 - Decision trigger: M11 matrix sweep results.
 - Interim rule: M12 remains gated and carries no version assignment (10-implementation-plan.md, section "Post-1.0 track"; 05-model-knowledge-spec.md, section "Phases and placement").
+- Closed (M11-T06, 2026-07-10): the gate DEFINITION exists; M12-T01 executes it. The measured-value checkpoint passes only when BOTH hold, measured by A/B matrix sweeps (card-informed versus no-card baseline) through @lurker/evals under identical fixed pools, on an eval-case set spanning at least three taskClasses and at least two declared ladders with n >= 20 per (ladder, taskClass) cell:
+  1. Rung selection: runs admitted WITH the compiled verified layer reach a pass rate at least equal to the default-start-tier baseline at no more than 90 percent of its cost, OR at least 5 points of pass rate above it at no more than its cost, in a majority of cells and on the pooled aggregate.
+  2. agentType selection: the card-informed orchestrator's spawn choices on the same cases match or beat the no-card baseline pass rate at no more than 105 percent of its cost on the pooled aggregate.
+  A failed checkpoint keeps M12 closed and appends the measured data to this record; passing is journaled as the dated docs/05 and docs/14 amendment the M12 entry criteria require.
 
 ### OQ-10: TaskClass extension mapping to eval tags
 
@@ -148,6 +154,7 @@ Closing an OQ follows the change process in section 4.
 - Must close by: M11.
 - Decision trigger: the first external TaskClass extensions during phases 1-2.
 - Interim rule: the TaskClass vocabulary is aligned with the role floors (05-model-knowledge-spec.md, section "Data model"); unmapped extensions and unclassified spawns receive no card recommendations.
+- Carried (M11-T06, 2026-07-10): the decision trigger (the first external TaskClass extensions) has not fired: no release has shipped, so no external extension exists. The interim rule stays normative (M11 sweeps key cells by the declared taskClass string verbatim, so a custom class sweeps cleanly when its author supplies cases); cross-project comparability of n re-owns to post-release evidence.
 
 ### OQ-11: Editorial-note rendering for judge and orchestrate roles
 
