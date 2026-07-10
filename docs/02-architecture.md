@@ -439,6 +439,7 @@ Rules:
 | AdmissionRejectedError | L4 AdmissionController (07-adaptive-orchestration-spec.md) | admission_rejected | No | The rejection verdict is embedded in the carrying spawn-admission decision entry and replays identically (DEF-2); the error surfaces the embedded AdmitRejectReason in data to the caller (a typed tool error for orchestrators) and never tears the run down; budget-code rejections throw BudgetExhaustedError instead. (Amended during M6-T06: structural rejections needed a registry home distinct from exhaustion.) |
 | SandboxError | L5 WorkerSandboxRunner (06-execution-spec.md, section "Script runners") | sandbox_limit | No | Crossing timeoutMs or memoryMb terminates the worker; the run completes with outcome 'error' carrying the WireError projection; data records { reason: 'timeout' \| 'memory', limit }; never journaled as its own entry. (Amended during M6-T02: docs/06 8.2 promised a typed code without registering one.) |
 | LeaseHeldError | L0/L1 store contract | lease_held | Yes | Never journaled; acquire on a held lease MUST reject with it; retry after the lease ttl elapses or the holder releases |
+| KnowledgeCasError | L0/L1 knowledge store contract (05-model-knowledge-spec.md, section "Commit discipline") | knowledge_cas | Yes | Never journaled; commit against a stale snapshot version MUST reject with it; re-read current() and rebase the ops, mirroring the lease fencing discipline. (Amended during M10-T01: the ModelKnowledgeStore SPI landed its CAS rejection.) |
 
 ## 7. Engine anatomy
 

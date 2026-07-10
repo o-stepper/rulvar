@@ -40,7 +40,8 @@ export type ErrorCode =
   | 'budget_exhausted'
   | 'admission_rejected'
   | 'sandbox_limit'
-  | 'lease_held';
+  | 'lease_held'
+  | 'knowledge_cas';
 
 /** docs/02 names the registry type LurkerErrorCode; both names are public. */
 export type LurkerErrorCode = ErrorCode;
@@ -291,6 +292,20 @@ export class SandboxError extends LurkerError {
  */
 export class LeaseHeldError extends LurkerError {
   readonly code = 'lease_held' as const;
+
+  constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
+    super(message, { retryable: true, ...opts });
+  }
+}
+
+/**
+ * commit() on a ModelKnowledgeStore against a snapshot version that is
+ * no longer current. Retryable by contract: re-read current(), rebase
+ * the ops, commit again, mirroring the lease fencing discipline
+ * (docs/05, section "Commit discipline").
+ */
+export class KnowledgeCasError extends LurkerError {
+  readonly code = 'knowledge_cas' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
     super(message, { retryable: true, ...opts });
