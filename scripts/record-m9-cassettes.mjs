@@ -131,6 +131,55 @@ const SCENARIOS = [
     plan.runClaimExclusivityAndChain,
   ],
   [
+    'revise-racing-defaultDecision',
+    'DEF-8 (mandatory): the orchestrator sleeps; a Flavor B timeout resolves the upstream ' +
+      'done, a second node escalates, a third completes; ONE stale-based revision drops the ' +
+      'trio with dep_already_resolved (blockingRef to the resolving reference), ' +
+      'node_escalated, node_already_done (docs/07, 3.5).',
+    plan.runReviseRacingDefaultDecision,
+  ],
+  [
+    'crash-after-append-before-effects',
+    'DEF-8: the kill lands after the durable plan.revision (add x2 + cancel on a running ' +
+      'node); the resume re-issues the effects: both children spawn live exactly once and ' +
+      'the request-only cancel lands on the redispatched branch (docs/07, 3.9).',
+    plan.runCrashAfterAppendBeforeEffects,
+  ],
+  [
+    'amend-vs-running-then-cancel-add',
+    'DEF-8: amend_task on a running node drops node_running; the next revision cancels and ' +
+      'adds the amended prompt; the abandon covers the old branch and replay repays neither ' +
+      '(docs/07, 4.7).',
+    plan.runAmendVsRunningThenCancelAdd,
+  ],
+  [
+    'intra-revision-self-conflict',
+    'DEF-8: one revision {cancel_task X, amend_task X, rewire_deps onto X} resolves strictly ' +
+      'in submission order per the sequential intra-revision semantics (docs/07, 4.7).',
+    plan.runIntraRevisionSelfConflict,
+  ],
+  [
+    'bad-base-streak-terminates',
+    'DEF-8: three consecutive fabricated-base revisions land as all-dropped bad-base ' +
+      'entries; the dropped streak reaches its limit and the non-HITL RevisionGuards ' +
+      'fallback closes the run (docs/07, 3.5/3.8).',
+    plan.runBadBaseStreakTerminates,
+  ],
+  [
+    'park-races-child-completion',
+    'DEF-8: park_task lands on a running node whose terminal appends moments later; ' +
+      'parkRequested is extinguished by the child-result transition, no park retention is ' +
+      'written, the node is done (docs/07, 3.6).',
+    plan.runParkRacesChildCompletion,
+  ],
+  [
+    'reserve-survives-run-exhaustion',
+    'DEF-7: cheap workers eat the run ceiling; the invading adds drop admission_denied ' +
+      '(journaled in the revision outcomes, forward-matched on replay); the forced finish ' +
+      'executes FROM the reserve and closes the run ok (docs/07, 12.4).',
+    plan.runReserveSurvivesRunExhaustion,
+  ],
+  [
     'oscillation-bounded',
     'DEF-2: an escalated branch is cancelled and re-added byte-identically twice; every ' +
       'plan_revise call debits one revisionUnit (including the drop on the linked done ' +

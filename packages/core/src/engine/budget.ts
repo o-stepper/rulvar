@@ -355,6 +355,23 @@ export class RunBudget {
     this.emitUpdate();
   }
 
+  /**
+   * The forced finish CONSUMES its reserve (DEF-7
+   * reserve-survives-run-exhaustion): once the cap decision is durable
+   * and the finalize dispatch begins, the reserve stops subtracting from
+   * the admission remainder, or the finalize agent could never draw the
+   * money reserved for it under a tight run ceiling. Admissions stay
+   * frozen past the cap, so nothing else can take it.
+   */
+  releaseFinalizeReserve(scope: string): void {
+    const account = this.accounts.get(scope);
+    if (account !== undefined) {
+      account.finalizeReserveUsd = 0;
+    }
+    this.root.finalizeReserveUsd = 0;
+    this.emitUpdate();
+  }
+
   /** The reserve is replaced by real spend when the spawn settles. */
   releaseReserve(reserveUsd: number, accountScope: string = ROOT_ACCOUNT): void {
     for (const account of this.chainOf(accountScope)) {

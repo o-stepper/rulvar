@@ -1142,6 +1142,11 @@ export function makeOrchestratorWorkflow(
         (tool) => tool.name === FINISH_TOOL_NAME,
       );
       internals.cost.orchestrator.forcedFinish = true;
+      if (orchestratorAccount !== undefined) {
+        // The finalize dispatch draws FROM the reserve (DEF-7): stop
+        // subtracting it from the remainder now that it is being spent.
+        internals.budget.releaseFinalizeReserve(orchestratorAccount);
+      }
       const finalizeTurns = capState?.finalizeTurns ?? 2;
       const finalOpts: AgentOpts & InternalAgentHooks & { result: 'full' } = {
         role: 'orchestrate',

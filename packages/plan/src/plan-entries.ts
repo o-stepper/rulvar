@@ -565,6 +565,13 @@ export function applyDecisionOps(
     }
     if (op.kind === 'resolve_escalation') {
       const node = nodeOf(working.plan, op.nodeId, seq);
+      if (op.decision.kind === 'accept') {
+        // An accepted escalation closes the node done: the resolving
+        // reference feeds waive_dep conflict evidence exactly like a
+        // child-result transition (DEF-8 revise-racing-defaultDecision:
+        // dropped dep_already_resolved carries the blockingRef).
+        doneRefs[op.nodeId] = op.escalationRef;
+      }
       working = withNode(working, resolveEscalatedNode(node, op.decision, op.escalationRef));
       continue;
     }

@@ -3725,6 +3725,15 @@ declare class RunBudget {
   * Idempotent: re-registering on resume keeps the journaled amount.
   */
   commitFinalizeReserve(scope: string, reserveUsd: number): void;
+  /**
+  * The forced finish CONSUMES its reserve (DEF-7
+  * reserve-survives-run-exhaustion): once the cap decision is durable
+  * and the finalize dispatch begins, the reserve stops subtracting from
+  * the admission remainder, or the finalize agent could never draw the
+  * money reserved for it under a tight run ceiling. Admissions stay
+  * frozen past the cap, so nothing else can take it.
+  */
+  releaseFinalizeReserve(scope: string): void;
   /** The reserve is replaced by real spend when the spawn settles. */
   releaseReserve(reserveUsd: number, accountScope?: string): void;
   /** Layer 2: the per-turn guard. A turn that would cross any ceiling in the chain is not dispatched. */

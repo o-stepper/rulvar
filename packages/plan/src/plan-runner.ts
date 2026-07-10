@@ -1952,6 +1952,25 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           await landReuseLinks(existing);
           await landCancelAbandons(value, existing.seq);
           await landRevisionEscalations(value);
+          // Request-only cancels and parks re-land on the recovery path
+          // too (DEF-8 crash-after-append-before-effects: the resume
+          // must abort the redispatched mid-flight branch, or the
+          // roll-forward leaves it running forever).
+          for (const outcome of value.outcomes) {
+            if (outcome.kind === 'dropped') {
+              continue;
+            }
+            const applied = outcome.kind === 'applied' ? outcome.op : outcome.applied;
+            if (
+              (applied.op === 'cancel_task' || applied.op === 'park_task') &&
+              applied.requestOnly === true
+            ) {
+              const handle = dispatched.get(applied.nodeId);
+              if (handle !== undefined) {
+                void io.cancel(handle, applied.op === 'cancel_task' ? applied.reason : 'park_task');
+              }
+            }
+          }
           await scheduleReady();
           return {
             outcomes: value.outcomes,
