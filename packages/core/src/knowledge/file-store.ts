@@ -20,6 +20,7 @@ import type {
   ModelClaim,
   ModelKnowledgeStore,
 } from '../l0/spi/knowledge.js';
+import { validateEditorialCommit } from './claims.js';
 
 /** Deterministic content hash of the claims array (JCS + sha256). */
 export function knowledgeHash(claims: readonly ModelClaim[]): string {
@@ -82,15 +83,19 @@ export function applyClaimOps(
 export interface FileModelKnowledgeStoreOptions {
   /** Default './lurker.models.json' (docs/05, section "Data model"). */
   path?: string;
+  /** docs/06, Appendix A: active claims per (model, taskClass); default 8. */
+  activeClaimsCap?: number;
 }
 
 export class FileModelKnowledgeStore implements ModelKnowledgeStore {
   private readonly path: string;
+  private readonly activeClaimsCap: number | undefined;
   /** In-process commit serialization; cross-process safety is CAS plus atomic rename. */
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(options?: FileModelKnowledgeStoreOptions) {
     this.path = resolve(options?.path ?? './lurker.models.json');
+    this.activeClaimsCap = options?.activeClaimsCap;
   }
 
   private read(): KnowledgeSnapshot {
@@ -138,6 +143,11 @@ export class FileModelKnowledgeStore implements ModelKnowledgeStore {
         );
       }
       const claims = applyClaimOps(snapshot.claims, ops);
+      // The editorial path is the ONLY committable path in phase 1:
+      // eval-measured claims and metrics wait for the M11 committer
+      // identity; the attestation and the active-claims cap hold here
+      // (docs/05, section "The human gate"; docs/06, Appendix A).
+      validateEditorialCommit(ops, claims, { cap: this.activeClaimsCap });
       const next: KnowledgeSnapshot = {
         version: snapshot.version + 1,
         hash: knowledgeHash(claims),
