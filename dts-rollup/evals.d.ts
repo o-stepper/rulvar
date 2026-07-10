@@ -225,4 +225,71 @@ declare function evalMeasuredClaim(input: MeasuredClaimInput, committerId: strin
 */
 declare function commitEvalMeasured(store: ModelKnowledgeStore, claims: readonly MeasuredClaimInput[], options: EvalCommitterOptions): Promise<number>;
 //#endregion
-export { type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type RubricCriterion, type RubricGraderOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, commitEvalMeasured, evalMeasuredClaim, goldenGrader, judgeGrader, rubricGrader, runEvalCase, runEvalMatrix, runEvalSuite };
+//#region src/sweeps.d.ts
+/** One fixed pool member; effort is part of the claim subject identity. */
+interface SweepModel {
+  model: ModelRef;
+  effort?: Effort;
+}
+/** An eval case bound to the taskClass axis of the matrix. */
+interface SweepCase {
+  taskClass: TaskClass;
+  case: EvalCase;
+}
+interface SweepPool {
+  models: SweepModel[];
+  cases: SweepCase[];
+}
+interface SweepThresholds {
+  /** passRate at or above emits a strength claim; default 0.9. */
+  strength: number;
+  /** passRate at or below emits a weakness claim; default 0.5. */
+  weakness: number;
+}
+interface RunSweepOptions {
+  /** Deterministic, caller-minted; every claim's evidence and gate reference it. */
+  reportId: string;
+  /** The dedicated identity (docs/05, 5.4). */
+  committerId: string;
+  /** ISO date of the sweep; the TTL table applies from it (no wall clock inside). */
+  observedAt: string;
+  /**
+  * A fresh engine per model cell, routed at that member: the caller
+  * owns adapters, budgets, and the VCR posture, so a sweep records
+  * and replays like any engine run.
+  */
+  engineFor: (member: SweepModel) => Engine | Promise<Engine>;
+  /** Mid-band pass rates emit NO claim (uninformative); see defaults. */
+  thresholds?: Partial<SweepThresholds>;
+  /** Passed through to every suite run (budget, VCR hooks ride the engine). */
+  suite?: RunEvalSuiteOptions;
+  /** When given, emitted claims commit through the committer identity. */
+  store?: ModelKnowledgeStore;
+}
+interface SweepCellReport {
+  model: ModelRef;
+  effort?: Effort;
+  taskClass: TaskClass;
+  passRate: number;
+  n: number;
+  totalCostUsd: number;
+  caseNames: string[];
+}
+interface SweepReport {
+  reportId: string;
+  observedAt: string;
+  cells: SweepCellReport[];
+  /** Emitted per the thresholds; committed when a store was given. */
+  claims: MeasuredClaimInput[];
+  committedVersion?: number;
+}
+declare const SWEEP_THRESHOLD_DEFAULTS: SweepThresholds;
+/**
+* Runs the fixed matrix sequentially in declaration order
+* (deterministic cassette consumption), aggregates per (model,
+* taskClass) cell, emits threshold-crossing claims, and commits them
+* through the eval-committer identity when a store is given.
+*/
+declare function runSweepMatrix(pool: SweepPool, options: RunSweepOptions): Promise<SweepReport>;
+//#endregion
+export { type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type RubricCriterion, type RubricGraderOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, commitEvalMeasured, evalMeasuredClaim, goldenGrader, judgeGrader, rubricGrader, runEvalCase, runEvalMatrix, runEvalSuite, runSweepMatrix };
