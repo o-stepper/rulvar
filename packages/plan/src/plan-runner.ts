@@ -1698,6 +1698,10 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       ...(spec.budgetUsd === undefined ? {} : { budgetUsd: spec.budgetUsd }),
       ...(spec.usageLimits === undefined ? {} : { usageLimits: spec.usageLimits }),
       ...(spec.escalation === undefined ? {} : { escalation: spec.escalation }),
+      // The declared task class rides the dispatch and journals inside
+      // the admission decision (OQ-12 phase-1 rule: author-declared,
+      // absent = unclassified; docs/05, section "Phases and placement").
+      ...(spec.taskClass === undefined ? {} : { taskClass: spec.taskClass }),
       // The rung resolution LAST: the concrete model, the rung caps, and
       // the rung ceiling override the spec-level fields (docs/07, 10).
       ...(ladder === undefined ? {} : ladderDispatchFields(node, spec, ladder)),

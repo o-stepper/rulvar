@@ -33,7 +33,7 @@ Closing an OQ follows the change process in section 4.
 | OQ-09 | Phase-3 value-checkpoint quantitative criteria | dogfood telemetry | end of M11 (gates M12) |
 | OQ-10 | TaskClass extension mapping to eval tags | dogfood telemetry | M11 |
 | OQ-11 | Editorial-note rendering for judge and orchestrate roles | dogfood telemetry | Closed at M10-T03 (render, no suppression) |
-| OQ-12 | ModelKnowledge taskClass binding | dogfood telemetry | M10 (phase-1 blocker) |
+| OQ-12 | ModelKnowledge taskClass binding | dogfood telemetry | Closed at M10-T05 (author-declared, unclassified default) |
 | OQ-13 | Checkpoint and transcript blob format | dogfood telemetry | Closed at M9-T05 |
 | OQ-14 | LedgerExport JSON schema | dogfood telemetry | M12 |
 | OQ-15 | No-progress detector heuristic | dogfood telemetry | Closed at M9-T05 (default frozen) |
@@ -166,6 +166,7 @@ Closing an OQ follows the change process in section 4.
 - Must close by: M10 (blocks ModelKnowledge phase 1).
 - Decision trigger: the M10 design review of the read path.
 - Interim rule (normative): an optional taskClass field on AgentProfile and TaskSpec, defaulting to unclassified; card recommendations do not apply to unclassified spawns. See 05-model-knowledge-spec.md, section "Phases and placement".
+- Closed (M10-T05, 2026-07-10): the interim rule IS the phase-1 resolution: the classification source is AUTHOR DECLARATION (the optional taskClass on AgentProfile and TaskSpec; spawn_agent params carry it too), absence means unclassified and stores no literal string. A declared class journals inside the spawn-admission decision and the plan.revision spec of record, and rides the dispatch spec, so the M11 recommendation compiler and matrix sweeps consume it from journals; that compiler MUST apply card recommendations only to classified spawns. Floors stay profile-driven per docs/04 (the byTaskClass axis activates on the profile's declared class). Profile-derived or inferred classification is post-phase-1 evolution and would reopen as a new OQ.
 
 ### OQ-13: Checkpoint and transcript blob format
 
