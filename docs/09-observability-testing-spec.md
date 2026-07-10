@@ -189,7 +189,7 @@ The following metric definitions are normative so that dashboards, dogfood telem
 | Metric | Definition | Source | Purpose |
 |---|---|---|---|
 | ledger-ops-per-spawn | count of authored ledger:op events / count of spawn:admitted events, per run | event stream | RunLedger usefulness signal for the PlanRunner-vs-phase-chaining threshold (open question, 14-open-questions.md) |
-| wake-render-size | renderSize of each orchestrator:woke event; distribution per run | event stream | WakeDigest render budget sizing; the measure (chars vs tokens) is an open question (14-open-questions.md) |
+| wake-render-size | renderSize of each orchestrator:woke event; distribution per run | event stream | WakeDigest render budget sizing; the character measure closed OQ-04 at M10 entry, and this metric feeds the M11 calibration of the committed values (OQ-08, 14-open-questions.md) |
 | escalation rate by agentType | escalation:raised count / spawn count, grouped by agentType | event stream | profile and ladder tuning; feeds eval sweep prioritization |
 | orchestrator-share p50/p90 | distribution of CostReport.orchestrator.share across runs | CostReport | validates hypothesis H-OrchShare (01-requirements.md, section "Hypotheses") and drives the capFraction default revisit (DEF-7) |
 | abandoned / reclaimed / netLost USD | fold over applied abandon entries and node.link reclaim data: abandonedUsd, reclaimedUsd, netLostUsd = abandoned - reclaimed | journal fold (03-journal-spec.md, section "Abandon, derived skipped, and reuse-by-reference (DEF-5)") | cost of plan churn; oscillation economics (DEF-5) |

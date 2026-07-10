@@ -62,8 +62,15 @@ export interface OrchestratorRuntime {
   waitForEvents(triggers: unknown): Promise<unknown>;
 }
 
-/** Deterministic distillation cap; a summarize-model distillation is M7. */
-const SUMMARY_MAX_CHARS = 400;
+/**
+ * The committed WakeDigest render budget (docs/06, Appendix A: 400
+ * chars per outputSummary row, the character measure; committed at M10
+ * entry by adopting the implemented distillation cap unchanged, the
+ * value frozen into every cassette since M6). One value serves both
+ * stages: the deterministic distillation cap here and the digest
+ * render default in orchestrate (renderBudgetChars).
+ */
+export const WAKE_SUMMARY_RENDER_BUDGET_CHARS = 400;
 
 /**
  * The M6 outputSummary: a deterministic truncation of the child's
@@ -78,7 +85,9 @@ export function summarizeOutput(result: AgentResult<unknown>): string {
         ? result.output
         : JSON.stringify(result.output ?? null)
       : (result.errorMessage ?? `terminal status ${result.status}`);
-  return raw.length <= SUMMARY_MAX_CHARS ? raw : `${raw.slice(0, SUMMARY_MAX_CHARS)}...`;
+  return raw.length <= WAKE_SUMMARY_RENDER_BUDGET_CHARS
+    ? raw
+    : `${raw.slice(0, WAKE_SUMMARY_RENDER_BUDGET_CHARS)}...`;
 }
 
 /** Folds one settled child into its digest (spawn-ordinal ordering is the caller's). */

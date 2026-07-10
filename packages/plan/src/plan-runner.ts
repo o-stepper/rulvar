@@ -91,6 +91,7 @@ import {
   type PlanReviseResult,
 } from './plan-entries.js';
 import {
+  boundLedgerRender,
   foldLedger,
   ledgerCapViolation,
   ledgerOpKey,
@@ -1847,11 +1848,15 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       // 9.3): a re-executed wake turn re-folds up to the SAME pinned seq
       // and renders byte-identical ledger bytes. A live read here would
       // diverge on resume (the re-executed turn would see later ops).
-      foldLedger(io.snapshot(), {
-        ledgerScope: rootScope,
-        planScope,
-        uptoSeq: pinnedPlanSeq,
-      }),
+      // The committed render budget bounds the serialized view
+      // deterministically (docs/06, Appendix A).
+      boundLedgerRender(
+        foldLedger(io.snapshot(), {
+          ledgerScope: rootScope,
+          planScope,
+          uptoSeq: pinnedPlanSeq,
+        }),
+      ),
     ledgerAppend: async (op: LedgerOp): Promise<{ entryRef: number }> => {
       await io.flush();
       const key = ledgerOpKey(op);

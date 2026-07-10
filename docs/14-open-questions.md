@@ -25,7 +25,7 @@ Closing an OQ follows the change process in section 4.
 | OQ-01 | PlanRunner versus phase-chaining threshold | dogfood telemetry | post-1.0 (carried at M9-T05) |
 | OQ-02 | Class-level escalation correlation key | dogfood telemetry | M7 |
 | OQ-03 | invalidate/retry safety boundary | dogfood telemetry | post-1.0 (carried at M9-T05) |
-| OQ-04 | renderBudgetTokens measure | dogfood telemetry | M7 |
+| OQ-04 | renderBudgetTokens measure | dogfood telemetry | Closed at M10 entry (character measure) |
 | OQ-05 | startTier demotion signals | dogfood telemetry | post-M11 (v2 planning) |
 | OQ-06 | Canary fingerprint design | dogfood telemetry | M11 |
 | OQ-07 | Org-level knowledge store overlay | dogfood telemetry | M11 |
@@ -91,6 +91,7 @@ Closing an OQ follows the change process in section 4.
 - Must close by: M7 (needed for WakeDigest coalescing; concrete budget values for the knowledge card stay TBD-before-M10 per 06-execution-spec.md, Appendix A).
 - Decision trigger: measured render sizes from M6-M7 dogfood (the wake-render-size metric, 09-observability-testing-spec.md, section "Metrics").
 - Interim rule: interim direction, not committed: a character-based measure (deterministic, dependency-free). See 07-adaptive-orchestration-spec.md, section "WakeDigest".
+- Closed (M10 entry, 2026-07-10): the measure is CHARACTERS, model-independent and dependency-free; de facto decided at M7 (the renderBudgetChars knob, frozen into the M7 cassettes) and formalized here. The bundled-tokenizer alternative is rejected for v1: it would still be cross-model-inaccurate and adds a dependency. The committed budget values live in 06-execution-spec.md, Appendix A; their calibration stays with OQ-08.
 
 ### OQ-05: startTier demotion signals
 
@@ -127,6 +128,7 @@ Closing an OQ follows the change process in section 4.
 - Must close by: M11 (an initial value MUST be committed before M10 ships; calibration closes the OQ).
 - Decision trigger: phase-1 (M10) run telemetry.
 - Interim rule: renderBudget values are listed as TBD-before-M10 in 06-execution-spec.md, Appendix A; the card render itself is deterministic and bounded (05-model-knowledge-spec.md, section "Read path").
+- Status (M10 entry, 2026-07-10): initial values COMMITTED in 06-execution-spec.md, Appendix A (WakeDigest 400 chars per outputSummary row, adopting the implemented distillation cap unchanged; ledger_read render 65536 chars; KB card 4096 chars) per the TBD-before-M10 rule. The OQ stays open for the M11 calibration against phase-1 run telemetry.
 
 ### OQ-09: Phase-3 value-checkpoint quantitative criteria
 

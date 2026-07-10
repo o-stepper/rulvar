@@ -658,7 +658,7 @@ Normative rules:
 - Coalescing: all events since the previous wake coalesce into ONE digest; `completedDigests` are ordered by spawn ordinal, never by wall-clock completion order.
 - Pinning: the digest is part of the wake snapshot. A turn re-executed after a crash MUST read exactly the same digest bytes; `plan_view` and `ledger_read` within that turn are pinned to `coversToOrdinal` and the same snapshot.
 - All WakeDigest schema deltas (planHash/digestSeq/coversToOrdinal, the termination snapshot, the budget block, reuse stats) land as ONE coordinated schema change inside the hashVersion 2 profile (XF-12); the digest render enters the content key of orchestrator turns.
-- The digest render is bounded by `renderBudgetTokens`, enforced with a model-independent deterministic measure (characters or one bundled tokenizer); the choice is an open question: 14-open-questions.md (renderBudgetTokens measure).
+- The digest render is bounded by `renderBudgetChars`, enforced with the CHARACTER measure, model-independent and deterministic (OQ-04 closed at M10 entry); the committed value is 400 chars per outputSummary row, serving both the distillation cap and the digest render default (06-execution-spec.md, Appendix A), the render stage overridable per orchestration.
 - Reuse visibility: the orchestrator SEES that a result arrived by reference (node:linked events, reuse stats, `meta.reusedFrom`) and may consciously re-execute via `add_task` with `fresh: true` (DEF-5).
 
 ## 6 EscalationProtocol
@@ -881,7 +881,7 @@ A `lesson_add` whose key matches no journaled attempt of that LTID MUST be rejec
 - Every authored write is a journaled effect entry of kind `ledger.op`; the VIEW is a pure fold of those ops joined to the journal's task table.
 - The journal always wins on what is paid and completed: contradictions render as FLAGGED discrepancies, never as truth.
 - `ledgerVersion` was removed from write results (a stable ack or content hash is returned); `ledger_read` is pinned to the turn's snapshot version; fold-global counters never enter the transcript. Distillation lives in the child's scope keyed by task id.
-- `renderBudgetTokens` is enforced with a model-independent deterministic measure (characters or one bundled tokenizer); open question: 14-open-questions.md (renderBudgetTokens measure).
+- The `ledger_read` render is bounded by the CHARACTER measure (OQ-04 closed at M10 entry); the committed budget is 65536 chars over the serialized view (06-execution-spec.md, Appendix A). Over budget, rows drop deterministically oldest-first (auto-derived joins before authored sections, the brief last) and every drop renders as a FLAGGED discrepancy line; the section caps stay the primary bound, so under default termination limits the belt never engages.
 - Aggressive compaction of the orchestrate role is gated on MEASURED ledger sufficiency (at least one authored revision and a minimum fact count); otherwise the engine falls back to conservative summarize (06-execution-spec.md, section "Agent Runtime binding").
 - Stall-triggered replans are hard-bounded per run and MUST exclude transient and environment error classes.
 - LedgerExport is a draft-versioned JSON seam (open question: 14-open-questions.md, LedgerExport schema). Rejected: vector stores, multi-writer, cross-run memory; the sole sanctioned cross-run exception is ModelKnowledge (05-model-knowledge-spec.md).
