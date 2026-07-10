@@ -16,43 +16,17 @@
  */
 import { ConfigError } from '../l0/errors.js';
 import type { ClaimOp, GateRecord, ModelClaim } from '../l0/spi/knowledge.js';
+// The decay module owns TTLs since M11-T03; the names stay re-exported
+// here so claim validation and its callers keep one import surface.
+import { claimExpired, claimExpiry, CLAIM_TTL_DAYS } from './decay.js';
+
+export { claimExpired, claimExpiry, CLAIM_TTL_DAYS };
 
 /** docs/06, Appendix A: KB active-claims cap, default 8 per (model, taskClass). */
 export const KB_ACTIVE_CLAIMS_CAP = 8;
 
 /** docs/05, section "Data model": statement <= 200 chars. */
 export const CLAIM_STATEMENT_MAX_CHARS = 200;
-
-/**
- * The asymmetric TTL table (docs/05, section "Grounding and decay"):
- * a false negative is costlier through lock-in, so weaknesses expire
- * sooner than strengths.
- */
-export const CLAIM_TTL_DAYS = {
-  'eval-measured': { strength: 90, weakness: 30 },
-  'human-editorial': { strength: 120, weakness: 45 },
-} as const;
-
-/** The docs/05 TTL applied to an observedAt ISO date. */
-export function claimExpiry(
-  claimClass: ModelClaim['class'],
-  polarity: ModelClaim['polarity'],
-  observedAt: string,
-): string {
-  const base = Date.parse(observedAt);
-  if (Number.isNaN(base)) {
-    throw new ConfigError(`claimExpiry: observedAt is not a date: '${observedAt}'`);
-  }
-  const days = CLAIM_TTL_DAYS[claimClass][polarity];
-  return new Date(base + days * 86_400_000).toISOString();
-}
-
-/** True when the claim steers nothing at `at` (docs/05, read-path filters). */
-export function claimExpired(claim: Pick<ModelClaim, 'expiresAt'>, at: string): boolean {
-  const expiry = Date.parse(claim.expiresAt);
-  const now = Date.parse(at);
-  return Number.isNaN(expiry) || Number.isNaN(now) ? true : now >= expiry;
-}
 
 const RULED_OUT_VOCABULARY = new Set(['prompt', 'tools', 'difficulty', 'transient-provider']);
 
