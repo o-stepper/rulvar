@@ -36,3 +36,14 @@ export {
   type EvalCommitterOptions,
   type MeasuredClaimInput,
 } from './committer.js';
+export {
+  runSweepMatrix,
+  SWEEP_THRESHOLD_DEFAULTS,
+  type RunSweepOptions,
+  type SweepCase,
+  type SweepCellReport,
+  type SweepModel,
+  type SweepPool,
+  type SweepReport,
+  type SweepThresholds,
+} from './sweeps.js';
