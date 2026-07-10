@@ -17,7 +17,11 @@ import {
   claimExpired,
   ConfigError,
   costReportFromJournal,
+  createEngine,
   FileModelKnowledgeStore,
+  remeasureQueue,
+  type CreateEngineOptions,
+  type ModelRef,
   type RunOptions,
   type Workflow,
 } from '@lurker/core';
@@ -353,10 +357,7 @@ export async function kbCommand(argv: string[], context: CommandContext): Promis
     );
   }
   if (sub === 'sweep') {
-    throw new ConfigError(
-      'lurker kb sweep arrives with ModelKnowledge phase 2 (M11; docs/05, section ' +
-        '"Grounding and decay")',
-    );
+    return await kbSweepCommand(rest, context);
   }
   if (sub !== 'list' || rest.length > 0) {
     throw new ConfigError('usage: lurker kb <list | inbox | sweep> (no aliases in v1)');
@@ -368,6 +369,14 @@ export async function kbCommand(argv: string[], context: CommandContext): Promis
     `knowledge store: lurker.models.json (version ${String(snapshot.version)}, ` +
       `${String(snapshot.claims.length)} claim${snapshot.claims.length === 1 ? '' : 's'})`,
   );
+  renderKbList(snapshot, context);
+  return 0;
+}
+
+function renderKbList(
+  snapshot: Awaited<ReturnType<FileModelKnowledgeStore['current']>>,
+  context: CommandContext,
+): void {
   const now = new Date().toISOString();
   for (const claim of snapshot.claims) {
     const effort = claim.subject.effort === undefined ? '' : ` effort=${claim.subject.effort}`;
@@ -411,5 +420,156 @@ export async function kbCommand(argv: string[], context: CommandContext): Promis
       );
     }
   }
+}
+
+/** The structural face of @lurker/evals (loaded dynamically at command time). */
+interface EvalsModule {
+  runSweepMatrix: (
+    pool: { models: unknown[]; cases: unknown[] },
+    options: Record<string, unknown>,
+  ) => Promise<{
+    reportId: string;
+    cells: Array<{ model: string; taskClass: string; passRate: number; n: number }>;
+    claims: Array<{ id: string; polarity: string; taskClass: string }>;
+    committedVersion?: number;
+  }>;
+  canaryFingerprint: (
+    engine: unknown,
+    probes: { agentType: string; prompts: string[] },
+  ) => Promise<string>;
+  flipStaleOnCanaryDrift: (
+    store: unknown,
+    model: string,
+    fingerprint: string,
+  ) => Promise<{ flipped: string[]; version?: number }>;
+}
+
+/**
+ * lurker kb sweep (M11-T05; docs/05, section "Grounding and decay"):
+ * falsification sweeps, run manually, from CI, or from a user cron,
+ * NEVER engine-scheduled. The matrix is the config's FIXED pool
+ * UNIONED with the store's falsification set: every model carrying an
+ * active, unexpired negative claim MUST be included, and the
+ * re-measurement queue (expired active eval claims) rides along. With
+ * canary probes configured, drift flips stale strictly BEFORE the
+ * sweep re-measures.
+ */
+async function kbSweepCommand(argv: string[], context: CommandContext): Promise<number> {
+  if (argv.length > 0) {
+    throw new ConfigError('usage: lurker kb sweep (configuration lives in lurker.config.mjs)');
+  }
+  const config = await loadCliConfig(context.cwd);
+  const sweep = config.kbSweep;
+  if (sweep === undefined) {
+    throw new ConfigError(
+      'lurker kb sweep requires a kbSweep section in lurker.config.mjs ' +
+        "({ committerId, models, cases }; docs/05, section 'Grounding and decay')",
+    );
+  }
+  let evals: EvalsModule;
+  try {
+    evals = (await import('@lurker/evals')) as unknown as EvalsModule;
+  } catch {
+    throw new ConfigError(
+      'lurker kb sweep requires @lurker/evals (matrix sweeps, the eval-committer identity, ' +
+        'and the canary live there); install it next to the CLI',
+    );
+  }
+  const store = new FileModelKnowledgeStore({ path: join(context.cwd, 'lurker.models.json') });
+  const snapshot = await store.current();
+  const observedAt = new Date().toISOString();
+
+  // The pool: config members first, then the falsification union.
+  type Member = { model: ModelRef; effort?: string };
+  const memberKey = (member: Member): string => `${member.model} ${member.effort ?? ''}`;
+  const pool = new Map<string, { member: Member; origin: string }>();
+  for (const member of sweep.models) {
+    pool.set(memberKey(member), { member, origin: 'config' });
+  }
+  for (const claim of snapshot.claims) {
+    if (
+      claim.status === 'active' &&
+      claim.polarity === 'weakness' &&
+      !claimExpired(claim, observedAt)
+    ) {
+      const member: Member = { ...claim.subject };
+      if (!pool.has(memberKey(member))) {
+        pool.set(memberKey(member), { member, origin: 'falsification (active negative claim)' });
+      }
+    }
+  }
+  for (const claim of remeasureQueue(snapshot.claims, observedAt)) {
+    const member: Member = { ...claim.subject };
+    if (!pool.has(memberKey(member))) {
+      pool.set(memberKey(member), { member, origin: 're-measure (expired eval claim)' });
+    }
+  }
+  if (pool.size === 0) {
+    context.io.out('kb sweep: the pool is empty (no configured models, no falsification targets)');
+    return 0;
+  }
+  const base: Partial<CreateEngineOptions> = config.engineOptions ?? {};
+  const engineFor =
+    sweep.engineFor ??
+    ((member: Member) =>
+      createEngine({
+        ...base,
+        adapters: base.adapters ?? [],
+        defaults: {
+          ...base.defaults,
+          routing: {
+            ...base.defaults?.routing,
+            loop: member.model,
+            extract: member.model,
+          },
+        },
+      }));
+  for (const { member, origin } of pool.values()) {
+    const effort = member.effort === undefined ? '' : ` effort=${member.effort}`;
+    context.io.out(`pool: ${member.model}${effort} [${origin}]`);
+  }
+
+  // Canary before measurement (docs/05: drift flips eval claims to
+  // stale immediately; the sweep then re-measures the subjects).
+  if (sweep.canary !== undefined) {
+    for (const { member } of pool.values()) {
+      const engine = await engineFor(member);
+      const fingerprint = await evals.canaryFingerprint(engine, sweep.canary);
+      const drift = await evals.flipStaleOnCanaryDrift(store, member.model, fingerprint);
+      context.io.out(
+        `canary ${member.model}: ${fingerprint.slice(0, 12)}...` +
+          (drift.flipped.length === 0
+            ? ' no drift'
+            : ` DRIFT, ${String(drift.flipped.length)} claim(s) flipped stale`),
+      );
+    }
+  }
+
+  const report = await evals.runSweepMatrix(
+    { models: [...pool.values()].map((entry) => entry.member), cases: sweep.cases },
+    {
+      reportId: sweep.reportId ?? `kb-sweep-${observedAt}`,
+      committerId: sweep.committerId,
+      observedAt,
+      engineFor,
+      store,
+      ...(sweep.thresholds === undefined ? {} : { thresholds: sweep.thresholds }),
+    },
+  );
+  for (const cell of report.cells) {
+    context.io.out(
+      `cell ${cell.model} :: ${cell.taskClass}: passRate ${cell.passRate.toFixed(2)} ` +
+        `over ${String(cell.n)} case${cell.n === 1 ? '' : 's'}`,
+    );
+  }
+  for (const claim of report.claims) {
+    context.io.out(`claim ${claim.id}: ${claim.taskClass} ${claim.polarity}`);
+  }
+  context.io.out(
+    report.committedVersion === undefined
+      ? 'no claims crossed a threshold; nothing committed'
+      : `committed ${String(report.claims.length)} claim(s) as store version ` +
+          `${String(report.committedVersion)} (report ${report.reportId})`,
+  );
   return 0;
 }

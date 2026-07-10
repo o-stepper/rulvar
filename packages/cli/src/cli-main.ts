@@ -31,8 +31,12 @@ plan asks the planner model (role plan) to write a workflow script,
 lints and self-repairs it, then runs it in the worker sandbox; --dry-run
 prints the accepted script without running. Requires @lurker/planner
 installed. kb list shows the per-project claim store
-(./lurker.models.json) with full provenance; inbox and sweep arrive
-with ModelKnowledge phases 3 and 2.`;
+(./lurker.models.json) with full provenance. kb sweep runs the
+falsification matrix from the kbSweep section of lurker.config.mjs
+(fixed pool UNIONED with every model carrying an active negative claim
+plus the re-measure queue; optional canary probes flip drifted claims
+stale first; requires @lurker/evals installed). kb inbox arrives with
+ModelKnowledge phase 3.`;
 
 export async function runCli(argv: string[], options: { cwd: string; io: CliIo }): Promise<number> {
   const [command, ...rest] = argv;

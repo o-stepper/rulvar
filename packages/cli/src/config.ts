@@ -28,6 +28,31 @@ import {
 export interface CliConfig {
   engineOptions?: Partial<CreateEngineOptions>;
   workflows?: WorkflowRegistry;
+  /** lurker kb sweep configuration (M11-T05; docs/05, "Grounding and decay"). */
+  kbSweep?: KbSweepCliConfig;
+}
+
+/**
+ * The kb sweep config: a FIXED pool (sweep volume is never authorized
+ * by proposal volume) plus the cases per taskClass. Structural sweep
+ * shapes only: the CLI's static dependency stays @lurker/core and
+ * @lurker/evals loads dynamically at command time (the plan-command
+ * precedent), so graders and cases are typed by the config module.
+ */
+export interface KbSweepCliConfig {
+  /** The dedicated committer identity recorded on gates and authors. */
+  committerId: string;
+  /** The fixed pool; falsification UNIONS in the store's negative-claim and re-measure subjects. */
+  models: Array<{ model: `${string}:${string}`; effort?: string }>;
+  /** Eval cases tagged by taskClass (constructed with @lurker/evals inside the config module). */
+  cases: Array<{ taskClass: string; case: unknown }>;
+  thresholds?: { strength?: number; weakness?: number };
+  /** Optional canary probes run per pool member BEFORE the sweep; drift flips stale. */
+  canary?: { agentType: string; prompts: string[] };
+  /** Default: kb-sweep-<observedAt ISO>. */
+  reportId?: string;
+  /** Per-member engine override; default: engineOptions with loop/extract routed at the member. */
+  engineFor?: (member: { model: `${string}:${string}`; effort?: string }) => unknown;
 }
 
 const CONFIG_BASENAMES = ['lurker.config.mjs', 'lurker.config.js'];

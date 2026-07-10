@@ -179,6 +179,9 @@ importers:
         specifier: ^1.9
         version: 1.9.1
     devDependencies:
+      '@lurker/evals':
+        specifier: workspace:*
+        version: link:../evals
       '@lurker/plan':
         specifier: workspace:*
         version: link:../plan

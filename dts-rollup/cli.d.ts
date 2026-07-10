@@ -16,7 +16,7 @@ interface CliIo {
 declare function processIo(): CliIo;
 //#endregion
 //#region src/cli-main.d.ts
-declare const HELP = "lurker: durable multi-agent workflows (docs/06, section 10.5)\n\n  lurker run <file|name> [--args JSON] [--store PATH] [--budget-usd N]\n  lurker resume <runId>  [--store PATH]\n  lurker runs ls         [--store PATH]\n  lurker inspect <runId> [--store PATH]\n  lurker plan \"<goal>\"   [--dry-run]\n  lurker kb <list | inbox | sweep>\n\nEngine assembly: adapters, defaults, and the workflow registry come from\nlurker.config.mjs in the working directory (default export\n{ engineOptions?, workflows? }) or from the workflow module's named\nexports. --store selects the JsonlFileStore directory (default .lurker).\nplan asks the planner model (role plan) to write a workflow script,\nlints and self-repairs it, then runs it in the worker sandbox; --dry-run\nprints the accepted script without running. Requires @lurker/planner\ninstalled. kb list shows the per-project claim store\n(./lurker.models.json) with full provenance; inbox and sweep arrive\nwith ModelKnowledge phases 3 and 2.";
+declare const HELP = "lurker: durable multi-agent workflows (docs/06, section 10.5)\n\n  lurker run <file|name> [--args JSON] [--store PATH] [--budget-usd N]\n  lurker resume <runId>  [--store PATH]\n  lurker runs ls         [--store PATH]\n  lurker inspect <runId> [--store PATH]\n  lurker plan \"<goal>\"   [--dry-run]\n  lurker kb <list | inbox | sweep>\n\nEngine assembly: adapters, defaults, and the workflow registry come from\nlurker.config.mjs in the working directory (default export\n{ engineOptions?, workflows? }) or from the workflow module's named\nexports. --store selects the JsonlFileStore directory (default .lurker).\nplan asks the planner model (role plan) to write a workflow script,\nlints and self-repairs it, then runs it in the worker sandbox; --dry-run\nprints the accepted script without running. Requires @lurker/planner\ninstalled. kb list shows the per-project claim store\n(./lurker.models.json) with full provenance. kb sweep runs the\nfalsification matrix from the kbSweep section of lurker.config.mjs\n(fixed pool UNIONED with every model carrying an active negative claim\nplus the re-measure queue; optional canary probes flip drifted claims\nstale first; requires @lurker/evals installed). kb inbox arrives with\nModelKnowledge phase 3.";
 declare function runCli(argv: string[], options: {
   cwd: string;
   io: CliIo;
@@ -37,6 +37,45 @@ declare function inspectCommand(argv: string[], context: CommandContext): Promis
 interface CliConfig {
   engineOptions?: Partial<CreateEngineOptions>;
   workflows?: WorkflowRegistry;
+  /** lurker kb sweep configuration (M11-T05; docs/05, "Grounding and decay"). */
+  kbSweep?: KbSweepCliConfig;
+}
+/**
+* The kb sweep config: a FIXED pool (sweep volume is never authorized
+* by proposal volume) plus the cases per taskClass. Structural sweep
+* shapes only: the CLI's static dependency stays @lurker/core and
+* @lurker/evals loads dynamically at command time (the plan-command
+* precedent), so graders and cases are typed by the config module.
+*/
+interface KbSweepCliConfig {
+  /** The dedicated committer identity recorded on gates and authors. */
+  committerId: string;
+  /** The fixed pool; falsification UNIONS in the store's negative-claim and re-measure subjects. */
+  models: Array<{
+    model: `${string}:${string}`;
+    effort?: string;
+  }>;
+  /** Eval cases tagged by taskClass (constructed with @lurker/evals inside the config module). */
+  cases: Array<{
+    taskClass: string;
+    case: unknown;
+  }>;
+  thresholds?: {
+    strength?: number;
+    weakness?: number;
+  };
+  /** Optional canary probes run per pool member BEFORE the sweep; drift flips stale. */
+  canary?: {
+    agentType: string;
+    prompts: string[];
+  };
+  /** Default: kb-sweep-<observedAt ISO>. */
+  reportId?: string;
+  /** Per-member engine override; default: engineOptions with loop/extract routed at the member. */
+  engineFor?: (member: {
+    model: `${string}:${string}`;
+    effort?: string;
+  }) => unknown;
 }
 /** Loads `lurker.config.mjs`/`.js` from cwd; absent config is fine. */
 declare function loadCliConfig(cwd: string): Promise<CliConfig>;

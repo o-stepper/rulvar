@@ -120,7 +120,7 @@ describe('lurker kb list (M10-T04)', () => {
     expect(io.outLines.join('\n')).toContain('(version 0, 0 claims)');
   });
 
-  it('rejects unknown subcommands and names the phases of inbox and sweep', async () => {
+  it('rejects unknown subcommands and names the phase of inbox', async () => {
     const cwd = mkdtempSync(join(tmpdir(), 'lurker-kb-cli-'));
     const bad = scriptedIo();
     expect(await runCli(['kb', 'show'], { cwd, io: bad })).toBe(1);
@@ -128,8 +128,7 @@ describe('lurker kb list (M10-T04)', () => {
     const inbox = scriptedIo();
     expect(await runCli(['kb', 'inbox'], { cwd, io: inbox })).toBe(1);
     expect(inbox.errLines.join('\n')).toContain('phase 3');
-    const sweep = scriptedIo();
-    expect(await runCli(['kb', 'sweep'], { cwd, io: sweep })).toBe(1);
-    expect(sweep.errLines.join('\n')).toContain('phase 2');
+    // kb sweep is live since M11-T05; its config-missing path is
+    // covered in kb-sweep.test.ts.
   });
 });
