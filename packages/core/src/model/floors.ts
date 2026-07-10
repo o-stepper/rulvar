@@ -13,12 +13,16 @@
  */
 import { ConfigError } from '../l0/errors.js';
 import type { InvocationRole, ModelRef } from '../l0/messages.js';
+import type { TaskClass } from '../l0/spi/knowledge.js';
 
 /** An explicit allowlist and denylist; deny wins over allow. */
 export type ModelListConstraint = { allow?: ModelRef[]; deny?: ModelRef[] };
 
-/** Bridges the ModelKnowledge vocabulary (docs/05); default unclassified. */
-export type TaskClass = string;
+/**
+ * Bridges the ModelKnowledge vocabulary; the canonical union lives with
+ * the knowledge SPI (docs/05); default unclassified.
+ */
+export type { TaskClass };
 
 export interface QualityFloors {
   byRole?: Partial<Record<InvocationRole, ModelListConstraint>>;
