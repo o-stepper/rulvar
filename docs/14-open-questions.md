@@ -27,7 +27,7 @@ Closing an OQ follows the change process in section 4.
 | OQ-03 | invalidate/retry safety boundary | dogfood telemetry | post-1.0 (carried at M9-T05) |
 | OQ-04 | renderBudgetTokens measure | dogfood telemetry | Closed at M10 entry (character measure) |
 | OQ-05 | startTier demotion signals | dogfood telemetry | post-M11 (v2 planning) |
-| OQ-06 | Canary fingerprint design | dogfood telemetry | M11 |
+| OQ-06 | Canary fingerprint design | dogfood telemetry | Closed at M11-T04 (fixed probes, NFC normalization, sha256) |
 | OQ-07 | Org-level knowledge store overlay | dogfood telemetry | M11 |
 | OQ-08 | Knowledge card renderBudget sizing | dogfood telemetry | M11 |
 | OQ-09 | Phase-3 value-checkpoint quantitative criteria | dogfood telemetry | end of M11 (gates M12) |
@@ -110,6 +110,7 @@ Closing an OQ follows the change process in section 4.
 - Must close by: M11.
 - Decision trigger: the M11 canary fingerprint implementation task.
 - Interim rule: the fingerprint's role (modelEpoch honesty and staleness detection) is fixed in 05-model-knowledge-spec.md, section "Grounding and decay"; its design parameters are uncommitted.
+- Closed (M11-T04, 2026-07-10): the committed v1 design: the probe set is CALLER data (a fixed, versioned prompt list plus the agent profile it runs under); probes run sequentially through the ordinary engine (journaled, budgeted, VCR-recordable) at the temperature-0 posture; normalization is NFC, trim, and whitespace collapse per output; the fingerprint is the sha256 over the probe count plus the normalized output array, so a probe-set edit never collides with drift. Drift flips the model's ACTIVE eval-measured claims to stale via the mark_stale op (docs/05 section 3, amended at M11-T04); claims without a recorded fingerprint have no baseline and stay untouched (the documented no-probe posture whose insurance is the 30-day negative-claim TTL). The acceptable false-stale RATE stays a telemetry observation, not a design parameter: re-measured by the sweeps that staleness itself triggers.
 
 ### OQ-07: Org-level knowledge store overlay
 

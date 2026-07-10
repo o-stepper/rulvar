@@ -75,6 +75,19 @@ export function applyClaimOps(
         prior.status = 'archived';
         break;
       }
+      case 'mark_stale': {
+        const prior = byId.get(op.claimId);
+        if (prior === undefined) {
+          throw new ConfigError(`knowledge mark_stale rejected: no claim with id '${op.claimId}'`);
+        }
+        // Canary drift (docs/05, section "Grounding and decay"; M11-T04):
+        // active flips to stale; already-stale is an idempotent noop;
+        // terminal statuses stay (superseded and archived never revive).
+        if (prior.status === 'active') {
+          prior.status = 'stale';
+        }
+        break;
+      }
     }
   }
   return next;

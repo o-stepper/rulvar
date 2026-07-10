@@ -37,6 +37,13 @@ export {
   type MeasuredClaimInput,
 } from './committer.js';
 export {
+  canaryFingerprint,
+  flipStaleOnCanaryDrift,
+  normalizeCanaryOutput,
+  type CanaryDriftReport,
+  type CanaryProbeSet,
+} from './canary.js';
+export {
   runSweepMatrix,
   SWEEP_THRESHOLD_DEFAULTS,
   type RunSweepOptions,

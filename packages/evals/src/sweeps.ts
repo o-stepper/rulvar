@@ -10,7 +10,14 @@
  * and the case list are EXPLICIT caller data (fixed pools only;
  * docs/05, section 2, attack 7).
  */
-import type { Effort, Engine, ModelKnowledgeStore, ModelRef, TaskClass } from '@lurker/core';
+import type {
+  Effort,
+  Engine,
+  ModelClaim,
+  ModelKnowledgeStore,
+  ModelRef,
+  TaskClass,
+} from '@lurker/core';
 
 import { runEvalSuite, type EvalCase, type RunEvalSuiteOptions } from './case.js';
 import { commitEvalMeasured, type MeasuredClaimInput } from './committer.js';
@@ -58,6 +65,11 @@ export interface RunSweepOptions {
   suite?: RunEvalSuiteOptions;
   /** When given, emitted claims commit through the committer identity. */
   store?: ModelKnowledgeStore;
+  /**
+   * Optional epoch stamp per pool member (capture via the core
+   * modelEpochOf; the canary fingerprint rides it when probes ran).
+   */
+  modelEpochFor?: (member: SweepModel) => ModelClaim['modelEpoch'];
 }
 
 export interface SweepCellReport {
@@ -144,6 +156,7 @@ export async function runSweepMatrix(
             ? ('weakness' as const)
             : undefined;
       if (polarity !== undefined && cell.n > 0) {
+        const epoch = options.modelEpochFor?.(member);
         claims.push({
           id: claimIdOf(options.reportId, member, taskClass),
           subject: {
@@ -157,6 +170,7 @@ export async function runSweepMatrix(
           confidence: cell.n >= 20 ? 'high' : cell.n >= 5 ? 'medium' : 'low',
           observedAt: options.observedAt,
           evidence: [{ kind: 'eval', reportId: options.reportId, caseIds: cell.caseNames }],
+          ...(epoch === undefined ? {} : { modelEpoch: epoch }),
         });
       }
     }

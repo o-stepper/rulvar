@@ -88,7 +88,8 @@ export type GateRecord =
 export type ClaimOp =
   | { op: 'add'; claim: ModelClaim; gate: GateRecord }
   | { op: 'supersede'; claimId: string; by: ModelClaim; gate: GateRecord }
-  | { op: 'archive'; claimId: string; reason: 'deprecated' | 'stale' | 'rejected' | 'falsified' };
+  | { op: 'archive'; claimId: string; reason: 'deprecated' | 'stale' | 'rejected' | 'falsified' }
+  | { op: 'mark_stale'; claimId: string; reason: 'canary-drift' };  // added during M11-T04: section 6 requires status 'stale' at fingerprint drift and the closed op set could not produce it; idempotent on already-stale claims, gate-free like archive (maintenance authority)
 
 export interface ModelKnowledgeStore {            // SPI, a neighbor of JournalStore
   current(): Promise<KnowledgeSnapshot>;
