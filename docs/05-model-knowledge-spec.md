@@ -111,7 +111,7 @@ Notes:
 - `EvidenceRef.entryRef` and the proposal/origin `entryRef` fields are numbers, the journal entry `seq`, consistent with the canonical EntryRef being a seq (cross-review amendment; XF registry in 07-adaptive-orchestration-spec.md, section "Cross-fix mapping").
 - `Effort` is the five-level canonical enum from 04-model-layer-spec.md, section "Canonical effort".
 - ModelKnowledgeStore is an SPI seam that freezes post-1.0, together with KB phase 1, not at the 1.0 freeze of the six core seams (02-architecture.md, section "SPI seams and the 1.0 freeze").
-- How a spawn acquires its TaskClass is an open question and a phase-1 blocker. Interim normative rule: an optional `taskClass` field on AgentProfile and TaskSpec, defaulting to unclassified; card recommendations do not apply to unclassified spawns (14-open-questions.md). Mapping custom TaskClass strings to eval tags is likewise tracked in 14-open-questions.md.
+- How a spawn acquires its TaskClass was the phase-1 blocker and closed at M10-T05 (OQ-12, 14-open-questions.md): author declaration through the optional `taskClass` field on AgentProfile and TaskSpec, defaulting to unclassified; card recommendations do not apply to unclassified spawns. Mapping custom TaskClass strings to eval tags stays tracked in 14-open-questions.md.
 
 ## 4 Read path
 
@@ -232,4 +232,4 @@ ModelKnowledge is outside the v1 core. Milestone mapping (10-implementation-plan
 
 Cut from the committed roadmap (v2 candidates): the eval-confirmed auto-gate and the corroboration threshold k (they would require principal authentication and a fixed, rate-capped sweep budget pool so that proposals never spend other people's money); runtime startTier promotion (section 8).
 
-Phase-1 blocker: the taskClass binding rule. Interim normative rule (also recorded in 14-open-questions.md): AgentProfile and TaskSpec carry an optional `taskClass` field defaulting to unclassified; card recommendations do not apply to unclassified spawns.
+The phase-1 blocker, the taskClass binding rule, closed at M10-T05 by adopting the interim rule as the resolution (OQ-12, 14-open-questions.md): AgentProfile and TaskSpec carry an optional `taskClass` field defaulting to unclassified; card recommendations do not apply to unclassified spawns.
