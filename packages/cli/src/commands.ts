@@ -11,8 +11,16 @@
  * the public @lurker/core API (docs/02, section 4).
  */
 import { parseArgs } from 'node:util';
+import { join } from 'node:path';
 
-import { ConfigError, costReportFromJournal, type RunOptions, type Workflow } from '@lurker/core';
+import {
+  claimExpired,
+  ConfigError,
+  costReportFromJournal,
+  FileModelKnowledgeStore,
+  type RunOptions,
+  type Workflow,
+} from '@lurker/core';
 
 import { loadCliConfig, loadWorkflowModule, looksLikeFile } from './config.js';
 import { assembleEngine } from './engine-assembly.js';
@@ -325,4 +333,83 @@ export async function planCommand(argv: string[], context: CommandContext): Prom
     args: null,
   });
   return reportOutcome(outcome, context.io);
+}
+
+/**
+ * lurker kb list (docs/06, 10.5; docs/05, 4.4; M10-T04): the second
+ * consumption path. Claims with full provenance for the humans who
+ * author ladders, floors, and profiles; no run and no pin, so model
+ * names render VERBATIM here (only in-run cards are nameless). Reads
+ * the per-project file store (./lurker.models.json). The grammar
+ * members inbox (phase 3) and sweep (phase 2) fail loudly until their
+ * phases ship.
+ */
+export async function kbCommand(argv: string[], context: CommandContext): Promise<number> {
+  const [sub, ...rest] = argv;
+  if (sub === 'inbox') {
+    throw new ConfigError(
+      'lurker kb inbox arrives with ModelKnowledge phase 3 (M12, gated by the measured-value ' +
+        'checkpoint; docs/05, section "Phases and placement")',
+    );
+  }
+  if (sub === 'sweep') {
+    throw new ConfigError(
+      'lurker kb sweep arrives with ModelKnowledge phase 2 (M11; docs/05, section ' +
+        '"Grounding and decay")',
+    );
+  }
+  if (sub !== 'list' || rest.length > 0) {
+    throw new ConfigError('usage: lurker kb <list | inbox | sweep> (no aliases in v1)');
+  }
+  const path = join(context.cwd, 'lurker.models.json');
+  const store = new FileModelKnowledgeStore({ path });
+  const snapshot = await store.current();
+  context.io.out(
+    `knowledge store: lurker.models.json (version ${String(snapshot.version)}, ` +
+      `${String(snapshot.claims.length)} claim${snapshot.claims.length === 1 ? '' : 's'})`,
+  );
+  const now = new Date().toISOString();
+  for (const claim of snapshot.claims) {
+    const effort = claim.subject.effort === undefined ? '' : ` effort=${claim.subject.effort}`;
+    const ttl =
+      claim.status === 'active' ? (claimExpired(claim, now) ? ' TTL EXPIRED' : ' TTL holds') : '';
+    context.io.out(
+      `${claim.id} [${claim.status}${ttl}] ${claim.subject.model}${effort} :: ` +
+        `${claim.taskClass} ${claim.polarity} (${claim.class}, confidence ${claim.confidence})`,
+    );
+    context.io.out(`  ${claim.statement}`);
+    context.io.out(
+      `  observed=${claim.observedAt} expires=${claim.expiresAt} ` +
+        // The gate identity: the file lives under git review, so the
+        // committer of record is the author (docs/05, section "Format
+        // decision rationale"); eval-pipeline authors are the M11
+        // committer identity.
+        `author=${claim.author.kind}:${claim.author.id} gate=${
+          claim.author.kind === 'human' ? 'human (git review)' : 'eval-committer'
+        }`,
+    );
+    const evidence = claim.evidence
+      .map((ref) =>
+        ref.kind === 'journal'
+          ? `journal ${ref.runId}#${String(ref.entryRef)}`
+          : `eval ${ref.reportId} [${ref.caseIds.join(', ')}]`,
+      )
+      .join('; ');
+    context.io.out(`  evidence: ${evidence}`);
+    if (claim.metrics !== undefined) {
+      context.io.out(
+        `  metrics: passRate=${String(claim.metrics.passRate)} n=${String(claim.metrics.n)} ` +
+          `grader=${claim.metrics.graderId}`,
+      );
+    }
+    if (claim.supersedes !== undefined) {
+      context.io.out(`  supersedes: ${claim.supersedes}`);
+    }
+    if (claim.origin !== undefined) {
+      context.io.out(
+        `  origin: ${claim.origin.kind} run=${claim.origin.runId}#${String(claim.origin.entryRef)}`,
+      );
+    }
+  }
+  return 0;
 }
