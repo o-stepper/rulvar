@@ -22,9 +22,9 @@ Closing an OQ follows the change process in section 4.
 
 | ID | Title | Owner | Must close by |
 |---|---|---|---|
-| OQ-01 | PlanRunner versus phase-chaining threshold | dogfood telemetry | M9 |
+| OQ-01 | PlanRunner versus phase-chaining threshold | dogfood telemetry | post-1.0 (carried at M9-T05) |
 | OQ-02 | Class-level escalation correlation key | dogfood telemetry | M7 |
-| OQ-03 | invalidate/retry safety boundary | dogfood telemetry | M9 |
+| OQ-03 | invalidate/retry safety boundary | dogfood telemetry | post-1.0 (carried at M9-T05) |
 | OQ-04 | renderBudgetTokens measure | dogfood telemetry | M7 |
 | OQ-05 | startTier demotion signals | dogfood telemetry | post-M11 (v2 planning) |
 | OQ-06 | Canary fingerprint design | dogfood telemetry | M11 |
@@ -34,21 +34,21 @@ Closing an OQ follows the change process in section 4.
 | OQ-10 | TaskClass extension mapping to eval tags | dogfood telemetry | M11 |
 | OQ-11 | Editorial-note rendering for judge and orchestrate roles | dogfood telemetry | M10 |
 | OQ-12 | ModelKnowledge taskClass binding | dogfood telemetry | M10 (phase-1 blocker) |
-| OQ-13 | Checkpoint and transcript blob format | dogfood telemetry | M9 |
+| OQ-13 | Checkpoint and transcript blob format | dogfood telemetry | Closed at M9-T05 |
 | OQ-14 | LedgerExport JSON schema | dogfood telemetry | M12 |
-| OQ-15 | No-progress detector heuristic | dogfood telemetry | M9 |
+| OQ-15 | No-progress detector heuristic | dogfood telemetry | Closed at M9-T05 (default frozen) |
 | OQ-16 | HTTP server auth and SSE reconnection | dogfood telemetry | M8 |
 | OQ-17 | Distributed cross-process rate limiter | dogfood telemetry | M8 |
-| OQ-18 | Subprocess and container executor spec | dogfood telemetry | M9 |
+| OQ-18 | Subprocess and container executor spec | dogfood telemetry | Closed at M9-T05 (no L0 seam) |
 | OQ-19 | Process-global rate limiting | dogfood telemetry | M8 |
-| OQ-20 | Retention, GC, and cascade delete | dogfood telemetry | M8 |
+| OQ-20 | Retention, GC, and cascade delete | dogfood telemetry | M8 (M9 revisit done; defaults carried post-1.0) |
 | OQ-21 | Resume binding residuals | dogfood telemetry | M5 |
 | OQ-22 | Redaction defaults | dogfood telemetry | M8 |
 | OQ-23 | License and contribution model | founder | M9 (1.0 gate) |
 | OQ-24 | Final naming and trademark resolution | founder | M0 (scope claim) / M9 (final) |
-| OQ-25 | Runtime boundaries | founder | M9 |
+| OQ-25 | Runtime boundaries | founder | Closed at M9-T05 |
 | OQ-26 | Hosting ambitions | founder | M8 |
-| OQ-27 | Governance and scope ownership | founder | M9 |
+| OQ-27 | Governance and scope ownership | founder | Closed at M9-T05 |
 | OQ-28 | Live contract-test and eval sweep budget | founder | M5 |
 | OQ-29 | OpenAI Responses auxiliary state parameters under manual item replay | dogfood telemetry | M1 (re-verified from M5) |
 
@@ -62,6 +62,7 @@ Closing an OQ follows the change process in section 4.
 - Must close by: M9.
 - Decision trigger: telemetry from M6-M8 dogfood runs, including the H-OrchShare instrumentation (01-requirements.md, section "Hypotheses").
 - Interim rule: phase chaining is the documented default; PlanRunner and the adaptive machinery are opt-in for wide fan-out that cannot wait for a phase boundary. See 00-overview.md, section "Orchestration modes" and 07-adaptive-orchestration-spec.md, section "Scope and applicability per mode".
+- Carried (M9-T05, 2026-07-10): no numeric threshold is committed at 1.0 (dogfood volume is insufficient for a defensible number); the interim rule stays normative and the question re-owns to post-1.0 dogfood telemetry. No frozen SPI surface depends on the answer.
 
 ### OQ-02: Class-level escalation correlation key
 
@@ -80,6 +81,7 @@ Closing an OQ follows the change process in section 4.
 - Must close by: M9 (before the SPI freeze).
 - Decision trigger: dogfood resumes exercising invalidate/retry after it lands in M2.
 - Interim rule: invalidate/retry is explicit, journaled, and targets a single memoized failed entry; there is no bulk or implicit invalidation. See 03-journal-spec.md, section "Replay predicate".
+- Carried (M9-T05, 2026-07-10): invalidate/retry is public API governed by semver, not one of the six frozen seams; the interim rule stays normative and the safety-boundary refinement re-owns to post-1.0 dogfood.
 
 ### OQ-04: renderBudgetTokens measure
 
@@ -170,6 +172,7 @@ Closing an OQ follows the change process in section 4.
 - Must close by: M9 (SPI freeze decides the public/internal boundary).
 - Decision trigger: the M9 SPI audit and any community store or tooling demand.
 - Interim rule (normative): blobs are engine-internal; every blob starts with a leading format byte reserved for future migration; stores treat payloads as opaque (contract A4). See 03-journal-spec.md, sections "Checkpoints" and "Storage SPI".
+- Closed (M9-T05, 2026-07-10): blob formats stay ENGINE-INTERNAL at 1.0 behind the opaque-payload contract; publishing a format later is additive documentation, never a seam change. See 03-journal-spec.md, section "Checkpoints".
 
 ### OQ-14: LedgerExport JSON schema
 
@@ -188,6 +191,7 @@ Closing an OQ follows the change process in section 4.
 - Must close by: M9 (the default freezes before 1.0; the mechanism ships in M3).
 - Decision trigger: dogfood traces from M3 onward.
 - Interim rule (normative): the detector is engine-defined and journaled as a first-class abort class (a decision entry written before its effects, per I2), with a conservative default: N turns without tool calls or artifact deltas. See 06-execution-spec.md.
+- Closed (M9-T05, 2026-07-10): N = 3 consecutive turns without tool calls or artifact deltas FREEZES as the 1.0 default; the per-run knob (UsageLimits) stays configurable and richer heuristics are ordinary post-1.0 evolution behind it. See 06-execution-spec.md, Appendix A.
 
 ### OQ-16: HTTP server auth and SSE reconnection
 
@@ -215,6 +219,7 @@ Closing an OQ follows the change process in section 4.
 - Must close by: M9 (if an ExecutorProvider seam is to exist in L0, it must be decided before the freeze).
 - Decision trigger: the M9 SPI audit; demand for machine-script containment beyond the worker sandbox.
 - Interim rule (normative): executors inprocess | subprocess | container are declared capabilities; the containment posture is downgraded to plans (08-tools-permissions-spec.md, section "Executors"); the worker sandbox is a determinism and blast-radius boundary, not a security boundary (01-requirements.md, security posture NFR).
+- Closed (M9-T05, 2026-07-10): NO ExecutorProvider seam ships in L0 at 1.0; the frozen seam list stays the six of 02-architecture.md. Subprocess and container executors are post-1.0 work behind a future ADDITIVE seam. See 08-tools-permissions-spec.md, section "Executors".
 
 ### OQ-19: Process-global rate limiting
 
@@ -233,6 +238,7 @@ Closing an OQ follows the change process in section 4.
 - Must close by: M8 (interim rules executed at M8-T04); defaults revisit at M9 with the SPI freeze.
 - Decision trigger: observed storage growth in dogfood.
 - Interim rule (normative, EXECUTED at M8-T04): the cascade is engine-side: `TranscriptStore.delete(ref)` exists (03-journal-spec.md, section "TranscriptStore") and `Engine.deleteRun(runId)` deletes every blob `list(runId)` returns, then the journal, leaving no orphan transcripts; `Engine.pruneRun(runId)` deletes checkpoint blobs of ok-terminal attempts that no other entry references; the server and the queue worker take an optional `retention` predicate over RunMeta and apply deleteRun to settled runs it selects (02-architecture.md, section "Shells overview"). No automatic retention runs by default: stores persist indefinitely unless the host opts in.
+- M9 revisit (M9-T05, 2026-07-10): the M8-T04 executed rules stand unchanged; no automatic retention defaults ship at 1.0; TTL and size-budget defaults re-own to post-1.0 storage-growth data.
 
 ### OQ-21: Resume binding residuals
 
@@ -273,6 +279,7 @@ Tracked here but not engineering-ruled: no interim engineering rule can close th
 - Must close by: M9 (the 1.0 gate: the license MUST be decided before the first public release).
 - Decision trigger: the pre-release legal review at the M9 gate (12-release-versioning.md, section "The 1.0 gate").
 - Interim rule (normative): every relevant surface carries "License: TBD (decided before first public release)"; no doc or package includes license text (README.md, section "License").
+- Status (M9-T05, 2026-07-10): the founder DEFERRED the license decision; per the 1.0 gate (12-release-versioning.md, section "The 1.0 gate", item 3) the v1.0.0 release is blocked until it lands. The interim rule stays in force; the M9 engineering scope is complete independent of it.
 
 ### OQ-24: Final naming and trademark resolution
 
@@ -282,6 +289,7 @@ Tracked here but not engineering-ruled: no interim engineering rule can close th
 - Must close by: the npm org/scope claim at M0; the final umbrella-name and trademark resolution (or a consciously carried contingency) by M9.
 - Decision trigger: the M0 naming checklist outcome (org claim, GitHub org variant selection) and the M9 release-gate review.
 - Interim rule (normative): docs reference packages uniformly as @lurker/<name> and never write bare "lurker" in install commands; the canonical naming risk note is 13-toolchain-repo.md, section "Naming risk note".
+- Status (M9-T05, 2026-07-10): the founder HOLDS v1.0.0 until formal USPTO/EUIPO clearance completes (gate item 4); the naming contingency continues as the @lurker scope with the umbrella as @lurker/lurker per rule 1.4.1.
 
 ### OQ-25: Runtime boundaries
 
@@ -291,6 +299,7 @@ Tracked here but not engineering-ruled: no interim engineering rule can close th
 - Must close by: M9 (before the SPI freeze).
 - Decision trigger: the M9 SPI audit.
 - Interim rule: the committed engineering baseline is Node >=22.12.0, ESM-only, per 13-toolchain-repo.md, section "Committed toolchain"; no support statement exists for Bun, Deno, or edge runtimes.
+- Closed (M9-T05, 2026-07-10, founder): the core is TypeScript on Node, ESM-only, Node >=22.12.0 at 1.0; no Bun/Deno/edge support statement ships (one MAY be added post-1.0 as an additive, tested claim); no Python port is planned. The SPI forms froze under this boundary. See 13-toolchain-repo.md, section "Runtime: Node >=22.12.0, developed on Node 24".
 
 ### OQ-26: Hosting ambitions
 
@@ -309,6 +318,7 @@ Tracked here but not engineering-ruled: no interim engineering rule can close th
 - Must close by: M9 (community adapter and store guides land in M9).
 - Decision trigger: the M9 ecosystem work.
 - Interim rule: single-maintainer operation; community guides are deferred to M9 (10-implementation-plan.md).
+- Closed (M9-T05, 2026-07-10, founder): personal project with a single maintainer who owns the npm scope and repository; community adapters and stores live in third-party repositories and claim compatibility via the executable conformance kits and guides; nothing third-party merges into the @lurker scope. See 13-toolchain-repo.md, section "Contributor workflow".
 
 ### OQ-28: Live contract-test and eval sweep budget
 

@@ -30,6 +30,8 @@ The toolchain below is committed by the doc architect on the basis of the July 2
 
 Node 20 reached end of life on 2026-04-30 and MUST NOT be a support target. Node 22 is Maintenance LTS (EOL 2027-04-30); Node 24 is Active LTS (EOL 2028-04-30); Node 26 is Current and becomes LTS in October 2026. The floor is 22.12.0 specifically because it is the first 22.x with unflagged `require(esm)`, which the module-format decision below depends on. Development and releases run on Node 24; CI tests on 22.x and 24.x, with 26.x as an optional non-blocking job.
 
+Runtime boundary at 1.0 (OQ-25 closed by the founder at M9-T05, 2026-07-10): the core is TypeScript on Node, ESM-only, with the floor above; there is NO support statement for Bun, Deno, or edge runtimes at 1.0 (one MAY be added post-1.0 as an additive, tested claim), and no Python port is planned. The frozen SPI forms are TypeScript interfaces under exactly this boundary.
+
 ### 1.3 Module format: ESM-only
 
 All 14 packages publish ESM only: `"type": "module"`, an exports map with `types` before `default`, no CJS artifacts, no legacy `main`/`module` fields beyond the exports map.
@@ -288,6 +290,8 @@ Accepted toolchain risks, each with its revisit trigger and fallback. Reviewing 
 | @ai-sdk/provider churn | V2 to V4 within about 18 months | Any provider major | Bridge pins exact major with runtime specificationVersion check; highest-churn package by policy (04-model-layer-spec.md) |
 
 ## 8. Contributor workflow
+
+Governance at 1.0 (OQ-27 closed by the founder at M9-T05, 2026-07-10): lurker is a personal project with a single maintainer, who owns the npm scope and the repository. Community adapters and stores live in their authors' own repositories and packages; the quality bar for claiming compatibility is the executable one (the @lurker/store-conformance suites and the VCR contract-test pattern of the community guides), and nothing third-party merges into the @lurker scope. A move to an organization or foundation is a deliberate post-1.0 decision.
 
 - **Branching.** Trunk-based: short-lived feature branches off `main`, merged by PR; no long-lived release branches pre-1.0. Branch names reference the task ID where one exists (for example `m2-t04-ref-entries`).
 - **Commits.** Imperative subject of at most 72 characters; the body cites the IDs the change implements or amends (Mx-Tyy, FR-xxx, DEF-n, OQ-nn). Conventional-commits prefixes are not required: changesets, not commit messages, drive versioning.
