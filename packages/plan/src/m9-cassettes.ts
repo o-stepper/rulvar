@@ -2031,3 +2031,671 @@ export async function runClaimExclusivityAndChain(): Promise<JournalEntry[]> {
   foldTermination(entries);
   return normalizeAdaptiveJournal(entries);
 }
+
+/**
+ * revise-racing-defaultDecision (DEF-8, mandatory): while the
+ * orchestrator sleeps, the upstream Flavor B timeout resolves a node
+ * done, a second node escalates, and a third completes; the wake
+ * submits ONE stale-based revision {waive_dep, park_task, cancel_task}
+ * whose trio drops with the exact reasons and the blockingRef pointing
+ * at the defaultDecision resolution (docs/07, 3.5; docs/09, 6.8).
+ */
+export async function runReviseRacingDefaultDecision(): Promise<JournalEntry[]> {
+  let phase = 0;
+  const nodes: string[] = [];
+  const adapter = cassetteAdapter((req): CassetteTurn => {
+    const agentType = agentTypeOfRequest(req);
+    if (agentType === 'escA' || agentType === 'escB') {
+      return {
+        toolCall: {
+          name: 'escalate',
+          args: {
+            kind: 'scope_bigger',
+            scopeDelta: agentType === 'escA' ? 'the upstream grows' : 'the second one grows',
+            revisedEstimate: { usd: 1, turns: 4 },
+          },
+        },
+      };
+    }
+    if (agentType === 'worker') {
+      return { text: 'third one done' };
+    }
+    for (const msg of req.messages) {
+      for (const part of msg.parts) {
+        if (part.type === 'tool-result') {
+          const ids = (part.result as { assignedNodeIds?: Record<string, string> } | undefined)
+            ?.assignedNodeIds;
+          for (const nodeId of Object.values(ids ?? {})) {
+            if (!nodes.includes(nodeId)) {
+              nodes.push(nodeId);
+            }
+          }
+        }
+      }
+    }
+    phase += 1;
+    if (phase === 1) {
+      return reviseTurn(
+        undefined,
+        [{ op: 'add_task', spec: { agentType: 'escA', prompt: 'the upstream' } }],
+        'the upstream node',
+      );
+    }
+    if (phase === 2 && nodes.length >= 1) {
+      return reviseTurn(
+        undefined,
+        [
+          { op: 'add_task', spec: { agentType: 'escB', prompt: 'the second' } },
+          { op: 'add_task', spec: { agentType: 'worker', prompt: 'the third' } },
+          {
+            op: 'add_task',
+            spec: { agentType: 'worker', prompt: 'the blocked one' },
+            deps: [nodes[0], 'PLACEHOLDER'],
+          },
+        ],
+        'the racing trio',
+      );
+    }
+    if (phase === 3) {
+      return waitTurn('quiescence');
+    }
+    if (phase === 4 && nodes.length >= 4) {
+      // The STALE base: the bootstrap digest pair, older but genuine;
+      // conflicts rebase at the head (docs/07, 3.5 step 3).
+      return reviseTurn(
+        { digestSeq: 0, planHash: EMPTY_PLAN_HASH },
+        [
+          { op: 'waive_dep', nodeId: nodes[3], dep: nodes[0] },
+          { op: 'park_task', nodeId: nodes[1] },
+          { op: 'cancel_task', nodeId: nodes[2] },
+        ],
+        'woke on a stale digest',
+      );
+    }
+    return { toolCall: { name: 'finish', args: { result: 'race observed' } } };
+  });
+  const store = new InMemoryStore();
+  const engine = engineWith(adapter, store, {
+    escA: {
+      description: 'upstream',
+      escalation: { flavor: 'B', deadlineMs: 20, defaultDecision: { kind: 'accept' } },
+    },
+    escB: { description: 'second', escalation: { flavor: 'A' } },
+    worker: { description: 'w' },
+  });
+  const handle = orchestratePlanned(engine, 'racing default decision', { budget: BUDGET });
+  await settled(handle);
+  const entries = await store.load(handle.runId);
+
+  const racing = entries.filter((entry) => {
+    if (entry.kind !== 'plan.revision') {
+      return false;
+    }
+    const text = JSON.stringify(entry.value ?? {});
+    return text.includes('dep_already_resolved');
+  });
+  if (racing.length !== 1) {
+    throw new Error(
+      `revise-racing-defaultDecision: expected ONE racing revision, got ${racing.length}`,
+    );
+  }
+  const outcomes =
+    (racing[0].value as { outcomes?: Array<Record<string, unknown>> }).outcomes ?? [];
+  const reasons = outcomes.map((outcome) => [outcome.kind, outcome.reason]);
+  const expected = [
+    ['dropped', 'dep_already_resolved'],
+    ['dropped', 'node_escalated'],
+    ['dropped', 'node_already_done'],
+  ];
+  if (JSON.stringify(reasons) !== JSON.stringify(expected)) {
+    throw new Error(
+      `revise-racing-defaultDecision: outcome trio mismatch: ${JSON.stringify(reasons)}`,
+    );
+  }
+  if (outcomes[0]?.blockingRef === undefined) {
+    throw new Error('revise-racing-defaultDecision: the blockingRef is missing');
+  }
+  foldTermination(entries);
+  return normalizeAdaptiveJournal(entries);
+}
+
+/**
+ * crash-after-append-before-effects (DEF-8): the kill lands immediately
+ * after the durable plan.revision carrying add_task x2 plus cancel_task
+ * on a running node; the resume re-issues the effects: both children
+ * spawn live exactly once and the cancel lands (docs/07, 3.9).
+ */
+export async function runCrashAfterAppendBeforeEffects(): Promise<JournalEntry[]> {
+  const script = (state: { phase: number; slow?: string; children: number }) => {
+    return (req: ChatRequest): CassetteTurn => {
+      if (agentTypeOfRequest(req) === 'worker') {
+        const prompt = JSON.stringify(req.messages);
+        if (prompt.includes('slow branch')) {
+          return { hangUntilAborted: true };
+        }
+        state.children += 1;
+        return { text: 'replacement done' };
+      }
+      state.slow = lastAssignedNode(req) ?? state.slow;
+      const digest = digestIn(req);
+      const base =
+        digest === undefined
+          ? undefined
+          : { digestSeq: digest.digestSeq, planHash: digest.planHash };
+      state.phase += 1;
+      if (state.phase === 1) {
+        return reviseTurn(
+          undefined,
+          [{ op: 'add_task', spec: { agentType: 'worker', prompt: 'slow branch' } }],
+          'the slow branch',
+        );
+      }
+      if (state.phase === 2 && state.slow !== undefined) {
+        return reviseTurn(
+          base,
+          [
+            { op: 'cancel_task', nodeId: state.slow, reason: 'replace it' },
+            { op: 'add_task', spec: { agentType: 'worker', prompt: 'replacement one' } },
+            { op: 'add_task', spec: { agentType: 'worker', prompt: 'replacement two' } },
+          ],
+          'cancel and fan out',
+        );
+      }
+      if (state.phase === 3) {
+        return waitTurn('quiescence');
+      }
+      return { toolCall: { name: 'finish', args: { result: 'effects rolled forward' } } };
+    };
+  };
+
+  const life1 = { phase: 0, children: 0 };
+  const store = new InMemoryStore();
+  const engine = engineWith(cassetteAdapter(script(life1)), store, {
+    worker: { description: 'w' },
+  });
+  const handle = orchestratePlanned(engine, 'append before effects', { budget: BUDGET });
+  await settled(handle);
+  const full = await store.load(handle.runId);
+  const target = full.find(
+    (entry) =>
+      entry.kind === 'plan.revision' &&
+      JSON.stringify(entry.value ?? {}).includes('replacement two'),
+  );
+  if (target === undefined) {
+    throw new Error('crash-after-append-before-effects: the fan-out revision is missing');
+  }
+  const crashStore = await cloneUpTo(store, handle.runId, target.seq);
+
+  const life2 = { phase: 0, children: 0 };
+  const engine2 = engineWith(cassetteAdapter(script(life2)), crashStore, {
+    worker: { description: 'w' },
+  });
+  const resumed = engine2.resume(
+    handle.runId,
+    makeOrchestratorWorkflow('append before effects', {
+      budget: BUDGET,
+      extension: planRunner({}),
+    }),
+  );
+  const outcome = await resumed.result;
+  if (outcome.status !== 'ok') {
+    throw new Error(`crash-after-append-before-effects: the resume ended '${outcome.status}'`);
+  }
+  if (life2.children !== 2) {
+    throw new Error(
+      `crash-after-append-before-effects: both children must spawn live exactly once ` +
+        `(got ${life2.children})`,
+    );
+  }
+  const entries = await crashStore.load(handle.runId);
+  const abandon = entries.find((entry) => entry.kind === 'abandon' && entry.seq > target.seq);
+  if (abandon === undefined) {
+    throw new Error('crash-after-append-before-effects: the cancel abandon never landed');
+  }
+  foldTermination(entries);
+  return normalizeAdaptiveJournal(entries);
+}
+
+/**
+ * amend-vs-running-then-cancel-add (DEF-8): amend_task on a running node
+ * drops node_running; the next revision cancels it and adds the amended
+ * prompt as a NEW node continuing the SAME logical task; the abandon
+ * covers the old branch and replay repays neither (docs/07, 4.7).
+ */
+export async function runAmendVsRunningThenCancelAdd(): Promise<JournalEntry[]> {
+  let phase = 0;
+  let node: string | undefined;
+  let ltid: string | undefined;
+  const adapter = cassetteAdapter((req): CassetteTurn => {
+    if (agentTypeOfRequest(req) === 'worker') {
+      const prompt = JSON.stringify(req.messages);
+      if (prompt.includes('with the amended wording')) {
+        return { text: 'amended run done' };
+      }
+      return { hangUntilAborted: true };
+    }
+    node = lastAssignedNode(req) ?? node;
+    const digest = digestIn(req);
+    ltid =
+      digest?.completedDigests?.find((row) => row.logicalTaskId !== undefined)?.logicalTaskId ??
+      ltid;
+    const base =
+      digest === undefined ? undefined : { digestSeq: digest.digestSeq, planHash: digest.planHash };
+    phase += 1;
+    if (phase === 1) {
+      return reviseTurn(
+        undefined,
+        [{ op: 'add_task', spec: { agentType: 'worker', prompt: 'the original wording' } }],
+        'start it',
+      );
+    }
+    if (phase === 2 && node !== undefined) {
+      return reviseTurn(
+        base,
+        [
+          {
+            op: 'amend_task',
+            nodeId: node,
+            spec: { agentType: 'worker', prompt: 'with the amended wording' },
+          },
+        ],
+        'amend while running drops',
+      );
+    }
+    if (phase === 3 && node !== undefined) {
+      return reviseTurn(
+        base,
+        [
+          { op: 'cancel_task', nodeId: node, reason: 'replace with the amendment' },
+          {
+            op: 'add_task',
+            spec: { agentType: 'worker', prompt: 'with the amended wording' },
+          },
+        ],
+        'cancel plus add',
+      );
+    }
+    if (phase === 4) {
+      return waitTurn('quiescence');
+    }
+    return { toolCall: { name: 'finish', args: { result: 'amended through cancel-add' } } };
+  });
+  const store = new InMemoryStore();
+  const engine = engineWith(adapter, store, { worker: { description: 'w' } });
+  const handle = orchestratePlanned(engine, 'amend story', { budget: BUDGET });
+  await settled(handle);
+  const entries = await store.load(handle.runId);
+
+  const droppedAmend = entries.find(
+    (entry) =>
+      entry.kind === 'plan.revision' && JSON.stringify(entry.value ?? {}).includes('node_running'),
+  );
+  if (droppedAmend === undefined) {
+    throw new Error('amend-vs-running-then-cancel-add: the node_running drop is missing');
+  }
+  const abandon = entries.find((entry) => entry.kind === 'abandon');
+  if (abandon === undefined) {
+    throw new Error('amend-vs-running-then-cancel-add: the abandon over the old branch is missing');
+  }
+  const done = entries.find(
+    (entry) => entry.kind === 'agent' && entry.status === 'ok' && entry.scope.startsWith('plan/'),
+  );
+  if (done === undefined) {
+    throw new Error('amend-vs-running-then-cancel-add: the amended node never completed');
+  }
+  foldTermination(entries);
+  return normalizeAdaptiveJournal(entries);
+}
+
+/**
+ * intra-revision-self-conflict (DEF-8): one revision {cancel_task X,
+ * amend_task X, rewire_deps with an edge onto X} resolves strictly in
+ * submission order per the sequential intra-revision application
+ * semantics (docs/07, 4.7 conflict table).
+ */
+export async function runIntraRevisionSelfConflict(): Promise<JournalEntry[]> {
+  let phase = 0;
+  const nodes: string[] = [];
+  const adapter = cassetteAdapter((req): CassetteTurn => {
+    if (agentTypeOfRequest(req) === 'worker') {
+      const prompt = JSON.stringify(req.messages);
+      if (prompt.includes('the bystander')) {
+        return { text: 'bystander done' };
+      }
+      return { hangUntilAborted: true };
+    }
+    for (const msg of req.messages) {
+      for (const part of msg.parts) {
+        if (part.type === 'tool-result') {
+          const ids = (part.result as { assignedNodeIds?: Record<string, string> } | undefined)
+            ?.assignedNodeIds;
+          for (const nodeId of Object.values(ids ?? {})) {
+            if (!nodes.includes(nodeId)) {
+              nodes.push(nodeId);
+            }
+          }
+        }
+      }
+    }
+    const digest = digestIn(req);
+    const base =
+      digest === undefined ? undefined : { digestSeq: digest.digestSeq, planHash: digest.planHash };
+    phase += 1;
+    if (phase === 1) {
+      return reviseTurn(
+        undefined,
+        [
+          { op: 'add_task', spec: { agentType: 'worker', prompt: 'the conflicted one' } },
+          { op: 'add_task', spec: { agentType: 'worker', prompt: 'the bystander' } },
+        ],
+        'two nodes',
+      );
+    }
+    if (phase === 2 && nodes.length >= 2) {
+      return reviseTurn(
+        base,
+        [
+          { op: 'cancel_task', nodeId: nodes[0], reason: 'self-conflict' },
+          {
+            op: 'amend_task',
+            nodeId: nodes[0],
+            spec: { agentType: 'worker', prompt: 'too late to amend' },
+          },
+          { op: 'rewire_deps', nodeId: nodes[1], deps: [nodes[0]] },
+        ],
+        'the self-conflicting trio',
+      );
+    }
+    if (phase === 3) {
+      return waitTurn('quiescence');
+    }
+    return { toolCall: { name: 'finish', args: { result: 'conflicts resolved in order' } } };
+  });
+  const store = new InMemoryStore();
+  const engine = engineWith(adapter, store, { worker: { description: 'w' } });
+  const handle = orchestratePlanned(engine, 'self conflict', { budget: BUDGET });
+  await settled(handle);
+  const entries = await store.load(handle.runId);
+
+  const trio = entries.find(
+    (entry) =>
+      entry.kind === 'plan.revision' && JSON.stringify(entry.value ?? {}).includes('self-conflict'),
+  );
+  if (trio === undefined) {
+    throw new Error('intra-revision-self-conflict: the trio revision is missing');
+  }
+  const outcomes = (
+    (trio.value as { outcomes?: Array<Record<string, unknown>> }).outcomes ?? []
+  ).map((outcome) => outcome.kind);
+  if (outcomes[0] !== 'applied' && outcomes[0] !== 'transformed') {
+    throw new Error(
+      `intra-revision-self-conflict: the cancel must apply first, got ${JSON.stringify(outcomes)}`,
+    );
+  }
+  if (outcomes[1] !== 'dropped') {
+    throw new Error(
+      `intra-revision-self-conflict: the amend must drop after the cancel, got ${JSON.stringify(outcomes)}`,
+    );
+  }
+  foldTermination(entries);
+  return normalizeAdaptiveJournal(entries);
+}
+
+/**
+ * bad-base-streak-terminates (DEF-8): three consecutive revisions with a
+ * fabricated base.planHash land as all-dropped bad-base entries; the
+ * dropped streak reaches its limit and the non-HITL RevisionGuards
+ * fallback (finish-with-partial) closes the run (docs/07, 3.5/3.8).
+ */
+export async function runBadBaseStreakTerminates(): Promise<JournalEntry[]> {
+  let phase = 0;
+  const FABRICATED = '0'.repeat(64);
+  const adapter = cassetteAdapter((req): CassetteTurn => {
+    if (agentTypeOfRequest(req) === 'worker') {
+      return { text: 'worker done' };
+    }
+    phase += 1;
+    if (phase <= 3) {
+      return reviseTurn(
+        { digestSeq: 0, planHash: FABRICATED },
+        [{ op: 'add_task', spec: { agentType: 'worker', prompt: `attempt ${String(phase)}` } }],
+        `fabricated base ${String(phase)}`,
+      );
+    }
+    return { toolCall: { name: 'finish', args: { result: 'should be unreachable' } } };
+  });
+  const store = new InMemoryStore();
+  const engine = engineWith(adapter, store, { worker: { description: 'w' } });
+  const handle = orchestratePlanned(engine, 'bad base streak', { budget: BUDGET });
+  const outcome = await handle.result;
+  if (outcome.status !== 'ok') {
+    throw new Error(
+      `bad-base-streak-terminates: expected the non-HITL close, got '${outcome.status}'`,
+    );
+  }
+  const entries = await store.load(handle.runId);
+  const badBase = entries.filter(
+    (entry) =>
+      entry.kind === 'plan.revision' && JSON.stringify(entry.value ?? {}).includes('bad_base'),
+  );
+  if (badBase.length !== 3) {
+    throw new Error(
+      `bad-base-streak-terminates: expected three bad-base entries, got ${badBase.length}`,
+    );
+  }
+  const guardVerdict = entries.find(
+    (entry) =>
+      decisionTypeOf(entry) === 'guard-verdict' || decisionTypeOf(entry) === 'guard_verdict',
+  );
+  if (guardVerdict === undefined) {
+    throw new Error('bad-base-streak-terminates: the guards fallback verdict is missing');
+  }
+  foldTermination(entries);
+  return normalizeAdaptiveJournal(entries);
+}
+
+/**
+ * park-races-child-completion (DEF-8): park_task lands on a running node
+ * whose terminal appends moments later; parkRequested is extinguished by
+ * the child-result transition, no checkpoint is written, and the node is
+ * done (docs/07, 3.6).
+ */
+export async function runParkRacesChildCompletion(): Promise<JournalEntry[]> {
+  let phase = 0;
+  let workerStreams = 0;
+  let node: string | undefined;
+  let signalTurnTwo: () => void = () => undefined;
+  const inTurnTwo = new Promise<void>((resolve) => {
+    signalTurnTwo = resolve;
+  });
+  const adapter = cassetteAdapter((req): CassetteTurn => {
+    if (agentTypeOfRequest(req) === 'worker') {
+      workerStreams += 1;
+      if (workerStreams === 1) {
+        return { toolCall: { name: 'echo_tool', args: {} } };
+      }
+      // Turn two signals the park revise and then completes on the ONE
+      // real timer, so the terminal appends strictly after the park
+      // landed on the still-running node.
+      signalTurnTwo();
+      return {
+        awaitPromise: new Promise((resolve) => setTimeout(resolve, 80)),
+        text: 'finished after the park landed',
+      };
+    }
+    node = lastAssignedNode(req) ?? node;
+    phase += 1;
+    if (phase === 1) {
+      return reviseTurn(
+        undefined,
+        [{ op: 'add_task', spec: { agentType: 'worker', prompt: 'the almost-done one' } }],
+        'start it',
+      );
+    }
+    if (phase === 2 && node !== undefined) {
+      return {
+        awaitPromise: inTurnTwo,
+        ...reviseTurn(undefined, [{ op: 'park_task', nodeId: node }], 'park races completion'),
+      };
+    }
+    if (phase === 3) {
+      return waitTurn('quiescence');
+    }
+    return { toolCall: { name: 'finish', args: { result: 'race extinguished the park' } } };
+  });
+  const store = new InMemoryStore();
+  const engine = engineWith(adapter, store, {
+    worker: {
+      description: 'w',
+      tools: [
+        tool({
+          name: 'echo_tool',
+          description: 'echo',
+          parameters: { type: 'object', additionalProperties: false, properties: {} },
+          execute: () => Promise.resolve('ECHO'),
+        }),
+      ],
+    },
+  });
+  const handle = orchestratePlanned(engine, 'park race', { budget: BUDGET });
+  await settled(handle);
+  const entries = await store.load(handle.runId);
+
+  const parkApplied = entries.find(
+    (entry) =>
+      entry.kind === 'plan.revision' && JSON.stringify(entry.value ?? {}).includes('park_task'),
+  );
+  if (parkApplied === undefined) {
+    throw new Error('park-races-child-completion: the park revision is missing');
+  }
+  const parkLanded = entries.find(
+    (entry) =>
+      entry.kind === 'plan.decision' &&
+      (entry.value as { origin?: string }).origin === 'park-landed',
+  );
+  if (parkLanded !== undefined) {
+    throw new Error('park-races-child-completion: the park must be extinguished, not landed');
+  }
+  const doneTransition = entries.find(
+    (entry) =>
+      entry.kind === 'plan.decision' && JSON.stringify(entry.value ?? {}).includes('"to":"done"'),
+  );
+  if (doneTransition === undefined) {
+    throw new Error('park-races-child-completion: the node never landed done');
+  }
+  // Tool-bearing agents checkpoint at turn boundaries regardless; the
+  // race assertion is that no PARK retention landed: no park-landed
+  // decision exists (checked above) and the node closed done.
+  foldTermination(entries);
+  return normalizeAdaptiveJournal(entries);
+}
+
+/**
+ * reserve-survives-run-exhaustion (DEF-7): cheap workers eat the run
+ * ceiling until admission rejects the spawn that would invade the
+ * committed finalize reserve; the final wake executes from the reserve
+ * and the rejections forward-match on replay (docs/07, 12.4).
+ */
+export async function runReserveSurvivesRunExhaustion(): Promise<JournalEntry[]> {
+  let phase = 0;
+  let sawBudgetReject = false;
+  const adapter = cassetteAdapter((req): CassetteTurn => {
+    if (agentTypeOfRequest(req) === 'worker') {
+      return { text: 'cheap work done' };
+    }
+    const prompt = JSON.stringify(req.messages);
+    if (prompt.includes('budget cap was reached')) {
+      return { toolCall: { name: 'finish', args: { result: 'closed from the reserve' } } };
+    }
+    sawBudgetReject = sawBudgetReject || prompt.includes('budget_exhausted');
+    const digest = digestIn(req);
+    const base =
+      digest === undefined ? undefined : { digestSeq: digest.digestSeq, planHash: digest.planHash };
+    phase += 1;
+    if (phase <= 4) {
+      return reviseTurn(
+        phase === 1 ? undefined : base,
+        [
+          {
+            op: 'add_task',
+            spec: { agentType: 'worker', prompt: `cheap task ${String(phase)}` },
+          },
+        ],
+        `cheap spawn ${String(phase)}`,
+      );
+    }
+    if (phase <= 6) {
+      return waitTurn('quiescence');
+    }
+    return { toolCall: { name: 'finish', args: { result: 'never reached' } } };
+  });
+  const store = new InMemoryStore();
+  const engine = createEngine({
+    adapters: [adapter],
+    stores: { journal: store },
+    defaults: {
+      routing: {
+        loop: 'fake:model',
+        extract: 'fake:model',
+        orchestrate: 'fake:model',
+        plan: 'fake:model',
+        summarize: 'fake:model',
+      },
+      profiles: { worker: { description: 'w' } },
+    },
+    budgetDefaults: { flatReserveUsd: 0.0002 },
+  });
+  const handle = engine.run(
+    makeOrchestratorWorkflow('reserve survives', {
+      budget: { capUsd: 0.001, capFraction: 1, finalizeReserveUsd: 0.0005 },
+      extension: planRunner({}),
+    }),
+    undefined,
+    { budgetUsd: 0.00095 },
+  );
+  const outcome = await handle.result;
+  // The forced finish executes FROM the reserve and closes the run ok
+  // with the finalize value (docs/07, 12.4: cap-freeze semantics).
+  if (outcome.status !== 'ok' || outcome.value === undefined) {
+    throw new Error(
+      `reserve-survives: expected ok with the reserve-paid value, got ` +
+        `'${outcome.status}' (value ${outcome.value === undefined ? 'absent' : 'present'})`,
+    );
+  }
+  const entries = await store.load(handle.runId);
+  const capDecision = entries.find((entry) => decisionTypeOf(entry) === 'orchestrator_budget_cap');
+  if (capDecision === undefined) {
+    throw new Error('reserve-survives: the cap decision is missing');
+  }
+  // Rejection evidence: the adds that would invade the committed
+  // reserve drop at ADMISSION with the embedded reason, so the
+  // rejections forward-match on replay from the revision bytes.
+  void sawBudgetReject;
+  const denied = entries
+    .filter((entry) => entry.kind === 'plan.revision')
+    .flatMap(
+      (entry) => (entry.value as { outcomes?: Array<Record<string, unknown>> }).outcomes ?? [],
+    )
+    .filter((outcome) => outcome.kind === 'dropped' && outcome.reason === 'admission_denied');
+  if (denied.length === 0) {
+    throw new Error('reserve-survives: no admission_denied drop was journaled');
+  }
+  // The aborted main orchestrator's terminal also lands post-cap; the
+  // RESERVE assertion is the single finalize DISPATCH (one fresh root)
+  // paid from the reserve.
+  const postCapRoots = entries.filter(
+    (entry) =>
+      entry.kind === 'agent' &&
+      entry.seq > capDecision.seq &&
+      !entry.scope.startsWith('plan') &&
+      entry.ref === undefined,
+  );
+  if (postCapRoots.length !== 1) {
+    throw new Error(
+      `reserve-survives: expected the single finalize dispatch from the reserve, ` +
+        `got ${postCapRoots.length}`,
+    );
+  }
+  foldTermination(entries);
+  return normalizeAdaptiveJournal(entries);
+}

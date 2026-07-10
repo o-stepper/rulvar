@@ -15,18 +15,25 @@ import { JsonlFileStore, type JournalEntry, type JournalStore } from '@lurker/co
 import { SqliteStore } from '@lurker/store-sqlite';
 
 import {
+  runAmendVsRunningThenCancelAdd,
+  runBadBaseStreakTerminates,
   runClaimExclusivityAndChain,
   runClassStormSingleTurn,
   runCombinedLoopDescent,
   runConfigDriftResume,
+  runCrashAfterAppendBeforeEffects,
   runCrashBetweenLinkAndRoot,
   runGraftPartialSubtree,
+  runIntraRevisionSelfConflict,
   runLegacyJournalResume,
   runOscillationBounded,
   runOscillationFullReuse,
   runOscillationGuardTrip,
+  runParkRacesChildCompletion,
   runRaceTimeoutVsLive,
+  runReserveSurvivesRunExhaustion,
   runRespawnPreservesCounter,
+  runReviseRacingDefaultDecision,
   runRewordedLessonsCollide,
   runStallStreakClassesAndPinning,
   runWorktreeDisposedDegrade,
@@ -54,6 +61,13 @@ const SCENARIOS: Array<[string, () => Promise<unknown>]> = [
   ['oscillation-guard-trip', runOscillationGuardTrip],
   ['worktree-disposed-degrade', runWorktreeDisposedDegrade],
   ['claim-exclusivity-and-chain', runClaimExclusivityAndChain],
+  ['revise-racing-defaultDecision', runReviseRacingDefaultDecision],
+  ['crash-after-append-before-effects', runCrashAfterAppendBeforeEffects],
+  ['amend-vs-running-then-cancel-add', runAmendVsRunningThenCancelAdd],
+  ['intra-revision-self-conflict', runIntraRevisionSelfConflict],
+  ['bad-base-streak-terminates', runBadBaseStreakTerminates],
+  ['park-races-child-completion', runParkRacesChildCompletion],
+  ['reserve-survives-run-exhaustion', runReserveSurvivesRunExhaustion],
 ];
 
 describe('M9 catalog cassettes (M9-T04; docs/09 sections 6.2 and 6.3)', () => {
