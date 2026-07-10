@@ -1,0 +1,217 @@
+{
+  "id": "judge-panel-fake",
+  "note": "Dogfood journal (M9-T04): the shipped judge-panel example run end to end on FakeAdapter; replays strict with zero live calls.",
+  "workflow": "judgePanel",
+  "args": {
+    "task": "name the fastest sort"
+  },
+  "entries": [
+    {
+      "hashVersion": 2,
+      "seq": 0,
+      "scope": "par:0:0",
+      "key": "678fece1322a54cd2d3c71c2c867ab57cf14520c6814eb16a64bebfb7f00018c",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 1,
+      "scope": "par:0:1",
+      "key": "9a8295e0da3c30cfa6f2c7ce9645bc883c192709fc56952d86bc46d0c1cd98fe",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
+      "scope": "par:0:2",
+      "key": "181c08589a6d431402ffe42b93ae9491bb0b6cba36b1d49c92bbf7f2369e562b",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 3,
+      "ref": 0,
+      "scope": "par:0:0",
+      "key": "678fece1322a54cd2d3c71c2c867ab57cf14520c6814eb16a64bebfb7f00018c",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:03.000Z",
+      "endedAt": "2026-02-01T00:00:03.000Z",
+      "value": "attempt for attempt-mvp-first",
+      "usage": {
+        "inputTokens": 10,
+        "outputTokens": 8,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "dogfood/t0"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 4,
+      "ref": 1,
+      "scope": "par:0:1",
+      "key": "9a8295e0da3c30cfa6f2c7ce9645bc883c192709fc56952d86bc46d0c1cd98fe",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:04.000Z",
+      "endedAt": "2026-02-01T00:00:04.000Z",
+      "value": "attempt for attempt-risk-first",
+      "usage": {
+        "inputTokens": 10,
+        "outputTokens": 8,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "dogfood/t1"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 5,
+      "scope": "par:0:0",
+      "key": "3b9e34e9c9ffc2751a21d07540c945e5963cc2ce3ad3c972b1ebc5217822bafd",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:05.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 6,
+      "ref": 2,
+      "scope": "par:0:2",
+      "key": "181c08589a6d431402ffe42b93ae9491bb0b6cba36b1d49c92bbf7f2369e562b",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:06.000Z",
+      "endedAt": "2026-02-01T00:00:06.000Z",
+      "value": "attempt for attempt-user-first",
+      "usage": {
+        "inputTokens": 10,
+        "outputTokens": 8,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "dogfood/t2"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 7,
+      "scope": "par:0:1",
+      "key": "2efc19d198ff848cb7ebf3319410bf4ff15315ac409c843781ff14aff049ecab",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:07.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 8,
+      "scope": "par:0:2",
+      "key": "7e2a5e215e947d456d97d7aea330f474fedfe2ef0a23069db969c428dcef94d1",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "running",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:08.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 9,
+      "ref": 5,
+      "scope": "par:0:0",
+      "key": "3b9e34e9c9ffc2751a21d07540c945e5963cc2ce3ad3c972b1ebc5217822bafd",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:09.000Z",
+      "endedAt": "2026-02-01T00:00:09.000Z",
+      "value": {
+        "score": 4,
+        "rationale": "dogfood fixture"
+      },
+      "usage": {
+        "inputTokens": 28,
+        "outputTokens": 11,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "dogfood/t3"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 10,
+      "ref": 7,
+      "scope": "par:0:1",
+      "key": "2efc19d198ff848cb7ebf3319410bf4ff15315ac409c843781ff14aff049ecab",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:10.000Z",
+      "endedAt": "2026-02-01T00:00:10.000Z",
+      "value": {
+        "score": 9,
+        "rationale": "dogfood fixture"
+      },
+      "usage": {
+        "inputTokens": 28,
+        "outputTokens": 11,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "dogfood/t4"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 11,
+      "ref": 8,
+      "scope": "par:0:2",
+      "key": "7e2a5e215e947d456d97d7aea330f474fedfe2ef0a23069db969c428dcef94d1",
+      "ordinal": 0,
+      "kind": "agent",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:11.000Z",
+      "endedAt": "2026-02-01T00:00:11.000Z",
+      "value": {
+        "score": 6,
+        "rationale": "dogfood fixture"
+      },
+      "usage": {
+        "inputTokens": 28,
+        "outputTokens": 11,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
+      },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "dogfood/t5"
+    }
+  ]
+}

@@ -1,76 +1,50 @@
 {
   "id": "abandon-vs-resolution-race",
-  "note": "DEF-4: a resolution after a covering abandon is a noop (target_abandoned); the reverse order yields an applied resolution and a noop abandon (already_resolved).",
+  "note": "DEF-4 (re-recorded through the live producers in M9): both orders over one journal; an abandon covering a suspension makes the late resolution a noop target_abandoned; the reverse order applies the resolution and the late abandon folds noop.",
   "entries": [
     {
       "hashVersion": 2,
+      "seq": 0,
       "scope": "",
       "key": "b351a09ce55fc9cb2e1c1bd4e7dd3fa2ad2a3002c8ecaf41851fc12c1653ffd1",
+      "ordinal": 0,
       "kind": "agent",
       "status": "running",
-      "seq": 0,
-      "ordinal": 0,
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:00.000Z"
     },
     {
       "hashVersion": 2,
-      "scope": "agent:0",
-      "key": "a69aa965c7c39a292e4217a1e394e18a15aea1e65b0ca56d1592778889296234",
-      "kind": "external",
-      "status": "suspended",
-      "value": {
-        "key": "alpha-gate"
-      },
       "seq": 1,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:01.000Z"
-    },
-    {
-      "hashVersion": 2,
       "ref": 0,
       "scope": "",
-      "key": "",
-      "kind": "abandon",
+      "key": "b351a09ce55fc9cb2e1c1bd4e7dd3fa2ad2a3002c8ecaf41851fc12c1653ffd1",
+      "ordinal": 0,
+      "kind": "agent",
       "status": "ok",
-      "abandon": {
-        "target": 0,
-        "authorizedBy": 0,
-        "reason": "cancelled",
-        "retainCheckpoint": true,
-        "retainWorktree": false
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:01.000Z",
+      "endedAt": "2026-02-01T00:00:01.000Z",
+      "value": "alpha branch out",
+      "usage": {
+        "inputTokens": 3,
+        "outputTokens": 4,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0
       },
+      "servedBy": "fake:fake-model",
+      "transcriptRef": "record/t0"
+    },
+    {
+      "hashVersion": 2,
       "seq": 2,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:02.000Z"
-    },
-    {
-      "hashVersion": 2,
-      "ref": 1,
-      "scope": "agent:0",
-      "key": "",
-      "kind": "resolution",
-      "status": "ok",
-      "resolution": {
-        "target": 1,
-        "by": "external",
-        "value": {
-          "go": true
-        }
-      },
-      "seq": 3,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:03.000Z"
-    },
-    {
-      "hashVersion": 2,
       "scope": "",
       "key": "5fcefcfc482feac18463995cd907eb78d813fc5c72d5bc5021be8c14e134de4f",
+      "ordinal": 0,
       "kind": "external",
       "status": "suspended",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z",
       "value": {
         "key": "beta-gate",
         "schema": {
@@ -85,49 +59,100 @@
             }
           }
         }
-      },
-      "seq": 4,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:04.000Z"
+      }
     },
     {
       "hashVersion": 2,
-      "ref": 4,
+      "seq": 3,
+      "scope": "agent:0",
+      "key": "",
+      "ordinal": 0,
+      "kind": "approval",
+      "status": "suspended",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:03.000Z",
+      "value": {
+        "toolName": "deploy",
+        "input": {
+          "env": "prod"
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 4,
+      "ref": 0,
       "scope": "",
       "key": "",
+      "ordinal": 0,
+      "kind": "abandon",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:04.000Z",
+      "abandon": {
+        "target": 0,
+        "authorizedBy": 0,
+        "reason": "abandon first",
+        "retainCheckpoint": true,
+        "retainWorktree": false
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 5,
+      "ref": 3,
+      "scope": "agent:0",
+      "key": "",
+      "ordinal": 0,
       "kind": "resolution",
       "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:05.000Z",
       "resolution": {
-        "target": 4,
+        "target": 3,
+        "by": "external",
+        "value": {
+          "approved": true
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 6,
+      "ref": 2,
+      "scope": "",
+      "key": "",
+      "ordinal": 0,
+      "kind": "resolution",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:06.000Z",
+      "resolution": {
+        "target": 2,
         "by": "external",
         "value": {
           "go": true
         }
-      },
-      "seq": 5,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:05.000Z"
+      }
     },
     {
       "hashVersion": 2,
-      "ref": 4,
+      "seq": 7,
+      "ref": 2,
       "scope": "",
       "key": "",
+      "ordinal": 0,
       "kind": "abandon",
       "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:07.000Z",
       "abandon": {
-        "target": 4,
+        "target": 2,
         "authorizedBy": 0,
-        "reason": "late cancel",
+        "reason": "abandon second",
         "retainCheckpoint": true,
         "retainWorktree": false
-      },
-      "seq": 6,
-      "ordinal": 0,
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:06.000Z"
+      }
     }
   ]
 }

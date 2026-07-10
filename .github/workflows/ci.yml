@@ -69,6 +69,32 @@ jobs:
       - run: pnpm exec turbo build
       - run: pnpm exec vitest run
 
+  # The complete defect cassette catalog in ONE job, replay-strict with
+  # zero live calls (docs/09 section 6 rules; docs/10 M9 row; the 1.0
+  # gate in docs/12 section 5). The audit asserts every docs/09 catalog
+  # ID resolves to a fixture or a named suite before the replays run.
+  cassette-catalog:
+    name: Cassette catalog (replay-strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo build
+      - run: node scripts/catalog-audit.mjs
+      - run: >-
+          pnpm exec vitest run
+          packages/testing/src/cassettes
+          packages/plan/src/m7-cassettes.test.ts
+          packages/plan/src/m8-cassettes.test.ts
+          packages/plan/src/m9-cassettes.test.ts
+          packages/cli/src/m8-soak.test.ts
+          examples/src/journals.test.ts
+
   # Optional and non-blocking per docs/13: Node 26 is Current, not LTS.
   test-node-26:
     name: Test (Node 26, non-blocking)

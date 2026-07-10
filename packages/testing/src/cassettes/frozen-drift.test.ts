@@ -35,7 +35,20 @@ describe('frozen fixtures match their builders exactly', () => {
       'reject-version-too-old',
       'reject-version-from-future',
     ]);
+    // The DEF-4 committed files hold the M9 LIVE forms; their synthetic
+    // builders stay as the kernel regression replayed in def1-def4.
+    const liveRecorded = new Set([
+      'timeout-vs-live-race',
+      'class-decision-fanout',
+      'abandon-then-crash-then-resume',
+      'abandon-vs-resolution-race',
+      'offline-invalid-then-valid',
+      'double-abandon-idempotent',
+    ]);
     for (const fixture of fixtures) {
+      if (liveRecorded.has(fixture.id)) {
+        continue;
+      }
       const committed: unknown = JSON.parse(readRepo(`cassettes/${fixture.id}.json`));
       expect(committed, fixture.id).toEqual(fixture);
     }
@@ -49,6 +62,12 @@ describe('frozen fixtures match their builders exactly', () => {
       'memoize-classifier',
       'escalate-replay',
       'crash-between-report-and-decision',
+      'timeout-vs-live-race',
+      'class-decision-fanout',
+      'abandon-then-crash-then-resume',
+      'abandon-vs-resolution-race',
+      'offline-invalid-then-valid',
+      'double-abandon-idempotent',
       'flavor-b-timeout',
     ]);
     for (const fixture of fixtures) {
