@@ -375,6 +375,23 @@ What freeze means for 1.0:
 - SPI drift is tracked by diffing committed rolled-up .d.ts files in PRs (13-toolchain-repo.md); the M9 SPI audit signs off the final surfaces.
 - The 1.0 release gates beyond the freeze (license decided, trademark clearance, naming contingency) are listed in 12-release-versioning.md, section "The 1.0 gate".
 
+### 5.1 Freeze record (M9-T05, executed)
+
+The SPI audit ran and the six seams FROZE on 2026-07-10 (M9-T05). From this point the freeze rules above are in force; the release that ships the frozen surfaces is v1.0.0, whose remaining gates are the founder items of 12-release-versioning.md, section "The 1.0 gate" (the freeze itself does not wait for them).
+
+Audit evidence per seam (the two-consumer rule):
+
+| Seam | Audited surface | Independent implementations or consumers exercised in CI |
+|---|---|---|
+| ProviderAdapter | id, provider, caps, refreshCaps?, stream, countTokens? | @lurker/anthropic, @lurker/openai, openaiCompatible, @lurker/bridge-ai-sdk, FakeAdapter, the VCR record/replay wrappers |
+| JournalStore + LeasableStore | append(lease?), load, putMeta, listRuns, delete; acquire/renew/release | InMemoryStore, JsonlFileStore, SqliteStore, the guide walkthrough store; @lurker/store-conformance is the executable definition |
+| TranscriptStore | put, get, list, delete (missing ref = no-op) | InMemory and file stores, the serialization-hook wrappers, retention suites |
+| ScriptRunner | execute(wf or CompiledWorkflow, ctx, args) | InProcessRunner (@lurker/core), WorkerSandboxRunner (@lurker/planner); sandbox-determinism cassette |
+| ToolSource | session tools() with the spawn-time snapshot rule | native tools, mcp() (M3 suites) |
+| IsolationProvider | acquire -> { cwd, collect, dispose } | the git worktree provider, the fixture provider of the worktree-disposed-degrade cassette |
+
+Freeze-adjacent decisions recorded with the audit (register lines in 14-open-questions.md): the seam list is CLOSED at these six for 1.0 (no ExecutorProvider seam ships in L0, OQ-18); checkpoint and transcript blob formats stay engine-internal behind the opaque-payload contract (OQ-13); the runtime boundary is TypeScript/Node, ESM-only, Node >=22.12.0, with no Bun/Deno/edge support statement at 1.0 (OQ-25, founder). The drift gate stays the committed dts-rollup diff (13-toolchain-repo.md); after this freeze a diff touching a frozen seam is a release blocker unless it passes the deprecation policy (11-testing-strategy.md, section "Package quality gates").
+
 ## 6. Error taxonomy
 
 The error taxonomy is owned by L0. All engine-raised errors derive from a single base class with a closed string-code registry; the registry below is exhaustive, and adding a code requires an amendment to this section.

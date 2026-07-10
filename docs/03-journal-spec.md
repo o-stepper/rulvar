@@ -1048,7 +1048,7 @@ A legacy journal without lineage blocks on a newer engine canonicalizes through 
 
 ### 11.1 Turn-boundary checkpoints
 
-An agent is atomic by default, but with a durable store the runtime MUST write a checkpoint of the canonical history at the boundary of every turn into TranscriptStore: an approval and a crash both continue the loop from the same turn without repaying turns and without re-invoking tools. Between a tool's execution and the checkpoint write, tools are at-least-once; the idempotency recommendation is documented (08-tools-permissions-spec.md). Compaction points are written into the checkpoint. The checkpoint and transcript blob format is engine-internal with a leading format byte for future migration (open question; 14-open-questions.md).
+An agent is atomic by default, but with a durable store the runtime MUST write a checkpoint of the canonical history at the boundary of every turn into TranscriptStore: an approval and a crash both continue the loop from the same turn without repaying turns and without re-invoking tools. Between a tool's execution and the checkpoint write, tools are at-least-once; the idempotency recommendation is documented (08-tools-permissions-spec.md). Compaction points are written into the checkpoint. The checkpoint and transcript blob format is ENGINE-INTERNAL at the 1.0 freeze, with a leading format byte reserved for future migration (OQ-13 closed at M9-T05, 2026-07-10): the TranscriptStore seam carries opaque bytes (contract A4) and no public blob specification ships with 1.0; publishing one later is an additive documentation decision, never a seam change.
 
 ### 11.2 Park/unpark interaction
 
