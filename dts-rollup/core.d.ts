@@ -1358,386 +1358,6 @@ declare class FileModelKnowledgeStore implements ModelKnowledgeStore {
   commit(ops: ClaimOp[], expectedVersion: number): Promise<number>;
 }
 //#endregion
-//#region src/runtime/permission-chain.d.ts
-type HookVerdict = "allow" | "deny" | "ask" | {
-  modifiedInput: unknown;
-} | undefined;
-type PermissionHook = (toolName: string, input: unknown, ctx: ToolContext) => HookVerdict | Promise<HookVerdict>;
-/**
-* Declarative rule tables (no closures). `'undeclared'` in risk
-* position matches every tool WITHOUT declared risk: presets treat the
-* undeclared state conservatively (docs/08, section 4.3). Argv rules
-* match through the real shell matcher (section 5); domain rules are
-* ADVISORY outside the first-party fetch tool (section 4.4): they never
-* change a verdict in M5, and matches surface in audit events.
-*/
-type RiskRuleValue = ToolRisk | "undeclared";
-type PermissionRule = {
-  tool: string | string[];
-} | {
-  risk: RiskRuleValue | RiskRuleValue[];
-} | {
-  tool: string;
-  argv: string | string[];
-} | {
-  tool: string;
-  domains: string[];
-};
-type CanUseTool = (toolName: string, input: unknown, ctx: ToolContext) => "allow" | "deny" | {
-  modifiedInput: unknown;
-} | Promise<"allow" | "deny" | {
-  modifiedInput: unknown;
-}>;
-/** Host-side permission configuration (engine defaults.permissions). */
-interface PermissionConfig {
-  hooks?: PermissionHook[];
-  deny?: PermissionRule[];
-  ask?: PermissionRule[];
-  canUseTool?: CanUseTool;
-}
-/**
-* Profile-level permissions (docs/08, section "Subagent inheritance").
-* inheritPermissions governs SUBAGENT inheritance (mode c orchestrators,
-* M6+): children get their own config only unless explicitly opted in.
-* It is carried as data here and consumed by the spawning layers.
-*/
-interface AgentProfilePermissions extends PermissionConfig {
-  /** Compiles into deny/ask rules; ships in M5. */
-  preset?: "strict" | "standard" | "open";
-  /** Default false. */
-  inheritPermissions?: boolean;
-}
-interface CompiledPermissionChain {
-  hooks: PermissionHook[];
-  deny: PermissionRule[];
-  ask: PermissionRule[];
-  canUseTool?: CanUseTool;
-}
-type PermissionVerdict = ({
-  verdict: "allow";
-  decidedBy: "hook" | "canUseTool" | "default";
-  input: unknown;
-} | {
-  verdict: "deny";
-  decidedBy: "hook" | "deny-rule" | "canUseTool";
-  rule?: PermissionRule;
-  input: unknown;
-} | {
-  verdict: "ask";
-  decidedBy: "hook" | "ask-rule" | "default";
-  rule?: PermissionRule;
-  input: unknown;
-}) & {
-  /**
-  * Advisory domain-rule matches (docs/08, 4.4): reported in audit
-  * events, never enforced outside the first-party fetch tool.
-  */
-  advisory?: PermissionRule[];
-};
-/**
-* Merges the engine-wide config and the profile config into one chain.
-* Layers concatenate engine-first; since rules only deny or ask, ordering
-* within a layer cannot change the verdict (docs/08, section 4.2). The
-* profile's canUseTool wins over the engine's (a single slot by
-* construction). A declared preset compiles INTO the same layers, after
-* the host-authored rules, never as a fifth layer (M5-T05).
-*/
-declare function compilePermissionChain(engine?: PermissionConfig, profile?: AgentProfilePermissions): CompiledPermissionChain;
-/**
-* Evaluates the chain for one dispatch, or OFFLINE against a
-* hypothetical call by tool name (the dry-run API of docs/08, section
-* 4.5: nothing executes; shells and tests read the verdict, the
-* deciding layer, and the matched rule). Hooks run in deterministic
-* registration order; { modifiedInput } substitutes the input and
-* continues; the first decisive verdict wins. The returned input is what
-* execute receives and what the approval identity hashes (docs/03,
-* section 1.2: post hook modification). Advisory domain-rule matches
-* ride every verdict for the audit payload (docs/08, 4.4).
-*/
-declare function evaluatePermission(chain: CompiledPermissionChain, tool: string | Pick<ToolDef, "name" | "needsApproval" | "risk">, input: unknown, ctx?: ToolContext): Promise<PermissionVerdict>;
-//#endregion
-//#region src/tools/presets.d.ts
-type PermissionPreset = "strict" | "standard" | "open";
-declare function compilePermissionPreset(preset: PermissionPreset): {
-  deny: PermissionRule[];
-  ask: PermissionRule[];
-};
-//#endregion
-//#region src/tools/shell-matcher.d.ts
-/**
-* Argv-parsing shell matcher (M5-T06; docs/08, section 5): shell
-* allow/ask/deny is matched through a real argv parser, never a string
-* prefix. The composition rule is the entire point: for a compound
-* command the verdict is the strictest across segments, and any
-* unmatched segment yields ask, never a silent allow: `npm test; rm -rf
-* /` MUST yield ask (or deny when rm patterns are denied) even when
-* `npm test` is allow-listed.
-*
-* Matching algorithm (5.2):
-* 1. Lex with a POSIX-like shell lexer: quotes and escapes honored, no
-*    expansion of any kind.
-* 2. Split into segments at `;`, `&&`, `||`, `|`, `&`, and newline.
-* 3. A segment containing command substitution ($(...) or backticks),
-*    process substitution, or a here-doc is unmatchable: ask, always.
-* 4. Leading environment assignments (FOO=bar cmd) are stripped; a
-*    segment of only assignments is treated as unmatched.
-* 5. Redirection operators and their targets are retained as tokens; a
-*    pattern that does not account for them fails to match.
-* 6. Each segment is evaluated deny, then ask, then allow.
-*/
-interface ShellSegment {
-  /** Argv tokens after lexing and env-assignment stripping. */
-  argv: string[];
-  /** Substitutions and here-docs make a segment unmatchable (ask). */
-  unmatchable: boolean;
-}
-/**
-* Lexes a command into segments per the docs/08 5.2 algorithm. Quotes
-* and escapes are honored; nothing is expanded; `$(`, backticks, `<(`,
-* `>(`, and `<<` (outside single quotes) poison their segment.
-*/
-declare function lexShellCommand(command: string): ShellSegment[];
-/**
-* Pattern grammar (5.1): literal words match one identical token; `*`
-* matches exactly one token; `**` matches zero or more remaining tokens
-* and may appear only as the final word. A pattern matches only if it
-* consumes the segment's ENTIRE argv.
-*/
-declare function matchArgvPattern(pattern: string, argv: string[]): boolean;
-type ShellVerdict = "allow" | "ask" | "deny";
-interface ShellPatternRules {
-  deny?: string[];
-  ask?: string[];
-  allow?: string[];
-}
-/**
-* The strictest-across-segments composition (5.3): deny if ANY segment
-* denies; otherwise ask if ANY segment asks or fails to match an allow
-* pattern; otherwise allow.
-*/
-declare function matchShellCommand(command: string, rules: ShellPatternRules): ShellVerdict;
-//#endregion
-//#region src/tools/tool.d.ts
-/** First-party provider tool-name constraint intersection (docs/08, section 1.1). */
-declare const TOOL_NAME_PATTERN: RegExp;
-interface ToolInit<S extends SchemaSpec> {
-  name: string;
-  description: string;
-  parameters: S;
-  /** Contract version, part of toolsetHash (docs/08, section 1.2). */
-  version?: string;
-  /** Default 'inprocess' (docs/08, section "Executors"). */
-  executor?: ToolExecutor;
-  /** Default false (docs/08, section "Terminal default"). */
-  needsApproval?: boolean;
-  /** Policy metadata; never identity (docs/08, section "ToolRisk"). */
-  risk?: ToolRisk;
-  execute: (input: Out<S>, ctx: ToolContext) => Promise<unknown>;
-}
-/**
-* Defines a tool. Definition-time failures are typed ConfigErrors, never
-* first-call surprises: an illegal name, a Standard Schema without the
-* JSON Schema projection, a recursive local $ref, or a remote/dynamic
-* reference all fail here (docs/08, sections 1.1 and 2.3).
-*/
-declare function tool<S extends SchemaSpec>(init: ToolInit<S>): ToolDef<S>;
-/**
-* The identity projection: the contract tuple that enters toolsetHash.
-* parameters is the canonicalized derived JSON Schema (docs/03, section
-* "schemaHash and toolsetHash derivation").
-*/
-declare function toolContract(def: ToolDef): ToolContract;
-//#endregion
-//#region src/tools/toolset-hash.d.ts
-/** The per-spawn tools option value domain (docs/06, section "ctx.agent and AgentOpts"). */
-type ToolsOption = ReadonlyArray<ToolDef | ToolSource | string>;
-/** The spawn's frozen toolset snapshot plus its identity hash. */
-interface ResolvedToolset {
-  tools: ToolDef[];
-  contracts: ToolContract[];
-  hash: string;
-}
-/** The empty toolset (no tools declared anywhere). */
-declare function emptyToolset(): ResolvedToolset;
-/**
-* Expands sources, validates every tool name and duplicate names across
-* the whole toolset (ConfigError at spawn time; docs/08 sections 1.1 and
-* 6.4), and computes the toolsetHash over contracts sorted by name.
-*/
-declare function resolveToolset(specs: ToolsOption | undefined, session: ToolSourceSession): Promise<ResolvedToolset>;
-//#endregion
-//#region src/tools/context.d.ts
-interface ToolContextSeed {
-  runId: string;
-  agentType: string;
-  label?: string;
-  /** Isolation working directory; the host cwd under isolation 'none'. */
-  cwd: string;
-  isolation: IsolationSpec;
-  /** Fires on cancellation, budget ceiling, UsageLimits expiry. */
-  signal: AbortSignal;
-  /** Mints the tool span under the agent span. */
-  mintSpan(): string;
-  emitLog(spanId: string, level: "debug" | "info" | "warn" | "error", msg: string, data?: Json): void;
-}
-/** Builds the per-call ToolContext; one fresh span per tool call. */
-declare function buildToolContext(seed: ToolContextSeed): ToolContext;
-//#endregion
-//#region src/tools/mcp.d.ts
-interface McpConfig {
-  transport: "stdio" | "streamable-http" | "inprocess";
-  /** stdio: child process to spawn. */
-  command?: string;
-  args?: string[];
-  /** streamable-http: server endpoint. */
-  url?: string;
-  /** inprocess: in-memory server instance (anything with connect()). */
-  server?: unknown;
-  /** Tool-name filter on ORIGINAL names; omitted = all. */
-  allow?: string[];
-  /** Deny wins over allow (pre-prefix names). */
-  deny?: string[];
-  /** Namespaces imported names as `${prefix}_${name}` (docs/08 6.4). */
-  prefix?: string;
-  /** true = every imported tool needsApproval; record form is per name. */
-  approval?: boolean | Record<string, boolean>;
-  /** Host-supplied risk labels for imported tools (docs/08 6.2). */
-  risk?: Record<string, ToolRisk>;
-}
-/**
-* Imports MCP tools as a ToolSource. The client connects lazily on the
-* first tools() call; tools/list is fetched with cursor pagination until
-* exhaustion and cached per session; a listChanged notification
-* invalidates the cache, affecting subsequently spawned agents only (a
-* spawn's toolset snapshot is immutable by construction; docs/08 6.3).
-*/
-declare function mcp(cfg: McpConfig): ToolSource;
-//#endregion
-//#region src/tools/isolation.d.ts
-/** docs/06 Appendix A: the shared pin cap (park/unpark and retainWorktree). */
-declare const DEFAULT_MAX_PINNED_WORKTREES = 4;
-interface GitWorktreeProviderOptions {
-  /** Host repository root; default process.cwd(). */
-  repoRoot?: string;
-  /**
-  * Retain the tree of a FAILED agent for inspection when the engine
-  * requests keep on dispose (docs/08, section 8.3). Default false.
-  */
-  keepOnError?: boolean;
-  /** Pin cap shared by park/unpark and retainWorktree (default 4). */
-  maxPinnedWorktrees?: number;
-  /** Warning sink (cap overflow); defaults to process.emitWarning. */
-  onWarn?: (msg: string) => void;
-}
-/**
-* The shipped git worktree lifecycle. A non-git host is a typed
-* ConfigError at acquire (docs/08, section 8.3, rule 1).
-*/
-declare class GitWorktreeProvider implements IsolationProvider {
-  private readonly repoRoot;
-  private readonly keepOnError;
-  private readonly maxPinned;
-  private readonly onWarn;
-  private readonly pinned;
-  constructor(options?: GitWorktreeProviderOptions);
-  /** Trees currently retained under the pin cap. */
-  get pinnedWorktrees(): ReadonlySet<string>;
-  acquire(spawn: {
-    runId: string;
-    spanId: string;
-    ref?: string;
-  }): Promise<{
-    cwd: string;
-    collect(): Promise<{
-      files: string[];
-      patch: Bytes;
-    }>;
-    dispose(keep?: boolean): Promise<void>;
-  }>;
-}
-//#endregion
-//#region src/journal/identity.d.ts
-/** Spawn entries: ctx.agent and orchestrator spawn tools (kind 'agent'). */
-interface AgentIdentityInput {
-  kind: "agent";
-  agentType: string;
-  /**
-  * The REQUESTED model spec, including canonical effort where resolved;
-  * for laddered spawns it embeds the declared ladder together with
-  * startTier (docs/04, section "Router and resolution chain").
-  */
-  modelSpec: CanonicalModelSpec;
-  /** Replaced verbatim by opts.key when opts.key is set. */
-  prompt: string;
-  schemaHash: string;
-  toolsetHash: string;
-  /** Canonical encoding per docs/08, section "IsolationSpec". */
-  isolation: IsolationSpec;
-}
-/** Nested workflow spawns: ctx.workflow (kind 'child'). */
-interface ChildIdentityInput {
-  kind: "child";
-  /** Registered workflow name. */
-  workflow: string;
-  /** Canonical JSON of the arguments; opts.key, when set, replaces args. */
-  args: Json;
-}
-/** Journaled effectful steps: ctx.step (kind 'step'). */
-interface StepIdentityInput {
-  kind: "step";
-  /** opts.key when set, otherwise the step label. */
-  key: string;
-  /** Declared dependency values (useMemo-style keying). */
-  deps: Json[];
-}
-/** External inputs: ctx.awaitExternal (kind 'external'). */
-interface ExternalIdentityInput {
-  kind: "external";
-  key: string;
-}
-/** Tool-approval suspensions (kind 'approval'). */
-interface ApprovalIdentityInput {
-  kind: "approval";
-  toolName: string;
-  /** The tool input as submitted to the permission chain. */
-  input: Json;
-}
-/** Deterministic shims: ctx.now / ctx.random / ctx.uuid (kind 'rand'). */
-interface RandIdentityInput {
-  kind: "rand";
-  subtype: "now" | "random" | "uuid";
-  /** ctx.random(key) provides a stable alternative to positional binding. */
-  key?: string;
-}
-type IdentityInput = AgentIdentityInput | ChildIdentityInput | StepIdentityInput | ExternalIdentityInput | ApprovalIdentityInput | RandIdentityInput;
-/**
-* The identity projection of a CanonicalModelSpec. For the plain-model
-* kind the projection is `{ model, effort? }` WITHOUT the kind
-* discriminant, exactly as fixed by the docs/03 section 1.5 worked
-* example; `effort` is omitted when unresolved. The ladder embedding lands
-* with ladder execution (M7).
-*/
-declare function modelSpecIdentity(spec: CanonicalModelSpec): {
-  model: ModelRef;
-  effort?: Effort;
-} | {
-  ladder: Json;
-};
-/**
-* The canonical identity object of an IdentityInput under the hashVersion
-* 2 profile: what JCS serializes and sha256 hashes. The agent kind
-* projects modelSpec through modelSpecIdentity; every other kind
-* serializes its fields verbatim. Fields not listed for a kind are never
-* included (the types make them unrepresentable).
-*/
-declare function projectIdentity(input: IdentityInput): Record<string, unknown>;
-/** The JCS form of an IdentityInput under the hashVersion 2 profile. */
-declare function identityJcs(input: IdentityInput): string;
-/**
-* key = sha256(JCS(IdentityInput)) (docs/03, section "Content key").
-*/
-declare function deriveContentKey(input: IdentityInput): string;
-//#endregion
 //#region src/journal/lineage.d.ts
 /** Logical-task identity across rebirths (DEF-3); engine-minted ULID. */
 type LogicalTaskId = string;
@@ -1902,541 +1522,87 @@ declare class LineageIndex {
   knownLogicalTaskIds(): LogicalTaskId[];
 }
 //#endregion
-//#region src/journal/termination.d.ts
-/** The frozen limits vector written into termination.init (docs/07, 11.2). */
-interface TerminationLimits {
-  /** V0, default 32; absolute and non-replenishable. */
-  maxRevisionsPerRun: number;
-  /** S0, default 128; debited on every admitted spawn of any origin. */
-  maxTotalSpawns: number;
-  /** E0, default 2, per lineage; the old name is rejected (XF-10). */
-  maxEscalationsPerLogicalTask: number;
-  /** D0, default 1, ceiling 4; static per-branch limit. */
-  maxDepth: number;
-  /** Maximum declared ladder length per the profile-registry snapshot. */
-  kMax: number;
-  /** B0; immutable after start, no API including HITL can top up. */
-  runBudgetUsdCeiling: number;
-  /** From the orchestrator budget (DEF-7; XF-09). */
-  orchestratorCapUsd: number;
-  /** From the orchestrator budget (DEF-7; XF-09). */
-  finalizeReserveUsd: number;
-}
-/** Appendix A committed defaults for the countable resources. */
-declare const DEFAULT_MAX_REVISIONS_PER_RUN = 32;
-declare const DEFAULT_MAX_TOTAL_SPAWNS = 128;
-/** The countable resource vocabulary (docs/07, 11.5). */
-type TerminationResource = "revisionUnits" | "spawnUnits" | "escalationUnits" | "rungs" | "depth";
-interface LineageCounters {
-  escalationUnitsRemaining: number;
-  rungsRemaining: number;
-}
-interface TerminationAccountSnapshot {
-  revisionUnitsRemaining: number;
-  spawnUnitsRemaining: number;
-  perLineage: Record<LogicalTaskId, LineageCounters>;
-  /** The variant function, a pure fold over the journal (docs/07, 11.4). */
-  phi: number;
-}
-type DebitResult = {
-  ok: true;
-  balanceAfter: number;
-} | {
-  ok: false;
-  deniedEntryRef: EntryRef;
-  resource: TerminationResource;
-};
-/** The value payload of a termination.init entry (docs/07, 11.6). */
-interface TerminationInitValue {
-  limits: TerminationLimits;
-  profileRegistrySnapshotHash: string;
-  phiInitial: number;
-}
-/** The value payload of a termination.denied entry (docs/07, 11.6). */
-interface TerminationDeniedValue {
-  resource: TerminationResource;
-  logicalTaskId?: LogicalTaskId;
-  /** Seq of the calling tool-call or EscalationReport entry. */
-  requestedByRef?: EntryRef;
-  reasonCode: string;
-  snapshotAfter: TerminationAccountSnapshot;
-}
-/**
-* Reads the declared ladder length of one agent profile. Ladders are
-* declared through the profile's ModelSpec (`model: { ladder }`, or the
-* loop-role routing entry; docs/04, section 12). The reader is defensive
-* so the snapshot is total over every registry shape (an undeclared
-* ladder has length 1: the single implicit rung).
-*/
-declare function ladderLengthOf(profile: unknown): number;
-/** kMax: the maximum declared ladder length across the registry snapshot. */
-declare function kMaxOf(profiles: Record<string, unknown> | undefined): number;
-/**
-* The deterministic profile-registry snapshot hash frozen inside
-* termination.init: profile names mapped to their declared ladder
-* lengths, canonical JSON, sha256 (docs/07, 11.6).
-*/
-declare function profileRegistrySnapshotHash(profiles: Record<string, unknown> | undefined): string;
-/**
-* Validates a raw limits record into the frozen vector. The pre-rename
-* escalation knob is rejected with a migration hint (XF-10); counters
-* must be non-negative integers; kMax at least 1.
-*/
-declare function validateTerminationLimits(raw: Partial<TerminationLimits> | Record<string, unknown>): TerminationLimits;
-/** C = E0 + kMax: the per-spawn weight of the variant function. */
-declare function lineageWeightOf(limits: TerminationLimits): number;
-/** Phi0 = V0 + C * S0, finite and fixed in termination.init (docs/07, 11.4). */
-declare function phiInitialOf(limits: TerminationLimits): number;
-/** Builds the termination.init value payload (docs/07, 11.6). */
-declare function buildTerminationInitValue(limits: TerminationLimits, registrySnapshotHash: string): TerminationInitValue;
-/** Reads a termination.init entry's payload; undefined when malformed. */
-declare function readTerminationInit(entry: JournalEntry): TerminationInitValue | undefined;
-/**
-* Config-drift detection at resume (docs/07, 11.2): the journaled vector
-* always wins; every differing field is reported for the
-* `termination:config-drift` event. Dynamic budget top-up via restart is
-* excluded by construction.
-*/
-declare function terminationConfigDrift(frozen: TerminationLimits, live: Partial<TerminationLimits>): Array<{
-  field: keyof TerminationLimits;
-  frozenValue: Json;
-  liveValue: Json;
-}>;
-/** Injected appender for termination.denied entries (engine-owned I/O). */
-type TerminationDeniedWriter = (denied: TerminationDeniedValue) => Promise<EntryRef>;
-/**
-* The single per-run TerminationAccount (docs/07, 11.5): debit ONLY. No
-* credit operation exists by construction; reclaim never replenishes
-* anything (DEF-5 interaction, docs/07 7.3). Live: the engine debits the
-* in-memory account, writes the carrying entry with the balance-after,
-* then applies effects. Resume state is rebuilt by TerminationFold from
-* the journal, never from live config.
-*/
-declare class TerminationAccount {
-  readonly limits: TerminationLimits;
-  private revisionUnits;
-  private spawnUnits;
-  private readonly lineages;
-  private deniedWriter?;
-  constructor(options: {
-    limits: TerminationLimits;
-    deniedWriter?: TerminationDeniedWriter;
-  });
-  /**
-  * Binds the denied-entry appender onto an account rebuilt by the fold
-  * (resume path): the fold is pure and cannot own I/O. Never rebinds an
-  * existing writer.
-  */
-  bindDeniedWriter(writer: TerminationDeniedWriter): void;
-  snapshot(): TerminationAccountSnapshot;
-  /** Phi = V + C * S + sum over live lineages (E + R) (docs/07, 11.4). */
-  phi(): number;
-  /** The current rung index of a lineage (0 before any raise). */
-  rungIndexOf(logicalTaskId: LogicalTaskId): number;
-  /** True when a spawn-unit debit would underflow (pre-reserve check). */
-  get spawnUnitsExhausted(): boolean;
-  get revisionUnitsRemaining(): number;
-  /**
-  * The spawn-admission debit (docs/07, 11.3b): minus one spawnUnit for
-  * an admitted spawn of ANY origin; a NEW lineage receives E0 escalation
-  * units and (K_l - 1) rung transitions in the same atomic step, so the
-  * lemma's per-spawn decrease is C - (E0 + K_l - 1) = kMax - K_l + 1,
-  * at least 1. Synchronous: the caller embeds spawnUnitsAfter in the
-  * decision entry it appends next.
-  */
-  debitSpawn(lineage?: {
-    logicalTaskId: LogicalTaskId;
-    isNew: boolean;
-    ladderLength?: number;
-  }): {
-    ok: true;
-    spawnUnitsAfter: number;
-  } | {
-    ok: false;
-    resource: "spawnUnits";
-  };
-  /**
-  * The plan_revise debit (docs/07, 11.3a and 11.7): minus one
-  * revisionUnit on EVERY journaled plan.revision, regardless of the op
-  * count, guard verdicts, or the auto-rebase outcome; conflict spam is
-  * never a free retry.
-  */
-  debitRevision(): {
-    ok: true;
-    revisionUnitsAfter: number;
-  } | {
-    ok: false;
-    resource: "revisionUnits";
-  };
-  /**
-  * The escalation debit (docs/07, 11.3d): minus one escalationUnit of
-  * the affected lineage, including EACH lineage of a class-level
-  * decision and timeout defaultDecisions. Conditioned on the
-  * countsAgainstLimit flag embedded in the decision entry by the caller.
-  */
-  debitEscalation(logicalTaskId: LogicalTaskId): {
-    ok: true;
-    escalationUnitsAfter: number;
-  } | {
-    ok: false;
-    resource: "escalationUnits";
-  };
-  /**
-  * The ladder-raise debit (docs/07, 11.3c): minus one rung of the
-  * lineage; rungIndex is strictly monotone, there are no demotions and
-  * no runtime startTier promotion in v1.
-  */
-  debitRung(logicalTaskId: LogicalTaskId): {
-    ok: true;
-    rungIndexAfter: number;
-    rungsRemainingAfter: number;
-  } | {
-    ok: false;
-    resource: "rungs";
-  };
-  /**
-  * The docs/07 11.5 debit surface: attempts the named resource and, on
-  * underflow, writes `termination.denied` strictly BEFORE resolving with
-  * the typed failure (the caller surfaces the error only after this
-  * settles). Requires a deniedWriter; pure-fold contexts use the
-  * synchronous per-resource methods instead.
-  */
-  debit(resource: Exclude<TerminationResource, "depth">, lineage?: LogicalTaskId, context?: {
-    requestedByRef?: EntryRef;
-    reasonCode?: string;
-  }): Promise<DebitResult>;
-  private tryDebit;
-  /**
-  * Restores one lineage's counters from journaled balances (fold use
-  * only): never a credit path, the fold consumes recorded balances.
-  */
-  restoreLineage(logicalTaskId: LogicalTaskId, state: LineageCounters & {
-    rungIndex?: number;
-  }): void;
-  /** Fold use only: restores the run counters from journaled balances. */
-  restoreCounters(state: {
-    revisionUnitsRemaining?: number;
-    spawnUnitsRemaining?: number;
-  }): void;
-  private requireLineage;
-  private requireLineageId;
-}
-/** The typed error code surfaced after a denied debit (docs/07, 11.3). */
-declare function exhaustionCodeOf(resource: TerminationResource): string;
-/**
-* The replay fold (docs/07, 11.6): rebuilds the account from
-* termination.init and the debiting decision entries, asserting every
-* embedded balance-after against the recomputation. A divergence raises
-* the typed journal-integrity error at exactly the diverging entry;
-* denials are re-issued from termination.denied with zero live calls.
-*/
-declare function foldTermination(entries: readonly JournalEntry[]): {
-  account: TerminationAccount;
-  initRef: EntryRef;
-  init: TerminationInitValue;
-  denials: Array<{
-    seq: EntryRef;
-    value: TerminationDeniedValue;
-  }>;
-} | undefined;
-//#endregion
-//#region src/journal/reuse.d.ts
-/** Kernel contentHash of a spawn root entry (docs/03, 9.2). */
-type SpawnKey = string;
-/** Plan-node identity (docs/07, 3.1). */
-type NodeId$1 = string;
-/** The rich donor descriptor embedded in reuse verdicts (docs/03, 9.9). */
-interface DonorRef {
-  /** Head of the link chain. */
-  nodeId: NodeId$1;
-  /** Seq of the donor's root entry. */
-  rootEntryRef: EntryRef;
-  /** Transitive chain, oldest first. */
-  chain: NodeId$1[];
-  spawnKey: SpawnKey;
-  /** Lineage continues through the link (docs/03, 9.6; DEF-3). */
-  logicalTaskId: LogicalTaskId;
-  /** Paid under the chain at the verdict snapshot. */
-  paidUsd: number;
-}
-/** Graft bootstrap payload (docs/03, 9.9). */
-interface GraftBoot {
-  /** Retained by the abandon entry, when it was. */
-  checkpointRef?: string;
-  /** Deterministic sum of match-eligible payments. */
-  eligiblePaidUsd: number;
-  worktreePinned: boolean;
-}
-/** Telemetry for a SpawnKey match admitted fresh (docs/03, 9.9). */
-interface DedupNote {
-  spawnKey: SpawnKey;
-  donorNodeId: NodeId$1;
-  reason: "donor_failed" | "no_paid_entries" | "graft_unsafe" | "donor_active";
-}
-/** The reuse block of AdmissionConfig (docs/03, 9.9). */
-interface ReuseConfig {
-  /** Default true. */
-  enabled?: boolean;
-  /** Default true. */
-  allowGraft?: boolean;
-  /** Default 2 (Appendix A). */
-  maxOscillationsPerKey?: number;
-  /** Optional RevisionGuards trigger on netLostUsd (docs/07, 3.8). */
-  maxAbandonedNetUsdFraction?: number;
-}
-declare const DEFAULT_MAX_OSCILLATIONS_PER_KEY = 2;
-/** The consumer-facing reuse mark on results (docs/03, 9.9). */
-interface AgentResultMeta {
-  reusedFrom?: {
-    nodeId: NodeId$1;
-    rootEntryRef: EntryRef;
-    mode: "full" | "graft";
-    reclaimedUsd: number;
-  };
-}
-/** The node.link entry value (docs/03, 9.5): an ordinary content-keyed effect entry. */
-interface NodeLinkValue {
-  targetNodeId: NodeId$1;
-  /** plan/NewNodeId. */
-  targetScope: string;
-  /** plan/HeadNodeId (only the donor is addressed by seq elsewhere). */
-  donorScope: string;
-  /** Full chain for transitive drainage, oldest first. */
-  chain: string[];
-  spawnKey: SpawnKey;
-  logicalTaskId: LogicalTaskId;
-  mode: "full" | "graft";
-  /** full is shareable, graft is exclusive (docs/03, 9.5). */
-  claim: "shared" | "exclusive";
-  checkpointRef?: string;
-  reclaimedUsdAtLink: number;
-  donorRootRef: EntryRef;
-}
-/**
-* node.link identity (docs/03, 9.5): sha256 of {kind, spawnKey,
-* donorScope, targetNodeId}; targetNodeId is deterministic on replay
-* because NodeIds are assigned inside plan.revision.
-*/
-declare function nodeLinkKey(spawnKey: SpawnKey, donorScope: string, targetNodeId: NodeId$1): string;
-/** The abandoned-spend ledger fold (docs/03, 9.7). */
-interface AbandonedSpendView {
-  abandonedUsd: number;
-  reclaimedUsd: number;
-  netLostUsd: number;
-  byKey: Record<SpawnKey, {
-    oscillationCount: number;
-    abandonedUsd: number;
-    reclaimedUsd: number;
-  }>;
-}
-/** One donor candidate surfaced by the DedupIndex fold (docs/03, 9.3). */
-interface DonorCandidate {
-  rootEntryRef: EntryRef;
-  rootScope: string;
-  spawnKey: SpawnKey;
-  /** From the abandon payload when the sever named the node. */
-  nodeId?: NodeId$1;
-  logicalTaskId?: LogicalTaskId;
-  /** Effective root status BEFORE the abandon overlay. */
-  preAbandonStatus: "ok" | "escalated" | "running" | "cancelled" | "error" | "limit";
-  memoizedFailure: boolean;
-  /** Total paid under the donor's child coverage at fold time. */
-  paidUsd: number;
-  /** Match-eligible (completed, non-running, non-cancelled) payments. */
-  eligiblePaidUsd: number;
-  hasPaidEntries: boolean;
-  isolationWorktree: boolean;
-  worktreePinned: boolean;
-  checkpointRef?: string;
-  retainedCheckpoint: boolean;
-  /** Seq of the exclusive node.link that captured this donor, if any. */
-  claimedBy?: EntryRef;
-  /** Scope chain for transitive drainage, oldest first (docs/03, 9.6). */
-  chain: string[];
-}
-/**
-* The DedupIndex: a pure fold over spawn roots, severing abandons, and
-* node.link entries. Prices fold from journal facts (servedBy, usage)
-* through the injected price function; on replay the embedded verdict
-* values are authoritative and this fold serves integrity only.
-*/
-declare class DedupIndex {
-  private readonly donors;
-  private readonly links;
-  /** node.link values keyed by targetScope: chain ancestry for donors. */
-  private readonly linkByTargetScope;
-  private readonly spend;
-  static fold(entries: readonly JournalEntry[], options?: {
-    priceUsd?: (servedBy: ModelRef | undefined, usage: Usage) => number | undefined;
-  }): DedupIndex;
-  /** Unclaimed donor candidates for a key, oldest (chain head) first. */
-  donorsOf(spawnKey: SpawnKey): DonorCandidate[];
-  /** Every donor for a key including claimed ones (diagnostics). */
-  allDonorsOf(spawnKey: SpawnKey): DonorCandidate[];
-  /** Link count per key: the oscillation counter (docs/03, 9.7). */
-  oscillationCountOf(spawnKey: SpawnKey): number;
-  abandonedSpend(): AbandonedSpendView;
-}
-/**
-* The four-outcome verdict evaluation on a SpawnKey match (docs/03,
-* 9.4), computed once live at the fold head and embedded into the
-* deciding entry; replay never re-evaluates.
-*/
-declare function evaluateReuse(index: DedupIndex, spawnKey: SpawnKey, config?: ReuseConfig): {
-  kind: "none";
-} | {
-  kind: "reject_osc_guard";
-  oscillationCount: number;
-} | {
-  kind: "reuse_full";
-  donor: DonorCandidate;
-} | {
-  kind: "admit_graft";
-  donor: DonorCandidate;
-} | {
-  kind: "fresh";
-  note: DedupNote;
-};
-//#endregion
-//#region src/journal/checkpoint.d.ts
-/** Leading format byte of the v1 checkpoint blob. */
-declare const CHECKPOINT_FORMAT_V1 = 1;
-/**
-* Mid-turn suspension state (M3-T03): the turn's already-executed tool
-* results plus the call awaiting an approval resolution, so resume
-* continues the SAME turn without re-running executed tools.
-*/
-interface PendingToolTurn {
-  /** tool-result parts already produced this turn, in execution order. */
-  executed: Array<{
-    id: string;
-    name: string;
-    result: unknown;
-    isError?: boolean;
-  }>;
-  /** The model-issued call whose ask verdict suspended the turn. */
-  awaiting: {
-    id: string;
-    name: string;
-    args: unknown;
-  };
-  /** Calls after the awaiting one, still to execute on resume. */
-  remaining: Array<{
-    id: string;
-    name: string;
-    args: unknown;
-  }>;
-}
-/** The canonical-history snapshot at a turn boundary. */
-interface CheckpointState {
-  v: 1;
-  /** Canonical history up to and including the boundary. */
-  messages: Msg[];
-  /** Model turns already paid. */
-  turns: number;
-  /** Usage accumulated so far (not yet journaled: terminals carry totals). */
-  usage: Usage;
-  toolCallsUsed: number;
-  schemaAttempts: number;
-  /** Compaction points; producers arrive with M4-T03. */
-  compaction: number[];
-  /** Present while an ask suspension holds the turn open (M3-T03). */
-  pending?: PendingToolTurn;
-}
-/** Deterministic checkpoint blob ref for an agent dispatch (running seq). */
-declare function checkpointRefFor(runId: string, runningSeq: number): string;
-/** Serializes a checkpoint to its blob: format byte then UTF-8 JSON. */
-declare function encodeCheckpoint(state: CheckpointState): Uint8Array;
-/**
-* Decodes a checkpoint blob. Returns undefined for an empty blob or an
-* unknown format byte: a resume never trusts a checkpoint it cannot
-* parse; the dangling dispatch reruns from the top instead (at-least-once
-* is the documented floor).
-*/
-declare function decodeCheckpoint(blob: Uint8Array): CheckpointState | undefined;
-//#endregion
-//#region src/journal/scope.d.ts
-/**
-* Scope-path grammar (M1-T04): deterministic structural paths, independent
-* of wall-clock (invariant I3: structure comes from call-and-return only).
-* The grammar is part of the hashVersion 2 profile.
-*
-* Owning spec: docs/03-journal-spec.md, section "Scope-path grammar".
-*
-* Segment rules: a sequential body is ONE scope (sequential calls add no
-* segment; they are distinguished by key and ordinal only). ctx.phase is
-* cosmetic for identity and adds no segment. Parallel site numbers come
-* from a monotonic counter per enclosing scope in execution order; the
-* pipeline item index is the index of the ORIGINAL input item, so
-* streaming reorder never shifts identity.
-*/
-/** The root sequential body of the run is the empty path. */
-declare const ROOT_SCOPE: string;
-/** Branch `branch` of parallel site `site`: `par:<site>:<branch>`. */
-declare function parallelScope(parent: string, site: number, branch: number): string;
-/** Stage `stage` processing source item `item`: `pipe:<stage>:<item>`. */
-declare function pipelineScope(parent: string, stage: number, item: number): string;
-/** ctx.workflow child scope: `wf:<name>:<ordinal>` (ordinal counts invocations of that name). */
-declare function workflowScope(parent: string, name: string, ordinal: number): string;
-/** Orchestrator handle spawns nest under the orchestrator's own spawn entry: `agent:<seq>`. */
-declare function agentScope(parent: string, seq: number): string;
-/** PlanRunner node scopes: `plan/<NodeId>` (NodeIds are engine-minted ULIDs). */
-declare function planNodeScope(nodeId: string): string;
-/** A parsed scope-path segment (docs/03, section 2.1). */
-type ScopeSegment = {
-  kind: "parallel";
-  site: number;
-  branch: number;
-} | {
-  kind: "pipeline";
-  stage: number;
-  item: number;
-} | {
-  kind: "workflow";
-  name: string;
-  ordinal: number;
-} | {
+//#region src/journal/identity.d.ts
+/** Spawn entries: ctx.agent and orchestrator spawn tools (kind 'agent'). */
+interface AgentIdentityInput {
   kind: "agent";
-  seq: number;
+  agentType: string;
+  /**
+  * The REQUESTED model spec, including canonical effort where resolved;
+  * for laddered spawns it embeds the declared ladder together with
+  * startTier (docs/04, section "Router and resolution chain").
+  */
+  modelSpec: CanonicalModelSpec;
+  /** Replaced verbatim by opts.key when opts.key is set. */
+  prompt: string;
+  schemaHash: string;
+  toolsetHash: string;
+  /** Canonical encoding per docs/08, section "IsolationSpec". */
+  isolation: IsolationSpec;
+}
+/** Nested workflow spawns: ctx.workflow (kind 'child'). */
+interface ChildIdentityInput {
+  kind: "child";
+  /** Registered workflow name. */
+  workflow: string;
+  /** Canonical JSON of the arguments; opts.key, when set, replaces args. */
+  args: Json;
+}
+/** Journaled effectful steps: ctx.step (kind 'step'). */
+interface StepIdentityInput {
+  kind: "step";
+  /** opts.key when set, otherwise the step label. */
+  key: string;
+  /** Declared dependency values (useMemo-style keying). */
+  deps: Json[];
+}
+/** External inputs: ctx.awaitExternal (kind 'external'). */
+interface ExternalIdentityInput {
+  kind: "external";
+  key: string;
+}
+/** Tool-approval suspensions (kind 'approval'). */
+interface ApprovalIdentityInput {
+  kind: "approval";
+  toolName: string;
+  /** The tool input as submitted to the permission chain. */
+  input: Json;
+}
+/** Deterministic shims: ctx.now / ctx.random / ctx.uuid (kind 'rand'). */
+interface RandIdentityInput {
+  kind: "rand";
+  subtype: "now" | "random" | "uuid";
+  /** ctx.random(key) provides a stable alternative to positional binding. */
+  key?: string;
+}
+type IdentityInput = AgentIdentityInput | ChildIdentityInput | StepIdentityInput | ExternalIdentityInput | ApprovalIdentityInput | RandIdentityInput;
+/**
+* The identity projection of a CanonicalModelSpec. For the plain-model
+* kind the projection is `{ model, effort? }` WITHOUT the kind
+* discriminant, exactly as fixed by the docs/03 section 1.5 worked
+* example; `effort` is omitted when unresolved. The ladder embedding lands
+* with ladder execution (M7).
+*/
+declare function modelSpecIdentity(spec: CanonicalModelSpec): {
+  model: ModelRef;
+  effort?: Effort;
 } | {
-  kind: "plan-node";
-  nodeId: string;
+  ladder: Json;
 };
 /**
-* Parses a scope path against the frozen grammar (M2-T04):
-*
-*   scope-path   ::= "" | scope-path "/" segment
-*   segment      ::= "par:" site ":" branch
-*                  | "pipe:" stage ":" item
-*                  | "wf:" name ":" ordinal
-*                  | "agent:" seq
-*                  | "plan" ("/" NodeId follows as its own segment)
-*   NodeId       ::= Crockford ULID (26 chars)
-*
-* Registered workflow names may contain ':' (the ordinal is the final
-* segment field). Throws on malformed paths.
+* The canonical identity object of an IdentityInput under the hashVersion
+* 2 profile: what JCS serializes and sha256 hashes. The agent kind
+* projects modelSpec through modelSpecIdentity; every other kind
+* serializes its fields verbatim. Fields not listed for a kind are never
+* included (the types make them unrepresentable).
 */
-declare function parseScopePath(path: string): ScopeSegment[];
-/** Serializes parsed segments back to the canonical path (round-trip). */
-declare function formatScopePath(segments: readonly ScopeSegment[]): string;
+declare function projectIdentity(input: IdentityInput): Record<string, unknown>;
+/** The JCS form of an IdentityInput under the hashVersion 2 profile. */
+declare function identityJcs(input: IdentityInput): string;
 /**
-* Allocates parallel site numbers per enclosing scope: a monotonic counter
-* in execution order, not source position. Because every scope body is
-* sequential by construction (I3), allocation order is deterministic and
-* identical on every replay.
+* key = sha256(JCS(IdentityInput)) (docs/03, section "Content key").
 */
-declare class ParallelSiteCounter {
-  private readonly bySite;
-  next(enclosingScope: string): number;
-}
-//#endregion
-//#region src/journal/serializable.d.ts
-/**
-* Validates and snapshots a value for the journal: the returned value is a
-* JSON round-trip clone, decoupled from later caller mutations, with
-* undefined object members dropped.
-*/
-declare function toJournalValue(value: unknown, site: string): Json;
+declare function deriveContentKey(input: IdentityInput): string;
 //#endregion
 //#region src/journal/matching.d.ts
 /** One logical journaled operation: its dispatch entry plus its terminal, when present. */
@@ -2938,248 +2104,6 @@ declare class Replayer {
   private enqueue;
 }
 //#endregion
-//#region src/journal/kinds.d.ts
-/**
-* Validates the shape the engine is about to append. Returns issues;
-* empty means valid. Unknown kinds are rejected here (the engine never
-* writes them); stores still pass them through on read.
-*/
-declare function validateEntryShape(entry: JournalEntry): Issue$1[];
-//#endregion
-//#region src/l0/events.d.ts
-/** docs/09 section 1.4, run lifecycle and core telemetry (M1 subset). */
-type CoreEvents = {
-  type: "run:start";
-  workflow: string;
-  resumed: boolean;
-} | {
-  type: "run:end";
-  status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
-  totalUsd: number;
-} | {
-  type: "phase:start";
-  phase: string;
-} | {
-  type: "log";
-  level: "debug" | "info" | "warn" | "error";
-  msg: string;
-  data?: Json;
-} | {
-  type: "budget:update";
-  spentUsd: number;
-  remainingUsd: number | null;
-  committedReserveUsd: number;
-} | {
-  type: "external:waiting";
-  key: string;
-  entryRef: number;
-  prompt?: string;
-  deadlineAt?: string;
-} | {
-  type: "approval:pending";
-  toolName: string;
-  entryRef: number;
-  deadlineAt?: string;
-} | {
-  type: "child:start";
-  workflow: string;
-  scope: string;
-} | {
-  type: "child:end";
-  workflow: string;
-  scope: string;
-  status: string;
-};
-/** docs/09 section 1.4, agent lifecycle. */
-type AgentEvents = {
-  type: "agent:queued";
-  agentType: string;
-  label?: string;
-} | {
-  type: "agent:start";
-  agentType: string;
-  label?: string;
-  model: string;
-  role: string;
-} | {
-  type: "agent:end";
-  agentType: string;
-  label?: string;
-  status: string;
-  usage: Usage;
-  costUsd: number;
-  entryRef: number;
-} | {
-  type: "agent:error";
-  agentType: string;
-  label?: string;
-  error: WireError;
-  willRetry: boolean;
-} | {
-  type: "agent:schema-retry";
-  agentType: string;
-  attempt: number;
-  maxAttempts: number;
-} | {
-  type: "agent:stream";
-  delta: string;
-};
-/** docs/09 section 1.4, tool lifecycle (emitters arrive with the tool system, M3). */
-type ToolEvents = {
-  type: "tool:start";
-  toolName: string;
-  risk?: Json;
-} | {
-  type: "tool:end";
-  toolName: string;
-  outcome: "ok" | "error" | "denied";
-  durationMs: number;
-  /**
-  * Audit fields (docs/08, section 4.5; M5-T05): the chain verdict,
-  * the deciding layer, the matched rule, and advisory domain-rule
-  * matches. Telemetry, never identity; ask verdicts additionally
-  * journal as suspended approvals.
-  */
-  verdict?: "allow" | "deny" | "ask";
-  decidedBy?: string;
-  rule?: Json;
-  advisory?: Json;
-};
-/**
-* docs/09 section 1.4, adaptive orchestration, resolutions, and
-* accounting: emitted only by runs where the corresponding machinery is
-* active (applicability per mode: docs/07, section 1). The types land as
-* one closed catalog with M7-T03; emitters arrive with their tasks.
-*/
-type AdaptiveEvents = {
-  type: "plan:revised";
-  entryRef: number;
-  planHash: string;
-  applied: number;
-  dropped: number;
-  revisionUnitsRemaining: number;
-} | {
-  type: "node:parked";
-  nodeId: string;
-  logicalTaskId: string;
-} | {
-  type: "node:cancelled";
-  nodeId: string;
-  logicalTaskId: string;
-} | {
-  type: "node:linked";
-  nodeId: string;
-  logicalTaskId: string;
-  donorRef: number;
-  reclaimedUsd: number;
-} | {
-  type: "orchestrator:woke";
-  digestSeq: number;
-  planHash: string;
-  coversToOrdinal: number;
-  renderSize: number;
-} | {
-  type: "orchestrator:budget";
-  entryRef: number;
-  spentUsd: number;
-  effectiveCapUsd: number;
-  reserveUsedUsd: number;
-  frozen: boolean;
-} | {
-  type: "escalation:raised";
-  entryRef: number;
-  kind: "scope_bigger" | "scope_different" | "blocked_with_evidence";
-  logicalTaskId: string;
-  costToDateUsd: number;
-} | {
-  type: "escalation:decided";
-  entryRef: number;
-  decision: "retry" | "decompose" | "cancel" | "accept";
-  by: ResolutionBy;
-  countsAgainstLimit: boolean;
-} | {
-  type: "spawn:admitted";
-  entryRef: number; /** The admitting arms of the unified AdmitVerdict union (docs/07, 7.2). */
-  verdict: "admit" | "reuse_full" | "admit_graft";
-  agentType: string;
-  logicalTaskId: string;
-  spawnUnitsAfter: number;
-} | {
-  type: "spawn:rejected";
-  entryRef: number;
-  code: string;
-  agentType: string;
-  logicalTaskId?: string;
-} | {
-  type: "verify:failed";
-  entryRef: number;
-  logicalTaskId: string;
-  rung: number;
-  gate: "mechanical" | "judge" | "spot-check";
-} | {
-  type: "ledger:op";
-  entryRef: number;
-  op: "brief_set" | "fact_add" | "fact_supersede" | "lesson_add" | "observation_add";
-} | {
-  type: "stall:detected";
-  logicalTaskId: string;
-  stallStreak: number;
-} | {
-  type: "guard:oscillation";
-  spawnKeyHash: string;
-  oscillationCount: number;
-  limit: number;
-} | {
-  type: "resolution:applied";
-  targetRef: number;
-  entryRef: number;
-  by: ResolutionBy;
-} | {
-  type: "resolution:superseded";
-  targetRef: number;
-  entryRef: number;
-  supersededBy: number;
-  reason: "already_resolved" | "target_abandoned";
-} | {
-  type: "termination:debit";
-  entryRef: number;
-  counter: string;
-  remaining: number;
-  phi: number;
-} | {
-  type: "termination:denied";
-  entryRef: number;
-  counter: string;
-  code: string;
-} | {
-  type: "termination:config-drift";
-  field: string;
-  frozenValue: Json;
-  liveValue: Json;
-} | {
-  type: "journal:compat";
-  code: "HASH_VERSION_TOO_OLD" | "HASH_VERSION_TOO_NEW";
-  found: number;
-  window: [number, number];
-};
-type WorkflowEventBody = CoreEvents | AgentEvents | ToolEvents | AdaptiveEvents;
-/**
-* The envelope (docs/09 section 1.1): seq is an independent per-run
-* telemetry counter, strictly increasing in emission order and DISTINCT
-* from JournalEntry.seq (never compare or join the two; entryRef fields
-* carry journal seqs explicitly). ts is wall clock, telemetry only.
-* replayed is true only on re-emitted journal-backed lifecycle events
-* (docs/09 section 1.5); stream deltas are never re-emitted.
-*/
-type WorkflowEvent = {
-  runId: string;
-  seq: number;
-  ts: string;
-  spanId: string;
-  parentSpanId?: string;
-  replayed?: boolean;
-} & WorkflowEventBody;
-//#endregion
 //#region src/model/retry.d.ts
 type RetryClass = "transport" | "rate-limit" | "overloaded";
 interface RetryPolicy {
@@ -3289,6 +2213,63 @@ declare function checkFloors(options: {
   floors?: QualityFloors;
   taskClass?: TaskClass;
 }): void;
+//#endregion
+//#region src/journal/checkpoint.d.ts
+/** Leading format byte of the v1 checkpoint blob. */
+declare const CHECKPOINT_FORMAT_V1 = 1;
+/**
+* Mid-turn suspension state (M3-T03): the turn's already-executed tool
+* results plus the call awaiting an approval resolution, so resume
+* continues the SAME turn without re-running executed tools.
+*/
+interface PendingToolTurn {
+  /** tool-result parts already produced this turn, in execution order. */
+  executed: Array<{
+    id: string;
+    name: string;
+    result: unknown;
+    isError?: boolean;
+  }>;
+  /** The model-issued call whose ask verdict suspended the turn. */
+  awaiting: {
+    id: string;
+    name: string;
+    args: unknown;
+  };
+  /** Calls after the awaiting one, still to execute on resume. */
+  remaining: Array<{
+    id: string;
+    name: string;
+    args: unknown;
+  }>;
+}
+/** The canonical-history snapshot at a turn boundary. */
+interface CheckpointState {
+  v: 1;
+  /** Canonical history up to and including the boundary. */
+  messages: Msg[];
+  /** Model turns already paid. */
+  turns: number;
+  /** Usage accumulated so far (not yet journaled: terminals carry totals). */
+  usage: Usage;
+  toolCallsUsed: number;
+  schemaAttempts: number;
+  /** Compaction points; producers arrive with M4-T03. */
+  compaction: number[];
+  /** Present while an ask suspension holds the turn open (M3-T03). */
+  pending?: PendingToolTurn;
+}
+/** Deterministic checkpoint blob ref for an agent dispatch (running seq). */
+declare function checkpointRefFor(runId: string, runningSeq: number): string;
+/** Serializes a checkpoint to its blob: format byte then UTF-8 JSON. */
+declare function encodeCheckpoint(state: CheckpointState): Uint8Array;
+/**
+* Decodes a checkpoint blob. Returns undefined for an empty blob or an
+* unknown format byte: a resume never trusts a checkpoint it cannot
+* parse; the dangling dispatch reruns from the top instead (at-least-once
+* is the documented floor).
+*/
+declare function decodeCheckpoint(blob: Uint8Array): CheckpointState | undefined;
 //#endregion
 //#region src/model/router.d.ts
 /**
@@ -3828,6 +2809,360 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
 */
 declare function runAgent<S extends SchemaSpec>(options: RunAgentOptions<S>): Promise<AgentResult<Out<S>>>;
 //#endregion
+//#region src/runtime/permission-chain.d.ts
+type HookVerdict = "allow" | "deny" | "ask" | {
+  modifiedInput: unknown;
+} | undefined;
+type PermissionHook = (toolName: string, input: unknown, ctx: ToolContext) => HookVerdict | Promise<HookVerdict>;
+/**
+* Declarative rule tables (no closures). `'undeclared'` in risk
+* position matches every tool WITHOUT declared risk: presets treat the
+* undeclared state conservatively (docs/08, section 4.3). Argv rules
+* match through the real shell matcher (section 5); domain rules are
+* ADVISORY outside the first-party fetch tool (section 4.4): they never
+* change a verdict in M5, and matches surface in audit events.
+*/
+type RiskRuleValue = ToolRisk | "undeclared";
+type PermissionRule = {
+  tool: string | string[];
+} | {
+  risk: RiskRuleValue | RiskRuleValue[];
+} | {
+  tool: string;
+  argv: string | string[];
+} | {
+  tool: string;
+  domains: string[];
+};
+type CanUseTool = (toolName: string, input: unknown, ctx: ToolContext) => "allow" | "deny" | {
+  modifiedInput: unknown;
+} | Promise<"allow" | "deny" | {
+  modifiedInput: unknown;
+}>;
+/** Host-side permission configuration (engine defaults.permissions). */
+interface PermissionConfig {
+  hooks?: PermissionHook[];
+  deny?: PermissionRule[];
+  ask?: PermissionRule[];
+  canUseTool?: CanUseTool;
+}
+/**
+* Profile-level permissions (docs/08, section "Subagent inheritance").
+* inheritPermissions governs SUBAGENT inheritance (mode c orchestrators,
+* M6+): children get their own config only unless explicitly opted in.
+* It is carried as data here and consumed by the spawning layers.
+*/
+interface AgentProfilePermissions extends PermissionConfig {
+  /** Compiles into deny/ask rules; ships in M5. */
+  preset?: "strict" | "standard" | "open";
+  /** Default false. */
+  inheritPermissions?: boolean;
+}
+interface CompiledPermissionChain {
+  hooks: PermissionHook[];
+  deny: PermissionRule[];
+  ask: PermissionRule[];
+  canUseTool?: CanUseTool;
+}
+type PermissionVerdict = ({
+  verdict: "allow";
+  decidedBy: "hook" | "canUseTool" | "default";
+  input: unknown;
+} | {
+  verdict: "deny";
+  decidedBy: "hook" | "deny-rule" | "canUseTool";
+  rule?: PermissionRule;
+  input: unknown;
+} | {
+  verdict: "ask";
+  decidedBy: "hook" | "ask-rule" | "default";
+  rule?: PermissionRule;
+  input: unknown;
+}) & {
+  /**
+  * Advisory domain-rule matches (docs/08, 4.4): reported in audit
+  * events, never enforced outside the first-party fetch tool.
+  */
+  advisory?: PermissionRule[];
+};
+/**
+* Merges the engine-wide config and the profile config into one chain.
+* Layers concatenate engine-first; since rules only deny or ask, ordering
+* within a layer cannot change the verdict (docs/08, section 4.2). The
+* profile's canUseTool wins over the engine's (a single slot by
+* construction). A declared preset compiles INTO the same layers, after
+* the host-authored rules, never as a fifth layer (M5-T05).
+*/
+declare function compilePermissionChain(engine?: PermissionConfig, profile?: AgentProfilePermissions): CompiledPermissionChain;
+/**
+* Evaluates the chain for one dispatch, or OFFLINE against a
+* hypothetical call by tool name (the dry-run API of docs/08, section
+* 4.5: nothing executes; shells and tests read the verdict, the
+* deciding layer, and the matched rule). Hooks run in deterministic
+* registration order; { modifiedInput } substitutes the input and
+* continues; the first decisive verdict wins. The returned input is what
+* execute receives and what the approval identity hashes (docs/03,
+* section 1.2: post hook modification). Advisory domain-rule matches
+* ride every verdict for the audit payload (docs/08, 4.4).
+*/
+declare function evaluatePermission(chain: CompiledPermissionChain, tool: string | Pick<ToolDef, "name" | "needsApproval" | "risk">, input: unknown, ctx?: ToolContext): Promise<PermissionVerdict>;
+//#endregion
+//#region src/tools/toolset-hash.d.ts
+/** The per-spawn tools option value domain (docs/06, section "ctx.agent and AgentOpts"). */
+type ToolsOption = ReadonlyArray<ToolDef | ToolSource | string>;
+/** The spawn's frozen toolset snapshot plus its identity hash. */
+interface ResolvedToolset {
+  tools: ToolDef[];
+  contracts: ToolContract[];
+  hash: string;
+}
+/** The empty toolset (no tools declared anywhere). */
+declare function emptyToolset(): ResolvedToolset;
+/**
+* Expands sources, validates every tool name and duplicate names across
+* the whole toolset (ConfigError at spawn time; docs/08 sections 1.1 and
+* 6.4), and computes the toolsetHash over contracts sorted by name.
+*/
+declare function resolveToolset(specs: ToolsOption | undefined, session: ToolSourceSession): Promise<ResolvedToolset>;
+//#endregion
+//#region src/journal/termination.d.ts
+/** The frozen limits vector written into termination.init (docs/07, 11.2). */
+interface TerminationLimits {
+  /** V0, default 32; absolute and non-replenishable. */
+  maxRevisionsPerRun: number;
+  /** S0, default 128; debited on every admitted spawn of any origin. */
+  maxTotalSpawns: number;
+  /** E0, default 2, per lineage; the old name is rejected (XF-10). */
+  maxEscalationsPerLogicalTask: number;
+  /** D0, default 1, ceiling 4; static per-branch limit. */
+  maxDepth: number;
+  /** Maximum declared ladder length per the profile-registry snapshot. */
+  kMax: number;
+  /** B0; immutable after start, no API including HITL can top up. */
+  runBudgetUsdCeiling: number;
+  /** From the orchestrator budget (DEF-7; XF-09). */
+  orchestratorCapUsd: number;
+  /** From the orchestrator budget (DEF-7; XF-09). */
+  finalizeReserveUsd: number;
+}
+/** Appendix A committed defaults for the countable resources. */
+declare const DEFAULT_MAX_REVISIONS_PER_RUN = 32;
+declare const DEFAULT_MAX_TOTAL_SPAWNS = 128;
+/** The countable resource vocabulary (docs/07, 11.5). */
+type TerminationResource = "revisionUnits" | "spawnUnits" | "escalationUnits" | "rungs" | "depth";
+interface LineageCounters {
+  escalationUnitsRemaining: number;
+  rungsRemaining: number;
+}
+interface TerminationAccountSnapshot {
+  revisionUnitsRemaining: number;
+  spawnUnitsRemaining: number;
+  perLineage: Record<LogicalTaskId, LineageCounters>;
+  /** The variant function, a pure fold over the journal (docs/07, 11.4). */
+  phi: number;
+}
+type DebitResult = {
+  ok: true;
+  balanceAfter: number;
+} | {
+  ok: false;
+  deniedEntryRef: EntryRef;
+  resource: TerminationResource;
+};
+/** The value payload of a termination.init entry (docs/07, 11.6). */
+interface TerminationInitValue {
+  limits: TerminationLimits;
+  profileRegistrySnapshotHash: string;
+  phiInitial: number;
+}
+/** The value payload of a termination.denied entry (docs/07, 11.6). */
+interface TerminationDeniedValue {
+  resource: TerminationResource;
+  logicalTaskId?: LogicalTaskId;
+  /** Seq of the calling tool-call or EscalationReport entry. */
+  requestedByRef?: EntryRef;
+  reasonCode: string;
+  snapshotAfter: TerminationAccountSnapshot;
+}
+/**
+* Reads the declared ladder length of one agent profile. Ladders are
+* declared through the profile's ModelSpec (`model: { ladder }`, or the
+* loop-role routing entry; docs/04, section 12). The reader is defensive
+* so the snapshot is total over every registry shape (an undeclared
+* ladder has length 1: the single implicit rung).
+*/
+declare function ladderLengthOf(profile: unknown): number;
+/** kMax: the maximum declared ladder length across the registry snapshot. */
+declare function kMaxOf(profiles: Record<string, unknown> | undefined): number;
+/**
+* The deterministic profile-registry snapshot hash frozen inside
+* termination.init: profile names mapped to their declared ladder
+* lengths, canonical JSON, sha256 (docs/07, 11.6).
+*/
+declare function profileRegistrySnapshotHash(profiles: Record<string, unknown> | undefined): string;
+/**
+* Validates a raw limits record into the frozen vector. The pre-rename
+* escalation knob is rejected with a migration hint (XF-10); counters
+* must be non-negative integers; kMax at least 1.
+*/
+declare function validateTerminationLimits(raw: Partial<TerminationLimits> | Record<string, unknown>): TerminationLimits;
+/** C = E0 + kMax: the per-spawn weight of the variant function. */
+declare function lineageWeightOf(limits: TerminationLimits): number;
+/** Phi0 = V0 + C * S0, finite and fixed in termination.init (docs/07, 11.4). */
+declare function phiInitialOf(limits: TerminationLimits): number;
+/** Builds the termination.init value payload (docs/07, 11.6). */
+declare function buildTerminationInitValue(limits: TerminationLimits, registrySnapshotHash: string): TerminationInitValue;
+/** Reads a termination.init entry's payload; undefined when malformed. */
+declare function readTerminationInit(entry: JournalEntry): TerminationInitValue | undefined;
+/**
+* Config-drift detection at resume (docs/07, 11.2): the journaled vector
+* always wins; every differing field is reported for the
+* `termination:config-drift` event. Dynamic budget top-up via restart is
+* excluded by construction.
+*/
+declare function terminationConfigDrift(frozen: TerminationLimits, live: Partial<TerminationLimits>): Array<{
+  field: keyof TerminationLimits;
+  frozenValue: Json;
+  liveValue: Json;
+}>;
+/** Injected appender for termination.denied entries (engine-owned I/O). */
+type TerminationDeniedWriter = (denied: TerminationDeniedValue) => Promise<EntryRef>;
+/**
+* The single per-run TerminationAccount (docs/07, 11.5): debit ONLY. No
+* credit operation exists by construction; reclaim never replenishes
+* anything (DEF-5 interaction, docs/07 7.3). Live: the engine debits the
+* in-memory account, writes the carrying entry with the balance-after,
+* then applies effects. Resume state is rebuilt by TerminationFold from
+* the journal, never from live config.
+*/
+declare class TerminationAccount {
+  readonly limits: TerminationLimits;
+  private revisionUnits;
+  private spawnUnits;
+  private readonly lineages;
+  private deniedWriter?;
+  constructor(options: {
+    limits: TerminationLimits;
+    deniedWriter?: TerminationDeniedWriter;
+  });
+  /**
+  * Binds the denied-entry appender onto an account rebuilt by the fold
+  * (resume path): the fold is pure and cannot own I/O. Never rebinds an
+  * existing writer.
+  */
+  bindDeniedWriter(writer: TerminationDeniedWriter): void;
+  snapshot(): TerminationAccountSnapshot;
+  /** Phi = V + C * S + sum over live lineages (E + R) (docs/07, 11.4). */
+  phi(): number;
+  /** The current rung index of a lineage (0 before any raise). */
+  rungIndexOf(logicalTaskId: LogicalTaskId): number;
+  /** True when a spawn-unit debit would underflow (pre-reserve check). */
+  get spawnUnitsExhausted(): boolean;
+  get revisionUnitsRemaining(): number;
+  /**
+  * The spawn-admission debit (docs/07, 11.3b): minus one spawnUnit for
+  * an admitted spawn of ANY origin; a NEW lineage receives E0 escalation
+  * units and (K_l - 1) rung transitions in the same atomic step, so the
+  * lemma's per-spawn decrease is C - (E0 + K_l - 1) = kMax - K_l + 1,
+  * at least 1. Synchronous: the caller embeds spawnUnitsAfter in the
+  * decision entry it appends next.
+  */
+  debitSpawn(lineage?: {
+    logicalTaskId: LogicalTaskId;
+    isNew: boolean;
+    ladderLength?: number;
+  }): {
+    ok: true;
+    spawnUnitsAfter: number;
+  } | {
+    ok: false;
+    resource: "spawnUnits";
+  };
+  /**
+  * The plan_revise debit (docs/07, 11.3a and 11.7): minus one
+  * revisionUnit on EVERY journaled plan.revision, regardless of the op
+  * count, guard verdicts, or the auto-rebase outcome; conflict spam is
+  * never a free retry.
+  */
+  debitRevision(): {
+    ok: true;
+    revisionUnitsAfter: number;
+  } | {
+    ok: false;
+    resource: "revisionUnits";
+  };
+  /**
+  * The escalation debit (docs/07, 11.3d): minus one escalationUnit of
+  * the affected lineage, including EACH lineage of a class-level
+  * decision and timeout defaultDecisions. Conditioned on the
+  * countsAgainstLimit flag embedded in the decision entry by the caller.
+  */
+  debitEscalation(logicalTaskId: LogicalTaskId): {
+    ok: true;
+    escalationUnitsAfter: number;
+  } | {
+    ok: false;
+    resource: "escalationUnits";
+  };
+  /**
+  * The ladder-raise debit (docs/07, 11.3c): minus one rung of the
+  * lineage; rungIndex is strictly monotone, there are no demotions and
+  * no runtime startTier promotion in v1.
+  */
+  debitRung(logicalTaskId: LogicalTaskId): {
+    ok: true;
+    rungIndexAfter: number;
+    rungsRemainingAfter: number;
+  } | {
+    ok: false;
+    resource: "rungs";
+  };
+  /**
+  * The docs/07 11.5 debit surface: attempts the named resource and, on
+  * underflow, writes `termination.denied` strictly BEFORE resolving with
+  * the typed failure (the caller surfaces the error only after this
+  * settles). Requires a deniedWriter; pure-fold contexts use the
+  * synchronous per-resource methods instead.
+  */
+  debit(resource: Exclude<TerminationResource, "depth">, lineage?: LogicalTaskId, context?: {
+    requestedByRef?: EntryRef;
+    reasonCode?: string;
+  }): Promise<DebitResult>;
+  private tryDebit;
+  /**
+  * Restores one lineage's counters from journaled balances (fold use
+  * only): never a credit path, the fold consumes recorded balances.
+  */
+  restoreLineage(logicalTaskId: LogicalTaskId, state: LineageCounters & {
+    rungIndex?: number;
+  }): void;
+  /** Fold use only: restores the run counters from journaled balances. */
+  restoreCounters(state: {
+    revisionUnitsRemaining?: number;
+    spawnUnitsRemaining?: number;
+  }): void;
+  private requireLineage;
+  private requireLineageId;
+}
+/** The typed error code surfaced after a denied debit (docs/07, 11.3). */
+declare function exhaustionCodeOf(resource: TerminationResource): string;
+/**
+* The replay fold (docs/07, 11.6): rebuilds the account from
+* termination.init and the debiting decision entries, asserting every
+* embedded balance-after against the recomputation. A divergence raises
+* the typed journal-integrity error at exactly the diverging entry;
+* denials are re-issued from termination.denied with zero live calls.
+*/
+declare function foldTermination(entries: readonly JournalEntry[]): {
+  account: TerminationAccount;
+  initRef: EntryRef;
+  init: TerminationInitValue;
+  denials: Array<{
+    seq: EntryRef;
+    value: TerminationDeniedValue;
+  }>;
+} | undefined;
+//#endregion
 //#region src/engine/budget.d.ts
 type Spend = {
   usd: number;
@@ -3973,6 +3308,164 @@ declare class RunBudget {
   remaining(): Spend | null;
   private emitUpdate;
 }
+//#endregion
+//#region src/journal/reuse.d.ts
+/** Kernel contentHash of a spawn root entry (docs/03, 9.2). */
+type SpawnKey = string;
+/** Plan-node identity (docs/07, 3.1). */
+type NodeId$1 = string;
+/** The rich donor descriptor embedded in reuse verdicts (docs/03, 9.9). */
+interface DonorRef {
+  /** Head of the link chain. */
+  nodeId: NodeId$1;
+  /** Seq of the donor's root entry. */
+  rootEntryRef: EntryRef;
+  /** Transitive chain, oldest first. */
+  chain: NodeId$1[];
+  spawnKey: SpawnKey;
+  /** Lineage continues through the link (docs/03, 9.6; DEF-3). */
+  logicalTaskId: LogicalTaskId;
+  /** Paid under the chain at the verdict snapshot. */
+  paidUsd: number;
+}
+/** Graft bootstrap payload (docs/03, 9.9). */
+interface GraftBoot {
+  /** Retained by the abandon entry, when it was. */
+  checkpointRef?: string;
+  /** Deterministic sum of match-eligible payments. */
+  eligiblePaidUsd: number;
+  worktreePinned: boolean;
+}
+/** Telemetry for a SpawnKey match admitted fresh (docs/03, 9.9). */
+interface DedupNote {
+  spawnKey: SpawnKey;
+  donorNodeId: NodeId$1;
+  reason: "donor_failed" | "no_paid_entries" | "graft_unsafe" | "donor_active";
+}
+/** The reuse block of AdmissionConfig (docs/03, 9.9). */
+interface ReuseConfig {
+  /** Default true. */
+  enabled?: boolean;
+  /** Default true. */
+  allowGraft?: boolean;
+  /** Default 2 (Appendix A). */
+  maxOscillationsPerKey?: number;
+  /** Optional RevisionGuards trigger on netLostUsd (docs/07, 3.8). */
+  maxAbandonedNetUsdFraction?: number;
+}
+declare const DEFAULT_MAX_OSCILLATIONS_PER_KEY = 2;
+/** The consumer-facing reuse mark on results (docs/03, 9.9). */
+interface AgentResultMeta {
+  reusedFrom?: {
+    nodeId: NodeId$1;
+    rootEntryRef: EntryRef;
+    mode: "full" | "graft";
+    reclaimedUsd: number;
+  };
+}
+/** The node.link entry value (docs/03, 9.5): an ordinary content-keyed effect entry. */
+interface NodeLinkValue {
+  targetNodeId: NodeId$1;
+  /** plan/NewNodeId. */
+  targetScope: string;
+  /** plan/HeadNodeId (only the donor is addressed by seq elsewhere). */
+  donorScope: string;
+  /** Full chain for transitive drainage, oldest first. */
+  chain: string[];
+  spawnKey: SpawnKey;
+  logicalTaskId: LogicalTaskId;
+  mode: "full" | "graft";
+  /** full is shareable, graft is exclusive (docs/03, 9.5). */
+  claim: "shared" | "exclusive";
+  checkpointRef?: string;
+  reclaimedUsdAtLink: number;
+  donorRootRef: EntryRef;
+}
+/**
+* node.link identity (docs/03, 9.5): sha256 of {kind, spawnKey,
+* donorScope, targetNodeId}; targetNodeId is deterministic on replay
+* because NodeIds are assigned inside plan.revision.
+*/
+declare function nodeLinkKey(spawnKey: SpawnKey, donorScope: string, targetNodeId: NodeId$1): string;
+/** The abandoned-spend ledger fold (docs/03, 9.7). */
+interface AbandonedSpendView {
+  abandonedUsd: number;
+  reclaimedUsd: number;
+  netLostUsd: number;
+  byKey: Record<SpawnKey, {
+    oscillationCount: number;
+    abandonedUsd: number;
+    reclaimedUsd: number;
+  }>;
+}
+/** One donor candidate surfaced by the DedupIndex fold (docs/03, 9.3). */
+interface DonorCandidate {
+  rootEntryRef: EntryRef;
+  rootScope: string;
+  spawnKey: SpawnKey;
+  /** From the abandon payload when the sever named the node. */
+  nodeId?: NodeId$1;
+  logicalTaskId?: LogicalTaskId;
+  /** Effective root status BEFORE the abandon overlay. */
+  preAbandonStatus: "ok" | "escalated" | "running" | "cancelled" | "error" | "limit";
+  memoizedFailure: boolean;
+  /** Total paid under the donor's child coverage at fold time. */
+  paidUsd: number;
+  /** Match-eligible (completed, non-running, non-cancelled) payments. */
+  eligiblePaidUsd: number;
+  hasPaidEntries: boolean;
+  isolationWorktree: boolean;
+  worktreePinned: boolean;
+  checkpointRef?: string;
+  retainedCheckpoint: boolean;
+  /** Seq of the exclusive node.link that captured this donor, if any. */
+  claimedBy?: EntryRef;
+  /** Scope chain for transitive drainage, oldest first (docs/03, 9.6). */
+  chain: string[];
+}
+/**
+* The DedupIndex: a pure fold over spawn roots, severing abandons, and
+* node.link entries. Prices fold from journal facts (servedBy, usage)
+* through the injected price function; on replay the embedded verdict
+* values are authoritative and this fold serves integrity only.
+*/
+declare class DedupIndex {
+  private readonly donors;
+  private readonly links;
+  /** node.link values keyed by targetScope: chain ancestry for donors. */
+  private readonly linkByTargetScope;
+  private readonly spend;
+  static fold(entries: readonly JournalEntry[], options?: {
+    priceUsd?: (servedBy: ModelRef | undefined, usage: Usage) => number | undefined;
+  }): DedupIndex;
+  /** Unclaimed donor candidates for a key, oldest (chain head) first. */
+  donorsOf(spawnKey: SpawnKey): DonorCandidate[];
+  /** Every donor for a key including claimed ones (diagnostics). */
+  allDonorsOf(spawnKey: SpawnKey): DonorCandidate[];
+  /** Link count per key: the oscillation counter (docs/03, 9.7). */
+  oscillationCountOf(spawnKey: SpawnKey): number;
+  abandonedSpend(): AbandonedSpendView;
+}
+/**
+* The four-outcome verdict evaluation on a SpawnKey match (docs/03,
+* 9.4), computed once live at the fold head and embedded into the
+* deciding entry; replay never re-evaluates.
+*/
+declare function evaluateReuse(index: DedupIndex, spawnKey: SpawnKey, config?: ReuseConfig): {
+  kind: "none";
+} | {
+  kind: "reject_osc_guard";
+  oscillationCount: number;
+} | {
+  kind: "reuse_full";
+  donor: DonorCandidate;
+} | {
+  kind: "admit_graft";
+  donor: DonorCandidate;
+} | {
+  kind: "fresh";
+  note: DedupNote;
+};
 //#endregion
 //#region src/orchestrator/admission.d.ts
 /** Plan-node identity; engine-minted ULID (docs/07, section 3.1). */
@@ -4219,6 +3712,312 @@ declare class AdmissionController {
   recoverInFlight(parentAccountScope: string, verdict: AdmitVerdict): void;
 }
 //#endregion
+//#region src/l0/events.d.ts
+/** docs/09 section 1.4, run lifecycle and core telemetry (M1 subset). */
+type CoreEvents = {
+  type: "run:start";
+  workflow: string;
+  resumed: boolean;
+} | {
+  type: "run:end";
+  status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
+  totalUsd: number;
+} | {
+  type: "phase:start";
+  phase: string;
+} | {
+  type: "log";
+  level: "debug" | "info" | "warn" | "error";
+  msg: string;
+  data?: Json;
+} | {
+  type: "budget:update";
+  spentUsd: number;
+  remainingUsd: number | null;
+  committedReserveUsd: number;
+} | {
+  type: "external:waiting";
+  key: string;
+  entryRef: number;
+  prompt?: string;
+  deadlineAt?: string;
+} | {
+  type: "approval:pending";
+  toolName: string;
+  entryRef: number;
+  deadlineAt?: string;
+} | {
+  type: "child:start";
+  workflow: string;
+  scope: string;
+} | {
+  type: "child:end";
+  workflow: string;
+  scope: string;
+  status: string;
+};
+/** docs/09 section 1.4, agent lifecycle. */
+type AgentEvents = {
+  type: "agent:queued";
+  agentType: string;
+  label?: string;
+} | {
+  type: "agent:start";
+  agentType: string;
+  label?: string;
+  model: string;
+  role: string;
+} | {
+  type: "agent:end";
+  agentType: string;
+  label?: string;
+  status: string;
+  usage: Usage;
+  costUsd: number;
+  entryRef: number;
+} | {
+  type: "agent:error";
+  agentType: string;
+  label?: string;
+  error: WireError;
+  willRetry: boolean;
+} | {
+  type: "agent:schema-retry";
+  agentType: string;
+  attempt: number;
+  maxAttempts: number;
+} | {
+  type: "agent:stream";
+  delta: string;
+};
+/** docs/09 section 1.4, tool lifecycle (emitters arrive with the tool system, M3). */
+type ToolEvents = {
+  type: "tool:start";
+  toolName: string;
+  risk?: Json;
+} | {
+  type: "tool:end";
+  toolName: string;
+  outcome: "ok" | "error" | "denied";
+  durationMs: number;
+  /**
+  * Audit fields (docs/08, section 4.5; M5-T05): the chain verdict,
+  * the deciding layer, the matched rule, and advisory domain-rule
+  * matches. Telemetry, never identity; ask verdicts additionally
+  * journal as suspended approvals.
+  */
+  verdict?: "allow" | "deny" | "ask";
+  decidedBy?: string;
+  rule?: Json;
+  advisory?: Json;
+};
+/**
+* docs/09 section 1.4, adaptive orchestration, resolutions, and
+* accounting: emitted only by runs where the corresponding machinery is
+* active (applicability per mode: docs/07, section 1). The types land as
+* one closed catalog with M7-T03; emitters arrive with their tasks.
+*/
+type AdaptiveEvents = {
+  type: "plan:revised";
+  entryRef: number;
+  planHash: string;
+  applied: number;
+  dropped: number;
+  revisionUnitsRemaining: number;
+} | {
+  type: "node:parked";
+  nodeId: string;
+  logicalTaskId: string;
+} | {
+  type: "node:cancelled";
+  nodeId: string;
+  logicalTaskId: string;
+} | {
+  type: "node:linked";
+  nodeId: string;
+  logicalTaskId: string;
+  donorRef: number;
+  reclaimedUsd: number;
+} | {
+  type: "orchestrator:woke";
+  digestSeq: number;
+  planHash: string;
+  coversToOrdinal: number;
+  renderSize: number;
+} | {
+  type: "orchestrator:budget";
+  entryRef: number;
+  spentUsd: number;
+  effectiveCapUsd: number;
+  reserveUsedUsd: number;
+  frozen: boolean;
+} | {
+  type: "escalation:raised";
+  entryRef: number;
+  kind: "scope_bigger" | "scope_different" | "blocked_with_evidence";
+  logicalTaskId: string;
+  costToDateUsd: number;
+} | {
+  type: "escalation:decided";
+  entryRef: number;
+  decision: "retry" | "decompose" | "cancel" | "accept";
+  by: ResolutionBy;
+  countsAgainstLimit: boolean;
+} | {
+  type: "spawn:admitted";
+  entryRef: number; /** The admitting arms of the unified AdmitVerdict union (docs/07, 7.2). */
+  verdict: "admit" | "reuse_full" | "admit_graft";
+  agentType: string;
+  logicalTaskId: string;
+  spawnUnitsAfter: number;
+} | {
+  type: "spawn:rejected";
+  entryRef: number;
+  code: string;
+  agentType: string;
+  logicalTaskId?: string;
+} | {
+  type: "verify:failed";
+  entryRef: number;
+  logicalTaskId: string;
+  rung: number;
+  gate: "mechanical" | "judge" | "spot-check";
+} | {
+  type: "ledger:op";
+  entryRef: number;
+  op: "brief_set" | "fact_add" | "fact_supersede" | "lesson_add" | "observation_add";
+} | {
+  type: "stall:detected";
+  logicalTaskId: string;
+  stallStreak: number;
+} | {
+  type: "guard:oscillation";
+  spawnKeyHash: string;
+  oscillationCount: number;
+  limit: number;
+} | {
+  type: "resolution:applied";
+  targetRef: number;
+  entryRef: number;
+  by: ResolutionBy;
+} | {
+  type: "resolution:superseded";
+  targetRef: number;
+  entryRef: number;
+  supersededBy: number;
+  reason: "already_resolved" | "target_abandoned";
+} | {
+  type: "termination:debit";
+  entryRef: number;
+  counter: string;
+  remaining: number;
+  phi: number;
+} | {
+  type: "termination:denied";
+  entryRef: number;
+  counter: string;
+  code: string;
+} | {
+  type: "termination:config-drift";
+  field: string;
+  frozenValue: Json;
+  liveValue: Json;
+} | {
+  type: "journal:compat";
+  code: "HASH_VERSION_TOO_OLD" | "HASH_VERSION_TOO_NEW";
+  found: number;
+  window: [number, number];
+};
+type WorkflowEventBody = CoreEvents | AgentEvents | ToolEvents | AdaptiveEvents;
+/**
+* The envelope (docs/09 section 1.1): seq is an independent per-run
+* telemetry counter, strictly increasing in emission order and DISTINCT
+* from JournalEntry.seq (never compare or join the two; entryRef fields
+* carry journal seqs explicitly). ts is wall clock, telemetry only.
+* replayed is true only on re-emitted journal-backed lifecycle events
+* (docs/09 section 1.5); stream deltas are never re-emitted.
+*/
+type WorkflowEvent = {
+  runId: string;
+  seq: number;
+  ts: string;
+  spanId: string;
+  parentSpanId?: string;
+  replayed?: boolean;
+} & WorkflowEventBody;
+//#endregion
+//#region src/engine/cost-report.d.ts
+/** Folds the per-run attribution buckets into the normative CostReport. */
+declare function buildCostReport(attribution: CostAttribution, totalUsd: number): CostReport;
+/**
+* The pure journal fold: byModel and totals from terminal entries, the
+* same summation the kernel ledger uses (terminal usage exactly once,
+* priced per servedBy, abandoned subtrees contribute zero).
+*/
+declare function costReportFromJournal(entries: readonly JournalEntry[], priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined): CostReport;
+//#endregion
+//#region src/engine/run-handle.d.ts
+/** Suspensions still open at settle time; producers arrive with M2. */
+interface PendingExternal {
+  key: string;
+  scope: string;
+  entryRef: number;
+  prompt?: string;
+  /** Approvals and Flavor B escalations only. */
+  deadlineAt?: string;
+}
+/** docs/09, section "CostReport". */
+interface CostReport {
+  totalUsd: number;
+  /** Keyed by canonical ModelRef 'adapterId:model'. */
+  byModel: Record<string, number>;
+  /** ctx.phase names; phase is structural for this map. */
+  byPhase: Record<string, number>;
+  byAgentType: Record<string, number>;
+  byRole: Record<InvocationRole, number>;
+  /** All-zero with forcedFinish false in runs without a dynamic orchestrator. */
+  orchestrator: {
+    spentUsd: number; /** spentUsd / max(totalUsd, 0.01): the epsilon-floored H-OrchShare input. */
+    share: number;
+    wakes: number;
+    forcedFinish: boolean;
+    reserveUsedUsd: number;
+  };
+  /** Usage on models absent from pricing; never a silent zero. */
+  unpriced: Array<{
+    model: string;
+    usage: Usage;
+  }>;
+}
+type RunOutcome<R> = {
+  status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
+  value?: R;
+  error?: WireError; /** Pipeline drops and onError:'null' losses; silent losses are forbidden. */
+  dropped: DroppedItem[]; /** Suspensions open at settle time (M2). */
+  pending: PendingExternal[];
+  usage: Usage;
+  cost: CostReport;
+};
+/** Adds 'running' for in-flight inspection (docs/06, section "Engine and ops API"). */
+type RunStatus = RunOutcome<unknown>["status"] | "running";
+interface RunHandle<R> {
+  runId: string;
+  result: Promise<RunOutcome<R>>;
+  events: AsyncIterable<WorkflowEvent>;
+  on<T extends WorkflowEvent["type"]>(type: T, cb: (e: Extract<WorkflowEvent, {
+    type: T;
+  }>) => void): () => void;
+  /**
+  * Resolves an open awaitExternal suspension (DEF-4 signature): applied
+  * when this attempt wins the first-closing-wins fold; repeated
+  * resolution is defined behavior, not an error. An invalid live payload
+  * throws InvalidResolutionError and journals nothing.
+  */
+  resolveExternal(key: string, value: Json): Promise<ResolutionOutcome>;
+  /** Cooperative cancellation; the run settles 'cancelled' with a complete CostReport. */
+  cancel(reason?: string): Promise<void>;
+}
+//#endregion
 //#region src/runner/inprocess.d.ts
 /**
 * Source-backed workflow admissible to the worker sandbox; produced by
@@ -4335,6 +4134,12 @@ interface CreateEngineOptions {
   stores?: {
     /** Default InMemoryStore (resume disabled, loud warning). */journal?: JournalStore;
     transcripts?: TranscriptStore;
+    /**
+    * The ModelKnowledge claim store (docs/05; M10-T03). Optional and
+    * OFF by default: an engine without it writes no kb entries at
+    * all. The runtime only ever receives the current()-only handle.
+    */
+    modelKnowledge?: ModelKnowledgeStore;
   };
   defaults?: EngineDefaults;
   budgetDefaults?: BudgetDefaults;
@@ -4895,6 +4700,103 @@ declare class Semaphore {
   private release;
 }
 //#endregion
+//#region src/engine/external.d.ts
+/** The resolution value shape of a tool-approval suspension (M3-T03). */
+interface ApprovalDecision {
+  decision: "allow" | "deny";
+  reason?: string;
+}
+/**
+* Normalizes a resolution value into an ApprovalDecision. Anything that
+* is not an explicit allow is a deny: an approval never fails open.
+*/
+declare function toApprovalDecision(value: Json): ApprovalDecision;
+/**
+* Per-run registry of open external suspensions plus the run's activity
+* counter: when every in-flight branch is blocked on suspensions
+* (activity zero, waiters open), the run quiesces into outcome
+* 'suspended' (docs/06, section 2.7).
+*/
+declare class ExternalRegistry {
+  private readonly replayer;
+  private readonly waiters;
+  private readonly keysByScope;
+  private activity;
+  private quiesceListener?;
+  private quiesceScheduled;
+  constructor(replayer: Replayer);
+  /** Wraps every non-suspension async operation (agents, steps). */
+  enter(): () => void;
+  /**
+  * An agent parking on a mid-turn approval is BLOCKED, not active: its
+  * held activity is released so the run can settle 'suspended', and
+  * re-taken when the resolution lands (M3-T03).
+  */
+  private suspendActivity;
+  onQuiesce(listener: (pending: PendingExternal[]) => void): void;
+  pending(): PendingExternal[];
+  /** The synthesized resolveExternal key of an approval suspension. */
+  static approvalKey(entryRef: number): string;
+  private scheduleQuiesceCheck;
+  /**
+  * ctx.awaitExternal: journal (or re-match) the suspended entry and park
+  * until a resolution wins the first-closing-wins fold.
+  */
+  awaitExternal(scope: string, spanId: string, key: string, options?: {
+    schema?: SchemaSpec;
+    prompt?: string;
+  }): Promise<Json>;
+  /**
+  * Tool-approval suspension (M3-T03; docs/08, section 3.6): journals (or
+  * re-matches) the suspended approval entry keyed by (toolName, input)
+  * in the agent's child scope and parks until a resolution closes it.
+  * The ask verdict is journaled together with the turn checkpoint; on
+  * resume an already-resolved entry applies its decision immediately and
+  * is never re-suspended.
+  */
+  awaitApproval(options: {
+    scope: string;
+    spanId: string;
+    toolName: string;
+    input: Json;
+    risk?: string; /** Called with the suspended entry once it is open (live or re-parked). */
+    onPending?: (entry: JournalEntry, replayed: boolean) => void;
+  }): Promise<ApprovalDecision>;
+  /**
+  * Flavor B escalation suspension (M3-T07; docs/07, section 6.2): the
+  * escalate tool suspends the agent on the SAME machinery as approvals
+  * (kind 'approval', toolName 'escalate') with a journaled deadlineAt so
+  * deadlines survive resume; the resolution VALUE is the raw
+  * EscalationDecision. A timeout is expressed as a resolution by
+  * 'timeout' through the arbiter; first-closing-wins guarantees the
+  * defaultDecision and a racing live decision never both apply.
+  */
+  awaitDecision(options: {
+    scope: string;
+    spanId: string;
+    toolName: string;
+    input: Json;
+    deadlineAt: string;
+    onPending?: (entry: JournalEntry, replayed: boolean) => void;
+  }): Promise<{
+    value: Json;
+    entryRef: number;
+  }>;
+  /**
+  * Submits a resolution attempt for a parked suspension and, when it
+  * wins the first-closing-wins fold, settles the in-process waiter with
+  * the value (timers and engine-side deciders use this; operator
+  * resolutions ride resolveExternal).
+  */
+  submitResolution(entryRef: number, attempt: Parameters<Replayer["resolveSuspended"]>[1]): Promise<ResolutionOutcome>;
+  /**
+  * RunHandle.resolveExternal: the live path validates BEFORE append and
+  * throws InvalidResolutionError without journaling; a winning attempt
+  * settles the waiting promise in place (docs/03, section 8.7).
+  */
+  resolveExternal(key: string, value: Json): Promise<ResolutionOutcome>;
+}
+//#endregion
 //#region src/engine/ctx.d.ts
 type ErrorPolicy = "strict" | "lenient";
 /**
@@ -5246,6 +5148,13 @@ interface RunInternals {
   /** The worktree lifecycle provider (docs/08, section 8). */
   isolation?: IsolationProvider;
   /**
+  * The ModelKnowledge runtime handle (docs/05; M10-T03): current()
+  * only, commit physically absent. Present only when the engine was
+  * given stores.modelKnowledge; absent means the feature is off and
+  * no kb entries are ever written.
+  */
+  knowledge?: ModelKnowledgeHandle;
+  /**
   * The InProcessRunner escalation hook (docs/06, section 2.10): receives
   * escalated results when the call form cannot carry them; its decision
   * is journaled as the authoritative escalation-decision entry.
@@ -5276,174 +5185,316 @@ declare function createCtx(internals: RunInternals): Ctx<ErrorPolicy>;
 */
 declare function executeWorkflow<A, R>(internals: RunInternals, wf: Workflow<A, R>, args: A): Promise<R>;
 //#endregion
-//#region src/engine/cost-report.d.ts
-/** Folds the per-run attribution buckets into the normative CostReport. */
-declare function buildCostReport(attribution: CostAttribution, totalUsd: number): CostReport;
-/**
-* The pure journal fold: byModel and totals from terminal entries, the
-* same summation the kernel ledger uses (terminal usage exactly once,
-* priced per servedBy, abandoned subtrees contribute zero).
-*/
-declare function costReportFromJournal(entries: readonly JournalEntry[], priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined): CostReport;
-//#endregion
-//#region src/engine/run-handle.d.ts
-/** Suspensions still open at settle time; producers arrive with M2. */
-interface PendingExternal {
-  key: string;
-  scope: string;
-  entryRef: number;
-  prompt?: string;
-  /** Approvals and Flavor B escalations only. */
-  deadlineAt?: string;
-}
-/** docs/09, section "CostReport". */
-interface CostReport {
-  totalUsd: number;
-  /** Keyed by canonical ModelRef 'adapterId:model'. */
-  byModel: Record<string, number>;
-  /** ctx.phase names; phase is structural for this map. */
-  byPhase: Record<string, number>;
-  byAgentType: Record<string, number>;
-  byRole: Record<InvocationRole, number>;
-  /** All-zero with forcedFinish false in runs without a dynamic orchestrator. */
-  orchestrator: {
-    spentUsd: number; /** spentUsd / max(totalUsd, 0.01): the epsilon-floored H-OrchShare input. */
-    share: number;
-    wakes: number;
-    forcedFinish: boolean;
-    reserveUsedUsd: number;
-  };
-  /** Usage on models absent from pricing; never a silent zero. */
-  unpriced: Array<{
-    model: string;
-    usage: Usage;
+//#region src/knowledge/card.d.ts
+/** docs/06, Appendix A: the KB card render budget (characters). */
+declare const KB_CARD_RENDER_BUDGET_CHARS = 4096;
+/** One declared ladder of the run, named by its agentType. */
+interface DeclaredLadder {
+  name: string;
+  startTier: number;
+  rungs: Array<{
+    model: ModelRef;
+    effort?: Effort;
   }>;
 }
-type RunOutcome<R> = {
-  status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
-  value?: R;
-  error?: WireError; /** Pipeline drops and onError:'null' losses; silent losses are forbidden. */
-  dropped: DroppedItem[]; /** Suspensions open at settle time (M2). */
-  pending: PendingExternal[];
-  usage: Usage;
-  cost: CostReport;
+/**
+* The ladders a run declares: every advertised profile whose model
+* spec is a ladder (docs/04, section 12). The card is tier-relative to
+* exactly these.
+*/
+declare function collectDeclaredLadders(profiles: Record<string, AgentProfile> | undefined): DeclaredLadder[];
+/**
+* The admission filter (docs/05, 4.1): status active, unexpired at
+* `now`, and the subject reachable through the run's declared ladders
+* after the role-floor filter.
+*/
+declare function filterClaimsForRun(claims: readonly ModelClaim[], options: {
+  ladders: readonly DeclaredLadder[];
+  floors?: QualityFloors;
+  now: string;
+}): ModelClaim[];
+/**
+* The deterministic card render (docs/05, 4.3). Pure: same filtered
+* claims and ladders give byte-identical text. The render budget is
+* docs/06 Appendix A (4096 chars); over it, the OLDEST-observed notes
+* withhold first behind an explicit marker.
+*/
+declare function modelKnowledgeCard(claims: readonly ModelClaim[], ladders: readonly DeclaredLadder[], options?: {
+  budgetChars?: number;
+}): string;
+//#endregion
+//#region src/tools/presets.d.ts
+type PermissionPreset = "strict" | "standard" | "open";
+declare function compilePermissionPreset(preset: PermissionPreset): {
+  deny: PermissionRule[];
+  ask: PermissionRule[];
 };
-/** Adds 'running' for in-flight inspection (docs/06, section "Engine and ops API"). */
-type RunStatus = RunOutcome<unknown>["status"] | "running";
-interface RunHandle<R> {
+//#endregion
+//#region src/tools/shell-matcher.d.ts
+/**
+* Argv-parsing shell matcher (M5-T06; docs/08, section 5): shell
+* allow/ask/deny is matched through a real argv parser, never a string
+* prefix. The composition rule is the entire point: for a compound
+* command the verdict is the strictest across segments, and any
+* unmatched segment yields ask, never a silent allow: `npm test; rm -rf
+* /` MUST yield ask (or deny when rm patterns are denied) even when
+* `npm test` is allow-listed.
+*
+* Matching algorithm (5.2):
+* 1. Lex with a POSIX-like shell lexer: quotes and escapes honored, no
+*    expansion of any kind.
+* 2. Split into segments at `;`, `&&`, `||`, `|`, `&`, and newline.
+* 3. A segment containing command substitution ($(...) or backticks),
+*    process substitution, or a here-doc is unmatchable: ask, always.
+* 4. Leading environment assignments (FOO=bar cmd) are stripped; a
+*    segment of only assignments is treated as unmatched.
+* 5. Redirection operators and their targets are retained as tokens; a
+*    pattern that does not account for them fails to match.
+* 6. Each segment is evaluated deny, then ask, then allow.
+*/
+interface ShellSegment {
+  /** Argv tokens after lexing and env-assignment stripping. */
+  argv: string[];
+  /** Substitutions and here-docs make a segment unmatchable (ask). */
+  unmatchable: boolean;
+}
+/**
+* Lexes a command into segments per the docs/08 5.2 algorithm. Quotes
+* and escapes are honored; nothing is expanded; `$(`, backticks, `<(`,
+* `>(`, and `<<` (outside single quotes) poison their segment.
+*/
+declare function lexShellCommand(command: string): ShellSegment[];
+/**
+* Pattern grammar (5.1): literal words match one identical token; `*`
+* matches exactly one token; `**` matches zero or more remaining tokens
+* and may appear only as the final word. A pattern matches only if it
+* consumes the segment's ENTIRE argv.
+*/
+declare function matchArgvPattern(pattern: string, argv: string[]): boolean;
+type ShellVerdict = "allow" | "ask" | "deny";
+interface ShellPatternRules {
+  deny?: string[];
+  ask?: string[];
+  allow?: string[];
+}
+/**
+* The strictest-across-segments composition (5.3): deny if ANY segment
+* denies; otherwise ask if ANY segment asks or fails to match an allow
+* pattern; otherwise allow.
+*/
+declare function matchShellCommand(command: string, rules: ShellPatternRules): ShellVerdict;
+//#endregion
+//#region src/tools/tool.d.ts
+/** First-party provider tool-name constraint intersection (docs/08, section 1.1). */
+declare const TOOL_NAME_PATTERN: RegExp;
+interface ToolInit<S extends SchemaSpec> {
+  name: string;
+  description: string;
+  parameters: S;
+  /** Contract version, part of toolsetHash (docs/08, section 1.2). */
+  version?: string;
+  /** Default 'inprocess' (docs/08, section "Executors"). */
+  executor?: ToolExecutor;
+  /** Default false (docs/08, section "Terminal default"). */
+  needsApproval?: boolean;
+  /** Policy metadata; never identity (docs/08, section "ToolRisk"). */
+  risk?: ToolRisk;
+  execute: (input: Out<S>, ctx: ToolContext) => Promise<unknown>;
+}
+/**
+* Defines a tool. Definition-time failures are typed ConfigErrors, never
+* first-call surprises: an illegal name, a Standard Schema without the
+* JSON Schema projection, a recursive local $ref, or a remote/dynamic
+* reference all fail here (docs/08, sections 1.1 and 2.3).
+*/
+declare function tool<S extends SchemaSpec>(init: ToolInit<S>): ToolDef<S>;
+/**
+* The identity projection: the contract tuple that enters toolsetHash.
+* parameters is the canonicalized derived JSON Schema (docs/03, section
+* "schemaHash and toolsetHash derivation").
+*/
+declare function toolContract(def: ToolDef): ToolContract;
+//#endregion
+//#region src/tools/context.d.ts
+interface ToolContextSeed {
   runId: string;
-  result: Promise<RunOutcome<R>>;
-  events: AsyncIterable<WorkflowEvent>;
-  on<T extends WorkflowEvent["type"]>(type: T, cb: (e: Extract<WorkflowEvent, {
-    type: T;
-  }>) => void): () => void;
+  agentType: string;
+  label?: string;
+  /** Isolation working directory; the host cwd under isolation 'none'. */
+  cwd: string;
+  isolation: IsolationSpec;
+  /** Fires on cancellation, budget ceiling, UsageLimits expiry. */
+  signal: AbortSignal;
+  /** Mints the tool span under the agent span. */
+  mintSpan(): string;
+  emitLog(spanId: string, level: "debug" | "info" | "warn" | "error", msg: string, data?: Json): void;
+}
+/** Builds the per-call ToolContext; one fresh span per tool call. */
+declare function buildToolContext(seed: ToolContextSeed): ToolContext;
+//#endregion
+//#region src/tools/mcp.d.ts
+interface McpConfig {
+  transport: "stdio" | "streamable-http" | "inprocess";
+  /** stdio: child process to spawn. */
+  command?: string;
+  args?: string[];
+  /** streamable-http: server endpoint. */
+  url?: string;
+  /** inprocess: in-memory server instance (anything with connect()). */
+  server?: unknown;
+  /** Tool-name filter on ORIGINAL names; omitted = all. */
+  allow?: string[];
+  /** Deny wins over allow (pre-prefix names). */
+  deny?: string[];
+  /** Namespaces imported names as `${prefix}_${name}` (docs/08 6.4). */
+  prefix?: string;
+  /** true = every imported tool needsApproval; record form is per name. */
+  approval?: boolean | Record<string, boolean>;
+  /** Host-supplied risk labels for imported tools (docs/08 6.2). */
+  risk?: Record<string, ToolRisk>;
+}
+/**
+* Imports MCP tools as a ToolSource. The client connects lazily on the
+* first tools() call; tools/list is fetched with cursor pagination until
+* exhaustion and cached per session; a listChanged notification
+* invalidates the cache, affecting subsequently spawned agents only (a
+* spawn's toolset snapshot is immutable by construction; docs/08 6.3).
+*/
+declare function mcp(cfg: McpConfig): ToolSource;
+//#endregion
+//#region src/tools/isolation.d.ts
+/** docs/06 Appendix A: the shared pin cap (park/unpark and retainWorktree). */
+declare const DEFAULT_MAX_PINNED_WORKTREES = 4;
+interface GitWorktreeProviderOptions {
+  /** Host repository root; default process.cwd(). */
+  repoRoot?: string;
   /**
-  * Resolves an open awaitExternal suspension (DEF-4 signature): applied
-  * when this attempt wins the first-closing-wins fold; repeated
-  * resolution is defined behavior, not an error. An invalid live payload
-  * throws InvalidResolutionError and journals nothing.
+  * Retain the tree of a FAILED agent for inspection when the engine
+  * requests keep on dispose (docs/08, section 8.3). Default false.
   */
-  resolveExternal(key: string, value: Json): Promise<ResolutionOutcome>;
-  /** Cooperative cancellation; the run settles 'cancelled' with a complete CostReport. */
-  cancel(reason?: string): Promise<void>;
+  keepOnError?: boolean;
+  /** Pin cap shared by park/unpark and retainWorktree (default 4). */
+  maxPinnedWorktrees?: number;
+  /** Warning sink (cap overflow); defaults to process.emitWarning. */
+  onWarn?: (msg: string) => void;
+}
+/**
+* The shipped git worktree lifecycle. A non-git host is a typed
+* ConfigError at acquire (docs/08, section 8.3, rule 1).
+*/
+declare class GitWorktreeProvider implements IsolationProvider {
+  private readonly repoRoot;
+  private readonly keepOnError;
+  private readonly maxPinned;
+  private readonly onWarn;
+  private readonly pinned;
+  constructor(options?: GitWorktreeProviderOptions);
+  /** Trees currently retained under the pin cap. */
+  get pinnedWorktrees(): ReadonlySet<string>;
+  acquire(spawn: {
+    runId: string;
+    spanId: string;
+    ref?: string;
+  }): Promise<{
+    cwd: string;
+    collect(): Promise<{
+      files: string[];
+      patch: Bytes;
+    }>;
+    dispose(keep?: boolean): Promise<void>;
+  }>;
 }
 //#endregion
-//#region src/engine/external.d.ts
-/** The resolution value shape of a tool-approval suspension (M3-T03). */
-interface ApprovalDecision {
-  decision: "allow" | "deny";
-  reason?: string;
-}
+//#region src/journal/scope.d.ts
 /**
-* Normalizes a resolution value into an ApprovalDecision. Anything that
-* is not an explicit allow is a deny: an approval never fails open.
+* Scope-path grammar (M1-T04): deterministic structural paths, independent
+* of wall-clock (invariant I3: structure comes from call-and-return only).
+* The grammar is part of the hashVersion 2 profile.
+*
+* Owning spec: docs/03-journal-spec.md, section "Scope-path grammar".
+*
+* Segment rules: a sequential body is ONE scope (sequential calls add no
+* segment; they are distinguished by key and ordinal only). ctx.phase is
+* cosmetic for identity and adds no segment. Parallel site numbers come
+* from a monotonic counter per enclosing scope in execution order; the
+* pipeline item index is the index of the ORIGINAL input item, so
+* streaming reorder never shifts identity.
 */
-declare function toApprovalDecision(value: Json): ApprovalDecision;
+/** The root sequential body of the run is the empty path. */
+declare const ROOT_SCOPE: string;
+/** Branch `branch` of parallel site `site`: `par:<site>:<branch>`. */
+declare function parallelScope(parent: string, site: number, branch: number): string;
+/** Stage `stage` processing source item `item`: `pipe:<stage>:<item>`. */
+declare function pipelineScope(parent: string, stage: number, item: number): string;
+/** ctx.workflow child scope: `wf:<name>:<ordinal>` (ordinal counts invocations of that name). */
+declare function workflowScope(parent: string, name: string, ordinal: number): string;
+/** Orchestrator handle spawns nest under the orchestrator's own spawn entry: `agent:<seq>`. */
+declare function agentScope(parent: string, seq: number): string;
+/** PlanRunner node scopes: `plan/<NodeId>` (NodeIds are engine-minted ULIDs). */
+declare function planNodeScope(nodeId: string): string;
+/** A parsed scope-path segment (docs/03, section 2.1). */
+type ScopeSegment = {
+  kind: "parallel";
+  site: number;
+  branch: number;
+} | {
+  kind: "pipeline";
+  stage: number;
+  item: number;
+} | {
+  kind: "workflow";
+  name: string;
+  ordinal: number;
+} | {
+  kind: "agent";
+  seq: number;
+} | {
+  kind: "plan-node";
+  nodeId: string;
+};
 /**
-* Per-run registry of open external suspensions plus the run's activity
-* counter: when every in-flight branch is blocked on suspensions
-* (activity zero, waiters open), the run quiesces into outcome
-* 'suspended' (docs/06, section 2.7).
+* Parses a scope path against the frozen grammar (M2-T04):
+*
+*   scope-path   ::= "" | scope-path "/" segment
+*   segment      ::= "par:" site ":" branch
+*                  | "pipe:" stage ":" item
+*                  | "wf:" name ":" ordinal
+*                  | "agent:" seq
+*                  | "plan" ("/" NodeId follows as its own segment)
+*   NodeId       ::= Crockford ULID (26 chars)
+*
+* Registered workflow names may contain ':' (the ordinal is the final
+* segment field). Throws on malformed paths.
 */
-declare class ExternalRegistry {
-  private readonly replayer;
-  private readonly waiters;
-  private readonly keysByScope;
-  private activity;
-  private quiesceListener?;
-  private quiesceScheduled;
-  constructor(replayer: Replayer);
-  /** Wraps every non-suspension async operation (agents, steps). */
-  enter(): () => void;
-  /**
-  * An agent parking on a mid-turn approval is BLOCKED, not active: its
-  * held activity is released so the run can settle 'suspended', and
-  * re-taken when the resolution lands (M3-T03).
-  */
-  private suspendActivity;
-  onQuiesce(listener: (pending: PendingExternal[]) => void): void;
-  pending(): PendingExternal[];
-  /** The synthesized resolveExternal key of an approval suspension. */
-  static approvalKey(entryRef: number): string;
-  private scheduleQuiesceCheck;
-  /**
-  * ctx.awaitExternal: journal (or re-match) the suspended entry and park
-  * until a resolution wins the first-closing-wins fold.
-  */
-  awaitExternal(scope: string, spanId: string, key: string, options?: {
-    schema?: SchemaSpec;
-    prompt?: string;
-  }): Promise<Json>;
-  /**
-  * Tool-approval suspension (M3-T03; docs/08, section 3.6): journals (or
-  * re-matches) the suspended approval entry keyed by (toolName, input)
-  * in the agent's child scope and parks until a resolution closes it.
-  * The ask verdict is journaled together with the turn checkpoint; on
-  * resume an already-resolved entry applies its decision immediately and
-  * is never re-suspended.
-  */
-  awaitApproval(options: {
-    scope: string;
-    spanId: string;
-    toolName: string;
-    input: Json;
-    risk?: string; /** Called with the suspended entry once it is open (live or re-parked). */
-    onPending?: (entry: JournalEntry, replayed: boolean) => void;
-  }): Promise<ApprovalDecision>;
-  /**
-  * Flavor B escalation suspension (M3-T07; docs/07, section 6.2): the
-  * escalate tool suspends the agent on the SAME machinery as approvals
-  * (kind 'approval', toolName 'escalate') with a journaled deadlineAt so
-  * deadlines survive resume; the resolution VALUE is the raw
-  * EscalationDecision. A timeout is expressed as a resolution by
-  * 'timeout' through the arbiter; first-closing-wins guarantees the
-  * defaultDecision and a racing live decision never both apply.
-  */
-  awaitDecision(options: {
-    scope: string;
-    spanId: string;
-    toolName: string;
-    input: Json;
-    deadlineAt: string;
-    onPending?: (entry: JournalEntry, replayed: boolean) => void;
-  }): Promise<{
-    value: Json;
-    entryRef: number;
-  }>;
-  /**
-  * Submits a resolution attempt for a parked suspension and, when it
-  * wins the first-closing-wins fold, settles the in-process waiter with
-  * the value (timers and engine-side deciders use this; operator
-  * resolutions ride resolveExternal).
-  */
-  submitResolution(entryRef: number, attempt: Parameters<Replayer["resolveSuspended"]>[1]): Promise<ResolutionOutcome>;
-  /**
-  * RunHandle.resolveExternal: the live path validates BEFORE append and
-  * throws InvalidResolutionError without journaling; a winning attempt
-  * settles the waiting promise in place (docs/03, section 8.7).
-  */
-  resolveExternal(key: string, value: Json): Promise<ResolutionOutcome>;
+declare function parseScopePath(path: string): ScopeSegment[];
+/** Serializes parsed segments back to the canonical path (round-trip). */
+declare function formatScopePath(segments: readonly ScopeSegment[]): string;
+/**
+* Allocates parallel site numbers per enclosing scope: a monotonic counter
+* in execution order, not source position. Because every scope body is
+* sequential by construction (I3), allocation order is deterministic and
+* identical on every replay.
+*/
+declare class ParallelSiteCounter {
+  private readonly bySite;
+  next(enclosingScope: string): number;
 }
+//#endregion
+//#region src/journal/serializable.d.ts
+/**
+* Validates and snapshots a value for the journal: the returned value is a
+* JSON round-trip clone, decoupled from later caller mutations, with
+* undefined object members dropped.
+*/
+declare function toJournalValue(value: unknown, site: string): Json;
+//#endregion
+//#region src/journal/kinds.d.ts
+/**
+* Validates the shape the engine is about to append. Returns issues;
+* empty means valid. Unknown kinds are rejected here (the engine never
+* writes them); stores still pass them through on read.
+*/
+declare function validateEntryShape(entry: JournalEntry): Issue$1[];
 //#endregion
 //#region src/stores/inmemory.d.ts
 declare class InMemoryStore implements JournalStore {
@@ -5861,4 +5912,4 @@ interface SandboxBridge {
 }
 declare function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptions): SandboxBridge;
 //#endregion
-export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentResultMeta, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, BUDGET_ABORT_REASON, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, CLAIM_STATEMENT_MAX_CHARS, CLAIM_TTL_DAYS, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, type ClaimClass, type ClaimOp, type ClaimStatus, ClaimValidationOptions, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DebitResult, DedupIndex, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorCandidate, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, type EvidenceRef, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINISH_SCHEMA, FINISH_TOOL_NAME, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileModelKnowledgeStore, FileModelKnowledgeStoreOptions, FileTranscriptStore, FinishInfo, Gate, GateAudit, type GateRecord, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, JournalSerializationHook, type JournalStore, type Json, JsonSchema, JsonlFileStore, KB_ACTIVE_CLAIMS_CAP, KeyDeriver, KeyRing, KeyedLimiter, KnowledgeCasError, type KnowledgeSnapshot, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, LurkerError, LurkerErrorCode, MASKED_SECRET, MAX_DEPTH_CEILING, MatchResult, McpConfig, MechanicalGateProfile, MechanicalGateVerdict, type ModelCaps, ModelChoice, type ModelClaim, type ModelKnowledgeHandle, type ModelKnowledgeStore, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateOptions, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, SerializationHook, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, type TaskClass, TaskDigest, TaskSpec, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, TranscriptSerializationHook, type TranscriptStore, TriggerClass, Usage, UsageLimits, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WAKE_SUMMARY_RENDER_BUDGET_CHARS, WakeBudgetBlock, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyClaimOps, applyStructuredOutputTier, approachSigCoarse, approachSigOf, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeLadder, canonicalizeSchema, capIssues, checkFloors, checkpointRefFor, childCoveragePrefix, claimExpired, claimExpiry, claimIssues, claimOpIssues, classifyAgentError, classifyAttemptOutcome, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyDigestBlocks, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, evaluateReuse, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, finalizeFires, foldTermination, formatRePrompt, formatScopePath, hashWorkflowBody, hashWorkflowSource, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, kMaxOf, knowledgeHash, ladderLengthOf, ladderRungChoice, lexShellCommand, liftRetainedParts, lineageWeightOf, makeOrchestratorWorkflow, maskSecrets, maskSecretsDeep, maskSecretsJson, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, priceUsdOf, profileCard, profileRegistrySnapshotHash, projectHistory, projectIdentity, projectToJsonSchema, providerOf, readTerminationInit, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, summarizeOutput, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEditorialCommit, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateSchemaSpec, validateTerminationLimits, workflowScope, workflowSourceRef, wrapJournalStore, wrapTranscriptStore };
+export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentResultMeta, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, BUDGET_ABORT_REASON, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, CLAIM_STATEMENT_MAX_CHARS, CLAIM_TTL_DAYS, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, type ClaimClass, type ClaimOp, type ClaimStatus, ClaimValidationOptions, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DebitResult, DeclaredLadder, DedupIndex, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorCandidate, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, type EvidenceRef, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINISH_SCHEMA, FINISH_TOOL_NAME, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileModelKnowledgeStore, FileModelKnowledgeStoreOptions, FileTranscriptStore, FinishInfo, Gate, GateAudit, type GateRecord, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, JournalSerializationHook, type JournalStore, type Json, JsonSchema, JsonlFileStore, KB_ACTIVE_CLAIMS_CAP, KB_CARD_RENDER_BUDGET_CHARS, KeyDeriver, KeyRing, KeyedLimiter, KnowledgeCasError, type KnowledgeSnapshot, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, LurkerError, LurkerErrorCode, MASKED_SECRET, MAX_DEPTH_CEILING, MatchResult, McpConfig, MechanicalGateProfile, MechanicalGateVerdict, type ModelCaps, ModelChoice, type ModelClaim, type ModelKnowledgeHandle, type ModelKnowledgeStore, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateOptions, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, SerializationHook, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, type TaskClass, TaskDigest, TaskSpec, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, TranscriptSerializationHook, type TranscriptStore, TriggerClass, Usage, UsageLimits, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WAKE_SUMMARY_RENDER_BUDGET_CHARS, WakeBudgetBlock, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyClaimOps, applyStructuredOutputTier, approachSigCoarse, approachSigOf, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeLadder, canonicalizeSchema, capIssues, checkFloors, checkpointRefFor, childCoveragePrefix, claimExpired, claimExpiry, claimIssues, claimOpIssues, classifyAgentError, classifyAttemptOutcome, collectDeclaredLadders, compactMessages, compilePermissionChain, compilePermissionPreset, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyDigestBlocks, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, evaluateReuse, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, filterClaimsForRun, finalizeFires, foldTermination, formatRePrompt, formatScopePath, hashWorkflowBody, hashWorkflowSource, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, kMaxOf, knowledgeHash, ladderLengthOf, ladderRungChoice, lexShellCommand, liftRetainedParts, lineageWeightOf, makeOrchestratorWorkflow, maskSecrets, maskSecretsDeep, maskSecretsJson, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelKnowledgeCard, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, priceUsdOf, profileCard, profileRegistrySnapshotHash, projectHistory, projectIdentity, projectToJsonSchema, providerOf, readTerminationInit, registryKeyRing, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, summarizeOutput, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, validateEditorialCommit, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateSchemaSpec, validateTerminationLimits, workflowScope, workflowSourceRef, wrapJournalStore, wrapTranscriptStore };

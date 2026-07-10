@@ -69,6 +69,7 @@ import type { RetryPolicy } from '../model/retry.js';
 import { KeyedLimiter } from '../model/concurrency.js';
 import { resolvePricing, priceUsdOf, type PriceTable } from '../model/pricing.js';
 import type { QualityFloors } from '../model/floors.js';
+import type { ModelKnowledgeHandle, ModelKnowledgeStore } from '../l0/spi/knowledge.js';
 
 export type { RunStatus };
 
@@ -134,6 +135,12 @@ export interface CreateEngineOptions {
     /** Default InMemoryStore (resume disabled, loud warning). */
     journal?: JournalStore;
     transcripts?: TranscriptStore;
+    /**
+     * The ModelKnowledge claim store (docs/05; M10-T03). Optional and
+     * OFF by default: an engine without it writes no kb entries at
+     * all. The runtime only ever receives the current()-only handle.
+     */
+    modelKnowledge?: ModelKnowledgeStore;
   };
   defaults?: EngineDefaults;
   budgetDefaults?: BudgetDefaults;
@@ -315,6 +322,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
       : wrapTranscriptStore(rawTranscripts, options.serialization.transcripts);
   const maskEvents = options.redaction?.maskEvents ?? true;
   const defaults = options.defaults ?? {};
+  // The runtime side holds the current()-only handle, never the store:
+  // commit is unreachable from inside a run by the shape of the API
+  // (docs/05, section "Security", channel 3).
+  const knowledgeStore = options.stores?.modelKnowledge;
+  const knowledge: ModelKnowledgeHandle | undefined =
+    knowledgeStore === undefined ? undefined : { current: () => knowledgeStore.current() };
   const runner: ScriptRunner = new InProcessRunner(
     options.onEscalation === undefined ? undefined : { onEscalation: options.onEscalation },
   );
@@ -477,6 +490,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         ? {}
         : { flatReserveUsd: options.budgetDefaults.flatReserveUsd }),
       ...(defaults.roleFloors === undefined ? {} : { floors: defaults.roleFloors }),
+      ...(knowledge === undefined ? {} : { knowledge }),
       events: { emit: (body, spanId) => bus.emit(body as WorkflowEventBody, spanId ?? rootSpanId) },
       spans,
       rootSpanId,

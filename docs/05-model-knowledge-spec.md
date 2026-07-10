@@ -117,7 +117,7 @@ Notes:
 
 ### 4.1 One read at admission
 
-One read happens at run admission, before the first orchestrator turn: the engine calls `store.current()`, filters claims (status `active`, not expired by `expiresAt`, and only models reachable through the run's declared ladders after the role-floor filter), and renders `modelKnowledgeCard(snapshot, ladders, floors)`: a deterministic pure function producing a compact card in the profileCard tradition. kb_pinned is written only for runs that resolve an orchestrate-role invocation (07-adaptive-orchestration-spec.md, section "Scope and applicability per mode").
+One read happens at run admission, before the first orchestrator turn: the engine calls `store.current()`, filters claims (status `active`, not expired by `expiresAt`, and only models reachable through the run's declared ladders after the role-floor filter), and renders `modelKnowledgeCard(snapshot, ladders, floors)`: a deterministic pure function producing a compact card in the profileCard tradition. kb_pinned is written only for runs that resolve an orchestrate-role invocation (07-adaptive-orchestration-spec.md, section "Scope and applicability per mode"). An engine with NO modelKnowledge store configured writes no kb entries at all: the feature is store-gated (createEngine stores.modelKnowledge, 06-execution-spec.md), so journals recorded without a store stay byte-stable forever. (Clarified during M10-T03.)
 
 ### 4.2 kb_pinned and kb_repinned decision entries
 

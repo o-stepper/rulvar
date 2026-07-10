@@ -26,6 +26,11 @@ import type { AgentResult } from '../runtime/agent-loop.js';
 import type { UsageLimits } from '../runtime/usage-limits.js';
 import { profileCard } from '../model/profile-card.js';
 import {
+  collectDeclaredLadders,
+  filterClaimsForRun,
+  modelKnowledgeCard,
+} from '../knowledge/card.js';
+import {
   kBootCheckpoint,
   kOnRunning,
   kTerminalTool,
@@ -1028,6 +1033,13 @@ export function makeOrchestratorWorkflow(
         }
         try {
           const digest = (await digestPromise) as unknown as WakeDigest;
+          if (internals.knowledge !== undefined) {
+            // A resume from suspension re-pins under the same filtering
+            // rules (docs/05, 4.2): expired, stale, and archived claims
+            // never steer spawns after multi-day pauses. Zero extra
+            // awaits when no store is configured (timing neutrality).
+            await appendKbRepin(wakeKey);
+          }
           markDelivered(digest);
           internals.cost.orchestrator.wakes += 1;
           internals.events.emit(
@@ -1064,6 +1076,64 @@ export function makeOrchestratorWorkflow(
     if (extension?.boot !== undefined) {
       await extension.boot(io);
     }
+    // docs/05 4.1/4.2 (M10-T03): one knowledge read at run admission,
+    // ONLY for orchestrate-role runs over a CONFIGURED store; the pin
+    // embeds the card bytes, so resume and replay read the entry and
+    // never touch the live store. Engines without stores.modelKnowledge
+    // take zero extra awaits here (timing neutrality for cassettes).
+    let kbCardText: string | undefined;
+    const appendKbPin = async (
+      decisionType: 'kb_pinned' | 'kb_repinned',
+      key: string,
+    ): Promise<string> => {
+      const handle = internals.knowledge;
+      if (handle === undefined) {
+        return '';
+      }
+      const snapshot = await handle.current();
+      const ladders = collectDeclaredLadders(advertisedProfiles);
+      const filtered = filterClaimsForRun(snapshot.claims, {
+        ladders,
+        ...(internals.floors === undefined ? {} : { floors: internals.floors }),
+        now: new Date(internals.now()).toISOString(),
+      });
+      const rendered = modelKnowledgeCard(filtered, ladders);
+      await internals.replayer.appendSinglePhase({
+        scope: callingState.scope,
+        key,
+        kind: 'decision',
+        status: 'ok',
+        spanId: internals.spans.mint(callingState.spanId),
+        site: 'kb-pin',
+        value: { decisionType, version: snapshot.version, hash: snapshot.hash, cardText: rendered },
+      });
+      return rendered;
+    };
+    const appendKbRepin = async (wakeKey: string): Promise<void> => {
+      const key = deriverV2.deriveKey({ kind: 'kb-repinned', wakeKey });
+      await internals.replayer.flush();
+      if (
+        internals.replayer
+          .snapshot()
+          .some((entry) => entry.kind === 'decision' && entry.key === key)
+      ) {
+        // The journaled repin (a resumed life or a replay) wins: entry
+        // bytes, never the live store (docs/05, security channel 8).
+        return;
+      }
+      await appendKbPin('kb_repinned', key);
+    };
+    if (internals.knowledge !== undefined) {
+      const pinKey = deriverV2.deriveKey({ kind: 'kb-pinned' });
+      const priorPin = internals.replayer
+        .snapshot()
+        .find((entry) => entry.kind === 'decision' && entry.key === pinKey);
+      kbCardText =
+        priorPin === undefined
+          ? await appendKbPin('kb_pinned', pinKey)
+          : ((priorPin.value as { cardText?: string } | undefined)?.cardText ?? '');
+    }
+    const fullCardText = kbCardText === undefined ? cardText : `${cardText}\n${kbCardText}`;
     const reserveKey = deriverV2.deriveKey({ kind: 'orchestrator-budget-reserve' });
     if (
       extension !== undefined &&
@@ -1097,7 +1167,7 @@ export function makeOrchestratorWorkflow(
       });
     }
     const tools = [
-      ...buildOrchestratorTools(orchestratorRuntime, cardText),
+      ...buildOrchestratorTools(orchestratorRuntime, fullCardText),
       ...(extension?.tools(io) ?? []),
     ];
     const agentOpts: AgentOpts & InternalAgentHooks & { result: 'full' } = {
@@ -1139,7 +1209,7 @@ export function makeOrchestratorWorkflow(
       const capEntry = internals.replayer.snapshot().find((entry) => entry.seq === capDecisionRef);
       const capValue = capEntry?.value as
         { snapshot?: { planHash?: string; wakeOrdinal?: number } } | undefined;
-      const finishOnly = buildOrchestratorTools(orchestratorRuntime, cardText).filter(
+      const finishOnly = buildOrchestratorTools(orchestratorRuntime, fullCardText).filter(
         (tool) => tool.name === FINISH_TOOL_NAME,
       );
       internals.cost.orchestrator.forcedFinish = true;

@@ -482,6 +482,15 @@ The mode (c) substrate and multi-process soak cassettes referenced by the M6 and
 | orchestrator-crash-resume | a crashed orchestrate() restores its history from the turn checkpoint and finds child results by content keys, with zero re-paid spawns and no duplicate spawn decisions |
 | multi-process-fencing-soak | two workers over SqliteStore with kill/failover across suspension, forced-finish, and plan-revision boundaries: zero split-brain, zero double pay, stale-epoch appends rejected and invisible (complements queue-failover-during-forced-finish) |
 
+### 6.11 ModelKnowledge phase-1 set (M10)
+
+The kb read-path cassettes of docs/05 (sections "Read path" and "Security", channel 8). Recorded offline over a deterministic stub store with time-stable claim dates; catalog members like every other test ID.
+
+| Cassette | Asserts |
+|---|---|
+| kb-pin-replay | an orchestrate-role run over a configured ModelKnowledgeStore pins the filtered card at admission (kb_pinned with the card bytes embedded, strictly before the first orchestrator agent entry) and repins at the wait_for_events wake (kb_repinned); the card is tier-relative and carries NO model names; replay reads entry bytes only and never touches a live store |
+| kb-repin-expiry | the repin re-applies the read-path filters against a FRESH store read: a claim archived (or expired) between the pin and the wake vanishes from the repinned card while the boot pin's bytes stand untouched, so stale claims never steer spawns after pauses |
+
 ## 7 @lurker/evals
 
 A separate quality-measurement package built strictly on the public APIs (L6). It ships in M9 (v1.0.0); the round-3 extensions ship in M11 (v1.2.0).

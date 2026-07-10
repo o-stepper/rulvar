@@ -165,11 +165,16 @@ export function engineWith(
     schemas?: Record<string, unknown>;
     lineage?: Record<string, number>;
     isolation?: unknown;
+    /** ModelKnowledge store for the M10 kb cassettes (docs/05). */
+    knowledge?: unknown;
   },
 ): Engine {
   return createEngine({
     adapters: [adapter],
-    stores: { journal: store },
+    stores: {
+      journal: store,
+      ...(extras?.knowledge === undefined ? {} : { modelKnowledge: extras.knowledge as never }),
+    },
     defaults: {
       ...(extras?.isolation === undefined ? {} : { isolation: extras.isolation as never }),
       // The full role map minus finalize, exactly the createTestEngine

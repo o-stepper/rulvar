@@ -33,6 +33,7 @@ import { SpanRegistry } from './events.js';
 import { Semaphore } from './scheduler.js';
 import type { AgentProfile, RunEventSink, RunInternals } from './ctx.js';
 import type { IsolationProvider } from '../l0/spi/isolation.js';
+import type { ModelKnowledgeHandle } from '../l0/spi/knowledge.js';
 import type { EscalationDecision } from '../runtime/escalation.js';
 import type { EscalatedResult } from '../runtime/agent-loop.js';
 import type { PermissionConfig } from '../runtime/permission-chain.js';
@@ -198,6 +199,8 @@ export interface TestInternalsOptions {
   perProvider?: Record<string, number>;
   /** Hard per-role model constraints (M4-T09). */
   floors?: QualityFloors;
+  /** The current()-only ModelKnowledge handle (docs/05; M10-T03). */
+  knowledge?: ModelKnowledgeHandle;
   errorPolicy?: 'strict' | 'lenient';
   now?: () => number;
   /** Resume simulation: the loaded prior journal. */
@@ -291,6 +294,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
     providerLimiter: new KeyedLimiter(options.perProvider),
     ...(options.pricing === undefined ? {} : { pricingVersion: options.pricing.pricingVersion }),
     ...(options.floors === undefined ? {} : { floors: options.floors }),
+    ...(options.knowledge === undefined ? {} : { knowledge: options.knowledge }),
     events,
     spans,
     rootSpanId: spans.mint(),

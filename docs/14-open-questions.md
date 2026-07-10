@@ -32,7 +32,7 @@ Closing an OQ follows the change process in section 4.
 | OQ-08 | Knowledge card renderBudget sizing | dogfood telemetry | M11 |
 | OQ-09 | Phase-3 value-checkpoint quantitative criteria | dogfood telemetry | end of M11 (gates M12) |
 | OQ-10 | TaskClass extension mapping to eval tags | dogfood telemetry | M11 |
-| OQ-11 | Editorial-note rendering for judge and orchestrate roles | dogfood telemetry | M10 |
+| OQ-11 | Editorial-note rendering for judge and orchestrate roles | dogfood telemetry | Closed at M10-T03 (render, no suppression) |
 | OQ-12 | ModelKnowledge taskClass binding | dogfood telemetry | M10 (phase-1 blocker) |
 | OQ-13 | Checkpoint and transcript blob format | dogfood telemetry | Closed at M9-T05 |
 | OQ-14 | LedgerExport JSON schema | dogfood telemetry | M12 |
@@ -156,6 +156,7 @@ Closing an OQ follows the change process in section 4.
 - Must close by: M10 (card render rules ship with phase 1).
 - Decision trigger: the phase-1 card render implementation and its first dogfood use.
 - Interim rule: tier-relative rendering; the orchestrator never sees model names (05-model-knowledge-spec.md, section "Read path"); the self-description question is unresolved within that rule.
+- Closed (M10-T03, 2026-07-10): editorial notes RENDER for every taskClass, including judging and planning; no self-description suppression exists. Rationale: the card is tier-relative and nameless, so a model cannot identify itself in it, which structurally blunts the self-description bias the question feared; suppression would instead hide legitimate judge-steering and planner-steering knowledge from spawn decisions. If phase-2 telemetry shows a measurable self-description bias despite the anonymity, a render rule amendment is ordinary spec evolution (the card is engine-rendered, not a frozen seam).
 
 ### OQ-12: ModelKnowledge taskClass binding
 
