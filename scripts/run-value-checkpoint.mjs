@@ -14,7 +14,7 @@
 // without the card; (3) the report lands in tmp/ as JSON plus the
 // docs-ready markdown render. Every run carries an engine budget
 // ceiling and the script aborts if cumulative spend crosses the guard.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -111,6 +111,7 @@ const guard = (label, addUsd) => {
 const observedAt = new Date().toISOString();
 const scratch = join(root, 'tmp', 'checkpoint');
 mkdirSync(scratch, { recursive: true });
+rmSync(join(scratch, 'rulvar.models.json'), { force: true }); // a fresh store per invocation: stale claims from prior runs must not leak
 const store = new core.FileModelKnowledgeStore({ path: join(scratch, 'rulvar.models.json') });
 
 const { seed, evalHalf } = buildCorpus({ seedCount: 10, evalCount: 20 });

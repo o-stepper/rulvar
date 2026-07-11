@@ -229,9 +229,14 @@ export async function runValueCheckpoint(
     criterion2 = {
       baseline,
       informed,
+      // The vacuous-pass guard (found by the first live run): two arms
+      // of total failures (both at zero pass rate) demonstrate nothing
+      // and MUST fail; the card has to win something real.
       passed:
+        informed.n > 0 &&
+        informed.passRate > 0 &&
         informed.passRate >= baseline.passRate &&
-        informed.totalCostUsd <= 1.05 * baseline.totalCostUsd,
+        informed.totalCostUsd <= 1.05 * baseline.totalCostUsd + EPSILON,
     };
   }
 
