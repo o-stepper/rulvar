@@ -30,7 +30,7 @@ Closing an OQ follows the change process in section 4.
 | OQ-06 | Canary fingerprint design | dogfood telemetry | Closed at M11-T04 (fixed probes, NFC normalization, sha256) |
 | OQ-07 | Org-level knowledge store overlay | dogfood telemetry | post-release (carried at M11-T06) |
 | OQ-08 | Knowledge card renderBudget sizing | dogfood telemetry | post-release calibration (carried at M11-T06) |
-| OQ-09 | Phase-3 value-checkpoint quantitative criteria | dogfood telemetry | Closed at M11-T06 (gate criteria defined) |
+| OQ-09 | Phase-3 value-checkpoint quantitative criteria | dogfood telemetry | Closed at M11-T06 (gate criteria defined); measured 2026-07-11: FAILED, M12 stays closed |
 | OQ-10 | TaskClass extension mapping to eval tags | dogfood telemetry | post-release (carried at M11-T06) |
 | OQ-11 | Editorial-note rendering for judge and orchestrate roles | dogfood telemetry | Closed at M10-T03 (render, no suppression) |
 | OQ-12 | ModelKnowledge taskClass binding | dogfood telemetry | Closed at M10-T05 (author-declared, unclassified default) |
@@ -145,6 +145,10 @@ Closing an OQ follows the change process in section 4.
   1. Rung selection: runs admitted WITH the compiled verified layer reach a pass rate at least equal to the default-start-tier baseline at no more than 90 percent of its cost, OR at least 5 points of pass rate above it at no more than its cost, in a majority of cells and on the pooled aggregate.
   2. agentType selection: the card-informed orchestrator's spawn choices on the same cases match or beat the no-card baseline pass rate at no more than 105 percent of its cost on the pooled aggregate.
   A failed checkpoint keeps M12 closed and appends the measured data to this record; passing is journaled as the dated docs/05 and docs/14 amendment the M12 entry criteria require.
+- Measured (M12-T01, 2026-07-11): FAILED; M12 stays closed and unversioned. Six live runs under the one-off $15 OQ-28 grant; runs 1 to 5 each surfaced an instrument or engine defect, fixed and merged before the verdict run (the Haiku 4.5 caps entry and the criterion-2 vacuous-pass guard, PR #107; the Haiku 4.5 effort scrub, PR #108; orchestrated-arm budget solvency, PR #109; the constrained-decoding schema scrub, PR #110; ladder declarers excluded from the spawn vocabulary, PR #111). The verdict run (corpus: 30 seed plus 60 eval cases over extraction, code-edit and judging; ladders swift and deep, Haiku 4.5 to Sonnet 5 at medium and high effort, startTier 1; orchestrated pool n=10; run spend $4.19):
+  - Criterion 1 (rung selection): HOLDS. Both recommended cells passed (extraction on both ladders: pass rate 100.0 percent, equal to baseline, at 33 percent of its cost, $0.0239 against $0.0728 per cell) and the pooled aggregate holds. The card produced no recommendation for the code-edit and judging cells (neutral under the majority rule; the seeding sweep measured no strength crossing the 0.85 threshold there).
+  - Criterion 2 (agentType selection): FAILS on the cost bar. Card-informed 90.0 percent at $1.7533 against baseline 90.0 percent at $1.5242 (n=10): equal quality at 115 percent of baseline cost, above the 105 percent bar. The card bytes ride every orchestrator turn and did not steer spawns toward cheaper workers enough to pay for themselves.
+  - Consequence: kb_propose and the proposal loop stay unshipped; M12-T02 through M12-T04 do not start. Reopen trigger: a fresh grant or the OQ-28 recurring budget decision funds a rerun, preferably after a card change aimed at the measured failure (a per-profile spawn-cost hint, or a leaner orchestrate-role render).
 
 ### OQ-10: TaskClass extension mapping to eval tags
 
