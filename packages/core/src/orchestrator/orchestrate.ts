@@ -1217,6 +1217,16 @@ export function makeOrchestratorWorkflow(
       role: 'orchestrate',
       result: 'full',
       tools,
+      // A capped orchestrator can never spend past its effectiveCap
+      // (layer 2), so the cap IS its admission worst case: without this
+      // hint the default reserve prices the model's FULL maxOutputTokens
+      // (about one dollar on strong tiers), pins small run ceilings at
+      // zero remainder for the whole orchestration, and every child
+      // spawn dies with a budget rejection (docs/07, 12.2 as amended;
+      // found live by the M12 checkpoint: no orchestrated child was
+      // EVER admitted under the case ceilings, both A/B arms measured a
+      // self-solving orchestrator).
+      ...(capState === undefined ? {} : { estCost: capState.effectiveCapUsd }),
       ...(opts?.model === undefined ? {} : { model: opts.model }),
       ...(opts?.limits === undefined ? {} : { limits: opts.limits }),
       [kOnRunning]: (seq: number) => {
@@ -1267,6 +1277,11 @@ export function makeOrchestratorWorkflow(
         result: 'full',
         tools: finishOnly,
         limits: { maxTurns: finalizeTurns },
+        // The finalize dispatch spends from the released reserve, so
+        // that reserve is its admission worst case: the default hint
+        // (full maxOutputTokens pricing) could refuse the very agent
+        // the reserve exists to fund (docs/07, 12.2 as amended).
+        ...(capState === undefined ? {} : { estCost: capState.finalizeReserveUsd }),
         ...(opts?.model === undefined ? {} : { model: opts.model }),
         [kTerminalTool]: { name: FINISH_TOOL_NAME },
       };

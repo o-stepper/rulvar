@@ -36,7 +36,7 @@ const HAIKU = 'anthropic:claude-haiku-4-5-20251001';
 const SONNET = 'anthropic:claude-sonnet-5';
 const SPEND_GUARD_USD = 6; // per invocation, under the $11 reopening grant (OQ-28)
 const CASE_BUDGET_USD = 0.1; // per-run engine ceiling (dogfooding DEF-7)
-const ORCH_RUN_BUDGET_USD = 0.5; // orchestrated runs host the cap and reserve
+const ORCH_RUN_BUDGET_USD = 1.5; // hosts the orchestrator cap reserve plus admitted children
 
 const LADDERS = [
   {
