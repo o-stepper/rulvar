@@ -347,6 +347,7 @@ Tracked here but not engineering-ruled: no interim engineering rule can close th
 - Decision trigger: the M5 CI setup for live contract tests.
 - Interim rule: cassettes replay deterministically in CI without live keys; live cron runs are blocked on this decision (11-testing-strategy.md, section "Cassette tier").
 - Status (2026-07-11, founder): a ONE-OFF grant of $15 on the founder's own Anthropic key funds the M12 measured-value checkpoint (OQ-09; the runner enforces per-run engine ceilings and a cumulative $12 script guard). The RECURRING budget for cron live contract tests, canary probes, and scheduled sweeps stays consciously deferred: the cassette tier remains the only CI truth, and the question reopens when the founder commits a standing monthly cap.
+- Status (2026-07-11, founder, second grant): $11 remaining on the key funds the OQ-09 gate REOPENING after the profile-evidence card amendment (docs/05, 4.3): probes plus one verdict run plus one variance repeat. The per-invocation script guard tightens to $6. The recurring budget stays deferred.
 
 ## 5. Change process
 

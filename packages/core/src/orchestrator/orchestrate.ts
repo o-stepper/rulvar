@@ -1137,7 +1137,10 @@ export function makeOrchestratorWorkflow(
         ...(internals.floors === undefined ? {} : { floors: internals.floors }),
         now: new Date(internals.now()).toISOString(),
       });
-      const rendered = modelKnowledgeCard(filtered, ladders);
+      // The full advertised set: the renderer itself keeps only
+      // concrete-model profiles for the profile-evidence section
+      // (docs/05, 4.3 as amended), so declarers stay tier-only.
+      const rendered = modelKnowledgeCard(filtered, ladders, { profiles: advertisedProfiles });
       await internals.replayer.appendSinglePhase({
         scope: callingState.scope,
         key,
