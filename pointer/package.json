@@ -1,0 +1,37 @@
+{
+  "name": "rulvar",
+  "version": "1.0.0",
+  "description": "Pointer to the rulvar umbrella package: install @rulvar/rulvar (or this alias, which re-exports it). An embeddable TypeScript engine for durable, budget-bounded, testable multi-agent LLM workflows.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js"
+  ],
+  "sideEffects": false,
+  "dependencies": {
+    "@rulvar/rulvar": "^1.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/o-stepper/rulvar.git",
+    "directory": "pointer"
+  },
+  "homepage": "https://rulvar.com",
+  "bugs": {
+    "url": "https://github.com/o-stepper/rulvar/issues"
+  },
+  "keywords": [
+    "llm",
+    "agents",
+    "workflow",
+    "durable-execution",
+    "typescript"
+  ]
+}
