@@ -4,7 +4,7 @@
   "private": true,
   "description": "rulvar monorepo root. Never published.",
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "packageManager": "pnpm@11.10.0",
   "engines": {
     "node": ">=22.12.0"

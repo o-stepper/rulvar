@@ -44,7 +44,7 @@ Closing an OQ follows the change process in section 4.
 | OQ-20 | Retention, GC, and cascade delete | dogfood telemetry | M8 (M9 revisit done; defaults carried post-1.0) |
 | OQ-21 | Resume binding residuals | dogfood telemetry | M5 |
 | OQ-22 | Redaction defaults | dogfood telemetry | M8 |
-| OQ-23 | License and contribution model | founder | M9 (1.0 gate) |
+| OQ-23 | License and contribution model | founder | Closed 2026-07-11 (Apache-2.0; DCO) |
 | OQ-24 | Final naming and trademark resolution | founder | Closed 2026-07-11 (renamed rulvar; rulvar.com) |
 | OQ-25 | Runtime boundaries | founder | Closed at M9-T05 |
 | OQ-26 | Hosting ambitions | founder | M8 |
@@ -292,6 +292,7 @@ Tracked here but not engineering-ruled: no interim engineering rule can close th
 - Decision trigger: the pre-release legal review at the M9 gate (12-release-versioning.md, section "The 1.0 gate").
 - Interim rule (normative): every relevant surface carries "License: TBD (decided before first public release)"; no doc or package includes license text (README.md, section "License").
 - Status (M9-T05, 2026-07-10): the founder DEFERRED the license decision; per the 1.0 gate (12-release-versioning.md, section "The 1.0 gate", item 3) the v1.0.0 release is blocked until it lands. The interim rule stays in force; the M9 engineering scope is complete independent of it.
+- Closed (2026-07-11, founder): the license is **Apache-2.0**, applied repo-wide (the root LICENSE, a LICENSE copy in every package, `"license": "Apache-2.0"` in every manifest; 12-release-versioning.md, section "License", rewritten). The contribution model is DCO with copyright retained by the project owner; provider SDK re-exports remain ordinary dependencies under their own licenses. Gate item 3 of the 1.0 gate is SATISFIED; together with the OQ-24 rename this unblocks the v1.0.0 release.
 
 ### OQ-24: Final naming and trademark resolution
 

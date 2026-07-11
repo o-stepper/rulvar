@@ -27,7 +27,6 @@ pnpm 11 (pinned via `packageManager`); `pnpm install`, then `pnpm build`,
 
 ## License
 
-License: TBD, decided before the first public release
-(docs/14-open-questions.md, OQ-23; a 1.0 release gate). Until then package
-manifests carry the `UNLICENSED` placeholder and no file in this repository
-contains license text.
+[Apache-2.0](LICENSE) (the founder decision of 2026-07-11;
+docs/14-open-questions.md, OQ-23). Every published package carries the
+LICENSE file; contributions are accepted under the DCO.

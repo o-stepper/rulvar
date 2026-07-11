@@ -10,7 +10,7 @@ Founder decisions carried by this document: lockstep semver across all @rulvar/*
 
 ## 1. Lockstep policy
 
-All @rulvar/* packages plus the umbrella package `rulvar` MUST release together with the identical version, even when a package has no changes. Milestones map 1:1 to versions: completing milestone Mx produces exactly one release, per the map in 10-implementation-plan.md, section "Milestone-version table" (M0 -> v0.1.0 through M9 -> v1.0.0, then M10 -> v1.1.0, M11 -> v1.2.0; M12 has no assigned version and is gated).
+All @rulvar/* packages plus the umbrella package MUST release together with the identical version, even when a package has no changes. Milestones map 1:1 to versions: completing milestone Mx produces exactly one release, per the map in 10-implementation-plan.md, section "Milestone-version table" (M0 -> v0.1.0 through M9 -> v1.0.0, then M10 -> v1.1.0, M11 -> v1.2.0; M12 has no assigned version and is gated). AMENDED 2026-07-11: because the founder release gates (license, naming) closed only after M10 and M11 engineering completed, v1.0.0 is the FIRST published release and ships the M9 through M11 scope together; the planned v1.1.0 and v1.2.0 rows collapsed into it as internal pre-release milestones, and the 1:1 mapping resumes from M12 onward.
 
 The policy is implemented mechanically with @changesets/cli 2.x in fixed mode. The fixed group MUST contain every @rulvar/* package plus `rulvar`, except @rulvar/compat (section 2):
 
@@ -75,7 +75,7 @@ v1.0.0 (M9) MUST NOT ship until every item below holds:
 
 1. The six SPI seams are audited and frozen: ProviderAdapter; JournalStore plus LeasableStore (one seam); TranscriptStore; ScriptRunner; ToolSource; IsolationProvider (canonical list in 02-architecture.md, section "SPI seams and the 1.0 freeze"). The freeze happens only after the server and queue soak of M8 has exercised the seams under multi-process load. ModelKnowledgeStore is exempt: it freezes post-1.0 with KB phase 1 (M10).
 2. The complete defect cassette catalog (DEF-1 through DEF-8 plus the round-2 set) is green under replay-strict CI (11-testing-strategy.md, section "Per-milestone exit criteria matrix").
-3. The license is decided. Until then every doc and package carries "License: TBD (decided before first public release)"; documents MUST NOT include license text (founder register: 14-open-questions.md, section "Founder-only decisions").
+3. The license: SATISFIED 2026-07-11 (OQ-23 closed by the founder: Apache-2.0). The LICENSE text ships at the repo root and inside every package; every manifest carries "Apache-2.0" (section 10).
 4. Naming and trademark: SATISFIED 2026-07-11 (OQ-24 closed: the project renamed to rulvar with the official domain rulvar.com; the name verified clean on npm and GitHub at close; formal USPTO/EUIPO registration moved to the optional post-release checklist and is no longer the gate).
 5. The naming contingency: DISSOLVED by the same rename (13-toolchain-repo.md, section "Naming note").
 
@@ -116,10 +116,10 @@ A release manager MUST verify, in order:
 
 ## 9. Post-1.0 cadence and support statement
 
-- v1.1.0 (M10) ships ModelKnowledge phase 1; v1.2.0 (M11) ships phase 2. M12 (phase 3) has no assigned version and is gated on the measured-value checkpoint (05-model-knowledge-spec.md, section "Phases and placement"; criteria tracked in 14-open-questions.md).
+- ModelKnowledge phases 1 and 2 (the M10 and M11 scope) ship INSIDE v1.0.0 per the 2026-07-11 amendment in section 2: the founder gates closed after both milestones completed, so the first published release carries them. M12 (phase 3) has no assigned version and stays gated on the measured-value checkpoint (05-model-knowledge-spec.md, section "Phases and placement"; the quantitative criteria closed at M11-T06 in 14-open-questions.md).
 - Support statement: fixes land on the latest minor of the current major; there are no long-term support branches. Journal compatibility follows the hashVersion window [CURRENT-2, CURRENT], extended only by explicitly enabling @rulvar/compat derivers; this window, not the package version, is the compatibility promise operators should plan against (NFR compatibility window, 01-requirements.md).
 - The bridge package @rulvar/bridge-ai-sdk tracks the @ai-sdk/provider major line and is documented as the highest-churn package; its provider-major bumps are the most likely driver of post-1.0 BREAKING majors and MUST NOT be smuggled into minors.
 
 ## 10. License
 
-License: TBD (decided before first public release). Until the founder decision lands (14-open-questions.md, section "Founder-only decisions"): package.json files carry the placeholder per the template in 13-toolchain-repo.md, section "package.json template"; no document in this set includes license text; and deciding the license is a hard 1.0 gate (section 5).
+The license is **Apache-2.0** (founder decision, 2026-07-11; OQ-23 closed in 14-open-questions.md). The canonical LICENSE text lives at the repository root and is copied into every package directory so published tarballs carry it; every package.json (including examples) declares `"license": "Apache-2.0"`. Contributions are accepted under the DCO with copyright retained by the project owner (the contribution-model half of OQ-23), keeping dual-licensing and relicensing options open. The Apache 2.0 patent grant is part of the decision: it is the standard enterprise-review expectation for AI infrastructure. Provider SDK re-exports inside the first-class adapters stay within their own permissive licenses (they are dependencies, never vendored source).

@@ -364,7 +364,7 @@ Six SPI seams freeze at 1.0. The founder decision stands: 1.0 ships only after t
 
 Two clarifications close earlier ambiguity in the seam count:
 
-- ModelKnowledgeStore is an L0 SPI whose type skeleton lands with the M0 L0 scaffold (spi/knowledge.ts); its file-backed default implementation and all behavior ship in the post-1.0 track (M10 / v1.1.0), and it freezes post-1.0 together with knowledge-base phase 1, not at 1.0 (05-model-knowledge-spec.md; 10-implementation-plan.md, section "Post-1.0 track").
+- ModelKnowledgeStore is an L0 SPI whose type skeleton lands with the M0 L0 scaffold (spi/knowledge.ts); its file-backed default implementation and all behavior ship in the post-1.0 track (M10 / v1.1.0), and it froze on 2026-07-11 as the sanctioned seventh seam, with knowledge-base phases 1 and 2 shipping inside v1.0.0 (section 5.1, addendum) (05-model-knowledge-spec.md; 10-implementation-plan.md, section "Post-1.0 track").
 - EventSink does not exist as an SPI. The event surface is the RunHandle.events / on() public API (09-observability-testing-spec.md); it is public API governed by semver, but it is not an implementable seam and is not on the freeze list.
 
 What freeze means for 1.0:
@@ -391,6 +391,8 @@ Audit evidence per seam (the two-consumer rule):
 | IsolationProvider | acquire -> { cwd, collect, dispose } | the git worktree provider, the fixture provider of the worktree-disposed-degrade cassette |
 
 Freeze-adjacent decisions recorded with the audit (register lines in 14-open-questions.md): the seam list is CLOSED at these six for 1.0 (no ExecutorProvider seam ships in L0, OQ-18); checkpoint and transcript blob formats stay engine-internal behind the opaque-payload contract (OQ-13); the runtime boundary is TypeScript/Node, ESM-only, Node >=22.12.0, with no Bun/Deno/edge support statement at 1.0 (OQ-25, founder). The drift gate stays the committed dts-rollup diff (13-toolchain-repo.md); after this freeze a diff touching a frozen seam is a release blocker unless it passes the deprecation policy (11-testing-strategy.md, section "Package quality gates").
+
+Addendum (2026-07-11): ModelKnowledgeStore FROZE as the sanctioned seventh seam. docs/05 scheduled its freeze "together with knowledge-base phase 1, post-1.0"; because the founder release gates closed only after phases 1 AND 2 completed, both ship inside v1.0.0 (12-release-versioning.md, section 2, amendment) and the seam froze with them. Audit evidence per the two-consumer rule: `current()/commit(ops, expectedVersion)` is exercised by FileModelKnowledgeStore, the deterministic stub stores of the kb cassettes and the sweep/canary suites, and the eval-committer commit path; the runtime handle stays `Pick<ModelKnowledgeStore, 'current'>` by type test. The same dts drift gate and deprecation policy now cover it.
 
 ## 6. Error taxonomy
 

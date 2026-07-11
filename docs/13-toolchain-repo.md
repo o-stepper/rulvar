@@ -173,7 +173,7 @@ Template for every publishable package (shown for @rulvar/core):
   "name": "@rulvar/core",
   "version": "0.0.0",
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "engines": { "node": ">=22.12.0" },
   "exports": {
     ".": {
@@ -198,7 +198,7 @@ Template for every publishable package (shown for @rulvar/core):
 
 Rules:
 
-- `"license": "UNLICENSED"` is the placeholder for the founder decision "License: TBD (decided before first public release)" and MUST be replaced before the first public release (1.0 gate item; 12-release-versioning.md, section "The 1.0 gate"). No license text ships until then.
+- `"license": "Apache-2.0"` per the founder decision of 2026-07-11 (OQ-23 closed; 12-release-versioning.md, section "License"); every package directory carries the LICENSE file so published tarballs include it.
 - No top-level `main`, `module`, or `types` fields: the exports map is the only entry surface, and the Node >=22.12.0 baseline makes node10-resolver fallbacks unnecessary (publint would flag them as redundant).
 - Internal dependencies always use `"@rulvar/<name>": "workspace:*"`; shared external versions always use `"catalog:"`.
 - Packages with subpath surfaces (for example @rulvar/cli exposing `createServer`/`createWorker`, or the umbrella re-exporting adapters) extend the exports map with subpath entries following the same types-then-default shape.
