@@ -49,7 +49,7 @@ Closing an OQ follows the change process in section 4.
 | OQ-25 | Runtime boundaries | founder | Closed at M9-T05 |
 | OQ-26 | Hosting ambitions | founder | M8 |
 | OQ-27 | Governance and scope ownership | founder | Closed at M9-T05 |
-| OQ-28 | Live contract-test and eval sweep budget | founder | M5 |
+| OQ-28 | Live contract-test and eval sweep budget | founder | Partially resolved 2026-07-11 ($15 one-off for the M12 checkpoint; recurring cadence deferred) |
 | OQ-29 | OpenAI Responses auxiliary state parameters under manual item replay | dogfood telemetry | M1 (re-verified from M5) |
 
 ## 3. Engineering open questions
@@ -342,6 +342,7 @@ Tracked here but not engineering-ruled: no interim engineering rule can close th
 - Must close by: M5 (cron contract tests ship in M5).
 - Decision trigger: the M5 CI setup for live contract tests.
 - Interim rule: cassettes replay deterministically in CI without live keys; live cron runs are blocked on this decision (11-testing-strategy.md, section "Cassette tier").
+- Status (2026-07-11, founder): a ONE-OFF grant of $15 on the founder's own Anthropic key funds the M12 measured-value checkpoint (OQ-09; the runner enforces per-run engine ceilings and a cumulative $12 script guard). The RECURRING budget for cron live contract tests, canary probes, and scheduled sweeps stays consciously deferred: the cassette tier remains the only CI truth, and the question reopens when the founder commits a standing monthly cap.
 
 ## 5. Change process
 

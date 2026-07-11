@@ -1,4 +1,4 @@
-import { CompiledWorkflow, Effort, Engine, EvidenceRef, Json, JsonSchema, ModelClaim, ModelKnowledgeStore, ModelRef, ModelSpec, RunOutcome, SchemaSpec, TaskClass, Usage, WireError, Workflow } from "@rulvar/core";
+import { CompiledWorkflow, DeclaredLadder, Effort, Engine, EvidenceRef, Json, JsonSchema, KnowledgeSnapshot, ModelClaim, ModelKnowledgeStore, ModelRef, ModelSpec, RunOutcome, SchemaSpec, TaskClass, Usage, WireError, Workflow } from "@rulvar/core";
 
 //#region src/case.d.ts
 /**
@@ -332,4 +332,83 @@ declare const SWEEP_THRESHOLD_DEFAULTS: SweepThresholds;
 */
 declare function runSweepMatrix(pool: SweepPool, options: RunSweepOptions): Promise<SweepReport>;
 //#endregion
-export { type CanaryDriftReport, type CanaryProbeSet, type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type RubricCriterion, type RubricGraderOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, canaryFingerprint, commitEvalMeasured, evalMeasuredClaim, flipStaleOnCanaryDrift, goldenGrader, judgeGrader, normalizeCanaryOutput, rubricGrader, runEvalCase, runEvalMatrix, runEvalSuite, runSweepMatrix };
+//#region src/checkpoint.d.ts
+/** One declared checkpoint ladder: rungs are concrete pool members. */
+interface CheckpointLadder extends DeclaredLadder {
+  name: string;
+  startTier: number;
+  rungs: SweepModel[];
+}
+interface CheckpointPool {
+  ladders: CheckpointLadder[];
+  /** The measurement half; the seeding sweep MUST NOT have seen these. */
+  evalCases: SweepCase[];
+}
+interface OrchestratedCase {
+  /** The workflow drives an orchestrate-role run; graders judge its outcome. */
+  case: EvalCase;
+}
+interface RunCheckpointOptions {
+  /** The claims snapshot produced by the seeding sweep (disjoint cases). */
+  snapshot: KnowledgeSnapshot;
+  /** ISO date of the evaluation (recorded in the report; no wall clock inside). */
+  observedAt: string;
+  /** An engine per concrete pool member (the caller owns adapters and budgets). */
+  engineFor: (member: SweepModel) => Engine | Promise<Engine>;
+  /**
+  * Criterion 2 engines: withKnowledge true configures the SAME store
+  * snapshot behind stores.modelKnowledge; false omits it entirely.
+  */
+  orchestrateEngineFor?: (withKnowledge: boolean) => Engine | Promise<Engine>;
+  orchestratedCases?: OrchestratedCase[];
+  suite?: RunEvalSuiteOptions;
+}
+interface CheckpointArm {
+  passRate: number;
+  totalCostUsd: number;
+  n: number;
+}
+interface CheckpointCell {
+  ladder: string;
+  taskClass: TaskClass;
+  defaultTier: number;
+  /** The tier the treatment arm ran at (default when no recommendation). */
+  treatmentTier: number;
+  recommended: boolean;
+  baseline: CheckpointArm;
+  treatment: CheckpointArm;
+  passed: boolean;
+}
+interface CriterionOneReport {
+  cells: CheckpointCell[];
+  cellsPassed: number;
+  majorityHolds: boolean;
+  pooledBaseline: CheckpointArm;
+  pooledTreatment: CheckpointArm;
+  pooledHolds: boolean;
+  passed: boolean;
+}
+interface CriterionTwoReport {
+  baseline: CheckpointArm;
+  informed: CheckpointArm;
+  passed: boolean;
+}
+interface CheckpointReport {
+  observedAt: string;
+  criterion1: CriterionOneReport;
+  criterion2?: CriterionTwoReport;
+  /** Both criteria (criterion 2 counts as failed when unmeasured). */
+  passed: boolean;
+}
+/** The OQ-09 cell rule (shared by the per-cell and pooled verdicts). */
+declare function rungRuleHolds(baseline: CheckpointArm, treatment: CheckpointArm): boolean;
+/**
+* Runs the checkpoint over the fixed pool. Sequential in declaration
+* order (deterministic cassette consumption when recorded); every cell
+* runs baseline then treatment.
+*/
+declare function runValueCheckpoint(checkpointPool: CheckpointPool, options: RunCheckpointOptions): Promise<CheckpointReport>;
+/** The deterministic render for the M12 gate docs amendment. */
+declare function renderCheckpointReport(report: CheckpointReport): string;
+//#endregion
+export { type CanaryDriftReport, type CanaryProbeSet, type CheckpointArm, type CheckpointCell, type CheckpointLadder, type CheckpointPool, type CheckpointReport, type CriterionOneReport, type CriterionTwoReport, type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type OrchestratedCase, type RubricCriterion, type RubricGraderOptions, type RunCheckpointOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, canaryFingerprint, commitEvalMeasured, evalMeasuredClaim, flipStaleOnCanaryDrift, goldenGrader, judgeGrader, normalizeCanaryOutput, renderCheckpointReport, rubricGrader, runEvalCase, runEvalMatrix, runEvalSuite, runSweepMatrix, runValueCheckpoint, rungRuleHolds };
