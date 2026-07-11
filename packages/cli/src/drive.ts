@@ -1,11 +1,11 @@
 /**
- * The run/suspend/resolve/resume loop shared by `lurker run` and
- * `lurker resume` (docs/02, section 8.1: the CLI performs interactive
+ * The run/suspend/resolve/resume loop shared by `rulvar run` and
+ * `rulvar resume` (docs/02, section 8.1: the CLI performs interactive
  * resolution of suspended approvals and external inputs). Prompts read
  * one line per pending suspension; EOF leaves the run suspended with a
  * notice, never an error.
  */
-import type { Engine, PendingExternal, RunHandle, RunOutcome, Workflow } from '@lurker/core';
+import type { Engine, PendingExternal, RunHandle, RunOutcome, Workflow } from '@rulvar/core';
 
 import type { CliIo } from './io.js';
 import { attachProgress } from './tui.js';

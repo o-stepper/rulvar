@@ -8,7 +8,7 @@ import type {
   JournalEntry,
   TranscriptStore,
   Workflow,
-} from '@lurker/core';
+} from '@rulvar/core';
 import {
   ConfigError,
   createEngine,
@@ -16,8 +16,8 @@ import {
   FileTranscriptStore,
   InMemoryStore,
   JsonlFileStore,
-} from '@lurker/core';
-import { FAKE_MODEL_REF, FakeAdapter } from '@lurker/testing';
+} from '@rulvar/core';
+import { FAKE_MODEL_REF, FakeAdapter } from '@rulvar/testing';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { compileScript } from './compile.js';
@@ -225,7 +225,7 @@ describe('WorkerSandboxRunner (M6-T02)', () => {
   });
 
   it('suspends on awaitExternal and resumes WITHOUT the workflow value', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-sandbox-'));
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-sandbox-'));
     tempDirs.push(dir);
     const store = new JsonlFileStore({ dir: join(dir, 'journal') });
     const transcripts = new FileTranscriptStore({ dir: join(dir, 'transcripts') });
@@ -266,7 +266,7 @@ describe('WorkerSandboxRunner (M6-T02)', () => {
   });
 
   it('rejects resume with a compiled workflow whose source hash differs', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-sandbox-'));
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-sandbox-'));
     tempDirs.push(dir);
     const store = new JsonlFileStore({ dir: join(dir, 'journal') });
     const transcripts = new FileTranscriptStore({ dir: join(dir, 'transcripts') });

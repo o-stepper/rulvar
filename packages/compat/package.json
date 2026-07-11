@@ -1,7 +1,7 @@
 {
-  "name": "@lurker/compat",
+  "name": "@rulvar/compat",
   "version": "0.1.0",
-  "description": "lurker frozen KeyDeriver profiles for hashVersions outside the support window (DEF-6); independently versioned.",
+  "description": "rulvar frozen KeyDeriver profiles for hashVersions outside the support window (DEF-6); independently versioned.",
   "type": "module",
   "license": "UNLICENSED",
   "private": true,
@@ -29,11 +29,20 @@
     "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only"
   },
   "dependencies": {
-    "@lurker/core": "workspace:*"
+    "@rulvar/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/o-stepper/rulvar.git",
+    "directory": "packages/compat"
+  },
+  "homepage": "https://rulvar.com",
+  "bugs": {
+    "url": "https://github.com/o-stepper/rulvar/issues"
   }
 }

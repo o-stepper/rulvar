@@ -1,5 +1,5 @@
 ---
-'@lurker/testing': minor
+'@rulvar/testing': minor
 ---
 
 M9-T04 (final part): the DEF-4 live re-record, production-journal replay, and the one-CI-job catalog gate (docs/09 section 6; docs/10 M9 row "Complete catalog green in one CI run"; the 1.0 gate of docs/12 section 5).

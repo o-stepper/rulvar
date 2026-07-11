@@ -26,9 +26,9 @@ import {
   type JournalEntry,
   type Workflow,
   type WorkflowRegistry,
-} from '@lurker/core';
-import { SqliteStore } from '@lurker/store-sqlite';
-import { FAKE_MODEL_REF, FakeAdapter } from '@lurker/testing';
+} from '@rulvar/core';
+import { SqliteStore } from '@rulvar/store-sqlite';
+import { FAKE_MODEL_REF, FakeAdapter } from '@rulvar/testing';
 
 import { createWorker } from './worker.js';
 
@@ -59,7 +59,7 @@ function makeEngine(store: SqliteStore, workflows: WorkflowRegistry): Engine {
 }
 
 function dbPath(): string {
-  return join(mkdtempSync(join(tmpdir(), 'lurker-worker-')), 'journal.db');
+  return join(mkdtempSync(join(tmpdir(), 'rulvar-worker-')), 'journal.db');
 }
 
 /** Appends the offline external resolution the way a server shell does. */

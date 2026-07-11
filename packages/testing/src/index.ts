@@ -1,7 +1,7 @@
 /**
- * @lurker/testing tier 1 (M1-T14): FakeAdapter and createTestEngine for
+ * @rulvar/testing tier 1 (M1-T14): FakeAdapter and createTestEngine for
  * fast, fully typed, zero-network unit tests through the real engine.
- * Matchers live at '@lurker/testing/matchers'. VCR cassettes and
+ * Matchers live at '@rulvar/testing/matchers'. VCR cassettes and
  * replay-strict arrive with M5/M2 (docs/09, section "Test harness").
  */
 export { FakeAdapter, FAKE_MODEL, FAKE_MODEL_REF } from './fake-adapter.js';

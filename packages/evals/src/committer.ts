@@ -14,8 +14,8 @@ import {
   type ModelClaim,
   type ModelKnowledgeStore,
   type TaskClass,
-} from '@lurker/core';
-import type { Effort, ModelRef } from '@lurker/core';
+} from '@rulvar/core';
+import type { Effort, ModelRef } from '@rulvar/core';
 
 export interface MeasuredClaimInput {
   /** ULID (or any unique id); the caller mints it deterministically. */

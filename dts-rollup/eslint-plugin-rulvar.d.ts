@@ -1,7 +1,7 @@
 import { ESLint, Linter, Rule } from "eslint";
 
 //#region src/diagnostics.d.ts
-interface LurkerLintDiagnostic {
+interface RulvarLintDiagnostic {
   ruleId: string;
   message: string;
   line: number;
@@ -10,7 +10,7 @@ interface LurkerLintDiagnostic {
   endLine?: number;
   endColumn?: number;
 }
-declare function toJsonDiagnostics(messages: readonly Linter.LintMessage[]): LurkerLintDiagnostic[];
+declare function toJsonDiagnostics(messages: readonly Linter.LintMessage[]): RulvarLintDiagnostic[];
 //#endregion
 //#region src/index.d.ts
 declare const rules: Record<string, Rule.RuleModule>;
@@ -22,4 +22,4 @@ declare const plugin: ESLint.Plugin;
 */
 declare const workflowsConfig: Linter.Config;
 //#endregion
-export { type LurkerLintDiagnostic, plugin as default, rules, toJsonDiagnostics, workflowsConfig };
+export { type RulvarLintDiagnostic, plugin as default, rules, toJsonDiagnostics, workflowsConfig };

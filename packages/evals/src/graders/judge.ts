@@ -9,7 +9,7 @@
  * are forbidden (docs/04, section "Role quality floors"), so `model` is a
  * required option and resolution stays subject to the engine's floors.
  */
-import type { Json, JsonSchema, ModelSpec } from '@lurker/core';
+import type { Json, JsonSchema, ModelSpec } from '@rulvar/core';
 import type { Grader, GraderVerdict } from '../case.js';
 
 /** The default judge verdict shape. */

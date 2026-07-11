@@ -24,7 +24,7 @@ function entry(seq: number, extra?: Partial<JournalEntry>): JournalEntry {
 }
 
 function makeStore(): { store: JsonlFileStore; dir: string } {
-  const dir = mkdtempSync(join(tmpdir(), 'lurker-jsonl-'));
+  const dir = mkdtempSync(join(tmpdir(), 'rulvar-jsonl-'));
   return { store: new JsonlFileStore({ dir }), dir };
 }
 

@@ -6,7 +6,7 @@
   upstream repository)
 - Vendored: 2026-07-06, task M0-T08
 
-This directory is the sole vendored RUNTIME dependency of `@lurker/core`
+This directory is the sole vendored RUNTIME dependency of `@rulvar/core`
 (docs/13-toolchain-repo.md, section "Dependency baseline pins"). It is an
 eval-free, CSP-safe JSON Schema validator used for the supported subset
 defined in docs/08-tools-permissions-spec.md, section "SchemaSpec":
@@ -29,7 +29,7 @@ defined in docs/08-tools-permissions-spec.md, section "SchemaSpec":
 4. `dereference.ts`, `validate.ts`: type-only imports split out
    (verbatimModuleSyntax).
 5. `dereference.ts`: `initialBaseURI` no longer probes `self.location`
-   (browser-only branch behind `@ts-ignore`); lurker targets Node, so the
+   (browser-only branch behind `@ts-ignore`); rulvar targets Node, so the
    binding is the upstream fallback URL and is `const`.
 
 No behavioral change is intended by any edit. When updating the vendored

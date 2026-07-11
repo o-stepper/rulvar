@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createTestEngine } from '@lurker/testing';
+import { createTestEngine } from '@rulvar/testing';
 
 import { anthropic, createEngine, openai } from './index.js';
 import { basicReview } from './example/basic-review.js';

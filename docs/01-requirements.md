@@ -3,7 +3,7 @@
 - Status: Ready for implementation
 - Version: 0.2.0-docs
 - Date: 2026-07-06
-- Purpose: The normative requirements registry for lurker: all FR-xxx and NFR-xx requirements, the EXC-nn not-in-v1 exclusions, the H-xx hypotheses, and the milestone traceability matrix that the implementation plan references.
+- Purpose: The normative requirements registry for rulvar: all FR-xxx and NFR-xx requirements, the EXC-nn not-in-v1 exclusions, the H-xx hypotheses, and the milestone traceability matrix that the implementation plan references.
 
 ## 1 ID scheme and conformance language
 
@@ -117,7 +117,7 @@ Invariants I1-I6 cited below are stated normatively in [00-overview.md](00-overv
 
 - **FR-017 Suspension and decide-once resolutions**
   - Requirement: awaitExternal(key), tool approvals, the escalate tool (Flavor B), and wait_for_events MUST write entries with status 'suspended' (a duplicate awaitExternal key in one scope is an immediate error). Every resolution attempt (live resolveExternal, timeout defaultDecision, class-level EscalationDecision, quiescence wake, engine fallback) MUST be appended as kind 'resolution' with ref to the target; losing attempts MUST also be appended and are classified noop by the first-closing-wins fold; the classification MUST never be persisted. A schema-invalid offline resolution MUST be classified invalid and MUST NOT close the entry. In-process races MUST be serialized by the ResolutionArbiter (per-target FIFO); cross-process races are closed by the LeasableStore fencing epoch. Suspended entries MUST carry a journaled deadlineAt so deadlines deterministically survive resume. The resolution 'by' source vocabulary MUST be: external, operator, timeout, class_decision, quiescence, engine_fallback.
-  - Acceptance: decide-once oracle in @lurker/store-conformance: a scripted race yields exactly one applied classification then passes replay-strict; duplicate-key test errors immediately; invalid-resolution fixture leaves the entry suspended.
+  - Acceptance: decide-once oracle in @rulvar/store-conformance: a scripted race yields exactly one applied classification then passes replay-strict; duplicate-key test errors immediately; invalid-resolution fixture leaves the entry suspended.
   - Meta: milestone M2; spec [03-journal-spec.md](03-journal-spec.md), "Suspension and resolutions"; markers DEF-4.
 
 - **FR-018 Suspended run outcome and resolution consumption**
@@ -136,7 +136,7 @@ Invariants I1-I6 cited below are stated normatively in [00-overview.md](00-overv
   - Meta: milestone M5; spec [03-journal-spec.md](03-journal-spec.md), "Checkpoints".
 
 - **FR-021 hashVersion mechanism and support window**
-  - Requirement: Every entry MUST carry hashVersion, versioning the whole identity-and-replay pipeline as one unit (canonicalization algorithm, identity field set, hash function, schemaHash/toolsetHash derivation, scope grammar, ordinal rules, replay table, fold defaults). Matching MUST run under the entry's own version; new entries are always written at the current version; mixed-version journals are legal and deterministic (compatibility lemma). The round-1 field v is abolished (normalized at load). The support window is [CURRENT-2, CURRENT]; older versions MUST raise a typed JournalCompatibilityError and require explicit frozen derivers from @lurker/compat via EngineOptions.extraDerivers. Derivers MUST be registered in a KeyDeriver registry.
+  - Requirement: Every entry MUST carry hashVersion, versioning the whole identity-and-replay pipeline as one unit (canonicalization algorithm, identity field set, hash function, schemaHash/toolsetHash derivation, scope grammar, ordinal rules, replay table, fold defaults). Matching MUST run under the entry's own version; new entries are always written at the current version; mixed-version journals are legal and deterministic (compatibility lemma). The round-1 field v is abolished (normalized at load). The support window is [CURRENT-2, CURRENT]; older versions MUST raise a typed JournalCompatibilityError and require explicit frozen derivers from @rulvar/compat via EngineOptions.extraDerivers. Derivers MUST be registered in a KeyDeriver registry.
   - Acceptance: one frozen golden fixture per hashVersion profile; mixed-version journal scenario replays deterministically; a below-window journal fails with JournalCompatibilityError and succeeds with the compat deriver installed.
   - Meta: milestone M2; spec [03-journal-spec.md](03-journal-spec.md), "hashVersion"; markers DEF-6.
 
@@ -146,8 +146,8 @@ Invariants I1-I6 cited below are stated normatively in [00-overview.md](00-overv
   - Meta: milestone M1; spec [03-journal-spec.md](03-journal-spec.md), "Storage SPI".
 
 - **FR-023 Store contract A1-A4 and conformance kit**
-  - Requirement: Every JournalStore MUST satisfy A1 append atomicity, A2 total per-run order, A3 read-your-writes, A4 opaque payload (byte transparency). The contract MUST be verified by the executable conformance kit @lurker/store-conformance; the method count did not grow.
-  - Acceptance: InMemoryStore, JsonlFileStore, and @lurker/store-sqlite pass the full conformance suite in CI.
+  - Requirement: Every JournalStore MUST satisfy A1 append atomicity, A2 total per-run order, A3 read-your-writes, A4 opaque payload (byte transparency). The contract MUST be verified by the executable conformance kit @rulvar/store-conformance; the method count did not grow.
+  - Acceptance: InMemoryStore, JsonlFileStore, and @rulvar/store-sqlite pass the full conformance suite in CI.
   - Meta: milestone M2; spec [03-journal-spec.md](03-journal-spec.md), "Storage SPI"; markers DEF-4.
 
 - **FR-024 LeasableStore with fencing epochs**
@@ -161,15 +161,15 @@ Invariants I1-I6 cited below are stated normatively in [00-overview.md](00-overv
   - Meta: milestone M1; spec [03-journal-spec.md](03-journal-spec.md), "Storage SPI".
 
 - **FR-026 Shipped stores**
-  - Requirement: The core MUST ship InMemoryStore (resume disabled, one-time loud warning) and JsonlFileStore (the journal doubles as an event log). @lurker/store-sqlite MUST implement JournalStore plus LeasableStore with fencing and serve as the reference for community stores.
-  - Acceptance: all three pass @lurker/store-conformance; InMemoryStore resume attempt fails loudly.
+  - Requirement: The core MUST ship InMemoryStore (resume disabled, one-time loud warning) and JsonlFileStore (the journal doubles as an event log). @rulvar/store-sqlite MUST implement JournalStore plus LeasableStore with fencing and serve as the reference for community stores.
+  - Acceptance: all three pass @rulvar/store-conformance; InMemoryStore resume attempt fails loudly.
   - Meta: milestone M2 (InMemoryStore M1, sqlite M5); spec [03-journal-spec.md](03-journal-spec.md), "Storage SPI".
 
 ### 2.2 FR-1xx: model layer
 
 - **FR-100 ProviderAdapter SPI**
   - Requirement: The provider seam MUST be ProviderAdapter { id; caps(model); refreshCaps?(); stream(req, signal?); countTokens?(req) }. Provider SDK autoretries MUST be disabled (max_retries 0); the core owns retries and wall-clock. Provider SDKs MUST appear only inside their own adapter (never in core).
-  - Acceptance: dependency audit shows zero provider SDKs in @lurker/core; adapter constructors set SDK max_retries to 0 (asserted in adapter unit tests).
+  - Acceptance: dependency audit shows zero provider SDKs in @rulvar/core; adapter constructors set SDK max_retries to 0 (asserted in adapter unit tests).
   - Meta: milestone M1; spec [04-model-layer-spec.md](04-model-layer-spec.md), "ProviderAdapter SPI".
 
 - **FR-101 Canonical wire contract and Usage invariant**
@@ -187,25 +187,25 @@ Invariants I1-I6 cited below are stated normatively in [00-overview.md](00-overv
   - Acceptance: projection fixture: Anthropic-to-Anthropic replay echoes thinking blocks byte-exact; Anthropic-raw parts never appear in an OpenAI wire request.
   - Meta: milestone M1; spec [04-model-layer-spec.md](04-model-layer-spec.md), "Wire contract".
 
-- **FR-104 @lurker/anthropic on the July 2026 surface**
+- **FR-104 @rulvar/anthropic on the July 2026 surface**
   - Requirement: The Anthropic adapter MUST target the current Messages API: adaptive thinking only ({ type: 'adaptive' }; budget_tokens, explicit disabled, and temperature/top_p/top_k are 400s on current models); output_config as the umbrella for { effort, format, task_budget }; structured outputs via output_config.format json_schema and strict tools (the prefill tier is dead on 4.6+ models); cache_control compilation from cacheHint (5m and 1h TTLs, max 4 breakpoints, model-dependent minimum cacheable prefix); pause_turn resume by re-sending assistant content without a synthetic user message, with capped continuations; the full stop-reason set (end_turn, max_tokens, stop_sequence, tool_use, pause_turn, refusal with stop_details, model_context_window_exceeded); count_tokens; the capabilities-bearing /v1/models endpoints as the refreshCaps source; retry-after, x-ratelimit-* headers, and 529 overloaded handling.
   - Acceptance: VCR cassettes cover each listed behavior; cron contract tests against the live API detect surface drift.
-  - Meta: milestone M1; spec [04-model-layer-spec.md](04-model-layer-spec.md), "@lurker/anthropic".
+  - Meta: milestone M1; spec [04-model-layer-spec.md](04-model-layer-spec.md), "@rulvar/anthropic".
 
-- **FR-105 @lurker/openai in manual item-replay mode**
+- **FR-105 @rulvar/openai in manual item-replay mode**
   - Requirement: The OpenAI adapter MUST target the Responses API in manual item-replay mode only: store: false plus include reasoning.encrypted_content, with reasoning items echoed verbatim between tool calls. previous_response_id and the Conversations API MUST NOT be used (server-side state is incompatible with journal determinism). Function tools MUST use the flattened form with strict semantics; structured output via text.format json_schema; streaming MUST map the typed SSE event catalog; Chat Completions is the degraded path (reduced tiers, delta-patched chunks).
   - Acceptance: adapter unit tests assert store: false and encrypted reasoning replay on every request; cassettes cover the typed SSE catalog; a lint/test gate forbids previous_response_id in the adapter.
-  - Meta: milestone M1; spec [04-model-layer-spec.md](04-model-layer-spec.md), "@lurker/openai".
+  - Meta: milestone M1; spec [04-model-layer-spec.md](04-model-layer-spec.md), "@rulvar/openai".
 
 - **FR-106 openaiCompatible factory**
   - Requirement: The core MUST offer openaiCompatible({ id, baseURL, apiKey?, caps? }) so multiple compatible endpoints (Ollama, vLLM, Mistral, OpenRouter, gateways) coexist under explicit adapter ids.
   - Acceptance: two factory instances with distinct ids register in one engine; a duplicate adapterId at createEngine raises ConfigError.
   - Meta: milestone M3; spec [04-model-layer-spec.md](04-model-layer-spec.md), "openaiCompatible factory contract".
 
-- **FR-107 @lurker/bridge-ai-sdk**
+- **FR-107 @rulvar/bridge-ai-sdk**
   - Requirement: The bridge MUST wrap any Vercel ai-sdk LanguageModelV4 (@ai-sdk/provider ^4) as a ProviderAdapter, with a runtime specificationVersion check; it is documented as the highest-churn package and never a core dependency.
   - Acceptance: bridge conformance run against a fake LanguageModelV4; core has no @ai-sdk dependency.
-  - Meta: milestone M9; spec [04-model-layer-spec.md](04-model-layer-spec.md), "@lurker/bridge-ai-sdk".
+  - Meta: milestone M9; spec [04-model-layer-spec.md](04-model-layer-spec.md), "@rulvar/bridge-ai-sdk".
 
 - **FR-108 Per-engine registry and ModelRef**
   - Requirement: The adapter registry MUST be per-engine (no global mutable registry). ModelRef MUST be strictly 'adapterId:model' with no query parameters; baseURL and keys are set at adapter construction; a duplicate adapterId at createEngine MUST be a ConfigError.
@@ -233,8 +233,8 @@ Invariants I1-I6 cited below are stated normatively in [00-overview.md](00-overv
   - Meta: milestone M4; spec [04-model-layer-spec.md](04-model-layer-spec.md), "Router".
 
 - **FR-113 Role quality floors**
-  - Requirement: Role quality floors MUST be hard router constraints: per-role (and optionally per-declared-taskClass) explicit model allow/deny lists in engine config, forbidding weak defaults for code-edit, synthesis, judge, plan, and orchestrate. No advice (including ModelKnowledge) may override or weaken a floor. No implicit cross-adapter quality ordering exists. Named strong orchestrate/plan defaults live only in the umbrella package config, never in @lurker/core.
-  - Acceptance: a spawn violating a floor is rejected before dispatch; grep gate confirms no model names in @lurker/core defaults.
+  - Requirement: Role quality floors MUST be hard router constraints: per-role (and optionally per-declared-taskClass) explicit model allow/deny lists in engine config, forbidding weak defaults for code-edit, synthesis, judge, plan, and orchestrate. No advice (including ModelKnowledge) may override or weaken a floor. No implicit cross-adapter quality ordering exists. Named strong orchestrate/plan defaults live only in the umbrella package config, never in @rulvar/core.
+  - Acceptance: a spawn violating a floor is rejected before dispatch; grep gate confirms no model names in @rulvar/core defaults.
   - Meta: milestone M4; spec [04-model-layer-spec.md](04-model-layer-spec.md), "Role quality floors".
 
 - **FR-114 Pricing registry**
@@ -384,8 +384,8 @@ Invariants I1-I6 cited below are stated normatively in [00-overview.md](00-overv
   - Acceptance: global-scope snapshot test matches the exact list; non-JSON payload at the boundary raises a typed error; dialect violations are rejected by compileScript/lint.
   - Meta: milestone M6; spec [06-execution-spec.md](06-execution-spec.md), "Script runners"; markers XF.
 
-- **FR-220 compileScript and eslint-plugin-lurker**
-  - Requirement: compileScript(source, { allowImports? }) MUST produce a CompiledWorkflow or a typed ScriptRejected (allowImports default []). eslint-plugin-lurker MUST forbid bare Date.now/Math.random/new Date/fetch/process.env in workflow modules and bare Promise.all over ctx calls (use ctx.parallel), emitting structured JSON diagnostics for the self-repair loop.
+- **FR-220 compileScript and eslint-plugin-rulvar**
+  - Requirement: compileScript(source, { allowImports? }) MUST produce a CompiledWorkflow or a typed ScriptRejected (allowImports default []). eslint-plugin-rulvar MUST forbid bare Date.now/Math.random/new Date/fetch/process.env in workflow modules and bare Promise.all over ctx calls (use ctx.parallel), emitting structured JSON diagnostics for the self-repair loop.
   - Acceptance: each forbidden construct produces a JSON diagnostic consumed by the repair loop test; disallowed import rejects compilation.
   - Meta: milestone M6; spec [06-execution-spec.md](06-execution-spec.md), "Script runners".
 
@@ -601,7 +601,7 @@ Invariants I1-I6 cited below are stated normatively in [00-overview.md](00-overv
   - Meta: milestone M7; spec [09-observability-testing-spec.md](09-observability-testing-spec.md), "Metrics"; markers DEF-5, DEF-7.
 
 - **FR-506 FakeAdapter and createTestEngine**
-  - Requirement: @lurker/testing MUST ship FakeAdapter patterned by agentType/label/prompt regex and createTestEngine for fast, fully typed, zero-network unit tests.
+  - Requirement: @rulvar/testing MUST ship FakeAdapter patterned by agentType/label/prompt regex and createTestEngine for fast, fully typed, zero-network unit tests.
   - Acceptance: the documented createTestEngine example compiles and runs offline.
   - Meta: milestone M1; spec [09-observability-testing-spec.md](09-observability-testing-spec.md), "Test harness three tiers".
 
@@ -625,10 +625,10 @@ Invariants I1-I6 cited below are stated normatively in [00-overview.md](00-overv
   - Acceptance: the catalog in [09-observability-testing-spec.md](09-observability-testing-spec.md), "Mandatory defect cassette catalog" maps 1:1 to CI test IDs; M9 release checklist requires all green.
   - Meta: milestone M9 (subsets land per milestone); spec [09-observability-testing-spec.md](09-observability-testing-spec.md), "Mandatory defect cassette catalog"; markers DEF-1..DEF-8.
 
-- **FR-511 @lurker/evals**
-  - Requirement: @lurker/evals MUST measure quality over public APIs only: EvalCase = { workflow, args, graders[] }; golden, rubric, and LLM-judge graders; the judge grader runs through the engine with the judge role, so judge calls are journaled, budgeted, and VCR-recorded (deterministic eval CI); config-matrix comparison reports pass-rate, cost, latency from existing AgentResult usage/costUsd. Round-3 extensions: matrix sweeps (workflow x model x taskClass) under the dedicated eval-committer identity, the canary fingerprint, and falsification sweeps (lurker kb sweep). No failure clustering and no vector dependency.
+- **FR-511 @rulvar/evals**
+  - Requirement: @rulvar/evals MUST measure quality over public APIs only: EvalCase = { workflow, args, graders[] }; golden, rubric, and LLM-judge graders; the judge grader runs through the engine with the judge role, so judge calls are journaled, budgeted, and VCR-recorded (deterministic eval CI); config-matrix comparison reports pass-rate, cost, latency from existing AgentResult usage/costUsd. Round-3 extensions: matrix sweeps (workflow x model x taskClass) under the dedicated eval-committer identity, the canary fingerprint, and falsification sweeps (rulvar kb sweep). No failure clustering and no vector dependency.
   - Acceptance: eval CI runs deterministically from cassettes; sweep output emits eval-measured ClaimOps only under the committer identity.
-  - Meta: milestone M9 (sweeps and canary M11); spec [09-observability-testing-spec.md](09-observability-testing-spec.md), "@lurker/evals".
+  - Meta: milestone M9 (sweeps and canary M11); spec [09-observability-testing-spec.md](09-observability-testing-spec.md), "@rulvar/evals".
 
 - **FR-512 Redaction and sensitive data**
   - Requirement: The library SHOULD provide an L0 serialization hook for redaction, a default key-masking policy, and an OTel attribute content policy. The concrete design is open (OQ in [14-open-questions.md](14-open-questions.md)); VCR secret redaction (FR-507) MUST NOT wait for it.
@@ -643,7 +643,7 @@ Invariants I1-I6 cited below are stated normatively in [00-overview.md](00-overv
   - Meta: milestone M10; spec [05-model-knowledge-spec.md](05-model-knowledge-spec.md), "Feature boundary".
 
 - **FR-601 Data model and SPI**
-  - Requirement: The data model MUST be: TaskClass aligned with the role-floor vocabulary; ClaimClass 'eval-measured' | 'human-editorial' (no 'orchestrator-proposed' class exists in the store); ClaimStatus active | stale | superseded | archived; EvidenceRef with journal entryRef as a seq number (XF ruling); ModelClaim (statement <= 200 chars, templated when proposal-derived; evidence >= 1 mandatory; metrics writable ONLY by the eval-committer identity; expiresAt TTL; modelEpoch best-effort; append-only supersedes); KnowledgeSnapshot { version, hash, claims }; GateRecord with mandatory attribution attestation for the human kind (eval-confirmed reserved for v2); ClaimOp add | supersede | archive. ModelKnowledgeStore MUST be current()/commit(ops, expectedVersion) with CAS on a monotonic version; a propose() method MUST NOT exist in the SPI; the default store is the git-diffable file lurker.models.json.
+  - Requirement: The data model MUST be: TaskClass aligned with the role-floor vocabulary; ClaimClass 'eval-measured' | 'human-editorial' (no 'orchestrator-proposed' class exists in the store); ClaimStatus active | stale | superseded | archived; EvidenceRef with journal entryRef as a seq number (XF ruling); ModelClaim (statement <= 200 chars, templated when proposal-derived; evidence >= 1 mandatory; metrics writable ONLY by the eval-committer identity; expiresAt TTL; modelEpoch best-effort; append-only supersedes); KnowledgeSnapshot { version, hash, claims }; GateRecord with mandatory attribution attestation for the human kind (eval-confirmed reserved for v2); ClaimOp add | supersede | archive. ModelKnowledgeStore MUST be current()/commit(ops, expectedVersion) with CAS on a monotonic version; a propose() method MUST NOT exist in the SPI; the default store is the git-diffable file rulvar.models.json.
   - Acceptance: type and schema tests pin every constraint above; commit with a stale expectedVersion fails CAS.
   - Meta: milestone M10; spec [05-model-knowledge-spec.md](05-model-knowledge-spec.md), "Data model"; markers XF.
 
@@ -658,12 +658,12 @@ Invariants I1-I6 cited below are stated normatively in [00-overview.md](00-overv
   - Meta: milestone M10; spec [05-model-knowledge-spec.md](05-model-knowledge-spec.md), "Write path".
 
 - **FR-604 Grounding and decay (phase 2)**
-  - Requirement: TTLs MUST be asymmetric by polarity: eval strength 90 days, eval weakness 30 days, editorial strength 120 days, editorial weakness 45 days; inbox proposals expire after 14 days. Expiry MUST be enforced at every pin AND every resume re-pin; expired eval claims enter the remeasure queue (a status filter, not infrastructure). modelEpoch MUST be declared an honest coarse signal (registryVersion, pricingVersion, capsHash; archive, never delete); silent alias re-serving is a documented uncaught case without probes. The optional canary fingerprint (@lurker/evals: fixed probe set at temperature 0, hash of normalized outputs) MUST flip a model's eval claims to stale on change. Falsification sweeps (lurker kb sweep) MUST execute through the ordinary engine (journaled, VCR-recordable, budgeted) and MUST include models with active negative claims.
+  - Requirement: TTLs MUST be asymmetric by polarity: eval strength 90 days, eval weakness 30 days, editorial strength 120 days, editorial weakness 45 days; inbox proposals expire after 14 days. Expiry MUST be enforced at every pin AND every resume re-pin; expired eval claims enter the remeasure queue (a status filter, not infrastructure). modelEpoch MUST be declared an honest coarse signal (registryVersion, pricingVersion, capsHash; archive, never delete); silent alias re-serving is a documented uncaught case without probes. The optional canary fingerprint (@rulvar/evals: fixed probe set at temperature 0, hash of normalized outputs) MUST flip a model's eval claims to stale on change. Falsification sweeps (rulvar kb sweep) MUST execute through the ordinary engine (journaled, VCR-recordable, budgeted) and MUST include models with active negative claims.
   - Acceptance: TTL matrix test per class and polarity; canary-change fixture marks claims stale; sweep plan test includes negatively-claimed models.
   - Meta: milestone M11; spec [05-model-knowledge-spec.md](05-model-knowledge-spec.md), "Grounding and decay".
 
 - **FR-605 kb_propose and the inbox (phase 3, gated)**
-  - Requirement: kb_propose MUST register like escalate (profile opt-in). Payloads MUST be schema-valid: subject, taskClass, polarity, trigger from the typed vocabulary (error, limit, schema-exhausted, verify-failed, no-progress, escalation); the statement is assembled from a template over that vocabulary (tool output is unquotable into a persistent record); evidence MUST resolve into decision entries of this same run. The engine writes the proposal as a journaled ledger.op into the RunLedger section modelObservations (orchestrator scope only; single-writer intact; workers contribute evidence only via their journaled ladder verdicts and TaskDigests). There MUST be no mirroring into the live store. Post-run, proposals travel via LedgerExport; lurker kb inbox aggregates them from finished runs, groups matching triples for display only (grouping never authorizes spend or schedules sweeps), and records the initiating run identity. Phase 3 ships only after the phases 1-2 measured-value checkpoint (quantitative criteria: OQ in [14-open-questions.md](14-open-questions.md)).
+  - Requirement: kb_propose MUST register like escalate (profile opt-in). Payloads MUST be schema-valid: subject, taskClass, polarity, trigger from the typed vocabulary (error, limit, schema-exhausted, verify-failed, no-progress, escalation); the statement is assembled from a template over that vocabulary (tool output is unquotable into a persistent record); evidence MUST resolve into decision entries of this same run. The engine writes the proposal as a journaled ledger.op into the RunLedger section modelObservations (orchestrator scope only; single-writer intact; workers contribute evidence only via their journaled ladder verdicts and TaskDigests). There MUST be no mirroring into the live store. Post-run, proposals travel via LedgerExport; rulvar kb inbox aggregates them from finished runs, groups matching triples for display only (grouping never authorizes spend or schedules sweeps), and records the initiating run identity. Phase 3 ships only after the phases 1-2 measured-value checkpoint (quantitative criteria: OQ in [14-open-questions.md](14-open-questions.md)).
   - Acceptance: proposal with free-text statement or foreign-run evidence fails validation; live store file bytes unchanged after a proposing run.
   - Meta: milestone M12; spec [05-model-knowledge-spec.md](05-model-knowledge-spec.md), "Write path".
 
@@ -685,7 +685,7 @@ Invariants I1-I6 cited below are stated normatively in [00-overview.md](00-overv
   - Meta: milestone M5; spec [02-architecture.md](02-architecture.md), "Shells overview".
 
 - **FR-701 CLI grammar and TUI**
-  - Requirement: The canonical CLI grammar MUST be: lurker run <wf> --args <json> --store <dir> --budget-usd <n>; lurker resume <runId>; lurker runs ls; lurker inspect <runId>; lurker plan "goal" --dry-run; lurker kb list | inbox | sweep. No aliases exist in v1. A TUI progress renderer consumes the event stream.
+  - Requirement: The canonical CLI grammar MUST be: rulvar run <wf> --args <json> --store <dir> --budget-usd <n>; rulvar resume <runId>; rulvar runs ls; rulvar inspect <runId>; rulvar plan "goal" --dry-run; rulvar kb list | inbox | sweep. No aliases exist in v1. A TUI progress renderer consumes the event stream.
   - Acceptance: CLI integration tests per command; help output snapshot matches the grammar exactly.
   - Meta: milestone M5 (kb commands M10/M11); spec [06-execution-spec.md](06-execution-spec.md), "Engine and ops API"; markers XF.
 
@@ -700,15 +700,15 @@ Invariants I1-I6 cited below are stated normatively in [00-overview.md](00-overv
   - Meta: milestone M8; spec [02-architecture.md](02-architecture.md), "Shells overview"; markers DEF-4, DEF-6.
 
 - **FR-704 KB maintenance commands**
-  - Requirement: lurker kb list MUST show claims with full provenance for ladder/floor/profile authors; lurker kb inbox implements FR-605's aggregation; lurker kb sweep implements FR-604's falsification sweeps through the ordinary engine.
+  - Requirement: rulvar kb list MUST show claims with full provenance for ladder/floor/profile authors; rulvar kb inbox implements FR-605's aggregation; rulvar kb sweep implements FR-604's falsification sweeps through the ordinary engine.
   - Acceptance: command integration tests over a fixture knowledge file and exported ledgers.
   - Meta: milestone M10 (inbox M12, sweep M11); spec [05-model-knowledge-spec.md](05-model-knowledge-spec.md), "Write path".
 
 ## 3 Non-functional requirements
 
 - **NFR-01 Embeddability**
-  - Requirement: lurker MUST be a library, not a platform: the core runs inside a host application with no mandatory server, database, or control plane. @lurker/core MUST have zero provider SDK dependencies and exactly one vendored runtime dependency (the eval-free JSON Schema mini-validator); the vendored StandardSchemaV1/StandardJSONSchemaV1 declarations are type-only (no runtime code) and do not count against this limit ([13-toolchain-repo.md](13-toolchain-repo.md), "Committed toolchain"). Shells are optional (FR-700). Every adaptive guard state MUST have a non-HITL terminating fallback: an embedded run without an operator always terminates, never hangs. The safe default and the embeddable default MUST coincide by construction (I6).
-  - Acceptance: CI dependency audit of @lurker/core; the FR-304 dead-trigger and guard-fallback fixtures; a minimal host app example runs with InMemoryStore and no network services.
+  - Requirement: rulvar MUST be a library, not a platform: the core runs inside a host application with no mandatory server, database, or control plane. @rulvar/core MUST have zero provider SDK dependencies and exactly one vendored runtime dependency (the eval-free JSON Schema mini-validator); the vendored StandardSchemaV1/StandardJSONSchemaV1 declarations are type-only (no runtime code) and do not count against this limit ([13-toolchain-repo.md](13-toolchain-repo.md), "Committed toolchain"). Shells are optional (FR-700). Every adaptive guard state MUST have a non-HITL terminating fallback: an embedded run without an operator always terminates, never hangs. The safe default and the embeddable default MUST coincide by construction (I6).
+  - Acceptance: CI dependency audit of @rulvar/core; the FR-304 dead-trigger and guard-fallback fixtures; a minimal host app example runs with InMemoryStore and no network services.
   - Meta: spec [02-architecture.md](02-architecture.md), "Dependency rules".
 
 - **NFR-02 Determinism and replayability**
@@ -732,7 +732,7 @@ Invariants I1-I6 cited below are stated normatively in [00-overview.md](00-overv
   - Meta: spec [06-execution-spec.md](06-execution-spec.md), "Execution model" and [07-adaptive-orchestration-spec.md](07-adaptive-orchestration-spec.md), "Governing principle".
 
 - **NFR-06 Compatibility window**
-  - Requirement: The hashVersion support window MUST be [CURRENT-2, CURRENT] in core, with older profiles served by frozen @lurker/compat derivers; mixed-version journals MUST replay deterministically (compatibility lemma). The six SPI seams (ProviderAdapter; JournalStore+LeasableStore; TranscriptStore; ScriptRunner; ToolSource; IsolationProvider) freeze at 1.0 after the server/queue soak; ModelKnowledgeStore freezes post-1.0 with KB phase 1.
+  - Requirement: The hashVersion support window MUST be [CURRENT-2, CURRENT] in core, with older profiles served by frozen @rulvar/compat derivers; mixed-version journals MUST replay deterministically (compatibility lemma). The six SPI seams (ProviderAdapter; JournalStore+LeasableStore; TranscriptStore; ScriptRunner; ToolSource; IsolationProvider) freeze at 1.0 after the server/queue soak; ModelKnowledgeStore freezes post-1.0 with KB phase 1.
   - Acceptance: FR-021 fixtures; the M9 SPI audit gate; the support statement in [12-release-versioning.md](12-release-versioning.md), "Post-1.0 cadence" matches the window.
   - Meta: spec [03-journal-spec.md](03-journal-spec.md), "hashVersion"; markers DEF-6.
 
@@ -742,7 +742,7 @@ Invariants I1-I6 cited below are stated normatively in [00-overview.md](00-overv
   - Meta: spec [08-tools-permissions-spec.md](08-tools-permissions-spec.md), "Executors".
 
 - **NFR-08 Documentation self-containment**
-  - Requirement: The English docs/ set MUST be the single source of truth and fully self-contained: an implementer (human or LLM) MUST be able to build lurker from docs/ alone.
+  - Requirement: The English docs/ set MUST be the single source of truth and fully self-contained: an implementer (human or LLM) MUST be able to build rulvar from docs/ alone.
   - Acceptance: docs review gate: every normative statement is fully defined within docs/; the reading order in [README.md](README.md) covers every component.
   - Meta: source founder decision; spec [README.md](README.md), "Canon statement".
 

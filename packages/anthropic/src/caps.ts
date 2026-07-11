@@ -7,7 +7,7 @@
  * the registry's versioned price table (M4) wins (docs/04, section
  * "Pricing").
  */
-import type { Effort, ModelCaps } from '@lurker/core';
+import type { Effort, ModelCaps } from '@rulvar/core';
 
 const ALL_EFFORTS: Effort[] = ['low', 'medium', 'high', 'xhigh', 'max'];
 

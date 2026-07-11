@@ -1,7 +1,7 @@
-import { InvocationRole, ModelSpec, QualityFloors, WorkflowEvent } from "@lurker/core";
-import { ANTHROPIC_MODELS, AnthropicAdapterOptions, anthropic } from "@lurker/anthropic";
-import { OPENAI_MODELS, OpenAiAdapterOptions, openai } from "@lurker/openai";
-export * from "@lurker/core";
+import { InvocationRole, ModelSpec, QualityFloors, WorkflowEvent } from "@rulvar/core";
+import { ANTHROPIC_MODELS, AnthropicAdapterOptions, anthropic } from "@rulvar/anthropic";
+import { OPENAI_MODELS, OpenAiAdapterOptions, openai } from "@rulvar/openai";
+export * from "@rulvar/core";
 
 //#region src/render-progress.d.ts
 interface RenderProgressOptions {

@@ -1,5 +1,5 @@
 /**
- * @lurker/core: L0 contracts, journal kernel, ctx primitives, agent
+ * @rulvar/core: L0 contracts, journal kernel, ctx primitives, agent
  * runtime, model router, tool system, dynamic orchestrator, InMemory and
  * JSONL stores, event stream.
  *

@@ -1,5 +1,5 @@
 ---
-'@lurker/core': minor
+'@rulvar/core': minor
 ---
 
 M10-T02: the editorial claim path, validated (docs/05, sections "Data model", "The human gate", "Grounding and decay"). The runtime enforcement the T01 types promise:

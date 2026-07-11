@@ -1,7 +1,7 @@
 // Changesets fixed-group repo check (M0-T06; docs/12, section "Lockstep
 // policy"): the fixed group must enumerate the thirteen lockstep package
 // names explicitly (no globs, no negation patterns) and must equal the set
-// of workspace packages minus @lurker/compat.
+// of workspace packages minus @rulvar/compat.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
@@ -17,7 +17,7 @@ const workspaceNames = readdirSync(join(ROOT, 'packages'), { withFileTypes: true
     return pkg.name;
   });
 
-const expected = workspaceNames.filter((n) => n !== '@lurker/compat').sort();
+const expected = workspaceNames.filter((n) => n !== '@rulvar/compat').sort();
 
 const fixed = config.fixed;
 if (!Array.isArray(fixed) || fixed.length !== 1 || !Array.isArray(fixed[0])) {
@@ -48,4 +48,4 @@ if (missing.length > 0 || extra.length > 0) {
   process.exit(1);
 }
 
-console.log(`fixed group check passed: ${actual.length} lockstep packages, @lurker/compat exempt`);
+console.log(`fixed group check passed: ${actual.length} lockstep packages, @rulvar/compat exempt`);

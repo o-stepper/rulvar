@@ -15,8 +15,8 @@ import {
   InMemoryStore,
   type Engine,
   type ProviderAdapter,
-} from '@lurker/core';
-import { FakeAdapter, FAKE_MODEL_REF } from '@lurker/testing';
+} from '@rulvar/core';
+import { FakeAdapter, FAKE_MODEL_REF } from '@rulvar/testing';
 
 import { canaryFingerprint, flipStaleOnCanaryDrift, normalizeCanaryOutput } from './canary.js';
 import { commitEvalMeasured, type MeasuredClaimInput } from './committer.js';
@@ -71,8 +71,8 @@ describe('the canary fingerprint (M11-T04; OQ-06)', () => {
   });
 
   it('drift flips exactly the fingerprinted claims of the model, in one command', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-canary-'));
-    const store = new FileModelKnowledgeStore({ path: join(dir, 'lurker.models.json') });
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-canary-'));
+    const store = new FileModelKnowledgeStore({ path: join(dir, 'rulvar.models.json') });
     const baseline = await canaryFingerprint(
       engineOver([new FakeAdapter({ agents: { probe: 'steady output' } })]),
       PROBES,

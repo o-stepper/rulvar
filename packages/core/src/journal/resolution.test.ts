@@ -329,7 +329,7 @@ describe('awaitExternal and resolveExternal (M2-T08; docs/06 section 2.7)', () =
   });
 
   it('suspend/exit/resume/resolve round-trips on JsonlFileStore', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-external-'));
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-external-'));
     const store = new JsonlFileStore({ dir });
 
     // First process: run to suspension and exit.

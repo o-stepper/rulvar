@@ -9,7 +9,7 @@
  * auto-rebase (M7-T04), whose tool result renders deterministically from
  * the journaled entry.
  */
-import { tool } from '@lurker/core';
+import { tool } from '@rulvar/core';
 import type {
   Json,
   LineageStats,
@@ -17,7 +17,7 @@ import type {
   SchemaSpec,
   TerminationAccountSnapshot,
   ToolDef,
-} from '@lurker/core';
+} from '@rulvar/core';
 import type { PlanNodeStatus } from './plan-state.js';
 import type { PlanReviseRequest, PlanReviseResult } from './plan-entries.js';
 import type { LedgerOp, LedgerView } from './ledger.js';

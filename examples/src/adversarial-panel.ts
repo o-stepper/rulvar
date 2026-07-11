@@ -10,7 +10,7 @@
  */
 import { z } from 'zod';
 
-import { defineWorkflow, type Ctx, type Workflow } from '@lurker/core';
+import { defineWorkflow, type Ctx, type Workflow } from '@rulvar/core';
 
 const refutationSchema = z.strictObject({
   refuted: z.boolean(),

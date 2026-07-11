@@ -1,6 +1,6 @@
 ---
-'@lurker/core': minor
-'@lurker/evals': minor
+'@rulvar/core': minor
+'@rulvar/evals': minor
 ---
 
 M11-T04: modelEpoch capture and the canary fingerprint (docs/05, section "Grounding and decay"; OQ-06 CLOSED with the committed design).

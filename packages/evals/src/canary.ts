@@ -21,8 +21,8 @@ import {
   type Engine,
   type ModelKnowledgeStore,
   type ModelRef,
-} from '@lurker/core';
-import { defineWorkflow } from '@lurker/core';
+} from '@rulvar/core';
+import { defineWorkflow } from '@rulvar/core';
 
 export interface CanaryProbeSet {
   /** Registered agent profile the probes run under. */

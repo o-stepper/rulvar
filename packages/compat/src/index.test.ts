@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { deriverV0Synthetic } from './index.js';
 
-describe('@lurker/compat (M2-T05)', () => {
+describe('@rulvar/compat (M2-T05)', () => {
   it('ships the synthetic out-of-window deriver for the DEF-6 cassettes', () => {
     expect(deriverV0Synthetic.hashVersion).toBe(0);
     expect(deriverV0Synthetic.foldDefaults).toEqual({

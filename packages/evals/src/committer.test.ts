@@ -13,7 +13,7 @@ import {
   KnowledgeCasError,
   type ClaimOp,
   type ModelKnowledgeStore,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 import { commitEvalMeasured, evalMeasuredClaim, type MeasuredClaimInput } from './committer.js';
 
@@ -33,8 +33,8 @@ function input(id: string, extra?: Partial<MeasuredClaimInput>): MeasuredClaimIn
 }
 
 function makeStore(): FileModelKnowledgeStore {
-  const dir = mkdtempSync(join(tmpdir(), 'lurker-kb-evals-'));
-  return new FileModelKnowledgeStore({ path: join(dir, 'lurker.models.json') });
+  const dir = mkdtempSync(join(tmpdir(), 'rulvar-kb-evals-'));
+  return new FileModelKnowledgeStore({ path: join(dir, 'rulvar.models.json') });
 }
 
 describe('the eval-committer pipeline (M11-T01)', () => {

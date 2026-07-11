@@ -13,7 +13,7 @@ import {
   type ProviderAdapter,
   type Usage,
   type WireError,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 /** What a responder sees about the call. */
 export interface FakeCall {
@@ -144,7 +144,7 @@ export class FakeAdapter implements ProviderAdapter {
   }
 
   async *stream(req: ChatRequest): AsyncIterable<ChatEvent> {
-    const telemetry = (req.providerOptions?.lurker ?? {}) as {
+    const telemetry = (req.providerOptions?.rulvar ?? {}) as {
       agentType?: string;
       label?: string;
     };

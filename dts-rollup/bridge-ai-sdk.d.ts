@@ -1,5 +1,5 @@
 import { LanguageModelV4 } from "@ai-sdk/provider";
-import { ModelCaps, ProviderAdapter, WireError } from "@lurker/core";
+import { ModelCaps, ProviderAdapter, WireError } from "@rulvar/core";
 
 //#region src/bridge.d.ts
 interface BridgeAiSdkOptions {

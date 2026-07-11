@@ -1,7 +1,7 @@
 {
-  "name": "@lurker/testing",
+  "name": "@rulvar/testing",
   "version": "0.9.0",
-  "description": "lurker test harness: createTestEngine, FakeAdapter, VCR cassettes, replay-strict runs, matchers.",
+  "description": "rulvar test harness: createTestEngine, FakeAdapter, VCR cassettes, replay-strict runs, matchers.",
   "type": "module",
   "license": "UNLICENSED",
   "private": true,
@@ -33,13 +33,22 @@
     "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only"
   },
   "dependencies": {
-    "@lurker/core": "workspace:*"
+    "@rulvar/core": "workspace:*"
   },
   "devDependencies": {
-    "@lurker/compat": "workspace:*",
+    "@rulvar/compat": "workspace:*",
     "@types/node": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "zod": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/o-stepper/rulvar.git",
+    "directory": "packages/testing"
+  },
+  "homepage": "https://rulvar.com",
+  "bugs": {
+    "url": "https://github.com/o-stepper/rulvar/issues"
   }
 }

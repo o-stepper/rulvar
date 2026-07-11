@@ -11,7 +11,7 @@ import {
   agentErrorToWire,
   BudgetExhaustedError,
   ConfigError,
-  LurkerError,
+  RulvarError,
   type WireError,
 } from '../l0/errors.js';
 import type { WorkflowEventBody } from '../l0/events.js';
@@ -154,7 +154,7 @@ export interface CreateEngineOptions {
   /**
    * Runner registrations beyond the built-in InProcessRunner (docs/06,
    * sections 8 and 10.1; M6-T02). `sandbox` executes CompiledWorkflow
-   * values (WorkerSandboxRunner ships in @lurker/planner); running or
+   * values (WorkerSandboxRunner ships in @rulvar/planner); running or
    * resuming a compiled workflow without one is a typed ConfigError.
    */
   runners?: { sandbox?: ScriptRunner };
@@ -384,7 +384,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
     if (compiled !== undefined && options.runners?.sandbox === undefined) {
       throw new ConfigError(
         'running a CompiledWorkflow requires a sandbox runner: pass ' +
-          'createEngine({ runners: { sandbox: new WorkerSandboxRunner() } }) from @lurker/planner ' +
+          'createEngine({ runners: { sandbox: new WorkerSandboxRunner() } }) from @rulvar/planner ' +
           '(docs/06, sections 8.2 and 10.1)',
       );
     }
@@ -635,7 +635,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
           // Exhausted overrides error (docs/06, section "Script-mode
           // exhaustion and the exhausted outcome").
           status = 'exhausted';
-          wireError = thrown instanceof LurkerError ? thrown.toWire() : undefined;
+          wireError = thrown instanceof RulvarError ? thrown.toWire() : undefined;
         } else if (controller.signal.aborted) {
           status = 'cancelled';
           wireError = {
@@ -651,7 +651,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
                   thrown.result.error ?? { kind: 'terminal', retryable: false },
                   thrown.message,
                 )
-              : thrown instanceof LurkerError
+              : thrown instanceof RulvarError
                 ? thrown.toWire()
                 : {
                     code: 'error',
@@ -803,7 +803,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
             process.emitWarning(
               `resume: the body of workflow '${supplied.name}' changed since run '${runId}' ` +
                 'started; orphans and misses will be reported honestly',
-              { code: 'LURKER_RESUME_HASH_MISMATCH', type: 'LurkerWarning' },
+              { code: 'RULVAR_RESUME_HASH_MISMATCH', type: 'RulvarWarning' },
             );
           }
         }

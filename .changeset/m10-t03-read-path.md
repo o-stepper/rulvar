@@ -1,6 +1,6 @@
 ---
-'@lurker/core': minor
-'@lurker/plan': minor
+'@rulvar/core': minor
+'@rulvar/plan': minor
 ---
 
 M10-T03: the ModelKnowledge read path (docs/05, sections "Read path" and "Security"). kb_pinned and kb_repinned land, the card renders, and the whole feature is store-gated: an engine without `stores.modelKnowledge` writes no kb entries at all, so every existing journal and cassette stays byte-stable (zero added awaits on the off path).

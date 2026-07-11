@@ -22,8 +22,8 @@ import type {
   SandboxMethod,
   SandboxWorkerToHost,
   WireError,
-} from '@lurker/core';
-import { NonSerializableValueError, toJournalValue } from '@lurker/core';
+} from '@rulvar/core';
+import { NonSerializableValueError, toJournalValue } from '@rulvar/core';
 
 import { SANDBOX_GLOBALS } from './compile.js';
 

@@ -1,0 +1,142 @@
+- generic [active] [ref=e1]:
+    - generic [ref=e3]:
+        - banner [ref=e4]:
+            - region "Official government website" [ref=e6]:
+                - generic [ref=e9]:
+                    - img "U.S. flag" [ref=e10]
+                    - paragraph [ref=e11]: An official website of the United States government
+                    - button "Here’s how you know keyboard_arrow_down" [ref=e12] [cursor=pointer]:
+                        - text: Here’s how you know
+                        - generic [ref=e13]: keyboard_arrow_down
+            - generic [ref=e14]:
+                - navigation [ref=e16]:
+                    - link "United States Patent and Trademark Office" [ref=e17] [cursor=pointer]:
+                        - /url: https://www.uspto.gov
+                        - generic [ref=e18]: United States Patent and Trademark Office
+                    - generic [ref=e19]:
+                        - generic [ref=e20]:
+                            - button "Patents" [ref=e22] [cursor=pointer]:
+                                - generic [ref=e23]: Patents
+                                - text: 
+                            - button "Trademarks" [ref=e25] [cursor=pointer]:
+                                - generic [ref=e26]: Trademarks
+                                - text: 
+                            - button "Fees and payment" [ref=e28] [cursor=pointer]:
+                                - generic [ref=e29]: Fees and payment
+                                - text: 
+                            - button "Contact Us" [ref=e31] [cursor=pointer]:
+                                - generic [ref=e32]: Contact Us
+                                - text: 
+                        - link "MyUSPTO" [ref=e34] [cursor=pointer]:
+                            - /url: https://my.uspto.gov/
+                            - generic [ref=e35]: MyUSPTO
+                            - text: 
+                        - button "Sign in" [ref=e37] [cursor=pointer]:
+                            - generic [ref=e38]: Sign in
+                - link "Trademark search" [ref=e41] [cursor=pointer]:
+                    - /url: '#'
+            - navigation "header sub navigation" [ref=e44]:
+                - navigation "breadcrumb" [ref=e45]:
+                    - list [ref=e46]:
+                        - listitem [ref=e47]: Home
+                - button "Help" [ref=e48] [cursor=pointer]
+        - generic [ref=e49]:
+            - search [ref=e52]:
+                - generic [ref=e54]:
+                    - combobox "Search refinment" [ref=e59] [cursor=pointer]:
+                        - generic [ref=e60]:
+                            - generic [ref=e62]: Wordmark
+                            - img [ref=e65]
+                    - combobox "Search trademarks" [ref=e67]
+                    - button "search" [ref=e68] [cursor=pointer]:
+                        - generic [ref=e69]: search
+            - generic [ref=e72]:
+                - generic [ref=e73]:
+                    - button "Help" [ref=e74] [cursor=pointer]:
+                        - generic [ref=e75]:
+                            - generic [ref=e76]: help
+                            - generic [ref=e77]: Help
+                    - paragraph [ref=e78]: Answers to frequently asked questions
+                - generic [ref=e79]:
+                    - button "Announcements" [ref=e80] [cursor=pointer]:
+                        - generic [ref=e81]:
+                            - generic [ref=e82]: campaign
+                            - generic [ref=e83]: Announcements
+                    - paragraph [ref=e84]: Important notifications, announcements and release notes
+        - contentinfo [ref=e86]:
+            - generic [ref=e89]:
+                - generic [ref=e90]:
+                    - paragraph [ref=e91]: Receive updates from the USPTO
+                    - generic [ref=e93]:
+                        - generic [ref=e94]: Enter your email to subscribe or update your preferences
+                        - generic [ref=e95]:
+                            - textbox "Enter your email to subscribe or update your preferences" [ref=e96]:
+                                - /placeholder: your@email.com
+                            - button "Subscribe" [ref=e98] [cursor=pointer]
+                - generic [ref=e99]:
+                    - generic [ref=e100]:
+                        - generic [ref=e101]:
+                            - link "About the USPTO" [ref=e102] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/about-us
+                            - text: •
+                        - generic [ref=e103]:
+                            - link "Search for patents" [ref=e104] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/patents/search
+                            - text: •
+                        - link "Search for trademarks" [ref=e106] [cursor=pointer]:
+                            - /url: https://www.uspto.gov/trademarks/search
+                    - generic [ref=e107]:
+                        - generic [ref=e108]:
+                            - link "US Department of Commerce" [ref=e110] [cursor=pointer]:
+                                - /url: https://www.commerce.gov
+                            - link "Accessibility" [ref=e112] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/using-usptogov/accessibility-uspto-website
+                            - link "Privacy Policy" [ref=e114] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/privacy-policy
+                            - link "Terms of Use" [ref=e116] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/terms-use-uspto-websites
+                            - link "Financial and Performance Data" [ref=e118] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/about-us/financial-and-performance
+                        - generic [ref=e119]:
+                            - link "Freedom of Information Act" [ref=e121] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/learning-and-resources/ip-policy/electronic-freedom-information-act-e-foia
+                            - link "Inspector General" [ref=e123] [cursor=pointer]:
+                                - /url: https://www.oig.doc.gov/Pages/U.S.-Patent-and-Trademark-Office.aspx
+                            - link "NoFEAR Act" [ref=e125] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/about-us/organizational-offices/office-equal-employment-opportunity-and-diversity/nofear-act
+                            - link "USA.gov" [ref=e127] [cursor=pointer]:
+                                - /url: https://www.usa.gov
+            - generic [ref=e130]:
+                - link "United States Patent and Trademark Office - An Agency of the Department of Commerce USPTO - United States Patent and Trademark Office" [ref=e132] [cursor=pointer]:
+                    - /url: https://www.uspto.gov
+                    - img "United States Patent and Trademark Office - An Agency of the Department of Commerce" [ref=e133]
+                    - generic [ref=e134]: USPTO - United States Patent and Trademark Office
+                - generic [ref=e135]:
+                    - generic [ref=e136]: Follow us
+                    - generic [ref=e137]:
+                        - link "Facebook USPTO Facebook page" [ref=e138] [cursor=pointer]:
+                            - /url: https://www.facebook.com/uspto.gov
+                            - img "Facebook" [ref=e139]
+                            - generic [ref=e140]: USPTO Facebook page
+                        - link "Instagram USPTO Instagram page" [ref=e141] [cursor=pointer]:
+                            - /url: https://www.instagram.com/uspto
+                            - img "Instagram" [ref=e142]
+                            - generic [ref=e143]: USPTO Instagram page
+                        - link "Linkedin USPTO Linkedin page" [ref=e144] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/company/uspto
+                            - img "Linkedin" [ref=e145]
+                            - generic [ref=e146]: USPTO Linkedin page
+                        - link "X USPTO X page" [ref=e147] [cursor=pointer]:
+                            - /url: https://twitter.com/uspto
+                            - img "X" [ref=e148]
+                            - generic [ref=e149]: USPTO X page
+                        - link "Youtube USPTO Youtube page" [ref=e150] [cursor=pointer]:
+                            - /url: https://www.youtube.com/user/USPTOvideo
+                            - img "Youtube" [ref=e151]
+                            - generic [ref=e152]: USPTO Youtube page
+    - button "Virtual Assistant avatar Need help? Ask the USPTO Virtual Assistant!" [ref=e153] [cursor=pointer]:
+        - generic [ref=e155]:
+            - img "Virtual Assistant avatar" [ref=e156]
+            - strong [ref=e158]:
+                - text: Need help? Ask the
+                - text: USPTO Virtual Assistant!

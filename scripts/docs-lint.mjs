@@ -7,7 +7,7 @@
 //      look-alikes U+2010, U+2011, U+2012, U+2212. ASCII hyphen only.
 //   2. No emojis (Extended_Pictographic) and no emoji shortcodes.
 //   3. Exactly one H1 outside fenced code blocks.
-//   4. Install commands never reference the bare package name `lurker`
+//   4. Install commands never reference the bare package name `rulvar`
 //      (npm install / pnpm add / yarn add / npx).
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -17,7 +17,7 @@ const ROOT = new URL('..', import.meta.url).pathname;
 
 const FORBIDDEN_DASHES = /[‐‑‒–—−]/u;
 const EMOJI = /\p{Extended_Pictographic}/u;
-const BARE_INSTALL = /\b(?:npm\s+(?:install|i|add)|pnpm\s+add|yarn\s+add|npx)\s+lurker(?![\w/@-])/u;
+const BARE_INSTALL = /\b(?:npm\s+(?:install|i|add)|pnpm\s+add|yarn\s+add|npx)\s+rulvar(?![\w/@-])/u;
 
 /** @returns {string[]} markdown files under docs/ plus the root-level docs */
 function collectFiles() {
@@ -73,7 +73,7 @@ for (const file of collectFiles()) {
       // install instruction.
       const before = line[install.index - 1];
       if (before !== '"' && before !== '`' && before !== "'") {
-        fail(file, n, 'install commands must use @lurker/<name>, never the bare name');
+        fail(file, n, 'install commands must use @rulvar/<name>, never the bare name');
       }
     }
   });

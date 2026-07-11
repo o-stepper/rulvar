@@ -10,7 +10,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { defineWorkflow, ResolutionFold, type JournalEntry } from '@lurker/core';
+import { defineWorkflow, ResolutionFold, type JournalEntry } from '@rulvar/core';
 import { replayRun } from '../replay-strict.js';
 import { APPROVED_SCHEMA, DECISION_SCHEMA, PROMPTS } from './build-fixtures.js';
 

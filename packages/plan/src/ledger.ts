@@ -13,8 +13,8 @@
  * memory are rejected in v1 (the sole sanctioned exception is
  * ModelKnowledge).
  */
-import { deriverV2 } from '@lurker/core';
-import type { EntryRef, JournalEntry, LogicalTaskId } from '@lurker/core';
+import { deriverV2 } from '@rulvar/core';
+import type { EntryRef, JournalEntry, LogicalTaskId } from '@rulvar/core';
 
 /** The CLOSED authored op vocabulary (docs/07, 9.2). */
 export type LedgerOp =

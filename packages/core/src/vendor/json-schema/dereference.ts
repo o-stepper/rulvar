@@ -72,7 +72,7 @@ export const ignoredKeyword: Record<string, boolean> = {
  * https://tools.ietf.org/html/rfc3986#section-5.1
  */
 // VENDOR-EDIT: upstream derives the initial base URI from self.location in
-// browser-like hosts behind @ts-ignore comments. lurker targets Node
+// browser-like hosts behind @ts-ignore comments. rulvar targets Node
 // (docs/13, section "Runtime"), so the browser branch is dropped and the
 // binding becomes const (nothing reassigns it after this edit).
 export const initialBaseURI: URL = new URL('https://github.com/cfworker');

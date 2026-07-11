@@ -11,8 +11,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { JsonlFileStore, type JournalEntry, type JournalStore } from '@lurker/core';
-import { SqliteStore } from '@lurker/store-sqlite';
+import { JsonlFileStore, type JournalEntry, type JournalStore } from '@rulvar/core';
+import { SqliteStore } from '@rulvar/store-sqlite';
 
 import {
   runAmendVsRunningThenCancelAdd,
@@ -96,7 +96,7 @@ describe('store-independence of the class and race rows', () => {
   for (const id of ['class-storm-single-turn', 'race-timeout-vs-live']) {
     it(`${id}: identical loads from JsonlFileStore and SqliteStore`, async () => {
       const entries = cassette(id).entries;
-      const dir = mkdtempSync(join(tmpdir(), 'lurker-m9-stores-'));
+      const dir = mkdtempSync(join(tmpdir(), 'rulvar-m9-stores-'));
       const jsonl = await roundTrip(new JsonlFileStore({ dir: join(dir, 'jsonl') }), entries);
       const sqlite = await roundTrip(new SqliteStore({ path: ':memory:' }), entries);
       expect(jsonl).toEqual(entries);

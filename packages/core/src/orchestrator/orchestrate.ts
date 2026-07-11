@@ -93,7 +93,7 @@ export interface OrchestrateOptions {
   limits?: UsageLimits;
   /**
    * The opt-in mode (c) extension seam (M7-T05): PlanRunner from
-   * @lurker/plan attaches here (docs/07, section 1). The extension boots
+   * @rulvar/plan attaches here (docs/07, section 1). The extension boots
    * strictly before the orchestrator's first agent entry, contributes
    * tools, schedules ready plan nodes on every settlement, and
    * participates in the mandatory quiescence trigger.
@@ -101,7 +101,7 @@ export interface OrchestrateOptions {
   extension?: OrchestratorExtension;
 }
 
-export const ORCHESTRATE_WORKFLOW_NAME = 'lurker-orchestrate';
+export const ORCHESTRATE_WORKFLOW_NAME = 'rulvar-orchestrate';
 
 function orchestratorPrompt(
   goal: string,
@@ -439,7 +439,7 @@ export function makeOrchestratorWorkflow(
         logicalTaskId: identity.logicalTaskId,
         result: settledResult,
         abort: () => {
-          controller.abort('lurker:cancel_agent');
+          controller.abort('rulvar:cancel_agent');
         },
         ...((spec as ExtensionDispatchSpec).escalation?.flavor === undefined
           ? {}
@@ -662,7 +662,7 @@ export function makeOrchestratorWorkflow(
       // The orchestrator's own loop ends at the wake boundary; the
       // reserved final wake is a FRESH agent entry with the restricted
       // toolset (docs/07, 12.4 d).
-      forcedFinishController.abort('lurker:forced-finish');
+      forcedFinishController.abort('rulvar:forced-finish');
     };
 
     /** Layer-1 soft boundary before delivering each wake (docs/07, 12.3). */

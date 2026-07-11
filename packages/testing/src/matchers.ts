@@ -1,7 +1,7 @@
 /**
  * Vitest/Jest matchers (M1-T14): operate on the settled TestRunHandle and
  * its recorded event stream; they MUST NOT reach into engine internals
- * (docs/09, section "Matchers"). Import from '@lurker/testing/matchers'
+ * (docs/09, section "Matchers"). Import from '@rulvar/testing/matchers'
  * and register with expect.extend.
  */
 import type { TestRunHandle } from './test-engine.js';
@@ -56,7 +56,7 @@ export async function toStayUnderBudget(
 }
 
 /** The bundle for expect.extend (Vitest 4 and Jest compatible shapes). */
-export const lurkerMatchers: {
+export const rulvarMatchers: {
   toHaveCalledAgent: typeof toHaveCalledAgent;
   toStayUnderBudget: typeof toStayUnderBudget;
 } = { toHaveCalledAgent, toStayUnderBudget };

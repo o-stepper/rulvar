@@ -20,7 +20,7 @@ The founder requirements are preserved in full: qualitative knowledge about mode
 ModelKnowledge is the single sanctioned exception to the v1 ban on cross-run memory (the ban itself stands for facts, lessons and world state; EXC registry in 01-requirements.md). The exception is bounded four ways:
 
 1. Domain: models only. A scopeless claim such as "model X is strong" is inexpressible by the schema; every claim binds a taskClass.
-2. Scope: an engine-level SPI whose default is a file in the project under git review (`lurker.models.json`); global sharing only by explicitly passing a store.
+2. Scope: an engine-level SPI whose default is a file in the project under git review (`rulvar.models.json`); global sharing only by explicitly passing a store.
 3. Write authority: runs only propose into their own ledger; only out-of-run gates commit.
 4. Size: a cap on active claims per (model, taskClass) pair (default 8; 06-execution-spec.md, Appendix A), supersede chains keep only the head active, and the rendered card has a renderBudget aligned with ledger render budgeting (value TBD before M10; 06-execution-spec.md, Appendix A and 14-open-questions.md).
 
@@ -33,7 +33,7 @@ All seven red-team attacks against the feature are closed by concrete decisions,
 1. Poisoned routing. Only eval-measured claims feed routing (the startTier hint compilation). Human-editorial claims render as explicitly marked unverified notes and are never compiled into a tier. The human gate attests attribution, not mere evidence existence. The one-rung clamp (section 4.3) bounds the price of any false belief.
 2. propose() race. Removed radically: there is NO propose() method in the SPI at all. Proposals live only in the journaled RunLedger section and reach the gate through the LedgerExport seam (section 5).
 3. Stale beliefs across long suspensions. TTL is not decoration: a kb_repinned entry is written on every resume from wait_for_events, HITL approvals and awaitExternal, re-applying expiry filters (section 4.4).
-4. Model drift behind stable names. modelEpoch does not promise the impossible: it is declared a coarse signal; an optional canary fingerprint via @lurker/evals compensates; the TTL of negative eval claims is cut to 30 days as insurance; silent alias re-pointing is documented as an uncaught case absent probes (section 6).
+4. Model drift behind stable names. modelEpoch does not promise the impossible: it is declared a coarse signal; an optional canary fingerprint via @rulvar/evals compensates; the TTL of negative eval claims is cut to 30 days as insurance; silent alias re-pointing is documented as an uncaught case absent probes (section 6).
 5. Embeddability vs safety. The embeddable default and the safe default coincide by construction: influence and its correction ship in one package. No evals means no eval-measured claims, no automatic tier steering, and nothing to falsify; the falsification sweep is a CLI command requiring no server or fleet.
 6. Complexity creep. Partially accepted: the eval-confirmed auto-gate and the corroboration threshold are cut from the committed roadmap. kb_propose is kept (a direct founder requirement) but defanged: journal-only, inert until gated, templated statements; and it is placed behind the measured-value checkpoint after phases 1-2. Full removal was rejected: residual risk after the fixes is near zero and the requirement is explicit.
 7. Proposal-volume manipulation. Proposal volume never authorizes eval budget; grouping of matching proposals is display only; the initiating run's provenance is recorded (section 5.2).
@@ -53,7 +53,7 @@ export type ClaimStatus = 'active' | 'stale' | 'superseded' | 'archived';
 
 export type EvidenceRef =
   | { kind: 'journal'; runId: string; entryRef: number }    // ladder verdicts, escalations, gate decisions; entryRef is the entry seq
-  | { kind: 'eval'; reportId: string; caseIds: string[] };  // @lurker/evals sweep reports
+  | { kind: 'eval'; reportId: string; caseIds: string[] };  // @rulvar/evals sweep reports
 
 export interface ModelClaim {
   id: string;                                     // ULID
@@ -105,7 +105,7 @@ export interface KbProposal {                     // lives ONLY in the RunLedger
   evidence: Array<{ kind: 'journal'; runId: string; entryRef: number }>; // must resolve into THIS run's journal only
   note?: string;                                  // <=200 chars; not rendered into any prompt before the gate
 }
-// Default store implementation: the file ./lurker.models.json in the repository, git-diffable, serverless, embeddable.
+// Default store implementation: the file ./rulvar.models.json in the repository, git-diffable, serverless, embeddable.
 ```
 
 Notes:
@@ -136,7 +136,7 @@ The round-2 invariant is preserved: the orchestrator never sees model names; `mo
 
 ### 4.4 Second consumption path
 
-The maintenance CLI `lurker kb list` shows claims with full provenance to the humans who author ladders, floors and profiles. This path involves no run and no pin.
+The maintenance CLI `rulvar kb list` shows claims with full provenance to the humans who author ladders, floors and profiles. This path involves no run and no pin.
 
 ## 5 Write path
 
@@ -148,7 +148,7 @@ The engine writes the proposal as a journaled `ledger.op` into the RunLedger sec
 
 ### 5.2 Post-run: inbox via LedgerExport
 
-Proposals travel through the existing LedgerExport seam (draft-versioned; 07-adaptive-orchestration-spec.md, section "RunLedger"). The command `lurker kb inbox` aggregates them from completed runs, groups matching triples (subject, taskClass, polarity) STRICTLY for display (grouping never authorizes spend and never schedules sweeps), and records the initiating run's identity from run metadata. Inbox proposals expire after 14 days (section 6).
+Proposals travel through the existing LedgerExport seam (draft-versioned; 07-adaptive-orchestration-spec.md, section "RunLedger"). The command `rulvar kb inbox` aggregates them from completed runs, groups matching triples (subject, taskClass, polarity) STRICTLY for display (grouping never authorizes spend and never schedules sweeps), and records the initiating run's identity from run metadata. Inbox proposals expire after 14 days (section 6).
 
 ### 5.3 The human gate
 
@@ -164,7 +164,7 @@ The committer identity is the `eval-committer` GateRecord (section 3; added duri
 
 Two claim classes with different trust:
 
-- eval-measured: the only class with metrics (passRate, n, graderId, cost, baseline), emitted by @lurker/evals matrix sweeps (workflow x model x taskClass) over the current routing beliefs, through the eval-committer identity. The fixed eval matrix, independent of current routing, is the deconfounder.
+- eval-measured: the only class with metrics (passRate, n, graderId, cost, baseline), emitted by @rulvar/evals matrix sweeps (workflow x model x taskClass) over the current routing beliefs, through the eval-committer identity. The fixed eval matrix, independent of current routing, is the deconfounder.
 - human-editorial: dated ADR-style notes; supersede instead of edit.
 
 TTL is asymmetric by polarity, because a false negative is costlier through lock-in:
@@ -179,9 +179,9 @@ TTL is asymmetric by polarity, because a false negative is costlier through lock
 
 Expiry is enforced on every pin AND on every resume re-pin (section 4.2). Expired eval claims land in a re-measurement queue, which is just a status filter, not infrastructure.
 
-modelEpoch is declared honestly: a coarse signal built from the registry version, the price-table version and the caps hash. It catches overt model swaps and deprecations (which archive claims, never delete them, so historical runs keep their audit trail); it does NOT catch silent alias re-pointing, a documented limitation absent probes. Optional compensation: the canary fingerprint in @lurker/evals (a fixed probe set at temperature 0, a hash of normalized outputs), run by a maintenance command; a fingerprint change immediately flips the model's eval claims to `stale`. The no-probe insurance is the 30-day TTL on negative eval claims.
+modelEpoch is declared honestly: a coarse signal built from the registry version, the price-table version and the caps hash. It catches overt model swaps and deprecations (which archive claims, never delete them, so historical runs keep their audit trail); it does NOT catch silent alias re-pointing, a documented limitation absent probes. Optional compensation: the canary fingerprint in @rulvar/evals (a fixed probe set at temperature 0, a hash of normalized outputs), run by a maintenance command; a fingerprint change immediately flips the model's eval claims to `stale`. The no-probe insurance is the 30-day TTL on negative eval claims.
 
-Falsification of negative beliefs: `lurker kb sweep` (run manually, from CI, or from a user cron), executed by the ordinary engine so it is journaled, VCR-recordable and budgeted, and it MUST include models with active negative claims. The symmetry principle closes the embeddability attack: a deployment without evals gets no eval claims, hence no automatic tier steering, hence nothing to falsify; editorial notes are corrected by the same git review that created them.
+Falsification of negative beliefs: `rulvar kb sweep` (run manually, from CI, or from a user cron), executed by the ordinary engine so it is journaled, VCR-recordable and budgeted, and it MUST include models with active negative claims. The symmetry principle closes the embeddability attack: a deployment without evals gets no eval claims, hence no automatic tier steering, hence nothing to falsify; editorial notes are corrected by the same git review that created them.
 
 Epsilon-exploration in production runs is rejected (EXC registry, 01-requirements.md): the user would pay for deliberately worse routing, the evidence would still be confounded, and the floor-filtered candidate set is too small for bandit convergence.
 
@@ -219,19 +219,19 @@ Deferred runtime startTier promotion (v2, outside the committed map): the engine
 Structured records win. The founder's skill-file framing is rejected as the storage and update format and accepted as the consumption format:
 
 - A living markdown skill cannot mechanically carry provenance, n, confidence, TTL and model epoch; it does not diff by typed ops; orchestrator appends are unbounded prose that rots, contradicts itself, and is a perfect persistence layer for prompt injections; "update the document" is unmergeable between concurrent runs.
-- What the skill intuition got right is preserved: the orchestrator sees a compact readable instruction (the deterministic modelKnowledgeCard render IS that skill-like document, the same pattern as profileCard and the ledger render), and humans read and edit a thing living in their repository: the schematized JSON file `lurker.models.json` through ordinary code review, where the git commit is the human gate.
+- What the skill intuition got right is preserved: the orchestrator sees a compact readable instruction (the deterministic modelKnowledgeCard render IS that skill-like document, the same pattern as profileCard and the ledger render), and humans read and edit a thing living in their repository: the schematized JSON file `rulvar.models.json` through ordinary code review, where the git commit is the human gate.
 - Handwritten qualitative nuance is expressed by the human-editorial class with its bounded statement field and date, not by a free-form file.
 
 ## 10 Phases and placement
 
-Affected components: ModelKnowledgeStore SPI (new, a neighbor of JournalStore, file default); RunLedger (modelObservations section); Journal Kernel (kb_pinned and kb_repinned decision entries with embedded card bytes); orchestrator toolset (optional kb_propose, registered like escalate); the modelKnowledgeCard renderer (profileCard pattern, tier-relative, two-layer); @lurker/evals (matrix sweeps, canary fingerprint, eval-committer identity); maintenance CLI (`lurker kb list`, `kb inbox`, `kb sweep`); model router (one-rung clamp when compiling `model_hint.startTier`).
+Affected components: ModelKnowledgeStore SPI (new, a neighbor of JournalStore, file default); RunLedger (modelObservations section); Journal Kernel (kb_pinned and kb_repinned decision entries with embedded card bytes); orchestrator toolset (optional kb_propose, registered like escalate); the modelKnowledgeCard renderer (profileCard pattern, tier-relative, two-layer); @rulvar/evals (matrix sweeps, canary fingerprint, eval-committer identity); maintenance CLI (`rulvar kb list`, `kb inbox`, `kb sweep`); model router (one-rung clamp when compiling `model_hint.startTier`).
 
 ModelKnowledge is outside the v1 core. Milestone mapping (10-implementation-plan.md):
 
 | Phase   | Milestone / version | Scope                                                                                                                                                              |
 |---------|---------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Phase 1 | M10 / v1.1.0        | ModelKnowledgeStore SPI with the file default; human-editorial claims only; kb_pinned and kb_repinned; the tier-relative two-layer card. Without eval claims the verified layer is empty, there is no automatic tier steering, and notes are honestly marked unverified: safe by degradation, and already a living, human-updatable model dossier. |
-| Phase 2 | M11 / v1.2.0        | The eval-measured class through the committer identity; matrix sweeps; TTL and staleness; the canary fingerprint; falsification sweeps via `lurker kb sweep`.        |
+| Phase 2 | M11 / v1.2.0        | The eval-measured class through the committer identity; matrix sweeps; TTL and staleness; the canary fingerprint; falsification sweeps via `rulvar kb sweep`.        |
 | Phase 3 | M12 (version unassigned, gated) | kb_propose; the modelObservations section; the inbox via LedgerExport; the human gate with attribution attestation. Ships ONLY after the measured-value checkpoint of phases 1-2: the card demonstrably improves tier and agentType selection on eval cases. The quantitative criteria of that checkpoint were defined at M11-T06 (OQ-09, 14-open-questions.md: A/B sweeps, rung selection and agentType selection against the no-card baseline). |
 
 Cut from the committed roadmap (v2 candidates): the eval-confirmed auto-gate and the corroboration threshold k (they would require principal authentication and a fixed, rate-capped sweep budget pool so that proposals never spend other people's money); runtime startTier promotion (section 8).

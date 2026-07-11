@@ -36,7 +36,7 @@ function makeEngine(store: JsonlFileStore, text = 'analysis done') {
 
 describe('engine.resume (M2-T09; docs/06 section 10.2)', () => {
   it('suspend, exit, offline-resolve, resume: completes with zero adapter calls', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-resume-'));
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
     const store = new JsonlFileStore({ dir });
 
     const first = makeEngine(store);
@@ -72,7 +72,7 @@ describe('engine.resume (M2-T09; docs/06 section 10.2)', () => {
   });
 
   it('requires the workflow and rejects a name mismatch', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-resume-'));
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
     const store = new JsonlFileStore({ dir });
     const { engine } = makeEngine(store);
     await engine.run(approvalWf, undefined, { runId: 'RUN2' }).result;
@@ -85,7 +85,7 @@ describe('engine.resume (M2-T09; docs/06 section 10.2)', () => {
   });
 
   it('warns loudly on a body-hash mismatch and reports orphans honestly', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-resume-'));
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
     const store = new JsonlFileStore({ dir });
     const { engine } = makeEngine(store);
     const simpleWf = defineWorkflow({ name: 'simple' }, async (ctx) => {
@@ -112,7 +112,7 @@ describe('engine.resume (M2-T09; docs/06 section 10.2)', () => {
       const handle = second.resume('RUN3', editedWf);
       const outcome = await handle.result;
       expect(outcome.status).toBe('ok');
-      expect(warnings).toContain('LURKER_RESUME_HASH_MISMATCH');
+      expect(warnings).toContain('RULVAR_RESUME_HASH_MISMATCH');
       // Exactly one live call ('c'); 'b' is orphaned, never re-paid.
       expect(adapter.calls).toHaveLength(1);
       const preview = await handle.preview;
@@ -125,7 +125,7 @@ describe('engine.resume (M2-T09; docs/06 section 10.2)', () => {
   });
 
   it('dry-run performs zero live calls and stops at the exact divergence', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-resume-'));
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
     const store = new JsonlFileStore({ dir });
     const { engine } = makeEngine(store);
     const wf = defineWorkflow({ name: 'w' }, async (ctx) => {

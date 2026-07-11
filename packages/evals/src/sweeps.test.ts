@@ -17,8 +17,8 @@ import {
   InMemoryStore,
   type Engine,
   type ProviderAdapter,
-} from '@lurker/core';
-import { FakeAdapter, FAKE_MODEL_REF, record, replay } from '@lurker/testing';
+} from '@rulvar/core';
+import { FakeAdapter, FAKE_MODEL_REF, record, replay } from '@rulvar/testing';
 
 import { goldenGrader } from './graders/golden.js';
 import { runSweepMatrix, type SweepPool, type SweepReport } from './sweeps.js';
@@ -77,11 +77,11 @@ function project(report: SweepReport): unknown {
 
 describe('matrix sweeps under VCR (M11-T02)', () => {
   it('records, emits committed eval-measured claims, and replays hermetically', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-sweep-vcr-'));
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-sweep-vcr-'));
     const cassette = join(dir, 'sweep.jsonl');
     const fake = new FakeAdapter({ agents: { worker: { answer: 42 } } });
 
-    const store = new FileModelKnowledgeStore({ path: join(dir, 'lurker.models.json') });
+    const store = new FileModelKnowledgeStore({ path: join(dir, 'rulvar.models.json') });
     const recorded = await runSweepMatrix(POOL, {
       reportId: 'sweep-2026-07-10',
       committerId: 'ci-evals',

@@ -1,7 +1,7 @@
 /**
  * Minimal inline test doubles for M1-T05/T06/T07/T08/T09 unit tests: a
  * scripted ProviderAdapter and a RunInternals factory. Superseded for
- * consumers by @lurker/testing's FakeAdapter and createTestEngine
+ * consumers by @rulvar/testing's FakeAdapter and createTestEngine
  * (M1-T14); these stay as the package-internal harness. Not exported from
  * the package index.
  */

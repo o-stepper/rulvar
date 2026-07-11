@@ -239,7 +239,7 @@ describe('createEngine and engine.run (M1-T11)', () => {
         return ctx.agent('x');
       });
       await engine.run(wf, undefined).result;
-      expect(warnings.filter((code) => code === 'LURKER_BARE_DATE_NOW')).toHaveLength(1);
+      expect(warnings.filter((code) => code === 'RULVAR_BARE_DATE_NOW')).toHaveLength(1);
     } finally {
       spy.mockRestore();
     }

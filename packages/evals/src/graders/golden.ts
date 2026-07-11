@@ -3,7 +3,7 @@
  * structured output against a committed expected output by deep JSON
  * equality. Pure and host-side; no engine involvement.
  */
-import type { Json } from '@lurker/core';
+import type { Json } from '@rulvar/core';
 import type { Grader, GraderVerdict } from '../case.js';
 
 function deepEqual(a: Json | undefined, b: Json | undefined): boolean {

@@ -2,7 +2,7 @@
  * The plan agent and the self-repair loop (M6-T05): mode (b), the
  * flagship hybrid (docs/06, section 9.2). plan() asks a planner model
  * (role 'plan') to write a script against the API card and the profile
- * card, lints it with eslint-plugin-lurker, self-repairs up to
+ * card, lints it with eslint-plugin-rulvar, self-repairs up to
  * repairRounds rounds from the JSON diagnostics, and compiles the
  * accepted draft with compileScript. runPlanned composes plan-then-run.
  *
@@ -13,10 +13,10 @@
  */
 import { createHash } from 'node:crypto';
 
-import type { CompiledWorkflow, Engine, Json, ModelSpec, RunHandle } from '@lurker/core';
-import { defineWorkflow, ScriptRejected } from '@lurker/core';
+import type { CompiledWorkflow, Engine, Json, ModelSpec, RunHandle } from '@rulvar/core';
+import { defineWorkflow, ScriptRejected } from '@rulvar/core';
 import { Linter } from 'eslint';
-import { toJsonDiagnostics, workflowsConfig } from 'eslint-plugin-lurker';
+import { toJsonDiagnostics, workflowsConfig } from 'eslint-plugin-rulvar';
 
 import { apiCard } from './api-card.js';
 import { compileScript, scriptDiagnosticsOf } from './compile.js';
@@ -73,7 +73,7 @@ export function lintScript(source: string): {
 } {
   const diagnostics: PlanDiagnostic[] = [];
   const linter = new Linter();
-  const wrapped = `async function lurkerWorkflowBody() {\n${source}\n}\n`;
+  const wrapped = `async function rulvarWorkflowBody() {\n${source}\n}\n`;
   const messages = linter.verify(
     wrapped,
     [{ languageOptions: { ecmaVersion: 2024, sourceType: 'module' } }, workflowsConfig],
@@ -155,7 +155,7 @@ interface PlanArgs {
 
 /** The planner conversation as an ordinary journaled workflow. */
 const planWorkflow = defineWorkflow(
-  { name: 'lurker-plan' },
+  { name: 'rulvar-plan' },
   async (
     ctx,
     args: PlanArgs,

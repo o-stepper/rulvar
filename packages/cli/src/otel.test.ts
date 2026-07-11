@@ -10,9 +10,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { createEngine, defineWorkflow, InMemoryStore, type WorkflowEvent } from '@lurker/core';
+import { createEngine, defineWorkflow, InMemoryStore, type WorkflowEvent } from '@rulvar/core';
 
-import { FakeAdapter, FAKE_MODEL_REF } from '@lurker/testing';
+import { FakeAdapter, FAKE_MODEL_REF } from '@rulvar/testing';
 import { toOtel, type SpanLike, type TracerLike } from './otel.js';
 
 interface RecordedSpan {
@@ -69,7 +69,7 @@ const wf = defineWorkflow({ name: 'review' }, async (ctx) => {
 async function runAndCollect(): Promise<{
   runId: string;
   events: AsyncIterable<WorkflowEvent>;
-  result: Promise<import('@lurker/core').RunOutcome<unknown>>;
+  result: Promise<import('@rulvar/core').RunOutcome<unknown>>;
 }> {
   const engine = createEngine({
     adapters: [new FakeAdapter({ agents: { '*': 'scanned' } })],
@@ -94,14 +94,14 @@ async function runAndCollect(): Promise<{
 }
 
 describe('toOtel (M5-T08)', () => {
-  it('maps the span tree 1:1 with lurker.* and gen_ai.* attributes', async () => {
+  it('maps the span tree 1:1 with rulvar.* and gen_ai.* attributes', async () => {
     const run = await runAndCollect();
     const { tracer, spans } = inMemoryTracer();
     const created = await toOtel(run, tracer);
     expect(created).toBeGreaterThan(0);
 
     // Every span carries the run id and closed cleanly.
-    expect(spans.every((s) => s.attributes['lurker.run_id'] === run.runId)).toBe(true);
+    expect(spans.every((s) => s.attributes['rulvar.run_id'] === run.runId)).toBe(true);
     expect(spans.every((s) => s.ended)).toBe(true);
 
     // The hierarchy opened run, phase, agent spans by name.
@@ -110,7 +110,7 @@ describe('toOtel (M5-T08)', () => {
     expect(names).toContain('phase scan');
     const agentSpan = spans.find((s) => s.name.startsWith('agent'));
     expect(agentSpan?.attributes['gen_ai.request.model']).toBe(FAKE_MODEL_REF);
-    expect(agentSpan?.attributes['lurker.agent_type']).toBe('');
+    expect(agentSpan?.attributes['rulvar.agent_type']).toBe('');
     expect(agentSpan?.attributes['gen_ai.operation.name']).toBe('loop');
 
     // Content is NEVER exported: no prompt/completion attributes.
@@ -141,11 +141,11 @@ describe('toOtel (M5-T08)', () => {
 
 describe('run profile through the CLI (M5-T07)', () => {
   it('applies a shipped profile as data under host options', async () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'lurker-profile-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-profile-'));
     const CORE = new URL('../../core/dist/index.js', import.meta.url).href;
     const TESTING = new URL('../../testing/dist/index.js', import.meta.url).href;
     writeFileSync(
-      join(cwd, 'lurker.config.mjs'),
+      join(cwd, 'rulvar.config.mjs'),
       `import { defineWorkflow } from ${JSON.stringify(CORE)};
 import { FakeAdapter, FAKE_MODEL_REF } from ${JSON.stringify(TESTING)};
 export default {
@@ -175,8 +175,8 @@ export default {
   });
 
   it('rejects an unknown profile', async () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'lurker-profile-'));
-    writeFileSync(join(cwd, 'lurker.config.mjs'), 'export default { workflows: {} };\n', 'utf8');
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-profile-'));
+    writeFileSync(join(cwd, 'rulvar.config.mjs'), 'export default { workflows: {} };\n', 'utf8');
     const { runCli } = await import('./cli-main.js');
     const err: string[] = [];
     const code = await runCli(['run', 'demo', '--profile', 'turbo'], {
@@ -244,7 +244,7 @@ describe('OTel attribute masking (M8-T04; docs/09 section 8)', () => {
       pending: [],
       usage: { inputTokens: 0, outputTokens: 0 },
       cost: { totalUsd: 0, byModel: {}, byPhase: {}, byAgentType: {}, byRole: {}, unpriced: [] },
-    } as unknown as import('@lurker/core').RunOutcome<unknown>);
+    } as unknown as import('@rulvar/core').RunOutcome<unknown>);
     await toOtel({ runId: 'r1', events: synthetic(), result }, tracer);
     const agent = spans.find((span) => span.name.startsWith('agent'));
     expect(agent).toBeDefined();

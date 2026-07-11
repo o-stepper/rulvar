@@ -6,7 +6,7 @@
  * bits of randomness, Crockford base32, 26 characters, lexicographically
  * sortable. Zero dependencies by design: engine-minted CanonicalIds are
  * ULIDs (docs/04-model-layer-spec.md, section "Wire contract (L0)") and
- * @lurker/core must stay dependency-free (docs/13-toolchain-repo.md,
+ * @rulvar/core must stay dependency-free (docs/13-toolchain-repo.md,
  * section "Dependency baseline pins").
  *
  * The monotonic factory guarantees strictly increasing ids within one

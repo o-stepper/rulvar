@@ -6,7 +6,7 @@
  * Workflow and Ctx: the docs/02 L0 listing records the seam's frozen
  * status, and the frozen surface is tracked through the rolled-up .d.ts
  * like every seam. WorkerSandboxRunner and compileScript ship in
- * @lurker/planner (M6).
+ * @rulvar/planner (M6).
  *
  * Owning spec: docs/06-execution-spec.md, section "Script runners".
  */

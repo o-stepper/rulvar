@@ -36,7 +36,7 @@ Runtime boundary at 1.0 (OQ-25 closed by the founder at M9-T05, 2026-07-10): the
 
 All 14 packages publish ESM only: `"type": "module"`, an exports map with `types` before `default`, no CJS artifacts, no legacy `main`/`module` fields beyond the exports map.
 
-Rationale, and why this is a correctness rule rather than a style preference: with the >=22.12.0 baseline, CJS consumers can `require()` an ESM package natively, so dual publishing solves nothing. Meanwhile dual publishing reintroduces the dual-package hazard, which is actively dangerous for lurker specifically: if a host application loaded two module instances (one CJS, one ESM), the journal and registry singleton state would be duplicated, per-engine registries would fork, and content-addressed replay identity would silently break, violating I1 and I5 (00-overview.md, section "Invariants"). ESM-only removes the hazard by construction.
+Rationale, and why this is a correctness rule rather than a style preference: with the >=22.12.0 baseline, CJS consumers can `require()` an ESM package natively, so dual publishing solves nothing. Meanwhile dual publishing reintroduces the dual-package hazard, which is actively dangerous for rulvar specifically: if a host application loaded two module instances (one CJS, one ESM), the journal and registry singleton state would be duplicated, per-engine registries would fork, and content-addressed replay identity would silently break, violating I1 and I5 (00-overview.md, section "Invariants"). ESM-only removes the hazard by construction.
 
 Repo rule: no top-level await in package entry modules (it would break synchronous `require(esm)` consumption).
 
@@ -68,11 +68,11 @@ Documented fallback path: tsdown is younger than tsup; because its options are t
 - Vitest 4.x with exactly one root config using `test.projects` over `packages/*`; a single `vitest run` executes everything. Vitest 4's minimum Node (20.19+/22.12+) matches the baseline exactly. Policy, tiers, and gates: 11-testing-strategy.md.
 - ESLint 9 flat config (single root `eslint.config.js`) with typescript-eslint v8: `projectService: true` plus recommendedTypeChecked; projectService auto-locates each file's nearest tsconfig, so one config covers all packages with typed linting and no ESLint-specific tsconfigs.
 - Prettier owns formatting; formatting rules MUST NOT be duplicated into ESLint.
-- eslint-plugin-lurker (a product package, also consumed in-repo) enforces workflow determinism: bans bare Date.now, Math.random, new Date, fetch, and process.env in workflow modules, and bans Promise.all over ctx calls; its diagnostics are structural JSON so the planner self-repair loop can consume them (06-execution-spec.md, section "Script runners").
+- eslint-plugin-rulvar (a product package, also consumed in-repo) enforces workflow determinism: bans bare Date.now, Math.random, new Date, fetch, and process.env in workflow modules, and bans Promise.all over ctx calls; its diagnostics are structural JSON so the planner self-repair loop can consume them (06-execution-spec.md, section "Script runners").
 
 ### 1.8 Versioning, publishing, package correctness
 
-- @changesets/cli 2.x in fixed mode implements founder lockstep exactly; the group, the @lurker/compat exemption, and the Version Packages PR flow via changesets/action are specified in 12-release-versioning.md, sections "Lockstep policy" and "Release pipeline".
+- @changesets/cli 2.x in fixed mode implements founder lockstep exactly; the group, the @rulvar/compat exemption, and the Version Packages PR flow via changesets/action are specified in 12-release-versioning.md, sections "Lockstep policy" and "Release pipeline".
 - Publishing uses npm trusted publishing (OIDC): `permissions: id-token: write` in the release workflow, no long-lived tokens, automatic provenance, npm >= 11.5.1 or a recent pnpm 11.x, one trusted-publisher entry per package. Provenance activates only once the repository is public.
 - Package correctness gates: publint and @arethetypeswrong/cli run in CI against packed tarballs (`pnpm pack` output), never against source trees. api-extractor is deliberately omitted: its two historical jobs (rolled-up types, API reports) are covered by tsdown .d.ts bundling plus isolatedDeclarations; SPI drift for the 1.0 seam freeze is tracked by diffing committed rolled-up .d.ts files in PRs. api-extractor is revisited only if formal API reports prove necessary before 1.0.
 
@@ -84,9 +84,9 @@ GitHub Actions with pnpm/action-setup (version from the `packageManager` field) 
 
 | Dependency | Pin | Rationale and rules |
 |---|---|---|
-| StandardSchemaV1 types | vendored (never a runtime dep) | Tool-schema input contract; types-only, roughly 60 lines; vendoring keeps @lurker/core dependency-free (08-tools-permissions-spec.md, section "SchemaSpec") |
+| StandardSchemaV1 types | vendored (never a runtime dep) | Tool-schema input contract; types-only, roughly 60 lines; vendoring keeps @rulvar/core dependency-free (08-tools-permissions-spec.md, section "SchemaSpec") |
 | StandardJSONSchemaV1 projection | vendored types; target draft-2020-12, fallback draft-07 | JSON Schema projection via `'~standard'.jsonSchema.input()`; supported by Zod 4.2+, ArkType 2.1.28+, Valibot 1.2+ |
-| JSON Schema validator | vendored, @cfworker/json-schema lineage | Draft 2020-12 subset (no $dynamicRef, no remote $ref), eval-free and CSP-safe; the sole vendored RUNTIME dependency of @lurker/core (the StandardSchemaV1/StandardJSONSchemaV1 rows above are types only and do not count) |
+| JSON Schema validator | vendored, @cfworker/json-schema lineage | Draft 2020-12 subset (no $dynamicRef, no remote $ref), eval-free and CSP-safe; the sole vendored RUNTIME dependency of @rulvar/core (the StandardSchemaV1/StandardJSONSchemaV1 rows above are types only and do not count) |
 | @ai-sdk/provider | ^4 (LanguageModelV4) | Bridge package only; exact-major pin with a runtime specificationVersion check; documented as the highest-churn package (04-model-layer-spec.md) |
 | @modelcontextprotocol/sdk | ^1.29 | MCP bus; SDK v2 (scoped packages, spec 2026-07-28) migration is a logged post-M3 task; v1 keeps support only about 6 months after v2 ships |
 | ULID | vendored, or zero-dep `ulid` 3.x | Engine-minted CanonicalIds; monotonic factory required for same-millisecond ordering |
@@ -98,7 +98,7 @@ GitHub Actions with pnpm/action-setup (version from the `packageManager` field) 
 One repository, 14 publishable packages. Package purposes are the canon of 02-architecture.md, section "Package map"; the directory basename drops the scope.
 
 ```
-lurker/                          (repo; org name per section 6)
+rulvar/                          (repo; org name per section 6)
   .changeset/
     config.json                  (fixed group; 12-release-versioning.md)
   .github/
@@ -109,20 +109,20 @@ lurker/                          (repo; org name per section 6)
   docs/                          (this canon; single source of truth)
   examples/                      (runnable corpus; integration tests and planner API-card corpus)
   packages/
-    core/                        @lurker/core        L0 contracts, journal kernel, ctx, agent runtime, router, tools, orchestrator, InMemory and JSONL stores
-    plan/                        @lurker/plan        PlanRunner, RunLedger, escalation extensions, ModelLadder config
-    planner/                     @lurker/planner     flagship hybrid: plan agent, compileScript, WorkerSandboxRunner
-    anthropic/                   @lurker/anthropic   first-class adapter over @anthropic-ai/sdk
-    openai/                      @lurker/openai      Responses API adapter plus openaiCompatible factory
-    bridge-ai-sdk/               @lurker/bridge-ai-sdk  LanguageModelV4 bridge for the provider long tail
-    store-sqlite/                @lurker/store-sqlite   JournalStore plus LeasableStore with fencing epoch
-    store-conformance/           @lurker/store-conformance  executable store conformance kit (DEF-4)
-    compat/                      @lurker/compat      frozen out-of-window KeyDeriver profiles (DEF-6); outside lockstep
-    testing/                     @lurker/testing     createTestEngine, FakeAdapter, VCR, replay-strict, matchers
-    evals/                       @lurker/evals       eval cases, graders, sweeps, canary fingerprint
-    cli/                         @lurker/cli         run/resume/runs/inspect/plan/kb, TUI, createServer, createWorker, OTel exporter
-    eslint-plugin-lurker/        eslint-plugin-lurker  determinism lint rules with structural JSON diagnostics
-    lurker/                      lurker              umbrella: re-exports core, both first-class adapters, file store, terminal renderer
+    core/                        @rulvar/core        L0 contracts, journal kernel, ctx, agent runtime, router, tools, orchestrator, InMemory and JSONL stores
+    plan/                        @rulvar/plan        PlanRunner, RunLedger, escalation extensions, ModelLadder config
+    planner/                     @rulvar/planner     flagship hybrid: plan agent, compileScript, WorkerSandboxRunner
+    anthropic/                   @rulvar/anthropic   first-class adapter over @anthropic-ai/sdk
+    openai/                      @rulvar/openai      Responses API adapter plus openaiCompatible factory
+    bridge-ai-sdk/               @rulvar/bridge-ai-sdk  LanguageModelV4 bridge for the provider long tail
+    store-sqlite/                @rulvar/store-sqlite   JournalStore plus LeasableStore with fencing epoch
+    store-conformance/           @rulvar/store-conformance  executable store conformance kit (DEF-4)
+    compat/                      @rulvar/compat      frozen out-of-window KeyDeriver profiles (DEF-6); outside lockstep
+    testing/                     @rulvar/testing     createTestEngine, FakeAdapter, VCR, replay-strict, matchers
+    evals/                       @rulvar/evals       eval cases, graders, sweeps, canary fingerprint
+    cli/                         @rulvar/cli         run/resume/runs/inspect/plan/kb, TUI, createServer, createWorker, OTel exporter
+    eslint-plugin-rulvar/        eslint-plugin-rulvar  determinism lint rules with structural JSON diagnostics
+    rulvar/                      rulvar              umbrella: re-exports core, both first-class adapters, file store, terminal renderer
   package.json                   (private: true; packageManager pin; root scripts)
   pnpm-workspace.yaml            (packages/* glob; catalogs)
   tsconfig.base.json
@@ -132,7 +132,7 @@ lurker/                          (repo; org name per section 6)
   .prettierrc
 ```
 
-Dependency rules between packages are owned by 02-architecture.md, section "Dependency rules" (core never imports plugins; plugins import only core types and never each other; shells build only on public APIs). @lurker/core has zero provider SDK dependencies; its only vendored runtime dependency is the JSON Schema mini-validator (vendored StandardSchemaV1 type declarations are types only and do not count).
+Dependency rules between packages are owned by 02-architecture.md, section "Dependency rules" (core never imports plugins; plugins import only core types and never each other; shells build only on public APIs). @rulvar/core has zero provider SDK dependencies; its only vendored runtime dependency is the JSON Schema mini-validator (vendored StandardSchemaV1 type declarations are types only and do not count).
 
 ### 2.1 turbo.json shape
 
@@ -166,11 +166,11 @@ contract-tests.yml (cron, enabled at M5): weekly per first-class adapter; replay
 
 ## 3. package.json template
 
-Template for every publishable package (shown for @lurker/core):
+Template for every publishable package (shown for @rulvar/core):
 
 ```json
 {
-  "name": "@lurker/core",
+  "name": "@rulvar/core",
   "version": "0.0.0",
   "type": "module",
   "license": "UNLICENSED",
@@ -200,8 +200,8 @@ Rules:
 
 - `"license": "UNLICENSED"` is the placeholder for the founder decision "License: TBD (decided before first public release)" and MUST be replaced before the first public release (1.0 gate item; 12-release-versioning.md, section "The 1.0 gate"). No license text ships until then.
 - No top-level `main`, `module`, or `types` fields: the exports map is the only entry surface, and the Node >=22.12.0 baseline makes node10-resolver fallbacks unnecessary (publint would flag them as redundant).
-- Internal dependencies always use `"@lurker/<name>": "workspace:*"`; shared external versions always use `"catalog:"`.
-- Packages with subpath surfaces (for example @lurker/cli exposing `createServer`/`createWorker`, or the umbrella re-exporting adapters) extend the exports map with subpath entries following the same types-then-default shape.
+- Internal dependencies always use `"@rulvar/<name>": "workspace:*"`; shared external versions always use `"catalog:"`.
+- Packages with subpath surfaces (for example @rulvar/cli exposing `createServer`/`createWorker`, or the umbrella re-exporting adapters) extend the exports map with subpath entries following the same types-then-default shape.
 - The root package.json is `"private": true`, carries the `packageManager` pin and the repo-wide scripts, and is never published.
 
 ## 4. tsconfig template
@@ -232,47 +232,44 @@ Each package ships a two-line tsconfig extending the base with its `include` (sr
 
 Everything below happens before the first feature commit; this is what M0 (v0.1.0) executes, tasked as M0-Tyy items in 10-implementation-plan.md, section "Per-milestone task breakdowns". Items 1-3 are the naming checklist and MUST be executed first, before any name freezes.
 
-1. Attempt to claim the npm org/scope `@lurker`; record the outcome. If blocked, invoke the naming contingency (section 6) and record the decision.
-2. Select and create the GitHub org variant (candidates: lurker-dev, lurkerjs, getlurker; section 6).
+1. Attempt to claim the npm org/scope `@rulvar`; record the outcome. If blocked, invoke the naming contingency (section 6) and record the decision.
+2. Select and create the GitHub org variant (candidates: rulvar-dev, rulvarjs, getrulvar; section 6).
 3. Record the trademark-search status and schedule formal USPTO/EUIPO clearance as the pre-1.0 gate (12-release-versioning.md, section "The 1.0 gate").
 4. Create the repository: default branch `main`, branch protection (required CI checks, at least one review), squash-merge policy.
 5. Scaffold the workspace: pnpm-workspace.yaml (`packages/*`, catalogs), private root package.json with the `packageManager` pin.
-6. Create all 14 package directories per section 2 with the templates of sections 3 and 4 and stub `src/index.ts` files; land the L0 contracts skeleton in @lurker/core.
+6. Create all 14 package directories per section 2 with the templates of sections 3 and 4 and stub `src/index.ts` files; land the L0 contracts skeleton in @rulvar/core.
 7. Commit tsconfig.base.json; verify `tsc --noEmit` passes repo-wide.
 8. Add tsdown config per package; verify build output, .d.ts rollups, and the exports map on a packed tarball.
 9. Root vitest.config.ts with `test.projects` over `packages/*`; one smoke test per package; verify a single `vitest run` executes all projects.
 10. Root eslint.config.js (flat, typescript-eslint v8, projectService) and Prettier config; verify a clean lint run.
 11. turbo.json per section 2.1; verify the `pnpm -r run build` fallback also works.
-12. .changeset/config.json with the fixed group enumerating the thirteen lockstep packages explicitly by name (no globs, no negation patterns; 12-release-versioning.md, section "Lockstep policy"); add the CI repo check asserting the fixed list equals workspace packages minus @lurker/compat; verify with a dry-run `changeset version` on a throwaway branch.
+12. .changeset/config.json with the fixed group enumerating the thirteen lockstep packages explicitly by name (no globs, no negation patterns; 12-release-versioning.md, section "Lockstep policy"); add the CI repo check asserting the fixed list equals workspace packages minus @rulvar/compat; verify with a dry-run `changeset version` on a throwaway branch.
 13. Commit ci.yml, release.yml, and contract-tests.yml (the cron workflow ships disabled until M5).
 14. Configure npm trusted-publisher entries, one per package; entries for packages not yet published are completed at the first publish (v0.1.0). Note: entries created after 2026-05-20 must explicitly select allowed actions; provenance activates only once the repo is public.
 15. Land the docs/ canon (this document set) into the repository.
 16. Commit the initial rolled-up .d.ts baseline for the SPI drift gate once the L0 skeleton builds.
 17. Record the license placeholder state ("License: TBD, decided before first public release") in the repo README.
 
-## 6. Naming risk note
+## 6. Naming note
 
-This section is the canonical home of the naming risk; README.md and 00-overview.md point here. The founder decision stands: the library is named lurker and packages are @lurker/*; the collision risk is noted, not resolved.
+This section is the canonical home of the project naming; README.md and 00-overview.md point here. The naming contingency CLOSED on 2026-07-11 (founder decision; OQ-24 in 14-open-questions.md): the project is named **rulvar**, the official domain is **rulvar.com**, and every risk this section used to track applied to the FORMER working name and dissolved with the rename.
 
-- **Unscoped npm name.** `lurker` on npm is squatted by an abandoned 2014 GPLv3 RSS reader with zero downloads per month. The umbrella package name is therefore contingent on one of: an npm name dispute, a transfer from the current owner, or a fallback. Fallback candidates, in preference order: `lurkerjs`, `lurker-ai`, or shipping the umbrella as `@lurker/lurker` with no unscoped package at all.
-- **GPLv3 residue.** Whatever the resolution, the old unscoped versions remain GPLv3 in the registry history; this is a noted risk (a version-range install against stale metadata could resolve to GPLv3 code) and one more reason install documentation never references the bare name.
-- **npm scope and org.** The `@lurker` scope has zero published packages, but org availability is unverified; claiming the npm org is the first M0 checklist item (section 5) and MUST happen before any name freezes.
-- **GitHub org.** `lurker` is unavailable (a personal account holds it since 2008); the repo org will be a variant: lurker-dev, lurkerjs, or getlurker.
-- **Documentation rule.** Docs and install commands MUST reference packages uniformly as `@lurker/<name>` and MUST NOT write the bare name `lurker` in install commands; the umbrella is referenced by its final resolved name only after the contingency closes.
-- **Trademark.** Informal searches show no live conflict in software classes; formal USPTO/EUIPO clearance is a pre-1.0 gate alongside the license decision (12-release-versioning.md, section "The 1.0 gate").
-- **Resolution deadline.** The contingency MUST be resolved, or consciously carried with a written founder decision, before v1.0.0 ships.
+- **Verified at close (2026-07-11).** The unscoped npm name `rulvar` and the package `@rulvar/core` both return 404 from the registry (never published), and no `rulvar` user or organization answers on the GitHub API: the name is clean everywhere it matters. Claiming the `@rulvar` npm organization is a release-checklist item and MUST happen before the first publish (12-release-versioning.md, section "Release checklist").
+- **Package naming.** Packages are `@rulvar/<name>`; the umbrella is `@rulvar/rulvar`. Docs and install commands reference the scoped names uniformly. Because the unscoped name is free, reserving bare `rulvar` on npm (as a pointer package to the umbrella) is RECOMMENDED at first publish to prevent squatting, but nothing depends on it.
+- **Repository.** The canonical repository is github.com/o-stepper/rulvar (the personal-account home matches the OQ-27 governance decision: a personal project, single maintainer).
+- **Trademark.** No live conflicting mark was found in developer tooling at the rename; formal USPTO/EUIPO registration is an optional post-release protection step owned by the founder (release checklist, 12-release-versioning.md), no longer a release gate.
 
 ### 6.1 Naming checklist execution record (M0-T07)
 
-Status as of 2026-07-06 (M0 bootstrap). Items (a) through (e) require founder-held accounts (npmjs.com, github.com) and remain open founder actions; the local scaffold does not block on them. The umbrella package is named `@lurker/lurker` in the workspace per the rule in 10-implementation-plan.md, section "Planning rules" (rule 1.4.1), until the unscoped contingency closes.
+Status as of 2026-07-06 (M0 bootstrap). Items (a) through (e) require founder-held accounts (npmjs.com, github.com) and remain open founder actions; the local scaffold does not block on them. The umbrella package is named `@rulvar/rulvar` in the workspace per the rule in 10-implementation-plan.md, section "Planning rules" (rule 1.4.1), until the unscoped contingency closes.
 
 | Item | Status | Notes |
 |---|---|---|
-| (a) npm org/scope claim for `@lurker` | Pending founder execution | First checklist item; MUST precede any name freeze and the first placeholder publish |
-| (b) GitHub org variant selection | Pending founder decision; interim repository live | Candidates: lurker-dev, lurkerjs, getlurker. Interim (recorded 2026-07-07, M1): the founder created the private repository `o-stepper/lurker` under a personal account; squash-only merges and delete-branch-on-merge are set; the repo setting "Allow GitHub Actions to create and approve pull requests" is enabled (required by the changesets release workflow; its first run failed on PR creation before the flip). First CI and release runs green; v0.1.0 versioned via the Version Packages flow with publish a no-op (packages private). A later transfer to the chosen org preserves the repository (GitHub redirects); trusted-publisher entries (c) must then be re-pointed at the new owner |
+| (a) npm org/scope claim for `@rulvar` | Pending founder execution | First checklist item; MUST precede any name freeze and the first placeholder publish |
+| (b) GitHub org variant selection | Pending founder decision; interim repository live | Candidates: rulvar-dev, rulvarjs, getrulvar. Interim (recorded 2026-07-07, M1): the founder created the private repository `o-stepper/rulvar` under a personal account; squash-only merges and delete-branch-on-merge are set; the repo setting "Allow GitHub Actions to create and approve pull requests" is enabled (required by the changesets release workflow; its first run failed on PR creation before the flip). First CI and release runs green; v0.1.0 versioned via the Version Packages flow with publish a no-op (packages private). A later transfer to the chosen org preserves the repository (GitHub redirects); trusted-publisher entries (c) must then be re-pointed at the new owner |
 | (c) Trusted-publisher entries per package | Pending founder execution | One entry per package on npmjs.com; entries created after 2026-05-20 must explicitly select allowed actions; completed at first publish |
-| (d) Placeholder publish of `@lurker/core` (and others as capacity allows) at v0.1.0 | Pending founder execution | All packages are `"private": true` in the workspace; flip a package to publishable as part of its placeholder publish (rule 1.4.6 in 10-implementation-plan.md) |
-| (e) Unscoped `lurker` contingency status | Recorded, unresolved | Squatted 2014 GPLv3 package; paths: dispute, transfer, or fallback (lurkerjs / lurker-ai / `@lurker/lurker`); tracked as OQ-24 |
+| (d) Placeholder publish of `@rulvar/core` (and others as capacity allows) at v0.1.0 | Pending founder execution | All packages are `"private": true` in the workspace; flip a package to publishable as part of its placeholder publish (rule 1.4.6 in 10-implementation-plan.md) |
+| (e) Unscoped `rulvar` contingency status | Recorded, unresolved | Squatted 2014 GPLv3 package; paths: dispute, transfer, or fallback (rulvarjs / rulvar-ai / `@rulvar/rulvar`); tracked as OQ-24 |
 | pnpm pin selection (rule from section 1.4) | pnpm 11.10.0 pinned | Newest 11.x at bootstrap; passes the local M0-T06 release dry-run (identical fixed-group versions; workspace:* and catalog: ranges convert at pack time). OIDC trusted publishing remains to be verified at the first CI publish, after (a) and (c) |
 
 ## 7. Risk register
@@ -291,7 +288,7 @@ Accepted toolchain risks, each with its revisit trigger and fallback. Reviewing 
 
 ## 8. Contributor workflow
 
-Governance at 1.0 (OQ-27 closed by the founder at M9-T05, 2026-07-10): lurker is a personal project with a single maintainer, who owns the npm scope and the repository. Community adapters and stores live in their authors' own repositories and packages; the quality bar for claiming compatibility is the executable one (the @lurker/store-conformance suites and the VCR contract-test pattern of the community guides), and nothing third-party merges into the @lurker scope. A move to an organization or foundation is a deliberate post-1.0 decision.
+Governance at 1.0 (OQ-27 closed by the founder at M9-T05, 2026-07-10): rulvar is a personal project with a single maintainer, who owns the npm scope and the repository. Community adapters and stores live in their authors' own repositories and packages; the quality bar for claiming compatibility is the executable one (the @rulvar/store-conformance suites and the VCR contract-test pattern of the community guides), and nothing third-party merges into the @rulvar scope. A move to an organization or foundation is a deliberate post-1.0 decision.
 
 - **Branching.** Trunk-based: short-lived feature branches off `main`, merged by PR; no long-lived release branches pre-1.0. Branch names reference the task ID where one exists (for example `m2-t04-ref-entries`).
 - **Commits.** Imperative subject of at most 72 characters; the body cites the IDs the change implements or amends (Mx-Tyy, FR-xxx, DEF-n, OQ-nn). Conventional-commits prefixes are not required: changesets, not commit messages, drive versioning.

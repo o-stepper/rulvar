@@ -3,7 +3,7 @@
  * decay"). An HONESTLY COARSE signal: the registry version, the
  * price-table version, and the caps hash catch overt model swaps and
  * deprecations; silent alias re-pointing is a documented uncaught case
- * absent probes (the canary fingerprint in @lurker/evals compensates,
+ * absent probes (the canary fingerprint in @rulvar/evals compensates,
  * and the 30-day TTL on negative eval claims is the no-probe
  * insurance).
  */
@@ -25,7 +25,7 @@ export interface ModelEpochInputs {
   pricingVersion?: string;
   /** The adapter's caps declaration for the subject model. */
   caps?: ModelCaps;
-  /** The @lurker/evals canary fingerprint, when probes ran. */
+  /** The @rulvar/evals canary fingerprint, when probes ran. */
   canaryFingerprint?: string;
 }
 

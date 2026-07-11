@@ -1,4 +1,4 @@
-# @lurker/testing
+# @rulvar/testing
 
 ## 0.9.0
 
@@ -6,15 +6,15 @@
 
 - 65c7b2c: M8-T01: createServer, the HTTP shell (docs/02 section 8.2; FR-702), plus the Engine.stores seam it stands on (docs/06 10.2, M8 entry amendment).
 
-  - `@lurker/cli`: `createServer({ engine, workflows })` returns `{ fetch(req: Request): Promise<Response> }` with the five canonical routes: POST /runs (start a registered workflow), GET /runs/:id (status and outcome), GET /runs/:id/events (SSE; Last-Event-ID maps to the event seq, replay is at-least-once and consumers deduplicate on `replayed`), POST /runs/:id/external/:key (programmatic resolution, `by: 'external'`; a run that settled suspended in-process auto-resumes; a run not live in this process gets the documented offline append under a lease where the store is leasable, and resumes on a worker), GET /runs/:id/cost (the settled in-process CostReport, or the pure journal fold priced by the optional `priceUsd`). Authentication stays host middleware (docs/14, OQ-16).
-  - `@lurker/core`: the Engine interface gains the readonly `stores` accessor exposing the configured journal and transcript stores; exactly the instances createEngine received (or defaulted), no store contract widens.
-  - `@lurker/testing`: `createTestEngine` forwards the new `stores` accessor.
+  - `@rulvar/cli`: `createServer({ engine, workflows })` returns `{ fetch(req: Request): Promise<Response> }` with the five canonical routes: POST /runs (start a registered workflow), GET /runs/:id (status and outcome), GET /runs/:id/events (SSE; Last-Event-ID maps to the event seq, replay is at-least-once and consumers deduplicate on `replayed`), POST /runs/:id/external/:key (programmatic resolution, `by: 'external'`; a run that settled suspended in-process auto-resumes; a run not live in this process gets the documented offline append under a lease where the store is leasable, and resumes on a worker), GET /runs/:id/cost (the settled in-process CostReport, or the pure journal fold priced by the optional `priceUsd`). Authentication stays host middleware (docs/14, OQ-16).
+  - `@rulvar/core`: the Engine interface gains the readonly `stores` accessor exposing the configured journal and transcript stores; exactly the instances createEngine received (or defaulted), no store contract widens.
+  - `@rulvar/testing`: `createTestEngine` forwards the new `stores` accessor.
 
 - ebc8101: M8-T04: the redaction and retention interim rules executed (docs/14 OQ-20 and OQ-22; docs/09 section 8 rewritten to the executed state; docs/03 12.4 and 12.8; docs/06 10.1 and 10.2 amendments).
 
-  - `@lurker/core`: the L0 SerializationHook (`createEngine({ serialization })`): redact/encrypt at the append/put boundaries, symmetric on load/get, applied by wrapping the stores so `Engine.stores` exposes the one policy point; kernel ordering fields are drift-checked with a loud ConfigError. Default key masking at the telemetry boundary: every emitted WorkflowEvent passes `maskSecrets` (provider keys, PATs, bearer tokens, JWTs, private-key blocks become `[masked-secret]`); opt out via `redaction: { maskEvents: false }`; never touches the journal. Retention: `TranscriptStore.delete(ref)` joins the SPI (missing ref is a no-op; InMemory and File stores implement it), `Engine.deleteRun(runId)` cascades blob deletion before the journal (no orphan transcripts), and `Engine.pruneRun(runId)` deletes checkpoint blobs of ok-terminal attempts that nothing else references (parked, cancelled, escalated, and hanging attempts keep theirs).
-  - `@lurker/cli`: `createServer` and `createWorker` take the opt-in `retention` predicate over RunMeta (the server applies it at terminal settles, the worker during sweeps under a brief lease); the OTel exporter masks string span attributes with the same policy, defense in depth over the already conservative attribute content policy.
-  - `@lurker/testing`: `createTestEngine` forwards `deleteRun`/`pruneRun`.
+  - `@rulvar/core`: the L0 SerializationHook (`createEngine({ serialization })`): redact/encrypt at the append/put boundaries, symmetric on load/get, applied by wrapping the stores so `Engine.stores` exposes the one policy point; kernel ordering fields are drift-checked with a loud ConfigError. Default key masking at the telemetry boundary: every emitted WorkflowEvent passes `maskSecrets` (provider keys, PATs, bearer tokens, JWTs, private-key blocks become `[masked-secret]`); opt out via `redaction: { maskEvents: false }`; never touches the journal. Retention: `TranscriptStore.delete(ref)` joins the SPI (missing ref is a no-op; InMemory and File stores implement it), `Engine.deleteRun(runId)` cascades blob deletion before the journal (no orphan transcripts), and `Engine.pruneRun(runId)` deletes checkpoint blobs of ok-terminal attempts that nothing else references (parked, cancelled, escalated, and hanging attempts keep theirs).
+  - `@rulvar/cli`: `createServer` and `createWorker` take the opt-in `retention` predicate over RunMeta (the server applies it at terminal settles, the worker during sweeps under a brief lease); the OTel exporter masks string span attributes with the same policy, defense in depth over the already conservative attribute content policy.
+  - `@rulvar/testing`: `createTestEngine` forwards `deleteRun`/`pruneRun`.
 
 ### Patch Changes
 
@@ -22,7 +22,7 @@
 - Updated dependencies [65c7b2c]
 - Updated dependencies [a2a3243]
 - Updated dependencies [ebc8101]
-  - @lurker/core@0.9.0
+  - @rulvar/core@0.9.0
 
 ## 0.8.0
 
@@ -39,13 +39,13 @@
 - Updated dependencies [fd33871]
 - Updated dependencies [e70e7f4]
 - Updated dependencies [bc9c903]
-  - @lurker/core@0.8.0
+  - @rulvar/core@0.8.0
 
 ## 0.7.0
 
 ### Minor Changes
 
-- 10b45f1: M6-T11: the lurker plan command and the M6 gating cassettes. `lurker plan "<goal>" [--dry-run]` (the canonical grammar) loads @lurker/planner DYNAMICALLY (the CLI's static dependency stays @lurker/core; a missing install is a clear error), plans against the host-config engine, prints the accepted script plus its advisory diagnostics, and runs it in the worker sandbox unless --dry-run. The three docs/09 6.10 gating cassettes are recorded on the FakeAdapter and committed under the frozen-fixture lock with exported scenario builders shared by the recorder script and the replay tests: sandbox-determinism (two fresh runs of one CompiledWorkflow produce byte-identical normalized journals matching the cassette), planner-self-repair (the failing draft round-trips through the JSON-diagnostics repair, re-planning from the committed journal is free, and the accepted script executes deterministically in the sandbox), and orchestrator-crash-resume (the committed pre-crash journal plus boundary checkpoints resume with zero re-paid spawns, no duplicate spawn decisions, and byte-stable handles).
+- 10b45f1: M6-T11: the rulvar plan command and the M6 gating cassettes. `rulvar plan "<goal>" [--dry-run]` (the canonical grammar) loads @rulvar/planner DYNAMICALLY (the CLI's static dependency stays @rulvar/core; a missing install is a clear error), plans against the host-config engine, prints the accepted script plus its advisory diagnostics, and runs it in the worker sandbox unless --dry-run. The three docs/09 6.10 gating cassettes are recorded on the FakeAdapter and committed under the frozen-fixture lock with exported scenario builders shared by the recorder script and the replay tests: sandbox-determinism (two fresh runs of one CompiledWorkflow produce byte-identical normalized journals matching the cassette), planner-self-repair (the failing draft round-trips through the JSON-diagnostics repair, re-planning from the committed journal is free, and the accepted script executes deterministically in the sandbox), and orchestrator-crash-resume (the committed pre-crash journal plus boundary checkpoints resume with zero re-paid spawns, no duplicate spawn decisions, and byte-stable handles).
 
 ### Patch Changes
 
@@ -55,17 +55,17 @@
 - Updated dependencies [434dc83]
 - Updated dependencies [03173c1]
 - Updated dependencies [11c0afc]
-  - @lurker/core@0.7.0
+  - @rulvar/core@0.7.0
 
 ## 0.6.0
 
 ### Minor Changes
 
-- 638d9a1: M5-T04 VCR cassettes and cron contract tests. `@lurker/testing` gains
+- 638d9a1: M5-T04 VCR cassettes and cron contract tests. `@rulvar/testing` gains
   the tier-2 VCR at the adapter boundary: `record({ adapters, cassette,
 redact? })` wraps live adapters and appends redacted JSONL rows keyed by
   a hash of the canonical wire-contract request (the engine-populated
-  providerOptions.lurker telemetry namespace is excluded from the key);
+  providerOptions.rulvar telemetry namespace is excluded from the key);
   `replay({ cassette, onMiss })` serves recorded streams back with the
   typed VcrMissError under 'throw' (hermetic CI) or live forwarding under
   'passthrough'. Redaction happens at record time: the built-in policy
@@ -87,14 +87,14 @@ redact? })` wraps live adapters and appends redacted JSONL rows keyed by
 - Updated dependencies [644512c]
 - Updated dependencies [8a41656]
 - Updated dependencies [02f7f7a]
-  - @lurker/core@0.6.0
+  - @rulvar/core@0.6.0
 
 ## 0.5.0
 
 ### Minor Changes
 
 - ac274f4: M4-T01 role protocol completion. The full trigger protocol for the six
-  invocation roles lands in `@lurker/core` (`model/roles.ts`):
+  invocation roles lands in `@rulvar/core` (`model/roles.ts`):
 
   - Extract necessity is completed per docs/04 section 8.3: a separate
     final structured-output invocation fires when a schema is set AND
@@ -151,7 +151,7 @@ redact? })` wraps live adapters and appends redacted JSONL rows keyed by
     summarize fallback alike). `AgentProfile.taskClass` declares the
     class; unclassified profiles see only byRole floors. A violation is a
     typed ConfigError.
-  - The umbrella `lurker` package now ships floors opinions next to its
+  - The umbrella `rulvar` package now ships floors opinions next to its
     strong routing defaults: `recommendedDefaults.floors` pins orchestrate
     and plan to strong named models. The core itself ships no named model
     strings, and the umbrella suite enforces that with a source scan.
@@ -164,7 +164,7 @@ redact? })` wraps live adapters and appends redacted JSONL rows keyed by
 - Updated dependencies [8ae129e]
 - Updated dependencies [d1c4525]
 - Updated dependencies [b840aba]
-  - @lurker/core@0.5.0
+  - @rulvar/core@0.5.0
 
 ## 0.4.0
 
@@ -208,7 +208,7 @@ redact? })` wraps live adapters and appends redacted JSONL rows keyed by
 - Updated dependencies [6513ce8]
 - Updated dependencies [7dad493]
 - Updated dependencies [2bbf180]
-  - @lurker/core@0.4.0
+  - @rulvar/core@0.4.0
 
 ## 0.3.0
 
@@ -217,7 +217,7 @@ redact? })` wraps live adapters and appends redacted JSONL rows keyed by
 - 43444f6: M2-T11/T12: the executable store conformance kit and the M2 gating
   cassettes with frozen fixtures.
 
-  @lurker/store-conformance ships its first real API: journalStoreConformance
+  @rulvar/store-conformance ships its first real API: journalStoreConformance
   (A1 append atomicity, A2 total per-run order, A3 read-your-writes, A4
   opaque payload with read-side-only normalization, meta separation, the
   golden fold-state fixture with a frozen reference hash, the decide-once
@@ -229,14 +229,14 @@ redact? })` wraps live adapters and appends redacted JSONL rows keyed by
   hasher. InMemoryStore and JsonlFileStore pass; deliberately broken stores
   (reordering, normalizing, tearing, fencing-less) fail loudly.
 
-  @lurker/core kernel closes three DEF-1/DEF-4 gaps the cassettes gate: an
+  @rulvar/core kernel closes three DEF-1/DEF-4 gaps the cassettes gate: an
   abandon-covered hanging dispatch derives skipped instead of redispatching,
   abandon-covered operations contribute a zero ledger increment, the resume
   report lists covered entries as skipped (never orphaned), and an abandon
   over an already-resolved suspension folds to a noop with already_resolved
   (first-closing-wins per target, both closer kinds).
 
-  @lurker/testing ships the M2 cassette suite over committed frozen
+  @rulvar/testing ships the M2 cassette suite over committed frozen
   fixtures: the DEF-1 synthetic subset (abandon-subtree, memoize-classifier,
   v1-journal-on-v2), the DEF-4 set (timeout-vs-live-race,
   class-decision-fanout, abandon-then-crash-then-resume,
@@ -262,7 +262,7 @@ redact? })` wraps live adapters and appends redacted JSONL rows keyed by
   ResumePreview hits/misses/reruns/orphans plus invalid offline
   resolutions), the dryRun option (replay-strict matching: the first
   would-be-live call settles the run with the typed journal_miss error and
-  zero live calls), and @lurker/testing replayRun (tier 3: strict replay
+  zero live calls), and @rulvar/testing replayRun (tier 3: strict replay
   of any journal with JournalMissError on ANY live call; suspended
   journals finish suspended with zero live calls).
 
@@ -274,22 +274,22 @@ redact? })` wraps live adapters and appends redacted JSONL rows keyed by
 - Updated dependencies [24ebadf]
 - Updated dependencies [a1b35d3]
 - Updated dependencies [18a5821]
-  - @lurker/core@0.3.0
+  - @rulvar/core@0.3.0
 
 ## 0.2.0
 
 ### Minor Changes
 
-- 5c4fc32: M1-T14/T15: @lurker/testing tier 1 (FakeAdapter matching on
+- 5c4fc32: M1-T14/T15: @rulvar/testing tier 1 (FakeAdapter matching on
   agentType/label/prompt regex with a '*' fallback, honoring the selected
   structured-output tier, zero USD by construction; createTestEngine over
   the full real engine with recorded event streams; toHaveCalledAgent and
-  toStayUnderBudget matchers at '@lurker/testing/matchers') and the
-  completed umbrella (re-exports of @lurker/core and both first-class
+  toStayUnderBudget matchers at '@rulvar/testing/matchers') and the
+  completed umbrella (re-exports of @rulvar/core and both first-class
   adapters, renderProgress, the umbrella-only recommendedDefaults strong
   model slots, the M1 exit-criteria example workflow, and the CI install
   smoke on packed tarballs). The core now populates the reserved
-  providerOptions 'lurker' telemetry namespace on every request (docs/04
+  providerOptions 'rulvar' telemetry namespace on every request (docs/04
   section 1.8 as amended) and AgentResult carries errorMessage detail for
   journaled WireError fidelity.
 
@@ -300,7 +300,7 @@ redact? })` wraps live adapters and appends redacted JSONL rows keyed by
 - Updated dependencies [1af8fb9]
 - Updated dependencies [1fe0249]
 - Updated dependencies [5c4fc32]
-  - @lurker/core@0.2.0
+  - @rulvar/core@0.2.0
 
 ## 0.1.0
 
@@ -310,7 +310,7 @@ redact? })` wraps live adapters and appends redacted JSONL rows keyed by
   monorepo scaffold on the committed toolchain (pnpm 11 workspaces with
   catalogs, TypeScript 6.0, tsdown, Vitest 4, ESLint 9 flat config,
   Turborepo 2, changesets fixed mode, npm trusted publishing), the docs/
-  canon as single source of truth, the L0 contracts skeleton in @lurker/core,
+  canon as single source of truth, the L0 contracts skeleton in @rulvar/core,
   and the vendored dependencies (StandardSchemaV1/StandardJSONSchemaV1 types,
   the @cfworker/json-schema lineage validator subset, a first-party monotonic
   ULID). Placeholder scaffolds only: no public API ships in this release.
@@ -318,4 +318,4 @@ redact? })` wraps live adapters and appends redacted JSONL rows keyed by
 ### Patch Changes
 
 - Updated dependencies [f4e2be9]
-  - @lurker/core@0.1.0
+  - @rulvar/core@0.1.0

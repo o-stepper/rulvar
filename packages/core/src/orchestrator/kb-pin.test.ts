@@ -9,8 +9,8 @@ import { executeWorkflow, type AgentProfile } from '../engine/ctx.js';
 import { makeOrchestratorWorkflow } from './orchestrate.js';
 
 function agentTypeOf(req: ChatRequest): string {
-  const lurker = (req.providerOptions as { lurker?: { agentType?: string } } | undefined)?.lurker;
-  return lurker?.agentType ?? '';
+  const rulvar = (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)?.rulvar;
+  return rulvar?.agentType ?? '';
 }
 
 function editorialClaim(id: string, extra?: Partial<ModelClaim>): ModelClaim {

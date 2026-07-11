@@ -4,13 +4,13 @@ import {
   ConfigError,
   createCanonicalIdMinter,
   EMPTY_SCHEMA_HASH,
-  LurkerError,
+  RulvarError,
   schemaHash,
 } from './index.js';
 
-describe('@lurker/core public surface', () => {
+describe('@rulvar/core public surface', () => {
   it('exposes the M1 L0 contracts', () => {
-    expect(new ConfigError('x')).toBeInstanceOf(LurkerError);
+    expect(new ConfigError('x')).toBeInstanceOf(RulvarError);
     expect(createCanonicalIdMinter()()).toHaveLength(26);
     expect(schemaHash(undefined)).toBe(EMPTY_SCHEMA_HASH);
   });

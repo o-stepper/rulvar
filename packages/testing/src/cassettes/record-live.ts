@@ -26,7 +26,7 @@ import {
   type JournalEntry,
   type JsonSchema,
   type Workflow,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 import { FakeAdapter, fakeToolCalls, fakeWireError, FAKE_MODEL_REF } from '../fake-adapter.js';
 import {

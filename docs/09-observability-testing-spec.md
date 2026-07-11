@@ -4,9 +4,9 @@ Status: Ready for implementation
 Version: 0.2.0-docs
 Date: 2026-07-06
 
-Purpose: normative specification of the WorkflowEvent stream, the derived metrics, the OpenTelemetry mapping, RunHandle/RunOutcome/CostReport, the three-tier test harness with the store conformance kit, the mandatory defect cassette catalog, the @lurker/evals package, and the redaction posture.
+Purpose: normative specification of the WorkflowEvent stream, the derived metrics, the OpenTelemetry mapping, RunHandle/RunOutcome/CostReport, the three-tier test harness with the store conformance kit, the mandatory defect cassette catalog, the @rulvar/evals package, and the redaction posture.
 
-This document owns the FR-5xx requirement block (registry in 01-requirements.md, section "FR registry") and is the owning spec for goal 7 in 00-overview.md, section "Goals" (observability and testability out of the box). Delivery is spread across milestones (10-implementation-plan.md): the event stream, FakeAdapter, and createTestEngine land in M1 (v0.2.0); replay-strict and @lurker/store-conformance in M2 (v0.3.0); VCR cassettes and cron contract tests in M5 (v0.6.0); @lurker/evals and the complete defect cassette set in M9 (v1.0.0); matrix sweeps, the canary fingerprint, and the eval-committer identity in M11 (v1.2.0). Cassette names defined here are the test IDs consumed by 11-testing-strategy.md.
+This document owns the FR-5xx requirement block (registry in 01-requirements.md, section "FR registry") and is the owning spec for goal 7 in 00-overview.md, section "Goals" (observability and testability out of the box). Delivery is spread across milestones (10-implementation-plan.md): the event stream, FakeAdapter, and createTestEngine land in M1 (v0.2.0); replay-strict and @rulvar/store-conformance in M2 (v0.3.0); VCR cassettes and cron contract tests in M5 (v0.6.0); @rulvar/evals and the complete defect cassette set in M9 (v1.0.0); matrix sweeps, the canary fingerprint, and the eval-committer identity in M11 (v1.2.0). Cassette names defined here are the test IDs consumed by 11-testing-strategy.md.
 
 ## 1 Event stream
 
@@ -196,14 +196,14 @@ The following metric definitions are normative so that dashboards, dogfood telem
 
 ## 3 OpenTelemetry mapping
 
-`toOtel(run, tracer)` maps the spanId tree of a run 1:1 onto OpenTelemetry spans: one OTel span per lurker span, parented per section 1.2, with start/end timestamps taken from the corresponding lifecycle events. Events without an own span (log, budget:update, decision-backed telemetry) attach as OTel span events on their enclosing span.
+`toOtel(run, tracer)` maps the spanId tree of a run 1:1 onto OpenTelemetry spans: one OTel span per rulvar span, parented per section 1.2, with start/end timestamps taken from the corresponding lifecycle events. Events without an own span (log, budget:update, decision-backed telemetry) attach as OTel span events on their enclosing span.
 
 Normative rules:
 
-- `@opentelemetry/api` ^1.9 is an optional peer dependency (13-toolchain-repo.md, section 1). The core has no OTel dependency; the exporter ships in @lurker/cli. When the peer is absent, toOtel MUST be absent or throw a typed ConfigError; nothing else degrades.
-- Span attributes use two namespaces: `lurker.*` for library-specific attributes (at minimum lurker.run_id, lurker.scope, lurker.agent_type, lurker.entry_seq where applicable) and `gen_ai.*` semantic conventions for model calls (model id, usage token counts). The gen_ai.* semconv is flagged unstable upstream; the exporter MUST document the exact mapping per release and MAY change it in minor releases without a BREAKING flag, because OTel attribute names are explicitly outside the compatibility surface.
+- `@opentelemetry/api` ^1.9 is an optional peer dependency (13-toolchain-repo.md, section 1). The core has no OTel dependency; the exporter ships in @rulvar/cli. When the peer is absent, toOtel MUST be absent or throw a typed ConfigError; nothing else degrades.
+- Span attributes use two namespaces: `rulvar.*` for library-specific attributes (at minimum rulvar.run_id, rulvar.scope, rulvar.agent_type, rulvar.entry_seq where applicable) and `gen_ai.*` semantic conventions for model calls (model id, usage token counts). The gen_ai.* semconv is flagged unstable upstream; the exporter MUST document the exact mapping per release and MAY change it in minor releases without a BREAKING flag, because OTel attribute names are explicitly outside the compatibility surface.
 - Attribute content policy: prompts, completions, tool inputs, tool outputs, and provider-raw blocks MUST NOT be exported as span attributes or span events by default. Only identifiers, statuses, usage counters, and cost figures are exported. Content capture, if ever offered, is opt-in and gated on the redaction hook (section 8).
-- Replayed events (replayed: true) MUST NOT create duplicate spans; the exporter either skips them or marks them with `lurker.replayed = true` on a single span, at its documented discretion.
+- Replayed events (replayed: true) MUST NOT create duplicate spans; the exporter either skips them or marks them with `rulvar.replayed = true` on a single span, at its documented discretion.
 
 ## 4 RunHandle, RunOutcome, and CostReport
 
@@ -286,7 +286,7 @@ interface CostReport {
 
 ## 5 Test harness
 
-The harness (@lurker/testing) has three tiers, each falling out of an architectural seam rather than added on: the ProviderAdapter seam gives tiers 1 and 2, the journal gives tier 3. FR-5xx acceptance criteria bind to these tiers; the per-milestone suite gating lives in 11-testing-strategy.md, section "Per-milestone exit criteria matrix".
+The harness (@rulvar/testing) has three tiers, each falling out of an architectural seam rather than added on: the ProviderAdapter seam gives tiers 1 and 2, the journal gives tier 3. FR-5xx acceptance criteria bind to these tiers; the per-milestone suite gating lives in 11-testing-strategy.md, section "Per-milestone exit criteria matrix".
 
 ### 5.1 Tier 1: FakeAdapter and createTestEngine
 
@@ -332,7 +332,7 @@ A journal with open suspensions completes under replay-strict with outcome `susp
 
 ### 5.4 Matchers
 
-@lurker/testing ships matchers for Vitest 4 and Jest. The minimal set:
+@rulvar/testing ships matchers for Vitest 4 and Jest. The minimal set:
 
 ```ts
 expect(run).toHaveCalledAgent('reviewer', { times: 3 });
@@ -343,7 +343,7 @@ Matchers operate on the settled RunHandle/RunOutcome and the event stream; they 
 
 ### 5.5 Store conformance kit
 
-@lurker/store-conformance is the executable conformance kit for JournalStore/LeasableStore adapters (DEF-4). Third-party stores MUST pass it; the shipped stores (InMemoryStore, JsonlFileStore, @lurker/store-sqlite) are gated on it in CI.
+@rulvar/store-conformance is the executable conformance kit for JournalStore/LeasableStore adapters (DEF-4). Third-party stores MUST pass it; the shipped stores (InMemoryStore, JsonlFileStore, @rulvar/store-sqlite) are gated on it in CI.
 
 ```ts
 export function journalStoreConformance(mk: () => Promise<JournalStore>): ConformanceSuite;
@@ -364,7 +364,7 @@ Mandatory checks (contract owned by 03-journal-spec.md, section "Storage SPI"; s
 The cassettes below are NORMATIVE test IDs: 11-testing-strategy.md and the milestone exit gates in 10-implementation-plan.md reference them by these exact names. The renderings below are the canonical IDs; any other spelling is a defect. Rules:
 
 - Every cassette MUST pass under replay-strict with zero live calls, except where its contract states an exact expected live-call count (for example resume-v1-with-inserted-call expects exactly one).
-- Where a cassette asserts store-independence it MUST run against both reference stores (JsonlFileStore and @lurker/store-sqlite) with identical fold outcomes.
+- Where a cassette asserts store-independence it MUST run against both reference stores (JsonlFileStore and @rulvar/store-sqlite) with identical fold outcomes.
 - Each cassette lands in the milestone that ships its mechanism (task mapping in 10-implementation-plan.md); the complete set green is an M9 (v1.0.0) release gate (12-release-versioning.md, section "The 1.0 gate").
 - Synthetic-fixture rule: a cassette that gates a milestone EARLIER than the one shipping its live producers runs there as a synthetic journal fixture: entries hand-authored against the kinds registry v2 and payload schemas frozen in M2, replayed through the kernel via replayRun with a stub workflow. The same ID is re-recorded through the live producers in their shipping milestone, and both forms stay in the suite. The gating table with the synthetic markers is 10-implementation-plan.md, section "Gating cassette sets per milestone".
 
@@ -491,7 +491,7 @@ The kb read-path cassettes of docs/05 (sections "Read path" and "Security", chan
 | kb-pin-replay | an orchestrate-role run over a configured ModelKnowledgeStore pins the filtered card at admission (kb_pinned with the card bytes embedded, strictly before the first orchestrator agent entry) and repins at the wait_for_events wake (kb_repinned); the card is tier-relative and carries NO model names; replay reads entry bytes only and never touches a live store |
 | kb-repin-expiry | the repin re-applies the read-path filters against a FRESH store read: a claim archived (or expired) between the pin and the wake vanishes from the repinned card while the boot pin's bytes stand untouched, so stale claims never steer spawns after pauses |
 
-## 7 @lurker/evals
+## 7 @rulvar/evals
 
 A separate quality-measurement package built strictly on the public APIs (L6). It ships in M9 (v1.0.0); the round-3 extensions ship in M11 (v1.2.0).
 
@@ -523,7 +523,7 @@ Round-3 extensions connect evals to the knowledge base (05-model-knowledge-spec.
 
 - Matrix sweeps over (workflow x model x taskClass) produce eval-measured claims. Sweep results are committed under a dedicated eval-committer identity, which is the only identity permitted to write eval-measured claims (05-model-knowledge-spec.md, section "Write path").
 - The canary model fingerprint detects silent provider-side model changes and gates claim freshness (design open question, 14-open-questions.md); modelEpoch honesty and TTL decay are owned by 05-model-knowledge-spec.md, section "Grounding and decay".
-- Falsification sweeps re-test standing claims; they are driven by `lurker kb sweep` (@lurker/cli).
+- Falsification sweeps re-test standing claims; they are driven by `rulvar kb sweep` (@rulvar/cli).
 
 Explicit exclusions, per the EXC registry (01-requirements.md, section "EXC registry"): no failure clustering (no mechanism exists for it) and no vector-store dependency.
 

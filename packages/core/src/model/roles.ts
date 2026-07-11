@@ -18,7 +18,7 @@
  * - plan,
  *   orchestrate: resolved through the same chain (router.ts takes any
  *                role tag); the modes that dispatch them land with
- *                @lurker/plan (docs/10, M7). No trigger predicate here.
+ *                @rulvar/plan (docs/10, M7). No trigger predicate here.
  *
  * Owning spec: docs/04-model-layer-spec.md, sections "Invocation roles
  * and firing protocol" and "Caps scrubbing and structured-output tier

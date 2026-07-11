@@ -7,7 +7,7 @@
  *   ledger-fold total, so report totals equal the budget ledger fold
  *   totals exactly at settle.
  * - `costReportFromJournal` is the pure journal fold for STORED runs
- *   (shells, `lurker inspect`): terminal usage priced per servedBy with
+ *   (shells, `rulvar inspect`): terminal usage priced per servedBy with
  *   abandoned subtrees contributing zero, exactly like the kernel's
  *   ledger fold. Phase, agentType, and role attribution are live-run
  *   facts that entries do not carry, so those buckets are empty here;

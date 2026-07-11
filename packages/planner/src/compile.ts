@@ -12,10 +12,10 @@
  * the import allowlist. The deeper dialect rules (schema literals only,
  * no functions in options, tools by profile name) are enforced at the
  * sandbox boundary at runtime (JSON-only RPC) and advisorily by
- * eslint-plugin-lurker in the self-repair loop.
+ * eslint-plugin-rulvar in the self-repair loop.
  */
-import type { CompiledWorkflow } from '@lurker/core';
-import { ScriptRejected } from '@lurker/core';
+import type { CompiledWorkflow } from '@rulvar/core';
+import { ScriptRejected } from '@rulvar/core';
 
 /**
  * The exact curated sandbox global set, in docs order (docs/06, 8.2).

@@ -4,26 +4,26 @@
   "commit": false,
   "fixed": [
     [
-      "@lurker/anthropic",
-      "@lurker/bridge-ai-sdk",
-      "@lurker/cli",
-      "@lurker/core",
-      "@lurker/evals",
-      "@lurker/lurker",
-      "@lurker/openai",
-      "@lurker/plan",
-      "@lurker/planner",
-      "@lurker/store-conformance",
-      "@lurker/store-sqlite",
-      "@lurker/testing",
-      "eslint-plugin-lurker"
+      "@rulvar/anthropic",
+      "@rulvar/bridge-ai-sdk",
+      "@rulvar/cli",
+      "@rulvar/core",
+      "@rulvar/evals",
+      "@rulvar/rulvar",
+      "@rulvar/openai",
+      "@rulvar/plan",
+      "@rulvar/planner",
+      "@rulvar/store-conformance",
+      "@rulvar/store-sqlite",
+      "@rulvar/testing",
+      "eslint-plugin-rulvar"
     ]
   ],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@lurker/compat"],
+  "ignore": ["@rulvar/compat"],
   "privatePackages": {
     "version": true,
     "tag": false

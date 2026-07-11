@@ -20,7 +20,7 @@ import {
   type ResumePreview,
   type RunOutcome,
   type Workflow,
-} from '@lurker/core';
+} from '@rulvar/core';
 import { FakeAdapter, FAKE_MODEL_REF } from './fake-adapter.js';
 
 export interface ReplayRunOptions {

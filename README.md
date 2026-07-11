@@ -1,25 +1,23 @@
-# lurker
+# rulvar
 
 An embeddable TypeScript library for building multi-agent LLM workflows:
 durable (a completed LLM call is never paid for twice), budget-bounded,
 vendor-neutral, observable, and testable, with no server, no database, and
 no control plane required.
 
-Status: pre-release, under construction. Milestone M0 (repo bootstrap,
-v0.1.0) of the implementation plan. The documentation set in
+Official site: [rulvar.com](https://rulvar.com). The documentation set in
 [docs/](docs/README.md) is the single source of truth; start with
 [docs/00-overview.md](docs/00-overview.md).
 
 ## Packages
 
-Fourteen packages under the `@lurker` scope, released in lockstep (the sole
-exemption is `@lurker/compat`). The authoritative package map is
+Fourteen packages under the `@rulvar` scope, released in lockstep (the sole
+exemption is `@rulvar/compat`). The authoritative package map is
 [docs/02-architecture.md](docs/02-architecture.md), section "Package map".
-Install commands always reference `@lurker/<name>`; the unscoped npm name
-is squatted by an unrelated 2014 package, and the umbrella currently
-publishes as `@lurker/lurker`
+Install commands always reference `@rulvar/<name>`; the umbrella publishes
+as `@rulvar/rulvar`
 ([docs/13-toolchain-repo.md](docs/13-toolchain-repo.md), section "Naming
-risk note").
+note").
 
 ## Development
 

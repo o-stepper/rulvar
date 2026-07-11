@@ -20,7 +20,7 @@ import {
   tool,
   type ChatRequest,
   type JournalEntry,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 import { foldLedger } from './ledger.js';
 

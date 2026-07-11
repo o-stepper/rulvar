@@ -14,7 +14,7 @@
  * 'unpark-restart', docs/03 10.1 rule 5); it always takes an embedded
  * admission reserve.
  */
-import type { IsolationSpec, JournalEntry } from '@lurker/core';
+import type { IsolationSpec, JournalEntry } from '@rulvar/core';
 
 /** Appendix A: the single pin cap shared by park/unpark and retainWorktree. */
 export const DEFAULT_MAX_PINNED_WORKTREES = 4;

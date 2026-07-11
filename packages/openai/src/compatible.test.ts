@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net';
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { buildAdapterRegistry, ConfigError, type ChatEvent } from '@lurker/core';
+import { buildAdapterRegistry, ConfigError, type ChatEvent } from '@rulvar/core';
 import { CONSERVATIVE_COMPATIBLE_CAPS, openaiCompatible } from './compatible.js';
 
 interface CapturedRequest {

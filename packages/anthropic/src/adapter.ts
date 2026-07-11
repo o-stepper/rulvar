@@ -1,9 +1,9 @@
 /**
- * The @lurker/anthropic ProviderAdapter (M1-T12): SDK glue over the pure
+ * The @rulvar/anthropic ProviderAdapter (M1-T12): SDK glue over the pure
  * wire mapping, with pause_turn absorption, SDK autoretries disabled, and
  * refreshCaps from the capabilities-bearing model list.
  *
- * Owning spec: docs/04-model-layer-spec.md, section "@lurker/anthropic".
+ * Owning spec: docs/04-model-layer-spec.md, section "@rulvar/anthropic".
  */
 import Anthropic from '@anthropic-ai/sdk';
 import {
@@ -12,7 +12,7 @@ import {
   type ChatRequest,
   type ModelCaps,
   type ProviderAdapter,
-} from '@lurker/core';
+} from '@rulvar/core';
 import { ANTHROPIC_MODELS, anthropicModelInfo, type AnthropicModelInfo } from './caps.js';
 import {
   anthropicErrorToWire,

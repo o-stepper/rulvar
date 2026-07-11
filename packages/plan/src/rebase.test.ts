@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { PlanInvariantError, ReplayPlanHashMismatch } from '@lurker/core';
-import type { AdmissionDecision, JournalEntry, NodeId } from '@lurker/core';
+import { PlanInvariantError, ReplayPlanHashMismatch } from '@rulvar/core';
+import type { AdmissionDecision, JournalEntry, NodeId } from '@rulvar/core';
 
 import { planHash } from './plan-hash.js';
 import { type PlanNode, type PlanNodeStatus } from './plan-state.js';

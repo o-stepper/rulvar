@@ -8,8 +8,8 @@ import { makeOrchestratorWorkflow } from './orchestrate.js';
 import type { WakeDigest } from './wake.js';
 
 function agentTypeOf(req: ChatRequest): string {
-  const lurker = (req.providerOptions as { lurker?: { agentType?: string } } | undefined)?.lurker;
-  return lurker?.agentType ?? '';
+  const rulvar = (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)?.rulvar;
+  return rulvar?.agentType ?? '';
 }
 
 /** The last tool message's JSON, where digests arrive. */

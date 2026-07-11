@@ -1,6 +1,6 @@
 /**
  * The orchestrator extension seam (M7-T05): the PUBLIC surface through
- * which @lurker/plan attaches PlanRunner, the opt-in extension of mode
+ * which @rulvar/plan attaches PlanRunner, the opt-in extension of mode
  * (c).
  *
  * Dependency rules (docs/02, section 4): orchestration packages build
@@ -149,7 +149,7 @@ export interface OrchestratorExtensionIO {
 }
 
 /**
- * The extension contract. PlanRunner implements it in @lurker/plan; the
+ * The extension contract. PlanRunner implements it in @rulvar/plan; the
  * mode (c) orchestrator hosts it. Everything is optional except the
  * toolset: an extension that adds no tools has no reason to exist.
  */

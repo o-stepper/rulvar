@@ -1,5 +1,5 @@
 // Umbrella install smoke test on packed tarballs (M1-T15 acceptance):
-// pack @lurker/core, both adapters, and the umbrella; install the
+// pack @rulvar/core, both adapters, and the umbrella; install the
 // tarballs into a scratch project; import the umbrella and check the
 // single-install surface. Run via `node scripts/install-smoke.mjs`
 // (PNPM_CMD overrides the pnpm executable, e.g. 'corepack pnpm').
@@ -10,9 +10,9 @@ import { join } from 'node:path';
 
 const pnpmCmd = process.env.PNPM_CMD ?? 'pnpm';
 const [pnpmBin, ...pnpmPre] = pnpmCmd.split(' ');
-const scratch = mkdtempSync(join(tmpdir(), 'lurker-install-smoke-'));
+const scratch = mkdtempSync(join(tmpdir(), 'rulvar-install-smoke-'));
 
-const packages = ['core', 'anthropic', 'openai', 'lurker'];
+const packages = ['core', 'anthropic', 'openai', 'rulvar'];
 for (const name of packages) {
   execFileSync(pnpmBin, [...pnpmPre, 'pack', '--pack-destination', scratch], {
     cwd: join(process.cwd(), 'packages', name),
@@ -39,7 +39,7 @@ execFileSync(
 writeFileSync(
   join(scratch, 'smoke.mjs'),
   [
-    "import { createEngine, defineWorkflow, anthropic, openai, renderProgress, recommendedDefaults } from '@lurker/lurker';",
+    "import { createEngine, defineWorkflow, anthropic, openai, renderProgress, recommendedDefaults } from '@rulvar/rulvar';",
     'for (const [name, value] of Object.entries({ createEngine, defineWorkflow, anthropic, openai, renderProgress })) {',
     "  if (typeof value !== 'function') { console.error(`umbrella export ${name} missing`); process.exit(1); }",
     '}',

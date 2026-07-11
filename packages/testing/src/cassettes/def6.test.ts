@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import { deriverV0Synthetic } from '@lurker/compat';
+import { deriverV0Synthetic } from '@rulvar/compat';
 import {
   buildAbandonFold,
   buildDeriverRegistry,
@@ -33,7 +33,7 @@ import {
   type Ctx,
   type IdentityInput,
   type JournalEntry,
-} from '@lurker/core';
+} from '@rulvar/core';
 import { FakeAdapter, FAKE_MODEL_REF } from '../fake-adapter.js';
 import {
   APPROVED_SCHEMA,
@@ -72,7 +72,7 @@ const V1_ENTRY_COUNT = 11;
  * is abandoned under the resolution's authority.
  */
 async function seedV1Store(options?: { resolveOffline?: boolean }) {
-  const dir = mkdtempSync(join(tmpdir(), 'lurker-def6-'));
+  const dir = mkdtempSync(join(tmpdir(), 'rulvar-def6-'));
   const store = new JsonlFileStore({ dir });
   const journalPath = join(dir, `${RUN}.jsonl`);
   copyFileSync(V1_FIXTURE_PATH, journalPath);
@@ -303,12 +303,12 @@ describe('DEF-6 cassettes over the frozen v1 journal (docs/11, section 4)', () =
     await expect(rejection).rejects.toThrow(JournalCompatibilityError);
     await expect(rejection).rejects.toMatchObject({
       subCode: 'HASH_VERSION_TOO_OLD',
-      hint: 'enable deriverV0 from @lurker/compat via extraDerivers',
+      hint: 'enable deriverV0 from @rulvar/compat via extraDerivers',
     });
     // Zero live calls, zero appends, zero admission reserves.
     expect(adapter.calls).toHaveLength(0);
     expect(await store.load('RUNV0')).toHaveLength(entries.length);
-    // The matching deriver from @lurker/compat resumes the run normally.
+    // The matching deriver from @rulvar/compat resumes the run normally.
     const compatAdapter = new FakeAdapter({ agents: { '*': 'MUST NOT RUN' } });
     const compatEngine = createEngine({
       adapters: [compatAdapter],
@@ -342,12 +342,12 @@ describe('DEF-6 cassettes over the frozen v1 journal (docs/11, section 4)', () =
     await expect(rejection).rejects.toThrow(JournalCompatibilityError);
     await expect(rejection).rejects.toMatchObject({
       subCode: 'HASH_VERSION_TOO_NEW',
-      hint: 'upgrade lurker',
+      hint: 'upgrade rulvar',
     });
     expect(adapter.calls).toHaveLength(0);
     expect(await store.load('RUNV3')).toHaveLength(entries.length);
     // The scan repeats at lease acquire in queue mode: re-records with
-    // @lurker/store-sqlite in M5.
+    // @rulvar/store-sqlite in M5.
   });
 });
 

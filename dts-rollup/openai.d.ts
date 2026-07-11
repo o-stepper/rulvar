@@ -1,4 +1,4 @@
-import { CanonicalId, ChatEvent, ChatRequest, Effort, ModelCaps, ProviderAdapter, Usage, WireError } from "@lurker/core";
+import { CanonicalId, ChatEvent, ChatRequest, Effort, ModelCaps, ProviderAdapter, Usage, WireError } from "@rulvar/core";
 
 //#region src/caps.d.ts
 interface OpenAiModelInfo {

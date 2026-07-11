@@ -7,7 +7,7 @@
  * constraint is always an explicit list. A floor violation at
  * resolution is a typed ConfigError BEFORE any live call.
  *
- * Named strong default models live ONLY in the umbrella `lurker`
+ * Named strong default models live ONLY in the umbrella `rulvar`
  * package config, never here: the core ships the floor mechanism, the
  * umbrella ships opinions (docs/04, section "Role quality floors").
  */

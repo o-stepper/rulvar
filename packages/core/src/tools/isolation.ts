@@ -67,7 +67,7 @@ export class GitWorktreeProvider implements IsolationProvider {
     this.maxPinned = options?.maxPinnedWorktrees ?? DEFAULT_MAX_PINNED_WORKTREES;
     this.onWarn =
       options?.onWarn ??
-      ((msg) => process.emitWarning(msg, { code: 'LURKER_WORKTREE', type: 'LurkerWarning' }));
+      ((msg) => process.emitWarning(msg, { code: 'RULVAR_WORKTREE', type: 'RulvarWarning' }));
   }
 
   /** Trees currently retained under the pin cap. */
@@ -88,7 +88,7 @@ export class GitWorktreeProvider implements IsolationProvider {
           '(docs/08, section 8.3)',
       );
     }
-    const dir = await mkdtemp(join(tmpdir(), `lurker-wt-${spawn.runId.slice(0, 8)}-`));
+    const dir = await mkdtemp(join(tmpdir(), `rulvar-wt-${spawn.runId.slice(0, 8)}-`));
     await git(this.repoRoot, ['worktree', 'add', '--detach', dir, spawn.ref ?? 'HEAD']);
 
     const collect = async (): Promise<{ files: string[]; patch: Bytes }> => {

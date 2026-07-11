@@ -16,7 +16,7 @@ import {
   defineWorkflow,
   InMemoryStore,
   type ChatRequest,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 import { FakeAdapter, FAKE_MODEL_REF } from './fake-adapter.js';
 import { defaultRedact, readCassette, record, replay, requestHash, VcrMissError } from './vcr.js';
@@ -24,7 +24,7 @@ import { defaultRedact, readCassette, record, replay, requestHash, VcrMissError 
 const SECRET = 'sk-live-abcdef1234567890';
 
 function cassettePath(): string {
-  return join(mkdtempSync(join(tmpdir(), 'lurker-vcr-')), 'session.jsonl');
+  return join(mkdtempSync(join(tmpdir(), 'rulvar-vcr-')), 'session.jsonl');
 }
 
 const wf = (prompt: string) => defineWorkflow({ name: 'vcr-demo' }, (ctx) => ctx.agent(prompt));
@@ -108,7 +108,7 @@ describe('VCR record/replay (M5-T04)', () => {
     };
     const withTelemetry: ChatRequest = {
       ...base,
-      providerOptions: { lurker: { agentType: 'reviewer', label: 'a' } },
+      providerOptions: { rulvar: { agentType: 'reviewer', label: 'a' } },
     };
     expect(requestHash(withTelemetry)).toBe(requestHash(base));
     expect(requestHash({ ...base, providerOptions: { fake: { temperature: 0 } } })).not.toBe(

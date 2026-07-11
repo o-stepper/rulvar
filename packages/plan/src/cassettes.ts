@@ -11,7 +11,7 @@
  * committed cassette is the compatibility contract; the replay test
  * re-runs each scenario fresh and compares byte-for-byte.
  */
-import { createEngine, InMemoryStore, makeOrchestratorWorkflow, tool } from '@lurker/core';
+import { createEngine, InMemoryStore, makeOrchestratorWorkflow, tool } from '@rulvar/core';
 import type {
   ChatEvent,
   ChatRequest,
@@ -24,7 +24,7 @@ import type {
   RunHandle,
   Usage,
   WireError,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 import { planHash } from './plan-hash.js';
 import { emptyPlan } from './plan-state.js';
@@ -151,8 +151,8 @@ export function cassetteAdapter(
 }
 
 export function agentTypeOfRequest(req: ChatRequest): string {
-  const lurker = (req.providerOptions as { lurker?: { agentType?: string } } | undefined)?.lurker;
-  return lurker?.agentType ?? '';
+  const rulvar = (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)?.rulvar;
+  return rulvar?.agentType ?? '';
 }
 
 export const EMPTY_PLAN_HASH: string = planHash(emptyPlan());

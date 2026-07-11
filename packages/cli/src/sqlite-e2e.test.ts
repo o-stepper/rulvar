@@ -41,10 +41,10 @@ function scriptedIo(answers: string[] = []): ScriptedIo {
 
 /** A project whose host config backs the engine with a SqliteStore. */
 function writeSqliteProject(): { cwd: string; dbPath: string } {
-  const cwd = mkdtempSync(join(tmpdir(), 'lurker-cli-sqlite-'));
+  const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-sqlite-'));
   const dbPath = join(cwd, 'journal.db');
   writeFileSync(
-    join(cwd, 'lurker.config.mjs'),
+    join(cwd, 'rulvar.config.mjs'),
     `import { defineWorkflow } from ${JSON.stringify(CORE)};
 import { FakeAdapter, FAKE_MODEL_REF } from ${JSON.stringify(TESTING)};
 import { SqliteStore } from ${JSON.stringify(SQLITE)};

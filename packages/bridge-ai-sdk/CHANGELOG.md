@@ -1,4 +1,4 @@
-# @lurker/bridge-ai-sdk
+# @rulvar/bridge-ai-sdk
 
 ## 0.9.0
 
@@ -8,7 +8,7 @@
 - Updated dependencies [65c7b2c]
 - Updated dependencies [a2a3243]
 - Updated dependencies [ebc8101]
-  - @lurker/core@0.9.0
+  - @rulvar/core@0.9.0
 
 ## 0.8.0
 
@@ -25,7 +25,7 @@
 - Updated dependencies [fd33871]
 - Updated dependencies [e70e7f4]
 - Updated dependencies [bc9c903]
-  - @lurker/core@0.8.0
+  - @rulvar/core@0.8.0
 
 ## 0.7.0
 
@@ -37,7 +37,7 @@
 - Updated dependencies [434dc83]
 - Updated dependencies [03173c1]
 - Updated dependencies [11c0afc]
-  - @lurker/core@0.7.0
+  - @rulvar/core@0.7.0
 
 ## 0.6.0
 
@@ -48,7 +48,7 @@
 - Updated dependencies [644512c]
 - Updated dependencies [8a41656]
 - Updated dependencies [02f7f7a]
-  - @lurker/core@0.6.0
+  - @rulvar/core@0.6.0
 
 ## 0.5.0
 
@@ -60,7 +60,7 @@
 - Updated dependencies [8ae129e]
 - Updated dependencies [d1c4525]
 - Updated dependencies [b840aba]
-  - @lurker/core@0.5.0
+  - @rulvar/core@0.5.0
 
 ## 0.4.0
 
@@ -74,7 +74,7 @@
 - Updated dependencies [6513ce8]
 - Updated dependencies [7dad493]
 - Updated dependencies [2bbf180]
-  - @lurker/core@0.4.0
+  - @rulvar/core@0.4.0
 
 ## 0.3.0
 
@@ -86,7 +86,7 @@
 - Updated dependencies [24ebadf]
 - Updated dependencies [a1b35d3]
 - Updated dependencies [18a5821]
-  - @lurker/core@0.3.0
+  - @rulvar/core@0.3.0
 
 ## 0.2.0
 
@@ -97,7 +97,7 @@
 - Updated dependencies [1af8fb9]
 - Updated dependencies [1fe0249]
 - Updated dependencies [5c4fc32]
-  - @lurker/core@0.2.0
+  - @rulvar/core@0.2.0
 
 ## 0.1.0
 
@@ -107,7 +107,7 @@
   monorepo scaffold on the committed toolchain (pnpm 11 workspaces with
   catalogs, TypeScript 6.0, tsdown, Vitest 4, ESLint 9 flat config,
   Turborepo 2, changesets fixed mode, npm trusted publishing), the docs/
-  canon as single source of truth, the L0 contracts skeleton in @lurker/core,
+  canon as single source of truth, the L0 contracts skeleton in @rulvar/core,
   and the vendored dependencies (StandardSchemaV1/StandardJSONSchemaV1 types,
   the @cfworker/json-schema lineage validator subset, a first-party monotonic
   ULID). Placeholder scaffolds only: no public API ships in this release.
@@ -115,4 +115,4 @@
 ### Patch Changes
 
 - Updated dependencies [f4e2be9]
-  - @lurker/core@0.1.0
+  - @rulvar/core@0.1.0

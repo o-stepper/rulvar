@@ -38,9 +38,9 @@ const TESTING_DIST = pathToFileURL(
 
 /** Writes the host config convention into a temp working directory. */
 function writeFixtureProject(): string {
-  const cwd = mkdtempSync(join(tmpdir(), 'lurker-cli-'));
+  const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-'));
   writeFileSync(
-    join(cwd, 'lurker.config.mjs'),
+    join(cwd, 'rulvar.config.mjs'),
     `import { defineWorkflow } from ${JSON.stringify(CORE_DIST)};
 import { FakeAdapter, FAKE_MODEL_REF } from ${JSON.stringify(TESTING_DIST)};
 
@@ -71,11 +71,11 @@ function runIdOf(io: ScriptedIo): string {
   return (line as string).slice('runId: '.length);
 }
 
-describe('lurker CLI (M5-T01)', () => {
+describe('rulvar CLI (M5-T01)', () => {
   it('prints help and rejects unknown commands (no aliases in v1)', async () => {
     const help = scriptedIo();
     expect(await runCli(['--help'], { cwd: process.cwd(), io: help })).toBe(0);
-    expect(help.outLines.join('\n')).toContain('lurker run <file|name>');
+    expect(help.outLines.join('\n')).toContain('rulvar run <file|name>');
 
     const unknown = scriptedIo();
     expect(await runCli(['launch'], { cwd: process.cwd(), io: unknown })).toBe(1);
@@ -88,7 +88,7 @@ describe('lurker CLI (M5-T01)', () => {
   it('run resolves an external interactively and completes in one invocation', async () => {
     const cwd = writeFixtureProject();
     const io = scriptedIo(['{"approved":true}']);
-    const code = await runCli(['run', 'review', '--args', '{"item":7}', '--store', '.lurker'], {
+    const code = await runCli(['run', 'review', '--args', '{"item":7}', '--store', '.rulvar'], {
       cwd,
       io,
     });
@@ -163,14 +163,14 @@ describe('lurker CLI (M5-T01)', () => {
     const io = scriptedIo([]);
     await runCli(['run', 'review', '--args', '{"item":2}'], { cwd, io });
     const runId = runIdOf(io);
-    writeFileSync(join(cwd, 'lurker.config.mjs'), 'export default { workflows: {} };\n', 'utf8');
+    writeFileSync(join(cwd, 'rulvar.config.mjs'), 'export default { workflows: {} };\n', 'utf8');
     const resume = scriptedIo();
     expect(await runCli(['resume', runId], { cwd, io: resume })).toBe(1);
     expect(resume.errLines.join('\n')).toContain('register it under that name');
   });
 
   it('runs a workflow from a file target with its own engineOptions', async () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'lurker-cli-file-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-file-'));
     writeFileSync(
       join(cwd, 'wf.mjs'),
       `import { defineWorkflow } from ${JSON.stringify(CORE_DIST)};

@@ -12,7 +12,7 @@
  * (deterministic rewrite recorded beside the requested form), or dropped
  * (a journaled no-op with a machine reason and optional blockingRef).
  */
-import type { AdmissionDecision, EntryRef, LogicalTaskId, NodeId } from '@lurker/core';
+import type { AdmissionDecision, EntryRef, LogicalTaskId, NodeId } from '@rulvar/core';
 import { planHash } from './plan-hash.js';
 import {
   isTerminalPlanStatus,

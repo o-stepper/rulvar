@@ -1,7 +1,7 @@
 /**
  * OpenTelemetry exporter (M5-T08; docs/09, section 3). `toOtel(run,
  * tracer)` maps the spanId tree of a run 1:1 onto OTel spans: one span
- * per lurker span, parented per the docs/09 1.2 hierarchy (run > phase >
+ * per rulvar span, parented per the docs/09 1.2 hierarchy (run > phase >
  * agent > tool > child), with start/end timestamps from the lifecycle
  * events. Events without an own span (log, budget:update) attach as span
  * events on their enclosing span.
@@ -11,10 +11,10 @@
  * `TracerLike` so an absent peer never breaks the CLI. Attribute content
  * policy: prompts, completions, and tool payloads are NEVER exported;
  * only identifiers, statuses, usage counters, and cost figures ride
- * `lurker.*` and `gen_ai.*` attributes. Replayed events do not create
- * duplicate spans; the single span is marked `lurker.replayed = true`.
+ * `rulvar.*` and `gen_ai.*` attributes. Replayed events do not create
+ * duplicate spans; the single span is marked `rulvar.replayed = true`.
  */
-import { maskSecrets, type RunOutcome, type WorkflowEvent } from '@lurker/core';
+import { maskSecrets, type RunOutcome, type WorkflowEvent } from '@rulvar/core';
 
 /** The tiny subset of the OTel Tracer/Span API the exporter uses. */
 export interface SpanLike {
@@ -89,23 +89,23 @@ function openAttributes(
   runId: string,
 ): Record<string, string | number | boolean> {
   const attrs: Record<string, string | number | boolean> = {
-    'lurker.run_id': runId,
-    'lurker.entry_seq': event.seq,
+    'rulvar.run_id': runId,
+    'rulvar.entry_seq': event.seq,
   };
   const scope = (event as { scope?: unknown }).scope;
   if (typeof scope === 'string') {
-    attrs['lurker.scope'] = scope;
+    attrs['rulvar.scope'] = scope;
   }
   if (event.replayed === true) {
-    attrs['lurker.replayed'] = true;
+    attrs['rulvar.replayed'] = true;
   }
   if (event.type === 'agent:start') {
-    attrs['lurker.agent_type'] = event.agentType;
+    attrs['rulvar.agent_type'] = event.agentType;
     attrs['gen_ai.request.model'] = event.model;
     attrs['gen_ai.operation.name'] = event.role;
   }
   if (event.type === 'tool:start') {
-    attrs['lurker.tool_name'] = event.toolName;
+    attrs['rulvar.tool_name'] = event.toolName;
   }
   // Defense in depth (M8-T04; docs/09, section 8): an id-shaped field
   // that happens to carry a credential still cannot leak. Events are
@@ -142,7 +142,7 @@ export async function toOtel(
     if (event.replayed === true && openBySpanId.has(event.spanId)) {
       // A replayed opener for a span already exported: mark, do not
       // duplicate (docs/09, section 3).
-      openBySpanId.get(event.spanId)?.span.setAttribute('lurker.replayed', true);
+      openBySpanId.get(event.spanId)?.span.setAttribute('rulvar.replayed', true);
       return;
     }
     const span = tracer.startSpan(spanName(event), {
@@ -165,7 +165,7 @@ export async function toOtel(
       return;
     }
     if (status !== undefined) {
-      open.span.setAttribute('lurker.status', status);
+      open.span.setAttribute('rulvar.status', status);
     }
     open.span.setStatus(
       status !== undefined && status !== 'ok' && status !== 'skipped'
@@ -202,7 +202,7 @@ export async function toOtel(
         // Payload-only event: attach to its own span if it has one,
         // else to the innermost open span (docs/09, section 3).
         const host = openBySpanId.get(event.spanId) ?? stack[stack.length - 1];
-        host?.span.addEvent(event.type, { 'lurker.entry_seq': event.seq });
+        host?.span.addEvent(event.type, { 'rulvar.entry_seq': event.seq });
       }
     }
   }

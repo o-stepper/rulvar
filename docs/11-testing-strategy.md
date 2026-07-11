@@ -17,7 +17,7 @@ The pyramid has six tiers, cheapest and most numerous at the bottom:
 3. Frozen journal fixtures: hashVersion and identity golden tests (section 4).
 4. Cassette tier: VCR record/replay at the adapter boundary, plus cron-scheduled live contract tests (section 5).
 5. Replay-strict tier: deterministic re-execution of journals with zero live calls (section 6).
-6. Eval CI: quality measurement through @lurker/evals, deterministic via cassettes (section 7).
+6. Eval CI: quality measurement through @rulvar/evals, deterministic via cassettes (section 7).
 
 Tooling rules:
 
@@ -38,7 +38,7 @@ Every implementation task Mx-Tyy (10-implementation-plan.md, section "Per-milest
 
 ## 2. Unit tier: FakeAdapter
 
-The unit tier runs entirely against FakeAdapter from @lurker/testing (M1). FakeAdapter resolves responses by pattern over agentType, label, or a prompt regex, and is fully typed:
+The unit tier runs entirely against FakeAdapter from @rulvar/testing (M1). FakeAdapter resolves responses by pattern over agentType, label, or a prompt regex, and is fully typed:
 
 ```ts
 const engine = createTestEngine({
@@ -51,7 +51,7 @@ const engine = createTestEngine({
 
 Rules:
 
-- Unit tests MUST NOT import provider SDKs and MUST NOT open sockets. The lint setup enforces the determinism rules of eslint-plugin-lurker on workflow modules (no bare Date.now, Math.random, new Date, fetch, or process.env; no Promise.all over ctx calls).
+- Unit tests MUST NOT import provider SDKs and MUST NOT open sockets. The lint setup enforces the determinism rules of eslint-plugin-rulvar on workflow modules (no bare Date.now, Math.random, new Date, fetch, or process.env; no Promise.all over ctx calls).
 - Unit tests SHOULD use the shipped matchers (available for Vitest and Jest):
 
 ```ts
@@ -65,9 +65,9 @@ expect(run).toStayUnderBudget({ usd: 5 });
 
 Two executable kits. Both are products, not just internal suites: they are the acceptance bar for community implementations (guides land in M9).
 
-### 3.1 Store conformance kit (@lurker/store-conformance)
+### 3.1 Store conformance kit (@rulvar/store-conformance)
 
-Origin: DEF-4. The kit is an executable suite parameterized by a store factory; a store implementation passes or it is not a lurker store. It MUST cover, at minimum:
+Origin: DEF-4. The kit is an executable suite parameterized by a store factory; a store implementation passes or it is not a rulvar store. It MUST cover, at minimum:
 
 - A1 atomicity: an append is all-or-nothing; a torn write is never observable.
 - A2 total per-run order: seq is a total order per run; concurrent appenders never interleave into an ambiguous order.
@@ -79,18 +79,18 @@ Origin: DEF-4. The kit is an executable suite parameterized by a store factory; 
 - End-to-end decide-once oracle: a scripted race drives multiple concurrent resolution attempts at one suspended entry; the oracle asserts exactly one applied classification (first-closing-wins fold plus ResolutionArbiter), all attempts journaled, and then re-runs the journal under replay-strict asserting the same winner with zero live calls.
 - Abandon fixture: a journal with an abandoned branch replays with zero live calls inside the skipped subtree (derived skipped status is never stored, never re-executed).
 
-Required store matrix: InMemoryStore and JsonlFileStore (M2), @lurker/store-sqlite including LeasableStore with fencing epoch (M5), community stores via the published guide (M9). The multi-process soak of M8 re-runs the fencing and lease sections under real process concurrency.
+Required store matrix: InMemoryStore and JsonlFileStore (M2), @rulvar/store-sqlite including LeasableStore with fencing epoch (M5), community stores via the published guide (M9). The multi-process soak of M8 re-runs the fencing and lease sections under real process concurrency.
 
 ### 3.2 Adapter conformance suite
 
-Provider adapters are validated by a cassette-driven contract suite in @lurker/testing, run two ways: against recorded cassettes in every CI run, and against live APIs on the cron cadence of section 5.3. The suite asserts the normative wire surface of 04-model-layer-spec.md: ChatEvent union shape and ordering, the Usage invariant, canonical id bijection between wire ids and engine-minted ULIDs, typed refusal outcomes, stop-reason mapping, retry-relevant error classification (SDK autoretries disabled; the core owns retries), and effort mapping per the per-adapter table. Community adapters run the same suite (M9 guide).
+Provider adapters are validated by a cassette-driven contract suite in @rulvar/testing, run two ways: against recorded cassettes in every CI run, and against live APIs on the cron cadence of section 5.3. The suite asserts the normative wire surface of 04-model-layer-spec.md: ChatEvent union shape and ordering, the Usage invariant, canonical id bijection between wire ids and engine-minted ULIDs, typed refusal outcomes, stop-reason mapping, retry-relevant error classification (SDK autoretries disabled; the core owns retries), and effort mapping per the per-adapter table. Community adapters run the same suite (M9 guide).
 
 ## 4. Frozen journal fixtures
 
 These fixtures are the compatibility contract of DEF-6 made executable. They are frozen: regenerating them to make a test pass is forbidden by policy (section 1.1).
 
 - One frozen fixture set per hashVersion profile. The v1 fixture is a frozen JSONL journal in the round-1 wire format (kinds agent, step, rand, external, approval; legacy field `v: 1`).
-- KeyDeriver contract tests: every profile in the registry (and every profile shipped by @lurker/compat) is immutable after release and MUST pass contract tests against its frozen fixtures on every CI run: `project` results (including `incomparable` for features not expressible in that version), `deriveKey`, `schemaHash`, `toolsetHash`, the frozen disposition table, and `foldDefaults` (v1: effort medium, memoizeOutcome false, budgetAccount root).
+- KeyDeriver contract tests: every profile in the registry (and every profile shipped by @rulvar/compat) is immutable after release and MUST pass contract tests against its frozen fixtures on every CI run: `project` results (including `incomparable` for features not expressible in that version), `deriveKey`, `schemaHash`, `toolsetHash`, the frozen disposition table, and `foldDefaults` (v1: effort medium, memoizeOutcome false, budgetAccount root).
 - Mixed-version scenarios MUST include at least: matching each entry under the key computed with that entry's own version; the ordinal-space split (two repeats paid under v1 as ordinals 0 and 1, a third goes live and is written with hashVersion 2 and ordinal 0 in its own (hashVersion, key) space; later resumes match all three, zero overpayment); forward-cursor resolution when one live call matches both a v1 entry and a later v2 entry (first unconsumed matching entry in journal order wins); and cross-version resolution of a suspended v1 entry by a v2 superseding append referenced by seq.
 - Compatibility lemma test: on the domain of v1 entries (no escalated, no derived skipped, no memoizeOutcome) the v1 and v2 disposition tables MUST agree, making mixed journals deterministic.
 - Never-pay-twice-through-upgrade lemma test: for any fixture journal whose versions all lie in the support window, with an unchanged workflow, replay on the current engine performs zero live calls.
@@ -110,7 +110,7 @@ DEF-6 cassettes (test IDs; canonical catalog in 09-observability-testing-spec.md
 
 ### 5.1 Recording and replay
 
-VCR cassettes sit at the adapter boundary (@lurker/testing, tooling GA in M5):
+VCR cassettes sit at the adapter boundary (@rulvar/testing, tooling GA in M5):
 
 ```ts
 record({ adapters, cassette, redact? });
@@ -147,11 +147,11 @@ replayRun(wf, args, { journal, mode: 'strict' }); // throws JournalMissError on 
 - Any production or dogfood journal is replayable as a deterministic integration test: the recommended triage flow for a field bug is to import the journal, reproduce under replay-strict, and commit the minimized journal as a new fixture.
 - Live-versus-replay equivalence: for scenarios that exercise races (resolution arbitration, first-closing-wins, reuse chain drain order), the suite MUST assert that the replay-strict pass reproduces exactly the outcome the live pass journaled, in the same order.
 
-## 7. Eval CI (@lurker/evals)
+## 7. Eval CI (@rulvar/evals)
 
-@lurker/evals (M9) measures quality on top of public APIs: `EvalCase = { workflow, args, graders[] }` with golden-output, rubric, and LLM-judge graders.
+@rulvar/evals (M9) measures quality on top of public APIs: `EvalCase = { workflow, args, graders[] }` with golden-output, rubric, and LLM-judge graders.
 
-Determinism rule: the judge grader runs through the engine itself with the judge role, so judge calls are journaled, budgeted, and VCR-recorded. Consequently eval CI is deterministic: PR-triggered eval runs MUST execute entirely from cassettes with zero live calls. Live matrix sweeps (workflow by model by taskClass), the eval-committer identity for eval-measured claims, canary fingerprints, and falsification sweeps (`lurker kb sweep`) run only in scheduled jobs under the founder budget pool (14-open-questions.md), and their outputs feed ModelKnowledge phases (05-model-knowledge-spec.md) at M11.
+Determinism rule: the judge grader runs through the engine itself with the judge role, so judge calls are journaled, budgeted, and VCR-recorded. Consequently eval CI is deterministic: PR-triggered eval runs MUST execute entirely from cassettes with zero live calls. Live matrix sweeps (workflow by model by taskClass), the eval-committer identity for eval-measured claims, canary fingerprints, and falsification sweeps (`rulvar kb sweep`) run only in scheduled jobs under the founder budget pool (14-open-questions.md), and their outputs feed ModelKnowledge phases (05-model-knowledge-spec.md) at M11.
 
 Config-matrix comparisons (profile versus profile, cheap workers versus premium, reviewer on or off) report pass-rate, cost, and latency from existing AgentResult usage and costUsd; no new measurement machinery exists. Failure clustering and any vector-store dependency are excluded (EXC registry, 01-requirements.md).
 
@@ -166,11 +166,11 @@ Planning rule (10-implementation-plan.md, section "Planning rules"): every miles
 | M2 | v0.3.0 | store-conformance full suite on InMemoryStore and JsonlFileStore; hashVersion frozen fixtures and KeyDeriver contract tests; replay-strict harness operational; decide-once oracle; abandon fixture | DEF-1 synthetic-fixture subset (abandon-subtree, memoize-classifier, v1-journal-on-v2; the live DEF-1 set follows at M3); DEF-4 set as synthetic fixtures (live producers re-record at M7); DEF-6 set incl. the six IDs of section 4 (effort-defaults-shift synthetic until M4) |
 | M3 | v0.4.0 | tool system and permission chain suites (ask suspension, turn checkpoint resume); compile-time fixtures for terminal escalated status; worktree isolation lifecycle | escalation-status scenarios of the DEF-1 set |
 | M4 | v0.5.0 | adapter conformance suite over roles, failover, pricing, HistoryProjector; hash-v2 identity golden fixtures with canonical effort | effort-defaults-shift revalidated with full effort semantics |
-| M5 | v0.6.0 | VCR record/replay with redaction; cron live contract tests enabled for @lurker/anthropic and @lurker/openai; store-conformance on @lurker/store-sqlite | adapter contract cassettes |
+| M5 | v0.6.0 | VCR record/replay with redaction; cron live contract tests enabled for @rulvar/anthropic and @rulvar/openai; store-conformance on @rulvar/store-sqlite | adapter contract cassettes |
 | M6 | v0.7.0 | WorkerSandboxRunner boundary contract, compileScript and self-repair loop, admission and structural limit suites, WakeDigest coalescing | sandbox-determinism, planner-self-repair, orchestrator-crash-resume (docs/09, M6/M8 substrate and soak set) |
 | M7 | v0.8.0 | PlanRunner rebase, guards, ladder, termination, lineage, reuse suites; property suites of section 10 complete | full round-2 set (revise-mid-run, crash-during-revision, park-unpark, oscillation-freeze, half-escalated-ladder, budget-denied-rung) plus DEF-2, DEF-3, DEF-5, DEF-7 (minus queue-failover-during-forced-finish), DEF-8 sets; DEF-4 set re-recorded live |
 | M8 | v0.9.0 | multi-process seam soak: fencing and lease conformance under real concurrency; hashVersion check at lease acquire | queue-failover-during-forced-finish; multi-process-fencing-soak (docs/09, M6/M8 substrate and soak set); reject-version-from-future in queue mode |
-| M9 | v1.0.0 | complete defect cassette catalog green under replay-strict (1.0 release gate, 12-release-versioning.md, section "The 1.0 gate"); @lurker/evals suite; conformance kits published as community guides | full catalog |
+| M9 | v1.0.0 | complete defect cassette catalog green under replay-strict (1.0 release gate, 12-release-versioning.md, section "The 1.0 gate"); @rulvar/evals suite; conformance kits published as community guides | full catalog |
 | M10 | v1.1.0 | KB phase 1: kb_pinned and kb_repinned determinism, pure card render | KB pin/repin scenarios |
 | M11 | v1.2.0 | eval-measured claims, deterministic matrix sweeps via cassettes, canary fingerprint | sweep and canary scenarios |
 | M12 | unassigned | kb_propose, inbox, human gate suites (behind the measured-value checkpoint) | phase 3 scenarios |
@@ -186,7 +186,7 @@ Run in CI on every PR (toolchain rationale in 13-toolchain-repo.md, section "Com
 Coverage expectations (repo policy, adjustable only by amending this document):
 
 - Repo-wide line coverage SHOULD be at least 80 percent, enforced through the root Vitest config (V8 provider).
-- The L2 kernel modules of @lurker/core (journal identity, forward-matching, replay predicate, folds, budget ledger) SHOULD hold at least 90 percent branch coverage; this is the code where an untested branch is a paid-twice LLM call.
+- The L2 kernel modules of @rulvar/core (journal identity, forward-matching, replay predicate, folds, budget ledger) SHOULD hold at least 90 percent branch coverage; this is the code where an untested branch is a paid-twice LLM call.
 - Provider adapters are measured under cassette replay; live-only branches (transport errors, 529, retry-after) are covered by fault-injection cassettes, not excluded.
 
 ## 10. Property-based testing targets
@@ -199,4 +199,4 @@ Property tests complement the fixture suites on the three mechanisms where examp
 
 ## 11. Examples corpus
 
-The examples/ corpus (landed no later than M5) is triple-purpose by design: reference implementations of the documented patterns, integration tests, and the teaching corpus for the planner API card (@lurker/planner). Rules: every example MUST run in CI under FakeAdapter or cassettes with zero live calls; every example is a runnable file, not a snippet; and an example that stops compiling fails CI like any test. When the API card and an example disagree, the example is the bug.
+The examples/ corpus (landed no later than M5) is triple-purpose by design: reference implementations of the documented patterns, integration tests, and the teaching corpus for the planner API card (@rulvar/planner). Rules: every example MUST run in CI under FakeAdapter or cassettes with zero live calls; every example is a runnable file, not a snippet; and an example that stops compiling fails CI like any test. When the API card and an example disagree, the example is the bug.

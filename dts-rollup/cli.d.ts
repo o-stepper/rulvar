@@ -1,4 +1,4 @@
-import { CreateEngineOptions, Engine, JournalStore, KeyDeriver, LeasableStore, ModelRef, RunHandle, RunMeta, RunOutcome, Usage, Workflow, WorkflowEvent, WorkflowRegistry } from "@lurker/core";
+import { CreateEngineOptions, Engine, JournalStore, KeyDeriver, LeasableStore, ModelRef, RunHandle, RunMeta, RunOutcome, Usage, Workflow, WorkflowEvent, WorkflowRegistry } from "@rulvar/core";
 
 //#region src/io.d.ts
 interface CliIo {
@@ -16,7 +16,7 @@ interface CliIo {
 declare function processIo(): CliIo;
 //#endregion
 //#region src/cli-main.d.ts
-declare const HELP = "lurker: durable multi-agent workflows (docs/06, section 10.5)\n\n  lurker run <file|name> [--args JSON] [--store PATH] [--budget-usd N]\n  lurker resume <runId>  [--store PATH]\n  lurker runs ls         [--store PATH]\n  lurker inspect <runId> [--store PATH]\n  lurker plan \"<goal>\"   [--dry-run]\n  lurker kb <list | inbox | sweep>\n\nEngine assembly: adapters, defaults, and the workflow registry come from\nlurker.config.mjs in the working directory (default export\n{ engineOptions?, workflows? }) or from the workflow module's named\nexports. --store selects the JsonlFileStore directory (default .lurker).\nplan asks the planner model (role plan) to write a workflow script,\nlints and self-repairs it, then runs it in the worker sandbox; --dry-run\nprints the accepted script without running. Requires @lurker/planner\ninstalled. kb list shows the per-project claim store\n(./lurker.models.json) with full provenance. kb sweep runs the\nfalsification matrix from the kbSweep section of lurker.config.mjs\n(fixed pool UNIONED with every model carrying an active negative claim\nplus the re-measure queue; optional canary probes flip drifted claims\nstale first; requires @lurker/evals installed). kb inbox arrives with\nModelKnowledge phase 3.";
+declare const HELP = "rulvar: durable multi-agent workflows (docs/06, section 10.5)\n\n  rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N]\n  rulvar resume <runId>  [--store PATH]\n  rulvar runs ls         [--store PATH]\n  rulvar inspect <runId> [--store PATH]\n  rulvar plan \"<goal>\"   [--dry-run]\n  rulvar kb <list | inbox | sweep>\n\nEngine assembly: adapters, defaults, and the workflow registry come from\nrulvar.config.mjs in the working directory (default export\n{ engineOptions?, workflows? }) or from the workflow module's named\nexports. --store selects the JsonlFileStore directory (default .rulvar).\nplan asks the planner model (role plan) to write a workflow script,\nlints and self-repairs it, then runs it in the worker sandbox; --dry-run\nprints the accepted script without running. Requires @rulvar/planner\ninstalled. kb list shows the per-project claim store\n(./rulvar.models.json) with full provenance. kb sweep runs the\nfalsification matrix from the kbSweep section of rulvar.config.mjs\n(fixed pool UNIONED with every model carrying an active negative claim\nplus the re-measure queue; optional canary probes flip drifted claims\nstale first; requires @rulvar/evals installed). kb inbox arrives with\nModelKnowledge phase 3.";
 declare function runCli(argv: string[], options: {
   cwd: string;
   io: CliIo;
@@ -37,14 +37,14 @@ declare function inspectCommand(argv: string[], context: CommandContext): Promis
 interface CliConfig {
   engineOptions?: Partial<CreateEngineOptions>;
   workflows?: WorkflowRegistry;
-  /** lurker kb sweep configuration (M11-T05; docs/05, "Grounding and decay"). */
+  /** rulvar kb sweep configuration (M11-T05; docs/05, "Grounding and decay"). */
   kbSweep?: KbSweepCliConfig;
 }
 /**
 * The kb sweep config: a FIXED pool (sweep volume is never authorized
 * by proposal volume) plus the cases per taskClass. Structural sweep
-* shapes only: the CLI's static dependency stays @lurker/core and
-* @lurker/evals loads dynamically at command time (the plan-command
+* shapes only: the CLI's static dependency stays @rulvar/core and
+* @rulvar/evals loads dynamically at command time (the plan-command
 * precedent), so graders and cases are typed by the config module.
 */
 interface KbSweepCliConfig {
@@ -55,7 +55,7 @@ interface KbSweepCliConfig {
     model: `${string}:${string}`;
     effort?: string;
   }>;
-  /** Eval cases tagged by taskClass (constructed with @lurker/evals inside the config module). */
+  /** Eval cases tagged by taskClass (constructed with @rulvar/evals inside the config module). */
   cases: Array<{
     taskClass: string;
     case: unknown;
@@ -77,7 +77,7 @@ interface KbSweepCliConfig {
     effort?: string;
   }) => unknown;
 }
-/** Loads `lurker.config.mjs`/`.js` from cwd; absent config is fine. */
+/** Loads `rulvar.config.mjs`/`.js` from cwd; absent config is fine. */
 declare function loadCliConfig(cwd: string): Promise<CliConfig>;
 interface LoadedWorkflowModule {
   workflow?: Workflow<never, unknown>;
@@ -90,7 +90,7 @@ declare function loadWorkflowModule(file: string, cwd: string): Promise<LoadedWo
 declare function looksLikeFile(target: string): boolean;
 //#endregion
 //#region src/engine-assembly.d.ts
-declare const DEFAULT_STORE_DIR = ".lurker";
+declare const DEFAULT_STORE_DIR = ".rulvar";
 interface AssembledCli {
   engine: Engine;
   store: JournalStore;
@@ -141,10 +141,10 @@ interface CreateServerOptions {
   */
   retention?: (meta: RunMeta) => boolean;
 }
-interface LurkerServer {
+interface RulvarServer {
   fetch(req: Request): Promise<Response>;
 }
-declare function createServer(options: CreateServerOptions): LurkerServer;
+declare function createServer(options: CreateServerOptions): RulvarServer;
 //#endregion
 //#region src/worker.d.ts
 /** Appendix A: the committed reference lease ttl (docs/06). */
@@ -249,4 +249,4 @@ declare function toOtel(run: {
   result: Promise<RunOutcome<unknown>>;
 }, tracer: TracerLike, options?: ToOtelOptions): Promise<number>;
 //#endregion
-export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type LurkerServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, assembleEngine, attachProgress, createServer, createWorker, driveRun, inspectCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, toOtel };
+export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type RulvarServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, assembleEngine, attachProgress, createServer, createWorker, driveRun, inspectCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, toOtel };

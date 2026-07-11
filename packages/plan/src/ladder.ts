@@ -9,7 +9,7 @@
  * selection) journals as a decision entry computed once live and replayed
  * by match; the folds consume ONLY journaled values (DEF-1).
  */
-import { canonicalizeLadder, deriverV2 } from '@lurker/core';
+import { canonicalizeLadder, deriverV2 } from '@rulvar/core';
 import type {
   AgentResult,
   CanonicalLadderSpec,
@@ -19,7 +19,7 @@ import type {
   LadderSpec,
   LogicalTaskId,
   TriggerClass,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 /**
  * Extracts the declared ladder from an agent profile: the ModelSpec union

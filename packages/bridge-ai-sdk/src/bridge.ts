@@ -1,9 +1,9 @@
 /**
- * @lurker/bridge-ai-sdk (M9-T01): wraps any Vercel AI SDK LanguageModelV4
+ * @rulvar/bridge-ai-sdk (M9-T01): wraps any Vercel AI SDK LanguageModelV4
  * as a ProviderAdapter for the long tail of providers (Google, Bedrock,
  * Vertex) without coupling the core to the ai-sdk release cycle.
  *
- * Owning spec: docs/04-model-layer-spec.md, section "@lurker/bridge-ai-sdk".
+ * Owning spec: docs/04-model-layer-spec.md, section "@rulvar/bridge-ai-sdk".
  * This is documented as the highest-churn package in the set: it tracks the
  * @ai-sdk/provider major line (^4, pinned in docs/13, section "Dependency
  * baseline pins") and checks specificationVersion at runtime so a transitive
@@ -40,7 +40,7 @@ import {
   type ProviderAdapter,
   type Usage,
   type WireError,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 /**
  * Conservative capability set for a model the bridge cannot introspect:

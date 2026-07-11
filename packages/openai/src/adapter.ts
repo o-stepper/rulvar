@@ -1,9 +1,9 @@
 /**
- * The @lurker/openai ProviderAdapter (M1-T13): Responses API first, Chat
+ * The @rulvar/openai ProviderAdapter (M1-T13): Responses API first, Chat
  * Completions as the caps-selected degraded path, SDK autoretries
  * disabled.
  *
- * Owning spec: docs/04-model-layer-spec.md, section "@lurker/openai
+ * Owning spec: docs/04-model-layer-spec.md, section "@rulvar/openai
  * (Responses API)". The openaiCompatible factory ships in M3.
  */
 import OpenAI from 'openai';
@@ -13,7 +13,7 @@ import {
   type ChatRequest,
   type ModelCaps,
   type ProviderAdapter,
-} from '@lurker/core';
+} from '@rulvar/core';
 import { OPENAI_MODELS, openAiModelInfo } from './caps.js';
 import {
   buildChatCompletionsParams,

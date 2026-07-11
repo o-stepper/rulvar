@@ -4,7 +4,7 @@
  * GOOGLE_GENERATIVE_AI_API_KEY; CI never runs it.
  */
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import type { ChatEvent } from '@lurker/core';
+import type { ChatEvent } from '@rulvar/core';
 import { describe, expect, it } from 'vitest';
 
 import { bridgeAiSdk } from './bridge.js';

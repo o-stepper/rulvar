@@ -3,14 +3,14 @@
  * docs/06 section 10.5 says nothing about engine assembly, and the CLI
  * builds exclusively from the public API per docs/02 section 4):
  *
- * - `lurker.config.mjs` (or .js) in the working directory default-exports
+ * - `rulvar.config.mjs` (or .js) in the working directory default-exports
  *   `{ engineOptions?, workflows? }`: adapters, stores, defaults come
- *   from the HOST's module, so @lurker/cli itself depends only on
- *   @lurker/core.
- * - `lurker run <file>` imports the module at <file>: its default export
+ *   from the HOST's module, so @rulvar/cli itself depends only on
+ *   @rulvar/core.
+ * - `rulvar run <file>` imports the module at <file>: its default export
  *   (or named `workflow`) is the Workflow; optional named exports
  *   `engineOptions` and `workflows` merge OVER the config file's.
- * - `lurker run <name>` and `lurker resume <runId>` resolve names
+ * - `rulvar run <name>` and `rulvar resume <runId>` resolve names
  *   against the merged workflow registry (config first, file second).
  */
 import { existsSync, statSync } from 'node:fs';
@@ -22,21 +22,21 @@ import {
   type CreateEngineOptions,
   type Workflow,
   type WorkflowRegistry,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 /** The shape both the config module and a workflow module may export. */
 export interface CliConfig {
   engineOptions?: Partial<CreateEngineOptions>;
   workflows?: WorkflowRegistry;
-  /** lurker kb sweep configuration (M11-T05; docs/05, "Grounding and decay"). */
+  /** rulvar kb sweep configuration (M11-T05; docs/05, "Grounding and decay"). */
   kbSweep?: KbSweepCliConfig;
 }
 
 /**
  * The kb sweep config: a FIXED pool (sweep volume is never authorized
  * by proposal volume) plus the cases per taskClass. Structural sweep
- * shapes only: the CLI's static dependency stays @lurker/core and
- * @lurker/evals loads dynamically at command time (the plan-command
+ * shapes only: the CLI's static dependency stays @rulvar/core and
+ * @rulvar/evals loads dynamically at command time (the plan-command
  * precedent), so graders and cases are typed by the config module.
  */
 export interface KbSweepCliConfig {
@@ -44,7 +44,7 @@ export interface KbSweepCliConfig {
   committerId: string;
   /** The fixed pool; falsification UNIONS in the store's negative-claim and re-measure subjects. */
   models: Array<{ model: `${string}:${string}`; effort?: string }>;
-  /** Eval cases tagged by taskClass (constructed with @lurker/evals inside the config module). */
+  /** Eval cases tagged by taskClass (constructed with @rulvar/evals inside the config module). */
   cases: Array<{ taskClass: string; case: unknown }>;
   thresholds?: { strength?: number; weakness?: number };
   /** Optional canary probes run per pool member BEFORE the sweep; drift flips stale. */
@@ -55,7 +55,7 @@ export interface KbSweepCliConfig {
   engineFor?: (member: { model: `${string}:${string}`; effort?: string }) => unknown;
 }
 
-const CONFIG_BASENAMES = ['lurker.config.mjs', 'lurker.config.js'];
+const CONFIG_BASENAMES = ['rulvar.config.mjs', 'rulvar.config.js'];
 
 /**
  * ESM caches by URL for the process lifetime; a CLI process imports each
@@ -82,7 +82,7 @@ function isWorkflowValue(value: unknown): value is Workflow<never, unknown> {
   );
 }
 
-/** Loads `lurker.config.mjs`/`.js` from cwd; absent config is fine. */
+/** Loads `rulvar.config.mjs`/`.js` from cwd; absent config is fine. */
 export async function loadCliConfig(cwd: string): Promise<CliConfig> {
   for (const basename of CONFIG_BASENAMES) {
     const path = resolve(cwd, basename);

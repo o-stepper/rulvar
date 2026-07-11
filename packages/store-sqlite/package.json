@@ -1,7 +1,7 @@
 {
-  "name": "@lurker/store-sqlite",
+  "name": "@rulvar/store-sqlite",
   "version": "0.9.0",
-  "description": "lurker SQLite store implementing JournalStore and LeasableStore with a fencing epoch.",
+  "description": "rulvar SQLite store implementing JournalStore and LeasableStore with a fencing epoch.",
   "type": "module",
   "license": "UNLICENSED",
   "private": true,
@@ -29,12 +29,21 @@
     "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only"
   },
   "dependencies": {
-    "@lurker/core": "workspace:*"
+    "@rulvar/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
-    "@lurker/store-conformance": "workspace:*"
+    "@rulvar/store-conformance": "workspace:*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/o-stepper/rulvar.git",
+    "directory": "packages/store-sqlite"
+  },
+  "homepage": "https://rulvar.com",
+  "bugs": {
+    "url": "https://github.com/o-stepper/rulvar/issues"
   }
 }

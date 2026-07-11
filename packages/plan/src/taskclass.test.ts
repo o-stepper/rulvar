@@ -6,8 +6,8 @@
  * is unclassified and stores no literal string anywhere.
  */
 import { describe, expect, it } from 'vitest';
-import { createEngine, InMemoryStore } from '@lurker/core';
-import type { ChatRequest } from '@lurker/core';
+import { createEngine, InMemoryStore } from '@rulvar/core';
+import type { ChatRequest } from '@rulvar/core';
 
 import { planHash } from './plan-hash.js';
 import { emptyPlan } from './plan-state.js';

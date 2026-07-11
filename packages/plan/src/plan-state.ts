@@ -11,8 +11,8 @@
  * fold of plan-scope entries: nothing mutates a TaskPlan in place, every
  * helper returns a fresh value.
  */
-import { PlanInvariantError } from '@lurker/core';
-import type { EntryRef, LogicalTaskId, NodeId } from '@lurker/core';
+import { PlanInvariantError } from '@rulvar/core';
+import type { EntryRef, LogicalTaskId, NodeId } from '@rulvar/core';
 
 /**
  * The single sequential scope holding every plan-mutating entry, inside

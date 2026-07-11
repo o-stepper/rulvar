@@ -1,7 +1,7 @@
 {
-  "name": "@lurker/examples",
+  "name": "@rulvar/examples",
   "version": "0.0.0",
-  "description": "Runnable reference implementations of the lurker quality patterns; integration tests, never published.",
+  "description": "Runnable reference implementations of the rulvar quality patterns; integration tests, never published.",
   "type": "module",
   "license": "UNLICENSED",
   "private": true,
@@ -10,8 +10,8 @@
     "lint": "eslint ."
   },
   "devDependencies": {
-    "@lurker/core": "workspace:*",
-    "@lurker/testing": "workspace:*",
+    "@rulvar/core": "workspace:*",
+    "@rulvar/testing": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "zod": "catalog:"

@@ -1,0 +1,121 @@
+- main [ref=f7e4]:
+    - generic [ref=f7e5]:
+        - generic [ref=f7e7]:
+            - link "Cart" [ref=f7e11] [cursor=pointer]:
+                - /url: /account/checkout
+                - generic [ref=f7e12]: Cart
+                - img [ref=f7e13]
+            - generic [ref=f7e17]:
+                - link [ref=f7e18] [cursor=pointer]:
+                    - /url: /
+                - button "Domains" [ref=f7e21] [cursor=pointer]
+                - button "Products" [ref=f7e23] [cursor=pointer]
+                - button "API" [ref=f7e25] [cursor=pointer]
+                - button "Support ●" [ref=f7e27] [cursor=pointer]
+        - generic [ref=f7e39]:
+            - generic [ref=f7e41]:
+                - img "name.com Logo" [ref=f7e43]
+                - generic [ref=f7e44]:
+                    - paragraph [ref=f7e49]: Dark mode
+                    - generic [ref=f7e51]:
+                        - paragraph [ref=f7e52]: Let's keep in touch.
+                        - generic [ref=f7e53]:
+                            - textbox "Join our newsletter" [ref=f7e58]
+                            - button "Subscribe" [ref=f7e59]:
+                                - generic [ref=f7e61]: Subscribe
+                        - paragraph [ref=f7e62]:
+                            - text: You can opt out at any time. By clicking “Subscribe”, you agree that you have read, understand, and consent to the
+                            - link "Privacy Policy" [ref=f7e63] [cursor=pointer]:
+                                - /url: https://www.name.com/privacy-policy
+                            - text: with regards to the use of your personal data
+            - generic [ref=f7e66]:
+                - generic [ref=f7e67]:
+                    - generic [ref=f7e70]: Domain Names
+                    - generic [ref=f7e71]:
+                        - generic [ref=f7e72]: Products
+                        - generic [ref=f7e73]:
+                            - link "Web Hosting" [ref=f7e74] [cursor=pointer]:
+                                - /url: /purchase/hosting
+                            - link "Cloud Hosting" [ref=f7e75] [cursor=pointer]:
+                                - /url: /cloud-hosting
+                            - link "WordPress Hosting" [ref=f7e76] [cursor=pointer]:
+                                - /url: /wordpress-hosting
+                            - link "Titan Email" [ref=f7e77] [cursor=pointer]:
+                                - /url: /titan-email
+                            - link "Google Workspace" [ref=f7e78] [cursor=pointer]:
+                                - /url: /googleworkspace
+                            - link "SSL Certificates" [ref=f7e79] [cursor=pointer]:
+                                - /url: /ssl
+                            - link "Wix Website Builder" [ref=f7e80] [cursor=pointer]:
+                                - /url: /wix
+                            - link "Compare Website Products" [ref=f7e81] [cursor=pointer]:
+                                - /url: /website-builder
+                            - link "Compare Email Products" [ref=f7e82] [cursor=pointer]:
+                                - /url: /email-solutions
+                            - link "Compare Hosting Products" [ref=f7e83] [cursor=pointer]:
+                                - /url: /hosting-solutions
+                            - link "Compare SSL Products" [ref=f7e84] [cursor=pointer]:
+                                - /url: /ssl-solutions
+                    - generic [ref=f7e85]:
+                        - generic [ref=f7e86]: Information
+                        - generic [ref=f7e87]: Professionals
+                        - generic [ref=f7e88]:
+                            - link "Domain Investing" [ref=f7e89] [cursor=pointer]:
+                                - /url: /investors
+                            - link "name.com API" [ref=f7e90] [cursor=pointer]:
+                                - /url: /nameapi
+                            - link "Affiliate Program" [ref=f7e91] [cursor=pointer]:
+                                - /url: /affiliates
+                    - generic [ref=f7e92]:
+                        - generic [ref=f7e93]: About Us
+                        - generic [ref=f7e94]:
+                            - link "The name.com Team" [ref=f7e95] [cursor=pointer]:
+                                - /url: /aboutus
+                            - link "Careers" [ref=f7e96] [cursor=pointer]:
+                                - /url: /careers
+                            - link "name.gives" [ref=f7e97] [cursor=pointer]:
+                                - /url: /good
+                            - link "name.com Blog" [ref=f7e98] [cursor=pointer]:
+                                - /url: /blog
+                            - link "Newsroom" [ref=f7e99] [cursor=pointer]:
+                                - /url: /newsroom
+                        - generic [ref=f7e100]: Resources
+                        - generic [ref=f7e101]:
+                            - link "Whois Search" [ref=f7e102] [cursor=pointer]:
+                                - /url: /whois-lookup
+                            - link "What's My IP Address?" [ref=f7e103] [cursor=pointer]:
+                                - /url: /ip
+                            - link "California Notice at Collection" [ref=f7e104] [cursor=pointer]:
+                                - /url: /privacy-policy#additional-information-for-california-residents
+                    - generic [ref=f7e105]:
+                        - generic [ref=f7e106]: Support
+                        - generic [ref=f7e107]:
+                            - link "Help Center" [ref=f7e108] [cursor=pointer]:
+                                - /url: /support
+                            - link "Contact Us" [ref=f7e109] [cursor=pointer]:
+                                - /url: /contact
+                            - link "Report Abuse" [ref=f7e110] [cursor=pointer]:
+                                - /url: /abuse
+                            - link "Layered Access Request" [ref=f7e111] [cursor=pointer]:
+                                - /url: /layered-access-request
+                            - link "Accessibility" [ref=f7e112] [cursor=pointer]:
+                                - /url: /policies/accessibility
+                    - generic [ref=f7e113]:
+                        - generic [ref=f7e114]: Social
+                        - generic [ref=f7e115]:
+                            - link "Facebook" [ref=f7e116] [cursor=pointer]:
+                                - /url: https://www.facebook.com/namedotcom
+                            - link "Twitter" [ref=f7e117] [cursor=pointer]:
+                                - /url: https://www.twitter.com/namedotcom
+                            - link "Instagram" [ref=f7e118] [cursor=pointer]:
+                                - /url: https://www.instagram.com/namedotcom
+                            - link "Youtube" [ref=f7e119] [cursor=pointer]:
+                                - /url: https://www.youtube.com/channel/UCR-FO0INIoOVi7YRvEQ0erQ
+                - generic [ref=f7e120]:
+                    - paragraph [ref=f7e121]: name.com is an ICANN-accredited domain name registrar.
+                    - paragraph [ref=f7e122]:
+                        - text: name.com is a proud part of
+                        - link "Identity Digital" [ref=f7e123] [cursor=pointer]:
+                            - /url: https://identity.digital
+                        - text: ', a leading domain name services company.'
+                    - paragraph [ref=f7e124]: name.com is a Registered Trademark. © 2001 — 2026 All Rights Reserved

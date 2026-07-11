@@ -1,7 +1,7 @@
 /**
- * lurker plan end to end (M6-T11; docs/06 10.5): the host config
+ * rulvar plan end to end (M6-T11; docs/06 10.5): the host config
  * supplies the FakeAdapter planner plus the sandbox runner; the CLI
- * loads @lurker/planner dynamically, self-repairs the draft, and either
+ * loads @rulvar/planner dynamically, self-repairs the draft, and either
  * prints it (--dry-run) or runs it in the worker sandbox.
  */
 import { mkdtempSync, writeFileSync } from 'node:fs';
@@ -37,9 +37,9 @@ function scriptedIo(): ScriptedIo {
 }
 
 function writePlanProject(): string {
-  const cwd = mkdtempSync(join(tmpdir(), 'lurker-cli-plan-'));
+  const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-plan-'));
   writeFileSync(
-    join(cwd, 'lurker.config.mjs'),
+    join(cwd, 'rulvar.config.mjs'),
     `import { FakeAdapter, FAKE_MODEL_REF } from ${JSON.stringify(TESTING)};
 import { WorkerSandboxRunner } from ${JSON.stringify(PLANNER)};
 
@@ -69,7 +69,7 @@ export default {
   return cwd;
 }
 
-describe('lurker plan (M6-T11)', () => {
+describe('rulvar plan (M6-T11)', () => {
   it('plans with --dry-run: prints the repaired script without running it', async () => {
     const cwd = writePlanProject();
     const io = scriptedIo();
@@ -97,6 +97,6 @@ describe('lurker plan (M6-T11)', () => {
     const io = scriptedIo();
     const code = await runCli(['plan'], { cwd, io });
     expect(code).toBe(1);
-    expect(io.errLines.join('\n')).toContain('usage: lurker plan');
+    expect(io.errLines.join('\n')).toContain('usage: rulvar plan');
   });
 });

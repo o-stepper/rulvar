@@ -17,7 +17,7 @@ import {
   type ChatRequest,
   type ModelCaps,
   type ProviderAdapter,
-} from '@lurker/core';
+} from '@rulvar/core';
 import type { OpenAiClientLike } from './adapter.js';
 import {
   buildChatCompletionsParams,
@@ -70,7 +70,7 @@ export function openaiCompatible(cfg: OpenAiCompatibleConfig): ProviderAdapter {
       baseURL: cfg.baseURL,
       // Local endpoints (Ollama, vLLM) need no key; the SDK requires a
       // non-empty string, so a placeholder stands in when none is given.
-      apiKey: cfg.apiKey ?? 'lurker-no-key',
+      apiKey: cfg.apiKey ?? 'rulvar-no-key',
       maxRetries: 0,
     }) as unknown as OpenAiClientLike);
   const ids = new OpenAiIdMap(createCanonicalIdMinter());

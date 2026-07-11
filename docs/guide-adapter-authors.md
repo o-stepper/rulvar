@@ -22,7 +22,7 @@ export interface ProviderAdapter {
 
 Before writing one from scratch, check the shipped surfaces: `openaiCompatible` covers any Chat Completions dialect with an explicit id and caps override (docs/04, section 6), and `bridgeAiSdk` wraps any Vercel AI SDK LanguageModelV4 (docs/04, section 7). A new adapter is worth building when the provider speaks neither.
 
-Reference implementations, smallest first: `@lurker/bridge-ai-sdk` (one file over an existing abstraction), `@lurker/openai`, `@lurker/anthropic` (full first-class adapters with caps tables, pause_turn absorption, and retention).
+Reference implementations, smallest first: `@rulvar/bridge-ai-sdk` (one file over an existing abstraction), `@rulvar/openai`, `@rulvar/anthropic` (full first-class adapters with caps tables, pause_turn absorption, and retention).
 
 ## 2. Wire mapping requirements
 
@@ -65,7 +65,7 @@ import {
   type ChatRequest,
   type ModelCaps,
   type ProviderAdapter,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 const CONSERVATIVE_CAPS: ModelCaps = {
   structuredOutput: 'prompt',
@@ -114,7 +114,7 @@ export function communityAdapter(options: CommunityAdapterOptions): ProviderAdap
 
 ## 6. VCR-based contract tests
 
-Cassettes make your adapter testable forever with one paid run (09-observability-testing-spec.md, section "Tier 2"; the shipped tooling is in @lurker/testing). The pattern:
+Cassettes make your adapter testable forever with one paid run (09-observability-testing-spec.md, section "Tier 2"; the shipped tooling is in @rulvar/testing). The pattern:
 
 1. Record once, with a real key, through the record wrapper: every completed stream appends one redacted row (authorization material never reaches cassette bytes; add a custom `redact` for provider-specific secrets).
 2. Commit the cassette JSONL. It carries a hashVersion header (DEF-6).
@@ -122,8 +122,8 @@ Cassettes make your adapter testable forever with one paid run (09-observability
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import { createEngine, defineWorkflow, InMemoryStore } from '@lurker/core';
-import { record, replay } from '@lurker/testing';
+import { createEngine, defineWorkflow, InMemoryStore } from '@rulvar/core';
+import { record, replay } from '@rulvar/testing';
 import { communityAdapter } from './adapter.js';
 
 const CASSETTE = new URL('./contract.cassette.jsonl', import.meta.url).pathname;
