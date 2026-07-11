@@ -1314,6 +1314,8 @@ Entry criteria (the gate): phases 1-2 demonstrate measured value: the card demon
 
 Gate decision (M12-T01, 2026-07-11): the checkpoint ran live under the OQ-28 grant and FAILED: criterion 1 (rung selection) held, criterion 2 (agentType selection) failed the 105 percent cost bar. M12 stays closed with no version assigned; M12-T02 through M12-T04 do not start. The measured record is appended to OQ-09 (docs/14); the five instrument and engine defects the runs surfaced were fixed and merged first (PR #107 through PR #111).
 
+Gate decision at the reopening (M12-T01, 2026-07-12, second OQ-28 grant): FAILED again under the standing rule, and M12 stays closed. Three further gate-found fixes merged first (PR #114, #111, #116); with children finally admitted, the card-informed arm beat the baseline by 20 to 40 pass-rate points in both runs but exceeded the 105 percent cost bar by half a cent to three cents. The criterion-2 rule-shape question (no quality branch) is recorded at OQ-09 and awaits the founder.
+
 Exit criteria: quarantine properties hold end to end (proposals influence no prompt in any run before gating); release under the assigned version.
 
 #### M12-T01 Gate evaluation
