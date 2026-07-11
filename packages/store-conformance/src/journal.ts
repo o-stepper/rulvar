@@ -12,7 +12,7 @@
  * test, in strict mode, so "zero live calls" holds by construction: no
  * dispatch surface exists below the kernel. The engine-level variants
  * (FakeAdapter call counters) live in the M2 cassette suite
- * (@lurker/testing).
+ * (@rulvar/testing).
  */
 import {
   buildDeriverRegistry,
@@ -23,7 +23,7 @@ import {
   type JournalEntry,
   type JournalStore,
   type RunMeta,
-} from '@lurker/core';
+} from '@rulvar/core';
 import {
   ensure,
   makeSuite,

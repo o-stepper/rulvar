@@ -40,8 +40,8 @@ const GATE: GateRecord = {
 };
 
 function makeStore(): FileModelKnowledgeStore {
-  const dir = mkdtempSync(join(tmpdir(), 'lurker-kb-'));
-  return new FileModelKnowledgeStore({ path: join(dir, 'lurker.models.json') });
+  const dir = mkdtempSync(join(tmpdir(), 'rulvar-kb-'));
+  return new FileModelKnowledgeStore({ path: join(dir, 'rulvar.models.json') });
 }
 
 describe('FileModelKnowledgeStore (M10-T01; docs/05, section "Commit discipline")', () => {
@@ -125,8 +125,8 @@ describe('FileModelKnowledgeStore (M10-T01; docs/05, section "Commit discipline"
   });
 
   it('writes a git-diffable pretty snapshot with a trailing newline', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-kb-'));
-    const path = join(dir, 'lurker.models.json');
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-kb-'));
+    const path = join(dir, 'rulvar.models.json');
     const store = new FileModelKnowledgeStore({ path });
     await store.commit([{ op: 'add', claim: claim('c1'), gate: GATE }], 0);
     const raw = readFileSync(path, 'utf8');
@@ -136,8 +136,8 @@ describe('FileModelKnowledgeStore (M10-T01; docs/05, section "Commit discipline"
   });
 
   it('rejects a corrupt file as a typed ConfigError', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-kb-'));
-    const path = join(dir, 'lurker.models.json');
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-kb-'));
+    const path = join(dir, 'rulvar.models.json');
     const store = new FileModelKnowledgeStore({ path });
     await store.commit([{ op: 'add', claim: claim('c1'), gate: GATE }], 0);
     const { writeFileSync } = await import('node:fs');

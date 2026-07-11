@@ -1,5 +1,5 @@
 /**
- * lurker kb list e2e over a fixture store (M10-T04; docs/05, 4.4;
+ * rulvar kb list e2e over a fixture store (M10-T04; docs/05, 4.4;
  * docs/06, 10.5): full provenance per claim (author, gate, evidence
  * refs, TTL state) for the humans who author ladders, floors, and
  * profiles. No run, no pin; the file store reads directly.
@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { FileModelKnowledgeStore, type GateRecord, type ModelClaim } from '@lurker/core';
+import { FileModelKnowledgeStore, type GateRecord, type ModelClaim } from '@rulvar/core';
 
 import { runCli } from './cli-main.js';
 import type { CliIo } from './io.js';
@@ -57,8 +57,8 @@ function claim(id: string, extra?: Partial<ModelClaim>): ModelClaim {
 }
 
 async function fixtureCwd(): Promise<string> {
-  const cwd = mkdtempSync(join(tmpdir(), 'lurker-kb-cli-'));
-  const store = new FileModelKnowledgeStore({ path: join(cwd, 'lurker.models.json') });
+  const cwd = mkdtempSync(join(tmpdir(), 'rulvar-kb-cli-'));
+  const store = new FileModelKnowledgeStore({ path: join(cwd, 'rulvar.models.json') });
   await store.commit(
     [
       { op: 'add', claim: claim('01KBLIVE00000000000000001'), gate: GATE },
@@ -94,13 +94,13 @@ async function fixtureCwd(): Promise<string> {
   return cwd;
 }
 
-describe('lurker kb list (M10-T04)', () => {
+describe('rulvar kb list (M10-T04)', () => {
   it('renders every claim with provenance and TTL state', async () => {
     const cwd = await fixtureCwd();
     const io = scriptedIo();
     expect(await runCli(['kb', 'list'], { cwd, io })).toBe(0);
     const text = io.outLines.join('\n');
-    expect(text).toContain('knowledge store: lurker.models.json (version 2, 3 claims)');
+    expect(text).toContain('knowledge store: rulvar.models.json (version 2, 3 claims)');
     // The maintenance view names models verbatim (only in-run cards are
     // nameless).
     expect(text).toContain('fake:model effort=high :: code-edit strength');
@@ -114,17 +114,17 @@ describe('lurker kb list (M10-T04)', () => {
   });
 
   it('shows the empty store without failing', async () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'lurker-kb-cli-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-kb-cli-'));
     const io = scriptedIo();
     expect(await runCli(['kb', 'list'], { cwd, io })).toBe(0);
     expect(io.outLines.join('\n')).toContain('(version 0, 0 claims)');
   });
 
   it('rejects unknown subcommands and names the phase of inbox', async () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'lurker-kb-cli-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-kb-cli-'));
     const bad = scriptedIo();
     expect(await runCli(['kb', 'show'], { cwd, io: bad })).toBe(1);
-    expect(bad.errLines.join('\n')).toContain('usage: lurker kb <list | inbox | sweep>');
+    expect(bad.errLines.join('\n')).toContain('usage: rulvar kb <list | inbox | sweep>');
     const inbox = scriptedIo();
     expect(await runCli(['kb', 'inbox'], { cwd, io: inbox })).toBe(1);
     expect(inbox.errLines.join('\n')).toContain('phase 3');

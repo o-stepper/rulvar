@@ -35,21 +35,21 @@ export const ctxRuntimes: WeakMap<Ctx<never>, CtxRuntime> = new WeakMap();
  * branch, so the orchestrator learns handles that are stable across
  * resume. Never part of the public AgentOpts surface.
  */
-export const kOnRunning: unique symbol = Symbol('lurker.onRunning');
+export const kOnRunning: unique symbol = Symbol('rulvar.onRunning');
 
 /**
  * Internal AgentOpts channel (M6-T07): names the terminal tool whose
  * accepted call ends the loop with status ok (the orchestrator finish
  * tool). Never part of the public AgentOpts surface.
  */
-export const kTerminalTool: unique symbol = Symbol('lurker.terminalTool');
+export const kTerminalTool: unique symbol = Symbol('rulvar.terminalTool');
 
 /**
  * Internal AgentOpts channel (M7-T08): a transcript checkpoint ref the
  * fresh dispatch boots from (park/unpark continuation and the DEF-5
  * graft boot). Dangling redispatch checkpoints take precedence.
  */
-export const kBootCheckpoint: unique symbol = Symbol('lurker.bootCheckpoint');
+export const kBootCheckpoint: unique symbol = Symbol('rulvar.bootCheckpoint');
 
 export interface InternalAgentHooks {
   [kOnRunning]?: (seq: number) => void;

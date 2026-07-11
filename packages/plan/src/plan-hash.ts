@@ -12,8 +12,8 @@
  * pipeline of the journal kernel; a future grammar change arrives as a
  * new deriver, never as an edit here (docs/03, section "hashVersion").
  */
-import { CURRENT_HASH_VERSION, PlanInvariantError, deriverV2 } from '@lurker/core';
-import type { EntryRef, HashVersion, KeyDeriver } from '@lurker/core';
+import { CURRENT_HASH_VERSION, PlanInvariantError, deriverV2 } from '@rulvar/core';
+import type { EntryRef, HashVersion, KeyDeriver } from '@rulvar/core';
 import type { PlanNode, TaskPlan } from './plan-state.js';
 
 /** The hashVersion whose profile computes planHash today. */

@@ -14,7 +14,7 @@ import { GitWorktreeProvider } from './isolation.js';
 const execFileAsync = promisify(execFile);
 
 async function makeRepo(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'lurker-host-repo-'));
+  const dir = await mkdtemp(join(tmpdir(), 'rulvar-host-repo-'));
   const git = (...args: string[]) => execFileAsync('git', ['-C', dir, ...args]);
   await git('init', '--initial-branch=main');
   await git('config', 'user.email', 'test@example.com');
@@ -27,7 +27,7 @@ async function makeRepo(): Promise<string> {
 
 describe('GitWorktreeProvider (M3-T05)', () => {
   it('a non-git host is a typed ConfigError at acquire', async () => {
-    const notARepo = await mkdtemp(join(tmpdir(), 'lurker-not-a-repo-'));
+    const notARepo = await mkdtemp(join(tmpdir(), 'rulvar-not-a-repo-'));
     const provider = new GitWorktreeProvider({ repoRoot: notARepo });
     await expect(provider.acquire({ runId: 'r', spanId: 's' })).rejects.toThrow(ConfigError);
   });
@@ -53,7 +53,7 @@ describe('GitWorktreeProvider (M3-T05)', () => {
 
     // Applying the patch is the CALLER's responsibility; prove it applies
     // cleanly onto the host tree.
-    const patchPath = join(await mkdtemp(join(tmpdir(), 'lurker-patch-')), 'delta.patch');
+    const patchPath = join(await mkdtemp(join(tmpdir(), 'rulvar-patch-')), 'delta.patch');
     await writeFile(patchPath, patch);
     await execFileAsync('git', ['-C', repo, 'apply', patchPath]);
     await expect(readFile(join(repo, 'new-file.txt'), 'utf8')).resolves.toBe('fresh\n');

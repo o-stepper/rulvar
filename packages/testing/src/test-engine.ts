@@ -15,7 +15,7 @@ import {
   type RunOptions,
   type Workflow,
   type WorkflowEvent,
-} from '@lurker/core';
+} from '@rulvar/core';
 import { FakeAdapter, FAKE_MODEL_REF, type FakeResponder } from './fake-adapter.js';
 
 /** A RunHandle that records its own event stream for the matchers. */

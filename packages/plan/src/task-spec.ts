@@ -8,8 +8,8 @@
  * is the ONLY model influence it has and is clamped to the declared
  * ladder (docs/07, section 10).
  */
-import { deriverV2 } from '@lurker/core';
-import type { EscalationOptions, IsolationSpec, SpawnLineageOpt, UsageLimits } from '@lurker/core';
+import { deriverV2 } from '@rulvar/core';
+import type { EscalationOptions, IsolationSpec, SpawnLineageOpt, UsageLimits } from '@rulvar/core';
 
 export interface TaskSpec {
   /** Registered agent profile name; models are never named here. */

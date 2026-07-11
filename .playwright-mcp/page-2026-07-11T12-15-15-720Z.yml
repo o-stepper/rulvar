@@ -1,0 +1,864 @@
+- generic [ref=f1e1]:
+    - navigation [ref=f1e2]:
+        - generic [ref=f1e3]:
+            - generic [ref=f1e4]:
+                - link "Porkbun Logo porkbun" [ref=f1e5] [cursor=pointer]:
+                    - /url: /
+                    - img "Porkbun Logo" [ref=f1e6]
+                    - text: porkbun
+                - text: 
+            - generic [ref=f1e7]:
+                - list [ref=f1e8]:
+                    - listitem [ref=f1e9]:
+                        - button "products" [ref=f1e10] [cursor=pointer]:
+                            - text: products
+                            - generic [ref=f1e11]: 
+                    - listitem [ref=f1e12]:
+                        - link "transfer" [ref=f1e13] [cursor=pointer]:
+                            - /url: /transfer
+                    - listitem [ref=f1e14]:
+                        - link "SALE!" [ref=f1e15] [cursor=pointer]:
+                            - /url: /event/holidaysales
+                    - listitem [ref=f1e16]:
+                        - button "About" [ref=f1e17] [cursor=pointer]:
+                            - text: About
+                            - generic [ref=f1e18]: 
+                    - listitem [ref=f1e19]:
+                        - button "Resources" [ref=f1e20] [cursor=pointer]:
+                            - text: Resources
+                            - generic [ref=f1e21]: 
+                - link " $0.00 (0)" [ref=f1e23] [cursor=pointer]:
+                    - /url: /checkout/cart
+                    - generic [ref=f1e24]: 
+                    - text: $0.00 (0)
+                - list [ref=f1e25]:
+                    - listitem [ref=f1e26]:
+                        - link "sign in" [ref=f1e27] [cursor=pointer]:
+                            - /url: /account
+    - generic [ref=f1e28]:
+        - generic [ref=f1e30]:
+            - generic [ref=f1e31]:
+                - generic [ref=f1e34]:
+                    - textbox "Domain Search" [active] [ref=f1e35]:
+                        - /placeholder: Search for a domain.
+                        - text: rulvar.org
+                    - generic [ref=f1e36]:
+                        - button "open bulk search" [ref=f1e37] [cursor=pointer]:
+                            - generic [ref=f1e38]: bulk search
+                            - generic [ref=f1e39]: 
+                        - button "submit search" [ref=f1e40] [cursor=pointer]:
+                            - generic [ref=f1e41]: 
+                - text:  
+            - generic [ref=f1e42]:
+                - link "AI Search" [ref=f1e43] [cursor=pointer]:
+                    - /url: /checkout/ai?q=rulvar.org
+                - text: '|'
+                - link "Auction Search" [ref=f1e44] [cursor=pointer]:
+                    - /url: /auctions
+                - text: '|'
+                - link "Marketplace Search" [ref=f1e45] [cursor=pointer]:
+                    - /url: /marketplace
+        - generic [ref=f1e567]:
+            - paragraph [ref=f1e568]:
+                - strong [ref=f1e569]: Brand Starter Pack
+            - button "Save $2.53 on rulvar.com and rulvar.net for only $21.07! +" [ref=f1e570] [cursor=pointer]:
+                - text: Save $2.53 on rulvar.com and rulvar.net for only
+                - strong [ref=f1e571]: $21.07
+                - text: '!'
+                - generic [ref=f1e572]: +
+        - generic [ref=f1e54]:
+            - generic [ref=f1e56]:
+                - generic [ref=f1e57]:
+                    - generic [ref=f1e58]:
+                        - strong [ref=f1e60]: .COM
+                        - generic [ref=f1e574]:
+                            - generic [ref=f1e576] [cursor=pointer]: At Cost
+                            - generic [ref=f1e578]: $11.08 / year renews at $11.08
+                    - generic [ref=f1e579]:
+                        - text: 
+                        - button "Add rulvar.com to cart." [ref=f1e580] [cursor=pointer]:
+                            - generic [ref=f1e581]: +
+                - generic [ref=f1e66]:
+                    - generic [ref=f1e67]:
+                        - strong [ref=f1e69]: .LIFE
+                        - generic [ref=f1e583]:
+                            - generic [ref=f1e584]:
+                                - generic [ref=f1e586]: 1st Year Sale!
+                                - generic [ref=f1e587] [cursor=pointer]: At Cost
+                            - generic [ref=f1e589]:
+                                - generic [ref=f1e591]: $29.35
+                                - text: $2.57 / year renews at $29.35
+                    - generic [ref=f1e592]:
+                        - text: 
+                        - button "Add rulvar.life to cart." [ref=f1e593] [cursor=pointer]:
+                            - generic [ref=f1e594]: +
+            - generic [ref=f1e75]:
+                - generic [ref=f1e595]:
+                    - button "sort by renewal price" [ref=f1e596] [cursor=pointer]
+                    - button "sort by price" [ref=f1e597] [cursor=pointer]
+                - generic [ref=f1e76]:
+                    - generic [ref=f1e599]:
+                        - paragraph [ref=f1e600]:
+                            - button "show more aftermarket domains" [ref=f1e601] [cursor=pointer]
+                        - text:  +  +  +  +  +  +  +  +   +   +   +  +  +  +   +   +   +   +   +   +   +   +  +  +   +  +   +  +   +   +   +   +   +  +  +   +   +   +   +  +   +  +  +  +  +  +  +   +   +  +  +  +  +   +
+                    - generic [ref=f1e80]:
+                        - generic [ref=f1e81]: rulvar.org
+                        - generic [ref=f1e602]:
+                            - generic [ref=f1e603]:
+                                - generic [ref=f1e604]: 1st Year Sale!
+                                - generic [ref=f1e605] [cursor=pointer]: At Cost
+                            - generic [ref=f1e607]: $11.84
+                            - text: $7.98 / year
+                            - text: renews at $11.84
+                        - generic [ref=f1e608]:
+                            - text: 
+                            - button "Add rulvar.org to cart." [ref=f1e609] [cursor=pointer]:
+                                - generic [ref=f1e610]: +
+                    - generic [ref=f1e86]:
+                        - generic [ref=f1e89]:
+                            - generic [ref=f1e90]: rulvar.inc
+                            - generic [ref=f1e611]:
+                                - generic [ref=f1e612]:
+                                    - generic [ref=f1e613]: 1st Year Sale!
+                                    - generic [ref=f1e614] [cursor=pointer]: At Cost
+                                - generic [ref=f1e616]: $2060.25
+                                - text: $257.98 / year
+                                - text: renews at $2060.25
+                            - generic [ref=f1e617]:
+                                - text: 
+                                - button "Add rulvar.inc to cart." [ref=f1e618] [cursor=pointer]:
+                                    - generic [ref=f1e619]: +
+                        - generic [ref=f1e97]:
+                            - generic [ref=f1e98]: rulvar.xyz
+                            - generic [ref=f1e620]:
+                                - generic [ref=f1e621]:
+                                    - generic [ref=f1e622]: 1st Year Sale!
+                                    - generic [ref=f1e623] [cursor=pointer]: At Cost
+                                - generic [ref=f1e625]: $12.98
+                                - text: $2.04 / year
+                                - text: renews at $12.98
+                            - generic [ref=f1e626]:
+                                - text: 
+                                - button "Add rulvar.xyz to cart." [ref=f1e627] [cursor=pointer]:
+                                    - generic [ref=f1e628]: +
+                        - generic [ref=f1e105]:
+                            - generic [ref=f1e106]: rulvar.blog
+                            - generic [ref=f1e629]:
+                                - generic [ref=f1e630]:
+                                    - generic [ref=f1e631]: 1st Year Sale!
+                                    - generic [ref=f1e632] [cursor=pointer]: At Cost
+                                - generic [ref=f1e634]: $21.11
+                                - text: $2.57 / year
+                                - text: renews at $21.11
+                            - generic [ref=f1e635]:
+                                - text: 
+                                - button "Add rulvar.blog to cart." [ref=f1e636] [cursor=pointer]:
+                                    - generic [ref=f1e637]: +
+                        - generic [ref=f1e113]:
+                            - generic [ref=f1e114]: rulvar.tech
+                            - generic [ref=f1e638]:
+                                - generic [ref=f1e639]:
+                                    - generic [ref=f1e640]: 1st Year Sale!
+                                    - generic [ref=f1e641] [cursor=pointer]: At Cost
+                                - generic [ref=f1e643]: $50.98
+                                - text: $6.99 / year
+                                - text: renews at $50.98
+                            - generic [ref=f1e644]:
+                                - text: 
+                                - button "Add rulvar.tech to cart." [ref=f1e645] [cursor=pointer]:
+                                    - generic [ref=f1e646]: +
+                        - generic [ref=f1e121]:
+                            - generic [ref=f1e122]: rulvar.llc
+                            - generic [ref=f1e647]:
+                                - generic [ref=f1e648]:
+                                    - generic [ref=f1e649]: 1st Year Sale!
+                                    - generic [ref=f1e650] [cursor=pointer]: At Cost
+                                - generic [ref=f1e652]: $34.50
+                                - text: $10.81 / year
+                                - text: renews at $34.50
+                            - generic [ref=f1e653]:
+                                - text: 
+                                - button "Add rulvar.llc to cart." [ref=f1e654] [cursor=pointer]:
+                                    - generic [ref=f1e655]: +
+                        - generic [ref=f1e129]:
+                            - generic [ref=f1e130]: rulvar.fyi
+                            - generic [ref=f1e656]:
+                                - generic [ref=f1e658] [cursor=pointer]: At Cost
+                                - text: $5.66 / year
+                                - text: renews at $5.66
+                            - generic [ref=f1e659]:
+                                - text: 
+                                - button "Add rulvar.fyi to cart." [ref=f1e660] [cursor=pointer]:
+                                    - generic [ref=f1e661]: +
+                        - generic [ref=f1e137]:
+                            - generic [ref=f1e138]: rulvar.now
+                            - generic [ref=f1e662]:
+                                - generic [ref=f1e664] [cursor=pointer]: At Cost
+                                - text: $31.41 / year
+                                - text: renews at $31.41
+                            - generic [ref=f1e665]:
+                                - text: 
+                                - button "Add rulvar.now to cart." [ref=f1e666] [cursor=pointer]:
+                                    - generic [ref=f1e667]: +
+                        - generic [ref=f1e145]:
+                            - generic [ref=f1e146]: rulvar.online
+                            - generic [ref=f1e668]:
+                                - generic [ref=f1e669]:
+                                    - generic [ref=f1e670]: 1st Year Sale!
+                                    - generic [ref=f1e671] [cursor=pointer]: At Cost
+                                - generic [ref=f1e673]: $28.84
+                                - text: $1.96 / year
+                                - text: renews at $28.84
+                            - generic [ref=f1e674]:
+                                - text: 
+                                - button "Add rulvar.online to cart." [ref=f1e675] [cursor=pointer]:
+                                    - generic [ref=f1e676]: +
+                        - generic [ref=f1e153]:
+                            - generic [ref=f1e154]: rulvar.io
+                            - generic [ref=f1e677]:
+                                - generic [ref=f1e678]:
+                                    - generic [ref=f1e679]: 1st Year Sale!
+                                    - generic [ref=f1e680] [cursor=pointer]: At Cost
+                                - generic [ref=f1e682]: $51.80
+                                - text: $28.12 / year
+                                - text: renews at $51.80
+                            - generic [ref=f1e683]:
+                                - text: 
+                                - button "Add rulvar.io to cart." [ref=f1e684] [cursor=pointer]:
+                                    - generic [ref=f1e685]: +
+                        - generic [ref=f1e161]:
+                            - generic [ref=f1e162]: rulvar.lol
+                            - generic [ref=f1e686]:
+                                - generic [ref=f1e687]:
+                                    - generic [ref=f1e688]: 1st Year Sale!
+                                    - generic [ref=f1e689] [cursor=pointer]: At Cost
+                                - generic [ref=f1e691]: $26.26
+                                - text: $1.54 / year
+                                - text: renews at $26.26
+                            - generic [ref=f1e692]:
+                                - text: 
+                                - button "Add rulvar.lol to cart." [ref=f1e693] [cursor=pointer]:
+                                    - generic [ref=f1e694]: +
+                        - generic [ref=f1e169]:
+                            - generic [ref=f1e170]: rulvar.dev
+                            - generic [ref=f1e695]:
+                                - generic [ref=f1e696]:
+                                    - generic [ref=f1e697]: 1st Year Sale!
+                                    - generic [ref=f1e698] [cursor=pointer]: At Cost
+                                - generic [ref=f1e700]: $12.87
+                                - text: $8.75 / year
+                                - text: renews at $12.87
+                            - generic [ref=f1e701]:
+                                - text: 
+                                - button "Add rulvar.dev to cart." [ref=f1e702] [cursor=pointer]:
+                                    - generic [ref=f1e703]: +
+                        - generic [ref=f1e177]:
+                            - generic [ref=f1e178]: rulvar.app
+                            - generic [ref=f1e704]:
+                                - generic [ref=f1e705]:
+                                    - generic [ref=f1e706]: 1st Year Sale!
+                                    - generic [ref=f1e707] [cursor=pointer]: At Cost
+                                - generic [ref=f1e709]: $14.93
+                                - text: $8.75 / year
+                                - text: renews at $14.93
+                            - generic [ref=f1e710]:
+                                - text: 
+                                - button "Add rulvar.app to cart." [ref=f1e711] [cursor=pointer]:
+                                    - generic [ref=f1e712]: +
+                        - generic [ref=f1e185]:
+                            - generic [ref=f1e186]: rulvar.info
+                            - generic [ref=f1e713]:
+                                - generic [ref=f1e714]:
+                                    - generic [ref=f1e715]: 1st Year Sale!
+                                    - generic [ref=f1e716] [cursor=pointer]: At Cost
+                                - generic [ref=f1e718]: $22.14
+                                - text: $3.60 / year
+                                - text: renews at $22.14
+                            - generic [ref=f1e719]:
+                                - text: 
+                                - button "Add rulvar.info to cart." [ref=f1e720] [cursor=pointer]:
+                                    - generic [ref=f1e721]: +
+                        - generic [ref=f1e193]:
+                            - generic [ref=f1e194]: rulvar.pro
+                            - generic [ref=f1e722]:
+                                - generic [ref=f1e723]:
+                                    - generic [ref=f1e724]: 1st Year Sale!
+                                    - generic [ref=f1e725] [cursor=pointer]: At Cost
+                                - generic [ref=f1e727]: $22.14
+                                - text: $3.09 / year
+                                - text: renews at $22.14
+                            - generic [ref=f1e728]:
+                                - text: 
+                                - button "Add rulvar.pro to cart." [ref=f1e729] [cursor=pointer]:
+                                    - generic [ref=f1e730]: +
+                        - generic [ref=f1e201]:
+                            - generic [ref=f1e202]: rulvar.me
+                            - generic [ref=f1e731]:
+                                - generic [ref=f1e733] [cursor=pointer]: At Cost
+                                - text: $17.27 / year
+                                - text: renews at $17.27
+                            - generic [ref=f1e734]:
+                                - text: 
+                                - button "Add rulvar.me to cart." [ref=f1e735] [cursor=pointer]:
+                                    - generic [ref=f1e736]: +
+                        - generic [ref=f1e209]:
+                            - generic [ref=f1e210]: rulvar.cloud
+                            - generic [ref=f1e737]:
+                                - generic [ref=f1e738]:
+                                    - generic [ref=f1e739]: 1st Year Sale!
+                                    - generic [ref=f1e740] [cursor=pointer]: At Cost
+                                - generic [ref=f1e742]: $21.11
+                                - text: $3.88 / year
+                                - text: renews at $21.11
+                            - generic [ref=f1e743]:
+                                - text: 
+                                - button "Add rulvar.cloud to cart." [ref=f1e744] [cursor=pointer]:
+                                    - generic [ref=f1e745]: +
+                        - generic [ref=f1e217]:
+                            - generic [ref=f1e218]: rulvar.shop
+                            - generic [ref=f1e746]:
+                                - generic [ref=f1e747]:
+                                    - generic [ref=f1e748]: 1st Year Sale!
+                                    - generic [ref=f1e749] [cursor=pointer]: At Cost
+                                - generic [ref=f1e751]: $31.41
+                                - text: $2.06 / year
+                                - text: renews at $31.41
+                            - generic [ref=f1e752]:
+                                - text: 
+                                - button "Add rulvar.shop to cart." [ref=f1e753] [cursor=pointer]:
+                                    - generic [ref=f1e754]: +
+                        - generic [ref=f1e225]:
+                            - generic [ref=f1e226]: rulvar.store
+                            - generic [ref=f1e755]:
+                                - generic [ref=f1e756]:
+                                    - generic [ref=f1e757]: 1st Year Sale!
+                                    - generic [ref=f1e758] [cursor=pointer]: At Cost
+                                - generic [ref=f1e760]: $43.77
+                                - text: $2.57 / year
+                                - text: renews at $43.77
+                            - generic [ref=f1e761]:
+                                - text: 
+                                - button "Add rulvar.store to cart." [ref=f1e762] [cursor=pointer]:
+                                    - generic [ref=f1e763]: +
+                        - generic [ref=f1e233]:
+                            - generic [ref=f1e234]: rulvar.studio
+                            - generic [ref=f1e764]:
+                                - generic [ref=f1e765]:
+                                    - generic [ref=f1e766]: 1st Year Sale!
+                                    - generic [ref=f1e767] [cursor=pointer]: At Cost
+                                - generic [ref=f1e769]: $25.23
+                                - text: $11.84 / year
+                                - text: renews at $25.23
+                            - generic [ref=f1e770]:
+                                - text: 
+                                - button "Add rulvar.studio to cart." [ref=f1e771] [cursor=pointer]:
+                                    - generic [ref=f1e772]: +
+                        - generic [ref=f1e241]:
+                            - generic [ref=f1e242]: rulvar.art
+                            - generic [ref=f1e773]:
+                                - generic [ref=f1e774]:
+                                    - generic [ref=f1e775]: 1st Year Sale!
+                                    - generic [ref=f1e776] [cursor=pointer]: At Cost
+                                - generic [ref=f1e778]: $21.11
+                                - text: $3.60 / year
+                                - text: renews at $21.11
+                            - generic [ref=f1e779]:
+                                - text: 
+                                - button "Add rulvar.art to cart." [ref=f1e780] [cursor=pointer]:
+                                    - generic [ref=f1e781]: +
+                        - generic [ref=f1e249]:
+                            - generic [ref=f1e250]: rulvar.biz
+                            - generic [ref=f1e782]:
+                                - generic [ref=f1e783]:
+                                    - generic [ref=f1e784]: 1st Year Sale!
+                                    - generic [ref=f1e785] [cursor=pointer]: At Cost
+                                - generic [ref=f1e787]: $19.05
+                                - text: $6.69 / year
+                                - text: renews at $19.05
+                            - generic [ref=f1e788]:
+                                - text: 
+                                - button "Add rulvar.biz to cart." [ref=f1e789] [cursor=pointer]:
+                                    - generic [ref=f1e790]: +
+                        - generic [ref=f1e257]:
+                            - generic [ref=f1e258]: rulvar.bot
+                            - generic [ref=f1e791]:
+                                - generic [ref=f1e793] [cursor=pointer]: At Cost
+                                - text: $52.01 / year
+                                - text: renews at $52.01
+                            - generic [ref=f1e794]:
+                                - text: 
+                                - button "Add rulvar.bot to cart." [ref=f1e795] [cursor=pointer]:
+                                    - generic [ref=f1e796]: +
+                        - generic [ref=f1e265]:
+                            - generic [ref=f1e266]: rulvar.club
+                            - generic [ref=f1e797]:
+                                - generic [ref=f1e798]:
+                                    - generic [ref=f1e799]: 1st Year Sale!
+                                    - generic [ref=f1e800] [cursor=pointer]: At Cost
+                                - generic [ref=f1e802]: $15.96
+                                - text: $4.12 / year
+                                - text: renews at $15.96
+                            - generic [ref=f1e803]:
+                                - text: 
+                                - button "Add rulvar.club to cart." [ref=f1e804] [cursor=pointer]:
+                                    - generic [ref=f1e805]: +
+                        - generic [ref=f1e273]:
+                            - generic [ref=f1e274]: rulvar.one
+                            - generic [ref=f1e806]:
+                                - generic [ref=f1e807]:
+                                    - generic [ref=f1e808]: 1st Year Sale!
+                                    - generic [ref=f1e809] [cursor=pointer]: At Cost
+                                - generic [ref=f1e811]: $20.08
+                                - text: $6.69 / year
+                                - text: renews at $20.08
+                            - generic [ref=f1e812]:
+                                - text: 
+                                - button "Add rulvar.one to cart." [ref=f1e813] [cursor=pointer]:
+                                    - generic [ref=f1e814]: +
+                        - generic [ref=f1e281]:
+                            - generic [ref=f1e282]: rulvar.wiki
+                            - generic [ref=f1e815]:
+                                - generic [ref=f1e816]:
+                                    - generic [ref=f1e817]: 1st Year Sale!
+                                    - generic [ref=f1e818] [cursor=pointer]: At Cost
+                                - generic [ref=f1e820]: $26.26
+                                - text: $2.06 / year
+                                - text: renews at $26.26
+                            - generic [ref=f1e821]:
+                                - text: 
+                                - button "Add rulvar.wiki to cart." [ref=f1e822] [cursor=pointer]:
+                                    - generic [ref=f1e823]: +
+                        - generic [ref=f1e289]:
+                            - generic [ref=f1e290]: rulvar.design
+                            - generic [ref=f1e824]:
+                                - generic [ref=f1e825]:
+                                    - generic [ref=f1e826]: 1st Year Sale!
+                                    - generic [ref=f1e827] [cursor=pointer]: At Cost
+                                - generic [ref=f1e829]: $46.86
+                                - text: $10.81 / year
+                                - text: renews at $46.86
+                            - generic [ref=f1e830]:
+                                - text: 
+                                - button "Add rulvar.design to cart." [ref=f1e831] [cursor=pointer]:
+                                    - generic [ref=f1e832]: +
+                        - generic [ref=f1e297]:
+                            - generic [ref=f1e298]: rulvar.lat
+                            - generic [ref=f1e833]:
+                                - generic [ref=f1e834]:
+                                    - generic [ref=f1e835]: 1st Year Sale!
+                                    - generic [ref=f1e836] [cursor=pointer]: At Cost
+                                - generic [ref=f1e838]: $26.26
+                                - text: $1.54 / year
+                                - text: renews at $26.26
+                            - generic [ref=f1e839]:
+                                - text: 
+                                - button "Add rulvar.lat to cart." [ref=f1e840] [cursor=pointer]:
+                                    - generic [ref=f1e841]: +
+                        - generic [ref=f1e305]:
+                            - generic [ref=f1e306]: rulvar.mom
+                            - generic [ref=f1e842]:
+                                - generic [ref=f1e843]:
+                                    - generic [ref=f1e844]: 1st Year Sale!
+                                    - generic [ref=f1e845] [cursor=pointer]: At Cost
+                                - generic [ref=f1e847]: $26.26
+                                - text: $1.54 / year
+                                - text: renews at $26.26
+                            - generic [ref=f1e848]:
+                                - text: 
+                                - button "Add rulvar.mom to cart." [ref=f1e849] [cursor=pointer]:
+                                    - generic [ref=f1e850]: +
+                        - generic [ref=f1e313]:
+                            - generic [ref=f1e314]: rulvar.game
+                            - generic [ref=f1e851]:
+                                - generic [ref=f1e853] [cursor=pointer]: At Cost
+                                - text: $309.47 / year
+                                - text: renews at $309.47
+                            - generic [ref=f1e854]:
+                                - text: 
+                                - button "Add rulvar.game to cart." [ref=f1e855] [cursor=pointer]:
+                                    - generic [ref=f1e856]: +
+                        - generic [ref=f1e321]:
+                            - generic [ref=f1e322]: rulvar.my
+                            - generic [ref=f1e857]:
+                                - generic [ref=f1e858]:
+                                    - generic [ref=f1e859]: 1st Year Sale!
+                                    - generic [ref=f1e860] [cursor=pointer]: At Cost
+                                - generic [ref=f1e862]: $26.06
+                                - text: $2.37 / year
+                                - text: renews at $26.06
+                            - generic [ref=f1e863]:
+                                - text: 
+                                - button "Add rulvar.my to cart." [ref=f1e864] [cursor=pointer]:
+                                    - generic [ref=f1e865]: +
+                        - generic [ref=f1e329]:
+                            - generic [ref=f1e330]: rulvar.help
+                            - generic [ref=f1e866]:
+                                - generic [ref=f1e867]:
+                                    - generic [ref=f1e868]: 1st Year Sale!
+                                    - generic [ref=f1e869] [cursor=pointer]: At Cost
+                                - generic [ref=f1e871]: $26.26
+                                - text: $1.54 / year
+                                - text: renews at $26.26
+                            - generic [ref=f1e872]:
+                                - text: 
+                                - button "Add rulvar.help to cart." [ref=f1e873] [cursor=pointer]:
+                                    - generic [ref=f1e874]: +
+                        - generic [ref=f1e337]:
+                            - generic [ref=f1e338]: rulvar.locker
+                            - generic [ref=f1e875]:
+                                - generic [ref=f1e876]:
+                                    - generic [ref=f1e877]: 1st Year Sale!
+                                    - generic [ref=f1e878] [cursor=pointer]: At Cost
+                                - generic [ref=f1e880]: $31.41
+                                - text: $5.66 / year
+                                - text: renews at $31.41
+                            - generic [ref=f1e881]:
+                                - text: 
+                                - button "Add rulvar.locker to cart." [ref=f1e882] [cursor=pointer]:
+                                    - generic [ref=f1e883]: +
+                        - generic [ref=f1e345]:
+                            - generic [ref=f1e346]: rulvar.to
+                            - generic [ref=f1e884]:
+                                - generic [ref=f1e886] [cursor=pointer]: At Cost
+                                - text: $51.80 / year
+                                - text: renews at $51.80
+                            - generic [ref=f1e887]:
+                                - text: 
+                                - button "Add rulvar.to to cart." [ref=f1e888] [cursor=pointer]:
+                                    - generic [ref=f1e889]: +
+                        - generic [ref=f1e353]:
+                            - generic [ref=f1e354]: rulvar.rich
+                            - generic [ref=f1e890]:
+                                - generic [ref=f1e892]: 1st Year Sale!
+                                - generic [ref=f1e894]: $1804.02
+                                - text: $78.99 / year
+                                - generic [ref=f1e895]: renews at $1808.50 SALE! $160.71
+                            - generic [ref=f1e896]:
+                                - text: 
+                                - button "Add rulvar.rich to cart." [ref=f1e897] [cursor=pointer]:
+                                    - generic [ref=f1e898]: +
+                        - generic [ref=f1e361]:
+                            - generic [ref=f1e362]: rulvar.quest
+                            - generic [ref=f1e899]:
+                                - generic [ref=f1e900]:
+                                    - generic [ref=f1e901]: 1st Year Sale!
+                                    - generic [ref=f1e902] [cursor=pointer]: At Cost
+                                - generic [ref=f1e904]: $12.98
+                                - text: $1.54 / year
+                                - text: renews at $12.98
+                            - generic [ref=f1e905]:
+                                - text: 
+                                - button "Add rulvar.quest to cart." [ref=f1e906] [cursor=pointer]:
+                                    - generic [ref=f1e907]: +
+                        - generic [ref=f1e369]:
+                            - generic [ref=f1e370]: rulvar.homes
+                            - generic [ref=f1e908]:
+                                - generic [ref=f1e909]:
+                                    - generic [ref=f1e910]: 1st Year Sale!
+                                    - generic [ref=f1e911] [cursor=pointer]: At Cost
+                                - generic [ref=f1e913]: $12.98
+                                - text: $1.54 / year
+                                - text: renews at $12.98
+                            - generic [ref=f1e914]:
+                                - text: 
+                                - button "Add rulvar.homes to cart." [ref=f1e915] [cursor=pointer]:
+                                    - generic [ref=f1e916]: +
+                        - generic [ref=f1e377]:
+                            - generic [ref=f1e378]: rulvar.love
+                            - generic [ref=f1e917]:
+                                - generic [ref=f1e918]:
+                                    - generic [ref=f1e919]: 1st Year Sale!
+                                    - generic [ref=f1e920] [cursor=pointer]: At Cost
+                                - generic [ref=f1e922]: $23.17
+                                - text: $8.75 / year
+                                - text: renews at $23.17
+                            - generic [ref=f1e923]:
+                                - text: 
+                                - button "Add rulvar.love to cart." [ref=f1e924] [cursor=pointer]:
+                                    - generic [ref=f1e925]: +
+                        - generic [ref=f1e385]:
+                            - generic [ref=f1e386]: rulvar.autos
+                            - generic [ref=f1e926]:
+                                - generic [ref=f1e927]:
+                                    - generic [ref=f1e928]: 1st Year Sale!
+                                    - generic [ref=f1e929] [cursor=pointer]: At Cost
+                                - generic [ref=f1e931]: $12.98
+                                - text: $1.54 / year
+                                - text: renews at $12.98
+                            - generic [ref=f1e932]:
+                                - text: 
+                                - button "Add rulvar.autos to cart." [ref=f1e933] [cursor=pointer]:
+                                    - generic [ref=f1e934]: +
+                        - generic [ref=f1e393]:
+                            - generic [ref=f1e394]: rulvar.us.com
+                            - generic [ref=f1e935]:
+                                - generic [ref=f1e937] [cursor=pointer]: At Cost
+                                - text: $15.76 / year
+                                - text: renews at $15.76
+                            - generic [ref=f1e938]:
+                                - text: 
+                                - button "Add rulvar.us.com to cart." [ref=f1e939] [cursor=pointer]:
+                                    - generic [ref=f1e940]: +
+                        - generic [ref=f1e401]:
+                            - generic [ref=f1e402]: rulvar.buzz
+                            - generic [ref=f1e941]:
+                                - generic [ref=f1e942]:
+                                    - generic [ref=f1e943]: 1st Year Sale!
+                                    - generic [ref=f1e944] [cursor=pointer]: At Cost
+                                - generic [ref=f1e946]: $26.26
+                                - text: $2.05 / year
+                                - text: renews at $26.26
+                            - generic [ref=f1e947]:
+                                - text: 
+                                - button "Add rulvar.buzz to cart." [ref=f1e948] [cursor=pointer]:
+                                    - generic [ref=f1e949]: +
+                    - paragraph
+                    - button "Show All Extensions" [ref=f1e408] [cursor=pointer]: Show All Extensions
+                    - link "Generate AI Suggestions" [ref=f1e410] [cursor=pointer]:
+                        - /url: /checkout/ai?q=rulvar.org
+                    - paragraph
+        - generic [ref=f1e411]: f4ae7bfe64079407d87590a8af9105c09c09cd66ffffbf432135154736c59fd2
+    - contentinfo [ref=f1e413]:
+        - generic [ref=f1e420]:
+            - generic [ref=f1e421]:
+                - generic [ref=f1e422]:
+                    - generic [ref=f1e423]:
+                        - img "Porkbun Footer Logo" [ref=f1e424]
+                        - text: porkbun
+                    - generic [ref=f1e425]:
+                        - paragraph [ref=f1e426]: Porkbun is an amazingly awesome ICANN accredited domain name registrar based out of the Pacific Northwest. We're different, we're easy, and we're affordable. Use us, you won't be sorry. If you don't use us we'll be sad, but we'll still love you.
+                        - generic [ref=f1e430]:
+                            - heading "Get Pork-Puns In Your Inbox" [level=4] [ref=f1e431]
+                            - paragraph [ref=f1e432]: Stay in the loop on all things Porkbun by signing up for our newsletter!
+                            - generic [ref=f1e433]:
+                                - textbox [ref=f1e434]:
+                                    - /placeholder: sign@up.now
+                                - button "OINK" [ref=f1e435] [cursor=pointer]
+                            - textbox [ref=f1e437]
+                        - generic [ref=f1e438]:
+                            - generic [ref=f1e440]: 
+                            - generic [ref=f1e441]:
+                                - text: 11575 SW Pacific Hwy PMB 40649
+                                - text: Tigard, OR 97223, US
+                        - generic [ref=f1e442]:
+                            - generic [ref=f1e444]: '?'
+                            - paragraph [ref=f1e446]:
+                                - text: If you're looking for support, you might be able to answer your own question using our
+                                - link "Knowledge Base" [ref=f1e447] [cursor=pointer]:
+                                    - /url: https://kb.porkbun.com/
+                                - text: .
+                        - generic [ref=f1e448]:
+                            - generic [ref=f1e450]: 
+                            - generic [ref=f1e451]:
+                                - text: 'Reach our USA-Based phone support team:'
+                                - text: 1.855.PORKBUN (1.855.767.5286)
+                                - generic [ref=f1e452]:
+                                    - text: 9AM - 5PM Pacific Time
+                                    - text: 'Other Hours: Your mileage may vary, but give it a whirl'
+                                    - button "Show extended support information." [ref=f1e453] [cursor=pointer]: 
+                        - generic [ref=f1e454]:
+                            - generic [ref=f1e456]: 
+                            - generic [ref=f1e457]:
+                                - text: support@porkbun.com
+                                - text: 24 / 7 Email Support
+                        - generic [ref=f1e458]:
+                            - generic [ref=f1e460]: 
+                            - generic [ref=f1e461]:
+                                - link "Chat Support" [ref=f1e462] [cursor=pointer]:
+                                    - /url: javascript:void(0);
+                                - text: Hours Vary
+                        - button "Play the Porkbun jingle." [ref=f1e465] [cursor=pointer]: 
+                - generic [ref=f1e468]:
+                    - generic [ref=f1e469]:
+                        - paragraph [ref=f1e470]: Products
+                        - link "Domain Names" [ref=f1e471] [cursor=pointer]:
+                            - /url: /products/domains
+                        - link "Greatest Deals" [ref=f1e472] [cursor=pointer]:
+                            - /url: /products/deals
+                        - link "Local Marketplace" [ref=f1e473] [cursor=pointer]:
+                            - /url: /marketplace
+                        - link "Domain Auctions" [ref=f1e474] [cursor=pointer]:
+                            - /url: /auctions
+                        - link "Expired Closeouts" [ref=f1e475] [cursor=pointer]:
+                            - /url: /closeouts
+                        - link "3rd Party Aftermarket" [ref=f1e476] [cursor=pointer]:
+                            - /url: /aftermarket
+                        - link "Web Hosting" [ref=f1e477] [cursor=pointer]:
+                            - /url: /products/web_hosting
+                        - link "Link In Bio" [ref=f1e478] [cursor=pointer]:
+                            - /url: /products/webhosting/managedLinks
+                        - link "Articulation Sitebuilder" [ref=f1e479] [cursor=pointer]:
+                            - /url: /products/webhosting/articulation
+                        - link "Cloud for WordPress" [ref=f1e480] [cursor=pointer]:
+                            - /url: /products/webhosting/cloudWordPress
+                        - link "cPanel Hosting" [ref=f1e481] [cursor=pointer]:
+                            - /url: /products/webhosting/cPanelHosting
+                        - link "Static Hosting" [ref=f1e482] [cursor=pointer]:
+                            - /url: /products/webhosting/secureStaticHosting
+                        - link "Easy PHP" [ref=f1e483] [cursor=pointer]:
+                            - /url: /products/webhosting/managedPHP
+                        - link "Email Hosting" [ref=f1e484] [cursor=pointer]:
+                            - /url: /products/email
+                        - link "WHOIS Privacy" [ref=f1e485] [cursor=pointer]:
+                            - /url: /products/whois_privacy
+                        - link "DNS Management" [ref=f1e486] [cursor=pointer]:
+                            - /url: /products/dns_management
+                        - link "SSL Certificates" [ref=f1e487] [cursor=pointer]:
+                            - /url: /products/ssl
+                        - link "Email Forwarding" [ref=f1e488] [cursor=pointer]:
+                            - /url: /products/email_forwarding
+                        - link "URL Forwarding" [ref=f1e489] [cursor=pointer]:
+                            - /url: /products/url_forwarding
+                        - link "Domain Transfer" [ref=f1e490] [cursor=pointer]:
+                            - /url: /transfer
+                        - link "API Access" [ref=f1e491] [cursor=pointer]:
+                            - /url: /api/json/v3/documentation
+                    - generic [ref=f1e492]:
+                        - paragraph [ref=f1e493]: Support
+                        - link "Contact Us" [ref=f1e494] [cursor=pointer]:
+                            - /url: /contact
+                        - link "Knowledge Base" [ref=f1e495] [cursor=pointer]:
+                            - /url: https://kb.porkbun.com
+                        - link "Payment Options" [ref=f1e496] [cursor=pointer]:
+                            - /url: /support/payment_options
+                        - link "Report Abuse" [ref=f1e497] [cursor=pointer]:
+                            - /url: /abuse
+                        - paragraph [ref=f1e498]: Tools
+                        - link "Domain Search" [ref=f1e499] [cursor=pointer]:
+                            - /url: /checkout/search
+                        - link "RDAP (WHOIS)" [ref=f1e500] [cursor=pointer]:
+                            - /url: /whois
+                        - link "Password Generator" [ref=f1e501] [cursor=pointer]:
+                            - /url: /tools/password
+                        - link "DMARC Generator" [ref=f1e502] [cursor=pointer]:
+                            - /url: /tools/dmarc_generator
+                        - link "What's My IP Address?" [ref=f1e503] [cursor=pointer]:
+                            - /url: /tools/whats_my_ip_address
+                        - link "Service Status" [ref=f1e504] [cursor=pointer]:
+                            - /url: https://status.porkbun.com
+                        - link "Don't like our name?" [ref=f1e505] [cursor=pointer]:
+                            - /url: /single-tear.html
+                        - link [ref=f1e506] [cursor=pointer]:
+                            - /url: /buniverse.html
+                            - text: The Buniverse
+                    - generic [ref=f1e507]:
+                        - paragraph [ref=f1e508]: Our Company
+                        - link "About Us" [ref=f1e509] [cursor=pointer]:
+                            - /url: /about
+                        - link "Our Official Blog" [ref=f1e510] [cursor=pointer]:
+                            - /url: https://blog.porkbun.com
+                        - link "Careers" [ref=f1e511] [cursor=pointer]:
+                            - /url: /careers
+                        - link "Branding Guidelines" [ref=f1e512] [cursor=pointer]:
+                            - /url: https://porkbun.design/
+                        - link "Policies and Legal" [ref=f1e513] [cursor=pointer]:
+                            - /url: /legal
+                        - link "Data Disclosure Policy" [ref=f1e514] [cursor=pointer]:
+                            - /url: /legal/agreement/data_disclosure_policy
+                        - link "Bug Bounty Program" [ref=f1e515] [cursor=pointer]:
+                            - /url: /products/bug_bounty
+                        - link "Awesomeness" [ref=f1e516] [cursor=pointer]:
+                            - /url: /awesome
+                        - paragraph [ref=f1e517]: PRIVACY
+                        - link "Your Privacy Choices" [ref=f1e518] [cursor=pointer]:
+                            - /url: javascript:void(0);
+                        - link "Privacy Policy" [ref=f1e519] [cursor=pointer]:
+                            - /url: /legal/agreement/privacy_policy
+            - generic [ref=f1e520]:
+                - generic [ref=f1e521]:
+                    - link "facebook" [ref=f1e522] [cursor=pointer]:
+                        - /url: https://www.facebook.com/PorkbunLLC/
+                        - generic [ref=f1e523]: 
+                    - link "x formerly twitter" [ref=f1e524] [cursor=pointer]:
+                        - /url: https://x.com/Porkbun
+                        - generic [ref=f1e525]: 
+                    - link "youtube" [ref=f1e526] [cursor=pointer]:
+                        - /url: https://www.youtube.com/channel/UCXe05A3Wp-qFsszt-CHCxyQ
+                        - generic [ref=f1e527]: 
+                    - link "instagram" [ref=f1e528] [cursor=pointer]:
+                        - /url: https://www.instagram.com/porkbundomains/
+                        - generic [ref=f1e529]: 
+                    - link "tiktok" [ref=f1e530] [cursor=pointer]:
+                        - /url: https://www.tiktok.com/@porkbun.com/
+                        - generic [ref=f1e531]: 
+                    - link "github" [ref=f1e532] [cursor=pointer]:
+                        - /url: https://github.com/porkbundomains/
+                        - generic [ref=f1e533]: 
+                    - link "bluesky" [ref=f1e534] [cursor=pointer]:
+                        - /url: https://bsky.app/profile/porkbun.com
+                        - generic [ref=f1e535]: 
+                - link "payment methods" [ref=f1e537] [cursor=pointer]:
+                    - /url: /support/payment_options
+                    - generic [ref=f1e538]: 
+                    - generic [ref=f1e539]: 
+                    - generic [ref=f1e540]: 
+                    - generic [ref=f1e541]: 
+                    - generic [ref=f1e542]: 
+                    - generic [ref=f1e543]: 
+                    - generic [ref=f1e544]: 
+                    - generic [ref=f1e545]: 
+    - generic [ref=f1e550]:
+        - generic [ref=f1e551]:
+            - link "ICANN" [ref=f1e553] [cursor=pointer]:
+                - /url: https://www.icann.org
+                - img "ICANN Logo" [ref=f1e554]
+            - generic [ref=f1e555]:
+                - text: Copyright © Porkbun LLC. All rights reserved.
+                - generic [ref=f1e556]:
+                    - text: Porkbun is a
+                    - link "Top Level Design" [ref=f1e557] [cursor=pointer]:
+                        - /url: https://toplevel.design
+                    - text: Company
+                - text: Made in the USA 🇺🇸
+        - generic [ref=f1e559]:
+            - strong [ref=f1e560]: 'WARNING:'
+            - text: This site has been known to cause a mind blowing experience. We recommend you prepare yourself mentally and if possible be sitting down. Side effects may include saving money, letting out a chuckle, and sporadic oinking.
+    - button "Open support chat" [ref=f1e561] [cursor=pointer]:
+        - img [ref=f1e562]
+    - dialog:
+        - generic:
+            - generic:
+                - generic:
+                    - img
+                - generic:
+                    - generic: AI-Powered Support Assistant
+                    - generic:
+                        - generic: Online
+            - generic:
+                - button:
+                    - img
+                    - text: Clear chat history
+                - button:
+                    - img
+                    - text: Minimize
+                - button:
+                    - img
+                    - text: Close
+        - log:
+            - generic:
+                - generic:
+                    - img
+                - heading [level=3]: Hi there! 👋
+                - paragraph: I'm your hopefully not annoying AI support assistant. Ask me anything!
+                - paragraph: If I can't help, you can connect with our human support team.
+                - generic:
+                    - button: Transfer domain
+                    - button: Email forwarding
+                    - button: Turn off Auto-Renew
+                    - button: Enable 2FA
+        - generic:
+            - generic:
+                - generic: Type your question
+                - textbox:
+                    - /placeholder: Type your question...
+                - button [disabled]:
+                    - img
+            - generic:
+                - button:
+                    - img
+                    - generic: Talk to a real human
+            - generic:
+                - text: Powered by
+                - strong: Claude AI
+                - text: + Helpscout
+    - text: 2819fa894022bc86e78ab34b9fd1e215

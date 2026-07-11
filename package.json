@@ -1,8 +1,8 @@
 {
-  "name": "@lurker/monorepo",
+  "name": "@rulvar/monorepo",
   "version": "0.0.0",
   "private": true,
-  "description": "lurker monorepo root. Never published.",
+  "description": "rulvar monorepo root. Never published.",
   "type": "module",
   "license": "UNLICENSED",
   "packageManager": "pnpm@11.10.0",
@@ -37,5 +37,13 @@
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
     "vitest": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/o-stepper/rulvar.git"
+  },
+  "homepage": "https://rulvar.com",
+  "bugs": {
+    "url": "https://github.com/o-stepper/rulvar/issues"
   }
 }

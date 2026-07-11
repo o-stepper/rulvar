@@ -3,7 +3,7 @@
 - Status: Ready for implementation
 - Version: 0.2.0-docs
 - Date: 2026-07-10
-- Purpose: the community walkthrough for building a third-party JournalStore/LeasableStore against the frozen storage seam, with @lurker/store-conformance as the executable definition and @lurker/store-sqlite as the reference implementation (M9-T03).
+- Purpose: the community walkthrough for building a third-party JournalStore/LeasableStore against the frozen storage seam, with @rulvar/store-conformance as the executable definition and @rulvar/store-sqlite as the reference implementation (M9-T03).
 
 ## 1. What you are implementing
 
@@ -56,7 +56,7 @@ import {
   type LeasableStore,
   type RunFilter,
   type RunMeta,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 export interface CommunityMemoryStoreOptions {
   /** Lease ttl in milliseconds; the reference default is 60000. */
@@ -170,7 +170,7 @@ Implementation notes that generalize beyond memory:
 
 ## 4. Running the conformance kit
 
-@lurker/store-conformance is the executable definition of the seam: third-party stores MUST pass it (09-observability-testing-spec.md, section "Store conformance kit"). Wire it into any vitest suite:
+@rulvar/store-conformance is the executable definition of the seam: third-party stores MUST pass it (09-observability-testing-spec.md, section "Store conformance kit"). Wire it into any vitest suite:
 
 ```ts
 import { describe, it } from 'vitest';
@@ -178,7 +178,7 @@ import {
   journalStoreConformance,
   leasableStoreConformance,
   registerConformance,
-} from '@lurker/store-conformance';
+} from '@rulvar/store-conformance';
 import { CommunityMemoryStore } from './community-memory-store.js';
 
 registerConformance(
@@ -210,4 +210,4 @@ The kit covers A1-A4, meta separation, the golden fold-state fixture (identical 
 - Cross-process fencing exercised where the backend supports it (two store instances over one database; see the SqliteStore suite for the pattern).
 - Lease ttl configurable and documented; injectable clock for tests.
 - README states the durability model (what survives a process crash) and the backend's atomicity primitive used for acquire.
-- No dependency on @lurker/core internals: only the public SPI types.
+- No dependency on @rulvar/core internals: only the public SPI types.

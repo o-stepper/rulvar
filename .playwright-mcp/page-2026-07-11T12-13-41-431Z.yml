@@ -1,0 +1,378 @@
+- generic [ref=e1]:
+    - generic [ref=e3]:
+        - banner [ref=e4]:
+            - region "Official government website" [ref=e6]:
+                - generic [ref=e9]:
+                    - img "U.S. flag" [ref=e10]
+                    - paragraph [ref=e11]: An official website of the United States government
+                    - button "Here’s how you know keyboard_arrow_down" [ref=e12] [cursor=pointer]:
+                        - text: Here’s how you know
+                        - generic [ref=e13]: keyboard_arrow_down
+            - generic [ref=e14]:
+                - navigation [ref=e16]:
+                    - link "United States Patent and Trademark Office" [ref=e17] [cursor=pointer]:
+                        - /url: https://www.uspto.gov
+                        - generic [ref=e18]: United States Patent and Trademark Office
+                    - generic [ref=e19]:
+                        - generic [ref=e20]:
+                            - button "Patents" [ref=e22] [cursor=pointer]:
+                                - generic [ref=e23]: Patents
+                                - text: 
+                            - button "Trademarks" [ref=e25] [cursor=pointer]:
+                                - generic [ref=e26]: Trademarks
+                                - text: 
+                            - button "Fees and payment" [ref=e28] [cursor=pointer]:
+                                - generic [ref=e29]: Fees and payment
+                                - text: 
+                            - button "Contact Us" [ref=e31] [cursor=pointer]:
+                                - generic [ref=e32]: Contact Us
+                                - text: 
+                        - link "MyUSPTO" [ref=e34] [cursor=pointer]:
+                            - /url: https://my.uspto.gov/
+                            - generic [ref=e35]: MyUSPTO
+                            - text: 
+                        - button "Sign in" [ref=e37] [cursor=pointer]:
+                            - generic [ref=e38]: Sign in
+                - link "Trademark search" [ref=e41] [cursor=pointer]:
+                    - /url: '#'
+            - navigation "header sub navigation" [ref=e44]:
+                - navigation "breadcrumb" [ref=e45]:
+                    - list [ref=e46]:
+                        - listitem [ref=e162]:
+                            - link "Home" [ref=e163] [cursor=pointer]:
+                                - /url: /search
+                        - listitem [ref=e47]: '> Search results'
+                - button "Help" [ref=e48] [cursor=pointer]
+        - generic [ref=e49]:
+            - alert [ref=e165]:
+                - generic [ref=e167]: info
+                - generic [ref=e168]:
+                    - heading "Please read" [level=4] [ref=e169]
+                    - generic [ref=e170]:
+                        - text: 'Use our new image search feature: Log into your USPTO.gov account and select “Image search” from the drop-down or select the camera icon in the search box. Learn more on our'
+                        - link "Trademark search system updates page" [ref=e171] [cursor=pointer]:
+                            - /url: https://www.uspto.gov/trademarks/search/trademark-search-system-updates
+                        - text: .
+                - button "Dismiss alert" [ref=e173] [cursor=pointer]
+            - search [ref=e52]:
+                - alert [ref=e176]:
+                    - generic [ref=e178]:
+                        - generic "Choose the new search experience" [ref=e179]:
+                            - text: Try
+                            - link "our new beta feature" [ref=e180] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/trademarks/search/trademark-search-system-updates
+                            - text: to see more info when you open results
+                        - switch "Choose the new search experience" [checked] [ref=e181]
+                        - generic "Choose the new search experience" [ref=e182]: 'On'
+                - generic [ref=e54]:
+                    - combobox "Search refinment" [ref=e59] [cursor=pointer]:
+                        - generic [ref=e60]:
+                            - generic [ref=e62]: Wordmark
+                            - img [ref=e65]
+                    - combobox "Search trademarks" [active] [ref=e67]: rulver
+                    - generic [ref=e184] [cursor=pointer]: clear
+                    - button "search" [ref=e68] [cursor=pointer]:
+                        - generic [ref=e69]: search
+            - generic [ref=e187]:
+                - generic [ref=e192]:
+                    - generic [ref=e193]:
+                        - heading "Status filter" [level=2] [ref=e194]:
+                            - button "Status filter" [expanded] [ref=e195] [cursor=pointer]
+                        - generic "Status filter" [ref=e196]:
+                            - list [ref=e198]:
+                                - listitem [ref=e199]:
+                                    - generic [ref=e200]:
+                                        - checkbox "Live" [checked] [ref=e201]
+                                        - generic [ref=e202]: Live
+                                        - generic [ref=e203]: A live trademark filing is active
+                                        - generic "Live count" [ref=e204]: '0'
+                                - listitem [ref=e205]:
+                                    - list [ref=e206]:
+                                        - listitem [ref=e207]:
+                                            - generic [ref=e208]:
+                                                - checkbox "Registered" [checked] [ref=e209]
+                                                - generic [ref=e210]: Registered
+                                                - generic [ref=e211]: A trademark is registered when it has received approval from the USPTO
+                                        - listitem [ref=e212]:
+                                            - generic [ref=e213]:
+                                                - checkbox "Pending" [checked] [ref=e214]
+                                                - generic [ref=e215]: Pending
+                                                - generic [ref=e216]: A trademark is pending when its application for trademark protection is in review with the USPTO
+                                - listitem [ref=e217]:
+                                    - generic [ref=e218]:
+                                        - checkbox "Dead" [checked] [ref=e219]
+                                        - generic [ref=e220]: Dead
+                                        - generic [ref=e221]: A trademark filing dies when it becomes abandoned, cancelled, or expired
+                                        - generic "Dead count" [ref=e222]: '0'
+                                - listitem [ref=e223]:
+                                    - list [ref=e224]:
+                                        - listitem [ref=e225]:
+                                            - generic [ref=e226]:
+                                                - checkbox "Cancelled" [checked] [ref=e227]
+                                                - generic [ref=e228]: Cancelled
+                                                - generic [ref=e229]: A trademark is cancelled when the owner fails to submit renewal documents required by the USPTO
+                                        - listitem [ref=e230]:
+                                            - generic [ref=e231]:
+                                                - checkbox "Abandoned" [checked] [ref=e232]
+                                                - generic [ref=e233]: Abandoned
+                                                - generic [ref=e234]: A trademark is abandoned if it’s no longer used for the advertising and sale of goods or services
+                    - generic [ref=e235]:
+                        - heading "Class filter" [level=2] [ref=e236]:
+                            - button "Class filter" [expanded] [ref=e237] [cursor=pointer]
+                        - generic "Class filter" [ref=e238]:
+                            - generic [ref=e239]:
+                                - generic [ref=e240]:
+                                    - checkbox "Coordinated" [checked] [ref=e241]
+                                    - generic [ref=e242]: Coordinated
+                                - generic [ref=e243]:
+                                    - generic [ref=e245]:
+                                        - checkbox "Chemicals(001)" [ref=e246]
+                                        - generic [ref=e247]: '001'
+                                    - generic [ref=e249]:
+                                        - checkbox "Paints(002)" [ref=e250]
+                                        - generic [ref=e251]: '002'
+                                    - generic [ref=e253]:
+                                        - checkbox "Cosmetics and cleaning preparations(003)" [ref=e254]
+                                        - generic [ref=e255]: '003'
+                                    - generic [ref=e257]:
+                                        - checkbox "Lubricants and fuels(004)" [ref=e258]
+                                        - generic [ref=e259]: '004'
+                                    - generic [ref=e261]:
+                                        - checkbox "Pharmaceuticals(005)" [ref=e262]
+                                        - generic [ref=e263]: '005'
+                                    - generic [ref=e265]:
+                                        - checkbox "Metal goods(006)" [ref=e266]
+                                        - generic [ref=e267]: '006'
+                                    - generic [ref=e269]:
+                                        - checkbox "Machinery(007)" [ref=e270]
+                                        - generic [ref=e271]: '007'
+                                    - generic [ref=e273]:
+                                        - checkbox "Hand tools(008)" [ref=e274]
+                                        - generic [ref=e275]: '008'
+                                    - generic [ref=e277]:
+                                        - checkbox "Electrical and scientific apparatus(009)" [ref=e278]
+                                        - generic [ref=e279]: '009'
+                                    - generic [ref=e281]:
+                                        - checkbox "Medical apparatus(010)" [ref=e282]
+                                        - generic [ref=e283]: '010'
+                                    - generic [ref=e285]:
+                                        - checkbox "Environmental control apparatus(011)" [ref=e286]
+                                        - generic [ref=e287]: '011'
+                                    - generic [ref=e289]:
+                                        - checkbox "Vehicles(012)" [ref=e290]
+                                        - generic [ref=e291]: '012'
+                                    - generic [ref=e293]:
+                                        - checkbox "Firearms(013)" [ref=e294]
+                                        - generic [ref=e295]: '013'
+                                    - generic [ref=e297]:
+                                        - checkbox "Jewelry(014)" [ref=e298]
+                                        - generic [ref=e299]: '014'
+                                    - generic [ref=e301]:
+                                        - checkbox "Musical instruments(015)" [ref=e302]
+                                        - generic [ref=e303]: '015'
+                                    - generic [ref=e305]:
+                                        - checkbox "Paper goods and printed matter(016)" [ref=e306]
+                                        - generic [ref=e307]: '016'
+                                    - generic [ref=e309]:
+                                        - checkbox "Rubber goods(017)" [ref=e310]
+                                        - generic [ref=e311]: '017'
+                                    - generic [ref=e313]:
+                                        - checkbox "Leather goods(018)" [ref=e314]
+                                        - generic [ref=e315]: '018'
+                                    - generic [ref=e317]:
+                                        - checkbox "Non-metallic building materials(019)" [ref=e318]
+                                        - generic [ref=e319]: '019'
+                                    - generic [ref=e321]:
+                                        - checkbox "Furniture and articles not otherwise classified(020)" [ref=e322]
+                                        - generic [ref=e323]: '020'
+                                    - generic [ref=e325]:
+                                        - checkbox "Housewares and glass(021)" [ref=e326]
+                                        - generic [ref=e327]: '021'
+                                    - generic [ref=e329]:
+                                        - checkbox "Cordage and fibers(022)" [ref=e330]
+                                        - generic [ref=e331]: '022'
+                                    - generic [ref=e333]:
+                                        - checkbox "Yarns and threads(023)" [ref=e334]
+                                        - generic [ref=e335]: '023'
+                                    - generic [ref=e337]:
+                                        - checkbox "Fabrics(024)" [ref=e338]
+                                        - generic [ref=e339]: '024'
+                                    - generic [ref=e341]:
+                                        - checkbox "Clothing(025)" [ref=e342]
+                                        - generic [ref=e343]: '025'
+                                    - generic [ref=e345]:
+                                        - checkbox "Fancy goods(026)" [ref=e346]
+                                        - generic [ref=e347]: '026'
+                                    - generic [ref=e349]:
+                                        - checkbox "Floor coverings(027)" [ref=e350]
+                                        - generic [ref=e351]: '027'
+                                    - generic [ref=e353]:
+                                        - checkbox "Toys and sporting goods(028)" [ref=e354]
+                                        - generic [ref=e355]: '028'
+                                    - generic [ref=e357]:
+                                        - checkbox "Meats and processed foods(029)" [ref=e358]
+                                        - generic [ref=e359]: '029'
+                                    - generic [ref=e361]:
+                                        - checkbox "Staple foods(030)" [ref=e362]
+                                        - generic [ref=e363]: '030'
+                                    - generic [ref=e365]:
+                                        - checkbox "Natural agricultural products(031)" [ref=e366]
+                                        - generic [ref=e367]: '031'
+                                    - generic [ref=e369]:
+                                        - checkbox "Light beverages(032)" [ref=e370]
+                                        - generic [ref=e371]: '032'
+                                    - generic [ref=e373]:
+                                        - checkbox "Wines and spirits(033)" [ref=e374]
+                                        - generic [ref=e375]: '033'
+                                    - generic [ref=e377]:
+                                        - checkbox "Smokers' articles(034)" [ref=e378]
+                                        - generic [ref=e379]: '034'
+                                    - generic [ref=e381]:
+                                        - checkbox "Advertising and business(035)" [ref=e382]
+                                        - generic [ref=e383]: '035'
+                                    - generic [ref=e385]:
+                                        - checkbox "Insurance and financial(036)" [ref=e386]
+                                        - generic [ref=e387]: '036'
+                                    - generic [ref=e389]:
+                                        - checkbox "Building construction and repair(037)" [ref=e390]
+                                        - generic [ref=e391]: '037'
+                                    - generic [ref=e393]:
+                                        - checkbox "Telecommunication(038)" [ref=e394]
+                                        - generic [ref=e395]: '038'
+                                    - generic [ref=e397]:
+                                        - checkbox "Transportation and storage(039)" [ref=e398]
+                                        - generic [ref=e399]: '039'
+                                    - generic [ref=e401]:
+                                        - checkbox "Treatment of materials(040)" [ref=e402]
+                                        - generic [ref=e403]: '040'
+                                    - generic [ref=e405]:
+                                        - checkbox "Education and entertainment(041)" [ref=e406]
+                                        - generic [ref=e407]: '041'
+                                    - generic [ref=e409]:
+                                        - checkbox "Computer and scientific(042)" [ref=e410]
+                                        - generic [ref=e411]: '042'
+                                    - generic [ref=e413]:
+                                        - checkbox "Hotels and restaurants(043)" [ref=e414]
+                                        - generic [ref=e415]: '043'
+                                    - generic [ref=e417]:
+                                        - checkbox "Medical, beauty and agricultural(044)" [ref=e418]
+                                        - generic [ref=e419]: '044'
+                                    - generic [ref=e421]:
+                                        - checkbox "Personal and legal(045)" [ref=e422]
+                                        - generic [ref=e423]: '045'
+                                    - generic [ref=e425]:
+                                        - checkbox "Certification mark for goods(A)" [ref=e426]
+                                        - generic [ref=e427]: A
+                                    - generic [ref=e429]:
+                                        - checkbox "Certification mark for services(B)" [ref=e430]
+                                        - generic [ref=e431]: B
+                                    - generic [ref=e433]:
+                                        - checkbox "Collective membership(200)" [ref=e434]
+                                        - generic [ref=e435]: '200'
+                    - heading "Sort" [level=2] [ref=e437]:
+                        - button "Sort" [ref=e438] [cursor=pointer]
+                    - generic [ref=e439]:
+                        - heading "Configure" [level=2] [ref=e440]:
+                            - button "Configure" [expanded] [ref=e441] [cursor=pointer]
+                        - generic "Configure" [ref=e442]:
+                            - list [ref=e444]:
+                                - listitem [ref=e445]:
+                                    - generic [ref=e446]:
+                                        - checkbox "Show image" [checked] [ref=e447]
+                                        - generic [ref=e448]: Show image
+                                - listitem [ref=e449]:
+                                    - button "Reset" [ref=e450] [cursor=pointer]
+                - main [ref=e451]:
+                    - generic [ref=e453]:
+                        - group [ref=e454]:
+                            - button "View grid" [ref=e455] [cursor=pointer]:
+                                - generic [ref=e456]: grid_view
+                            - button "View list" [ref=e457] [cursor=pointer]:
+                                - generic [ref=e458]: format_list_bulleted
+                            - button "View compact list" [ref=e459] [cursor=pointer]:
+                                - generic [ref=e460]: drag_handle
+                        - combobox "Export" [ref=e465] [cursor=pointer]:
+                            - generic [ref=e466]:
+                                - generic [ref=e467]: Export
+                                - img [ref=e470]
+                    - status [ref=e473]:
+                        - generic [ref=e474]: Loading...
+        - contentinfo [ref=e86]:
+            - generic [ref=e89]:
+                - generic [ref=e90]:
+                    - paragraph [ref=e91]: Receive updates from the USPTO
+                    - generic [ref=e93]:
+                        - generic [ref=e94]: Enter your email to subscribe or update your preferences
+                        - generic [ref=e95]:
+                            - textbox "Enter your email to subscribe or update your preferences" [ref=e96]:
+                                - /placeholder: your@email.com
+                            - button "Subscribe" [ref=e98] [cursor=pointer]
+                - generic [ref=e99]:
+                    - generic [ref=e100]:
+                        - generic [ref=e101]:
+                            - link "About the USPTO" [ref=e102] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/about-us
+                            - text: •
+                        - generic [ref=e103]:
+                            - link "Search for patents" [ref=e104] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/patents/search
+                            - text: •
+                        - link "Search for trademarks" [ref=e106] [cursor=pointer]:
+                            - /url: https://www.uspto.gov/trademarks/search
+                    - generic [ref=e107]:
+                        - generic [ref=e108]:
+                            - link "US Department of Commerce" [ref=e110] [cursor=pointer]:
+                                - /url: https://www.commerce.gov
+                            - link "Accessibility" [ref=e112] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/using-usptogov/accessibility-uspto-website
+                            - link "Privacy Policy" [ref=e114] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/privacy-policy
+                            - link "Terms of Use" [ref=e116] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/terms-use-uspto-websites
+                            - link "Financial and Performance Data" [ref=e118] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/about-us/financial-and-performance
+                        - generic [ref=e119]:
+                            - link "Freedom of Information Act" [ref=e121] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/learning-and-resources/ip-policy/electronic-freedom-information-act-e-foia
+                            - link "Inspector General" [ref=e123] [cursor=pointer]:
+                                - /url: https://www.oig.doc.gov/Pages/U.S.-Patent-and-Trademark-Office.aspx
+                            - link "NoFEAR Act" [ref=e125] [cursor=pointer]:
+                                - /url: https://www.uspto.gov/about-us/organizational-offices/office-equal-employment-opportunity-and-diversity/nofear-act
+                            - link "USA.gov" [ref=e127] [cursor=pointer]:
+                                - /url: https://www.usa.gov
+            - generic [ref=e130]:
+                - link "United States Patent and Trademark Office - An Agency of the Department of Commerce USPTO - United States Patent and Trademark Office" [ref=e132] [cursor=pointer]:
+                    - /url: https://www.uspto.gov
+                    - img "United States Patent and Trademark Office - An Agency of the Department of Commerce" [ref=e133]
+                    - generic [ref=e134]: USPTO - United States Patent and Trademark Office
+                - generic [ref=e135]:
+                    - generic [ref=e136]: Follow us
+                    - generic [ref=e137]:
+                        - link "Facebook USPTO Facebook page" [ref=e138] [cursor=pointer]:
+                            - /url: https://www.facebook.com/uspto.gov
+                            - img "Facebook" [ref=e139]
+                            - generic [ref=e140]: USPTO Facebook page
+                        - link "Instagram USPTO Instagram page" [ref=e141] [cursor=pointer]:
+                            - /url: https://www.instagram.com/uspto
+                            - img "Instagram" [ref=e142]
+                            - generic [ref=e143]: USPTO Instagram page
+                        - link "Linkedin USPTO Linkedin page" [ref=e144] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/company/uspto
+                            - img "Linkedin" [ref=e145]
+                            - generic [ref=e146]: USPTO Linkedin page
+                        - link "X USPTO X page" [ref=e147] [cursor=pointer]:
+                            - /url: https://twitter.com/uspto
+                            - img "X" [ref=e148]
+                            - generic [ref=e149]: USPTO X page
+                        - link "Youtube USPTO Youtube page" [ref=e150] [cursor=pointer]:
+                            - /url: https://www.youtube.com/user/USPTOvideo
+                            - img "Youtube" [ref=e151]
+                            - generic [ref=e152]: USPTO Youtube page
+    - button "Virtual Assistant avatar Need help? Ask the USPTO Virtual Assistant!" [ref=e153] [cursor=pointer]:
+        - generic [ref=e155]:
+            - img "Virtual Assistant avatar" [ref=e156]
+            - strong [ref=e158]:
+                - text: Need help? Ask the
+                - text: USPTO Virtual Assistant!
+    - button "Feedback" [ref=e475] [cursor=pointer]:
+        - generic [ref=e477]: Feedback

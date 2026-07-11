@@ -1,4 +1,4 @@
-# Contributing to lurker
+# Contributing to rulvar
 
 The documentation set in `docs/` is the single source of truth for this
 project (docs/README.md, section "Canon statement"). This file distills the
@@ -43,7 +43,7 @@ Everyday commands, all from the repository root:
   (docs/12-release-versioning.md, section "Changelog format and migration
   notes").
 - All packages release in lockstep at identical versions; the sole
-  exemption is `@lurker/compat`, which is independently versioned, is on
+  exemption is `@rulvar/compat`, which is independently versioned, is on
   the changesets ignore list, and releases only by a deliberate, manual
   version change when a KeyDeriver profile ages out of the support window
   (docs/12, section "Exemptions").

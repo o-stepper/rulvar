@@ -4,8 +4,8 @@ import {
   emptyDigestBlocks,
   InMemoryStore,
   WAKE_SUMMARY_RENDER_BUDGET_CHARS,
-} from '@lurker/core';
-import type { ChatRequest, WakeDigest } from '@lurker/core';
+} from '@rulvar/core';
+import type { ChatRequest, WakeDigest } from '@rulvar/core';
 
 import { planHash } from './plan-hash.js';
 import { emptyPlan } from './plan-state.js';

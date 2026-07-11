@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ConfigError, createCanonicalIdMinter, type ChatEvent, type Part } from '@lurker/core';
+import { ConfigError, createCanonicalIdMinter, type ChatEvent, type Part } from '@rulvar/core';
 import type { OpenAiClientLike } from './adapter.js';
 import { openai } from './adapter.js';
 import {

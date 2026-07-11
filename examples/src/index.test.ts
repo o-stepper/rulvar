@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { createTestEngine, type FakeCall } from '@lurker/testing';
+import { createTestEngine, type FakeCall } from '@rulvar/testing';
 
 import { adversarialPanel } from './adversarial-panel.js';
 import { judgePanel } from './judge-panel.js';

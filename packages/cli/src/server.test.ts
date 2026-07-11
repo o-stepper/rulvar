@@ -15,11 +15,11 @@ import {
   type Engine,
   type Workflow,
   type WorkflowRegistry,
-} from '@lurker/core';
-import { SqliteStore } from '@lurker/store-sqlite';
-import { FAKE_MODEL_REF, FakeAdapter } from '@lurker/testing';
+} from '@rulvar/core';
+import { SqliteStore } from '@rulvar/store-sqlite';
+import { FAKE_MODEL_REF, FakeAdapter } from '@rulvar/testing';
 
-import { createServer, type LurkerServer } from './server.js';
+import { createServer, type RulvarServer } from './server.js';
 
 interface GatedValue {
   analysis: unknown;
@@ -29,7 +29,7 @@ interface GatedValue {
 
 function assemble(options?: { retention?: (meta: { status: string }) => boolean }): {
   engine: Engine;
-  server: LurkerServer;
+  server: RulvarServer;
   workflows: WorkflowRegistry;
   gated: Workflow<never, unknown>;
 } {
@@ -60,16 +60,16 @@ function assemble(options?: { retention?: (meta: { status: string }) => boolean 
 }
 
 function get(
-  server: LurkerServer,
+  server: RulvarServer,
   path: string,
   headers?: Record<string, string>,
 ): Promise<Response> {
-  return server.fetch(new Request(`http://lurker.local${path}`, { headers }));
+  return server.fetch(new Request(`http://rulvar.local${path}`, { headers }));
 }
 
-function post(server: LurkerServer, path: string, body: unknown): Promise<Response> {
+function post(server: RulvarServer, path: string, body: unknown): Promise<Response> {
   return server.fetch(
-    new Request(`http://lurker.local${path}`, {
+    new Request(`http://rulvar.local${path}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
@@ -83,7 +83,7 @@ async function bodyOf(response: Response): Promise<Record<string, unknown>> {
 
 /** Polls GET /runs/:id until the status matches (the run settles async). */
 async function untilStatus(
-  server: LurkerServer,
+  server: RulvarServer,
   runId: string,
   status: string,
 ): Promise<Record<string, unknown>> {
@@ -318,17 +318,17 @@ describe('createServer (M8-T01)', () => {
     expect(JSON.stringify(await bodyOf(unknownWorkflow))).toContain('registry');
 
     const badJson = await server.fetch(
-      new Request('http://lurker.local/runs', { method: 'POST', body: 'not json' }),
+      new Request('http://rulvar.local/runs', { method: 'POST', body: 'not json' }),
     );
     expect(badJson.status).toBe(400);
 
     const wrongMethod = await server.fetch(
-      new Request('http://lurker.local/runs', { method: 'GET' }),
+      new Request('http://rulvar.local/runs', { method: 'GET' }),
     );
     expect(wrongMethod.status).toBe(405);
 
     const wrongMethodStatus = await server.fetch(
-      new Request('http://lurker.local/runs/x', { method: 'DELETE' }),
+      new Request('http://rulvar.local/runs/x', { method: 'DELETE' }),
     );
     expect(wrongMethodStatus.status).toBe(405);
 

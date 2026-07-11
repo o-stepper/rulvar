@@ -1,6 +1,6 @@
 /**
  * M9-T02 acceptance: an eval suite is fully deterministic under VCR
- * replay (docs/10, "M9-T02 @lurker/evals base"; docs/11, "Eval CI":
+ * replay (docs/10, "M9-T02 @rulvar/evals base"; docs/11, "Eval CI":
  * PR-triggered eval runs MUST execute entirely from cassettes with zero
  * live calls). Latency is the one wall-clock measurement in the report
  * and is compared for presence, not bytes.
@@ -15,8 +15,8 @@ import {
   InMemoryStore,
   type Engine,
   type ProviderAdapter,
-} from '@lurker/core';
-import { FakeAdapter, FAKE_MODEL_REF, readCassette, record, replay } from '@lurker/testing';
+} from '@rulvar/core';
+import { FakeAdapter, FAKE_MODEL_REF, readCassette, record, replay } from '@rulvar/testing';
 import { describe, expect, it } from 'vitest';
 
 import { goldenGrader, judgeGrader, runEvalSuite, type EvalSuiteResult } from './index.js';
@@ -71,7 +71,7 @@ function stripLatency(suite: EvalSuiteResult): unknown {
 
 describe('eval suite under VCR', () => {
   it('replays byte-deterministically from the cassette with zero live calls', async () => {
-    const cassette = join(mkdtempSync(join(tmpdir(), 'lurker-evals-vcr-')), 'evals.jsonl');
+    const cassette = join(mkdtempSync(join(tmpdir(), 'rulvar-evals-vcr-')), 'evals.jsonl');
 
     // Record: the suite runs against the (fake) live adapter and every
     // exchange, including the judge call, lands in the cassette.

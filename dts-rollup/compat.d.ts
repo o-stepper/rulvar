@@ -1,4 +1,4 @@
-import { KeyDeriver, KeyDeriver as KeyDeriver$1 } from "@lurker/core";
+import { KeyDeriver, KeyDeriver as KeyDeriver$1 } from "@rulvar/core";
 
 //#region src/index.d.ts
 /**

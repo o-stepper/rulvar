@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { SqliteStore } from '@lurker/store-sqlite';
+import { SqliteStore } from '@rulvar/store-sqlite';
 
 import { runQueueFailoverDuringForcedFinish, type M7CassetteFixture } from './cassettes.js';
 

@@ -7,7 +7,7 @@
  * stream" (the terminal progress renderer is one of the four stream
  * consumers).
  */
-import type { WorkflowEvent } from '@lurker/core';
+import type { WorkflowEvent } from '@rulvar/core';
 
 export interface RenderProgressOptions {
   /** Line sink; defaults to process.stderr. */

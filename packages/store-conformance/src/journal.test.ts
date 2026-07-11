@@ -3,12 +3,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { InMemoryStore, JsonlFileStore, type JournalEntry, type JournalStore } from '@lurker/core';
+import { InMemoryStore, JsonlFileStore, type JournalEntry, type JournalStore } from '@rulvar/core';
 import { journalStoreConformance } from './journal.js';
 import { registerConformance } from './types.js';
 
 // The M2 required store matrix (docs/11, section "Conformance tier"):
-// InMemoryStore and JsonlFileStore; @lurker/store-sqlite joins in M5.
+// InMemoryStore and JsonlFileStore; @rulvar/store-sqlite joins in M5.
 registerConformance(
   journalStoreConformance(() => new InMemoryStore()),
   { describe: (name, factory) => describe(`InMemoryStore ${name}`, factory), it },
@@ -16,7 +16,7 @@ registerConformance(
 
 registerConformance(
   journalStoreConformance(
-    () => new JsonlFileStore({ dir: mkdtempSync(join(tmpdir(), 'lurker-conformance-')) }),
+    () => new JsonlFileStore({ dir: mkdtempSync(join(tmpdir(), 'rulvar-conformance-')) }),
   ),
   { describe: (name, factory) => describe(`JsonlFileStore ${name}`, factory), it },
 );

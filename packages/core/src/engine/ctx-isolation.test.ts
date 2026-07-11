@@ -15,7 +15,7 @@ import { makeInternals, scriptedAdapter } from './test-harness.js';
 const execFileAsync = promisify(execFile);
 
 async function makeRepo(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'lurker-ctx-repo-'));
+  const dir = await mkdtemp(join(tmpdir(), 'rulvar-ctx-repo-'));
   const git = (...args: string[]) => execFileAsync('git', ['-C', dir, ...args]);
   await git('init', '--initial-branch=main');
   await git('config', 'user.email', 'test@example.com');

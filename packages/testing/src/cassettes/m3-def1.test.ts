@@ -16,7 +16,7 @@ import {
   type EscalationReport,
   type JournalEntry,
   type Workflow,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 import { FakeAdapter, FAKE_MODEL_REF } from '../fake-adapter.js';
 import { replayRun } from '../replay-strict.js';

@@ -1,7 +1,7 @@
 /**
  * Conformance kit surface (M2-T11, DEF-4): an executable suite
  * parameterized by a store factory. A store implementation passes or it
- * is not a lurker store (docs/11, section "Conformance tier"; docs/03,
+ * is not a rulvar store (docs/11, section "Conformance tier"; docs/03,
  * section "Conformance obligations").
  */
 

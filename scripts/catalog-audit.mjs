@@ -13,7 +13,7 @@ const doc = readFileSync(join(root, 'docs/09-observability-testing-spec.md'), 'u
 // The catalog spans docs/09 section 6 (all subsections up to section 7).
 const section = doc.slice(
   doc.indexOf('## 6 Mandatory defect cassette catalog'),
-  doc.indexOf('## 7 @lurker/evals'),
+  doc.indexOf('## 7 @rulvar/evals'),
 );
 
 // Cassette IDs are the first cell of catalog table rows: kebab-case,

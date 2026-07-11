@@ -1,6 +1,6 @@
 ---
-'@lurker/core': minor
-'@lurker/plan': minor
+'@rulvar/core': minor
+'@rulvar/plan': minor
 ---
 
 M10-T05: the taskClass binding interim rule becomes the phase-1 resolution (docs/05, section "Phases and placement"; docs/14 OQ-12 CLOSED). The classification source is author declaration: the optional `taskClass` on AgentProfile, TaskSpec, and spawn_agent params; absence means unclassified and stores no literal string anywhere. Card recommendations never apply to unclassified spawns (in phase 1 no recommendation application exists at all; the M11 compiler inherits the rule as normative).

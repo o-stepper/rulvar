@@ -1,4 +1,4 @@
-# @lurker/anthropic
+# @rulvar/anthropic
 
 ## 0.9.0
 
@@ -8,7 +8,7 @@
 - Updated dependencies [65c7b2c]
 - Updated dependencies [a2a3243]
 - Updated dependencies [ebc8101]
-  - @lurker/core@0.9.0
+  - @rulvar/core@0.9.0
 
 ## 0.8.0
 
@@ -25,7 +25,7 @@
 - Updated dependencies [fd33871]
 - Updated dependencies [e70e7f4]
 - Updated dependencies [bc9c903]
-  - @lurker/core@0.8.0
+  - @rulvar/core@0.8.0
 
 ## 0.7.0
 
@@ -37,7 +37,7 @@
 - Updated dependencies [434dc83]
 - Updated dependencies [03173c1]
 - Updated dependencies [11c0afc]
-  - @lurker/core@0.7.0
+  - @rulvar/core@0.7.0
 
 ## 0.6.0
 
@@ -48,14 +48,14 @@
 - Updated dependencies [644512c]
 - Updated dependencies [8a41656]
 - Updated dependencies [02f7f7a]
-  - @lurker/core@0.6.0
+  - @rulvar/core@0.6.0
 
 ## 0.5.0
 
 ### Minor Changes
 
 - ac274f4: M4-T01 role protocol completion. The full trigger protocol for the six
-  invocation roles lands in `@lurker/core` (`model/roles.ts`):
+  invocation roles lands in `@rulvar/core` (`model/roles.ts`):
 
   - Extract necessity is completed per docs/04 section 8.3: a separate
     final structured-output invocation fires when a schema is set AND
@@ -87,7 +87,7 @@
   the spawn content key, and existing journals replay unchanged.
 
 - 5735d92: M4-T02 HistoryProjector. Cross-provider history projection lands in
-  `@lurker/core` (`model/projector.ts`) and the retention pipeline that
+  `@rulvar/core` (`model/projector.ts`) and the retention pipeline that
   feeds it:
 
   - `projectHistory` projects the canonical history into a target
@@ -99,9 +99,9 @@
   - Retention transport: adapters ship a turn's blocks-to-retain in
     stream order via `finish.providerMetadata[<adapter id>].retainedParts`;
     the runtime lifts them into provider-raw parts at the HEAD of the
-    turn's canonical assistant message. `@lurker/anthropic` ships thinking
+    turn's canonical assistant message. `@rulvar/anthropic` ships thinking
     and redacted_thinking blocks (signatures intact, pause_turn
-    continuations included); `@lurker/openai` ships reasoning items with
+    continuations included); `@rulvar/openai` ships reasoning items with
     their encrypted_content. Retained blocks now actually reach the
     canonical history, survive checkpoints, and echo byte-exact to their
     own provider on every subsequent turn.
@@ -123,7 +123,7 @@
 - Updated dependencies [8ae129e]
 - Updated dependencies [d1c4525]
 - Updated dependencies [b840aba]
-  - @lurker/core@0.5.0
+  - @rulvar/core@0.5.0
 
 ## 0.4.0
 
@@ -137,7 +137,7 @@
 - Updated dependencies [6513ce8]
 - Updated dependencies [7dad493]
 - Updated dependencies [2bbf180]
-  - @lurker/core@0.4.0
+  - @rulvar/core@0.4.0
 
 ## 0.3.0
 
@@ -149,21 +149,21 @@
 - Updated dependencies [24ebadf]
 - Updated dependencies [a1b35d3]
 - Updated dependencies [18a5821]
-  - @lurker/core@0.3.0
+  - @rulvar/core@0.3.0
 
 ## 0.2.0
 
 ### Minor Changes
 
 - 527c9b4: M1-T12/T13: the two first-class adapters on the July 2026 surfaces.
-  @lurker/anthropic: adaptive thinking, the output_config umbrella (effort
+  @rulvar/anthropic: adaptive thinking, the output_config umbrella (effort
   passthrough including max, native json_schema format), strict tools,
   cache_control compilation from cacheHint (deepest-4 kept), thinking-block
   retention with provider-granularity projection, pause_turn absorption
   without synthetic user messages, the full stop-reason table with typed
   refusal stop details, count_tokens, capabilities-bearing refreshCaps,
   retry-after/x-ratelimit/529 signaling, SDK autoretries disabled, usage
-  normalization under the Usage invariant. @lurker/openai: Responses API
+  normalization under the Usage invariant. @rulvar/openai: Responses API
   with manual item replay only (store false, encrypted reasoning echoed
   verbatim; previous_response_id/Conversations rejected as ConfigError),
   flattened strict function tools, text.format json_schema, the typed SSE
@@ -179,7 +179,7 @@
 - Updated dependencies [1af8fb9]
 - Updated dependencies [1fe0249]
 - Updated dependencies [5c4fc32]
-  - @lurker/core@0.2.0
+  - @rulvar/core@0.2.0
 
 ## 0.1.0
 
@@ -189,7 +189,7 @@
   monorepo scaffold on the committed toolchain (pnpm 11 workspaces with
   catalogs, TypeScript 6.0, tsdown, Vitest 4, ESLint 9 flat config,
   Turborepo 2, changesets fixed mode, npm trusted publishing), the docs/
-  canon as single source of truth, the L0 contracts skeleton in @lurker/core,
+  canon as single source of truth, the L0 contracts skeleton in @rulvar/core,
   and the vendored dependencies (StandardSchemaV1/StandardJSONSchemaV1 types,
   the @cfworker/json-schema lineage validator subset, a first-party monotonic
   ULID). Placeholder scaffolds only: no public API ships in this release.
@@ -197,4 +197,4 @@
 ### Patch Changes
 
 - Updated dependencies [f4e2be9]
-  - @lurker/core@0.1.0
+  - @rulvar/core@0.1.0

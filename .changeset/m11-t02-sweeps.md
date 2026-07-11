@@ -1,5 +1,5 @@
 ---
-'@lurker/evals': minor
+'@rulvar/evals': minor
 ---
 
 M11-T02: matrix sweeps (docs/05, section "Grounding and decay"). `runSweepMatrix` measures a FIXED pool (workflow x model x taskClass; sweep volume is never authorized by proposal volume) through the ordinary engine, sequentially in declaration order for deterministic cassette consumption, and aggregates per (model, taskClass) cell.

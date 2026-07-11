@@ -6,7 +6,7 @@
  * v1 beyond being the default sink; piped output stays byte-stable for
  * tests and logs.
  */
-import type { RunHandle, WorkflowEvent } from '@lurker/core';
+import type { RunHandle, WorkflowEvent } from '@rulvar/core';
 
 import type { CliIo } from './io.js';
 

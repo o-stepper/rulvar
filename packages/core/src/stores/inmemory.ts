@@ -67,8 +67,8 @@ export class InMemoryStore implements JournalStore {
     process.emitWarning(
       'InMemoryStore keeps journals in process memory: nothing survives the ' +
         'process and resume is disabled. Use JsonlFileStore (M2) or ' +
-        '@lurker/store-sqlite (M5) for durable runs.',
-      { code: 'LURKER_INMEMORY_STORE', type: 'LurkerWarning' },
+        '@rulvar/store-sqlite (M5) for durable runs.',
+      { code: 'RULVAR_INMEMORY_STORE', type: 'RulvarWarning' },
     );
   }
 }

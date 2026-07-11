@@ -5,7 +5,7 @@
  * Completions degraded path (docs/04, section 5.6); degraded-path
  * selection is a caps fact, visible in events, never silent.
  */
-import type { Effort, ModelCaps } from '@lurker/core';
+import type { Effort, ModelCaps } from '@rulvar/core';
 
 const REASONING_EFFORTS: Effort[] = ['low', 'medium', 'high', 'xhigh'];
 

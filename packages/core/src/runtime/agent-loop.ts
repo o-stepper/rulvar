@@ -154,7 +154,7 @@ export interface BudgetHooks {
 }
 
 /** Reason marker distinguishing a budget-ceiling abort from host cancellation. */
-export const BUDGET_ABORT_REASON = 'lurker:budget-ceiling';
+export const BUDGET_ABORT_REASON = 'rulvar:budget-ceiling';
 
 /** One model-issued tool call as the loop dispatches it. */
 export interface ToolCallRequest {
@@ -396,7 +396,7 @@ async function streamTurn(
     if (idleTimer !== undefined) {
       clearTimeout(idleTimer);
     }
-    idleTimer = setTimeout(() => idle.abort('lurker:stream-idle'), options.idleTimeoutMs);
+    idleTimer = setTimeout(() => idle.abort('rulvar:stream-idle'), options.idleTimeoutMs);
   };
 
   try {

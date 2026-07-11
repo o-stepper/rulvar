@@ -8,7 +8,7 @@ import {
   makeOrchestratorWorkflow,
   type JournalEntry,
   type Workflow,
-} from '@lurker/core';
+} from '@rulvar/core';
 import { describe, expect, it } from 'vitest';
 
 import { FakeAdapter, FAKE_MODEL_REF, fakeToolCalls, type FakeCall } from '../fake-adapter.js';
@@ -32,9 +32,9 @@ function cassette(): M6OrchestratorFixture {
 }
 
 function agentTypeOf(call: FakeCall): string {
-  const lurker = (call.req.providerOptions as { lurker?: { agentType?: string } } | undefined)
-    ?.lurker;
-  return lurker?.agentType ?? '';
+  const rulvar = (call.req.providerOptions as { rulvar?: { agentType?: string } } | undefined)
+    ?.rulvar;
+  return rulvar?.agentType ?? '';
 }
 
 function admissionCount(entries: readonly JournalEntry[]): number {

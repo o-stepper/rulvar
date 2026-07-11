@@ -4,7 +4,7 @@ Status: Ready for implementation
 Version: 0.2.0-docs
 Date: 2026-07-06
 
-Purpose: normative specification of the adaptive orchestration layer of lurker: PlanRunner, the orchestrator toolset, WakeDigest, EscalationProtocol, AdmissionController, lineage, RunLedger, ModelLadder, TerminationAccount, and the orchestrator budget cap.
+Purpose: normative specification of the adaptive orchestration layer of rulvar: PlanRunner, the orchestrator toolset, WakeDigest, EscalationProtocol, AdmissionController, lineage, RunLedger, ModelLadder, TerminationAccount, and the orchestrator budget cap.
 
 Requirements for this layer are registered in the FR-3xx block of 01-requirements.md. Implementation lands in milestone M6 (v0.7.0, mode (c) substrate and dynamic orchestrator) and milestone M7 (v0.8.0, PlanRunner and the full adaptive machinery); see 10-implementation-plan.md. Normative content folded in from the defect-fix specifications carries (DEF-n) markers; cross-review amendments carry (XF-nn) markers; the mapping is in section 13.
 
@@ -1074,7 +1074,7 @@ export type OrchestratorDecisionPayload =   // existing kind 'decision'; NO new 
       turnsUsed: number;
       foldParams: { planHash: string; digestOrdinalMax: number } };
 
-export class OrchestratorCapConfigError extends LurkerError {} // cap unresolvable, or effectiveCap < finalizeReserve
+export class OrchestratorCapConfigError extends RulvarError {} // cap unresolvable, or effectiveCap < finalizeReserve
 ```
 
 Journal semantics: all three records use the existing kind `decision` with new `decisionType` values, preserving the kernel amendment count of DEF-1 and leaving the replay predicate untouched. Freeze effects (trigger disarming, refusal to schedule wakes, immediate defaultDecisions, the restricted final toolset) are derived from the cap entry by a pure fold: a crash between the entry and its effects is ordinary roll-forward, and a second cap decision never arises. The final wake is an ordinary agent entry whose content key includes the restricted toolsetHash and a prompt deterministically derived from the cap decision and the pinned WakeDigest snapshot: on replay it forward-matches by status `ok` and is never restarted. Releasing an unused reserve on a normal `finish` is a fold consequence of the orchestrator's terminal entry and needs no separate record. All accounts and the orchestrator-share metric fold over usage of terminal entries in spawn-ordinal order; wall clock participates nowhere.

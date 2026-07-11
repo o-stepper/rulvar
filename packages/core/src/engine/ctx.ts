@@ -17,7 +17,7 @@ import {
   agentErrorToWire,
   BudgetExhaustedError,
   ConfigError,
-  LurkerError,
+  RulvarError,
   type AgentError,
   type Issue,
   type WireError,
@@ -243,7 +243,7 @@ export type Stage<I, O> = (item: I) => Promise<O>;
  * The rejection carrier of ctx.agent value-form calls: a real Error that
  * structurally satisfies the typed AgentError (docs/06, section "ctx.agent
  * and AgentOpts") and carries the full AgentResult for Settled mapping.
- * Deliberately not a LurkerError: AgentError is not in the closed code
+ * Deliberately not a RulvarError: AgentError is not in the closed code
  * registry (docs/02, section "Error taxonomy").
  */
 export class AgentCallError extends Error implements AgentError {
@@ -813,7 +813,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       // The reserved engine-populated telemetry namespace (docs/04,
       // section 1.8, as amended): never identity, consumable by
       // FakeAdapter's agentType/label matching.
-      providerOptions: { ...resolved.providerOptions, lurker: telemetryNamespace },
+      providerOptions: { ...resolved.providerOptions, rulvar: telemetryNamespace },
     });
     // The primary role of the tool loop: 'loop' unless the plan or
     // orchestrate entry points override it (docs/06, 2.1; M6-T05).
@@ -1931,7 +1931,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
             if (!isLimitLike && !(thrown instanceof BudgetExhaustedError)) {
               for (const [i, controller] of controllers.entries()) {
                 if (i !== branch) {
-                  controller.abort('lurker:sibling-failed');
+                  controller.abort('rulvar:sibling-failed');
                 }
               }
             }
@@ -1984,7 +1984,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           return { status: 'error', error: wire, result: reason.result };
         }
         const wire: WireError =
-          reason instanceof LurkerError
+          reason instanceof RulvarError
             ? reason.toWire()
             : {
                 code: 'error',
@@ -2058,7 +2058,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
                   thrown.result.error ?? { kind: 'terminal', retryable: false },
                   thrown.message,
                 )
-              : thrown instanceof LurkerError
+              : thrown instanceof RulvarError
                 ? thrown.toWire()
                 : {
                     code: 'error',
@@ -2356,7 +2356,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     } catch (thrown) {
       const cancelled = childState.signal?.aborted === true;
       const wire: WireError =
-        thrown instanceof LurkerError
+        thrown instanceof RulvarError
           ? thrown.toWire()
           : {
               code: 'error',
@@ -2448,7 +2448,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         return value;
       } catch (thrown) {
         const wire: WireError =
-          thrown instanceof LurkerError
+          thrown instanceof RulvarError
             ? thrown.toWire()
             : {
                 code: 'error',

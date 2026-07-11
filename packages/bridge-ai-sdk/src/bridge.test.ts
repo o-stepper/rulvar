@@ -1,7 +1,7 @@
 /**
  * M9-T01 acceptance: a V4 model streams through the full ChatEvent
  * vocabulary; a wrong specificationVersion errors clearly (docs/10,
- * section "M9-T01 @lurker/bridge-ai-sdk").
+ * section "M9-T01 @rulvar/bridge-ai-sdk").
  */
 import type {
   LanguageModelV4,
@@ -9,7 +9,7 @@ import type {
   LanguageModelV4StreamPart,
 } from '@ai-sdk/provider';
 import { APICallError } from '@ai-sdk/provider';
-import { ConfigError, type ChatEvent, type ChatRequest } from '@lurker/core';
+import { ConfigError, type ChatEvent, type ChatRequest } from '@rulvar/core';
 import { describe, expect, it } from 'vitest';
 
 import { aiSdkErrorToWire, bridgeAiSdk } from './bridge.js';

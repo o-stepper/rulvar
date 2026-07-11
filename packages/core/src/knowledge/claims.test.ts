@@ -43,9 +43,9 @@ const GATE: GateRecord = {
 };
 
 function makeStore(cap?: number): FileModelKnowledgeStore {
-  const dir = mkdtempSync(join(tmpdir(), 'lurker-kb-'));
+  const dir = mkdtempSync(join(tmpdir(), 'rulvar-kb-'));
   return new FileModelKnowledgeStore({
-    path: join(dir, 'lurker.models.json'),
+    path: join(dir, 'rulvar.models.json'),
     ...(cap === undefined ? {} : { activeClaimsCap: cap }),
   });
 }

@@ -12,7 +12,7 @@
  * material (bearer tokens, api-key-shaped strings) in every stored
  * string, and a `redact` hook composes on top. The request HASH is
  * computed over the raw canonical request (minus the engine-populated
- * `providerOptions.lurker` telemetry namespace, which is never
+ * `providerOptions.rulvar` telemetry namespace, which is never
  * identity), so replay matching is redaction-independent while stored
  * bytes stay clean. Cassettes record the hashVersion they were produced
  * under (DEF-6).
@@ -27,7 +27,7 @@ import {
   type ChatRequest,
   type ModelCaps,
   type ProviderAdapter,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 /** One recorded exchange; a cassette is one JSON header line plus rows. */
 export interface VcrRow {
@@ -45,7 +45,7 @@ export interface VcrRow {
 
 interface VcrHeader {
   v: 1;
-  kind: 'lurker-vcr';
+  kind: 'rulvar-vcr';
   hashVersion: number;
   recordedAt: string;
 }
@@ -112,7 +112,7 @@ export function requestHash(req: ChatRequest): string {
     providerOptions === undefined
       ? {}
       : Object.fromEntries(
-          Object.entries(providerOptions).filter(([namespace]) => namespace !== 'lurker'),
+          Object.entries(providerOptions).filter(([namespace]) => namespace !== 'rulvar'),
         );
   const withoutTelemetry =
     Object.keys(filtered).length === 0 ? rest : { ...rest, providerOptions: filtered };
@@ -122,7 +122,7 @@ export function requestHash(req: ChatRequest): string {
 function headerLine(): string {
   return JSON.stringify({
     v: 1,
-    kind: 'lurker-vcr',
+    kind: 'rulvar-vcr',
     hashVersion: CURRENT_HASH_VERSION,
     recordedAt: new Date().toISOString(),
   } satisfies VcrHeader);
@@ -193,8 +193,8 @@ export function readCassette(path: string): VcrCassette {
     .split('\n')
     .filter((line) => line.trim() !== '');
   const header = JSON.parse(lines[0] ?? '{}') as VcrHeader;
-  if (header.kind !== 'lurker-vcr') {
-    throw new ConfigError(`${path} is not a lurker VCR cassette`);
+  if (header.kind !== 'rulvar-vcr') {
+    throw new ConfigError(`${path} is not a rulvar VCR cassette`);
   }
   const rows = lines.slice(1).map((line) => JSON.parse(line) as VcrRow);
   return { header, rows };

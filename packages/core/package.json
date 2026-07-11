@@ -1,7 +1,7 @@
 {
-  "name": "@lurker/core",
+  "name": "@rulvar/core",
   "version": "0.9.0",
-  "description": "lurker core: L0 contracts, journal kernel, ctx primitives, agent runtime, model router, tool system, dynamic orchestrator, InMemory and JSONL stores, event stream.",
+  "description": "rulvar core: L0 contracts, journal kernel, ctx primitives, agent runtime, model router, tool system, dynamic orchestrator, InMemory and JSONL stores, event stream.",
   "type": "module",
   "license": "UNLICENSED",
   "private": true,
@@ -39,5 +39,14 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/o-stepper/rulvar.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://rulvar.com",
+  "bugs": {
+    "url": "https://github.com/o-stepper/rulvar/issues"
   }
 }

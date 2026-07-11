@@ -6,13 +6,13 @@ import {
   type JournalEntry,
   type LeasableStore,
   type Lease,
-} from '@lurker/core';
+} from '@rulvar/core';
 import { leasableStoreConformance } from './leasable.js';
 import { registerConformance } from './types.js';
 
 /**
  * A minimal CORRECT in-process LeasableStore: the reference the suite is
- * self-tested against until @lurker/store-sqlite lands in M5. Epochs are
+ * self-tested against until @rulvar/store-sqlite lands in M5. Epochs are
  * monotonic per run; appends validate the fencing token; expiry is
  * wall-clock against a configured ttl.
  */

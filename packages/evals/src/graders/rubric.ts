@@ -3,7 +3,7 @@
  * declared, named criteria with per-criterion verdicts. Criteria are pure
  * predicates; the grader is host-side and involves no engine calls.
  */
-import type { Json } from '@lurker/core';
+import type { Json } from '@rulvar/core';
 import type { Grader, GraderVerdict } from '../case.js';
 
 export interface RubricCriterion {

@@ -1,4 +1,4 @@
-import { JournalEntry, JournalStore, LeasableStore, Lease, RunFilter, RunMeta } from "@lurker/core";
+import { JournalEntry, JournalStore, LeasableStore, Lease, RunFilter, RunMeta } from "@rulvar/core";
 
 //#region src/store.d.ts
 /** Appendix A interim reference for the sqlite store (docs/06). */

@@ -14,7 +14,7 @@
  *   kinds and fields pass through untouched.
  *
  * Leasing is NOT implemented here: LeasableStore ships with
- * @lurker/store-sqlite (M5); JsonlFileStore is single-writer by
+ * @rulvar/store-sqlite (M5); JsonlFileStore is single-writer by
  * convention (docs/03, section "Shipped stores").
  */
 import {

@@ -5,7 +5,7 @@
  * the SSE-to-ChatEvent stream mapper with pause_turn absorption, the full
  * stop-reason table, and usage normalization under the Usage invariant.
  *
- * Owning spec: docs/04-model-layer-spec.md, section "@lurker/anthropic".
+ * Owning spec: docs/04-model-layer-spec.md, section "@rulvar/anthropic".
  * Pure functions; the adapter glue in adapter.ts owns the SDK client.
  */
 import {
@@ -17,7 +17,7 @@ import {
   type FinishInfo,
   type Usage,
   type WireError,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 /** Bijective canonical-to-wire tool-call id map (docs/04, section 1.2). */
 export class IdMap {

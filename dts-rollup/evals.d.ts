@@ -1,4 +1,4 @@
-import { CompiledWorkflow, Effort, Engine, EvidenceRef, Json, JsonSchema, ModelClaim, ModelKnowledgeStore, ModelRef, ModelSpec, RunOutcome, SchemaSpec, TaskClass, Usage, WireError, Workflow } from "@lurker/core";
+import { CompiledWorkflow, Effort, Engine, EvidenceRef, Json, JsonSchema, ModelClaim, ModelKnowledgeStore, ModelRef, ModelSpec, RunOutcome, SchemaSpec, TaskClass, Usage, WireError, Workflow } from "@rulvar/core";
 
 //#region src/case.d.ts
 /**
@@ -25,7 +25,7 @@ interface GraderVerdict {
 * A judge invocation specification. The judge runs through the engine as
 * an ordinary journaled, budgeted invocation; model selection is subject
 * to the router quality floors (docs/04, section "Role quality floors"),
-* and @lurker/evals ships NO default judge model: weak defaults for
+* and @rulvar/evals ships NO default judge model: weak defaults for
 * judging are forbidden, so the model is always explicit.
 */
 interface JudgeSpec {

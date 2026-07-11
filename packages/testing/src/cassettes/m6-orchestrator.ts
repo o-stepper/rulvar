@@ -10,8 +10,8 @@
  * journal: exactly the bytes a dead process leaves behind. The replay
  * test resumes from the committed entries.
  */
-import type { ChatRequest, JournalEntry } from '@lurker/core';
-import { createEngine, InMemoryStore, InMemoryTranscriptStore, makeOrchestratorWorkflow } from '@lurker/core';
+import type { ChatRequest, JournalEntry } from '@rulvar/core';
+import { createEngine, InMemoryStore, InMemoryTranscriptStore, makeOrchestratorWorkflow } from '@rulvar/core';
 
 import { FakeAdapter, FAKE_MODEL_REF, fakeToolCalls, fakeWireError, type FakeCall } from '../fake-adapter.js';
 
@@ -21,9 +21,9 @@ export const M6_ORCH_GOAL = 'm6 cassette: gather two facts';
 export const M6_ORCH_PROFILES = { worker: { description: 'does one task' } };
 
 function agentTypeOf(call: FakeCall): string {
-  const lurker = (call.req.providerOptions as { lurker?: { agentType?: string } } | undefined)
-    ?.lurker;
-  return lurker?.agentType ?? '';
+  const rulvar = (call.req.providerOptions as { rulvar?: { agentType?: string } } | undefined)
+    ?.rulvar;
+  return rulvar?.agentType ?? '';
 }
 
 /** Extracts spawn handles from the tool results the model saw. */

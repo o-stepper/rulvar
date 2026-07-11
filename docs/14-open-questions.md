@@ -45,7 +45,7 @@ Closing an OQ follows the change process in section 4.
 | OQ-21 | Resume binding residuals | dogfood telemetry | M5 |
 | OQ-22 | Redaction defaults | dogfood telemetry | M8 |
 | OQ-23 | License and contribution model | founder | M9 (1.0 gate) |
-| OQ-24 | Final naming and trademark resolution | founder | M0 (scope claim) / M9 (final) |
+| OQ-24 | Final naming and trademark resolution | founder | Closed 2026-07-11 (renamed rulvar; rulvar.com) |
 | OQ-25 | Runtime boundaries | founder | Closed at M9-T05 |
 | OQ-26 | Hosting ambitions | founder | M8 |
 | OQ-27 | Governance and scope ownership | founder | Closed at M9-T05 |
@@ -119,7 +119,7 @@ Closing an OQ follows the change process in section 4.
 - Owner: dogfood telemetry.
 - Must close by: M11.
 - Decision trigger: phase-1 (M10) adoption feedback across more than one project.
-- Interim rule: a single per-project file store, lurker.models.json. See 05-model-knowledge-spec.md, section "Data model".
+- Interim rule: a single per-project file store, rulvar.models.json. See 05-model-knowledge-spec.md, section "Data model".
 - Carried (M11-T06, 2026-07-10): the decision trigger (phase-1 adoption feedback across more than one project) has not fired: every release is founder-deferred, so no external adoption exists. The single per-project file store stays normative; the overlay re-owns to post-release adoption data.
 
 ### OQ-08: Knowledge card renderBudget sizing
@@ -141,7 +141,7 @@ Closing an OQ follows the change process in section 4.
 - Must close by: end of M11 (the gate definition must exist before M12 can be scheduled).
 - Decision trigger: M11 matrix sweep results.
 - Interim rule: M12 remains gated and carries no version assignment (10-implementation-plan.md, section "Post-1.0 track"; 05-model-knowledge-spec.md, section "Phases and placement").
-- Closed (M11-T06, 2026-07-10): the gate DEFINITION exists; M12-T01 executes it. The measured-value checkpoint passes only when BOTH hold, measured by A/B matrix sweeps (card-informed versus no-card baseline) through @lurker/evals under identical fixed pools, on an eval-case set spanning at least three taskClasses and at least two declared ladders with n >= 20 per (ladder, taskClass) cell:
+- Closed (M11-T06, 2026-07-10): the gate DEFINITION exists; M12-T01 executes it. The measured-value checkpoint passes only when BOTH hold, measured by A/B matrix sweeps (card-informed versus no-card baseline) through @rulvar/evals under identical fixed pools, on an eval-case set spanning at least three taskClasses and at least two declared ladders with n >= 20 per (ladder, taskClass) cell:
   1. Rung selection: runs admitted WITH the compiled verified layer reach a pass rate at least equal to the default-start-tier baseline at no more than 90 percent of its cost, OR at least 5 points of pass rate above it at no more than its cost, in a majority of cells and on the pooled aggregate.
   2. agentType selection: the card-informed orchestrator's spawn choices on the same cases match or beat the no-card baseline pass rate at no more than 105 percent of its cost on the pooled aggregate.
   A failed checkpoint keeps M12 closed and appends the measured data to this record; passing is journaled as the dated docs/05 and docs/14 amendment the M12 entry criteria require.
@@ -259,7 +259,7 @@ Closing an OQ follows the change process in section 4.
 - Owner: dogfood telemetry.
 - Must close by: M5 (CLI resume ships).
 - Decision trigger: the M2 resume implementation and the M5 CLI.
-- Interim rule (normative): the binding contract in 06-execution-spec.md, section "Engine and ops API": for a CompiledWorkflow the source and its hash are persisted at run start; for an in-process Workflow the registered name and the body contentHash are recorded in RunMeta, with a loud warning on mismatch at resume; the lurker resume contract is documented in the same section.
+- Interim rule (normative): the binding contract in 06-execution-spec.md, section "Engine and ops API": for a CompiledWorkflow the source and its hash are persisted at run start; for an in-process Workflow the registered name and the body contentHash are recorded in RunMeta, with a loud warning on mismatch at resume; the rulvar resume contract is documented in the same section.
 
 ### OQ-22: Redaction defaults
 
@@ -275,7 +275,7 @@ Closing an OQ follows the change process in section 4.
 - Statement: verification of the auxiliary state parameters that current OpenAI model docs require preserving across manual-state Responses requests (for example the gpt-5.5 `phase` parameter): which parameters exist on the July 2026 surface, whether verbatim provider-raw echo suffices, and whether any of them interacts with `store: false` plus `include: ['reasoning.encrypted_content']`.
 - Why open: the surface is documented sparsely and only observable against the live API; the answer may change with provider releases.
 - Owner: dogfood telemetry.
-- Must close by: M1 (the @lurker/openai adapter ships in M1-T13; re-verified by the M5 cron contract tests).
+- Must close by: M1 (the @rulvar/openai adapter ships in M1-T13; re-verified by the M5 cron contract tests).
 - Decision trigger: M1-T13 live smoke tests and the recorded adapter fixtures.
 - Interim rule (normative): any such parameter is retained verbatim as a provider-raw part and echoed byte-exact on subsequent requests, exactly like reasoning items; nothing is dropped or normalized (04-model-layer-spec.md, section "Manual item replay only").
 
@@ -295,13 +295,14 @@ Tracked here but not engineering-ruled: no interim engineering rule can close th
 
 ### OQ-24: Final naming and trademark resolution
 
-- Statement: final resolution of the project name contingencies. The facts: the unscoped npm name "lurker" is occupied by an abandoned 2014 GPLv3 RSS reader (last published 2014-08-07, 0 downloads per month), so the umbrella package name is contingent on one of three paths: an npm name dispute, a transfer from the current owner, or a fallback name (unscoped "lurkerjs" or "lurker-ai", or shipping the umbrella as @lurker/lurker with no unscoped package). The @lurker scope has zero published packages and is plausibly free, but org availability is unverified and MUST be tested operationally by claiming the npm org, an explicit M0 checklist item, before any name freezes. The GitHub org name "lurker" is unavailable (held by a personal account since 2008), so the repository org will be a variant (lurker-dev, lurkerjs, getlurker). Trademark searches surface no live "Lurker" mark in developer tooling, but formal USPTO/EUIPO clearance in the software classes has not been done and is a pre-1.0 gate. The old unscoped versions remain GPLv3 in the registry, so an unpinned "npm install lurker" today installs the 2014 RSS reader: docs therefore always write install commands against @lurker/<name>.
-- Why open: founder decision (name dispute versus transfer versus fallback; branding and domain); risk is noted, not resolved, per the founder's standing decision.
+- Statement: final resolution of the project name. The question tracked the FORMER working name's contingencies (its unscoped npm slot was squatted by an abandoned 2014 GPLv3 package, its GitHub org name was held by an unrelated account since 2008, and no formal trademark clearance had run), which together held the v1.0.0 release at the M9 gate.
+- Why open: founder decision (branding, domain, and clearance).
 - Owner: founder.
-- Must close by: the npm org/scope claim at M0; the final umbrella-name and trademark resolution (or a consciously carried contingency) by M9.
-- Decision trigger: the M0 naming checklist outcome (org claim, GitHub org variant selection) and the M9 release-gate review.
-- Interim rule (normative): docs reference packages uniformly as @lurker/<name> and never write bare "lurker" in install commands; the canonical naming risk note is 13-toolchain-repo.md, section "Naming risk note".
-- Status (M9-T05, 2026-07-10): the founder HOLDS v1.0.0 until formal USPTO/EUIPO clearance completes (gate item 4); the naming contingency continues as the @lurker scope with the umbrella as @lurker/lurker per rule 1.4.1.
+- Must close by: the final name and trademark resolution (or a consciously carried contingency) by the 1.0 gate.
+- Decision trigger: the release-gate review.
+- Interim rule (normative): docs reference packages uniformly as @rulvar/<name>; the canonical naming note is 13-toolchain-repo.md, section "Naming note".
+- Status (M9-T05, 2026-07-10): the founder HELD v1.0.0 until clearance; the contingency continued on the former name.
+- Closed (2026-07-11, founder): the project is RENAMED to **rulvar** with the official domain **rulvar.com**, dissolving every contingency of the former name. Verified at close: the unscoped npm name and the @rulvar scope are unpublished (registry 404s) and no GitHub user or org holds "rulvar"; the repository is github.com/o-stepper/rulvar. The v1.0.0 naming hold (gate item 4 of 12-release-versioning.md, section 5) LIFTS. Every frozen fixture was re-recorded under the new name in the renaming change (journaled workflow names and content keys embed it; the catalog and dogfood journals are byte-frozen again post-rename). Formal USPTO/EUIPO registration remains an optional post-release protection step on the founder's release checklist, no longer a release blocker.
 
 ### OQ-25: Runtime boundaries
 
@@ -330,7 +331,7 @@ Tracked here but not engineering-ruled: no interim engineering rule can close th
 - Must close by: M9 (community adapter and store guides land in M9).
 - Decision trigger: the M9 ecosystem work.
 - Interim rule: single-maintainer operation; community guides are deferred to M9 (10-implementation-plan.md).
-- Closed (M9-T05, 2026-07-10, founder): personal project with a single maintainer who owns the npm scope and repository; community adapters and stores live in third-party repositories and claim compatibility via the executable conformance kits and guides; nothing third-party merges into the @lurker scope. See 13-toolchain-repo.md, section "Contributor workflow".
+- Closed (M9-T05, 2026-07-10, founder): personal project with a single maintainer who owns the npm scope and repository; community adapters and stores live in third-party repositories and claim compatibility via the executable conformance kits and guides; nothing third-party merges into the @rulvar scope. See 13-toolchain-repo.md, section "Contributor workflow".
 
 ### OQ-28: Live contract-test and eval sweep budget
 

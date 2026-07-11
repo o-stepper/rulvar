@@ -4,7 +4,7 @@
  * Owning spec: docs/06-execution-spec.md, section "Script runners".
  * Workflow (a closure value) runs in process only; CompiledWorkflow is the
  * only form admissible to the worker sandbox and first exists at M6
- * (compileScript in @lurker/planner), so until then the engine accepts
+ * (compileScript in @rulvar/planner), so until then the engine accepts
  * only in-process Workflow values. The SPI's L0 listing in docs/02 refers
  * to its frozen-seam status; the declaration lives here with its types.
  */
@@ -62,7 +62,7 @@ export class InProcessRunner implements ScriptRunner {
       // Typed guard for the JS boundary; the type split already prevents this in TS.
       throw new TypeError(
         'InProcessRunner executes closure Workflow values only; CompiledWorkflow runs in the ' +
-          'worker sandbox (@lurker/planner, M6)',
+          'worker sandbox (@rulvar/planner, M6)',
       );
     }
     const devMode = process.env.NODE_ENV !== 'production';
@@ -72,24 +72,24 @@ export class InProcessRunner implements ScriptRunner {
       const priorRandom = Math.random;
       let warnedNow = false;
       let warnedRandom = false;
-      Date.now = function lurkerPatchedDateNow(): number {
+      Date.now = function rulvarPatchedDateNow(): number {
         if (!warnedNow) {
           warnedNow = true;
           process.emitWarning(
-            'bare Date.now() called inside a lurker run; use ctx.now() so the value is ' +
+            'bare Date.now() called inside a rulvar run; use ctx.now() so the value is ' +
               'journaled and stable on replay',
-            { code: 'LURKER_BARE_DATE_NOW', type: 'LurkerWarning' },
+            { code: 'RULVAR_BARE_DATE_NOW', type: 'RulvarWarning' },
           );
         }
         return priorNow();
       };
-      Math.random = function lurkerPatchedMathRandom(): number {
+      Math.random = function rulvarPatchedMathRandom(): number {
         if (!warnedRandom) {
           warnedRandom = true;
           process.emitWarning(
-            'bare Math.random() called inside a lurker run; use ctx.random() so the value is ' +
+            'bare Math.random() called inside a rulvar run; use ctx.random() so the value is ' +
               'journaled and stable on replay',
-            { code: 'LURKER_BARE_MATH_RANDOM', type: 'LurkerWarning' },
+            { code: 'RULVAR_BARE_MATH_RANDOM', type: 'RulvarWarning' },
           );
         }
         return priorRandom();

@@ -5,8 +5,8 @@
  * and the replay tests execute EXACTLY one implementation; the committed
  * cassette bytes are the compatibility contract.
  */
-import type { Engine, JournalEntry, Json, ModelSpec } from '@lurker/core';
-import { createEngine, InMemoryStore } from '@lurker/core';
+import type { Engine, JournalEntry, Json, ModelSpec } from '@rulvar/core';
+import { createEngine, InMemoryStore } from '@rulvar/core';
 
 import { compileScript } from './compile.js';
 import { plan, planRunIdOf, type PlanResult } from './plan.js';
@@ -42,7 +42,7 @@ export interface FakeAdapterLike {
 /**
  * One fresh sandbox-determinism run on a fresh store; two invocations
  * with the same worker produce byte-identical normalized journals (the
- * cassette assertion). The adapter factory keeps @lurker/testing out of
+ * cassette assertion). The adapter factory keeps @rulvar/testing out of
  * the planner's dependency graph.
  */
 export async function runSandboxDeterminism(options: {
@@ -72,7 +72,7 @@ export async function runSandboxDeterminism(options: {
 
 export const SELF_REPAIR_GOAL = 'm6 cassette: summarize the corpus';
 
-/** The failing first draft: bare Date.now trips lurker/no-bare-date. */
+/** The failing first draft: bare Date.now trips rulvar/no-bare-date. */
 export const SELF_REPAIR_BAD_DRAFT: string = [
   '```js',
   'const startedAt = Date.now();',

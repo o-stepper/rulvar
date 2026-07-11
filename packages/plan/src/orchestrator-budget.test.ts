@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createEngine, InMemoryStore, OrchestratorCapConfigError } from '@lurker/core';
-import type { JournalEntry } from '@lurker/core';
+import { createEngine, InMemoryStore, OrchestratorCapConfigError } from '@rulvar/core';
+import type { JournalEntry } from '@rulvar/core';
 
 import { planHash } from './plan-hash.js';
 import { emptyPlan } from './plan-state.js';
@@ -22,7 +22,7 @@ function decisionsOf(
     .map((entry) => entry.value as Record<string, unknown>);
 }
 
-function planScript(): (req: import('@lurker/core').ChatRequest) => ScriptedTurn {
+function planScript(): (req: import('@rulvar/core').ChatRequest) => ScriptedTurn {
   let phase = 0;
   return (req) => {
     if (agentTypeOf(req) === 'worker') {

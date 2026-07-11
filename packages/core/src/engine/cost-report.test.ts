@@ -47,7 +47,7 @@ function priceVia(adapter: { caps(model: string): { pricing?: unknown } }) {
 
 describe('cost report reconciliation (M5-T03)', () => {
   it('live report totals equal the independent journal fold exactly', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-cost-'));
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-cost-'));
     const store = new JsonlFileStore({ dir });
     const adapter = scriptedAdapter((_req, call) => ({
       text: `answer ${call}`,
@@ -83,7 +83,7 @@ describe('cost report reconciliation (M5-T03)', () => {
   });
 
   it('holds across resume: the resumed report equals the full-journal fold', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-cost-'));
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-cost-'));
     const store = new JsonlFileStore({ dir });
     const suspending = defineWorkflow({ name: 'gate' }, async (ctx) => {
       const first = await ctx.agent('paid before the gate');
@@ -131,7 +131,7 @@ describe('cost report reconciliation (M5-T03)', () => {
   });
 
   it('surfaces unpriced models without silent zeros in both folds', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-cost-'));
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-cost-'));
     const store = new JsonlFileStore({ dir });
     const unpricedCaps = testCaps({ pricing: undefined });
     const adapter = scriptedAdapter(() => ({ text: 'free?' }), { caps: unpricedCaps });

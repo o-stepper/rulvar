@@ -23,7 +23,7 @@ export type WireError = {
 /**
  * The closed error-code registry (docs/02, section "Error taxonomy").
  * 'agent' is carried by the AgentError value projection, not by a
- * LurkerError subclass.
+ * RulvarError subclass.
  */
 export type ErrorCode =
   | 'agent'
@@ -43,15 +43,15 @@ export type ErrorCode =
   | 'lease_held'
   | 'knowledge_cas';
 
-/** docs/02 names the registry type LurkerErrorCode; both names are public. */
-export type LurkerErrorCode = ErrorCode;
+/** docs/02 names the registry type RulvarErrorCode; both names are public. */
+export type RulvarErrorCode = ErrorCode;
 
 /**
  * Base class for all engine-raised errors. "Retryable" means the engine's
  * own retry machinery (RetryPolicy under the journal, docs/04) MAY retry;
  * it never means a provider SDK autoretry, which is disabled.
  */
-export abstract class LurkerError extends Error {
+export abstract class RulvarError extends Error {
   abstract readonly code: ErrorCode;
   readonly retryable: boolean;
   readonly data?: Json;
@@ -83,7 +83,7 @@ export abstract class LurkerError extends Error {
  * non-git host for worktree isolation, worker over a non-leasable store,
  * failed schema projection. Never journaled; raised before any run effect.
  */
-export class ConfigError extends LurkerError {
+export class ConfigError extends RulvarError {
   readonly code = 'config' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
@@ -95,7 +95,7 @@ export class ConfigError extends LurkerError {
  * A value failed the journal append JSON-serializability check. Never
  * journaled; thrown at the call site whose value failed the check.
  */
-export class NonSerializableValueError extends LurkerError {
+export class NonSerializableValueError extends RulvarError {
   readonly code = 'non_serializable_value' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
@@ -108,7 +108,7 @@ export class NonSerializableValueError extends LurkerError {
  * own entry; surfaced as diagnostics to the plan() self-repair loop
  * (producers ship in M6).
  */
-export class ScriptRejected extends LurkerError {
+export class ScriptRejected extends RulvarError {
   readonly code = 'script_rejected' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
@@ -125,7 +125,7 @@ export type JournalCompatSubCode = 'HASH_VERSION_TOO_OLD' | 'HASH_VERSION_TOO_NE
  * The registry code is 'journal_compat'; the docs/03 sub-codes live on
  * `subCode` and in `data`.
  */
-export class JournalCompatibilityError extends LurkerError {
+export class JournalCompatibilityError extends RulvarError {
   readonly code = 'journal_compat' as const;
   readonly subCode: JournalCompatSubCode;
   readonly runId: string;
@@ -133,7 +133,7 @@ export class JournalCompatibilityError extends LurkerError {
   readonly entrySeq: number;
   readonly entryHashVersion: number;
   readonly supportedRange: { min: number; max: number };
-  /** 'enable deriverV1 from @lurker/compat' or 'upgrade lurker'. */
+  /** 'enable deriverV1 from @rulvar/compat' or 'upgrade rulvar'. */
   readonly hint: string;
 
   constructor(
@@ -172,7 +172,7 @@ export class JournalCompatibilityError extends LurkerError {
  * the first-closing-wins fold; appends no entry (docs/03, section
  * "Suspension and resolutions"; producers ship in M2).
  */
-export class InvalidResolutionError extends LurkerError {
+export class InvalidResolutionError extends RulvarError {
   readonly code = 'invalid_resolution' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
@@ -184,7 +184,7 @@ export class InvalidResolutionError extends LurkerError {
  * A breach of the total per-run append order: an unfenced concurrent writer
  * or a store violating contract A2 (docs/03, section "Storage SPI").
  */
-export class JournalOrderViolation extends LurkerError {
+export class JournalOrderViolation extends RulvarError {
   readonly code = 'journal_order_violation' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
@@ -193,7 +193,7 @@ export class JournalOrderViolation extends LurkerError {
 }
 
 /** PlanRunner plan-invariant rejection (docs/07; producers ship in M7). */
-export class PlanInvariantError extends LurkerError {
+export class PlanInvariantError extends RulvarError {
   readonly code = 'plan_invariant' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
@@ -205,7 +205,7 @@ export class PlanInvariantError extends LurkerError {
  * Raised at resume when the refolded plan state disagrees with the
  * journaled planHash chain (docs/07; producers ship in M7).
  */
-export class ReplayPlanHashMismatch extends LurkerError {
+export class ReplayPlanHashMismatch extends RulvarError {
   readonly code = 'replay_plan_hash_mismatch' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
@@ -218,7 +218,7 @@ export class ReplayPlanHashMismatch extends LurkerError {
  * before the first LLM call (docs/06, section "Three-layer budget", DEF-7;
  * producers ship in M6/M7).
  */
-export class OrchestratorCapConfigError extends LurkerError {
+export class OrchestratorCapConfigError extends RulvarError {
   readonly code = 'orchestrator_cap_config' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
@@ -228,9 +228,9 @@ export class OrchestratorCapConfigError extends LurkerError {
 
 /**
  * A replay-strict run encountered a call that would go live
- * (@lurker/testing; producers ship in M2).
+ * (@rulvar/testing; producers ship in M2).
  */
-export class JournalMissError extends LurkerError {
+export class JournalMissError extends RulvarError {
   readonly code = 'journal_miss' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
@@ -244,7 +244,7 @@ export class JournalMissError extends LurkerError {
  * the run reports outcome 'exhausted', overriding 'error' (docs/06, section
  * "Three-layer budget").
  */
-export class BudgetExhaustedError extends LurkerError {
+export class BudgetExhaustedError extends RulvarError {
   readonly code = 'budget_exhausted' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
@@ -262,7 +262,7 @@ export class BudgetExhaustedError extends LurkerError {
  * the run. Budget-code rejections throw BudgetExhaustedError instead,
  * keeping the docs/06 5.7 exhaustion semantics.
  */
-export class AdmissionRejectedError extends LurkerError {
+export class AdmissionRejectedError extends RulvarError {
   readonly code = 'admission_rejected' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
@@ -277,7 +277,7 @@ export class AdmissionRejectedError extends LurkerError {
  * projection; `data` records { reason: 'timeout' | 'memory', limit }.
  * The class itself is never journaled as an entry of its own.
  */
-export class SandboxError extends LurkerError {
+export class SandboxError extends RulvarError {
   readonly code = 'sandbox_limit' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
@@ -290,7 +290,7 @@ export class SandboxError extends LurkerError {
  * the lease ttl elapses or the holder releases (docs/03, section
  * "Storage SPI").
  */
-export class LeaseHeldError extends LurkerError {
+export class LeaseHeldError extends RulvarError {
   readonly code = 'lease_held' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
@@ -304,7 +304,7 @@ export class LeaseHeldError extends LurkerError {
  * the ops, commit again, mirroring the lease fencing discipline
  * (docs/05, section "Commit discipline").
  */
-export class KnowledgeCasError extends LurkerError {
+export class KnowledgeCasError extends RulvarError {
   readonly code = 'knowledge_cas' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
@@ -324,7 +324,7 @@ export type Issue = {
 
 /**
  * The structured error value carried on AgentResult.error and journaled
- * inside the agent terminal entry. Deliberately NOT a LurkerError subclass
+ * inside the agent terminal entry. Deliberately NOT a RulvarError subclass
  * (docs/02, section "Error taxonomy").
  */
 export type AgentError = {

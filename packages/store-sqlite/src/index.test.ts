@@ -1,6 +1,6 @@
 /**
  * SqliteStore conformance (M5-T02 acceptance): the FULL
- * @lurker/store-conformance suites (A1-A4, meta separation, golden fold
+ * @rulvar/store-conformance suites (A1-A4, meta separation, golden fold
  * fixture, decide-once oracle, abandon skip; lease exclusivity, fencing
  * epochs, release fencing, ttl expiry and renew cadence) plus
  * cross-instance concurrency over one database file.
@@ -10,12 +10,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { LeaseHeldError, type JournalEntry } from '@lurker/core';
+import { LeaseHeldError, type JournalEntry } from '@rulvar/core';
 import {
   journalStoreConformance,
   leasableStoreConformance,
   registerConformance,
-} from '@lurker/store-conformance';
+} from '@rulvar/store-conformance';
 
 import { SqliteStore } from './store.js';
 
@@ -52,7 +52,7 @@ function entry(seq: number): JournalEntry {
 
 describe('SqliteStore cross-instance concurrency (one database file)', () => {
   it('fences a stale writer from another store instance', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-sqlite-'));
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-sqlite-'));
     const path = join(dir, 'journal.db');
     let clock = 1_000_000;
     const now = () => clock;
@@ -81,7 +81,7 @@ describe('SqliteStore cross-instance concurrency (one database file)', () => {
   });
 
   it('keeps per-run append order stable across instances and reads (A2)', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-sqlite-'));
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-sqlite-'));
     const path = join(dir, 'journal.db');
     const a = new SqliteStore({ path });
     const b = new SqliteStore({ path });

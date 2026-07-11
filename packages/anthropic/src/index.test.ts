@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createCanonicalIdMinter, type ChatEvent, type ChatRequest } from '@lurker/core';
+import { createCanonicalIdMinter, type ChatEvent, type ChatRequest } from '@rulvar/core';
 import type { AnthropicClientLike } from './adapter.js';
 import { anthropic } from './adapter.js';
 import {

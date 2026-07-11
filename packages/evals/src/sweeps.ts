@@ -1,6 +1,6 @@
 /**
  * Matrix sweeps (M11-T02; docs/05, section "Grounding and decay";
- * docs/09, section "@lurker/evals"). The deconfounder of the whole
+ * docs/09, section "@rulvar/evals"). The deconfounder of the whole
  * knowledge feature: a FIXED eval matrix (workflow x model x
  * taskClass), independent of current routing, measured through the
  * ordinary engine (journaled, budgeted, VCR-recordable), emitting
@@ -17,7 +17,7 @@ import type {
   ModelKnowledgeStore,
   ModelRef,
   TaskClass,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 import { runEvalSuite, type EvalCase, type RunEvalSuiteOptions } from './case.js';
 import { commitEvalMeasured, type MeasuredClaimInput } from './committer.js';

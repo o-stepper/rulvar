@@ -1,7 +1,7 @@
 {
-  "name": "@lurker/store-conformance",
+  "name": "@rulvar/store-conformance",
   "version": "0.9.0",
-  "description": "lurker executable store conformance kit (DEF-4).",
+  "description": "rulvar executable store conformance kit (DEF-4).",
   "type": "module",
   "license": "UNLICENSED",
   "private": true,
@@ -29,11 +29,20 @@
     "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only"
   },
   "dependencies": {
-    "@lurker/core": "workspace:*"
+    "@rulvar/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/o-stepper/rulvar.git",
+    "directory": "packages/store-conformance"
+  },
+  "homepage": "https://rulvar.com",
+  "bugs": {
+    "url": "https://github.com/o-stepper/rulvar/issues"
   }
 }

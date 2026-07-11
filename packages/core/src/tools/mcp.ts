@@ -138,7 +138,7 @@ export function mcp(cfg: McpConfig): ToolSource {
   let cache: ToolDef[] | undefined;
 
   const connect = async (): Promise<Client> => {
-    const client = new Client({ name: 'lurker', version: '1.0.0' });
+    const client = new Client({ name: 'rulvar', version: '1.0.0' });
     if (cfg.transport === 'stdio') {
       const transport = new StdioClientTransport({
         command: cfg.command ?? '',

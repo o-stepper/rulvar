@@ -6,7 +6,7 @@
  * mapped to ChatEvent, effort mapping with the documented lossy max
  * downmap, and usage normalization.
  *
- * Owning spec: docs/04-model-layer-spec.md, section "@lurker/openai
+ * Owning spec: docs/04-model-layer-spec.md, section "@rulvar/openai
  * (Responses API)". Pure functions; adapter.ts owns the SDK client.
  */
 import {
@@ -19,7 +19,7 @@ import {
   type FinishInfo,
   type Usage,
   type WireError,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 /** Bijective canonical-to-wire (call_*) id map (docs/04, section 1.2). */
 export class OpenAiIdMap {

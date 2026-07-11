@@ -1,5 +1,5 @@
 /**
- * @lurker/plan: lurker adaptive orchestration extension: PlanRunner, RunLedger, escalation extensions, ModelLadder configuration.
+ * @rulvar/plan: rulvar adaptive orchestration extension: PlanRunner, RunLedger, escalation extensions, ModelLadder configuration.
  *
  * The package ships across milestone M7 per docs/10-implementation-plan.md:
  * the plan scope substrate (M7-T01) first; rebase, PlanRunner, guards,

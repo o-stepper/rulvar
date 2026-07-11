@@ -6,7 +6,7 @@
  * existing usage and cost fields. No separate measurement channel exists,
  * no failure clustering, no vector dependency (EXC registry, docs/01).
  */
-import type { Engine } from '@lurker/core';
+import type { Engine } from '@rulvar/core';
 import {
   runEvalSuite,
   type EvalCase,

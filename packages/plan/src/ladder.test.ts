@@ -5,8 +5,8 @@ import {
   InMemoryStore,
   makeOrchestratorWorkflow,
   tool,
-} from '@lurker/core';
-import type { JournalEntry, LadderSpec } from '@lurker/core';
+} from '@rulvar/core';
+import type { JournalEntry, LadderSpec } from '@rulvar/core';
 
 import { planHash } from './plan-hash.js';
 import { emptyPlan } from './plan-state.js';
@@ -82,7 +82,7 @@ describe('ladder canonicalization (docs/04, section 12; FR-119)', () => {
 /** The orchestrator script shared by the integration runs. */
 function orchestratorScript(
   agentType: string,
-): (req: import('@lurker/core').ChatRequest) => ScriptedTurn | undefined {
+): (req: import('@rulvar/core').ChatRequest) => ScriptedTurn | undefined {
   let phase = 0;
   return (req) => {
     if (agentTypeOf(req) !== '') {

@@ -7,7 +7,7 @@ import type { WorkflowEvent } from './index.js';
 import { checkFloors, ConfigError, createEngine, defineWorkflow, renderProgress } from './index.js';
 import { recommendedDefaults } from './defaults.js';
 
-describe('@lurker/lurker umbrella (M1-T10)', () => {
+describe('@rulvar/rulvar umbrella (M1-T10)', () => {
   it('re-exports the core surface', () => {
     expect(typeof createEngine).toBe('function');
     expect(typeof defineWorkflow).toBe('function');

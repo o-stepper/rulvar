@@ -1,4 +1,4 @@
-# @lurker/compat
+# @rulvar/compat
 
 Independently versioned (docs/12, section "Exemptions"): releases are
 deliberate manual events, never lockstep bumps; this changelog is

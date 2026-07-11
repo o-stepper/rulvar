@@ -83,7 +83,7 @@ Every form MUST yield a JSON Schema, because `schemaHash` and `toolsetHash` are 
 - Form 1: Standard Schema acceptance is via vendored `StandardSchemaV1` types (never a runtime dependency; see [docs/13-toolchain-repo.md](13-toolchain-repo.md) section "Committed toolchain"). The JSON Schema projection uses `StandardJSONSchemaV1`: `'~standard'.jsonSchema.input()` with target draft 2020-12 and fallback draft-07. If the supplied library does not implement the projection, the engine MUST raise a typed `ConfigError` at definition time (not at first call).
 - Form 2: `jsonSchema` is taken verbatim as the derived schema; `validate` is the runtime validator.
 - Form 3: the object is the derived schema; runtime validation uses the vendored validator.
-- The vendored validator is an eval-free JSON Schema validator in the `@cfworker/json-schema` lineage supporting a draft 2020-12 subset: no `$dynamicRef`, no remote `$ref`. Schemas using excluded features are a typed `ConfigError` at definition time. It is the only vendored runtime dependency of `@lurker/core` (the vendored StandardSchemaV1/StandardJSONSchemaV1 declarations are types only and do not count).
+- The vendored validator is an eval-free JSON Schema validator in the `@cfworker/json-schema` lineage supporting a draft 2020-12 subset: no `$dynamicRef`, no remote `$ref`. Schemas using excluded features are a typed `ConfigError` at definition time. It is the only vendored runtime dependency of `@rulvar/core` (the vendored StandardSchemaV1/StandardJSONSchemaV1 declarations are types only and do not count).
 
 ### 2.4 Runtime validation
 

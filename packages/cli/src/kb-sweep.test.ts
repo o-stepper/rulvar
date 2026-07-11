@@ -1,5 +1,5 @@
 /**
- * lurker kb sweep e2e (M11-T05; docs/05, section "Grounding and
+ * rulvar kb sweep e2e (M11-T05; docs/05, section "Grounding and
  * decay"): the falsification guarantee: a sweep over a store with
  * active negative claims includes those models in its matrix even when
  * the configured pool omits them; threshold-crossing cells commit
@@ -13,8 +13,8 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import { FileModelKnowledgeStore } from '@lurker/core';
-import { commitEvalMeasured } from '@lurker/evals';
+import { FileModelKnowledgeStore } from '@rulvar/core';
+import { commitEvalMeasured } from '@rulvar/evals';
 
 import { runCli } from './cli-main.js';
 import type { CliIo } from './io.js';
@@ -44,9 +44,9 @@ const EVALS_DIST = pathToFileURL(resolve(import.meta.dirname, '../../evals/dist/
 
 /** The fixture: an EMPTY configured pool; the store must carry the matrix. */
 function writeSweepProject(): string {
-  const cwd = mkdtempSync(join(tmpdir(), 'lurker-kb-sweep-'));
+  const cwd = mkdtempSync(join(tmpdir(), 'rulvar-kb-sweep-'));
   writeFileSync(
-    join(cwd, 'lurker.config.mjs'),
+    join(cwd, 'rulvar.config.mjs'),
     `import { defineWorkflow } from ${JSON.stringify(CORE_DIST)};
 import { FakeAdapter, FAKE_MODEL_REF } from ${JSON.stringify(TESTING_DIST)};
 import { goldenGrader } from ${JSON.stringify(EVALS_DIST)};
@@ -84,10 +84,10 @@ export default {
   return cwd;
 }
 
-describe('lurker kb sweep (M11-T05)', () => {
+describe('rulvar kb sweep (M11-T05)', () => {
   it('includes negative-claim models, flips drifted claims, commits measurements', async () => {
     const cwd = writeSweepProject();
-    const store = new FileModelKnowledgeStore({ path: join(cwd, 'lurker.models.json') });
+    const store = new FileModelKnowledgeStore({ path: join(cwd, 'rulvar.models.json') });
     // The store carries an ACTIVE negative eval claim for fake:model
     // with a stale canary baseline: the sweep MUST include the model
     // (falsification) and the canary MUST flip the claim first.
@@ -133,8 +133,8 @@ describe('lurker kb sweep (M11-T05)', () => {
   });
 
   it('fails loudly without a kbSweep config section', async () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'lurker-kb-sweep-'));
-    writeFileSync(join(cwd, 'lurker.config.mjs'), 'export default {};\n', 'utf8');
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-kb-sweep-'));
+    writeFileSync(join(cwd, 'rulvar.config.mjs'), 'export default {};\n', 'utf8');
     const io = scriptedIo();
     expect(await runCli(['kb', 'sweep'], { cwd, io })).toBe(1);
     expect(io.errLines.join('\n')).toContain('kbSweep section');

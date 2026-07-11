@@ -6,21 +6,21 @@ Date: 2026-07-06
 
 Purpose: Defines the layer model L0-L6, the twelve core components with their key interfaces and package placement, the full package map, the dependency rules, the SPI seams frozen at 1.0, the error taxonomy, and the anatomy of the engine and the shells.
 
-This document is structural: it says where every piece of lurker lives and which spec owns its behavior. Normative behavior of each component is specified in the owning spec documents referenced per section. Invariants I1-I6 are stated in 00-overview.md, section "Invariants"; this document assumes them throughout. Requirements are cited by FR/NFR ID as registered in 01-requirements.md.
+This document is structural: it says where every piece of rulvar lives and which spec owns its behavior. Normative behavior of each component is specified in the owning spec documents referenced per section. Invariants I1-I6 are stated in 00-overview.md, section "Invariants"; this document assumes them throughout. Requirements are cited by FR/NFR ID as registered in 01-requirements.md.
 
 ## 1. Layer model L0-L6
 
-lurker is organized into seven layers with dependencies pointing strictly downward. A module in layer Ln MUST NOT import anything from a layer above Ln. L6 additionally consumes the event stream and the stores, both of which are public surfaces.
+rulvar is organized into seven layers with dependencies pointing strictly downward. A module in layer Ln MUST NOT import anything from a layer above Ln. L6 additionally consumes the event stream and the stores, both of which are public surfaces.
 
 | Layer | Name | Contents | Ships in |
 |---|---|---|---|
-| L0 | contracts | Msg/Part types (including provider-raw), ChatRequest/ChatEvent, Usage, JournalEntry, WorkflowEvent, the error taxonomy (section 6), SchemaSpec, and the SPI interfaces: ProviderAdapter, JournalStore/LeasableStore, TranscriptStore, ModelKnowledgeStore, ScriptRunner, ToolSource, IsolationProvider. The only dependency is the vendored JSON Schema mini-validator. | @lurker/core |
-| L1 | leaves | Provider adapters and stores; they depend only on L0. A provider SDK appears exclusively inside its own adapter. | @lurker/anthropic, @lurker/openai, @lurker/bridge-ai-sdk, @lurker/store-sqlite; InMemoryStore and JsonlFileStore in @lurker/core |
-| L2 | kernel | The journal kernel (content keys, scope paths, scoped forward-matching, the replay predicate, the budget ledger) and the model router with the capability and price registry. | @lurker/core; frozen KeyDeriver profiles in @lurker/compat |
-| L3 | execution | The tool system and MCP bus, the agent runtime (permission chain, structured output, turn-boundary checkpoints, HistoryProjector, compaction). | @lurker/core |
-| L4 | orchestration | The run engine, ctx primitives, the concurrency scheduler, the three-layer budget, the event stream, RunHandle; the dynamic orchestrator lives here as an ordinary workflow with spawn tools; PlanRunner as an opt-in extension. | @lurker/core; PlanRunner and RunLedger in @lurker/plan |
-| L5 | authoring | Script runners (InProcessRunner in the core, WorkerSandboxRunner in @lurker/planner) and the plan agent. | @lurker/core, @lurker/planner |
-| L6 | shells | Test harness, CLI and TUI, HTTP server, queue worker, knowledge-base maintenance CLI; they consume only the public L4-L5 APIs, the event stream, and the stores. | @lurker/cli, @lurker/testing, @lurker/evals, @lurker/store-conformance |
+| L0 | contracts | Msg/Part types (including provider-raw), ChatRequest/ChatEvent, Usage, JournalEntry, WorkflowEvent, the error taxonomy (section 6), SchemaSpec, and the SPI interfaces: ProviderAdapter, JournalStore/LeasableStore, TranscriptStore, ModelKnowledgeStore, ScriptRunner, ToolSource, IsolationProvider. The only dependency is the vendored JSON Schema mini-validator. | @rulvar/core |
+| L1 | leaves | Provider adapters and stores; they depend only on L0. A provider SDK appears exclusively inside its own adapter. | @rulvar/anthropic, @rulvar/openai, @rulvar/bridge-ai-sdk, @rulvar/store-sqlite; InMemoryStore and JsonlFileStore in @rulvar/core |
+| L2 | kernel | The journal kernel (content keys, scope paths, scoped forward-matching, the replay predicate, the budget ledger) and the model router with the capability and price registry. | @rulvar/core; frozen KeyDeriver profiles in @rulvar/compat |
+| L3 | execution | The tool system and MCP bus, the agent runtime (permission chain, structured output, turn-boundary checkpoints, HistoryProjector, compaction). | @rulvar/core |
+| L4 | orchestration | The run engine, ctx primitives, the concurrency scheduler, the three-layer budget, the event stream, RunHandle; the dynamic orchestrator lives here as an ordinary workflow with spawn tools; PlanRunner as an opt-in extension. | @rulvar/core; PlanRunner and RunLedger in @rulvar/plan |
+| L5 | authoring | Script runners (InProcessRunner in the core, WorkerSandboxRunner in @rulvar/planner) and the plan agent. | @rulvar/core, @rulvar/planner |
+| L6 | shells | Test harness, CLI and TUI, HTTP server, queue worker, knowledge-base maintenance CLI; they consume only the public L4-L5 APIs, the event stream, and the stores. | @rulvar/cli, @rulvar/testing, @rulvar/evals, @rulvar/store-conformance |
 
 EventSink is deliberately absent from the L0 SPI list. The event surface is the RunHandle.events / on() public API (09-observability-testing-spec.md, section "Event stream"), not a pluggable seam; there is nothing to freeze and nothing for third parties to implement.
 
@@ -28,7 +28,7 @@ The frozen seams (the L0 SPIs listed in section 5) MUST pass the server and queu
 
 ## 2. The twelve components
 
-The core of lurker is twelve components. The table maps each to its owning spec; the subsections give the responsibility, the key interfaces, and the package placement.
+The core of rulvar is twelve components. The table maps each to its owning spec; the subsections give the responsibility, the key interfaces, and the package placement.
 
 | # | Component | Owning spec |
 |---|---|---|
@@ -84,7 +84,7 @@ export function replayDisposition(entry: JournalEntry, fold: AbandonFold): Repla
 
 Behavior: identity includes kind, agentType, the requested modelSpec (including canonical effort), prompt, schemaHash, toolsetHash, and isolation; it excludes label, phase, onError, retry, replay, and the policy fields (memoizeOutcome, lineage). A miss MUST NOT advance the matching cursor and MUST NOT suppress future hits (insertion stability). append is serialized by a per-run queue and checks the JSON serializability of the value; a failure raises a typed NonSerializableValueError at the call site. The full replay predicate table (DEF-1) is 03-journal-spec.md, section "Replay predicate".
 
-Ships in: @lurker/core (L2). Frozen KeyDeriver profiles for retired hashVersions ship in @lurker/compat.
+Ships in: @rulvar/core (L2). Frozen KeyDeriver profiles for retired hashVersions ship in @rulvar/compat.
 
 ### 2.2 Storage SPI and shipped stores
 
@@ -110,9 +110,9 @@ interface TranscriptStore {
 }
 ```
 
-Behavior: a store with the lease capability MUST reject an append carrying a stale epoch (the fencing token); split-brain in queue mode is excluded by construction. acquire on a held lease MUST reject with a typed LeaseHeldError, and renew MUST run at an interval of at most ttl/3 (03-journal-spec.md, section "Storage SPI"). RunMeta (runId, status, name, tags, updatedAt, informational hashVersionLow/High) is written by the engine as a separate record, so listRuns never parses payloads. The core ships InMemoryStore (resume disabled, one loud warning) and JsonlFileStore (the journal doubles as an event log). @lurker/store-sqlite implements LeasableStore and is the reference for community stores. The JournalStore contract is normatively tightened by DEF-4 (A1 append atomicity, A2 total per-run order, A3 read-your-writes, A4 payload byte-opacity) and is verified by the executable conformance kit @lurker/store-conformance; the method count did not grow.
+Behavior: a store with the lease capability MUST reject an append carrying a stale epoch (the fencing token); split-brain in queue mode is excluded by construction. acquire on a held lease MUST reject with a typed LeaseHeldError, and renew MUST run at an interval of at most ttl/3 (03-journal-spec.md, section "Storage SPI"). RunMeta (runId, status, name, tags, updatedAt, informational hashVersionLow/High) is written by the engine as a separate record, so listRuns never parses payloads. The core ships InMemoryStore (resume disabled, one loud warning) and JsonlFileStore (the journal doubles as an event log). @rulvar/store-sqlite implements LeasableStore and is the reference for community stores. The JournalStore contract is normatively tightened by DEF-4 (A1 append atomicity, A2 total per-run order, A3 read-your-writes, A4 payload byte-opacity) and is verified by the executable conformance kit @rulvar/store-conformance; the method count did not grow.
 
-Ships in: interfaces in @lurker/core (L0); InMemoryStore and JsonlFileStore in @lurker/core (L1); SqliteStore in @lurker/store-sqlite; the conformance kit in @lurker/store-conformance.
+Ships in: interfaces in @rulvar/core (L0); InMemoryStore and JsonlFileStore in @rulvar/core (L1); SqliteStore in @rulvar/store-sqlite; the conformance kit in @rulvar/store-conformance.
 
 ### 2.3 Provider Adapter SPI and Wire Core
 
@@ -131,9 +131,9 @@ type Part = Text | Image | ToolCall /* { id: CanonicalId; name; args } */ | Tool
 type Usage = { inputTokens; outputTokens; cacheReadTokens; cacheWriteTokens; reasoningTokens? };
 ```
 
-Behavior: the key decision against cross-provider bugs is that canonical tool-call ids are minted by the library (CanonicalId is an engine-minted ULID; 04-model-layer-spec.md, section "Wire contract"), and every adapter keeps a bijective canonical-to-wire map in both directions; the call_* versus toolu_* format mismatch is solved by construction. provider-raw parts (thinking blocks with signatures, reasoning items) are stored in the canonical history unconditionally and enter the wire view only when the target provider matches: retention is unconditional, dropping happens only in projection. First-class adapters: @lurker/anthropic, @lurker/openai (Responses API), and the openaiCompatible({ id, baseURL, apiKey?, caps? }) factory. Provider SDK autoretries MUST be disabled (max retries 0): the core owns retries and wall-clock. The Usage invariant (inputTokens is the full prompt, including cached tokens) is checked at the adapter boundary.
+Behavior: the key decision against cross-provider bugs is that canonical tool-call ids are minted by the library (CanonicalId is an engine-minted ULID; 04-model-layer-spec.md, section "Wire contract"), and every adapter keeps a bijective canonical-to-wire map in both directions; the call_* versus toolu_* format mismatch is solved by construction. provider-raw parts (thinking blocks with signatures, reasoning items) are stored in the canonical history unconditionally and enter the wire view only when the target provider matches: retention is unconditional, dropping happens only in projection. First-class adapters: @rulvar/anthropic, @rulvar/openai (Responses API), and the openaiCompatible({ id, baseURL, apiKey?, caps? }) factory. Provider SDK autoretries MUST be disabled (max retries 0): the core owns retries and wall-clock. The Usage invariant (inputTokens is the full prompt, including cached tokens) is checked at the adapter boundary.
 
-Ships in: SPI and wire types in @lurker/core (L0); adapters in @lurker/anthropic, @lurker/openai (which also carries the openaiCompatible factory), and @lurker/bridge-ai-sdk (L1).
+Ships in: SPI and wire types in @rulvar/core (L0); adapters in @rulvar/anthropic, @rulvar/openai (which also carries the openaiCompatible factory), and @rulvar/bridge-ai-sdk (L1).
 
 ### 2.4 Model Router and Capability Registry
 
@@ -149,9 +149,9 @@ type ModelCaps = {
 };
 ```
 
-Behavior: baseURL and API keys are set at adapter construction; several openai-compatible endpoints coexist through explicit ids ('ollama', 'vllm'); a duplicate adapterId at createEngine is a ConfigError. Resolution order: call override > agent profile > workflow default > engine default. AgentOpts.model overrides all roles at once; AgentOpts.routing overrides per role with priority over profile.routing. Failover on a transport error changes only servedBy; the content key hashes the requested modelSpec, so replay stays stable and cost attribution stays honest. Named strong default models for the orchestrate and plan roles live only in the umbrella package configuration, never in @lurker/core (04-model-layer-spec.md, section "Role quality floors").
+Behavior: baseURL and API keys are set at adapter construction; several openai-compatible endpoints coexist through explicit ids ('ollama', 'vllm'); a duplicate adapterId at createEngine is a ConfigError. Resolution order: call override > agent profile > workflow default > engine default. AgentOpts.model overrides all roles at once; AgentOpts.routing overrides per role with priority over profile.routing. Failover on a transport error changes only servedBy; the content key hashes the requested modelSpec, so replay stays stable and cost attribution stays honest. Named strong default models for the orchestrate and plan roles live only in the umbrella package configuration, never in @rulvar/core (04-model-layer-spec.md, section "Role quality floors").
 
-Ships in: @lurker/core (L2).
+Ships in: @rulvar/core (L2).
 
 ### 2.5 Agent Runtime
 
@@ -175,7 +175,7 @@ export function isEscalated<T>(r: AgentResult<T>): r is EscalatedResult<T>;
 
 Behavior, role trigger protocol: 'loop' fires on every turn while tools are available to the model; 'extract' fires as a separate final structured-output invocation only when a schema is set and either routing directs extract to a different model or the current model's caps cannot serve the required tier, otherwise the schema rides the last loop turn without an extra call; 'finalize' fires only if configured in routing, as a synthesis invocation with toolChoice 'none' over the full transcript after tools stop; 'summarize' fires at the compaction threshold. Compaction is owned by this component: history processors per profile plus a contextWindow threshold; compaction points are written into the checkpoint. HistoryProjector projects the canonical history into the target's wire view (canonical id map; provider-raw only to its native provider), which makes per-role provider mixing inside one agent correct. A tool ask-approval is journaled as a suspended approval together with the turn checkpoint; resume continues the loop from the same turn without re-paying turns or re-running tools (I1). The schema-mismatch re-prompt default is 2 attempts under UsageLimits; semantic retries go through throw ModelRetry.
 
-Ships in: @lurker/core (L3).
+Ships in: @rulvar/core (L3).
 
 ### 2.6 Tool System and MCP Bus
 
@@ -203,7 +203,7 @@ interface IsolationProvider {
 
 Behavior: toolsetHash is computed from the contract (name, description, canonical parameters JSON Schema, version), never from the execute closure. Editing an implementation does not invalidate the journal; a semantic change is recorded by bumping version. Worktree lifecycle: created from HEAD (or a given ref) of the host git repository; the agent's tools receive a cwd inside it; collect() captures the changed-file list and a patch, puts the patch into TranscriptStore, and returns it in AgentResult.artifacts; applying the patch remains the caller's job; dispose cleans up the worktree (keepOnError is optional); a non-git host raises a typed ConfigError. Permission chain and presets: 08-tools-permissions-spec.md.
 
-Ships in: @lurker/core (L3). The MCP bus depends on @modelcontextprotocol/sdk ^1.29 (13-toolchain-repo.md).
+Ships in: @rulvar/core (L3). The MCP bus depends on @modelcontextprotocol/sdk ^1.29 (13-toolchain-repo.md).
 
 ### 2.7 Workflow Engine and Ctx Primitives
 
@@ -230,7 +230,7 @@ The sketch above marks the component boundary; the complete normative Ctx interf
 
 Behavior: the final nesting rule is that there is no fixed one-level ctx.workflow nesting; nesting depth is governed by the AdmissionController with a configurable maxDepth (default 1, ceiling 4) and hierarchical budget sub-accounts in which a child's spend rolls up to every ancestor up to the root. The agent return type follows the effective error policy through a literal generic; ctx.step folds deps into its key (as useMemo does). errorPolicy 'lenient' (the planner emits it) makes onError 'null' the default; run.dropped makes silent pipeline losses visible. Structural limits (maxDepth, maxTotalSpawns) return a typed error to the orchestrator instead of tearing down the run. ctx.brief is a journaled summarize helper for passing an inheritable brief to a child. ctx.now/random/uuid are deterministic shims journaled as kind 'rand' subtypes (03-journal-spec.md, section "JournalEntry form").
 
-Ships in: @lurker/core (L4).
+Ships in: @rulvar/core (L4).
 
 ### 2.8 Script Runners
 
@@ -243,11 +243,11 @@ class WorkerSandboxRunner { constructor(o?: { timeoutMs?: number; memoryMb?: num
 function compileScript(source: string, o?: { allowImports?: string[] }): CompiledWorkflow; // rejection = ScriptRejected
 ```
 
-Behavior: the worker sandbox is a worker thread with a curated global scope. The ctx methods are bound as bare globals; the exact sandbox global set is agent, parallel, pipeline, step, phase, log, budget, workflow, awaitExternal, now, random, uuid (06-execution-spec.md, section "Script runners"). Date.now/Math.random are replaced by seeded, journaled versions (seeded from runId); import/fetch/process are absent; every primitive call is an RPC over MessagePort into the host engine; values are JSON only. The sanctioned sandbox dialect (taught to the planner by the API card): schema only as a JSON Schema literal, tools only by registered profile names, onError only 'throw'|'null', model as a string, no functions in options; declarative policy rule tables without closures; ladders as JSON. eslint-plugin-lurker bans bare Date.now/Math.random/new Date/fetch/process.env in workflow modules and bare Promise.all over ctx calls (ctx.parallel instead), and emits structured JSON diagnostics for the self-repair loop.
+Behavior: the worker sandbox is a worker thread with a curated global scope. The ctx methods are bound as bare globals; the exact sandbox global set is agent, parallel, pipeline, step, phase, log, budget, workflow, awaitExternal, now, random, uuid (06-execution-spec.md, section "Script runners"). Date.now/Math.random are replaced by seeded, journaled versions (seeded from runId); import/fetch/process are absent; every primitive call is an RPC over MessagePort into the host engine; values are JSON only. The sanctioned sandbox dialect (taught to the planner by the API card): schema only as a JSON Schema literal, tools only by registered profile names, onError only 'throw'|'null', model as a string, no functions in options; declarative policy rule tables without closures; ladders as JSON. eslint-plugin-rulvar bans bare Date.now/Math.random/new Date/fetch/process.env in workflow modules and bare Promise.all over ctx calls (ctx.parallel instead), and emits structured JSON diagnostics for the self-repair loop.
 
 The honest position: the worker sandbox is a determinism and blast-radius boundary, not a security boundary (NFR, security posture; 01-requirements.md). Containment of hostile code comes from executors (subprocess/container) and the worktree; a QuickJS runner for third-party scripts is a future plugin behind this same seam and is excluded from v1 (EXC registry in 01-requirements.md). InProcessRunner additionally carries the onEscalation hook.
 
-Ships in: ScriptRunner interface in @lurker/core (L0); InProcessRunner in @lurker/core (L5); WorkerSandboxRunner and compileScript in @lurker/planner (L5); lint rules in eslint-plugin-lurker.
+Ships in: ScriptRunner interface in @rulvar/core (L0); InProcessRunner in @rulvar/core (L5); WorkerSandboxRunner and compileScript in @rulvar/planner (L5); lint rules in eslint-plugin-rulvar.
 
 ### 2.9 Orchestration Modes
 
@@ -262,89 +262,89 @@ orchestrate(engine, goal, o?: { model?; profiles?; maxSpawns?; budget }): RunHan
 
 Behavior: both orchestrate surfaces exist and share one implementation. Top-level orchestrate(engine, goal, opts) creates a run; ctx.orchestrate(goal, opts) nests under the AdmissionController maxDepth (06-execution-spec.md, section "Modes and entry points"). Mode (c) resume semantics are explicit: orchestrator turns MUST be checkpointed at turn boundaries, and every spawn is an ordinary journal entry of kind 'agent', so a crashed orchestrate() restores its history from the checkpoint and finds child results by content keys without regenerating spawn decisions. profileCard(registry) yields the same text for the planner prompt and for the spawn_agent tool enum: both modes speak one agent vocabulary. Orchestration packages build exclusively from the public core API. The opt-in mode (c) extension, PlanRunner, with plan revision, the RunLedger, the ModelLadder, and the TerminationAccount, is specified in 07-adaptive-orchestration-spec.md.
 
-Ships in: modes (a) and (c) in @lurker/core (L4); mode (b) in @lurker/planner (L5); PlanRunner in @lurker/plan (L4 extension).
+Ships in: modes (a) and (c) in @rulvar/core (L4); mode (b) in @rulvar/planner (L5); PlanRunner in @rulvar/plan (L4 extension).
 
 ### 2.10 Event Stream and Observability
 
 Responsibility: a single discriminated WorkflowEvent stream with hierarchical spanId (run > phase > agent > tool > child) as the sole observability source. It feeds RunHandle.events and on(), the terminal progress renderer, the JSONL log, and the optional OTel exporter. spanId is pure telemetry and never enters journal identity; WorkflowEvent.seq is an independent per-run telemetry counter distinct from JournalEntry.seq; replayed events carry replayed: true for UI deduplication, and the re-emission set is journal-backed lifecycle events only, never stream deltas. Event catalog, payload schemas, metrics, and the OTel mapping: 09-observability-testing-spec.md.
 
-Ships in: @lurker/core (L4); the OTel exporter in @lurker/cli.
+Ships in: @rulvar/core (L4); the OTel exporter in @rulvar/cli.
 
 ### 2.11 Test Harness
 
 Responsibility: three test tiers that fall directly out of two architecture seams. FakeAdapter matches on agentType/label/prompt regex for fast, fully typed unit tests; VCR cassettes sit at the adapter boundary (vendor-neutral by construction; redacted JSONL keyed by request hash); replay-strict runs a journal with zero live calls and fails loudly with JournalMissError on any miss. Matchers ship for Vitest and Jest. Details: 09-observability-testing-spec.md, sections "Test harness three tiers" and "Mandatory defect cassette catalog"; strategy and exit criteria: 11-testing-strategy.md.
 
-Ships in: @lurker/testing (L6).
+Ships in: @rulvar/testing (L6).
 
 ### 2.12 Shell: CLI, Server, and Queue
 
 Responsibility: an optional ops layer built strictly on public APIs: the CLI with TUI progress; an HTTP server with SSE events and external-input resolution for HITL; a queue worker for background multi-process runs; knowledge-base maintenance commands. The full contracts are in section 8 below.
 
-Ships in: @lurker/cli (L6).
+Ships in: @rulvar/cli (L6).
 
 ## 3. Package map
 
-lurker ships as 14 packages. All packages release in lockstep semver with identical versions; the sole exemption is @lurker/compat, which is independently versioned (12-release-versioning.md, section "Exemptions"). eslint-plugin-lurker is lockstep despite its npm-required unscoped name.
+rulvar ships as 14 packages. All packages release in lockstep semver with identical versions; the sole exemption is @rulvar/compat, which is independently versioned (12-release-versioning.md, section "Exemptions"). eslint-plugin-rulvar is lockstep despite its npm-required unscoped name.
 
-Documentation and install commands MUST reference packages as @lurker/<name> and MUST NOT use the bare name lurker in install commands: the unscoped npm name is squatted and the umbrella's final unscoped availability is an open contingency (13-toolchain-repo.md, section "Naming risk note").
+Documentation and install commands MUST reference packages as @rulvar/<name> and MUST NOT use the bare name rulvar in install commands: the unscoped npm name is squatted and the umbrella's final unscoped availability is an open contingency (13-toolchain-repo.md, section "Naming risk note").
 
 ### 3.1 Package table
 
 | Package | Layer | Contents |
 |---|---|---|
-| lurker | umbrella | Batteries-included umbrella: re-exports @lurker/core, both first-class adapters, the file store, and the terminal progress renderer; the single-install path. Carries the named strong orchestrate/plan default models in its config (never in @lurker/core). |
-| @lurker/core | L0-L5 | L0 contracts; the journal kernel (including replayDisposition, ref-entries, the hashVersion KeyDeriver registry, TerminationAccount); ctx primitives; the agent runtime with HistoryProjector; the model router and capability registry; the tool system and MCP bus; the dynamic orchestrator; AdmissionController; InProcessRunner; InMemory and JSONL stores; the event stream; the file-based ModelKnowledgeStore and the modelKnowledgeCard renderer. Zero provider SDK dependencies; the sole vendored RUNTIME dependency is the JSON Schema mini-validator; the vendored StandardSchemaV1/StandardJSONSchemaV1 declarations are types only (no runtime code) and do not count against it (13-toolchain-repo.md, section "Committed toolchain"). |
-| @lurker/plan | L4 ext | PlanRunner, RunLedger, the EscalationProtocol orchestrator extensions, ModelLadder configuration; built from the public core API. |
-| @lurker/anthropic | L1 | Adapter over @anthropic-ai/sdk: thinking-block replay with signatures, cacheHint compilation, pause_turn, typed refusal outcomes, 529 and retry-after handling, usage normalization. |
-| @lurker/openai | L1 | Responses API adapter (reasoning items, strict json_schema) plus the openaiCompatible factory with explicit id and baseURL. |
-| @lurker/store-sqlite | L1 | SqliteStore implementing JournalStore and LeasableStore with a fencing epoch; the reference for community stores. |
-| @lurker/store-conformance | L6 | Executable conformance kit for store adapters (DEF-4): atomicity, total per-run order, read-your-writes, opaque payload, fencing, golden fold-state fixtures, the end-to-end decide-once oracle. |
-| @lurker/compat | L2 ext | Frozen KeyDeriver profiles for hashVersions that left the support window (DEF-6); independently versioned (sole lockstep exemption), tree-shakeable, attached via EngineOptions.extraDerivers. |
-| @lurker/planner | L5 | The flagship hybrid: the plan agent, compileScript with an import allowlist, WorkerSandboxRunner with seeded journaled globals, the self-repair loop over lint diagnostics. |
-| eslint-plugin-lurker | tooling | Determinism rules (ban bare Date.now/Math.random/new Date/fetch/process.env in workflow modules; ban Promise.all over ctx calls) with structured JSON diagnostics for the self-repair loop. |
-| @lurker/testing | L6 | createTestEngine and FakeAdapter, VCR cassettes with secret redaction, replay-strict runs, matchers for Vitest and Jest. |
-| @lurker/evals | L6 | Eval cases, golden outputs, rubric and judge graders through the engine, matrix sweeps, canary fingerprint. |
-| @lurker/cli | L6 | run/resume/runs/inspect/plan commands, TUI progress, createServer (HTTP, SSE, awaitExternal resolution), createWorker over LeasableStore, the OTel exporter, and the kb maintenance commands (lurker kb list / inbox / sweep). |
-| @lurker/bridge-ai-sdk | L1 | Wraps any Vercel AI SDK LanguageModelV4 in a ProviderAdapter for the long tail of providers; performs a specificationVersion runtime check; documented as the highest-churn package (04-model-layer-spec.md). |
+| rulvar | umbrella | Batteries-included umbrella: re-exports @rulvar/core, both first-class adapters, the file store, and the terminal progress renderer; the single-install path. Carries the named strong orchestrate/plan default models in its config (never in @rulvar/core). |
+| @rulvar/core | L0-L5 | L0 contracts; the journal kernel (including replayDisposition, ref-entries, the hashVersion KeyDeriver registry, TerminationAccount); ctx primitives; the agent runtime with HistoryProjector; the model router and capability registry; the tool system and MCP bus; the dynamic orchestrator; AdmissionController; InProcessRunner; InMemory and JSONL stores; the event stream; the file-based ModelKnowledgeStore and the modelKnowledgeCard renderer. Zero provider SDK dependencies; the sole vendored RUNTIME dependency is the JSON Schema mini-validator; the vendored StandardSchemaV1/StandardJSONSchemaV1 declarations are types only (no runtime code) and do not count against it (13-toolchain-repo.md, section "Committed toolchain"). |
+| @rulvar/plan | L4 ext | PlanRunner, RunLedger, the EscalationProtocol orchestrator extensions, ModelLadder configuration; built from the public core API. |
+| @rulvar/anthropic | L1 | Adapter over @anthropic-ai/sdk: thinking-block replay with signatures, cacheHint compilation, pause_turn, typed refusal outcomes, 529 and retry-after handling, usage normalization. |
+| @rulvar/openai | L1 | Responses API adapter (reasoning items, strict json_schema) plus the openaiCompatible factory with explicit id and baseURL. |
+| @rulvar/store-sqlite | L1 | SqliteStore implementing JournalStore and LeasableStore with a fencing epoch; the reference for community stores. |
+| @rulvar/store-conformance | L6 | Executable conformance kit for store adapters (DEF-4): atomicity, total per-run order, read-your-writes, opaque payload, fencing, golden fold-state fixtures, the end-to-end decide-once oracle. |
+| @rulvar/compat | L2 ext | Frozen KeyDeriver profiles for hashVersions that left the support window (DEF-6); independently versioned (sole lockstep exemption), tree-shakeable, attached via EngineOptions.extraDerivers. |
+| @rulvar/planner | L5 | The flagship hybrid: the plan agent, compileScript with an import allowlist, WorkerSandboxRunner with seeded journaled globals, the self-repair loop over lint diagnostics. |
+| eslint-plugin-rulvar | tooling | Determinism rules (ban bare Date.now/Math.random/new Date/fetch/process.env in workflow modules; ban Promise.all over ctx calls) with structured JSON diagnostics for the self-repair loop. |
+| @rulvar/testing | L6 | createTestEngine and FakeAdapter, VCR cassettes with secret redaction, replay-strict runs, matchers for Vitest and Jest. |
+| @rulvar/evals | L6 | Eval cases, golden outputs, rubric and judge graders through the engine, matrix sweeps, canary fingerprint. |
+| @rulvar/cli | L6 | run/resume/runs/inspect/plan commands, TUI progress, createServer (HTTP, SSE, awaitExternal resolution), createWorker over LeasableStore, the OTel exporter, and the kb maintenance commands (rulvar kb list / inbox / sweep). |
+| @rulvar/bridge-ai-sdk | L1 | Wraps any Vercel AI SDK LanguageModelV4 in a ProviderAdapter for the long tail of providers; performs a specificationVersion runtime check; documented as the highest-churn package (04-model-layer-spec.md). |
 
 ### 3.2 Dependency graph
 
 Internal dependencies use workspace:* and shared external versions come from pnpm catalogs (13-toolchain-repo.md).
 
 ```text
-@lurker/core              -> (none; vendored JSON Schema validator and StandardSchemaV1 types;
+@rulvar/core              -> (none; vendored JSON Schema validator and StandardSchemaV1 types;
                               external: @modelcontextprotocol/sdk ^1.29 for the MCP bus)
-@lurker/anthropic         -> @lurker/core (L0 types), @anthropic-ai/sdk
-@lurker/openai            -> @lurker/core (L0 types), openai SDK
-@lurker/bridge-ai-sdk     -> @lurker/core (L0 types), @ai-sdk/provider ^4
-@lurker/store-sqlite      -> @lurker/core (L0 types), sqlite driver
-@lurker/store-conformance -> @lurker/core (L0 types); runs under Vitest
-@lurker/compat            -> @lurker/core (L0 KeyDeriver types)
-@lurker/plan              -> @lurker/core (public API only)
-@lurker/planner           -> @lurker/core (public API only), eslint-plugin-lurker + ESLint (self-repair loop)
-eslint-plugin-lurker      -> (ESLint 9 peer only; no dependency on @lurker/core)
-@lurker/testing           -> @lurker/core (public API only)
-@lurker/evals             -> @lurker/core (public API only), @lurker/testing (VCR-deterministic eval CI)
-@lurker/cli               -> @lurker/core (public API only), @opentelemetry/api ^1.9 (optional peer), @lurker/planner (loaded DYNAMICALLY by the plan command only and deliberately NOT a declared peer dependency: a workspace peer would major-cascade the fixed group on every planner bump under the changesets peer rule; a missing install is a clear CLI error, never a load failure of the other commands; amended during M6-T11)
-lurker (umbrella)         -> @lurker/core, @lurker/anthropic, @lurker/openai
+@rulvar/anthropic         -> @rulvar/core (L0 types), @anthropic-ai/sdk
+@rulvar/openai            -> @rulvar/core (L0 types), openai SDK
+@rulvar/bridge-ai-sdk     -> @rulvar/core (L0 types), @ai-sdk/provider ^4
+@rulvar/store-sqlite      -> @rulvar/core (L0 types), sqlite driver
+@rulvar/store-conformance -> @rulvar/core (L0 types); runs under Vitest
+@rulvar/compat            -> @rulvar/core (L0 KeyDeriver types)
+@rulvar/plan              -> @rulvar/core (public API only)
+@rulvar/planner           -> @rulvar/core (public API only), eslint-plugin-rulvar + ESLint (self-repair loop)
+eslint-plugin-rulvar      -> (ESLint 9 peer only; no dependency on @rulvar/core)
+@rulvar/testing           -> @rulvar/core (public API only)
+@rulvar/evals             -> @rulvar/core (public API only), @rulvar/testing (VCR-deterministic eval CI)
+@rulvar/cli               -> @rulvar/core (public API only), @opentelemetry/api ^1.9 (optional peer), @rulvar/planner (loaded DYNAMICALLY by the plan command only and deliberately NOT a declared peer dependency: a workspace peer would major-cascade the fixed group on every planner bump under the changesets peer rule; a missing install is a clear CLI error, never a load failure of the other commands; amended during M6-T11)
+rulvar (umbrella)         -> @rulvar/core, @rulvar/anthropic, @rulvar/openai
 ```
 
-### 3.3 Disambiguation: @lurker/plan versus @lurker/planner
+### 3.3 Disambiguation: @rulvar/plan versus @rulvar/planner
 
 The two names are close by design; both are kept to preserve the established vocabulary, and a rename was rejected.
 
 | Package | What it is | What it is not |
 |---|---|---|
-| @lurker/plan | The opt-in mode (c) extension: PlanRunner, RunLedger, escalation extensions, ModelLadder configuration (07-adaptive-orchestration-spec.md). | Not the flagship hybrid; contains no plan agent and no sandbox. |
-| @lurker/planner | The flagship hybrid, mode (b): the plan agent, compileScript, WorkerSandboxRunner, the self-repair loop (06-execution-spec.md, section "Script runners"). | Not PlanRunner; contains no TaskPlan machinery. |
+| @rulvar/plan | The opt-in mode (c) extension: PlanRunner, RunLedger, escalation extensions, ModelLadder configuration (07-adaptive-orchestration-spec.md). | Not the flagship hybrid; contains no plan agent and no sandbox. |
+| @rulvar/planner | The flagship hybrid, mode (b): the plan agent, compileScript, WorkerSandboxRunner, the self-repair loop (06-execution-spec.md, section "Script runners"). | Not PlanRunner; contains no TaskPlan machinery. |
 
 ## 4. Dependency rules
 
 These rules are normative and are enforced permanently, not only at 1.0.
 
-- The core MUST NOT import a plugin. Nothing in @lurker/core references an adapter, a store package, a runner package, or a shell.
+- The core MUST NOT import a plugin. Nothing in @rulvar/core references an adapter, a store package, a runner package, or a shell.
 - Plugins MUST import only core types (L0) and MUST NOT import each other. A provider SDK appears exclusively inside its own adapter.
-- Orchestration packages (@lurker/plan, @lurker/planner) and shells (@lurker/cli, @lurker/testing, @lurker/evals, @lurker/store-conformance) MUST build exclusively from the public API. This is the permanent seam-sufficiency test: if a shell needs a private hook, the seam is wrong and the fix is a spec amendment, not a private import.
+- Orchestration packages (@rulvar/plan, @rulvar/planner) and shells (@rulvar/cli, @rulvar/testing, @rulvar/evals, @rulvar/store-conformance) MUST build exclusively from the public API. This is the permanent seam-sufficiency test: if a shell needs a private hook, the seam is wrong and the fix is a spec amendment, not a private import.
 - There MUST be no module state at any layer. All registries (adapters, capabilities and prices, KeyDerivers, agent profiles, mechanical gate profiles, workflows) are per-engine; ctx is created by the engine for each run. This rule is also why all 14 packages publish ESM-only: two module instances would duplicate journal and registry singleton state and break content-addressed replay identity (13-toolchain-repo.md, section 1).
 - Dependencies point strictly downward in the layer model. L6 additionally consumes the event stream and the stores, both public surfaces.
 - Package entry modules MUST NOT use top-level await (13-toolchain-repo.md).
@@ -355,12 +355,12 @@ Six SPI seams freeze at 1.0. The founder decision stands: 1.0 ships only after t
 
 | # | Seam | Interfaces | What it decouples | Owning spec | Shipped implementations |
 |---|---|---|---|---|---|
-| 1 | Provider adapter | ProviderAdapter | Provider wire formats from the core | 04-model-layer-spec.md | @lurker/anthropic, @lurker/openai, openaiCompatible, @lurker/bridge-ai-sdk |
-| 2 | Journal storage | JournalStore + LeasableStore (one seam) | Persistence and leasing from the kernel | 03-journal-spec.md, section "Storage SPI" | InMemoryStore, JsonlFileStore (@lurker/core); SqliteStore (@lurker/store-sqlite) |
+| 1 | Provider adapter | ProviderAdapter | Provider wire formats from the core | 04-model-layer-spec.md | @rulvar/anthropic, @rulvar/openai, openaiCompatible, @rulvar/bridge-ai-sdk |
+| 2 | Journal storage | JournalStore + LeasableStore (one seam) | Persistence and leasing from the kernel | 03-journal-spec.md, section "Storage SPI" | InMemoryStore, JsonlFileStore (@rulvar/core); SqliteStore (@rulvar/store-sqlite) |
 | 3 | Transcript storage | TranscriptStore | Large blobs (transcripts, checkpoints, patches) from the journal | 03-journal-spec.md, section "Storage SPI" | Bundled with the shipped stores |
-| 4 | Script runner | ScriptRunner | Workflow body execution from the engine | 06-execution-spec.md, section "Script runners" | InProcessRunner (@lurker/core), WorkerSandboxRunner (@lurker/planner) |
-| 5 | Tool source | ToolSource | Tool provisioning (native, MCP) from the runtime | 08-tools-permissions-spec.md, section "MCP bus" | Native tools and mcp() (@lurker/core) |
-| 6 | Isolation provider | IsolationProvider | Filesystem isolation from tools | 08-tools-permissions-spec.md, section "IsolationProvider and worktree lifecycle" | Git worktree provider (@lurker/core) |
+| 4 | Script runner | ScriptRunner | Workflow body execution from the engine | 06-execution-spec.md, section "Script runners" | InProcessRunner (@rulvar/core), WorkerSandboxRunner (@rulvar/planner) |
+| 5 | Tool source | ToolSource | Tool provisioning (native, MCP) from the runtime | 08-tools-permissions-spec.md, section "MCP bus" | Native tools and mcp() (@rulvar/core) |
+| 6 | Isolation provider | IsolationProvider | Filesystem isolation from tools | 08-tools-permissions-spec.md, section "IsolationProvider and worktree lifecycle" | Git worktree provider (@rulvar/core) |
 
 Two clarifications close earlier ambiguity in the seam count:
 
@@ -370,7 +370,7 @@ Two clarifications close earlier ambiguity in the seam count:
 What freeze means for 1.0:
 
 - The TypeScript surface of each frozen seam (method signatures, argument and result types, error contracts, and the journaled payload semantics they imply) MUST NOT change incompatibly after 1.0. Additive, optional extensions MAY be introduced under semver minor rules.
-- Third-party implementations written against the 1.0 seams MUST keep working across all 1.x releases. For stores this is checkable: @lurker/store-conformance is the executable definition of the storage seam.
+- Third-party implementations written against the 1.0 seams MUST keep working across all 1.x releases. For stores this is checkable: @rulvar/store-conformance is the executable definition of the storage seam.
 - Before the freeze, each seam MUST have at least two independent consumers or implementations exercised in CI (the shells and the multi-process soak of M8 provide this), so that the freeze locks a proven boundary rather than a guess.
 - SPI drift is tracked by diffing committed rolled-up .d.ts files in PRs (13-toolchain-repo.md); the M9 SPI audit signs off the final surfaces.
 - The 1.0 release gates beyond the freeze (license decided, trademark clearance, naming contingency) are listed in 12-release-versioning.md, section "The 1.0 gate".
@@ -383,10 +383,10 @@ Audit evidence per seam (the two-consumer rule):
 
 | Seam | Audited surface | Independent implementations or consumers exercised in CI |
 |---|---|---|
-| ProviderAdapter | id, provider, caps, refreshCaps?, stream, countTokens? | @lurker/anthropic, @lurker/openai, openaiCompatible, @lurker/bridge-ai-sdk, FakeAdapter, the VCR record/replay wrappers |
-| JournalStore + LeasableStore | append(lease?), load, putMeta, listRuns, delete; acquire/renew/release | InMemoryStore, JsonlFileStore, SqliteStore, the guide walkthrough store; @lurker/store-conformance is the executable definition |
+| ProviderAdapter | id, provider, caps, refreshCaps?, stream, countTokens? | @rulvar/anthropic, @rulvar/openai, openaiCompatible, @rulvar/bridge-ai-sdk, FakeAdapter, the VCR record/replay wrappers |
+| JournalStore + LeasableStore | append(lease?), load, putMeta, listRuns, delete; acquire/renew/release | InMemoryStore, JsonlFileStore, SqliteStore, the guide walkthrough store; @rulvar/store-conformance is the executable definition |
 | TranscriptStore | put, get, list, delete (missing ref = no-op) | InMemory and file stores, the serialization-hook wrappers, retention suites |
-| ScriptRunner | execute(wf or CompiledWorkflow, ctx, args) | InProcessRunner (@lurker/core), WorkerSandboxRunner (@lurker/planner); sandbox-determinism cassette |
+| ScriptRunner | execute(wf or CompiledWorkflow, ctx, args) | InProcessRunner (@rulvar/core), WorkerSandboxRunner (@rulvar/planner); sandbox-determinism cassette |
 | ToolSource | session tools() with the spawn-time snapshot rule | native tools, mcp() (M3 suites) |
 | IsolationProvider | acquire -> { cwd, collect, dispose } | the git worktree provider, the fixture provider of the worktree-disposed-degrade cassette |
 
@@ -398,8 +398,8 @@ The error taxonomy is owned by L0. All engine-raised errors derive from a single
 
 ```ts
 // L0: base class for all engine-raised errors
-export abstract class LurkerError extends Error {
-  abstract readonly code: LurkerErrorCode; // closed registry; see the table below
+export abstract class RulvarError extends Error {
+  abstract readonly code: RulvarErrorCode; // closed registry; see the table below
   readonly retryable: boolean;
   readonly data?: Json;
   toWire(): WireError;
@@ -418,7 +418,7 @@ export type WireError = {
 Rules:
 
 - Any error that crosses a process boundary or is persisted MUST be a WireError projection; raw Error objects never enter the journal.
-- AgentError is not a LurkerError subclass: it is the structured error value carried on AgentResult.error (see section 2.5) and journaled inside the agent terminal entry. Its WireError projection uses code 'agent', with kind, retryAfterMs, and issues carried in data.
+- AgentError is not a RulvarError subclass: it is the structured error value carried on AgentResult.error (see section 2.5) and journaled inside the agent terminal entry. Its WireError projection uses code 'agent', with kind, retryAfterMs, and issues carried in data.
 - ModelRetry is deliberately absent from the registry: it is a control-flow signal for semantic retries (06-execution-spec.md), never a journaled error.
 - "Retryable" means the engine's retry machinery (RetryPolicy under the journal, 04-model-layer-spec.md) MAY retry; it never means a provider SDK autoretry, which is disabled.
 
@@ -431,10 +431,10 @@ Rules:
 | JournalCompatibilityError | L2 kernel (resume, worker acquire) | journal_compat | No | Never journaled; refuses to open a journal whose hashVersion falls outside the support window; sub-codes in 03-journal-spec.md, section "hashVersion" |
 | InvalidResolutionError | L2 ResolutionArbiter | invalid_resolution | No | Never journaled; a resolution attempt against an already-closed suspension is rejected under the first-closing-wins fold and appends no entry (03-journal-spec.md, section "Suspension and resolutions") |
 | JournalOrderViolation | L2 kernel / store boundary | journal_order_violation | No | Never journaled; signals a breach of the total per-run append order (an unfenced concurrent writer or a store violating contract A2) |
-| PlanInvariantError | L4 PlanRunner (@lurker/plan) | plan_invariant | No | The offending plan revision is rejected and the rejection is recorded in the journaled revision history feeding the droppedRevisionStreak guard; returned to the orchestrator, not thrown through the run (07-adaptive-orchestration-spec.md, section "PlanRunner") |
-| ReplayPlanHashMismatch | L4 PlanRunner (@lurker/plan) | replay_plan_hash_mismatch | No | Never journaled; raised at resume when the refolded plan state disagrees with the journaled planHash chain (07-adaptive-orchestration-spec.md) |
+| PlanInvariantError | L4 PlanRunner (@rulvar/plan) | plan_invariant | No | The offending plan revision is rejected and the rejection is recorded in the journaled revision history feeding the droppedRevisionStreak guard; returned to the orchestrator, not thrown through the run (07-adaptive-orchestration-spec.md, section "PlanRunner") |
+| ReplayPlanHashMismatch | L4 PlanRunner (@rulvar/plan) | replay_plan_hash_mismatch | No | Never journaled; raised at resume when the refolded plan state disagrees with the journaled planHash chain (07-adaptive-orchestration-spec.md) |
 | OrchestratorCapConfigError | L4 orchestration (DEF-7) | orchestrator_cap_config | No | Never journaled; thrown before the first LLM call when the orchestrator cap and finalize reserve configuration is invalid; applies to both orchestrate surfaces |
-| JournalMissError | @lurker/testing replay-strict | journal_miss | No | Never journaled; a strict replay encountered a call that would go live |
+| JournalMissError | @rulvar/testing replay-strict | journal_miss | No | Never journaled; a strict replay encountered a call that would go live |
 | BudgetExhaustedError | L4 budget (surfaces via ctx primitives) | budget_exhausted | No | The budget guard denial is a decision entry (I2); ctx primitives throw it as AgentError kind 'budget'; the run reports outcome 'exhausted', overriding 'error' (06-execution-spec.md, section "Three-layer budget") |
 | AdmissionRejectedError | L4 AdmissionController (07-adaptive-orchestration-spec.md) | admission_rejected | No | The rejection verdict is embedded in the carrying spawn-admission decision entry and replays identically (DEF-2); the error surfaces the embedded AdmitRejectReason in data to the caller (a typed tool error for orchestrators) and never tears the run down; budget-code rejections throw BudgetExhaustedError instead. (Amended during M6-T06: structural rejections needed a registry home distinct from exhaustion.) |
 | SandboxError | L5 WorkerSandboxRunner (06-execution-spec.md, section "Script runners") | sandbox_limit | No | Crossing timeoutMs or memoryMb terminates the worker; the run completes with outcome 'error' carrying the WireError projection; data records { reason: 'timeout' \| 'memory', limit }; never journaled as its own entry. (Amended during M6-T02: docs/06 8.2 promised a typed code without registering one.) |
@@ -457,7 +457,7 @@ function createEngine(o: {
   budgetDefaults?: BudgetDefaults;
   concurrency?: ConcurrencyOptions;   // per-run semaphore, per-provider keys
   runners?: { sandbox?: ScriptRunner }; // CompiledWorkflow execution seam (M6-T02 amendment; 06-execution-spec.md 10.1)
-  extraDerivers?: KeyDeriver[];       // @lurker/compat frozen profiles attach here
+  extraDerivers?: KeyDeriver[];       // @rulvar/compat frozen profiles attach here
 }): Engine;
 
 interface Engine {
@@ -472,7 +472,7 @@ Per-engine registries (never module-level):
 
 - Adapter registry: keyed by adapterId; duplicates are a ConfigError.
 - Capability and price registry: ModelCaps per model plus the versioned price table with the monotonic pricingVersion (04-model-layer-spec.md, section "Pricing").
-- KeyDeriver registry: one deriver per supported hashVersion; extraDerivers attaches @lurker/compat profiles (03-journal-spec.md, section "hashVersion").
+- KeyDeriver registry: one deriver per supported hashVersion; extraDerivers attaches @rulvar/compat profiles (03-journal-spec.md, section "hashVersion").
 - Agent profile registry: the source for profileCard used by both the planner and the spawn_agent enum.
 - Mechanical gate profile registry: named pure functions over AgentResult.artifacts for ladder acceptance gates (07-adaptive-orchestration-spec.md, section "ModelLadder").
 - Workflow registry: an explicit, host-constructed mapping from registered workflow name to Workflow or CompiledWorkflow. There is no module-level registry. Shells consume it explicitly: createServer({ engine, workflows }). The registered-name form of ctx.workflow and the sandbox workflow global resolve against it (06-execution-spec.md, section "Engine and ops API").
@@ -488,12 +488,12 @@ The shells are an optional ops layer strictly on top of the public APIs. They ex
 Canonical grammar (no aliases in v1):
 
 ```text
-lurker run <workflow> --args '{"pr":42}' --store .lurker --budget-usd 20
-lurker resume <runId> --args '{"pr":42}' --store .lurker
-lurker runs ls --store .lurker
-lurker inspect <runId> --store .lurker
-lurker plan "goal" --dry-run
-lurker kb list | inbox | sweep
+rulvar run <workflow> --args '{"pr":42}' --store .rulvar --budget-usd 20
+rulvar resume <runId> --args '{"pr":42}' --store .rulvar
+rulvar runs ls --store .rulvar
+rulvar inspect <runId> --store .rulvar
+rulvar plan "goal" --dry-run
+rulvar kb list | inbox | sweep
 ```
 
 (resume/inspect flags amended during M5-T01; the normative grammar and

@@ -1,5 +1,5 @@
-import { a as FAKE_MODEL, c as FakeAdapterOptions, d as FakeToolCallsValue, f as FakeWireErrorValue, i as createTestEngine, l as FakeCall, m as fakeWireError, n as TestEngine, o as FAKE_MODEL_REF, p as fakeToolCalls, r as TestRunHandle, s as FakeAdapter, t as CreateTestEngineOptions, u as FakeResponder } from "./test-engine-CPLAIzLl.js";
-import { AgentProfile, ChatEvent, ChatRequest, InvocationRole, JournalEntry, JournalStore, ModelCaps, ModelSpec, ProviderAdapter, ResumePreview, RunOutcome, WireError, Workflow, createEngine } from "@lurker/core";
+import { a as FAKE_MODEL, c as FakeAdapterOptions, d as FakeToolCallsValue, f as FakeWireErrorValue, i as createTestEngine, l as FakeCall, m as fakeWireError, n as TestEngine, o as FAKE_MODEL_REF, p as fakeToolCalls, r as TestRunHandle, s as FakeAdapter, t as CreateTestEngineOptions, u as FakeResponder } from "./test-engine-kYp9C72n.js";
+import { AgentProfile, ChatEvent, ChatRequest, InvocationRole, JournalEntry, JournalStore, ModelCaps, ModelSpec, ProviderAdapter, ResumePreview, RunOutcome, WireError, Workflow, createEngine } from "@rulvar/core";
 
 //#region src/replay-strict.d.ts
 interface ReplayRunOptions {
@@ -91,7 +91,7 @@ interface VcrRow {
 }
 interface VcrHeader {
   v: 1;
-  kind: "lurker-vcr";
+  kind: "rulvar-vcr";
   hashVersion: number;
   recordedAt: string;
 }

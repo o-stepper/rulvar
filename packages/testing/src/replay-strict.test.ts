@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { defineWorkflow, JournalMissError } from '@lurker/core';
+import { defineWorkflow, JournalMissError } from '@rulvar/core';
 import { createTestEngine } from './test-engine.js';
 import { replayRun } from './replay-strict.js';
 

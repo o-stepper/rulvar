@@ -1,10 +1,10 @@
 /**
- * @lurker/evals (M9-T02): EvalCase, the grader contract, and the case and
+ * @rulvar/evals (M9-T02): EvalCase, the grader contract, and the case and
  * suite runners. A separate quality-measurement package built strictly on
  * the public APIs (L6).
  *
  * Owning spec: docs/09-observability-testing-spec.md, section
- * "@lurker/evals"; determinism rules in docs/11-testing-strategy.md,
+ * "@rulvar/evals"; determinism rules in docs/11-testing-strategy.md,
  * section "Eval CI": judge graders run THROUGH the engine, so judge calls
  * are journaled, budgeted, and VCR-recordable, and an eval suite replays
  * deterministically from cassettes with zero live calls.
@@ -20,7 +20,7 @@ import {
   type Usage,
   type WireError,
   type Workflow,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 /**
  * One quality-measurement case (docs/09, section 7.1). The shape is the
@@ -48,7 +48,7 @@ export interface GraderVerdict {
  * A judge invocation specification. The judge runs through the engine as
  * an ordinary journaled, budgeted invocation; model selection is subject
  * to the router quality floors (docs/04, section "Role quality floors"),
- * and @lurker/evals ships NO default judge model: weak defaults for
+ * and @rulvar/evals ships NO default judge model: weak defaults for
  * judging are forbidden, so the model is always explicit.
  */
 export interface JudgeSpec {

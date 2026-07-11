@@ -51,7 +51,7 @@ export function checkpointRefFor(runId: string, runningSeq: number): string {
   return `${runId}/ckpt/${runningSeq}`;
 }
 
-const BYTES_MARKER = '__lurkerBytes';
+const BYTES_MARKER = '__rulvarBytes';
 
 function encodePart(part: Part): unknown {
   if (part.type === 'image' && part.data instanceof Uint8Array) {

@@ -1,7 +1,7 @@
 {
-  "name": "@lurker/bridge-ai-sdk",
+  "name": "@rulvar/bridge-ai-sdk",
   "version": "0.9.0",
-  "description": "lurker bridge adapter wrapping any Vercel AI SDK LanguageModelV4 as a ProviderAdapter.",
+  "description": "rulvar bridge adapter wrapping any Vercel AI SDK LanguageModelV4 as a ProviderAdapter.",
   "type": "module",
   "license": "UNLICENSED",
   "private": true,
@@ -30,12 +30,21 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "catalog:",
-    "@lurker/core": "workspace:*"
+    "@rulvar/core": "workspace:*"
   },
   "devDependencies": {
     "@ai-sdk/google": "catalog:",
     "@types/node": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/o-stepper/rulvar.git",
+    "directory": "packages/bridge-ai-sdk"
+  },
+  "homepage": "https://rulvar.com",
+  "bugs": {
+    "url": "https://github.com/o-stepper/rulvar/issues"
   }
 }

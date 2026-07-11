@@ -1,4 +1,4 @@
-import { CompiledWorkflow, Ctx, Engine, InMemoryStore, JournalEntry, Json, ModelSpec, RunHandle, ScriptRejected, ScriptRunner } from "@lurker/core";
+import { CompiledWorkflow, Ctx, Engine, InMemoryStore, JournalEntry, Json, ModelSpec, RunHandle, ScriptRejected, ScriptRunner } from "@rulvar/core";
 
 //#region src/compile.d.ts
 /**
@@ -90,7 +90,7 @@ declare const SANDBOX_DETERMINISM_SOURCE: string;
 /**
 * One fresh sandbox-determinism run on a fresh store; two invocations
 * with the same worker produce byte-identical normalized journals (the
-* cassette assertion). The adapter factory keeps @lurker/testing out of
+* cassette assertion). The adapter factory keeps @rulvar/testing out of
 * the planner's dependency graph.
 */
 declare function runSandboxDeterminism(options: {
@@ -99,7 +99,7 @@ declare function runSandboxDeterminism(options: {
   modelRef: string;
 }): Promise<JournalEntry[]>;
 declare const SELF_REPAIR_GOAL = "m6 cassette: summarize the corpus";
-/** The failing first draft: bare Date.now trips lurker/no-bare-date. */
+/** The failing first draft: bare Date.now trips rulvar/no-bare-date. */
 declare const SELF_REPAIR_BAD_DRAFT: string;
 /** The repaired draft the fake planner returns once diagnostics arrive. */
 declare const SELF_REPAIR_GOOD_DRAFT: string;

@@ -31,7 +31,7 @@ import {
   type SchemaSpec,
   type Usage,
   type WireError,
-} from '@lurker/core';
+} from '@rulvar/core';
 import { FAKE_MODEL_REF } from '../fake-adapter.js';
 
 const BASE_MS = Date.parse('2026-02-01T00:00:00.000Z');
@@ -65,7 +65,7 @@ const RING = registryKeyRing(buildDeriverRegistry());
 
 /**
  * Derives the content key an entry of `hashVersion` carries for this
- * identity. The synthetic hashVersion 0 profile of @lurker/compat shares
+ * identity. The synthetic hashVersion 0 profile of @rulvar/compat shares
  * the v1 projection by construction (deriverV0Synthetic =
  * { ...deriverV1, hashVersion: 0 }), so v0 fixture keys derive through
  * the v1 profile; synthetic FUTURE versions borrow the v2 derivation (the
@@ -508,7 +508,7 @@ export function buildM2CassetteFixtures(): CassetteFixture[] {
     j.agentOp({ prompt: PROMPTS.v0Relic, hashVersion: 0, value: 'relic out', usage: usageOf(40, 5) });
     fixtures.push({
       id: 'reject-version-too-old',
-      note: 'DEF-6: hashVersion 0 sits outside the [1,2] window: JournalCompatibilityError HASH_VERSION_TOO_OLD with zero side effects; deriverV0Synthetic from @lurker/compat reopens the window via extraDerivers.',
+      note: 'DEF-6: hashVersion 0 sits outside the [1,2] window: JournalCompatibilityError HASH_VERSION_TOO_OLD with zero side effects; deriverV0Synthetic from @rulvar/compat reopens the window via extraDerivers.',
       entries: j.entries,
     });
   }
@@ -583,7 +583,7 @@ export function buildV2GoldenIdentity(): Record<string, unknown> {
   const perKind: Array<{ name: string; input: IdentityInput }> = [
     { name: 'agent (docs/03 1.5 worked example)', input: WORKED_EXAMPLE_INPUT },
     { name: 'agent (fake model, no effort)', input: fakeAgentIdentity(PROMPTS.draftSummary) },
-    { name: 'child', input: { kind: 'child', workflow: 'sub-flow', args: { topic: 'lurker' } } },
+    { name: 'child', input: { kind: 'child', workflow: 'sub-flow', args: { topic: 'rulvar' } } },
     { name: 'step', input: { kind: 'step', key: 'persist-draft', deps: [] } },
     { name: 'step (deps)', input: { kind: 'step', key: 'fetch', deps: [{ page: 2 }] } },
     { name: 'external', input: { kind: 'external', key: 'editor-approval' } },

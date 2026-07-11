@@ -31,7 +31,7 @@ import {
   type JournalEntry,
   type ProviderAdapter,
   type Workflow,
-} from '@lurker/core';
+} from '@rulvar/core';
 import {
   agentTypeOfRequest,
   cassetteAdapter,
@@ -39,10 +39,10 @@ import {
   orchestratePlanned,
   planRunner,
   type CassetteTurn,
-} from '@lurker/plan';
-import { InMemoryStore } from '@lurker/core';
-import { SqliteStore } from '@lurker/store-sqlite';
-import { FAKE_MODEL_REF, FakeAdapter } from '@lurker/testing';
+} from '@rulvar/plan';
+import { InMemoryStore } from '@rulvar/core';
+import { SqliteStore } from '@rulvar/store-sqlite';
+import { FAKE_MODEL_REF, FakeAdapter } from '@rulvar/testing';
 
 import { createWorker } from './worker.js';
 
@@ -60,7 +60,7 @@ function makeClock(): { now: () => number; advance: (ms: number) => void } {
 }
 
 function soakDb(): string {
-  return join(mkdtempSync(join(tmpdir(), 'lurker-soak-')), 'journal.db');
+  return join(mkdtempSync(join(tmpdir(), 'rulvar-soak-')), 'journal.db');
 }
 
 /** Counts paid two-phase agent pairs: terminal entries of kind agent. */

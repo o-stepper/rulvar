@@ -15,7 +15,7 @@ import {
   type LeasableStore,
   type RunFilter,
   type RunMeta,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 import { journalStoreConformance } from './journal.js';
 import { leasableStoreConformance } from './leasable.js';

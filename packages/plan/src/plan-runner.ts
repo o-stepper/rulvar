@@ -63,9 +63,9 @@ import {
   type TerminationLimits,
   type TriggerClass,
   type WakeDigest,
-} from '@lurker/core';
-import { canonicalIsolationTag } from '@lurker/core';
-import { checkpointRefFor } from '@lurker/core';
+} from '@rulvar/core';
+import { canonicalIsolationTag } from '@rulvar/core';
+import { checkpointRefFor } from '@rulvar/core';
 import { planHash } from './plan-hash.js';
 import {
   DEFAULT_MAX_PINNED_WORKTREES,

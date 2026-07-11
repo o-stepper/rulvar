@@ -1,4 +1,4 @@
-# @lurker/cli
+# @rulvar/cli
 
 ## 0.9.0
 
@@ -6,26 +6,26 @@
 
 - 65c7b2c: M8-T01: createServer, the HTTP shell (docs/02 section 8.2; FR-702), plus the Engine.stores seam it stands on (docs/06 10.2, M8 entry amendment).
 
-  - `@lurker/cli`: `createServer({ engine, workflows })` returns `{ fetch(req: Request): Promise<Response> }` with the five canonical routes: POST /runs (start a registered workflow), GET /runs/:id (status and outcome), GET /runs/:id/events (SSE; Last-Event-ID maps to the event seq, replay is at-least-once and consumers deduplicate on `replayed`), POST /runs/:id/external/:key (programmatic resolution, `by: 'external'`; a run that settled suspended in-process auto-resumes; a run not live in this process gets the documented offline append under a lease where the store is leasable, and resumes on a worker), GET /runs/:id/cost (the settled in-process CostReport, or the pure journal fold priced by the optional `priceUsd`). Authentication stays host middleware (docs/14, OQ-16).
-  - `@lurker/core`: the Engine interface gains the readonly `stores` accessor exposing the configured journal and transcript stores; exactly the instances createEngine received (or defaulted), no store contract widens.
-  - `@lurker/testing`: `createTestEngine` forwards the new `stores` accessor.
+  - `@rulvar/cli`: `createServer({ engine, workflows })` returns `{ fetch(req: Request): Promise<Response> }` with the five canonical routes: POST /runs (start a registered workflow), GET /runs/:id (status and outcome), GET /runs/:id/events (SSE; Last-Event-ID maps to the event seq, replay is at-least-once and consumers deduplicate on `replayed`), POST /runs/:id/external/:key (programmatic resolution, `by: 'external'`; a run that settled suspended in-process auto-resumes; a run not live in this process gets the documented offline append under a lease where the store is leasable, and resumes on a worker), GET /runs/:id/cost (the settled in-process CostReport, or the pure journal fold priced by the optional `priceUsd`). Authentication stays host middleware (docs/14, OQ-16).
+  - `@rulvar/core`: the Engine interface gains the readonly `stores` accessor exposing the configured journal and transcript stores; exactly the instances createEngine received (or defaulted), no store contract widens.
+  - `@rulvar/testing`: `createTestEngine` forwards the new `stores` accessor.
 
 - a2a3243: M8-T02: createWorker, the queue shell (docs/02 section 8.3; FR-703), plus the two queue seams it stands on (docs/06 10.2 and docs/03 12.3, M8 entry amendment).
 
-  - `@lurker/cli`: `createWorker(engine, { store: LeasableStore, concurrency? })` leases resumable and suspended runs via acquire/renew/release with fencing epochs (renew cadence ttl/3; Appendix A reference ttl 60000 ms; concurrency default 1). A store without lease capability is a typed ConfigError at start, never a silent split-brain; leasing a store other than `engine.stores.journal` is equally a ConfigError. DEF-6 repeats at acquire: a journal outside the hashVersion window releases the lease and poisons the run for this worker. Stateless workers call bare `engine.resume` with the lease; unchanged suspended runs are skipped until their journal grows; queue semantics stay honestly at-least-once with deduplication by the journal. The OQ-21 residual (original in-process args are not journaled) is bridged by the optional `argsFor` hook.
-  - `@lurker/core`: `ResumeOptions.lease` carries the worker's lease through the kernel's single append site, so a stale writer's appends are rejected by the fencing epoch and never become visible (lease theft impossible by construction); bare `engine.resume(runId)` now falls back from the persisted CompiledWorkflow source to `defaults.workflows[workflowName]` (the registry the queue worker resolves through, docs/06 10.4); the Replayer accepts the lease option.
+  - `@rulvar/cli`: `createWorker(engine, { store: LeasableStore, concurrency? })` leases resumable and suspended runs via acquire/renew/release with fencing epochs (renew cadence ttl/3; Appendix A reference ttl 60000 ms; concurrency default 1). A store without lease capability is a typed ConfigError at start, never a silent split-brain; leasing a store other than `engine.stores.journal` is equally a ConfigError. DEF-6 repeats at acquire: a journal outside the hashVersion window releases the lease and poisons the run for this worker. Stateless workers call bare `engine.resume` with the lease; unchanged suspended runs are skipped until their journal grows; queue semantics stay honestly at-least-once with deduplication by the journal. The OQ-21 residual (original in-process args are not journaled) is bridged by the optional `argsFor` hook.
+  - `@rulvar/core`: `ResumeOptions.lease` carries the worker's lease through the kernel's single append site, so a stale writer's appends are rejected by the fencing epoch and never become visible (lease theft impossible by construction); bare `engine.resume(runId)` now falls back from the persisted CompiledWorkflow source to `defaults.workflows[workflowName]` (the registry the queue worker resolves through, docs/06 10.4); the Replayer accepts the lease option.
 
 - f920013: M8-T03: the multi-process seam soak and the queue-failover-during-forced-finish cassette (the DEF-7 final cassette; docs/09 sections 6.9 and 6.10; docs/10 section 3.9 exit criteria).
 
-  - `@lurker/plan`: the public `runQueueFailoverDuringForcedFinish` cassette runner: worker A loses its lease strictly between the cap decision and the final wake; worker B reclaims with a bumped fencing epoch and rolls the forced finish forward. The stale writer's appends are rejected and invisible, exactly one cap decision exists, finalization is paid once. The LeasableStore is injected (`QueueFailoverDeps.makeStore`) so the package stays core-only; the replay test and the record script supply the reference SqliteStore.
-  - `@lurker/cli`: the multi-process-fencing-soak harness: two workers over one SqliteStore file with kill/failover across the suspension, plan-revision, and forced-finish boundaries; every round asserts zero split-brain and zero double pay. Worker hardening: a failed renew now frees the concurrency slot immediately (a stale run whose landings all reject may never settle; fencing, not the stale process's cooperation, protects the journal).
+  - `@rulvar/plan`: the public `runQueueFailoverDuringForcedFinish` cassette runner: worker A loses its lease strictly between the cap decision and the final wake; worker B reclaims with a bumped fencing epoch and rolls the forced finish forward. The stale writer's appends are rejected and invisible, exactly one cap decision exists, finalization is paid once. The LeasableStore is injected (`QueueFailoverDeps.makeStore`) so the package stays core-only; the replay test and the record script supply the reference SqliteStore.
+  - `@rulvar/cli`: the multi-process-fencing-soak harness: two workers over one SqliteStore file with kill/failover across the suspension, plan-revision, and forced-finish boundaries; every round asserts zero split-brain and zero double pay. Worker hardening: a failed renew now frees the concurrency slot immediately (a stale run whose landings all reject may never settle; fencing, not the stale process's cooperation, protects the journal).
   - Repo: `cassettes/queue-failover-during-forced-finish.json` recorded and frozen (double-run agreement; `scripts/record-m8-cassettes.mjs`); the queue-mode limitation stays documented (no distributed cross-process rate limiter, EXC-14/OQ-17).
 
 - ebc8101: M8-T04: the redaction and retention interim rules executed (docs/14 OQ-20 and OQ-22; docs/09 section 8 rewritten to the executed state; docs/03 12.4 and 12.8; docs/06 10.1 and 10.2 amendments).
 
-  - `@lurker/core`: the L0 SerializationHook (`createEngine({ serialization })`): redact/encrypt at the append/put boundaries, symmetric on load/get, applied by wrapping the stores so `Engine.stores` exposes the one policy point; kernel ordering fields are drift-checked with a loud ConfigError. Default key masking at the telemetry boundary: every emitted WorkflowEvent passes `maskSecrets` (provider keys, PATs, bearer tokens, JWTs, private-key blocks become `[masked-secret]`); opt out via `redaction: { maskEvents: false }`; never touches the journal. Retention: `TranscriptStore.delete(ref)` joins the SPI (missing ref is a no-op; InMemory and File stores implement it), `Engine.deleteRun(runId)` cascades blob deletion before the journal (no orphan transcripts), and `Engine.pruneRun(runId)` deletes checkpoint blobs of ok-terminal attempts that nothing else references (parked, cancelled, escalated, and hanging attempts keep theirs).
-  - `@lurker/cli`: `createServer` and `createWorker` take the opt-in `retention` predicate over RunMeta (the server applies it at terminal settles, the worker during sweeps under a brief lease); the OTel exporter masks string span attributes with the same policy, defense in depth over the already conservative attribute content policy.
-  - `@lurker/testing`: `createTestEngine` forwards `deleteRun`/`pruneRun`.
+  - `@rulvar/core`: the L0 SerializationHook (`createEngine({ serialization })`): redact/encrypt at the append/put boundaries, symmetric on load/get, applied by wrapping the stores so `Engine.stores` exposes the one policy point; kernel ordering fields are drift-checked with a loud ConfigError. Default key masking at the telemetry boundary: every emitted WorkflowEvent passes `maskSecrets` (provider keys, PATs, bearer tokens, JWTs, private-key blocks become `[masked-secret]`); opt out via `redaction: { maskEvents: false }`; never touches the journal. Retention: `TranscriptStore.delete(ref)` joins the SPI (missing ref is a no-op; InMemory and File stores implement it), `Engine.deleteRun(runId)` cascades blob deletion before the journal (no orphan transcripts), and `Engine.pruneRun(runId)` deletes checkpoint blobs of ok-terminal attempts that nothing else references (parked, cancelled, escalated, and hanging attempts keep theirs).
+  - `@rulvar/cli`: `createServer` and `createWorker` take the opt-in `retention` predicate over RunMeta (the server applies it at terminal settles, the worker during sweeps under a brief lease); the OTel exporter masks string span attributes with the same policy, defense in depth over the already conservative attribute content policy.
+  - `@rulvar/testing`: `createTestEngine` forwards `deleteRun`/`pruneRun`.
 
 ### Patch Changes
 
@@ -33,7 +33,7 @@
 - Updated dependencies [65c7b2c]
 - Updated dependencies [a2a3243]
 - Updated dependencies [ebc8101]
-  - @lurker/core@0.9.0
+  - @rulvar/core@0.9.0
 
 ## 0.8.0
 
@@ -50,32 +50,32 @@
 - Updated dependencies [fd33871]
 - Updated dependencies [e70e7f4]
 - Updated dependencies [bc9c903]
-  - @lurker/core@0.8.0
+  - @rulvar/core@0.8.0
 
 ## 0.7.0
 
 ### Minor Changes
 
-- 10b45f1: M6-T11: the lurker plan command and the M6 gating cassettes. `lurker plan "<goal>" [--dry-run]` (the canonical grammar) loads @lurker/planner DYNAMICALLY (the CLI's static dependency stays @lurker/core; a missing install is a clear error), plans against the host-config engine, prints the accepted script plus its advisory diagnostics, and runs it in the worker sandbox unless --dry-run. The three docs/09 6.10 gating cassettes are recorded on the FakeAdapter and committed under the frozen-fixture lock with exported scenario builders shared by the recorder script and the replay tests: sandbox-determinism (two fresh runs of one CompiledWorkflow produce byte-identical normalized journals matching the cassette), planner-self-repair (the failing draft round-trips through the JSON-diagnostics repair, re-planning from the committed journal is free, and the accepted script executes deterministically in the sandbox), and orchestrator-crash-resume (the committed pre-crash journal plus boundary checkpoints resume with zero re-paid spawns, no duplicate spawn decisions, and byte-stable handles).
+- 10b45f1: M6-T11: the rulvar plan command and the M6 gating cassettes. `rulvar plan "<goal>" [--dry-run]` (the canonical grammar) loads @rulvar/planner DYNAMICALLY (the CLI's static dependency stays @rulvar/core; a missing install is a clear error), plans against the host-config engine, prints the accepted script plus its advisory diagnostics, and runs it in the worker sandbox unless --dry-run. The three docs/09 6.10 gating cassettes are recorded on the FakeAdapter and committed under the frozen-fixture lock with exported scenario builders shared by the recorder script and the replay tests: sandbox-determinism (two fresh runs of one CompiledWorkflow produce byte-identical normalized journals matching the cassette), planner-self-repair (the failing draft round-trips through the JSON-diagnostics repair, re-planning from the committed journal is free, and the accepted script executes deterministically in the sandbox), and orchestrator-crash-resume (the committed pre-crash journal plus boundary checkpoints resume with zero re-paid spawns, no duplicate spawn decisions, and byte-stable handles).
 
 ### Patch Changes
 
-- 9f000a7: Drop the @lurker/planner peer declaration from the CLI: the plan command loads the planner DYNAMICALLY and reports a clear error when it is not installed, and a workspace peer dependency would major-cascade the whole fixed group on every planner bump under the changesets peer-dependents rule (0.6.0 would have released as 1.0.0 instead of 0.7.0).
+- 9f000a7: Drop the @rulvar/planner peer declaration from the CLI: the plan command loads the planner DYNAMICALLY and reports a clear error when it is not installed, and a workspace peer dependency would major-cascade the whole fixed group on every planner bump under the changesets peer-dependents rule (0.6.0 would have released as 1.0.0 instead of 0.7.0).
 - Updated dependencies [fd1d06c]
 - Updated dependencies [6fcf296]
 - Updated dependencies [dcc97a9]
 - Updated dependencies [434dc83]
 - Updated dependencies [03173c1]
 - Updated dependencies [11c0afc]
-  - @lurker/core@0.7.0
+  - @rulvar/core@0.7.0
 
 ## 0.6.0
 
 ### Minor Changes
 
-- fa05007: M5-T01 workflow registry and the @lurker/cli base.
+- fa05007: M5-T01 workflow registry and the @rulvar/cli base.
 
-  - `@lurker/core` gains the per-engine `WorkflowRegistry` type and
+  - `@rulvar/core` gains the per-engine `WorkflowRegistry` type and
     `defaults.workflows` on createEngine (docs/06 section 10.4): an
     explicit first-class value, no module-level registry; shells resolve
     by-name runs against it (ctx.workflow's string form arrives M6, the
@@ -84,18 +84,18 @@
     createEngine top level to its canonical home `defaults.roleFloors`
     (docs/06 section 10.1). Update `createEngine({ floors })` call sites
     to `createEngine({ defaults: { roleFloors } })`.
-  - `@lurker/cli` ships its first real surface: the canonical grammar
-    `lurker run <file|name> [--args JSON] [--store PATH] [--budget-usd N]`,
-    `lurker resume <runId> [--args JSON] [--store PATH]`,
-    `lurker runs ls [--store PATH]`, `lurker inspect <runId> [--store
+  - `@rulvar/cli` ships its first real surface: the canonical grammar
+    `rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N]`,
+    `rulvar resume <runId> [--args JSON] [--store PATH]`,
+    `rulvar runs ls [--store PATH]`, `rulvar inspect <runId> [--store
 PATH]` (no aliases), a line-oriented TUI progress renderer over the
     event stream, and interactive resolution of suspended approvals and
     externals (EOF leaves the run suspended, never errors). Engine
-    assembly follows the host-config convention: `lurker.config.mjs`
+    assembly follows the host-config convention: `rulvar.config.mjs`
     default-exports `{ engineOptions?, workflows? }`, a workflow module
     may export `workflow`/`engineOptions`/`workflows`, and --store selects
-    the JsonlFileStore directory (default `.lurker`), so the CLI itself
-    depends only on @lurker/core. The `lurker` bin is included; the
+    the JsonlFileStore directory (default `.rulvar`), so the CLI itself
+    depends only on @rulvar/core. The `rulvar` bin is included; the
     resume/inspect grammar amendment (--args re-supply, --store symmetry)
     is recorded in docs/06 section 10.5.
 
@@ -109,7 +109,7 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   terminal servedBy with abandoned subtrees contributing zero; phase,
   agentType, and role attribution are live-run facts that entries do not
   carry (byRole and the orchestrator block complete in M7 per DEF-7).
-  Unpriced models keep surfacing, never as silent zeros. `lurker inspect`
+  Unpriced models keep surfacing, never as silent zeros. `rulvar inspect`
   gains the cost view (total, byModel, unpriced) over the config-assembled
   price function (table wins over caps.pricing), and live run output
   prints the byModel/byPhase buckets.
@@ -121,13 +121,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
     spawn limits, with no functions and no named model strings (named
     strong defaults stay in the umbrella). They are never engine
     semantics: a source-scan test asserts the engine has zero branches
-    keyed on profile names. `lurker run --profile <name>` applies the
+    keyed on profile names. `rulvar run --profile <name>` applies the
     chosen profile UNDER the host's own engine options (host always wins;
     the engine then sees only ordinary options), compiling the profile's
     permission preset into the engine deny/ask layers as data.
-  - `@lurker/cli` gains `toOtel(run, tracer)`: it maps a settled run's
+  - `@rulvar/cli` gains `toOtel(run, tracer)`: it maps a settled run's
     spanId tree 1:1 onto OpenTelemetry spans (run > phase > agent > tool >
-    child), with lurker.* and gen_ai.* attributes, start/end timestamps
+    child), with rulvar.* and gen_ai.* attributes, start/end timestamps
     from the lifecycle events, and payload-only events attached as span
     events. Prompts, completions, and tool payloads are NEVER exported;
     replayed events never create duplicate spans. `@opentelemetry/api`
@@ -148,7 +148,7 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 - Updated dependencies [644512c]
 - Updated dependencies [8a41656]
 - Updated dependencies [02f7f7a]
-  - @lurker/core@0.6.0
+  - @rulvar/core@0.6.0
 
 ## 0.5.0
 
@@ -160,7 +160,7 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 - Updated dependencies [8ae129e]
 - Updated dependencies [d1c4525]
 - Updated dependencies [b840aba]
-  - @lurker/core@0.5.0
+  - @rulvar/core@0.5.0
 
 ## 0.4.0
 
@@ -174,7 +174,7 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 - Updated dependencies [6513ce8]
 - Updated dependencies [7dad493]
 - Updated dependencies [2bbf180]
-  - @lurker/core@0.4.0
+  - @rulvar/core@0.4.0
 
 ## 0.3.0
 
@@ -186,7 +186,7 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 - Updated dependencies [24ebadf]
 - Updated dependencies [a1b35d3]
 - Updated dependencies [18a5821]
-  - @lurker/core@0.3.0
+  - @rulvar/core@0.3.0
 
 ## 0.2.0
 
@@ -197,7 +197,7 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 - Updated dependencies [1af8fb9]
 - Updated dependencies [1fe0249]
 - Updated dependencies [5c4fc32]
-  - @lurker/core@0.2.0
+  - @rulvar/core@0.2.0
 
 ## 0.1.0
 
@@ -207,7 +207,7 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   monorepo scaffold on the committed toolchain (pnpm 11 workspaces with
   catalogs, TypeScript 6.0, tsdown, Vitest 4, ESLint 9 flat config,
   Turborepo 2, changesets fixed mode, npm trusted publishing), the docs/
-  canon as single source of truth, the L0 contracts skeleton in @lurker/core,
+  canon as single source of truth, the L0 contracts skeleton in @rulvar/core,
   and the vendored dependencies (StandardSchemaV1/StandardJSONSchemaV1 types,
   the @cfworker/json-schema lineage validator subset, a first-party monotonic
   ULID). Placeholder scaffolds only: no public API ships in this release.
@@ -215,4 +215,4 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 ### Patch Changes
 
 - Updated dependencies [f4e2be9]
-  - @lurker/core@0.1.0
+  - @rulvar/core@0.1.0

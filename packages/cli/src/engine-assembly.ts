@@ -1,7 +1,7 @@
 /**
  * Engine assembly for CLI commands: the host's config supplies adapters
- * and defaults (the CLI depends only on @lurker/core, docs/02 section
- * 4); --store selects the JsonlFileStore directory (default `.lurker`),
+ * and defaults (the CLI depends only on @rulvar/core, docs/02 section
+ * 4); --store selects the JsonlFileStore directory (default `.rulvar`),
  * and an explicit stores entry in engineOptions wins over it.
  */
 import { resolve } from 'node:path';
@@ -21,13 +21,13 @@ import {
   type RunProfile,
   type Usage,
   type WorkflowRegistry,
-} from '@lurker/core';
+} from '@rulvar/core';
 
-import { compilePermissionPreset, ConfigError } from '@lurker/core';
+import { compilePermissionPreset, ConfigError } from '@rulvar/core';
 
 import type { CliConfig, LoadedWorkflowModule } from './config.js';
 
-export const DEFAULT_STORE_DIR = '.lurker';
+export const DEFAULT_STORE_DIR = '.rulvar';
 
 export interface AssembledCli {
   engine: Engine;

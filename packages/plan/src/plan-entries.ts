@@ -13,7 +13,7 @@
  * hashVersion; a mismatch raises the typed ReplayPlanHashMismatch without
  * corrupting the journal further.
  */
-import { deriverV2, PlanInvariantError, ReplayPlanHashMismatch } from '@lurker/core';
+import { deriverV2, PlanInvariantError, ReplayPlanHashMismatch } from '@rulvar/core';
 import type {
   AdmissionDecision,
   EntryRef,
@@ -24,7 +24,7 @@ import type {
   LogicalTaskId,
   NodeId,
   SpawnLineageOpt,
-} from '@lurker/core';
+} from '@rulvar/core';
 import { planHash } from './plan-hash.js';
 import {
   assertPlanTransition,

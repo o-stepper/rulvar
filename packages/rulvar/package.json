@@ -1,7 +1,7 @@
 {
-  "name": "@lurker/lurker",
+  "name": "@rulvar/rulvar",
   "version": "0.9.0",
-  "description": "lurker umbrella package: re-exports @lurker/core, both first-class adapters, the file store, and the terminal progress renderer. Published as @lurker/lurker while the unscoped name is contingent (docs/13, section \"Naming risk note\").",
+  "description": "rulvar umbrella package: re-exports @rulvar/core, both first-class adapters, the file store, and the terminal progress renderer. Published as @rulvar/rulvar while the unscoped name is contingent (docs/13, section \"Naming risk note\").",
   "type": "module",
   "license": "UNLICENSED",
   "private": true,
@@ -29,15 +29,24 @@
     "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only"
   },
   "dependencies": {
-    "@lurker/core": "workspace:*",
-    "@lurker/anthropic": "workspace:*",
-    "@lurker/openai": "workspace:*"
+    "@rulvar/core": "workspace:*",
+    "@rulvar/anthropic": "workspace:*",
+    "@rulvar/openai": "workspace:*"
   },
   "devDependencies": {
-    "@lurker/testing": "workspace:*",
+    "@rulvar/testing": "workspace:*",
     "@types/node": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "zod": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/o-stepper/rulvar.git",
+    "directory": "packages/rulvar"
+  },
+  "homepage": "https://rulvar.com",
+  "bugs": {
+    "url": "https://github.com/o-stepper/rulvar/issues"
   }
 }

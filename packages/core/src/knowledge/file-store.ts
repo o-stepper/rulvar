@@ -1,6 +1,6 @@
 /**
  * FileModelKnowledgeStore (M10-T01): the default ModelKnowledgeStore, a
- * single JSON file in the project (`./lurker.models.json`),
+ * single JSON file in the project (`./rulvar.models.json`),
  * git-diffable, serverless, embeddable. The git review of that file IS
  * the human gate's medium (docs/05, sections "Data model" and "Format
  * decision rationale"); the store itself only enforces the mechanics:
@@ -94,7 +94,7 @@ export function applyClaimOps(
 }
 
 export interface FileModelKnowledgeStoreOptions {
-  /** Default './lurker.models.json' (docs/05, section "Data model"). */
+  /** Default './rulvar.models.json' (docs/05, section "Data model"). */
   path?: string;
   /** docs/06, Appendix A: active claims per (model, taskClass); default 8. */
   activeClaimsCap?: number;
@@ -107,7 +107,7 @@ export class FileModelKnowledgeStore implements ModelKnowledgeStore {
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(options?: FileModelKnowledgeStoreOptions) {
-    this.path = resolve(options?.path ?? './lurker.models.json');
+    this.path = resolve(options?.path ?? './rulvar.models.json');
     this.activeClaimsCap = options?.activeClaimsCap;
   }
 

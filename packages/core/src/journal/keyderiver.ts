@@ -195,8 +195,8 @@ export function scanJournalCompatibility(
         entryHashVersion: entry.hashVersion,
         supportedRange: { min, max },
         hint: tooNew
-          ? 'upgrade lurker'
-          : `enable deriverV${entry.hashVersion} from @lurker/compat via extraDerivers`,
+          ? 'upgrade rulvar'
+          : `enable deriverV${entry.hashVersion} from @rulvar/compat via extraDerivers`,
       },
     );
   }

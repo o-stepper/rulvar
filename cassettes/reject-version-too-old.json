@@ -1,6 +1,6 @@
 {
   "id": "reject-version-too-old",
-  "note": "DEF-6: hashVersion 0 sits outside the [1,2] window: JournalCompatibilityError HASH_VERSION_TOO_OLD with zero side effects; deriverV0Synthetic from @lurker/compat reopens the window via extraDerivers.",
+  "note": "DEF-6: hashVersion 0 sits outside the [1,2] window: JournalCompatibilityError HASH_VERSION_TOO_OLD with zero side effects; deriverV0Synthetic from @rulvar/compat reopens the window via extraDerivers.",
   "entries": [
     {
       "hashVersion": 0,

@@ -29,7 +29,7 @@
  * nearly-finished child is never killed mid-turn, and park/unpark churn
  * feeds the oscillation counter.
  */
-import type { Json } from '@lurker/core';
+import type { Json } from '@rulvar/core';
 
 /** RevisionGuards configuration (docs/07, 3.8). */
 export interface RevisionGuardsOptions {

@@ -48,7 +48,7 @@ import {
   type LeasableStore,
   type Lease,
   type RunMeta,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 /** Appendix A: the committed reference lease ttl (docs/06). */
 export const DEFAULT_WORKER_TTL_MS = 60_000;
@@ -115,7 +115,7 @@ let workerOrdinal = 0;
 
 function workerIdentity(): string {
   workerOrdinal += 1;
-  return `lurker-worker:${process.pid}:${workerOrdinal}`;
+  return `rulvar-worker:${process.pid}:${workerOrdinal}`;
 }
 
 export function createWorker(engine: Engine, options: CreateWorkerOptions): Worker {
@@ -129,7 +129,7 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
     throw new ConfigError(
       'createWorker requires a LeasableStore (acquire/renew/release with fencing epochs); ' +
         'the supplied store has no lease capability (docs/03, section 12.3). Use ' +
-        '@lurker/store-sqlite or another conformant LeasableStore.',
+        '@rulvar/store-sqlite or another conformant LeasableStore.',
     );
   }
   if (engine.stores.journal !== (store as JournalStore)) {

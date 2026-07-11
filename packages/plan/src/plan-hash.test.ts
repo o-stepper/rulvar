@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CURRENT_HASH_VERSION, PlanInvariantError } from '@lurker/core';
+import { CURRENT_HASH_VERSION, PlanInvariantError } from '@rulvar/core';
 
 import { PLAN_HASH_VERSION, assertPlanHead, canonicalPlanState, planHash } from './plan-hash.js';
 import { emptyPlan, type PlanNode, type TaskPlan } from './plan-state.js';

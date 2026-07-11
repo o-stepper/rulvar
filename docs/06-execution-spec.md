@@ -364,7 +364,7 @@ interface OrchestratorBudgetSpec { // resolved: call override > profile (orchest
 }
 interface OrchestrateOptions /* existing plan options */ { budget?: OrchestratorBudgetSpec }
 
-class OrchestratorCapConfigError extends LurkerError {} // cap unresolvable or effectiveCap < finalizeReserve
+class OrchestratorCapConfigError extends RulvarError {} // cap unresolvable or effectiveCap < finalizeReserve
 ```
 
 Normative rules (DEF-7):
@@ -535,7 +535,7 @@ Mandatory for machine-generated scripts (mode b). Contract:
 - Port lifecycle: one dedicated `MessageChannel` per run; the worker end is passed in the transfer list at startup; the host keeps its end referenced while the run is live and unrefs and closes it at the terminal outcome so a worker cannot keep the host process alive.
 - `ctx.step` bodies execute inside the worker; only the JSON result is RPC'd to the host for journaling (section 2.4).
 - `ctx.workflow` is available only in the registered-name string form (section 2.5).
-- Breaching `timeoutMs` or `memoryMb` terminates the worker; the run completes with outcome `'error'` carrying a typed `LurkerError` code (registry: 02-architecture.md, section "Error taxonomy").
+- Breaching `timeoutMs` or `memoryMb` terminates the worker; the run completes with outcome `'error'` carrying a typed `RulvarError` code (registry: 02-architecture.md, section "Error taxonomy").
 
 Committed mechanics (amended during M6-T02):
 
@@ -560,7 +560,7 @@ The sanctioned sandbox dialect (the API card teaches exactly this to the planner
 - policies as declarative rule tables without closures;
 - ladders as JSON.
 
-### 8.4 eslint-plugin-lurker
+### 8.4 eslint-plugin-rulvar
 
 Rules (lockstep-versioned despite the npm-required unscoped name; 12-release-versioning.md, section "Exemptions"):
 
@@ -593,7 +593,7 @@ function orchestrate(engine: Engine, goal: string,
 
 ### 9.2 Mode (b): flagship hybrid
 
-`plan()` asks a planner model (role `'plan'`) to write a script against the API card of the ctx dialect and the profile cards, lints it, self-repairs up to `repairRounds` rounds (default 3) from the JSON diagnostics, then `compileScript` and deterministic execution in WorkerSandboxRunner. Replanning after a failure replays the unchanged prefix for free (invariant I1): the planner conversation is an ordinary journaled run whose runId derives deterministically from the goal (`plan-` plus a hash prefix), so plan() resumes the same journal on the same store. (Amended during M6-T05: the runId derivation committed.) `runPlanned` composes plan-then-run in one call. Packages: @lurker/planner (02-architecture.md, section "Package map"; note the @lurker/plan vs @lurker/planner disambiguation table there).
+`plan()` asks a planner model (role `'plan'`) to write a script against the API card of the ctx dialect and the profile cards, lints it, self-repairs up to `repairRounds` rounds (default 3) from the JSON diagnostics, then `compileScript` and deterministic execution in WorkerSandboxRunner. Replanning after a failure replays the unchanged prefix for free (invariant I1): the planner conversation is an ordinary journaled run whose runId derives deterministically from the goal (`plan-` plus a hash prefix), so plan() resumes the same journal on the same store. (Amended during M6-T05: the runId derivation committed.) `runPlanned` composes plan-then-run in one call. Packages: @rulvar/planner (02-architecture.md, section "Package map"; note the @rulvar/plan vs @rulvar/planner disambiguation table there).
 
 ### 9.3 Mode (c): dynamic orchestrator
 
@@ -637,7 +637,7 @@ function createEngine(o: {
   };
   concurrency?: { perRun?: number; perProvider?: Record<string, number> }; // perRun default 12
   runners?: { sandbox?: ScriptRunner };       // executes CompiledWorkflow values (section 8.2);
-                                              // WorkerSandboxRunner ships in @lurker/planner; running or
+                                              // WorkerSandboxRunner ships in @rulvar/planner; running or
                                               // resuming a compiled workflow without one is a typed
                                               // ConfigError. (Amended during M6-T02: the runner seam
                                               // needed an engine registration point.)
@@ -730,7 +730,7 @@ M8 entry amendments (the shells are a permanent seam-sufficiency test: 02-archit
 
 The binding contract (residuals tracked in 14-open-questions.md, resume binding residuals):
 
-- CompiledWorkflow: at `engine.run` the engine MUST persist the compiled source and its content hash (source blob in TranscriptStore at `workflowSourceRef`; `workflowSourceRef` and `workflowHash` recorded in RunMeta, 03-journal-spec.md, section "RunMeta"). `engine.resume(runId)` with no `wf` MUST reload the stored source and rehydrate the CompiledWorkflow from it, verifying byte identity against the recorded `workflowHash`; the compileScript dialect validation is NOT re-run at resume because the hash proves the source is exactly the one validated at run start (the sandbox boundary enforces the hard rules at runtime regardless). Planned runs (mode b) are therefore resumable by construction; cross-process resume requires a durable TranscriptStore (FileTranscriptStore; 03-journal-spec.md, section "Shipped stores"). Supplying a `wf` whose source hash differs from the recorded one is a typed `ConfigError`. Compiled workflows execute on the engine-registered `runners.sandbox` (section 10.1); its absence is a typed `ConfigError` before any journal entry. Delivery note: `CompiledWorkflow` values first exist at M6 (compileScript ships in @lurker/planner; 10-implementation-plan.md), and this persistence contract binds from that first release, so a planner-generated run without persisted source never exists. (Amended during M6-T02: "recompile" committed as hash-pinned rehydration; runner selection and the durable-transcripts requirement made explicit.)
+- CompiledWorkflow: at `engine.run` the engine MUST persist the compiled source and its content hash (source blob in TranscriptStore at `workflowSourceRef`; `workflowSourceRef` and `workflowHash` recorded in RunMeta, 03-journal-spec.md, section "RunMeta"). `engine.resume(runId)` with no `wf` MUST reload the stored source and rehydrate the CompiledWorkflow from it, verifying byte identity against the recorded `workflowHash`; the compileScript dialect validation is NOT re-run at resume because the hash proves the source is exactly the one validated at run start (the sandbox boundary enforces the hard rules at runtime regardless). Planned runs (mode b) are therefore resumable by construction; cross-process resume requires a durable TranscriptStore (FileTranscriptStore; 03-journal-spec.md, section "Shipped stores"). Supplying a `wf` whose source hash differs from the recorded one is a typed `ConfigError`. Compiled workflows execute on the engine-registered `runners.sandbox` (section 10.1); its absence is a typed `ConfigError` before any journal entry. Delivery note: `CompiledWorkflow` values first exist at M6 (compileScript ships in @rulvar/planner; 10-implementation-plan.md), and this persistence contract binds from that first release, so a planner-generated run without persisted source never exists. (Amended during M6-T02: "recompile" committed as hash-pinned rehydration; runner selection and the durable-transcripts requirement made explicit.)
 - In-process Workflow: `engine.run` records the registered workflow name and a content hash of the body in RunMeta (`workflowName`/`workflowHash`). `engine.resume(runId, wf)` with an explicit `wf` checks binding: a name mismatch is a typed `ConfigError`; a content-hash mismatch produces a LOUD warning and proceeds, because the journal itself decides replay versus live per content keys. `engine.resume(runId)` with no `wf` resolves the workflow by the recorded `workflowName` from `defaults.workflows` (M8 entry amendment above); a run with no recorded name, or a name absent from the registry, is a typed `ConfigError` naming the registration remedy.
 
 ### 10.3 RunOptions, RunHandle, RunOutcome, RunStatus
@@ -781,15 +781,15 @@ The registry is an explicit, first-class value; there is no module-level registr
 
 ### 10.5 Canonical CLI grammar
 
-The canonical v1 grammar of @lurker/cli (M5; kb subcommands from M10). No aliases exist in v1.
+The canonical v1 grammar of @rulvar/cli (M5; kb subcommands from M10). No aliases exist in v1.
 
 ```
-lurker run <file|name> [--args JSON] [--store PATH] [--budget-usd N] [--profile NAME]
-lurker resume <runId> [--args JSON] [--store PATH]
-lurker runs ls [--store PATH]
-lurker inspect <runId> [--store PATH]
-lurker plan "<goal>" [--dry-run]
-lurker kb <list | inbox | sweep>
+rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N] [--profile NAME]
+rulvar resume <runId> [--args JSON] [--store PATH]
+rulvar runs ls [--store PATH]
+rulvar inspect <runId> [--store PATH]
+rulvar plan "<goal>" [--dry-run]
+rulvar kb <list | inbox | sweep>
 ```
 
 (Amended during M5-T01: `resume` carries `--args` because original run
@@ -799,7 +799,7 @@ in 14-open-questions.md, resume binding residuals); `resume` and
 `inspect` carry `--store` for symmetry with `run` and `runs ls`: every
 command that opens a journal store selects it the same way.)
 
-Example: `lurker run wf.ts --args '{"pr":42}' --store .lurker --budget-usd 20`. Install commands always use `@lurker/<name>`, never the bare unscoped name (naming risk note: 13-toolchain-repo.md, section "Naming risk note").
+Example: `rulvar run wf.ts --args '{"pr":42}' --store .rulvar --budget-usd 20`. Install commands always use `@rulvar/<name>`, never the bare unscoped name (naming risk note: 13-toolchain-repo.md, section "Naming risk note").
 
 ## 11 Run profiles and TaskGraph
 
@@ -823,7 +823,7 @@ This is the single consolidated defaults table for the whole docs set; every oth
 | per-run concurrency | scheduler (docs/06) | 12 | createEngine concurrency.perRun | |
 | per-provider concurrency keys | scheduler (docs/04) | unlimited (no per-provider cap unless configured; committed during M4 entry per the TBD rule) | per adapter via createEngine concurrency.perProvider | the keyed limiter ships with M4-T07; an embeddable library must not surprise-throttle hosts, so the per-run semaphore stays the only default bound and provider 429s ride RetryPolicy; hosts with known tier limits opt in per adapter id |
 | transport RetryPolicy | model layer (docs/04, section "RetryPolicy") | attempts 3; backoff initialMs 500, factor 2, maxMs 8000, jitter true; retryOn transport, rate-limit, overloaded (committed during M4 entry per the TBD rule) | per call/profile/engine | lives under the journal (a retried-then-successful call is ONE entry); a provider-supplied retryAfterMs replaces the computed delay; task-class failures never retry by construction |
-| pauseTurnMaxContinuations | @lurker/anthropic adapter (docs/04) | 5 | per adapter | pause_turn continuation cap; never a canonical finish |
+| pauseTurnMaxContinuations | @rulvar/anthropic adapter (docs/04) | 5 | per adapter | pause_turn continuation cap; never a canonical finish |
 | lifetime spawn cap | scheduler (docs/06) | 500 | budgetDefaults.lifetimeSpawnCap | engine kill switch |
 | maxDepth | AdmissionController (docs/07) | 1 | yes, hard ceiling 4 | nesting depth |
 | maxTotalSpawns | termination.init (docs/07, DEF-2) | 128 | frozen at init | orchestrate maxSpawns equals it |

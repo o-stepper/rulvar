@@ -7,7 +7,7 @@
  * corpus").
  */
 import { z } from 'zod';
-import { defineWorkflow, type Workflow } from '@lurker/core';
+import { defineWorkflow, type Workflow } from '@rulvar/core';
 
 const findingSchema = z.strictObject({
   file: z.string(),

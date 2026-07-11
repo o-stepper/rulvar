@@ -14,8 +14,8 @@
  */
 import { MessageChannel, Worker } from 'node:worker_threads';
 
-import type { CompiledWorkflow, Ctx, ScriptRunner, Workflow } from '@lurker/core';
-import { ConfigError, createSandboxBridge, SandboxError, toJournalValue } from '@lurker/core';
+import type { CompiledWorkflow, Ctx, ScriptRunner, Workflow } from '@rulvar/core';
+import { ConfigError, createSandboxBridge, SandboxError, toJournalValue } from '@rulvar/core';
 
 import type { SandboxLifecycleMessage } from './sandbox-worker.js';
 

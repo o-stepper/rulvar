@@ -1,4 +1,4 @@
-# lurker examples
+# rulvar examples
 
 Runnable reference implementations of the documented quality patterns
 (docs/00, section "Orchestration modes"; docs/11, section "Examples

@@ -2,7 +2,7 @@
  * The host half of the worker sandbox contract (M6-T02).
  *
  * Owning spec: docs/06-execution-spec.md, section 8.2. WorkerSandboxRunner
- * (@lurker/planner) owns the worker lifecycle and the MessagePort; this
+ * (@rulvar/planner) owns the worker lifecycle and the MessagePort; this
  * core-owned bridge serves every sandbox primitive against the canonical
  * ctx of the run, so the runner builds exclusively from the public API
  * (docs/02, dependency rules). The boundary is journal-compatible JSON
@@ -22,7 +22,7 @@
  *   exactly like an in-process one (the token is re-acquired BEFORE any
  *   response is posted, closing the wake latency gap).
  */
-import { ConfigError, LurkerError, type WireError } from '../l0/errors.js';
+import { ConfigError, RulvarError, type WireError } from '../l0/errors.js';
 import type { Json } from '../l0/json.js';
 import { deriveContentKey } from '../journal/identity.js';
 import { toJournalValue } from '../journal/serializable.js';
@@ -119,7 +119,7 @@ function wireOf(thrown: unknown): WireError {
       data: { status: thrown.result.status },
     };
   }
-  if (thrown instanceof LurkerError) {
+  if (thrown instanceof RulvarError) {
     return thrown.toWire();
   }
   return {

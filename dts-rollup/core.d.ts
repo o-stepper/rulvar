@@ -28,17 +28,17 @@ type WireError = {
 /**
 * The closed error-code registry (docs/02, section "Error taxonomy").
 * 'agent' is carried by the AgentError value projection, not by a
-* LurkerError subclass.
+* RulvarError subclass.
 */
 type ErrorCode = "agent" | "config" | "non_serializable_value" | "script_rejected" | "journal_compat" | "invalid_resolution" | "journal_order_violation" | "plan_invariant" | "replay_plan_hash_mismatch" | "orchestrator_cap_config" | "journal_miss" | "budget_exhausted" | "admission_rejected" | "sandbox_limit" | "lease_held" | "knowledge_cas";
-/** docs/02 names the registry type LurkerErrorCode; both names are public. */
-type LurkerErrorCode = ErrorCode;
+/** docs/02 names the registry type RulvarErrorCode; both names are public. */
+type RulvarErrorCode = ErrorCode;
 /**
 * Base class for all engine-raised errors. "Retryable" means the engine's
 * own retry machinery (RetryPolicy under the journal, docs/04) MAY retry;
 * it never means a provider SDK autoretry, which is disabled.
 */
-declare abstract class LurkerError extends Error {
+declare abstract class RulvarError extends Error {
   abstract readonly code: ErrorCode;
   readonly retryable: boolean;
   readonly data?: Json;
@@ -54,7 +54,7 @@ declare abstract class LurkerError extends Error {
 * non-git host for worktree isolation, worker over a non-leasable store,
 * failed schema projection. Never journaled; raised before any run effect.
 */
-declare class ConfigError extends LurkerError {
+declare class ConfigError extends RulvarError {
   readonly code = "config";
   constructor(message: string, opts?: {
     data?: Json;
@@ -65,7 +65,7 @@ declare class ConfigError extends LurkerError {
 * A value failed the journal append JSON-serializability check. Never
 * journaled; thrown at the call site whose value failed the check.
 */
-declare class NonSerializableValueError extends LurkerError {
+declare class NonSerializableValueError extends RulvarError {
   readonly code = "non_serializable_value";
   constructor(message: string, opts?: {
     data?: Json;
@@ -77,7 +77,7 @@ declare class NonSerializableValueError extends LurkerError {
 * own entry; surfaced as diagnostics to the plan() self-repair loop
 * (producers ship in M6).
 */
-declare class ScriptRejected extends LurkerError {
+declare class ScriptRejected extends RulvarError {
   readonly code = "script_rejected";
   constructor(message: string, opts?: {
     data?: Json;
@@ -92,7 +92,7 @@ type JournalCompatSubCode = "HASH_VERSION_TOO_OLD" | "HASH_VERSION_TOO_NEW";
 * The registry code is 'journal_compat'; the docs/03 sub-codes live on
 * `subCode` and in `data`.
 */
-declare class JournalCompatibilityError extends LurkerError {
+declare class JournalCompatibilityError extends RulvarError {
   readonly code = "journal_compat";
   readonly subCode: JournalCompatSubCode;
   readonly runId: string;
@@ -103,7 +103,7 @@ declare class JournalCompatibilityError extends LurkerError {
     min: number;
     max: number;
   };
-  /** 'enable deriverV1 from @lurker/compat' or 'upgrade lurker'. */
+  /** 'enable deriverV1 from @rulvar/compat' or 'upgrade rulvar'. */
   readonly hint: string;
   constructor(message: string, detail: {
     subCode: JournalCompatSubCode;
@@ -122,7 +122,7 @@ declare class JournalCompatibilityError extends LurkerError {
 * the first-closing-wins fold; appends no entry (docs/03, section
 * "Suspension and resolutions"; producers ship in M2).
 */
-declare class InvalidResolutionError extends LurkerError {
+declare class InvalidResolutionError extends RulvarError {
   readonly code = "invalid_resolution";
   constructor(message: string, opts?: {
     data?: Json;
@@ -133,7 +133,7 @@ declare class InvalidResolutionError extends LurkerError {
 * A breach of the total per-run append order: an unfenced concurrent writer
 * or a store violating contract A2 (docs/03, section "Storage SPI").
 */
-declare class JournalOrderViolation extends LurkerError {
+declare class JournalOrderViolation extends RulvarError {
   readonly code = "journal_order_violation";
   constructor(message: string, opts?: {
     data?: Json;
@@ -141,7 +141,7 @@ declare class JournalOrderViolation extends LurkerError {
   });
 }
 /** PlanRunner plan-invariant rejection (docs/07; producers ship in M7). */
-declare class PlanInvariantError extends LurkerError {
+declare class PlanInvariantError extends RulvarError {
   readonly code = "plan_invariant";
   constructor(message: string, opts?: {
     data?: Json;
@@ -152,7 +152,7 @@ declare class PlanInvariantError extends LurkerError {
 * Raised at resume when the refolded plan state disagrees with the
 * journaled planHash chain (docs/07; producers ship in M7).
 */
-declare class ReplayPlanHashMismatch extends LurkerError {
+declare class ReplayPlanHashMismatch extends RulvarError {
   readonly code = "replay_plan_hash_mismatch";
   constructor(message: string, opts?: {
     data?: Json;
@@ -164,7 +164,7 @@ declare class ReplayPlanHashMismatch extends LurkerError {
 * before the first LLM call (docs/06, section "Three-layer budget", DEF-7;
 * producers ship in M6/M7).
 */
-declare class OrchestratorCapConfigError extends LurkerError {
+declare class OrchestratorCapConfigError extends RulvarError {
   readonly code = "orchestrator_cap_config";
   constructor(message: string, opts?: {
     data?: Json;
@@ -173,9 +173,9 @@ declare class OrchestratorCapConfigError extends LurkerError {
 }
 /**
 * A replay-strict run encountered a call that would go live
-* (@lurker/testing; producers ship in M2).
+* (@rulvar/testing; producers ship in M2).
 */
-declare class JournalMissError extends LurkerError {
+declare class JournalMissError extends RulvarError {
   readonly code = "journal_miss";
   constructor(message: string, opts?: {
     data?: Json;
@@ -188,7 +188,7 @@ declare class JournalMissError extends LurkerError {
 * the run reports outcome 'exhausted', overriding 'error' (docs/06, section
 * "Three-layer budget").
 */
-declare class BudgetExhaustedError extends LurkerError {
+declare class BudgetExhaustedError extends RulvarError {
   readonly code = "budget_exhausted";
   constructor(message: string, opts?: {
     data?: Json;
@@ -205,7 +205,7 @@ declare class BudgetExhaustedError extends LurkerError {
 * the run. Budget-code rejections throw BudgetExhaustedError instead,
 * keeping the docs/06 5.7 exhaustion semantics.
 */
-declare class AdmissionRejectedError extends LurkerError {
+declare class AdmissionRejectedError extends RulvarError {
   readonly code = "admission_rejected";
   constructor(message: string, opts?: {
     data?: Json;
@@ -219,7 +219,7 @@ declare class AdmissionRejectedError extends LurkerError {
 * projection; `data` records { reason: 'timeout' | 'memory', limit }.
 * The class itself is never journaled as an entry of its own.
 */
-declare class SandboxError extends LurkerError {
+declare class SandboxError extends RulvarError {
   readonly code = "sandbox_limit";
   constructor(message: string, opts?: {
     data?: Json;
@@ -231,7 +231,7 @@ declare class SandboxError extends LurkerError {
 * the lease ttl elapses or the holder releases (docs/03, section
 * "Storage SPI").
 */
-declare class LeaseHeldError extends LurkerError {
+declare class LeaseHeldError extends RulvarError {
   readonly code = "lease_held";
   constructor(message: string, opts?: {
     data?: Json;
@@ -244,7 +244,7 @@ declare class LeaseHeldError extends LurkerError {
 * the ops, commit again, mirroring the lease fencing discipline
 * (docs/05, section "Commit discipline").
 */
-declare class KnowledgeCasError extends LurkerError {
+declare class KnowledgeCasError extends RulvarError {
   readonly code = "knowledge_cas";
   constructor(message: string, opts?: {
     data?: Json;
@@ -264,7 +264,7 @@ type Issue$1 = {
 };
 /**
 * The structured error value carried on AgentResult.error and journaled
-* inside the agent terminal entry. Deliberately NOT a LurkerError subclass
+* inside the agent terminal entry. Deliberately NOT a RulvarError subclass
 * (docs/02, section "Error taxonomy").
 */
 type AgentError = {
@@ -1376,7 +1376,7 @@ interface ModelEpochInputs {
   pricingVersion?: string;
   /** The adapter's caps declaration for the subject model. */
   caps?: ModelCaps;
-  /** The @lurker/evals canary fingerprint, when probes ran. */
+  /** The @rulvar/evals canary fingerprint, when probes ran. */
   canaryFingerprint?: string;
 }
 /** Builds the optional modelEpoch block; empty inputs give undefined. */
@@ -1393,7 +1393,7 @@ declare function knowledgeHash(claims: readonly ModelClaim[]): string;
 */
 declare function applyClaimOps(claims: readonly ModelClaim[], ops: readonly ClaimOp[]): ModelClaim[];
 interface FileModelKnowledgeStoreOptions {
-  /** Default './lurker.models.json' (docs/05, section "Data model"). */
+  /** Default './rulvar.models.json' (docs/05, section "Data model"). */
   path?: string;
   /** docs/06, Appendix A: active claims per (model, taskClass); default 8. */
   activeClaimsCap?: number;
@@ -2681,7 +2681,7 @@ interface BudgetHooks {
   signal?: AbortSignal;
 }
 /** Reason marker distinguishing a budget-ceiling abort from host cancellation. */
-declare const BUDGET_ABORT_REASON = "lurker:budget-ceiling";
+declare const BUDGET_ABORT_REASON = "rulvar:budget-ceiling";
 /** One model-issued tool call as the loop dispatches it. */
 interface ToolCallRequest {
   id: string;
@@ -4203,7 +4203,7 @@ interface CreateEngineOptions {
   /**
   * Runner registrations beyond the built-in InProcessRunner (docs/06,
   * sections 8 and 10.1; M6-T02). `sandbox` executes CompiledWorkflow
-  * values (WorkerSandboxRunner ships in @lurker/planner); running or
+  * values (WorkerSandboxRunner ships in @rulvar/planner); running or
   * resuming a compiled workflow without one is a typed ConfigError.
   */
   runners?: {
@@ -4641,7 +4641,7 @@ interface OrchestratorExtensionIO {
   } & Record<string, unknown>): void;
 }
 /**
-* The extension contract. PlanRunner implements it in @lurker/plan; the
+* The extension contract. PlanRunner implements it in @rulvar/plan; the
 * mode (c) orchestrator hosts it. Everything is optional except the
 * toolset: an extension that adds no tools has no reason to exist.
 */
@@ -4708,14 +4708,14 @@ interface OrchestrateOptions {
   limits?: UsageLimits;
   /**
   * The opt-in mode (c) extension seam (M7-T05): PlanRunner from
-  * @lurker/plan attaches here (docs/07, section 1). The extension boots
+  * @rulvar/plan attaches here (docs/07, section 1). The extension boots
   * strictly before the orchestrator's first agent entry, contributes
   * tools, schedules ready plan nodes on every settlement, and
   * participates in the mandatory quiescence trigger.
   */
   extension?: OrchestratorExtension;
 }
-declare const ORCHESTRATE_WORKFLOW_NAME = "lurker-orchestrate";
+declare const ORCHESTRATE_WORKFLOW_NAME = "rulvar-orchestrate";
 /**
 * Builds the orchestrator workflow: ONE implementation behind both
 * surfaces. The body wires the spawn tools over the per-call runtime,
@@ -4993,7 +4993,7 @@ type Stage<I, O> = (item: I) => Promise<O>;
 * The rejection carrier of ctx.agent value-form calls: a real Error that
 * structurally satisfies the typed AgentError (docs/06, section "ctx.agent
 * and AgentOpts") and carries the full AgentResult for Settled mapping.
-* Deliberately not a LurkerError: AgentError is not in the closed code
+* Deliberately not a RulvarError: AgentError is not in the closed code
 * registry (docs/02, section "Error taxonomy").
 */
 declare class AgentCallError extends Error implements AgentError {
@@ -5985,4 +5985,4 @@ interface SandboxBridge {
 }
 declare function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptions): SandboxBridge;
 //#endregion
-export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentResultMeta, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, BUDGET_ABORT_REASON, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, CLAIM_STATEMENT_MAX_CHARS, CLAIM_TTL_DAYS, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, type ClaimClass, type ClaimOp, type ClaimStatus, ClaimValidationOptions, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DebitResult, DeclaredLadder, DedupIndex, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorCandidate, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, type EvidenceRef, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINISH_SCHEMA, FINISH_TOOL_NAME, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileModelKnowledgeStore, FileModelKnowledgeStoreOptions, FileTranscriptStore, FinishInfo, Gate, GateAudit, type GateRecord, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, INBOX_PROPOSAL_TTL_DAYS, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, JournalSerializationHook, type JournalStore, type Json, JsonSchema, JsonlFileStore, KB_ACTIVE_CLAIMS_CAP, KB_CARD_RENDER_BUDGET_CHARS, KeyDeriver, KeyRing, KeyedLimiter, KnowledgeCasError, type KnowledgeSnapshot, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, LurkerError, LurkerErrorCode, MASKED_SECRET, MAX_DEPTH_CEILING, MatchResult, McpConfig, MechanicalGateProfile, MechanicalGateVerdict, type ModelCaps, ModelChoice, type ModelClaim, ModelEpochInputs, type ModelKnowledgeHandle, type ModelKnowledgeStore, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateOptions, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, SerializationHook, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, type TaskClass, TaskDigest, TaskSpec, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, TranscriptSerializationHook, type TranscriptStore, TriggerClass, TtlState, Usage, UsageLimits, VerifiedRecommendation, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WAKE_SUMMARY_RENDER_BUDGET_CHARS, WakeBudgetBlock, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyClaimOps, applyStructuredOutputTier, approachSigCoarse, approachSigOf, archiveDeprecatedModelOps, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeLadder, canonicalizeSchema, capIssues, capsHashOf, checkFloors, checkpointRefFor, childCoveragePrefix, claimExpired, claimExpiry, claimIssues, claimOpIssues, classifyAgentError, classifyAttemptOutcome, collectDeclaredLadders, compactMessages, compilePermissionChain, compilePermissionPreset, compileVerifiedLayer, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyDigestBlocks, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, evaluateReuse, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, filterClaimsForRun, finalizeFires, foldTermination, formatRePrompt, formatScopePath, hashWorkflowBody, hashWorkflowSource, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, kMaxOf, knowledgeHash, ladderLengthOf, ladderRungChoice, lexShellCommand, liftRetainedParts, lineageWeightOf, makeOrchestratorWorkflow, maskSecrets, maskSecretsDeep, maskSecretsJson, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelEpochOf, modelKnowledgeCard, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, priceUsdOf, profileCard, profileRegistrySnapshotHash, projectHistory, projectIdentity, projectToJsonSchema, providerOf, readTerminationInit, registryKeyRing, remeasureQueue, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, summarizeOutput, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, ttlState, validateEditorialCommit, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateSchemaSpec, validateTerminationLimits, workflowScope, workflowSourceRef, wrapJournalStore, wrapTranscriptStore };
+export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, AgentOpts, AgentProfile, AgentProfilePermissions, AgentResult, AgentResultMeta, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, BUDGET_ABORT_REASON, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, CLAIM_STATEMENT_MAX_CHARS, CLAIM_TTL_DAYS, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildIdentityInput, type ClaimClass, type ClaimOp, type ClaimStatus, ClaimValidationOptions, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostReport, CreateEngineOptions, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DebitResult, DeclaredLadder, DedupIndex, DedupNote, DerivedKey, DeriverRegistry, DispositionRule, DispositionTable, DonorCandidate, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EntryKind, EntryRef, EntryStatus, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, type EvidenceRef, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINISH_SCHEMA, FINISH_TOOL_NAME, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileModelKnowledgeStore, FileModelKnowledgeStoreOptions, FileTranscriptStore, FinishInfo, Gate, GateAudit, type GateRecord, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, INBOX_PROPOSAL_TTL_DAYS, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, InvalidResolutionError, InvocationRole, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, JournalSerializationHook, type JournalStore, type Json, JsonSchema, JsonlFileStore, KB_ACTIVE_CLAIMS_CAP, KB_CARD_RENDER_BUDGET_CHARS, KeyDeriver, KeyRing, KeyedLimiter, KnowledgeCasError, type KnowledgeSnapshot, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, MASKED_SECRET, MAX_DEPTH_CEILING, MatchResult, McpConfig, MechanicalGateProfile, MechanicalGateVerdict, type ModelCaps, ModelChoice, type ModelClaim, ModelEpochInputs, type ModelKnowledgeHandle, type ModelKnowledgeStore, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateOptions, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, type Pricing, type ProviderAdapter, QualityFloors, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RandIdentityInput, RandPayload, RefEntryAppender, RefEntryClassification, RefusalInfo, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RulvarError, RulvarErrorCode, RunAgentOptions, RunBudget, RunEventSink, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStatus, RuntimeEventSink, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, Semaphore, SerializationHook, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, type TaskClass, TaskDigest, TaskSpec, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, TranscriptSerializationHook, type TranscriptStore, TriggerClass, TtlState, Usage, UsageLimits, VerifiedRecommendation, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WAKE_SUMMARY_RENDER_BUDGET_CHARS, WakeBudgetBlock, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, agentErrorFromWire, agentErrorToWire, agentScope, applyClaimOps, applyStructuredOutputTier, approachSigCoarse, approachSigOf, archiveDeprecatedModelOps, atCompactionThreshold, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeLadder, canonicalizeSchema, capIssues, capsHashOf, checkFloors, checkpointRefFor, childCoveragePrefix, claimExpired, claimExpiry, claimIssues, claimOpIssues, classifyAgentError, classifyAttemptOutcome, collectDeclaredLadders, compactMessages, compilePermissionChain, compilePermissionPreset, compileVerifiedLayer, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyDigestBlocks, emptyToolset, encodeCheckpoint, escalateTool, evaluatePermission, evaluateReuse, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, filterClaimsForRun, finalizeFires, foldTermination, formatRePrompt, formatScopePath, hashWorkflowBody, hashWorkflowSource, identityJcs, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, kMaxOf, knowledgeHash, ladderLengthOf, ladderRungChoice, lexShellCommand, liftRetainedParts, lineageWeightOf, makeOrchestratorWorkflow, maskSecrets, maskSecretsDeep, maskSecretsJson, matchArgvPattern, matchShellCommand, mcp, mergeUsageLimits, modelEpochOf, modelKnowledgeCard, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, priceUsdOf, profileCard, profileRegistrySnapshotHash, projectHistory, projectIdentity, projectToJsonSchema, providerOf, readTerminationInit, registryKeyRing, remeasureQueue, replayDisposition, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, spawnDepthOf, summarizeInstruction, summarizeOutput, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, ttlState, validateEditorialCommit, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateSchemaSpec, validateTerminationLimits, workflowScope, workflowSourceRef, wrapJournalStore, wrapTranscriptStore };

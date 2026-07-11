@@ -1,0 +1,848 @@
+- generic [ref=f7e1]:
+    - main [ref=f7e4]:
+        - generic [ref=f7e5]:
+            - generic [ref=f7e7]:
+                - generic [ref=f7e10]:
+                    - link "Log In" [ref=f7e125] [cursor=pointer]:
+                        - /url: /account/login
+                        - generic [ref=f7e126]: Log In
+                    - link "Cart" [ref=f7e11] [cursor=pointer]:
+                        - /url: /account/checkout
+                        - generic [ref=f7e12]: Cart
+                        - img [ref=f7e13]
+                - generic [ref=f7e17]:
+                    - link [ref=f7e18] [cursor=pointer]:
+                        - /url: /
+                    - button "Domains" [ref=f7e21] [cursor=pointer]
+                    - button "Products" [ref=f7e23] [cursor=pointer]
+                    - button "API" [ref=f7e25] [cursor=pointer]
+                    - button "Support ●" [ref=f7e27] [cursor=pointer]
+            - generic [ref=f7e127]:
+                - generic [ref=f7e135]:
+                    - searchbox "Search" [ref=f7e138]: rulvar.ai
+                    - button "Search" [ref=f7e141]:
+                        - img [ref=f7e144]
+                - generic [ref=f7e147]:
+                    - generic [ref=f7e149]:
+                        - generic [ref=f7e150]: Your domain is available!
+                        - button "Filter" [ref=f7e151]:
+                            - generic [ref=f7e152]:
+                                - text: Filter
+                                - img [ref=f7e153]
+                    - button "rulvar.ai 2 years required $99.99 Renewal $99.99 Add to Favorites list Add to Cart" [ref=f7e156]:
+                        - generic [ref=f7e158]:
+                            - generic [ref=f7e159]:
+                                - generic [ref=f7e161]: rulvar.ai
+                                - generic [ref=f7e162]: 2 years required
+                            - generic [ref=f7e164]:
+                                - generic [ref=f7e165]:
+                                    - generic [ref=f7e166]: $99.99
+                                    - generic [ref=f7e167]: Renewal $99.99
+                                - generic [ref=f7e170]:
+                                    - button "Add to Favorites list" [ref=f7e171]:
+                                        - img [ref=f7e173]
+                                    - button "Add to Cart" [ref=f7e176]:
+                                        - img [ref=f7e178] [cursor=pointer]
+                    - generic [ref=f7e186]:
+                        - generic [ref=f7e187]: rulvar
+                        - generic [ref=f7e188]:
+                            - generic [ref=f7e189]:
+                                - generic [ref=f7e190]: .
+                                - generic [ref=f7e191]: ai
+                            - generic [ref=f7e192]: +
+                        - generic [ref=f7e194]:
+                            - generic [ref=f7e195]: .
+                            - generic [ref=f7e196]: tech
+                        - generic [ref=f7e197]: Save 31% by purchasing these domains together.
+                        - generic [ref=f7e198]:
+                            - text: $288.96$199.98
+                            - button "Add to Cart" [ref=f7e199]:
+                                - img [ref=f7e201] [cursor=pointer]
+                    - button "rulvar.email This domain free with Titan Email $36.99$9.99 Renewal $39.99 Add to Favorites list Add to Cart" [ref=f7e207]:
+                        - generic [ref=f7e209]:
+                            - generic [ref=f7e210]:
+                                - generic [ref=f7e212]: rulvar.email
+                                - generic [ref=f7e215]: This domain free with Titan Email
+                            - generic [ref=f7e217]:
+                                - generic [ref=f7e218]:
+                                    - generic [ref=f7e219]: $36.99$9.99
+                                    - generic [ref=f7e220]: Renewal $39.99
+                                - generic [ref=f7e223]:
+                                    - button "Add to Favorites list" [ref=f7e224]:
+                                        - img [ref=f7e226]
+                                    - button "Add to Cart" [ref=f7e229]:
+                                        - img [ref=f7e231] [cursor=pointer]
+                    - button "rulvar.org $0.99 with Google Workspace $19.99$8.49 Renewal $19.99 Add to Favorites list Add to Cart" [ref=f7e237]:
+                        - generic [ref=f7e239]:
+                            - generic [ref=f7e240]:
+                                - generic [ref=f7e242]: rulvar.org
+                                - generic [ref=f7e245]: $0.99 with Google Workspace
+                            - generic [ref=f7e247]:
+                                - generic [ref=f7e248]:
+                                    - generic [ref=f7e249]: $19.99$8.49
+                                    - generic [ref=f7e250]: Renewal $19.99
+                                - generic [ref=f7e253]:
+                                    - button "Add to Favorites list" [ref=f7e254]:
+                                        - img [ref=f7e256]
+                                    - button "Add to Cart" [ref=f7e259]:
+                                        - img [ref=f7e261] [cursor=pointer]
+                    - button "rulvar.net $0.99 with Google Workspace $19.99$16.49 Renewal $23.99 Add to Favorites list Add to Cart" [ref=f7e267]:
+                        - generic [ref=f7e269]:
+                            - generic [ref=f7e270]:
+                                - generic [ref=f7e272]: rulvar.net
+                                - generic [ref=f7e275]: $0.99 with Google Workspace
+                            - generic [ref=f7e277]:
+                                - generic [ref=f7e278]:
+                                    - generic [ref=f7e279]: $19.99$16.49
+                                    - generic [ref=f7e280]: Renewal $23.99
+                                - generic [ref=f7e283]:
+                                    - button "Add to Favorites list" [ref=f7e284]:
+                                        - img [ref=f7e286]
+                                    - button "Add to Cart" [ref=f7e289]:
+                                        - img [ref=f7e291] [cursor=pointer]
+                    - button "rulvar.site $49.99$2.99 Renewal $49.99 Add to Favorites list Add to Cart" [ref=f7e297]:
+                        - generic [ref=f7e299]:
+                            - generic [ref=f7e302]: rulvar.site
+                            - generic [ref=f7e304]:
+                                - generic [ref=f7e305]:
+                                    - generic [ref=f7e306]: $49.99$2.99
+                                    - generic [ref=f7e307]: Renewal $49.99
+                                - generic [ref=f7e310]:
+                                    - button "Add to Favorites list" [ref=f7e311]:
+                                        - img [ref=f7e313]
+                                    - button "Add to Cart" [ref=f7e316]:
+                                        - img [ref=f7e318] [cursor=pointer]
+                    - button "rulvar.online $49.99$2.99 Renewal $49.99 Add to Favorites list Add to Cart" [ref=f7e324]:
+                        - generic [ref=f7e326]:
+                            - generic [ref=f7e329]: rulvar.online
+                            - generic [ref=f7e331]:
+                                - generic [ref=f7e332]:
+                                    - generic [ref=f7e333]: $49.99$2.99
+                                    - generic [ref=f7e334]: Renewal $49.99
+                                - generic [ref=f7e337]:
+                                    - button "Add to Favorites list" [ref=f7e338]:
+                                        - img [ref=f7e340]
+                                    - button "Add to Cart" [ref=f7e343]:
+                                        - img [ref=f7e345] [cursor=pointer]
+                    - button "rulvar.life This domain free with Titan Email $43.99$3.99 Renewal $48.99 Add to Favorites list Add to Cart" [ref=f7e351]:
+                        - generic [ref=f7e353]:
+                            - generic [ref=f7e354]:
+                                - generic [ref=f7e356]: rulvar.life
+                                - generic [ref=f7e359]: This domain free with Titan Email
+                            - generic [ref=f7e361]:
+                                - generic [ref=f7e362]:
+                                    - generic [ref=f7e363]: $43.99$3.99
+                                    - generic [ref=f7e364]: Renewal $48.99
+                                - generic [ref=f7e367]:
+                                    - button "Add to Favorites list" [ref=f7e368]:
+                                        - img [ref=f7e370]
+                                    - button "Add to Cart" [ref=f7e373]:
+                                        - img [ref=f7e375] [cursor=pointer]
+                    - button "rulvar.space $39.99$4.99 Renewal $39.99 Add to Favorites list Add to Cart" [ref=f7e381]:
+                        - generic [ref=f7e383]:
+                            - generic [ref=f7e386]: rulvar.space
+                            - generic [ref=f7e388]:
+                                - generic [ref=f7e389]:
+                                    - generic [ref=f7e390]: $39.99$4.99
+                                    - generic [ref=f7e391]: Renewal $39.99
+                                - generic [ref=f7e394]:
+                                    - button "Add to Favorites list" [ref=f7e395]:
+                                        - img [ref=f7e397]
+                                    - button "Add to Cart" [ref=f7e400]:
+                                        - img [ref=f7e402] [cursor=pointer]
+                    - button "rulvar.today This domain free with Titan Email $41.99$3.99 Renewal $41.99 Add to Favorites list Add to Cart" [ref=f7e408]:
+                        - generic [ref=f7e410]:
+                            - generic [ref=f7e411]:
+                                - generic [ref=f7e413]: rulvar.today
+                                - generic [ref=f7e416]: This domain free with Titan Email
+                            - generic [ref=f7e418]:
+                                - generic [ref=f7e419]:
+                                    - generic [ref=f7e420]: $41.99$3.99
+                                    - generic [ref=f7e421]: Renewal $41.99
+                                - generic [ref=f7e424]:
+                                    - button "Add to Favorites list" [ref=f7e425]:
+                                        - img [ref=f7e427]
+                                    - button "Add to Cart" [ref=f7e430]:
+                                        - img [ref=f7e432] [cursor=pointer]
+                    - button "rulvar.io $79.99$53.99 Renewal $79.99 Add to Favorites list Add to Cart" [ref=f7e438]:
+                        - generic [ref=f7e440]:
+                            - generic [ref=f7e443]: rulvar.io
+                            - generic [ref=f7e445]:
+                                - generic [ref=f7e446]:
+                                    - generic [ref=f7e447]: $79.99$53.99
+                                    - generic [ref=f7e448]: Renewal $79.99
+                                - generic [ref=f7e451]:
+                                    - button "Add to Favorites list" [ref=f7e452]:
+                                        - img [ref=f7e454]
+                                    - button "Add to Cart" [ref=f7e457]:
+                                        - img [ref=f7e459] [cursor=pointer]
+                    - button "rulvar.info This domain free with Titan Email $39.99$5.99 Renewal $39.99 Add to Favorites list Add to Cart" [ref=f7e465]:
+                        - generic [ref=f7e467]:
+                            - generic [ref=f7e468]:
+                                - generic [ref=f7e470]: rulvar.info
+                                - generic [ref=f7e473]: This domain free with Titan Email
+                            - generic [ref=f7e475]:
+                                - generic [ref=f7e476]:
+                                    - generic [ref=f7e477]: $39.99$5.99
+                                    - generic [ref=f7e478]: Renewal $39.99
+                                - generic [ref=f7e481]:
+                                    - button "Add to Favorites list" [ref=f7e482]:
+                                        - img [ref=f7e484]
+                                    - button "Add to Cart" [ref=f7e487]:
+                                        - img [ref=f7e489] [cursor=pointer]
+                    - button "rul.live Premium $123.75 Renewal $123.75 Add to Favorites list Add to Cart" [ref=f7e495]:
+                        - generic [ref=f7e497]:
+                            - generic [ref=f7e498]:
+                                - generic [ref=f7e500]: rul.live
+                                - generic [ref=f7e501]: Premium
+                            - generic [ref=f7e503]:
+                                - generic [ref=f7e504]:
+                                    - generic [ref=f7e505]: $123.75
+                                    - generic [ref=f7e506]: Renewal $123.75
+                                - generic [ref=f7e509]:
+                                    - button "Add to Favorites list" [ref=f7e510]:
+                                        - img [ref=f7e512]
+                                    - button "Add to Cart" [ref=f7e515]:
+                                        - img [ref=f7e517] [cursor=pointer]
+                    - button "rulvar.music $74.99 Renewal $74.99 Add to Favorites list Add to Cart" [ref=f7e523]:
+                        - generic [ref=f7e525]:
+                            - generic [ref=f7e528]: rulvar.music
+                            - generic [ref=f7e530]:
+                                - generic [ref=f7e531]:
+                                    - generic [ref=f7e532]: $74.99
+                                    - generic [ref=f7e533]: Renewal $74.99
+                                - generic [ref=f7e536]:
+                                    - button "Add to Favorites list" [ref=f7e537]:
+                                        - img [ref=f7e539]
+                                    - button "Add to Cart" [ref=f7e542]:
+                                        - img [ref=f7e544] [cursor=pointer]
+                    - button "rulvar.exposed This domain free with Titan Email $25.99 Renewal $27.99 Add to Favorites list Add to Cart" [ref=f7e550]:
+                        - generic [ref=f7e552]:
+                            - generic [ref=f7e553]:
+                                - generic [ref=f7e555]: rulvar.exposed
+                                - generic [ref=f7e558]: This domain free with Titan Email
+                            - generic [ref=f7e560]:
+                                - generic [ref=f7e561]:
+                                    - generic [ref=f7e562]: $25.99
+                                    - generic [ref=f7e563]: Renewal $27.99
+                                - generic [ref=f7e566]:
+                                    - button "Add to Favorites list" [ref=f7e567]:
+                                        - img [ref=f7e569]
+                                    - button "Add to Cart" [ref=f7e572]:
+                                        - img [ref=f7e574] [cursor=pointer]
+                    - button "rulvar.cz $16.99 Renewal $16.99 Add to Favorites list Add to Cart" [ref=f7e580]:
+                        - generic [ref=f7e582]:
+                            - generic [ref=f7e585]: rulvar.cz
+                            - generic [ref=f7e587]:
+                                - generic [ref=f7e588]:
+                                    - generic [ref=f7e589]: $16.99
+                                    - generic [ref=f7e590]: Renewal $16.99
+                                - generic [ref=f7e593]:
+                                    - button "Add to Favorites list" [ref=f7e594]:
+                                        - img [ref=f7e596]
+                                    - button "Add to Cart" [ref=f7e599]:
+                                        - img [ref=f7e601] [cursor=pointer]
+                    - button "rulvar.link $10.99 Renewal $13.99 Add to Favorites list Add to Cart" [ref=f7e607]:
+                        - generic [ref=f7e609]:
+                            - generic [ref=f7e612]: rulvar.link
+                            - generic [ref=f7e614]:
+                                - generic [ref=f7e615]:
+                                    - generic [ref=f7e616]: $10.99
+                                    - generic [ref=f7e617]: Renewal $13.99
+                                - generic [ref=f7e620]:
+                                    - button "Add to Favorites list" [ref=f7e621]:
+                                        - img [ref=f7e623]
+                                    - button "Add to Cart" [ref=f7e626]:
+                                        - img [ref=f7e628] [cursor=pointer]
+                    - button "rulvar.dog This domain free with Titan Email $77.99$5.99 Renewal $83.99 Add to Favorites list Add to Cart" [ref=f7e634]:
+                        - generic [ref=f7e636]:
+                            - generic [ref=f7e637]:
+                                - generic [ref=f7e639]: rulvar.dog
+                                - generic [ref=f7e642]: This domain free with Titan Email
+                            - generic [ref=f7e644]:
+                                - generic [ref=f7e645]:
+                                    - generic [ref=f7e646]: $77.99$5.99
+                                    - generic [ref=f7e647]: Renewal $83.99
+                                - generic [ref=f7e650]:
+                                    - button "Add to Favorites list" [ref=f7e651]:
+                                        - img [ref=f7e653]
+                                    - button "Add to Cart" [ref=f7e656]:
+                                        - img [ref=f7e658] [cursor=pointer]
+                    - button "rul.gay Premium $218.75 Renewal $218.75 Add to Favorites list Add to Cart" [ref=f7e664]:
+                        - generic [ref=f7e666]:
+                            - generic [ref=f7e667]:
+                                - generic [ref=f7e669]: rul.gay
+                                - generic [ref=f7e670]: Premium
+                            - generic [ref=f7e672]:
+                                - generic [ref=f7e673]:
+                                    - generic [ref=f7e674]: $218.75
+                                    - generic [ref=f7e675]: Renewal $218.75
+                                - generic [ref=f7e678]:
+                                    - button "Add to Favorites list" [ref=f7e679]:
+                                        - img [ref=f7e681]
+                                    - button "Add to Cart" [ref=f7e684]:
+                                        - img [ref=f7e686] [cursor=pointer]
+                    - button "rulvar.xyz $20.99$1.99 Renewal $20.99 Add to Favorites list Add to Cart" [ref=f7e692]:
+                        - generic [ref=f7e694]:
+                            - generic [ref=f7e697]: rulvar.xyz
+                            - generic [ref=f7e699]:
+                                - generic [ref=f7e700]:
+                                    - generic [ref=f7e701]: $20.99$1.99
+                                    - generic [ref=f7e702]: Renewal $20.99
+                                - generic [ref=f7e705]:
+                                    - button "Add to Favorites list" [ref=f7e706]:
+                                        - img [ref=f7e708]
+                                    - button "Add to Cart" [ref=f7e711]:
+                                        - img [ref=f7e713] [cursor=pointer]
+                    - button "rul-var.io $79.99$53.99 Renewal $79.99 Add to Favorites list Add to Cart" [ref=f7e719]:
+                        - generic [ref=f7e721]:
+                            - generic [ref=f7e724]: rul-var.io
+                            - generic [ref=f7e726]:
+                                - generic [ref=f7e727]:
+                                    - generic [ref=f7e728]: $79.99$53.99
+                                    - generic [ref=f7e729]: Renewal $79.99
+                                - generic [ref=f7e732]:
+                                    - button "Add to Favorites list" [ref=f7e733]:
+                                        - img [ref=f7e735]
+                                    - button "Add to Cart" [ref=f7e738]:
+                                        - img [ref=f7e740] [cursor=pointer]
+                    - button "rulvar.news This domain free with Titan Email $43.99$17.99 Renewal $43.99 Add to Favorites list Add to Cart" [ref=f7e746]:
+                        - generic [ref=f7e748]:
+                            - generic [ref=f7e749]:
+                                - generic [ref=f7e751]: rulvar.news
+                                - generic [ref=f7e754]: This domain free with Titan Email
+                            - generic [ref=f7e756]:
+                                - generic [ref=f7e757]:
+                                    - generic [ref=f7e758]: $43.99$17.99
+                                    - generic [ref=f7e759]: Renewal $43.99
+                                - generic [ref=f7e762]:
+                                    - button "Add to Favorites list" [ref=f7e763]:
+                                        - img [ref=f7e765]
+                                    - button "Add to Cart" [ref=f7e768]:
+                                        - img [ref=f7e770] [cursor=pointer]
+                    - button "rulvar.bio This domain free with Titan Email $79.99$9.99 Renewal $99.99 Add to Favorites list Add to Cart" [ref=f7e776]:
+                        - generic [ref=f7e778]:
+                            - generic [ref=f7e779]:
+                                - generic [ref=f7e781]: rulvar.bio
+                                - generic [ref=f7e784]: This domain free with Titan Email
+                            - generic [ref=f7e786]:
+                                - generic [ref=f7e787]:
+                                    - generic [ref=f7e788]: $79.99$9.99
+                                    - generic [ref=f7e789]: Renewal $99.99
+                                - generic [ref=f7e792]:
+                                    - button "Add to Favorites list" [ref=f7e793]:
+                                        - img [ref=f7e795]
+                                    - button "Add to Cart" [ref=f7e798]:
+                                        - img [ref=f7e800] [cursor=pointer]
+                    - button "rulvar.social This domain free with Titan Email $46.99$11.99 Renewal $50.99 Add to Favorites list Add to Cart" [ref=f7e806]:
+                        - generic [ref=f7e808]:
+                            - generic [ref=f7e809]:
+                                - generic [ref=f7e811]: rulvar.social
+                                - generic [ref=f7e814]: This domain free with Titan Email
+                            - generic [ref=f7e816]:
+                                - generic [ref=f7e817]:
+                                    - generic [ref=f7e818]: $46.99$11.99
+                                    - generic [ref=f7e819]: Renewal $50.99
+                                - generic [ref=f7e822]:
+                                    - button "Add to Favorites list" [ref=f7e823]:
+                                        - img [ref=f7e825]
+                                    - button "Add to Cart" [ref=f7e828]:
+                                        - img [ref=f7e830] [cursor=pointer]
+                    - button "rulvar.buzz $44.99$2.49 Renewal $46.99 Add to Favorites list Add to Cart" [ref=f7e836]:
+                        - generic [ref=f7e838]:
+                            - generic [ref=f7e841]: rulvar.buzz
+                            - generic [ref=f7e843]:
+                                - generic [ref=f7e844]:
+                                    - generic [ref=f7e845]: $44.99$2.49
+                                    - generic [ref=f7e846]: Renewal $46.99
+                                - generic [ref=f7e849]:
+                                    - button "Add to Favorites list" [ref=f7e850]:
+                                        - img [ref=f7e852]
+                                    - button "Add to Cart" [ref=f7e855]:
+                                        - img [ref=f7e857] [cursor=pointer]
+                    - button "rulvar.click $19.99$1.99 Renewal $20.99 Add to Favorites list Add to Cart" [ref=f7e863]:
+                        - generic [ref=f7e865]:
+                            - generic [ref=f7e868]: rulvar.click
+                            - generic [ref=f7e870]:
+                                - generic [ref=f7e871]:
+                                    - generic [ref=f7e872]: $19.99$1.99
+                                    - generic [ref=f7e873]: Renewal $20.99
+                                - generic [ref=f7e876]:
+                                    - button "Add to Favorites list" [ref=f7e877]:
+                                        - img [ref=f7e879]
+                                    - button "Add to Cart" [ref=f7e882]:
+                                        - img [ref=f7e884] [cursor=pointer]
+                    - button "rulvar.lol $31.99$1.99 Renewal $45.99 Add to Favorites list Add to Cart" [ref=f7e890]:
+                        - generic [ref=f7e892]:
+                            - generic [ref=f7e895]: rulvar.lol
+                            - generic [ref=f7e897]:
+                                - generic [ref=f7e898]:
+                                    - generic [ref=f7e899]: $31.99$1.99
+                                    - generic [ref=f7e900]: Renewal $45.99
+                                - generic [ref=f7e903]:
+                                    - button "Add to Favorites list" [ref=f7e904]:
+                                        - img [ref=f7e906]
+                                    - button "Add to Cart" [ref=f7e909]:
+                                        - img [ref=f7e911] [cursor=pointer]
+                    - button "rulvar.pro This domain free with Titan Email $35.99$4.99 Renewal $35.99 Add to Favorites list Add to Cart" [ref=f7e917]:
+                        - generic [ref=f7e919]:
+                            - generic [ref=f7e920]:
+                                - generic [ref=f7e922]: rulvar.pro
+                                - generic [ref=f7e925]: This domain free with Titan Email
+                            - generic [ref=f7e927]:
+                                - generic [ref=f7e928]:
+                                    - generic [ref=f7e929]: $35.99$4.99
+                                    - generic [ref=f7e930]: Renewal $35.99
+                                - generic [ref=f7e933]:
+                                    - button "Add to Favorites list" [ref=f7e934]:
+                                        - img [ref=f7e936]
+                                    - button "Add to Cart" [ref=f7e939]:
+                                        - img [ref=f7e941] [cursor=pointer]
+                    - button "rulvar.world This domain free with Titan Email $57.99$3.99 Renewal $57.99 Add to Favorites list Add to Cart" [ref=f7e947]:
+                        - generic [ref=f7e949]:
+                            - generic [ref=f7e950]:
+                                - generic [ref=f7e952]: rulvar.world
+                                - generic [ref=f7e955]: This domain free with Titan Email
+                            - generic [ref=f7e957]:
+                                - generic [ref=f7e958]:
+                                    - generic [ref=f7e959]: $57.99$3.99
+                                    - generic [ref=f7e960]: Renewal $57.99
+                                - generic [ref=f7e963]:
+                                    - button "Add to Favorites list" [ref=f7e964]:
+                                        - img [ref=f7e966]
+                                    - button "Add to Cart" [ref=f7e969]:
+                                        - img [ref=f7e971] [cursor=pointer]
+                    - button "rul-var.life This domain free with Titan Email $43.99$3.99 Renewal $48.99 Add to Favorites list Add to Cart" [ref=f7e977]:
+                        - generic [ref=f7e979]:
+                            - generic [ref=f7e980]:
+                                - generic [ref=f7e982]: rul-var.life
+                                - generic [ref=f7e985]: This domain free with Titan Email
+                            - generic [ref=f7e987]:
+                                - generic [ref=f7e988]:
+                                    - generic [ref=f7e989]: $43.99$3.99
+                                    - generic [ref=f7e990]: Renewal $48.99
+                                - generic [ref=f7e993]:
+                                    - button "Add to Favorites list" [ref=f7e994]:
+                                        - img [ref=f7e996]
+                                    - button "Add to Cart" [ref=f7e999]:
+                                        - img [ref=f7e1001] [cursor=pointer]
+                    - button "rul-var.cz $16.99 Renewal $16.99 Add to Favorites list Add to Cart" [ref=f7e1007]:
+                        - generic [ref=f7e1009]:
+                            - generic [ref=f7e1012]: rul-var.cz
+                            - generic [ref=f7e1014]:
+                                - generic [ref=f7e1015]:
+                                    - generic [ref=f7e1016]: $16.99
+                                    - generic [ref=f7e1017]: Renewal $16.99
+                                - generic [ref=f7e1020]:
+                                    - button "Add to Favorites list" [ref=f7e1021]:
+                                        - img [ref=f7e1023]
+                                    - button "Add to Cart" [ref=f7e1026]:
+                                        - img [ref=f7e1028] [cursor=pointer]
+                    - button "rul.film Premium $250.00 Renewal $250.00 Add to Favorites list Add to Cart" [ref=f7e1034]:
+                        - generic [ref=f7e1036]:
+                            - generic [ref=f7e1037]:
+                                - generic [ref=f7e1039]: rul.film
+                                - generic [ref=f7e1040]: Premium
+                            - generic [ref=f7e1042]:
+                                - generic [ref=f7e1043]:
+                                    - generic [ref=f7e1044]: $250.00
+                                    - generic [ref=f7e1045]: Renewal $250.00
+                                - generic [ref=f7e1048]:
+                                    - button "Add to Favorites list" [ref=f7e1049]:
+                                        - img [ref=f7e1051]
+                                    - button "Add to Cart" [ref=f7e1054]:
+                                        - img [ref=f7e1056] [cursor=pointer]
+                    - button "rul.cricket Premium $625.00 Renewal $81.25 Add to Favorites list Add to Cart" [ref=f7e1062]:
+                        - generic [ref=f7e1064]:
+                            - generic [ref=f7e1065]:
+                                - generic [ref=f7e1067]: rul.cricket
+                                - generic [ref=f7e1068]: Premium
+                            - generic [ref=f7e1070]:
+                                - generic [ref=f7e1071]:
+                                    - generic [ref=f7e1072]: $625.00
+                                    - generic [ref=f7e1073]: Renewal $81.25
+                                - generic [ref=f7e1076]:
+                                    - button "Add to Favorites list" [ref=f7e1077]:
+                                        - img [ref=f7e1079]
+                                    - button "Add to Cart" [ref=f7e1082]:
+                                        - img [ref=f7e1084] [cursor=pointer]
+                    - button "rul.dad SSL RequiredPremium $73.75 Renewal $73.75 Add to Favorites list Add to Cart" [ref=f7e1090]:
+                        - generic [ref=f7e1092]:
+                            - generic [ref=f7e1093]:
+                                - generic [ref=f7e1095]: rul.dad
+                                - generic [ref=f7e1096]: SSL RequiredPremium
+                            - generic [ref=f7e1098]:
+                                - generic [ref=f7e1099]:
+                                    - generic [ref=f7e1100]: $73.75
+                                    - generic [ref=f7e1101]: Renewal $73.75
+                                - generic [ref=f7e1104]:
+                                    - button "Add to Favorites list" [ref=f7e1105]:
+                                        - img [ref=f7e1107]
+                                    - button "Add to Cart" [ref=f7e1110]:
+                                        - img [ref=f7e1112] [cursor=pointer]
+                    - button "rulvar.land This domain free with Titan Email $47.99$15.99 Renewal $52.99 Add to Favorites list Add to Cart" [ref=f7e1118]:
+                        - generic [ref=f7e1120]:
+                            - generic [ref=f7e1121]:
+                                - generic [ref=f7e1123]: rulvar.land
+                                - generic [ref=f7e1126]: This domain free with Titan Email
+                            - generic [ref=f7e1128]:
+                                - generic [ref=f7e1129]:
+                                    - generic [ref=f7e1130]: $47.99$15.99
+                                    - generic [ref=f7e1131]: Renewal $52.99
+                                - generic [ref=f7e1134]:
+                                    - button "Add to Favorites list" [ref=f7e1135]:
+                                        - img [ref=f7e1137]
+                                    - button "Add to Cart" [ref=f7e1140]:
+                                        - img [ref=f7e1142] [cursor=pointer]
+                    - button "rulvar.industries This domain free with Titan Email $65.99$17.49 Renewal $65.99 Add to Favorites list Add to Cart" [ref=f7e1148]:
+                        - generic [ref=f7e1150]:
+                            - generic [ref=f7e1151]:
+                                - generic [ref=f7e1153]: rulvar.industries
+                                - generic [ref=f7e1156]: This domain free with Titan Email
+                            - generic [ref=f7e1158]:
+                                - generic [ref=f7e1159]:
+                                    - generic [ref=f7e1160]: $65.99$17.49
+                                    - generic [ref=f7e1161]: Renewal $65.99
+                                - generic [ref=f7e1164]:
+                                    - button "Add to Favorites list" [ref=f7e1165]:
+                                        - img [ref=f7e1167]
+                                    - button "Add to Cart" [ref=f7e1170]:
+                                        - img [ref=f7e1172] [cursor=pointer]
+                    - button "rulvar.villas This domain free with Titan Email $71.99$19.99 Renewal $80.99 Add to Favorites list Add to Cart" [ref=f7e1178]:
+                        - generic [ref=f7e1180]:
+                            - generic [ref=f7e1181]:
+                                - generic [ref=f7e1183]: rulvar.villas
+                                - generic [ref=f7e1186]: This domain free with Titan Email
+                            - generic [ref=f7e1188]:
+                                - generic [ref=f7e1189]:
+                                    - generic [ref=f7e1190]: $71.99$19.99
+                                    - generic [ref=f7e1191]: Renewal $80.99
+                                - generic [ref=f7e1194]:
+                                    - button "Add to Favorites list" [ref=f7e1195]:
+                                        - img [ref=f7e1197]
+                                    - button "Add to Cart" [ref=f7e1200]:
+                                        - img [ref=f7e1202] [cursor=pointer]
+                    - button "rulvar.apartments This domain free with Titan Email $83.99$19.99 Renewal $83.99 Add to Favorites list Add to Cart" [ref=f7e1208]:
+                        - generic [ref=f7e1210]:
+                            - generic [ref=f7e1211]:
+                                - generic [ref=f7e1213]: rulvar.apartments
+                                - generic [ref=f7e1216]: This domain free with Titan Email
+                            - generic [ref=f7e1218]:
+                                - generic [ref=f7e1219]:
+                                    - generic [ref=f7e1220]: $83.99$19.99
+                                    - generic [ref=f7e1221]: Renewal $83.99
+                                - generic [ref=f7e1224]:
+                                    - button "Add to Favorites list" [ref=f7e1225]:
+                                        - img [ref=f7e1227]
+                                    - button "Add to Cart" [ref=f7e1230]:
+                                        - img [ref=f7e1232] [cursor=pointer]
+                    - button "rulvar.taxi This domain free with Titan Email $80.99$10.99 Renewal $84.99 Add to Favorites list Add to Cart" [ref=f7e1238]:
+                        - generic [ref=f7e1240]:
+                            - generic [ref=f7e1241]:
+                                - generic [ref=f7e1243]: rulvar.taxi
+                                - generic [ref=f7e1246]: This domain free with Titan Email
+                            - generic [ref=f7e1248]:
+                                - generic [ref=f7e1249]:
+                                    - generic [ref=f7e1250]: $80.99$10.99
+                                    - generic [ref=f7e1251]: Renewal $84.99
+                                - generic [ref=f7e1254]:
+                                    - button "Add to Favorites list" [ref=f7e1255]:
+                                        - img [ref=f7e1257]
+                                    - button "Add to Cart" [ref=f7e1260]:
+                                        - img [ref=f7e1262] [cursor=pointer]
+                    - button "rulvar.energy This domain free with Titan Email $170.99$21.99 Renewal $170.99 Add to Favorites list Add to Cart" [ref=f7e1268]:
+                        - generic [ref=f7e1270]:
+                            - generic [ref=f7e1271]:
+                                - generic [ref=f7e1273]: rulvar.energy
+                                - generic [ref=f7e1276]: This domain free with Titan Email
+                            - generic [ref=f7e1278]:
+                                - generic [ref=f7e1279]:
+                                    - generic [ref=f7e1280]: $170.99$21.99
+                                    - generic [ref=f7e1281]: Renewal $170.99
+                                - generic [ref=f7e1284]:
+                                    - button "Add to Favorites list" [ref=f7e1285]:
+                                        - img [ref=f7e1287]
+                                    - button "Add to Cart" [ref=f7e1290]:
+                                        - img [ref=f7e1292] [cursor=pointer]
+                    - button "rulvar.enterprises This domain free with Titan Email $46.99$5.99 Renewal $50.99 Add to Favorites list Add to Cart" [ref=f7e1298]:
+                        - generic [ref=f7e1300]:
+                            - generic [ref=f7e1301]:
+                                - generic [ref=f7e1303]: rulvar.enterprises
+                                - generic [ref=f7e1306]: This domain free with Titan Email
+                            - generic [ref=f7e1308]:
+                                - generic [ref=f7e1309]:
+                                    - generic [ref=f7e1310]: $46.99$5.99
+                                    - generic [ref=f7e1311]: Renewal $50.99
+                                - generic [ref=f7e1314]:
+                                    - button "Add to Favorites list" [ref=f7e1315]:
+                                        - img [ref=f7e1317]
+                                    - button "Add to Cart" [ref=f7e1320]:
+                                        - img [ref=f7e1322] [cursor=pointer]
+                    - button "rul-var.exposed This domain free with Titan Email $25.99 Renewal $27.99 Add to Favorites list Add to Cart" [ref=f7e1328]:
+                        - generic [ref=f7e1330]:
+                            - generic [ref=f7e1331]:
+                                - generic [ref=f7e1333]: rul-var.exposed
+                                - generic [ref=f7e1336]: This domain free with Titan Email
+                            - generic [ref=f7e1338]:
+                                - generic [ref=f7e1339]:
+                                    - generic [ref=f7e1340]: $25.99
+                                    - generic [ref=f7e1341]: Renewal $27.99
+                                - generic [ref=f7e1344]:
+                                    - button "Add to Favorites list" [ref=f7e1345]:
+                                        - img [ref=f7e1347]
+                                    - button "Add to Cart" [ref=f7e1350]:
+                                        - img [ref=f7e1352] [cursor=pointer]
+                - generic [ref=f7e1357]:
+                    - heading "Not sure what domain to choose? Let us help." [level=2] [ref=f7e1358]:
+                        - generic [ref=f7e1359]: Not sure what domain to choose? Let us help.
+                    - paragraph
+                    - generic [ref=f7e1360]:
+                        - generic [ref=f7e1363]:
+                            - 'link "Media: How to Choose a Domain Name" [ref=f7e1364] [cursor=pointer]':
+                                - /url: /blog/how-to-choose-a-domain
+                                - 'img "Media: How to Choose a Domain Name" [ref=f7e1365]'
+                            - generic [ref=f7e1366]:
+                                - link "Videos" [ref=f7e1368] [cursor=pointer]:
+                                    - /url: /blog/videos
+                                    - generic [ref=f7e1369]: Videos
+                                - link "How to Choose a Domain Name" [ref=f7e1371] [cursor=pointer]:
+                                    - /url: /blog/how-to-choose-a-domain
+                                    - generic [ref=f7e1372]: How to Choose a Domain Name
+                                - generic [ref=f7e1373]:
+                                    - text: June 29, 2026 · 4 min read ·
+                                    - generic [ref=f7e1374]:
+                                        - text: 'Author:'
+                                        - link "Ben Howard" [ref=f7e1375] [cursor=pointer]:
+                                            - /url: /blog/author/benhoward
+                        - generic [ref=f7e1378]:
+                            - 'link "Media: How to Cut Through the Internet’s Noise with .fyi" [ref=f7e1379] [cursor=pointer]':
+                                - /url: /blog/how-to-cut-through-the-internets-noise-with-fyi
+                                - 'img "Media: How to Cut Through the Internet’s Noise with .fyi" [ref=f7e1380]'
+                            - generic [ref=f7e1381]:
+                                - link "Videos" [ref=f7e1383] [cursor=pointer]:
+                                    - /url: /blog/videos
+                                    - generic [ref=f7e1384]: Videos
+                                - link "How to Cut Through the Internet’s Noise with .fyi" [ref=f7e1386] [cursor=pointer]:
+                                    - /url: /blog/how-to-cut-through-the-internets-noise-with-fyi
+                                    - generic [ref=f7e1387]: How to Cut Through the Internet’s Noise with .fyi
+                                - generic [ref=f7e1388]:
+                                    - text: June 09, 2026 · 1 min read ·
+                                    - generic [ref=f7e1389]:
+                                        - text: 'Author:'
+                                        - link "Ben Howard" [ref=f7e1390] [cursor=pointer]:
+                                            - /url: /blog/author/benhoward
+                        - generic [ref=f7e1393]:
+                            - 'link "Media: Monetizing TikTok: How Creators Get Paid in 2026" [ref=f7e1394] [cursor=pointer]':
+                                - /url: /blog/monetizing-tiktok-how-creators-get-paid
+                                - 'img "Media: Monetizing TikTok: How Creators Get Paid in 2026" [ref=f7e1395]'
+                            - generic [ref=f7e1396]:
+                                - link "Marketing Tips" [ref=f7e1398] [cursor=pointer]:
+                                    - /url: /blog/business
+                                    - generic [ref=f7e1399]: Marketing Tips
+                                - 'link "Monetizing TikTok: How Creators Get Paid in 2026" [ref=f7e1401] [cursor=pointer]':
+                                    - /url: /blog/monetizing-tiktok-how-creators-get-paid
+                                    - generic [ref=f7e1402]: 'Monetizing TikTok: How Creators Get Paid in 2026'
+                                - generic [ref=f7e1403]:
+                                    - text: June 09, 2026 · 8 min read ·
+                                    - generic [ref=f7e1404]:
+                                        - text: 'Author:'
+                                        - link "Ben Howard" [ref=f7e1405] [cursor=pointer]:
+                                            - /url: /blog/author/benhoward
+            - generic [ref=f7e39]:
+                - generic [ref=f7e41]:
+                    - img "name.com Logo" [ref=f7e43]
+                    - generic [ref=f7e44]:
+                        - generic [ref=f7e47]:
+                            - generic [ref=f7e48]:
+                                - paragraph [ref=f7e49]: Dark mode
+                                - generic "Toggle Dark Mode" [ref=f7e1406]:
+                                    - generic [ref=f7e1408] [cursor=pointer]:
+                                        - checkbox
+                            - generic [ref=f7e50]:
+                                - button "Language EN" [ref=f7e1413]:
+                                    - paragraph [ref=f7e1414]: Language
+                                    - generic [ref=f7e1416]:
+                                        - generic [ref=f7e1417]: EN
+                                        - img [ref=f7e1418]
+                                - button "Currency USD $" [ref=f7e1421]:
+                                    - paragraph [ref=f7e1422]: Currency
+                                    - generic [ref=f7e1424]:
+                                        - generic [ref=f7e1425]: USD $
+                                        - img [ref=f7e1426]
+                        - iframe [ref=f7e1431]:
+                            - generic [ref=f10e2]:
+                                - link "Trustpilot reviews" [ref=f10e3] [cursor=pointer]:
+                                    - /url: https://www.trustpilot.com/review/name.com?utm_medium=trustbox&utm_source=Mini
+                                    - img "Trustpilot" [ref=f10e7]
+                                    - img "4.3 out of 5 star rating on Trustpilot" [ref=f10e15]
+                                    - generic [ref=f10e35]:
+                                        - generic [ref=f10e36]:
+                                            - text: TrustScore
+                                            - strong [ref=f10e37]: '4.3'
+                                            - text: '|'
+                                        - generic [ref=f10e38]:
+                                            - strong [ref=f10e39]: 5,284
+                                            - text: reviews
+                                - generic [ref=f10e40]: Rated 4.3 out of 5. 5284 reviews on Trustpilot
+                                - generic [ref=f10e41]: Click to view the company's Trustpilot profile
+                        - generic [ref=f7e51]:
+                            - paragraph [ref=f7e52]: Let's keep in touch.
+                            - generic [ref=f7e53]:
+                                - textbox "Join our newsletter" [ref=f7e58]
+                                - button "Subscribe" [ref=f7e59]:
+                                    - generic [ref=f7e61]: Subscribe
+                            - paragraph [ref=f7e62]:
+                                - text: You can opt out at any time. By clicking “Subscribe”, you agree that you have read, understand, and consent to the
+                                - link "Privacy Policy" [ref=f7e63] [cursor=pointer]:
+                                    - /url: https://www.name.com/privacy-policy
+                                - text: with regards to the use of your personal data
+                - generic [ref=f7e66]:
+                    - generic [ref=f7e67]:
+                        - generic [ref=f7e68]:
+                            - generic [ref=f7e70]: Domain Names
+                            - generic [ref=f7e1432]:
+                                - link "Domain Name Search" [ref=f7e1433] [cursor=pointer]:
+                                    - /url: /domain/search
+                                - link "Renew My Domains" [ref=f7e1434] [cursor=pointer]:
+                                    - /url: /account/renewalcenter
+                                - link "Transfer Domains" [ref=f7e1435] [cursor=pointer]:
+                                    - /url: /domain-transfer
+                                - link "Bulk Domain Search" [ref=f7e1436] [cursor=pointer]:
+                                    - /url: /names
+                                - link "Premium Domains" [ref=f7e1437] [cursor=pointer]:
+                                    - /url: /aftermarket?searchtype=premium
+                                - link "Expiring Domains" [ref=f7e1438] [cursor=pointer]:
+                                    - /url: /aftermarket?searchtype=expiring
+                                - link "Deleting Domains" [ref=f7e1439] [cursor=pointer]:
+                                    - /url: /deleting-domains
+                                - link "Domain Pricing" [ref=f7e1440] [cursor=pointer]:
+                                    - /url: /pricing
+                                - link "Buy Domains" [ref=f7e1441] [cursor=pointer]:
+                                    - /url: /domain/buy-domains
+                                - link "Portfolio Domains" [ref=f7e1442] [cursor=pointer]:
+                                    - /url: /domains/portfolio-domains
+                                - link "Ecommerce Domains" [ref=f7e1443] [cursor=pointer]:
+                                    - /url: /domains/ecommerce-domains
+                                - link "Food and Beverage Domains" [ref=f7e1444] [cursor=pointer]:
+                                    - /url: /domains/food-beverage-domains
+                                - link "Training and Fitness Domains" [ref=f7e1445] [cursor=pointer]:
+                                    - /url: /domains/training-fitness
+                                - link "Real Estate Domains" [ref=f7e1446] [cursor=pointer]:
+                                    - /url: /domains/real-estate
+                                - link "Domains for Side Hustles" [ref=f7e1447] [cursor=pointer]:
+                                    - /url: /domains/side-hustle
+                        - generic [ref=f7e71]:
+                            - generic [ref=f7e72]: Products
+                            - generic [ref=f7e73]:
+                                - link "Web Hosting" [ref=f7e74] [cursor=pointer]:
+                                    - /url: /purchase/hosting
+                                - link "Cloud Hosting" [ref=f7e75] [cursor=pointer]:
+                                    - /url: /cloud-hosting
+                                - link "WordPress Hosting" [ref=f7e76] [cursor=pointer]:
+                                    - /url: /wordpress-hosting
+                                - link "Titan Email" [ref=f7e77] [cursor=pointer]:
+                                    - /url: /titan-email
+                                - link "Google Workspace" [ref=f7e78] [cursor=pointer]:
+                                    - /url: /googleworkspace
+                                - link "SSL Certificates" [ref=f7e79] [cursor=pointer]:
+                                    - /url: /ssl
+                                - link "Wix Website Builder" [ref=f7e80] [cursor=pointer]:
+                                    - /url: /wix
+                                - link "Compare Website Products" [ref=f7e81] [cursor=pointer]:
+                                    - /url: /website-builder
+                                - link "Compare Email Products" [ref=f7e82] [cursor=pointer]:
+                                    - /url: /email-solutions
+                                - link "Compare Hosting Products" [ref=f7e83] [cursor=pointer]:
+                                    - /url: /hosting-solutions
+                                - link "Compare SSL Products" [ref=f7e84] [cursor=pointer]:
+                                    - /url: /ssl-solutions
+                        - generic [ref=f7e85]:
+                            - generic [ref=f7e86]: Information
+                            - generic [ref=f7e1448]:
+                                - link "Registration Agreement" [ref=f7e1449] [cursor=pointer]:
+                                    - /url: /policies/registration-agreement
+                                - link "Privacy Policy" [ref=f7e1450] [cursor=pointer]:
+                                    - /url: /privacy-policy
+                                - link "Policies and Procedures" [ref=f7e1451] [cursor=pointer]:
+                                    - /url: /policies/legal
+                                - link "Registrant Rights" [ref=f7e1452] [cursor=pointer]:
+                                    - /url: https://www.icann.org/resources/pages/benefits-2013-09-16-en
+                                    - text: Registrant Rights
+                            - generic [ref=f7e87]: Professionals
+                            - generic [ref=f7e88]:
+                                - link "Domain Investing" [ref=f7e89] [cursor=pointer]:
+                                    - /url: /investors
+                                - link "name.com API" [ref=f7e90] [cursor=pointer]:
+                                    - /url: /nameapi
+                                - link "Affiliate Program" [ref=f7e91] [cursor=pointer]:
+                                    - /url: /affiliates
+                        - generic [ref=f7e92]:
+                            - generic [ref=f7e93]: About Us
+                            - generic [ref=f7e94]:
+                                - link "The name.com Team" [ref=f7e95] [cursor=pointer]:
+                                    - /url: /aboutus
+                                - link "Careers" [ref=f7e96] [cursor=pointer]:
+                                    - /url: /careers
+                                - link "name.gives" [ref=f7e97] [cursor=pointer]:
+                                    - /url: /good
+                                - link "name.com Blog" [ref=f7e98] [cursor=pointer]:
+                                    - /url: /blog
+                                - link "Newsroom" [ref=f7e99] [cursor=pointer]:
+                                    - /url: /newsroom
+                            - generic [ref=f7e100]: Resources
+                            - generic [ref=f7e101]:
+                                - link "Whois Search" [ref=f7e102] [cursor=pointer]:
+                                    - /url: /whois-lookup
+                                - link "What's My IP Address?" [ref=f7e103] [cursor=pointer]:
+                                    - /url: /ip
+                                - link "Your Privacy Choices" [ref=f7e1454] [cursor=pointer]:
+                                    - /url: /#
+                                - link "California Notice at Collection" [ref=f7e104] [cursor=pointer]:
+                                    - /url: /privacy-policy#additional-information-for-california-residents
+                        - generic [ref=f7e105]:
+                            - generic [ref=f7e106]: Support
+                            - generic [ref=f7e107]:
+                                - link "Help Center" [ref=f7e108] [cursor=pointer]:
+                                    - /url: /support
+                                - link "Contact Us" [ref=f7e109] [cursor=pointer]:
+                                    - /url: /contact
+                                - link "Report Abuse" [ref=f7e110] [cursor=pointer]:
+                                    - /url: /abuse
+                                - link "Layered Access Request" [ref=f7e111] [cursor=pointer]:
+                                    - /url: /layered-access-request
+                                - link "Accessibility" [ref=f7e112] [cursor=pointer]:
+                                    - /url: /policies/accessibility
+                        - generic [ref=f7e113]:
+                            - generic [ref=f7e114]: Social
+                            - generic [ref=f7e115]:
+                                - link "Facebook" [ref=f7e116] [cursor=pointer]:
+                                    - /url: https://www.facebook.com/namedotcom
+                                - link "Twitter" [ref=f7e117] [cursor=pointer]:
+                                    - /url: https://www.twitter.com/namedotcom
+                                - link "Instagram" [ref=f7e118] [cursor=pointer]:
+                                    - /url: https://www.instagram.com/namedotcom
+                                - link "Youtube" [ref=f7e119] [cursor=pointer]:
+                                    - /url: https://www.youtube.com/channel/UCR-FO0INIoOVi7YRvEQ0erQ
+                    - generic [ref=f7e120]:
+                        - paragraph [ref=f7e121]: name.com is an ICANN-accredited domain name registrar.
+                        - paragraph [ref=f7e122]:
+                            - text: name.com is a proud part of
+                            - link "Identity Digital" [ref=f7e123] [cursor=pointer]:
+                                - /url: https://identity.digital
+                            - text: ', a leading domain name services company.'
+                        - paragraph [ref=f7e124]: name.com is a Registered Trademark. © 2001 — 2026 All Rights Reserved
+    - region "Cookie banner" [ref=f7e1455]:
+        - dialog "Privacy" [ref=f7e1456]:
+            - generic [ref=f7e1458]:
+                - generic [ref=f7e1461]:
+                    - text: We and our partners use cookies to help our website function, measure and understand your activity, personalize your experience, and to inform which ads you see on other sites and services. You can reject or accept all cookies, or accept only some by clicking the “Preferences” button. You can change your preferences at any time by clicking the “Your Privacy Choices” link on the footer of our site
+                    - link "More information about your privacy, opens in a new tab" [active] [ref=f7e1462] [cursor=pointer]:
+                        - /url: https://www.name.com/privacy-policy
+                        - text: Privacy Policy
+                - generic [ref=f7e1464]:
+                    - button "Preferences" [ref=f7e1465] [cursor=pointer]
+                    - button "Reject All" [ref=f7e1466] [cursor=pointer]
+                    - button "Accept All" [ref=f7e1467] [cursor=pointer]
+            - button "Close" [ref=f7e1469] [cursor=pointer]
+    - region "Notifications (F8)":
+        - list

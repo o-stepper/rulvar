@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The `lurker` bin entry: thin wrapper over runCli with process io.
+ * The `rulvar` bin entry: thin wrapper over runCli with process io.
  */
 import { runCli } from './cli-main.js';
 import { processIo } from './io.js';

@@ -11,7 +11,7 @@
  * (scripts/check-frozen-fixtures.mjs).
  */
 import { createHash } from 'node:crypto';
-import { ResolutionFold, type JournalEntry } from '@lurker/core';
+import { ResolutionFold, type JournalEntry } from '@rulvar/core';
 import { stableStringify } from '../types.js';
 
 function entry(partial: Partial<JournalEntry> & { seq: number }): JournalEntry {

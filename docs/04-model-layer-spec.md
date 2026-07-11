@@ -6,7 +6,7 @@ Date: 2026-07-06
 
 Purpose: normative specification of the L0 wire contract, the ProviderAdapter SPI, the first-class adapters on the July 2026 provider surfaces, canonical effort, the model router and invocation roles, role quality floors, pricing, RetryPolicy and failover under the journal, and the ModelLadder summary.
 
-This document owns the FR-1xx requirement block (registry in 01-requirements.md, section "FR registry"). Delivery is spread across milestones (10-implementation-plan.md): the two first-class adapters and structured-output tiers land in M1 (v0.2.0), the openaiCompatible factory in M3 (v0.4.0), model layer completion (roles, HistoryProjector, failover, price table, canonical effort in identity, RetryPolicy, floors) in M4 (v0.5.0), and @lurker/bridge-ai-sdk in M9 (v1.0.0). Two earlier-draft details are reopened here as spec bugs against the July 2026 provider surfaces and are normative in their amended form: the canonical effort union is five levels, and refusal is a typed finish outcome rather than a null projection. Package references always use the @lurker/<name> form (naming risk note in 13-toolchain-repo.md, section "Naming risk note").
+This document owns the FR-1xx requirement block (registry in 01-requirements.md, section "FR registry"). Delivery is spread across milestones (10-implementation-plan.md): the two first-class adapters and structured-output tiers land in M1 (v0.2.0), the openaiCompatible factory in M3 (v0.4.0), model layer completion (roles, HistoryProjector, failover, price table, canonical effort in identity, RetryPolicy, floors) in M4 (v0.5.0), and @rulvar/bridge-ai-sdk in M9 (v1.0.0). Two earlier-draft details are reopened here as spec bugs against the July 2026 provider surfaces and are normative in their amended form: the canonical effort union is five levels, and refusal is a typed finish outcome rather than a null projection. Package references always use the @rulvar/<name> form (naming risk note in 13-toolchain-repo.md, section "Naming risk note").
 
 ## 1 Wire contract (L0)
 
@@ -151,8 +151,8 @@ export interface CacheHint {
 
 cacheHint is a provider-neutral declaration of intended prompt-cache boundaries. Adapters compile it best-effort:
 
-- @lurker/anthropic compiles breakpoints into `cache_control` blocks (section 4.4). When the hint exceeds the provider's breakpoint cap, the adapter MUST keep the deepest breakpoints and drop the shallowest, deterministically.
-- @lurker/openai treats cacheHint as a no-op: Responses prompt caching is implicit prefix caching.
+- @rulvar/anthropic compiles breakpoints into `cache_control` blocks (section 4.4). When the hint exceeds the provider's breakpoint cap, the adapter MUST keep the deepest breakpoints and drop the shallowest, deterministically.
+- @rulvar/openai treats cacheHint as a no-op: Responses prompt caching is implicit prefix caching.
 - Adapters for providers without caching MUST ignore the hint silently.
 
 cacheHint is a transport-level cost optimization: it MUST NOT enter IdentityInput and MUST NOT change response semantics (see 03-journal-spec.md, section "Identity model" for the exclusion list).
@@ -161,7 +161,7 @@ cacheHint is a transport-level cost optimization: it MUST NOT enter IdentityInpu
 
 `providerOptions` on ChatRequest is namespaced by adapter id: `{ anthropic: {...}, openai: {...}, ollama: {...} }`. An adapter MUST read only its own namespace and MUST ignore unknown namespaces without error. Symmetrically, adapters report provider-specific response facts under their own namespace in `providerMetadata` on the finish event (for example, the matched stop sequence, response ids, service tier). Namespaced options are escape hatches: canonical fields always win where both express the same thing, and adapters MUST NOT let a namespaced option silently contradict a canonical field (typed ConfigError instead).
 
-The engine additionally populates one reserved namespace, `lurker`, on every request with spawn telemetry `{ agentType?: string, label?: string }`. It is telemetry, not configuration: adapters MAY consume it (FakeAdapter's agentType and label pattern matching, 09-observability-testing-spec.md, section "Tier 1"), MUST otherwise ignore it, and like every providerOptions namespace it never enters journal identity. (Amended during M1-T14: the FakeAdapter contract requires call metadata at the adapter boundary.)
+The engine additionally populates one reserved namespace, `rulvar`, on every request with spawn telemetry `{ agentType?: string, label?: string }`. It is telemetry, not configuration: adapters MAY consume it (FakeAdapter's agentType and label pattern matching, 09-observability-testing-spec.md, section "Tier 1"), MUST otherwise ignore it, and like every providerOptions namespace it never enters journal identity. (Amended during M1-T14: the FakeAdapter contract requires call metadata at the adapter boundary.)
 
 ## 2 ProviderAdapter SPI
 
@@ -220,7 +220,7 @@ Canonical effort is exactly five levels:
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 ```
 
-This extends the earlier four-level set (reopened spec bug): as of July 2026 both first-class providers ship `xhigh` and both recommend it for agentic and coding work, which is exactly the workload lurker targets. OpenAI additionally ships `none`, which has no canonical equivalent and is reachable only via the adapter's providerOptions namespace (section 3.3).
+This extends the earlier four-level set (reopened spec bug): as of July 2026 both first-class providers ship `xhigh` and both recommend it for agentic and coding work, which is exactly the workload rulvar targets. OpenAI additionally ships `none`, which has no canonical equivalent and is reachable only via the adapter's providerOptions namespace (section 3.3).
 
 ### 3.2 Effort in identity (DEF-6)
 
@@ -235,7 +235,7 @@ Legacy interplay, normative (DEF-6):
 
 The identity always records the requested canonical effort. Adapters map canonical effort to the wire at projection time:
 
-| Canonical | @lurker/anthropic (`output_config.effort`) | @lurker/openai (`reasoning.effort`) |
+| Canonical | @rulvar/anthropic (`output_config.effort`) | @rulvar/openai (`reasoning.effort`) |
 |-----------|--------------------------------------------|--------------------------------------|
 | low       | low                                        | low                                  |
 | medium    | medium                                     | medium                               |
@@ -251,7 +251,7 @@ The identity always records the requested canonical effort. Adapters map canonic
 
 If the resolved effort is not in `caps.reasoningEfforts` for the target model, the router scrubs it visibly: the request proceeds without the unsupported effort, a warning-level WorkflowEvent is emitted (09-observability-testing-spec.md, section "Event stream"), and the scrub MUST NOT be silently translated into `max_tokens` or any other parameter. Identity keeps the requested effort, so replay is stable regardless of scrubbing.
 
-## 4 @lurker/anthropic
+## 4 @rulvar/anthropic
 
 Adapter over `@anthropic-ai/sdk`, specified against the July 2026 Messages API surface. Current models referenced below: Fable 5, Opus 4.8, Opus 4.7, Sonnet 5 (and the older Opus 4.6 and Sonnet 4.6 where noted).
 
@@ -320,7 +320,7 @@ When a server-side tool loop hits its iteration limit, the response ends with `s
 - 529 `overloaded_error` is a distinct retryable class alongside 500 `api_error`.
 - SDK autoretries are disabled with `max_retries: 0` (section 2.2).
 
-## 5 @lurker/openai
+## 5 @rulvar/openai
 
 Adapter for the OpenAI Responses API. Chat Completions is a degraded path (section 5.6). Current models referenced below: gpt-5.5, gpt-5.5-pro, gpt-5.4, gpt-5.4-mini.
 
@@ -395,7 +395,7 @@ Contract:
 - Absent pricing is legitimate for local models (Ollama, vLLM): such models surface as unpriced in CostReport (section 10) and ladder rungs on them omit `maxCostUsd` (section 12).
 - Targets include Ollama, vLLM, Mistral, OpenRouter and arbitrary gateways.
 
-## 7 @lurker/bridge-ai-sdk
+## 7 @rulvar/bridge-ai-sdk
 
 Wraps any Vercel AI SDK `LanguageModelV4` into a ProviderAdapter for the long tail of providers (Google, Bedrock, Vertex) without coupling the core to the ai-sdk release cycle.
 
@@ -518,7 +518,7 @@ export type ModelListConstraint = { allow?: ModelRef[]; deny?: ModelRef[] };
 - Floors are per-role (and optionally per-declared-taskClass) explicit model allowlists and denylists supplied in engine config.
 - No implicit cross-adapter quality ordering exists or is ever computed; the constraint is always an explicit list.
 - `taskClass` is an optional AgentProfile field bridging the ModelKnowledge vocabulary (05-model-knowledge-spec.md, section "Data model"); default unclassified, in which case only `byRole` floors apply.
-- Named strong default models for orchestrate and plan live only in the umbrella `lurker` package config, never in @lurker/core. The core ships the floor mechanism; the umbrella ships opinions.
+- Named strong default models for orchestrate and plan live only in the umbrella `rulvar` package config, never in @rulvar/core. The core ships the floor mechanism; the umbrella ships opinions.
 - A floor violation at resolution is a typed ConfigError before any live call.
 
 ## 10 Pricing

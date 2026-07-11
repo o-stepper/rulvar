@@ -124,8 +124,8 @@ describe('plugin surface', () => {
       'no-process-env',
       'no-promise-all-over-ctx',
     ]);
-    expect(plugin.configs).toMatchObject({ workflows: { name: 'lurker/workflows' } });
-    expect(workflowsConfig.rules?.['lurker/duplicate-identical-call']).toBe('warn');
+    expect(plugin.configs).toMatchObject({ workflows: { name: 'rulvar/workflows' } });
+    expect(workflowsConfig.rules?.['rulvar/duplicate-identical-call']).toBe('warn');
   });
 
   it('emits machine-readable JSON diagnostics through a flat-config Linter', () => {
@@ -144,12 +144,12 @@ describe('plugin surface', () => {
     const diagnostics = toJsonDiagnostics(messages);
     expect(diagnostics).toHaveLength(2);
     expect(diagnostics[0]).toMatchObject({
-      ruleId: 'lurker/no-bare-date',
+      ruleId: 'rulvar/no-bare-date',
       severity: 'error',
       line: 2,
     });
     expect(diagnostics[1]).toMatchObject({
-      ruleId: 'lurker/no-promise-all-over-ctx',
+      ruleId: 'rulvar/no-promise-all-over-ctx',
       severity: 'error',
       line: 3,
     });

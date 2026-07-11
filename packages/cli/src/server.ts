@@ -30,7 +30,7 @@
  */
 import {
   InvalidResolutionError,
-  LurkerError,
+  RulvarError,
   Replayer,
   costReportFromJournal,
   normalizeEntry,
@@ -53,7 +53,7 @@ import {
   type Workflow,
   type WorkflowEvent,
   type WorkflowRegistry,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 export interface CreateServerOptions {
   engine: Engine;
@@ -75,7 +75,7 @@ export interface CreateServerOptions {
   retention?: (meta: RunMeta) => boolean;
 }
 
-export interface LurkerServer {
+export interface RulvarServer {
   fetch(req: Request): Promise<Response>;
 }
 
@@ -120,7 +120,7 @@ function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
 }
 
-function errorStatus(error: LurkerError): number {
+function errorStatus(error: RulvarError): number {
   switch (error.code) {
     case 'config':
     case 'invalid_resolution':
@@ -135,7 +135,7 @@ function errorStatus(error: LurkerError): number {
 }
 
 function errorResponse(thrown: unknown): Response {
-  if (thrown instanceof LurkerError) {
+  if (thrown instanceof RulvarError) {
     return json(errorStatus(thrown), { error: thrown.toWire() });
   }
   const message = thrown instanceof Error ? thrown.message : String(thrown);
@@ -172,7 +172,7 @@ function suspensionKeyOf(entry: JournalEntry): string | undefined {
   return undefined;
 }
 
-export function createServer(options: CreateServerOptions): LurkerServer {
+export function createServer(options: CreateServerOptions): RulvarServer {
   const { engine, workflows } = options;
   const journal = engine.stores.journal;
   const runs = new Map<string, TrackedRun>();
@@ -459,7 +459,7 @@ export function createServer(options: CreateServerOptions): LurkerServer {
     }
     let lease: Lease | undefined;
     if (isLeasable(journal)) {
-      lease = await journal.acquire(runId, `lurker-server:${process.pid}`);
+      lease = await journal.acquire(runId, `rulvar-server:${process.pid}`);
     }
     try {
       const entries = (await journal.load(runId)).map((raw) => normalizeEntry(raw));

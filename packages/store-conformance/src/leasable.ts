@@ -10,10 +10,10 @@
  * store-side counterpart checked here (when `ttlMs` is provided) is that
  * a lease renewed at that cadence stays held past the original ttl and
  * that an unrenewed lease becomes reclaimable. The first LeasableStore
- * ships in M5 (@lurker/store-sqlite); the multi-process soak re-runs
+ * ships in M5 (@rulvar/store-sqlite); the multi-process soak re-runs
  * these sections under real concurrency in M8.
  */
-import { LeaseHeldError, type JournalEntry, type LeasableStore, type Lease } from '@lurker/core';
+import { LeaseHeldError, type JournalEntry, type LeasableStore, type Lease } from '@rulvar/core';
 import {
   ensure,
   makeSuite,

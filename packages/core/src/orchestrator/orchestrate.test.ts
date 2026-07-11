@@ -9,8 +9,8 @@ import { makeOrchestratorWorkflow } from './orchestrate.js';
 
 /** The telemetry namespace tells orchestrator requests from child ones. */
 function agentTypeOf(req: ChatRequest): string {
-  const lurker = (req.providerOptions as { lurker?: { agentType?: string } } | undefined)?.lurker;
-  return lurker?.agentType ?? '';
+  const rulvar = (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)?.rulvar;
+  return rulvar?.agentType ?? '';
 }
 
 /** Extracts spawn handles from the tool results the model saw. */
@@ -347,10 +347,10 @@ describe('orchestrate (M6-T07/T08)', () => {
     const childWorkflows = entries.filter((e) => e.kind === 'child');
     expect(childWorkflows.length).toBeGreaterThan(0);
     expect((childWorkflows[0]?.value as { childScope?: string })?.childScope).toBe(
-      'wf:lurker-orchestrate:0',
+      'wf:rulvar-orchestrate:0',
     );
     // Its child agent journals under the nested scope.
-    const nested = entries.filter((e) => e.scope.startsWith('wf:lurker-orchestrate:0/agent:'));
+    const nested = entries.filter((e) => e.scope.startsWith('wf:rulvar-orchestrate:0/agent:'));
     expect(nested.length).toBeGreaterThan(0);
   });
 });

@@ -17,8 +17,8 @@ import type {
   KnowledgeSnapshot,
   ModelClaim,
   ModelKnowledgeStore,
-} from '@lurker/core';
-import { InMemoryStore, knowledgeHash } from '@lurker/core';
+} from '@rulvar/core';
+import { InMemoryStore, knowledgeHash } from '@rulvar/core';
 
 import {
   agentTypeOfRequest,

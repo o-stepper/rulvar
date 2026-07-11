@@ -20,8 +20,8 @@
  *   `resolve_escalation` ops (retry re-opens in place, accept closes done,
  *   cancel closes cancelled, decompose admits the proposed children).
  */
-import { deriverV2 } from '@lurker/core';
-import type { EntryRef, EscalationDecision, Json, LogicalTaskId } from '@lurker/core';
+import { deriverV2 } from '@rulvar/core';
+import type { EntryRef, EscalationDecision, Json, LogicalTaskId } from '@rulvar/core';
 
 /** One per-lineage debit row of a class-level decision (docs/07, 6.5). */
 export interface EscalationDebitRow {

@@ -11,8 +11,8 @@
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-import { createEngine, InMemoryStore, type JournalEntry, type Workflow } from '@lurker/core';
-import { FakeAdapter, FAKE_MODEL_REF, replayRun, type FakeCall } from '@lurker/testing';
+import { createEngine, InMemoryStore, type JournalEntry, type Workflow } from '@rulvar/core';
+import { FakeAdapter, FAKE_MODEL_REF, replayRun, type FakeCall } from '@rulvar/testing';
 
 import { judgePanel } from './judge-panel.js';
 

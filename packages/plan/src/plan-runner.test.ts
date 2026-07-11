@@ -8,7 +8,7 @@ import {
   type ModelCaps,
   type ProviderAdapter,
   type Usage,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 import { planHash } from './plan-hash.js';
 import { emptyPlan } from './plan-state.js';
@@ -60,8 +60,8 @@ function scriptedAdapter(
 }
 
 function agentTypeOf(req: ChatRequest): string {
-  const lurker = (req.providerOptions as { lurker?: { agentType?: string } } | undefined)?.lurker;
-  return lurker?.agentType ?? '';
+  const rulvar = (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)?.rulvar;
+  return rulvar?.agentType ?? '';
 }
 
 /** Extracts the latest tool result carrying the given marker fields. */

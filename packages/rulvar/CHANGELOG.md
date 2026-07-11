@@ -1,4 +1,4 @@
-# @lurker/lurker
+# @rulvar/rulvar
 
 ## 0.9.0
 
@@ -8,9 +8,9 @@
 - Updated dependencies [65c7b2c]
 - Updated dependencies [a2a3243]
 - Updated dependencies [ebc8101]
-  - @lurker/core@0.9.0
-  - @lurker/anthropic@0.9.0
-  - @lurker/openai@0.9.0
+  - @rulvar/core@0.9.0
+  - @rulvar/anthropic@0.9.0
+  - @rulvar/openai@0.9.0
 
 ## 0.8.0
 
@@ -27,9 +27,9 @@
 - Updated dependencies [fd33871]
 - Updated dependencies [e70e7f4]
 - Updated dependencies [bc9c903]
-  - @lurker/core@0.8.0
-  - @lurker/anthropic@0.8.0
-  - @lurker/openai@0.8.0
+  - @rulvar/core@0.8.0
+  - @rulvar/anthropic@0.8.0
+  - @rulvar/openai@0.8.0
 
 ## 0.7.0
 
@@ -41,17 +41,17 @@
 - Updated dependencies [434dc83]
 - Updated dependencies [03173c1]
 - Updated dependencies [11c0afc]
-  - @lurker/core@0.7.0
-  - @lurker/anthropic@0.7.0
-  - @lurker/openai@0.7.0
+  - @rulvar/core@0.7.0
+  - @rulvar/anthropic@0.7.0
+  - @rulvar/openai@0.7.0
 
 ## 0.6.0
 
 ### Minor Changes
 
-- fa05007: M5-T01 workflow registry and the @lurker/cli base.
+- fa05007: M5-T01 workflow registry and the @rulvar/cli base.
 
-  - `@lurker/core` gains the per-engine `WorkflowRegistry` type and
+  - `@rulvar/core` gains the per-engine `WorkflowRegistry` type and
     `defaults.workflows` on createEngine (docs/06 section 10.4): an
     explicit first-class value, no module-level registry; shells resolve
     by-name runs against it (ctx.workflow's string form arrives M6, the
@@ -60,18 +60,18 @@
     createEngine top level to its canonical home `defaults.roleFloors`
     (docs/06 section 10.1). Update `createEngine({ floors })` call sites
     to `createEngine({ defaults: { roleFloors } })`.
-  - `@lurker/cli` ships its first real surface: the canonical grammar
-    `lurker run <file|name> [--args JSON] [--store PATH] [--budget-usd N]`,
-    `lurker resume <runId> [--args JSON] [--store PATH]`,
-    `lurker runs ls [--store PATH]`, `lurker inspect <runId> [--store
+  - `@rulvar/cli` ships its first real surface: the canonical grammar
+    `rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N]`,
+    `rulvar resume <runId> [--args JSON] [--store PATH]`,
+    `rulvar runs ls [--store PATH]`, `rulvar inspect <runId> [--store
 PATH]` (no aliases), a line-oriented TUI progress renderer over the
     event stream, and interactive resolution of suspended approvals and
     externals (EOF leaves the run suspended, never errors). Engine
-    assembly follows the host-config convention: `lurker.config.mjs`
+    assembly follows the host-config convention: `rulvar.config.mjs`
     default-exports `{ engineOptions?, workflows? }`, a workflow module
     may export `workflow`/`engineOptions`/`workflows`, and --store selects
-    the JsonlFileStore directory (default `.lurker`), so the CLI itself
-    depends only on @lurker/core. The `lurker` bin is included; the
+    the JsonlFileStore directory (default `.rulvar`), so the CLI itself
+    depends only on @rulvar/core. The `rulvar` bin is included; the
     resume/inspect grammar amendment (--args re-supply, --store symmetry)
     is recorded in docs/06 section 10.5.
 
@@ -82,9 +82,9 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 - Updated dependencies [644512c]
 - Updated dependencies [8a41656]
 - Updated dependencies [02f7f7a]
-  - @lurker/core@0.6.0
-  - @lurker/anthropic@0.6.0
-  - @lurker/openai@0.6.0
+  - @rulvar/core@0.6.0
+  - @rulvar/anthropic@0.6.0
+  - @rulvar/openai@0.6.0
 
 ## 0.5.0
 
@@ -116,7 +116,7 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
     summarize fallback alike). `AgentProfile.taskClass` declares the
     class; unclassified profiles see only byRole floors. A violation is a
     typed ConfigError.
-  - The umbrella `lurker` package now ships floors opinions next to its
+  - The umbrella `rulvar` package now ships floors opinions next to its
     strong routing defaults: `recommendedDefaults.floors` pins orchestrate
     and plan to strong named models. The core itself ships no named model
     strings, and the umbrella suite enforces that with a source scan.
@@ -129,9 +129,9 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 - Updated dependencies [8ae129e]
 - Updated dependencies [d1c4525]
 - Updated dependencies [b840aba]
-  - @lurker/core@0.5.0
-  - @lurker/anthropic@0.5.0
-  - @lurker/openai@0.5.0
+  - @rulvar/core@0.5.0
+  - @rulvar/anthropic@0.5.0
+  - @rulvar/openai@0.5.0
 
 ## 0.4.0
 
@@ -145,9 +145,9 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 - Updated dependencies [6513ce8]
 - Updated dependencies [7dad493]
 - Updated dependencies [2bbf180]
-  - @lurker/core@0.4.0
-  - @lurker/openai@0.4.0
-  - @lurker/anthropic@0.4.0
+  - @rulvar/core@0.4.0
+  - @rulvar/openai@0.4.0
+  - @rulvar/anthropic@0.4.0
 
 ## 0.3.0
 
@@ -159,9 +159,9 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 - Updated dependencies [24ebadf]
 - Updated dependencies [a1b35d3]
 - Updated dependencies [18a5821]
-  - @lurker/core@0.3.0
-  - @lurker/anthropic@0.3.0
-  - @lurker/openai@0.3.0
+  - @rulvar/core@0.3.0
+  - @rulvar/anthropic@0.3.0
+  - @rulvar/openai@0.3.0
 
 ## 0.2.0
 
@@ -178,16 +178,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   handle.cancel, run deadline) and RunMeta run-to-definition binding
   fields. The umbrella ships the minimal terminal progress renderer
   (renderProgress) and re-exports the core surface.
-- 5c4fc32: M1-T14/T15: @lurker/testing tier 1 (FakeAdapter matching on
+- 5c4fc32: M1-T14/T15: @rulvar/testing tier 1 (FakeAdapter matching on
   agentType/label/prompt regex with a '*' fallback, honoring the selected
   structured-output tier, zero USD by construction; createTestEngine over
   the full real engine with recorded event streams; toHaveCalledAgent and
-  toStayUnderBudget matchers at '@lurker/testing/matchers') and the
-  completed umbrella (re-exports of @lurker/core and both first-class
+  toStayUnderBudget matchers at '@rulvar/testing/matchers') and the
+  completed umbrella (re-exports of @rulvar/core and both first-class
   adapters, renderProgress, the umbrella-only recommendedDefaults strong
   model slots, the M1 exit-criteria example workflow, and the CI install
   smoke on packed tarballs). The core now populates the reserved
-  providerOptions 'lurker' telemetry namespace on every request (docs/04
+  providerOptions 'rulvar' telemetry namespace on every request (docs/04
   section 1.8 as amended) and AgentResult carries errorMessage detail for
   journaled WireError fidelity.
 
@@ -199,9 +199,9 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 - Updated dependencies [1af8fb9]
 - Updated dependencies [1fe0249]
 - Updated dependencies [5c4fc32]
-  - @lurker/anthropic@0.2.0
-  - @lurker/openai@0.2.0
-  - @lurker/core@0.2.0
+  - @rulvar/anthropic@0.2.0
+  - @rulvar/openai@0.2.0
+  - @rulvar/core@0.2.0
 
 ## 0.1.0
 
@@ -211,7 +211,7 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   monorepo scaffold on the committed toolchain (pnpm 11 workspaces with
   catalogs, TypeScript 6.0, tsdown, Vitest 4, ESLint 9 flat config,
   Turborepo 2, changesets fixed mode, npm trusted publishing), the docs/
-  canon as single source of truth, the L0 contracts skeleton in @lurker/core,
+  canon as single source of truth, the L0 contracts skeleton in @rulvar/core,
   and the vendored dependencies (StandardSchemaV1/StandardJSONSchemaV1 types,
   the @cfworker/json-schema lineage validator subset, a first-party monotonic
   ULID). Placeholder scaffolds only: no public API ships in this release.
@@ -219,6 +219,6 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 ### Patch Changes
 
 - Updated dependencies [f4e2be9]
-  - @lurker/anthropic@0.1.0
-  - @lurker/core@0.1.0
-  - @lurker/openai@0.1.0
+  - @rulvar/anthropic@0.1.0
+  - @rulvar/core@0.1.0
+  - @rulvar/openai@0.1.0

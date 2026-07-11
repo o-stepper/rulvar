@@ -1,19 +1,19 @@
-# lurker overview
+# rulvar overview
 
 - Status: Ready for implementation
 - Version: 0.2.0-docs
 - Date: 2026-07-06
-- Purpose: what lurker is, its seven hard goals, the load-bearing invariants I1-I6, the three orchestration modes, the component and package maps, defect-fix provenance, and the canonical glossary.
+- Purpose: what rulvar is, its seven hard goals, the load-bearing invariants I1-I6, the three orchestration modes, the component and package maps, defect-fix provenance, and the canonical glossary.
 
-## 1. What lurker is
+## 1. What rulvar is
 
-lurker is an embeddable TypeScript library for building multi-agent LLM workflows, inspired by the ultracode Workflow feature in Claude Code. It is a library, not a platform: it lives inside a host application and requires no server, no database, and no control plane. Shells (CLI, HTTP server, queue worker) exist but are optional and are built strictly on top of the public APIs (see 02-architecture.md, section "Shells overview").
+rulvar is an embeddable TypeScript library for building multi-agent LLM workflows, inspired by the ultracode Workflow feature in Claude Code. It is a library, not a platform: it lives inside a host application and requires no server, no database, and no control plane. Shells (CLI, HTTP server, queue worker) exist but are optional and are built strictly on top of the public APIs (see 02-architecture.md, section "Shells overview").
 
 ## 2. Goals
 
 Seven hard requirements. Each one is backed by a concrete mechanism, not a declaration, and owns a requirement block in 01-requirements.md.
 
-1. **Vendor neutrality by construction.** The core MUST NOT import provider SDKs; every provider lives exclusively inside its own adapter behind the ProviderAdapter SPI. First-class adapters: @lurker/anthropic, @lurker/openai (Responses API), and the openaiCompatible factory; the long tail is served through a bridge to the ai-sdk ecosystem. Mechanism: ProviderAdapter SPI (04-model-layer-spec.md). Requirements: FR-1xx.
+1. **Vendor neutrality by construction.** The core MUST NOT import provider SDKs; every provider lives exclusively inside its own adapter behind the ProviderAdapter SPI. First-class adapters: @rulvar/anthropic, @rulvar/openai (Responses API), and the openaiCompatible factory; the long tail is served through a bridge to the ai-sdk ecosystem. Mechanism: ProviderAdapter SPI (04-model-layer-spec.md). Requirements: FR-1xx.
 2. **Multi-model at every level.** The model is resolved on every invocation, not once per agent: call override > agent profile > workflow defaults > engine defaults. Within a single agent, invocation roles (loop, extract, finalize, summarize, plan, orchestrate) MAY route to different models of different providers; cross-provider history correctness is owned by the HistoryProjector. Mechanism: router resolution chain and role protocol (04-model-layer-spec.md). Requirements: FR-1xx.
 3. **Three orchestration modes on one runtime, one journal, one budget path** (see section 4 below). No fourth mode exists. Topologies are call-and-return only: handoffs and chat-room emergence are rejected on principle. Mechanism: single engine and journal path (06-execution-spec.md, 07-adaptive-orchestration-spec.md). Requirements: FR-2xx, FR-3xx.
 4. **Embeddability first.** Shells (CLI, HTTP server, queue worker) build strictly on public APIs and are optional; no lower layer depends on them. Every guard state of adaptive orchestration has a non-HITL terminating fallback: an embedded run with no operator present always terminates rather than hanging. Mechanism: layer rules and guard fallbacks (02-architecture.md, 07-adaptive-orchestration-spec.md). Requirements: FR-7xx and the embeddability NFR in 01-requirements.md.
@@ -37,8 +37,8 @@ The invariants below are normative; the I1-I6 numbering is fixed. New invariants
 Three modes, all on the same runtime, journal, and budget path (I5):
 
 - **(a) Human scripts.** Deterministic workflows written by people, executed by the InProcessRunner (in-process by convention, with lint support for human code).
-- **(b) Flagship hybrid.** A planner model writes a script against the API card; the script passes lint and a self-repair loop, then executes deterministically in the worker sandbox (WorkerSandboxRunner). Lives in @lurker/planner.
-- **(c) Dynamic orchestrator.** An agent with typed spawn tools. Its optional extension PlanRunner adds the plan as typed, engine-owned data (@lurker/plan).
+- **(b) Flagship hybrid.** A planner model writes a script against the API card; the script passes lint and a self-repair loop, then executes deterministically in the worker sandbox (WorkerSandboxRunner). Lives in @rulvar/planner.
+- **(c) Dynamic orchestrator.** An agent with typed spawn tools. Its optional extension PlanRunner adds the plan as typed, engine-owned data (@rulvar/plan).
 
 A fourth mode MUST NOT be added. All topologies are call-and-return only (I3).
 
@@ -57,32 +57,32 @@ Twelve components. Full responsibilities and interfaces live in 02-architecture.
 5. **Agent Runtime.** The agent loop: permission chain binding, structured output tiers with bounded re-prompt, turn-boundary checkpoints, HistoryProjector, compaction ownership, ask-approval suspensions. Owning spec: 06-execution-spec.md, section "Agent Runtime binding" (model-facing parts in 04-model-layer-spec.md).
 6. **Tool System and MCP Bus.** tool() definitions with SchemaSpec and version, toolsetHash, the permission chain, MCP as a ToolSource, executors, and isolation. Owning spec: 08-tools-permissions-spec.md.
 7. **Workflow Engine and Ctx Primitives.** createEngine, engine.run/resume, the canonical Ctx interface (agent, parallel, pipeline, step, phase, log, brief, budget, awaitExternal, deterministic shims), the concurrency scheduler, and the three-layer budget. Owning spec: 06-execution-spec.md.
-8. **Script Runners.** The ScriptRunner seam: InProcessRunner in the core for human scripts, WorkerSandboxRunner in @lurker/planner for machine scripts; the Workflow / CompiledWorkflow type split. Owning spec: 06-execution-spec.md, section "Script runners".
+8. **Script Runners.** The ScriptRunner seam: InProcessRunner in the core for human scripts, WorkerSandboxRunner in @rulvar/planner for machine scripts; the Workflow / CompiledWorkflow type split. Owning spec: 06-execution-spec.md, section "Script runners".
 9. **Orchestration Modes (Planner and Dynamic Orchestrator).** The flagship hybrid (plan agent, compileScript, self-repair) and the dynamic orchestrator with its typed spawn toolset; PlanRunner as the opt-in plan extension. Owning specs: 06-execution-spec.md, section "Modes and entry points"; 07-adaptive-orchestration-spec.md.
 10. **Event Stream and Observability.** The WorkflowEvent envelope and canonical event catalog, metrics, OTel export, RunHandle, CostReport. Owning spec: 09-observability-testing-spec.md.
-11. **Test Harness (@lurker/testing).** FakeAdapter and createTestEngine, VCR cassettes, replay-strict runs, matchers. Owning spec: 09-observability-testing-spec.md, section "Test harness three tiers".
-12. **Shell: CLI, Server and Queue (@lurker/cli).** run/resume/runs/inspect/plan commands with TUI progress, createServer (HTTP, SSE, external resolution), createWorker over LeasableStore, kb maintenance commands. Owning specs: 06-execution-spec.md, section "Engine and ops API"; 02-architecture.md, section "Shells overview".
+11. **Test Harness (@rulvar/testing).** FakeAdapter and createTestEngine, VCR cassettes, replay-strict runs, matchers. Owning spec: 09-observability-testing-spec.md, section "Test harness three tiers".
+12. **Shell: CLI, Server and Queue (@rulvar/cli).** run/resume/runs/inspect/plan commands with TUI progress, createServer (HTTP, SSE, external resolution), createWorker over LeasableStore, kb maintenance commands. Owning specs: 06-execution-spec.md, section "Engine and ops API"; 02-architecture.md, section "Shells overview".
 
 ## 6. Package map at a glance
 
-Fourteen packages. The authoritative map with the dependency graph is 02-architecture.md, section "Package map"; that section also carries the one-line disambiguation of @lurker/plan versus @lurker/planner. Install commands always use @lurker/<name>; the umbrella name is contingent per 13-toolchain-repo.md, section "Naming risk note".
+Fourteen packages. The authoritative map with the dependency graph is 02-architecture.md, section "Package map"; that section also carries the one-line disambiguation of @rulvar/plan versus @rulvar/planner. Install commands always use @rulvar/<name>; the umbrella name is contingent per 13-toolchain-repo.md, section "Naming risk note".
 
 | Package | Contents |
 |---|---|
-| lurker | Umbrella with batteries: re-exports @lurker/core, both first-class adapters, the file store, and the terminal progress renderer; the single-npm-install path. Name contingent (OQ-24). |
-| @lurker/core | L0 contracts; journal kernel (replayDisposition, ref-entries, hashVersion KeyDeriver registry, TerminationAccount); ctx primitives; agent runtime with HistoryProjector; model router and capability registry; tool system; dynamic orchestrator; AdmissionController; InProcessRunner; InMemory and JSONL stores; event stream; file ModelKnowledgeStore and modelKnowledgeCard renderer. Zero provider-SDK dependencies; sole vendored runtime dependency: the mini JSON Schema validator (vendored StandardSchemaV1 declarations are types only). |
-| @lurker/plan | PlanRunner, RunLedger, EscalationProtocol orchestrator extensions, ModelLadder configuration; built entirely from the core public API. |
-| @lurker/anthropic | Adapter over @anthropic-ai/sdk: thinking-block replay with signatures, cacheHint, pause_turn, typed refusal outcomes, 529 and retry-after handling, usage normalization. |
-| @lurker/openai | Responses API adapter (reasoning items, strict json_schema) plus the openaiCompatible factory with explicit id and baseURL. |
-| @lurker/store-sqlite | SqliteStore implementing JournalStore and LeasableStore with the fencing epoch; the reference for community stores. |
-| @lurker/store-conformance | Executable store conformance kit (DEF-4): atomicity, total order, read-your-writes, opaque payload, fencing, golden fold-state fixtures, the end-to-end decide-once oracle. |
-| @lurker/compat | Frozen KeyDeriver profiles for hashVersions that left the support window (DEF-6); independently versioned (the sole lockstep exemption), tree-shakeable, wired via EngineOptions.extraDerivers. |
-| @lurker/planner | The flagship hybrid: plan agent, compileScript with an import allowlist, WorkerSandboxRunner with seeded journaled globals, the self-repair loop over lint diagnostics. |
-| eslint-plugin-lurker | Determinism rules (no bare Date.now/Math.random/new Date/fetch/process.env in workflow modules; no Promise.all over ctx calls) with structural JSON diagnostics for the self-repair loop. Lockstep-versioned despite its npm-required unscoped name. |
-| @lurker/testing | createTestEngine and FakeAdapter, VCR cassettes with secret redaction, replay-strict runs, matchers for vitest and jest. |
-| @lurker/evals | Eval cases, golden outputs, rubric and judge graders running through the engine, matrix sweeps, the canary fingerprint. |
-| @lurker/cli | run/resume/runs/inspect/plan commands, TUI progress, createServer (HTTP, SSE, external resolution), createWorker over LeasableStore, OTel exporter, kb maintenance commands (lurker kb list / inbox / sweep). |
-| @lurker/bridge-ai-sdk | Wraps any ai-sdk LanguageModelV4 as a ProviderAdapter for the long tail of providers; documented as the highest-churn package. |
+| rulvar | Umbrella with batteries: re-exports @rulvar/core, both first-class adapters, the file store, and the terminal progress renderer; the single-npm-install path. Name contingent (OQ-24). |
+| @rulvar/core | L0 contracts; journal kernel (replayDisposition, ref-entries, hashVersion KeyDeriver registry, TerminationAccount); ctx primitives; agent runtime with HistoryProjector; model router and capability registry; tool system; dynamic orchestrator; AdmissionController; InProcessRunner; InMemory and JSONL stores; event stream; file ModelKnowledgeStore and modelKnowledgeCard renderer. Zero provider-SDK dependencies; sole vendored runtime dependency: the mini JSON Schema validator (vendored StandardSchemaV1 declarations are types only). |
+| @rulvar/plan | PlanRunner, RunLedger, EscalationProtocol orchestrator extensions, ModelLadder configuration; built entirely from the core public API. |
+| @rulvar/anthropic | Adapter over @anthropic-ai/sdk: thinking-block replay with signatures, cacheHint, pause_turn, typed refusal outcomes, 529 and retry-after handling, usage normalization. |
+| @rulvar/openai | Responses API adapter (reasoning items, strict json_schema) plus the openaiCompatible factory with explicit id and baseURL. |
+| @rulvar/store-sqlite | SqliteStore implementing JournalStore and LeasableStore with the fencing epoch; the reference for community stores. |
+| @rulvar/store-conformance | Executable store conformance kit (DEF-4): atomicity, total order, read-your-writes, opaque payload, fencing, golden fold-state fixtures, the end-to-end decide-once oracle. |
+| @rulvar/compat | Frozen KeyDeriver profiles for hashVersions that left the support window (DEF-6); independently versioned (the sole lockstep exemption), tree-shakeable, wired via EngineOptions.extraDerivers. |
+| @rulvar/planner | The flagship hybrid: plan agent, compileScript with an import allowlist, WorkerSandboxRunner with seeded journaled globals, the self-repair loop over lint diagnostics. |
+| eslint-plugin-rulvar | Determinism rules (no bare Date.now/Math.random/new Date/fetch/process.env in workflow modules; no Promise.all over ctx calls) with structural JSON diagnostics for the self-repair loop. Lockstep-versioned despite its npm-required unscoped name. |
+| @rulvar/testing | createTestEngine and FakeAdapter, VCR cassettes with secret redaction, replay-strict runs, matchers for vitest and jest. |
+| @rulvar/evals | Eval cases, golden outputs, rubric and judge graders running through the engine, matrix sweeps, the canary fingerprint. |
+| @rulvar/cli | run/resume/runs/inspect/plan commands, TUI progress, createServer (HTTP, SSE, external resolution), createWorker over LeasableStore, OTel exporter, kb maintenance commands (rulvar kb list / inbox / sweep). |
+| @rulvar/bridge-ai-sdk | Wraps any ai-sdk LanguageModelV4 as a ProviderAdapter for the long tail of providers; documented as the highest-churn package. |
 
 ## 7. Defect-fix provenance
 
@@ -95,7 +95,7 @@ Round-2 gap analysis of the design found eight real synthesis defects; a fix spe
 | DEF-3 | No stable task identity across retries | Lineage: LogicalTaskId (LTID) minting and inheritance rules, approachSig, the single-live-attempt invariant. 03-journal-spec.md, section "Lineage"; 07-adaptive-orchestration-spec.md, section "Lineage". |
 | DEF-4 | Unserialized resolution races | The ref-entry family (resolution/abandon) with the first-closing-wins fold and the ResolutionArbiter; the store conformance kit. 03-journal-spec.md, section "Suspension and resolutions"; 11-testing-strategy.md, section "Conformance tier". |
 | DEF-5 | Duplicate work across plan revisions | Reuse-by-reference: SpawnKey, DedupIndex, node.link, graft aliasing, abandoned-spend accounting. 03-journal-spec.md, section "Abandon, derived skipped, and reuse-by-reference (DEF-5)"; 07-adaptive-orchestration-spec.md, section "AdmissionController". |
-| DEF-6 | Journal incompatibility across library versions | Per-entry hashVersion with the KeyDeriver registry, the support window [CURRENT-2, CURRENT], @lurker/compat, JournalCompatibilityError. 03-journal-spec.md, section "hashVersion". |
+| DEF-6 | Journal incompatibility across library versions | Per-entry hashVersion with the KeyDeriver registry, the support window [CURRENT-2, CURRENT], @rulvar/compat, JournalCompatibilityError. 03-journal-spec.md, section "hashVersion". |
 | DEF-7 | Unbounded orchestrator self-consumption | The orchestrator budget sub-account: cap, effectiveCap, and the finalize reserve. 07-adaptive-orchestration-spec.md, section "Orchestrator budget". |
 | DEF-8 | Informal plan revision | PlanRunner formalization: plan.revision/plan.decision entries, the planHash chain, the rebase algorithm and conflict table, quiescence, guards. 07-adaptive-orchestration-spec.md, section "PlanRunner". |
 
@@ -170,5 +170,5 @@ Canonical terms used across this documentation set. These terms are mandatory; o
 
 ## 10. Name and license status
 
-- Name: the library is lurker and packages publish as @lurker/<name>; the unscoped umbrella name is contingent on resolving a squatted npm name. Canonical risk note: 13-toolchain-repo.md, section "Naming risk note"; tracked as OQ-24 in 14-open-questions.md.
+- Name: the library is rulvar and packages publish as @rulvar/<name>; the unscoped umbrella name is contingent on resolving a squatted npm name. Canonical risk note: 13-toolchain-repo.md, section "Naming risk note"; tracked as OQ-24 in 14-open-questions.md.
 - License: TBD (decided before first public release); a 1.0 gate per 12-release-versioning.md, section "The 1.0 gate"; tracked as OQ-23 in 14-open-questions.md.

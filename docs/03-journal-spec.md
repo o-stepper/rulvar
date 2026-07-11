@@ -263,10 +263,10 @@ export interface KeyDeriver {
 }
 
 export interface EngineOptions {
-  extraDerivers?: KeyDeriver[];   // imported from @lurker/compat; default window [CURRENT-2, CURRENT]
+  extraDerivers?: KeyDeriver[];   // imported from @rulvar/compat; default window [CURRENT-2, CURRENT]
 }
 
-// @lurker/compat: one export per version that has left the window, e.g.:
+// @rulvar/compat: one export per version that has left the window, e.g.:
 export const deriverV1: KeyDeriver;
 ```
 
@@ -288,19 +288,19 @@ If a live call uses a feature not expressible in v1 (kind `decision`, `plan.revi
 - Resolution of a suspended entry is performed by a superseding append at the current version, referenced by seq (section 8); the suspended entry's own identity stays at its version and keeps matching under its own predicate.
 - Ordinal example: two identical calls paid before an upgrade exist as v1 entries with ordinals 0 and 1. A third identical call misses (different version space), runs live, and is written with hashVersion 2 and ordinal 0 in its own `(hashVersion=2, key)` space. Subsequent resumes match all three entries, each under its own version, with zero repays.
 
-### 4.5 Support window, @lurker/compat, JournalCompatibilityError
+### 4.5 Support window, @rulvar/compat, JournalCompatibilityError
 
-The engine MUST read and resume entries with hashVersion in the window `[CURRENT-2, CURRENT]`. Older profiles are moved to the `@lurker/compat` package (frozen data plus code, independently versioned, tree-shakeable; the sole lockstep exemption, see 12-release-versioning.md, section "Exemptions") and are enabled ONLY explicitly via `EngineOptions.extraDerivers`. This is the only window extender; the core stays small and embeddable.
+The engine MUST read and resume entries with hashVersion in the window `[CURRENT-2, CURRENT]`. Older profiles are moved to the `@rulvar/compat` package (frozen data plus code, independently versioned, tree-shakeable; the sole lockstep exemption, see 12-release-versioning.md, section "Exemptions") and are enabled ONLY explicitly via `EngineOptions.extraDerivers`. This is the only window extender; the core stays small and embeddable.
 
 ```ts
-export class JournalCompatibilityError extends LurkerError {
+export class JournalCompatibilityError extends RulvarError {
   code: 'journal_compat';           // the closed registry code (02-architecture.md, section "Error taxonomy")
   subCode: 'HASH_VERSION_TOO_OLD' | 'HASH_VERSION_TOO_NEW';
   runId: string;
   entrySeq: number;                 // first violating entry
   entryHashVersion: number;
   supportedRange: { min: HashVersion; max: HashVersion };
-  hint: string;                     // 'enable deriverV1 from @lurker/compat' or 'upgrade lurker'
+  hint: string;                     // 'enable deriverV1 from @rulvar/compat' or 'upgrade rulvar'
 }
 ```
 
@@ -311,7 +311,7 @@ export class JournalCompatibilityError extends LurkerError {
 - The check runs as ONE scan immediately after load, strictly BEFORE any live call, any append, and any admission reserve: the refusal is free of side effects.
 - In queue mode the check MUST be repeated at lease acquire: a worker with an older library cannot write into a journal containing newer entries (fencing epoch plus version check; section 12.3).
 
-The error taxonomy placement (LurkerError base, code registry, journaling rule) is owned by 02-architecture.md, section "Error taxonomy".
+The error taxonomy placement (RulvarError base, code registry, journaling rule) is owned by 02-architecture.md, section "Error taxonomy".
 
 ### 4.6 Compatibility lemmas
 
@@ -574,7 +574,7 @@ Matching at resume: each scope has a cursor with forward search; a key match ahe
 
 ### 7.4 Accepted residual limitation
 
-Two intentionally identical calls swapped with each other inside one scope bind in journal order. This is accepted and documented; the cure is `opts.key` and the lint rule about duplicate identical calls (eslint-plugin-lurker; 06-execution-spec.md, section "Script runners").
+Two intentionally identical calls swapped with each other inside one scope bind in journal order. This is accepted and documented; the cure is `opts.key` and the lint rule about duplicate identical calls (eslint-plugin-rulvar; 06-execution-spec.md, section "Script runners").
 
 ## 8. Suspension and resolutions (DEF-4)
 
@@ -1139,15 +1139,15 @@ RunMeta is written by the ENGINE via putMeta as a separate record, so `listRuns`
 
 | Store | Package | Notes |
 |---|---|---|
-| InMemoryStore | @lurker/core | resume disabled; one-time loud warning |
-| JsonlFileStore | @lurker/core | the journal doubles as an event log; ships in M2 |
-| FileTranscriptStore | @lurker/core | file-backed TranscriptStore (one blob file per ref beside the journal); required for cross-process resume of compiled runs, whose source blob lives in the TranscriptStore (06-execution-spec.md, 10.2). (Amended during M6-T02: the in-memory transcript default cannot honor the compiled-run binding across processes.) |
-| SqliteStore | @lurker/store-sqlite | implements LeasableStore with fencing epochs; the reference for community stores (M5) |
+| InMemoryStore | @rulvar/core | resume disabled; one-time loud warning |
+| JsonlFileStore | @rulvar/core | the journal doubles as an event log; ships in M2 |
+| FileTranscriptStore | @rulvar/core | file-backed TranscriptStore (one blob file per ref beside the journal); required for cross-process resume of compiled runs, whose source blob lives in the TranscriptStore (06-execution-spec.md, 10.2). (Amended during M6-T02: the in-memory transcript default cannot honor the compiled-run binding across processes.) |
+| SqliteStore | @rulvar/store-sqlite | implements LeasableStore with fencing epochs; the reference for community stores (M5) |
 
 ### 12.7 Conformance obligations
 
 ```ts
-// @lurker/store-conformance: executable conformance kit for store adapters
+// @rulvar/store-conformance: executable conformance kit for store adapters
 export function journalStoreConformance(mk: () => Promise<JournalStore>): ConformanceSuite;
 export function leasableStoreConformance(mk: () => Promise<LeasableStore>): ConformanceSuite;
 ```
@@ -1159,7 +1159,7 @@ Third-party stores MUST pass the kit. Mandatory checks (see also 11-testing-stra
 - Lease contract: acquire on a held lease rejects with the typed `LeaseHeldError`; renew cadence at most ttl/3.
 - Golden journal fixture with resolution/noop/invalid/abandon entries: the hash of the materialized fold state MUST be identical to the reference on every store.
 - End-to-end decide-once oracle: a scripted race of two attempts, exactly one applied classification, then replay-strict with zero live calls.
-- Abandon fixture: resume issues not a single live call inside a skipped subtree. The kit proves this kernel-level (a replay-strict Replayer over the store under test: the covered dispatch MUST derive skipped and the ledger fold MUST contribute zero), which keeps the kit's dependency graph at @lurker/core only (02-architecture.md, section "Dependency rules"); the engine-level FakeAdapter call-counter variant lives in the M2 cassette suite (@lurker/testing).
+- Abandon fixture: resume issues not a single live call inside a skipped subtree. The kit proves this kernel-level (a replay-strict Replayer over the store under test: the covered dispatch MUST derive skipped and the ledger fold MUST contribute zero), which keeps the kit's dependency graph at @rulvar/core only (02-architecture.md, section "Dependency rules"); the engine-level FakeAdapter call-counter variant lives in the M2 cassette suite (@rulvar/testing).
 
 ### 12.8 Serialization hook (M8-T04; OQ-22 interim rule executed)
 

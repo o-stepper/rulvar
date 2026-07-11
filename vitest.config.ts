@@ -2,7 +2,7 @@
 // `vitest run` executes every project; per-package Vitest configs are
 // forbidden.
 //
-// Cross-package imports in tests (the umbrella importing @lurker/core, the
+// Cross-package imports in tests (the umbrella importing @rulvar/core, the
 // adapters from M1-T12 onward) resolve through the packages' exports maps,
 // which point at dist/: build before testing (`pnpm build`, cheap and
 // cached under Turborepo; CI test jobs do the same).

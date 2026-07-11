@@ -2,9 +2,9 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { Engine } from '@lurker/core';
-import { createEngine, JsonlFileStore, ScriptRejected } from '@lurker/core';
-import { FAKE_MODEL_REF, FakeAdapter, type FakeResponder } from '@lurker/testing';
+import type { Engine } from '@rulvar/core';
+import { createEngine, JsonlFileStore, ScriptRejected } from '@rulvar/core';
+import { FAKE_MODEL_REF, FakeAdapter, type FakeResponder } from '@rulvar/testing';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { extractScript, lintScript, plan, planRunIdOf, runPlanned } from './plan.js';
@@ -83,14 +83,14 @@ describe('plan (M6-T05)', () => {
     expect(plannerCalls).toHaveLength(2);
     // The repair prompt carried the machine-readable diagnostics.
     expect(plannerCalls[1].prompt).toContain('DIAGNOSTICS (JSON)');
-    expect(plannerCalls[1].prompt).toContain('lurker/no-bare-date');
+    expect(plannerCalls[1].prompt).toContain('rulvar/no-bare-date');
     // The cards ride every draft prompt.
     expect(plannerCalls[0].prompt).toContain('Available globals');
     expect(plannerCalls[0].prompt).toContain('scout: finds things');
   });
 
   it('replays the unchanged planning prefix free on re-plan', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lurker-plan-'));
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-plan-'));
     tempDirs.push(dir);
     const store = new JsonlFileStore({ dir });
     const { engine, adapter } = makeEngine({
@@ -151,7 +151,7 @@ describe('plan helpers', () => {
   it('lintScript maps wrapped lines back onto the body source', () => {
     const outcome = lintScript('const t = Date.now();\nreturn t;');
     expect(outcome.errors).toHaveLength(1);
-    expect(outcome.errors[0]).toMatchObject({ ruleId: 'lurker/no-bare-date', line: 1 });
+    expect(outcome.errors[0]).toMatchObject({ ruleId: 'rulvar/no-bare-date', line: 1 });
     expect(outcome.workflow).toBeUndefined();
   });
 

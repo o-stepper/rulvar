@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createEngine, InMemoryStore, tool } from '@lurker/core';
+import { createEngine, InMemoryStore, tool } from '@rulvar/core';
 
 import { planHash } from './plan-hash.js';
 import { emptyPlan } from './plan-state.js';

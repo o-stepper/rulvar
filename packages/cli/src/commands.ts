@@ -2,13 +2,13 @@
  * The four M5 commands of the canonical CLI grammar (docs/06, section
  * 10.5; no aliases in v1):
  *
- *   lurker run <file|name> [--args JSON] [--store PATH] [--budget-usd N]
- *   lurker resume <runId>  [--store PATH]
- *   lurker runs ls         [--store PATH]
- *   lurker inspect <runId> [--store PATH]
+ *   rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N]
+ *   rulvar resume <runId>  [--store PATH]
+ *   rulvar runs ls         [--store PATH]
+ *   rulvar inspect <runId> [--store PATH]
  *
  * `plan` and `kb` land with M6+/M10. Every command builds strictly from
- * the public @lurker/core API (docs/02, section 4).
+ * the public @rulvar/core API (docs/02, section 4).
  */
 import { parseArgs } from 'node:util';
 import { join } from 'node:path';
@@ -24,7 +24,7 @@ import {
   type ModelRef,
   type RunOptions,
   type Workflow,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 import { loadCliConfig, loadWorkflowModule, looksLikeFile } from './config.js';
 import { assembleEngine } from './engine-assembly.js';
@@ -93,7 +93,7 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
   const target = flags.positionals[0];
   if (target === undefined) {
     throw new ConfigError(
-      'usage: lurker run <file|name> [--args JSON] [--store PATH] [--budget-usd N]',
+      'usage: rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N]',
     );
   }
   const config = await loadCliConfig(context.cwd);
@@ -110,7 +110,7 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
     throw new ConfigError(
       looksLikeFile(target)
         ? `${target} exports no workflow (default export or named 'workflow')`
-        : `no workflow named '${target}' in the registry; register it in lurker.config.mjs`,
+        : `no workflow named '${target}' in the registry; register it in rulvar.config.mjs`,
     );
   }
   let args: unknown;
@@ -144,7 +144,7 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
   const flags = parseRunFlags(argv);
   const runId = flags.positionals[0];
   if (runId === undefined) {
-    throw new ConfigError('usage: lurker resume <runId> [--args JSON] [--store PATH]');
+    throw new ConfigError('usage: rulvar resume <runId> [--args JSON] [--store PATH]');
   }
   // Original arguments are not journaled for in-process workflows in
   // v1: the host re-supplies them on resume (docs/06, section 10.5 as
@@ -176,7 +176,7 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
   if (workflow === undefined) {
     throw new ConfigError(
       `run '${runId}' was started from workflow '${name ?? '(unknown)'}'; register it under ` +
-        `that name in lurker.config.mjs workflows to resume (docs/06, section 10.2: resume ` +
+        `that name in rulvar.config.mjs workflows to resume (docs/06, section 10.2: resume ` +
         'requires the in-process workflow value)',
     );
   }
@@ -218,7 +218,7 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
   const flags = parseCommonFlags(argv);
   const runId = flags.positionals[0];
   if (runId === undefined) {
-    throw new ConfigError('usage: lurker inspect <runId> [--store PATH]');
+    throw new ConfigError('usage: rulvar inspect <runId> [--store PATH]');
   }
   const config = await loadCliConfig(context.cwd);
   const assembled = assembleEngine({
@@ -281,9 +281,9 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
 }
 
 /**
- * lurker plan "<goal>" [--dry-run] (docs/06, 10.5; M6-T11): plans a
- * workflow script through @lurker/planner (loaded dynamically: the CLI's
- * static dependency stays @lurker/core only, docs/02 dependency rules),
+ * rulvar plan "<goal>" [--dry-run] (docs/06, 10.5; M6-T11): plans a
+ * workflow script through @rulvar/planner (loaded dynamically: the CLI's
+ * static dependency stays @rulvar/core only, docs/02 dependency rules),
  * prints the accepted script and its advisories, and runs it in the
  * worker sandbox unless --dry-run.
  */
@@ -295,7 +295,7 @@ export async function planCommand(argv: string[], context: CommandContext): Prom
   });
   const goal = parsed.positionals[0];
   if (goal === undefined || parsed.positionals.length > 1) {
-    throw new ConfigError('usage: lurker plan "<goal>" [--dry-run]');
+    throw new ConfigError('usage: rulvar plan "<goal>" [--dry-run]');
   }
   let plannerModule: {
     plan: (
@@ -308,10 +308,10 @@ export async function planCommand(argv: string[], context: CommandContext): Prom
     }>;
   };
   try {
-    plannerModule = (await import('@lurker/planner')) as unknown as typeof plannerModule;
+    plannerModule = (await import('@rulvar/planner')) as unknown as typeof plannerModule;
   } catch {
     throw new ConfigError(
-      'lurker plan requires @lurker/planner (the plan agent, compileScript, and the worker ' +
+      'rulvar plan requires @rulvar/planner (the plan agent, compileScript, and the worker ' +
         'sandbox live there); install it next to the CLI',
     );
   }
@@ -340,11 +340,11 @@ export async function planCommand(argv: string[], context: CommandContext): Prom
 }
 
 /**
- * lurker kb list (docs/06, 10.5; docs/05, 4.4; M10-T04): the second
+ * rulvar kb list (docs/06, 10.5; docs/05, 4.4; M10-T04): the second
  * consumption path. Claims with full provenance for the humans who
  * author ladders, floors, and profiles; no run and no pin, so model
  * names render VERBATIM here (only in-run cards are nameless). Reads
- * the per-project file store (./lurker.models.json). The grammar
+ * the per-project file store (./rulvar.models.json). The grammar
  * members inbox (phase 3) and sweep (phase 2) fail loudly until their
  * phases ship.
  */
@@ -352,7 +352,7 @@ export async function kbCommand(argv: string[], context: CommandContext): Promis
   const [sub, ...rest] = argv;
   if (sub === 'inbox') {
     throw new ConfigError(
-      'lurker kb inbox arrives with ModelKnowledge phase 3 (M12, gated by the measured-value ' +
+      'rulvar kb inbox arrives with ModelKnowledge phase 3 (M12, gated by the measured-value ' +
         'checkpoint; docs/05, section "Phases and placement")',
     );
   }
@@ -360,13 +360,13 @@ export async function kbCommand(argv: string[], context: CommandContext): Promis
     return await kbSweepCommand(rest, context);
   }
   if (sub !== 'list' || rest.length > 0) {
-    throw new ConfigError('usage: lurker kb <list | inbox | sweep> (no aliases in v1)');
+    throw new ConfigError('usage: rulvar kb <list | inbox | sweep> (no aliases in v1)');
   }
-  const path = join(context.cwd, 'lurker.models.json');
+  const path = join(context.cwd, 'rulvar.models.json');
   const store = new FileModelKnowledgeStore({ path });
   const snapshot = await store.current();
   context.io.out(
-    `knowledge store: lurker.models.json (version ${String(snapshot.version)}, ` +
+    `knowledge store: rulvar.models.json (version ${String(snapshot.version)}, ` +
       `${String(snapshot.claims.length)} claim${snapshot.claims.length === 1 ? '' : 's'})`,
   );
   renderKbList(snapshot, context);
@@ -422,7 +422,7 @@ function renderKbList(
   }
 }
 
-/** The structural face of @lurker/evals (loaded dynamically at command time). */
+/** The structural face of @rulvar/evals (loaded dynamically at command time). */
 interface EvalsModule {
   runSweepMatrix: (
     pool: { models: unknown[]; cases: unknown[] },
@@ -445,7 +445,7 @@ interface EvalsModule {
 }
 
 /**
- * lurker kb sweep (M11-T05; docs/05, section "Grounding and decay"):
+ * rulvar kb sweep (M11-T05; docs/05, section "Grounding and decay"):
  * falsification sweeps, run manually, from CI, or from a user cron,
  * NEVER engine-scheduled. The matrix is the config's FIXED pool
  * UNIONED with the store's falsification set: every model carrying an
@@ -456,32 +456,32 @@ interface EvalsModule {
  */
 async function kbSweepCommand(argv: string[], context: CommandContext): Promise<number> {
   if (argv.length > 0) {
-    throw new ConfigError('usage: lurker kb sweep (configuration lives in lurker.config.mjs)');
+    throw new ConfigError('usage: rulvar kb sweep (configuration lives in rulvar.config.mjs)');
   }
   const config = await loadCliConfig(context.cwd);
   const sweep = config.kbSweep;
   if (sweep === undefined) {
     throw new ConfigError(
-      'lurker kb sweep requires a kbSweep section in lurker.config.mjs ' +
+      'rulvar kb sweep requires a kbSweep section in rulvar.config.mjs ' +
         "({ committerId, models, cases }; docs/05, section 'Grounding and decay')",
     );
   }
   let evals: EvalsModule;
   try {
-    evals = (await import('@lurker/evals')) as unknown as EvalsModule;
+    evals = (await import('@rulvar/evals')) as unknown as EvalsModule;
   } catch {
     throw new ConfigError(
-      'lurker kb sweep requires @lurker/evals (matrix sweeps, the eval-committer identity, ' +
+      'rulvar kb sweep requires @rulvar/evals (matrix sweeps, the eval-committer identity, ' +
         'and the canary live there); install it next to the CLI',
     );
   }
-  const store = new FileModelKnowledgeStore({ path: join(context.cwd, 'lurker.models.json') });
+  const store = new FileModelKnowledgeStore({ path: join(context.cwd, 'rulvar.models.json') });
   const snapshot = await store.current();
   const observedAt = new Date().toISOString();
 
   // The pool: config members first, then the falsification union.
   type Member = { model: ModelRef; effort?: string };
-  const memberKey = (member: Member): string => `${member.model} ${member.effort ?? ''}`;
+  const memberKey = (member: Member): string => `${member.model} :: ${member.effort ?? ''}`;
   const pool = new Map<string, { member: Member; origin: string }>();
   for (const member of sweep.models) {
     pool.set(memberKey(member), { member, origin: 'config' });

@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 
-import type { InMemoryStore } from '@lurker/core';
-import { createEngine, InMemoryStore as Store } from '@lurker/core';
-import { FAKE_MODEL_REF, FakeAdapter } from '@lurker/testing';
+import type { InMemoryStore } from '@rulvar/core';
+import { createEngine, InMemoryStore as Store } from '@rulvar/core';
+import { FAKE_MODEL_REF, FakeAdapter } from '@rulvar/testing';
 import { describe, expect, it } from 'vitest';
 
 import {

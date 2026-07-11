@@ -1,5 +1,5 @@
 /**
- * eslint-plugin-lurker: determinism lint rules with structural JSON
+ * eslint-plugin-rulvar: determinism lint rules with structural JSON
  * diagnostics for the planner self-repair loop (M6-T03).
  *
  * Owning spec: docs/06-execution-spec.md, section 8.4. Lockstep-versioned
@@ -13,7 +13,7 @@ import type { ESLint, Linter, Rule } from 'eslint';
 import { noBareDate, noBareRandom, noFetch, noProcessEnv } from './rules/determinism.js';
 import { duplicateIdenticalCall, noPromiseAllOverCtx } from './rules/scheduling.js';
 
-export { toJsonDiagnostics, type LurkerLintDiagnostic } from './diagnostics.js';
+export { toJsonDiagnostics, type RulvarLintDiagnostic } from './diagnostics.js';
 
 export const rules: Record<string, Rule.RuleModule> = {
   'no-bare-date': noBareDate,
@@ -25,7 +25,7 @@ export const rules: Record<string, Rule.RuleModule> = {
 };
 
 const plugin: ESLint.Plugin = {
-  meta: { name: 'eslint-plugin-lurker' },
+  meta: { name: 'eslint-plugin-rulvar' },
   rules,
 };
 
@@ -35,15 +35,15 @@ const plugin: ESLint.Plugin = {
  * 8.4).
  */
 export const workflowsConfig: Linter.Config = {
-  name: 'lurker/workflows',
-  plugins: { lurker: plugin },
+  name: 'rulvar/workflows',
+  plugins: { rulvar: plugin },
   rules: {
-    'lurker/no-bare-date': 'error',
-    'lurker/no-bare-random': 'error',
-    'lurker/no-fetch': 'error',
-    'lurker/no-process-env': 'error',
-    'lurker/no-promise-all-over-ctx': 'error',
-    'lurker/duplicate-identical-call': 'warn',
+    'rulvar/no-bare-date': 'error',
+    'rulvar/no-bare-random': 'error',
+    'rulvar/no-fetch': 'error',
+    'rulvar/no-process-env': 'error',
+    'rulvar/no-promise-all-over-ctx': 'error',
+    'rulvar/duplicate-identical-call': 'warn',
   },
 };
 

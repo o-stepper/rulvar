@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import { defineWorkflow } from '@lurker/core';
+import { defineWorkflow } from '@rulvar/core';
 import { createTestEngine } from './test-engine.js';
-import { lurkerMatchers } from './matchers.js';
+import { rulvarMatchers } from './matchers.js';
 
-expect.extend(lurkerMatchers);
+expect.extend(rulvarMatchers);
 
 describe('createTestEngine and FakeAdapter (M1-T14)', () => {
   it('runs a workflow with zero network and typed fake outputs', async () => {

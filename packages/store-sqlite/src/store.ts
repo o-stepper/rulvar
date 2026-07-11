@@ -4,7 +4,7 @@
  * implementation for community stores (docs/03, sections 12.3 and
  * 12.6). Zero native dependencies by design.
  *
- * Contract highlights (executable definition: @lurker/store-conformance):
+ * Contract highlights (executable definition: @rulvar/store-conformance):
  * - A1-A4: single-statement inserts are atomic; per-run order is the
  *   append order (rowid); payloads are opaque JSON, unknown fields pass
  *   through untouched.
@@ -27,7 +27,7 @@ import {
   type Lease,
   type RunFilter,
   type RunMeta,
-} from '@lurker/core';
+} from '@rulvar/core';
 
 /** Appendix A interim reference for the sqlite store (docs/06). */
 export const DEFAULT_LEASE_TTL_MS = 60_000;

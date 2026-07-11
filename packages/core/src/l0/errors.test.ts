@@ -11,7 +11,7 @@ import {
   JournalMissError,
   JournalOrderViolation,
   LeaseHeldError,
-  LurkerError,
+  RulvarError,
   NonSerializableValueError,
   OrchestratorCapConfigError,
   PlanInvariantError,
@@ -25,7 +25,7 @@ function throughJson(wire: WireError): WireError {
 }
 
 describe('error taxonomy (M1-T02)', () => {
-  const cases: Array<{ error: LurkerError; code: ErrorCode; retryable: boolean }> = [
+  const cases: Array<{ error: RulvarError; code: ErrorCode; retryable: boolean }> = [
     {
       error: new ConfigError('bad config', { data: { adapterId: 'x' } }),
       code: 'config',
@@ -48,7 +48,7 @@ describe('error taxonomy (M1-T02)', () => {
         entrySeq: 4,
         entryHashVersion: 0,
         supportedRange: { min: 1, max: 2 },
-        hint: 'enable deriverV0 from @lurker/compat',
+        hint: 'enable deriverV0 from @rulvar/compat',
       }),
       code: 'journal_compat',
       retryable: false,
@@ -96,14 +96,14 @@ describe('error taxonomy (M1-T02)', () => {
   it('the code registry is closed and unique across classes', () => {
     const codes = cases.map(({ error }) => error.code);
     expect(new Set(codes).size).toBe(codes.length);
-    // 13 registry codes: 12 LurkerError classes plus 'agent' (a value, not a class).
+    // 13 registry codes: 12 RulvarError classes plus 'agent' (a value, not a class).
     expect(codes).toHaveLength(12);
     expect(codes).not.toContain('agent');
   });
 
-  it('all named errors are LurkerError and Error instances with stable names', () => {
+  it('all named errors are RulvarError and Error instances with stable names', () => {
     for (const { error } of cases) {
-      expect(error).toBeInstanceOf(LurkerError);
+      expect(error).toBeInstanceOf(RulvarError);
       expect(error).toBeInstanceOf(Error);
       expect(error.name).toBe(error.constructor.name);
     }
@@ -116,7 +116,7 @@ describe('error taxonomy (M1-T02)', () => {
       entrySeq: 9,
       entryHashVersion: 3,
       supportedRange: { min: 1, max: 2 },
-      hint: 'upgrade lurker',
+      hint: 'upgrade rulvar',
     });
     expect(error.subCode).toBe('HASH_VERSION_TOO_NEW');
     expect(error.supportedRange).toEqual({ min: 1, max: 2 });
@@ -127,7 +127,7 @@ describe('error taxonomy (M1-T02)', () => {
       entrySeq: 9,
       entryHashVersion: 3,
       supportedRange: { min: 1, max: 2 },
-      hint: 'upgrade lurker',
+      hint: 'upgrade rulvar',
     });
   });
 

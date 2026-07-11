@@ -1,6 +1,6 @@
 ---
-'@lurker/core': minor
-'@lurker/plan': minor
+'@rulvar/core': minor
+'@rulvar/plan': minor
 ---
 
 M10 entry: the render budgets of docs/06 Appendix A are committed (the TBD-before-M10 rule) and wired as engine defaults; OQ-04 (the renderBudget measure) closes on the CHARACTER measure.

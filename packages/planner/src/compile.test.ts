@@ -1,5 +1,5 @@
-import type { CompiledWorkflow, Workflow } from '@lurker/core';
-import { ScriptRejected, defineWorkflow } from '@lurker/core';
+import type { CompiledWorkflow, Workflow } from '@rulvar/core';
+import { ScriptRejected, defineWorkflow } from '@rulvar/core';
 import { describe, expect, it } from 'vitest';
 
 import { SANDBOX_GLOBALS, compileScript, scriptDiagnosticsOf } from './compile.js';

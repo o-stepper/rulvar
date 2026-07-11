@@ -1,9 +1,9 @@
 /**
  * Package-internal test doubles over the PUBLIC core SPI (mirrors the
- * core-internal harness; @lurker/plan builds exclusively from the public
+ * core-internal harness; @rulvar/plan builds exclusively from the public
  * API, its tests included). Not exported from the package index.
  */
-import type { ChatEvent, ChatRequest, ModelCaps, ProviderAdapter, Usage } from '@lurker/core';
+import type { ChatEvent, ChatRequest, ModelCaps, ProviderAdapter, Usage } from '@rulvar/core';
 
 export interface ScriptedTurn {
   text?: string;
@@ -66,8 +66,8 @@ export function scriptedAdapter(
 }
 
 export function agentTypeOf(req: ChatRequest): string {
-  const lurker = (req.providerOptions as { lurker?: { agentType?: string } } | undefined)?.lurker;
-  return lurker?.agentType ?? '';
+  const rulvar = (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)?.rulvar;
+  return rulvar?.agentType ?? '';
 }
 
 /** Extracts the latest tool result matching the marker. */
