@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createCanonicalIdMinter, type ChatEvent, type ChatRequest } from '@rulvar/core';
 import type { AnthropicClientLike } from './adapter.js';
 import { anthropic } from './adapter.js';
+import { anthropicModelInfo } from './caps.js';
 import {
   anthropicErrorToWire,
   buildAnthropicParams,
@@ -434,4 +435,18 @@ describe('adapter surface (M1-T12)', () => {
     },
     30_000,
   );
+});
+
+describe('the Haiku 4.5 caps entry (found by the M12 checkpoint)', () => {
+  it('resolves the dated id to the enabled-budget form with haiku pricing', () => {
+    for (const id of ['claude-haiku-4-5', 'claude-haiku-4-5-20251001']) {
+      const info = anthropicModelInfo(id);
+      expect(info.thinkingForm).toBe('enabled-budget');
+      expect(info.caps.pricing?.inputUsdPerMTok).toBe(1);
+      expect(info.caps.pricing?.outputUsdPerMTok).toBe(5);
+      expect(info.caps.contextWindow).toBe(200_000);
+    }
+    // Unknown ids still assume the current generation.
+    expect(anthropicModelInfo('claude-nova-9').thinkingForm).toBe('adaptive');
+  });
 });
