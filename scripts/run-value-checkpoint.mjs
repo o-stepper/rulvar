@@ -36,6 +36,7 @@ const HAIKU = 'anthropic:claude-haiku-4-5-20251001';
 const SONNET = 'anthropic:claude-sonnet-5';
 const SPEND_GUARD_USD = 12; // under the $15 OQ-28 grant, with retry headroom
 const CASE_BUDGET_USD = 0.1; // per-run engine ceiling (dogfooding DEF-7)
+const ORCH_RUN_BUDGET_USD = 0.5; // orchestrated runs host the cap and reserve
 
 const LADDERS = [
   {
@@ -205,11 +206,16 @@ const report = await evals.runValueCheckpoint(
     observedAt,
     engineFor: memberEngine,
     suite: { budgetUsd: CASE_BUDGET_USD },
+    // The run ceiling must host the orchestrator cap and its finalize
+    // reserve (docs/07, 12.2): an explicit budget spec keeps the cap
+    // math solvent under a small ceiling.
+    orchestratedSuite: { budgetUsd: ORCH_RUN_BUDGET_USD },
     orchestrateEngineFor: orchestrateEngine,
     orchestratedCases: orchestratedSpecs.map((spec) => ({
       case: {
         workflow: core.makeOrchestratorWorkflow(spec.goal, {
           profiles: ['fast', 'careful', 'swiftLadder', 'deepLadder'],
+          budget: { capUsd: 0.2, finalizeReserveUsd: 0.03, capFraction: 0.8 },
         }),
         args: undefined,
         graders: [evals.goldenGrader(spec.golden)],

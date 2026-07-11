@@ -71,6 +71,13 @@ export interface RunCheckpointOptions {
   orchestrateEngineFor?: (withKnowledge: boolean) => Engine | Promise<Engine>;
   orchestratedCases?: OrchestratedCase[];
   suite?: RunEvalSuiteOptions;
+  /**
+   * Orchestrated runs need room for the orchestrator cap math (the
+   * run ceiling must host the finalize reserve; docs/07, 12.2): their
+   * suite options default to `suite` but usually carry a larger
+   * budgetUsd.
+   */
+  orchestratedSuite?: RunEvalSuiteOptions;
 }
 
 export interface CheckpointArm {
@@ -220,11 +227,12 @@ export async function runValueCheckpoint(
   let criterion2: CriterionTwoReport | undefined;
   if (options.orchestrateEngineFor !== undefined && options.orchestratedCases !== undefined) {
     const cases = options.orchestratedCases.map((entry) => entry.case);
+    const orchestratedSuite = options.orchestratedSuite ?? options.suite ?? {};
     const baseline = armOf(
-      await runEvalSuite(await options.orchestrateEngineFor(false), cases, options.suite ?? {}),
+      await runEvalSuite(await options.orchestrateEngineFor(false), cases, orchestratedSuite),
     );
     const informed = armOf(
-      await runEvalSuite(await options.orchestrateEngineFor(true), cases, options.suite ?? {}),
+      await runEvalSuite(await options.orchestrateEngineFor(true), cases, orchestratedSuite),
     );
     criterion2 = {
       baseline,
