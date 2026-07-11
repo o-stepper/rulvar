@@ -1,6 +1,6 @@
 {
   "name": "@rulvar/evals",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "rulvar evals: eval cases, golden outputs, rubric and judge graders, matrix sweeps, canary fingerprint.",
   "type": "module",
   "license": "Apache-2.0",

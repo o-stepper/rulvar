@@ -1,5 +1,51 @@
 # @rulvar/evals
 
+## 1.0.0
+
+### Minor Changes
+
+- 6649e5f: M11-T01: the eval-committer identity activates eval-measured claims (docs/05, sections "Data model" and "Commit discipline", amended with the dedicated `eval-committer` GateRecord variant, distinct from the v2-reserved eval-confirmed proposal auto-gate).
+
+  - Commit validation is now GATE-DRIVEN and the coherence square is schema-enforced in both directions: an eval-committer-gated op MUST carry class eval-measured, author kind eval-pipeline, and the metrics block; a human-gated op MUST NOT carry any of the three (a human-authored op with metrics keeps rejecting). Observational data never carries metrics and never auto-promotes.
+  - `@rulvar/evals` ships the pipeline side: `evalMeasuredClaim` (the docs/05 TTL table applied by polarity: strength 90 days, weakness 30) and `commitEvalMeasured` with the documented CAS-rebase recipe against any ModelKnowledgeStore.
+
+- eaacdeb: M11-T02: matrix sweeps (docs/05, section "Grounding and decay"). `runSweepMatrix` measures a FIXED pool (workflow x model x taskClass; sweep volume is never authorized by proposal volume) through the ordinary engine, sequentially in declaration order for deterministic cassette consumption, and aggregates per (model, taskClass) cell.
+
+  - Threshold-crossing cells emit eval-measured claims (strength at or above 0.9, weakness at or below 0.5 by default; the mid band emits nothing): typed statement templates, metrics {passRate, n, graderId}, EvidenceRef eval reports with the case ids, confidence from n, the docs/05 TTL table from observedAt, and deterministic report-scoped claim ids.
+  - With a store given, claims commit through the eval-committer identity (the M11-T01 gate); the sweep e2e records against fake adapters and replays hermetically from the cassette with zero live calls, byte-identical reports.
+
+- 01d6b2d: M11-T04: modelEpoch capture and the canary fingerprint (docs/05, section "Grounding and decay"; OQ-06 CLOSED with the committed design).
+
+  - Core: `modelEpochOf`/`capsHashOf` build the honestly coarse epoch signal (registry version, pricing version, caps hash; silent alias re-pointing stays a documented uncaught case absent probes). The ClaimOp union gains `mark_stale` (docs/05 amended): section 6 requires status stale at fingerprint drift and the closed op set could not produce it; active flips to stale, already-stale is an idempotent noop, terminals never revive.
+  - Evals: `canaryFingerprint(engine, probes)` runs the FIXED caller-versioned probe set sequentially through the ordinary engine and hashes NFC-normalized, whitespace-collapsed outputs (the probe count prefixes the hash so probe-set edits never collide with drift). `flipStaleOnCanaryDrift` flips the model's active eval-measured claims whose recorded fingerprint differs, in one CAS-rebased command; claims without a baseline stay untouched. Sweeps stamp the epoch per pool member via `modelEpochFor`.
+
+- e679c6e: M9-T02: the @rulvar/evals base (docs/09 section 7; docs/11 "Eval CI"; FR-5xx). First real public surface of @rulvar/evals, built strictly on the public APIs (L6).
+
+  - `EvalCase = { workflow, args, graders[] }` exactly as documented, with `runEvalCase` and `runEvalSuite` runners: the target workflow runs as its own journaled run; latency is derived from run:start and run:end event timestamps (no separate measurement channel); duplicate workflow names disambiguate by ordinal.
+  - Three grader families: `goldenGrader` (deep JSON equality with diff evidence), `rubricGrader` (named pure criteria, per-criterion verdicts, fraction score against a pass threshold), and `judgeGrader` (an LLM verdict against a schema). The judge runs THROUGH the engine via `GraderContext.judge` as an ordinary journaled, budgeted invocation, so judge calls are VCR-recordable and eval CI replays them deterministically with zero live calls. @rulvar/evals ships NO default judge model: weak judge defaults are forbidden by the router quality floors, so `model` is required. Judge invocations are skipped deterministically when the target run did not settle ok.
+  - `runEvalMatrix` compares configuration cells (profile vs profile, cheap workers vs premium, reviewer on or off): each cell supplies its own engine and the report carries pass-rate, cost, and latency per cell from the existing usage and cost fields. No failure clustering, no vector dependency (EXC registry).
+  - Acceptance held in-suite: a suite recorded through the VCR adapters replays byte-deterministically (latency excluded as the one wall-clock measurement) from the cassette under onMiss 'throw', and the cassette carries its hashVersion header (DEF-6).
+
+### Patch Changes
+
+- Updated dependencies [0e0b569]
+- Updated dependencies [b28b7a3]
+- Updated dependencies [b53a89e]
+- Updated dependencies [4454175]
+- Updated dependencies [6599ca8]
+- Updated dependencies [6649e5f]
+- Updated dependencies [fd2f83b]
+- Updated dependencies [01d6b2d]
+- Updated dependencies [9a20dbb]
+- Updated dependencies [0fbe7ea]
+- Updated dependencies [ebe0abc]
+- Updated dependencies [a3079d0]
+- Updated dependencies [807d1f9]
+- Updated dependencies [596a39b]
+- Updated dependencies [464ab6e]
+  - @rulvar/core@1.0.0
+  - @rulvar/testing@1.0.0
+
 ## 0.9.0
 
 ### Patch Changes

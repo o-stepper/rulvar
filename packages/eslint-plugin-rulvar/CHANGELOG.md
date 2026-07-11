@@ -1,5 +1,7 @@
 # eslint-plugin-rulvar
 
+## 1.0.0
+
 ## 0.9.0
 
 ## 0.8.0
