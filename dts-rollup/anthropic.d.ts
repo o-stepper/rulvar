@@ -67,6 +67,12 @@ declare class IdMap {
 }
 type Block = Record<string, unknown>;
 /**
+* Returns a deep copy of the schema with the unsupported keywords
+* removed at SCHEMA positions only: a property literally named
+* "minimum" (a key inside `properties`) survives. The input is never
+* mutated; unrecognized keywords are copied through untouched.
+*/
+/**
 * Builds Messages API params from a ChatRequest. cacheHint compiles into
 * cache_control breakpoints; beyond the provider cap of 4 the DEEPEST
 * breakpoints are kept and the shallowest dropped, deterministically

@@ -69,6 +69,68 @@ describe('buildAnthropicParams (M1-T12)', () => {
     expect(params.tool_choice).toEqual({ type: 'tool', name: 'emit_result' });
   });
 
+  it('scrubs constrained-decoding keywords from strict tools and format schemas only', () => {
+    // The live validator behind strict tools and output_config.format
+    // rejects numeric bounds and maxItems (probed 2026-07-11; found by
+    // the M12 checkpoint: the orchestrator's spawn tools carry integer
+    // minimums, so every orchestrate run died with a 400 at zero cost).
+    const strictSchema = {
+      type: 'object',
+      additionalProperties: false,
+      required: ['count', 'minimum', 'handles', 'pick'],
+      properties: {
+        count: { type: 'integer', minimum: 0, maximum: 9, description: 'kept' },
+        // A property literally NAMED minimum must survive the scrub.
+        minimum: { type: 'number', exclusiveMinimum: 0 },
+        handles: { type: 'array', items: { type: 'integer', minimum: 1 }, maxItems: 4 },
+        pick: {
+          anyOf: [
+            { type: 'integer', multipleOf: 2 },
+            { type: 'string', maxLength: 8 },
+          ],
+        },
+      },
+      $defs: { tier: { type: 'integer', minimum: 0, exclusiveMaximum: 5 } },
+    };
+    const loose = { type: 'object', properties: { n: { type: 'integer', minimum: 1 } } };
+    const params = buildAnthropicParams(
+      {
+        ...baseReq,
+        tools: [
+          { name: 'spawn', description: 'd', parameters: strictSchema },
+          { name: 'loose', description: 'd', parameters: loose },
+        ],
+        schema: loose,
+      },
+      { ids: ids(), maxOutputTokens: 1024, thinkingForm: 'adaptive' },
+    );
+    const tools = params.tools as Array<Record<string, unknown>>;
+    expect(tools[0]?.strict).toBe(true);
+    expect(tools[0]?.input_schema).toEqual({
+      type: 'object',
+      additionalProperties: false,
+      required: ['count', 'minimum', 'handles', 'pick'],
+      properties: {
+        count: { type: 'integer', description: 'kept' },
+        minimum: { type: 'number' },
+        handles: { type: 'array', items: { type: 'integer' } },
+        pick: { anyOf: [{ type: 'integer' }, { type: 'string', maxLength: 8 }] },
+      },
+      $defs: { tier: { type: 'integer' } },
+    });
+    // The engine-side schema object is never mutated (it stays the
+    // validation source for tool args).
+    expect(strictSchema.properties.count.minimum).toBe(0);
+    expect(strictSchema.properties.handles.maxItems).toBe(4);
+    // Non-strict tools skip the validator and keep full hints; the
+    // output format schema is scrubbed even though it is not strict.
+    expect(tools[1]?.input_schema).toEqual(loose);
+    expect((params.output_config as { format: { schema: unknown } }).format.schema).toEqual({
+      type: 'object',
+      properties: { n: { type: 'integer' } },
+    });
+  });
+
   it("maps toolChoice 'none' to explicit none with the tools param present (M4-T01)", () => {
     const params = buildAnthropicParams(
       {
