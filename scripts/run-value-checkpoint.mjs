@@ -34,7 +34,7 @@ if (!process.env.ANTHROPIC_API_KEY) {
 
 const HAIKU = 'anthropic:claude-haiku-4-5-20251001';
 const SONNET = 'anthropic:claude-sonnet-5';
-const SPEND_GUARD_USD = 12; // under the $15 OQ-28 grant, with retry headroom
+const SPEND_GUARD_USD = 6; // per invocation, under the $11 reopening grant (OQ-28)
 const CASE_BUDGET_USD = 0.1; // per-run engine ceiling (dogfooding DEF-7)
 const ORCH_RUN_BUDGET_USD = 0.5; // orchestrated runs host the cap and reserve
 
@@ -170,8 +170,11 @@ function orchestrateEngine(withKnowledge) {
     defaults: {
       routing: { loop: `${HAIKU}`, orchestrate: SONNET },
       profiles: {
-        fast: { description: 'quick worker on the cheap tier', model: HAIKU },
-        careful: { description: 'careful worker on the strong tier', model: SONNET },
+        // estCost is a symmetric price hint: profileCard renders it in
+        // BOTH arms, so it never biases the A/B; only the kb card's
+        // profile-evidence section differs between them.
+        fast: { description: 'quick worker on the cheap tier', model: HAIKU, estCost: 0.01 },
+        careful: { description: 'careful worker on the strong tier', model: SONNET, estCost: 0.05 },
         // The declared ladders make claim subjects reachable for the
         // card; they are never spawned (the kb cassette pattern).
         swiftLadder: {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ModelClaim } from '../l0/spi/knowledge.js';
+import type { AgentProfile } from '../engine/ctx.js';
 import {
   collectDeclaredLadders,
   filterClaimsForRun,
@@ -109,6 +110,74 @@ describe('the knowledge card (M10-T03; docs/05, sections 4.1 and 4.3)', () => {
         [LADDER],
       ),
     ).toBe(text);
+  });
+
+  it('projects eval evidence onto concrete advertised profiles (docs/05 4.3 as amended)', () => {
+    const claims = [
+      claim('e-extract', {
+        class: 'eval-measured',
+        subject: { model: 'fake:cheap', effort: 'medium' },
+        taskClass: 'extraction',
+        metrics: { passRate: 1, n: 10, graderId: 'g' },
+      }),
+      claim('e-judge-med', {
+        class: 'eval-measured',
+        subject: { model: 'fake:cheap', effort: 'medium' },
+        taskClass: 'judging',
+        polarity: 'weakness',
+        metrics: { passRate: 0.5, n: 10, graderId: 'g' },
+      }),
+      // The conservative fold: a strength at another effort never
+      // overrides a weakness when the profile pins no effort.
+      claim('e-judge-high', {
+        class: 'eval-measured',
+        subject: { model: 'fake:cheap', effort: 'high' },
+        taskClass: 'judging',
+        metrics: { passRate: 0.9, n: 10, graderId: 'g' },
+      }),
+      // Editorial claims never enter the section.
+      claim('n-editorial', { taskClass: 'judging' }),
+    ];
+    const profiles: Record<string, AgentProfile> = {
+      fast: { description: 'cheap worker', model: 'fake:cheap' },
+      declarer: {
+        description: 'ladder declarer',
+        model: {
+          ladder: {
+            rungs: [{ model: 'fake:cheap', maxTurns: 4, maxTokens: 1000 }],
+            startTier: 0,
+            escalateOn: ['error' as const],
+          },
+        },
+      },
+      unmatched: { description: 'other model', model: 'fake:elsewhere' },
+      modelless: { description: 'routes by engine defaults' },
+    };
+    const text = modelKnowledgeCard(claims, [LADDER], { profiles });
+    expect(text).toContain('Profile evidence (eval-measured, folded over each profile model):');
+    expect(text).toContain('- fast: strong extraction; weak judging');
+    expect(text).toContain('Spawn guidance: prefer the cheapest profile marked strong');
+    // Declarers, unmatched and model-less profiles contribute no lines.
+    expect(text).not.toContain('- declarer:');
+    expect(text).not.toContain('- unmatched:');
+    expect(text).not.toContain('- modelless:');
+    expect(text).not.toContain('fake:');
+    // An effort-pinned profile restricts to its effort: only the high
+    // judging strength matches, so the fold turns strong.
+    const pinned = modelKnowledgeCard(claims, [LADDER], {
+      profiles: { picky: { description: 'high only', model: 'fake:cheap', effort: 'high' } },
+    });
+    expect(pinned).toContain('- picky: strong judging');
+    // Byte-stability: no profiles option, empty profiles, and no
+    // matches all render the pre-amendment card exactly.
+    const bare = modelKnowledgeCard(claims, [LADDER]);
+    expect(bare).not.toContain('Profile evidence');
+    expect(modelKnowledgeCard(claims, [LADDER], { profiles: {} })).toBe(bare);
+    expect(
+      modelKnowledgeCard(claims, [LADDER], {
+        profiles: { unmatched: { description: 'other', model: 'fake:elsewhere' } },
+      }),
+    ).toBe(bare);
   });
 
   it('compiles the verified layer from eval-measured claims only, one-rung clamped', () => {

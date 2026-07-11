@@ -5294,6 +5294,7 @@ declare function compileVerifiedLayer(claims: readonly ModelClaim[], ladders: re
 */
 declare function modelKnowledgeCard(claims: readonly ModelClaim[], ladders: readonly DeclaredLadder[], options?: {
   budgetChars?: number;
+  profiles?: Record<string, AgentProfile>;
 }): string;
 //#endregion
 //#region src/tools/presets.d.ts

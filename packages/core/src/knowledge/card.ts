@@ -181,7 +181,7 @@ export function compileVerifiedLayer(
 export function modelKnowledgeCard(
   claims: readonly ModelClaim[],
   ladders: readonly DeclaredLadder[],
-  options?: { budgetChars?: number },
+  options?: { budgetChars?: number; profiles?: Record<string, AgentProfile> },
 ): string {
   const budget = options?.budgetChars ?? KB_CARD_RENDER_BUDGET_CHARS;
   const lines: string[] = [
@@ -199,6 +199,61 @@ export function modelKnowledgeCard(
           `${String(row.votes)} claim${row.votes === 1 ? '' : 's'})`,
       );
     }
+  }
+  // Profile evidence (docs/05, 4.3 as amended 2026-07-11): eval-measured
+  // claims projected onto the advertised spawn vocabulary, so agentType
+  // choice can consume the card (FR-607). Only profiles pinning a
+  // concrete string ModelRef participate; weakness wins over strength
+  // across efforts (the conservative fold). The section renders only
+  // when at least one profile line exists: cards without concrete
+  // matches stay byte-identical to the pre-amendment render.
+  const profileLines: string[] = [];
+  for (const [name, profile] of Object.entries(options?.profiles ?? {}).sort(([left], [right]) =>
+    left < right ? -1 : 1,
+  )) {
+    const model = profile.model;
+    if (typeof model !== 'string') {
+      continue;
+    }
+    const matched = claims.filter(
+      (claim) =>
+        claim.class === 'eval-measured' &&
+        claim.subject.model === model &&
+        (profile.effort === undefined || claim.subject.effort === profile.effort),
+    );
+    if (matched.length === 0) {
+      continue;
+    }
+    const byClass = new Map<TaskClass, 'strong' | 'weak'>();
+    for (const claim of [...matched].sort((left, right) => (left.id < right.id ? -1 : 1))) {
+      const verdict = claim.polarity === 'strength' ? 'strong' : 'weak';
+      const prior = byClass.get(claim.taskClass);
+      byClass.set(claim.taskClass, prior === 'weak' ? 'weak' : verdict);
+    }
+    const strong = [...byClass.entries()]
+      .filter(([, verdict]) => verdict === 'strong')
+      .map(([taskClass]) => taskClass)
+      .sort();
+    const weak = [...byClass.entries()]
+      .filter(([, verdict]) => verdict === 'weak')
+      .map(([taskClass]) => taskClass)
+      .sort();
+    const parts: string[] = [];
+    if (strong.length > 0) {
+      parts.push(`strong ${strong.join(', ')}`);
+    }
+    if (weak.length > 0) {
+      parts.push(`weak ${weak.join(', ')}`);
+    }
+    profileLines.push(`- ${name}: ${parts.join('; ')}`);
+  }
+  if (profileLines.length > 0) {
+    lines.push('Profile evidence (eval-measured, folded over each profile model):');
+    lines.push(...profileLines);
+    lines.push(
+      'Spawn guidance: prefer the cheapest profile marked strong for the task at hand; ' +
+        'avoid profiles marked weak at it.',
+    );
   }
   const notes = claims
     .filter((claim) => claim.class === 'human-editorial')

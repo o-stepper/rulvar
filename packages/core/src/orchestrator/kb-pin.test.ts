@@ -194,6 +194,44 @@ describe('kb_pinned and kb_repinned (M10-T03; docs/05, sections 4.1 and 4.2)', (
     expect(replayAdapter.calls).toHaveLength(0);
   });
 
+  it('docks profile evidence for concrete advertised profiles (docs/05 4.3 as amended)', async () => {
+    // The M12 checkpoint measured a card with no agentType-actionable
+    // signal; the docked card now projects eval claims onto the spawn
+    // vocabulary so criterion 2 has something to consume.
+    const evalClaim = editorialClaim('e1', {
+      class: 'eval-measured' as const,
+      subject: { model: 'fake:model', effort: 'medium' as const },
+      taskClass: 'judging',
+      statement: 'sweep passRate 0.90 over 10 judging cases',
+      metrics: { passRate: 0.9, n: 10, graderId: 'golden' },
+    });
+    const handle = stubHandle([snapshotOf(5, [evalClaim])]);
+    const adapter = scriptedAdapter(orchestratorScript());
+    const profiles: Record<string, AgentProfile> = {
+      ...PROFILES,
+      sprinter: { description: 'concrete judging worker', model: 'fake:model' },
+    };
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles,
+      knowledge: handle,
+    });
+    await executeWorkflow(internals, makeOrchestratorWorkflow('kb profiles', {}), undefined);
+    const pins = kbEntries(await store.load('test-run'));
+    const pinText = (pins[0]?.value as { cardText: string }).cardText;
+    expect(pinText).toContain('Profile evidence (eval-measured, folded over each profile model):');
+    expect(pinText).toContain('- sprinter: strong judging');
+    expect(pinText).toContain('Spawn guidance: prefer the cheapest profile marked strong');
+    expect(pinText).not.toContain('fake:');
+    // The declarer stays tier-only: no profile line for it.
+    expect(pinText).not.toContain('- worker:');
+    // The docked spawn description carries the same bytes.
+    const firstOrchReq = adapter.calls.find((req) => agentTypeOf(req) === '');
+    const spawnTool = firstOrchReq?.tools?.find((tool) => tool.name === 'spawn_agent');
+    expect(spawnTool?.description).toContain('- sprinter: strong judging');
+  });
+
   it('writes no kb entries at all without a configured store', async () => {
     const adapter = scriptedAdapter(orchestratorScript());
     const { internals, store } = makeInternals({
