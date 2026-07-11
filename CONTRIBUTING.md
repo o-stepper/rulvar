@@ -80,8 +80,10 @@ sentence-case headings. `pnpm docs:lint` checks the mechanical parts.
 
 ## License
 
-License: TBD (decided before first public release; a 1.0 gate). Package
-manifests carry the `UNLICENSED` placeholder until then; no file in this
-repository contains license text. Vendored code under
-`packages/core/src/vendor/` keeps its upstream MIT attribution in the
-provenance headers.
+The project is licensed under [Apache-2.0](LICENSE) (the founder decision
+of 2026-07-11; OQ-23 in docs/14-open-questions.md). Contributions are
+accepted under the Developer Certificate of Origin: sign your commits off
+(`git commit -s`), which certifies you have the right to submit the work
+under the project license; copyright of the project remains with its
+owner. Vendored code under `packages/core/src/vendor/` keeps its upstream
+MIT attribution in the provenance headers.

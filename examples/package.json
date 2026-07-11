@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "description": "Runnable reference implementations of the rulvar quality patterns; integration tests, never published.",
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "private": true,
   "scripts": {
     "typecheck": "tsc --noEmit",

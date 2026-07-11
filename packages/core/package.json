@@ -3,8 +3,7 @@
   "version": "0.9.0",
   "description": "rulvar core: L0 contracts, journal kernel, ctx primitives, agent runtime, model router, tool system, dynamic orchestrator, InMemory and JSONL stores, event stream.",
   "type": "module",
-  "license": "UNLICENSED",
-  "private": true,
+  "license": "Apache-2.0",
   "engines": {
     "node": ">=22.12.0"
   },
