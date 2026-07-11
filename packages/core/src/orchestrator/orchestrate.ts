@@ -224,7 +224,32 @@ export function makeOrchestratorWorkflow(
     const admission = internals.admission;
     const callingState = runtime.currentState();
     const advertisedProfiles = filterProfiles(internals.defaults.profiles, opts?.profiles);
-    const cardText = profileCard(advertisedProfiles);
+    // Ladder-declaring profiles are declaration-only under spawn_agent:
+    // rung execution needs the plan extension's concrete per-attempt
+    // overrides (docs/07, section 10), so a spawn of one dies at wire
+    // resolution. The spawn vocabulary therefore advertises only
+    // concrete profiles and names the declarers as context; the full
+    // advertised set still reaches the extension IO and the kb card's
+    // ladder collection. Found live by the M12 checkpoint: the kb card
+    // praised ladder tiers by profile name and steered the orchestrator
+    // into doomed spawns.
+    const spawnableProfiles: Record<string, AgentProfile> = {};
+    const declaredLadderNames: string[] = [];
+    for (const [name, profile] of Object.entries(advertisedProfiles)) {
+      const spec = profile.model;
+      if (spec !== undefined && typeof spec !== 'string' && 'ladder' in spec) {
+        declaredLadderNames.push(name);
+      } else {
+        spawnableProfiles[name] = profile;
+      }
+    }
+    declaredLadderNames.sort();
+    const cardText =
+      declaredLadderNames.length === 0
+        ? profileCard(advertisedProfiles)
+        : `${profileCard(spawnableProfiles)}\nDeclared ladders (tier context for the ` +
+          `knowledge card; NOT agentType values, never spawn them): ` +
+          `${declaredLadderNames.join(', ')}.`;
 
     // The orchestrator's own sub-account (docs/06 5.5). M6 wires the
     // account and its layer-2/3 enforcement when a cap resolves; the
@@ -792,6 +817,21 @@ export function makeOrchestratorWorkflow(
         // identity inputs available at admission (DEF-3); the toolset and
         // schema registries land in M7-T05 and upgrade the hashes there.
         const profile = internals.defaults.profiles?.[params.agentType];
+        const profileModel = profile?.model;
+        if (
+          profileModel !== undefined &&
+          typeof profileModel !== 'string' &&
+          'ladder' in profileModel
+        ) {
+          // Rejected BEFORE admission: the spawn would only die later at
+          // wire resolution (router, docs/04 section 12) after burning an
+          // admission slot and journal entries.
+          throw new ConfigError(
+            `agentType '${params.agentType}' declares a ladder; ladder execution is owned ` +
+              'by the plan extension, which resolves each rung attempt to a concrete model ' +
+              'override (docs/07, section 10); spawn a concrete profile instead',
+          );
+        }
         const decision = admission.admit(
           {
             origin: 'spawn_agent',

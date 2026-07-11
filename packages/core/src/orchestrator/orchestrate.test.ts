@@ -5,6 +5,7 @@ import type { JournalEntry } from '../l0/entries.js';
 import { InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { executeWorkflow } from '../engine/ctx.js';
 import { makeInternals, scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
+import type { AgentProfile } from '../engine/ctx.js';
 import { makeOrchestratorWorkflow } from './orchestrate.js';
 
 /** The telemetry namespace tells orchestrator requests from child ones. */
@@ -140,6 +141,79 @@ describe('orchestrate (M6-T07/T08)', () => {
     expect(entries.filter((e) => e.kind === 'agent' && e.scope.startsWith('agent:'))).toHaveLength(
       2,
     );
+  });
+
+  it('keeps ladder declarers out of the spawn vocabulary and rejects them pre-admission', async () => {
+    // Found live by the M12 checkpoint: the kb card names ladder tiers
+    // by profile name, and a card-informed orchestrator spawned the
+    // declarers, which can only die at wire resolution (docs/07,
+    // section 10 as amended).
+    const profiles: Record<string, AgentProfile> = {
+      worker: { description: 'does one task' },
+      swiftLadder: {
+        description: 'declared ladder swift',
+        model: {
+          ladder: {
+            rungs: [
+              { model: 'fake:cheap', maxTurns: 4, maxTokens: 1024 },
+              { model: 'fake:strong', maxTurns: 4, maxTokens: 1024 },
+            ],
+            startTier: 1,
+            escalateOn: ['error' as const],
+          },
+        },
+      },
+    };
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'done' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'swiftLadder', prompt: 'climb' } },
+        };
+      }
+      if (orchTurn === 2) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'concrete' } },
+        };
+      }
+      if (orchTurn === 3) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'survived' } } };
+    });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles,
+    });
+    const outcome = await executeWorkflow(
+      internals,
+      makeOrchestratorWorkflow('goal', {}),
+      undefined,
+    );
+    expect(outcome).toBe('survived');
+
+    // The vocabulary: concrete profiles are agentTypes; the declarer
+    // rides the context line only.
+    const firstReq = adapter.calls.find((req) => agentTypeOf(req) === '');
+    const spawnTool = firstReq?.tools?.find((tool) => tool.name === 'spawn_agent');
+    expect(spawnTool?.description).toContain('- worker: does one task');
+    expect(spawnTool?.description).not.toContain('- swiftLadder:');
+    expect(spawnTool?.description).toContain('Declared ladders');
+    expect(spawnTool?.description).toContain('swiftLadder');
+
+    // The doomed spawn burned no admission slot: one spawn-admission
+    // decision total (the concrete worker), and the typed rejection
+    // reached the model as an error tool result naming the rule.
+    const entries = await store.load('test-run');
+    expect(admissionEntries(entries)).toHaveLength(1);
+    const orchCalls = adapter.calls.filter((req) => agentTypeOf(req) === '');
+    const secondTurn = JSON.stringify(orchCalls[1]?.messages.at(-1)?.parts);
+    expect(secondTurn).toContain('declares a ladder');
   });
 
   it('enforces the per-orchestrate maxSpawns cap', async () => {
