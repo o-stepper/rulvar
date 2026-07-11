@@ -445,6 +445,8 @@ describe('the Haiku 4.5 caps entry (found by the M12 checkpoint)', () => {
       expect(info.caps.pricing?.inputUsdPerMTok).toBe(1);
       expect(info.caps.pricing?.outputUsdPerMTok).toBe(5);
       expect(info.caps.contextWindow).toBe(200_000);
+      // The effort parameter 400s on this model: the router must scrub.
+      expect(info.caps.reasoningEfforts).toEqual([]);
     }
     // Unknown ids still assume the current generation.
     expect(anthropicModelInfo('claude-nova-9').thinkingForm).toBe('adaptive');
