@@ -362,6 +362,13 @@ interface RunCheckpointOptions {
   orchestrateEngineFor?: (withKnowledge: boolean) => Engine | Promise<Engine>;
   orchestratedCases?: OrchestratedCase[];
   suite?: RunEvalSuiteOptions;
+  /**
+  * Orchestrated runs need room for the orchestrator cap math (the
+  * run ceiling must host the finalize reserve; docs/07, 12.2): their
+  * suite options default to `suite` but usually carry a larger
+  * budgetUsd.
+  */
+  orchestratedSuite?: RunEvalSuiteOptions;
 }
 interface CheckpointArm {
   passRate: number;

@@ -56,6 +56,81 @@ export class IdMap {
 
 type Block = Record<string, unknown>;
 
+/**
+ * Keywords the constrained-decoding schema validator rejects with a
+ * live 400 ("For 'integer' type, property 'minimum' is not
+ * supported"): every numeric bound plus, asymmetrically, maxItems
+ * (minItems, the string bounds, pattern, format, enum and const all
+ * pass). The validator guards exactly two wire positions: tools sent
+ * with strict: true and output_config.format json_schema; plain tools
+ * accept full JSON Schema. Probed live on claude-sonnet-5, 2026-07-11
+ * (docs/04, section 4.3). The engine still validates tool args and
+ * structured output against the UNSCRUBBED schema, so the dropped
+ * keywords stay enforced; only the model-side hint is lost.
+ */
+const CONSTRAINED_DECODING_UNSUPPORTED = new Set([
+  'minimum',
+  'maximum',
+  'exclusiveMinimum',
+  'exclusiveMaximum',
+  'multipleOf',
+  'maxItems',
+]);
+
+/** Keywords whose value is a map of property NAMES to schemas. */
+const SCHEMA_MAP_KEYWORDS = new Set(['properties', 'patternProperties', '$defs', 'definitions']);
+/** Keywords whose value is a schema or an array of schemas. */
+const SCHEMA_VALUE_KEYWORDS = new Set([
+  'items',
+  'prefixItems',
+  'additionalProperties',
+  'additionalItems',
+  'propertyNames',
+  'contains',
+  'anyOf',
+  'oneOf',
+  'allOf',
+  'not',
+  'if',
+  'then',
+  'else',
+]);
+
+/**
+ * Returns a deep copy of the schema with the unsupported keywords
+ * removed at SCHEMA positions only: a property literally named
+ * "minimum" (a key inside `properties`) survives. The input is never
+ * mutated; unrecognized keywords are copied through untouched.
+ */
+export function scrubForConstrainedDecoding(schema: unknown): unknown {
+  if (Array.isArray(schema)) {
+    return schema.map((entry) => scrubForConstrainedDecoding(entry));
+  }
+  if (schema === null || typeof schema !== 'object') {
+    return schema;
+  }
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(schema as Record<string, unknown>)) {
+    if (CONSTRAINED_DECODING_UNSUPPORTED.has(key)) {
+      continue;
+    }
+    if (SCHEMA_MAP_KEYWORDS.has(key) && value !== null && typeof value === 'object') {
+      const map: Record<string, unknown> = {};
+      for (const [name, sub] of Object.entries(value as Record<string, unknown>)) {
+        map[name] = scrubForConstrainedDecoding(sub);
+      }
+      out[key] = map;
+      continue;
+    }
+    if (SCHEMA_VALUE_KEYWORDS.has(key)) {
+      out[key] = scrubForConstrainedDecoding(value);
+      continue;
+    }
+    out[key] = value;
+  }
+  return out;
+}
+
 const CACHE_BREAKPOINT_CAP = 4;
 
 function cacheControl(ttl?: '5m' | '1h'): Block {
@@ -153,15 +228,20 @@ export function buildAnthropicParams(
   }
 
   if (req.tools !== undefined) {
-    params.tools = req.tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      input_schema: tool.parameters,
+    params.tools = req.tools.map((tool) => {
       // Strict tool use is a top-level field on the tool definition, never
       // on tool_choice; strict schemas need additionalProperties: false
-      // and full required (docs/04, section 4.3).
-      ...(isStrictCompatibleSchema(tool.parameters) ? { strict: true } : {}),
-    }));
+      // and full required (docs/04, section 4.3). Strict engages the
+      // constrained-decoding validator, so the wire copy is scrubbed;
+      // non-strict tools keep the full schema as model-side hints.
+      const strict = isStrictCompatibleSchema(tool.parameters);
+      return {
+        name: tool.name,
+        description: tool.description,
+        input_schema: strict ? scrubForConstrainedDecoding(tool.parameters) : tool.parameters,
+        ...(strict ? { strict: true } : {}),
+      };
+    });
     if (req.toolChoice === 'required') {
       params.tool_choice = { type: 'any' };
     } else if (typeof req.toolChoice === 'object') {
@@ -188,7 +268,9 @@ export function buildAnthropicParams(
     outputConfig.effort = req.effort;
   }
   if (req.schema !== undefined) {
-    outputConfig.format = { type: 'json_schema', schema: req.schema };
+    // The format schema always passes the constrained-decoding
+    // validator, strict-shaped or not: scrub unconditionally.
+    outputConfig.format = { type: 'json_schema', schema: scrubForConstrainedDecoding(req.schema) };
   }
   if (anthropicOptions.task_budget !== undefined) {
     outputConfig.task_budget = anthropicOptions.task_budget;
