@@ -1,5 +1,19 @@
 # @rulvar/evals
 
+## 1.1.0
+
+### Minor Changes
+
+- 00f1ab5: M12-T01: the measured-value checkpoint harness (docs/05, section "Phases and placement"; the OQ-09 criteria). `runValueCheckpoint` executes the M12 gate as two A/B experiments under one fixed pool: criterion 1 (rung selection) runs every eval case per (ladder, taskClass) cell at the ladder's default start tier versus the tier recommended by `compileVerifiedLayer` over the store's claims, judging each recommended cell by the OQ-09 rule (equal-or-better pass rate at 90 percent of the cost, or five points better at cost) with unrecommended cells neutral for the majority but included in the pooled aggregate; criterion 2 (agentType selection) runs the same orchestrate-role cases with and without the knowledge store and requires the card-informed arm to match or beat the baseline pass rate within 105 percent of its cost. The checkpoint passes only when both hold; `renderCheckpointReport` produces the docs-ready record, and an unmeasured criterion 2 honestly counts as failed. The fixed mixed corpus (extraction, code-edit, judging; a seeded LCG keeps it byte-stable; the seed/eval split prevents leakage into the treatment arm) and the budget-guarded live Anthropic runner ship as repo scripts.
+
+### Patch Changes
+
+- 63b2c01: Two defects the first live M12 checkpoint run surfaced. The Anthropic capability table lacked a Haiku 4.5 entry, so the dated id fell through to the current-generation default and the adapter sent adaptive thinking, which that model rejects with a live 400 (every haiku run died at zero cost): `claude-haiku-4-5` (and its dated snapshots by the prefix rule) now resolves to the enabled-budget thinking form with real haiku pricing, meaning the default wire omits thinking entirely. And the checkpoint's criterion 2 could pass vacuously when both arms scored zero at zero cost (zero satisfies "at least equal at no more cost"): the card-informed arm must now win something real (nonzero n and pass rate) before the criterion can hold.
+- 42050b5: The checkpoint's orchestrated arms take their own suite options (`orchestratedSuite`, defaulting to `suite`): the third live run showed the shared per-case budget starving the orchestrator cap math (a $0.10 run ceiling cannot host the default finalize reserve, so every orchestrate-role run died at OrchestratorCapConfigError before the first model call, at zero cost).
+- Updated dependencies [d16b04a]
+  - @rulvar/core@1.1.0
+  - @rulvar/testing@1.1.0
+
 ## 1.0.0
 
 ### Minor Changes

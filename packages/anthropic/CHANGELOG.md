@@ -1,5 +1,15 @@
 # @rulvar/anthropic
 
+## 1.1.0
+
+### Patch Changes
+
+- f2253cb: The adapter scrubs constrained-decoding-unsupported keywords from the wire copy of strict tool schemas and output format schemas (`minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `maxItems`; measured live, docs/04 section 4.3 as amended). The orchestrator's spawn tools carry integer minimums, so every live orchestrate run died with a pre-first-call 400 ("For 'integer' type, property 'minimum' is not supported") at zero cost, which is what kept criterion 2 of the M12 checkpoint unmeasurable. The engine-side schema stays unscrubbed and still validates tool args and structured output, so the dropped keywords remain enforced; only the model-side hint is lost.
+- 63b2c01: Two defects the first live M12 checkpoint run surfaced. The Anthropic capability table lacked a Haiku 4.5 entry, so the dated id fell through to the current-generation default and the adapter sent adaptive thinking, which that model rejects with a live 400 (every haiku run died at zero cost): `claude-haiku-4-5` (and its dated snapshots by the prefix rule) now resolves to the enabled-budget thinking form with real haiku pricing, meaning the default wire omits thinking entirely. And the checkpoint's criterion 2 could pass vacuously when both arms scored zero at zero cost (zero satisfies "at least equal at no more cost"): the card-informed arm must now win something real (nonzero n and pass rate) before the criterion can hold.
+- 99dc3ed: The second Haiku 4.5 wire incompatibility (the first live probe after the caps entry): the model also rejects the top-level effort parameter with a 400, so its capability entry now declares empty reasoningEfforts and the router scrubs effort off the wire (the requested effort stays in identity). Verified live: a haiku run completes ok.
+- Updated dependencies [d16b04a]
+  - @rulvar/core@1.1.0
+
 ## 1.0.0
 
 ### Patch Changes
