@@ -44,6 +44,20 @@ export {
   type CanaryProbeSet,
 } from './canary.js';
 export {
+  renderCheckpointReport,
+  rungRuleHolds,
+  runValueCheckpoint,
+  type CheckpointArm,
+  type CheckpointCell,
+  type CheckpointLadder,
+  type CheckpointPool,
+  type CheckpointReport,
+  type CriterionOneReport,
+  type CriterionTwoReport,
+  type OrchestratedCase,
+  type RunCheckpointOptions,
+} from './checkpoint.js';
+export {
   runSweepMatrix,
   SWEEP_THRESHOLD_DEFAULTS,
   type RunSweepOptions,
