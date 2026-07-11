@@ -1312,6 +1312,8 @@ Goal: the proposal loop: kb_propose, modelObservations, inbox, human gate. This 
 
 Entry criteria (the gate): phases 1-2 demonstrate measured value: the card demonstrably improves tier and agentType selection on eval cases against the quantitative criteria recorded in docs/14 (OQ: phase-3 value-checkpoint criteria). The gate decision is journaled in docs (a dated amendment to docs/05 and docs/14).
 
+Gate decision (M12-T01, 2026-07-11): the checkpoint ran live under the OQ-28 grant and FAILED: criterion 1 (rung selection) held, criterion 2 (agentType selection) failed the 105 percent cost bar. M12 stays closed with no version assigned; M12-T02 through M12-T04 do not start. The measured record is appended to OQ-09 (docs/14); the five instrument and engine defects the runs surfaced were fixed and merged first (PR #107 through PR #111).
+
 Exit criteria: quarantine properties hold end to end (proposals influence no prompt in any run before gating); release under the assigned version.
 
 #### M12-T01 Gate evaluation
