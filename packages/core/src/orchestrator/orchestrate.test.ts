@@ -216,6 +216,58 @@ describe('orchestrate (M6-T07/T08)', () => {
     expect(secondTurn).toContain('declares a ladder');
   });
 
+  it('admits children under a small run ceiling: the orchestrator reserves its cap, not maxOutputTokens', async () => {
+    // Found live by the M12 checkpoint (docs/07, 12.2 as amended): the
+    // default admission reserve of the orchestrator agent (flat here,
+    // full maxOutputTokens pricing live) pinned the root remainder at
+    // zero for the whole orchestration, so every child spawn died with
+    // a budget rejection and both A/B arms measured a self-solving
+    // orchestrator. With the cap as the reserve, children admit.
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'done' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'child' } },
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'delegated' } } };
+    });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      // The worker profile carries a realistic estCost so the child's
+      // own layer-1 reserve stays under the remainder.
+      profiles: { worker: { description: 'does one task', estCost: 0.01 } },
+      // The flat reserve alone exceeds the ceiling: without the cap
+      // hint the orchestrator's commitment zeroes the root remainder.
+      budgetUsd: 0.4,
+      flatReserveUsd: 0.5,
+    });
+    const wf = makeOrchestratorWorkflow('delegate the task', {
+      budget: { capUsd: 0.1, finalizeReserveUsd: 0.02 },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe('delegated');
+    const entries = await store.load('test-run');
+    const admissions = admissionEntries(entries);
+    expect(admissions).toHaveLength(1);
+    expect(
+      (admissions[0]?.value as { decision: { verdict: { kind: string } } }).decision.verdict.kind,
+    ).toBe('admit');
+    // The child actually ran.
+    expect(
+      entries.filter((e) => e.kind === 'agent' && e.scope.startsWith('agent:') && e.status === 'ok')
+        .length,
+    ).toBeGreaterThan(0);
+  });
+
   it('enforces the per-orchestrate maxSpawns cap', async () => {
     let orchTurn = 0;
     const adapter = scriptedAdapter((req): ScriptedTurn => {
