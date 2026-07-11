@@ -76,14 +76,26 @@ export const ANTHROPIC_MODELS: Record<string, AnthropicModelInfo> = {
     { in: 3, out: 15, cacheRead: 0.3, cacheWrite: 3.75 },
     2_048,
   ),
-  'claude-haiku-4-5': {
-    // Haiku 4.5 rejects adaptive thinking (a live 400: "adaptive
-    // thinking is not supported on this model"); it takes the classic
-    // enabled/budget form via providerOptions only, so the default wire
-    // omits thinking entirely. Found by the M12 checkpoint runs.
-    ...current(200_000, 64_000, { in: 1, out: 5, cacheRead: 0.1, cacheWrite: 1.25 }, 2_048),
-    thinkingForm: 'enabled-budget',
-  },
+  'claude-haiku-4-5': (() => {
+    // Haiku 4.5 rejects BOTH current-generation controls with live
+    // 400s: "adaptive thinking is not supported on this model" and
+    // "This model does not support the effort parameter". It takes the
+    // classic enabled/budget thinking form via providerOptions only,
+    // and empty reasoningEfforts makes the router SCRUB effort off the
+    // wire (requested effort stays in identity). Found live by the M12
+    // checkpoint runs.
+    const base = current(
+      200_000,
+      64_000,
+      { in: 1, out: 5, cacheRead: 0.1, cacheWrite: 1.25 },
+      2_048,
+    );
+    return {
+      ...base,
+      caps: { ...base.caps, reasoningEfforts: [] },
+      thinkingForm: 'enabled-budget' as const,
+    };
+  })(),
   'claude-opus-4-6': {
     ...current(200_000, 32_000, { in: 15, out: 75, cacheRead: 1.5, cacheWrite: 18.75 }, 4_096),
     thinkingForm: 'enabled-budget',
