@@ -30,7 +30,7 @@ Closing an OQ follows the change process in section 4.
 | OQ-06 | Canary fingerprint design | dogfood telemetry | Closed at M11-T04 (fixed probes, NFC normalization, sha256) |
 | OQ-07 | Org-level knowledge store overlay | dogfood telemetry | post-release (carried at M11-T06) |
 | OQ-08 | Knowledge card renderBudget sizing | dogfood telemetry | post-release calibration (carried at M11-T06) |
-| OQ-09 | Phase-3 value-checkpoint quantitative criteria | dogfood telemetry | Closed at M11-T06 (gate criteria defined); measured 2026-07-11: FAILED, M12 stays closed |
+| OQ-09 | Phase-3 value-checkpoint quantitative criteria | dogfood telemetry | Closed at M11-T06 (gate criteria defined); measured 2026-07-11 and remeasured 2026-07-12: FAILED, M12 stays closed; a criterion-2 rule-shape question is with the founder |
 | OQ-10 | TaskClass extension mapping to eval tags | dogfood telemetry | post-release (carried at M11-T06) |
 | OQ-11 | Editorial-note rendering for judge and orchestrate roles | dogfood telemetry | Closed at M10-T03 (render, no suppression) |
 | OQ-12 | ModelKnowledge taskClass binding | dogfood telemetry | Closed at M10-T05 (author-declared, unclassified default) |
@@ -149,6 +149,11 @@ Closing an OQ follows the change process in section 4.
   - Criterion 1 (rung selection): HOLDS. Both recommended cells passed (extraction on both ladders: pass rate 100.0 percent, equal to baseline, at 33 percent of its cost, $0.0239 against $0.0728 per cell) and the pooled aggregate holds. The card produced no recommendation for the code-edit and judging cells (neutral under the majority rule; the seeding sweep measured no strength crossing the 0.85 threshold there).
   - Criterion 2 (agentType selection): FAILS on the cost bar. Card-informed 90.0 percent at $1.7533 against baseline 90.0 percent at $1.5242 (n=10): equal quality at 115 percent of baseline cost, above the 105 percent bar. The card bytes ride every orchestrator turn and did not steer spawns toward cheaper workers enough to pay for themselves.
   - Consequence: kb_propose and the proposal loop stay unshipped; M12-T02 through M12-T04 do not start. Reopen trigger: a fresh grant or the OQ-28 recurring budget decision funds a rerun, preferably after a card change aimed at the measured failure (a per-profile spawn-cost hint, or a leaner orchestrate-role render).
+- Remeasured (M12-T01 reopening, 2026-07-12): FAILED under the standing rule; M12 stays closed. The reopening shipped three fixes first, each found by the gate itself: the profile-evidence card section (PR #114, docs/05 4.3), ladder declarers out of the spawn vocabulary (PR #111), and the orchestrator admission reserve pinned to its effectiveCap (PR #116, docs/07 12.2), after a probe journal proved NO orchestrated child had ever been admitted under the case ceilings (both arms had been measuring a self-solving orchestrator). With children actually running, two full runs measured (reports: docs/checkpoints/2026-07-12-m12-value-checkpoint-reopened.md; run spend $1.59 each, about $3.3 of the second grant left):
+  - Criterion 1 (rung selection): HOLDS, fifth consecutive full run (extraction on both ladders: equal pass rate at a third of the cost; pooled holds).
+  - Criterion 2 (agentType selection): the card-informed arm beat the baseline pass rate by 40 points (run 8: 100.0 against 60.0 percent) and by 20 points (run 9: 80.0 against 60.0 percent), at 107.9 and 106.6 percent of baseline cost, missing the 105 percent bar by $0.0095 and $0.0051. Verdict per the rule as defined: FAILS.
+  - Rule-shape observation for the owner: criterion 2 has no quality branch (criterion 1 does), and the baseline's failures are CHEAP (a wrong cheap-worker verdict costs less than a right careful one), so the cost bar tightens exactly when the card is winning on quality. The informed overhead is structurally the card bytes riding each orchestrator turn plus the pricier correct worker. Whether the rule gains a quality branch is the founder's decision; any amendment is a new dated record here, and this verdict stands as measured under the rule in force.
+
 
 ### OQ-10: TaskClass extension mapping to eval tags
 
