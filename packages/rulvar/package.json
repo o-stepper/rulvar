@@ -1,6 +1,6 @@
 {
   "name": "@rulvar/rulvar",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "rulvar umbrella package: re-exports @rulvar/core, both first-class adapters, the file store, and the terminal progress renderer. Published as @rulvar/rulvar while the unscoped name is contingent (docs/13, section \"Naming risk note\").",
   "type": "module",
   "license": "Apache-2.0",

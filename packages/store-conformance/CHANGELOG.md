@@ -1,5 +1,32 @@
 # @rulvar/store-conformance
 
+## 1.0.0
+
+### Minor Changes
+
+- 5f0fdcd: M9-T03: community adapter and store guides (docs/10 section 3.10; docs/11 M9 exit row "conformance kits published as community guides").
+
+  - New informative docs: `docs/guide-adapter-authors.md` (wire mapping requirements, the Usage invariant checklist, caps posture, an adapter skeleton template, and the VCR-based contract-test pattern with record and hermetic replay legs) and `docs/guide-store-authors.md` (the storage contracts A1-A4 plus leasing and fencing, a complete minimal LeasableStore walkthrough with an injectable clock and release-surviving epochs, conformance kit wiring, common failure modes, and publishing checklists). Both are indexed in the docs README inventory.
+  - @rulvar/store-conformance gains the dogfood suite: the guide's CommunityMemoryStore walkthrough listing runs VERBATIM through journalStoreConformance and leasableStoreConformance in CI, so the acceptance ("a third-party mock store built only from the guide passes conformance") holds permanently and the guide's code cannot rot.
+
+### Patch Changes
+
+- Updated dependencies [0e0b569]
+- Updated dependencies [b28b7a3]
+- Updated dependencies [b53a89e]
+- Updated dependencies [4454175]
+- Updated dependencies [6599ca8]
+- Updated dependencies [6649e5f]
+- Updated dependencies [fd2f83b]
+- Updated dependencies [01d6b2d]
+- Updated dependencies [9a20dbb]
+- Updated dependencies [0fbe7ea]
+- Updated dependencies [ebe0abc]
+- Updated dependencies [a3079d0]
+- Updated dependencies [596a39b]
+- Updated dependencies [464ab6e]
+  - @rulvar/core@1.0.0
+
 ## 0.9.0
 
 ### Patch Changes

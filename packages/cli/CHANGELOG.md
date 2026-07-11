@@ -1,5 +1,33 @@
 # @rulvar/cli
 
+## 1.0.0
+
+### Minor Changes
+
+- 93eae2c: M10-T04: `rulvar kb list` (docs/05, section "Read path"; docs/06, section 10.5). The second consumption path: claims of the per-project store (./rulvar.models.json) render with full provenance for the humans who author ladders, floors, and profiles: author and gate identity, evidence refs (journal seqs and eval reports), metrics when present, supersede chains, proposal origin, and the TTL state (holds or EXPIRED) per the docs/05 decay table. No run and no pin are involved, so the maintenance view names models verbatim; only in-run cards are nameless. The grammar members `kb inbox` (phase 3, M12) and `kb sweep` (phase 2, M11) fail loudly naming their phases until they ship.
+- fef6263: M11-T05: `rulvar kb sweep` (docs/05, section "Grounding and decay"). Falsification sweeps run manually, from CI, or from a user cron, never engine-scheduled, configured by the `kbSweep` section of rulvar.config.mjs (committerId, the FIXED model pool, taskClass-tagged eval cases, optional thresholds and canary probes; @rulvar/evals loads dynamically like @rulvar/planner does for plan).
+
+  - The falsification guarantee: the matrix is the configured pool UNIONED with every model carrying an active, unexpired negative claim, plus the re-measurement queue (expired active eval claims); the pool renders with each member's origin.
+  - With canary probes configured, every pool member fingerprints BEFORE measurement and drift flips its eval claims to stale in place; the sweep then re-measures and commits threshold-crossing claims through the eval-committer identity, reporting cells, emitted claims, and the committed store version.
+
+### Patch Changes
+
+- Updated dependencies [0e0b569]
+- Updated dependencies [b28b7a3]
+- Updated dependencies [b53a89e]
+- Updated dependencies [4454175]
+- Updated dependencies [6599ca8]
+- Updated dependencies [6649e5f]
+- Updated dependencies [fd2f83b]
+- Updated dependencies [01d6b2d]
+- Updated dependencies [9a20dbb]
+- Updated dependencies [0fbe7ea]
+- Updated dependencies [ebe0abc]
+- Updated dependencies [a3079d0]
+- Updated dependencies [596a39b]
+- Updated dependencies [464ab6e]
+  - @rulvar/core@1.0.0
+
 ## 0.9.0
 
 ### Minor Changes
