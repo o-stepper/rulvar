@@ -25,6 +25,7 @@ import { FakeAdapter, type FakeCall } from '@rulvar/testing';
 import { goldenGrader } from './graders/golden.js';
 import {
   renderCheckpointReport,
+  agentTypeRuleHolds,
   rungRuleHolds,
   runValueCheckpoint,
   type CheckpointPool,
@@ -239,6 +240,22 @@ const ORCHESTRATED: OrchestratedCase[] = [1, 2].map((i) => ({
 }));
 
 describe('the value checkpoint (M12-T01; OQ-09)', () => {
+  it('agentTypeRuleHolds implements the amended two-branch rule exactly (OQ-09, 2026-07-12)', () => {
+    const base = { passRate: 0.6, totalCostUsd: 1, n: 10 };
+    // Branch 1: match or beat at 105 percent of cost.
+    expect(agentTypeRuleHolds(base, { passRate: 0.6, totalCostUsd: 1.05, n: 10 })).toBe(true);
+    expect(agentTypeRuleHolds(base, { passRate: 0.6, totalCostUsd: 1.06, n: 10 })).toBe(false);
+    expect(agentTypeRuleHolds(base, { passRate: 0.59, totalCostUsd: 0.5, n: 10 })).toBe(false);
+    // Branch 2 (the quality branch): at least 15 points better at 115
+    // percent of cost. The measured runs 8 and 9 land here: plus 40 at
+    // 107.9 percent and plus 20 at 106.6 percent.
+    expect(agentTypeRuleHolds(base, { passRate: 0.75, totalCostUsd: 1.15, n: 10 })).toBe(true);
+    expect(agentTypeRuleHolds(base, { passRate: 0.75, totalCostUsd: 1.16, n: 10 })).toBe(false);
+    expect(agentTypeRuleHolds(base, { passRate: 0.74, totalCostUsd: 1.1, n: 10 })).toBe(false);
+    expect(agentTypeRuleHolds(base, { passRate: 1, totalCostUsd: 1.079, n: 10 })).toBe(true);
+    expect(agentTypeRuleHolds(base, { passRate: 0.8, totalCostUsd: 1.066, n: 10 })).toBe(true);
+  });
+
   it('rungRuleHolds implements the two-branch cell rule exactly', () => {
     const base = { passRate: 0.8, totalCostUsd: 1, n: 20 };
     expect(rungRuleHolds(base, { passRate: 0.8, totalCostUsd: 0.9, n: 20 })).toBe(true);

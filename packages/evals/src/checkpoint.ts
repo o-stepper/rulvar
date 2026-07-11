@@ -21,7 +21,11 @@
  *    with and without the knowledge store configured (the card docks
  *    into the spawn tool description when configured). Criterion 2
  *    holds when the card-informed arm matches or beats the baseline
- *    pass rate at no more than 105 percent of its cost.
+ *    pass rate at no more than 105 percent of its cost, OR beats it
+ *    by at least 15 points at no more than 115 percent of its cost
+ *    (the quality branch; OQ-09 as amended 2026-07-12: the baseline
+ *    fails CHEAPLY, so the flat cost bar tightened exactly when the
+ *    card was winning on quality).
  *
  * The checkpoint PASSES only when both criteria hold. Methodology
  * guard: the claims the treatment consumes MUST come from a seeding
@@ -124,6 +128,23 @@ export interface CheckpointReport {
 
 /** IEEE754 guard for the rule boundaries (0.8 + 0.05 exceeds 0.85). */
 const EPSILON = 1e-9;
+
+/**
+ * The OQ-09 criterion 2 rule (as amended 2026-07-12): match-or-beat at
+ * 105 percent of baseline cost, OR at least 15 points better at 115
+ * percent (the quality branch: the baseline fails cheaply, so the flat
+ * bar tightened exactly when the card won on quality). The vacuous-pass
+ * guard stays with the caller.
+ */
+export function agentTypeRuleHolds(baseline: CheckpointArm, informed: CheckpointArm): boolean {
+  const matchesCheaply =
+    informed.passRate >= baseline.passRate - EPSILON &&
+    informed.totalCostUsd <= 1.05 * baseline.totalCostUsd + EPSILON;
+  const clearlyBetterNearCost =
+    informed.passRate >= baseline.passRate + 0.15 - EPSILON &&
+    informed.totalCostUsd <= 1.15 * baseline.totalCostUsd + EPSILON;
+  return matchesCheaply || clearlyBetterNearCost;
+}
 
 /** The OQ-09 cell rule (shared by the per-cell and pooled verdicts). */
 export function rungRuleHolds(baseline: CheckpointArm, treatment: CheckpointArm): boolean {
@@ -234,17 +255,13 @@ export async function runValueCheckpoint(
     const informed = armOf(
       await runEvalSuite(await options.orchestrateEngineFor(true), cases, orchestratedSuite),
     );
+    // The vacuous-pass guard (found by the first live run): two arms
+    // of total failures (both at zero pass rate) demonstrate nothing
+    // and MUST fail; the card has to win something real.
     criterion2 = {
       baseline,
       informed,
-      // The vacuous-pass guard (found by the first live run): two arms
-      // of total failures (both at zero pass rate) demonstrate nothing
-      // and MUST fail; the card has to win something real.
-      passed:
-        informed.n > 0 &&
-        informed.passRate > 0 &&
-        informed.passRate >= baseline.passRate &&
-        informed.totalCostUsd <= 1.05 * baseline.totalCostUsd + EPSILON,
+      passed: informed.n > 0 && informed.passRate > 0 && agentTypeRuleHolds(baseline, informed),
     };
   }
 
