@@ -1316,6 +1316,8 @@ Gate decision (M12-T01, 2026-07-11): the checkpoint ran live under the OQ-28 gra
 
 Gate decision at the reopening (M12-T01, 2026-07-12, second OQ-28 grant): FAILED again under the standing rule, and M12 stays closed. Three further gate-found fixes merged first (PR #114, #111, #116); with children finally admitted, the card-informed arm beat the baseline by 20 to 40 pass-rate points in both runs but exceeded the 105 percent cost bar by half a cent to three cents. The criterion-2 rule-shape question (no quality branch) is recorded at OQ-09 and awaits the founder.
 
+Gate decision, final (M12-T01, 2026-07-12): the founder amended the criterion-2 rule (OQ-09; quality branch) and the fresh verdict run PASSED, clearing even the original 105 percent branch (informed 100.0 against baseline 70.0 percent at 104.8 percent of its cost; criterion 1 held for the sixth consecutive run). The M12 gate is OPEN: M12-T02 through M12-T04 may start, and the milestone version is assigned at planning.
+
 Exit criteria: quarantine properties hold end to end (proposals influence no prompt in any run before gating); release under the assigned version.
 
 #### M12-T01 Gate evaluation
