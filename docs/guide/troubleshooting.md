@@ -28,6 +28,18 @@ npm pkg set type=module
 The [installation requirements](/guide/installation) explain the ESM-only
 policy and the scope of CommonJS support.
 
+## The install resolves an old version
+
+**Symptom.** A fresh `pnpm add @rulvar/rulvar` lands a version older than the
+[changelog's](/reference/changelog) latest.
+
+**Cause.** The package manager served version metadata from its local
+registry cache.
+
+**Fix.** Request the tag explicitly (`pnpm add @rulvar/rulvar@latest`), and
+keep the whole `@rulvar` scope on one version when upgrading; see
+[Versioning](/reference/versioning).
+
 ## Missing or invalid API keys
 
 **Symptom.** Your first live run stalls for a while, then spawns settle with a

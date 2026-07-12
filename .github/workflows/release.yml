@@ -64,16 +64,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # One v-prefixed tag and one GitHub release per train, named after
-      # the umbrella's version (the fixed group shares it). Idempotent:
-      # a re-run skips whatever already exists.
+      # the umbrella's version (the fixed group shares it). The gate is
+      # the REGISTRY, not the action's `published` output: changesets/
+      # action only recognizes its own `changeset publish` output, and
+      # this repo publishes with `pnpm publish -r`. Idempotent: runs on
+      # every main push, exits early until the version is live, and
+      # skips whatever already exists.
       - name: Tag and create the GitHub release
-        if: steps.changesets.outputs.published == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version="$(node -p "require('./packages/rulvar/package.json').version")"
           tag="v${version}"
-          if ! git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+          if ! npm view "@rulvar/rulvar@${version}" version >/dev/null 2>&1; then
+            echo "@rulvar/rulvar@${version} is not on the registry yet; nothing to tag"
+            exit 0
+          fi
+          if ! git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
             git tag "${tag}"
             git push origin "${tag}"
           fi
