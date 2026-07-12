@@ -1,0 +1,32 @@
+[**rulvar API reference**](../../../index.md)
+
+***
+
+[rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / scanJournalCompatibility
+
+# Function: scanJournalCompatibility()
+
+```ts
+function scanJournalCompatibility(
+   runId, 
+   entries, 
+   registry): void;
+```
+
+Defined in: [packages/core/src/journal/keyderiver.ts:175](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/keyderiver.ts#L175)
+
+The one compatibility scan: immediately after load, strictly BEFORE any
+live call, any append, and any admission reserve; repeated at lease
+acquire in queue mode (docs/03, section 4.5). Side-effect free.
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `runId` | `string` |
+| `entries` | readonly [`JournalEntry`](/api/@rulvar/core/type-aliases/JournalEntry.md)[] |
+| `registry` | [`DeriverRegistry`](/api/@rulvar/core/type-aliases/DeriverRegistry.md) |
+
+## Returns
+
+`void`

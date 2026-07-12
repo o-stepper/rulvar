@@ -1,0 +1,15 @@
+[**rulvar API reference**](../../../index.md)
+
+***
+
+[rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / LARGE\_VALUE\_WARN\_BYTES
+
+# Variable: LARGE\_VALUE\_WARN\_BYTES
+
+```ts
+const LARGE_VALUE_WARN_BYTES: 262144 = 262_144;
+```
+
+Defined in: [packages/core/src/journal/replayer.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L47)
+
+docs/06 Appendix A: large-value soft warn threshold (committed for M2).

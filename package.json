@@ -19,6 +19,8 @@
     "test:coverage": "vitest run --coverage",
     "pack-check": "turbo pack-check",
     "docs:lint": "node scripts/docs-lint.mjs",
+    "docs:dev": "pnpm --filter @rulvar/docs dev",
+    "docs:build": "pnpm --filter @rulvar/docs build:site",
     "check:fixed-group": "node scripts/check-fixed-group.mjs",
     "dts:baseline": "node scripts/dts-baseline.mjs",
     "changeset": "changeset",

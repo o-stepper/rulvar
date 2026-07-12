@@ -1,0 +1,17 @@
+[**rulvar API reference**](../../../index.md)
+
+***
+
+[rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / EMPTY\_SCHEMA\_HASH
+
+# Variable: EMPTY\_SCHEMA\_HASH
+
+```ts
+const EMPTY_SCHEMA_HASH: string;
+```
+
+Defined in: [packages/core/src/l0/schema.ts:327](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L327)
+
+The schemaHash used when no structured-output schema is declared: the
+hash of the canonical `true` schema (docs/03, section "schemaHash and
+toolsetHash derivation").

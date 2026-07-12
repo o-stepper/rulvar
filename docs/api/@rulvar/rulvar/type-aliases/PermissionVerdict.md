@@ -1,0 +1,38 @@
+[**rulvar API reference**](../../../index.md)
+
+***
+
+[rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / PermissionVerdict
+
+# Type Alias: PermissionVerdict
+
+```ts
+type PermissionVerdict = 
+  | {
+  decidedBy: "hook" | "canUseTool" | "default";
+  input: unknown;
+  verdict: "allow";
+}
+  | {
+  decidedBy: "hook" | "deny-rule" | "canUseTool";
+  input: unknown;
+  rule?: PermissionRule;
+  verdict: "deny";
+}
+  | {
+  decidedBy: "hook" | "ask-rule" | "default";
+  input: unknown;
+  rule?: PermissionRule;
+  verdict: "ask";
+} & {
+  advisory?: PermissionRule[];
+};
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+## Type Declaration
+
+| Name | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| `advisory?` | [`PermissionRule`](/api/@rulvar/rulvar/type-aliases/PermissionRule.md)[] | Advisory domain-rule matches (docs/08, 4.4): reported in audit events, never enforced outside the first-party fetch tool. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |

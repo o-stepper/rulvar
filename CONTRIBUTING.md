@@ -1,9 +1,10 @@
 # Contributing to rulvar
 
-The documentation set in `docs/` is the single source of truth for this
-project (docs/README.md, section "Canon statement"). This file distills the
-contributor workflow committed in docs/13-toolchain-repo.md, section
-"Contributor workflow"; when the two disagree, docs/13 wins.
+The public documentation site at [docs.rulvar.com](https://docs.rulvar.com)
+is built from `docs/` in this repository. The internal specification set
+that governed the initial build (`docs/00-overview.md` through
+`docs/14-open-questions.md`) was retired into git history on 2026-07-12;
+this file is the authoritative contributor workflow.
 
 ## Toolchain
 
@@ -23,6 +24,8 @@ Everyday commands, all from the repository root:
 | `pnpm test`         | One `vitest run` across every package project         |
 | `pnpm pack-check`   | publint + attw on packed tarballs                     |
 | `pnpm docs:lint`    | Docs conventions (hyphens, emojis, H1, install names) |
+| `pnpm docs:dev`     | Documentation site dev server (VitePress)             |
+| `pnpm docs:build`   | Full documentation site build (TypeDoc + VitePress)   |
 | `pnpm changeset`    | Add a changeset for a user-visible change             |
 
 ## Branching and commits
@@ -39,32 +42,28 @@ Everyday commands, all from the repository root:
 ## Changesets
 
 - Every user-visible change carries a changeset; CI enforces presence on
-  PRs. Breaking changes carry a BREAKING section with a migration note
-  (docs/12-release-versioning.md, section "Changelog format and migration
-  notes").
+  PRs. Breaking changes carry a BREAKING section with a migration note.
 - All packages release in lockstep at identical versions; the sole
   exemption is `@rulvar/compat`, which is independently versioned, is on
   the changesets ignore list, and releases only by a deliberate, manual
-  version change when a KeyDeriver profile ages out of the support window
-  (docs/12, section "Exemptions").
+  version change when a KeyDeriver profile ages out of the support window.
+  See [docs.rulvar.com/reference/versioning](https://docs.rulvar.com/reference/versioning).
 
-## The spec-first rule
+## The docs-first rule
 
-A PR that changes normative behavior MUST include (or follow) the `docs/`
-amendment; code never leads spec. Any deviation from a cited spec section
-discovered during implementation is resolved by a docs amendment PR merged
-before the deviating code lands (docs/README.md, section "Docs versioning
-and amendment process").
+A PR that changes normative public behavior MUST include (or follow) the
+matching documentation change under `docs/`; code never leads
+documentation. Behavior that the site documents is treated as contract:
+a deviation discovered during implementation is resolved by a docs PR
+merged before the deviating code lands.
 
 ## PR checks (all required)
 
 Build, typecheck, lint, test matrix (Node 22.x/24.x), pack gates (publint,
-@arethetypeswrong/cli), changeset presence, docs conventions, and a clean
-or reviewed rolled-up `.d.ts` diff (`dts-rollup/` is regenerated in CI; a
-dirty tree fails). Task-level test obligations apply per
-docs/11-testing-strategy.md, section "What every task-level test must
-cover"; changes in DEF-n areas MUST include or update the named defect
-cassettes.
+@arethetypeswrong/cli), changeset presence, docs conventions, docs site
+build with offline link check, and a clean or reviewed rolled-up `.d.ts`
+diff (`dts-rollup/` is regenerated in CI; a dirty tree fails). Changes in
+DEF-n areas MUST include or update the named defect cassettes.
 
 ## Review gates
 
@@ -74,16 +73,20 @@ explicit second review and a pointer to the amending docs PR.
 
 ## Documentation contributions
 
-Follow docs/README.md, section "Conventions": RFC 2119 keywords, ASCII
-hyphen only (no em or en dashes), no emojis, exactly one H1 per file,
-sentence-case headings. `pnpm docs:lint` checks the mechanical parts.
+The site sources live under `docs/` (VitePress). Conventions, enforced by
+`pnpm docs:lint`: ASCII hyphen only (no em or en dashes), no emojis,
+exactly one H1 per page (home-layout pages carry their heading in
+frontmatter), sentence-case headings, and install commands that always
+use `@rulvar/<name>`. The TypeDoc output under `docs/api/`, the
+aggregated changelog, and the synced contributing page are generated;
+regenerate them with `pnpm docs:build` and commit the result.
 
 ## License
 
 The project is licensed under [Apache-2.0](LICENSE) (the founder decision
-of 2026-07-11; OQ-23 in docs/14-open-questions.md). Contributions are
-accepted under the Developer Certificate of Origin: sign your commits off
-(`git commit -s`), which certifies you have the right to submit the work
-under the project license; copyright of the project remains with its
-owner. Vendored code under `packages/core/src/vendor/` keeps its upstream
-MIT attribution in the provenance headers.
+of 2026-07-11). Contributions are accepted under the Developer Certificate
+of Origin: sign your commits off (`git commit -s`), which certifies you
+have the right to submit the work under the project license; copyright of
+the project remains with its owner. Vendored code under
+`packages/core/src/vendor/` keeps its upstream MIT attribution in the
+provenance headers.

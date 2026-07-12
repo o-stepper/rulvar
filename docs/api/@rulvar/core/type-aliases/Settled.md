@@ -1,0 +1,49 @@
+[**rulvar API reference**](../../../index.md)
+
+***
+
+[rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / Settled
+
+# Type Alias: Settled\&lt;T\&gt;
+
+```ts
+type Settled<T> = 
+  | {
+  result?: AgentResult<unknown>;
+  status: "ok";
+  value: T;
+}
+  | {
+  error: WireError;
+  result?: AgentResult<unknown>;
+  status: "error";
+}
+  | {
+  result: AgentResult<unknown>;
+  status: "limit";
+}
+  | {
+  result?: AgentResult<unknown>;
+  status: "cancelled";
+}
+  | {
+  result: AgentResult<unknown>;
+  status: "skipped";
+}
+  | {
+  result: EscalatedResult<unknown>;
+  status: "escalated";
+};
+```
+
+Defined in: [packages/core/src/engine/ctx.ts:232](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L232)
+
+The discriminated union over AgentStatus carrying the underlying
+AgentResult where one exists (docs/06, section "ctx.parallel and
+Settled").
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |

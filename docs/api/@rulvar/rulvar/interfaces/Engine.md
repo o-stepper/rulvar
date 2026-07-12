@@ -1,0 +1,169 @@
+[**rulvar API reference**](../../../index.md)
+
+***
+
+[rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / Engine
+
+# Interface: Engine
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+## Extended by
+
+- [`TestEngine`](/api/@rulvar/testing/interfaces/TestEngine.md)
+
+## Properties
+
+| Property | Modifier | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ | ------ |
+| <a id="property-stores"></a> `stores` | `readonly` | \{ `journal`: [`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md); `transcripts`: [`TranscriptStore`](/api/@rulvar/rulvar/interfaces/TranscriptStore.md); \} | The engine's configured stores, exposed for shells and hosts (docs/06, 10.2, M8 entry amendment; docs/02, section "Shells overview": "the journal store comes from the engine"). Exactly the instances createEngine received, or the defaults it built; no store contract widens through this accessor. With a serialization hook configured these are the HOOKED wrappers, so every reader passes the one policy point (docs/03, 12.8; M8-T04). | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| `stores.journal` | `public` | [`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md) | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| `stores.transcripts` | `public` | [`TranscriptStore`](/api/@rulvar/rulvar/interfaces/TranscriptStore.md) | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+
+## Methods
+
+### deleteRun()
+
+```ts
+deleteRun(runId): Promise<void>;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+Retention (docs/06, 10.2; OQ-20 executed at M8-T04): deletes every
+blob transcripts.list(runId) returns, then the journal; no orphan
+blobs survive. The caller owns the decision that the run is done.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `runId` | `string` |
+
+#### Returns
+
+`Promise`\&lt;`void`\&gt;
+
+***
+
+### profileCard()
+
+```ts
+profileCard(names?): string;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+Renders the registered agent profiles into the shared vocabulary
+card (docs/06, 9.3), optionally filtered to `names`; the registry
+itself stays private to the engine (docs/06, 10.2; M6-T05
+amendment). Unknown names are ignored.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `names?` | readonly `string`[] |
+
+#### Returns
+
+`string`
+
+***
+
+### pruneRun()
+
+```ts
+pruneRun(runId): Promise<number>;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+Checkpoint pruning (docs/03, 12.4 note; OQ-20 executed at M8-T04):
+deletes checkpoint blobs of ok-terminal attempts that no other
+entry references; returns the count. Parked, cancelled, escalated,
+and hanging attempts keep theirs (park/unpark, DEF-5 retention, and
+dangling redispatch boot from them).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `runId` | `string` |
+
+#### Returns
+
+`Promise`\&lt;`number`\&gt;
+
+***
+
+### resume()
+
+```ts
+resume<A, R>(
+   runId, 
+   wf?, 
+options?): ResumeHandle<R>;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+Rebinds a journal to a workflow definition and resumes (docs/06,
+section "Engine and ops API"). Requires wf for in-process workflows;
+a name mismatch is a typed ConfigError; a body-hash mismatch warns
+loudly and proceeds (the journal decides replay per content keys).
+A compiled run resumes WITHOUT wf: the engine rehydrates the
+persisted source pinned by workflowHash; supplying a compiled wf
+whose source hash differs from the recorded one is a typed
+ConfigError (docs/06, 10.2; M6-T02).
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `A` |
+| `R` |
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `runId` | `string` |
+| `wf?` | \| [`CompiledWorkflow`](/api/@rulvar/rulvar/interfaces/CompiledWorkflow.md) \| [`Workflow`](/api/@rulvar/rulvar/interfaces/Workflow.md)\&lt;`A`, `R`\&gt; |
+| `options?` | [`ResumeOptions`](/api/@rulvar/rulvar/interfaces/ResumeOptions.md) |
+
+#### Returns
+
+[`ResumeHandle`](/api/@rulvar/rulvar/interfaces/ResumeHandle.md)\&lt;`R`\&gt;
+
+***
+
+### run()
+
+```ts
+run<A, R>(
+   wf, 
+   args, 
+opts?): RunHandle<R>;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `A` |
+| `R` |
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `wf` | \| [`Workflow`](/api/@rulvar/rulvar/interfaces/Workflow.md)\&lt;`A`, `R`\&gt; \| [`CompiledWorkflow`](/api/@rulvar/rulvar/interfaces/CompiledWorkflow.md) |
+| `args` | `A` |
+| `opts?` | [`RunOptions`](/api/@rulvar/rulvar/interfaces/RunOptions.md) |
+
+#### Returns
+
+[`RunHandle`](/api/@rulvar/rulvar/interfaces/RunHandle.md)\&lt;`R`\&gt;

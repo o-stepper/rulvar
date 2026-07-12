@@ -1,0 +1,19 @@
+[**rulvar API reference**](../../../index.md)
+
+***
+
+[rulvar API reference](/api/index.md) / [@rulvar/plan](/api/@rulvar/plan/index.md) / RevisionGuardsOptions
+
+# Interface: RevisionGuardsOptions
+
+Defined in: [packages/plan/src/guards.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L35)
+
+RevisionGuards configuration (docs/07, 3.8).
+
+## Properties
+
+| Property | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| <a id="property-droppedrevisionlimit"></a> `droppedRevisionLimit?` | `number` | Default 3 consecutive fully-dropped revisions. | [packages/plan/src/guards.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L39) |
+| <a id="property-fallback"></a> `fallback?` | `"reject-revision"` \| `"finish-with-partial"` \| `"fail-run"` | Default 'finish-with-partial'; the chain is non-HITL and terminating. | [packages/plan/src/guards.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L37) |
+| <a id="property-maxabandonednetusdfraction"></a> `maxAbandonedNetUsdFraction?` | `number` | Optional netLostUsd trigger as a fraction of the starting budget (DEF-5). | [packages/plan/src/guards.ts:41](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L41) |
