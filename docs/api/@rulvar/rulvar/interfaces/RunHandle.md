@@ -6,7 +6,7 @@
 
 # Interface: RunHandle\&lt;R\&gt;
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ## Extended by
 
@@ -23,9 +23,9 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-events"></a> `events` | `AsyncIterable`\&lt;[`WorkflowEvent`](/api/@rulvar/rulvar/type-aliases/WorkflowEvent.md)\&gt; | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-result"></a> `result` | `Promise`\&lt;[`RunOutcome`](/api/@rulvar/rulvar/type-aliases/RunOutcome.md)\&lt;`R`\&gt;\&gt; | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-runid"></a> `runId` | `string` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-events"></a> `events` | `AsyncIterable`\&lt;[`WorkflowEvent`](/api/@rulvar/rulvar/type-aliases/WorkflowEvent.md)\&gt; | `packages/core/dist/index.d.ts` |
+| <a id="property-result"></a> `result` | `Promise`\&lt;[`RunOutcome`](/api/@rulvar/rulvar/type-aliases/RunOutcome.md)\&lt;`R`\&gt;\&gt; | `packages/core/dist/index.d.ts` |
+| <a id="property-runid"></a> `runId` | `string` | `packages/core/dist/index.d.ts` |
 
 ## Methods
 
@@ -35,7 +35,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 cancel(reason?): Promise<void>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Cooperative cancellation; the run settles 'cancelled' with a complete CostReport.
 
@@ -57,7 +57,7 @@ Cooperative cancellation; the run settles 'cancelled' with a complete CostReport
 on<T>(type, cb): () => void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Type Parameters
 
@@ -84,7 +84,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 resolveExternal(key, value): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Resolves an open awaitExternal suspension (DEF-4 signature): applied
 when this attempt wins the first-closing-wins fold; repeated

@@ -10,6 +10,6 @@
 const TOOL_NAME_PATTERN: RegExp;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-First-party provider tool-name constraint intersection (docs/08, section 1.1).
+First-party provider tool-name constraint intersection.

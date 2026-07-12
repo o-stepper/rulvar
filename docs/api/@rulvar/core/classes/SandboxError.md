@@ -6,10 +6,10 @@
 
 # Class: SandboxError
 
-Defined in: [packages/core/src/l0/errors.ts:280](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L280)
+Defined in: [packages/core/src/l0/errors.ts:276](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L276)
 
-A WorkerSandboxRunner resource-limit breach (docs/06, section 8.2;
-M6-T02): crossing timeoutMs or memoryMb terminates the worker and the
+A WorkerSandboxRunner resource-limit breach (M6-T02): crossing
+timeoutMs or memoryMb terminates the worker and the
 run completes with outcome 'error' carrying this error's WireError
 projection; `data` records { reason: 'timeout' | 'memory', limit }.
 The class itself is never journaled as an entry of its own.
@@ -26,7 +26,7 @@ The class itself is never journaled as an entry of its own.
 new SandboxError(message, opts?): SandboxError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:283](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L283)
+Defined in: [packages/core/src/l0/errors.ts:279](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L279)
 
 #### Parameters
 
@@ -50,7 +50,7 @@ Defined in: [packages/core/src/l0/errors.ts:283](https://github.com/o-stepper/ru
 | Property | Modifier | Type | Description | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-cause"></a> `cause?` | `public` | `unknown` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`cause`](/api/@rulvar/core/classes/RulvarError.md#property-cause) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts:24](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts#L24) |
-| <a id="property-code"></a> `code` | `readonly` | `"sandbox_limit"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:281](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L281) |
+| <a id="property-code"></a> `code` | `readonly` | `"sandbox_limit"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:277](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L277) |
 | <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L57) |
 | <a id="property-message"></a> `message` | `public` | `string` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`message`](/api/@rulvar/core/classes/RulvarError.md#property-message) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1075](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1075) |
 | <a id="property-name"></a> `name` | `public` | `string` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`name`](/api/@rulvar/core/classes/RulvarError.md#property-name) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1074](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1074) |

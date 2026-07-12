@@ -10,7 +10,7 @@
 function projectIdentity(input): Record<string, unknown>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The canonical identity object of an IdentityInput under the hashVersion
 2 profile: what JCS serializes and sha256 hashes. The agent kind

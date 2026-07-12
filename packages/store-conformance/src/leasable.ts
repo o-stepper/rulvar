@@ -1,6 +1,6 @@
 /**
  * leasableStoreConformance (M2-T11, DEF-4): the executable definition of
- * the lease capability (docs/03, section "LeasableStore and leases").
+ * the lease capability.
  * Mandatory: acquire on a held lease rejects with the typed
  * LeaseHeldError; the fencing epoch is monotonic per run; an append
  * carrying a stale epoch is rejected AND invisible to subsequent loads;

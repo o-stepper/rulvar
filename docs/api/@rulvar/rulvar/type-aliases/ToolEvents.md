@@ -25,9 +25,9 @@ type ToolEvents =
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-docs/09 section 1.4, tool lifecycle (emitters arrive with the tool system, M3).
+Tool lifecycle (emitters arrive with the tool system, M3).
 
 ## Union Members
 
@@ -60,11 +60,11 @@ docs/09 section 1.4, tool lifecycle (emitters arrive with the tool system, M3).
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `advisory?` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `decidedBy?` | `string` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `durationMs` | `number` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `outcome` | `"ok"` \| `"error"` \| `"denied"` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `rule?` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `toolName` | `string` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `type` | `"tool:end"` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `verdict?` | `"allow"` \| `"deny"` \| `"ask"` | Audit fields (docs/08, section 4.5; M5-T05): the chain verdict, the deciding layer, the matched rule, and advisory domain-rule matches. Telemetry, never identity; ask verdicts additionally journal as suspended approvals. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| `advisory?` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | - | `packages/core/dist/index.d.ts` |
+| `decidedBy?` | `string` | - | `packages/core/dist/index.d.ts` |
+| `durationMs` | `number` | - | `packages/core/dist/index.d.ts` |
+| `outcome` | `"ok"` \| `"error"` \| `"denied"` | - | `packages/core/dist/index.d.ts` |
+| `rule?` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | - | `packages/core/dist/index.d.ts` |
+| `toolName` | `string` | - | `packages/core/dist/index.d.ts` |
+| `type` | `"tool:end"` | - | `packages/core/dist/index.d.ts` |
+| `verdict?` | `"allow"` \| `"deny"` \| `"ask"` | Audit fields (M5-T05): the chain verdict, the deciding layer, the matched rule, and advisory domain-rule matches. Telemetry, never identity; ask verdicts additionally journal as suspended approvals. | `packages/core/dist/index.d.ts` |

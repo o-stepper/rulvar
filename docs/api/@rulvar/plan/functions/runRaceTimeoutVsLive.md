@@ -10,7 +10,7 @@
 function runRaceTimeoutVsLive(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/m9-cassettes.ts:529](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L529)
+Defined in: [packages/plan/src/m9-cassettes.ts:528](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L528)
 
 race-timeout-vs-live (DEF-2): a Flavor B deadline resolution and a
 live class decision race on one suspension; first-wins applies the

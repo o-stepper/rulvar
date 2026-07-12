@@ -10,9 +10,9 @@
 const WAKE_SUMMARY_RENDER_BUDGET_CHARS: 400 = 400;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The committed WakeDigest render budget (docs/06, Appendix A: 400
+The committed WakeDigest render budget (Appendix A: 400
 chars per outputSummary row, the character measure; committed at M10
 entry by adopting the implemented distillation cap unchanged, the
 value frozen into every cassette since M6). One value serves both

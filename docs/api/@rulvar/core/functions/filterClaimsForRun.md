@@ -12,7 +12,7 @@ function filterClaimsForRun(claims, options): ModelClaim[];
 
 Defined in: [packages/core/src/knowledge/card.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/card.ts#L74)
 
-The admission filter (docs/05, 4.1): status active, unexpired at
+The admission filter: status active, unexpired at
 `now`, and the subject reachable through the run's declared ladders
 after the role-floor filter.
 

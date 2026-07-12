@@ -10,11 +10,10 @@
 function registryKeyRing(registry): KeyRing;
 ```
 
-Defined in: [packages/core/src/journal/keyderiver.ts:210](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/keyderiver.ts#L210)
+Defined in: [packages/core/src/journal/keyderiver.ts:209](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/keyderiver.ts#L209)
 
 KeyRing over the registry: the live call is projected DOWN into the
-profile of the stored entry; there is no upward canonization (docs/03,
-section 4.7).
+profile of the stored entry; there is no upward canonization.
 
 ## Parameters
 

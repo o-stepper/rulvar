@@ -22,7 +22,7 @@ declare function renderProgress(events: AsyncIterable<WorkflowEvent>, options?: 
 * recommendedDefaults.routing, roleFloors: recommendedDefaults.floors } })`.
 * Hosts override freely; these are data, not engine semantics. The
 * floors pin orchestrate and plan to strong models as hard router
-* constraints (docs/04, section "Role quality floors"; M4-T09): weak
+* constraints (M4-T09): weak
 * model defaults are forbidden for plan and orchestrate work, and no
 * advice may override or weaken a floor.
 */

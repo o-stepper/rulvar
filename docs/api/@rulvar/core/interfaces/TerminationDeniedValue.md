@@ -8,7 +8,7 @@
 
 Defined in: [packages/core/src/journal/termination.ts:82](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L82)
 
-The value payload of a termination.denied entry (docs/07, 11.6).
+The value payload of a termination.denied entry.
 
 ## Properties
 

@@ -6,7 +6,7 @@
  * contract. Pinned SDK line: @modelcontextprotocol/sdk ^1.29 (the v2
  * migration is the explicit post-M3 task M5-T10; risk R1).
  *
- * Owning spec: docs/08-tools-permissions-spec.md, section "MCP bus".
+ * Docs: https://docs.rulvar.com/guide/mcp.
  */
 import { Client } from '@modelcontextprotocol/sdk/client';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -33,11 +33,11 @@ export interface McpConfig {
   allow?: string[];
   /** Deny wins over allow (pre-prefix names). */
   deny?: string[];
-  /** Namespaces imported names as `${prefix}_${name}` (docs/08 6.4). */
+  /** Namespaces imported names as `${prefix}_${name}`. */
   prefix?: string;
   /** true = every imported tool needsApproval; record form is per name. */
   approval?: boolean | Record<string, boolean>;
-  /** Host-supplied risk labels for imported tools (docs/08 6.2). */
+  /** Host-supplied risk labels for imported tools. */
   risk?: Record<string, ToolRisk>;
 }
 
@@ -130,7 +130,7 @@ function errorText(result: CallToolResult): string {
  * first tools() call; tools/list is fetched with cursor pagination until
  * exhaustion and cached per session; a listChanged notification
  * invalidates the cache, affecting subsequently spawned agents only (a
- * spawn's toolset snapshot is immutable by construction; docs/08 6.3).
+ * spawn's toolset snapshot is immutable by construction).
  */
 export function mcp(cfg: McpConfig): ToolSource {
   validateConfig(cfg);
@@ -156,7 +156,7 @@ export function mcp(cfg: McpConfig): ToolSource {
     }
     client.setNotificationHandler(ToolListChangedNotificationSchema, () => {
       // Invalidates the session cache; in-flight agents keep their
-      // spawn-time snapshot (docs/08, section 6.3).
+      // spawn-time snapshot.
       cache = undefined;
     });
     return client;
@@ -193,7 +193,7 @@ export function mcp(cfg: McpConfig): ToolSource {
     }
     const risk = cfg.risk?.[wire.name];
     // The contract tuple hashes version as absent: MCP tools have no
-    // version field (docs/08, section 6.5); provider-side drift of the
+    // version field; provider-side drift of the
     // description or inputSchema re-keys new spawns by design.
     return tool({
       name,
@@ -208,7 +208,7 @@ export function mcp(cfg: McpConfig): ToolSource {
         })) as CallToolResult;
         if (result.isError === true) {
           // isError maps to an error tool result surfaced to the model;
-          // it never throws past policy (docs/08, section 6.5).
+          // it never throws past policy.
           throw new Error(errorText(result));
         }
         if (result.structuredContent !== undefined) {

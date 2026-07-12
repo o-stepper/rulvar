@@ -17,7 +17,7 @@ Defined in: [packages/core/src/journal/keyderiver.ts:175](https://github.com/o-s
 
 The one compatibility scan: immediately after load, strictly BEFORE any
 live call, any append, and any admission reserve; repeated at lease
-acquire in queue mode (docs/03, section 4.5). Side-effect free.
+acquire in queue mode. Side-effect free.
 
 ## Parameters
 

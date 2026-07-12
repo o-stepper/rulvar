@@ -10,7 +10,7 @@
 function fakeWireError(error): FakeWireErrorValue;
 ```
 
-Defined in: [packages/testing/src/fake-adapter.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L54)
+Defined in: [packages/testing/src/fake-adapter.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L53)
 
 Scripts a typed wire failure (e.g. a retryable rate limit).
 

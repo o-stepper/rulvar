@@ -10,6 +10,6 @@
 const PLAN_REVISE_SCHEMA: SchemaSpec;
 ```
 
-Defined in: [packages/plan/src/tools.ts:77](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L77)
+Defined in: [packages/plan/src/tools.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L76)
 
-docs/07, 4.7: the plan_revise parameter schema (normative).
+The plan_revise parameter schema (normative).

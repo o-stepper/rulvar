@@ -2,10 +2,9 @@
  * Capability table for the July 2026 Anthropic model family (M1-T12).
  *
  * Seed values only: contextWindow/maxOutputTokens are refreshed from the
- * capabilities-bearing GET /v1/models (docs/04, section "Token counting
- * and refreshCaps"), and pricing here is the adapter-reported FALLBACK;
- * the registry's versioned price table (M4) wins (docs/04, section
- * "Pricing").
+ * capabilities-bearing GET /v1/models, and pricing here is the
+ * adapter-reported FALLBACK; the registry's versioned price table (M4)
+ * wins.
  */
 import type { Effort, ModelCaps } from '@rulvar/core';
 
@@ -16,10 +15,10 @@ export interface AnthropicModelInfo {
   /**
    * Wire thinking form: current models accept only adaptive; the
    * enabled/budget form remains functional only on Opus 4.6 and Sonnet
-   * 4.6 (docs/04, section "Thinking and sampling parameters").
+   * 4.6.
    */
   thinkingForm: 'adaptive' | 'enabled-budget';
-  /** Minimum cacheable prefix in tokens (docs/04, section "Prompt caching"). */
+  /** Minimum cacheable prefix in tokens. */
   cacheMinTokens: number;
 }
 
@@ -50,7 +49,7 @@ function current(
   };
 }
 
-/** Static seed table; docs/04 section 4 names the current model set. */
+/** Static seed table naming the current model set. */
 export const ANTHROPIC_MODELS: Record<string, AnthropicModelInfo> = {
   'claude-fable-5': current(
     1_000_000,

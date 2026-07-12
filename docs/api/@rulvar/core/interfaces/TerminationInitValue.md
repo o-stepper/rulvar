@@ -8,7 +8,7 @@
 
 Defined in: [packages/core/src/journal/termination.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L75)
 
-The value payload of a termination.init entry (docs/07, 11.6).
+The value payload of a termination.init entry.
 
 ## Properties
 

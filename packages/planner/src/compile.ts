@@ -2,8 +2,7 @@
  * compileScript: validation and compilation of planner-generated source
  * into a CompiledWorkflow (M6-T01).
  *
- * Owning spec: docs/06-execution-spec.md, section "Script runners"
- * (8.3, "compileScript and the sanctioned dialect"). Any violation is a
+ * Full contract: https://docs.rulvar.com/guide/planner. Any violation is a
  * typed ScriptRejected carrying machine-readable diagnostics for the
  * plan() self-repair loop; `allowImports` defaults to [] (no imports).
  *
@@ -18,7 +17,7 @@ import type { CompiledWorkflow } from '@rulvar/core';
 import { ScriptRejected } from '@rulvar/core';
 
 /**
- * The exact curated sandbox global set, in docs order (docs/06, 8.2).
+ * The exact curated sandbox global set, in canonical order.
  * The worker binds the ctx methods as bare globals under these names and
  * the API card teaches exactly this list.
  */
@@ -37,7 +36,7 @@ export const SANDBOX_GLOBALS: readonly string[] = [
   'uuid',
 ];
 
-/** One machine-readable compileScript diagnostic (docs/02, ScriptRejected row). */
+/** One machine-readable compileScript diagnostic (carried by ScriptRejected). */
 export interface ScriptDiagnostic {
   ruleId: string;
   message: string;
@@ -242,11 +241,11 @@ function scanImports(
 }
 
 /**
- * Validates and compiles planner-generated source into a CompiledWorkflow
- * (docs/06, 8.3). The source is an async function body over the sandbox
+ * Validates and compiles planner-generated source into a CompiledWorkflow.
+ * The source is an async function body over the sandbox
  * globals; its `return` value is the workflow result. The compiled form is
  * pure data (the source is evaluated only inside the worker sandbox);
- * machine scripts run under errorPolicy 'lenient' (docs/06, Appendix A).
+ * machine scripts run under errorPolicy 'lenient'.
  */
 export function compileScript(source: string, o?: CompileScriptOptions): CompiledWorkflow {
   const allowImports = o?.allowImports ?? [];

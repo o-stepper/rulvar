@@ -6,8 +6,8 @@
  * mapped to ChatEvent, effort mapping with the documented lossy max
  * downmap, and usage normalization.
  *
- * Owning spec: docs/04-model-layer-spec.md, section "@rulvar/openai
- * (Responses API)". Pure functions; adapter.ts owns the SDK client.
+ * Full contract: https://docs.rulvar.com/guide/providers
+ * Pure functions; adapter.ts owns the SDK client.
  */
 import {
   ConfigError,
@@ -21,7 +21,7 @@ import {
   type WireError,
 } from '@rulvar/core';
 
-/** Bijective canonical-to-wire (call_*) id map (docs/04, section 1.2). */
+/** Bijective canonical-to-wire (call_*) id map. */
 export class OpenAiIdMap {
   private readonly toWire = new Map<CanonicalId, string>();
   private readonly toCanonical = new Map<string, CanonicalId>();
@@ -55,7 +55,7 @@ export class OpenAiIdMap {
 }
 
 /**
- * Canonical-to-wire effort (docs/04, sections 3.3 and 5.5): low through
+ * Canonical-to-wire effort: low through
  * xhigh pass through; canonical max downmaps to xhigh (documented lossy;
  * recorded in providerMetadata); provider 'none' is reachable only via
  * providerOptions.openai.reasoningEffort.
@@ -73,7 +73,7 @@ type Item = Record<string, unknown>;
  * Builds Responses API params. Manual item replay ONLY: store: false plus
  * include reasoning.encrypted_content; previous_response_id and the
  * Conversations API place state server-side, break replay identity, and
- * are REJECTED as a typed ConfigError (docs/04, section 5.1). Role
+ * are REJECTED as a typed ConfigError. Role
  * 'system' messages project into top-level instructions on every request.
  */
 export function buildResponsesParams(
@@ -148,8 +148,7 @@ export function buildResponsesParams(
         case 'provider-raw':
           // Reasoning items (including encrypted_content) and any
           // auxiliary state items are echoed VERBATIM between function
-          // calls; id plus summary alone are insufficient (docs/04,
-          // section 5.1).
+          // calls; id plus summary alone are insufficient.
           if (part.provider === 'openai') {
             flushContent();
             input.push(part.block as Item);
@@ -175,8 +174,7 @@ export function buildResponsesParams(
 
   if (req.tools !== undefined) {
     // Flattened function tools: top-level type/name/parameters/strict, no
-    // nested wrapper. Explicit strict, never the silent server fallback
-    // (docs/04, section 5.2).
+    // nested wrapper. Explicit strict, never the silent server fallback.
     params.tools = req.tools.map((tool) => ({
       type: 'function',
       name: tool.name,
@@ -193,8 +191,7 @@ export function buildResponsesParams(
     } else if (req.toolChoice === 'none') {
       // Explicit none with the tools param PRESENT: function-call items
       // in the input need their definitions, and finalize and extract
-      // project tool-bearing histories (docs/04, section 8.4 as amended
-      // in M4-T01).
+      // project tool-bearing histories (M4-T01).
       params.tool_choice = 'none';
     }
   }
@@ -220,7 +217,7 @@ export function buildResponsesParams(
   const explicitEffort = openaiOptions.reasoningEffort;
   if (typeof explicitEffort === 'string') {
     // Provider 'none' (and any explicit provider-level effort) is
-    // reachable only through the namespace (docs/04, section 3.3).
+    // reachable only through the namespace.
     params.reasoning = { effort: explicitEffort };
   } else if (req.effort !== undefined) {
     const mapped = mapOpenAiEffort(req.effort);
@@ -260,8 +257,8 @@ export function normalizeOpenAiUsage(raw: Record<string, unknown> | undefined): 
 }
 
 /**
- * Maps the typed Responses SSE stream to ChatEvents per the docs/04
- * section 5.4 table. Canonical parts come from the typed output array,
+ * Maps the typed Responses SSE stream to ChatEvents.
+ * Canonical parts come from the typed output array,
  * never the output_text aggregate. Raw output items ride
  * finish.providerMetadata.openai.outputItems so the runtime can retain
  * reasoning items as provider-raw parts.
@@ -358,7 +355,7 @@ export async function mapResponsesStream(
         const meta: Record<string, unknown> = {
           outputItems: response?.output ?? [],
         };
-        // Retention transport (docs/04, section 2.3, M4-T02): reasoning
+        // Retention transport (M4-T02): reasoning
         // items (including encrypted_content, requested via include) are
         // echoed verbatim on replay; ship them in output order.
         const reasoningItems = ((response?.output as Item[] | undefined) ?? []).filter(
@@ -452,7 +449,7 @@ export function openAiErrorToWire(error: unknown): WireError {
 }
 
 /**
- * The Chat Completions degraded path (docs/04, section 5.6): delta-patched
+ * The Chat Completions degraded path: delta-patched
  * chunk assembly instead of typed SSE, nested function tools with explicit
  * strict where supported, response_format instead of text.format, no
  * reasoning item replay. Selected by caps (api: 'chat'), visible in
@@ -526,7 +523,7 @@ export function buildChatCompletionsParams(
         description: tool.description,
         parameters: tool.parameters,
         // Non-strict by default on this dialect: compensate with explicit
-        // strict where the schema allows (docs/04, section 5.6).
+        // strict where the schema allows.
         strict: isStrictCompatibleSchema(tool.parameters),
       },
     }));
@@ -535,8 +532,7 @@ export function buildChatCompletionsParams(
     } else if (typeof req.toolChoice === 'object') {
       params.tool_choice = { type: 'function', function: { name: req.toolChoice.name } };
     } else if (req.toolChoice === 'none') {
-      // Explicit none with the tools param present (docs/04, section 8.4
-      // as amended in M4-T01).
+      // Explicit none with the tools param present (M4-T01).
       params.tool_choice = 'none';
     }
   }

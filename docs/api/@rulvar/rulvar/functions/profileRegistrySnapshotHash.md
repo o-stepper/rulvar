@@ -10,11 +10,11 @@
 function profileRegistrySnapshotHash(profiles): string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The deterministic profile-registry snapshot hash frozen inside
 termination.init: profile names mapped to their declared ladder
-lengths, canonical JSON, sha256 (docs/07, 11.6).
+lengths, canonical JSON, sha256.
 
 ## Parameters
 

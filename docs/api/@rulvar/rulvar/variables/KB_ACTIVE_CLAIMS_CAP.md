@@ -10,6 +10,6 @@
 const KB_ACTIVE_CLAIMS_CAP: 8 = 8;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-docs/06, Appendix A: KB active-claims cap, default 8 per (model, taskClass).
+Appendix A: KB active-claims cap, default 8 per (model, taskClass).

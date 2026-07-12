@@ -15,7 +15,7 @@ function assertPlanHead(
 
 Defined in: [packages/plan/src/plan-hash.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-hash.ts#L75)
 
-The append-time head assertion (docs/07, 3.4): planHashBefore of the
+The append-time head assertion: planHashBefore of the
 entry being appended MUST equal the current fold head. A failure is an
 engine bug and raises the typed PlanInvariantError; the run finishes
 with outcome error, never a silent brick.

@@ -10,11 +10,11 @@
 function archiveDeprecatedModelOps(claims, deprecated): ClaimOp[];
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Deprecation maintenance (docs/05: "deprecations, which archive
-claims, never delete them, so historical runs keep their audit
-trail"): archive ops for every non-terminal claim of the deprecated
+Deprecation maintenance (deprecations archive claims, never delete
+them, so historical runs keep their audit trail): archive ops for
+every non-terminal claim of the deprecated
 models. The caller commits them under its own gate-free archive ops.
 
 ## Parameters

@@ -13,11 +13,11 @@ type SchemaSpec<T> =
   | JsonSchema;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The L0 schema contract with exactly three accepted forms: a Standard
 Schema (Zod, ArkType, Valibot, ...), a { jsonSchema, validate } pair, or
-a bare JSON Schema literal (docs/08, section "The three forms").
+a bare JSON Schema literal.
 
 ## Type Parameters
 

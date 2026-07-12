@@ -2,8 +2,8 @@
  * Lineage: LogicalTaskId, approach signatures, and the counter folds
  * (M7-T02, DEF-3).
  *
- * Owning spec: docs/03-journal-spec.md, section "Lineage (DEF-3)";
- * docs/07-adaptive-orchestration-spec.md, section "Lineage (DEF-3)".
+ * Public contract: https://docs.rulvar.com/guide/journal and
+ * https://docs.rulvar.com/guide/adaptive-orchestration.
  *
  * The LTID answers "is this the same logical task across rebirths".
  * NodeId remains plan-node identity; the content key remains the identity
@@ -32,10 +32,10 @@ export type LogicalTaskId = string;
 export type LineageRelation =
   'first' | 'respawn' | 'rung-retry' | 'decompose-child' | 'unpark-restart';
 
-/** approachSig/approachSigCoarse derivation version (docs/03, 10.7). */
+/** approachSig/approachSigCoarse derivation version. */
 export const LINEAGE_SIG_VERSION = 1 as const;
 
-/** Deterministic LTIDs canonized onto legacy journals (docs/03, 10.7). */
+/** Deterministic LTIDs canonized onto legacy journals. */
 export const LEGACY_LTID_PREFIX = 'legacy:';
 
 /** The computed lineage record of one spawn-authorizing decision entry. */
@@ -55,7 +55,7 @@ export interface LineageRef {
 
 /**
  * The value-part lineage block embedded in decision entries: the computed
- * LineageRef plus the normalized tag (docs/03, 10.6: the request part
+ * LineageRef plus the normalized tag (the request part
  * holds the RAW proposal; the value part holds what was COMPUTED and is
  * reused byte-exact on replay).
  */
@@ -63,7 +63,7 @@ export interface SpawnLineage extends LineageRef {
   approachTag: string;
 }
 
-/** Attempt outcome classes entering LineageStats (docs/03, 10.3). */
+/** Attempt outcome classes entering LineageStats. */
 export type AttemptOutcomeClass =
   | 'ok'
   | 'escalated'
@@ -158,7 +158,7 @@ function sha256Hex(text: string): string {
 }
 
 /**
- * Approach-tag normalization (docs/03, 10.2): NFC, lowercase, runs of
+ * Approach-tag normalization: NFC, lowercase, runs of
  * non-alphanumerics collapse into a hyphen, truncate to 32 characters; an
  * empty value canonicalizes to 'default'. Prompt prose never enters any
  * signature: rephrasings collide by construction, not by heuristic.
@@ -172,7 +172,7 @@ export function normalizeApproachTag(raw?: string): string {
   return collapsed === '' ? 'default' : collapsed;
 }
 
-/** The isolation string entering approachSigCoarse (docs/03, 10.3). */
+/** The isolation string entering approachSigCoarse. */
 export function canonicalIsolationTag(spec: IsolationSpec | undefined): string {
   if (spec === undefined) {
     return 'none';
@@ -191,7 +191,7 @@ export interface ApproachSignatureInputs {
 /**
  * approachSigCoarse = sha256(JCS({ sigVersion, agentType, toolsetHash,
  * schemaHash, isolation })). Feeds the stall detector and the oscillation
- * guard, which keys ACROSS LTID boundaries (docs/07, 3.8).
+ * guard, which keys ACROSS LTID boundaries.
  */
 export function approachSigCoarse(inputs: ApproachSignatureInputs): string {
   return sha256Hex(
@@ -220,7 +220,7 @@ export function approachSigOf(coarse: string, tag?: string): string {
  * The deterministic signature inputs assigned to legacy spawns (journals
  * written before lineage existed) and to attempts whose producers did not
  * record signature inputs: stable constants, never wall-clock, so replay
- * canonizes identically on every engine (docs/03, 10.7).
+ * canonizes identically on every engine.
  */
 export const LEGACY_SIGNATURE_INPUTS: ApproachSignatureInputs = {
   agentType: 'legacy',
@@ -256,7 +256,7 @@ export function classifyAttemptOutcome(terminal: JournalEntry): AttemptOutcomeCl
       }
       // Non-agent wire errors (steps, sandbox, environment) classify by
       // retryability: transient and environment classes are skipped by
-      // the stall streak either way (docs/03, 10.4).
+      // the stall streak either way.
       return wire.retryable ? 'transient-error' : 'task-error';
     }
     default:
@@ -264,7 +264,7 @@ export function classifyAttemptOutcome(terminal: JournalEntry): AttemptOutcomeCl
   }
 }
 
-/** Outcome classes that lengthen the stall streak (docs/03, 10.4). */
+/** Outcome classes that lengthen the stall streak. */
 const STALLING_OUTCOMES: ReadonlySet<AttemptOutcomeClass> = new Set([
   'task-error',
   'no-progress',
@@ -315,7 +315,7 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
  * Reads the computed SpawnLineage block of a decision payload, tolerating
  * pre-DEF-3 producers (M6 journals): a verdict lineage block without
  * signatures canonizes onto the deterministic legacy signature constants,
- * so folds over old journals stay byte-stable (docs/03, 10.7).
+ * so folds over old journals stay byte-stable.
  */
 function readSpawnLineage(decision: Record<string, unknown> | undefined): SpawnLineage | undefined {
   if (decision === undefined) {
@@ -349,8 +349,7 @@ function readSpawnLineage(decision: Record<string, unknown> | undefined): SpawnL
  * The incremental lineage fold: attempts, escalation debits, stall
  * streaks, single-live-attempt, and legacy canonization, computed from
  * journal entries only. `absorb` is idempotent by seq cursor; every read
- * accepts an optional `uptoSeq` pin so renders stay snapshot-stable
- * (docs/03, 10.4; docs/07, 8.3).
+ * accepts an optional `uptoSeq` pin so renders stay snapshot-stable.
  */
 export class LineageIndex {
   private readonly attemptsByLtid = new Map<LogicalTaskId, AttemptRecord[]>();
@@ -558,7 +557,7 @@ export class LineageIndex {
     const target = entry.ref as number;
     if (this.closedTargets.has(target)) {
       // First-closing-wins: losing attempts classify noop and never enter
-      // the counters (docs/03, 10.4).
+      // the counters.
       return;
     }
     this.closedTargets.add(target);
@@ -629,7 +628,7 @@ export class LineageIndex {
    * attempt whose bound key matches (an at-least-once redispatch of the
    * same slot after cancelled/error/limit); else a legacy attempt is
    * canonized with the deterministic 'legacy:' + contentHash LTID
-   * (docs/03, 10.7: random ULIDs on replay are forbidden).
+   * (random ULIDs on replay are forbidden).
    */
   private bindRoot(slotScope: string, entry: JournalEntry): AttemptRecord {
     const queue = this.queueByScope.get(slotScope) ?? [];
@@ -695,7 +694,7 @@ export class LineageIndex {
    * True while the LTID has an unsettled attempt (admitted, dispatched, or
    * redispatched without a terminal), including admits whose decision
    * entries have not landed yet. Backs the single-live-attempt invariant:
-   * a competing admit gets `lineage_busy` (docs/03, 10.5).
+   * a competing admit gets `lineage_busy`.
    */
   hasLiveAttempt(logicalTaskId: LogicalTaskId): boolean {
     if ((this.pendingAdmits.get(logicalTaskId) ?? 0) > 0) {
@@ -706,7 +705,7 @@ export class LineageIndex {
     );
   }
 
-  /** The stall streak per docs/03, 10.4 (pinnable to a snapshot seq). */
+  /** The stall streak (pinnable to a snapshot seq). */
   stallStreak(logicalTaskId: LogicalTaskId, uptoSeq: number = Number.POSITIVE_INFINITY): number {
     let streak = 0;
     for (const attempt of this.attemptsOf(logicalTaskId, uptoSeq)) {
@@ -730,7 +729,7 @@ export class LineageIndex {
     return streak;
   }
 
-  /** The pinned LineageStats render (docs/03, 10.3). */
+  /** The pinned LineageStats render. */
   statsOf(logicalTaskId: LogicalTaskId, uptoSeq: number = Number.POSITIVE_INFINITY): LineageStats {
     const attempts = this.attemptsOf(logicalTaskId, uptoSeq);
     const groups = new Map<

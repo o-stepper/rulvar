@@ -10,7 +10,7 @@ Defined in: [packages/core/src/stores/jsonl.ts:177](https://github.com/o-stepper
 
 File-backed TranscriptStore (M6-T02): blobs (transcripts, checkpoints,
 persisted CompiledWorkflow sources) as one file per ref under `dir`,
-so compiled runs resume across processes (docs/06, 10.2). Refs follow
+so compiled runs resume across processes. Refs follow
 the `<runId>/<name>` convention; each path segment is checked
 filesystem-safe and nested segments become directories.
 

@@ -8,7 +8,7 @@
 
 Defined in: [packages/plan/src/escalation.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/escalation.ts#L27)
 
-One per-lineage debit row of a class-level decision (docs/07, 6.5).
+One per-lineage debit row of a class-level decision.
 
 ## Properties
 

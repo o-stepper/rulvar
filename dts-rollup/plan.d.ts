@@ -3,15 +3,18 @@ import { AdmissionDecision, AgentResult, CanonicalLadderSpec, ChatRequest, Effor
 //#region src/plan-state.d.ts
 /**
 * The single sequential scope holding every plan-mutating entry, inside
-* the orchestrator's run scope (docs/07, 3.2): total order = ordinal
+* the orchestrator's run scope: total order = ordinal
 * order = durable append order. Child node scopes are `plan/NodeId`
-* (core `planNodeScope`; grammar in docs/03, section 2.1).
+* (core `planNodeScope`).
 */
 declare const PLAN_SCOPE = "plan";
-/** The closed status machine (docs/07, 3.1); `skipped` is fold-derived for entries but first-class for plan nodes. */
+/**
+* The closed status machine; `skipped` is fold-derived for entries but
+* first-class for plan nodes.
+*/
 type PlanNodeStatus = "pending" | "ready" | "running" | "parked" | "escalated" | "done" | "failed" | "cancelled" | "skipped";
 /**
-* Canonical per-node fields entering planHash, exactly the docs/07 3.1
+* Canonical per-node fields entering planHash, exactly this
 * record. `deps` are sorted in the hash (not necessarily in state);
 * `checkpointRef`/`escalationRef` participate as absent when absent.
 */
@@ -33,11 +36,11 @@ interface PlanNode {
   escalationRef?: EntryRef;
 }
 /**
-* TaskPlan: typed data owned by the engine, never prose in a transcript
-* (docs/07, 3.1). The guard fold counters ride the same record because
-* they enter planHash (docs/07, 3.4): `revisionCount` counts journaled
+* TaskPlan: typed data owned by the engine, never prose in a transcript.
+* The guard fold counters ride the same record because
+* they enter planHash: `revisionCount` counts journaled
 * plan.revision entries; `droppedRevisionStreak` counts consecutive
-* fully-dropped revisions (RevisionGuards, docs/07, 3.8).
+* fully-dropped revisions (RevisionGuards).
 */
 interface TaskPlan {
   nodes: Readonly<Record<NodeId, PlanNode>>;
@@ -50,23 +53,23 @@ declare function isTerminalPlanStatus(status: PlanNodeStatus): boolean;
 /**
 * Asserts one status transition against the closed machine. Op-level
 * legality (which ops may request which transitions in which state) is
-* the rebase conflict table's job (docs/07, 3.6; M7-T04); the machine
+* the rebase conflict table's job (M7-T04); the machine
 * itself enforces exactly the structural rules:
 *
 * - nothing leaves a terminal status (`done` is immutable; failed,
 *   cancelled, skipped are final),
 * - `running` is entered only from `ready` (the engine schedules ready
-*   nodes; docs/07, 3.1),
+*   nodes),
 * - a transition never restates the current status (the engine writes no
 *   no-op set_node_status).
 *
 * A violation is an engine bug and raises the typed PlanInvariantError
-* (docs/07, 3.4: never a silent brick).
+* (never a silent brick).
 */
 declare function assertPlanTransition(node: PlanNode, to: PlanNodeStatus): void;
 /**
-* Dependency satisfaction, derived purely in the fold and NEVER a record
-* (docs/07, 3.3): a dep is satisfied when waived or when its upstream
+* Dependency satisfaction, derived purely in the fold and NEVER a record:
+* a dep is satisfied when waived or when its upstream
 * node is `done`. Terminally unsuccessful upstreams (cancelled, failed)
 * keep blocking: such edges "remain blocking" per the rewire_deps row of
 * the conflict table, and waive_dep exists exactly to unblock them.
@@ -82,7 +85,7 @@ declare function depsSatisfied(plan: TaskPlan, node: PlanNode): boolean;
 */
 declare function recomputePlanReadiness(plan: TaskPlan): TaskPlan;
 /**
-* Cycle check for rewire_deps (docs/07, 3.6: a resulting cycle drops the
+* Cycle check for rewire_deps (a resulting cycle drops the
 * WHOLE op with dep_cycle; rewire_deps is atomic). Answers whether the
 * graph with `nodeId`'s deps replaced by `deps` contains a cycle
 * reachable from `nodeId`. add_task cannot create cycles (nothing depends
@@ -95,18 +98,18 @@ declare function wouldCreateDepCycle(plan: TaskPlan, nodeId: NodeId, deps: reado
 declare const PLAN_HASH_VERSION: HashVersion;
 /**
 * The canonical JSON projection of PlanState: nodes sorted by NodeId plus
-* the guard fold counters, nothing else (docs/07, 3.4).
+* the guard fold counters, nothing else.
 */
 declare function canonicalPlanState(plan: TaskPlan): Record<string, unknown>;
 /**
 * planHash under one deriver profile (default: the current hashVersion 2
 * profile). Replay recomputes each entry's planHashAfter with the
-* predicate of that entry's OWN hashVersion (docs/07, 3.4), so the
+* predicate of that entry's OWN hashVersion, so the
 * deriver is a parameter, not an ambient.
 */
 declare function planHash(plan: TaskPlan, deriver?: KeyDeriver): string;
 /**
-* The append-time head assertion (docs/07, 3.4): planHashBefore of the
+* The append-time head assertion: planHashBefore of the
 * entry being appended MUST equal the current fold head. A failure is an
 * engine bug and raises the typed PlanInvariantError; the run finishes
 * with outcome error, never a silent brick.
@@ -121,11 +124,11 @@ declare function assertPlanHead(plan: TaskPlan, expectedPlanHash: string, contex
 * PlanWriteLock (M7-T01): the in-process FIFO mutex serializing live
 * appends to the sequential scope "plan".
 *
-* Owning spec: docs/07-adaptive-orchestration-spec.md, section 3.2
+* Owning contract: https://docs.rulvar.com/guide/adaptive-orchestration
 * (DEF-8, XF-07). The lock serializes ONLY plan-scope appends (acquire,
 * read the fold head, evaluate, append, release); it MUST NOT substitute
 * for resolution arbitration, which is owned by the ResolutionArbiter
-* (docs/03, section "Suspension and resolutions (DEF-4)"). In queue mode
+* (DEF-4). In queue mode
 * the lease fencing epoch applies on top. Wall clock influences only
 * WHICH order gets recorded live; replay reads the recorded order and
 * never takes the lock.
@@ -148,32 +151,32 @@ interface TaskSpec {
   /** Registered agent profile name; models are never named here. */
   agentType: string;
   prompt: string;
-  /** Registered SchemaSpec name (docs/08); registry lands in M7-T05. */
+  /** Registered SchemaSpec name; registry lands in M7-T05. */
   outputSchemaRef?: string;
-  /** Registered tool profile name (docs/08); registry lands in M7-T05. */
+  /** Registered tool profile name; registry lands in M7-T05. */
   toolsetRef?: string;
   isolation?: IsolationSpec;
   usageLimits?: Partial<UsageLimits>;
   /** Clamped by childBudgetFraction at admission. */
   budgetUsd?: number;
-  /** The ONLY model influence the orchestrator has (docs/07, 4.1). */
+  /** The ONLY model influence the orchestrator has. */
   model_hint?: {
     startTier: number;
   };
   /** Slug entering approachSig, at most 32 chars after normalization. */
   approach?: string;
-  /** Absence means a new lineage root (docs/07, 8.1). */
+  /** Absence means a new lineage root. */
   lineage?: SpawnLineageOpt;
-  /** Default 'unclassified' (taskClass binding OQ, docs/14). */
+  /** Default 'unclassified' (taskClass binding is an open question). */
   taskClass?: string;
-  /** Absence means the child cannot escalate (docs/07, 6.4). */
+  /** Absence means the child cannot escalate. */
   escalation?: EscalationOptions;
 }
-/** The amend_task patch form: every field optional (docs/07, 4.7). */
+/** The amend_task patch form: every field optional. */
 type TaskSpecPatch = Partial<TaskSpec>;
 /**
-* The deterministic spec digest entering PlanNode.promptSpecHash
-* (docs/07, 3.1): the canonical JSON of the full TaskSpec through the
+* The deterministic spec digest entering PlanNode.promptSpecHash:
+* the canonical JSON of the full TaskSpec through the
 * frozen hashVersion 2 canonicalization. A plan-internal digest, not a
 * kernel content key: the paid-call identity stays with the child's own
 * spawn entry.
@@ -183,7 +186,7 @@ declare function promptSpecHashOf(spec: TaskSpec): string;
 declare function applyTaskSpecPatch(spec: TaskSpec, patch: TaskSpecPatch): TaskSpec;
 //#endregion
 //#region src/plan-entries.d.ts
-/** The orchestrator-facing PlanOp union (docs/07, 4.7). */
+/** The orchestrator-facing PlanOp union. */
 type PlanOp = {
   op: "add_task";
   spec: TaskSpec;
@@ -221,7 +224,7 @@ type PlanOp = {
 };
 /**
 * Applied forms the fold consumes. cancel_task gains the engine-computed
-* cascade (docs/07, 3.6: computed at apply time, never a parameter);
+* cascade (computed at apply time, never a parameter);
 * park/cancel against running nodes apply as flag requests landing later
 * via plan.decision (park-landed, cancel-landed).
 */
@@ -254,7 +257,7 @@ type AppliedPlanOp = (Extract<PlanOp, {
 } | Extract<PlanOp, {
   op: "waive_dep";
 }>;
-/** The complete machine reason vocabulary, normative and closed (docs/07, 3.5). */
+/** The complete machine reason vocabulary, normative and closed. */
 type RebaseReasonCode = "admission_denied" | "node_already_done" | "dep_already_resolved" | "node_escalated" | "node_running" | "terminal_status" | "dep_cycle" | "already_parked" | "not_parked" | "no_such_dep" | "already_waived" | "bad_base" | "lineage_exhausted" | "lineage_busy" | "plan_frozen" | "checkpoint_discarded" | "reuse_by_reference" | "resolved_escalation" | "immediate_satisfaction";
 type RebaseOutcome = {
   kind: "applied";
@@ -277,7 +280,7 @@ interface PlanSnapshotRef {
   planHash: string;
 }
 interface PlanReviseRequest {
-  /** Mandatory; the call is rejected without it (docs/07, 3.5). */
+  /** Mandatory; the call is rejected without it. */
   base: PlanSnapshotRef;
   ops: PlanOp[];
   rationale: string;
@@ -291,7 +294,7 @@ interface PlanReviseResult {
   revisionUnitsRemaining: number;
 }
 type PlanReviseErrorCode = "revision_budget_exhausted" | RebaseReasonCode;
-/** One embedded admission beside its op (docs/07, 3.3; DEF-2/DEF-3 folds read it). */
+/** One embedded admission beside its op (DEF-2/DEF-3 folds read it). */
 interface PlanRevisionAdmission {
   opIndex: number;
   nodeId?: NodeId;
@@ -302,7 +305,7 @@ interface PlanRevisionAdmission {
     chain: string[];
   };
 }
-/** The value payload of a plan.revision entry (docs/07, 3.3; XF-11). */
+/** The value payload of a plan.revision entry (XF-11). */
 interface PlanRevisionValue {
   base: PlanSnapshotRef;
   requestedOps: PlanOp[];
@@ -323,9 +326,9 @@ interface PlanRevisionValue {
     balanceAfter: number;
   }>;
 }
-/** Engine authorship origins of plan.decision entries (docs/07, 3.3). */
+/** Engine authorship origins of plan.decision entries. */
 type PlanDecisionOrigin = "escalation-default" | "escalation-class" | "escalation-live" | "no-progress" | "child-result" | "park-landed" | "cancel-landed";
-/** The closed EnginePlanOp set (docs/07, 3.3). */
+/** The closed EnginePlanOp set. */
 type EnginePlanOp = {
   kind: "set_node_status";
   nodeId: NodeId;
@@ -349,7 +352,7 @@ type EnginePlanOp = {
   }>;
   admission: AdmissionDecision;
 };
-/** The value payload of a plan.decision entry (docs/07, 3.3). */
+/** The value payload of a plan.decision entry. */
 interface PlanDecisionValue {
   origin: PlanDecisionOrigin;
   ops: EnginePlanOp[];
@@ -359,7 +362,7 @@ interface PlanDecisionValue {
   hashVersion: HashVersion;
 }
 /**
-* Content keys (docs/07, 3.3): plan.revision keys over {kind, base,
+* Content keys: plan.revision keys over {kind, base,
 * requestedOps}; plan.decision over {kind, origin, ops, causeRef}.
 * Cosmetics (rationale) never enter a key; ordinal within scope "plan"
 * distinguishes repeats, so forward-matching works without kernel
@@ -370,7 +373,7 @@ declare function planDecisionKey(origin: PlanDecisionOrigin, ops: readonly Engin
 /**
 * The working state the applier threads: the hashed TaskPlan plus the
 * resolved spec table. Specs stay OUT of planHash by construction (the
-* hashed projection is promptSpecHash per node, docs/07 3.1) but are
+* hashed projection is promptSpecHash per node) but are
 * themselves a pure fold of add_task specs, amend patches, and
 * decomposition specs, so live and replay converge byte-identically.
 */
@@ -382,8 +385,8 @@ interface PlanWorking {
 * The plan fold state: the working state plus fold-side records that
 * deliberately stay OUT of planHash. `badBaseStreak` reconciles two
 * normative clauses: a bad_base revision leaves the hashed state
-* byte-identical (docs/07, 3.5 step 2: planHashAfter == planHashBefore)
-* yet still lengthens the guard streak (docs/07, 3.6 last row): the
+* byte-identical (planHashAfter == planHashBefore)
+* yet still lengthens the guard streak: the
 * guards therefore consume `effectiveDroppedStreak`, the hashed counter
 * plus the trailing bad_base entries. `doneRefs` remembers which entry
 * resolved each done node so waive_dep drops can point blockingRef at
@@ -394,14 +397,14 @@ interface PlanFoldState extends PlanWorking {
   doneRefs: Record<NodeId, EntryRef>;
 }
 declare function emptyPlanFold(plan: TaskPlan): PlanFoldState;
-/** The streak RevisionGuards consume (docs/07, 3.8). */
+/** The streak RevisionGuards consume. */
 declare function effectiveDroppedStreak(state: PlanFoldState): number;
 /**
 * Applies ONE applied op to the working state. The applier consumes
 * recorded outcomes; op-level legality was decided at rebase time and is
 * never re-evaluated here. Exported for the rebase engine, which applies
 * each op of a revision against the state already changed by the earlier
-* applied ops of the same revision (docs/07, 3.5, step 3).
+* applied ops of the same revision.
 */
 declare function applyAppliedOp(working: PlanWorking, op: AppliedPlanOp, context: {
   seq: number;
@@ -413,7 +416,7 @@ declare function readPlanRevision(entry: JournalEntry): PlanRevisionValue | unde
 /** Reads a plan.decision entry's payload. */
 declare function readPlanDecision(entry: JournalEntry): PlanDecisionValue | undefined;
 /**
-* THE single applier (docs/07, 3.2): folds one plan-scope entry into the
+* THE single applier: folds one plan-scope entry into the
 * state. Replay consumes recorded outcomes (the APPLIED diff), never
 * re-runs rebase, and timers do not run; hash verification runs under
 * the entry's own hashVersion profile.
@@ -423,7 +426,7 @@ declare function applyPlanEntry(state: PlanFoldState, entry: JournalEntry, optio
 }): PlanFoldState;
 /**
 * The shared plan.decision applier core: engine authorship happens at
-* the fold head under PlanWriteLock (docs/07, 3.3), so the producer can
+* the fold head under PlanWriteLock, so the producer can
 * PREVIEW the resulting state (and its planHashAfter) before appending,
 * and the fold re-applies the recorded ops identically on replay.
 */
@@ -439,14 +442,14 @@ interface ReuseTransform {
   applied: AppliedPlanOp;
   admission: AdmissionDecision;
   nodeId: NodeId;
-  /** Donor placement recorded beside the verdict (docs/03, 9.5). */
+  /** Donor placement recorded beside the verdict. */
   reuse: {
     donorScope: string;
     chain: string[];
   };
 }
 interface RebaseContext {
-  /** The fold head (docs/07, 3.5 step 3). */
+  /** The fold head. */
   state: PlanFoldState;
   /** The plan hash recorded in the WakeDigest the base references. */
   digestPlanHashFor: (digestSeq: number) => string | undefined;
@@ -454,11 +457,11 @@ interface RebaseContext {
   mintNodeId: () => NodeId;
   /** The plan is frozen for adaptation by orchestrator_budget_cap (DEF-7). */
   frozen?: boolean;
-  /** Embedded admission for add_task (docs/07, 3.6); absent admits nothing. */
+  /** Embedded admission for add_task; absent admits nothing. */
   admitAdd?: (op: Extract<PlanOp, {
     op: "add_task";
   }>, nodeId: NodeId, opIndex: number) => AdmissionDecision;
-  /** Embedded admission reserve for unpark_task (docs/07, 3.6). */
+  /** Embedded admission reserve for unpark_task. */
   admitUnpark?: (op: Extract<PlanOp, {
     op: "unpark_task";
   }>, node: PlanNode, opIndex: number) => AdmissionDecision;
@@ -481,7 +484,7 @@ interface RebaseEvaluation {
   working: PlanWorking;
 }
 /**
-* Steps 2-4 of the committed algorithm (docs/07, 3.5): base validation,
+* Steps 2-4 of the committed algorithm: base validation,
 * sequential per-op conflict resolution against the mutating head, and
 * the post-revision counter update. Pure: the caller owns the lock, the
 * append, and every effect.
@@ -489,7 +492,7 @@ interface RebaseEvaluation {
 declare function rebasePlanRevision(request: PlanReviseRequest, context: RebaseContext): RebaseEvaluation;
 //#endregion
 //#region src/guards.d.ts
-/** RevisionGuards configuration (docs/07, 3.8). */
+/** RevisionGuards configuration. */
 interface RevisionGuardsOptions {
   /** Default 'finish-with-partial'; the chain is non-HITL and terminating. */
   fallback?: "reject-revision" | "finish-with-partial" | "fail-run";
@@ -515,7 +518,7 @@ interface GuardVerdictValue {
 }
 /** Appendix A: osc_guard reject threshold per key (shared default). */
 declare const DEFAULT_MAX_OSCILLATIONS_PER_KEY = 2;
-/** The hard per-run stall replan bound (docs/07, 9.3). */
+/** The hard per-run stall replan bound. */
 declare const DEFAULT_STALL_REPLAN_CAP = 4;
 declare const DEFAULT_DROPPED_REVISION_LIMIT = 3;
 interface GuardsState {
@@ -586,7 +589,7 @@ declare const DEFAULT_MAX_PINNED_WORKTREES = 4;
 /**
 * The worktree pin ledger: a pure fold counting live pins from abandon
 * entries carrying `retainWorktree: true` (park pinning and DEF-5
-* retention share the cap by construction; docs/08).
+* retention share the cap by construction).
 */
 declare class PinLedger {
   private readonly pinnedTargets;
@@ -596,7 +599,7 @@ declare class PinLedger {
   hasCapacity(maxPinnedWorktrees?: number): boolean;
   isPinnedNode(nodeId: string): boolean;
 }
-/** The park disposition computed at landing time (docs/03, 11.2). */
+/** The park disposition computed at landing time. */
 interface ParkDisposition {
   /** Checkpoints are always retained on park. */
   retainCheckpoint: true;
@@ -604,7 +607,7 @@ interface ParkDisposition {
   retainWorktree: boolean;
 }
 declare function parkDispositionOf(isolation: IsolationSpec | undefined, pins: PinLedger, maxPinnedWorktrees?: number): ParkDisposition;
-/** The unpark placement (docs/03, 11.2): continuation or restart. */
+/** The unpark placement: continuation or restart. */
 interface UnparkPlacement {
   /** True when the agent must restart (no checkpoint, or tree dropped). */
   restart: boolean;
@@ -619,7 +622,7 @@ declare function unparkPlacementOf(input: {
 }): UnparkPlacement;
 //#endregion
 //#region src/ledger.d.ts
-/** The CLOSED authored op vocabulary (docs/07, 9.2). */
+/** The CLOSED authored op vocabulary. */
 type LedgerOp = {
   op: "brief_set";
   text: string;
@@ -692,7 +695,7 @@ interface LedgerRevisionRow {
   applied: number;
   dropped: number;
 }
-/** The pure ledger fold (docs/07, 9.3). */
+/** The pure ledger fold. */
 interface LedgerView {
   brief?: {
     text: string;
@@ -726,30 +729,30 @@ declare function foldLedger(entries: readonly JournalEntry[], options?: {
   uptoSeq?: number;
 }): LedgerView;
 /**
-* The committed ledger_read render budget (docs/06, Appendix A: 65536
+* The committed ledger_read render budget (Appendix A: 65536
 * chars over the serialized view, the character measure; OQ-04 closed
 * at M10 entry). The section caps stay the primary bound; under the
 * default termination limits this belt never engages.
 */
 declare const LEDGER_RENDER_BUDGET_CHARS = 65536;
 /**
-* Deterministic render bound (docs/07, 9.3): over budget, rows drop
+* Deterministic render bound: over budget, rows drop
 * oldest-first, auto-derived joins before authored sections, and the
 * mission brief slices last; every drop is a FLAGGED discrepancy line.
 * A pure function of (view, budget): a re-executed wake turn renders
 * byte-identical bounded bytes from the same pinned fold.
 */
 declare function boundLedgerRender(view: LedgerView, budgetChars?: number): LedgerView;
-/** Section-cap check for one authored op (docs/06, Appendix A). */
+/** Section-cap check for one authored op (Appendix A). */
 declare function ledgerCapViolation(view: LedgerView, op: LedgerOp): string | undefined;
 /**
-* Compaction sufficiency (docs/07, 9.3): the orchestrate role may
+* Compaction sufficiency: the orchestrate role may
 * compact aggressively only when the ledger measurably suffices (at
 * least one authored revision recorded and a minimum fact count);
 * otherwise the engine falls back to conservative summarize.
 */
 declare function ledgerSufficiency(view: LedgerView, minimumFacts?: number): boolean;
-/** The draft-versioned outward seam (docs/07, 9.3; OQ in docs/14). */
+/** The draft-versioned outward seam; the final shape stays an open question. */
 interface LedgerExport {
   ledgerExportVersion: "draft-1";
   brief?: string;
@@ -763,8 +766,8 @@ declare function exportLedger(view: LedgerView): LedgerExport;
 //#region src/ladder.d.ts
 /**
 * Extracts the declared ladder from an agent profile: the ModelSpec union
-* carries it (`model: { ladder }`), or the loop-role routing entry
-* (docs/04, section 12). The same declaration points feed ladderLengthOf
+* carries it (`model: { ladder }`), or the loop-role routing entry.
+* The same declaration points feed ladderLengthOf
 * and the frozen kMax, so admission and execution can never disagree on
 * the ladder length.
 */
@@ -774,20 +777,20 @@ declare function chainEffortOf(profile: unknown): Effort | undefined;
 /** Canonicalizes the profile's declared ladder once per dispatch site. */
 declare function canonicalLadderOf(profile: unknown): CanonicalLadderSpec | undefined;
 /**
-* Clamps the orchestrator's `model_hint.startTier` to the declared ladder
-* (docs/07, section 4.2): the hint is the ONLY model influence the
+* Clamps the orchestrator's `model_hint.startTier` to the declared ladder:
+* the hint is the ONLY model influence the
 * orchestrator has, and it never names a model.
 */
 declare function clampStartTier(ladder: CanonicalLadderSpec, hint?: number): number;
 /**
 * The rung an attempt executes on: the clamped start tier plus the
 * journaled raise count, hard-clamped at the top rung. `rungIndex` per
-* lineage is strictly monotone; there are no demotions (docs/07, 10).
+* lineage is strictly monotone; there are no demotions.
 */
 declare function executingRungOf(ladder: CanonicalLadderSpec, startTier: number, raises: number): number;
 /**
-* Classifies a settled attempt into the typed transition trigger
-* (docs/04, section 12): schema-mismatch errors are 'schema-exhausted';
+* Classifies a settled attempt into the typed transition trigger:
+* schema-mismatch errors are 'schema-exhausted';
 * the engine's no-progress abort is first-class 'no-progress' (it rides
 * status 'limit' with the dedicated abort class, distinct from user
 * cancellation by construction); cancelled, escalated, and skipped never
@@ -800,7 +803,7 @@ declare function ladderTriggerOf(settled: Pick<AgentResult<unknown>, "status"> &
   };
   abortClass?: string;
 }): Exclude<TriggerClass, "verify-failed"> | undefined;
-/** One journaled acceptance-gate evaluation (docs/07, section 10). */
+/** One journaled acceptance-gate evaluation. */
 interface GateVerdictValue {
   decisionType: "gate-verdict";
   logicalTaskId: LogicalTaskId;
@@ -824,12 +827,12 @@ interface GateVerdictValue {
 /** Content key of one gate verdict: attempt plus gate position. */
 declare function gateVerdictKey(attemptRef: EntryRef, gateIndex: number): string;
 /**
-* The ladder verdict decision entry (docs/07, sections 10 and 11.3): the
+* The ladder verdict decision entry: the
 * producer contract both folds already consume. A RAISING verdict debits
 * one rung unit (rungIndexAfter/rungsRemainingAfter embedded, checked by
 * foldTermination) and carries the rung RESPAWN's embedded admission
 * (spawn debit) plus `nextAttempt` (the lineage registration: relation
-* 'rung-retry', docs/03 10.1 row 4). A non-raising verdict records the
+* 'rung-retry'). A non-raising verdict records the
 * ladder's end (exhausted rungs, top rung, or a denied respawn) and
 * authorizes nothing.
 */
@@ -849,14 +852,14 @@ interface LadderVerdictValue {
     lineage: Json; /** The concrete rung the next attempt executes on. */
     rungIndex: number;
   };
-  /** The embedded respawn admission (the spawn debit; docs/07, 11.3 b). */
+  /** The embedded respawn admission (the spawn debit). */
   admissions?: Json[];
   /** Non-raising verdicts: why the ladder ended here. */
   reason?: "rungs_exhausted" | "top_rung" | "respawn_denied" | "trigger_not_declared";
 }
 /** Content key of one ladder verdict: the judged attempt is unique. */
 declare function ladderVerdictKey(attemptRef: EntryRef): string;
-/** The forced verdict schema of the judge gate (docs/07, section 10). */
+/** The forced verdict schema of the judge gate. */
 declare const JUDGE_VERDICT_SCHEMA: {
   readonly type: "object";
   readonly properties: {
@@ -882,13 +885,13 @@ declare function judgePrompt(input: {
 }): string;
 //#endregion
 //#region src/escalation.d.ts
-/** One per-lineage debit row of a class-level decision (docs/07, 6.5). */
+/** One per-lineage debit row of a class-level decision. */
 interface EscalationDebitRow {
   logicalTaskId: LogicalTaskId;
   escalationUnitsAfter: number;
 }
 /**
-* The authoritative escalation-decision entry value (docs/07, 6.5; the
+* The authoritative escalation-decision entry value (the
 * producer contract of LineageIndex and foldTermination). Exactly one
 * such entry per report; the debit is atomic with the append and the
 * balance-after is embedded (DEF-2). A decision whose counting debit was
@@ -907,37 +910,37 @@ interface EscalationDecisionValue {
   countsAgainstLimit: boolean;
   /** Present exactly when a counting debit executed (fold-asserted). */
   escalationUnitsAfter?: number;
-  /** How the decision was reached (docs/07, 3.3 plan.decision origins). */
+  /** How the decision was reached (the plan.decision origins). */
   resolvedBy: "default" | "class" | "live" | "revision-transform";
   /** Class-level form: one entry, an array of per-lineage debits. */
   debits?: EscalationDebitRow[];
   /** Decomposition admissions (spawn debits ride this entry; 11.3 b). */
   admissions?: Json[];
-  /** The counting debit was denied: the cap is the message (docs/07, 6.5). */
+  /** The counting debit was denied: the cap is the message. */
   capExceeded?: boolean;
 }
 /** Content key: one authoritative decision per report (decide-once). */
 declare function escalationDecisionKey(reportRef: EntryRef): string;
 /** Maps a resolution `by` value onto the decision's resolvedBy field. */
 declare function resolvedByOf(by: string): "default" | "class" | "live";
-/** The plan.decision origin of one resolvedBy value (docs/07, 3.3). */
+/** The plan.decision origin of one resolvedBy value. */
 declare function decisionOriginOf(resolvedBy: "default" | "class" | "live" | "revision-transform"): "escalation-default" | "escalation-class" | "escalation-live";
 //#endregion
 //#region src/plan-runner.d.ts
-/** docs/07, 3.8. */
+/** Configuration knobs of the PlanRunner extension. */
 interface PlanRunnerOptions {
   /** Absolute, non-replenishable; default 32 (DEF-2). */
   maxRevisionsPerRun?: number;
   guards?: RevisionGuardsOptions;
   /** Out-of-vocabulary tags get a typed tool error with bounded re-prompt (DEF-3). */
   approachVocabulary?: string[];
-  /** Reuse-by-reference configuration (DEF-5; docs/03, 9.9). */
+  /** Reuse-by-reference configuration (DEF-5). */
   reuse?: ReuseConfig;
   /** Frozen termination knobs beyond the revision budget (DEF-2). */
   limits?: Partial<Pick<TerminationLimits, "maxTotalSpawns" | "maxEscalationsPerLogicalTask" | "maxDepth">>;
 }
 /**
-* Builds the PlanRunner orchestrator extension (docs/07, section 3).
+* Builds the PlanRunner orchestrator extension.
 * Attach via `orchestrate(engine, goal, { extension: planRunner(o) })` or
 * the `orchestratePlanned` convenience surface.
 */
@@ -982,7 +985,7 @@ declare const EMPTY_PLAN_HASH: string;
 declare function engineWith(adapter: ProviderAdapter, store: JournalStore, profiles: Record<string, unknown>, extras?: {
   schemas?: Record<string, unknown>;
   lineage?: Record<string, number>;
-  isolation?: unknown; /** ModelKnowledge store for the M10 kb cassettes (docs/05). */
+  isolation?: unknown; /** ModelKnowledge store for the M10 kb cassettes. */
   knowledge?: unknown;
 }): Engine;
 declare const BUDGET: {
@@ -992,26 +995,26 @@ declare const BUDGET: {
 declare function settled(handle: RunHandle<unknown>): Promise<void>;
 /**
 * revise-mid-run: a plan revision arrives while a worker subtree is
-* mid-flight (docs/09 round-2). The first worker HANGS until the
+* mid-flight. The first worker HANGS until the
 * revision cancels it; the added replacement completes.
 */
 declare function runReviseMidRun(): Promise<JournalEntry[]>;
 /**
 * crash-during-revision: process death INSIDE the revision window, at
-* the pre-append kill point (docs/09 round-2): life 1 is truncated
+* the pre-append kill point: life 1 is truncated
 * strictly BEFORE the second plan.revision entry; life 2 re-issues the
 * revision live and rolls its effects forward.
 */
 declare function runCrashDuringRevision(): Promise<JournalEntry[]>;
 /**
 * oscillation-freeze: the coarse-signature oscillation detector freezes
-* further re-adds under hysteresis (docs/09 round-2; distinct from the
+* further re-adds under hysteresis (distinct from the
 * per-key osc_guard reject).
 */
 declare function runOscillationFreeze(options?: PlanRunnerOptions): Promise<JournalEntry[]>;
 /**
 * park-unpark: park of a running node with checkpoint retention, later
-* unpark and continuation (docs/09 round-2; docs/03 11.2). The worker
+* unpark and continuation. The worker
 * pays one tool turn, hangs in its second, parks at the boundary, and
 * the unparked continuation resumes from the retained checkpoint (the
 * booted history carries the paid turn).
@@ -1020,20 +1023,20 @@ declare function runParkUnpark(): Promise<JournalEntry[]>;
 /**
 * half-escalated-ladder: some rungs terminal, the active rung dangling
 * mid-attempt at the crash; resume continues the ladder without
-* repaying completed rungs (docs/09 round-2).
+* repaying completed rungs.
 */
 declare function runHalfEscalatedLadder(): Promise<JournalEntry[]>;
 /**
 * budget-denied-rung: the budget guard denies the rung respawn; the
 * denial journals as termination.denied strictly before the verdict and
-* the ladder takes its declared fallback path (docs/09 round-2).
+* the ladder takes its declared fallback path.
 */
 declare function runBudgetDeniedRung(): Promise<JournalEntry[]>;
 /**
 * cap-freeze-then-finish (DEF-7): the soft boundary crossed with live
 * children; the cap decision precedes its effects; admitted nodes run to
 * completion; the final quiescence wake gets the finish-only toolset;
-* outcome ok with forcedFinish (docs/09).
+* outcome ok with forcedFinish.
 */
 declare function runCapFreezeThenFinish(): Promise<JournalEntry[]>;
 /**
@@ -1072,20 +1075,20 @@ declare function runRungRetryLineage(): Promise<JournalEntry[]>;
 /**
 * decompose-mints-children (DEF-3): an escalation decomposition mints
 * FRESH logical tasks inside the decision entry; the spawn debits ride
-* the same entry (docs/07, 8.1 rule 6, 11.3 b).
+* the same entry.
 */
 declare function runDecomposeMintsChildren(): Promise<JournalEntry[]>;
 /**
 * queue-failover-during-forced-finish (the DEF-7 final cassette;
-* docs/09, section 6.9; M8-T03): worker A loses its lease strictly
+* M8-T03): worker A loses its lease strictly
 * between the cap decision and the final wake; worker B reclaims with a
 * bumped fencing epoch and rolls the forced finish forward. The stale
 * writer's appends are rejected and invisible, exactly one cap decision
 * exists, and finalization is paid once.
 *
 * The LeasableStore is INJECTED so this package stays core-only: the
-* replay test and the record script supply the reference SqliteStore
-* (docs/03, 12.6). One deterministic clock drives lease expiry.
+* replay test and the record script supply the reference SqliteStore.
+* One deterministic clock drives lease expiry.
 */
 interface QueueFailoverDeps {
   /** A fresh LeasableStore over the injected clock (SqliteStore ':memory:' in the suite). */
@@ -1094,17 +1097,17 @@ interface QueueFailoverDeps {
 declare function runQueueFailoverDuringForcedFinish(deps: QueueFailoverDeps): Promise<JournalEntry[]>;
 //#endregion
 //#region src/tools.d.ts
-/** docs/07, 4.6: plan_view takes no parameters. */
+/** plan_view takes no parameters. */
 declare const PLAN_VIEW_SCHEMA: SchemaSpec;
-/** docs/07, 4.7: the plan_revise parameter schema (normative). */
+/** The plan_revise parameter schema (normative). */
 declare const PLAN_REVISE_SCHEMA: SchemaSpec;
 declare const PLAN_VIEW_TOOL_NAME = "plan_view";
 declare const PLAN_REVISE_TOOL_NAME = "plan_revise";
 declare const LEDGER_APPEND_TOOL_NAME = "ledger_append";
 declare const LEDGER_READ_TOOL_NAME = "ledger_read";
-/** The closed authored op vocabulary as JSON Schema (docs/07, 9.2). */
+/** The closed authored op vocabulary as JSON Schema. */
 declare const LEDGER_APPEND_SCHEMA: SchemaSpec;
-/** docs/07: ledger_read takes no parameters and pins to the turn snapshot. */
+/** ledger_read takes no parameters and pins to the turn snapshot. */
 declare const LEDGER_READ_SCHEMA: SchemaSpec;
 /** One rendered node of the pinned plan_view fold. */
 interface PlanViewNode {
@@ -1116,7 +1119,7 @@ interface PlanViewNode {
   priority: number;
   lineage?: LineageStats;
 }
-/** The plan_view render (docs/07, 4.6): plan state, lineage, termination, reuse. */
+/** The plan_view render: plan state, lineage, termination, reuse. */
 interface PlanViewRender {
   planHash: string;
   revisionCount: number;
@@ -1129,7 +1132,7 @@ interface PlanViewRender {
     reclaimedUsd: number;
     netLostUsd: number;
   };
-  /** RevisionGuards state (docs/07, 3.8; M7-T06). */
+  /** RevisionGuards state (M7-T06). */
   guards?: {
     engaged?: "reject-revision" | "finish-with-partial" | "fail-run";
     frozenSignatures: string[];
@@ -1229,7 +1232,7 @@ declare function runLegacyJournalResume(): Promise<JournalEntry[]>;
 * reuse_full: the verdict is embedded in the plan.revision, the
 * node.link (mode full, claim shared) and the by-ref root are present,
 * the reused subtree costs zero live calls, and reclaimedUsdAtLink
-* equals the donor spend (docs/03, 9.4/9.5).
+* equals the donor spend.
 */
 declare function runOscillationFullReuse(): Promise<JournalEntry[]>;
 /**
@@ -1237,29 +1240,29 @@ declare function runOscillationFullReuse(): Promise<JournalEntry[]>;
 * mid-top-rung after two completed rung attempts; the byte-identical
 * re-add grafts (exclusive link), the completed rung attempts
 * forward-match through the scope alias, and only the interrupted rung
-* reruns live, exactly once (docs/03, 9.5).
+* reruns live, exactly once.
 */
 declare function runGraftPartialSubtree(): Promise<JournalEntry[]>;
 /**
 * crash-between-link-and-root (DEF-5): the full-reuse scenario is cut
 * strictly AFTER the durable node.link and BEFORE the by-ref root; the
 * resume rolls forward: the link forward-matches, the root is re-issued,
-* and nothing is paid twice (docs/03, 9.10).
+* and nothing is paid twice.
 */
 declare function runCrashBetweenLinkAndRoot(): Promise<JournalEntry[]>;
 /**
 * oscillation-guard-trip (DEF-5): the third re-add of one SpawnKey at
 * maxOscillationsPerKey 2 rejects osc_guard as a typed plan_revise
 * error; the run closes through the non-HITL path and the embedded
-* verdicts replay identically (docs/03, 9.4).
+* verdicts replay identically.
 */
 declare function runOscillationGuardTrip(): Promise<JournalEntry[]>;
 /**
 * worktree-disposed-degrade (DEF-5): a worktree-isolated graft donor
 * whose tree was NOT retained degrades to a fresh admit with the
 * embedded DedupNote graft_unsafe; a second section verifies reuse_full
-* stays allowed for a worktree donor whose root is terminal (docs/03,
-* 9.4: the pin condition applies to grafts only).
+* stays allowed for a worktree donor whose root is terminal (the pin
+* condition applies to grafts only).
 */
 declare function runWorktreeDisposedDegrade(): Promise<JournalEntry[]>;
 /**
@@ -1267,7 +1270,7 @@ declare function runWorktreeDisposedDegrade(): Promise<JournalEntry[]>;
 * tasks; the first grafts (exclusive claim), the second admits fresh;
 * the grafted node is severed and the key added a third time: the link
 * points at the chain head and the drain is transitive, oldest first;
-* oscillationCount for the key reaches 2 (docs/03, 9.6).
+* oscillationCount for the key reaches 2.
 */
 declare function runClaimExclusivityAndChain(): Promise<JournalEntry[]>;
 /**
@@ -1276,60 +1279,60 @@ declare function runClaimExclusivityAndChain(): Promise<JournalEntry[]>;
 * done, a second node escalates, and a third completes; the wake
 * submits ONE stale-based revision {waive_dep, park_task, cancel_task}
 * whose trio drops with the exact reasons and the blockingRef pointing
-* at the defaultDecision resolution (docs/07, 3.5; docs/09, 6.8).
+* at the defaultDecision resolution.
 */
 declare function runReviseRacingDefaultDecision(): Promise<JournalEntry[]>;
 /**
 * crash-after-append-before-effects (DEF-8): the kill lands immediately
 * after the durable plan.revision carrying add_task x2 plus cancel_task
 * on a running node; the resume re-issues the effects: both children
-* spawn live exactly once and the cancel lands (docs/07, 3.9).
+* spawn live exactly once and the cancel lands.
 */
 declare function runCrashAfterAppendBeforeEffects(): Promise<JournalEntry[]>;
 /**
 * amend-vs-running-then-cancel-add (DEF-8): amend_task on a running node
 * drops node_running; the next revision cancels it and adds the amended
 * prompt as a NEW node continuing the SAME logical task; the abandon
-* covers the old branch and replay repays neither (docs/07, 4.7).
+* covers the old branch and replay repays neither.
 */
 declare function runAmendVsRunningThenCancelAdd(): Promise<JournalEntry[]>;
 /**
 * intra-revision-self-conflict (DEF-8): one revision {cancel_task X,
 * amend_task X, rewire_deps with an edge onto X} resolves strictly in
 * submission order per the sequential intra-revision application
-* semantics (docs/07, 4.7 conflict table).
+* semantics.
 */
 declare function runIntraRevisionSelfConflict(): Promise<JournalEntry[]>;
 /**
 * bad-base-streak-terminates (DEF-8): three consecutive revisions with a
 * fabricated base.planHash land as all-dropped bad-base entries; the
 * dropped streak reaches its limit and the non-HITL RevisionGuards
-* fallback (finish-with-partial) closes the run (docs/07, 3.5/3.8).
+* fallback (finish-with-partial) closes the run.
 */
 declare function runBadBaseStreakTerminates(): Promise<JournalEntry[]>;
 /**
 * park-races-child-completion (DEF-8): park_task lands on a running node
 * whose terminal appends moments later; parkRequested is extinguished by
 * the child-result transition, no checkpoint is written, and the node is
-* done (docs/07, 3.6).
+* done.
 */
 declare function runParkRacesChildCompletion(): Promise<JournalEntry[]>;
 /**
 * reserve-survives-run-exhaustion (DEF-7): cheap workers eat the run
 * ceiling until admission rejects the spawn that would invade the
 * committed finalize reserve; the final wake executes from the reserve
-* and the rejections forward-match on replay (docs/07, 12.4).
+* and the rejections forward-match on replay.
 */
 declare function runReserveSurvivesRunExhaustion(): Promise<JournalEntry[]>;
 //#endregion
 //#region src/m10-cassettes.d.ts
 /**
-* kb-pin-replay (docs/09, 6.11): the pin at admission and the repin at
+* kb-pin-replay: the pin at admission and the repin at
 * the wake, card bytes embedded, model names withheld.
 */
 declare function runKbPinReplay(): Promise<JournalEntry[]>;
 /**
-* kb-repin-expiry (docs/09, 6.11): the repin re-applies the docs/05
+* kb-repin-expiry: the repin re-applies the claim
 * filters against a FRESH read; a claim the store dropped between the
 * pin and the wake stops steering, while the boot pin's bytes stand.
 */

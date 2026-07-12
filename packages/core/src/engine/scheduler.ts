@@ -2,11 +2,11 @@
  * Scheduler and concurrency (M1-T08): the per-run semaphore with a FIFO
  * queue (default 12 concurrent model calls). The engine lifetime spawn cap
  * is enforced by the budget layer at admission; parallel/pipeline
- * composition semantics live with ctx (docs/06, section "Scheduler").
+ * composition semantics live with ctx.
  * Per-provider concurrency keys land with M4.
  */
 
-/** FIFO semaphore; default per-run width is 12 (docs/06, Appendix A). */
+/** FIFO semaphore; default per-run width is 12. */
 export const DEFAULT_PER_RUN_CONCURRENCY = 12;
 
 export class Semaphore {

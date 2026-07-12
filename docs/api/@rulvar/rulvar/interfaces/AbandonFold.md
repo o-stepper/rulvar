@@ -6,7 +6,7 @@
 
 # Interface: AbandonFold
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ## Methods
 
@@ -16,7 +16,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 isAbandoned(ref): boolean;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Projection of the DEF-4 first-wins fold over kind 'abandon' entries.
 

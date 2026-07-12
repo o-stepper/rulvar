@@ -12,7 +12,7 @@ function canonicalIsolationTag(spec): string;
 
 Defined in: [packages/core/src/journal/lineage.ts:176](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L176)
 
-The isolation string entering approachSigCoarse (docs/03, 10.3).
+The isolation string entering approachSigCoarse.
 
 ## Parameters
 

@@ -13,7 +13,7 @@ function parkDispositionOf(
    maxPinnedWorktrees?): ParkDisposition;
 ```
 
-Defined in: [packages/plan/src/park.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/park.ts#L66)
+Defined in: [packages/plan/src/park.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/park.ts#L64)
 
 ## Parameters
 

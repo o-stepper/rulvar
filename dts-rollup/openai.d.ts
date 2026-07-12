@@ -4,10 +4,10 @@ import { CanonicalId, ChatEvent, ChatRequest, Effort, ModelCaps, ProviderAdapter
 interface OpenAiModelInfo {
   caps: ModelCaps;
   api: "responses" | "chat";
-  /** Reasoning models reject non-default sampling parameters (docs/04, section 5.1). */
+  /** Reasoning models reject non-default sampling parameters. */
   reasoning: boolean;
 }
-/** Static seed table; docs/04 section 5 names the current model set. */
+/** Static seed table of the current model set. */
 declare const OPENAI_MODELS: Record<string, OpenAiModelInfo>;
 /** Unknown OpenAI models are assumed current-generation Responses models. */
 declare function openAiModelInfo(model: string): OpenAiModelInfo;
@@ -40,8 +40,8 @@ declare function openai(options?: OpenAiAdapterOptions): ProviderAdapter;
 //#region src/compatible.d.ts
 /**
 * Gateways cannot be introspected reliably: when caps are not supplied
-* the factory assumes the most conservative capability set (docs/04,
-* section 6). Callers SHOULD supply caps for anything beyond it; the
+* the factory assumes the most conservative capability set. Callers
+* SHOULD supply caps for anything beyond it; the
 * window and output floors here are deliberately small so an unprobed
 * endpoint is never overcommitted. Absent pricing is legitimate for
 * local models: they surface as unpriced in CostReport.
@@ -61,7 +61,7 @@ interface OpenAiCompatibleConfig {
 declare function openaiCompatible(cfg: OpenAiCompatibleConfig): ProviderAdapter;
 //#endregion
 //#region src/wire.d.ts
-/** Bijective canonical-to-wire (call_*) id map (docs/04, section 1.2). */
+/** Bijective canonical-to-wire (call_*) id map. */
 declare class OpenAiIdMap {
   private readonly toWire;
   private readonly toCanonical;
@@ -71,7 +71,7 @@ declare class OpenAiIdMap {
   wireFor(canonicalId: CanonicalId): string;
 }
 /**
-* Canonical-to-wire effort (docs/04, sections 3.3 and 5.5): low through
+* Canonical-to-wire effort: low through
 * xhigh pass through; canonical max downmaps to xhigh (documented lossy;
 * recorded in providerMetadata); provider 'none' is reachable only via
 * providerOptions.openai.reasoningEffort.
@@ -84,7 +84,7 @@ declare function mapOpenAiEffort(effort: Effort): {
 * Builds Responses API params. Manual item replay ONLY: store: false plus
 * include reasoning.encrypted_content; previous_response_id and the
 * Conversations API place state server-side, break replay identity, and
-* are REJECTED as a typed ConfigError (docs/04, section 5.1). Role
+* are REJECTED as a typed ConfigError. Role
 * 'system' messages project into top-level instructions on every request.
 */
 declare function buildResponsesParams(req: ChatRequest, ids: OpenAiIdMap): {
@@ -98,8 +98,8 @@ type ResponsesStreamEvent = Record<string, unknown> & {
 /** Normalizes Responses usage: input_tokens already includes cached reads. */
 declare function normalizeOpenAiUsage(raw: Record<string, unknown> | undefined): Usage;
 /**
-* Maps the typed Responses SSE stream to ChatEvents per the docs/04
-* section 5.4 table. Canonical parts come from the typed output array,
+* Maps the typed Responses SSE stream to ChatEvents.
+* Canonical parts come from the typed output array,
 * never the output_text aggregate. Raw output items ride
 * finish.providerMetadata.openai.outputItems so the runtime can retain
 * reasoning items as provider-raw parts.
@@ -110,7 +110,7 @@ declare function mapResponsesStream(stream: AsyncIterable<ResponsesStreamEvent>,
 /** Projects SDK/API errors into the retryable WireError vocabulary. */
 declare function openAiErrorToWire(error: unknown): WireError;
 /**
-* The Chat Completions degraded path (docs/04, section 5.6): delta-patched
+* The Chat Completions degraded path: delta-patched
 * chunk assembly instead of typed SSE, nested function tools with explicit
 * strict where supported, response_format instead of text.format, no
 * reasoning item replay. Selected by caps (api: 'chat'), visible in

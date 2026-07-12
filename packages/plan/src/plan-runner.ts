@@ -1,19 +1,18 @@
 /**
  * PlanRunner (M7-T05): the opt-in extension of mode (c).
  *
- * Owning spec: docs/07-adaptive-orchestration-spec.md, sections 1, 3, and
- * 4. The ENGINE, not the model, schedules ready nodes through the
+ * Full contract: https://docs.rulvar.com/guide/adaptive-orchestration.
+ * The ENGINE, not the model, schedules ready nodes through the
  * existing semaphore and budget admission; children run under
  * `plan/NodeId` scopes; every plan mutation is an entry in the single
  * sequential scope "plan"; the orchestrator sleeps between wakes and
  * revises the plan through typed diffs with auto-rebase. PlanRunner runs
- * write `termination.init` and carry the full adaptive machinery
- * (docs/07, section 1); the guards, reuse, park, ledger, ladder,
+ * write `termination.init` and carry the full adaptive machinery;
+ * the guards, reuse, park, ledger, ladder,
  * escalation, and budget-cap layers complete in M7-T06..T13.
  *
  * PlanRunner is built EXCLUSIVELY from the public core API through the
- * orchestrator extension seam (docs/02, section 4: the seam-sufficiency
- * rule).
+ * orchestrator extension seam (the seam-sufficiency rule).
  */
 import {
   approachSigCoarse,
@@ -122,14 +121,14 @@ import {
   type LadderVerdictValue,
 } from './ladder.js';
 
-/** docs/07, 3.8. */
+/** Configuration knobs of the PlanRunner extension. */
 export interface PlanRunnerOptions {
   /** Absolute, non-replenishable; default 32 (DEF-2). */
   maxRevisionsPerRun?: number;
   guards?: RevisionGuardsOptions;
   /** Out-of-vocabulary tags get a typed tool error with bounded re-prompt (DEF-3). */
   approachVocabulary?: string[];
-  /** Reuse-by-reference configuration (DEF-5; docs/03, 9.9). */
+  /** Reuse-by-reference configuration (DEF-5). */
   reuse?: ReuseConfig;
   /** Frozen termination knobs beyond the revision budget (DEF-2). */
   limits?: Partial<
@@ -158,7 +157,7 @@ const TERMINATION_INIT_KEY_KIND = 'termination.init';
 const TERMINATION_DENIED_KEY_KIND = 'termination.denied';
 
 /**
- * Builds the PlanRunner orchestrator extension (docs/07, section 3).
+ * Builds the PlanRunner orchestrator extension.
  * Attach via `orchestrate(engine, goal, { extension: planRunner(o) })` or
  * the `orchestratePlanned` convenience surface.
  */
@@ -227,8 +226,8 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   };
 
   /**
-   * Appends fold-fired verdicts strictly BEFORE their effects (docs/07,
-   * 3.8); a verdict already journaled (replay absorb) never duplicates.
+   * Appends fold-fired verdicts strictly BEFORE their effects; a
+   * verdict already journaled (replay absorb) never duplicates.
    */
   const drainGuardVerdicts = async (): Promise<void> => {
     while (pendingGuardVerdicts.length > 0) {
@@ -282,7 +281,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
    * SpawnKeys a byte-identical candidate would collide with: within one
    * run, an identical TaskSpec resolves to the identical kernel content
    * key, so donor discovery goes promptSpecHash -> prior nodes -> their
-   * root entry keys (docs/03, 9.2: strict byte equality, never fuzzy).
+   * root entry keys (strict byte equality, never fuzzy).
    */
   const donorKeysOf = (spec: TaskSpec): string[] => {
     const specHash = promptSpecHashOf(spec);
@@ -301,7 +300,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
 
   /**
    * Re-issues the reuse effects recorded in one plan.revision entry
-   * (docs/03, 9.10: deciding entry, then node.link, then the child root,
+   * (deciding entry, then node.link, then the child root,
    * then scheduling; a crash between any two is ordinary roll-forward).
    * Idempotent: every append scans for its own identity first.
    */
@@ -367,7 +366,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       }
       void linkSeq;
       // Scope-prefix aliasing: every chain member forward-matches into
-      // the new scope, oldest first (docs/03, 9.5-9.6).
+      // the new scope, oldest first.
       for (const member of admission.reuse.chain) {
         io.registerAlias(member, targetScope);
       }
@@ -400,8 +399,8 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   };
 
   /**
-   * Builds the reuse transform for one add_task at the fold head
-   * (docs/03, 9.4): the verdict, the donor descriptor, and the placement
+   * Builds the reuse transform for one add_task at the fold head:
+   * the verdict, the donor descriptor, and the placement
    * embed into the revision entry; effects land after the append.
    */
   const buildReuseTransform = (
@@ -434,7 +433,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     let decision: AdmissionDecision;
     if (kind === 'reuse_full') {
       // A reuse link is an admitted spawn of its own origin: minus one
-      // spawnUnit, zero live budget reserve (docs/07, 11.3b and 7.3).
+      // spawnUnit, zero live budget reserve.
       const debited = requireAccount().debitSpawn({ logicalTaskId, isNew: false });
       if (!debited.ok) {
         throw new ConfigError(
@@ -453,7 +452,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       };
     } else {
       // Graft takes the full standard reserve, no discount: reclaim is a
-      // realizable saving, not a prepayment (docs/03, 9.4).
+      // realizable saving, not a prepayment.
       const admitted = io.admission.admit(
         {
           origin: 'spawn_agent',
@@ -511,7 +510,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     };
   };
 
-  /** Compiles applied cancels into severing abandons (docs/03, 9.1). */
+  /** Compiles applied cancels into severing abandons. */
   const landCancelAbandons = async (
     value: PlanRevisionValue,
     authorizedBy: EntryRef,
@@ -531,7 +530,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     }
   };
 
-  /** Severs a cancelled node's dispatched branch (docs/03, 9.1). */
+  /** Severs a cancelled node's dispatched branch. */
   const abandonNode = async (
     nodeId: NodeId,
     authorizedBy: EntryRef,
@@ -658,8 +657,8 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     ops: EnginePlanOp[],
     causeRef: EntryRef,
   ): Promise<EntryRef> => {
-    // Engine authorship happens at the fold head under PlanWriteLock
-    // (docs/07, 3.3): preview computes planHashAfter before the append.
+    // Engine authorship happens at the fold head under PlanWriteLock:
+    // preview computes planHashAfter before the append.
     const preview = applyDecisionOps(fold, ops, -1);
     const value: PlanDecisionValue = {
       origin,
@@ -681,7 +680,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   };
 
   /**
-   * The rung-resolved dispatch fields of a laddered node (docs/07, 10):
+   * The rung-resolved dispatch fields of a laddered node:
    * the concrete ModelRef enters the attempt's identity hash, the rung
    * caps bind as usage limits (maxTokens reads as the per-turn output
    * cap, so maxTurns x maxTokens bounds the worst-case failed attempt),
@@ -727,7 +726,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
 
   /**
    * Runs the acceptance gates of one settled ok attempt in declaration
-   * order, fail fast (docs/07, 10). Every evaluation is a decision entry
+   * order, fail fast. Every evaluation is a decision entry
    * (kind 'decision', decisionType 'gate-verdict') computed once live and
    * recovered by content key on re-execution; the spot-check draw is
    * io.random (journaled ctx.random, never Math.random).
@@ -751,7 +750,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       let verdict: GateVerdictValue;
       if (existing !== undefined) {
         // Roll-forward: the journaled verdict is the truth; gates never
-        // re-evaluate live on a re-executed turn (docs/07, 10).
+        // re-evaluate live on a re-executed turn.
         verdict = existing.value as unknown as GateVerdictValue;
       } else {
         const base = {
@@ -825,7 +824,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   };
 
   /**
-   * One judge invocation (docs/07, 10): a bounded child dispatch on the
+   * One judge invocation: a bounded child dispatch on the
    * declared rung with the forced verdict schema. Identity is DERIVED
    * (never minted live) so a re-executed turn replays the same judge by
    * content match. A judge that itself errors fails CLOSED: acceptance
@@ -891,7 +890,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   };
 
   /**
-   * The ladder driver of one settled attempt (docs/07, 10; DEF-2/DEF-3).
+   * The ladder driver of one settled attempt (DEF-2/DEF-3).
    * Returns 'raised' when the next rung attempt was authorized and
    * dispatched (the node STAYS running under a new handle); 'none' when
    * the ordinary terminal landing proceeds; or a forced terminal status
@@ -989,8 +988,8 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         await dispatchRung(node, spec, ladder, value.nextAttempt.rungIndex);
         return { kind: 'raised' };
       }
-      // The declared fallback path of an ended ladder (docs/09,
-      // budget-denied-rung): the ordinary terminal landing; a
+      // The declared fallback path of an ended ladder
+      // (budget-denied-rung): the ordinary terminal landing; a
       // verify-failed ok attempt lands failed, never done.
       return trigger === 'verify-failed' ? { kind: 'terminal', to: 'failed' } : { kind: 'none' };
     };
@@ -1009,13 +1008,13 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     const counters = account.snapshot().perLineage[node.logicalTaskId];
     if (counters === undefined || counters.rungsRemaining <= 0) {
       if (counters !== undefined) {
-        // termination.denied writes strictly BEFORE the fallback surfaces
-        // (docs/07, 11.3): the async debit path owns the denied entry.
+        // termination.denied writes strictly BEFORE the fallback
+        // surfaces: the async debit path owns the denied entry.
         await account.debit('rungs', node.logicalTaskId);
       }
       return await landVerdict({ ...verdictBase, raisesRung: false, reason: 'rungs_exhausted' });
     }
-    // The rung RESPAWN is an admitted spawn (docs/07, 11.3 b): admission
+    // The rung RESPAWN is an admitted spawn: admission
     // computes the lineage block (relation 'rung-retry') and the spawn
     // debit; the raising verdict embeds both, so the folds replay them.
     const childScope = nodeScopeOf(node.nodeId);
@@ -1061,8 +1060,8 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       nextAttempt: {
         childScope,
         // The FULL computed lineage block (relation 'rung-retry', the
-        // approach signatures): reused byte-exact on replay (docs/03,
-        // 10.6); the debit block stays inside the embedded admission.
+        // approach signatures): reused byte-exact on replay;
+        // the debit block stays inside the embedded admission.
         lineage: admitted.lineage as unknown as Json,
         rungIndex: executingRungOf(ladder, startTier, raised.rungIndexAfter),
       },
@@ -1129,7 +1128,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   };
 
   /**
-   * Writes THE authoritative escalation-decision entry (docs/07, 6.5):
+   * Writes THE authoritative escalation-decision entry:
    * idempotent by content key (decide-once per report); the counting
    * debit is atomic with the append and a DENIED debit lands
    * termination.denied strictly before, flipping the entry to
@@ -1168,7 +1167,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       if (debited.ok) {
         value = { ...value, escalationUnitsAfter: debited.escalationUnitsAfter };
       } else {
-        // Cap exceeded (docs/07, 6.5): the denied entry precedes; the
+        // Cap exceeded: the denied entry precedes; the
         // decision still resolves the fate, flagged, never a bare limit.
         await account.debit('escalationUnits', input.node.logicalTaskId);
         value = { ...value, countsAgainstLimit: false, capExceeded: true };
@@ -1200,7 +1199,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   };
 
   /**
-   * Applies one decided escalation to the plan (docs/07, 3.3): the
+   * Applies one decided escalation to the plan: the
    * resolve_escalation op (retry re-opens the node in place, accept
    * closes it done, cancel closes it cancelled and severs the branch,
    * decompose leaves it escalated while the admitted children carry the
@@ -1249,13 +1248,13 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       decisionEntry.seq,
     );
     if (value.decision.kind === 'cancel') {
-      // cancel compiles into the severing abandon (docs/03, 9.1),
+      // cancel compiles into the severing abandon,
       // authorized by the plan.decision that landed the transition.
       await abandonNode(node.nodeId, planDecisionSeq, 'escalation cancel');
       io.emit({ type: 'node:cancelled', nodeId: node.nodeId, logicalTaskId: node.logicalTaskId });
     }
     if (value.decision.kind === 'retry') {
-      // The retry re-opens the node in place (docs/07, 6.5); the stale
+      // The retry re-opens the node in place; the stale
       // dispatch handle must not shadow the re-dispatch or the re-opened
       // node sits ready forever while scheduleReady skips it.
       dispatched.delete(node.nodeId);
@@ -1264,9 +1263,9 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   };
 
   /**
-   * Decomposition admissions (docs/07, 11.3 b): each proposed child is an
-   * admitted spawn with a FRESH lineage minted inside the decision entry
-   * (docs/07, 8.1 rule 6); the spawn debits ride the decision.
+   * Decomposition admissions: each proposed child is an
+   * admitted spawn with a FRESH lineage minted inside the decision
+   * entry; the spawn debits ride the decision.
    */
   const admitDecomposition = (children: readonly TaskSpec[]): Json[] => {
     const rows: Json[] = [];
@@ -1299,7 +1298,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
 
   /**
    * Absorbs the DEF-4 winner of a Flavor B suspension into the
-   * authoritative decision (docs/07, 3.7: the resolution entry closes the
+   * authoritative decision (the resolution entry closes the
    * suspension FIRST; the plan.decision references it strictly after).
    * The timeout defaultDecision, a live onEscalation decision, and a
    * class-level fan-out all land here through their journaled `by`.
@@ -1323,8 +1322,8 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     if (winner === undefined) {
       return false;
     }
-    // The DEF-4 payload rides the entry's `resolution` field (docs/03,
-    // 8.6), never `value`.
+    // The DEF-4 payload rides the entry's `resolution` field, never
+    // `value`.
     const payload = winner.resolution as unknown as { by?: string; value?: Json } | undefined;
     const decision = payload?.value as EscalationDecision | undefined;
     if (decision === undefined || typeof decision !== 'object') {
@@ -1352,16 +1351,16 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   };
 
   /**
-   * Lands revision-transform escalation resolutions (docs/07, 3.6 row:
-   * cancel_task on an escalated node): the authoritative decision with
+   * Lands revision-transform escalation resolutions
+   * (cancel_task on an escalated node): the authoritative decision with
    * verdict cancel, then the resolve_escalation plan.decision, then the
    * severing abandon; all idempotent for the roll-forward path.
    */
   const landRevisionEscalations = async (value: PlanRevisionValue): Promise<void> => {
     // Collect the revision's resolvable targets first: two or more
     // same-kind reports resolved by ONE revision merge into ONE
-    // class-level decision entry with per-lineage debits (docs/07, 6.5;
-    // DEF-2 class-storm-single-turn).
+    // class-level decision entry with per-lineage debits
+    // (DEF-2 class-storm-single-turn).
     interface EscalationTarget {
       node: PlanNode;
       reportRef: EntryRef;
@@ -1446,7 +1445,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   };
 
   /**
-   * The class-level decision (docs/07, 6.5): ONE entry resolving N
+   * The class-level decision: ONE entry resolving N
    * same-kind reports, per-lineage debits embedded as `debits` rows,
    * resolvedBy 'class'. Returns undefined when any counting debit would
    * be denied (the caller degrades to single-target decisions).
@@ -1529,10 +1528,10 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         .find((entry) => entry.kind === 'agent' && entry.ref === handle);
       const causeRef = terminal?.seq ?? handle;
       if (node.parkRequested && !node.cancelRequested && to === 'cancelled') {
-        // The park lands at the turn boundary (docs/07, 3.6): the node
+        // The park lands at the turn boundary: the node
         // parks with its checkpoint anchor; the branch is severed with
         // the checkpoint retained and the worktree pinned under the
-        // shared cap when capacity remains (docs/03, 11.2).
+        // shared cap when capacity remains.
         const parkSeq = await appendPlanDecision(
           'park-landed',
           [
@@ -1575,7 +1574,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       let terminalTo = to;
       let terminalCauseRef = causeRef;
       if (cause === 'child-result') {
-        // The ladder driver (docs/07, 10): a declared trigger with rungs
+        // The ladder driver: a declared trigger with rungs
         // left authorizes the next attempt and the node STAYS running; a
         // failed acceptance with no raise left forces failed, never done.
         const spec = fold.specs[nodeId];
@@ -1605,14 +1604,14 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         terminalCauseRef,
       );
       if (cause === 'cancel-landed') {
-        // cancel_task compiles into abandon (docs/03, 9.3): the severing
+        // cancel_task compiles into abandon: the severing
         // entry makes the interrupted branch a donor candidate.
         await abandonNode(nodeId, decisionSeq, 'cancel_task');
         io.emit({ type: 'node:cancelled', nodeId, logicalTaskId: node.logicalTaskId });
       }
       if (cause === 'child-result' && terminalTo === 'escalated') {
-        // escalation-rate-by-agentType rides this event (docs/09
-        // metrics): the report kind plus the lineage attribution.
+        // escalation-rate-by-agentType rides this event:
+        // the report kind plus the lineage attribution.
         const report = settled.escalation as
           | {
               kind?: 'scope_bigger' | 'scope_different' | 'blocked_with_evidence';
@@ -1629,7 +1628,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         });
         // A Flavor B report reaching settlement is already DECIDED by
         // the DEF-4 winner (timeout default or live decision); absorb it
-        // into the authoritative entry and apply the fate (docs/07, 6.5).
+        // into the authoritative entry and apply the fate.
         const landed = fold.plan.nodes[nodeId];
         if (landed !== undefined) {
           await landFlavorBDecision(landed);
@@ -1639,7 +1638,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   };
 
   /**
-   * A retry decision's amendments (docs/07, 6.3): amendedPrompt and
+   * A retry decision's amendments: amendedPrompt and
    * startTier ride the journaled decision, so the re-dispatch is a pure
    * function of the journal, identical live and on replay.
    */
@@ -1700,10 +1699,10 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       ...(spec.escalation === undefined ? {} : { escalation: spec.escalation }),
       // The declared task class rides the dispatch and journals inside
       // the admission decision (OQ-12 phase-1 rule: author-declared,
-      // absent = unclassified; docs/05, section "Phases and placement").
+      // absent = unclassified).
       ...(spec.taskClass === undefined ? {} : { taskClass: spec.taskClass }),
       // The rung resolution LAST: the concrete model, the rung caps, and
-      // the rung ceiling override the spec-level fields (docs/07, 10).
+      // the rung ceiling override the spec-level fields.
       ...(ladder === undefined ? {} : ladderDispatchFields(node, spec, ladder)),
     };
   };
@@ -1712,7 +1711,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   const scheduleReady = async (): Promise<void> => {
     for (const node of Object.values(fold.plan.nodes)) {
       if (node.status === 'running' && !dispatched.has(node.nodeId)) {
-        // Mid-flight resume (docs/07, 3.9 roll-forward): a running node
+        // Mid-flight resume (roll-forward): a running node
         // with no live handle redispatches; forward matching re-attaches
         // the recorded attempt (dangling redispatch) or replays a settled
         // terminal instantly, so completed rungs are never repaid. A
@@ -1738,7 +1737,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       }
       const fullLink = linkedFull.get(node.nodeId);
       if (fullLink !== undefined) {
-        // reuse_full completion (docs/03, 9.10): the by-ref root is
+        // reuse_full completion: the by-ref root is
         // written terminal ok with zero usage; the node goes done via
         // an engine decision, never a dispatch.
         const scope = nodeScopeOf(node.nodeId);
@@ -1786,7 +1785,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       );
       dispatched.set(node.nodeId, handle);
       // ready -> running lands as an engine decision whose cause is the
-      // child's own dispatch record (docs/07, 3.3; the closed cause set).
+      // child's own dispatch record (the closed cause set).
       await appendPlanDecision(
         'child-result',
         [
@@ -1806,7 +1805,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
 
   const runtime: PlanToolRuntime = {
     planView: (): PlanViewRender => {
-      // Pinned pure fold (docs/07, 4.6): re-fold the plan scope up to the
+      // Pinned pure fold: re-fold the plan scope up to the
       // pinned seq of the last delivered WakeDigest; never a live read.
       let pinned = emptyPlanFold(emptyPlan());
       for (const entry of io.snapshot()) {
@@ -1848,12 +1847,12 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       };
     },
     ledgerRead: (): LedgerView =>
-      // Pinned to the turn snapshot, exactly like plan_view (docs/07,
-      // 9.3): a re-executed wake turn re-folds up to the SAME pinned seq
+      // Pinned to the turn snapshot, exactly like plan_view:
+      // a re-executed wake turn re-folds up to the SAME pinned seq
       // and renders byte-identical ledger bytes. A live read here would
       // diverge on resume (the re-executed turn would see later ops).
       // The committed render budget bounds the serialized view
-      // deterministically (docs/06, Appendix A).
+      // deterministically.
       boundLedgerRender(
         foldLedger(io.snapshot(), {
           ledgerScope: rootScope,
@@ -1864,7 +1863,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     ledgerAppend: async (op: LedgerOp): Promise<{ entryRef: number }> => {
       await io.flush();
       const key = ledgerOpKey(op);
-      // Idempotent re-execution (docs/07, 3.9 roll-forward): a journaled
+      // Idempotent re-execution (roll-forward): a journaled
       // op with this content key acks with the recorded ref and skips
       // validation, so re-executed turns never spuriously reject against
       // a fold that already contains the op itself.
@@ -1873,7 +1872,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           entry.kind === 'ledger.op' &&
           entry.scope === rootScope &&
           entry.key === key &&
-          // lesson_add keys ONCE (docs/07, 9.2; DEF-3
+          // lesson_add keys ONCE (DEF-3
           // reworded-lessons-collide): a repeated add with the same key
           // acks the recorded lesson instead of appending a duplicate.
           (op.op === 'lesson_add' || !consumedLedgerSeqs.has(entry.seq)),
@@ -1889,7 +1888,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       }
       if (op.op === 'lesson_add') {
         // The lesson key MUST match a journaled attempt of that LTID
-        // (docs/07, 9.2; DEF-3).
+        // (DEF-3).
         const stats = io.admission.lineage()?.statsOf(op.key.logicalTaskId);
         const known =
           stats !== undefined &&
@@ -1918,7 +1917,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         absorbPlan();
         absorbGuardVerdicts();
         if (guards.revisionsRejected) {
-          // The engaged terminating fallback (docs/07, 3.8): further
+          // The engaged terminating fallback: further
           // revisions are rejected; finish with the partial result.
           throw new ConfigError(
             `revision guards engaged (${guards.state.engaged ?? 'unknown'}): the plan is ` +
@@ -1926,7 +1925,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           );
         }
         // approachVocabulary rejection: a typed tool error with bounded
-        // re-prompt, never run death (docs/07, 8.2).
+        // re-prompt, never run death.
         if (vocabulary !== undefined) {
           for (const op of request.ops) {
             if (op.op === 'add_task') {
@@ -1940,7 +1939,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           }
         }
         const key = planRevisionKey(request.base, request.ops);
-        // Idempotent re-execution (docs/07, 3.9 roll-forward): a
+        // Idempotent re-execution (roll-forward): a
         // journaled revision with this identity renders byte-identically
         // and only re-issues its effects.
         const existing = io
@@ -1957,7 +1956,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           const value = existing.value as unknown as PlanRevisionValue;
           await drainGuardVerdicts();
           // Roll-forward: link, root, and abandon effects re-issue
-          // idempotently from the recorded entry (docs/03, 9.10).
+          // idempotently from the recorded entry.
           await landReuseLinks(existing);
           await landCancelAbandons(value, existing.seq);
           await landRevisionEscalations(value);
@@ -1989,8 +1988,8 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
             revisionUnitsRemaining: value.revisionUnitsAfter ?? 0,
           };
         }
-        // The revision debit binds to the fact of journaling (docs/07,
-        // 11.7): underflow writes termination.denied strictly before the
+        // The revision debit binds to the fact of journaling:
+        // underflow writes termination.denied strictly before the
         // typed error surfaces and appends NO plan.revision.
         const debit = await requireAccount().debit('revisionUnits');
         if (!debit.ok) {
@@ -2000,7 +1999,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           );
         }
         // DEF-5: the DedupIndex folds at the fold head under the
-        // PlanWriteLock; verdicts compute once and embed (docs/03, 9.3).
+        // PlanWriteLock; verdicts compute once and embed.
         const dedupIndex = DedupIndex.fold(io.snapshot(), {
           priceUsd: (servedBy, usage) => io.priceUsd(servedBy, usage),
         });
@@ -2018,13 +2017,13 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
                 'orchestrator_budget_cap',
           );
         // Exclusive captures are first-wins WITHIN one revision too
-        // (docs/03, 9.4: claim-exclusivity): the second identical add of
+        // (claim-exclusivity): the second identical add of
         // the same revision degrades to a fresh admit, donor_active.
         const claimedThisRevision = new Set<string>();
         const evaluation: RebaseEvaluation = rebasePlanRevision(request, {
           state: fold,
           // The cap decision freezes the plan for ADAPTATION, not for
-          // work: every op drops plan_frozen (DEF-7, docs/07 12.4 a).
+          // work: every op drops plan_frozen (DEF-7).
           frozen,
           digestPlanHashFor: (digestSeq) => digests.get(digestSeq)?.planHash,
           mintNodeId: () => io.mintId(),
@@ -2081,7 +2080,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
               };
             }
             // The oscillation detector keys on approachSigCoarse ACROSS
-            // LTID boundaries (docs/07, 3.8): a frozen signature rejects
+            // LTID boundaries: a frozen signature rejects
             // further re-adds with the embedded osc_guard verdict.
             const coarse = coarseOf(op.spec);
             if (guards.isFrozenSignature(coarse)) {
@@ -2124,7 +2123,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
               { commitReserve: false },
             );
             // A SpawnKey match served fresh embeds its DedupNote for
-            // telemetry (docs/03, 9.4).
+            // telemetry.
             const note = freshNotes.get(opIndex);
             if (note !== undefined && admitted.verdict.kind === 'admit') {
               return {
@@ -2141,8 +2140,8 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           },
           admitUnpark: (op, node) => {
             const spec = fold.specs[op.nodeId];
-            // An unpark of a DISPATCHED branch is a lineage rebirth
-            // (docs/03, 10.1 rule 5); a never-started parked node just
+            // An unpark of a DISPATCHED branch is a lineage rebirth;
+            // a never-started parked node just
             // resumes scheduling under its existing attempt.
             const wasDispatched = nodeRootOf(op.nodeId) !== undefined;
             return io.admission.admit(
@@ -2203,7 +2202,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           revisionUnitsAfter: debit.balanceAfter,
           debits: [{ resource: 'revisionUnits', balanceAfter: debit.balanceAfter }],
         };
-        // ONE durable append strictly BEFORE any effect (docs/07, 3.5).
+        // ONE durable append strictly BEFORE any effect.
         const entry = await io.append({
           scope: planScope,
           key,
@@ -2214,14 +2213,14 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         await io.flush();
         absorbPlan();
         // Guard verdicts fired by this revision land strictly BEFORE the
-        // scheduling effects (docs/07, 3.8).
+        // scheduling effects.
         await drainGuardVerdicts();
-        // DEF-5 effects in the mandatory write order (docs/03, 9.10):
+        // DEF-5 effects in the mandatory write order:
         // node.link entries, by-ref roots, and severing abandons land
         // strictly after the deciding append and before scheduling.
         await landReuseLinks(entry);
         await landCancelAbandons(value, entry.seq);
-        // Escalation resolutions (docs/07, 3.6 transform row): the
+        // Escalation resolutions: the
         // authoritative decision, the resolve op, and the sever land as
         // effects strictly after the revision append.
         await landRevisionEscalations(value);
@@ -2285,8 +2284,8 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       await io.flush();
       const folded = foldTermination(io.snapshot());
       if (folded !== undefined) {
-        // Resume: the journal always wins over live config (docs/07,
-        // 11.2); the fold rebuilt every balance. A diverging live knob
+        // Resume: the journal always wins over live config;
+        // the fold rebuilt every balance. A diverging live knob
         // is REPORTED, never honored (DEF-2 config-drift-resume).
         account = folded.account;
         account.bindDeniedWriter(deniedWriter);
@@ -2335,7 +2334,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       // never re-fires an already-journaled freeze (M7-T06).
       absorbGuardVerdicts();
       absorbPlan();
-      // The alias map and full-link table rebuild by fold (docs/03, 9.10).
+      // The alias map and full-link table rebuild by fold.
       absorbLinks();
       // Roll-forward: verdicts the fold fired whose appends were lost to
       // a crash land now, strictly before any effect.
@@ -2357,7 +2356,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         await drainGuardVerdicts();
         await landSettlements();
         await scheduleReady();
-        // Stall detection (docs/07, 3.8): the streak already excludes
+        // Stall detection: the streak already excludes
         // transient and environment classes; emission is hard-bounded
         // per run by the stall replan cap.
         const index = io.admission.lineage();
@@ -2398,7 +2397,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         planSeq: planCursor,
         reuse: spend as unknown as Json,
         // The mandatory DEF-2 block of the final coordinated schema
-        // (docs/07, section 5; M7-T13): the account snapshot is a pure
+        // (M7-T13): the account snapshot is a pure
         // fold and costs nothing.
         termination: requireAccount().snapshot() as unknown as Json,
       };

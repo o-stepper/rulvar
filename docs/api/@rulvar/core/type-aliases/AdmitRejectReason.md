@@ -27,4 +27,4 @@ type AdmitRejectReason =
 
 Defined in: [packages/core/src/orchestrator/admission.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L93)
 
-The merged reject-code set (docs/07, section 7.2).
+The merged reject-code set.

@@ -1,6 +1,6 @@
 /**
  * createWorker (M8-T02): the queue shell over the public engine API
- * (docs/02, section 8.3; FR-703). Canonical signature
+ * (FR-703). Canonical signature
  * `createWorker(engine, { store: LeasableStore, concurrency? })`.
  *
  * The worker leases resumable ('running' meta: a crashed or currently
@@ -8,7 +8,7 @@
  * fencing epoch; acquire on a held lease rejects with LeaseHeldError and
  * the worker simply moves on. Stateless workers call engine.resume,
  * passing the lease via ResumeOptions.lease so EVERY engine append of
- * the resumed run is fenced (docs/03, section 12.3, M8 entry amendment):
+ * the resumed run is fenced (M8 entry amendment):
  * lease theft is impossible because a stale writer's appends are
  * rejected by the store and never become visible, whether or not the
  * stale worker noticed it lost the lease.
@@ -19,20 +19,20 @@
  * this worker (an older library never writes into a newer journal).
  *
  * Queue semantics are honestly at-least-once with deduplication by the
- * journal (docs/03, section 13.1): re-leasing a settled or unchanged
+ * journal: re-leasing a settled or unchanged
  * run replays to the same outcome with zero live calls. Workflows
  * resolve through the engine's defaults.workflows registry plus the
- * persisted CompiledWorkflow sources, never through a worker parameter
- * (docs/06, section 10.4); original in-process run arguments are not
+ * persisted CompiledWorkflow sources, never through a worker parameter;
+ * original in-process run arguments are not
  * journaled in v1, so the host MAY re-supply them per run via `argsFor`
- * (docs/14, OQ-21).
+ * (OQ-21).
  *
  * Appendix A (committed at M8 entry): concurrency defaults to 1 (one
  * leased run per worker process; hosts scale out by adding workers,
  * which the fencing epoch makes safe by construction); the renew
  * cadence is ttl/3 with the reference ttl of 60000 ms. There is no
- * distributed cross-process rate limiter in v1 (EXC-14; docs/14,
- * OQ-17): divide provider quota per worker or front an external
+ * distributed cross-process rate limiter in v1 (EXC-14; OQ-17):
+ * divide provider quota per worker or front an external
  * gateway.
  */
 import {
@@ -50,7 +50,7 @@ import {
   type RunMeta,
 } from '@rulvar/core';
 
-/** Appendix A: the committed reference lease ttl (docs/06). */
+/** Appendix A: the committed reference lease ttl. */
 export const DEFAULT_WORKER_TTL_MS = 60_000;
 
 export interface CreateWorkerOptions {
@@ -66,7 +66,7 @@ export interface CreateWorkerOptions {
   owner?: string;
   /**
    * The store's lease ttl; the worker renews at ttl/3 (the normative
-   * bound, docs/03 12.3). Default: the Appendix A reference 60000 ms.
+   * bound). Default: the Appendix A reference 60000 ms.
    * MUST match the store's configured ttl.
    */
   ttlMs?: number;
@@ -83,7 +83,7 @@ export interface CreateWorkerOptions {
   /** Observability hook for per-run failures; never throws into the loop. */
   onError?: (runId: string, error: unknown) => void;
   /**
-   * Opt-in retention (docs/02, 8.3; OQ-20 executed at M8-T04): evaluated
+   * Opt-in retention (OQ-20 executed at M8-T04): evaluated
    * during sweeps over SETTLED runs (terminal meta); a true verdict
    * applies engine.deleteRun under a briefly held lease. Absent means
    * everything persists indefinitely.
@@ -125,7 +125,7 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
     typeof (store as Partial<LeasableStore>).renew === 'function' &&
     typeof (store as Partial<LeasableStore>).release === 'function';
   if (!isLeasable) {
-    // Never a silent split-brain (FR-703; docs/02, section 8.3).
+    // Never a silent split-brain (FR-703).
     throw new ConfigError(
       'createWorker requires a LeasableStore (acquire/renew/release with fencing epochs); ' +
         'the supplied store has no lease capability (docs/03, section 12.3). Use ' +
@@ -241,7 +241,7 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
     await settled;
   }
 
-  /** Opt-in retention over settled runs (docs/02, 8.3; M8-T04). */
+  /** Opt-in retention over settled runs (M8-T04). */
   async function applyRetention(meta: RunMeta): Promise<void> {
     if (options.retention?.(meta) !== true) {
       return;
@@ -301,7 +301,7 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
       try {
         const entries = (await store.load(meta.runId)).map((raw) => normalizeEntry(raw));
         // DEF-6, repeated at acquire: an older library cannot write into
-        // a newer journal (docs/03, sections 4.5 and 12.3).
+        // a newer journal.
         scanJournalCompatibility(meta.runId, entries, registry);
         if (meta.status === 'suspended' && suspendedAt.get(meta.runId) === entries.length) {
           // Unchanged since our last suspended settle: nothing to do.

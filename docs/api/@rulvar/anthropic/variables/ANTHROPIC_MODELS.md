@@ -10,6 +10,6 @@
 const ANTHROPIC_MODELS: Record<string, AnthropicModelInfo>;
 ```
 
-Defined in: [packages/anthropic/src/caps.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/caps.ts#L54)
+Defined in: [packages/anthropic/src/caps.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/caps.ts#L53)
 
-Static seed table; docs/04 section 4 names the current model set.
+Static seed table naming the current model set.

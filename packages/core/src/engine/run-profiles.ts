@@ -1,5 +1,5 @@
 /**
- * RunProfile presets as DATA (M5-T07; docs/06, section 11). A RunProfile
+ * RunProfile presets as DATA (M5-T07). A RunProfile
  * is a bundle of role routing hints, effort, concurrency, budget,
  * permission preset, and spawn limits: a starting point a host applies
  * to createEngine options plus per-run options. Presets are NEVER engine
@@ -8,7 +8,7 @@
  * ordinary options afterward.
  *
  * The shipped presets carry NO named models (named strong defaults live
- * only in the umbrella, docs/04 section 9): routing here is by effort
+ * only in the umbrella): routing here is by effort
  * and role shape, and hosts supply the actual model refs.
  */
 import type { Effort, InvocationRole } from '../l0/messages.js';
@@ -30,8 +30,8 @@ export interface RunProfile {
 }
 
 /**
- * The shipped presets (docs/06, section 11: fast / standard / deep /
- * ultra "and similar"). Data only; a review-time assertion checks the
+ * The shipped presets (fast / standard / deep / ultra "and similar").
+ * Data only; a review-time assertion checks the
  * engine has zero behavioral branches keyed on these names.
  */
 export const RUN_PROFILES: Record<string, RunProfile> = {

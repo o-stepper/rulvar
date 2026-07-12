@@ -19,4 +19,4 @@ type PlanDecisionOrigin =
 
 Defined in: [packages/plan/src/plan-entries.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L167)
 
-Engine authorship origins of plan.decision entries (docs/07, 3.3).
+Engine authorship origins of plan.decision entries.

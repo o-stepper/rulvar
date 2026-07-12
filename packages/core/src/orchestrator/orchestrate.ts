@@ -1,8 +1,7 @@
 /**
  * The mode (c) dynamic orchestrator (M6-T07/T08).
  *
- * Owning spec: docs/06-execution-spec.md section 9.3 and
- * docs/07-adaptive-orchestration-spec.md sections 1 and 4. An ordinary
+ * Full contract: https://docs.rulvar.com/guide/adaptive-orchestration. An ordinary
  * workflow whose agent (role 'orchestrate') holds the typed spawn tools;
  * both surfaces (top-level orchestrate() and ctx.orchestrate) share this
  * one implementation, the nested surface riding ctx.workflow so the
@@ -13,7 +12,7 @@
  * ordinary kind 'agent' entry; a crashed orchestrate() restores its
  * history from the checkpoint and finds child results by content keys,
  * WITHOUT regenerating spawn decisions and without re-paying children.
- * Non-PlanRunner applicability (docs/07 section 1): only the lifetime
+ * Non-PlanRunner applicability: only the lifetime
  * cap, maxDepth, and the budget layers apply; no termination.init is
  * written; escalated children simply settle into their digests.
  */
@@ -63,7 +62,10 @@ import type {
 import { emptyDigestBlocks } from './wake.js';
 import type { EscalationDigest, WakeDigest, WakeTrigger } from './wake.js';
 
-/** docs/06 5.5; the cap machinery (reserves, freeze) completes in M7 (DEF-7). */
+/**
+ * Budget contract: https://docs.rulvar.com/guide/budgets; the cap
+ * machinery (reserves, freeze) completes in M7 (DEF-7).
+ */
 export interface OrchestratorBudgetSpec {
   capUsd?: number;
   /** default 0.2; effectiveCap = min of the given bounds */
@@ -73,7 +75,7 @@ export interface OrchestratorBudgetSpec {
   atCap?: 'finish-with-partial' | 'fail-run';
 }
 
-/** docs/06 9.3: orchestrate(engine, goal, o?). */
+/** Options for orchestrate(engine, goal, o?). */
 export interface OrchestrateOptions {
   model?: ModelSpec;
   /** Registered profile names to advertise; default: every profile. */
@@ -83,17 +85,17 @@ export interface OrchestrateOptions {
   /** The orchestrator's own budget sub-account (cap enforcement layers only in M6). */
   budget?: OrchestratorBudgetSpec;
   /**
-   * Deterministic digest render bound (docs/07, section 5): each
+   * Deterministic digest render bound: each
    * TaskDigest outputSummary is clamped to this many CHARACTERS (the
    * model-independent measure; OQ-04 closed at M10 entry). Default
-   * WAKE_SUMMARY_RENDER_BUDGET_CHARS (docs/06, Appendix A).
+   * WAKE_SUMMARY_RENDER_BUDGET_CHARS.
    */
   renderBudgetChars?: number;
   /** UsageLimits of the orchestrator agent itself (maxTurns etc.). */
   limits?: UsageLimits;
   /**
    * The opt-in mode (c) extension seam (M7-T05): PlanRunner from
-   * @rulvar/plan attaches here (docs/07, section 1). The extension boots
+   * @rulvar/plan attaches here. The extension boots
    * strictly before the orchestrator's first agent entry, contributes
    * tools, schedules ready plan nodes on every settlement, and
    * participates in the mandatory quiescence trigger.
@@ -124,7 +126,7 @@ function orchestratorPrompt(
 
 /**
  * Resolves per-spawn dispatch options against the engine registries
- * (docs/08: registered SchemaSpec and tool profile names; M7-T05). An
+ * (registered SchemaSpec and tool profile names; M7-T05). An
  * unknown ref is a typed ConfigError, surfaced as a tool error to the
  * orchestrator and never a run failure.
  */
@@ -170,8 +172,8 @@ function resolveDispatchOpts(
     (opts as Record<PropertyKey, unknown>)[kBootCheckpoint] = extended.bootCheckpointRef;
   }
   if (extended.model !== undefined) {
-    // The ladder driver's concrete rung resolution (docs/07, section
-    // 10): the call-layer override shadows the profile's declared ladder
+    // The ladder driver's concrete rung resolution: the call-layer
+    // override shadows the profile's declared ladder
     // in the resolution chain, so the attempt hashes the concrete ref.
     opts.model = extended.model;
   }
@@ -226,7 +228,7 @@ export function makeOrchestratorWorkflow(
     const advertisedProfiles = filterProfiles(internals.defaults.profiles, opts?.profiles);
     // Ladder-declaring profiles are declaration-only under spawn_agent:
     // rung execution needs the plan extension's concrete per-attempt
-    // overrides (docs/07, section 10), so a spawn of one dies at wire
+    // overrides, so a spawn of one dies at wire
     // resolution. The spawn vocabulary therefore advertises only
     // concrete profiles and names the declarers as context; the full
     // advertised set still reaches the extension IO and the kb card's
@@ -251,7 +253,7 @@ export function makeOrchestratorWorkflow(
           `knowledge card; NOT agentType values, never spawn them): ` +
           `${declaredLadderNames.join(', ')}.`;
 
-    // The orchestrator's own sub-account (docs/06 5.5). M6 wires the
+    // The orchestrator's own sub-account. M6 wires the
     // account and its layer-2/3 enforcement when a cap resolves; the
     // reserve decision entries and the at-cap freeze are M7 (DEF-7).
     const extension = opts?.extension;
@@ -285,7 +287,7 @@ export function makeOrchestratorWorkflow(
       if (extension !== undefined && bounds.length === 0) {
         // An uncapped orchestrator was precisely the defect (DEF-7):
         // PlanRunner refuses to start BEFORE the first LLM call and
-        // before any journal entries (docs/07, 12.2).
+        // before any journal entries.
         throw new OrchestratorCapConfigError(
           'the orchestrator cap is unresolvable: the run has no USD ceiling and no explicit ' +
             'budget.capUsd; PlanRunner requires a resolved effectiveCap (docs/07, 12.2)',
@@ -295,7 +297,7 @@ export function makeOrchestratorWorkflow(
         const effectiveCapUsd = Math.min(...bounds);
         // The deterministic per-turn estimate of v1: the engine flat
         // reserve default; the journaled reserve entry freezes the
-        // ABSOLUTE dollars, so replay never re-derives (docs/06, 5.5).
+        // ABSOLUTE dollars, so replay never re-derives.
         const turnEstimateUsd = internals.flatReserveUsd ?? 0.5;
         const finalizeTurns = spec?.finalizeTurns ?? 2;
         const finalizeReserveUsd = spec?.finalizeReserveUsd ?? finalizeTurns * turnEstimateUsd;
@@ -314,7 +316,7 @@ export function makeOrchestratorWorkflow(
         if (extension !== undefined) {
           // The reserve registers in the orchestrator account AND the
           // run root: admission never eats the finalization money, even
-          // against whole-run exhaustion (docs/07, 12.2, 12.6).
+          // against whole-run exhaustion.
           internals.budget.commitFinalizeReserve(orchestratorAccount, finalizeReserveUsd);
         }
         capState = {
@@ -344,7 +346,7 @@ export function makeOrchestratorWorkflow(
     });
     // Extension activity (scheduling edges) serializes on one chain and
     // always precedes wake-trigger evaluation for the settlement that
-    // caused it (docs/07, 4.8: quiescence sees the post-scheduling state).
+    // caused it (quiescence sees the post-scheduling state).
     let activityChain: Promise<void> = Promise.resolve();
 
     const childScopeOf = (): string => {
@@ -389,7 +391,7 @@ export function makeOrchestratorWorkflow(
       const scope = placement?.childScope ?? childScopeOf();
       if (placement !== undefined) {
         // Plan nodes get their own sub-account beside the orchestrator
-        // account (docs/07, 12.1); reopening on resume keeps state.
+        // account; reopening on resume keeps state.
         internals.budget.openAccount(scope, {
           parentScope: callingState.budgetScope ?? ROOT_ACCOUNT,
           ...(placement.childCeilingUsd === undefined
@@ -473,7 +475,7 @@ export function makeOrchestratorWorkflow(
       void settledResult.then(async (settled) => {
         record.settled = settled;
         // The scheduling edge runs BEFORE wake evaluation so quiescence
-        // sees newly-ready nodes (docs/07, 4.8).
+        // sees newly-ready nodes.
         await runExtensionActivity();
         for (const listener of [...settleListeners]) {
           listener();
@@ -485,7 +487,7 @@ export function makeOrchestratorWorkflow(
     };
 
     // The public extension IO (M7-T05): every capability maps to a
-    // docs/07 requirement; see orchestrator/extension.ts.
+    // contract requirement; see orchestrator/extension.ts.
     const io: OrchestratorExtensionIO = {
       runId: internals.runId,
       baseScope: callingState.scope,
@@ -548,7 +550,7 @@ export function makeOrchestratorWorkflow(
       if (record.settled !== undefined) {
         return { cancelled: false, handle };
       }
-      // Caller intent (docs/07 4.5, M6 note): the child terminal
+      // Caller intent (M6 note): the child terminal
       // journals 'cancelled' and reruns on a later resume unless
       // covered by abandon; the abandon compilation rides the DEF-5
       // machinery (M7-T07).
@@ -625,7 +627,7 @@ export function makeOrchestratorWorkflow(
     let capInFlight = false;
 
     /**
-     * The at-cap freeze (docs/07, 12.4): EXACTLY one decision entry
+     * The at-cap freeze: EXACTLY one decision entry
      * strictly before any effects; then the plan freezes for adaptation,
      * wake triggers except quiescence disarm, and the orchestrator is
      * driven to the reserved final wake. Crash between the entry and the
@@ -643,7 +645,7 @@ export function makeOrchestratorWorkflow(
       ) {
         return;
       }
-      // Exactly ONE cap decision (docs/07, 12.4): the latch closes the
+      // Exactly ONE cap decision: the latch closes the
       // race between concurrently-evaluated wake ordinals.
       capInFlight = true;
       const view =
@@ -686,11 +688,11 @@ export function makeOrchestratorWorkflow(
       );
       // The orchestrator's own loop ends at the wake boundary; the
       // reserved final wake is a FRESH agent entry with the restricted
-      // toolset (docs/07, 12.4 d).
+      // toolset.
       forcedFinishController.abort('rulvar:forced-finish');
     };
 
-    /** Layer-1 soft boundary before delivering each wake (docs/07, 12.3). */
+    /** Layer-1 soft boundary before delivering each wake. */
     const overSoftBoundary = (): boolean => {
       if (capState === undefined || orchestratorAccount === undefined || extension === undefined) {
         return false;
@@ -708,7 +710,7 @@ export function makeOrchestratorWorkflow(
       }
       coversToOrdinal = Math.max(coversToOrdinal, digest.coversToOrdinal);
       // Pinning bookkeeping for the extension (plan_view and rebase base
-      // validation consume recorded digests, docs/07 3.5).
+      // validation consume recorded digests).
       extension?.onWake?.(digest);
     };
 
@@ -735,7 +737,7 @@ export function makeOrchestratorWorkflow(
           kind: (settled.escalation as { kind?: string } | undefined)?.kind ?? 'scope_bigger',
           // The dispatch-captured flavor: a flavor B report reaching the
           // digest is already DECIDED (the child terminates only after
-          // the suspension resolves; docs/07, 6.2).
+          // the suspension resolves).
           flavor: record.escalationFlavor ?? 'A',
         });
       }
@@ -750,7 +752,7 @@ export function makeOrchestratorWorkflow(
           const row = digestOf(record, record.settled as AgentResult<unknown>);
           const budgetChars = opts?.renderBudgetChars ?? WAKE_SUMMARY_RENDER_BUDGET_CHARS;
           if (row.outputSummary.length > budgetChars) {
-            // The deterministic character measure (docs/07, section 5):
+            // The deterministic character measure:
             // identical live and on replay, no tokenizer dependence.
             return { ...row, outputSummary: `${row.outputSummary.slice(0, budgetChars)}...` };
           }
@@ -759,7 +761,7 @@ export function makeOrchestratorWorkflow(
         escalations,
       };
       if (capState !== undefined && orchestratorAccount !== undefined) {
-        // Passive visibility (docs/07, 12.5): the budget block rides
+        // Passive visibility: the budget block rides
         // every digest; there is NO wake trigger on the orchestrator's
         // own spend.
         const view = internals.budget.accountView(orchestratorAccount);
@@ -824,7 +826,7 @@ export function makeOrchestratorWorkflow(
           'ladder' in profileModel
         ) {
           // Rejected BEFORE admission: the spawn would only die later at
-          // wire resolution (router, docs/04 section 12) after burning an
+          // wire resolution (router) after burning an
           // admission slot and journal entries.
           throw new ConfigError(
             `agentType '${params.agentType}' declares a ladder; ladder execution is owned ` +
@@ -942,8 +944,8 @@ export function makeOrchestratorWorkflow(
         const external = internals.external;
         const triggers = rawTriggers as WakeTrigger[];
         // An embedded run can never hang unrecoverably: a REQUESTED
-        // trigger set that can never fire is an immediate typed error
-        // (docs/07 4.8), even though quiescence is engine-armed anyway.
+        // trigger set that can never fire is an immediate typed error,
+        // even though quiescence is engine-armed anyway.
         for (const trigger of triggers) {
           if (trigger.kind === 'budget_threshold' && internals.budget.ceilingUsd === undefined) {
             throw new ConfigError('budget_threshold can never fire: the run has no USD ceiling');
@@ -1004,7 +1006,7 @@ export function makeOrchestratorWorkflow(
           switch (trigger.kind) {
             case 'quiescence':
               // Nothing running AND nothing ready: the extension owns the
-              // "nothing ready" half (docs/07, 4.8; M7-T05).
+              // "nothing ready" half (M7-T05).
               return (
                 [...records.values()].every((record) => record.settled !== undefined) &&
                 (extension?.quiescent?.() ?? true)
@@ -1034,7 +1036,7 @@ export function makeOrchestratorWorkflow(
           if (entryRef === undefined) {
             return;
           }
-          // After the cap only quiescence stays armed (docs/07, 12.4 b).
+          // After the cap only quiescence stays armed.
           const armed =
             capDecisionRef === undefined
               ? withQuiescence
@@ -1044,7 +1046,7 @@ export function makeOrchestratorWorkflow(
             return;
           }
           if (capDecisionRef === undefined && overSoftBoundary()) {
-            // Layer 1 (docs/07, 12.3): crossing the soft boundary yields
+            // Layer 1: crossing the soft boundary yields
             // forced finalization INSTEAD of a normal wake. The pending
             // suspension still resolves (the loop must unwind through the
             // aborted signal to reach the reserved final wake).
@@ -1058,8 +1060,7 @@ export function makeOrchestratorWorkflow(
           }
           const digest = buildDigest(ordinal) as unknown as Json;
           // Every ready trigger submits its attempt; the DEF-4
-          // first-closing-wins fold classifies the losers noop (the
-          // race semantics of docs/07 section 5).
+          // first-closing-wins fold classifies the losers noop.
           for (const trigger of ready) {
             void external.submitResolution(entryRef, {
               by: trigger.kind === 'quiescence' ? 'quiescence' : 'engine_fallback',
@@ -1075,7 +1076,7 @@ export function makeOrchestratorWorkflow(
           const digest = (await digestPromise) as unknown as WakeDigest;
           if (internals.knowledge !== undefined) {
             // A resume from suspension re-pins under the same filtering
-            // rules (docs/05, 4.2): expired, stale, and archived claims
+            // rules: expired, stale, and archived claims
             // never steer spawns after multi-day pauses. Zero extra
             // awaits when no store is configured (timing neutrality).
             await appendKbRepin(wakeKey);
@@ -1088,7 +1089,7 @@ export function makeOrchestratorWorkflow(
               digestSeq: digest.digestSeq,
               planHash: digest.planHash,
               coversToOrdinal: digest.coversToOrdinal,
-              // wake-render-size (docs/09 metrics): the deterministic
+              // the wake-render-size metric: the deterministic
               // character measure of the delivered digest bytes.
               renderSize: JSON.stringify(digest).length,
               completed: digest.completedDigests.length,
@@ -1111,12 +1112,12 @@ export function makeOrchestratorWorkflow(
     };
 
     // The extension boots strictly BEFORE the orchestrator agent's first
-    // entry (docs/07, 11.6: termination.init precedes the first
+    // entry (termination.init precedes the first
     // scheduling entry); on resume it rebuilds state from the journal.
     if (extension?.boot !== undefined) {
       await extension.boot(io);
     }
-    // docs/05 4.1/4.2 (M10-T03): one knowledge read at run admission,
+    // Model knowledge pinning (M10-T03): one knowledge read at run admission,
     // ONLY for orchestrate-role runs over a CONFIGURED store; the pin
     // embeds the card bytes, so resume and replay read the entry and
     // never touch the live store. Engines without stores.modelKnowledge
@@ -1138,8 +1139,8 @@ export function makeOrchestratorWorkflow(
         now: new Date(internals.now()).toISOString(),
       });
       // The full advertised set: the renderer itself keeps only
-      // concrete-model profiles for the profile-evidence section
-      // (docs/05, 4.3 as amended), so declarers stay tier-only.
+      // concrete-model profiles for the profile-evidence section,
+      // so declarers stay tier-only.
       const rendered = modelKnowledgeCard(filtered, ladders, { profiles: advertisedProfiles });
       await internals.replayer.appendSinglePhase({
         scope: callingState.scope,
@@ -1161,7 +1162,7 @@ export function makeOrchestratorWorkflow(
           .some((entry) => entry.kind === 'decision' && entry.key === key)
       ) {
         // The journaled repin (a resumed life or a replay) wins: entry
-        // bytes, never the live store (docs/05, security channel 8).
+        // bytes, never the live store.
         return;
       }
       await appendKbPin('kb_repinned', key);
@@ -1222,8 +1223,8 @@ export function makeOrchestratorWorkflow(
       // hint the default reserve prices the model's FULL maxOutputTokens
       // (about one dollar on strong tiers), pins small run ceilings at
       // zero remainder for the whole orchestration, and every child
-      // spawn dies with a budget rejection (docs/07, 12.2 as amended;
-      // found live by the M12 checkpoint: no orchestrated child was
+      // spawn dies with a budget rejection (found live by the M12
+      // checkpoint: no orchestrated child was
       // EVER admitted under the case ceilings, both A/B arms measured a
       // self-solving orchestrator).
       ...(capState === undefined ? {} : { estCost: capState.effectiveCapUsd }),
@@ -1250,7 +1251,7 @@ export function makeOrchestratorWorkflow(
         : AbortSignal.any([callingState.signal, forcedFinishController.signal]);
 
     /**
-     * The reserved final wake (docs/07, 12.4 d): a FRESH agent entry on
+     * The reserved final wake: a FRESH agent entry on
      * the restricted single-tool toolset (a different toolsetHash), a
      * prompt deterministically derived from the journaled cap decision
      * and the pinned digest, and a finalizeTurns limit, paid from the
@@ -1280,7 +1281,7 @@ export function makeOrchestratorWorkflow(
         // The finalize dispatch spends from the released reserve, so
         // that reserve is its admission worst case: the default hint
         // (full maxOutputTokens pricing) could refuse the very agent
-        // the reserve exists to fund (docs/07, 12.2 as amended).
+        // the reserve exists to fund.
         ...(capState === undefined ? {} : { estCost: capState.finalizeReserveUsd }),
         ...(opts?.model === undefined ? {} : { model: opts.model }),
         [kTerminalTool]: { name: FINISH_TOOL_NAME },
@@ -1375,7 +1376,7 @@ export function makeOrchestratorWorkflow(
     );
     if (capDecisionRef !== undefined) {
       // The cap fired while the loop was suspended in a wake; the
-      // forced-finish abort ended it (docs/07, 12.4 d).
+      // forced-finish abort ended it.
       return await runForcedFinish();
     }
     if (orchestratorAccount !== undefined) {
@@ -1392,7 +1393,7 @@ export function makeOrchestratorWorkflow(
   });
 }
 
-/** Top-level surface: creates a run (docs/06 9.3). */
+/** Top-level surface: creates a run. */
 export function orchestrate(
   engine: Engine,
   goal: string,

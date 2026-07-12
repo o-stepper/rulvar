@@ -10,7 +10,7 @@
 function emptyToolset(): ResolvedToolset;
 ```
 
-Defined in: [packages/core/src/tools/toolset-hash.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/toolset-hash.ts#L29)
+Defined in: [packages/core/src/tools/toolset-hash.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/toolset-hash.ts#L28)
 
 The empty toolset (no tools declared anywhere).
 

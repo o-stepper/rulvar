@@ -1,7 +1,7 @@
 /**
- * OpenTelemetry exporter (M5-T08; docs/09, section 3). `toOtel(run,
+ * OpenTelemetry exporter (M5-T08; https://docs.rulvar.com/guide/observability). `toOtel(run,
  * tracer)` maps the spanId tree of a run 1:1 onto OTel spans: one span
- * per rulvar span, parented per the docs/09 1.2 hierarchy (run > phase >
+ * per rulvar span, parented per the span hierarchy (run > phase >
  * agent > tool > child), with start/end timestamps from the lifecycle
  * events. Events without an own span (log, budget:update) attach as span
  * events on their enclosing span.
@@ -107,7 +107,7 @@ function openAttributes(
   if (event.type === 'tool:start') {
     attrs['rulvar.tool_name'] = event.toolName;
   }
-  // Defense in depth (M8-T04; docs/09, section 8): an id-shaped field
+  // Defense in depth (M8-T04): an id-shaped field
   // that happens to carry a credential still cannot leak. Events are
   // masked at the bus already; this covers the exporter's own strings.
   for (const [key, value] of Object.entries(attrs)) {
@@ -141,7 +141,7 @@ export async function toOtel(
   const startSpan = (event: WorkflowEvent): void => {
     if (event.replayed === true && openBySpanId.has(event.spanId)) {
       // A replayed opener for a span already exported: mark, do not
-      // duplicate (docs/09, section 3).
+      // duplicate.
       openBySpanId.get(event.spanId)?.span.setAttribute('rulvar.replayed', true);
       return;
     }
@@ -200,7 +200,7 @@ export async function toOtel(
         break;
       default: {
         // Payload-only event: attach to its own span if it has one,
-        // else to the innermost open span (docs/09, section 3).
+        // else to the innermost open span.
         const host = openBySpanId.get(event.spanId) ?? stack[stack.length - 1];
         host?.span.addEvent(event.type, { 'rulvar.entry_seq': event.seq });
       }

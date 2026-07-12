@@ -10,7 +10,7 @@
 function validateEscalationReport(report): Promise<Issue[]>;
 ```
 
-Defined in: [packages/core/src/runtime/escalation.ts:172](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L172)
+Defined in: [packages/core/src/runtime/escalation.ts:170](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L170)
 
 Validates the runtime-completed report BEFORE append; returns issues.
 

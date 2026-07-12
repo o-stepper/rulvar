@@ -6,9 +6,9 @@
 
 # Class: FileModelKnowledgeStore
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The SPI seam (docs/05, section "Data model"). commit performs CAS on
+The SPI seam. commit performs CAS on
 the monotonic snapshot version, mirroring the fencing-epoch
 discipline of LeasableStore; concurrent maintenance commits serialize
 through CAS rejection and rebase. commit is UNREACHABLE from the
@@ -26,7 +26,7 @@ runtime: runs hold ModelKnowledgeHandle.
 new FileModelKnowledgeStore(options?): FileModelKnowledgeStore;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -46,7 +46,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 commit(ops, expectedVersion): Promise<number>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -71,7 +71,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 current(): Promise<KnowledgeSnapshot>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Returns
 

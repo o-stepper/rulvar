@@ -6,7 +6,7 @@
 
 # Interface: FailureResult
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The result interface if validation fails.
 
@@ -14,4 +14,4 @@ The result interface if validation fails.
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-issues"></a> `issues` | `readonly` | readonly [`Issue`](/api/@rulvar/rulvar/namespaces/StandardSchemaV1/interfaces/Issue.md)[] | The issues of failed validation. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-issues"></a> `issues` | `readonly` | readonly [`Issue`](/api/@rulvar/rulvar/namespaces/StandardSchemaV1/interfaces/Issue.md)[] | The issues of failed validation. | `packages/core/dist/index.d.ts` |

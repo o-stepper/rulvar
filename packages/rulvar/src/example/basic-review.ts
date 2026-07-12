@@ -1,10 +1,10 @@
 /**
- * The M1 exit-criteria example workflow (docs/10, section 3.2): a review
+ * The M1 exit-criteria example workflow: a review
  * pipeline exercising ctx.agent, ctx.parallel, and ctx.pipeline. Runs
  * against FakeAdapter with zero network (src/example.test.ts) and against
  * both live adapters manually (key-gated in the same test file). Runnable
- * reference per the examples-corpus rules (docs/11, section "Examples
- * corpus").
+ * reference per the examples-corpus rules
+ * (https://docs.rulvar.com/guide/testing).
  */
 import { z } from 'zod';
 import { defineWorkflow, type Workflow } from '@rulvar/core';

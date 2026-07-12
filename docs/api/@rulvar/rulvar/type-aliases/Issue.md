@@ -17,10 +17,10 @@ type Issue = {
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The vendored Standard Schema issue shape (docs/06, section "Canonical Ctx
-interface"): validation issues carried on AgentError and surfaced to the
+The vendored Standard Schema issue shape: validation issues carried
+on AgentError and surfaced to the
 model during bounded schema re-prompts.
 
 ## Properties
@@ -31,7 +31,7 @@ model during bounded schema re-prompts.
 message: string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ***
 
@@ -45,4 +45,4 @@ optional path?: ReadonlyArray<
 }>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`

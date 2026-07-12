@@ -6,7 +6,7 @@
 
 # Class: EventBus
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The per-run event bus. seq is strictly increasing in emission order;
 `iterate()` yields events from subscription onward; `on()` is the
@@ -20,14 +20,14 @@ callback form over the same stream and the same seq values.
 new EventBus(options): EventBus;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `options` | \{ `maskEvents?`: `boolean`; `now?`: () => `number`; `runId`: `string`; `spans`: [`SpanRegistry`](/api/@rulvar/rulvar/classes/SpanRegistry.md); \} | - |
-| `options.maskEvents?` | `boolean` | Default true (M8-T04; docs/09, section "Redaction and sensitive data"): key-shaped strings in every emitted body are masked. Telemetry only, never the journal: events are excluded from identity by construction, so masking cannot perturb replay. |
+| `options.maskEvents?` | `boolean` | Default true (M8-T04): key-shaped strings in every emitted body are masked. Telemetry only, never the journal: events are excluded from identity by construction, so masking cannot perturb replay. |
 | `options.now?` | () => `number` | - |
 | `options.runId` | `string` | - |
 | `options.spans` | [`SpanRegistry`](/api/@rulvar/rulvar/classes/SpanRegistry.md) | - |
@@ -47,7 +47,7 @@ emit(
    replayed?): WorkflowEvent;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -69,7 +69,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 end(): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Ends every open iterator once the run has settled.
 
@@ -85,7 +85,7 @@ Ends every open iterator once the run has settled.
 iterate(): AsyncIterable<WorkflowEvent>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Returns
 
@@ -99,7 +99,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 on<T>(type, cb): () => void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Type Parameters
 

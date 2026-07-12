@@ -3,8 +3,7 @@
  * against an existing journal and throws JournalMissError on ANY live
  * call: zero live calls or loud failure. Any production journal becomes a
  * deterministic integration test; a journal with open suspensions
- * completes with outcome 'suspended' and zero live calls (docs/09,
- * section "Tier 3: replay-strict journal runs").
+ * completes with outcome 'suspended' and zero live calls.
  */
 import {
   createEngine,

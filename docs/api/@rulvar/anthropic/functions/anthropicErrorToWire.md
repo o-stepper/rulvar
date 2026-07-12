@@ -10,12 +10,12 @@
 function anthropicErrorToWire(error): WireError;
 ```
 
-Defined in: [packages/anthropic/src/wire.ts:602](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L602)
+Defined in: [packages/anthropic/src/wire.ts:598](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L598)
 
 Projects an SDK/API error into the retryable WireError vocabulary:
 429 rate limits surface retryAfterMs and the x-ratelimit-* buckets; 529
 overloaded and 5xx are retryable transport; everything else is terminal
-transport (docs/04, section 4.9). Adapters never sleep internally.
+transport. Adapters never sleep internally.
 
 ## Parameters
 

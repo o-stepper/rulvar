@@ -10,7 +10,7 @@
 type StoreFactory<S> = () => Promise<S> | S;
 ```
 
-Defined in: [packages/store-conformance/src/types.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/store-conformance/src/types.ts#L27)
+Defined in: [packages/store-conformance/src/types.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/store-conformance/src/types.ts#L26)
 
 The factory contract: every call MUST return a fresh, isolated store
 (checks run against independent instances; a JsonlFileStore factory

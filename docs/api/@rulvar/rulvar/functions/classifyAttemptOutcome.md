@@ -10,7 +10,7 @@
 function classifyAttemptOutcome(terminal): AttemptOutcomeClass;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Classifies one settled root terminal into its attempt outcome class.
 

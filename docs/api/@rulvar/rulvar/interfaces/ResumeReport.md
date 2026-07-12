@@ -6,7 +6,7 @@
 
 # Interface: ResumeReport
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ## Extended by
 
@@ -16,8 +16,8 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-hits"></a> `hits` | `number` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-misses"></a> `misses` | `number` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-orphaned"></a> `orphaned` | `number`[] | Journaled operations never consumed by any live call (deleted calls). | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-reruns"></a> `reruns` | `number` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-skipped"></a> `skipped` | `number` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-hits"></a> `hits` | `number` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-misses"></a> `misses` | `number` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-orphaned"></a> `orphaned` | `number`[] | Journaled operations never consumed by any live call (deleted calls). | `packages/core/dist/index.d.ts` |
+| <a id="property-reruns"></a> `reruns` | `number` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-skipped"></a> `skipped` | `number` | - | `packages/core/dist/index.d.ts` |

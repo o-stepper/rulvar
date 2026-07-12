@@ -10,6 +10,6 @@
 type EscalationKind = "scope_bigger" | "scope_different" | "blocked_with_evidence";
 ```
 
-Defined in: [packages/core/src/runtime/escalation.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L29)
+Defined in: [packages/core/src/runtime/escalation.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L27)
 
-Closed in v1 (docs/07, section 6.3).
+Closed in v1.

@@ -2,8 +2,7 @@
  * Engine entry points (M1-T11): createEngine and engine.run over the
  * InProcessRunner. Every registry hangs off the engine instance; nothing
  * is module-global, so two engines in one process are fully isolated and
- * ctx is created per run (docs/02, section "Engine anatomy"; docs/06,
- * section "Engine and ops API"). engine.resume lands with the journal
+ * ctx is created per run. engine.resume lands with the journal
  * kernel in M2.
  */
 import { createHash } from 'node:crypto';
@@ -74,7 +73,7 @@ import type { ModelKnowledgeHandle, ModelKnowledgeStore } from '../l0/spi/knowle
 export type { RunStatus };
 
 /**
- * The per-engine workflow registry (docs/06, section 10.4; M5-T01): an
+ * The per-engine workflow registry (M5-T01): an
  * explicit, first-class value; no module-level registry exists. Shells
  * resolve by-name runs against it; ctx.workflow's string form (M6) and
  * the queue worker (M8) resolve against it too. CompiledWorkflow values
@@ -87,24 +86,23 @@ export interface EngineDefaults {
   profiles?: Record<string, AgentProfile>;
   /** The workflow registry for shells and by-name resolution (10.4). */
   workflows?: WorkflowRegistry;
-  /** Registered SchemaSpec names for outputSchemaRef (docs/08; M7-T05). */
+  /** Registered SchemaSpec names for outputSchemaRef (M7-T05). */
   schemas?: Record<string, SchemaSpec>;
-  /** Registered tool profile names for toolsetRef (docs/08; M7-T05). */
+  /** Registered tool profile names for toolsetRef (M7-T05). */
   toolsets?: Record<string, ToolsOption>;
   /**
    * Registered mechanical gate profiles: named pure functions over
-   * AgentResult.artifacts for ladder acceptance gates (docs/02, section
-   * "Registries"; docs/07, section 10; M7-T10).
+   * AgentResult.artifacts for ladder acceptance gates (M7-T10).
    */
   gates?: Record<string, MechanicalGateProfile>;
   limits?: UsageLimits;
-  /** Engine-wide permission chain layers (docs/08, section 3). */
+  /** Engine-wide permission chain layers. */
   permissions?: PermissionConfig;
-  /** The worktree lifecycle provider (docs/08, section 8). */
+  /** The worktree lifecycle provider. */
   isolation?: IsolationProvider;
-  /** Engine-wide transport RetryPolicy (docs/04, 11.1; M4-T05). */
+  /** Engine-wide transport RetryPolicy (M4-T05). */
   retry?: RetryPolicy;
-  /** Hard per-role model constraints (docs/04, section 9; M4-T09). */
+  /** Hard per-role model constraints (M4-T09). */
   roleFloors?: QualityFloors;
 }
 
@@ -115,13 +113,13 @@ export interface BudgetDefaults {
   lifetimeSpawnCap?: number;
   /**
    * Fraction of the parent remainder (minus the parent finalize reserve)
-   * a child sub-account may take; default 0.3 (docs/06, 5.4; M6-T06).
+   * a child sub-account may take; default 0.3 (M6-T06).
    */
   childBudgetFraction?: number;
-  /** AdmissionController nesting depth; default 1, hard ceiling 4 (docs/07, 7.3). */
+  /** AdmissionController nesting depth; default 1, hard ceiling 4. */
   maxDepth?: number;
   /**
-   * Lineage limits (DEF-3, docs/03 section 10.5): maxEscalationsPerLogicalTask
+   * Lineage limits (DEF-3): maxEscalationsPerLogicalTask
    * (default 2) and maxAttemptsPerLogicalTask (default 8), monotonically
    * consumed. The validator rejects the pre-rename knob name
    * maxEscalationsPerNode with a migration hint (XF-10).
@@ -136,7 +134,7 @@ export interface CreateEngineOptions {
     journal?: JournalStore;
     transcripts?: TranscriptStore;
     /**
-     * The ModelKnowledge claim store (docs/05; M10-T03). Optional and
+     * The ModelKnowledge claim store (M10-T03). Optional and
      * OFF by default: an engine without it writes no kb entries at
      * all. The runtime only ever receives the current()-only handle.
      */
@@ -149,17 +147,17 @@ export interface CreateEngineOptions {
     /** Per-adapter-id caps; unlimited unless configured (Appendix A; M4-T07). */
     perProvider?: Record<string, number>;
   };
-  /** Versioned price table; wins over caps.pricing (docs/04, section 10; M4-T06). */
+  /** Versioned price table; wins over caps.pricing (M4-T06). */
   pricing?: PriceTable;
   /**
-   * Runner registrations beyond the built-in InProcessRunner (docs/06,
-   * sections 8 and 10.1; M6-T02). `sandbox` executes CompiledWorkflow
+   * Runner registrations beyond the built-in InProcessRunner (M6-T02).
+   * `sandbox` executes CompiledWorkflow
    * values (WorkerSandboxRunner ships in @rulvar/planner); running or
    * resuming a compiled workflow without one is a typed ConfigError.
    */
   runners?: { sandbox?: ScriptRunner };
   /**
-   * The InProcessRunner escalation hook (docs/06, sections 2.10 and 8.1):
+   * The InProcessRunner escalation hook:
    * receives escalated results when the call form cannot carry them; the
    * returned decision is journaled as the authoritative
    * escalation-decision entry.
@@ -168,21 +166,21 @@ export interface CreateEngineOptions {
     result: EscalatedResult<unknown>,
   ) => EscalationDecision | Promise<EscalationDecision>;
   /**
-   * KeyDeriver registry extension (docs/03, section "hashVersion").
+   * KeyDeriver registry extension (see
+   * https://docs.rulvar.com/guide/journal-compatibility).
    * Plumbed now, consumed by the matching kernel from M2.
    */
   extraDerivers?: readonly unknown[];
   /**
    * Redact/encrypt at the append/put boundaries, symmetric on load/get
-   * (docs/03, section "Serialization hook"; M8-T04, OQ-22 executed).
+   * (M8-T04, OQ-22 executed).
    * Applied by wrapping the configured stores; Engine.stores exposes
    * the wrapped instances, so every reader passes one policy point.
    */
   serialization?: SerializationHook;
   /**
-   * The default key-masking policy at the telemetry boundary (docs/09,
-   * section "Redaction and sensitive data"; docs/06 Appendix A row
-   * "event secret masking"). Default ON: key-shaped strings in every
+   * The default key-masking policy at the telemetry boundary. Default
+   * ON: key-shaped strings in every
    * emitted WorkflowEvent are masked; never touches the journal.
    */
   redaction?: { maskEvents?: boolean };
@@ -203,7 +201,7 @@ export interface RunOptions {
   signal?: AbortSignal;
 }
 
-/** Resume-time hit/miss/orphan accounting (docs/03, section 11.3). */
+/** Resume-time hit/miss/orphan accounting. */
 export interface ResumePreview extends ResumeReport {
   invalidResolutions: Array<{ seq: number; detail: string }>;
 }
@@ -211,23 +209,23 @@ export interface ResumePreview extends ResumeReport {
 export interface ResumeOptions {
   /**
    * The run's original arguments: not journaled for in-process workflows
-   * in v1, so the host supplies them (resume binding residuals, docs/14).
+   * in v1, so the host supplies them (resume binding residuals).
    */
   args?: unknown;
   /**
    * Dry-run: replay-strict matching; the first would-be-live call throws
    * JournalMissError and the run settles with that typed error, zero live
-   * calls performed (docs/03, section 11.3).
+   * calls performed.
    */
   dryRun?: boolean;
-  /** invalidate/retry: entries to unpin before matching (docs/03, section 6.5). */
+  /** invalidate/retry: entries to unpin before matching. */
   invalidate?: number[];
   /**
    * Queue mode: the worker's lease. The engine carries it on EVERY
    * journal append of this resume (the kernel's single append site), so
    * a stale worker's writes are rejected by the fencing epoch and never
-   * become visible (docs/06 10.2 and docs/03 12.3, M8 entry amendment;
-   * DEF-6; FR-703). putMeta and transcript blobs stay advisory and
+   * become visible (M8 entry amendment; DEF-6; FR-703). putMeta and
+   * transcript blobs stay advisory and
    * unfenced.
    */
   lease?: Lease;
@@ -241,14 +239,14 @@ export interface ResumeHandle<R> extends RunHandle<R> {
 export interface Engine {
   run<A, R>(wf: Workflow<A, R> | CompiledWorkflow, args: A, opts?: RunOptions): RunHandle<R>;
   /**
-   * Rebinds a journal to a workflow definition and resumes (docs/06,
-   * section "Engine and ops API"). Requires wf for in-process workflows;
+   * Rebinds a journal to a workflow definition and resumes. Requires wf
+   * for in-process workflows;
    * a name mismatch is a typed ConfigError; a body-hash mismatch warns
    * loudly and proceeds (the journal decides replay per content keys).
    * A compiled run resumes WITHOUT wf: the engine rehydrates the
    * persisted source pinned by workflowHash; supplying a compiled wf
    * whose source hash differs from the recorded one is a typed
-   * ConfigError (docs/06, 10.2; M6-T02).
+   * ConfigError (M6-T02).
    */
   resume<A, R>(
     runId: string,
@@ -257,29 +255,28 @@ export interface Engine {
   ): ResumeHandle<R>;
   /**
    * Renders the registered agent profiles into the shared vocabulary
-   * card (docs/06, 9.3), optionally filtered to `names`; the registry
-   * itself stays private to the engine (docs/06, 10.2; M6-T05
-   * amendment). Unknown names are ignored.
+   * card, optionally filtered to `names`; the registry itself stays
+   * private to the engine (M6-T05 amendment). Unknown names are ignored.
    */
   profileCard(names?: readonly string[]): string;
   /**
    * The engine's configured stores, exposed for shells and hosts
-   * (docs/06, 10.2, M8 entry amendment; docs/02, section "Shells
-   * overview": "the journal store comes from the engine"). Exactly the
+   * (M8 entry amendment: the journal store comes from the engine).
+   * Exactly the
    * instances createEngine received, or the defaults it built; no store
    * contract widens through this accessor. With a serialization hook
    * configured these are the HOOKED wrappers, so every reader passes
-   * the one policy point (docs/03, 12.8; M8-T04).
+   * the one policy point (M8-T04).
    */
   readonly stores: { journal: JournalStore; transcripts: TranscriptStore };
   /**
-   * Retention (docs/06, 10.2; OQ-20 executed at M8-T04): deletes every
+   * Retention (OQ-20 executed at M8-T04): deletes every
    * blob transcripts.list(runId) returns, then the journal; no orphan
    * blobs survive. The caller owns the decision that the run is done.
    */
   deleteRun(runId: string): Promise<void>;
   /**
-   * Checkpoint pruning (docs/03, 12.4 note; OQ-20 executed at M8-T04):
+   * Checkpoint pruning (OQ-20 executed at M8-T04):
    * deletes checkpoint blobs of ok-terminal attempts that no other
    * entry references; returns the count. Parked, cancelled, escalated,
    * and hanging attempts keep theirs (park/unpark, DEF-5 retention, and
@@ -288,14 +285,14 @@ export interface Engine {
   pruneRun(runId: string): Promise<number>;
 }
 
-/** Content hash of an in-process workflow body (run-to-definition binding, docs/06 10.2). */
+/** Content hash of an in-process workflow body (run-to-definition binding). */
 export function hashWorkflowBody(wf: Workflow<never, never> | Workflow<unknown, unknown>): string {
   return createHash('sha256')
     .update((wf as Workflow<unknown, unknown>).body.toString(), 'utf8')
     .digest('hex');
 }
 
-/** Content hash of a compiled workflow source (run-to-definition binding, docs/06 10.2). */
+/** Content hash of a compiled workflow source (run-to-definition binding). */
 export function hashWorkflowSource(source: string): string {
   return createHash('sha256').update(source, 'utf8').digest('hex');
 }
@@ -311,7 +308,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
   const rawTranscripts = options.stores?.transcripts ?? new InMemoryTranscriptStore();
   // The serialization hook wraps the stores, so stored bytes and every
   // reader (including Engine.stores consumers) pass ONE policy point
-  // (docs/03, 12.8; M8-T04). Absent hook, the raw instances flow.
+  // (M8-T04). Absent hook, the raw instances flow.
   const journal =
     options.serialization?.journal === undefined
       ? rawJournal
@@ -323,8 +320,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
   const maskEvents = options.redaction?.maskEvents ?? true;
   const defaults = options.defaults ?? {};
   // The runtime side holds the current()-only handle, never the store:
-  // commit is unreachable from inside a run by the shape of the API
-  // (docs/05, section "Security", channel 3).
+  // commit is unreachable from inside a run by the shape of the API.
   const knowledgeStore = options.stores?.modelKnowledge;
   const knowledge: ModelKnowledgeHandle | undefined =
     knowledgeStore === undefined ? undefined : { current: () => knowledgeStore.current() };
@@ -343,7 +339,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
     const { adapterId, model } = parseModelRef(servedBy);
     // The versioned price table wins; adapter-reported caps.pricing is
     // the fallback; undefined stays undefined so the CostReport surfaces
-    // the model as unpriced, never a silent zero (docs/04, section 10).
+    // the model as unpriced, never a silent zero.
     const pricing = resolvePricing(
       servedBy,
       options.pricing,
@@ -356,7 +352,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
   };
 
   // Per-provider concurrency keys are ENGINE-scoped: every run of this
-  // engine shares the same keyed limiter (docs/06, section 4; M4-T07).
+  // engine shares the same keyed limiter (M4-T07).
   const providerLimiter = new KeyedLimiter(options.concurrency?.perProvider);
 
   interface ResumeContext {
@@ -364,7 +360,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
     priorEntries: JournalEntry[];
     strict: boolean;
     invalidate: number[];
-    /** Queue mode: every journal append of this resume carries it (docs/03, 12.3). */
+    /** Queue mode: every journal append of this resume carries it. */
     lease?: Lease;
     previewResolve: (preview: ResumePreview) => void;
   }
@@ -420,8 +416,8 @@ export function createEngine(options: CreateEngineOptions): Engine {
     replayer.setDisposition(
       dispositionHook(replayer.fold.abandonFold, registry, replayer.invalidatedSeqs),
     );
-    // Alias-sourced candidates bypass the abandon overlay (DEF-5, docs/03
-    // 9.5): donor entries regain their pre-abandon status through links.
+    // Alias-sourced candidates bypass the abandon overlay (DEF-5):
+    // donor entries regain their pre-abandon status through links.
     replayer.setAliasDisposition(
       dispositionHook({ isAbandoned: () => false }, registry, replayer.invalidatedSeqs),
     );
@@ -549,7 +545,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       let wireError: WireError | undefined;
       let pending: PendingExternal[] = [];
       if (compiled !== undefined) {
-        // The binding contract (docs/06, 10.2): the compiled source and
+        // The binding contract: the compiled source and
         // its content hash persist AT START so planned runs are
         // resumable by construction; resume rehydrates from this blob.
         await transcripts.put(workflowSourceRef(runId), new TextEncoder().encode(compiled.source));
@@ -592,7 +588,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
           compiled === undefined ? runner : (options.runners?.sandbox as ScriptRunner);
         const bodyPromise = selectedRunner.execute(wf, ctx, args);
         // Every in-flight branch blocked on suspensions settles the run
-        // 'suspended' with the open keys (docs/06, section 2.7).
+        // 'suspended' with the open keys.
         const raced = await Promise.race([
           bodyPromise.then((result) => ({ kind: 'done' as const, result })),
           quiesced.then((open) => ({ kind: 'suspended' as const, open })),
@@ -618,7 +614,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         if (status !== 'suspended' && budget.exhausted) {
           // The workflow-returned value SURVIVES exhaustion: the DEF-7
           // finalize fallback synthesizes a partial result and exhaustion
-          // is never null (docs/07, 12.4).
+          // is never null.
           status = 'exhausted';
         } else if (status !== 'suspended' && controller.signal.aborted) {
           status = 'cancelled';
@@ -632,8 +628,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       } catch (thrown) {
         value = undefined;
         if (thrown instanceof BudgetExhaustedError || budget.exhausted) {
-          // Exhausted overrides error (docs/06, section "Script-mode
-          // exhaustion and the exhausted outcome").
+          // Exhausted overrides error.
           status = 'exhausted';
           wireError = thrown instanceof RulvarError ? thrown.toWire() : undefined;
         } else if (controller.signal.aborted) {
@@ -668,7 +663,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       // Report totals are the LEDGER FOLD totals at settle, not the live
       // budget accumulator: the journal is the truth cost reconciles
       // against, and one summation order keeps the equality exact
-      // (M5-T03 acceptance; docs/09, section "CostReport").
+      // (M5-T03 acceptance).
       const ledger = replayer.ledger();
       const outcome: RunOutcome<R> = {
         status,
@@ -679,7 +674,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       };
       if (value !== undefined && (status === 'ok' || status === 'exhausted')) {
         // Exhaustion is never null when a value exists: the DEF-7
-        // finalize fallback synthesizes the partial (docs/07, 12.4).
+        // finalize fallback synthesizes the partial.
         outcome.value = value;
       }
       if (wireError !== undefined) {
@@ -728,7 +723,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       const metas = await journal.listRuns();
       const meta = metas.find((candidate) => candidate.runId === runId);
       // Bare resume of an in-process run resolves by the recorded name
-      // from defaults.workflows (docs/06, 10.2, M8 entry amendment: the
+      // from defaults.workflows (M8 entry amendment: the
       // queue worker resolves workflows through the engine's registry,
       // never through a parameter of its own). The persisted compiled
       // source keeps precedence below.
@@ -750,7 +745,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       }
       let bound: Workflow<unknown, unknown> | CompiledWorkflow;
       if (supplied === undefined) {
-        // The compiled-run binding (docs/06, 10.2): rehydrate the
+        // The compiled-run binding: rehydrate the
         // persisted source pinned by workflowHash. Dialect validation is
         // not re-run: the hash proves byte identity with the source
         // compileScript validated at run start.
@@ -788,7 +783,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
           );
         }
         if (supplied.kind === 'compiled-workflow') {
-          // A differing compiled source is a hard mismatch (docs/06, 10.2).
+          // A differing compiled source is a hard mismatch.
           const expectedHash = hashWorkflowSource(supplied.source);
           if (meta?.workflowHash !== undefined && meta.workflowHash !== expectedHash) {
             throw new ConfigError(

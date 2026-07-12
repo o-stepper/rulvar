@@ -1,9 +1,7 @@
 /**
  * RunHandle, RunOutcome, RunStatus, and CostReport (M1-T10).
  *
- * Owning specs: docs/06-execution-spec.md, section "RunOptions, RunHandle,
- * RunOutcome, RunStatus"; docs/09-observability-testing-spec.md, sections
- * "RunHandle" and "CostReport".
+ * Full contract: https://docs.rulvar.com/guide/observability.
  */
 import type { WireError } from '../l0/errors.js';
 import type { Json } from '../l0/json.js';
@@ -22,7 +20,7 @@ export interface PendingExternal {
   deadlineAt?: string;
 }
 
-/** docs/09, section "CostReport". */
+/** Full contract: https://docs.rulvar.com/guide/observability. */
 export interface CostReport {
   totalUsd: number;
   /** Keyed by canonical ModelRef 'adapterId:model'. */
@@ -56,7 +54,7 @@ export type RunOutcome<R> = {
   cost: CostReport;
 };
 
-/** Adds 'running' for in-flight inspection (docs/06, section "Engine and ops API"). */
+/** Adds 'running' for in-flight inspection. */
 export type RunStatus = RunOutcome<unknown>['status'] | 'running';
 
 export interface RunHandle<R> {

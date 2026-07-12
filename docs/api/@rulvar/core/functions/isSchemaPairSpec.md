@@ -10,7 +10,7 @@
 function isSchemaPairSpec(spec): spec is SchemaPair<unknown>;
 ```
 
-Defined in: [packages/core/src/l0/schema.ts:56](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L56)
+Defined in: [packages/core/src/l0/schema.ts:55](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L55)
 
 Form-2 guard: an explicit { jsonSchema, validate } pair.
 

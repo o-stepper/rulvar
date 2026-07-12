@@ -16,7 +16,7 @@ function replayRun<A, R>(
 }>;
 ```
 
-Defined in: [packages/testing/src/replay-strict.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/replay-strict.ts#L53)
+Defined in: [packages/testing/src/replay-strict.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/replay-strict.ts#L52)
 
 ## Type Parameters
 

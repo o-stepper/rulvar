@@ -20,7 +20,7 @@ function applyDecisionOps(
 Defined in: [packages/plan/src/plan-entries.ts:527](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L527)
 
 The shared plan.decision applier core: engine authorship happens at
-the fold head under PlanWriteLock (docs/07, 3.3), so the producer can
+the fold head under PlanWriteLock, so the producer can
 PREVIEW the resulting state (and its planHashAfter) before appending,
 and the fold re-applies the recorded ops identically on replay.
 

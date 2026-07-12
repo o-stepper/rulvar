@@ -34,4 +34,4 @@ Defined in: [packages/core/src/runtime/agent-loop.ts:179](https://github.com/o-s
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `audit?` | [`GateAudit`](/api/@rulvar/core/interfaces/GateAudit.md) | Chain audit payload ridden into tool:end telemetry (docs/08, 4.5). | [packages/core/src/runtime/agent-loop.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L189) |
+| `audit?` | [`GateAudit`](/api/@rulvar/core/interfaces/GateAudit.md) | Chain audit payload ridden into tool:end telemetry. | [packages/core/src/runtime/agent-loop.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L189) |

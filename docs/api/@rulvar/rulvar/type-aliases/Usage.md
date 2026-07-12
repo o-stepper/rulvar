@@ -16,12 +16,12 @@ type Usage = {
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Usage under the Usage invariant: inputTokens is the FULL prompt size
 including cache reads and cache writes. Adapters MUST normalize
 provider-reported usage to satisfy this invariant, and the core verifies
-it at the adapter boundary (docs/04, section "Usage invariant").
+it at the adapter boundary.
 
 ## Properties
 
@@ -31,7 +31,7 @@ it at the adapter boundary (docs/04, section "Usage invariant").
 cacheReadTokens: number;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ***
 
@@ -41,7 +41,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 cacheWriteTokens: number;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ***
 
@@ -51,7 +51,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 inputTokens: number;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ***
 
@@ -61,7 +61,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 outputTokens: number;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ***
 
@@ -71,4 +71,4 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 optional reasoningTokens?: number;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`

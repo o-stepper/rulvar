@@ -13,14 +13,14 @@ type EscalatedResult<T> = AgentResult<T> & {
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ## Type Declaration
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `escalation` | [`EscalationReport`](/api/@rulvar/rulvar/interfaces/EscalationReport.md) | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `status` | `"escalated"` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| `escalation` | [`EscalationReport`](/api/@rulvar/rulvar/interfaces/EscalationReport.md) | `packages/core/dist/index.d.ts` |
+| `status` | `"escalated"` | `packages/core/dist/index.d.ts` |
 
 ## Type Parameters
 

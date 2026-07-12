@@ -36,11 +36,10 @@ type Settled<T> =
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The discriminated union over AgentStatus carrying the underlying
-AgentResult where one exists (docs/06, section "ctx.parallel and
-Settled").
+AgentResult where one exists.
 
 ## Type Parameters
 

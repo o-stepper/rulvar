@@ -7,10 +7,9 @@
  * The COMMITTED files under repo cassettes/ and
  * packages/testing/fixtures/frozen/ are the contract; these builders
  * exist to regenerate them DELIBERATELY (scripts/record-m2-cassettes.mjs)
- * and to fail loudly in CI when key derivation drifts (docs/11, section
- * "Frozen journal fixtures": regenerating fixtures to make a test pass is
- * forbidden by policy; any diff requires an explicit hashVersion-bump
- * changeset).
+ * and to fail loudly in CI when key derivation drifts (regenerating
+ * fixtures to make a test pass is forbidden by policy; any diff requires
+ * an explicit hashVersion-bump changeset).
  */
 import {
   agentScope,
@@ -321,7 +320,7 @@ export const GO_SCHEMA: JsonSchema = {
   properties: { go: { type: 'boolean' } },
 };
 
-/** Wire projection of an AgentError, as ctx journals it (docs/02 taxonomy). */
+/** Wire projection of an AgentError, as ctx journals it. */
 export function agentWireError(
   kind: string,
   message: string,
@@ -371,9 +370,9 @@ export function buildM2CassetteFixtures(): CassetteFixture[] {
 
   // DEF-1: abandon-subtree and memoize-classifier moved to the live
   // recorder in M3-T11 (record-live.ts); they re-record again with the
-  // orchestrator producers in M7 (docs/10, cassette plan).
+  // orchestrator producers in M7.
 
-  // DEF-1: v1-journal-on-v2 (docs/09, section 6.1): round-1 dispositions.
+  // DEF-1: v1-journal-on-v2: round-1 dispositions.
   {
     const j = new FixtureJournal();
     j.agentOp({ prompt: PROMPTS.alpha, hashVersion: 1, value: 'alpha out', usage: usageOf(100, 10) });
@@ -392,7 +391,7 @@ export function buildM2CassetteFixtures(): CassetteFixture[] {
     });
   }
 
-  // DEF-4: timeout-vs-live-race (docs/09, section 6.4). The Flavor B
+  // DEF-4: timeout-vs-live-race. The Flavor B
   // deadlineAt dressing arrives with the live producer re-record in M4;
   // the race semantics gate here.
   {
@@ -412,7 +411,7 @@ export function buildM2CassetteFixtures(): CassetteFixture[] {
     });
   }
 
-  // DEF-4: class-decision-fanout (docs/09, section 6.4).
+  // DEF-4: class-decision-fanout.
   {
     const j = new FixtureJournal();
     const r1 = j.external({ key: 'report-1' });
@@ -433,7 +432,7 @@ export function buildM2CassetteFixtures(): CassetteFixture[] {
     });
   }
 
-  // DEF-4: abandon-then-crash-then-resume (docs/09, section 6.4). The
+  // DEF-4: abandon-then-crash-then-resume. The
   // plan.revision producer arrives in M7; the abandon carries the reason.
   {
     const j = new FixtureJournal();
@@ -449,7 +448,7 @@ export function buildM2CassetteFixtures(): CassetteFixture[] {
     });
   }
 
-  // DEF-4: abandon-vs-resolution-race, both directions (docs/09, 6.4).
+  // DEF-4: abandon-vs-resolution-race, both directions.
   {
     const j = new FixtureJournal();
     const spawnA = j.danglingAgent({ prompt: PROMPTS.branchAlpha });
@@ -466,7 +465,7 @@ export function buildM2CassetteFixtures(): CassetteFixture[] {
     });
   }
 
-  // DEF-4: offline-invalid-then-valid (docs/09, section 6.4).
+  // DEF-4: offline-invalid-then-valid.
   {
     const j = new FixtureJournal();
     const gate = j.external({
@@ -483,7 +482,7 @@ export function buildM2CassetteFixtures(): CassetteFixture[] {
     });
   }
 
-  // DEF-4: double-abandon-idempotent (docs/09, section 6.4).
+  // DEF-4: double-abandon-idempotent.
   {
     const j = new FixtureJournal();
     const spawn = j.agentOp({ prompt: PROMPTS.subtreeAlpha, value: 'alpha done', usage: usageOf(150, 30) });
@@ -502,7 +501,7 @@ export function buildM2CassetteFixtures(): CassetteFixture[] {
     });
   }
 
-  // DEF-6: reject-version-too-old (docs/11, section 4).
+  // DEF-6: reject-version-too-old.
   {
     const j = new FixtureJournal();
     j.agentOp({ prompt: PROMPTS.v0Relic, hashVersion: 0, value: 'relic out', usage: usageOf(40, 5) });
@@ -513,7 +512,7 @@ export function buildM2CassetteFixtures(): CassetteFixture[] {
     });
   }
 
-  // DEF-6: reject-version-from-future (docs/11, section 4).
+  // DEF-6: reject-version-from-future.
   {
     const j = new FixtureJournal();
     j.agentOp({ prompt: PROMPTS.futureStage, hashVersion: 3, value: 'future out', usage: usageOf(40, 5) });
@@ -528,7 +527,7 @@ export function buildM2CassetteFixtures(): CassetteFixture[] {
 }
 
 /**
- * The frozen v1 journal (docs/11, section "Frozen journal fixtures"): a
+ * The frozen v1 journal: a
  * round-1 JSONL file with kinds agent, step, rand, external, approval and
  * the legacy `v: 1` field (no hashVersion member). Returned as raw
  * JSON-ready objects, one per line.
@@ -563,7 +562,7 @@ export function buildFrozenV1JournalRaw(): Array<Record<string, unknown>> {
   });
 }
 
-/** The docs/03 section 1.5 worked example, frozen as executable data. */
+/** The agent identity worked example, frozen as executable data. */
 export const WORKED_EXAMPLE_INPUT: AgentIdentityInput = {
   kind: 'agent',
   agentType: 'reviewer',

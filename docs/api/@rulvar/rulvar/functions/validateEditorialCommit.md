@@ -13,7 +13,7 @@ function validateEditorialCommit(
    options?): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The commit-batch validation: op shapes and gates first (GATE-DRIVEN
 since M11-T01: the human gate carries editorial claims, the

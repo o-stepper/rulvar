@@ -5,7 +5,7 @@
  * seam freezes with knowledge-base phase 1, post-1.0, not at the 1.0
  * freeze of the six core seams.
  *
- * Owning spec: docs/05-model-knowledge-spec.md, section "Data model".
+ * Full contract: https://docs.rulvar.com/guide/model-knowledge.
  * Two structural security decisions live in the shapes themselves:
  * there is NO propose() method in the SPI at all (proposals exist only
  * in the journaled RunLedger and reach the gate via LedgerExport), and
@@ -18,7 +18,7 @@ import type { Effort, ModelRef } from '../messages.js';
 
 /**
  * Task-class vocabulary aligned with the role quality floors vocabulary
- * (docs/04, section "Role quality floors"). Scopeless global statements
+ * (https://docs.rulvar.com/guide/model-routing). Scopeless global statements
  * are inexpressible: every claim binds a taskClass.
  */
 export type TaskClass =
@@ -64,7 +64,7 @@ export interface ModelClaim {
   confidence: 'high' | 'medium' | 'low';
   /** ISO date. */
   observedAt: string;
-  /** TTL by class and polarity (docs/05, section "Grounding and decay"). */
+  /** TTL by class and polarity (the grounding and decay rules). */
   expiresAt: string;
   /** Honestly best-effort drift signal. */
   modelEpoch?: {
@@ -106,7 +106,7 @@ export type GateRecord =
       };
     }
   /**
-   * The dedicated committer identity (docs/05, section 5.4; M11): the
+   * The dedicated committer identity (M11): the
    * ONLY gate under which eval-measured claims and the metrics block
    * commit. Coherence is schema-enforced in both directions.
    */
@@ -119,14 +119,14 @@ export type ClaimOp =
   | { op: 'supersede'; claimId: string; by: ModelClaim; gate: GateRecord }
   | { op: 'archive'; claimId: string; reason: 'deprecated' | 'stale' | 'rejected' | 'falsified' }
   /**
-   * Canary maintenance (docs/05, section "Grounding and decay"; added
+   * Canary maintenance (added
    * during M11-T04): fingerprint drift flips eval claims to 'stale'.
    * Idempotent on already-stale claims; gate-free like archive.
    */
   | { op: 'mark_stale'; claimId: string; reason: 'canary-drift' };
 
 /**
- * The SPI seam (docs/05, section "Data model"). commit performs CAS on
+ * The SPI seam. commit performs CAS on
  * the monotonic snapshot version, mirroring the fencing-epoch
  * discipline of LeasableStore; concurrent maintenance commits serialize
  * through CAS rejection and rebase. commit is UNREACHABLE from the
@@ -140,6 +140,6 @@ export interface ModelKnowledgeStore {
 /**
  * The runtime handle: with propose() deleted from the design and
  * commit absent from this shape, a run has no write path into the
- * cross-run medium at all (docs/05, section "Security", channel 3).
+ * cross-run medium at all.
  */
 export type ModelKnowledgeHandle = Pick<ModelKnowledgeStore, 'current'>;

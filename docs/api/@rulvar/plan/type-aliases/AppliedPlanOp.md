@@ -49,6 +49,6 @@ type AppliedPlanOp =
 Defined in: [packages/plan/src/plan-entries.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L70)
 
 Applied forms the fold consumes. cancel_task gains the engine-computed
-cascade (docs/07, 3.6: computed at apply time, never a parameter);
+cascade (computed at apply time, never a parameter);
 park/cancel against running nodes apply as flag requests landing later
 via plan.decision (park-landed, cancel-landed).

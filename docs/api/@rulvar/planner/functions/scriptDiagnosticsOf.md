@@ -10,7 +10,7 @@
 function scriptDiagnosticsOf(error): ScriptDiagnostic[];
 ```
 
-Defined in: [packages/planner/src/compile.ts:286](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L286)
+Defined in: [packages/planner/src/compile.ts:285](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L285)
 
 Typed accessor for the diagnostics carried on a ScriptRejected.
 

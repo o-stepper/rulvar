@@ -14,9 +14,9 @@ The per-run IO the extension closes over (engine-owned effects).
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-admission"></a> `admission` | `readonly` | [`AdmissionController`](/api/@rulvar/core/classes/AdmissionController.md) | The single admission point for all spawns (docs/07, 7.1). | [packages/core/src/orchestrator/extension.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L112) |
+| <a id="property-admission"></a> `admission` | `readonly` | [`AdmissionController`](/api/@rulvar/core/classes/AdmissionController.md) | The single admission point for all spawns. | [packages/core/src/orchestrator/extension.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L112) |
 | <a id="property-basescope"></a> `baseScope` | `readonly` | `string` | The scope the orchestrate call runs in ('' at the top level). | [packages/core/src/orchestrator/extension.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L84) |
-| <a id="property-gates"></a> `gates` | `readonly` | `Record`\&lt;`string`, `unknown`\&gt; | The per-engine mechanical gate registry (docs/07, section 10): named pure functions over AgentResult.artifacts. Typed loose at the seam exactly like `profiles`. | [packages/core/src/orchestrator/extension.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L94) |
+| <a id="property-gates"></a> `gates` | `readonly` | `Record`\&lt;`string`, `unknown`\&gt; | The per-engine mechanical gate registry: named pure functions over AgentResult.artifacts. Typed loose at the seam exactly like `profiles`. | [packages/core/src/orchestrator/extension.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L94) |
 | <a id="property-profiles"></a> `profiles` | `readonly` | `Record`\&lt;`string`, `unknown`\&gt; | Registered agent profiles advertised to this orchestrate call. | [packages/core/src/orchestrator/extension.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L88) |
 | <a id="property-runceilingusd"></a> `runCeilingUsd?` | `readonly` | `number` | The run USD ceiling (B0), when one exists. | [packages/core/src/orchestrator/extension.ts:96](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L96) |
 | <a id="property-runid"></a> `runId` | `readonly` | `string` | - | [packages/core/src/orchestrator/extension.ts:82](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L82) |
@@ -35,7 +35,7 @@ abandonBranch(attempt): Promise<{
 Defined in: [packages/core/src/orchestrator/extension.ts:131](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L131)
 
 Appends the severing abandon ref-entry over a branch through the
-ResolutionArbiter (DEF-4/DEF-5; docs/03, sections 8.5 and 9.1).
+ResolutionArbiter (DEF-4/DEF-5).
 
 #### Parameters
 
@@ -223,7 +223,7 @@ priceUsd(servedBy, usage): number | undefined;
 
 Defined in: [packages/core/src/orchestrator/extension.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L146)
 
-The engine price fold (journal facts in, USD out; docs/04).
+The engine price fold (journal facts in, USD out).
 
 #### Parameters
 
@@ -248,7 +248,7 @@ Defined in: [packages/core/src/orchestrator/extension.ts:104](https://github.com
 
 A journaled random draw in [0, 1) under the orchestrate scope: the
 ctx.random primitive, computed once live and replayed by match. The
-spot-check gate draws HERE, never Math.random (docs/04, section 12).
+spot-check gate draws HERE, never Math.random.
 
 #### Parameters
 
@@ -271,7 +271,7 @@ registerAlias(donorScope, targetScope): void;
 Defined in: [packages/core/src/orchestrator/extension.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L144)
 
 Registers a node.link scope-prefix alias for forward matching
-(DEF-5; docs/03, 9.5). Idempotent; rebuilt by fold on resume.
+(DEF-5). Idempotent; rebuilt by fold on resume.
 
 #### Parameters
 

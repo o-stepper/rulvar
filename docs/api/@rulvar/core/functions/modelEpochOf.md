@@ -17,7 +17,7 @@ function modelEpochOf(inputs):
   | undefined;
 ```
 
-Defined in: [packages/core/src/knowledge/epoch.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/epoch.ts#L33)
+Defined in: [packages/core/src/knowledge/epoch.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/epoch.ts#L32)
 
 Builds the optional modelEpoch block; empty inputs give undefined.
 

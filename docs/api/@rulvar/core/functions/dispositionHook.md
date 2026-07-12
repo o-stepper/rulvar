@@ -13,7 +13,7 @@ function dispositionHook(
    invalidated?): (op) => OperationDisposition;
 ```
 
-Defined in: [packages/core/src/journal/disposition.ts:195](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/disposition.ts#L195)
+Defined in: [packages/core/src/journal/disposition.ts:194](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/disposition.ts#L194)
 
 Adapts the predicate to the matcher's disposition hook: two-phase
 operations dispatch on their terminal, single-phase on themselves.

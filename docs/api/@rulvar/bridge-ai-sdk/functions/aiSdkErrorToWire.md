@@ -10,13 +10,12 @@
 function aiSdkErrorToWire(error): WireError;
 ```
 
-Defined in: [packages/bridge-ai-sdk/src/bridge.ts:823](https://github.com/o-stepper/rulvar/blob/main/packages/bridge-ai-sdk/src/bridge.ts#L823)
+Defined in: [packages/bridge-ai-sdk/src/bridge.ts:819](https://github.com/o-stepper/rulvar/blob/main/packages/bridge-ai-sdk/src/bridge.ts#L819)
 
 Projects a thrown value from the wrapped model into a typed WireError.
 APICallError carries the provider's status and headers: 429 surfaces as
 a retryable rate-limit with retryAfterMs; 5xx and status-less network
-failures are retryable transport; other statuses are terminal transport
-(docs/04, section 2.2).
+failures are retryable transport; other statuses are terminal transport.
 
 ## Parameters
 

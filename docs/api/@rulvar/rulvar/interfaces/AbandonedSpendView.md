@@ -6,15 +6,15 @@
 
 # Interface: AbandonedSpendView
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The abandoned-spend ledger fold (docs/03, 9.7).
+The abandoned-spend ledger fold.
 
 ## Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-abandonedusd"></a> `abandonedUsd` | `number` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-bykey"></a> `byKey` | `Record`\&lt;[`SpawnKey`](/api/@rulvar/rulvar/type-aliases/SpawnKey.md), \{ `abandonedUsd`: `number`; `oscillationCount`: `number`; `reclaimedUsd`: `number`; \}\&gt; | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-netlostusd"></a> `netLostUsd` | `number` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-reclaimedusd"></a> `reclaimedUsd` | `number` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-abandonedusd"></a> `abandonedUsd` | `number` | `packages/core/dist/index.d.ts` |
+| <a id="property-bykey"></a> `byKey` | `Record`\&lt;[`SpawnKey`](/api/@rulvar/rulvar/type-aliases/SpawnKey.md), \{ `abandonedUsd`: `number`; `oscillationCount`: `number`; `reclaimedUsd`: `number`; \}\&gt; | `packages/core/dist/index.d.ts` |
+| <a id="property-netlostusd"></a> `netLostUsd` | `number` | `packages/core/dist/index.d.ts` |
+| <a id="property-reclaimedusd"></a> `reclaimedUsd` | `number` | `packages/core/dist/index.d.ts` |

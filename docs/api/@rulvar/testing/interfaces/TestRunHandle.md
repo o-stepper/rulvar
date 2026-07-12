@@ -24,10 +24,10 @@ A RunHandle that records its own event stream for the matchers.
 
 | Property | Type | Description | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-events"></a> `events` | `AsyncIterable`\&lt;[`WorkflowEvent`](/api/@rulvar/rulvar/type-aliases/WorkflowEvent.md)\&gt; | - | [`RunHandle`](/api/@rulvar/rulvar/interfaces/RunHandle.md).[`events`](/api/@rulvar/rulvar/interfaces/RunHandle.md#property-events) | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-events"></a> `events` | `AsyncIterable`\&lt;[`WorkflowEvent`](/api/@rulvar/rulvar/type-aliases/WorkflowEvent.md)\&gt; | - | [`RunHandle`](/api/@rulvar/rulvar/interfaces/RunHandle.md).[`events`](/api/@rulvar/rulvar/interfaces/RunHandle.md#property-events) | `packages/core/dist/index.d.ts` |
 | <a id="property-eventsseen"></a> `eventsSeen` | [`WorkflowEvent`](/api/@rulvar/rulvar/type-aliases/WorkflowEvent.md)[] | Every event emitted by the run, in seq order. | - | [packages/testing/src/test-engine.ts:24](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/test-engine.ts#L24) |
-| <a id="property-result"></a> `result` | `Promise`\&lt;[`RunOutcome`](/api/@rulvar/rulvar/type-aliases/RunOutcome.md)\&lt;`R`\&gt;\&gt; | - | [`RunHandle`](/api/@rulvar/rulvar/interfaces/RunHandle.md).[`result`](/api/@rulvar/rulvar/interfaces/RunHandle.md#property-result) | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-runid"></a> `runId` | `string` | - | [`RunHandle`](/api/@rulvar/rulvar/interfaces/RunHandle.md).[`runId`](/api/@rulvar/rulvar/interfaces/RunHandle.md#property-runid) | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-result"></a> `result` | `Promise`\&lt;[`RunOutcome`](/api/@rulvar/rulvar/type-aliases/RunOutcome.md)\&lt;`R`\&gt;\&gt; | - | [`RunHandle`](/api/@rulvar/rulvar/interfaces/RunHandle.md).[`result`](/api/@rulvar/rulvar/interfaces/RunHandle.md#property-result) | `packages/core/dist/index.d.ts` |
+| <a id="property-runid"></a> `runId` | `string` | - | [`RunHandle`](/api/@rulvar/rulvar/interfaces/RunHandle.md).[`runId`](/api/@rulvar/rulvar/interfaces/RunHandle.md#property-runid) | `packages/core/dist/index.d.ts` |
 
 ## Methods
 
@@ -37,7 +37,7 @@ A RunHandle that records its own event stream for the matchers.
 cancel(reason?): Promise<void>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Cooperative cancellation; the run settles 'cancelled' with a complete CostReport.
 
@@ -63,7 +63,7 @@ Cooperative cancellation; the run settles 'cancelled' with a complete CostReport
 on<T>(type, cb): () => void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Type Parameters
 
@@ -94,7 +94,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 resolveExternal(key, value): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Resolves an open awaitExternal suspension (DEF-4 signature): applied
 when this attempt wins the first-closing-wins fold; repeated

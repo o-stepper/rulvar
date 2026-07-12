@@ -74,7 +74,7 @@ Defined in: [packages/core/src/journal/matching.ts:219](https://github.com/o-ste
 Forward-matches one live call. A miss does not advance any cursor and
 does not extinguish future hits: the scan always starts at the scope
 head and skips consumed operations, so insertion stability holds by
-construction (docs/03, section 7.1).
+construction.
 
 #### Parameters
 
@@ -138,8 +138,8 @@ setAliasDisposition(disposition): void;
 
 Defined in: [packages/core/src/journal/matching.ts:150](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L150)
 
-The disposition applied to alias-sourced candidates (DEF-5, docs/03
-9.5): the skipped overlay from abandon is bypassed ONLY through the
+The disposition applied to alias-sourced candidates (DEF-5): the
+skipped overlay from abandon is bypassed ONLY through the
 alias, so entries regain their pre-abandon terminal status for
 matching in the NEW scope; the standalone old scope stays skipped.
 

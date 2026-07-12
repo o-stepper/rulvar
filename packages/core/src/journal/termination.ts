@@ -1,8 +1,8 @@
 /**
  * TerminationAccount and the termination lemma (M7-T03, DEF-2).
  *
- * Owning spec: docs/07-adaptive-orchestration-spec.md, section 11;
- * docs/06-execution-spec.md, Appendix A defaults; XF-07/XF-09 cap fields.
+ * Public contract: https://docs.rulvar.com/guide/budgets;
+ * committed defaults declared below; XF-07/XF-09 cap fields.
  *
  * One construction is committed: a single per-run account with an
  * exclusively DEBIT-ONLY API and a limits vector frozen at start in the
@@ -26,7 +26,7 @@ import { jcsSerialize } from '../l0/jcs.js';
 import type { Json } from '../l0/json.js';
 import type { LogicalTaskId } from './lineage.js';
 
-/** The frozen limits vector written into termination.init (docs/07, 11.2). */
+/** The frozen limits vector written into termination.init. */
 export interface TerminationLimits {
   /** V0, default 32; absolute and non-replenishable. */
   maxRevisionsPerRun: number;
@@ -50,7 +50,7 @@ export interface TerminationLimits {
 export const DEFAULT_MAX_REVISIONS_PER_RUN = 32;
 export const DEFAULT_MAX_TOTAL_SPAWNS = 128;
 
-/** The countable resource vocabulary (docs/07, 11.5). */
+/** The countable resource vocabulary. */
 export type TerminationResource =
   'revisionUnits' | 'spawnUnits' | 'escalationUnits' | 'rungs' | 'depth';
 
@@ -63,7 +63,7 @@ export interface TerminationAccountSnapshot {
   revisionUnitsRemaining: number;
   spawnUnitsRemaining: number;
   perLineage: Record<LogicalTaskId, LineageCounters>;
-  /** The variant function, a pure fold over the journal (docs/07, 11.4). */
+  /** The variant function, a pure fold over the journal. */
   phi: number;
 }
 
@@ -71,14 +71,14 @@ export type DebitResult =
   | { ok: true; balanceAfter: number }
   | { ok: false; deniedEntryRef: EntryRef; resource: TerminationResource };
 
-/** The value payload of a termination.init entry (docs/07, 11.6). */
+/** The value payload of a termination.init entry. */
 export interface TerminationInitValue {
   limits: TerminationLimits;
   profileRegistrySnapshotHash: string;
   phiInitial: number;
 }
 
-/** The value payload of a termination.denied entry (docs/07, 11.6). */
+/** The value payload of a termination.denied entry. */
 export interface TerminationDeniedValue {
   resource: TerminationResource;
   logicalTaskId?: LogicalTaskId;
@@ -95,7 +95,7 @@ function sha256Hex(text: string): string {
 /**
  * Reads the declared ladder length of one agent profile. Ladders are
  * declared through the profile's ModelSpec (`model: { ladder }`, or the
- * loop-role routing entry; docs/04, section 12). The reader is defensive
+ * loop-role routing entry). The reader is defensive
  * so the snapshot is total over every registry shape (an undeclared
  * ladder has length 1: the single implicit rung).
  */
@@ -123,7 +123,7 @@ export function kMaxOf(profiles: Record<string, unknown> | undefined): number {
 /**
  * The deterministic profile-registry snapshot hash frozen inside
  * termination.init: profile names mapped to their declared ladder
- * lengths, canonical JSON, sha256 (docs/07, 11.6).
+ * lengths, canonical JSON, sha256.
  */
 export function profileRegistrySnapshotHash(profiles: Record<string, unknown> | undefined): string {
   const projection: Record<string, number> = {};
@@ -184,12 +184,12 @@ export function lineageWeightOf(limits: TerminationLimits): number {
   return limits.maxEscalationsPerLogicalTask + limits.kMax;
 }
 
-/** Phi0 = V0 + C * S0, finite and fixed in termination.init (docs/07, 11.4). */
+/** Phi0 = V0 + C * S0, finite and fixed in termination.init. */
 export function phiInitialOf(limits: TerminationLimits): number {
   return limits.maxRevisionsPerRun + lineageWeightOf(limits) * limits.maxTotalSpawns;
 }
 
-/** Builds the termination.init value payload (docs/07, 11.6). */
+/** Builds the termination.init value payload. */
 export function buildTerminationInitValue(
   limits: TerminationLimits,
   registrySnapshotHash: string,
@@ -214,7 +214,7 @@ export function readTerminationInit(entry: JournalEntry): TerminationInitValue |
 }
 
 /**
- * Config-drift detection at resume (docs/07, 11.2): the journaled vector
+ * Config-drift detection at resume: the journaled vector
  * always wins; every differing field is reported for the
  * `termination:config-drift` event. Dynamic budget top-up via restart is
  * excluded by construction.
@@ -239,14 +239,14 @@ export type TerminationDeniedWriter = (denied: TerminationDeniedValue) => Promis
 interface LineageState {
   escalationUnitsRemaining: number;
   rungsRemaining: number;
-  /** Strictly monotone per lineage; no demotions in v1 (docs/07, 11.3c). */
+  /** Strictly monotone per lineage; no demotions in v1. */
   rungIndex: number;
 }
 
 /**
- * The single per-run TerminationAccount (docs/07, 11.5): debit ONLY. No
+ * The single per-run TerminationAccount: debit ONLY. No
  * credit operation exists by construction; reclaim never replenishes
- * anything (DEF-5 interaction, docs/07 7.3). Live: the engine debits the
+ * anything (DEF-5 interaction). Live: the engine debits the
  * in-memory account, writes the carrying entry with the balance-after,
  * then applies effects. Resume state is rebuilt by TerminationFold from
  * the journal, never from live config.
@@ -295,7 +295,7 @@ export class TerminationAccount {
     };
   }
 
-  /** Phi = V + C * S + sum over live lineages (E + R) (docs/07, 11.4). */
+  /** Phi = V + C * S + sum over live lineages (E + R). */
   phi(): number {
     let phi = this.revisionUnits + lineageWeightOf(this.limits) * this.spawnUnits;
     for (const state of this.lineages.values()) {
@@ -319,7 +319,7 @@ export class TerminationAccount {
   }
 
   /**
-   * The spawn-admission debit (docs/07, 11.3b): minus one spawnUnit for
+   * The spawn-admission debit: minus one spawnUnit for
    * an admitted spawn of ANY origin; a NEW lineage receives E0 escalation
    * units and (K_l - 1) rung transitions in the same atomic step, so the
    * lemma's per-spawn decrease is C - (E0 + K_l - 1) = kMax - K_l + 1,
@@ -356,7 +356,7 @@ export class TerminationAccount {
   }
 
   /**
-   * The plan_revise debit (docs/07, 11.3a and 11.7): minus one
+   * The plan_revise debit: minus one
    * revisionUnit on EVERY journaled plan.revision, regardless of the op
    * count, guard verdicts, or the auto-rebase outcome; conflict spam is
    * never a free retry.
@@ -371,7 +371,7 @@ export class TerminationAccount {
   }
 
   /**
-   * The escalation debit (docs/07, 11.3d): minus one escalationUnit of
+   * The escalation debit: minus one escalationUnit of
    * the affected lineage, including EACH lineage of a class-level
    * decision and timeout defaultDecisions. Conditioned on the
    * countsAgainstLimit flag embedded in the decision entry by the caller.
@@ -388,7 +388,7 @@ export class TerminationAccount {
   }
 
   /**
-   * The ladder-raise debit (docs/07, 11.3c): minus one rung of the
+   * The ladder-raise debit: minus one rung of the
    * lineage; rungIndex is strictly monotone, there are no demotions and
    * no runtime startTier promotion in v1.
    */
@@ -411,7 +411,7 @@ export class TerminationAccount {
   }
 
   /**
-   * The docs/07 11.5 debit surface: attempts the named resource and, on
+   * The unified debit surface: attempts the named resource and, on
    * underflow, writes `termination.denied` strictly BEFORE resolving with
    * the typed failure (the caller surfaces the error only after this
    * settles). Requires a deniedWriter; pure-fold contexts use the
@@ -521,7 +521,7 @@ export class TerminationAccount {
   }
 }
 
-/** The typed error code surfaced after a denied debit (docs/07, 11.3). */
+/** The typed error code surfaced after a denied debit. */
 export function exhaustionCodeOf(resource: TerminationResource): string {
   switch (resource) {
     case 'revisionUnits':
@@ -544,7 +544,7 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
 }
 
 /**
- * The replay fold (docs/07, 11.6): rebuilds the account from
+ * The replay fold: rebuilds the account from
  * termination.init and the debiting decision entries, asserting every
  * embedded balance-after against the recomputation. A divergence raises
  * the typed journal-integrity error at exactly the diverging entry;
@@ -599,8 +599,8 @@ export function foldTermination(entries: readonly JournalEntry[]):
     }
     if (entry.kind === 'resolution' && entry.ref !== undefined) {
       // A timeout defaultDecision is a resolution with by 'timeout' and
-      // debits the affected lineage exactly once under first-closing-wins
-      // (docs/07, 11.3d and 11.7); class_decision resolutions never debit
+      // debits the affected lineage exactly once under first-closing-wins;
+      // class_decision resolutions never debit
       // here, their class decision carries the array (XF-06).
       if (closedTargets.has(entry.ref)) {
         continue;
@@ -709,7 +709,7 @@ export function foldTermination(entries: readonly JournalEntry[]):
           value.rungsRemainingAfter,
           result.rungsRemainingAfter,
         );
-        // The rung RESPAWN is an admitted spawn (docs/07, 11.3 rule b):
+        // The rung RESPAWN is an admitted spawn:
         // its admission rides the raising verdict exactly like the
         // decomposition admissions ride escalation decisions.
         for (const admission of readAdmissions(entry)) {

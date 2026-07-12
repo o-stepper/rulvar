@@ -7,8 +7,8 @@
  * allow: allow is only ever falling through to canUseTool or the
  * terminal default.
  *
- * Owning spec: docs/08-tools-permissions-spec.md, section "Permission
- * chain". Risk presets, the argv shell matcher, domain rules, and the
+ * Full contract: https://docs.rulvar.com/guide/tools.
+ * Risk presets, the argv shell matcher, domain rules, and the
  * audit/dry-run surface land in M5.
  */
 import { compilePermissionPreset } from '../tools/presets.js';
@@ -26,9 +26,9 @@ export type PermissionHook = (
 /**
  * Declarative rule tables (no closures). `'undeclared'` in risk
  * position matches every tool WITHOUT declared risk: presets treat the
- * undeclared state conservatively (docs/08, section 4.3). Argv rules
- * match through the real shell matcher (section 5); domain rules are
- * ADVISORY outside the first-party fetch tool (section 4.4): they never
+ * undeclared state conservatively. Argv rules
+ * match through the real shell matcher; domain rules are
+ * ADVISORY outside the first-party fetch tool: they never
  * change a verdict in M5, and matches surface in audit events.
  */
 export type RiskRuleValue = ToolRisk | 'undeclared';
@@ -58,7 +58,7 @@ export interface PermissionConfig {
 }
 
 /**
- * Profile-level permissions (docs/08, section "Subagent inheritance").
+ * Profile-level permissions.
  * inheritPermissions governs SUBAGENT inheritance (mode c orchestrators,
  * M6+): children get their own config only unless explicitly opted in.
  * It is carried as data here and consumed by the spawning layers.
@@ -93,7 +93,7 @@ export type PermissionVerdict = (
     }
 ) & {
   /**
-   * Advisory domain-rule matches (docs/08, 4.4): reported in audit
+   * Advisory domain-rule matches: reported in audit
    * events, never enforced outside the first-party fetch tool.
    */
   advisory?: PermissionRule[];
@@ -102,7 +102,7 @@ export type PermissionVerdict = (
 /**
  * Merges the engine-wide config and the profile config into one chain.
  * Layers concatenate engine-first; since rules only deny or ask, ordering
- * within a layer cannot change the verdict (docs/08, section 4.2). The
+ * within a layer cannot change the verdict. The
  * profile's canUseTool wins over the engine's (a single slot by
  * construction). A declared preset compiles INTO the same layers, after
  * the host-authored rules, never as a fifth layer (M5-T05).
@@ -126,7 +126,7 @@ export function compilePermissionChain(
   };
 }
 
-/** The command text an argv rule matches against (docs/08, section 5). */
+/** The command text an argv rule matches against. */
 function commandOf(input: unknown): string | undefined {
   if (typeof input === 'string') {
     return input;
@@ -154,7 +154,7 @@ function ruleMatches(
     return risk !== undefined && (risks as ToolRisk[]).includes(risk);
   }
   if ('domains' in rule) {
-    // Advisory outside the first-party fetch tool (docs/08, 4.4): never
+    // Advisory outside the first-party fetch tool: never
     // a verdict in M5; matches surface through the advisory scan.
     return false;
   }
@@ -177,7 +177,7 @@ function ruleMatches(
 }
 
 /**
- * Advisory domain-rule matches for the audit payload (docs/08, 4.4):
+ * Advisory domain-rule matches for the audit payload:
  * reported, never enforced outside first-party fetch.
  */
 function advisoryMatches(chain: CompiledPermissionChain, toolName: string): PermissionRule[] {
@@ -188,7 +188,7 @@ function advisoryMatches(chain: CompiledPermissionChain, toolName: string): Perm
 
 /**
  * Unmatchable segments (command/process substitution, here-docs) yield
- * ask, ALWAYS, for any tool that has argv rules (docs/08, 5.2 step 3).
+ * ask, ALWAYS, for any tool that has argv rules.
  */
 function argvUnmatchableAsk(
   chain: CompiledPermissionChain,
@@ -209,7 +209,7 @@ function argvUnmatchableAsk(
   return lexShellCommand(command).some((segment) => segment.unmatchable);
 }
 
-/** A stub ToolContext for offline (dry-run) evaluations (docs/08, 4.5). */
+/** A stub ToolContext for offline (dry-run) evaluations. */
 function offlineContext(toolName: string): ToolContext {
   return {
     runId: 'dry-run',
@@ -224,14 +224,14 @@ function offlineContext(toolName: string): ToolContext {
 
 /**
  * Evaluates the chain for one dispatch, or OFFLINE against a
- * hypothetical call by tool name (the dry-run API of docs/08, section
- * 4.5: nothing executes; shells and tests read the verdict, the
+ * hypothetical call by tool name (the dry-run API: nothing executes;
+ * shells and tests read the verdict, the
  * deciding layer, and the matched rule). Hooks run in deterministic
  * registration order; { modifiedInput } substitutes the input and
  * continues; the first decisive verdict wins. The returned input is what
- * execute receives and what the approval identity hashes (docs/03,
- * section 1.2: post hook modification). Advisory domain-rule matches
- * ride every verdict for the audit payload (docs/08, 4.4).
+ * execute receives and what the approval identity hashes (post hook
+ * modification). Advisory domain-rule matches
+ * ride every verdict for the audit payload.
  */
 export async function evaluatePermission(
   chain: CompiledPermissionChain,
@@ -268,14 +268,13 @@ export async function evaluatePermission(
     }
   }
   if (argvUnmatchableAsk(chain, def.name, effective)) {
-    // Substitutions and here-docs are unmatchable: ask, always
-    // (docs/08, 5.2 step 3).
+    // Substitutions and here-docs are unmatchable: ask, always.
     return withAdvisory({ verdict: 'ask', decidedBy: 'ask-rule', input: effective });
   }
   if (chain.canUseTool !== undefined) {
     const verdict = await chain.canUseTool(def.name, effective, context);
     if (verdict === 'allow') {
-      // Decisive, including for needsApproval: true tools (docs/08 3.4).
+      // Decisive, including for needsApproval: true tools.
       return withAdvisory({ verdict: 'allow', decidedBy: 'canUseTool', input: effective });
     }
     if (verdict === 'deny') {

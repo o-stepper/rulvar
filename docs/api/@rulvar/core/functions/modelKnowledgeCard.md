@@ -13,11 +13,11 @@ function modelKnowledgeCard(
    options?): string;
 ```
 
-Defined in: [packages/core/src/knowledge/card.ts:181](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/card.ts#L181)
+Defined in: [packages/core/src/knowledge/card.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/card.ts#L180)
 
-The deterministic card render (docs/05, 4.3). Pure: same filtered
+The deterministic card render. Pure: same filtered
 claims and ladders give byte-identical text. The render budget is
-docs/06 Appendix A (4096 chars); over it, the OLDEST-observed notes
+4096 chars; over it, the OLDEST-observed notes
 withhold first behind an explicit marker.
 
 ## Parameters

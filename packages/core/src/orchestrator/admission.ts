@@ -1,8 +1,8 @@
 /**
  * AdmissionController v1 (M6-T06; DEF-2, DEF-3, DEF-5 substrate).
  *
- * Owning spec: docs/07-adaptive-orchestration-spec.md, section
- * "AdmissionController". The single admission point for ALL spawns of any
+ * Public contract: https://docs.rulvar.com/guide/adaptive-orchestration.
+ * The single admission point for ALL spawns of any
  * origin: ctx.workflow, the orchestrator spawn tools (M6-T07), escalation
  * decomposition and rung respawns (M7). `admit(spec)` is called BEFORE
  * the carrying spawn-admission decision entry is journaled; the verdict
@@ -43,7 +43,7 @@ export type { LogicalTaskId } from '../journal/lineage.js';
 export type { DedupNote, DonorRef, GraftBoot, SpawnKey } from '../journal/reuse.js';
 import type { DedupNote, DonorRef, GraftBoot, SpawnKey } from '../journal/reuse.js';
 
-/** Plan-node identity; engine-minted ULID (docs/07, section 3.1). */
+/** Plan-node identity; engine-minted ULID. */
 export type NodeId = string;
 
 /** Layer-1 reservation embedded in the carrying decision entry. */
@@ -61,7 +61,7 @@ export interface AdmitLineage {
 }
 
 /**
- * The unified admission verdict (docs/07, section 7.2; XF-11). One union,
+ * The unified admission verdict (XF-11). One union,
  * closed now; every debit is atomic with its carrying decision entry and
  * embeds the balance-after (DEF-2).
  */
@@ -89,7 +89,7 @@ export type AdmitVerdict =
     }
   | { kind: 'reject'; reason: AdmitRejectReason };
 
-/** The merged reject-code set (docs/07, section 7.2). */
+/** The merged reject-code set. */
 export type AdmitRejectReason =
   | {
       code:
@@ -104,7 +104,7 @@ export type AdmitRejectReason =
     }
   | { code: 'osc_guard'; spawnKey: SpawnKey; oscillationCount: number };
 
-/** Every spawn origin routed through the single admission point (docs/07, 7.1). */
+/** Every spawn origin routed through the single admission point. */
 export type SpawnOrigin =
   | 'ctx.workflow'
   | 'ctx.orchestrate'
@@ -123,24 +123,24 @@ export interface AdmitSpec {
   childScope: string;
   /** The nearest enclosing budget account of the spawner. */
   parentAccountScope: string;
-  /** Explicit child budget; clamped by childBudgetFraction (docs/07, 4.1). */
+  /** Explicit child budget; clamped by childBudgetFraction. */
   budgetUsd?: number;
-  /** Reserve hint; falls back to the flat engine default (docs/06, 5.1). */
+  /** Reserve hint; falls back to the flat engine default. */
   estCostUsd?: number;
   /**
    * Lineage continuation (DEF-3); absence mints a fresh lineage root. A
    * continuation demands a causeRef: the seq of the entry that caused the
-   * rebirth (docs/03, 10.1, rule 2).
+   * rebirth.
    */
   lineage?: SpawnLineageOpt;
-  /** Raw approach tag; normalized by the engine (docs/03, 10.2). */
+  /** Raw approach tag; normalized by the engine. */
   approach?: string;
   /** Decomposition parent-LTID chain (relation 'decompose-child' only). */
   ancestry?: LogicalTaskId[];
   /**
    * Coarse-signature identity inputs; unspecified fields canonize onto
    * the deterministic legacy constants so signatures stay byte-stable
-   * (docs/03, 10.2; the toolset/schema registries land in M7-T05).
+   * (the toolset/schema registries land in M7-T05).
    */
   signature?: Partial<ApproachSignatureInputs>;
   /**
@@ -153,7 +153,7 @@ export interface AdmitSpec {
   /**
    * The children-quota key (maxChildrenPerNode); defaults to
    * parentAccountScope. Orchestrators pass their own scope so each node
-   * counts its own children (docs/07, 7.3).
+   * counts its own children.
    */
   nodeKey?: string;
 }
@@ -171,11 +171,11 @@ export interface AdmissionStatsBefore {
 export interface AdmissionDecision {
   verdict: AdmitVerdict;
   statsBefore: AdmissionStatsBefore;
-  /** Node identity minted inside the decision (docs/07, section 5); absent on reject. */
+  /** Node identity minted inside the decision; absent on reject. */
   nodeId?: NodeId;
   /**
    * The computed value-part lineage block (DEF-3): reused byte-exact on
-   * replay, never recomputed (docs/03, 10.6). Absent on reject.
+   * replay, never recomputed. Absent on reject.
    */
   lineage?: SpawnLineage;
   /**
@@ -221,7 +221,7 @@ export class AdmissionController {
     maxChildrenPerNode?: number;
     childBudgetFraction?: number;
     flatReserveUsd?: number;
-    /** Per-orchestrate spawn cap (docs/06, 9.3 maxSpawns); engine lifetime cap applies regardless. */
+    /** Per-orchestrate spawn cap (maxSpawns); engine lifetime cap applies regardless. */
     maxTotalSpawns?: number;
     mintId?: () => string;
     /**
@@ -271,8 +271,8 @@ export class AdmissionController {
   }
 
   /**
-   * Binds the run's TerminationAccount (DEF-2; PlanRunner runs only,
-   * docs/07 section 1): from bind time on, every admitted spawn of any
+   * Binds the run's TerminationAccount (DEF-2; PlanRunner runs only):
+   * from bind time on, every admitted spawn of any
    * origin debits one spawnUnit atomically with its decision entry, and
    * a declared ladder longer than the frozen kMax rejects with
    * ladder_exceeds_frozen. Non-PlanRunner runs never bind an account and
@@ -291,7 +291,7 @@ export class AdmissionController {
   }
 
   /**
-   * The lineage half of admission (DEF-3, docs/03 section 10.5): folds are
+   * The lineage half of admission (DEF-3): folds are
    * computed live STRICTLY BEFORE the carrying decision entry is appended;
    * the caller embeds the returned block in the entry and replay reads it
    * back byte-exact. Enforces the single-live-attempt invariant
@@ -385,7 +385,7 @@ export class AdmissionController {
     const depth = spawnDepthOf(spec.childScope);
     const childrenBefore = this.childrenOf.get(nodeKey) ?? 0;
     // Lineage folds are computed live STRICTLY BEFORE the decision entry
-    // is appended (docs/03, 10.5); the pinned stats embed into the entry.
+    // is appended; the pinned stats embed into the entry.
     const evaluated = this.evaluateLineage(spec);
     const statsBefore: AdmissionStatsBefore = {
       spawnsBefore: this.budget.spent().agentsSpawned,
@@ -395,13 +395,12 @@ export class AdmissionController {
     };
     if (evaluated.decision.kind === 'reject') {
       // Single-live-attempt (lineage_busy) and monotonic attempt
-      // consumption (lineage_exhausted), never replenished (docs/03, 10.5).
+      // consumption (lineage_exhausted), never replenished.
       return { verdict: { kind: 'reject', reason: evaluated.decision.reason }, statsBefore };
     }
     if (this.terminationAccount !== undefined) {
       // DEF-2: a ladder longer than the frozen kMax would break the
-      // variant function's weight C; the new profile serves later runs
-      // (docs/07, 11.8).
+      // variant function's weight C; the new profile serves later runs.
       if ((spec.ladderLength ?? 1) > this.terminationAccount.limits.kMax) {
         return {
           verdict: { kind: 'reject', reason: { code: 'ladder_exceeds_frozen' } },
@@ -410,7 +409,7 @@ export class AdmissionController {
       }
       if (this.terminationAccount.spawnUnitsExhausted) {
         // The caller writes termination.denied strictly before surfacing
-        // the typed error (docs/07, 11.3), then journals this verdict.
+        // the typed error, then journals this verdict.
         return {
           verdict: { kind: 'reject', reason: { code: 'termination_exhausted' } },
           statsBefore,
@@ -445,7 +444,7 @@ export class AdmissionController {
       } catch {
         // The layer-1 refusal maps onto the embedded verdict: the caller
         // journals the rejection and surfaces the typed error; the run
-        // never tears down here (docs/07, 7.3).
+        // never tears down here.
         return { verdict: { kind: 'reject', reason: { code: 'budget' } }, statsBefore };
       }
     } else {
@@ -465,7 +464,7 @@ export class AdmissionController {
     // Under a termination account the spawn debit is atomic with this
     // decision: minus one spawnUnit for an admitted spawn of ANY origin;
     // a NEW lineage receives its frozen allocation in the same step, and
-    // the balance-after is embedded in the verdict (DEF-2, docs/07 11.3b).
+    // the balance-after is embedded in the verdict (DEF-2).
     let spawnUnitsAfter = this.budget.spawnHeadroom;
     if (this.terminationAccount !== undefined) {
       const debited = this.terminationAccount.debitSpawn({
@@ -517,7 +516,7 @@ export class AdmissionController {
    * Resume roll-forward for a child that already SETTLED before the
    * resume: re-registers the counters (maxChildrenPerNode, the lifetime
    * cap, statsBefore fidelity) without committing any reserve; the spend
-   * itself sits in the root ledger seed (docs/03, 13.3).
+   * itself sits in the root ledger seed.
    */
   recoverSettled(parentAccountScope: string): void {
     this.budget.admitRecovered(0, parentAccountScope);
@@ -528,8 +527,8 @@ export class AdmissionController {
   /**
    * Resume roll-forward for an admission whose decision entry exists but
    * whose child has NOT settled: re-applies the recorded reserve and
-   * counters without re-evaluating any limit (docs/07, 7.1: replay never
-   * re-evaluates admission; docs/06, 5.1: reserves are recovered, never
+   * counters without re-evaluating any limit (replay never
+   * re-evaluates admission; reserves are recovered, never
    * re-estimated).
    */
   recoverInFlight(parentAccountScope: string, verdict: AdmitVerdict): void {

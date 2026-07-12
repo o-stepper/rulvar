@@ -12,4 +12,4 @@ const LINEAGE_SIG_VERSION: 1;
 
 Defined in: [packages/core/src/journal/lineage.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L36)
 
-approachSig/approachSigCoarse derivation version (docs/03, 10.7).
+approachSig/approachSigCoarse derivation version.

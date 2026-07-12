@@ -10,10 +10,9 @@
 type HashVersion = number;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Versions the ENTIRE identity and replay pipeline as one unit: canonical
 JSON algorithm, identity field sets, hash function, schema/toolset hash
 derivation, scope grammar and ordinal rules, replay predicate, fold
-defaults, and the kind/status vocabularies (docs/03, section
-"hashVersion").
+defaults, and the kind/status vocabularies.

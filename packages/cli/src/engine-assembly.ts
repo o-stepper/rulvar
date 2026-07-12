@@ -1,7 +1,7 @@
 /**
  * Engine assembly for CLI commands: the host's config supplies adapters
- * and defaults (the CLI depends only on @rulvar/core, docs/02 section
- * 4); --store selects the JsonlFileStore directory (default `.rulvar`),
+ * and defaults (the CLI depends only on @rulvar/core);
+ * --store selects the JsonlFileStore directory (default `.rulvar`),
  * and an explicit stores entry in engineOptions wins over it.
  */
 import { resolve } from 'node:path';
@@ -33,7 +33,7 @@ export interface AssembledCli {
   engine: Engine;
   store: JournalStore;
   workflows: WorkflowRegistry;
-  /** The journal-fold price function (table wins over caps; docs/04, section 10). */
+  /** The journal-fold price function (table wins over caps). */
   priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
 }
 
@@ -51,7 +51,7 @@ export function assembleEngine(options: {
   };
   // A RunProfile is pure data applied UNDER the host's own options: the
   // host always wins, and the engine sees only ordinary options
-  // afterward (docs/06, section 11; M5-T07).
+  // afterward (M5-T07).
   if (options.profile !== undefined) {
     const profile = runProfile(options.profile);
     if (profile === undefined) {
@@ -112,8 +112,8 @@ function applyRunProfile(
     };
   }
   if (profile.permissionPreset !== undefined && host.defaults?.permissions === undefined) {
-    // The preset compiles into the engine-wide deny/ask layers as data
-    // (docs/08, section 4.2): the engine config carries no `preset`
+    // The preset compiles into the engine-wide deny/ask layers as data:
+    // the engine config carries no `preset`
     // field, so the profile emits the compiled rules directly.
     const compiled = compilePermissionPreset(profile.permissionPreset);
     merged.defaults = { ...host.defaults, permissions: compiled };

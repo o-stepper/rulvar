@@ -10,10 +10,10 @@
 function runOscillationFreeze(options?): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:372](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L372)
+Defined in: [packages/plan/src/cassettes.ts:371](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L371)
 
 oscillation-freeze: the coarse-signature oscillation detector freezes
-further re-adds under hysteresis (docs/09 round-2; distinct from the
+further re-adds under hysteresis (distinct from the
 per-key osc_guard reject).
 
 ## Parameters

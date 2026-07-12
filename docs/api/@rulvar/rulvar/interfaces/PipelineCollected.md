@@ -6,7 +6,7 @@
 
 # Interface: PipelineCollected\&lt;T\&gt;
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Pipeline results plus the dropped evidence, returned by onItemError: 'collect'.
 
@@ -20,5 +20,5 @@ Pipeline results plus the dropped evidence, returned by onItemError: 'collect'.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-dropped"></a> `dropped` | [`DroppedItem`](/api/@rulvar/rulvar/interfaces/DroppedItem.md)[] | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-results"></a> `results` | `T`[] | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-dropped"></a> `dropped` | [`DroppedItem`](/api/@rulvar/rulvar/interfaces/DroppedItem.md)[] | `packages/core/dist/index.d.ts` |
+| <a id="property-results"></a> `results` | `T`[] | `packages/core/dist/index.d.ts` |

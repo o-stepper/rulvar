@@ -10,6 +10,6 @@
 const FINISH_SCHEMA: SchemaSpec;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-docs/07 4.11: finish; result validates against the declared output schema.
+finish; result validates against the declared output schema.

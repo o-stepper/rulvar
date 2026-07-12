@@ -10,6 +10,6 @@
 const PLAN_VIEW_SCHEMA: SchemaSpec;
 ```
 
-Defined in: [packages/plan/src/tools.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L26)
+Defined in: [packages/plan/src/tools.ts:25](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L25)
 
-docs/07, 4.6: plan_view takes no parameters.
+plan_view takes no parameters.

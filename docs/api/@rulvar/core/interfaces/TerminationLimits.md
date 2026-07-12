@@ -8,7 +8,7 @@
 
 Defined in: [packages/core/src/journal/termination.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L30)
 
-The frozen limits vector written into termination.init (docs/07, 11.2).
+The frozen limits vector written into termination.init.
 
 ## Properties
 

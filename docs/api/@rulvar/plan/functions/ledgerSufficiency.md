@@ -12,7 +12,7 @@ function ledgerSufficiency(view, minimumFacts?): boolean;
 
 Defined in: [packages/plan/src/ledger.ts:322](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L322)
 
-Compaction sufficiency (docs/07, 9.3): the orchestrate role may
+Compaction sufficiency: the orchestrate role may
 compact aggressively only when the ledger measurably suffices (at
 least one authored revision recorded and a minimum fact count);
 otherwise the engine falls back to conservative summarize.

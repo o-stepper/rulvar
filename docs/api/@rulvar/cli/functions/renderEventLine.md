@@ -10,7 +10,7 @@
 function renderEventLine(event): string | undefined;
 ```
 
-Defined in: [packages/cli/src/tui.ts:18](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/tui.ts#L18)
+Defined in: [packages/cli/src/tui.ts:17](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/tui.ts#L17)
 
 Renders one event to a line, or undefined for silent event types.
 

@@ -13,7 +13,7 @@ function mapChatCompletionsStream(
 emit): Promise<void>;
 ```
 
-Defined in: [packages/openai/src/wire.ts:557](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L557)
+Defined in: [packages/openai/src/wire.ts:553](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L553)
 
 Delta-patched chunk assembly for the degraded path.
 

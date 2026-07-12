@@ -12,4 +12,4 @@ const FINISH_SCHEMA: SchemaSpec;
 
 Defined in: [packages/core/src/orchestrator/spawn-tools.ts:100](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L100)
 
-docs/07 4.11: finish; result validates against the declared output schema.
+finish; result validates against the declared output schema.

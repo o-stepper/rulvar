@@ -10,11 +10,10 @@
 function buildAdapterRegistry(adapters): ReadonlyMap<string, ProviderAdapter>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Per-engine adapter registry: strictly per engine, no global mutable
-registry exists. A duplicate adapterId is a typed ConfigError
-(docs/04, section "Registry and ModelRef").
+registry exists. A duplicate adapterId is a typed ConfigError.
 
 ## Parameters
 

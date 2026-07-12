@@ -6,11 +6,11 @@
 
 # Class: JournalCompatibilityError
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Refusal to open a journal whose hashVersion falls outside the engine's
-support window (docs/03, section "hashVersion"; producers ship in M2).
-The registry code is 'journal_compat'; the docs/03 sub-codes live on
+support window (producers ship in M2).
+The registry code is 'journal_compat'; the sub-codes live on
 `subCode` and in `data`.
 
 ## Extends
@@ -25,7 +25,7 @@ The registry code is 'journal_compat'; the docs/03 sub-codes live on
 new JournalCompatibilityError(message, detail): JournalCompatibilityError;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -55,20 +55,20 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 | Property | Modifier | Type | Default value | Description | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-cause"></a> `cause?` | `public` | `unknown` | `undefined` | - | - | [`RulvarError`](/api/@rulvar/rulvar/classes/RulvarError.md).[`cause`](/api/@rulvar/rulvar/classes/RulvarError.md#property-cause) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts:24](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts#L24) |
-| <a id="property-code"></a> `code` | `readonly` | `"journal_compat"` | `"journal_compat"` | - | [`RulvarError`](/api/@rulvar/rulvar/classes/RulvarError.md).[`code`](/api/@rulvar/rulvar/classes/RulvarError.md#property-code) | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | `undefined` | - | - | [`RulvarError`](/api/@rulvar/rulvar/classes/RulvarError.md).[`data`](/api/@rulvar/rulvar/classes/RulvarError.md#property-data) | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-entryhashversion"></a> `entryHashVersion` | `readonly` | `number` | `undefined` | - | - | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-entryseq"></a> `entrySeq` | `readonly` | `number` | `undefined` | Seq of the first violating entry. | - | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-hint"></a> `hint` | `readonly` | `string` | `undefined` | 'enable deriverV1 from @rulvar/compat' or 'upgrade rulvar'. | - | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-code"></a> `code` | `readonly` | `"journal_compat"` | `"journal_compat"` | - | [`RulvarError`](/api/@rulvar/rulvar/classes/RulvarError.md).[`code`](/api/@rulvar/rulvar/classes/RulvarError.md#property-code) | - | `packages/core/dist/index.d.ts` |
+| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | `undefined` | - | - | [`RulvarError`](/api/@rulvar/rulvar/classes/RulvarError.md).[`data`](/api/@rulvar/rulvar/classes/RulvarError.md#property-data) | `packages/core/dist/index.d.ts` |
+| <a id="property-entryhashversion"></a> `entryHashVersion` | `readonly` | `number` | `undefined` | - | - | - | `packages/core/dist/index.d.ts` |
+| <a id="property-entryseq"></a> `entrySeq` | `readonly` | `number` | `undefined` | Seq of the first violating entry. | - | - | `packages/core/dist/index.d.ts` |
+| <a id="property-hint"></a> `hint` | `readonly` | `string` | `undefined` | 'enable deriverV1 from @rulvar/compat' or 'upgrade rulvar'. | - | - | `packages/core/dist/index.d.ts` |
 | <a id="property-message"></a> `message` | `public` | `string` | `undefined` | - | - | [`RulvarError`](/api/@rulvar/rulvar/classes/RulvarError.md).[`message`](/api/@rulvar/rulvar/classes/RulvarError.md#property-message) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1075](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1075) |
 | <a id="property-name"></a> `name` | `public` | `string` | `undefined` | - | - | [`RulvarError`](/api/@rulvar/rulvar/classes/RulvarError.md).[`name`](/api/@rulvar/rulvar/classes/RulvarError.md#property-name) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1074](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1074) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | `undefined` | - | - | [`RulvarError`](/api/@rulvar/rulvar/classes/RulvarError.md).[`retryable`](/api/@rulvar/rulvar/classes/RulvarError.md#property-retryable) | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-runid"></a> `runId` | `readonly` | `string` | `undefined` | - | - | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | `undefined` | - | - | [`RulvarError`](/api/@rulvar/rulvar/classes/RulvarError.md).[`retryable`](/api/@rulvar/rulvar/classes/RulvarError.md#property-retryable) | `packages/core/dist/index.d.ts` |
+| <a id="property-runid"></a> `runId` | `readonly` | `string` | `undefined` | - | - | - | `packages/core/dist/index.d.ts` |
 | <a id="property-stack"></a> `stack?` | `public` | `string` | `undefined` | - | - | [`RulvarError`](/api/@rulvar/rulvar/classes/RulvarError.md).[`stack`](/api/@rulvar/rulvar/classes/RulvarError.md#property-stack) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1076](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1076) |
-| <a id="property-subcode"></a> `subCode` | `readonly` | [`JournalCompatSubCode`](/api/@rulvar/rulvar/type-aliases/JournalCompatSubCode.md) | `undefined` | - | - | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-supportedrange"></a> `supportedRange` | `readonly` | \{ `max`: `number`; `min`: `number`; \} | `undefined` | - | - | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `supportedRange.max` | `public` | `number` | `undefined` | - | - | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `supportedRange.min` | `public` | `number` | `undefined` | - | - | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-subcode"></a> `subCode` | `readonly` | [`JournalCompatSubCode`](/api/@rulvar/rulvar/type-aliases/JournalCompatSubCode.md) | `undefined` | - | - | - | `packages/core/dist/index.d.ts` |
+| <a id="property-supportedrange"></a> `supportedRange` | `readonly` | \{ `max`: `number`; `min`: `number`; \} | `undefined` | - | - | - | `packages/core/dist/index.d.ts` |
+| `supportedRange.max` | `public` | `number` | `undefined` | - | - | - | `packages/core/dist/index.d.ts` |
+| `supportedRange.min` | `public` | `number` | `undefined` | - | - | - | `packages/core/dist/index.d.ts` |
 | <a id="property-stacktracelimit"></a> `stackTraceLimit` | `static` | `number` | `undefined` | The `Error.stackTraceLimit` property specifies the number of stack frames collected by a stack trace (whether generated by `new Error().stack` or `Error.captureStackTrace(obj)`). The default value is `10` but may be set to any valid JavaScript number. Changes will affect any stack trace captured _after_ the value has been changed. If set to a non-number value, or set to a negative number, stack traces will not capture any frames. | - | [`RulvarError`](/api/@rulvar/rulvar/classes/RulvarError.md).[`stackTraceLimit`](/api/@rulvar/rulvar/classes/RulvarError.md#property-stacktracelimit) | [node\_modules/.pnpm/@types+node@22.20.0/node\_modules/@types/node/globals.d.ts:68](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/@types+node@22.20.0/node\_modules/@types/node/globals.d.ts#L68) |
 
 ## Methods
@@ -79,7 +79,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 toWire(): WireError;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Returns
 

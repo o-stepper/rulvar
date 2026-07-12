@@ -22,6 +22,6 @@ type RefEntryClassification =
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Fold classification of one ref-entry; NEVER persisted (docs/03, section 8.4).
+Fold classification of one ref-entry; NEVER persisted.

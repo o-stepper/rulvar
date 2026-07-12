@@ -2,7 +2,7 @@
  * RunLedger (M7-T09): run-scoped, single-writer, journaled, strictly
  * advisory distilled state for recovery-context quality and replanning.
  *
- * Owning spec: docs/07-adaptive-orchestration-spec.md, section 9. ONLY
+ * Contract: https://docs.rulvar.com/guide/adaptive-orchestration. ONLY
  * the orchestrator scope writes; every authored write is a journaled
  * effect entry of kind `ledger.op`; the VIEW is a pure fold of those ops
  * joined to the journal's task table. The journal always wins on what is
@@ -16,7 +16,7 @@
 import { deriverV2 } from '@rulvar/core';
 import type { EntryRef, JournalEntry, LogicalTaskId } from '@rulvar/core';
 
-/** The CLOSED authored op vocabulary (docs/07, 9.2). */
+/** The CLOSED authored op vocabulary. */
 export type LedgerOp =
   | { op: 'brief_set'; text: string }
   | {
@@ -86,7 +86,7 @@ export interface LedgerRevisionRow {
   dropped: number;
 }
 
-/** The pure ledger fold (docs/07, 9.3). */
+/** The pure ledger fold. */
 export interface LedgerView {
   brief?: { text: string; entryRef: EntryRef };
   facts: LedgerFact[];
@@ -124,7 +124,7 @@ export function foldLedger(
     }
     if (entry.kind === 'ledger.op') {
       if (options?.ledgerScope !== undefined && entry.scope !== options.ledgerScope) {
-        // Single-writer: only the orchestrator scope writes (docs/07, 9).
+        // Single-writer: only the orchestrator scope writes.
         view.discrepancies.push(
           `ledger.op at seq ${String(entry.seq)} from foreign scope '${entry.scope}' ignored`,
         );
@@ -228,7 +228,7 @@ export function foldLedger(
 }
 
 /**
- * The committed ledger_read render budget (docs/06, Appendix A: 65536
+ * The committed ledger_read render budget (Appendix A: 65536
  * chars over the serialized view, the character measure; OQ-04 closed
  * at M10 entry). The section caps stay the primary bound; under the
  * default termination limits this belt never engages.
@@ -236,7 +236,7 @@ export function foldLedger(
 export const LEDGER_RENDER_BUDGET_CHARS = 65536;
 
 /**
- * Deterministic render bound (docs/07, 9.3): over budget, rows drop
+ * Deterministic render bound: over budget, rows drop
  * oldest-first, auto-derived joins before authored sections, and the
  * mission brief slices last; every drop is a FLAGGED discrepancy line.
  * A pure function of (view, budget): a re-executed wake turn renders
@@ -293,7 +293,7 @@ export function boundLedgerRender(
   return bounded;
 }
 
-/** Section-cap check for one authored op (docs/06, Appendix A). */
+/** Section-cap check for one authored op (Appendix A). */
 export function ledgerCapViolation(view: LedgerView, op: LedgerOp): string | undefined {
   if (op.op === 'brief_set' && view.brief !== undefined) {
     return 'the mission brief is immutable (brief_set is once per run)';
@@ -314,7 +314,7 @@ export function ledgerCapViolation(view: LedgerView, op: LedgerOp): string | und
 }
 
 /**
- * Compaction sufficiency (docs/07, 9.3): the orchestrate role may
+ * Compaction sufficiency: the orchestrate role may
  * compact aggressively only when the ledger measurably suffices (at
  * least one authored revision recorded and a minimum fact count);
  * otherwise the engine falls back to conservative summarize.
@@ -323,7 +323,7 @@ export function ledgerSufficiency(view: LedgerView, minimumFacts = 3): boolean {
   return view.revisionHistory.length >= 1 && view.facts.length >= minimumFacts;
 }
 
-/** The draft-versioned outward seam (docs/07, 9.3; OQ in docs/14). */
+/** The draft-versioned outward seam; the final shape stays an open question. */
 export interface LedgerExport {
   ledgerExportVersion: 'draft-1';
   brief?: string;

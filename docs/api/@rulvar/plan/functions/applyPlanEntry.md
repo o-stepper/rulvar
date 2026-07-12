@@ -15,7 +15,7 @@ function applyPlanEntry(
 
 Defined in: [packages/plan/src/plan-entries.ts:456](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L456)
 
-THE single applier (docs/07, 3.2): folds one plan-scope entry into the
+THE single applier: folds one plan-scope entry into the
 state. Replay consumes recorded outcomes (the APPLIED diff), never
 re-runs rebase, and timers do not run; hash verification runs under
 the entry's own hashVersion profile.

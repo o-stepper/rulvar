@@ -10,7 +10,7 @@
 function anthropicModelInfo(model): AnthropicModelInfo;
 ```
 
-Defined in: [packages/anthropic/src/caps.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/caps.ts#L114)
+Defined in: [packages/anthropic/src/caps.ts:113](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/caps.ts#L113)
 
 Unknown Anthropic models are assumed current-generation: adaptive
 thinking, native structured outputs, no sampling parameters. refreshCaps

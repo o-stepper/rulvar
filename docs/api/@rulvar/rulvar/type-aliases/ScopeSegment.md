@@ -33,6 +33,6 @@ type ScopeSegment =
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-A parsed scope-path segment (docs/03, section 2.1).
+A parsed scope-path segment.

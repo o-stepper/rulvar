@@ -6,7 +6,7 @@
 
 # Interface: Types\&lt;Input, Output\&gt;
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The Standard types interface.
 
@@ -25,5 +25,5 @@ The Standard types interface.
 
 | Property | Modifier | Type | Description | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-input"></a> `input` | `readonly` | `Input` | The input type of the schema. | `StandardTypedV1.Types.input` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-output"></a> `output` | `readonly` | `Output` | The output type of the schema. | `StandardTypedV1.Types.output` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-input"></a> `input` | `readonly` | `Input` | The input type of the schema. | `StandardTypedV1.Types.input` | `packages/core/dist/index.d.ts` |
+| <a id="property-output"></a> `output` | `readonly` | `Output` | The output type of the schema. | `StandardTypedV1.Types.output` | `packages/core/dist/index.d.ts` |

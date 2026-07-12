@@ -3,7 +3,7 @@
  * target provider's wire view, and the retention lift that puts provider
  * blocks INTO that history in the first place.
  *
- * The rules (docs/04, section 2.3, as amended):
+ * The rules, as amended:
  *
  * - provider-raw parts are retained in canonical history unconditionally;
  * - a projection includes a provider-raw part if and only if the target
@@ -19,7 +19,7 @@
  *   (on both first-class providers the retained blocks precede the
  *   turn's text and tool calls).
  *
- * The canonical-id maps of docs/04 section 1.2 are adapter-instance
+ * The canonical-id maps are adapter-instance
  * state: each adapter keeps its bijection between canonical ids and its
  * own wire ids for its lifetime, fabricating deterministic wire ids for
  * canonical ids minted by another provider. This module owns the
@@ -57,7 +57,7 @@ export function projectHistory(messages: Msg[], targetProvider: string): Msg[] {
 
 /**
  * Lifts the adapter-shipped retention payload of one finished turn into
- * provider-raw parts (docs/04, section 2.3 retention transport). Reads
+ * provider-raw parts (the retention transport). Reads
  * providerMetadata[<adapter id>].retainedParts and tags each block with
  * the adapter's provider family. Returns [] when the adapter shipped
  * nothing.

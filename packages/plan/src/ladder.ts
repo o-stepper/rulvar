@@ -1,9 +1,8 @@
 /**
  * ModelLadder runtime pieces (M7-T10).
  *
- * Owning spec: docs/07-adaptive-orchestration-spec.md, section 10 (runtime
- * semantics); docs/04-model-layer-spec.md, section 12 (the type family and
- * canonicalization, declared once in core). This module is PURE: the
+ * The ladder type family and canonicalization are declared once in
+ * core. This module is PURE: the
  * PlanRunner drives it through the extension IO. Every ladder control-flow
  * verdict (trigger classification result, gate verdicts, spot-check
  * selection) journals as a decision entry computed once live and replayed
@@ -23,8 +22,8 @@ import type {
 
 /**
  * Extracts the declared ladder from an agent profile: the ModelSpec union
- * carries it (`model: { ladder }`), or the loop-role routing entry
- * (docs/04, section 12). The same declaration points feed ladderLengthOf
+ * carries it (`model: { ladder }`), or the loop-role routing entry.
+ * The same declaration points feed ladderLengthOf
  * and the frozen kMax, so admission and execution can never disagree on
  * the ladder length.
  */
@@ -57,8 +56,8 @@ export function canonicalLadderOf(profile: unknown): CanonicalLadderSpec | undef
 }
 
 /**
- * Clamps the orchestrator's `model_hint.startTier` to the declared ladder
- * (docs/07, section 4.2): the hint is the ONLY model influence the
+ * Clamps the orchestrator's `model_hint.startTier` to the declared ladder:
+ * the hint is the ONLY model influence the
  * orchestrator has, and it never names a model.
  */
 export function clampStartTier(ladder: CanonicalLadderSpec, hint?: number): number {
@@ -71,7 +70,7 @@ export function clampStartTier(ladder: CanonicalLadderSpec, hint?: number): numb
 /**
  * The rung an attempt executes on: the clamped start tier plus the
  * journaled raise count, hard-clamped at the top rung. `rungIndex` per
- * lineage is strictly monotone; there are no demotions (docs/07, 10).
+ * lineage is strictly monotone; there are no demotions.
  */
 export function executingRungOf(
   ladder: CanonicalLadderSpec,
@@ -82,8 +81,8 @@ export function executingRungOf(
 }
 
 /**
- * Classifies a settled attempt into the typed transition trigger
- * (docs/04, section 12): schema-mismatch errors are 'schema-exhausted';
+ * Classifies a settled attempt into the typed transition trigger:
+ * schema-mismatch errors are 'schema-exhausted';
  * the engine's no-progress abort is first-class 'no-progress' (it rides
  * status 'limit' with the dedicated abort class, distinct from user
  * cancellation by construction); cancelled, escalated, and skipped never
@@ -105,7 +104,7 @@ export function ladderTriggerOf(
   return undefined;
 }
 
-/** One journaled acceptance-gate evaluation (docs/07, section 10). */
+/** One journaled acceptance-gate evaluation. */
 export interface GateVerdictValue {
   decisionType: 'gate-verdict';
   logicalTaskId: LogicalTaskId;
@@ -129,12 +128,12 @@ export function gateVerdictKey(attemptRef: EntryRef, gateIndex: number): string 
 }
 
 /**
- * The ladder verdict decision entry (docs/07, sections 10 and 11.3): the
+ * The ladder verdict decision entry: the
  * producer contract both folds already consume. A RAISING verdict debits
  * one rung unit (rungIndexAfter/rungsRemainingAfter embedded, checked by
  * foldTermination) and carries the rung RESPAWN's embedded admission
  * (spawn debit) plus `nextAttempt` (the lineage registration: relation
- * 'rung-retry', docs/03 10.1 row 4). A non-raising verdict records the
+ * 'rung-retry'). A non-raising verdict records the
  * ladder's end (exhausted rungs, top rung, or a denied respawn) and
  * authorizes nothing.
  */
@@ -156,7 +155,7 @@ export interface LadderVerdictValue {
     /** The concrete rung the next attempt executes on. */
     rungIndex: number;
   };
-  /** The embedded respawn admission (the spawn debit; docs/07, 11.3 b). */
+  /** The embedded respawn admission (the spawn debit). */
   admissions?: Json[];
   /** Non-raising verdicts: why the ladder ended here. */
   reason?: 'rungs_exhausted' | 'top_rung' | 'respawn_denied' | 'trigger_not_declared';
@@ -167,7 +166,7 @@ export function ladderVerdictKey(attemptRef: EntryRef): string {
   return deriverV2.deriveKey({ kind: 'ladder-verdict', attemptRef });
 }
 
-/** The forced verdict schema of the judge gate (docs/07, section 10). */
+/** The forced verdict schema of the judge gate. */
 export const JUDGE_VERDICT_SCHEMA = {
   type: 'object',
   properties: {

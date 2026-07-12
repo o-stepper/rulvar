@@ -6,10 +6,10 @@
 
 # Class: JournalOrderViolation
 
-Defined in: [packages/core/src/l0/errors.ts:187](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L187)
+Defined in: [packages/core/src/l0/errors.ts:186](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L186)
 
 A breach of the total per-run append order: an unfenced concurrent writer
-or a store violating contract A2 (docs/03, section "Storage SPI").
+or a store violating contract A2 (https://docs.rulvar.com/guide/stores).
 
 ## Extends
 
@@ -23,7 +23,7 @@ or a store violating contract A2 (docs/03, section "Storage SPI").
 new JournalOrderViolation(message, opts?): JournalOrderViolation;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:190](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L190)
+Defined in: [packages/core/src/l0/errors.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L189)
 
 #### Parameters
 
@@ -47,7 +47,7 @@ Defined in: [packages/core/src/l0/errors.ts:190](https://github.com/o-stepper/ru
 | Property | Modifier | Type | Description | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-cause"></a> `cause?` | `public` | `unknown` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`cause`](/api/@rulvar/core/classes/RulvarError.md#property-cause) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts:24](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts#L24) |
-| <a id="property-code"></a> `code` | `readonly` | `"journal_order_violation"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:188](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L188) |
+| <a id="property-code"></a> `code` | `readonly` | `"journal_order_violation"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:187](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L187) |
 | <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L57) |
 | <a id="property-message"></a> `message` | `public` | `string` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`message`](/api/@rulvar/core/classes/RulvarError.md#property-message) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1075](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1075) |
 | <a id="property-name"></a> `name` | `public` | `string` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`name`](/api/@rulvar/core/classes/RulvarError.md#property-name) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1074](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1074) |

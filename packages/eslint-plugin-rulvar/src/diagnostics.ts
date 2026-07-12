@@ -1,5 +1,5 @@
 /**
- * Structural JSON diagnostics (M6-T03; docs/06, section 8.4): the
+ * Structural JSON diagnostics (M6-T03): the
  * machine-readable projection of ESLint lint messages consumed by the
  * mode (b) self-repair loop (@rulvar/planner). The shape matches
  * ScriptDiagnostic from compileScript structurally, so one repair prompt

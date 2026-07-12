@@ -48,4 +48,4 @@ type LedgerOp =
 
 Defined in: [packages/plan/src/ledger.ts:20](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L20)
 
-The CLOSED authored op vocabulary (docs/07, 9.2).
+The CLOSED authored op vocabulary.

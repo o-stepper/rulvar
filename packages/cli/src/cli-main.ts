@@ -1,5 +1,5 @@
 /**
- * Command dispatch for the canonical grammar (docs/06, section 10.5):
+ * Command dispatch for the canonical grammar (https://docs.rulvar.com/guide/cli):
  * no aliases in v1; unknown commands and flags fail loudly with usage.
  */
 import { ConfigError } from '@rulvar/core';

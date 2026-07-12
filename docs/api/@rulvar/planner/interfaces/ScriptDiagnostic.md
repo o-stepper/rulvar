@@ -6,15 +6,15 @@
 
 # Interface: ScriptDiagnostic
 
-Defined in: [packages/planner/src/compile.ts:41](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L41)
+Defined in: [packages/planner/src/compile.ts:40](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L40)
 
-One machine-readable compileScript diagnostic (docs/02, ScriptRejected row).
+One machine-readable compileScript diagnostic (carried by ScriptRejected).
 
 ## Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-column"></a> `column?` | `number` | [packages/planner/src/compile.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L45) |
-| <a id="property-line"></a> `line?` | `number` | [packages/planner/src/compile.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L44) |
-| <a id="property-message"></a> `message` | `string` | [packages/planner/src/compile.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L43) |
-| <a id="property-ruleid"></a> `ruleId` | `string` | [packages/planner/src/compile.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L42) |
+| <a id="property-column"></a> `column?` | `number` | [packages/planner/src/compile.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L44) |
+| <a id="property-line"></a> `line?` | `number` | [packages/planner/src/compile.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L43) |
+| <a id="property-message"></a> `message` | `string` | [packages/planner/src/compile.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L42) |
+| <a id="property-ruleid"></a> `ruleId` | `string` | [packages/planner/src/compile.ts:41](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L41) |

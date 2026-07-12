@@ -6,14 +6,14 @@
 
 # Interface: TerminationInitValue
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The value payload of a termination.init entry (docs/07, 11.6).
+The value payload of a termination.init entry.
 
 ## Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-limits"></a> `limits` | [`TerminationLimits`](/api/@rulvar/rulvar/interfaces/TerminationLimits.md) | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-phiinitial"></a> `phiInitial` | `number` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-profileregistrysnapshothash"></a> `profileRegistrySnapshotHash` | `string` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-limits"></a> `limits` | [`TerminationLimits`](/api/@rulvar/rulvar/interfaces/TerminationLimits.md) | `packages/core/dist/index.d.ts` |
+| <a id="property-phiinitial"></a> `phiInitial` | `number` | `packages/core/dist/index.d.ts` |
+| <a id="property-profileregistrysnapshothash"></a> `profileRegistrySnapshotHash` | `string` | `packages/core/dist/index.d.ts` |

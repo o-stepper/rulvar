@@ -12,13 +12,12 @@ function retryClassOf(error):
   | undefined;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Classifies a WireError for the retry engine. Task-class failures are
 never retryable by construction: adapters mark them retryable: false
-and this returns undefined. The kind travels in WireError.data.kind
-(docs/04, section 4.9); anything retryable without a specific kind is
-transport.
+and this returns undefined. The kind travels in WireError.data.kind;
+anything retryable without a specific kind is transport.
 
 ## Parameters
 

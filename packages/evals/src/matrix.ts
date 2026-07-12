@@ -1,10 +1,10 @@
 /**
- * Config-matrix comparison (M9-T02; docs/09, section 7.2): profile versus
+ * Config-matrix comparison (M9-T02): profile versus
  * profile, cheap workers versus premium, reviewer on or off. Each cell
  * supplies its own engine (the configuration under measurement); the
  * report carries pass-rate, cost, and latency per cell, sourced from the
  * existing usage and cost fields. No separate measurement channel exists,
- * no failure clustering, no vector dependency (EXC registry, docs/01).
+ * no failure clustering, no vector dependency (EXC registry).
  */
 import type { Engine } from '@rulvar/core';
 import {

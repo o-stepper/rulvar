@@ -12,7 +12,7 @@ function planRunIdOf(goal): string;
 
 Defined in: [packages/planner/src/plan.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/plan.ts#L50)
 
-The deterministic planner runId: one goal, one journal (docs/06, 9.2).
+The deterministic planner runId: one goal, one journal.
 
 ## Parameters
 

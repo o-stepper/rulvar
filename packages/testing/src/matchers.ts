@@ -1,7 +1,7 @@
 /**
  * Vitest/Jest matchers (M1-T14): operate on the settled TestRunHandle and
- * its recorded event stream; they MUST NOT reach into engine internals
- * (docs/09, section "Matchers"). Import from '@rulvar/testing/matchers'
+ * its recorded event stream; they MUST NOT reach into engine internals.
+ * Import from '@rulvar/testing/matchers'
  * and register with expect.extend.
  */
 import type { TestRunHandle } from './test-engine.js';

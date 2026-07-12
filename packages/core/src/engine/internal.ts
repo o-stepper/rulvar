@@ -1,10 +1,10 @@
 /**
  * Package-internal ctx runtime access (M6-T02). NOT exported from the
  * package index: the public seam for runners is createSandboxBridge
- * (src/runner/sandbox-bridge.ts, docs/06 8.2); the mode (c) orchestrator
+ * (src/runner/sandbox-bridge.ts); the mode (c) orchestrator
  * (src/orchestrator, M6-T07) is the other in-package consumer. Shells and
- * orchestration packages never import this module (docs/02, section
- * "Dependency rules": they build exclusively from the public API).
+ * orchestration packages never import this module (they build
+ * exclusively from the public API).
  */
 import type { Ctx, RunInternals } from './ctx.js';
 

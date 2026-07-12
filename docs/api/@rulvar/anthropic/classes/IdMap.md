@@ -8,7 +8,7 @@
 
 Defined in: [packages/anthropic/src/wire.ts:23](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L23)
 
-Bijective canonical-to-wire tool-call id map (docs/04, section 1.2).
+Bijective canonical-to-wire tool-call id map.
 
 ## Constructors
 

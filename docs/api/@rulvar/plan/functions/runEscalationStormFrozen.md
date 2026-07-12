@@ -10,7 +10,7 @@
 function runEscalationStormFrozen(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:747](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L747)
+Defined in: [packages/plan/src/cassettes.ts:746](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L746)
 
 escalation-storm-frozen (DEF-7 set): three Flavor B escalations while
 the plan is frozen at the cap; each resolves through its journaled

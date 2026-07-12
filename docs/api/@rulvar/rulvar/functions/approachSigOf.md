@@ -10,7 +10,7 @@
 function approachSigOf(coarse, tag?): string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 approachSig = sha256(JCS({ sigVersion, coarse, approachTag })); keys lessons.
 

@@ -8,7 +8,7 @@
 
 Defined in: [packages/plan/src/plan-entries.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L140)
 
-One embedded admission beside its op (docs/07, 3.3; DEF-2/DEF-3 folds read it).
+One embedded admission beside its op (DEF-2/DEF-3 folds read it).
 
 ## Properties
 

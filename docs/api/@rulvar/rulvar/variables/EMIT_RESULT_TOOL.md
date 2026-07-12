@@ -10,6 +10,6 @@
 const EMIT_RESULT_TOOL: "emit_result" = "emit_result";
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The synthesized forced-tool contract name.

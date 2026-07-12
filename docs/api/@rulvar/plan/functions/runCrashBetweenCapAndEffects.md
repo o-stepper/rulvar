@@ -10,7 +10,7 @@
 function runCrashBetweenCapAndEffects(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:676](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L676)
+Defined in: [packages/plan/src/cassettes.ts:675](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L675)
 
 crash-between-cap-and-effects (DEF-7): process death right after the
 cap decision entry, before any of its effects; resume re-derives the

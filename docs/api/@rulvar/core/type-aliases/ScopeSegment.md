@@ -35,4 +35,4 @@ type ScopeSegment =
 
 Defined in: [packages/core/src/journal/scope.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/scope.ts#L49)
 
-A parsed scope-path segment (docs/03, section 2.1).
+A parsed scope-path segment.

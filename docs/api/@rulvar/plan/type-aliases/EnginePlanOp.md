@@ -37,7 +37,7 @@ type EnginePlanOp =
 
 Defined in: [packages/plan/src/plan-entries.ts:177](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L177)
 
-The closed EnginePlanOp set (docs/07, 3.3).
+The closed EnginePlanOp set.
 
 ## Union Members
 

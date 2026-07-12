@@ -6,12 +6,12 @@
 
 # Interface: KnowledgeSnapshot
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-claims"></a> `claims` | [`ModelClaim`](/api/@rulvar/rulvar/interfaces/ModelClaim.md)[] | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-hash"></a> `hash` | `string` | Deterministic content hash of the claims array. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-version"></a> `version` | `number` | Monotonic; the CAS token of commit. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-claims"></a> `claims` | [`ModelClaim`](/api/@rulvar/rulvar/interfaces/ModelClaim.md)[] | - | `packages/core/dist/index.d.ts` |
+| <a id="property-hash"></a> `hash` | `string` | Deterministic content hash of the claims array. | `packages/core/dist/index.d.ts` |
+| <a id="property-version"></a> `version` | `number` | Monotonic; the CAS token of commit. | `packages/core/dist/index.d.ts` |

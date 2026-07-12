@@ -16,7 +16,7 @@ Imports MCP tools as a ToolSource. The client connects lazily on the
 first tools() call; tools/list is fetched with cursor pagination until
 exhaustion and cached per session; a listChanged notification
 invalidates the cache, affecting subsequently spawned agents only (a
-spawn's toolset snapshot is immutable by construction; docs/08 6.3).
+spawn's toolset snapshot is immutable by construction).
 
 ## Parameters
 

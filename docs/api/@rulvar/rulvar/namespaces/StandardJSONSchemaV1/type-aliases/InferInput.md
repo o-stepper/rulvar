@@ -10,7 +10,7 @@
 type InferInput<Schema> = StandardTypedV1.InferInput<Schema>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Infers the input type of a Standard.
 

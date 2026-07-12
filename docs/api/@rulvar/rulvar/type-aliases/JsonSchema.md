@@ -12,11 +12,10 @@ type JsonSchema = {
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 A JSON Schema document (draft 2020-12) as plain JSON data. Canonical
-serialization and hashing rules live with the KeyDeriver (docs/03,
-section "schemaHash and toolsetHash derivation").
+serialization and hashing rules live with the KeyDeriver.
 
 ## Index Signature
 

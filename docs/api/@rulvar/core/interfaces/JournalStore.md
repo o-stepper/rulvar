@@ -6,7 +6,7 @@
 
 # Interface: JournalStore
 
-Defined in: [packages/core/src/l0/spi/store.ts:48](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L48)
+Defined in: [packages/core/src/l0/spi/store.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L47)
 
 ## Extended by
 
@@ -23,7 +23,7 @@ append(
 lease?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L49)
+Defined in: [packages/core/src/l0/spi/store.ts:48](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L48)
 
 #### Parameters
 
@@ -45,7 +45,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:49](https://github.com/o-stepper/
 delete(runId): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L53)
+Defined in: [packages/core/src/l0/spi/store.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L52)
 
 #### Parameters
 
@@ -65,7 +65,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:53](https://github.com/o-stepper/
 listRuns(f?): Promise<RunMeta[]>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L52)
+Defined in: [packages/core/src/l0/spi/store.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L51)
 
 #### Parameters
 
@@ -85,7 +85,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:52](https://github.com/o-stepper/
 load(runId): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L50)
+Defined in: [packages/core/src/l0/spi/store.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L49)
 
 #### Parameters
 
@@ -105,7 +105,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:50](https://github.com/o-stepper/
 putMeta(m): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L51)
+Defined in: [packages/core/src/l0/spi/store.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L50)
 
 #### Parameters
 

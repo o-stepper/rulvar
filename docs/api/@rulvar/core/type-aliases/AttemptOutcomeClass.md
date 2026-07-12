@@ -20,4 +20,4 @@ type AttemptOutcomeClass =
 
 Defined in: [packages/core/src/journal/lineage.ts:67](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L67)
 
-Attempt outcome classes entering LineageStats (docs/03, 10.3).
+Attempt outcome classes entering LineageStats.

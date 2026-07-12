@@ -10,6 +10,6 @@
 type SpawnKey = string;
 ```
 
-Defined in: [packages/core/src/journal/reuse.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/reuse.ts#L27)
+Defined in: [packages/core/src/journal/reuse.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/reuse.ts#L28)
 
-Kernel contentHash of a spawn root entry (docs/03, 9.2).
+Kernel contentHash of a spawn root entry.

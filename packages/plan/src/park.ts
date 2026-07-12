@@ -1,9 +1,7 @@
 /**
  * Park and unpark (M7-T08).
  *
- * Owning spec: docs/03-journal-spec.md, section 11.2; docs/07, section
- * 3.6 (the park/unpark conflict rows); docs/08, section "IsolationProvider
- * and worktree lifecycle" (the shared pin cap). Park preserves the
+ * Full contract: https://docs.rulvar.com/guide/durability. Park preserves the
  * child's transcript checkpoint; worktree-isolated parked nodes either
  * pin the tree under `maxPinnedWorktrees` (default 4, shared with
  * DEF-5's `retainWorktree`) or unpark restarts the agent: silent resume
@@ -11,7 +9,7 @@
  * safety). Overflow keeps the checkpoint but drops the worktree, so the
  * unpark becomes a restart and grafts degrade to fresh (graft_unsafe).
  * An unpark that restarts is a lineage attempt (relation
- * 'unpark-restart', docs/03 10.1 rule 5); it always takes an embedded
+ * 'unpark-restart'); it always takes an embedded
  * admission reserve.
  */
 import type { IsolationSpec, JournalEntry } from '@rulvar/core';
@@ -22,7 +20,7 @@ export const DEFAULT_MAX_PINNED_WORKTREES = 4;
 /**
  * The worktree pin ledger: a pure fold counting live pins from abandon
  * entries carrying `retainWorktree: true` (park pinning and DEF-5
- * retention share the cap by construction; docs/08).
+ * retention share the cap by construction).
  */
 export class PinLedger {
   private readonly pinnedTargets = new Set<number>();
@@ -55,7 +53,7 @@ export class PinLedger {
   }
 }
 
-/** The park disposition computed at landing time (docs/03, 11.2). */
+/** The park disposition computed at landing time. */
 export interface ParkDisposition {
   /** Checkpoints are always retained on park. */
   retainCheckpoint: true;
@@ -75,7 +73,7 @@ export function parkDispositionOf(
   };
 }
 
-/** The unpark placement (docs/03, 11.2): continuation or restart. */
+/** The unpark placement: continuation or restart. */
 export interface UnparkPlacement {
   /** True when the agent must restart (no checkpoint, or tree dropped). */
   restart: boolean;
@@ -97,7 +95,7 @@ export function unparkPlacementOf(input: {
   }
   if (worktree && !input.worktreePinned) {
     // The pin cap dropped the tree: the checkpoint survives but a silent
-    // resume against a fresh tree is impossible (docs/03, 11.2).
+    // resume against a fresh tree is impossible.
     return { restart: true };
   }
   return { restart: false, bootCheckpointRef: input.transcriptRef };

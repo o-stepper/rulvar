@@ -1,6 +1,5 @@
 /**
- * modelEpoch capture (M11-T04; docs/05, section "Grounding and
- * decay"). An HONESTLY COARSE signal: the registry version, the
+ * modelEpoch capture (M11-T04). An HONESTLY COARSE signal: the registry version, the
  * price-table version, and the caps hash catch overt model swaps and
  * deprecations; silent alias re-pointing is a documented uncaught case
  * absent probes (the canary fingerprint in @rulvar/evals compensates,

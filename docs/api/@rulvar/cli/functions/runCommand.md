@@ -10,7 +10,7 @@
 function runCommand(argv, context): Promise<number>;
 ```
 
-Defined in: [packages/cli/src/commands.ts:91](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L91)
+Defined in: [packages/cli/src/commands.ts:90](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L90)
 
 ## Parameters
 

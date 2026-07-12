@@ -1,8 +1,8 @@
 /**
  * WorkflowEvent: the single discriminated observability stream (M1-T10).
  *
- * Owning spec: docs/09-observability-testing-spec.md, section "Event
- * stream". Events are pure telemetry: no event, field, or ordering
+ * Docs: https://docs.rulvar.com/guide/observability. Events are pure
+ * telemetry: no event, field, or ordering
  * participates in journal identity, and dropping every event MUST NOT
  * change any run outcome. The catalog is closed for v1; the adaptive-
  * orchestration variants (plan:revised, orchestrator:woke, ...) join this
@@ -14,7 +14,7 @@ import type { Usage } from './messages.js';
 import type { WireError } from './errors.js';
 import type { ResolutionBy } from './entries.js';
 
-/** docs/09 section 1.4, run lifecycle and core telemetry (M1 subset). */
+/** Run lifecycle and core telemetry (M1 subset). */
 export type CoreEvents =
   | { type: 'run:start'; workflow: string; resumed: boolean }
   | {
@@ -41,7 +41,7 @@ export type CoreEvents =
   | { type: 'child:start'; workflow: string; scope: string }
   | { type: 'child:end'; workflow: string; scope: string; status: string };
 
-/** docs/09 section 1.4, agent lifecycle. */
+/** Agent lifecycle. */
 export type AgentEvents =
   | { type: 'agent:queued'; agentType: string; label?: string }
   | { type: 'agent:start'; agentType: string; label?: string; model: string; role: string }
@@ -59,7 +59,7 @@ export type AgentEvents =
   /** Emitted only when the call opts into streaming; never journaled, never re-emitted. */
   | { type: 'agent:stream'; delta: string };
 
-/** docs/09 section 1.4, tool lifecycle (emitters arrive with the tool system, M3). */
+/** Tool lifecycle (emitters arrive with the tool system, M3). */
 export type ToolEvents =
   | { type: 'tool:start'; toolName: string; risk?: Json }
   | {
@@ -68,7 +68,7 @@ export type ToolEvents =
       outcome: 'ok' | 'error' | 'denied';
       durationMs: number;
       /**
-       * Audit fields (docs/08, section 4.5; M5-T05): the chain verdict,
+       * Audit fields (M5-T05): the chain verdict,
        * the deciding layer, the matched rule, and advisory domain-rule
        * matches. Telemetry, never identity; ask verdicts additionally
        * journal as suspended approvals.
@@ -80,9 +80,10 @@ export type ToolEvents =
     };
 
 /**
- * docs/09 section 1.4, adaptive orchestration, resolutions, and
+ * Adaptive orchestration, resolutions, and
  * accounting: emitted only by runs where the corresponding machinery is
- * active (applicability per mode: docs/07, section 1). The types land as
+ * active (applicability per mode:
+ * https://docs.rulvar.com/guide/adaptive-orchestration). The types land as
  * one closed catalog with M7-T03; emitters arrive with their tasks.
  */
 export type AdaptiveEvents =
@@ -135,7 +136,7 @@ export type AdaptiveEvents =
   | {
       type: 'spawn:admitted';
       entryRef: number;
-      /** The admitting arms of the unified AdmitVerdict union (docs/07, 7.2). */
+      /** The admitting arms of the unified AdmitVerdict union. */
       verdict: 'admit' | 'reuse_full' | 'admit_graft';
       agentType: string;
       logicalTaskId: string;
@@ -183,12 +184,12 @@ export type AdaptiveEvents =
 export type WorkflowEventBody = CoreEvents | AgentEvents | ToolEvents | AdaptiveEvents;
 
 /**
- * The envelope (docs/09 section 1.1): seq is an independent per-run
+ * The envelope: seq is an independent per-run
  * telemetry counter, strictly increasing in emission order and DISTINCT
  * from JournalEntry.seq (never compare or join the two; entryRef fields
  * carry journal seqs explicitly). ts is wall clock, telemetry only.
- * replayed is true only on re-emitted journal-backed lifecycle events
- * (docs/09 section 1.5); stream deltas are never re-emitted.
+ * replayed is true only on re-emitted journal-backed lifecycle events;
+ * stream deltas are never re-emitted.
  */
 export type WorkflowEvent = {
   runId: string;

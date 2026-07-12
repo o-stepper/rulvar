@@ -10,9 +10,9 @@
 function claimExpired(claim, at): boolean;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-True when the claim steers nothing at `at` (docs/05, read-path filters).
+True when the claim steers nothing at `at` (the read-path filter).
 
 ## Parameters
 

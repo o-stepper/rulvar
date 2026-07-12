@@ -2,8 +2,8 @@
  * plan.revision and plan.decision entry payloads plus the single-applier
  * plan fold (M7-T04, DEF-8).
  *
- * Owning spec: docs/07-adaptive-orchestration-spec.md, sections 3.2-3.4
- * and 3.9. There are several AUTHORS of plan mutations but exactly ONE
+ * Full contract: https://docs.rulvar.com/guide/adaptive-orchestration.
+ * There are several AUTHORS of plan mutations but exactly ONE
  * APPLIER: the fold below, consuming a totally ordered stream of
  * plan-mutating entries from the sequential scope "plan". Nothing mutates
  * PlanState directly; state is a pure fold of entries. Replay NEVER
@@ -41,7 +41,7 @@ import {
   type TaskSpecPatch,
 } from './task-spec.js';
 
-/** The orchestrator-facing PlanOp union (docs/07, 4.7). */
+/** The orchestrator-facing PlanOp union. */
 export type PlanOp =
   | {
       op: 'add_task';
@@ -63,7 +63,7 @@ export type PlanOp =
 
 /**
  * Applied forms the fold consumes. cancel_task gains the engine-computed
- * cascade (docs/07, 3.6: computed at apply time, never a parameter);
+ * cascade (computed at apply time, never a parameter);
  * park/cancel against running nodes apply as flag requests landing later
  * via plan.decision (park-landed, cancel-landed).
  */
@@ -83,7 +83,7 @@ export type AppliedPlanOp =
   | { op: 'rewire_deps'; nodeId: NodeId; deps: NodeId[] }
   | Extract<PlanOp, { op: 'waive_dep' }>;
 
-/** The complete machine reason vocabulary, normative and closed (docs/07, 3.5). */
+/** The complete machine reason vocabulary, normative and closed. */
 export type RebaseReasonCode =
   | 'admission_denied'
   | 'node_already_done'
@@ -119,7 +119,7 @@ export interface PlanSnapshotRef {
 }
 
 export interface PlanReviseRequest {
-  /** Mandatory; the call is rejected without it (docs/07, 3.5). */
+  /** Mandatory; the call is rejected without it. */
   base: PlanSnapshotRef;
   ops: PlanOp[];
   rationale: string;
@@ -136,7 +136,7 @@ export interface PlanReviseResult {
 
 export type PlanReviseErrorCode = 'revision_budget_exhausted' | RebaseReasonCode;
 
-/** One embedded admission beside its op (docs/07, 3.3; DEF-2/DEF-3 folds read it). */
+/** One embedded admission beside its op (DEF-2/DEF-3 folds read it). */
 export interface PlanRevisionAdmission {
   opIndex: number;
   nodeId?: NodeId;
@@ -145,7 +145,7 @@ export interface PlanRevisionAdmission {
   reuse?: { donorScope: string; chain: string[] };
 }
 
-/** The value payload of a plan.revision entry (docs/07, 3.3; XF-11). */
+/** The value payload of a plan.revision entry (XF-11). */
 export interface PlanRevisionValue {
   base: PlanSnapshotRef;
   requestedOps: PlanOp[];
@@ -163,7 +163,7 @@ export interface PlanRevisionValue {
   debits?: Array<{ resource: string; logicalTaskId?: LogicalTaskId; balanceAfter: number }>;
 }
 
-/** Engine authorship origins of plan.decision entries (docs/07, 3.3). */
+/** Engine authorship origins of plan.decision entries. */
 export type PlanDecisionOrigin =
   | 'escalation-default'
   | 'escalation-class'
@@ -173,7 +173,7 @@ export type PlanDecisionOrigin =
   | 'park-landed'
   | 'cancel-landed';
 
-/** The closed EnginePlanOp set (docs/07, 3.3). */
+/** The closed EnginePlanOp set. */
 export type EnginePlanOp =
   | {
       kind: 'set_node_status';
@@ -198,7 +198,7 @@ export type EnginePlanOp =
       admission: AdmissionDecision;
     };
 
-/** The value payload of a plan.decision entry (docs/07, 3.3). */
+/** The value payload of a plan.decision entry. */
 export interface PlanDecisionValue {
   origin: PlanDecisionOrigin;
   ops: EnginePlanOp[];
@@ -209,7 +209,7 @@ export interface PlanDecisionValue {
 }
 
 /**
- * Content keys (docs/07, 3.3): plan.revision keys over {kind, base,
+ * Content keys: plan.revision keys over {kind, base,
  * requestedOps}; plan.decision over {kind, origin, ops, causeRef}.
  * Cosmetics (rationale) never enter a key; ordinal within scope "plan"
  * distinguishes repeats, so forward-matching works without kernel
@@ -239,7 +239,7 @@ export function planDecisionKey(
 /**
  * The working state the applier threads: the hashed TaskPlan plus the
  * resolved spec table. Specs stay OUT of planHash by construction (the
- * hashed projection is promptSpecHash per node, docs/07 3.1) but are
+ * hashed projection is promptSpecHash per node) but are
  * themselves a pure fold of add_task specs, amend patches, and
  * decomposition specs, so live and replay converge byte-identically.
  */
@@ -252,8 +252,8 @@ export interface PlanWorking {
  * The plan fold state: the working state plus fold-side records that
  * deliberately stay OUT of planHash. `badBaseStreak` reconciles two
  * normative clauses: a bad_base revision leaves the hashed state
- * byte-identical (docs/07, 3.5 step 2: planHashAfter == planHashBefore)
- * yet still lengthens the guard streak (docs/07, 3.6 last row): the
+ * byte-identical (planHashAfter == planHashBefore)
+ * yet still lengthens the guard streak: the
  * guards therefore consume `effectiveDroppedStreak`, the hashed counter
  * plus the trailing bad_base entries. `doneRefs` remembers which entry
  * resolved each done node so waive_dep drops can point blockingRef at
@@ -268,7 +268,7 @@ export function emptyPlanFold(plan: TaskPlan): PlanFoldState {
   return { plan, specs: {}, badBaseStreak: 0, doneRefs: {} };
 }
 
-/** The streak RevisionGuards consume (docs/07, 3.8). */
+/** The streak RevisionGuards consume. */
 export function effectiveDroppedStreak(state: PlanFoldState): number {
   return state.plan.droppedRevisionStreak + state.badBaseStreak;
 }
@@ -323,7 +323,7 @@ function withNode(working: PlanWorking, node: PlanNode, spec?: TaskSpec): PlanWo
  * recorded outcomes; op-level legality was decided at rebase time and is
  * never re-evaluated here. Exported for the rebase engine, which applies
  * each op of a revision against the state already changed by the earlier
- * applied ops of the same revision (docs/07, 3.5, step 3).
+ * applied ops of the same revision.
  */
 export function applyAppliedOp(
   working: PlanWorking,
@@ -364,7 +364,7 @@ export function applyAppliedOp(
       const amendedSpec = applyTaskSpecPatch(current, op.spec);
       const amended: PlanNode = { ...node, promptSpecHash: promptSpecHashOf(amendedSpec) };
       // The checkpoint-discarding transform on parked nodes: unpark
-      // becomes a restart (docs/07, 3.6).
+      // becomes a restart.
       if (node.status === 'parked') {
         delete amended.checkpointRef;
       }
@@ -448,7 +448,7 @@ export function readPlanDecision(entry: JournalEntry): PlanDecisionValue | undef
 }
 
 /**
- * THE single applier (docs/07, 3.2): folds one plan-scope entry into the
+ * THE single applier: folds one plan-scope entry into the
  * state. Replay consumes recorded outcomes (the APPLIED diff), never
  * re-runs rebase, and timers do not run; hash verification runs under
  * the entry's own hashVersion profile.
@@ -473,7 +473,7 @@ export function applyPlanEntry(
       );
     if (badBase) {
       // The hashed state stays byte-identical; only the guard-side
-      // streak lengthens (docs/07, 3.5 step 2 and 3.6 last row).
+      // streak lengthens.
       verifyHash(entry, 'planHashAfter', value.planHashAfter, state.plan, options?.deriverFor);
       return { ...state, badBaseStreak: state.badBaseStreak + 1 };
     }
@@ -520,7 +520,7 @@ export function applyPlanEntry(
 
 /**
  * The shared plan.decision applier core: engine authorship happens at
- * the fold head under PlanWriteLock (docs/07, 3.3), so the producer can
+ * the fold head under PlanWriteLock, so the producer can
  * PREVIEW the resulting state (and its planHashAfter) before appending,
  * and the fold re-applies the recorded ops identically on replay.
  */
@@ -544,14 +544,14 @@ export function applyDecisionOps(
       assertPlanTransition(node, op.to);
       const next: PlanNode = { ...node, status: op.to };
       if (isTerminalPlanStatus(op.to)) {
-        // A terminal transition extinguishes pending flags (docs/07,
-        // 3.9: no orphaned flags, no double checkpoints).
+        // A terminal transition extinguishes pending flags
+        // (no orphaned flags, no double checkpoints).
         next.parkRequested = false;
         next.cancelRequested = false;
       }
       if (op.to === 'parked') {
         // The park landed: the request flag clears and the checkpoint
-        // anchor records (docs/03, 11.2; M7-T08).
+        // anchor records (M7-T08).
         next.parkRequested = false;
         if (op.checkpointRef !== undefined) {
           next.checkpointRef = op.checkpointRef;
@@ -576,8 +576,7 @@ export function applyDecisionOps(
       continue;
     }
     // spawn_admitted: decomposition children enter the plan as pending
-    // nodes with FRESH LTIDs minted inside this decision (docs/07, 8.1
-    // rule 6).
+    // nodes with FRESH LTIDs minted inside this decision.
     for (const child of op.nodes) {
       const node: PlanNode = {
         nodeId: child.nodeId,
@@ -610,7 +609,7 @@ function lineageOfAdmission(
 }
 
 /**
- * The escalated node's fate under a resolve_escalation op (docs/07, 3.3):
+ * The escalated node's fate under a resolve_escalation op:
  * retry re-opens the node for scheduling (pending; readiness decides),
  * cancel closes it, accept marks the paid partial result done, decompose
  * leaves the node escalated while its children (spawn_admitted in the

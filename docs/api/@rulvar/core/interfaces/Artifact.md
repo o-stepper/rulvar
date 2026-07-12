@@ -8,7 +8,7 @@
 
 Defined in: [packages/core/src/runtime/agent-loop.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L66)
 
-Artifact: the normative shape of AgentResult.artifacts entries (docs/06, section 2.1).
+Artifact: the normative shape of AgentResult.artifacts entries.
 
 ## Properties
 

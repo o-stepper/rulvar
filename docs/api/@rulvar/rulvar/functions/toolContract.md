@@ -10,11 +10,10 @@
 function toolContract(def): ToolContract;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The identity projection: the contract tuple that enters toolsetHash.
-parameters is the canonicalized derived JSON Schema (docs/03, section
-"schemaHash and toolsetHash derivation").
+parameters is the canonicalized derived JSON Schema.
 
 ## Parameters
 

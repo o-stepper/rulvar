@@ -10,7 +10,7 @@
 function planNodeScope(nodeId): string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 PlanRunner node scopes: `plan/<NodeId>` (NodeIds are engine-minted ULIDs).
 

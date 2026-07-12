@@ -6,7 +6,7 @@
 
 # Class: ModelRetry
 
-Defined in: [packages/core/src/runtime/model-retry.ts:15](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/model-retry.ts#L15)
+Defined in: [packages/core/src/runtime/model-retry.ts:14](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/model-retry.ts#L14)
 
 ## Extends
 
@@ -20,7 +20,7 @@ Defined in: [packages/core/src/runtime/model-retry.ts:15](https://github.com/o-s
 new ModelRetry(message, opts?): ModelRetry;
 ```
 
-Defined in: [packages/core/src/runtime/model-retry.ts:18](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/model-retry.ts#L18)
+Defined in: [packages/core/src/runtime/model-retry.ts:17](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/model-retry.ts#L17)
 
 #### Parameters
 
@@ -45,7 +45,7 @@ Error.constructor
 | Property | Modifier | Type | Description | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-cause"></a> `cause?` | `public` | `unknown` | - | `Error.cause` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts:24](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts#L24) |
-| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | - | [packages/core/src/runtime/model-retry.ts:16](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/model-retry.ts#L16) |
+| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | - | [packages/core/src/runtime/model-retry.ts:15](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/model-retry.ts#L15) |
 | <a id="property-message"></a> `message` | `public` | `string` | - | `Error.message` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1075](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1075) |
 | <a id="property-name"></a> `name` | `public` | `string` | - | `Error.name` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1074](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1074) |
 | <a id="property-stack"></a> `stack?` | `public` | `string` | - | `Error.stack` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1076](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1076) |

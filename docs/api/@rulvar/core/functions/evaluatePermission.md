@@ -17,14 +17,14 @@ ctx?): Promise<PermissionVerdict>;
 Defined in: [packages/core/src/runtime/permission-chain.ts:236](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L236)
 
 Evaluates the chain for one dispatch, or OFFLINE against a
-hypothetical call by tool name (the dry-run API of docs/08, section
-4.5: nothing executes; shells and tests read the verdict, the
+hypothetical call by tool name (the dry-run API: nothing executes;
+shells and tests read the verdict, the
 deciding layer, and the matched rule). Hooks run in deterministic
 registration order; { modifiedInput } substitutes the input and
 continues; the first decisive verdict wins. The returned input is what
-execute receives and what the approval identity hashes (docs/03,
-section 1.2: post hook modification). Advisory domain-rule matches
-ride every verdict for the audit payload (docs/08, 4.4).
+execute receives and what the approval identity hashes (post hook
+modification). Advisory domain-rule matches
+ride every verdict for the audit payload.
 
 ## Parameters
 

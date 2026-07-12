@@ -10,13 +10,13 @@
 function runWorktreeDisposedDegrade(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/m9-cassettes.ts:1788](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L1788)
+Defined in: [packages/plan/src/m9-cassettes.ts:1787](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L1787)
 
 worktree-disposed-degrade (DEF-5): a worktree-isolated graft donor
 whose tree was NOT retained degrades to a fresh admit with the
 embedded DedupNote graft_unsafe; a second section verifies reuse_full
-stays allowed for a worktree donor whose root is terminal (docs/03,
-9.4: the pin condition applies to grafts only).
+stays allowed for a worktree donor whose root is terminal (the pin
+condition applies to grafts only).
 
 ## Returns
 

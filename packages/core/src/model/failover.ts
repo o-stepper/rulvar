@@ -4,12 +4,12 @@
  * replays correctly and the fallback changes only `servedBy` in the
  * journal entry. Budget is explicitly excluded as a trigger.
  *
- * The degenerate `fallback` field of docs/04 section 11.3 also lives
+ * The degenerate `fallback` field also lives
  * here: an AGENT-LEVEL second attempt (new content key, one journaled
  * decision entry), as opposed to the transport-level failover above
  * (same entry, servedBy only).
  *
- * Owning spec: docs/04-model-layer-spec.md, sections 11.2 and 11.3 (as
+ * Full contract: https://docs.rulvar.com/guide/model-routing (as
  * amended in M4-T04).
  */
 import type { ModelRef } from '../l0/messages.js';
@@ -19,14 +19,14 @@ import type { RetryClass } from './retry.js';
 /** Transport-level failover triggers; budget is explicitly excluded. */
 export type FailoverTrigger = 'transport' | 'rate-limit';
 
-/** One resolved failover target (docs/04, section 11.2 rich form). */
+/** One resolved failover target (rich form). */
 export interface FailoverTarget {
   model: ModelRef;
   /** Triggers this target serves; absent = both. */
   on?: FailoverTrigger[];
 }
 
-/** Normalizes the author-facing ModelChoice.fallbacks list (docs/04, 8.1). */
+/** Normalizes the author-facing ModelChoice.fallbacks list. */
 export function normalizeFallbacks(refs: ModelRef[] | undefined): FailoverTarget[] {
   return (refs ?? []).map((model) => ({ model }));
 }
@@ -62,7 +62,7 @@ export function nextFailover(
   return undefined;
 }
 
-/** The degenerate fallback triggers (docs/04, section 11.3). */
+/** The degenerate fallback triggers. */
 export type FallbackTrigger = 'error' | 'limit' | 'schema-exhausted';
 
 /** The degenerate fallback field: one agent-level second attempt. */
@@ -72,8 +72,8 @@ export interface FallbackField {
 }
 
 /**
- * Classifies a terminal agent outcome for the degenerate fallback
- * (docs/04, 11.3 as amended): schema-mismatch errors are
+ * Classifies a terminal agent outcome for the degenerate fallback:
+ * schema-mismatch errors are
  * 'schema-exhausted'; any other error is 'error'; limit terminals (the
  * no-progress abort included) are 'limit'; cancelled, escalated, and
  * skipped never trigger.

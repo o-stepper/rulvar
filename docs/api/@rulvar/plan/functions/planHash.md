@@ -14,7 +14,7 @@ Defined in: [packages/plan/src/plan-hash.ts:65](https://github.com/o-stepper/rul
 
 planHash under one deriver profile (default: the current hashVersion 2
 profile). Replay recomputes each entry's planHashAfter with the
-predicate of that entry's OWN hashVersion (docs/07, 3.4), so the
+predicate of that entry's OWN hashVersion, so the
 deriver is a parameter, not an ambient.
 
 ## Parameters

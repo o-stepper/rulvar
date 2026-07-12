@@ -12,8 +12,8 @@ const HELP: "rulvar: durable multi-agent workflows (docs/06, section 10.5)\n\n  
 
 Defined in: [packages/cli/src/cli-main.ts:17](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/cli-main.ts#L17)
 
-@rulvar/cli: the rulvar shell (docs/02, section 8.1; docs/06, section
-10.5). M5 surface: run/resume/runs ls/inspect over the canonical
+@rulvar/cli: the rulvar shell (https://docs.rulvar.com/guide/cli).
+M5 surface: run/resume/runs ls/inspect over the canonical
 grammar, TUI progress on the event stream, interactive resolution of
 suspended approvals and externals. plan/kb commands land M6+/M10;
 createServer/createWorker land M8; the OTel exporter lands M5-T08.

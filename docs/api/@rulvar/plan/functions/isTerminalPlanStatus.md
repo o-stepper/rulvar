@@ -10,7 +10,7 @@
 function isTerminalPlanStatus(status): boolean;
 ```
 
-Defined in: [packages/plan/src/plan-state.ts:91](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-state.ts#L91)
+Defined in: [packages/plan/src/plan-state.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-state.ts#L94)
 
 ## Parameters
 

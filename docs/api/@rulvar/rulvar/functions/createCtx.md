@@ -10,7 +10,7 @@
 function createCtx(internals): Ctx<ErrorPolicy>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Creates the per-run Ctx bound to `internals`. The current scope travels
 through AsyncLocalStorage so parallel branches and pipeline stages keep

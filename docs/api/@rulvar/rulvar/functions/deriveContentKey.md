@@ -10,9 +10,9 @@
 function deriveContentKey(input): string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-key = sha256(JCS(IdentityInput)) (docs/03, section "Content key").
+key = sha256(JCS(IdentityInput)).
 
 ## Parameters
 

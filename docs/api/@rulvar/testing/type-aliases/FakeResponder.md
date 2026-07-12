@@ -10,7 +10,7 @@
 type FakeResponder = string | ((call) => unknown) | object;
 ```
 
-Defined in: [packages/testing/src/fake-adapter.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L32)
+Defined in: [packages/testing/src/fake-adapter.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L31)
 
 A static string (plain text output), a static value (structured output),
 or a function of the call. Thrown errors become terminal error events.

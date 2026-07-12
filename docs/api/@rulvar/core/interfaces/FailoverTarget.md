@@ -8,7 +8,7 @@
 
 Defined in: [packages/core/src/model/failover.ts:23](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/failover.ts#L23)
 
-One resolved failover target (docs/04, section 11.2 rich form).
+One resolved failover target (rich form).
 
 ## Properties
 

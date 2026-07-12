@@ -10,7 +10,7 @@
 function profileCard(profiles): string;
 ```
 
-Defined in: [packages/core/src/model/profile-card.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/profile-card.ts#L35)
+Defined in: [packages/core/src/model/profile-card.ts:34](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/profile-card.ts#L34)
 
 Renders the registry into the shared agent vocabulary card. Sorted,
 deterministic, byte-stable; an empty registry renders explicitly so

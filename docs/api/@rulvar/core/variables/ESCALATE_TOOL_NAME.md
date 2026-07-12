@@ -10,4 +10,4 @@
 const ESCALATE_TOOL_NAME: "escalate" = 'escalate';
 ```
 
-Defined in: [packages/core/src/runtime/escalation.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L76)
+Defined in: [packages/core/src/runtime/escalation.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L74)

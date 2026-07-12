@@ -17,10 +17,10 @@ type Issue = {
 };
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:320](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L320)
+Defined in: [packages/core/src/l0/errors.ts:314](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L314)
 
-The vendored Standard Schema issue shape (docs/06, section "Canonical Ctx
-interface"): validation issues carried on AgentError and surfaced to the
+The vendored Standard Schema issue shape: validation issues carried
+on AgentError and surfaced to the
 model during bounded schema re-prompts.
 
 ## Properties
@@ -31,7 +31,7 @@ model during bounded schema re-prompts.
 message: string;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:321](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L321)
+Defined in: [packages/core/src/l0/errors.ts:315](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L315)
 
 ***
 
@@ -45,4 +45,4 @@ optional path?: ReadonlyArray<
 }>;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:322](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L322)
+Defined in: [packages/core/src/l0/errors.ts:316](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L316)

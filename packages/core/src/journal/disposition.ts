@@ -6,7 +6,7 @@
  * addressable); step 2 applies the per-status table of the ENTRY'S OWN
  * hashVersion profile, carrying the three kernel amendments:
  * memoizeOutcome on task-class failures, abandon-derived skipped, and
- * escalated-replays-as-ok (docs/03, section "Replay predicate (DEF-1)").
+ * escalated-replays-as-ok (https://docs.rulvar.com/guide/journal).
  */
 import { agentErrorFromWire, type AgentError } from '../l0/errors.js';
 import type { JournalEntry } from '../l0/entries.js';
@@ -25,7 +25,7 @@ export type ErrorClass = 'transport' | 'task';
 
 /**
  * task-class: schema-mismatch, terminal, non-retryable tool. transport,
- * rate-limit, and budget are never memoized (docs/03, section 6.4).
+ * rate-limit, and budget are never memoized.
  */
 export function classifyAgentError(e: AgentError): ErrorClass {
   if (e.kind === 'schema-mismatch' || e.kind === 'terminal') {
@@ -39,7 +39,7 @@ export function classifyAgentError(e: AgentError): ErrorClass {
 
 /**
  * The child scope-prefix an abandon over `target` covers transitively.
- * Agent spawns nest under agent:<seq> (docs/03, section 2.2); a child
+ * Agent spawns nest under agent:<seq>; a child
  * workflow's subtree runs under the wf:<name>:<ordinal> scope recorded in
  * its dispatch payload (M6-T06). A child entry without the payload
  * (foreign journals) degrades to the agent:<seq> convention, which covers
@@ -59,7 +59,7 @@ export function childCoveragePrefix(target: JournalEntry): string {
  * Builds the AbandonFold in ONE pass at load, in append order, pinned for
  * the entire resume (DEF-1 ordering rule 4). Coverage is the target seq
  * itself plus, transitively, every entry under the target's child
- * scope-prefix (docs/03, sections 6.2 and 8.4). Repeated abandons over an
+ * scope-prefix. Repeated abandons over an
  * already-covered target fold to noop.
  */
 export function buildAbandonFold(entries: readonly JournalEntry[]): AbandonFold {
@@ -121,7 +121,7 @@ function applyRule(rule: DispositionRule | undefined, op: JournalOperation): Rep
       // The terminal stamp wins: engine-decided abort classes (the
       // no-progress abort, M3-T08) fix the flag on the terminal at abort
       // time, and MUST replay regardless of the user's dispatch-time
-      // policy (docs/03, section 6.6, M3 amendment).
+      // policy (M3 amendment).
       const memoize = terminal.memoizeOutcome ?? op.running.memoizeOutcome ?? false;
       return memoize ? 'replay' : 'rerun';
     }
@@ -172,14 +172,13 @@ export function replayDisposition(
 ): ReplayDisposition {
   const op: JournalOperation = { running: entry, terminal: options?.terminal ?? entry };
   // Step 1: the effective-status fold. Abandon is stronger than any
-  // terminal status, including ok and escalated (docs/03, section 6.9).
+  // terminal status, including ok and escalated.
   if (fold.isAbandoned(entry.seq)) {
     return 'skip';
   }
   if (options?.invalidated?.has(entry.seq) === true) {
     // invalidate/retry: explicit unpinning of a memoized failure; the
-    // next resume reruns it (docs/03, section 6.5; safety boundary OQ in
-    // docs/14).
+    // next resume reruns it (the safety boundary stays an open question).
     return 'rerun';
   }
   const deriver = options?.registry?.get(entry.hashVersion) ?? deriverV2;

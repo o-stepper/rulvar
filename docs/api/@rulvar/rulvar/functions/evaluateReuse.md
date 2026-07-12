@@ -32,10 +32,10 @@ function evaluateReuse(
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The four-outcome verdict evaluation on a SpawnKey match (docs/03,
-9.4), computed once live at the fold head and embedded into the
+The four-outcome verdict evaluation on a SpawnKey match, computed
+once live at the fold head and embedded into the
 deciding entry; replay never re-evaluates.
 
 ## Parameters

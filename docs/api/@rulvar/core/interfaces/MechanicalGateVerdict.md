@@ -8,7 +8,7 @@
 
 Defined in: [packages/core/src/runtime/agent-loop.ts:82](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L82)
 
-The verdict of one mechanical acceptance gate evaluation (docs/07, section 10).
+The verdict of one mechanical acceptance gate evaluation.
 
 ## Properties
 

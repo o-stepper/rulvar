@@ -21,12 +21,11 @@ type RunMeta = {
 };
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L26)
+Defined in: [packages/core/src/l0/spi/store.ts:25](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L25)
 
 Run-level metadata written by the ENGINE via putMeta as a separate
 record, so listRuns never parses payloads. The hashVersion range fields
-are advisory only; the journal is authoritative (docs/03, section
-"RunMeta").
+are advisory only; the journal is authoritative.
 
 ## Properties
 
@@ -36,7 +35,7 @@ are advisory only; the journal is authoritative (docs/03, section
 optional hashVersionHigh?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L33)
+Defined in: [packages/core/src/l0/spi/store.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L32)
 
 ***
 
@@ -46,7 +45,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:33](https://github.com/o-stepper/
 optional hashVersionLow?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L32)
+Defined in: [packages/core/src/l0/spi/store.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L31)
 
 ***
 
@@ -56,7 +55,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:32](https://github.com/o-stepper/
 optional name?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L29)
+Defined in: [packages/core/src/l0/spi/store.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L28)
 
 ***
 
@@ -66,7 +65,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:29](https://github.com/o-stepper/
 runId: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L27)
+Defined in: [packages/core/src/l0/spi/store.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L26)
 
 ***
 
@@ -76,7 +75,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:27](https://github.com/o-stepper/
 status: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L28)
+Defined in: [packages/core/src/l0/spi/store.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L27)
 
 ***
 
@@ -86,7 +85,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:28](https://github.com/o-stepper/
 optional tags?: string[];
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L30)
+Defined in: [packages/core/src/l0/spi/store.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L29)
 
 ***
 
@@ -96,7 +95,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:30](https://github.com/o-stepper/
 updatedAt: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L31)
+Defined in: [packages/core/src/l0/spi/store.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L30)
 
 ***
 
@@ -106,7 +105,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:31](https://github.com/o-stepper/
 optional workflowHash?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L37)
+Defined in: [packages/core/src/l0/spi/store.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L36)
 
 Content hash of the body or of the compiled source.
 
@@ -118,7 +117,7 @@ Content hash of the body or of the compiled source.
 optional workflowName?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L35)
+Defined in: [packages/core/src/l0/spi/store.ts:34](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L34)
 
 Registered workflow name (in-process Workflow).
 
@@ -130,6 +129,6 @@ Registered workflow name (in-process Workflow).
 optional workflowSourceRef?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L39)
+Defined in: [packages/core/src/l0/spi/store.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L38)
 
 TranscriptStore ref of the persisted CompiledWorkflow source.

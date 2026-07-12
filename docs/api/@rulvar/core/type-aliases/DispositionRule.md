@@ -13,5 +13,5 @@ type DispositionRule = "replay" | "rerun" | "memoize-limit" | "memoize-task-erro
 Defined in: [packages/core/src/journal/keyderiver.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/keyderiver.ts#L26)
 
 Per-effective-status disposition rules; DATA on the profile, consumed
-only by the single canonical replayDisposition function (docs/03,
-section 4.2: there is NO replayAction method).
+only by the single canonical replayDisposition function (there is NO
+replayAction method).

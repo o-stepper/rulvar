@@ -1,12 +1,12 @@
 /**
- * LLM-judge grader (docs/09, section 7.1): asks a judge model for a
+ * LLM-judge grader: asks a judge model for a
  * verdict against a schema. The judge runs THROUGH the engine via
  * GraderContext.judge, so judge calls are journaled, budgeted, and
  * VCR-recorded like any other agent call; eval CI replays them
- * deterministically (docs/11, section "Eval CI").
+ * deterministically.
  *
  * There is deliberately NO default judge model: weak defaults for judging
- * are forbidden (docs/04, section "Role quality floors"), so `model` is a
+ * are forbidden (role quality floors), so `model` is a
  * required option and resolution stays subject to the engine's floors.
  */
 import type { Json, JsonSchema, ModelSpec } from '@rulvar/core';
@@ -24,7 +24,7 @@ export const JUDGE_VERDICT_SCHEMA: JsonSchema = {
 };
 
 export interface JudgeGraderOptions {
-  /** Judge model; required, never defaulted (docs/04 role quality floors). */
+  /** Judge model; required, never defaulted (role quality floors). */
   model: ModelSpec;
   /** What to judge: the criteria prose embedded into the judge prompt. */
   instruction: string;

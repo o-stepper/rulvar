@@ -19,9 +19,9 @@ const CLAIM_TTL_DAYS: {
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The asymmetric TTL table (docs/05, section "Grounding and decay"):
+The asymmetric TTL table:
 a false negative is costlier through lock-in, so weaknesses expire
 sooner than strengths.
 
@@ -29,9 +29,9 @@ sooner than strengths.
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-eval-measured"></a> `eval-measured` | \{ `strength`: `90`; `weakness`: `30`; \} | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `eval-measured.strength` | `90` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `eval-measured.weakness` | `30` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-human-editorial"></a> `human-editorial` | \{ `strength`: `120`; `weakness`: `45`; \} | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `human-editorial.strength` | `120` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `human-editorial.weakness` | `45` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-eval-measured"></a> `eval-measured` | \{ `strength`: `90`; `weakness`: `30`; \} | `packages/core/dist/index.d.ts` |
+| `eval-measured.strength` | `90` | `packages/core/dist/index.d.ts` |
+| `eval-measured.weakness` | `30` | `packages/core/dist/index.d.ts` |
+| <a id="property-human-editorial"></a> `human-editorial` | \{ `strength`: `120`; `weakness`: `45`; \} | `packages/core/dist/index.d.ts` |
+| `human-editorial.strength` | `120` | `packages/core/dist/index.d.ts` |
+| `human-editorial.weakness` | `45` | `packages/core/dist/index.d.ts` |

@@ -6,10 +6,10 @@
 
 # Class: ReplayPlanHashMismatch
 
-Defined in: [packages/core/src/l0/errors.ts:208](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L208)
+Defined in: [packages/core/src/l0/errors.ts:207](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L207)
 
 Raised at resume when the refolded plan state disagrees with the
-journaled planHash chain (docs/07; producers ship in M7).
+journaled planHash chain (producers ship in M7).
 
 ## Extends
 
@@ -23,7 +23,7 @@ journaled planHash chain (docs/07; producers ship in M7).
 new ReplayPlanHashMismatch(message, opts?): ReplayPlanHashMismatch;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:211](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L211)
+Defined in: [packages/core/src/l0/errors.ts:210](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L210)
 
 #### Parameters
 
@@ -47,7 +47,7 @@ Defined in: [packages/core/src/l0/errors.ts:211](https://github.com/o-stepper/ru
 | Property | Modifier | Type | Description | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-cause"></a> `cause?` | `public` | `unknown` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`cause`](/api/@rulvar/core/classes/RulvarError.md#property-cause) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts:24](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts#L24) |
-| <a id="property-code"></a> `code` | `readonly` | `"replay_plan_hash_mismatch"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:209](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L209) |
+| <a id="property-code"></a> `code` | `readonly` | `"replay_plan_hash_mismatch"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:208](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L208) |
 | <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L57) |
 | <a id="property-message"></a> `message` | `public` | `string` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`message`](/api/@rulvar/core/classes/RulvarError.md#property-message) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1075](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1075) |
 | <a id="property-name"></a> `name` | `public` | `string` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`name`](/api/@rulvar/core/classes/RulvarError.md#property-name) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1074](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1074) |

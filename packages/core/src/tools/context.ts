@@ -4,7 +4,7 @@
  * with a fresh tool span under the agent span. Exposes NO spawn
  * primitives (invariant I3).
  *
- * Owning spec: docs/08-tools-permissions-spec.md, section "ToolContext".
+ * Full contract: https://docs.rulvar.com/guide/tools
  */
 import type { Json } from '../l0/json.js';
 import type { IsolationSpec } from '../l0/spi/isolation.js';

@@ -6,7 +6,7 @@
 
 # Class: InProcessRunner
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The mode (a) runner for human-authored closures. Determinism is enforced
 by convention, lint, and the ctx shims, NOT by a VM: only the sequence
@@ -28,7 +28,7 @@ prior value; concurrent runs may lose the warning, never correctness).
 new InProcessRunner(o?): InProcessRunner;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -53,7 +53,7 @@ get escalationHook():
   | undefined;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The hook is read by the escalation delivery path from M3 onward.
 
@@ -73,7 +73,7 @@ execute<A, R>(
 args): Promise<R>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Type Parameters
 

@@ -1,8 +1,7 @@
 /**
  * RFC 8785 (JSON Canonicalization Scheme) serializer.
  *
- * Backs content-key derivation and schema hashing (docs/03, sections
- * "Identity model" and "schemaHash and toolsetHash derivation"):
+ * Backs content-key derivation and schema hashing:
  * lexicographically sorted object members (UTF-16 code units), minimal
  * escaping, no insignificant whitespace, ECMAScript number formatting.
  *

@@ -62,4 +62,4 @@ type CoreEvents =
 
 Defined in: [packages/core/src/l0/events.ts:18](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L18)
 
-docs/09 section 1.4, run lifecycle and core telemetry (M1 subset).
+Run lifecycle and core telemetry (M1 subset).

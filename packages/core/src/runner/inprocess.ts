@@ -1,11 +1,11 @@
 /**
  * ScriptRunner SPI and InProcessRunner (M1-T11).
  *
- * Owning spec: docs/06-execution-spec.md, section "Script runners".
+ * Script runner contract: https://docs.rulvar.com/guide/planner
  * Workflow (a closure value) runs in process only; CompiledWorkflow is the
  * only form admissible to the worker sandbox and first exists at M6
  * (compileScript in @rulvar/planner), so until then the engine accepts
- * only in-process Workflow values. The SPI's L0 listing in docs/02 refers
+ * only in-process Workflow values. The SPI's L0 listing refers
  * to its frozen-seam status; the declaration lives here with its types.
  */
 import type { Ctx, ErrorPolicy, Workflow } from '../engine/ctx.js';
@@ -29,7 +29,7 @@ export interface ScriptRunner {
 import type { EscalatedResult } from '../runtime/agent-loop.js';
 import type { EscalationDecision } from '../runtime/escalation.js';
 
-/** Escalation hook (docs/06, section 2.10): decides for value-form calls. */
+/** Escalation hook: decides for value-form calls. */
 export type OnEscalation = (
   result: EscalatedResult<unknown>,
 ) => EscalationDecision | Promise<EscalationDecision>;

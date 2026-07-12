@@ -14,7 +14,7 @@ Defined in: [packages/anthropic/src/adapter.ts:55](https://github.com/o-stepper/
 
 Creates the first-class Anthropic adapter (id 'anthropic'). SDK
 autoretries are disabled (max_retries 0): the core owns retries and
-wall-clock (docs/04, section "Retries belong to the core").
+wall-clock.
 
 ## Parameters
 

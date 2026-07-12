@@ -1,8 +1,8 @@
 /**
  * CLI io seam: every command writes and prompts through this interface
  * so the e2e suite drives the real command paths in-process with
- * scripted stdin and captured output (docs/02, section 8.1: the CLI is
- * a shell strictly on top of the public APIs).
+ * scripted stdin and captured output (the CLI is a shell strictly on
+ * top of the public APIs).
  */
 import { createInterface } from 'node:readline';
 

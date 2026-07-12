@@ -10,7 +10,7 @@
 function emptyPlan(): TaskPlan;
 ```
 
-Defined in: [packages/plan/src/plan-state.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-state.ts#L74)
+Defined in: [packages/plan/src/plan-state.ts:77](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-state.ts#L77)
 
 The empty plan every fold starts from.
 

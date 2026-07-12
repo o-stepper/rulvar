@@ -10,9 +10,8 @@
 type ToolExecutor = "inprocess" | "subprocess" | "container";
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Where execute runs. A declared capability consumed by dispatch and
 policy; only 'inprocess' is enforced in v1, subprocess/container remain
-declared capability until the executor spec closes (docs/08, section
-"Executors"; OQ in docs/14).
+declared capability while the executor design stays an open question.

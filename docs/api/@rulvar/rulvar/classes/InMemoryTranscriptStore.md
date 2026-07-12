@@ -6,7 +6,7 @@
 
 # Class: InMemoryTranscriptStore
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 In-memory TranscriptStore. Refs follow the `<runId>/<name>` convention
 so list(runId) can filter without a side index.
@@ -35,7 +35,7 @@ new InMemoryTranscriptStore(): InMemoryTranscriptStore;
 delete(ref): Promise<void>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Deletes one blob; a missing ref is a no-op, never an error (M8-T04
 amendment, OQ-20: retention is impossible without blob deletion).
@@ -64,7 +64,7 @@ never a store obligation.
 get(ref): Promise<Bytes | null>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -88,7 +88,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 list(runId): Promise<string[]>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -112,7 +112,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 put(ref, blob): Promise<void>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 

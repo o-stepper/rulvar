@@ -10,4 +10,4 @@
 type InvocationRole = "orchestrate" | "plan" | "loop" | "finalize" | "extract" | "summarize";
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:188](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L188)
+Defined in: [packages/core/src/l0/messages.ts:181](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L181)

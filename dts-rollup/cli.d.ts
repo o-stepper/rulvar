@@ -37,7 +37,7 @@ declare function inspectCommand(argv: string[], context: CommandContext): Promis
 interface CliConfig {
   engineOptions?: Partial<CreateEngineOptions>;
   workflows?: WorkflowRegistry;
-  /** rulvar kb sweep configuration (M11-T05; docs/05, "Grounding and decay"). */
+  /** rulvar kb sweep configuration (M11-T05). */
   kbSweep?: KbSweepCliConfig;
 }
 /**
@@ -95,7 +95,7 @@ interface AssembledCli {
   engine: Engine;
   store: JournalStore;
   workflows: WorkflowRegistry;
-  /** The journal-fold price function (table wins over caps; docs/04, section 10). */
+  /** The journal-fold price function (table wins over caps). */
   priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
 }
 declare function assembleEngine(options: {
@@ -115,7 +115,7 @@ declare function driveRun(options: {
   engine: Engine;
   workflow: Workflow<never, unknown>;
   first: RunHandle<unknown>;
-  io: CliIo; /** Original run arguments: not journaled in v1, the host re-supplies them (docs/14). */
+  io: CliIo; /** Original run arguments: not journaled in v1, the host re-supplies them. */
   args?: unknown;
 }): Promise<RunOutcome<unknown>>;
 /** Renders the settled outcome; returns the process exit code. */
@@ -124,17 +124,17 @@ declare function reportOutcome(outcome: RunOutcome<unknown>, io: CliIo): number;
 //#region src/server.d.ts
 interface CreateServerOptions {
   engine: Engine;
-  /** The explicit, first-class registry (docs/06, section 10.4). */
+  /** The explicit, first-class registry. */
   workflows: WorkflowRegistry;
   /**
   * Prices the journal fold behind GET /runs/:id/cost for runs without a
   * settled in-process outcome (the host assembles pricing exactly as it
   * does for the CLI); absent means those usages surface as `unpriced`,
-  * never a silent zero (docs/04, section 10).
+  * never a silent zero.
   */
   priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
   /**
-  * Opt-in retention (docs/02, 8.2; OQ-20 executed at M8-T04): evaluated
+  * Opt-in retention (OQ-20 executed at M8-T04): evaluated
   * when a tracked run settles terminally; a true verdict applies
   * engine.deleteRun (transcript cascade, then the journal) and
   * untracks the run. Absent means everything persists indefinitely.
@@ -147,7 +147,7 @@ interface RulvarServer {
 declare function createServer(options: CreateServerOptions): RulvarServer;
 //#endregion
 //#region src/worker.d.ts
-/** Appendix A: the committed reference lease ttl (docs/06). */
+/** Appendix A: the committed reference lease ttl. */
 declare const DEFAULT_WORKER_TTL_MS = 6e4;
 interface CreateWorkerOptions {
   /**
@@ -162,7 +162,7 @@ interface CreateWorkerOptions {
   owner?: string;
   /**
   * The store's lease ttl; the worker renews at ttl/3 (the normative
-  * bound, docs/03 12.3). Default: the Appendix A reference 60000 ms.
+  * bound). Default: the Appendix A reference 60000 ms.
   * MUST match the store's configured ttl.
   */
   ttlMs?: number;
@@ -179,7 +179,7 @@ interface CreateWorkerOptions {
   /** Observability hook for per-run failures; never throws into the loop. */
   onError?: (runId: string, error: unknown) => void;
   /**
-  * Opt-in retention (docs/02, 8.3; OQ-20 executed at M8-T04): evaluated
+  * Opt-in retention (OQ-20 executed at M8-T04): evaluated
   * during sweeps over SETTLED runs (terminal meta); a true verdict
   * applies engine.deleteRun under a briefly held lease. Absent means
   * everything persists indefinitely.

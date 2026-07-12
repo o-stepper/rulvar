@@ -6,8 +6,7 @@
  * engine; a duplicate adapterId at createEngine is a typed ConfigError
  * raised by the adapter registry.
  *
- * Owning spec: docs/04-model-layer-spec.md, section "openaiCompatible
- * factory".
+ * Guide: https://docs.rulvar.com/guide/providers
  */
 import OpenAI from 'openai';
 import {
@@ -28,8 +27,8 @@ import {
 
 /**
  * Gateways cannot be introspected reliably: when caps are not supplied
- * the factory assumes the most conservative capability set (docs/04,
- * section 6). Callers SHOULD supply caps for anything beyond it; the
+ * the factory assumes the most conservative capability set. Callers
+ * SHOULD supply caps for anything beyond it; the
  * window and output floors here are deliberately small so an unprobed
  * endpoint is never overcommitted. Absent pricing is legitimate for
  * local models: they surface as unpriced in CostReport.
@@ -79,7 +78,7 @@ export function openaiCompatible(cfg: OpenAiCompatibleConfig): ProviderAdapter {
     id: cfg.id,
     // The provider FAMILY stays 'openai' whatever the custom adapter id:
     // gateways of the same dialect share projections; the chat dialect
-    // itself never ships retainedParts (docs/04, sections 2.3 and 5.6).
+    // itself never ships retainedParts.
     provider: 'openai',
 
     caps(model: string): ModelCaps {

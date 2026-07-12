@@ -12,6 +12,6 @@ type RunStatus =
   | "running";
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Adds 'running' for in-flight inspection (docs/06, section "Engine and ops API").
+Adds 'running' for in-flight inspection.

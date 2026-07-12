@@ -22,7 +22,7 @@ type Gate =
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Ladder acceptance gates. Spot-check sibling selection is strictly via
-ctx.random, never Math.random (docs/04, section "ModelLadder summary").
+ctx.random, never Math.random.

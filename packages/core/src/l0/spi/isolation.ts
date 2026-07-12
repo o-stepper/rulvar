@@ -3,14 +3,13 @@
  * the six SPI seams frozen at 1.0. The shipped git worktree provider and
  * the full lifecycle land in M3.
  *
- * Owning spec: docs/08-tools-permissions-spec.md, sections "IsolationSpec"
- * and "IsolationProvider SPI".
+ * Full contract: https://docs.rulvar.com/guide/tools.
  */
 import type { Bytes } from '../json.js';
 
 /**
  * The canonical identity encoding of spawn isolation: this exact value
- * domain enters spawn identity (docs/03, section "Identity model").
+ * domain enters spawn identity.
  * 'readonly' is a determinism and blast-radius declaration, not
  * containment.
  */

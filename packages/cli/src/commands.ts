@@ -1,6 +1,5 @@
 /**
- * The four M5 commands of the canonical CLI grammar (docs/06, section
- * 10.5; no aliases in v1):
+ * The four M5 commands of the canonical CLI grammar (no aliases in v1):
  *
  *   rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N]
  *   rulvar resume <runId>  [--store PATH]
@@ -8,7 +7,7 @@
  *   rulvar inspect <runId> [--store PATH]
  *
  * `plan` and `kb` land with M6+/M10. Every command builds strictly from
- * the public @rulvar/core API (docs/02, section 4).
+ * the public @rulvar/core API.
  */
 import { parseArgs } from 'node:util';
 import { join } from 'node:path';
@@ -147,8 +146,8 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
     throw new ConfigError('usage: rulvar resume <runId> [--args JSON] [--store PATH]');
   }
   // Original arguments are not journaled for in-process workflows in
-  // v1: the host re-supplies them on resume (docs/06, section 10.5 as
-  // amended; docs/14 resume binding residuals).
+  // v1: the host re-supplies them on resume (the resume binding
+  // residuals stay an open question).
   let args: unknown;
   if (flags.args !== undefined) {
     try {
@@ -281,9 +280,9 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
 }
 
 /**
- * rulvar plan "<goal>" [--dry-run] (docs/06, 10.5; M6-T11): plans a
+ * rulvar plan "<goal>" [--dry-run] (M6-T11): plans a
  * workflow script through @rulvar/planner (loaded dynamically: the CLI's
- * static dependency stays @rulvar/core only, docs/02 dependency rules),
+ * static dependency stays @rulvar/core only),
  * prints the accepted script and its advisories, and runs it in the
  * worker sandbox unless --dry-run.
  */
@@ -340,7 +339,7 @@ export async function planCommand(argv: string[], context: CommandContext): Prom
 }
 
 /**
- * rulvar kb list (docs/06, 10.5; docs/05, 4.4; M10-T04): the second
+ * rulvar kb list (M10-T04): the second
  * consumption path. Claims with full provenance for the humans who
  * author ladders, floors, and profiles; no run and no pin, so model
  * names render VERBATIM here (only in-run cards are nameless). Reads
@@ -390,9 +389,8 @@ function renderKbList(
     context.io.out(
       `  observed=${claim.observedAt} expires=${claim.expiresAt} ` +
         // The gate identity: the file lives under git review, so the
-        // committer of record is the author (docs/05, section "Format
-        // decision rationale"); eval-pipeline authors are the M11
-        // committer identity.
+        // committer of record is the author; eval-pipeline authors are
+        // the M11 committer identity.
         `author=${claim.author.kind}:${claim.author.id} gate=${
           claim.author.kind === 'human' ? 'human (git review)' : 'eval-committer'
         }`,
@@ -445,7 +443,7 @@ interface EvalsModule {
 }
 
 /**
- * rulvar kb sweep (M11-T05; docs/05, section "Grounding and decay"):
+ * rulvar kb sweep (M11-T05):
  * falsification sweeps, run manually, from CI, or from a user cron,
  * NEVER engine-scheduled. The matrix is the config's FIXED pool
  * UNIONED with the store's falsification set: every model carrying an
@@ -529,7 +527,7 @@ async function kbSweepCommand(argv: string[], context: CommandContext): Promise<
     context.io.out(`pool: ${member.model}${effort} [${origin}]`);
   }
 
-  // Canary before measurement (docs/05: drift flips eval claims to
+  // Canary before measurement (drift flips eval claims to
   // stale immediately; the sweep then re-measures the subjects).
   if (sweep.canary !== undefined) {
     for (const { member } of pool.values()) {

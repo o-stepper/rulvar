@@ -8,7 +8,7 @@
 
 Defined in: [packages/core/src/tools/shell-matcher.ts:23](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/shell-matcher.ts#L23)
 
-Argv-parsing shell matcher (M5-T06; docs/08, section 5): shell
+Argv-parsing shell matcher (M5-T06): shell
 allow/ask/deny is matched through a real argv parser, never a string
 prefix. The composition rule is the entire point: for a compound
 command the verdict is the strictest across segments, and any

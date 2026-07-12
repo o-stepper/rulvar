@@ -1,7 +1,7 @@
 import { JournalEntry, JournalStore, LeasableStore, Lease, RunFilter, RunMeta } from "@rulvar/core";
 
 //#region src/store.d.ts
-/** Appendix A interim reference for the sqlite store (docs/06). */
+/** Appendix A interim reference for the sqlite store. */
 declare const DEFAULT_LEASE_TTL_MS = 6e4;
 interface SqliteStoreOptions {
   /** Database file path, or ':memory:' for an in-process store. */

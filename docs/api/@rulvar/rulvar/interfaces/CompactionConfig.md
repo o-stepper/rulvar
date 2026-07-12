@@ -6,12 +6,12 @@
 
 # Interface: CompactionConfig
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Per-profile compaction config (docs/06, section 6, AgentProfile).
+Per-profile compaction config (AgentProfile).
 
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-threshold"></a> `threshold?` | `number` | Fraction of the loop model's contextWindow; default 0.8. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-threshold"></a> `threshold?` | `number` | Fraction of the loop model's contextWindow; default 0.8. | `packages/core/dist/index.d.ts` |

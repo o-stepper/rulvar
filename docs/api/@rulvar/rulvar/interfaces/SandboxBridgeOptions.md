@@ -6,10 +6,10 @@
 
 # Interface: SandboxBridgeOptions
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-post"></a> `post` | (`message`) => `void` | Posts one protocol message to the worker (the runner owns the port). | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-post"></a> `post` | (`message`) => `void` | Posts one protocol message to the worker (the runner owns the port). | `packages/core/dist/index.d.ts` |

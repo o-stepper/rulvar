@@ -5,7 +5,7 @@
  * the SSE-to-ChatEvent stream mapper with pause_turn absorption, the full
  * stop-reason table, and usage normalization under the Usage invariant.
  *
- * Owning spec: docs/04-model-layer-spec.md, section "@rulvar/anthropic".
+ * Adapter contract: https://docs.rulvar.com/guide/adapter-authors.
  * Pure functions; the adapter glue in adapter.ts owns the SDK client.
  */
 import {
@@ -19,7 +19,7 @@ import {
   type WireError,
 } from '@rulvar/core';
 
-/** Bijective canonical-to-wire tool-call id map (docs/04, section 1.2). */
+/** Bijective canonical-to-wire tool-call id map. */
 export class IdMap {
   private readonly toWire = new Map<CanonicalId, string>();
   private readonly toCanonical = new Map<string, CanonicalId>();
@@ -63,8 +63,8 @@ type Block = Record<string, unknown>;
  * (minItems, the string bounds, pattern, format, enum and const all
  * pass). The validator guards exactly two wire positions: tools sent
  * with strict: true and output_config.format json_schema; plain tools
- * accept full JSON Schema. Probed live on claude-sonnet-5, 2026-07-11
- * (docs/04, section 4.3). The engine still validates tool args and
+ * accept full JSON Schema. Probed live on claude-sonnet-5, 2026-07-11.
+ * The engine still validates tool args and
  * structured output against the UNSCRUBBED schema, so the dropped
  * keywords stay enforced; only the model-side hint is lost.
  */
@@ -140,8 +140,7 @@ function cacheControl(ttl?: '5m' | '1h'): Block {
 /**
  * Builds Messages API params from a ChatRequest. cacheHint compiles into
  * cache_control breakpoints; beyond the provider cap of 4 the DEEPEST
- * breakpoints are kept and the shallowest dropped, deterministically
- * (docs/04, sections 1.7 and 4.4).
+ * breakpoints are kept and the shallowest dropped, deterministically.
  */
 export function buildAnthropicParams(
   req: ChatRequest,
@@ -204,8 +203,7 @@ export function buildAnthropicParams(
           break;
         case 'provider-raw':
           // Retention is unconditional; projection sends anthropic blocks
-          // to anthropic targets byte-exact and never strips client-side
-          // (docs/04, sections 2.3 and 4.5).
+          // to anthropic targets byte-exact and never strips client-side.
           if (part.provider === 'anthropic') {
             content.push(part.block as Block);
           }
@@ -231,7 +229,7 @@ export function buildAnthropicParams(
     params.tools = req.tools.map((tool) => {
       // Strict tool use is a top-level field on the tool definition, never
       // on tool_choice; strict schemas need additionalProperties: false
-      // and full required (docs/04, section 4.3). Strict engages the
+      // and full required. Strict engages the
       // constrained-decoding validator, so the wire copy is scrubbed;
       // non-strict tools keep the full schema as model-side hints.
       const strict = isStrictCompatibleSchema(tool.parameters);
@@ -251,8 +249,7 @@ export function buildAnthropicParams(
     } else if (req.toolChoice === 'none') {
       // Explicit none with the tools param PRESENT: tool-use history
       // without tool definitions is rejected by the API, and finalize
-      // and extract project such histories (docs/04, section 8.4 as
-      // amended in M4-T01).
+      // and extract project such histories (M4-T01).
       params.tool_choice = { type: 'none' };
     }
   }
@@ -260,8 +257,8 @@ export function buildAnthropicParams(
   const anthropicOptions = req.providerOptions?.anthropic ?? {};
 
   // The output_config umbrella: effort passthrough (including max), the
-  // native structured-output format, task_budget via providerOptions
-  // (docs/04, section 4.2). The deprecated top-level output_format is
+  // native structured-output format, task_budget via providerOptions.
+  // The deprecated top-level output_format is
   // never used.
   const outputConfig: Block = {};
   if (req.effort !== undefined) {
@@ -280,8 +277,8 @@ export function buildAnthropicParams(
   }
 
   // Current models accept only adaptive thinking; explicit disabled is a
-  // 400 on Fable 5, so disabling means omitting the field (docs/04,
-  // section 4.1). The enabled/budget form stays available to the 4.6
+  // 400 on Fable 5, so disabling means omitting the field.
+  // The enabled/budget form stays available to the 4.6
   // generation through providerOptions.
   if (anthropicOptions.thinking !== undefined) {
     params.thinking = anthropicOptions.thinking;
@@ -292,8 +289,7 @@ export function buildAnthropicParams(
   }
 
   // Sampling parameters reach the wire only through providerOptions and
-  // only for models whose caps allow them; the router scrubs the rest
-  // (docs/04, section 8.4).
+  // only for models whose caps allow them; the router scrubs the rest.
   for (const key of ['temperature', 'top_p', 'top_k'] as const) {
     if (anthropicOptions[key] !== undefined) {
       params[key] = anthropicOptions[key];
@@ -309,7 +305,7 @@ function applyCacheHint(params: Record<string, unknown>, hint?: CacheHint): void
     return;
   }
   // Render order is tools, then system, then messages; keep the DEEPEST
-  // breakpoints when over the cap (docs/04, section 4.4).
+  // breakpoints when over the cap.
   const kept = hint.breakpoints.slice(-CACHE_BREAKPOINT_CAP);
   const tools = params.tools as Block[] | undefined;
   const system = params.system as Block[] | undefined;
@@ -346,7 +342,7 @@ export interface MappedStop {
 }
 
 /**
- * The docs/04 section 4.7 stop-reason table. pause_turn never surfaces as
+ * The stop-reason table. pause_turn never surfaces as
  * a canonical finish: the adapter continues internally.
  */
 export function mapStopReason(
@@ -395,7 +391,7 @@ export function mapStopReason(
 /**
  * Normalizes Messages API usage under the Usage invariant: Anthropic
  * reports input_tokens EXCLUDING cache reads and writes, so the canonical
- * inputTokens is the sum of all three (docs/04, sections 1.6 and 4.4).
+ * inputTokens is the sum of all three.
  */
 export function normalizeAnthropicUsage(raw: Record<string, unknown> | undefined): Usage {
   const input = typeof raw?.input_tokens === 'number' ? raw.input_tokens : 0;
@@ -426,7 +422,7 @@ export interface TurnMapping {
  * terminal finish unless the turn paused (pause_turn) or errored.
  * `carryRetained` holds thinking blocks from earlier pause_turn
  * continuations of the same turn so the terminal finish ships the whole
- * turn's retention payload (docs/04, section 2.3, M4-T02).
+ * turn's retention payload (M4-T02).
  */
 export async function mapAnthropicStream(
   stream: AsyncIterable<AnthropicStreamEvent>,
@@ -564,7 +560,7 @@ export async function mapAnthropicStream(
         if (stopSequence !== undefined) {
           meta.stopSequence = stopSequence;
         }
-        // Retention transport (docs/04, section 2.3): thinking blocks
+        // Retention transport: thinking blocks
         // with signatures MUST be echoed byte-exact back to Anthropic
         // targets; ship the whole turn's blocks (earlier pause_turn
         // continuations included) in stream order.
@@ -597,7 +593,7 @@ export async function mapAnthropicStream(
  * Projects an SDK/API error into the retryable WireError vocabulary:
  * 429 rate limits surface retryAfterMs and the x-ratelimit-* buckets; 529
  * overloaded and 5xx are retryable transport; everything else is terminal
- * transport (docs/04, section 4.9). Adapters never sleep internally.
+ * transport. Adapters never sleep internally.
  */
 export function anthropicErrorToWire(error: unknown): WireError {
   const record = error as {

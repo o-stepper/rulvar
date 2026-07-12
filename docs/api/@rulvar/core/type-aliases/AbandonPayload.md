@@ -18,9 +18,9 @@ type AbandonPayload = {
 };
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:77](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L77)
+Defined in: [packages/core/src/l0/entries.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L75)
 
-Payload of abandon ref-entries (docs/03, section 8.6; DEF-4/DEF-5).
+Payload of abandon ref-entries (DEF-4/DEF-5).
 
 ## Properties
 
@@ -30,7 +30,7 @@ Payload of abandon ref-entries (docs/03, section 8.6; DEF-4/DEF-5).
 authorizedBy: number;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L81)
+Defined in: [packages/core/src/l0/entries.ts:79](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L79)
 
 Seq of the plan.revision or decision entry sanctioning it.
 
@@ -42,7 +42,7 @@ Seq of the plan.revision or decision entry sanctioning it.
 optional logicalTaskId?: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L83)
+Defined in: [packages/core/src/l0/entries.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L81)
 
 ***
 
@@ -52,7 +52,7 @@ Defined in: [packages/core/src/l0/entries.ts:83](https://github.com/o-stepper/ru
 optional nodeId?: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:82](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L82)
+Defined in: [packages/core/src/l0/entries.ts:80](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L80)
 
 ***
 
@@ -62,7 +62,7 @@ Defined in: [packages/core/src/l0/entries.ts:82](https://github.com/o-stepper/ru
 reason: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L84)
+Defined in: [packages/core/src/l0/entries.ts:82](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L82)
 
 ***
 
@@ -72,7 +72,7 @@ Defined in: [packages/core/src/l0/entries.ts:84](https://github.com/o-stepper/ru
 optional retainCheckpoint?: boolean;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:86](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L86)
+Defined in: [packages/core/src/l0/entries.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L84)
 
 Default true (DEF-5).
 
@@ -84,7 +84,7 @@ Default true (DEF-5).
 optional retainWorktree?: boolean;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L88)
+Defined in: [packages/core/src/l0/entries.ts:86](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L86)
 
 Default false; counts against the pin cap (DEF-5).
 
@@ -96,6 +96,6 @@ Default false; counts against the pin cap (DEF-5).
 target: number;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:79](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L79)
+Defined in: [packages/core/src/l0/entries.ts:77](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L77)
 
 Seq of the abandoned branch's spawn entry.

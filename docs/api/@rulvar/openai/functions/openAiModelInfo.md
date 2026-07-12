@@ -10,7 +10,7 @@
 function openAiModelInfo(model): OpenAiModelInfo;
 ```
 
-Defined in: [packages/openai/src/caps.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/caps.ts#L54)
+Defined in: [packages/openai/src/caps.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/caps.ts#L53)
 
 Unknown OpenAI models are assumed current-generation Responses models.
 

@@ -8,9 +8,9 @@
 
 Defined in: [packages/core/src/journal/termination.ts:254](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L254)
 
-The single per-run TerminationAccount (docs/07, 11.5): debit ONLY. No
+The single per-run TerminationAccount: debit ONLY. No
 credit operation exists by construction; reclaim never replenishes
-anything (DEF-5 interaction, docs/07 7.3). Live: the engine debits the
+anything (DEF-5 interaction). Live: the engine debits the
 in-memory account, writes the carrying entry with the balance-after,
 then applies effects. Resume state is rebuilt by TerminationFold from
 the journal, never from live config.
@@ -114,7 +114,7 @@ context?): Promise<DebitResult>;
 
 Defined in: [packages/core/src/journal/termination.ts:420](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L420)
 
-The docs/07 11.5 debit surface: attempts the named resource and, on
+The unified debit surface: attempts the named resource and, on
 underflow, writes `termination.denied` strictly BEFORE resolving with
 the typed failure (the caller surfaces the error only after this
 settles). Requires a deniedWriter; pure-fold contexts use the
@@ -152,7 +152,7 @@ debitEscalation(logicalTaskId):
 
 Defined in: [packages/core/src/journal/termination.ts:379](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L379)
 
-The escalation debit (docs/07, 11.3d): minus one escalationUnit of
+The escalation debit: minus one escalationUnit of
 the affected lineage, including EACH lineage of a class-level
 decision and timeout defaultDecisions. Conditioned on the
 countsAgainstLimit flag embedded in the decision entry by the caller.
@@ -192,7 +192,7 @@ debitRevision():
 
 Defined in: [packages/core/src/journal/termination.ts:364](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L364)
 
-The plan_revise debit (docs/07, 11.3a and 11.7): minus one
+The plan_revise debit: minus one
 revisionUnit on EVERY journaled plan.revision, regardless of the op
 count, guard verdicts, or the auto-rebase outcome; conflict spam is
 never a free retry.
@@ -227,7 +227,7 @@ debitRung(logicalTaskId):
 
 Defined in: [packages/core/src/journal/termination.ts:395](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L395)
 
-The ladder-raise debit (docs/07, 11.3c): minus one rung of the
+The ladder-raise debit: minus one rung of the
 lineage; rungIndex is strictly monotone, there are no demotions and
 no runtime startTier promotion in v1.
 
@@ -267,7 +267,7 @@ debitSpawn(lineage?):
 
 Defined in: [packages/core/src/journal/termination.ts:329](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L329)
 
-The spawn-admission debit (docs/07, 11.3b): minus one spawnUnit for
+The spawn-admission debit: minus one spawnUnit for
 an admitted spawn of ANY origin; a NEW lineage receives E0 escalation
 units and (K_l - 1) rung transitions in the same atomic step, so the
 lemma's per-spawn decrease is C - (E0 + K_l - 1) = kMax - K_l + 1,
@@ -304,7 +304,7 @@ phi(): number;
 
 Defined in: [packages/core/src/journal/termination.ts:299](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L299)
 
-Phi = V + C * S + sum over live lineages (E + R) (docs/07, 11.4).
+Phi = V + C * S + sum over live lineages (E + R).
 
 #### Returns
 

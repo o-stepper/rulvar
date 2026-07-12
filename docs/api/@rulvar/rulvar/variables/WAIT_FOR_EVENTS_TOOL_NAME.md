@@ -10,4 +10,4 @@
 const WAIT_FOR_EVENTS_TOOL_NAME: "wait_for_events" = "wait_for_events";
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`

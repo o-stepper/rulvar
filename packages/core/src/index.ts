@@ -4,8 +4,8 @@
  * JSONL stores, event stream.
  *
  * Public surface as of M1: the L0 contracts (wire vocabulary, error
- * taxonomy, SchemaSpec, SPI seams). The remaining layers land per
- * docs/10-implementation-plan.md.
+ * taxonomy, SchemaSpec, SPI seams). The remaining layers landed in
+ * later milestones.
  */
 export type { Json, Bytes } from './l0/json.js';
 export * from './l0/errors.js';

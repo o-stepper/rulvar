@@ -13,7 +13,7 @@ Defined in: [packages/core/src/l0/spi/provider.ts:50](https://github.com/o-stepp
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
 | <a id="property-id"></a> `id` | `string` | Stable adapter id; the left segment of ModelRef. | [packages/core/src/l0/spi/provider.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L52) |
-| <a id="property-provider"></a> `provider?` | `string` | Provider family for provider-raw matching and retention (docs/04, section 2.3; committed during M4-T02). Two adapters of the same family share retained blocks and projections; default = id. | [packages/core/src/l0/spi/provider.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L58) |
+| <a id="property-provider"></a> `provider?` | `string` | Provider family for provider-raw matching and retention (committed during M4-T02). Two adapters of the same family share retained blocks and projections; default = id. | [packages/core/src/l0/spi/provider.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L58) |
 
 ## Methods
 

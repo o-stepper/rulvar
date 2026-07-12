@@ -10,7 +10,7 @@
 function canRideLoopTurn(tier, toolsAvailable): boolean;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 True when the given structured-output tier can ride the last loop turn.
 `native` and `prompt` coexist with tool availability; `forced-tool`

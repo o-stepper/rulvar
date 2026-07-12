@@ -10,12 +10,12 @@
 function selectStructuredOutputTier(caps, canonicalSchema): StructuredOutputTier;
 ```
 
-Defined in: [packages/core/src/model/caps.ts:86](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/caps.ts#L86)
+Defined in: [packages/core/src/model/caps.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/caps.ts#L84)
 
-Tier selection (docs/04, section 8.4): the model's declared ceiling
+Tier selection: the model's declared ceiling
 bounds the tier; the native tier additionally requires a
-strict-compatible canonical schema (docs/04, section 5.2: relying on
-silent server-side fallback is forbidden), degrading to forced-tool.
+strict-compatible canonical schema (relying on silent server-side
+fallback is forbidden), degrading to forced-tool.
 Prefill is not a tier.
 
 ## Parameters

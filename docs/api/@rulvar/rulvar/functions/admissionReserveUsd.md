@@ -10,10 +10,9 @@
 function admissionReserveUsd(options): number;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The admission reserve for a spawn (docs/06, section "Layer 1: admission
-before spawn"): opts.estCost, else profile.estCost, else
+The admission reserve for a spawn: opts.estCost, else profile.estCost, else
 price(countTokens(input) + caps.maxOutputTokens), else the engine flat
 default.
 

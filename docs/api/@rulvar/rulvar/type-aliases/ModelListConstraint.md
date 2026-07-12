@@ -13,7 +13,7 @@ type ModelListConstraint = {
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 An explicit allowlist and denylist; deny wins over allow.
 
@@ -25,7 +25,7 @@ An explicit allowlist and denylist; deny wins over allow.
 optional allow?: ModelRef[];
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ***
 
@@ -35,4 +35,4 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 optional deny?: ModelRef[];
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`

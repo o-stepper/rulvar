@@ -19,7 +19,7 @@ Applies ONE applied op to the working state. The applier consumes
 recorded outcomes; op-level legality was decided at rebase time and is
 never re-evaluated here. Exported for the rebase engine, which applies
 each op of a revision against the state already changed by the earlier
-applied ops of the same revision (docs/07, 3.5, step 3).
+applied ops of the same revision.
 
 ## Parameters
 

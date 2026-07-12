@@ -1,6 +1,6 @@
 /**
- * The orchestrator-crash-resume gating cassette (M6-T11; docs/09,
- * section 6.10): a crashed orchestrate() restores its history from the
+ * The orchestrator-crash-resume gating cassette (M6-T11): a crashed
+ * orchestrate() restores its history from the
  * turn checkpoint and finds child results by content keys, with zero
  * re-paid spawns and no duplicate spawn decisions.
  *
@@ -56,7 +56,7 @@ export function normalizeM6Entries(entries: readonly JournalEntry[]): JournalEnt
  * Phase 1: record the pre-crash journal. The transcripts store carries
  * the boundary checkpoint the resume restores from; the recorder keeps
  * it in memory because the cassette pins only journal bytes (checkpoint
- * blobs are engine-internal at-least-once state, docs/03 section 11).
+ * blobs are engine-internal at-least-once state).
  */
 export async function recordOrchestratorCrash(): Promise<{
   entries: JournalEntry[];

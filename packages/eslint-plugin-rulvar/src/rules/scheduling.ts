@@ -1,5 +1,5 @@
 /**
- * Scheduling and identity rules (M6-T03; docs/06, section 8.4):
+ * Scheduling and identity rules (M6-T03):
  * Promise.all over ctx calls bypasses the journal-aware scheduler
  * (ctx.parallel journals, schedules, and settles); byte-identical
  * repeated calls forward-match to ONE journal entry unless the caller

@@ -6,10 +6,10 @@
 
 # Class: ResolutionArbiter
 
-Defined in: [packages/core/src/journal/resolution.ts:289](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L289)
+Defined in: [packages/core/src/journal/resolution.ts:288](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L288)
 
-Per-run, per-target FIFO serializer of resolution/abandon attempts
-(docs/03, section 8.5): classification against the in-memory fold ->
+Per-run, per-target FIFO serializer of resolution/abandon attempts:
+classification against the in-memory fold ->
 durable append -> settle exactly once; losing attempts are ALSO
 appended and become journaled noops by fold classification. Winner
 effects run strictly after the critical section (the caller's job).
@@ -23,7 +23,7 @@ Cross-process protection remains the LeasableStore fencing epoch.
 new ResolutionArbiter(fold, appender): ResolutionArbiter;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:294](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L294)
+Defined in: [packages/core/src/journal/resolution.ts:293](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L293)
 
 #### Parameters
 
@@ -47,7 +47,7 @@ submitAbandon(
 attempt): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:353](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L353)
+Defined in: [packages/core/src/journal/resolution.ts:352](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L352)
 
 #### Parameters
 
@@ -73,7 +73,7 @@ submitResolution(
 attempt): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:309](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L309)
+Defined in: [packages/core/src/journal/resolution.ts:308](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L308)
 
 #### Parameters
 

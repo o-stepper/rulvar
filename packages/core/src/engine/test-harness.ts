@@ -51,7 +51,7 @@ export interface ScriptedTurn {
   toolCalls?: Array<{ name: string; args: unknown }>;
   finish?: FinishInfo['reason'] | FinishInfo;
   usage?: Partial<Usage>;
-  /** Rides the finish event; carries retention payloads (docs/04, 2.3). */
+  /** Rides the finish event; carries retention payloads. */
   providerMetadata?: Record<string, unknown>;
   /** Emit a terminal error event instead of finish. */
   error?: WireError;
@@ -174,7 +174,7 @@ export interface TestInternalsOptions {
   adapters?: ProviderAdapter[];
   routing?: Partial<Record<InvocationRole, ModelSpec>>;
   profiles?: Record<string, AgentProfile>;
-  /** The per-engine workflow registry (docs/06, 10.4; M6-T06). */
+  /** The per-engine workflow registry (M6-T06). */
   workflows?: Record<string, unknown>;
   limits?: UsageLimits;
   permissions?: PermissionConfig;
@@ -184,7 +184,7 @@ export interface TestInternalsOptions {
   ) => EscalationDecision | Promise<EscalationDecision>;
   budgetUsd?: number;
   lifetimeSpawnCap?: number;
-  /** AdmissionController knobs (docs/07, 7.3; M6-T06). */
+  /** AdmissionController knobs (M6-T06). */
   maxDepth?: number;
   maxChildrenPerNode?: number;
   childBudgetFraction?: number;
@@ -199,7 +199,7 @@ export interface TestInternalsOptions {
   perProvider?: Record<string, number>;
   /** Hard per-role model constraints (M4-T09). */
   floors?: QualityFloors;
-  /** The current()-only ModelKnowledge handle (docs/05; M10-T03). */
+  /** The current()-only ModelKnowledge handle (M10-T03). */
   knowledge?: ModelKnowledgeHandle;
   errorPolicy?: 'strict' | 'lenient';
   now?: () => number;

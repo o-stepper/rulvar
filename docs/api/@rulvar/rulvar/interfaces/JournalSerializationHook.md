@@ -6,7 +6,7 @@
 
 # Interface: JournalSerializationHook
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ## Methods
 
@@ -16,7 +16,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 fromStored(e): JournalEntry;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Applied at load; MUST be symmetric with toStored for replay to hold.
 
@@ -38,7 +38,7 @@ Applied at load; MUST be symmetric with toStored for replay to hold.
 toStored(e): JournalEntry;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Applied at append; kernel ordering/identity fields MUST pass through.
 

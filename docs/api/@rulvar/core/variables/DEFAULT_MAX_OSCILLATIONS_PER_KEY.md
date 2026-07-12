@@ -10,4 +10,4 @@
 const DEFAULT_MAX_OSCILLATIONS_PER_KEY: 2 = 2;
 ```
 
-Defined in: [packages/core/src/journal/reuse.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/reuse.ts#L75)
+Defined in: [packages/core/src/journal/reuse.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/reuse.ts#L76)

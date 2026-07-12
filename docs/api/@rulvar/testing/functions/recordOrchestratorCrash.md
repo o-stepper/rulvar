@@ -18,7 +18,7 @@ Defined in: [packages/testing/src/cassettes/m6-orchestrator.ts:61](https://githu
 Phase 1: record the pre-crash journal. The transcripts store carries
 the boundary checkpoint the resume restores from; the recorder keeps
 it in memory because the cassette pins only journal bytes (checkpoint
-blobs are engine-internal at-least-once state, docs/03 section 11).
+blobs are engine-internal at-least-once state).
 
 ## Returns
 

@@ -10,7 +10,7 @@
 function spawnDepthOf(childScope): number;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Nesting depth of a child scope: its workflow, agent, and plan-node segments.
 

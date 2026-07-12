@@ -3,16 +3,16 @@
  * which @rulvar/plan attaches PlanRunner, the opt-in extension of mode
  * (c).
  *
- * Dependency rules (docs/02, section 4): orchestration packages build
- * exclusively from the public core API; this seam exists so the docs/07
+ * Dependency rules: orchestration packages build
+ * exclusively from the public core API; this seam exists so the PlanRunner
  * machinery needs no private hook. Every capability maps to a normative
  * requirement: `append` writes the decision-before-effects producers
  * into extension-owned sequential scopes (plan.revision, plan.decision,
  * termination.init, ledger.op, node.link); `snapshot` feeds the pure
- * folds; `admission` is the single admission point (docs/07, 7.1);
+ * folds; `admission` is the single admission point;
  * `dispatch` lets the ENGINE schedule ready plan nodes under explicit
  * `plan/NodeId` scopes through the existing semaphore and budget
- * admission (docs/07, 3.1); `quiescent` completes the mandatory
+ * admission; `quiescent` completes the mandatory
  * quiescence trigger (nothing running AND nothing ready).
  */
 import type { EntryKind, JournalEntry } from '../l0/entries.js';
@@ -29,7 +29,7 @@ import type { WakeDigest } from './wake.js';
 /** One append into an extension-owned sequential scope. */
 export interface ExtensionAppendInput {
   scope: string;
-  /** The content key; extension kinds derive their own (docs/07, 3.3). */
+  /** The content key; extension kinds derive their own. */
   key: string;
   kind: EntryKind;
   value: Json;
@@ -39,9 +39,9 @@ export interface ExtensionAppendInput {
 export interface ExtensionDispatchSpec {
   agentType: string;
   prompt: string;
-  /** Resolved against defaults.schemas (docs/08); unknown names are typed errors. */
+  /** Resolved against defaults.schemas; unknown names are typed errors. */
   outputSchemaRef?: string;
-  /** Resolved against defaults.toolsets (docs/08); unknown names are typed errors. */
+  /** Resolved against defaults.toolsets; unknown names are typed errors. */
   toolsetRef?: string;
   isolation?: IsolationSpec;
   budgetUsd?: number;
@@ -51,20 +51,20 @@ export interface ExtensionDispatchSpec {
   taskClass?: string;
   /**
    * A retained transcript checkpoint the dispatch boots from (park and
-   * unpark continuation, the DEF-5 graft boot; docs/03, sections 9.5 and
-   * 11.2). Dangling redispatch checkpoints take precedence.
+   * unpark continuation, the DEF-5 graft boot). Dangling redispatch
+   * checkpoints take precedence.
    */
   bootCheckpointRef?: string;
   /**
    * The CONCRETE model of this attempt: the ladder driver resolves each
    * rung to its `{ model, effort }` form and dispatches with it, so the
-   * attempt's identity hash includes the concrete ModelRef (docs/07,
-   * section 10). The orchestrator itself never names models; only the
+   * attempt's identity hash includes the concrete ModelRef. The
+   * orchestrator itself never names models; only the
    * engine-side driver populates this from the declared ladder.
    */
   model?: { model: ModelRef; effort?: Effort };
   /**
-   * Rung/fallback opt-in (docs/04, section 12): a memoized terminal
+   * Rung/fallback opt-in: a memoized terminal
    * outcome replays by match instead of re-running live; the global
    * default errors-re-run-live is preserved (DEF-1).
    */
@@ -72,7 +72,7 @@ export interface ExtensionDispatchSpec {
   /**
    * An INLINE SchemaSpec for engine-synthesized children (the ladder
    * judge verdict); user-authored plan specs use `outputSchemaRef`
-   * against the registry instead (docs/07, 4.2).
+   * against the registry instead.
    */
   schema?: unknown;
 }
@@ -87,7 +87,7 @@ export interface OrchestratorExtensionIO {
   /** Registered agent profiles advertised to this orchestrate call. */
   readonly profiles: Record<string, unknown>;
   /**
-   * The per-engine mechanical gate registry (docs/07, section 10):
+   * The per-engine mechanical gate registry:
    * named pure functions over AgentResult.artifacts. Typed loose at the
    * seam exactly like `profiles`.
    */
@@ -99,7 +99,7 @@ export interface OrchestratorExtensionIO {
   /**
    * A journaled random draw in [0, 1) under the orchestrate scope: the
    * ctx.random primitive, computed once live and replayed by match. The
-   * spot-check gate draws HERE, never Math.random (docs/04, section 12).
+   * spot-check gate draws HERE, never Math.random.
    */
   random(key?: string): Promise<number>;
   /** Total-order append; the extension owns its scopes' content keys. */
@@ -108,7 +108,7 @@ export interface OrchestratorExtensionIO {
   snapshot(): readonly JournalEntry[];
   /** Flushes the serialized append queue before reading back. */
   flush(): Promise<void>;
-  /** The single admission point for all spawns (docs/07, 7.1). */
+  /** The single admission point for all spawns. */
   readonly admission: AdmissionController;
   /**
    * Dispatches one child agent under the EXPLICIT child scope through
@@ -126,7 +126,7 @@ export interface OrchestratorExtensionIO {
   cancel(handle: number, reason?: string): Promise<{ cancelled: boolean; handle: number }>;
   /**
    * Appends the severing abandon ref-entry over a branch through the
-   * ResolutionArbiter (DEF-4/DEF-5; docs/03, sections 8.5 and 9.1).
+   * ResolutionArbiter (DEF-4/DEF-5).
    */
   abandonBranch(attempt: {
     target: number;
@@ -139,10 +139,10 @@ export interface OrchestratorExtensionIO {
   }): Promise<{ applied: boolean; seq: number }>;
   /**
    * Registers a node.link scope-prefix alias for forward matching
-   * (DEF-5; docs/03, 9.5). Idempotent; rebuilt by fold on resume.
+   * (DEF-5). Idempotent; rebuilt by fold on resume.
    */
   registerAlias(donorScope: string, targetScope: string): void;
-  /** The engine price fold (journal facts in, USD out; docs/04). */
+  /** The engine price fold (journal facts in, USD out). */
   priceUsd(servedBy: string | undefined, usage: Usage): number | undefined;
   /** Telemetry emission into the run event stream. */
   emit(event: { type: string } & Record<string, unknown>): void;
@@ -156,12 +156,12 @@ export interface OrchestratorExtensionIO {
 export interface OrchestratorExtension {
   readonly name: string;
   /**
-   * Runs strictly BEFORE the orchestrator agent's first entry (docs/07,
-   * 11.6: termination.init precedes the first scheduling entry and the
+   * Runs strictly BEFORE the orchestrator agent's first entry
+   * (termination.init precedes the first scheduling entry and the
    * budget reserve). On resume it rebuilds state from the journal.
    */
   boot?(io: OrchestratorExtensionIO): Promise<void> | void;
-  /** Extension tools appended to the mode (c) toolset (docs/07, section 4). */
+  /** Extension tools appended to the mode (c) toolset. */
   tools(io: OrchestratorExtensionIO): ToolDef[];
   /** Extra orchestrator prompt lines describing the extension's protocol. */
   promptLines?(): string[];
@@ -172,7 +172,7 @@ export interface OrchestratorExtension {
    */
   onActivity?(io: OrchestratorExtensionIO): Promise<void> | void;
   /**
-   * Quiescence participation (docs/07, 4.8): the mandatory trigger fires
+   * Quiescence participation: the mandatory trigger fires
    * only when every dispatched child settled AND the extension reports
    * nothing running and nothing ready.
    */

@@ -1,10 +1,9 @@
 /**
  * Handle-based spawn records, await, and cancel (M6-T07/T08).
  *
- * Owning spec: docs/07-adaptive-orchestration-spec.md, sections
- * "Orchestrator toolset" (4.2-4.5) and "WakeDigest" (TaskDigest). A
- * handle IS the seq of the child's dispatch entry, stable across resume
- * (docs/06 9.3): live spawns learn it from the kOnRunning hook, resumed
+ * Full contract: https://docs.rulvar.com/guide/adaptive-orchestration. A
+ * handle IS the seq of the child's dispatch entry, stable across resume:
+ * live spawns learn it from the kOnRunning hook, resumed
  * ones recover it from the journal before any tool executes.
  *
  * Recovery (the crash-resume contract): a resumed orchestrator restores
@@ -18,7 +17,7 @@
 import type { Json } from '../l0/json.js';
 import type { AgentResult } from '../runtime/agent-loop.js';
 
-/** docs/07 section 5: the per-child digest handed to the orchestrator. */
+/** The per-child digest handed to the orchestrator. */
 export interface TaskDigest {
   nodeId: string;
   logicalTaskId: string;
@@ -38,7 +37,7 @@ export interface SpawnRecord {
   result: Promise<AgentResult<unknown>>;
   settled?: AgentResult<unknown>;
   abort: () => void;
-  /** The spawn's escalation flavor, captured at dispatch (docs/07, 5). */
+  /** The spawn's escalation flavor, captured at dispatch. */
   escalationFlavor?: 'A' | 'B';
 }
 
@@ -58,12 +57,12 @@ export interface OrchestratorRuntime {
   awaitAny(handles: number[]): Promise<TaskDigest>;
   awaitAll(handles: number[]): Promise<TaskDigest[]>;
   cancel(handle: number, reason?: string): Promise<{ cancelled: boolean; handle: number }>;
-  /** docs/07 4.8: sleep until a coalesced WakeDigest (M6-T09). */
+  /** Sleep until a coalesced WakeDigest (M6-T09). */
   waitForEvents(triggers: unknown): Promise<unknown>;
 }
 
 /**
- * The committed WakeDigest render budget (docs/06, Appendix A: 400
+ * The committed WakeDigest render budget (Appendix A: 400
  * chars per outputSummary row, the character measure; committed at M10
  * entry by adopting the implemented distillation cap unchanged, the
  * value frozen into every cassette since M6). One value serves both
@@ -74,8 +73,8 @@ export const WAKE_SUMMARY_RENDER_BUDGET_CHARS = 400;
 
 /**
  * The M6 outputSummary: a deterministic truncation of the child's
- * output (or error message), identical live and on replay (docs/07
- * section 2, clause 3: distillation lives with the child, ordered by
+ * output (or error message), identical live and on replay (distillation
+ * lives with the child, ordered by
  * spawn ordinal; the LLM distillation upgrade is M7 territory).
  */
 export function summarizeOutput(result: AgentResult<unknown>): string {

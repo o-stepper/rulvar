@@ -10,9 +10,9 @@
 function hashWorkflowBody(wf): string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Content hash of an in-process workflow body (run-to-definition binding, docs/06 10.2).
+Content hash of an in-process workflow body (run-to-definition binding).
 
 ## Parameters
 

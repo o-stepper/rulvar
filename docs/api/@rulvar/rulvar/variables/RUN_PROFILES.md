@@ -10,8 +10,8 @@
 const RUN_PROFILES: Record<string, RunProfile>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The shipped presets (docs/06, section 11: fast / standard / deep /
-ultra "and similar"). Data only; a review-time assertion checks the
+The shipped presets (fast / standard / deep / ultra "and similar").
+Data only; a review-time assertion checks the
 engine has zero behavioral branches keyed on these names.

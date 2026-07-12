@@ -20,4 +20,4 @@ type ResolutionOutcome =
 };
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L38)
+Defined in: [packages/core/src/journal/resolution.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L37)

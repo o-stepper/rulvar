@@ -6,13 +6,12 @@
 
 # Class: AgentCallError
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The rejection carrier of ctx.agent value-form calls: a real Error that
-structurally satisfies the typed AgentError (docs/06, section "ctx.agent
-and AgentOpts") and carries the full AgentResult for Settled mapping.
-Deliberately not a RulvarError: AgentError is not in the closed code
-registry (docs/02, section "Error taxonomy").
+structurally satisfies the typed AgentError and carries the full
+AgentResult for Settled mapping. Deliberately not a RulvarError:
+AgentError is not in the closed code registry.
 
 ## Extends
 
@@ -34,7 +33,7 @@ new AgentCallError(
    entryRef?): AgentCallError;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -60,15 +59,15 @@ Error.constructor
 | Property | Modifier | Type | Description | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-cause"></a> `cause?` | `public` | `unknown` | - | `Error.cause` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts:24](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts#L24) |
-| <a id="property-entryref"></a> `entryRef?` | `readonly` | `number` | - | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-issues"></a> `issues?` | `readonly` | [`Issue`](/api/@rulvar/rulvar/type-aliases/Issue.md)[] | - | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-kind"></a> `kind` | `readonly` | \| `"budget"` \| `"transport"` \| `"rate-limit"` \| `"schema-mismatch"` \| `"tool"` \| `"terminal"` | - | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-entryref"></a> `entryRef?` | `readonly` | `number` | - | - | `packages/core/dist/index.d.ts` |
+| <a id="property-issues"></a> `issues?` | `readonly` | [`Issue`](/api/@rulvar/rulvar/type-aliases/Issue.md)[] | - | - | `packages/core/dist/index.d.ts` |
+| <a id="property-kind"></a> `kind` | `readonly` | \| `"budget"` \| `"transport"` \| `"rate-limit"` \| `"schema-mismatch"` \| `"tool"` \| `"terminal"` | - | - | `packages/core/dist/index.d.ts` |
 | <a id="property-message"></a> `message` | `public` | `string` | - | `Error.message` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1075](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1075) |
 | <a id="property-name"></a> `name` | `public` | `string` | - | `Error.name` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1074](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1074) |
-| <a id="property-result"></a> `result` | `readonly` | [`AgentResult`](/api/@rulvar/rulvar/interfaces/AgentResult.md)\&lt;`unknown`\&gt; | - | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-retryafterms"></a> `retryAfterMs?` | `readonly` | `number` | - | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-scope"></a> `scope` | `readonly` | `string` | - | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-result"></a> `result` | `readonly` | [`AgentResult`](/api/@rulvar/rulvar/interfaces/AgentResult.md)\&lt;`unknown`\&gt; | - | - | `packages/core/dist/index.d.ts` |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | - | `packages/core/dist/index.d.ts` |
+| <a id="property-retryafterms"></a> `retryAfterMs?` | `readonly` | `number` | - | - | `packages/core/dist/index.d.ts` |
+| <a id="property-scope"></a> `scope` | `readonly` | `string` | - | - | `packages/core/dist/index.d.ts` |
 | <a id="property-stack"></a> `stack?` | `public` | `string` | - | `Error.stack` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1076](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1076) |
 | <a id="property-stacktracelimit"></a> `stackTraceLimit` | `static` | `number` | The `Error.stackTraceLimit` property specifies the number of stack frames collected by a stack trace (whether generated by `new Error().stack` or `Error.captureStackTrace(obj)`). The default value is `10` but may be set to any valid JavaScript number. Changes will affect any stack trace captured _after_ the value has been changed. If set to a non-number value, or set to a negative number, stack traces will not capture any frames. | `Error.stackTraceLimit` | [node\_modules/.pnpm/@types+node@22.20.0/node\_modules/@types/node/globals.d.ts:68](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/@types+node@22.20.0/node\_modules/@types/node/globals.d.ts#L68) |
 

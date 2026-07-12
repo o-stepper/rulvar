@@ -18,7 +18,7 @@
 | ------ | ------ |
 | [default](/api/eslint-plugin-rulvar/variables/default.md) | - |
 | [rules](/api/eslint-plugin-rulvar/variables/rules.md) | - |
-| [workflowsConfig](/api/eslint-plugin-rulvar/variables/workflowsConfig.md) | The flat-config preset for workflow modules: the determinism bans as errors, the duplicate-identical-call advisory as a warning (docs/06, 8.4). |
+| [workflowsConfig](/api/eslint-plugin-rulvar/variables/workflowsConfig.md) | The flat-config preset for workflow modules: the determinism bans as errors, the duplicate-identical-call advisory as a warning. |
 
 ## Functions
 

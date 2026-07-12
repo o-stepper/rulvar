@@ -18,7 +18,7 @@ type AbandonAttempt = {
 };
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L27)
+Defined in: [packages/core/src/journal/resolution.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L26)
 
 ## Properties
 
@@ -28,7 +28,7 @@ Defined in: [packages/core/src/journal/resolution.ts:27](https://github.com/o-st
 authorizedBy: number;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L29)
+Defined in: [packages/core/src/journal/resolution.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L28)
 
 ***
 
@@ -38,7 +38,7 @@ Defined in: [packages/core/src/journal/resolution.ts:29](https://github.com/o-st
 optional logicalTaskId?: string;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L32)
+Defined in: [packages/core/src/journal/resolution.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L31)
 
 Lineage-fold attribution (XF-04; DEF-3).
 
@@ -50,7 +50,7 @@ Lineage-fold attribution (XF-04; DEF-3).
 optional nodeId?: string;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L30)
+Defined in: [packages/core/src/journal/resolution.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L29)
 
 ***
 
@@ -60,7 +60,7 @@ Defined in: [packages/core/src/journal/resolution.ts:30](https://github.com/o-st
 reason: string;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L33)
+Defined in: [packages/core/src/journal/resolution.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L32)
 
 ***
 
@@ -70,7 +70,7 @@ Defined in: [packages/core/src/journal/resolution.ts:33](https://github.com/o-st
 optional retainCheckpoint?: boolean;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:34](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L34)
+Defined in: [packages/core/src/journal/resolution.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L33)
 
 ***
 
@@ -80,7 +80,7 @@ Defined in: [packages/core/src/journal/resolution.ts:34](https://github.com/o-st
 optional retainWorktree?: boolean;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L35)
+Defined in: [packages/core/src/journal/resolution.ts:34](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L34)
 
 ***
 
@@ -90,4 +90,4 @@ Defined in: [packages/core/src/journal/resolution.ts:35](https://github.com/o-st
 target: number;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L28)
+Defined in: [packages/core/src/journal/resolution.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L27)

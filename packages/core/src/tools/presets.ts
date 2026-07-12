@@ -1,5 +1,5 @@
 /**
- * Permission presets (M5-T05; docs/08, sections 4.2-4.3): presets
+ * Permission presets (M5-T05): presets
  * compile INTO the existing chain layers (deny rules and ask rules),
  * never a fifth layer, and never emit allow-overrides: an "allow" cell
  * simply emits no rule, so the call falls through to canUseTool and the

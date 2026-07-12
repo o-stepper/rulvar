@@ -6,7 +6,7 @@
 
 # Interface: PlanToolRuntime
 
-Defined in: [packages/plan/src/tools.ts:298](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L298)
+Defined in: [packages/plan/src/tools.ts:297](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L297)
 
 The engine seam the plan tools close over.
 
@@ -20,7 +20,7 @@ ledgerAppend(op): Promise<{
 }>;
 ```
 
-Defined in: [packages/plan/src/tools.ts:301](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L301)
+Defined in: [packages/plan/src/tools.ts:300](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L300)
 
 #### Parameters
 
@@ -42,7 +42,7 @@ Defined in: [packages/plan/src/tools.ts:301](https://github.com/o-stepper/rulvar
 ledgerRead(): LedgerView;
 ```
 
-Defined in: [packages/plan/src/tools.ts:302](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L302)
+Defined in: [packages/plan/src/tools.ts:301](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L301)
 
 #### Returns
 
@@ -56,7 +56,7 @@ Defined in: [packages/plan/src/tools.ts:302](https://github.com/o-stepper/rulvar
 planRevise(request): Promise<PlanReviseResult>;
 ```
 
-Defined in: [packages/plan/src/tools.ts:300](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L300)
+Defined in: [packages/plan/src/tools.ts:299](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L299)
 
 #### Parameters
 
@@ -76,7 +76,7 @@ Defined in: [packages/plan/src/tools.ts:300](https://github.com/o-stepper/rulvar
 planView(): PlanViewRender;
 ```
 
-Defined in: [packages/plan/src/tools.ts:299](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L299)
+Defined in: [packages/plan/src/tools.ts:298](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L298)
 
 #### Returns
 

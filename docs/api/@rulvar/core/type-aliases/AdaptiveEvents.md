@@ -144,11 +144,12 @@ type AdaptiveEvents =
 };
 ```
 
-Defined in: [packages/core/src/l0/events.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L88)
+Defined in: [packages/core/src/l0/events.ts:89](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L89)
 
-docs/09 section 1.4, adaptive orchestration, resolutions, and
+Adaptive orchestration, resolutions, and
 accounting: emitted only by runs where the corresponding machinery is
-active (applicability per mode: docs/07, section 1). The types land as
+active (applicability per mode:
+https://docs.rulvar.com/guide/adaptive-orchestration). The types land as
 one closed catalog with M7-T03; emitters arrive with their tasks.
 
 ## Union Members
@@ -278,12 +279,12 @@ one closed catalog with M7-T03; emitters arrive with their tasks.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/l0/events.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L140) |
-| `entryRef` | `number` | - | [packages/core/src/l0/events.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L137) |
-| `logicalTaskId` | `string` | - | [packages/core/src/l0/events.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L141) |
-| `spawnUnitsAfter` | `number` | - | [packages/core/src/l0/events.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L142) |
-| `type` | `"spawn:admitted"` | - | [packages/core/src/l0/events.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L136) |
-| `verdict` | `"admit"` \| `"reuse_full"` \| `"admit_graft"` | The admitting arms of the unified AdmitVerdict union (docs/07, 7.2). | [packages/core/src/l0/events.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L139) |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L141) |
+| `entryRef` | `number` | - | [packages/core/src/l0/events.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L138) |
+| `logicalTaskId` | `string` | - | [packages/core/src/l0/events.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L142) |
+| `spawnUnitsAfter` | `number` | - | [packages/core/src/l0/events.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L143) |
+| `type` | `"spawn:admitted"` | - | [packages/core/src/l0/events.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L137) |
+| `verdict` | `"admit"` \| `"reuse_full"` \| `"admit_graft"` | The admitting arms of the unified AdmitVerdict union. | [packages/core/src/l0/events.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L140) |
 
 ***
 

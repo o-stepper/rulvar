@@ -6,7 +6,7 @@
 
 # Interface: ExternalIdentityInput
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 External inputs: ctx.awaitExternal (kind 'external').
 
@@ -14,5 +14,5 @@ External inputs: ctx.awaitExternal (kind 'external').
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-key"></a> `key` | `string` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-kind"></a> `kind` | `"external"` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-key"></a> `key` | `string` | `packages/core/dist/index.d.ts` |
+| <a id="property-kind"></a> `kind` | `"external"` | `packages/core/dist/index.d.ts` |

@@ -10,9 +10,9 @@
 const LEGACY_SIGNATURE_INPUTS: ApproachSignatureInputs;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The deterministic signature inputs assigned to legacy spawns (journals
 written before lineage existed) and to attempts whose producers did not
 record signature inputs: stable constants, never wall-clock, so replay
-canonizes identically on every engine (docs/03, 10.7).
+canonizes identically on every engine.

@@ -20,9 +20,9 @@ function foldTermination(entries):
   | undefined;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The replay fold (docs/07, 11.6): rebuilds the account from
+The replay fold: rebuilds the account from
 termination.init and the debiting decision entries, asserting every
 embedded balance-after against the recomputation. A divergence raises
 the typed journal-integrity error at exactly the diverging entry;

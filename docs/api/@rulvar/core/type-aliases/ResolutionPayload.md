@@ -17,9 +17,9 @@ type ResolutionPayload = {
 };
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L62)
+Defined in: [packages/core/src/l0/entries.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L60)
 
-Payload of resolution ref-entries (docs/03, section 8.6; DEF-4).
+Payload of resolution ref-entries (DEF-4).
 
 ## Properties
 
@@ -29,7 +29,7 @@ Payload of resolution ref-entries (docs/03, section 8.6; DEF-4).
 by: ResolutionBy;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:65](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L65)
+Defined in: [packages/core/src/l0/entries.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L63)
 
 ***
 
@@ -39,7 +39,7 @@ Defined in: [packages/core/src/l0/entries.ts:65](https://github.com/o-stepper/ru
 optional countsAgainstLimit?: boolean;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L73)
+Defined in: [packages/core/src/l0/entries.ts:71](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L71)
 
 Only on escalation resolutions (DEF-3, M7).
 
@@ -51,7 +51,7 @@ Only on escalation resolutions (DEF-3, M7).
 optional decisionRef?: number;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:69](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L69)
+Defined in: [packages/core/src/l0/entries.ts:67](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L67)
 
 Seq of the class-level EscalationDecision when by = 'class_decision'.
 
@@ -63,7 +63,7 @@ Seq of the class-level EscalationDecision when by = 'class_decision'.
 optional logicalTaskId?: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:71](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L71)
+Defined in: [packages/core/src/l0/entries.ts:69](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L69)
 
 Lineage-fold attribution (DEF-3, M7).
 
@@ -75,7 +75,7 @@ Lineage-fold attribution (DEF-3, M7).
 target: number;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L64)
+Defined in: [packages/core/src/l0/entries.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L62)
 
 Duplicates ref for self-description.
 
@@ -87,6 +87,6 @@ Duplicates ref for self-description.
 value: Json;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:67](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L67)
+Defined in: [packages/core/src/l0/entries.ts:65](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L65)
 
 awaitExternal resolution / EscalationDecision / WakeDigest.

@@ -18,7 +18,7 @@ Defined in: [packages/openai/src/wire.ts:79](https://github.com/o-stepper/rulvar
 Builds Responses API params. Manual item replay ONLY: store: false plus
 include reasoning.encrypted_content; previous_response_id and the
 Conversations API place state server-side, break replay identity, and
-are REJECTED as a typed ConfigError (docs/04, section 5.1). Role
+are REJECTED as a typed ConfigError. Role
 'system' messages project into top-level instructions on every request.
 
 ## Parameters

@@ -1,6 +1,6 @@
 /**
- * The M6 gating cassette scenarios owned by the planner (M6-T11;
- * docs/09, section 6.10): sandbox-determinism and planner-self-repair.
+ * The M6 gating cassette scenarios owned by the planner (M6-T11):
+ * sandbox-determinism and planner-self-repair.
  * The scenario builders are exported so scripts/record-m6-cassettes.mjs
  * and the replay tests execute EXACTLY one implementation; the committed
  * cassette bytes are the compatibility contract.

@@ -31,7 +31,7 @@ Defined in: [packages/core/src/orchestrator/admission.ts:218](https://github.com
 | `options.lineage.limits?` | \| `Record`\&lt;`string`, `unknown`\&gt; \| `Partial`\&lt;[`EscalationLimits`](/api/@rulvar/core/interfaces/EscalationLimits.md)\&gt; | - |
 | `options.maxChildrenPerNode?` | `number` | - |
 | `options.maxDepth?` | `number` | - |
-| `options.maxTotalSpawns?` | `number` | Per-orchestrate spawn cap (docs/06, 9.3 maxSpawns); engine lifetime cap applies regardless. |
+| `options.maxTotalSpawns?` | `number` | Per-orchestrate spawn cap (maxSpawns); engine lifetime cap applies regardless. |
 | `options.mintId?` | () => `string` | - |
 
 #### Returns
@@ -117,8 +117,8 @@ bindTermination(account): void;
 
 Defined in: [packages/core/src/orchestrator/admission.ts:281](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L281)
 
-Binds the run's TerminationAccount (DEF-2; PlanRunner runs only,
-docs/07 section 1): from bind time on, every admitted spawn of any
+Binds the run's TerminationAccount (DEF-2; PlanRunner runs only):
+from bind time on, every admitted spawn of any
 origin debits one spawnUnit atomically with its decision entry, and
 a declared ladder longer than the frozen kMax rejects with
 ladder_exceeds_frozen. Non-PlanRunner runs never bind an account and
@@ -156,7 +156,7 @@ evaluateLineage(spec): {
 
 Defined in: [packages/core/src/orchestrator/admission.ts:301](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L301)
 
-The lineage half of admission (DEF-3, docs/03 section 10.5): folds are
+The lineage half of admission (DEF-3): folds are
 computed live STRICTLY BEFORE the carrying decision entry is appended;
 the caller embeds the returned block in the entry and replay reads it
 back byte-exact. Enforces the single-live-attempt invariant
@@ -221,7 +221,7 @@ The lineage counter folds over the run journal (absorbed lazily).
 recoverChild(nodeKey): void;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:511](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L511)
+Defined in: [packages/core/src/orchestrator/admission.ts:510](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L510)
 
 Resume roll-forward for an orchestrator child (M6-T07): restores the
 children-quota counter only. The budget seed already counts settled
@@ -246,12 +246,12 @@ through the ctx.agent dispatch path.
 recoverInFlight(parentAccountScope, verdict): void;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:535](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L535)
+Defined in: [packages/core/src/orchestrator/admission.ts:534](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L534)
 
 Resume roll-forward for an admission whose decision entry exists but
 whose child has NOT settled: re-applies the recorded reserve and
-counters without re-evaluating any limit (docs/07, 7.1: replay never
-re-evaluates admission; docs/06, 5.1: reserves are recovered, never
+counters without re-evaluating any limit (replay never
+re-evaluates admission; reserves are recovered, never
 re-estimated).
 
 #### Parameters
@@ -273,12 +273,12 @@ re-estimated).
 recoverSettled(parentAccountScope): void;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:522](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L522)
+Defined in: [packages/core/src/orchestrator/admission.ts:521](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L521)
 
 Resume roll-forward for a child that already SETTLED before the
 resume: re-registers the counters (maxChildrenPerNode, the lifetime
 cap, statsBefore fidelity) without committing any reserve; the spend
-itself sits in the root ledger seed (docs/03, 13.3).
+itself sits in the root ledger seed.
 
 #### Parameters
 

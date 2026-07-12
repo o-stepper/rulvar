@@ -10,6 +10,6 @@
 const LINEAGE_SIG_VERSION: 1;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-approachSig/approachSigCoarse derivation version (docs/03, 10.7).
+approachSig/approachSigCoarse derivation version.

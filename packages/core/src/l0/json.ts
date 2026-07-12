@@ -2,9 +2,7 @@
  * L0 JSON value domain.
  *
  * Everything that enters the journal (entry values, error data, artifacts)
- * MUST be JSON-serializable (docs/03-journal-spec.md, section "Two-phase
- * entries, dispatch, and the budget ledger"); `Json` is the type-level face
- * of that rule.
+ * MUST be JSON-serializable; `Json` is the type-level face of that rule.
  */
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 

@@ -10,7 +10,7 @@
 function buildM2CassetteFixtures(): CassetteFixture[];
 ```
 
-Defined in: [packages/testing/src/cassettes/build-fixtures.ts:369](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/cassettes/build-fixtures.ts#L369)
+Defined in: [packages/testing/src/cassettes/build-fixtures.ts:368](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/cassettes/build-fixtures.ts#L368)
 
 ## Returns
 

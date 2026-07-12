@@ -10,7 +10,7 @@
 function inspectCommand(argv, context): Promise<number>;
 ```
 
-Defined in: [packages/cli/src/commands.ts:217](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L217)
+Defined in: [packages/cli/src/commands.ts:216](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L216)
 
 ## Parameters
 

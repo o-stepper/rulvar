@@ -10,7 +10,7 @@
 function openaiCompatible(cfg): ProviderAdapter;
 ```
 
-Defined in: [packages/openai/src/compatible.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/compatible.ts#L58)
+Defined in: [packages/openai/src/compatible.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/compatible.ts#L57)
 
 Creates a Chat Completions dialect adapter for a compatible endpoint.
 

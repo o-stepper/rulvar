@@ -1,7 +1,6 @@
 /**
  * The committed rebase algorithm (M7-T04, DEF-8): no variants.
  *
- * Owning spec: docs/07-adaptive-orchestration-spec.md, sections 3.5-3.7.
  * The caller holds the PlanWriteLock, reads the fold head, runs this pure
  * evaluation, appends ONE plan.revision entry strictly BEFORE any effect,
  * and renders the tool result deterministically from the entry. Conflicts
@@ -38,12 +37,12 @@ export interface ReuseTransform {
   applied: AppliedPlanOp;
   admission: AdmissionDecision;
   nodeId: NodeId;
-  /** Donor placement recorded beside the verdict (docs/03, 9.5). */
+  /** Donor placement recorded beside the verdict. */
   reuse: { donorScope: string; chain: string[] };
 }
 
 export interface RebaseContext {
-  /** The fold head (docs/07, 3.5 step 3). */
+  /** The fold head. */
   state: PlanFoldState;
   /** The plan hash recorded in the WakeDigest the base references. */
   digestPlanHashFor: (digestSeq: number) => string | undefined;
@@ -51,13 +50,13 @@ export interface RebaseContext {
   mintNodeId: () => NodeId;
   /** The plan is frozen for adaptation by orchestrator_budget_cap (DEF-7). */
   frozen?: boolean;
-  /** Embedded admission for add_task (docs/07, 3.6); absent admits nothing. */
+  /** Embedded admission for add_task; absent admits nothing. */
   admitAdd?: (
     op: Extract<PlanOp, { op: 'add_task' }>,
     nodeId: NodeId,
     opIndex: number,
   ) => AdmissionDecision;
-  /** Embedded admission reserve for unpark_task (docs/07, 3.6). */
+  /** Embedded admission reserve for unpark_task. */
   admitUnpark?: (
     op: Extract<PlanOp, { op: 'unpark_task' }>,
     node: PlanNode,
@@ -82,7 +81,7 @@ export interface RebaseEvaluation {
 }
 
 /**
- * Steps 2-4 of the committed algorithm (docs/07, 3.5): base validation,
+ * Steps 2-4 of the committed algorithm: base validation,
  * sequential per-op conflict resolution against the mutating head, and
  * the post-revision counter update. Pure: the caller owns the lock, the
  * append, and every effect.
@@ -96,7 +95,7 @@ export function rebasePlanRevision(
   if (recorded === undefined || recorded !== request.base.planHash) {
     // ONE journaled all-dropped revision; the hashed state is untouched
     // (planHashAfter == planHashBefore) and the guard streak lengthens
-    // fold-side (docs/07, 3.5 step 2; plan-entries.ts).
+    // fold-side (plan-entries.ts).
     return {
       outcomes: request.ops.map((op) => ({ kind: 'dropped', requested: op, reason: 'bad_base' })),
       assignedNodeIds: {},
@@ -168,9 +167,8 @@ function dropped(
 }
 
 /**
- * The complete per-op resolution table, op x node state at the fold head
- * (docs/07, 3.6). Normative and closed: every row below cites its table
- * row; nothing else exists.
+ * The complete per-op resolution table, op x node state at the fold head.
+ * Normative and closed: nothing outside the rows below exists.
  */
 function evaluateOp(
   op: PlanOp,
@@ -287,8 +285,8 @@ function evaluateOp(
           return dropped(op, 'admission_denied');
         }
       }
-      // A discarded checkpoint makes the unpark a restart (docs/07, 3.6
-      // amend-on-parked row; the pin-cap overflow path lands in M7-T08).
+      // A discarded checkpoint makes the unpark a restart (the pin-cap
+      // overflow path lands in M7-T08).
       return {
         kind: 'applied',
         op: {
@@ -404,7 +402,7 @@ function evaluateOp(
 }
 
 /**
- * The cancel cascade (docs/07, 3.6): the transitive BLOCKING dependents
+ * The cancel cascade: the transitive BLOCKING dependents
  * of the cancelled node, computed at apply time. An edge is blocking
  * when not waived; `done` nodes never enter the cascade (done is
  * immutable), and running dependents (only reachable via waived or

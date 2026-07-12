@@ -10,12 +10,12 @@
 function runCrashAfterAppendBeforeEffects(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/m9-cassettes.ts:2168](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L2168)
+Defined in: [packages/plan/src/m9-cassettes.ts:2167](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L2167)
 
 crash-after-append-before-effects (DEF-8): the kill lands immediately
 after the durable plan.revision carrying add_task x2 plus cancel_task
 on a running node; the resume re-issues the effects: both children
-spawn live exactly once and the cancel lands (docs/07, 3.9).
+spawn live exactly once and the cancel lands.
 
 ## Returns
 

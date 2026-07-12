@@ -1,7 +1,6 @@
 /**
  * journalStoreConformance (M2-T11, DEF-4): the executable definition of
- * the JournalStore seam. Mandatory checks per docs/03, section
- * "Conformance obligations" and docs/11, section "Conformance tier":
+ * the JournalStore seam. Mandatory checks for the conformance tier:
  * A1 append atomicity, A2 total per-run order, A3 read-your-writes,
  * A4 opaque payload, meta separation, the golden fold-state fixture, the
  * end-to-end decide-once oracle, and the abandon fixture (zero live
@@ -179,7 +178,7 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
         // A raw round-1 entry (legacy `v`, no hashVersion), an unknown
         // kind, and unknown fields: the store persists bytes without
         // interpretation; normalization is read-side in the kernel and
-        // never rewrites the store (docs/03, section 4.6).
+        // never rewrites the store.
         const exotic = {
           v: 1,
           seq: 0,

@@ -12,7 +12,7 @@ function buildTerminationInitValue(limits, registrySnapshotHash): TerminationIni
 
 Defined in: [packages/core/src/journal/termination.ts:193](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L193)
 
-Builds the termination.init value payload (docs/07, 11.6).
+Builds the termination.init value payload.
 
 ## Parameters
 

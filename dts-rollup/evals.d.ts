@@ -2,7 +2,7 @@ import { CompiledWorkflow, DeclaredLadder, Effort, Engine, EvidenceRef, Json, Js
 
 //#region src/case.d.ts
 /**
-* One quality-measurement case (docs/09, section 7.1). The shape is the
+* One quality-measurement case. The shape is the
 * documented interface verbatim; display names derive from the workflow
 * name (the suite runner disambiguates duplicates by ordinal).
 */
@@ -24,7 +24,7 @@ interface GraderVerdict {
 /**
 * A judge invocation specification. The judge runs through the engine as
 * an ordinary journaled, budgeted invocation; model selection is subject
-* to the router quality floors (docs/04, section "Role quality floors"),
+* to the router quality floors,
 * and @rulvar/evals ships NO default judge model: weak defaults for
 * judging are forbidden, so the model is always explicit.
 */
@@ -65,7 +65,7 @@ interface EvalCaseResult {
   judgeCostUsd: number;
   /**
   * run:start to run:end of the target run, from event timestamps; no
-  * separate measurement channel exists (docs/09, section 7.2).
+  * separate measurement channel exists.
   */
   latencyMs: number;
   /** The target run's normalized usage. */
@@ -162,7 +162,7 @@ declare function rubricGrader(criteria: RubricCriterion[], options?: RubricGrade
 /** The default judge verdict shape. */
 declare const JUDGE_VERDICT_SCHEMA: JsonSchema;
 interface JudgeGraderOptions {
-  /** Judge model; required, never defaulted (docs/04 role quality floors). */
+  /** Judge model; required, never defaulted (role quality floors). */
   model: ModelSpec;
   /** What to judge: the criteria prose embedded into the judge prompt. */
   instruction: string;
@@ -213,10 +213,10 @@ interface EvalCommitterOptions {
   committerId: string;
   /** The emitting sweep report; every claim's gate references it. */
   reportId: string;
-  /** CAS-rebase attempts (docs/05, 5.4); default 3. */
+  /** CAS-rebase attempts; default 3. */
   attempts?: number;
 }
-/** One measured claim, TTL applied per the docs/05 decay table. */
+/** One measured claim; claimExpiry applies the TTL from the decay table. */
 declare function evalMeasuredClaim(input: MeasuredClaimInput, committerId: string): ModelClaim;
 /**
 * Commits measured claims through the eval-committer gate with the
@@ -250,9 +250,8 @@ interface CanaryDriftReport {
 }
 /**
 * Flips the model's ACTIVE eval-measured claims to stale when their
-* recorded canary fingerprint differs from the fresh one (docs/05:
-* "a fingerprint change immediately flips the model's eval claims to
-* stale"). Claims without a recorded fingerprint have no baseline and
+* recorded canary fingerprint differs from the fresh one. Claims
+* without a recorded fingerprint have no baseline and
 * stay untouched (the documented no-probe posture); a second run is
 * an idempotent noop. CAS-rebased like every maintenance commit.
 */
@@ -284,7 +283,7 @@ interface SweepThresholds {
 interface RunSweepOptions {
   /** Deterministic, caller-minted; every claim's evidence and gate reference it. */
   reportId: string;
-  /** The dedicated identity (docs/05, 5.4). */
+  /** The dedicated committer identity. */
   committerId: string;
   /** ISO date of the sweep; the TTL table applies from it (no wall clock inside). */
   observedAt: string;
@@ -364,7 +363,7 @@ interface RunCheckpointOptions {
   suite?: RunEvalSuiteOptions;
   /**
   * Orchestrated runs need room for the orchestrator cap math (the
-  * run ceiling must host the finalize reserve; docs/07, 12.2): their
+  * run ceiling must host the finalize reserve): their
   * suite options default to `suite` but usually carry a larger
   * budgetUsd.
   */

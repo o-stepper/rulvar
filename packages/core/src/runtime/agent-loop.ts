@@ -7,8 +7,8 @@
  * with M3/M4; the escalated status arrives in M3 as the flagged breaking
  * change.
  *
- * Owning specs: docs/06-execution-spec.md, section "Agent runtime
- * binding"; docs/04-model-layer-spec.md (roles, tiers, refusal).
+ * Docs: https://docs.rulvar.com/guide/agents (agent runtime binding);
+ * https://docs.rulvar.com/guide/model-routing (roles, tiers, refusal).
  */
 import {
   NonSerializableValueError,
@@ -62,7 +62,7 @@ import type { EffectiveUsageLimits } from './usage-limits.js';
 
 export type AgentStatus = 'ok' | 'error' | 'limit' | 'cancelled' | 'skipped' | 'escalated';
 
-/** Artifact: the normative shape of AgentResult.artifacts entries (docs/06, section 2.1). */
+/** Artifact: the normative shape of AgentResult.artifacts entries. */
 export interface Artifact {
   /** Stable within the result. */
   id: string;
@@ -78,7 +78,7 @@ export interface Artifact {
   data?: Json;
 }
 
-/** The verdict of one mechanical acceptance gate evaluation (docs/07, section 10). */
+/** The verdict of one mechanical acceptance gate evaluation. */
 export interface MechanicalGateVerdict {
   pass: boolean;
   detail?: string;
@@ -86,8 +86,8 @@ export interface MechanicalGateVerdict {
 
 /**
  * A mechanical acceptance gate: an engine-registered NAMED pure function
- * over AgentResult.artifacts (docs/04, section 12; docs/07, section 10).
- * The registry is per engine like every other registry (docs/02); the
+ * over AgentResult.artifacts.
+ * The registry is per engine like every other registry; the
  * ladder driver journals each evaluation as a decision entry, so the
  * ladder fold consumes only journaled verdicts, never live re-evaluation.
  */
@@ -109,8 +109,8 @@ export interface AgentResult<T> {
   error?: AgentError;
   /**
    * Human-readable detail behind `error` (provider message, first schema
-   * issue): feeds the journaled WireError message. Additive to the
-   * docs/06 sketch; never part of identity.
+   * issue): feeds the journaled WireError message. An additive
+   * field; never part of identity.
    */
   errorMessage?: string;
   /** Present if and only if status === 'escalated'. */
@@ -143,7 +143,7 @@ export interface RuntimeEventSink {
   emit(body: { type: string } & Record<string, unknown>): void;
 }
 
-/** Budget hooks bound by the three-layer budget (docs/06, section "Three-layer budget"). */
+/** Budget hooks bound by the three-layer budget. */
 export interface BudgetHooks {
   /** Layer 2: before every turn; throws BudgetExhaustedError to block dispatch. */
   beforeTurn(): void;
@@ -185,7 +185,7 @@ export type PermissionGate = (
       suspend: () => Promise<{ decision: 'allow' | 'deny'; reason?: string }>;
     }
 ) & {
-  /** Chain audit payload ridden into tool:end telemetry (docs/08, 4.5). */
+  /** Chain audit payload ridden into tool:end telemetry. */
   audit?: GateAudit;
 };
 
@@ -218,14 +218,14 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   adapter: ProviderAdapter;
   resolved: ResolvedInvocation;
   /**
-   * Transport failover chain for the loop phase (M4-T04; docs/04,
-   * section 11.2): resolved fallback targets tried in order on
+   * Transport failover chain for the loop phase (M4-T04):
+   * resolved fallback targets tried in order on
    * transport or rate-limit failures after retries exhaust. Failover is
    * sticky and changes only servedBy, never the content key.
    */
   fallbacks?: PhaseTarget[];
   /**
-   * Transport RetryPolicy (M4-T05; docs/04, section 11.1): lives UNDER
+   * Transport RetryPolicy (M4-T05): lives UNDER
    * the journal, wired around every adapter.stream dispatch. sleep and
    * random are injectable for tests; the core owns wall-clock.
    */
@@ -239,14 +239,14 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * under the serving adapter's key; absent = unlimited (Appendix A).
    */
   providerSlot?: <T>(key: string, fn: () => Promise<T>) => Promise<T>;
-  /** The resolved toolset; absent = no tools declared (docs/08). */
+  /** The resolved toolset; absent = no tools declared. */
   tools?: ToolRuntime;
   /**
    * Separate final extract invocation, present only when the role trigger
    * protocol demands one: schema set AND (routing directs extract to a
    * different model OR the loop model's caps cannot serve the required
    * tier OR finalize is routed). Otherwise the schema rides the last loop
-   * turn (docs/06, section "Agent runtime binding"; the necessity rule is
+   * turn (the necessity rule is
    * decided by the ctx layer via model/roles.ts).
    */
   extract?: PhaseTarget & { fallbacks?: PhaseTarget[] };
@@ -263,7 +263,7 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   /**
    * Summarize invocation target for compaction (M4-T03): resolved
    * through the chain with role 'summarize', falling back to the loop
-   * model when routing resolves nothing (docs/06, section 7). Compaction
+   * model when routing resolves nothing. Compaction
    * is ON by default; absence of this option disables it (direct
    * runAgent callers).
    */
@@ -271,7 +271,7 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   /** Per-profile compaction config; threshold default 0.8 (Appendix A). */
   compaction?: { threshold?: number };
   /**
-   * Turn-boundary checkpointing (M3-T02; docs/03, section "Checkpoints").
+   * Turn-boundary checkpointing (M3-T02).
    * load() restores the last boundary on a dangling-dispatch resume;
    * save() persists each boundary where the loop continues. The separate
    * extract invocation is not checkpointed in v1: an extract-phase crash
@@ -290,7 +290,7 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   events?: RuntimeEventSink;
   transcript?: { mintRef(): string; put(ref: string, blob: Uint8Array): Promise<void> };
   priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
-  /** Bounded schema re-prompt attempts; default 2 (docs/06, Appendix A). */
+  /** Bounded schema re-prompt attempts; default 2 (Appendix A). */
   schemaRetryAttempts?: number;
   /** Bounded ModelRetry conversions per tool call chain; default 2 (Appendix A). */
   modelRetryAttempts?: number;
@@ -298,14 +298,14 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * Escalation opt-in (M3-T07): the loop intercepts accepted calls to
    * the escalate tool and terminates with status 'escalated'; the
    * in-run minSpend gate rejects early scope_bigger escalations with a
-   * "keep working" error tool result (M3-T09, docs/07 section 6.4).
+   * "keep working" error tool result (M3-T09).
    */
   escalation?: { minSpendUsd: number };
   /**
    * Terminal-tool interception (M6-T07): an accepted call to the named
    * tool ends the loop with status ok; the call's validated `result`
-   * argument becomes the agent output (the orchestrator finish tool,
-   * docs/07 4.11). The tool's execute never runs, mirroring escalate.
+   * argument becomes the agent output (the orchestrator finish
+   * tool). The tool's execute never runs, mirroring escalate.
    */
   terminalTool?: { name: string };
   agentType?: string;
@@ -338,8 +338,7 @@ function addUsage(total: Usage, turn: Usage): Usage {
 
 /**
  * The Usage invariant is verified at the adapter boundary: inputTokens is
- * the FULL prompt including cache reads and writes (docs/04, section
- * "Usage invariant").
+ * the FULL prompt including cache reads and writes.
  */
 function assertUsageInvariant(usage: Usage, adapterId: string): void {
   if (usage.inputTokens < usage.cacheReadTokens + usage.cacheWriteTokens) {
@@ -360,7 +359,7 @@ interface TurnOutcome {
   usageApprox: boolean;
   wireError?: WireError;
   aborted?: 'budget' | 'external' | 'idle';
-  /** The finish event's metadata; carries the retention payload (docs/04, 2.3). */
+  /** The finish event's metadata; carries the retention payload. */
   providerMetadata?: Record<string, unknown>;
 }
 
@@ -533,7 +532,7 @@ function buildRequest(
  * parts go at the HEAD: on both first-class providers the retained
  * blocks (thinking blocks, reasoning items) precede the turn's text and
  * tool calls, and head placement reproduces that order on re-projection
- * (docs/04, section 2.3, M4-T02).
+ * (M4-T02).
  */
 function assistantMsg(turn: CollectedTurn, retained: Part[] = []): Msg {
   const parts: Part[] = [...retained];
@@ -551,8 +550,7 @@ function assistantMsg(turn: CollectedTurn, retained: Part[] = []): Msg {
  * surfaced to the model as error tool results and never thrown past
  * policy: unknown names, argument-validation issues, ModelRetry (bounded
  * per tool call chain), NonSerializableValueError, and arbitrary execute
- * throws all land as { isError: true } results (docs/08, sections 1.1 and
- * 2.4; docs/06, section "ModelRetry").
+ * throws all land as { isError: true } results.
  */
 async function executeToolCall(options: {
   call: { id: string; name: string; args: unknown };
@@ -598,7 +596,7 @@ async function executeToolCall(options: {
   try {
     const value = await def.execute(validation.value, runtime.contextFor(call.name));
     // The returned value MUST be JSON-serializable; it is recorded in the
-    // canonical history and checkpointed (docs/08, section 1.1).
+    // canonical history and checkpointed.
     const serialized = toJournalValue(value === undefined ? null : value, `tool '${call.name}'`);
     options.retryCounts.delete(call.name);
     return finish(serialized, 'ok');
@@ -664,7 +662,7 @@ export async function runAgent<S extends SchemaSpec>(
   let servedBy: ModelRef = options.resolved.ref;
 
   // Kill-and-resume re-enters at the last turn boundary: paid turns are
-  // restored, not re-called (docs/03, section 11.1). The restored usage
+  // restored, not re-called. The restored usage
   // was never journaled (only terminals carry usage), so it is reported
   // to the budget now.
   const restored = await options.checkpoint?.load();
@@ -676,7 +674,7 @@ export async function runAgent<S extends SchemaSpec>(
     toolCallsUsed = restored.toolCallsUsed;
     schemaAttempts = restored.schemaAttempts;
     // Points restore verbatim: the history is already compact, so a
-    // resumed run never re-summarizes it (docs/06, M4-T03).
+    // resumed run never re-summarizes it (M4-T03).
     compactionPoints.push(...restored.compaction);
     options.budget?.onUsage(restored.usage, servedBy);
   }
@@ -737,7 +735,7 @@ export async function runAgent<S extends SchemaSpec>(
     for (const [index, call] of calls.entries()) {
       if (limits.maxToolCalls !== undefined && toolCallsUsed >= limits.maxToolCalls) {
         // Expiry of maxToolCalls is terminal 'limit': paid partial work;
-        // already-executed results stand (docs/06, section "UsageLimits").
+        // already-executed results stand.
         return { parts, limitHit: true };
       }
       const def = runtime.defs.find((candidate) => candidate.name === call.name);
@@ -754,7 +752,7 @@ export async function runAgent<S extends SchemaSpec>(
         gateAudit = gate.audit;
         if (gate.kind === 'deny') {
           // The denial is surfaced to the model as an error tool result
-          // carrying the policy reason; the turn continues (docs/08 3.6).
+          // carrying the policy reason; the turn continues.
           events?.emit({
             type: 'tool:end',
             toolName: call.name,
@@ -768,7 +766,7 @@ export async function runAgent<S extends SchemaSpec>(
         if (gate.kind === 'ask') {
           // The ask verdict is journaled as a suspended approval entry
           // together with the turn checkpoint: durable pending state
-          // first, then the suspension (docs/08 3.6; docs/03 11.1).
+          // first, then the suspension.
           await saveBoundary({
             executed: toPendingRecords(parts),
             awaiting: { id: call.id, name: call.name, args: call.args },
@@ -799,7 +797,7 @@ export async function runAgent<S extends SchemaSpec>(
         }
       }
       // The escalate tool is engine-intercepted AFTER the permission
-      // chain (docs/08, section 6.6): validation against its request
+      // chain: validation against its request
       // schema, the in-run minSpend gate, then loop termination with
       // status 'escalated'. Remaining calls of the turn are moot.
       if (options.escalation !== undefined && gatedCall.name === ESCALATE_TOOL_NAME) {
@@ -826,7 +824,7 @@ export async function runAgent<S extends SchemaSpec>(
         if (countsAgainstLimit(request.kind) && spentSoFar < options.escalation.minSpendUsd) {
           // Early scope_bigger escalation below minSpend: a bounded
           // "keep working" re-prompt; exempt kinds pass through
-          // (docs/07, section 6.4; M3-T09).
+          // (M3-T09).
           events?.emit({
             type: 'tool:end',
             toolName: gatedCall.name,
@@ -854,7 +852,7 @@ export async function runAgent<S extends SchemaSpec>(
       }
       // The terminal tool (M6-T07): an accepted, schema-valid call ends
       // the loop with status ok and its `result` argument as the agent
-      // output (the orchestrator finish tool, docs/07 4.11). Invalid
+      // output (the orchestrator finish tool). Invalid
       // arguments surface as an error tool result and the turn continues.
       if (options.terminalTool !== undefined && gatedCall.name === options.terminalTool.name) {
         const terminalDef = runtime.defs.find((candidate) => candidate.name === gatedCall.name);
@@ -910,8 +908,8 @@ export async function runAgent<S extends SchemaSpec>(
 
   // A restored mid-turn suspension finishes ITS turn before the loop
   // re-enters: executed results are reused verbatim, the awaiting call
-  // consults the journaled approval, remaining calls follow (docs/08
-  // 3.6: resume continues the same turn without re-running tools).
+  // consults the journaled approval, remaining calls follow (resume
+  // continues the same turn without re-running tools).
   if (restored?.pending !== undefined && options.tools !== undefined) {
     const priorParts: Part[] = restored.pending.executed.map((record) => {
       const part: Part = {
@@ -997,7 +995,7 @@ export async function runAgent<S extends SchemaSpec>(
   // model exhausts its tries on a failover trigger, the chain advances
   // (sticky) and the turn re-dispatches on the fallback: only servedBy
   // changes, never the content key. Stream-idle severance is retryable
-  // transport-class per docs/06, section 6.
+  // transport-class.
   const retryPolicy = options.retry?.policy ?? DEFAULT_RETRY_POLICY;
   const retryOn = retryPolicy.retryOn ?? DEFAULT_RETRY_POLICY.retryOn ?? [];
   const retrySleep =
@@ -1071,7 +1069,7 @@ export async function runAgent<S extends SchemaSpec>(
             `failover: ${takeover.resolved.ref} takes over from ${target.resolved.ref} ` +
             `after ${trigger} (the content key is unchanged; servedBy records the server)`,
         });
-        // Visible scrub (docs/04, section 3.4; M4-T08): the fallback's
+        // Visible scrub (M4-T08): the fallback's
         // own caps scrubbing surfaces the moment the target starts
         // serving, never silently.
         for (const scrub of takeover.resolved.scrubs) {
@@ -1085,7 +1083,7 @@ export async function runAgent<S extends SchemaSpec>(
 
   // The ride tier follows the SERVING model's caps; a forced-tool target
   // with tools available degrades to prompt rather than pinning
-  // toolChoice mid-loop (docs/04, section 8.4; the ride/separate
+  // toolChoice mid-loop (the ride/separate
   // decision itself keys on the PRIMARY model at the ctx layer).
   const rideTierFor = (target: PhaseTarget): StructuredOutputTier => {
     if (options.canonicalSchema === undefined) {
@@ -1108,7 +1106,7 @@ export async function runAgent<S extends SchemaSpec>(
 
   // A pending-turn limit hit above skips the loop entirely.
   loop: while (status === 'ok' && !finishedViaTool) {
-    // Per-agent wall clock (docs/06, section "UsageLimits").
+    // Per-agent wall clock.
     if (limits.timeoutMs !== undefined && now() - startedAt >= limits.timeoutMs) {
       status = 'limit';
       break;
@@ -1132,7 +1130,7 @@ export async function runAgent<S extends SchemaSpec>(
       signals.push(options.signal);
     }
     // Every outgoing request is a projection of the canonical history
-    // into the SERVING provider's view (docs/04, section 2.3, M4-T02);
+    // into the SERVING provider's view (M4-T02);
     // the dispatch engine may serve the turn from a failover target.
     const { outcome, target: servedTarget } = await dispatchPhase({
       chain: loopChain,
@@ -1263,8 +1261,7 @@ export async function runAgent<S extends SchemaSpec>(
 
     // Tool dispatch: gate and execute the turn's calls in source order,
     // feed the results back as one tool-role message, and loop for the
-    // next model turn (docs/08, sections "Permission chain" and "Verdict
-    // semantics"; docs/06, section "Agent runtime binding").
+    // next model turn.
     if (options.tools !== undefined && outcome.turn.toolCalls.length > 0) {
       noProgress.recordTurn({ toolCalls: outcome.turn.toolCalls.length });
       const { parts, limitHit, escalated, finished } = await runToolCalls(
@@ -1283,7 +1280,7 @@ export async function runAgent<S extends SchemaSpec>(
       }
       if (finished !== undefined) {
         // Terminal tool: the loop ends ok with the finish result as the
-        // output; extract and finalize never fire (docs/07 4.11).
+        // output; extract and finalize never fire.
         output = finished as Out<S>;
         finishedViaTool = true;
         await saveBoundary();
@@ -1316,7 +1313,7 @@ export async function runAgent<S extends SchemaSpec>(
           model: summarizeResolved.ref,
           role: 'summarize',
         });
-        // Visible scrub at fire time (docs/04, section 3.4; M4-T08):
+        // Visible scrub at fire time (M4-T08):
         // the summarize resolution rarely fires, so its scrubs surface
         // here rather than as spawn-time noise.
         for (const scrub of summarizeResolved.scrubs) {
@@ -1376,8 +1373,8 @@ export async function runAgent<S extends SchemaSpec>(
           summary.turn.text.trim() === ''
         ) {
           // A failed or empty summarize disables compaction for the
-          // rest of the run instead of failing paid work (docs/06,
-          // M4-T03); the threshold would re-trip every boundary.
+          // rest of the run instead of failing paid work (M4-T03);
+          // the threshold would re-trip every boundary.
           compactionDisabled = true;
           events?.emit({
             type: 'log',
@@ -1402,7 +1399,7 @@ export async function runAgent<S extends SchemaSpec>(
       }
       // Turn boundary: tools executed, results appended. A crash after
       // this write resumes here; a crash before it re-runs the turn's
-      // tools (at-least-once; docs/03, section 11.1).
+      // tools (at-least-once).
       await saveBoundary();
       continue loop;
     }
@@ -1437,7 +1434,7 @@ export async function runAgent<S extends SchemaSpec>(
     }
     // A schema re-prompt turn produced neither tool calls nor artifact
     // deltas; the loop is about to continue, so the no-progress detector
-    // consumes it (M3-T08; docs/06 Appendix A, N = 3).
+    // consumes it (M3-T08; Appendix A, N = 3).
     noProgress.recordTurn({ toolCalls: 0 });
     if (noProgress.tripped) {
       status = 'limit';
@@ -1462,8 +1459,7 @@ export async function runAgent<S extends SchemaSpec>(
   // Fires only when routed AND tools were available; the ctx layer
   // decides via model/roles.ts and passes the option. Its text is the
   // output for schema-less calls; with a schema the separate extract
-  // below runs over the transcript INCLUDING the synthesis (docs/04,
-  // section 8.4 as amended).
+  // below runs over the transcript INCLUDING the synthesis.
   if (status === 'ok' && !finishedViaTool && options.finalize !== undefined) {
     const finalizeResolved = options.finalize.resolved;
     events?.emit({
@@ -1614,7 +1610,7 @@ export async function runAgent<S extends SchemaSpec>(
           // both providers reject tool-use history without tool
           // definitions. The forced-tool tier pins toolChoice to
           // emit_result; the other tiers pin 'none' so the extract call
-          // cannot re-enter tools (docs/04, section 8.4, M4-T01).
+          // cannot re-enter tools (M4-T01).
           const targetTier = extractTierFor(target);
           let req = buildRequest(
             target.resolved,
@@ -1692,7 +1688,7 @@ export async function runAgent<S extends SchemaSpec>(
     }
   }
 
-  // Persist the canonical transcript; the journal stays small (docs/03).
+  // Persist the canonical transcript; the journal stays small.
   let transcriptRef = '';
   if (options.transcript !== undefined) {
     transcriptRef = options.transcript.mintRef();
@@ -1726,6 +1722,6 @@ export async function runAgent<S extends SchemaSpec>(
     (result as { usageApprox?: boolean }).usageApprox = true;
   }
   // agent:end (with entryRef) is emitted by the ctx layer after the
-  // terminal journal entry is appended (docs/09, section 1.4).
+  // terminal journal entry is appended.
   return result;
 }

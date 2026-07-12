@@ -2,9 +2,8 @@
  * Structured output in three tiers (M1-T06): native json_schema,
  * forced-tool, and prompt, with client-side validation behind all three.
  *
- * Owning specs: docs/06-execution-spec.md, section "Agent runtime
- * binding"; docs/04-model-layer-spec.md, section "Caps scrubbing and
- * structured-output tier selection".
+ * Full contract: https://docs.rulvar.com/guide/agents (runtime binding)
+ * and https://docs.rulvar.com/guide/providers (tier selection).
  */
 import type { Issue } from '../l0/errors.js';
 import type { ChatRequest, JsonSchema, Msg, ToolContract } from '../l0/messages.js';

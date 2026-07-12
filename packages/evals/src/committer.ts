@@ -1,6 +1,6 @@
 /**
- * The eval-committer identity (M11-T01; docs/05, sections "Data model"
- * and "Commit discipline"). The pipeline-side commit path: builds
+ * The eval-committer identity (M11-T01; https://docs.rulvar.com/guide/model-knowledge).
+ * The pipeline-side commit path: builds
  * eval-committer-gated ops (the coherence square: class eval-measured,
  * author eval-pipeline, metrics present) and commits them with the
  * documented CAS-rebase recipe. Humans never call this; their path is
@@ -44,11 +44,11 @@ export interface EvalCommitterOptions {
   committerId: string;
   /** The emitting sweep report; every claim's gate references it. */
   reportId: string;
-  /** CAS-rebase attempts (docs/05, 5.4); default 3. */
+  /** CAS-rebase attempts; default 3. */
   attempts?: number;
 }
 
-/** One measured claim, TTL applied per the docs/05 decay table. */
+/** One measured claim; claimExpiry applies the TTL from the decay table. */
 export function evalMeasuredClaim(input: MeasuredClaimInput, committerId: string): ModelClaim {
   return {
     id: input.id,

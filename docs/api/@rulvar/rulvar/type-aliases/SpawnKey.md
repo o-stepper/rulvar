@@ -10,6 +10,6 @@
 type SpawnKey = string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Kernel contentHash of a spawn root entry (docs/03, 9.2).
+Kernel contentHash of a spawn root entry.

@@ -1,8 +1,7 @@
 /**
  * UsageLimits (M1-T06): normative limit vocabulary and the per-spawn merge.
  *
- * Owning spec: docs/06-execution-spec.md, section "UsageLimits
- * (normative)"; defaults from Appendix A. Expiry of maxTurns, maxToolCalls,
+ * Full contract: https://docs.rulvar.com/guide/agents. Expiry of maxTurns, maxToolCalls,
  * or timeoutMs produces the terminal status 'limit' (paid partial work);
  * streamIdleTimeoutMs expiry is a retryable transport-class AgentError,
  * never 'limit'. The run-level deadline is RunOptions.deadlineAt, not a
@@ -20,7 +19,7 @@ export interface UsageLimits {
   /** Gap between stream events; default 120000. */
   streamIdleTimeoutMs?: number;
   /**
-   * The no-progress detector N (docs/06 Appendix A, committed at 3):
+   * The no-progress detector N (committed at 3):
    * consecutive turns without tool calls or artifact deltas before the
    * engine aborts with the dedicated class (M3-T08).
    */
@@ -36,13 +35,13 @@ export interface EffectiveUsageLimits {
   maxOutputTokensPerTurn?: number;
   timeoutMs?: number;
   streamIdleTimeoutMs: number;
-  /** Default DEFAULT_NO_PROGRESS_TURNS (docs/06 Appendix A). */
+  /** Default DEFAULT_NO_PROGRESS_TURNS. */
   noProgressTurns?: number;
 }
 
 /**
  * Limits merge per spawn: AgentOpts.limits over profile limits over engine
- * defaults.limits (docs/06, section "UsageLimits").
+ * defaults.limits.
  */
 export function mergeUsageLimits(
   call?: UsageLimits,

@@ -6,7 +6,7 @@
 
 # Class: DedupIndex
 
-Defined in: [packages/core/src/journal/reuse.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/reuse.ts#L157)
+Defined in: [packages/core/src/journal/reuse.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/reuse.ts#L158)
 
 The DedupIndex: a pure fold over spawn roots, severing abandons, and
 node.link entries. Prices fold from journal facts (servedBy, usage)
@@ -33,7 +33,7 @@ new DedupIndex(): DedupIndex;
 abandonedSpend(): AbandonedSpendView;
 ```
 
-Defined in: [packages/core/src/journal/reuse.ts:348](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/reuse.ts#L348)
+Defined in: [packages/core/src/journal/reuse.ts:349](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/reuse.ts#L349)
 
 #### Returns
 
@@ -47,7 +47,7 @@ Defined in: [packages/core/src/journal/reuse.ts:348](https://github.com/o-steppe
 allDonorsOf(spawnKey): DonorCandidate[];
 ```
 
-Defined in: [packages/core/src/journal/reuse.ts:339](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/reuse.ts#L339)
+Defined in: [packages/core/src/journal/reuse.ts:340](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/reuse.ts#L340)
 
 Every donor for a key including claimed ones (diagnostics).
 
@@ -69,7 +69,7 @@ Every donor for a key including claimed ones (diagnostics).
 donorsOf(spawnKey): DonorCandidate[];
 ```
 
-Defined in: [packages/core/src/journal/reuse.ts:332](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/reuse.ts#L332)
+Defined in: [packages/core/src/journal/reuse.ts:333](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/reuse.ts#L333)
 
 Unclaimed donor candidates for a key, oldest (chain head) first.
 
@@ -91,9 +91,9 @@ Unclaimed donor candidates for a key, oldest (chain head) first.
 oscillationCountOf(spawnKey): number;
 ```
 
-Defined in: [packages/core/src/journal/reuse.ts:344](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/reuse.ts#L344)
+Defined in: [packages/core/src/journal/reuse.ts:345](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/reuse.ts#L345)
 
-Link count per key: the oscillation counter (docs/03, 9.7).
+Link count per key: the oscillation counter.
 
 #### Parameters
 
@@ -113,7 +113,7 @@ Link count per key: the oscillation counter (docs/03, 9.7).
 static fold(entries, options?): DedupIndex;
 ```
 
-Defined in: [packages/core/src/journal/reuse.ts:169](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/reuse.ts#L169)
+Defined in: [packages/core/src/journal/reuse.ts:170](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/reuse.ts#L170)
 
 #### Parameters
 

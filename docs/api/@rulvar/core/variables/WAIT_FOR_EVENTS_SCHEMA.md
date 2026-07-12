@@ -12,4 +12,4 @@ const WAIT_FOR_EVENTS_SCHEMA: SchemaSpec;
 
 Defined in: [packages/core/src/orchestrator/wake.ts:22](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/wake.ts#L22)
 
-docs/07 4.8: the wait_for_events parameter schema (normative).
+The wait_for_events parameter schema (normative).

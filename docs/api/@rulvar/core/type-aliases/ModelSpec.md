@@ -15,8 +15,7 @@ type ModelSpec =
 };
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:195](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L195)
+Defined in: [packages/core/src/l0/messages.ts:187](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L187)
 
 What authors write wherever a model is configurable: a call override, an
-agent profile, a workflow default, or an engine default (docs/04, section
-"Router and resolution chain").
+agent profile, a workflow default, or an engine default.

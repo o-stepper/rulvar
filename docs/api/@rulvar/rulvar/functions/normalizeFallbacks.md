@@ -10,9 +10,9 @@
 function normalizeFallbacks(refs): FailoverTarget[];
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Normalizes the author-facing ModelChoice.fallbacks list (docs/04, 8.1).
+Normalizes the author-facing ModelChoice.fallbacks list.
 
 ## Parameters
 

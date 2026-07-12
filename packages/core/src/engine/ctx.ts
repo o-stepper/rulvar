@@ -6,8 +6,7 @@
  * log, budget, and the deterministic shims; workflow/orchestrate/
  * awaitExternal/brief land with their milestones (M2/M6).
  *
- * Owning spec: docs/06-execution-spec.md, sections "Canonical Ctx
- * interface", "Error policy and dropped results", "Scheduler".
+ * Public contract: https://docs.rulvar.com/guide/workflows.
  */
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID, getRandomValues } from 'node:crypto';
@@ -110,9 +109,9 @@ import type { ExternalRegistry } from './external.js';
 export type ErrorPolicy = 'strict' | 'lenient';
 
 /**
- * The canonical, complete AgentProfile shape (docs/06, section
- * "AgentProfile"); M1 honors description, model, routing, effort, limits,
- * and estCost. A profile never carries a prompt or a schema.
+ * The canonical, complete AgentProfile shape; M1 honors description,
+ * model, routing, effort, limits, and estCost. A profile never carries
+ * a prompt or a schema.
  */
 export interface AgentProfile {
   description?: string;
@@ -121,11 +120,11 @@ export interface AgentProfile {
   effort?: Effort;
   /** Toolset default; the resolved snapshot enters identity via toolsetHash. */
   tools?: ToolsOption;
-  /** Chain layers merged over engine defaults (docs/08, section 3.7). */
+  /** Chain layers merged over engine defaults. */
   permissions?: AgentProfilePermissions;
-  /** Isolation default; the RESOLVED value enters identity (docs/08). */
+  /** Isolation default; the RESOLVED value enters identity. */
   isolation?: IsolationSpec;
-  /** Flavor B opt-in lives here or on the call (docs/07, section 6). */
+  /** Flavor B opt-in lives here or on the call. */
   escalation?: EscalationOptions;
   limits?: UsageLimits;
   /** Transport RetryPolicy layer: call over profile over engine (M4-T05). */
@@ -134,7 +133,7 @@ export interface AgentProfile {
   taskClass?: string;
   /**
    * Per-profile compaction threshold; default 0.8 of the loop model's
-   * contextWindow (docs/06, Appendix A; M4-T03). Compaction is ON by
+   * contextWindow (M4-T03). Compaction is ON by
    * default; history-processor plumbing stays engine-internal.
    */
   compaction?: { threshold?: number };
@@ -143,7 +142,7 @@ export interface AgentProfile {
 }
 
 /**
- * Per-spawn options (docs/06, section "ctx.agent and AgentOpts"). The
+ * Per-spawn options. The
  * identity split is normative: agentType, model/routing/effort (the
  * requested modelSpec), schema (schemaHash), and key enter the content
  * key; everything else is policy or telemetry and never re-keys entries.
@@ -157,8 +156,7 @@ export interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
    * 'loop'. The plan and orchestrate entry points set it so the
    * resolution chain, role effort defaults, quality floors, and cost
    * buckets see the right role; extract/finalize/summarize stay
-   * trigger-derived and are never settable here (docs/06, 2.1;
-   * M6-T05 amendment).
+   * trigger-derived and are never settable here (M6-T05 amendment).
    */
   role?: 'loop' | 'plan' | 'orchestrate';
   /** Overrides all roles at once. */
@@ -169,30 +167,30 @@ export interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   effort?: Effort;
   /** schemaHash enters identity. */
   schema?: S;
-  /** toolsetHash enters identity; wins over profile.tools (docs/08). */
+  /** toolsetHash enters identity; wins over profile.tools. */
   tools?: ToolsOption;
-  /** docs/08; the RESOLVED value enters identity; worktree needs defaults.isolation. */
+  /** The RESOLVED value enters identity; worktree needs defaults.isolation. */
   isolation?: IsolationSpec;
   /** Explicit discriminator; replaces the prompt in the content key. */
   key?: string;
 
   onError?: 'throw' | 'null';
-  /** Transport RetryPolicy under the journal (docs/04, 11.1; M4-T05). */
+  /** Transport RetryPolicy under the journal (M4-T05). */
   retry?: RetryPolicy;
   /**
-   * The degenerate fallback (docs/04, 11.3; M4-T04): an agent-level
+   * The degenerate fallback (M4-T04): an agent-level
    * second attempt on `model` when the terminal matches `on`; one
    * journaled decision entry; the fallback attempt is a NEW content key.
    */
   fallback?: FallbackField;
-  /** Per-call replay mode; default scoped forward-matching (docs/03, section 7.3). */
+  /** Per-call replay mode; default scoped forward-matching. */
   replay?: 'cache' | 'never';
   /** Journaled as a policy field from day one; consumed by the M2 predicate. */
   memoizeOutcome?: boolean;
-  /** Opt-in; without it 'escalated' is physically unproducible (docs/07 6.4). */
+  /** Opt-in; without it 'escalated' is physically unproducible. */
   escalation?: EscalationOptions;
   /**
-   * Lineage continuation (DEF-3, docs/03 section 10.3): declares this
+   * Lineage continuation (DEF-3): declares this
    * spawn a rebirth of an existing logical task; absence means a new
    * lineage root. Never enters the content key. Declaring lineage or
    * approach journals a spawn-admission decision entry BEFORE dispatch,
@@ -203,7 +201,7 @@ export interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   approach?: string;
   /** Admission reserve hint (USD). */
   estCost?: number;
-  /** Merged over profile and engine limits (docs/06, section "UsageLimits"). */
+  /** Merged over profile and engine limits. */
   limits?: UsageLimits;
   result?: 'value' | 'full';
 
@@ -213,7 +211,7 @@ export interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   stream?: boolean;
 }
 
-/** docs/06, section "Error policy and dropped results". */
+/** One dropped result: its source, scope, entry ref, and wire error. */
 export interface DroppedItem {
   source: 'pipeline' | 'agent-onerror-null' | 'parallel-settled';
   /** Scope path of the failed call. */
@@ -226,8 +224,7 @@ export interface DroppedItem {
 
 /**
  * The discriminated union over AgentStatus carrying the underlying
- * AgentResult where one exists (docs/06, section "ctx.parallel and
- * Settled").
+ * AgentResult where one exists.
  */
 export type Settled<T> =
   | { status: 'ok'; value: T; result?: AgentResult<unknown> }
@@ -241,10 +238,9 @@ export type Stage<I, O> = (item: I) => Promise<O>;
 
 /**
  * The rejection carrier of ctx.agent value-form calls: a real Error that
- * structurally satisfies the typed AgentError (docs/06, section "ctx.agent
- * and AgentOpts") and carries the full AgentResult for Settled mapping.
- * Deliberately not a RulvarError: AgentError is not in the closed code
- * registry (docs/02, section "Error taxonomy").
+ * structurally satisfies the typed AgentError and carries the full
+ * AgentResult for Settled mapping. Deliberately not a RulvarError:
+ * AgentError is not in the closed code registry.
  */
 export class AgentCallError extends Error implements AgentError {
   readonly kind: AgentError['kind'];
@@ -281,7 +277,7 @@ export interface PipelineCollected<T> {
   dropped: DroppedItem[];
 }
 
-/** The canonical Ctx interface, M1 members (docs/06, section "Canonical Ctx interface"). */
+/** The canonical Ctx interface, M1 members. */
 export interface Ctx<P extends ErrorPolicy = 'strict'> {
   agent(prompt: string): Promise<P extends 'lenient' ? string | null : string>;
   agent<S extends SchemaSpec>(
@@ -388,21 +384,21 @@ export interface Ctx<P extends ErrorPolicy = 'strict'> {
   ): Promise<T>;
 
   /**
-   * Runs a child workflow under the AdmissionController (docs/06, section
-   * 2.5; M6-T06). The child gets a nested journal scope (registered name
+   * Runs a child workflow under the AdmissionController (M6-T06). The
+   * child gets a nested journal scope (registered name
    * plus ordinal) and a hierarchical budget sub-account whose spend
    * propagates to every ancestor. Structural limit violations throw the
    * typed AdmissionRejectedError and never tear the run down; budget
    * rejections throw BudgetExhaustedError. The string form resolves
-   * against the per-engine workflow registry (section 10.4) and is the
+   * against the per-engine workflow registry and is the
    * only form available inside the worker sandbox.
    */
   workflow<A, R>(wf: Workflow<A, R>, args: A, o?: WorkflowCallOpts): Promise<R>;
   workflow(name: string, args?: Json, o?: WorkflowCallOpts): Promise<unknown>;
 
   /**
-   * Nests a dynamic orchestrator under the AdmissionController (docs/06,
-   * section 2.6; M6-T07): one implementation with the top-level
+   * Nests a dynamic orchestrator under the AdmissionController (M6-T07):
+   * one implementation with the top-level
    * orchestrate(engine, goal, opts) surface, clamped by maxDepth and the
    * parent budget account through the ordinary ctx.workflow admission.
    */
@@ -410,14 +406,14 @@ export interface Ctx<P extends ErrorPolicy = 'strict'> {
 
   /**
    * A journaled summarize invocation for handing an inheritable brief to
-   * a child (docs/06, section 2.8; M6-T10): one agent-kind entry under
+   * a child (M6-T10): one agent-kind entry under
    * role 'summarize', therefore free on replay.
    */
   brief(o: BriefOpts): Promise<string>;
 
   /**
    * Suspends this position on a journaled entry until an external
-   * resolution arrives (docs/06, section 2.7). NO deadline in v1.
+   * resolution arrives. NO deadline in v1.
    */
   awaitExternal<T = Json>(key: string, o?: { schema?: SchemaSpec; prompt?: string }): Promise<T>;
 
@@ -439,7 +435,7 @@ export interface CollectOpts {
   onItemError: 'collect';
 }
 
-/** Options of ctx.workflow; `key` replaces args in the child identity (docs/03, 1.2). */
+/** Options of ctx.workflow; `key` replaces args in the child identity. */
 export interface WorkflowCallOpts {
   key?: string;
   /** Lineage continuation (DEF-3); embedded in the admission decision entry. */
@@ -449,8 +445,8 @@ export interface WorkflowCallOpts {
 }
 
 /**
- * Options of ctx.brief (docs/06, 2.8; amended during M6-T10 with the
- * concrete shape): the content to distill plus an optional instruction;
+ * Options of ctx.brief (concrete shape fixed in M6-T10): the content to
+ * distill plus an optional instruction;
  * the invocation resolves role 'summarize', so it needs
  * defaults.routing.summarize, a profile, or the explicit model.
  */
@@ -461,7 +457,7 @@ export interface BriefOpts {
   agentType?: string;
 }
 
-/** Closure-form workflow value; in-process only (docs/06, section "Execution model"). */
+/** Closure-form workflow value; in-process only. */
 export interface Workflow<A = unknown, R = unknown> {
   readonly kind: 'workflow';
   readonly name: string;
@@ -525,7 +521,7 @@ export interface RunInternals {
   runId: string;
   replayer: Replayer;
   budget: RunBudget;
-  /** The single admission point for all spawns (docs/07, section 7; M6-T06). */
+  /** The single admission point for all spawns (M6-T06). */
   admission?: AdmissionController;
   semaphore: Semaphore;
   events: RunEventSink;
@@ -538,43 +534,43 @@ export interface RunInternals {
     routing?: Partial<Record<InvocationRole, ModelSpec>>;
     profiles?: Record<string, AgentProfile>;
     limits?: UsageLimits;
-    /** Engine-wide permission chain layers (docs/08, section 3). */
+    /** Engine-wide permission chain layers. */
     permissions?: PermissionConfig;
-    /** Engine-wide transport RetryPolicy (docs/04, 11.1; M4-T05). */
+    /** Engine-wide transport RetryPolicy (M4-T05). */
     retry?: RetryPolicy;
-    /** The per-engine workflow registry (docs/06, 10.4; consumers: M6 ctx.workflow, M8 worker). */
+    /** The per-engine workflow registry (consumers: M6 ctx.workflow, M8 worker). */
     workflows?: Record<string, unknown>;
-    /** Registered SchemaSpec names for outputSchemaRef (docs/08; M7-T05). */
+    /** Registered SchemaSpec names for outputSchemaRef (M7-T05). */
     schemas?: Record<string, SchemaSpec>;
-    /** Registered tool profile names for toolsetRef (docs/08; M7-T05). */
+    /** Registered tool profile names for toolsetRef (M7-T05). */
     toolsets?: Record<string, ToolsOption>;
-    /** Registered mechanical gate profiles (docs/07, section 10; M7-T10). */
+    /** Registered mechanical gate profiles (M7-T10). */
     gates?: Record<string, MechanicalGateProfile>;
   };
-  /** Engine-scoped per-provider keyed limiter (docs/06, section 4; M4-T07). */
+  /** Engine-scoped per-provider keyed limiter (M4-T07). */
   providerLimiter?: KeyedLimiter;
   /** The configured price table's version; pinned in decision entries (M4-T06). */
   pricingVersion?: string;
-  /** budgetDefaults.flatReserveUsd; last resort of the reserve formula (docs/06, 5.1). */
+  /** budgetDefaults.flatReserveUsd; last resort of the reserve formula. */
   flatReserveUsd?: number;
-  /** Hard router constraints from engine config (docs/04, section 9; M4-T09). */
+  /** Hard router constraints from engine config (M4-T09). */
   floors?: QualityFloors;
   errorPolicy: ErrorPolicy;
   dropped: DroppedItem[];
   cost: CostAttribution;
   priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
   runSignal?: AbortSignal;
-  /** The worktree lifecycle provider (docs/08, section 8). */
+  /** The worktree lifecycle provider. */
   isolation?: IsolationProvider;
   /**
-   * The ModelKnowledge runtime handle (docs/05; M10-T03): current()
+   * The ModelKnowledge runtime handle (M10-T03): current()
    * only, commit physically absent. Present only when the engine was
    * given stores.modelKnowledge; absent means the feature is off and
    * no kb entries are ever written.
    */
   knowledge?: ModelKnowledgeHandle;
   /**
-   * The InProcessRunner escalation hook (docs/06, section 2.10): receives
+   * The InProcessRunner escalation hook: receives
    * escalated results when the call form cannot carry them; its decision
    * is journaled as the authoritative escalation-decision entry.
    */
@@ -599,9 +595,9 @@ function bump(map: Map<string, number>, key: string, usd: number): void {
 
 /**
  * Completes a model-authored escalation request into the full report:
- * costToDate and salvage are runtime-filled, never model-filled (docs/07,
- * section 6.3). The worktree patch ref lands after collect(); the
- * pre-dispose preview for flavor B decision-makers omits it.
+ * costToDate and salvage are runtime-filled, never model-filled. The
+ * worktree patch ref lands after collect(); the pre-dispose preview for
+ * flavor B decision-makers omits it.
  */
 function buildEscalationReport(
   request: EscalationRequest,
@@ -666,7 +662,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         ? ({ kind: 'rand', subtype } as const)
         : ({ kind: 'rand', subtype, key } as const);
     // The first execution records the live value; every replay returns
-    // the journaled value byte-for-byte (docs/06, section 2.9).
+    // the journaled value byte-for-byte.
     const matched = internals.replayer.match(state.scope, identity, 'scoped');
     if (matched.kind === 'replay') {
       return (matched.terminal.value as { value: T }).value;
@@ -704,7 +700,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         );
       }
     }
-    // The degenerate fallback (docs/04, 11.3; M4-T04): one decision
+    // The degenerate fallback (M4-T04): one decision
     // entry per failed attempt, re-used on resume by targetRef so a
     // crash between the decision and the fallback spawn never
     // duplicates it; then the whole agent re-enters with the fallback
@@ -743,7 +739,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
             trigger,
             model: fallback.model,
             // Replayed cost attribution stays stable against later
-            // price-table updates (docs/04, section 10; M4-T06).
+            // price-table updates (M4-T06).
             ...(internals.pricingVersion === undefined
               ? {}
               : { pricingVersion: internals.pricingVersion }),
@@ -757,7 +753,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     };
 
     // Isolation resolves call over profile; the RESOLVED value enters
-    // identity (docs/08, section 8.1). The worktree lifecycle needs the
+    // identity. The worktree lifecycle needs the
     // engine-configured provider.
     const isolation: IsolationSpec = opts.isolation ?? profile?.isolation ?? 'none';
     if (
@@ -810,13 +806,12 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     }
     const withTelemetry = (resolved: ResolvedInvocation): ResolvedInvocation => ({
       ...resolved,
-      // The reserved engine-populated telemetry namespace (docs/04,
-      // section 1.8, as amended): never identity, consumable by
-      // FakeAdapter's agentType/label matching.
+      // The reserved engine-populated telemetry namespace: never
+      // identity, consumable by FakeAdapter's agentType/label matching.
       providerOptions: { ...resolved.providerOptions, rulvar: telemetryNamespace },
     });
     // The primary role of the tool loop: 'loop' unless the plan or
-    // orchestrate entry points override it (docs/06, 2.1; M6-T05).
+    // orchestrate entry points override it (M6-T05).
     const primaryRole = opts.role ?? 'loop';
     const loopResolved = withTelemetry(
       resolveModelInvocation({
@@ -840,11 +835,11 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     }
 
     // Escalation opt-in resolves call over profile; without it the
-    // escalated status is physically unproducible (docs/07, section 6.4).
+    // escalated status is physically unproducible.
     const escalation = opts.escalation ?? profile?.escalation;
     if (escalation !== undefined) {
       if (escalation.flavor === 'B' && escalation.deadlineMs === undefined) {
-        // The knob has NO engine default (docs/06, Appendix A): enabling
+        // The knob has NO engine default: enabling
         // Flavor B requires an explicit per-spawn deadlineMs, enforced
         // BEFORE any LLM call and before any journal entry.
         throw new ConfigError(
@@ -854,7 +849,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       }
       if (opts.result !== 'full' && internals.onEscalation === undefined) {
         // No channel able to carry the report: fail BEFORE any LLM call
-        // and before any journal entry (docs/06, section 2.10).
+        // and before any journal entry.
         throw new ConfigError(
           'a spawn that opts into escalation from a plain value-form call needs an ' +
             "onEscalation hook (or use result: 'full')",
@@ -871,17 +866,17 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
 
     // The toolset snapshot is captured at spawn time and hashed into the
     // spawn's identity; a mid-run source change never mutates an in-flight
-    // agent's toolset (docs/08, sections "toolsetHash contract" and 6.3).
+    // agent's toolset.
     // The escalate tool registers through the same path as any opt-in
-    // tool, so opting in changes toolsetHash by design (docs/08, 6.6).
+    // tool, so opting in changes toolsetHash by design.
     const declaredTools = opts.tools ?? profile?.tools ?? [];
     const toolset = await resolveToolset(
       escalation === undefined ? declaredTools : [...declaredTools, escalateTool()],
       { runId: internals.runId },
     );
 
-    // Role trigger protocol (M4-T01; docs/04, sections 8.3-8.4 as
-    // amended; predicates in model/roles.ts): extract fires separately
+    // Role trigger protocol (M4-T01; predicates in model/roles.ts):
+    // extract fires separately
     // only when a schema is set AND (routing sends extract to a
     // different model OR the loop model's required tier cannot ride a
     // tools-available turn OR finalize is routed); finalize fires only
@@ -938,8 +933,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
 
     // Compaction target (M4-T03): the summarize role through the same
     // chain; when no layer resolves a summarize model, fall back to the
-    // loop-resolved model (the low role-effort default still applies;
-    // docs/06, section 7 as amended).
+    // loop-resolved model (the low role-effort default still applies).
     let summarizeResolved: ResolvedInvocation;
     try {
       summarizeResolved = resolveModelInvocation({
@@ -965,7 +959,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       resolved: withTelemetry(summarizeResolved),
     };
 
-    // Transport failover chains (M4-T04; docs/04, section 11.2): each
+    // Transport failover chains (M4-T04): each
     // phase's resolved fallbacks re-resolve through the chain with the
     // fallback model overriding all roles, so effort defaults and caps
     // scrubbing apply per serving model. Identity keeps the REQUESTED
@@ -1023,7 +1017,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     } as const;
     const identityKey = deriveContentKey(identityInput);
 
-    // Scoped forward-matching (docs/03 section 7): a hit synthesizes the
+    // Scoped forward-matching: a hit synthesizes the
     // result entirely from the journal with zero adapter calls.
     const matched = internals.replayer.match(state.scope, identityInput, opts.replay ?? 'scoped');
     if (matched.kind === 'replay' || matched.kind === 'skip') {
@@ -1050,8 +1044,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         costUsd,
         servedBy: terminal?.servedBy ?? loopResolved.ref,
         // Best-effort recovery below: turns are not journaled; the last
-        // turn-boundary checkpoint carries the paid-turn count (docs/03,
-        // section 11.1).
+        // turn-boundary checkpoint carries the paid-turn count.
         turns: 0,
         transcriptRef: terminal?.transcriptRef ?? '',
       };
@@ -1073,8 +1066,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         result.abortClass = 'no-progress';
       }
       // Tool results reconstructed from the replayed turn checkpoint are
-      // re-emitted with the replay marker (docs/09, section "Replay
-      // re-emission").
+      // re-emitted with the replay marker.
       let replayedToolResults: Array<{ name: string; isError: boolean }> = [];
       if (matched.kind === 'replay' && terminal?.checkpointRef !== undefined) {
         const blob = await internals.transcripts.get(terminal.checkpointRef);
@@ -1140,8 +1132,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       if (result.status === 'escalated' && result.escalation !== undefined) {
         // The owner's decision is read from the decision entry, never
         // re-evaluated; a crash between the report and the decision pays
-        // for the decision live exactly once (docs/09,
-        // crash-between-report-and-decision).
+        // for the decision live exactly once.
         const priorDecision = internals.replayer
           .snapshot()
           .find(
@@ -1223,11 +1214,11 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     const danglingRunning = matched.kind === 'rerun-dangling' ? matched.running : undefined;
 
     // A declared lineage block or approach tag journals ONE
-    // spawn-admission decision entry strictly BEFORE dispatch (DEF-3,
-    // docs/03 section 10.6): the engine-minted LTID and the computed
+    // spawn-admission decision entry strictly BEFORE dispatch (DEF-3):
+    // the engine-minted LTID and the computed
     // approach signature ride the entry's value part and are read back on
-    // resume, never re-minted. Applicability outside PlanRunner follows
-    // docs/07 section 1: per declared lineage only.
+    // resume, never re-minted. Applicability outside PlanRunner is per
+    // declared lineage only.
     if (
       (opts.lineage !== undefined || opts.approach !== undefined) &&
       internals.admission !== undefined
@@ -1250,7 +1241,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       });
       if (prior !== undefined) {
         // Replay reads the recorded verdict; a journaled rejection is
-        // re-issued without re-evaluation (docs/03, 10.6).
+        // re-issued without re-evaluation.
         claimed.add(prior.seq);
         const recorded = prior.value as {
           reject?: { code: string };
@@ -1288,7 +1279,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           attemptScope: state.scope,
           spawnKey: identityKey,
           // ctx.agent roots are appended in the calling scope; the
-          // lineage fold binds attempts by this slot (docs/03, 2.2).
+          // lineage fold binds attempts by this slot.
           childScope: state.scope,
           ...(evaluated.statsBefore === undefined ? {} : { statsBefore: evaluated.statsBefore }),
         };
@@ -1345,7 +1336,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     const budgetAccount = state.budgetScope ?? ROOT_ACCOUNT;
     internals.budget.admitSpawn(reserve, budgetAccount);
 
-    // Worktree lifecycle (docs/08, section 8.3): acquired before the
+    // Worktree lifecycle: acquired before the
     // dispatch entry so an acquire failure never leaves a dangling
     // running entry. A dangling redispatch acquires a FRESH tree from the
     // same ref; tools are at-least-once and SHOULD be idempotent.
@@ -1364,12 +1355,12 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
 
     const spanId = internals.spans.mint(state.spanId);
     // memoizeOutcome is a policy field fixed in the entry payload at
-    // dispatch time (docs/03, section "Normative payload schemas"); the M2
-    // predicate reads it from the ENTRY, never from current code.
+    // dispatch time; the M2 predicate reads it from the ENTRY, never
+    // from current code.
     let running: JournalEntry;
     if (danglingRunning !== undefined) {
       // At-least-once redispatch: the terminal will reference the
-      // original dispatch entry (docs/03, section 13.1).
+      // original dispatch entry.
       running = danglingRunning;
     } else {
       const runningInput: Parameters<Replayer['appendRunning']>[0] = {
@@ -1383,8 +1374,8 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       }
       {
         // The resolved isolation is recorded on the dispatch root so the
-        // DedupIndex donor rules can read it from the journal (docs/03,
-        // 9.4: worktree grafts degrade unless pinned). 'none' stays
+        // DedupIndex donor rules can read it from the journal (worktree
+        // grafts degrade unless pinned). 'none' stays
         // implicit, so isolation-free journals are byte-identical.
         const isolationTag = canonicalIsolationTag(isolation);
         if (isolationTag !== 'none') {
@@ -1403,7 +1394,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     // Turn-boundary checkpoints live at a deterministic ref derived from
     // the dispatch seq, overwritten per boundary; only a dangling
     // redispatch restores (cancelled entries rerun from scratch per the
-    // predicate; docs/03, sections 6.3 and 11.1).
+    // predicate).
     const ckptRef = checkpointRefFor(internals.runId, running.seq);
     let checkpointWritten = false;
     const checkpointPlumbing: NonNullable<Parameters<typeof runAgent<S>>[0]['checkpoint']> = {
@@ -1454,7 +1445,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
             ),
         });
       // The chain is the single approval surface for every dispatch,
-      // regardless of tool origin (docs/08, section 3.1). Profile layers
+      // regardless of tool origin. Profile layers
       // merge over engine defaults; an ask verdict suspends on the
       // journal in the agent's child scope.
       const chain = compilePermissionChain(internals.defaults.permissions, profile?.permissions);
@@ -1470,7 +1461,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
             return { kind: 'allow', input: call.args };
           }
           const verdict = await evaluatePermission(chain, def, call.args, contextFor());
-          // Audit telemetry rides tool:end (docs/08, 4.5; M5-T05).
+          // Audit telemetry rides tool:end (M5-T05).
           const audit = {
             verdict: verdict.verdict,
             decidedBy: verdict.decidedBy,
@@ -1616,8 +1607,8 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     }
     internals.budget.releaseReserve(reserve, budgetAccount);
 
-    // Flavor B (docs/07, section 6.2; docs/03, section 6.8): the accepted
-    // escalate call suspends on the approval machinery with a journaled
+    // Flavor B: the accepted escalate call suspends on the approval
+    // machinery with a journaled
     // deadline; the decision resolution closes it FIRST, and dispose plus
     // the terminal escalated entry are effects strictly after it. The
     // worktree stays alive until the decision so salvage collection
@@ -1638,8 +1629,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           "flavor 'B' escalation requires an explicit deadlineMs (docs/06, Appendix A)",
         );
       }
-      // An absent defaultDecision canonicalizes to accept at the timeout
-      // (docs/06, Appendix A).
+      // An absent defaultDecision canonicalizes to accept at the timeout.
       const defaultDecision: EscalationDecision = escalation.defaultDecision ?? {
         kind: 'accept',
       };
@@ -1657,7 +1647,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
             replayed,
           );
           // The journaled deadlineAt survives resume: the timer re-arms
-          // from the ENTRY, not from config (docs/03, section 8.1).
+          // from the ENTRY, not from config.
           const registry = internals.external;
           const dueAt = Date.parse(entry.deadlineAt ?? '') || internals.now();
           timer = setTimeout(
@@ -1695,7 +1685,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
 
     // collect() before dispose: the patch lands in TranscriptStore and
     // its reference in AgentResult.artifacts; applying it stays with the
-    // caller (docs/08, section 8.3).
+    // caller.
     if (acquired !== undefined) {
       try {
         const { files, patch } = await acquired.collect();
@@ -1717,7 +1707,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     }
 
     // The full report: runtime fills costToDate and salvage, validated
-    // BEFORE append (docs/03, section 5.4; docs/07, section 6.3).
+    // BEFORE append.
     if (result.status === 'escalated' && result.escalationRequest !== undefined) {
       const patchRef = result.artifacts?.find((artifact) => artifact.kind === 'patch')?.ref;
       const report = buildEscalationReport(result.escalationRequest, result, patchRef);
@@ -1736,7 +1726,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       status: result.status === 'skipped' ? 'error' : result.status,
       usage: result.usage,
       // Under transport failover only servedBy changes, never the
-      // content key (docs/04, section 11.2; M4-T04).
+      // content key (M4-T04).
       servedBy: result.servedBy,
       transcriptRef: result.transcriptRef,
     };
@@ -1761,7 +1751,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     if (result.abortClass === 'no-progress') {
       // The engine-decided abort replays on every resume: memoizeOutcome
       // stamped on the TERMINAL, the class marker in the error payload
-      // (docs/03, section 6.6, M3 amendment; M3-T08).
+      // (M3-T08).
       terminalPatch.memoizeOutcome = true;
       if (terminalPatch.error !== undefined) {
         const priorData = terminalPatch.error.data;
@@ -1792,7 +1782,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       spanId,
     );
 
-    // Ordering (docs/03, section 6.8): the terminal escalated entry
+    // Ordering: the terminal escalated entry
     // strictly BEFORE the decision entry recording the owner's decision;
     // the decision entry strictly before its effects. countsAgainstLimit
     // derives once, live, from the report kind (XF-06).
@@ -1824,7 +1814,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       }
     }
 
-    // Cost attribution buckets (CostReport, docs/09).
+    // Cost attribution buckets (CostReport).
     const usd = result.costUsd;
     bump(internals.cost.byModel, loopResolved.ref, usd);
     bump(internals.cost.byPhase, state.phase ?? '', usd);
@@ -1835,7 +1825,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     }
 
     // Uniform ceiling behavior: every ctx primitive throws
-    // BudgetExhaustedError at the run ceiling (docs/06, section 2.1).
+    // BudgetExhaustedError at the run ceiling.
     if (result.error?.kind === 'budget' || (internals.budget.exhausted && result.status !== 'ok')) {
       throw new BudgetExhaustedError('run budget ceiling reached during agent execution', {
         data: { scope: state.scope, entryRef: terminal.seq },
@@ -1858,7 +1848,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     if (result.status === 'escalated') {
       // Never an error: onError does not fire and 'null' never swallows
       // the report; the typed carrier reaches the caller (and Settled
-      // maps it to a settled outcome; docs/06, sections 2.1 and 2.10).
+      // maps it to a settled outcome).
       throw new AgentCallError(
         `agent escalated: ${result.escalation?.scopeDelta ?? ''}`,
         result,
@@ -1921,8 +1911,8 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         if (abortSiblings) {
           promise.catch((thrown: unknown) => {
             // Only error-class failures abort siblings; a 'limit' branch is
-            // a settled outcome and never aborts (docs/06, section
-            // "Scheduler"). Budget exhaustion severs globally by itself.
+            // a settled outcome and never aborts. Budget exhaustion severs
+            // globally by itself.
             const isLimitLike =
               thrown instanceof AgentCallError &&
               (thrown.result.status === 'limit' ||
@@ -1965,7 +1955,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           }
           if (status === 'escalated') {
             // A settled outcome, exactly like limit: onError does not
-            // fire and no DroppedItem is recorded (docs/06, section 4).
+            // fire and no DroppedItem is recorded.
             return { status: 'escalated', result: reason.result as EscalatedResult<unknown> };
           }
           const wire = agentErrorToWire(
@@ -2108,7 +2098,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
 
   /**
    * Per-(scope, name) invocation ordinals of ctx.workflow, in execution
-   * order (docs/03, section 2.2: nested workflow scopes).
+   * order (nested workflow scopes).
    */
   const workflowOrdinals = new Map<string, number>();
   const nextWorkflowOrdinal = (scope: string, name: string): number => {
@@ -2140,7 +2130,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     return rebuilt;
   };
 
-  /** Maps an embedded admission rejection onto its typed error (docs/07, 7.3). */
+  /** Maps an embedded admission rejection onto its typed error. */
   const rejectionError = (
     reason: { code: string } & Record<string, unknown>,
     name: string,
@@ -2243,7 +2233,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     }
     const danglingRunning = matched.kind === 'rerun-dangling' ? matched.running : undefined;
 
-    // Admission (docs/07, section 7.1): the verdict is evaluated live
+    // Admission: the verdict is evaluated live
     // strictly BEFORE the carrying decision entry is appended and is
     // embedded IN it; on resume the journaled decision is recovered and
     // never re-evaluated.
@@ -2391,7 +2381,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       }\n\n${o.content}`;
       // An ordinary agent-kind entry under the summarize role: the role
       // is an internal override here (the public AgentOpts.role union
-      // stays primary-only; docs/06 2.1).
+      // stays primary-only).
       const briefOpts: AgentOpts = {
         role: 'summarize' as unknown as 'loop',
         onError: 'throw',

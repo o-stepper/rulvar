@@ -6,7 +6,7 @@
 
 # Interface: IsolationProvider
 
-Defined in: [packages/core/src/l0/spi/isolation.ts:19](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/isolation.ts#L19)
+Defined in: [packages/core/src/l0/spi/isolation.ts:18](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/isolation.ts#L18)
 
 ## Methods
 
@@ -23,7 +23,7 @@ acquire(s): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/src/l0/spi/isolation.ts:20](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/isolation.ts#L20)
+Defined in: [packages/core/src/l0/spi/isolation.ts:19](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/isolation.ts#L19)
 
 #### Parameters
 

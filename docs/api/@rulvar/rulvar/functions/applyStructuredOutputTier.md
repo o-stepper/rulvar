@@ -13,7 +13,7 @@ function applyStructuredOutputTier(
    schema): ChatRequest;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Applies the selected tier to an outgoing request. Native rides
 ChatRequest.schema; forced-tool synthesizes a single emit_result tool

@@ -10,7 +10,7 @@
 function fakeToolCalls(...calls): FakeToolCallsValue;
 ```
 
-Defined in: [packages/testing/src/fake-adapter.ts:41](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L41)
+Defined in: [packages/testing/src/fake-adapter.ts:40](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L40)
 
 Scripts a tool-calling turn from a responder.
 

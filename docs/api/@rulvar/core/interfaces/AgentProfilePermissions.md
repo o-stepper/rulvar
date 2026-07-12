@@ -8,7 +8,7 @@
 
 Defined in: [packages/core/src/runtime/permission-chain.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L66)
 
-Profile-level permissions (docs/08, section "Subagent inheritance").
+Profile-level permissions.
 inheritPermissions governs SUBAGENT inheritance (mode c orchestrators,
 M6+): children get their own config only unless explicitly opted in.
 It is carried as data here and consumed by the spawning layers.

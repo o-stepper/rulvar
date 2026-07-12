@@ -12,4 +12,4 @@ const DEFAULT_NO_PROGRESS_TURNS: 3 = 3;
 
 Defined in: [packages/core/src/runtime/no-progress.ts:20](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/no-progress.ts#L20)
 
-docs/06 Appendix A: the committed no-progress detector N.
+The committed no-progress detector N.

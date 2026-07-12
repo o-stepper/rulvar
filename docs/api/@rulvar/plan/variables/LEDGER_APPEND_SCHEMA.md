@@ -10,6 +10,6 @@
 const LEDGER_APPEND_SCHEMA: SchemaSpec;
 ```
 
-Defined in: [packages/plan/src/tools.ts:187](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L187)
+Defined in: [packages/plan/src/tools.ts:186](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L186)
 
-The closed authored op vocabulary as JSON Schema (docs/07, 9.2).
+The closed authored op vocabulary as JSON Schema.

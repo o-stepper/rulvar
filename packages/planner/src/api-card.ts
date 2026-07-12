@@ -1,6 +1,6 @@
 /**
  * The API card (M6-T04): teaches the planner model EXACTLY the sandbox
- * dialect and global set (docs/06, sections 8.2 and 8.3). The card is a
+ * dialect and global set. The card is a
  * pure constant, byte-stable across runs; plan() (M6-T05) composes it
  * with profileCard(registry) and the goal. The usage examples are
  * distilled from the runnable examples/ corpus (M5-T09).

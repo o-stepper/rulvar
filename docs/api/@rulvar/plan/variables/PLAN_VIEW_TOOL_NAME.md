@@ -10,4 +10,4 @@
 const PLAN_VIEW_TOOL_NAME: "plan_view" = 'plan_view';
 ```
 
-Defined in: [packages/plan/src/tools.ts:181](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L181)
+Defined in: [packages/plan/src/tools.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L180)

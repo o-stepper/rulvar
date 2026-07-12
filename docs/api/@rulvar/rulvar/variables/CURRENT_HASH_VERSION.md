@@ -10,6 +10,6 @@
 const CURRENT_HASH_VERSION: HashVersion;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 1 = round 1; 2 = current.

@@ -10,6 +10,6 @@
 const ESCALATION_REPORT_SCHEMA: JsonSchema;
 ```
 
-Defined in: [packages/core/src/runtime/escalation.ts:105](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L105)
+Defined in: [packages/core/src/runtime/escalation.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L103)
 
-The full-report schema applied BEFORE append (docs/03, section 5.4).
+The full-report schema applied BEFORE append.

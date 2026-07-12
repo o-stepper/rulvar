@@ -14,10 +14,10 @@ function mapResponsesStream(
 options?): Promise<void>;
 ```
 
-Defined in: [packages/openai/src/wire.ts:269](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L269)
+Defined in: [packages/openai/src/wire.ts:266](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L266)
 
-Maps the typed Responses SSE stream to ChatEvents per the docs/04
-section 5.4 table. Canonical parts come from the typed output array,
+Maps the typed Responses SSE stream to ChatEvents.
+Canonical parts come from the typed output array,
 never the output_text aggregate. Raw output items ride
 finish.providerMetadata.openai.outputItems so the runtime can retain
 reasoning items as provider-raw parts.

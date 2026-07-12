@@ -82,6 +82,6 @@ Defined in: [packages/core/src/l0/spi/knowledge.ts:117](https://github.com/o-ste
 }
 ```
 
-Canary maintenance (docs/05, section "Grounding and decay"; added
+Canary maintenance (added
 during M11-T04): fingerprint drift flips eval claims to 'stale'.
 Idempotent on already-stale claims; gate-free like archive.

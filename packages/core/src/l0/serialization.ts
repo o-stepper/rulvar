@@ -1,7 +1,6 @@
 /**
  * The L0 serialization hook and the default secret-masking policy
- * (M8-T04; docs/03, section "Serialization hook"; docs/09, section
- * "Redaction and sensitive data"; OQ-20/OQ-22 interim rules executed).
+ * (M8-T04; OQ-20/OQ-22 interim rules executed).
  *
  * The hook is the single policy point between the engine and
  * persistence: redact/encrypt at the append and put boundaries,
@@ -17,7 +16,7 @@
  * emitted WorkflowEvent passes it (opt out per engine via
  * `redaction: { maskEvents: false }`); the OTel exporter applies it to
  * string attributes. It masks strings that look like credentials; it is
- * deliberately conservative (docs/09, section 8: the pattern set is
+ * deliberately conservative (the pattern set is
  * tuned on dogfood payloads, OQ-22 stays open for that).
  */
 import { ConfigError } from './errors.js';
@@ -49,7 +48,7 @@ export interface SerializationHook {
 /**
  * The kernel orders and matches on these BEFORE values are consulted;
  * a hook that rewrites them would corrupt replay silently, so drift is
- * a loud ConfigError at the boundary (docs/03, 12.8).
+ * a loud ConfigError at the boundary.
  */
 const PINNED_FIELDS = [
   'hashVersion',
@@ -126,7 +125,7 @@ export function wrapTranscriptStore(
 /** The replacement marker; deterministic and greppable. */
 export const MASKED_SECRET = '[masked-secret]';
 
-// The default key-masking pattern set (docs/09, section 8: at minimum,
+// The default key-masking pattern set (at minimum,
 // strings that look like API keys and other credentials). Conservative
 // by design; tuning on dogfood payloads is the open part of OQ-22.
 const SECRET_PATTERNS: RegExp[] = [

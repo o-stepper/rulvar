@@ -10,6 +10,6 @@
 const LEGACY_LTID_PREFIX: "legacy:" = "legacy:";
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Deterministic LTIDs canonized onto legacy journals (docs/03, 10.7).
+Deterministic LTIDs canonized onto legacy journals.

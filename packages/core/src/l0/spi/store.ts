@@ -3,7 +3,7 @@
  * epoch: one SPI seam frozen at 1.0. Stores are dumb byte stores; they
  * never parse payloads (M1-T04; contract tightened by DEF-4 in M2).
  *
- * Normative store obligations (docs/03, section "Storage SPI"):
+ * Normative store obligations (full contract: https://docs.rulvar.com/guide/stores):
  * - A1 atomicity: a partially written entry is NEVER visible in load.
  * - A2 total per-run order: load returns exactly the order of successful
  *   appends, stable across calls.
@@ -20,8 +20,7 @@ export type Lease = { runId: string; owner: string; epoch: number };
 /**
  * Run-level metadata written by the ENGINE via putMeta as a separate
  * record, so listRuns never parses payloads. The hashVersion range fields
- * are advisory only; the journal is authoritative (docs/03, section
- * "RunMeta").
+ * are advisory only; the journal is authoritative.
  */
 export type RunMeta = {
   runId: string;
@@ -56,8 +55,7 @@ export interface JournalStore {
 /**
  * Lease capability: acquire on a held lease MUST reject with a typed
  * LeaseHeldError; renew MUST run at an interval of at most ttl/3; an
- * append carrying a stale epoch MUST be rejected and never appear in load
- * (docs/03, section "LeasableStore").
+ * append carrying a stale epoch MUST be rejected and never appear in load.
  */
 export interface LeasableStore extends JournalStore {
   acquire(runId: string, owner: string): Promise<Lease>;

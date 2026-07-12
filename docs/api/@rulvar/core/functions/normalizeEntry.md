@@ -10,12 +10,11 @@
 function normalizeEntry(raw): JournalEntry;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:165](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L165)
+Defined in: [packages/core/src/l0/entries.ts:161](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L161)
 
 Round-1 normalization: hashVersion is taken from `hashVersion`, else
 from the legacy `v` field, else 1. Stores are never rewritten;
-normalization happens at read (docs/03, section "The single versioning
-mechanism").
+normalization happens at read.
 
 ## Parameters
 

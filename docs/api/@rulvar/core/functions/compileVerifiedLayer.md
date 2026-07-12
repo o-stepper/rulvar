@@ -10,10 +10,9 @@
 function compileVerifiedLayer(claims, ladders): VerifiedRecommendation[];
 ```
 
-Defined in: [packages/core/src/knowledge/card.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/card.ts#L127)
+Defined in: [packages/core/src/knowledge/card.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/card.ts#L126)
 
-The verified-layer compiler (M11-T06; docs/05, sections "Read path"
-and "Composition with the model layer"): start-tier recommendations
+The verified-layer compiler (M11-T06): start-tier recommendations
 per (ladder, taskClass) compiled EXCLUSIVELY from eval-measured
 claims. A strength on a rung below the default votes down (start
 cheaper); a weakness on the default rung or below votes up. The net

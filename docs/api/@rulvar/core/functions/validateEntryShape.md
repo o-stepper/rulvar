@@ -10,7 +10,7 @@
 function validateEntryShape(entry): Issue[];
 ```
 
-Defined in: [packages/core/src/journal/kinds.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/kinds.ts#L64)
+Defined in: [packages/core/src/journal/kinds.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/kinds.ts#L63)
 
 Validates the shape the engine is about to append. Returns issues;
 empty means valid. Unknown kinds are rejected here (the engine never

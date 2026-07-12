@@ -10,7 +10,7 @@
 function settled(handle): Promise<void>;
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:199](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L199)
+Defined in: [packages/plan/src/cassettes.ts:198](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L198)
 
 ## Parameters
 

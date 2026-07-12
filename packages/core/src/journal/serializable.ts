@@ -2,7 +2,7 @@
  * The journal append JSON-serializability check (M1-T04): every journaled
  * value MUST be JSON-serializable; a violation raises a typed
  * NonSerializableValueError at the calling site without journaling
- * anything (docs/03, section "Serialization requirements").
+ * anything.
  */
 import { NonSerializableValueError } from '../l0/errors.js';
 import type { Json } from '../l0/json.js';

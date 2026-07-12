@@ -1,5 +1,5 @@
 /**
- * Golden-output grader (docs/09, section 7.1): compares the run's
+ * Golden-output grader: compares the run's
  * structured output against a committed expected output by deep JSON
  * equality. Pure and host-side; no engine involvement.
  */

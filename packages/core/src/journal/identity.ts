@@ -3,7 +3,7 @@
  * spawn kind and content-key derivation, sha256 over RFC 8785 JCS
  * canonical JSON. Frozen as part of the hashVersion 2 profile in M2.
  *
- * Owning spec: docs/03-journal-spec.md, section "Identity model" (DEF-6
+ * Identity model contract: https://docs.rulvar.com/guide/journal (DEF-6
  * framing). Excluded from every content key: cosmetics (label, phase),
  * handling policy (onError, retry, replay), policy fields
  * (memoizeOutcome), lineage blocks, and spanId.
@@ -21,14 +21,14 @@ export interface AgentIdentityInput {
   /**
    * The REQUESTED model spec, including canonical effort where resolved;
    * for laddered spawns it embeds the declared ladder together with
-   * startTier (docs/04, section "Router and resolution chain").
+   * startTier.
    */
   modelSpec: CanonicalModelSpec;
   /** Replaced verbatim by opts.key when opts.key is set. */
   prompt: string;
   schemaHash: string;
   toolsetHash: string;
-  /** Canonical encoding per docs/08, section "IsolationSpec". */
+  /** The canonical IsolationSpec encoding (see https://docs.rulvar.com/guide/tools). */
   isolation: IsolationSpec;
 }
 
@@ -83,8 +83,8 @@ export type IdentityInput =
 /**
  * The identity projection of a CanonicalModelSpec. For the plain-model
  * kind the projection is `{ model, effort? }` WITHOUT the kind
- * discriminant, exactly as fixed by the docs/03 section 1.5 worked
- * example; `effort` is omitted when unresolved. The ladder embedding lands
+ * discriminant, exactly as frozen by the hashVersion 2 profile;
+ * `effort` is omitted when unresolved. The ladder embedding lands
  * with ladder execution (M7).
  */
 export function modelSpecIdentity(
@@ -126,7 +126,7 @@ export function identityJcs(input: IdentityInput): string {
 }
 
 /**
- * key = sha256(JCS(IdentityInput)) (docs/03, section "Content key").
+ * key = sha256(JCS(IdentityInput)).
  */
 export function deriveContentKey(input: IdentityInput): string {
   return createHash('sha256').update(identityJcs(input), 'utf8').digest('hex');

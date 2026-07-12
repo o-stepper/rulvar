@@ -14,9 +14,7 @@
  * append. Status production is gated by opt-in: an agent spawned without
  * escalation config physically cannot return 'escalated'.
  *
- * Owning specs: docs/07-adaptive-orchestration-spec.md, sections 4.9 and
- * 6; docs/03-journal-spec.md, sections 5.4 and 6.8; docs/06, section
- * 2.10.
+ * Full protocol: https://docs.rulvar.com/guide/adaptive-orchestration.
  */
 import type { Issue } from '../l0/errors.js';
 import type { Json } from '../l0/json.js';
@@ -25,12 +23,12 @@ import { validateSchemaSpec } from '../l0/schema.js';
 import type { ToolDef } from '../l0/spi/toolsource.js';
 import { tool } from '../tools/tool.js';
 
-/** Closed in v1 (docs/07, section 6.3). */
+/** Closed in v1. */
 export type EscalationKind = 'scope_bigger' | 'scope_different' | 'blocked_with_evidence';
 
 /**
  * Minimal TaskSpec stand-in: the full typed TaskSpec is owned by the
- * PlanRunner surface (docs/07, section 4.1) and ships with M7; script
+ * PlanRunner surface and ships with M7; script
  * modes carry proposals opaquely until then.
  */
 export type TaskSpec = Json;
@@ -76,7 +74,7 @@ export interface EscalationRequest {
 export const ESCALATE_TOOL_NAME = 'escalate';
 
 /**
- * The exact tool schema of docs/07, section 4.9. costToDate and salvage
+ * The escalate tool's exact request schema. costToDate and salvage
  * MUST NOT appear here: additionalProperties false rejects model-authored
  * values for them at argument validation.
  */
@@ -101,7 +99,7 @@ export const ESCALATION_REQUEST_SCHEMA: JsonSchema = {
   },
 };
 
-/** The full-report schema applied BEFORE append (docs/03, section 5.4). */
+/** The full-report schema applied BEFORE append. */
 export const ESCALATION_REPORT_SCHEMA: JsonSchema = {
   type: 'object',
   additionalProperties: false,
@@ -148,7 +146,7 @@ export const ESCALATION_REPORT_SCHEMA: JsonSchema = {
 };
 
 /**
- * The engine opt-in tool (docs/08, section 6.6): registered through the
+ * The engine opt-in tool: registered through the
  * same path as any tool under escalation opt-in of EITHER flavor (the
  * worker's only authoring channel for a report), never available without
  * opt-in, and dispatched through the same permission chain. The loop
@@ -175,7 +173,7 @@ export async function validateEscalationReport(report: EscalationReport): Promis
 }
 
 /**
- * countsAgainstLimit derivation (docs/07, section 6.3, XF-06): true iff
+ * countsAgainstLimit derivation (XF-06): true iff
  * scope_bigger; scope_different and blocked_with_evidence are exempt and
  * never debit the escalation counter.
  */

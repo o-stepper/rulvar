@@ -10,7 +10,7 @@
 function runOscillationBounded(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/m9-cassettes.ts:899](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L899)
+Defined in: [packages/plan/src/m9-cassettes.ts:898](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L898)
 
 oscillation-bounded (DEF-2): an escalated branch is cancelled and
 re-added byte-identically twice; every plan_revise call debits one

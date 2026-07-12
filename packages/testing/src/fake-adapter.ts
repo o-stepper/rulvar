@@ -2,8 +2,7 @@
  * FakeAdapter (M1-T14): a REAL ProviderAdapter that resolves calls from
  * declared patterns instead of the network, behind the same seam as live
  * adapters, so unit tests run through the full engine: journal, scheduler,
- * budget layers, and event stream (docs/09, section "Tier 1: FakeAdapter
- * and createTestEngine"). Calls cost zero USD.
+ * budget layers, and event stream. Calls cost zero USD.
  */
 import {
   createCanonicalIdMinter,
@@ -74,7 +73,7 @@ function isFakeWireError(value: unknown): value is FakeWireErrorValue {
 export interface FakeAdapterOptions {
   /**
    * Patterns match on agentType, label, or a regex over the prompt; '*'
-   * is the fallback (docs/09, section "Tier 1").
+   * is the fallback.
    */
   agents: Record<string, FakeResponder>;
 }

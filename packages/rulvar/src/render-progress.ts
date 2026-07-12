@@ -3,9 +3,8 @@
  * stream of a RunHandle and writes one line per lifecycle fact. Plain
  * lines, no cursor control: readable in CI logs and pipes as well as TTYs.
  *
- * Owning spec: docs/09-observability-testing-spec.md, section "Event
- * stream" (the terminal progress renderer is one of the four stream
- * consumers).
+ * Event stream contract: https://docs.rulvar.com/guide/observability
+ * (the terminal progress renderer is one of the four stream consumers).
  */
 import type { WorkflowEvent } from '@rulvar/core';
 

@@ -10,12 +10,11 @@
 function buildAnthropicParams(req, options): Record<string, unknown>;
 ```
 
-Defined in: [packages/anthropic/src/wire.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L146)
+Defined in: [packages/anthropic/src/wire.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L145)
 
 Builds Messages API params from a ChatRequest. cacheHint compiles into
 cache_control breakpoints; beyond the provider cap of 4 the DEEPEST
-breakpoints are kept and the shallowest dropped, deterministically
-(docs/04, sections 1.7 and 4.4).
+breakpoints are kept and the shallowest dropped, deterministically.
 
 ## Parameters
 

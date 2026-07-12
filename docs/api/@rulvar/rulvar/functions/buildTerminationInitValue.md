@@ -10,9 +10,9 @@
 function buildTerminationInitValue(limits, registrySnapshotHash): TerminationInitValue;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Builds the termination.init value payload (docs/07, 11.6).
+Builds the termination.init value payload.
 
 ## Parameters
 

@@ -2,8 +2,8 @@
  * SchemaSpec, Out<S> inference, JSON Schema projection, canonical schema
  * derivation, and the schemaHash/toolsetHash functions (M1-T03).
  *
- * Owning specs: docs/08-tools-permissions-spec.md, section "SchemaSpec";
- * docs/03-journal-spec.md, section "schemaHash and toolsetHash derivation".
+ * Public contracts: https://docs.rulvar.com/guide/tools (SchemaSpec) and
+ * https://docs.rulvar.com/guide/journal (hash derivation).
  */
 import { createHash } from 'node:crypto';
 import type { StandardJSONSchemaV1, StandardSchemaV1 } from '../vendor/standard-schema.js';
@@ -23,14 +23,13 @@ export type SchemaPair<T = unknown> = {
 /**
  * The L0 schema contract with exactly three accepted forms: a Standard
  * Schema (Zod, ArkType, Valibot, ...), a { jsonSchema, validate } pair, or
- * a bare JSON Schema literal (docs/08, section "The three forms").
+ * a bare JSON Schema literal.
  */
 export type SchemaSpec<T = unknown> = StandardSchemaV1<unknown, T> | SchemaPair<T> | JsonSchema;
 
 /**
  * Inferred output type per form: the Standard Schema output type; the
- * type-guard target of validate(); unknown for a bare JSON Schema
- * (docs/08, section "Out<S> inference").
+ * type-guard target of validate(); unknown for a bare JSON Schema.
  */
 export type Out<S> = S extends StandardSchemaV1
   ? StandardSchemaV1.InferOutput<S>
@@ -64,8 +63,7 @@ export function isSchemaPairSpec(spec: SchemaSpec): spec is SchemaPair {
 }
 
 /**
- * Derives the JSON Schema of a SchemaSpec (docs/08, section "JSON Schema
- * derivation and acceptance rules"). Form 1 projects via the
+ * Derives the JSON Schema of a SchemaSpec. Form 1 projects via the
  * StandardJSONSchemaV1 input() converter, target draft 2020-12 with
  * draft-07 fallback; a library without the projection is a typed
  * ConfigError at definition time, never at first call. Transforming
@@ -105,8 +103,7 @@ export function projectToJsonSchema(spec: SchemaSpec): JsonSchema {
 
 /**
  * Annotation-only keywords stripped by canonicalization; `format` is
- * retained because it is validation-relevant in the vendored validator
- * (docs/03, section "schemaHash and toolsetHash derivation").
+ * retained because it is validation-relevant in the vendored validator.
  */
 const ANNOTATION_KEYWORDS: ReadonlySet<string> = new Set([
   'title',
@@ -154,8 +151,7 @@ const SUBSCHEMA_ARRAY_KEYWORDS: ReadonlySet<string> = new Set([
 /**
  * Keywords that are pure reference infrastructure: dead weight once every
  * local $ref has been inlined, removed from the canonical form so that a
- * $defs rename or an unused definition never shifts a content key
- * (docs/03, section "schemaHash and toolsetHash derivation").
+ * $defs rename or an unused definition never shifts a content key.
  */
 const REF_INFRASTRUCTURE_KEYWORDS: ReadonlySet<string> = new Set([
   '$defs',
@@ -304,8 +300,7 @@ function canonicalizeNode(node: SchemaNode, root: JsonSchema, refStack: string[]
 }
 
 /**
- * Canonical schema derivation (docs/03, section "schemaHash and
- * toolsetHash derivation"): local fragment-only $ref inlined (recursion is
+ * Canonical schema derivation: local fragment-only $ref inlined (recursion is
  * a ConfigError), remote and dynamic references forbidden, annotation
  * keywords stripped (format retained), reference infrastructure ($defs,
  * definitions, $anchor) removed once inlined. The result feeds JCS
@@ -321,8 +316,7 @@ function sha256Hex(text: string): string {
 
 /**
  * The schemaHash used when no structured-output schema is declared: the
- * hash of the canonical `true` schema (docs/03, section "schemaHash and
- * toolsetHash derivation").
+ * hash of the canonical `true` schema.
  */
 export const EMPTY_SCHEMA_HASH: string = sha256Hex('true');
 
@@ -354,8 +348,7 @@ export function schemaHashOfSpec(spec: SchemaSpec | undefined): string {
  * contract tuples (name, description, canonical parameters, version)
  * sorted by name. Tool description IS part of the contract; schema
  * annotations inside parameters are not. An absent version participates as
- * absent (docs/03, section "schemaHash and toolsetHash derivation";
- * docs/08, section "toolsetHash contract").
+ * absent.
  */
 export function toolsetHash(contracts: ToolContract[]): string {
   const canonical = [...contracts]
@@ -393,7 +386,7 @@ function pointerToPath(instanceLocation: string): Array<string | number> | undef
 }
 
 /**
- * Runtime validation per form (docs/08, section "Runtime validation"):
+ * Runtime validation per form:
  * form 1 via the Standard Schema's own validate, form 2 via the pair's
  * type guard, form 3 via the vendored draft 2020-12 validator. The same
  * machinery backs the structured-output tiers of the Agent Runtime.

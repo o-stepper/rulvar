@@ -6,7 +6,7 @@
 
 # Interface: SuccessResult\&lt;Output\&gt;
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The result interface if validation succeeds.
 
@@ -20,5 +20,5 @@ The result interface if validation succeeds.
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-issues"></a> `issues?` | `readonly` | `undefined` | A falsy value for `issues` indicates success. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-value"></a> `value` | `readonly` | `Output` | The typed output value. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-issues"></a> `issues?` | `readonly` | `undefined` | A falsy value for `issues` indicates success. | `packages/core/dist/index.d.ts` |
+| <a id="property-value"></a> `value` | `readonly` | `Output` | The typed output value. | `packages/core/dist/index.d.ts` |

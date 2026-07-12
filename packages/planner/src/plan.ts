@@ -1,6 +1,6 @@
 /**
  * The plan agent and the self-repair loop (M6-T05): mode (b), the
- * flagship hybrid (docs/06, section 9.2). plan() asks a planner model
+ * flagship hybrid. plan() asks a planner model
  * (role 'plan') to write a script against the API card and the profile
  * card, lints it with eslint-plugin-rulvar, self-repairs up to
  * repairRounds rounds from the JSON diagnostics, and compiles the
@@ -46,7 +46,7 @@ export interface PlanResult {
   lint: PlanDiagnostic[];
 }
 
-/** The deterministic planner runId: one goal, one journal (docs/06, 9.2). */
+/** The deterministic planner runId: one goal, one journal. */
 export function planRunIdOf(goal: string): string {
   return `plan-${createHash('sha256').update(goal, 'utf8').digest('hex').slice(0, 24)}`;
 }
@@ -217,7 +217,7 @@ export async function plan(engine: Engine, goal: string, o?: PlanOptions): Promi
 }
 
 /**
- * plan-then-run in one call (docs/06, section 9; amended during M6-T05:
+ * plan-then-run in one call (amended during M6-T05:
  * the composition is async because planning itself is a run).
  */
 export async function runPlanned(

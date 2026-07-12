@@ -3,8 +3,7 @@
  * EvalCase with golden, rubric, and LLM-judge graders; judge calls run
  * through the engine (journaled, budgeted, VCR-recordable), so eval CI is
  * deterministic; config-matrix comparison reports pass-rate, cost, and
- * latency per cell (docs/09, section "@rulvar/evals"; docs/11, section
- * "Eval CI"). Matrix sweeps feeding ModelKnowledge, the eval-committer
+ * latency per cell. Matrix sweeps feeding ModelKnowledge, the eval-committer
  * identity, and canary fingerprints are the M11 round-3 extensions.
  */
 export {

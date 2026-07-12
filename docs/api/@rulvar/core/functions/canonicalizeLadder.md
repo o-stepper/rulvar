@@ -10,9 +10,9 @@
 function canonicalizeLadder(spec, options?): CanonicalLadderSpec;
 ```
 
-Defined in: [packages/core/src/model/router.ts:371](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/router.ts#L371)
+Defined in: [packages/core/src/model/router.ts:365](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/router.ts#L365)
 
-Canonicalizes a declared LadderSpec (docs/04, section 12): validates the
+Canonicalizes a declared LadderSpec: validates the
 shape once (FR-119 judge declaration included) and resolves every rung's
 effort to an explicit value. `chainEffort` is the effort the resolution
 chain would contribute at the declaring layer; a rung that resolves no

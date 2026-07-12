@@ -12,7 +12,7 @@ function phiInitialOf(limits): number;
 
 Defined in: [packages/core/src/journal/termination.ts:188](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L188)
 
-Phi0 = V0 + C * S0, finite and fixed in termination.init (docs/07, 11.4).
+Phi0 = V0 + C * S0, finite and fixed in termination.init.
 
 ## Parameters
 

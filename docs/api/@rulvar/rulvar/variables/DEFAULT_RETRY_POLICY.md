@@ -10,6 +10,6 @@
 const DEFAULT_RETRY_POLICY: RetryPolicy;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Appendix A committed defaults (M4 entry gate, PR #26).

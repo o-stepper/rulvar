@@ -10,7 +10,7 @@
 function schemaHash(schema): string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 schemaHash = sha256(JCS(canonicalize(schema))). Accepts the derived JSON
 Schema (or a boolean schema); pass undefined for "no schema declared".

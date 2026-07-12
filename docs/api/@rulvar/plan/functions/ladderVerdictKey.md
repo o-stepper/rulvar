@@ -10,7 +10,7 @@
 function ladderVerdictKey(attemptRef): string;
 ```
 
-Defined in: [packages/plan/src/ladder.ts:166](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ladder.ts#L166)
+Defined in: [packages/plan/src/ladder.ts:165](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ladder.ts#L165)
 
 Content key of one ladder verdict: the judged attempt is unique.
 

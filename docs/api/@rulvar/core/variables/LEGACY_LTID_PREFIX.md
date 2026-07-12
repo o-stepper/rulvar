@@ -12,4 +12,4 @@ const LEGACY_LTID_PREFIX: "legacy:" = 'legacy:';
 
 Defined in: [packages/core/src/journal/lineage.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L39)
 
-Deterministic LTIDs canonized onto legacy journals (docs/03, 10.7).
+Deterministic LTIDs canonized onto legacy journals.

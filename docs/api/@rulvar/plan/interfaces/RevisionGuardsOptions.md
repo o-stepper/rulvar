@@ -8,7 +8,7 @@
 
 Defined in: [packages/plan/src/guards.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L35)
 
-RevisionGuards configuration (docs/07, 3.8).
+RevisionGuards configuration.
 
 ## Properties
 

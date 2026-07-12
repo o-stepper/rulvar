@@ -10,9 +10,9 @@
 function lexShellCommand(command): ShellSegment[];
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Lexes a command into segments per the docs/08 5.2 algorithm. Quotes
+Lexes a command into segments per the matching algorithm above. Quotes
 and escapes are honored; nothing is expanded; `$(`, backticks, `<(`,
 `>(`, and `<<` (outside single quotes) poison their segment.
 

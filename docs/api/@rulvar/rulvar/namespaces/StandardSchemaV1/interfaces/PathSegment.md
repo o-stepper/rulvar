@@ -6,7 +6,7 @@
 
 # Interface: PathSegment
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The path segment interface of the issue.
 
@@ -14,4 +14,4 @@ The path segment interface of the issue.
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-key"></a> `key` | `readonly` | `PropertyKey` | The key representing a path segment. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-key"></a> `key` | `readonly` | `PropertyKey` | The key representing a path segment. | `packages/core/dist/index.d.ts` |

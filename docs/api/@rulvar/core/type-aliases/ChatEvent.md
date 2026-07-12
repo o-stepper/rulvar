@@ -47,8 +47,8 @@ type ChatEvent =
 };
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:175](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L175)
+Defined in: [packages/core/src/l0/messages.ts:168](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L168)
 
 The single canonical stream-event vocabulary yielded by
 ProviderAdapter.stream. Adapters MUST emit exactly one terminal event per
-stream (finish or error) (docs/04, section "ChatEvent stream").
+stream (finish or error).

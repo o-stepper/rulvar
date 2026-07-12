@@ -12,7 +12,7 @@ function boundLedgerRender(view, budgetChars?): LedgerView;
 
 Defined in: [packages/plan/src/ledger.ts:245](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L245)
 
-Deterministic render bound (docs/07, 9.3): over budget, rows drop
+Deterministic render bound: over budget, rows drop
 oldest-first, auto-derived joins before authored sections, and the
 mission brief slices last; every drop is a FLAGGED discrepancy line.
 A pure function of (view, budget): a re-executed wake turn renders

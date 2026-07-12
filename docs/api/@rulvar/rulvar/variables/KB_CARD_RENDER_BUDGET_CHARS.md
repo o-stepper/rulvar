@@ -10,6 +10,6 @@
 const KB_CARD_RENDER_BUDGET_CHARS: 4096 = 4096;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-docs/06, Appendix A: the KB card render budget (characters).
+The KB card render budget (characters).

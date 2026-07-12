@@ -10,8 +10,7 @@
 const EMPTY_SCHEMA_HASH: string;
 ```
 
-Defined in: [packages/core/src/l0/schema.ts:327](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L327)
+Defined in: [packages/core/src/l0/schema.ts:321](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L321)
 
 The schemaHash used when no structured-output schema is declared: the
-hash of the canonical `true` schema (docs/03, section "schemaHash and
-toolsetHash derivation").
+hash of the canonical `true` schema.

@@ -6,7 +6,7 @@
 
 # Class: ResolutionFold
 
-Defined in: [packages/core/src/journal/resolution.ts:79](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L79)
+Defined in: [packages/core/src/journal/resolution.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L78)
 
 The first-closing-wins fold over a loaded journal: one pass by seq,
 bit-identical on every store returning the same entries. Resolution
@@ -15,7 +15,7 @@ the suspended entry payload (canonical bare JSON Schema); a
 schema-invalid offline resolution classifies invalid and does NOT close
 the target. Abandon coverage is the target seq plus the transitive
 child scope-prefix; the AbandonFold consumed by the replay predicate is
-a projection of THIS fold (docs/03, section 6.2: not a separate pass).
+a projection of THIS fold (not a separate pass).
 
 ## Constructors
 
@@ -25,7 +25,7 @@ a projection of THIS fold (docs/03, section 6.2: not a separate pass).
 new ResolutionFold(entries): ResolutionFold;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:86](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L86)
+Defined in: [packages/core/src/journal/resolution.ts:85](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L85)
 
 #### Parameters
 
@@ -47,7 +47,7 @@ Defined in: [packages/core/src/journal/resolution.ts:86](https://github.com/o-st
 get abandonFold(): AbandonFold;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:249](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L249)
+Defined in: [packages/core/src/journal/resolution.ts:248](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L248)
 
 The AbandonFold projection consumed by the replay predicate.
 
@@ -65,7 +65,7 @@ classificationOf(seq):
   | undefined;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:233](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L233)
+Defined in: [packages/core/src/journal/resolution.ts:232](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L232)
 
 #### Parameters
 
@@ -89,7 +89,7 @@ invalidResolutions(): {
 }[];
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:238](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L238)
+Defined in: [packages/core/src/journal/resolution.ts:237](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L237)
 
 Invalid offline resolutions surfaced in the resume report.
 
@@ -108,7 +108,7 @@ Invalid offline resolutions surfaced in the resume report.
 openSuspensions(): JournalEntry[];
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:262](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L262)
+Defined in: [packages/core/src/journal/resolution.ts:261](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L261)
 
 Open suspended entries (for pending[] and re-arming at resume).
 
@@ -124,7 +124,7 @@ Open suspended entries (for pending[] and re-arming at resume).
 registerEntry(entry): void;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:217](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L217)
+Defined in: [packages/core/src/journal/resolution.ts:216](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L216)
 
 Registers any other live-appended entry (abandon coverage needs scopes).
 
@@ -146,7 +146,7 @@ Registers any other live-appended entry (abandon coverage needs scopes).
 registerRefEntry(entry): RefEntryClassification;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:208](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L208)
+Defined in: [packages/core/src/journal/resolution.ts:207](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L207)
 
 Registers a live-appended ref-entry, returning its classification.
 
@@ -168,7 +168,7 @@ Registers a live-appended ref-entry, returning its classification.
 registerSuspended(entry): void;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:202](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L202)
+Defined in: [packages/core/src/journal/resolution.ts:201](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L201)
 
 Registers a live-appended suspended entry with the fold.
 
@@ -190,7 +190,7 @@ Registers a live-appended suspended entry with the fold.
 suspensionState(target): SuspensionState;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:221](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L221)
+Defined in: [packages/core/src/journal/resolution.ts:220](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L220)
 
 #### Parameters
 
