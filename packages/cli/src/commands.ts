@@ -14,13 +14,18 @@ import { join } from 'node:path';
 
 import {
   claimExpired,
+  claimExpiry,
   ConfigError,
   costReportFromJournal,
   createEngine,
   FileModelKnowledgeStore,
+  INBOX_PROPOSAL_TTL_DAYS,
   proposalStatement,
   remeasureQueue,
   type CreateEngineOptions,
+  type EvidenceRef,
+  type GateRecord,
+  type ModelClaim,
   type ModelRef,
   type RunOptions,
   type Workflow,
@@ -351,11 +356,14 @@ export async function kbCommand(argv: string[], context: CommandContext): Promis
   if (sub === 'inbox') {
     return await kbInboxCommand(rest, context);
   }
+  if (sub === 'gate') {
+    return await kbGateCommand(rest, context);
+  }
   if (sub === 'sweep') {
     return await kbSweepCommand(rest, context);
   }
   if (sub !== 'list' || rest.length > 0) {
-    throw new ConfigError('usage: rulvar kb <list | inbox | sweep> (no aliases in v1)');
+    throw new ConfigError('usage: rulvar kb <list | inbox | gate | sweep> (no aliases in v1)');
   }
   const path = join(context.cwd, 'rulvar.models.json');
   const store = new FileModelKnowledgeStore({ path });
@@ -416,9 +424,6 @@ function renderKbList(
   }
 }
 
-/** Inbox proposals expire after 14 days (ModelKnowledge phase 3). */
-const KB_INBOX_TTL_DAYS = 14;
-
 /** The structural face of the @rulvar/plan ledger fold (dynamic import). */
 interface PlanLedgerModule {
   foldLedger: (
@@ -472,7 +477,7 @@ async function kbInboxCommand(argv: string[], context: CommandContext): Promise<
   });
   const metas = await assembled.store.listRuns();
   const finished = metas.filter((meta) => meta.status !== 'running');
-  const cutoffMs = Date.now() - KB_INBOX_TTL_DAYS * 24 * 60 * 60 * 1000;
+  const cutoffMs = Date.now() - INBOX_PROPOSAL_TTL_DAYS * 24 * 60 * 60 * 1000;
 
   interface InboxMember {
     runId: string;
@@ -570,6 +575,216 @@ async function kbInboxCommand(argv: string[], context: CommandContext): Promise<
       }
     }
   }
+  return 0;
+}
+
+const RULED_OUT_VOCABULARY = ['prompt', 'tools', 'difficulty', 'transient-provider'] as const;
+
+/**
+ * rulvar kb gate (M12-T04): the human gate turning ONE inbox proposal
+ * into a human-editorial claim. The attribution attestation is
+ * mandatory by construction: without --ruled-out the GateRecord does
+ * not assemble and nothing is written. The born claim carries the
+ * typed template statement (never the quarantined note), the origin
+ * provenance back to the proposing run, evidence resolving into that
+ * run's journal, and the editorial TTL; the commit is CAS against the
+ * per-project file store, whose git review is the authenticating gate.
+ */
+async function kbGateCommand(argv: string[], context: CommandContext): Promise<number> {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    allowPositionals: true,
+    options: {
+      store: { type: 'string' },
+      approver: { type: 'string' },
+      'ruled-out': { type: 'string' },
+      'contrast-run': { type: 'string' },
+      'contrast-eval': { type: 'string' },
+      confidence: { type: 'string' },
+    },
+  });
+  const usage =
+    'usage: rulvar kb gate <runId> <entryRef> --approver NAME --ruled-out a,b,c ' +
+    '[--contrast-run runId#seq | --contrast-eval reportId:caseId[,caseId...]] ' +
+    '[--confidence high|medium|low] [--store PATH]';
+  const runId = positionals[0];
+  const entryRefRaw = positionals[1];
+  if (runId === undefined || entryRefRaw === undefined || positionals.length > 2) {
+    throw new ConfigError(usage);
+  }
+  const entryRef = Number(entryRefRaw);
+  if (!Number.isInteger(entryRef) || entryRef < 1) {
+    throw new ConfigError(`entryRef must be a positive integer entry seq, got '${entryRefRaw}'`);
+  }
+  const approver = values.approver;
+  if (approver === undefined || approver === '') {
+    throw new ConfigError(`--approver is required: the attestation names its human. ${usage}`);
+  }
+  // The attestation is the whole point: no checklist, no GateRecord,
+  // no claim (constructively impossible to rubber-stamp).
+  const ruledOutRaw = values['ruled-out'];
+  if (ruledOutRaw === undefined || ruledOutRaw === '') {
+    throw new ConfigError(
+      '--ruled-out is required: the attribution attestation lists the alternative causes ' +
+        `you ruled out (${RULED_OUT_VOCABULARY.join(', ')}). ${usage}`,
+    );
+  }
+  const ruledOut = ruledOutRaw.split(',').map((entry) => entry.trim());
+  for (const entry of ruledOut) {
+    if (!(RULED_OUT_VOCABULARY as readonly string[]).includes(entry)) {
+      throw new ConfigError(
+        `--ruled-out '${entry}' is not in the attestation vocabulary ` +
+          `(${RULED_OUT_VOCABULARY.join(', ')})`,
+      );
+    }
+  }
+  if (values['contrast-run'] !== undefined && values['contrast-eval'] !== undefined) {
+    throw new ConfigError('--contrast-run and --contrast-eval are mutually exclusive');
+  }
+  let contrastEvidence: EvidenceRef | undefined;
+  if (values['contrast-run'] !== undefined) {
+    const [contrastRun, seqRaw, ...tail] = values['contrast-run'].split('#');
+    const seq = Number(seqRaw);
+    if (
+      contrastRun === undefined ||
+      contrastRun === '' ||
+      tail.length > 0 ||
+      !Number.isInteger(seq) ||
+      seq < 1
+    ) {
+      throw new ConfigError("--contrast-run must look like 'runId#seq'");
+    }
+    contrastEvidence = { kind: 'journal', runId: contrastRun, entryRef: seq };
+  }
+  if (values['contrast-eval'] !== undefined) {
+    const [reportId, caseList, ...tail] = values['contrast-eval'].split(':');
+    const caseIds = (caseList ?? '').split(',').filter((entry) => entry !== '');
+    if (reportId === undefined || reportId === '' || tail.length > 0 || caseIds.length === 0) {
+      throw new ConfigError("--contrast-eval must look like 'reportId:caseId[,caseId...]'");
+    }
+    contrastEvidence = { kind: 'eval', reportId, caseIds };
+  }
+  const confidence = (values.confidence ?? 'medium') as ModelClaim['confidence'];
+  if (!['high', 'medium', 'low'].includes(confidence)) {
+    throw new ConfigError(
+      `--confidence must be high, medium or low, got '${String(values.confidence)}'`,
+    );
+  }
+
+  let plan: PlanLedgerModule;
+  try {
+    plan = (await import('@rulvar/plan')) as unknown as PlanLedgerModule;
+  } catch {
+    throw new ConfigError(
+      'rulvar kb gate requires @rulvar/plan (the RunLedger fold behind the LedgerExport seam)',
+    );
+  }
+  const config = await loadCliConfig(context.cwd);
+  const assembled = assembleEngine({
+    config,
+    ...(values.store === undefined ? {} : { storePath: values.store }),
+    cwd: context.cwd,
+  });
+  const metas = await assembled.store.listRuns();
+  const meta = metas.find((candidate) => candidate.runId === runId);
+  if (meta === undefined) {
+    throw new ConfigError(`run '${runId}' not found in the store`);
+  }
+  if (meta.status === 'running') {
+    throw new ConfigError(`run '${runId}' is still running; proposals gate from finished runs`);
+  }
+  if (Date.parse(meta.updatedAt) < Date.now() - INBOX_PROPOSAL_TTL_DAYS * 24 * 60 * 60 * 1000) {
+    throw new ConfigError(
+      `the proposal expired: run '${runId}' finished ${meta.updatedAt}, and inbox entries ` +
+        `expire after ${String(INBOX_PROPOSAL_TTL_DAYS)} days`,
+    );
+  }
+  const entries = await assembled.store.load(runId);
+  const view = plan.foldLedger(entries, { ledgerScope: '', planScope: 'plan' });
+  const proposal = view.observations.find((row) => row.entryRef === entryRef);
+  if (
+    proposal === undefined ||
+    proposal.subject === undefined ||
+    proposal.polarity === undefined ||
+    proposal.trigger === undefined
+  ) {
+    // An ungated proposal can never become a claim, and a NON-proposal
+    // can never enter the gate: only kb_propose-born observations
+    // carry the engine-resolved fields.
+    throw new ConfigError(
+      `run '${runId}' entry ${String(entryRef)} is not a kb_propose proposal ` +
+        '(see rulvar kb inbox for the gateable entries)',
+    );
+  }
+
+  const path = join(context.cwd, 'rulvar.models.json');
+  const store = new FileModelKnowledgeStore({ path });
+  const snapshot = await store.current();
+  const already = snapshot.claims.find(
+    (claim) =>
+      claim.origin?.kind === 'kb-proposal' &&
+      claim.origin.runId === runId &&
+      claim.origin.entryRef === entryRef &&
+      claim.status === 'active',
+  );
+  if (already !== undefined) {
+    throw new ConfigError(
+      `this proposal is already gated as claim '${already.id}' (supersede is the edit path)`,
+    );
+  }
+
+  const observedAt = meta.updatedAt;
+  const evidence: EvidenceRef[] =
+    proposal.evidenceRefs.length > 0
+      ? proposal.evidenceRefs.map((ref) => ({ kind: 'journal', runId, entryRef: ref }))
+      : [{ kind: 'journal', runId, entryRef }];
+  const claim: ModelClaim = {
+    id: `kb-proposal-${runId}-${String(entryRef)}`,
+    subject: {
+      model: proposal.subject.model as ModelRef,
+      ...(proposal.subject.effort === undefined
+        ? {}
+        : { effort: proposal.subject.effort as NonNullable<ModelClaim['subject']['effort']> }),
+    },
+    taskClass: proposal.taskClass,
+    polarity: proposal.polarity,
+    // The typed template over the closed vocabulary: the quarantined
+    // note is for the reviewing human and never enters persistence.
+    statement: proposalStatement({
+      taskClass: proposal.taskClass,
+      polarity: proposal.polarity,
+      trigger: proposal.trigger as never,
+    }),
+    class: 'human-editorial',
+    status: 'active',
+    evidence,
+    confidence,
+    observedAt,
+    expiresAt: claimExpiry('human-editorial', proposal.polarity, observedAt),
+    author: { kind: 'human', id: approver },
+    origin: { kind: 'kb-proposal', runId, entryRef },
+  };
+  const gate: GateRecord = {
+    kind: 'human',
+    approver,
+    at: new Date().toISOString(),
+    attribution: {
+      ruledOut: ruledOut as Array<'prompt' | 'tools' | 'difficulty' | 'transient-provider'>,
+      ...(contrastEvidence === undefined ? {} : { contrastEvidence }),
+    },
+  };
+  const version = await store.commit([{ op: 'add', claim, gate }], snapshot.version);
+  context.io.out(
+    `gated: ${claim.id} (store version ${String(version)}); the git review of ` +
+      'rulvar.models.json is the authenticating gate',
+  );
+  context.io.out(
+    `  ${claim.subject.model}${claim.subject.effort === undefined ? '' : ` effort=${claim.subject.effort}`} :: ${claim.taskClass} ${claim.polarity}`,
+  );
+  context.io.out(`  ${claim.statement}`);
+  context.io.out(
+    `  origin: kb-proposal run=${runId}#${String(entryRef)} expires=${claim.expiresAt}`,
+  );
   return 0;
 }
 
