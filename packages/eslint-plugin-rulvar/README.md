@@ -1,9 +1,3 @@
-[**rulvar API reference**](../index.md)
-
-***
-
-[rulvar API reference](/api/index.md) / eslint-plugin-rulvar
-
 # eslint-plugin-rulvar
 
 Determinism lint rules for rulvar workflow modules: ban bare `Date.now`,
@@ -33,23 +27,3 @@ pnpm add -D eslint-plugin-rulvar
 ## License
 
 [Apache-2.0](https://github.com/o-stepper/rulvar/blob/main/LICENSE)
-
-## Interfaces
-
-| Interface | Description |
-| ------ | ------ |
-| [RulvarLintDiagnostic](/api/eslint-plugin-rulvar/interfaces/RulvarLintDiagnostic.md) | - |
-
-## Variables
-
-| Variable | Description |
-| ------ | ------ |
-| [default](/api/eslint-plugin-rulvar/variables/default.md) | - |
-| [rules](/api/eslint-plugin-rulvar/variables/rules.md) | - |
-| [workflowsConfig](/api/eslint-plugin-rulvar/variables/workflowsConfig.md) | The flat-config preset for workflow modules: the determinism bans as errors, the duplicate-identical-call advisory as a warning. |
-
-## Functions
-
-| Function | Description |
-| ------ | ------ |
-| [toJsonDiagnostics](/api/eslint-plugin-rulvar/functions/toJsonDiagnostics.md) | - |
