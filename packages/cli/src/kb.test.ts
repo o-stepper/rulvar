@@ -124,7 +124,7 @@ describe('rulvar kb list (M10-T04)', () => {
     const cwd = mkdtempSync(join(tmpdir(), 'rulvar-kb-cli-'));
     const bad = scriptedIo();
     expect(await runCli(['kb', 'show'], { cwd, io: bad })).toBe(1);
-    expect(bad.errLines.join('\n')).toContain('usage: rulvar kb <list | inbox | sweep>');
+    expect(bad.errLines.join('\n')).toContain('usage: rulvar kb <list | inbox | gate | sweep>');
     // kb inbox is live since M12-T03 (kb-inbox.test.ts); kb sweep since
     // M11-T05 (kb-sweep.test.ts): an empty store reads as zero proposals.
     const inbox = scriptedIo();
