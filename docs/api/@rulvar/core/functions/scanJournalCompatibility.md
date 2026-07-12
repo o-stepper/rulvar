@@ -13,7 +13,7 @@ function scanJournalCompatibility(
    registry): void;
 ```
 
-Defined in: [packages/core/src/journal/keyderiver.ts:175](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/keyderiver.ts#L175)
+Defined in: [packages/core/src/journal/keyderiver.ts:173](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/keyderiver.ts#L173)
 
 The one compatibility scan: immediately after load, strictly BEFORE any
 live call, any append, and any admission reserve; repeated at lease

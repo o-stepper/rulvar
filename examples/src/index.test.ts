@@ -1,6 +1,6 @@
 /**
- * The examples corpus as integration tests (M5-T09 acceptance; docs/11,
- * section 11): every quality-pattern recipe runs through the full engine
+ * The examples corpus as integration tests (M5-T09 acceptance): every
+ * quality-pattern recipe runs through the full engine
  * on FakeAdapter with zero live calls. Each example doubles as a
  * runnable reference and, later, as planner API-card teaching material.
  */

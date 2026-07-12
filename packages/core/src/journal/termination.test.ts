@@ -123,8 +123,8 @@ describe('the variant function (docs/07, 11.4)', () => {
 
 describe('profile registry snapshot (docs/07, 11.6)', () => {
   it('derives kMax and a deterministic hash from declared ladders', () => {
-    // Ladders declare through the profile's ModelSpec (docs/04, section
-    // 12): `model: { ladder }` or a loop-role routing entry.
+    // Ladders declare through the profile's ModelSpec: `model: { ladder }`
+    // or a loop-role routing entry.
     const profiles = {
       worker: {},
       climber: { model: { ladder: { rungs: [{}, {}, {}] } } },

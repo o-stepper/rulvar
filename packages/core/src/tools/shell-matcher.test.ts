@@ -1,6 +1,6 @@
 /**
- * Argv-parsing shell matcher grammar tables (M5-T06; docs/08, section
- * 5): the pattern grammar, the lexing algorithm's documented steps, and
+ * Argv-parsing shell matcher grammar tables (M5-T06):
+ * the pattern grammar, the lexing algorithm's documented steps, and
  * the strictest-across-segments composition, including THE canonical
  * compound case: `npm test; rm -rf /` yields ask (or deny when rm is
  * denied) even with `npm test` allow-listed.

@@ -300,8 +300,7 @@ export function boundLedgerRender(
     }
     if (droppedRows > 0) {
       bounded.discrepancies.push(
-        `renderBudget: dropped the ${String(droppedRows)} oldest ${section} rows ` +
-          '(docs/06, Appendix A)',
+        `renderBudget: dropped the ${String(droppedRows)} oldest ${section} rows ` + '',
       );
     }
     if (size(bounded) <= budgetChars) {
@@ -309,7 +308,7 @@ export function boundLedgerRender(
     }
   }
   if (bounded.brief !== undefined && size(bounded) > budgetChars) {
-    bounded.discrepancies.push('renderBudget: the mission brief was sliced (docs/06, Appendix A)');
+    bounded.discrepancies.push('renderBudget: the mission brief was sliced');
     const over = size(bounded) - budgetChars;
     const keep = Math.max(0, bounded.brief.text.length - over);
     bounded.brief = { ...bounded.brief, text: bounded.brief.text.slice(0, keep) };

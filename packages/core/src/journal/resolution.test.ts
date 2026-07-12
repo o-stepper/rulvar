@@ -122,9 +122,8 @@ describe('first-closing-wins fold (M2-T07; docs/03 section 8.4)', () => {
   });
 
   it('an abandon over an already-resolved suspension folds to noop', () => {
-    // First-closing-wins per target, both closer kinds (docs/09, section
-    // 6.4: the reverse order yields an applied resolution and a noop
-    // abandon).
+    // First-closing-wins per target, both closer kinds (the reverse
+    // order yields an applied resolution and a noop abandon).
     seq = 0;
     const suspended = entry({ value: { key: 'gate' } });
     const resolution = entry({
@@ -201,8 +200,7 @@ describe('ResolutionArbiter races (M2-T07; docs/03 section 8.5)', () => {
   });
 
   it('abandon-covered operations: skip on match, zero ledger increment, skipped not orphaned', async () => {
-    // The three DEF-1 kernel consequences of a covering abandon
-    // (docs/03, sections 6.9 and 13.3; docs/09, section 6.4).
+    // The three DEF-1 kernel consequences of a covering abandon.
     const store = new InMemoryStore();
     const first = new Replayer({ runId: 'r', store });
     const branchIdentity: IdentityInput = { kind: 'step', key: 'branch', deps: [] };
@@ -338,7 +336,7 @@ describe('awaitExternal and resolveExternal (M2-T08; docs/06 section 2.7)', () =
     const firstOutcome = await firstHandle.result;
     expect(firstOutcome.status).toBe('suspended');
 
-    // Offline resolution: load, next seq, append (docs/03, section 8.5).
+    // Offline resolution: load, next seq, append.
     const prior = await store.load('RUN1');
     const suspended = prior.find((e) => e.kind === 'external');
     const offlineReplayer = new Replayer({ runId: 'RUN1', store, priorEntries: prior });

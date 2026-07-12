@@ -212,8 +212,7 @@ function canonicalizeNode(node: SchemaNode, root: JsonSchema, refStack: string[]
 
   if ('$dynamicRef' in node || '$dynamicAnchor' in node) {
     throw new ConfigError(
-      'Dynamic references ($dynamicRef/$dynamicAnchor) are forbidden in rulvar schemas ' +
-        '(docs/03, section "schemaHash and toolsetHash derivation")',
+      'Dynamic references ($dynamicRef/$dynamicAnchor) are forbidden in rulvar schemas ' + '',
     );
   }
 
@@ -222,13 +221,13 @@ function canonicalizeNode(node: SchemaNode, root: JsonSchema, refStack: string[]
     if (!ref.startsWith('#')) {
       throw new ConfigError(
         `Remote $ref '${ref}' is forbidden in rulvar schemas; only fragment-only local ` +
-          'references resolve (docs/03, section "schemaHash and toolsetHash derivation")',
+          'references resolve',
       );
     }
     if (refStack.includes(ref)) {
       throw new ConfigError(
         `Recursive local $ref '${ref}' cannot be inlined; recursive schemas are not ` +
-          'canonicalizable (docs/03, section "schemaHash and toolsetHash derivation")',
+          'canonicalizable',
       );
     }
     const target = ref.startsWith('#/')

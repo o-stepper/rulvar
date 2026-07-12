@@ -187,11 +187,11 @@ describe('ModelLadder integration (M7-T10)', () => {
     expect(verdict.raisesRung).toBe(true);
     expect(verdict.rungIndexAfter).toBe(1);
     expect(verdict.rungsRemainingAfter).toBe(0);
-    // The rung retry continues the SAME logical task (docs/03, 10.1 row 4).
+    // The rung retry continues the SAME logical task.
     expect(verdict.nextAttempt?.lineage?.relation).toBe('rung-retry');
     expect(verdict.nextAttempt?.rungIndex).toBe(1);
     // The rung RESPAWN debited a spawn unit through the embedded
-    // admission (docs/07, 11.3 b): 128 - add_task - respawn = 126.
+    // admission: 128 - add_task - respawn = 126.
     expect(verdict.admissions?.[0]?.decision?.verdict?.spawnUnitsAfter).toBe(126);
 
     // Both rungs served: the cheap rung then the strong rung, with the
@@ -310,7 +310,7 @@ describe('ModelLadder integration (M7-T10)', () => {
       },
     });
     // ONE spawn unit: the add_task admission consumes it; the rung
-    // respawn is then denied by the frozen vector (docs/07, 11.3).
+    // respawn is then denied by the frozen vector.
     const handle = orchestratePlanned(engine, 'denied run', {
       budget: { capUsd: 5 },
       plan: { limits: { maxTotalSpawns: 1 } },
@@ -327,7 +327,7 @@ describe('ModelLadder integration (M7-T10)', () => {
     expect(verdicts[0]?.raisesRung).toBe(false);
     expect(verdicts[0]?.reason).toBe('respawn_denied');
     // The denial precedes the verdict: strictly before the typed
-    // fallback surfaces (docs/07, 11.3).
+    // fallback surfaces.
     const verdictSeq = entries.find(
       (entry) =>
         entry.kind === 'decision' &&

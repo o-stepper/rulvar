@@ -43,7 +43,7 @@ export function tool<S extends SchemaSpec>(init: ToolInit<S>): ToolDef<S> {
   if (!TOOL_NAME_PATTERN.test(init.name)) {
     throw new ConfigError(
       `tool name '${init.name}' must match ^[a-zA-Z0-9_-]{1,64}$ ` +
-        '(docs/08, section "tool() definition and ToolDef")',
+        '(https://docs.rulvar.com/guide/tools)',
     );
   }
   // Derive and canonicalize NOW so schema problems surface at definition

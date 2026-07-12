@@ -239,7 +239,7 @@ describe('AdmissionController', () => {
     }
     expect(decision.verdict.lineage.logicalTaskId).toBe('01PRIOR00000000000000000000');
     expect(decision.verdict.lineage.isNew).toBe(false);
-    // The computed value block rides the decision (DEF-3, docs/03 10.6).
+    // The computed value block rides the decision (DEF-3).
     expect(decision.lineage).toMatchObject({
       logicalTaskId: '01PRIOR00000000000000000000',
       relation: 'respawn',

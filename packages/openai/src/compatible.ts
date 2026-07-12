@@ -56,9 +56,7 @@ export interface OpenAiCompatibleConfig {
 /** Creates a Chat Completions dialect adapter for a compatible endpoint. */
 export function openaiCompatible(cfg: OpenAiCompatibleConfig): ProviderAdapter {
   if (cfg.id === undefined || cfg.id === '') {
-    throw new ConfigError(
-      "openaiCompatible requires an explicit non-empty 'id' (docs/04, section 6)",
-    );
+    throw new ConfigError("openaiCompatible requires an explicit non-empty 'id'");
   }
   if (cfg.baseURL === undefined || cfg.baseURL === '') {
     throw new ConfigError("openaiCompatible requires 'baseURL'");

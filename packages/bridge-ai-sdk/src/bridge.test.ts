@@ -1,7 +1,6 @@
 /**
  * M9-T01 acceptance: a V4 model streams through the full ChatEvent
- * vocabulary; a wrong specificationVersion errors clearly (docs/10,
- * section "M9-T01 @rulvar/bridge-ai-sdk").
+ * vocabulary; a wrong specificationVersion errors clearly.
  */
 import type {
   LanguageModelV4,

@@ -1,6 +1,6 @@
 /**
- * Matrix sweeps e2e under VCR (M11-T02; docs/05, section "Grounding
- * and decay"): a sweep records against the (fake) live adapters, its
+ * Matrix sweeps e2e under VCR (M11-T02): a sweep records against
+ * the (fake) live adapters, its
  * claims carry EvidenceRef eval reports and commit through the
  * eval-committer identity, and the whole sweep replays hermetically
  * from the cassette with zero live calls.

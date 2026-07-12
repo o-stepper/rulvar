@@ -1,6 +1,5 @@
 /**
- * Frozen-fixture drift guard (M2-T12 acceptance; docs/11, section
- * "Frozen journal fixtures"). The committed files are the DEF-6
+ * Frozen-fixture drift guard (M2-T12 acceptance). The committed files are the DEF-6
  * compatibility contract; the builders re-derive them through the live
  * KeyDeriver profiles. Any divergence means the identity pipeline moved:
  * that is a hashVersion bump, never a fixture regeneration. The

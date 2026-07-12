@@ -1,7 +1,7 @@
 /**
  * Ported test subset for the vendored JSON Schema validator (M0-T08
- * acceptance). Exercises the draft 2020-12 subset committed in
- * docs/08-tools-permissions-spec.md, section "SchemaSpec": core keywords
+ * acceptance). Exercises the draft 2020-12 subset committed as
+ * "SchemaSpec": core keywords
  * plus local $ref; $dynamicRef and remote $ref are outside the subset (the
  * last block documents the boundary).
  */
@@ -212,7 +212,7 @@ describe('vendored JSON Schema validator (draft 2020-12 subset)', () => {
   });
 
   it('subset boundary: an unresolvable remote $ref throws at validation', () => {
-    // Remote $ref is outside the committed subset (docs/08, "SchemaSpec");
+    // Remote $ref is outside the committed subset;
     // the SchemaSpec layer (M1-T03) rejects it earlier with ConfigError.
     const remote: Schema = { $ref: 'https://example.com/does-not-exist.json' };
     expect(() => new Validator(remote, '2020-12', false).validate({})).toThrow();

@@ -168,7 +168,7 @@ describe('mcp ToolSource (M3-T04)', () => {
 
     const second = await resolveToolset([source], SESSION);
     expect(second.tools.map((def) => def.name).sort()).toEqual(['alpha', 'beta']);
-    // The first spawn's snapshot and hash are untouched (docs/08 6.3).
+    // The first spawn's snapshot and hash are untouched.
     expect(first.tools.map((def) => def.name)).toEqual(['alpha']);
     expect(second.hash).not.toBe(first.hash);
   });

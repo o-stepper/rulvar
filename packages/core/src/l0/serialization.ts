@@ -66,7 +66,7 @@ function assertPinnedFields(before: JournalEntry, after: JournalEntry, site: str
     if (before[field] !== after[field]) {
       throw new ConfigError(
         `serialization hook ${site} modified the kernel field '${field}' ` +
-          `(docs/03, 12.8: ordering and identity fields MUST pass through unmodified)`,
+          `(ordering and identity fields MUST pass through unmodified)`,
       );
     }
   }

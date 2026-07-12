@@ -63,7 +63,7 @@ describe('createEngine and engine.run (M1-T11)', () => {
     const phaseStart = events.find((e) => e.type === 'phase:start');
     const agentStart = events.find((e) => e.type === 'agent:start');
     const agentEnd = events.find((e) => e.type === 'agent:end');
-    // run > phase > agent (docs/09, section "Span hierarchy").
+    // run > phase > agent.
     expect(runStart?.parentSpanId).toBeUndefined();
     expect(phaseStart?.parentSpanId).toBe(runStart?.spanId);
     expect(agentStart?.parentSpanId).toBe(phaseStart?.spanId);
@@ -214,7 +214,7 @@ describe('createEngine and engine.run (M1-T11)', () => {
 
   it('bare engine.resume of a non-compiled run rejects with a typed ConfigError', async () => {
     // Since M6-T02 only compiled runs with a persisted source resume
-    // without a workflow value (docs/06, 10.2).
+    // without a workflow value.
     const engine = createEngine({ adapters: [] });
     await expect(engine.resume('run-1').result).rejects.toThrow(ConfigError);
   });

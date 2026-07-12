@@ -41,7 +41,7 @@ describe('RunProfile presets (M5-T07)', () => {
 
   it('the engine ships no strategy branch keyed on profile names (data-only)', () => {
     // The presets live in a data module; no engine source may switch on
-    // a profile name (docs/06, section 11; EXC registry).
+    // a profile name (EXC registry).
     const engineSrc = readFileSync(new URL('./engine.ts', import.meta.url), 'utf8');
     const ctxSrc = readFileSync(new URL('./ctx.ts', import.meta.url), 'utf8');
     for (const name of Object.keys(RUN_PROFILES)) {

@@ -68,9 +68,7 @@ export function validateEntryShape(entry: JournalEntry): Issue[] {
   }
   const legal = LEGAL_STATUSES[entry.kind];
   if (legal !== undefined && !legal.includes(entry.status)) {
-    issues.push(
-      issue(`status '${entry.status}' is not legal for kind '${entry.kind}' (docs/03 section 5.3)`),
-    );
+    issues.push(issue(`status '${entry.status}' is not legal for kind '${entry.kind}'`));
   }
   if ((entry.status as string) === 'skipped') {
     issues.push(issue("'skipped' is a derived fold status and is never persisted"));
@@ -123,7 +121,7 @@ export function validateEntryShape(entry: JournalEntry): Issue[] {
 
   if (entry.kind === 'external' || entry.kind === 'approval') {
     if (entry.kind === 'external' && entry.deadlineAt !== undefined) {
-      issues.push(issue('awaitExternal has NO deadline in v1 (docs/03 section 8.1)'));
+      issues.push(issue('awaitExternal has NO deadline in v1'));
     }
   }
 
@@ -132,9 +130,7 @@ export function validateEntryShape(entry: JournalEntry): Issue[] {
   }
 
   if (entry.status === 'escalated' && entry.escalation === undefined) {
-    issues.push(
-      issue('terminal escalated entries carry the validated EscalationReport (docs/03 5.4)'),
-    );
+    issues.push(issue('terminal escalated entries carry the validated EscalationReport'));
   }
   if (entry.escalation !== undefined && entry.status !== 'escalated') {
     issues.push(issue("the escalation payload is legal only on status 'escalated'"));

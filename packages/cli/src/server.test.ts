@@ -1,11 +1,11 @@
 /**
- * createServer e2e (M8-T01 acceptance; docs/02, section 8.2; FR-702):
+ * createServer e2e (M8-T01 acceptance; FR-702):
  * the HITL round-trip over HTTP (suspend, resolve via the endpoint,
  * resume), SSE streaming with Last-Event-ID resume from the event seq,
  * the offline resolution path for runs not live in this process, and
  * the route error surface. Everything runs on FakeAdapter over a
  * SqliteStore: zero live calls, and the offline path exercises the real
- * lease brackets (docs/03, section 8).
+ * lease brackets.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -88,7 +88,7 @@ async function untilStatus(
   status: string,
 ): Promise<Record<string, unknown>> {
   // An attempt counter, not Date.now(): the dev-mode bare-clock guard
-  // stays installed while a suspended body is parked (docs/06, 2.7).
+  // stays installed while a suspended body is parked.
   for (let attempt = 0; attempt < 500; attempt += 1) {
     const body = await bodyOf(await get(server, `/runs/${runId}`));
     if (body.status === status) {
@@ -277,7 +277,7 @@ describe('createServer (M8-T01)', () => {
     expect(resolved.status).toBe(200);
     expect(await bodyOf(resolved)).toMatchObject({ applied: true, resumed: false });
 
-    // The server did NOT resume it (no args channel; docs/14, OQ-21).
+    // The server did NOT resume it (no args channel; OQ-21).
     const after = await bodyOf(await get(server, `/runs/${first.runId}`));
     expect(after).toMatchObject({ status: 'suspended', live: false });
 

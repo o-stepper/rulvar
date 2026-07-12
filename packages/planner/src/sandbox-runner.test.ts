@@ -24,7 +24,7 @@ import { compileScript } from './compile.js';
 import { WorkerSandboxRunner } from './sandbox-runner.js';
 
 // Worker code executes from the built dist (worker_threads loads real
-// .js); the repo builds before tests by convention (docs/13).
+// .js); the repo builds before tests by convention.
 const WORKER_URL = new URL('../dist/sandbox-worker.js', import.meta.url);
 
 const tempDirs: string[] = [];

@@ -1,6 +1,6 @@
 /**
  * Role trigger protocol unit tests (M4-T01): one block per trigger rule
- * (docs/04, sections 8.3-8.4 as amended; docs/10, M4-T01 acceptance).
+ * (M4-T01 acceptance).
  */
 import { describe, expect, it } from 'vitest';
 

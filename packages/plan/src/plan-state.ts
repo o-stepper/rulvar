@@ -115,7 +115,7 @@ export function assertPlanTransition(node: PlanNode, to: PlanNodeStatus): void {
   if (isTerminalPlanStatus(node.status)) {
     throw new PlanInvariantError(
       `plan node ${node.nodeId} is terminal '${node.status}' and cannot become '${to}' ` +
-        "(docs/07, 3.1: the status machine is closed and 'done' is immutable)",
+        "(the status machine is closed and 'done' is immutable)",
       { data: { nodeId: node.nodeId, from: node.status, to } },
     );
   }
@@ -128,7 +128,7 @@ export function assertPlanTransition(node: PlanNode, to: PlanNodeStatus): void {
   if (to === 'running' && node.status !== 'ready') {
     throw new PlanInvariantError(
       `plan node ${node.nodeId} cannot start running from '${node.status}' ` +
-        '(the engine schedules ready nodes only; docs/07, 3.1)',
+        '(the engine schedules ready nodes only)',
       { data: { nodeId: node.nodeId, from: node.status, to } },
     );
   }

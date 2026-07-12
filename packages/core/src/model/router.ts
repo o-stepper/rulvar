@@ -226,7 +226,7 @@ export function resolveModelInvocation(options: {
     throw new ConfigError(
       `a ladder ModelSpec wins wire resolution for role '${role}': ladder execution is ` +
         'owned by the PlanRunner ladder driver, which resolves each rung attempt to a ' +
-        'concrete model override (docs/07, section 10); dispatch laddered profiles ' +
+        'concrete model override; dispatch laddered profiles ' +
         'through orchestratePlanned or pass a plain ModelRef or ModelChoice',
     );
   }
@@ -324,7 +324,7 @@ function validateGate(gate: Gate, rungCount: number, index: number): void {
     if (typeof gate.profile !== 'string' || gate.profile === '') {
       throw new ConfigError(
         `ladder acceptance gate ${String(index)}: a mechanical gate names a registered ` +
-          'gate profile (docs/04, section 12)',
+          'gate profile',
       );
     }
     return;
@@ -367,7 +367,7 @@ export function canonicalizeLadder(
   options?: { chainEffort?: Effort },
 ): CanonicalLadderSpec {
   if (!Array.isArray(spec.rungs) || spec.rungs.length === 0) {
-    throw new ConfigError('a ladder declares at least one rung (docs/04, section 12)');
+    throw new ConfigError('a ladder declares at least one rung');
   }
   if (
     !Number.isInteger(spec.startTier) ||
@@ -383,7 +383,7 @@ export function canonicalizeLadder(
     if (!TRIGGER_CLASSES.includes(trigger)) {
       throw new ConfigError(
         `unknown ladder trigger '${String(trigger)}': the vocabulary is closed to ` +
-          `${TRIGGER_CLASSES.join(', ')} (docs/04, section 12)`,
+          `${TRIGGER_CLASSES.join(', ')}`,
       );
     }
   }
@@ -402,7 +402,7 @@ export function canonicalizeLadder(
     if (effort === undefined) {
       throw new ConfigError(
         `ladder rung ${String(index)} resolves no effort: the canonical ladder embeds ` +
-          'explicit efforts (docs/04, section 8.2); declare rung.effort or a chain effort',
+          'explicit efforts; declare rung.effort or a chain effort',
       );
     }
     return {

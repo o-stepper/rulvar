@@ -1,6 +1,6 @@
 /**
- * The eval-committer pipeline path (M11-T01; docs/05, 5.4): building
- * measured claims with the docs/05 TTL table applied, committing under
+ * The eval-committer pipeline path (M11-T01): building measured
+ * claims with the TTL table applied, committing under
  * the eval-committer gate, and the documented CAS-rebase recipe.
  */
 import { mkdtempSync } from 'node:fs';

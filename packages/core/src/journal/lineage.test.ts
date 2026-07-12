@@ -260,7 +260,7 @@ describe('LineageIndex fold (DEF-3)', () => {
     const ltid = `${LEGACY_LTID_PREFIX}legacy-key`;
     expect(one.knownLogicalTaskIds()).toEqual([ltid]);
     // Byte-identical legacy work shares one deterministic lineage on
-    // every engine (docs/03, 10.7).
+    // every engine.
     expect(one.attemptsUsed(ltid)).toBe(2);
     expect(two.attemptsUsed(ltid)).toBe(2);
     expect(one.statsOf(ltid)).toEqual(two.statsOf(ltid));

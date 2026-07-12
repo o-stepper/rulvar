@@ -1,6 +1,6 @@
 /**
  * M5 exit criterion: the CLI works end to end against SqliteStore, not
- * only JsonlFileStore (docs/10, section 3.6). The host config supplies a
+ * only JsonlFileStore. The host config supplies a
  * SqliteStore as engineOptions.stores.journal; the CLI's engine assembly
  * honors it (JsonlFileStore is only the default fallback), so run /
  * runs ls / inspect all round-trip against sqlite through the same

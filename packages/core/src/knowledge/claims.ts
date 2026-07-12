@@ -66,7 +66,7 @@ function gateIssues(gate: GateRecord, path: string): string[] {
   if (!Array.isArray(ruledOut) || ruledOut.length === 0) {
     issues.push(
       `${path}: the human gate requires the attribution attestation ` +
-        '(a non-empty ruledOut checklist; docs/05, section "The human gate")',
+        '(a non-empty ruledOut checklist)',
     );
   } else {
     for (const entry of ruledOut) {
@@ -133,14 +133,13 @@ export function claimIssues(
     if (claim.class === 'eval-measured') {
       issues.push(
         `${path}: eval-measured claims are committable only under the eval-committer gate ` +
-          '(the eval-committer identity; docs/05, 5.4); the editorial path carries ' +
+          '(the eval-committer identity); the editorial path carries ' +
           'human-editorial only',
       );
     }
     if (claim.metrics !== undefined) {
       issues.push(
-        `${path}: the metrics block is writable only by the eval-committer identity ` +
-          '(docs/05, security channel 4)',
+        `${path}: the metrics block is writable only by the eval-committer identity ` + '',
       );
     }
   }
@@ -224,7 +223,7 @@ export function capIssues(
     if (count > cap) {
       issues.push(
         `active claims for (${key}) would reach ${String(count)}, over the cap ` +
-          `${String(cap)} (docs/06, Appendix A); supersede or archive first`,
+          `${String(cap)}; supersede or archive first`,
       );
     }
   }

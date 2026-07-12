@@ -41,7 +41,7 @@ Defined in: [packages/core/src/engine/external.ts:69](https://github.com/o-stepp
 awaitApproval(options): Promise<ApprovalDecision>;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:214](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L214)
+Defined in: [packages/core/src/engine/external.ts:212](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L212)
 
 Tool-approval suspension (M3-T03): journals (or
 re-matches) the suspended approval entry keyed by (toolName, input)
@@ -77,7 +77,7 @@ awaitDecision(options): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:291](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L291)
+Defined in: [packages/core/src/engine/external.ts:289](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L289)
 
 Flavor B escalation suspension (M3-T07): the
 escalate tool suspends the agent on the SAME machinery as approvals
@@ -196,7 +196,7 @@ Defined in: [packages/core/src/engine/external.ts:107](https://github.com/o-step
 resolveExternal(key, value): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:376](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L376)
+Defined in: [packages/core/src/engine/external.ts:374](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L374)
 
 RunHandle.resolveExternal: the live path validates BEFORE append and
 throws InvalidResolutionError without journaling; a winning attempt
@@ -221,7 +221,7 @@ settles the waiting promise in place.
 submitResolution(entryRef, attempt): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:356](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L356)
+Defined in: [packages/core/src/engine/external.ts:354](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L354)
 
 Submits a resolution attempt for a parked suspension and, when it
 wins the first-closing-wins fold, settles the in-process waiter with

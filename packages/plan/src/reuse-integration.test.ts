@@ -66,7 +66,7 @@ describe('reuse-by-reference integration (DEF-5; M7-T07)', () => {
       if (phase === 4) {
         // Byte-identical re-add: the severed donor has zero paid
         // completed entries, so the verdict is a fresh admit with the
-        // embedded DedupNote (docs/03, 9.4).
+        // embedded DedupNote.
         return {
           toolCall: {
             name: 'plan_revise',
@@ -100,7 +100,7 @@ describe('reuse-by-reference integration (DEF-5; M7-T07)', () => {
 
     const entries = await store.load(handle.runId);
     // The cancel compiled into a severing abandon over the dispatched
-    // root, carrying node and lineage attribution (docs/03, 9.1; XF-04).
+    // root, carrying node and lineage attribution (XF-04).
     const abandons = entries.filter((entry) => entry.kind === 'abandon');
     expect(abandons.length).toBeGreaterThanOrEqual(1);
     expect(abandons[0]?.abandon).toMatchObject({ nodeId: firstNodeId, reason: 'cancel_task' });

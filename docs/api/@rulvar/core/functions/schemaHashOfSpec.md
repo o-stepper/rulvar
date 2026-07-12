@@ -10,7 +10,7 @@
 function schemaHashOfSpec(spec): string;
 ```
 
-Defined in: [packages/core/src/l0/schema.ts:339](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L339)
+Defined in: [packages/core/src/l0/schema.ts:338](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L338)
 
 Derives and hashes a SchemaSpec in one step (identity path for spawns).
 

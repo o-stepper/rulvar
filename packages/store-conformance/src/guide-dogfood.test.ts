@@ -1,6 +1,5 @@
 /**
- * M9-T03 acceptance (docs/10, "M9-T03 Community adapter and store
- * guides"): a third-party store built ONLY from the community guide
+ * M9-T03 acceptance: a third-party store built ONLY from the community guide
  * passes conformance. CommunityMemoryStore below is the walkthrough
  * listing of docs/guide-store-authors.md, section "Walkthrough: a
  * complete minimal store", VERBATIM: if the guide's code rots, this

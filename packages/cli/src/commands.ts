@@ -181,8 +181,8 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
   if (workflow === undefined) {
     throw new ConfigError(
       `run '${runId}' was started from workflow '${name ?? '(unknown)'}'; register it under ` +
-        `that name in rulvar.config.mjs workflows to resume (docs/06, section 10.2: resume ` +
-        'requires the in-process workflow value)',
+        `that name in rulvar.config.mjs workflows to resume ` +
+        '(resume requires the in-process workflow value)',
     );
   }
   const first = assembled.engine.resume(runId, workflow as unknown as Workflow<unknown, unknown>, {
@@ -829,7 +829,7 @@ async function kbSweepCommand(argv: string[], context: CommandContext): Promise<
   if (sweep === undefined) {
     throw new ConfigError(
       'rulvar kb sweep requires a kbSweep section in rulvar.config.mjs ' +
-        "({ committerId, models, cases }; docs/05, section 'Grounding and decay')",
+        '({ committerId, models, cases })',
     );
   }
   let evals: EvalsModule;

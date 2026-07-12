@@ -83,8 +83,7 @@ export class GitWorktreeProvider implements IsolationProvider {
       await git(this.repoRoot, ['rev-parse', '--git-common-dir']);
     } catch {
       throw new ConfigError(
-        `worktree isolation requires a git repository at '${this.repoRoot}' ` +
-          '(docs/08, section 8.3)',
+        `worktree isolation requires a git repository at '${this.repoRoot}' ` + '',
       );
     }
     const dir = await mkdtemp(join(tmpdir(), `rulvar-wt-${spawn.runId.slice(0, 8)}-`));
@@ -108,7 +107,7 @@ export class GitWorktreeProvider implements IsolationProvider {
         }
         this.onWarn(
           `worktree pin cap (${this.maxPinned}) reached; dropping the tree of a failed ` +
-            'agent instead of retaining it (docs/08, section 8.4)',
+            'agent instead of retaining it',
         );
       }
       try {

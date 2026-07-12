@@ -61,7 +61,7 @@ export function checkFloors(options: {
   if (roleViolation !== undefined) {
     throw new ConfigError(
       `quality floor violation: '${ref}' is floored out for role '${role}' ` +
-        `(${roleViolation}); floors are hard router constraints (docs/04, section 9)`,
+        `(${roleViolation}); floors are hard router constraints`,
     );
   }
   if (taskClass !== undefined) {
@@ -69,7 +69,7 @@ export function checkFloors(options: {
     if (classViolation !== undefined) {
       throw new ConfigError(
         `quality floor violation: '${ref}' is floored out for taskClass '${taskClass}' ` +
-          `(${classViolation}); floors are hard router constraints (docs/04, section 9)`,
+          `(${classViolation}); floors are hard router constraints`,
       );
     }
   }

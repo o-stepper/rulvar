@@ -1,6 +1,5 @@
 /**
- * TaskSpec.taskClass through PlanRunner (M10-T05; docs/05, section
- * "Phases and placement"; docs/14, OQ-12): the author-declared class
+ * TaskSpec.taskClass through PlanRunner (M10-T05; OQ-12): the author-declared class
  * journals inside the plan.revision requestedOps (the durable spec of
  * record) and rides the dispatch spec for the M11 consumers; absence
  * is unclassified and stores no literal string anywhere.
@@ -78,7 +77,7 @@ describe('taskClass binding through PlanRunner (M10-T05; OQ-12)', () => {
     expect('taskClass' in (unclassified?.spec ?? {})).toBe(false);
     // Both nodes ran to done: the declared class never gates phase-1
     // execution (card recommendations do not exist yet, and floors stay
-    // profile-driven per docs/04).
+    // profile-driven).
     const workers = entries.filter(
       (entry) => entry.kind === 'agent' && entry.scope.startsWith('plan/') && entry.status === 'ok',
     );

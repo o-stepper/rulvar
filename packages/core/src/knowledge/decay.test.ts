@@ -1,6 +1,6 @@
 /**
- * Grounding and decay (M11-T03; docs/05, section "Grounding and
- * decay"): the asymmetric TTL table under clock control, the
+ * Grounding and decay (M11-T03): the asymmetric TTL table under
+ * clock control, the
  * re-measurement queue as a pure status filter, archive-never-delete
  * maintenance, and the read-path acceptance: an expired claim stops
  * influencing the card at the next pin or repin.

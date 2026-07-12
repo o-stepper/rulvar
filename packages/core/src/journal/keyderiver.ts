@@ -158,9 +158,7 @@ export function buildDeriverRegistry(extraDerivers?: readonly unknown[]): Derive
   ]);
   for (const extra of extraDerivers ?? []) {
     if (!isKeyDeriver(extra)) {
-      throw new ConfigError(
-        'extraDerivers entries must implement the KeyDeriver SPI (docs/03, section 4.2)',
-      );
+      throw new ConfigError('extraDerivers entries must implement the KeyDeriver SPI');
     }
     registry.set(extra.hashVersion, extra);
   }

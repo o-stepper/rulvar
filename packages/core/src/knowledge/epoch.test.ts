@@ -1,6 +1,5 @@
 /**
- * modelEpoch capture and the mark_stale op (M11-T04; docs/05, section
- * "Grounding and decay").
+ * modelEpoch capture and the mark_stale op (M11-T04).
  */
 import { describe, expect, it } from 'vitest';
 

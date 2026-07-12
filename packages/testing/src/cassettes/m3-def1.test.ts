@@ -1,6 +1,5 @@
 /**
- * The DEF-1 live cassette set (M3-T11; docs/03 section 6.10, docs/09
- * cassette catalog): escalate-replay, crash-between-report-and-decision,
+ * The DEF-1 live cassette set (M3-T11): escalate-replay, crash-between-report-and-decision,
  * flavor-b-timeout, recorded through the live runtime and replayed
  * strict. The committed cassettes are the compatibility contract; the
  * frozen-drift suite pins them to the recorder byte-for-byte.

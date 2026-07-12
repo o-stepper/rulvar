@@ -1,7 +1,6 @@
 /**
- * M8-T04 unit tests: the default key-masking policy (docs/09, section
- * "Redaction and sensitive data") and the serialization-hook wrappers
- * (docs/03, section "Serialization hook"): symmetric round-trip through
+ * M8-T04 unit tests: the default key-masking policy and the
+ * serialization-hook wrappers: symmetric round-trip through
  * the wrapped stores, kernel-field drift rejection, lease passthrough.
  */
 import { describe, expect, it } from 'vitest';

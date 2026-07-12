@@ -85,7 +85,7 @@ export function buildResponsesParams(
     if (openaiOptions[forbidden] !== undefined) {
       throw new ConfigError(
         `providerOptions.openai.${forbidden} is rejected: server-side conversation state is ` +
-          'incompatible with content-addressed journal determinism (docs/04, section 5.1)',
+          'incompatible with content-addressed journal determinism',
       );
     }
   }

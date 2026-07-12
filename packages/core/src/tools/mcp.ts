@@ -59,7 +59,7 @@ function validateConfig(cfg: McpConfig): void {
     if (cfg[key] !== undefined) {
       throw new ConfigError(
         `mcp: '${key}' is not a config key of the '${cfg.transport}' transport ` +
-          '(docs/08, section 6.2: exactly the keys matching the chosen transport)',
+          '(exactly the keys matching the chosen transport)',
       );
     }
   };
@@ -187,8 +187,7 @@ export function mcp(cfg: McpConfig): ToolSource {
     const name = cfg.prefix === undefined ? wire.name : `${cfg.prefix}_${wire.name}`;
     if (!TOOL_NAME_PATTERN.test(name)) {
       throw new ConfigError(
-        `mcp: imported tool name '${name}' must match ^[a-zA-Z0-9_-]{1,64}$ ` +
-          '(docs/08, section 6.4)',
+        `mcp: imported tool name '${name}' must match ^[a-zA-Z0-9_-]{1,64}$ ` + '',
       );
     }
     const risk = cfg.risk?.[wire.name];

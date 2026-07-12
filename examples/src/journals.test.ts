@@ -1,6 +1,6 @@
 /**
- * Production-journal replay (M9-T04; docs/09 catalog; docs/11
- * replay-strict tier): every dogfood journal under journals/ replays
+ * Production-journal replay (M9-T04): every dogfood journal under
+ * journals/ replays
  * STRICT against its shipped workflow with zero live calls. Journals
  * are frozen fixtures (fixtures.sha256).
  *

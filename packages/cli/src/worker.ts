@@ -128,15 +128,14 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
     // Never a silent split-brain (FR-703).
     throw new ConfigError(
       'createWorker requires a LeasableStore (acquire/renew/release with fencing epochs); ' +
-        'the supplied store has no lease capability (docs/03, section 12.3). Use ' +
+        'the supplied store has no lease capability. Use ' +
         '@rulvar/store-sqlite or another conformant LeasableStore.',
     );
   }
   if (engine.stores.journal !== (store as JournalStore)) {
     throw new ConfigError(
       'createWorker must lease the SAME journal store the engine writes ' +
-        '(engine.stores.journal); leasing a different store would fence nothing ' +
-        '(docs/02, section 8.3; docs/06, 10.2)',
+        '(engine.stores.journal); leasing a different store would fence nothing',
     );
   }
   const concurrency = options.concurrency ?? 1;

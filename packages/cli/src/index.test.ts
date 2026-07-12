@@ -1,8 +1,7 @@
 /**
  * CLI e2e (M5-T01 acceptance): the run/suspend/resume round-trip over
  * the real command paths against FakeAdapter, engine assembly from the
- * host config convention, runs ls, and the inspect journal summary
- * (docs/06, section 10.5; docs/02, section 8.1).
+ * host config convention, runs ls, and the inspect journal summary.
  */
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -120,7 +119,7 @@ describe('rulvar CLI (M5-T01)', () => {
     // replayed prefix pays zero adapter calls by construction; the CLI
     // surface only shows the terminal outcome.
     // Original args are not journaled in v1: the host re-supplies them
-    // (the amended resume grammar, docs/06 section 10.5).
+    // (the amended resume grammar).
     const second = scriptedIo(['{"approved":true}']);
     const secondCode = await runCli(['resume', runId, '--args', '{"item":9}'], {
       cwd,

@@ -75,7 +75,7 @@ describe('planHash determinism (docs/07, 3.4)', () => {
 
   it('reproduces the frozen golden bytes (byte-identity across stores)', () => {
     // Golden values pin the canonical projection: a change here is a
-    // hashVersion event (docs/03, section "hashVersion"), never a refactor.
+    // hashVersion event, never a refactor.
     expect(planHash(emptyPlan())).toBe(
       'f8e67d65d7348e63cedaea3d2d98eb7f9f0f21b26f45c4b4a350f8fc8f4eeebb',
     );

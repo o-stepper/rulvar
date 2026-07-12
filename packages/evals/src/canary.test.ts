@@ -1,6 +1,6 @@
 /**
- * The canary fingerprint (M11-T04; docs/05, section "Grounding and
- * decay"): a mutated fake model changes the fingerprint, and the drift
+ * The canary fingerprint (M11-T04): a mutated fake model changes
+ * the fingerprint, and the drift
  * flips exactly the fingerprinted eval claims of that model to stale
  * in one command.
  */

@@ -143,7 +143,7 @@ function resolveDispatchOpts(
     if (schema === undefined) {
       throw new ConfigError(
         `unknown outputSchemaRef '${spec.outputSchemaRef}': register it under ` +
-          'defaults.schemas (docs/08, section "SchemaSpec"; docs/07, 4.2)',
+          'defaults.schemas',
       );
     }
     opts.schema = schema;
@@ -153,7 +153,7 @@ function resolveDispatchOpts(
     if (tools === undefined) {
       throw new ConfigError(
         `unknown toolsetRef '${spec.toolsetRef}': register it under ` +
-          'defaults.toolsets (docs/08, section "tool() definition"; docs/07, 4.2)',
+          'defaults.toolsets (https://docs.rulvar.com/guide/tools)',
       );
     }
     opts.tools = tools;
@@ -276,7 +276,7 @@ export function makeOrchestratorWorkflow(
       const fraction = spec?.capFraction ?? 0.2;
       if (fraction > 1) {
         throw new OrchestratorCapConfigError(
-          `capFraction ${String(fraction)} exceeds 1.0 (docs/07, 12.2: opting out of the cap ` +
+          `capFraction ${String(fraction)} exceeds 1.0 (opting out of the cap ` +
             'is explicit only, up to 1.0 inclusive)',
         );
       }
@@ -290,7 +290,7 @@ export function makeOrchestratorWorkflow(
         // before any journal entries.
         throw new OrchestratorCapConfigError(
           'the orchestrator cap is unresolvable: the run has no USD ceiling and no explicit ' +
-            'budget.capUsd; PlanRunner requires a resolved effectiveCap (docs/07, 12.2)',
+            'budget.capUsd; PlanRunner requires a resolved effectiveCap',
         );
       }
       if (bounds.length > 0) {
@@ -304,7 +304,7 @@ export function makeOrchestratorWorkflow(
         if (extension !== undefined && effectiveCapUsd < finalizeReserveUsd) {
           throw new OrchestratorCapConfigError(
             `effectiveCap ${effectiveCapUsd.toFixed(4)} USD is below the finalize reserve ` +
-              `${finalizeReserveUsd.toFixed(4)} USD (docs/07, 12.2)`,
+              `${finalizeReserveUsd.toFixed(4)} USD`,
           );
         }
         orchestratorAccount =
@@ -831,7 +831,7 @@ export function makeOrchestratorWorkflow(
           throw new ConfigError(
             `agentType '${params.agentType}' declares a ladder; ladder execution is owned ` +
               'by the plan extension, which resolves each rung attempt to a concrete model ' +
-              'override (docs/07, section 10); spawn a concrete profile instead',
+              'override; spawn a concrete profile instead',
           );
         }
         const decision = admission.admit(

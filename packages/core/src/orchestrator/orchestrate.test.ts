@@ -146,8 +146,7 @@ describe('orchestrate (M6-T07/T08)', () => {
   it('keeps ladder declarers out of the spawn vocabulary and rejects them pre-admission', async () => {
     // Found live by the M12 checkpoint: the kb card names ladder tiers
     // by profile name, and a card-informed orchestrator spawned the
-    // declarers, which can only die at wire resolution (docs/07,
-    // section 10 as amended).
+    // declarers, which can only die at wire resolution.
     const profiles: Record<string, AgentProfile> = {
       worker: { description: 'does one task' },
       swiftLadder: {
@@ -217,7 +216,7 @@ describe('orchestrate (M6-T07/T08)', () => {
   });
 
   it('admits children under a small run ceiling: the orchestrator reserves its cap, not maxOutputTokens', async () => {
-    // Found live by the M12 checkpoint (docs/07, 12.2 as amended): the
+    // Found live by the M12 checkpoint: the
     // default admission reserve of the orchestrator agent (flat here,
     // full maxOutputTokens pricing live) pinned the root remainder at
     // zero for the whole orchestration, so every child spawn died with

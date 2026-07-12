@@ -51,7 +51,7 @@ function nodeStatusesOf(entries: readonly JournalEntry[]): Record<string, string
         statuses[op.nodeId] = op.to;
       }
       if (op.kind === 'resolve_escalation' && op.nodeId !== undefined) {
-        // The fate is applied by the fold (docs/07, 3.3): mirror it.
+        // The fate is applied by the fold: mirror it.
         const fate = { accept: 'done', cancel: 'cancelled', retry: 'pending' }[
           op.decision?.kind ?? ''
         ];
@@ -240,14 +240,14 @@ describe('EscalationProtocol completion (M7-T11)', () => {
     const resolution = entries.find(
       (entry) => entry.kind === 'resolution' && entry.ref === suspended?.seq,
     );
-    // The DEF-4 payload rides the entry's resolution field (docs/03, 8.6).
+    // The DEF-4 payload rides the entry's resolution field.
     expect((resolution?.resolution as { by?: string } | undefined)?.by).toBe('timeout');
 
     const decisions = escalationDecisionsOf(entries);
     expect(decisions).toHaveLength(1);
     expect((decisions[0] as { resolvedBy?: string }).resolvedBy).toBe('default');
     expect((decisions[0] as { decision?: { kind?: string } }).decision?.kind).toBe('accept');
-    // accept closes the paid partial result as done (docs/07, 3.3).
+    // accept closes the paid partial result as done.
     expect(Object.values(nodeStatusesOf(entries))).toContain('done');
   });
 
@@ -326,7 +326,7 @@ describe('EscalationProtocol completion (M7-T11)', () => {
 
     const statuses = nodeStatusesOf(entries);
     // Both decomposition children ran to done; the escalated node stays
-    // escalated while its children carry the work (docs/07, 3.3).
+    // escalated while its children carry the work.
     expect(Object.values(statuses).filter((status) => status === 'done')).toHaveLength(2);
     const halves = adapter.calls.filter((req) => /half [AB]/.test(JSON.stringify(req.messages)));
     expect(halves.length).toBeGreaterThanOrEqual(2);
@@ -404,7 +404,7 @@ describe('EscalationProtocol completion (M7-T11)', () => {
       seq?: number;
     };
     // The denied entry precedes; the decision resolves the fate flagged,
-    // never a bare limit (docs/07, 6.5) and the folds stay replay-strict.
+    // never a bare limit, and the folds stay replay-strict.
     expect(decision.capExceeded).toBe(true);
     expect(decision.countsAgainstLimit).toBe(false);
     const decisionSeq = entries.find(

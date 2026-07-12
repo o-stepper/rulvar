@@ -1,5 +1,5 @@
 /**
- * rulvar plan end to end (M6-T11; docs/06 10.5): the host config
+ * rulvar plan end to end (M6-T11): the host config
  * supplies the FakeAdapter planner plus the sandbox runner; the CLI
  * loads @rulvar/planner dynamically, self-repairs the draft, and either
  * prints it (--dry-run) or runs it in the worker sandbox.

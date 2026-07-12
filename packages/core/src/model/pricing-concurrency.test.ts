@@ -1,8 +1,7 @@
 /**
  * Versioned price table and the keyed limiter, unit level (M4-T06/T07):
  * table-wins resolution, the pricing math, unlimited-by-default keys,
- * and independent throttling per key (docs/04, section 10; docs/06,
- * section 4; Appendix A).
+ * and independent throttling per key.
  */
 import { describe, expect, it } from 'vitest';
 

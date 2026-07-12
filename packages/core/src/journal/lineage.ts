@@ -127,7 +127,7 @@ export function validateEscalationLimits(
     throw new ConfigError(
       "config knob 'maxEscalationsPerNode' was renamed: escalations are counted per logical " +
         "task across respawns via the lineage chain; use 'maxEscalationsPerLogicalTask' " +
-        '(XF-10; docs/07, section 6.5)',
+        '(XF-10)',
     );
   }
   const limits: EscalationLimits = { ...DEFAULT_ESCALATION_LIMITS };

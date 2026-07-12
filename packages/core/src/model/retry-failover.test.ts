@@ -1,8 +1,7 @@
 /**
  * RetryPolicy and failover unit tests (M4-T04/T05): classification,
  * delay computation with the Appendix A defaults, chain advancement,
- * and the degenerate fallback trigger mapping (docs/04, sections 11.1
- * to 11.3).
+ * and the degenerate fallback trigger mapping.
  */
 import { describe, expect, it } from 'vitest';
 

@@ -14,7 +14,7 @@ import {
 } from './commands.js';
 import type { CliIo } from './io.js';
 
-export const HELP = `rulvar: durable multi-agent workflows (docs/06, section 10.5)
+export const HELP = `rulvar: durable multi-agent workflows (https://docs.rulvar.com)
 
   rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N]
   rulvar resume <runId>  [--store PATH]

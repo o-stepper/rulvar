@@ -10,7 +10,7 @@
 function canonicalizeSchema(schema): JsonSchema;
 ```
 
-Defined in: [packages/core/src/l0/schema.ts:309](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L309)
+Defined in: [packages/core/src/l0/schema.ts:308](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L308)
 
 Canonical schema derivation: local fragment-only $ref inlined (recursion is
 a ConfigError), remote and dynamic references forbidden, annotation

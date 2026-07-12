@@ -634,7 +634,7 @@ describe('revise-racing-defaultDecision (cassette shape)', () => {
       { doneRefs: { [nid('U')]: 120 } },
     );
     // The base pair references an OLDER but genuine digest: conflicts are
-    // evaluated at the head, not against the base (docs/07, 3.5 step 3).
+    // evaluated at the head, not against the base.
     DIGESTS[6] = 'stale-but-recorded';
     const evaluation = rebasePlanRevision(
       {

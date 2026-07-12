@@ -392,7 +392,7 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
             ledger.usage.outputTokens === 0 &&
             ledger.agentsSpawned === 0,
           'abandon-derived-skip',
-          'derived-skipped entries must contribute a zero ledger increment (docs/03, section 13.3)',
+          'derived-skipped entries must contribute a zero ledger increment',
         );
         const report = replayed.resumeReport();
         ensure(

@@ -89,7 +89,7 @@ export const duplicateIdenticalCall: Rule.RuleModule = {
       duplicateCall:
         'this call is byte-identical to an earlier one in the same function; identical calls ' +
         'share one journal entry via forward-matching, so a deliberate repeat needs a ' +
-        'distinguishing opts.key (docs/03, section 7.3)',
+        'distinguishing opts.key',
     },
     schema: [],
   },

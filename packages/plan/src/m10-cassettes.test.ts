@@ -1,6 +1,6 @@
 /**
- * M10 ModelKnowledge phase-1 cassettes (M10-T03; docs/09, section
- * 6.11): the committed fixture is the compatibility contract; a fresh
+ * M10 ModelKnowledge phase-1 cassettes (M10-T03): the committed
+ * fixture is the compatibility contract; a fresh
  * offline run of the same scenario reproduces it byte-for-byte after
  * the deterministic normalization. The knowledge store is a stub with
  * time-stable dates, so the pin bytes never age; replay-strict reads

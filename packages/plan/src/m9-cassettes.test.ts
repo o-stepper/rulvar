@@ -1,10 +1,9 @@
 /**
- * M9 catalog-completion cassettes (M9-T04; docs/09 sections 6.2/6.3;
- * docs/10 M9 row): the committed fixture is the compatibility contract;
+ * M9 catalog-completion cassettes (M9-T04): the committed fixture is the compatibility contract;
  * a fresh offline run of the same scenario reproduces it byte-for-byte
  * after the deterministic normalization. The two rows that assert
  * store-independence additionally round-trip the frozen bytes through
- * BOTH reference stores with identical loads (docs/09, section 6 rules).
+ * BOTH reference stores with identical loads.
  */
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -81,7 +80,7 @@ describe('M9 catalog cassettes (M9-T04; docs/09 sections 6.2 and 6.3)', () => {
 });
 
 /**
- * Store-independence (docs/09, section 6 rules): the frozen bytes load
+ * Store-independence: the frozen bytes load
  * back identically from BOTH reference stores, so every fold over them
  * is store-independent by construction.
  */

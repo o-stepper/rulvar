@@ -1,7 +1,7 @@
 /**
  * Quality floors (M4-T09): hard router constraints enforced at
  * resolution, before any live call, on every invocation the chain
- * produces (docs/04, section 9).
+ * produces.
  */
 import { describe, expect, it } from 'vitest';
 

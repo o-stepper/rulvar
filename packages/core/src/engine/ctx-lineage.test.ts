@@ -137,7 +137,7 @@ describe('ctx.agent lineage declarations (DEF-3; M7-T02)', () => {
       reason: { code: 'lineage_busy' },
     });
     // The rejection is journaled and re-issues on replay without
-    // re-evaluation (docs/03, 10.6).
+    // re-evaluation.
     const entries = (await store.load('test-run')).map(normalizeEntry);
     const rejected = lineageDecisions(entries).filter(
       (entry) => (entry.value as { reject?: unknown }).reject !== undefined,

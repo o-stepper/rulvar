@@ -11,7 +11,7 @@ function cassette(id: string): M7CassetteFixture {
 }
 
 /**
- * The M8 gating cassette (docs/09 section 6.9; docs/10 section 3.9):
+ * The M8 gating cassette:
  * the committed fixture is the compatibility contract; a fresh offline
  * run of the same scenario over the REFERENCE LeasableStore must
  * reproduce it byte-for-byte after normalization. The runner itself

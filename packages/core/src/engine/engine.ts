@@ -381,7 +381,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       throw new ConfigError(
         'running a CompiledWorkflow requires a sandbox runner: pass ' +
           'createEngine({ runners: { sandbox: new WorkerSandboxRunner() } }) from @rulvar/planner ' +
-          '(docs/06, sections 8.2 and 10.1)',
+          '',
       );
     }
     const runId = resumeCtx?.runId ?? opts?.runId ?? mintRunId();
@@ -734,7 +734,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         if (registered === undefined) {
           throw new ConfigError(
             `engine.resume(runId) with no workflow resolves by the RunMeta-recorded name from ` +
-              `defaults.workflows (docs/06, 10.2); run '${runId}' records ` +
+              `defaults.workflows; run '${runId}' records ` +
               (name === undefined
                 ? 'no workflowName'
                 : `workflow '${name}', which is not registered`) +
@@ -751,8 +751,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
         // compileScript validated at run start.
         if (meta?.workflowSourceRef === undefined) {
           throw new ConfigError(
-            'engine.resume requires the workflow for in-process runs (docs/06, section ' +
-              '"Engine and ops API"); only compiled runs with a persisted source resume bare',
+            'engine.resume requires the workflow for in-process runs ' +
+              '(https://docs.rulvar.com/guide/durability); only compiled runs with a ' +
+              'persisted source resume bare',
           );
         }
         const blob = await transcripts.get(meta.workflowSourceRef);
@@ -788,7 +789,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
           if (meta?.workflowHash !== undefined && meta.workflowHash !== expectedHash) {
             throw new ConfigError(
               `resume binding mismatch: the supplied CompiledWorkflow source hash differs ` +
-                `from the one recorded for run '${runId}' (docs/06, 10.2)`,
+                `from the one recorded for run '${runId}'`,
             );
           }
         } else {
