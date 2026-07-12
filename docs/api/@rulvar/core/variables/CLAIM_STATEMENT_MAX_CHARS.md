@@ -10,6 +10,6 @@
 const CLAIM_STATEMENT_MAX_CHARS: 200 = 200;
 ```
 
-Defined in: [packages/core/src/knowledge/claims.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/claims.ts#L28)
+Defined in: [packages/core/src/knowledge/claims.ts:41](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/claims.ts#L41)
 
 The committed data model bound: statement <= 200 chars.

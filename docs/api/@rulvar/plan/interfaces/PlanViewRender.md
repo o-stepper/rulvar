@@ -6,7 +6,7 @@
 
 # Interface: PlanViewRender
 
-Defined in: [packages/plan/src/tools.ts:280](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L280)
+Defined in: [packages/plan/src/tools.ts:321](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L321)
 
 The plan_view render: plan state, lineage, termination, reuse.
 
@@ -14,16 +14,16 @@ The plan_view render: plan state, lineage, termination, reuse.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-abandonedspend"></a> `abandonedSpend` | \{ `abandonedUsd`: `number`; `netLostUsd`: `number`; `reclaimedUsd`: `number`; \} | The abandoned-spend ledger (DEF-5); zeros until M7-T07 activates it. | [packages/plan/src/tools.ts:287](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L287) |
-| `abandonedSpend.abandonedUsd` | `number` | - | [packages/plan/src/tools.ts:287](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L287) |
-| `abandonedSpend.netLostUsd` | `number` | - | [packages/plan/src/tools.ts:287](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L287) |
-| `abandonedSpend.reclaimedUsd` | `number` | - | [packages/plan/src/tools.ts:287](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L287) |
-| <a id="property-droppedrevisionstreak"></a> `droppedRevisionStreak` | `number` | - | [packages/plan/src/tools.ts:283](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L283) |
-| <a id="property-guards"></a> `guards?` | \{ `engaged?`: `"reject-revision"` \| `"finish-with-partial"` \| `"fail-run"`; `frozenSignatures`: `string`[]; `stallReplansUsed`: `number`; \} | RevisionGuards state (M7-T06). | [packages/plan/src/tools.ts:289](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L289) |
-| `guards.engaged?` | `"reject-revision"` \| `"finish-with-partial"` \| `"fail-run"` | - | [packages/plan/src/tools.ts:290](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L290) |
-| `guards.frozenSignatures` | `string`[] | - | [packages/plan/src/tools.ts:291](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L291) |
-| `guards.stallReplansUsed` | `number` | - | [packages/plan/src/tools.ts:292](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L292) |
-| <a id="property-nodes"></a> `nodes` | [`PlanViewNode`](/api/@rulvar/plan/interfaces/PlanViewNode.md)[] | - | [packages/plan/src/tools.ts:284](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L284) |
-| <a id="property-planhash"></a> `planHash` | `string` | - | [packages/plan/src/tools.ts:281](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L281) |
-| <a id="property-revisioncount"></a> `revisionCount` | `number` | - | [packages/plan/src/tools.ts:282](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L282) |
-| <a id="property-termination"></a> `termination` | [`TerminationAccountSnapshot`](/api/@rulvar/rulvar/interfaces/TerminationAccountSnapshot.md) | - | [packages/plan/src/tools.ts:285](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L285) |
+| <a id="property-abandonedspend"></a> `abandonedSpend` | \{ `abandonedUsd`: `number`; `netLostUsd`: `number`; `reclaimedUsd`: `number`; \} | The abandoned-spend ledger (DEF-5); zeros until M7-T07 activates it. | [packages/plan/src/tools.ts:328](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L328) |
+| `abandonedSpend.abandonedUsd` | `number` | - | [packages/plan/src/tools.ts:328](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L328) |
+| `abandonedSpend.netLostUsd` | `number` | - | [packages/plan/src/tools.ts:328](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L328) |
+| `abandonedSpend.reclaimedUsd` | `number` | - | [packages/plan/src/tools.ts:328](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L328) |
+| <a id="property-droppedrevisionstreak"></a> `droppedRevisionStreak` | `number` | - | [packages/plan/src/tools.ts:324](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L324) |
+| <a id="property-guards"></a> `guards?` | \{ `engaged?`: `"reject-revision"` \| `"finish-with-partial"` \| `"fail-run"`; `frozenSignatures`: `string`[]; `stallReplansUsed`: `number`; \} | RevisionGuards state (M7-T06). | [packages/plan/src/tools.ts:330](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L330) |
+| `guards.engaged?` | `"reject-revision"` \| `"finish-with-partial"` \| `"fail-run"` | - | [packages/plan/src/tools.ts:331](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L331) |
+| `guards.frozenSignatures` | `string`[] | - | [packages/plan/src/tools.ts:332](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L332) |
+| `guards.stallReplansUsed` | `number` | - | [packages/plan/src/tools.ts:333](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L333) |
+| <a id="property-nodes"></a> `nodes` | [`PlanViewNode`](/api/@rulvar/plan/interfaces/PlanViewNode.md)[] | - | [packages/plan/src/tools.ts:325](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L325) |
+| <a id="property-planhash"></a> `planHash` | `string` | - | [packages/plan/src/tools.ts:322](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L322) |
+| <a id="property-revisioncount"></a> `revisionCount` | `number` | - | [packages/plan/src/tools.ts:323](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L323) |
+| <a id="property-termination"></a> `termination` | [`TerminationAccountSnapshot`](/api/@rulvar/rulvar/interfaces/TerminationAccountSnapshot.md) | - | [packages/plan/src/tools.ts:326](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L326) |

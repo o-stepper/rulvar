@@ -10,7 +10,7 @@
 function exportLedger(view): LedgerExport;
 ```
 
-Defined in: [packages/plan/src/ledger.ts:336](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L336)
+Defined in: [packages/plan/src/ledger.ts:360](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L360)
 
 ## Parameters
 

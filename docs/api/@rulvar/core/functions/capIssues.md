@@ -10,7 +10,7 @@
 function capIssues(claims, cap?): string[];
 ```
 
-Defined in: [packages/core/src/knowledge/claims.ts:197](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/claims.ts#L197)
+Defined in: [packages/core/src/knowledge/claims.ts:210](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/claims.ts#L210)
 
 The commit-time cap (Appendix A): active claims per
 (model, taskClass) after the batch applies. Supersede chains keep

@@ -143,3 +143,28 @@ export interface ModelKnowledgeStore {
  * cross-run medium at all.
  */
 export type ModelKnowledgeHandle = Pick<ModelKnowledgeStore, 'current'>;
+
+/** The closed trigger vocabulary of kb_propose (phase 3). */
+export type KbProposalTrigger =
+  'error' | 'limit' | 'schema-exhausted' | 'verify-failed' | 'no-progress' | 'escalation';
+
+/**
+ * One orchestrator model-knowledge proposal (phase 3). A proposal is a
+ * run-ledger record, NOT a claim: it lives ONLY in the RunLedger
+ * section modelObservations, is never rendered into any prompt of any
+ * run before the human gate (absolute quarantine, the note included),
+ * and reaches the gate exclusively through LedgerExport. The engine
+ * assembles it from the tier-relative kb_propose payload: the subject
+ * model is resolved by the engine from the referenced lineage's
+ * declared ladder, never named by the orchestrator; evidence must
+ * resolve into the proposing run's own decision entries.
+ */
+export interface KbProposal {
+  subject: { model: ModelRef; effort?: Effort };
+  taskClass: TaskClass;
+  polarity: 'strength' | 'weakness';
+  trigger: KbProposalTrigger;
+  evidence: Array<{ kind: 'journal'; runId: string; entryRef: number }>;
+  /** <=200 chars; not rendered into any prompt before the gate. */
+  note?: string;
+}

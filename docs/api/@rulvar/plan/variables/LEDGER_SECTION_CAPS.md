@@ -14,7 +14,7 @@ const LEDGER_SECTION_CAPS: {
 };
 ```
 
-Defined in: [packages/plan/src/ledger.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L49)
+Defined in: [packages/plan/src/ledger.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L66)
 
 Appendix A per-section caps.
 
@@ -22,6 +22,6 @@ Appendix A per-section caps.
 
 | Name | Type | Default value | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-facts"></a> `facts` | `64` | `64` | [packages/plan/src/ledger.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L49) |
-| <a id="property-lessons"></a> `lessons` | `32` | `32` | [packages/plan/src/ledger.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L49) |
-| <a id="property-observations"></a> `observations` | `16` | `16` | [packages/plan/src/ledger.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L49) |
+| <a id="property-facts"></a> `facts` | `64` | `64` | [packages/plan/src/ledger.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L66) |
+| <a id="property-lessons"></a> `lessons` | `32` | `32` | [packages/plan/src/ledger.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L66) |
+| <a id="property-observations"></a> `observations` | `16` | `16` | [packages/plan/src/ledger.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L66) |

@@ -139,3 +139,11 @@ The kb read-path cassettes of docs/05 (sections "Read path" and "Security", chan
 | kb-pin-replay | an orchestrate-role run over a configured ModelKnowledgeStore pins the filtered card at admission (kb_pinned with the card bytes embedded, strictly before the first orchestrator agent entry) and repins at the wait_for_events wake (kb_repinned); the card is tier-relative and carries NO model names; replay reads entry bytes only and never touches a live store |
 | kb-repin-expiry | the repin re-applies the read-path filters against a FRESH store read: a claim archived (or expired) between the pin and the wake vanishes from the repinned card while the boot pin's bytes stand untouched, so stale claims never steer spawns after pauses |
 
+
+### 6.12 ModelKnowledge phase-3 set (M12)
+
+The kb write-path quarantine cassette of the historical docs/05 (sections 5.1 and 7; FR-605), recorded at M12-T02 after the gate opened. Fully offline; catalog member like every other test ID.
+
+| Cassette | Asserts |
+|---|---|
+| kb-propose-quarantine | kb_propose journals the ENGINE-resolved proposal (tier resolved against the lineage's declared ladder; the orchestrator names no model) as an observation_add ledger.op; the injected note is inert: no tool result and no worker prompt carries it, ledger_read withholds observation content behind a count, and nothing commits during the run (the runtime holds no store write path by API shape) |

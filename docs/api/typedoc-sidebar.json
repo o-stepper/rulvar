@@ -847,6 +847,10 @@
             "link": "/api/@rulvar/core/interfaces/JournalStore.md"
           },
           {
+            "text": "KbProposal",
+            "link": "/api/@rulvar/core/interfaces/KbProposal.md"
+          },
+          {
             "text": "KeyDeriver",
             "link": "/api/@rulvar/core/interfaces/KeyDeriver.md"
           },
@@ -1427,6 +1431,10 @@
           {
             "text": "JsonSchema",
             "link": "/api/@rulvar/core/type-aliases/JsonSchema.md"
+          },
+          {
+            "text": "KbProposalTrigger",
+            "link": "/api/@rulvar/core/type-aliases/KbProposalTrigger.md"
           },
           {
             "text": "Lease",
@@ -2365,6 +2373,10 @@
             "link": "/api/@rulvar/core/functions/projectToJsonSchema.md"
           },
           {
+            "text": "proposalStatement",
+            "link": "/api/@rulvar/core/functions/proposalStatement.md"
+          },
+          {
             "text": "providerOf",
             "link": "/api/@rulvar/core/functions/providerOf.md"
           },
@@ -2936,6 +2948,10 @@
             "link": "/api/@rulvar/plan/interfaces/GuardVerdictValue.md"
           },
           {
+            "text": "KbProposeInput",
+            "link": "/api/@rulvar/plan/interfaces/KbProposeInput.md"
+          },
+          {
             "text": "LadderVerdictValue",
             "link": "/api/@rulvar/plan/interfaces/LadderVerdictValue.md"
           },
@@ -3138,6 +3154,14 @@
           {
             "text": "JUDGE_VERDICT_SCHEMA",
             "link": "/api/@rulvar/plan/variables/JUDGE_VERDICT_SCHEMA.md"
+          },
+          {
+            "text": "KB_PROPOSE_SCHEMA",
+            "link": "/api/@rulvar/plan/variables/KB_PROPOSE_SCHEMA.md"
+          },
+          {
+            "text": "KB_PROPOSE_TOOL_NAME",
+            "link": "/api/@rulvar/plan/variables/KB_PROPOSE_TOOL_NAME.md"
           },
           {
             "text": "LEDGER_APPEND_SCHEMA",
@@ -3452,6 +3476,10 @@
           {
             "text": "runKbPinReplay",
             "link": "/api/@rulvar/plan/functions/runKbPinReplay.md"
+          },
+          {
+            "text": "runKbProposeQuarantine",
+            "link": "/api/@rulvar/plan/functions/runKbProposeQuarantine.md"
           },
           {
             "text": "runKbRepinExpiry",
@@ -4236,6 +4264,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/JournalStore.md"
           },
           {
+            "text": "KbProposal",
+            "link": "/api/@rulvar/rulvar/interfaces/KbProposal.md"
+          },
+          {
             "text": "KeyDeriver",
             "link": "/api/@rulvar/rulvar/interfaces/KeyDeriver.md"
           },
@@ -4824,6 +4856,10 @@
           {
             "text": "JsonSchema",
             "link": "/api/@rulvar/rulvar/type-aliases/JsonSchema.md"
+          },
+          {
+            "text": "KbProposalTrigger",
+            "link": "/api/@rulvar/rulvar/type-aliases/KbProposalTrigger.md"
           },
           {
             "text": "Lease",
@@ -5780,6 +5816,10 @@
           {
             "text": "projectToJsonSchema",
             "link": "/api/@rulvar/rulvar/functions/projectToJsonSchema.md"
+          },
+          {
+            "text": "proposalStatement",
+            "link": "/api/@rulvar/rulvar/functions/proposalStatement.md"
           },
           {
             "text": "providerOf",

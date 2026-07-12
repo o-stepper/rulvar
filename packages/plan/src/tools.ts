@@ -265,6 +265,47 @@ export const LEDGER_READ_SCHEMA: SchemaSpec = {
   properties: {},
 };
 
+export const KB_PROPOSE_TOOL_NAME = 'kb_propose';
+
+/**
+ * The normative kb_propose schema (phase 3). The subject is
+ * tier-relative: the orchestrator never sees model names, so the
+ * handler resolves the rung index against the declared ladder of the
+ * referenced lineage into the concrete KbProposal subject.
+ */
+export const KB_PROPOSE_SCHEMA: SchemaSpec = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['subject', 'taskClass', 'polarity', 'trigger'],
+  properties: {
+    subject: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['tier'],
+      properties: { tier: { type: 'integer', minimum: 0 } },
+    },
+    taskClass: { type: 'string' },
+    polarity: { enum: ['strength', 'weakness'] },
+    trigger: {
+      enum: ['error', 'limit', 'schema-exhausted', 'verify-failed', 'no-progress', 'escalation'],
+    },
+    logicalTaskId: { type: 'string' },
+    note: { type: 'string', maxLength: 200 },
+    evidenceRefs: { type: 'array', items: { type: 'integer', minimum: 1 } },
+  },
+};
+
+/** The model-facing kb_propose payload (tier-relative subject). */
+export interface KbProposeInput {
+  subject: { tier: number };
+  taskClass: string;
+  polarity: 'strength' | 'weakness';
+  trigger: 'error' | 'limit' | 'schema-exhausted' | 'verify-failed' | 'no-progress' | 'escalation';
+  logicalTaskId?: string;
+  note?: string;
+  evidenceRefs?: number[];
+}
+
 /** One rendered node of the pinned plan_view fold. */
 export interface PlanViewNode {
   nodeId: NodeId;
@@ -299,6 +340,12 @@ export interface PlanToolRuntime {
   planRevise(request: PlanReviseRequest): Promise<PlanReviseResult>;
   ledgerAppend(op: LedgerOp): Promise<{ entryRef: number }>;
   ledgerRead(): LedgerView;
+  /**
+   * Phase 3 opt-in: resolves the tier-relative payload into a concrete
+   * KbProposal and journals it as the observation_add ledger.op. Absent
+   * unless the run opted into kb_propose.
+   */
+  kbPropose?(input: KbProposeInput): Promise<{ entryRef: number }>;
 }
 
 /** Builds the PlanRunner tools (appended to the mode (c) toolset). */
@@ -333,11 +380,45 @@ export function buildPlanTools(runtime: PlanToolRuntime): ToolDef[] {
   });
   const ledgerRead = tool({
     name: LEDGER_READ_TOOL_NAME,
+    // The description stays byte-identical to the pre-phase-3 wording:
+    // it enters toolsetHash, and changing it would re-key every
+    // recorded plan-mode run.
     description:
       'Read the RunLedger render pinned to this turn snapshot: brief, facts, lessons, ' +
       'observations, revision history, task digests, and the world-delta index.',
     parameters: LEDGER_READ_SCHEMA,
-    execute: () => Promise.resolve(runtime.ledgerRead() as unknown as Json),
+    execute: () => {
+      // Absolute quarantine: modelObservations render into NO prompt of
+      // any run before the human gate, the proposing orchestrator's own
+      // later turns included. The count-only line appears exactly when
+      // observations exist, so observation-free renders stay
+      // byte-identical to the pre-quarantine shape.
+      const view = runtime.ledgerRead();
+      const withheld = view.observations.length;
+      const rendered: Json = {
+        ...(view as unknown as Record<string, Json>),
+        observations: [],
+        ...(withheld > 0 ? { observationsWithheld: withheld } : {}),
+      };
+      return Promise.resolve(rendered);
+    },
   });
-  return [planView, planRevise, ledgerAppend, ledgerRead];
+  const tools = [planView, planRevise, ledgerAppend, ledgerRead];
+  const kbPropose = runtime.kbPropose?.bind(runtime);
+  if (kbPropose !== undefined) {
+    tools.push(
+      tool({
+        name: KB_PROPOSE_TOOL_NAME,
+        description:
+          'Propose ONE model-knowledge observation about a ladder tier of a journaled ' +
+          'lineage (subject is tier-relative; logicalTaskId is required to resolve it). ' +
+          'The proposal is quarantined until a human gates it after the run: it renders ' +
+          'into no prompt and commits nothing. Evidence refs must be decision entry seqs ' +
+          'of this run.',
+        parameters: KB_PROPOSE_SCHEMA,
+        execute: (input) => kbPropose(input as KbProposeInput),
+      }),
+    );
+  }
+  return tools;
 }

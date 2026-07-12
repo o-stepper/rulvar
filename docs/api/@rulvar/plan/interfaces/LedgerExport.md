@@ -6,7 +6,7 @@
 
 # Interface: LedgerExport
 
-Defined in: [packages/plan/src/ledger.ts:327](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L327)
+Defined in: [packages/plan/src/ledger.ts:351](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L351)
 
 The draft-versioned outward seam; the final shape stays an open question.
 
@@ -14,9 +14,9 @@ The draft-versioned outward seam; the final shape stays an open question.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-brief"></a> `brief?` | `string` | [packages/plan/src/ledger.ts:329](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L329) |
-| <a id="property-facts"></a> `facts` | `Omit`\&lt;[`LedgerFact`](/api/@rulvar/plan/interfaces/LedgerFact.md), `"entryRef"`\&gt;[] | [packages/plan/src/ledger.ts:330](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L330) |
-| <a id="property-ledgerexportversion"></a> `ledgerExportVersion` | `"draft-1"` | [packages/plan/src/ledger.ts:328](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L328) |
-| <a id="property-lessons"></a> `lessons` | `Omit`\&lt;[`LedgerLesson`](/api/@rulvar/plan/interfaces/LedgerLesson.md), `"entryRef"`\&gt;[] | [packages/plan/src/ledger.ts:331](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L331) |
-| <a id="property-observations"></a> `observations` | `Omit`\&lt;[`LedgerObservation`](/api/@rulvar/plan/interfaces/LedgerObservation.md), `"entryRef"`\&gt;[] | [packages/plan/src/ledger.ts:332](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L332) |
-| <a id="property-revisionhistory"></a> `revisionHistory` | [`LedgerRevisionRow`](/api/@rulvar/plan/interfaces/LedgerRevisionRow.md)[] | [packages/plan/src/ledger.ts:333](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L333) |
+| <a id="property-brief"></a> `brief?` | `string` | [packages/plan/src/ledger.ts:353](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L353) |
+| <a id="property-facts"></a> `facts` | `Omit`\&lt;[`LedgerFact`](/api/@rulvar/plan/interfaces/LedgerFact.md), `"entryRef"`\&gt;[] | [packages/plan/src/ledger.ts:354](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L354) |
+| <a id="property-ledgerexportversion"></a> `ledgerExportVersion` | `"draft-1"` | [packages/plan/src/ledger.ts:352](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L352) |
+| <a id="property-lessons"></a> `lessons` | `Omit`\&lt;[`LedgerLesson`](/api/@rulvar/plan/interfaces/LedgerLesson.md), `"entryRef"`\&gt;[] | [packages/plan/src/ledger.ts:355](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L355) |
+| <a id="property-observations"></a> `observations` | `Omit`\&lt;[`LedgerObservation`](/api/@rulvar/plan/interfaces/LedgerObservation.md), `"entryRef"`\&gt;[] | [packages/plan/src/ledger.ts:356](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L356) |
+| <a id="property-revisionhistory"></a> `revisionHistory` | [`LedgerRevisionRow`](/api/@rulvar/plan/interfaces/LedgerRevisionRow.md)[] | [packages/plan/src/ledger.ts:357](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L357) |

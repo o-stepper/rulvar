@@ -99,7 +99,12 @@ import {
 } from './ledger.js';
 import { rebasePlanRevision, type RebaseEvaluation } from './rebase.js';
 import { PlanWriteLock } from './write-lock.js';
-import { buildPlanTools, type PlanToolRuntime, type PlanViewRender } from './tools.js';
+import {
+  buildPlanTools,
+  type KbProposeInput,
+  type PlanToolRuntime,
+  type PlanViewRender,
+} from './tools.js';
 import { RevisionGuards, type GuardVerdictValue, type RevisionGuardsOptions } from './guards.js';
 import { promptSpecHashOf, type TaskSpec } from './task-spec.js';
 import {
@@ -134,6 +139,13 @@ export interface PlanRunnerOptions {
   limits?: Partial<
     Pick<TerminationLimits, 'maxTotalSpawns' | 'maxEscalationsPerLogicalTask' | 'maxDepth'>
   >;
+  /**
+   * ModelKnowledge phase 3 opt-in: registers the kb_propose tool, which
+   * journals quarantined model observations into the RunLedger's
+   * modelObservations section. Registered like any opt-in tool, so
+   * enabling it changes toolsetHash by design. Default false.
+   */
+  kbPropose?: boolean;
 }
 
 /** AgentResult terminal statuses mapped onto plan node statuses. */
@@ -2268,6 +2280,93 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       }),
   };
 
+  if (options?.kbPropose === true) {
+    // ModelKnowledge phase 3: the handler resolves the tier-relative
+    // payload into a concrete KbProposal subject and journals it through
+    // the SAME ledgerAppend path (idempotency, section caps, the
+    // single-writer orchestrator scope). The ack is { entryRef } only:
+    // echoing the proposal back would render quarantined content into
+    // the prompt.
+    runtime.kbPropose = async (input: KbProposeInput): Promise<{ entryRef: number }> => {
+      await io.flush();
+      absorbPlan();
+      const ltid = input.logicalTaskId;
+      if (ltid === undefined) {
+        throw new ConfigError(
+          'kb_propose requires logicalTaskId: the tier-relative subject resolves against ' +
+            "that lineage's declared ladder",
+        );
+      }
+      const node = Object.values(fold.plan.nodes).find(
+        (candidate) => candidate.logicalTaskId === ltid,
+      );
+      const spec = node === undefined ? undefined : fold.specs[node.nodeId];
+      if (node === undefined || spec === undefined) {
+        throw new ConfigError(`kb_propose: no plan node carries logicalTaskId '${ltid}'`);
+      }
+      const ladder = canonicalLadderOf(io.profiles[spec.agentType]);
+      if (ladder === undefined) {
+        throw new ConfigError(
+          `kb_propose: agentType '${spec.agentType}' declares no ladder; the tier-relative ` +
+            'subject resolves only against a declared ladder',
+        );
+      }
+      const stats = io.admission.lineage()?.statsOf(ltid);
+      if (stats === undefined || stats.attemptsUsed === 0) {
+        throw new ConfigError(`kb_propose: lineage '${ltid}' has no journaled attempt to observe`);
+      }
+      // A tier is proposable only when a journaled attempt ran on it:
+      // the start tier plus every raising verdict's authorized rung.
+      const attempted = new Set<number>([clampStartTier(ladder, spec.model_hint?.startTier)]);
+      const snapshot = io.snapshot();
+      for (const entry of snapshot) {
+        if (entry.kind !== 'decision' || entry.scope !== planScope) {
+          continue;
+        }
+        const value = entry.value as
+          | { decisionType?: string; logicalTaskId?: string; nextAttempt?: { rungIndex?: number } }
+          | undefined;
+        if (
+          value?.decisionType === 'ladder-verdict' &&
+          value.logicalTaskId === ltid &&
+          typeof value.nextAttempt?.rungIndex === 'number'
+        ) {
+          attempted.add(value.nextAttempt.rungIndex);
+        }
+      }
+      const tier = input.subject.tier;
+      const rung = ladder.rungs[tier];
+      if (!attempted.has(tier) || rung === undefined) {
+        throw new ConfigError(
+          `kb_propose: tier ${String(tier)} has no journaled attempt for '${ltid}' ` +
+            `(attempted: ${[...attempted].sort((a, b) => a - b).join(', ')})`,
+        );
+      }
+      const refs = input.evidenceRefs ?? [];
+      for (const ref of refs) {
+        const evidence = snapshot.find((entry) => entry.seq === ref);
+        if (evidence === undefined || evidence.kind !== 'decision') {
+          throw new ConfigError(
+            `kb_propose: evidence ref ${String(ref)} does not resolve to a decision entry ` +
+              'of this run',
+          );
+        }
+      }
+      return runtime.ledgerAppend({
+        op: 'observation_add',
+        taskClass: input.taskClass,
+        logicalTaskId: ltid,
+        tierObserved: tier,
+        outcomeClass: input.trigger,
+        note: input.note ?? '',
+        evidenceRefs: refs,
+        subject: { model: rung.model, effort: rung.effort },
+        polarity: input.polarity,
+        trigger: input.trigger,
+      });
+    };
+  }
+
   return {
     name: 'plan-runner',
     promptLines: () => [
@@ -2276,6 +2375,12 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       'plan_revise (add_task, amend_task, park_task, unpark_task, cancel_task,',
       'reprioritize, rewire_deps, waive_dep), inspect it with plan_view, and sleep',
       'with wait_for_events; the ENGINE schedules ready plan nodes for you.',
+      ...(options?.kbPropose === true
+        ? [
+            'kb_propose records ONE quarantined model observation about a ladder tier of a',
+            'journaled lineage; it renders into no prompt and commits nothing during the run.',
+          ]
+        : []),
     ],
     boot: async (bound: OrchestratorExtensionIO): Promise<void> => {
       io = bound;

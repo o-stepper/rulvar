@@ -24,6 +24,7 @@
 | [GateVerdictValue](/api/@rulvar/plan/interfaces/GateVerdictValue.md) | One journaled acceptance-gate evaluation. |
 | [GuardsState](/api/@rulvar/plan/interfaces/GuardsState.md) | - |
 | [GuardVerdictValue](/api/@rulvar/plan/interfaces/GuardVerdictValue.md) | The journaled guard verdict payload (kind 'decision'). |
+| [KbProposeInput](/api/@rulvar/plan/interfaces/KbProposeInput.md) | The model-facing kb_propose payload (tier-relative subject). |
 | [LadderVerdictValue](/api/@rulvar/plan/interfaces/LadderVerdictValue.md) | The ladder verdict decision entry: the producer contract both folds already consume. A RAISING verdict debits one rung unit (rungIndexAfter/rungsRemainingAfter embedded, checked by foldTermination) and carries the rung RESPAWN's embedded admission (spawn debit) plus `nextAttempt` (the lineage registration: relation 'rung-retry'). A non-raising verdict records the ladder's end (exhausted rungs, top rung, or a denied respawn) and authorizes nothing. |
 | [LedgerExport](/api/@rulvar/plan/interfaces/LedgerExport.md) | The draft-versioned outward seam; the final shape stays an open question. |
 | [LedgerFact](/api/@rulvar/plan/interfaces/LedgerFact.md) | - |
@@ -82,6 +83,8 @@
 | [DEFAULT\_STALL\_REPLAN\_CAP](/api/@rulvar/plan/variables/DEFAULT_STALL_REPLAN_CAP.md) | The hard per-run stall replan bound. |
 | [EMPTY\_PLAN\_HASH](/api/@rulvar/plan/variables/EMPTY_PLAN_HASH.md) | - |
 | [JUDGE\_VERDICT\_SCHEMA](/api/@rulvar/plan/variables/JUDGE_VERDICT_SCHEMA.md) | The forced verdict schema of the judge gate. |
+| [KB\_PROPOSE\_SCHEMA](/api/@rulvar/plan/variables/KB_PROPOSE_SCHEMA.md) | The normative kb_propose schema (phase 3). The subject is tier-relative: the orchestrator never sees model names, so the handler resolves the rung index against the declared ladder of the referenced lineage into the concrete KbProposal subject. |
+| [KB\_PROPOSE\_TOOL\_NAME](/api/@rulvar/plan/variables/KB_PROPOSE_TOOL_NAME.md) | - |
 | [LEDGER\_APPEND\_SCHEMA](/api/@rulvar/plan/variables/LEDGER_APPEND_SCHEMA.md) | The closed authored op vocabulary as JSON Schema. |
 | [LEDGER\_APPEND\_TOOL\_NAME](/api/@rulvar/plan/variables/LEDGER_APPEND_TOOL_NAME.md) | - |
 | [LEDGER\_READ\_SCHEMA](/api/@rulvar/plan/variables/LEDGER_READ_SCHEMA.md) | ledger_read takes no parameters and pins to the turn snapshot. |
@@ -164,6 +167,7 @@
 | [runHalfEscalatedLadder](/api/@rulvar/plan/functions/runHalfEscalatedLadder.md) | half-escalated-ladder: some rungs terminal, the active rung dangling mid-attempt at the crash; resume continues the ladder without repaying completed rungs. |
 | [runIntraRevisionSelfConflict](/api/@rulvar/plan/functions/runIntraRevisionSelfConflict.md) | intra-revision-self-conflict (DEF-8): one revision {cancel_task X, amend_task X, rewire_deps with an edge onto X} resolves strictly in submission order per the sequential intra-revision application semantics. |
 | [runKbPinReplay](/api/@rulvar/plan/functions/runKbPinReplay.md) | kb-pin-replay: the pin at admission and the repin at the wake, card bytes embedded, model names withheld. |
+| [runKbProposeQuarantine](/api/@rulvar/plan/functions/runKbProposeQuarantine.md) | kb-propose-quarantine: injected garbage in a proposal is inert, and nothing commits during the run. |
 | [runKbRepinExpiry](/api/@rulvar/plan/functions/runKbRepinExpiry.md) | kb-repin-expiry: the repin re-applies the claim filters against a FRESH read; a claim the store dropped between the pin and the wake stops steering, while the boot pin's bytes stand. |
 | [runLegacyJournalResume](/api/@rulvar/plan/functions/runLegacyJournalResume.md) | legacy-journal-resume (DEF-3): a journal whose spawns carry no lineage records (the pre-lineage shape) resumes on the current engine; the legacy spawns canonize onto deterministic 'legacy:' LTIDs, forward matching pays nothing for them, and the NEW lineage-declaring spawn's admission entry carries sigVersion 1. |
 | [runOscillationBounded](/api/@rulvar/plan/functions/runOscillationBounded.md) | oscillation-bounded (DEF-2): an escalated branch is cancelled and re-added byte-identically twice; every plan_revise call debits one revisionUnit (including the drop on the linked done node), each link debits one spawnUnit, the worker is paid exactly once, and the lineage counters never reset. |

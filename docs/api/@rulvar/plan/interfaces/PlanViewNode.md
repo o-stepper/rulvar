@@ -6,7 +6,7 @@
 
 # Interface: PlanViewNode
 
-Defined in: [packages/plan/src/tools.ts:269](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L269)
+Defined in: [packages/plan/src/tools.ts:310](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L310)
 
 One rendered node of the pinned plan_view fold.
 
@@ -14,10 +14,10 @@ One rendered node of the pinned plan_view fold.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-deps"></a> `deps` | `string`[] | [packages/plan/src/tools.ts:273](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L273) |
-| <a id="property-lineage"></a> `lineage?` | [`LineageStats`](/api/@rulvar/rulvar/interfaces/LineageStats.md) | [packages/plan/src/tools.ts:276](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L276) |
-| <a id="property-logicaltaskid"></a> `logicalTaskId` | `string` | [packages/plan/src/tools.ts:271](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L271) |
-| <a id="property-nodeid"></a> `nodeId` | `string` | [packages/plan/src/tools.ts:270](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L270) |
-| <a id="property-priority"></a> `priority` | `number` | [packages/plan/src/tools.ts:275](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L275) |
-| <a id="property-status"></a> `status` | [`PlanNodeStatus`](/api/@rulvar/plan/type-aliases/PlanNodeStatus.md) | [packages/plan/src/tools.ts:272](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L272) |
-| <a id="property-waiveddeps"></a> `waivedDeps` | `string`[] | [packages/plan/src/tools.ts:274](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L274) |
+| <a id="property-deps"></a> `deps` | `string`[] | [packages/plan/src/tools.ts:314](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L314) |
+| <a id="property-lineage"></a> `lineage?` | [`LineageStats`](/api/@rulvar/rulvar/interfaces/LineageStats.md) | [packages/plan/src/tools.ts:317](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L317) |
+| <a id="property-logicaltaskid"></a> `logicalTaskId` | `string` | [packages/plan/src/tools.ts:312](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L312) |
+| <a id="property-nodeid"></a> `nodeId` | `string` | [packages/plan/src/tools.ts:311](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L311) |
+| <a id="property-priority"></a> `priority` | `number` | [packages/plan/src/tools.ts:316](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L316) |
+| <a id="property-status"></a> `status` | [`PlanNodeStatus`](/api/@rulvar/plan/type-aliases/PlanNodeStatus.md) | [packages/plan/src/tools.ts:313](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L313) |
+| <a id="property-waiveddeps"></a> `waivedDeps` | `string`[] | [packages/plan/src/tools.ts:315](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L315) |

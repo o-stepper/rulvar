@@ -23,3 +23,4 @@ export * from './tools.js';
 export * from './plan-runner.js';
 export * from './m9-cassettes.js';
 export * from './m10-cassettes.js';
+export * from './m12-cassettes.js';
