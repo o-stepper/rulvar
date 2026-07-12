@@ -11,7 +11,7 @@ Everything a workflow does through `ctx` lands in the journal, the content-addre
 
 ## Quick start
 
-rulvar is ESM only and requires Node 22.12.0 or newer. Install the core, a provider adapter, and a durable store:
+rulvar is ESM only and requires Node 22.12.0 or newer; `@rulvar/store-sqlite` additionally needs Node 22.13 or newer, where its `node:sqlite` driver is flag-free (on 22.12 it requires `--experimental-sqlite`). Install the core, a provider adapter, and a durable store:
 
 ```bash
 pnpm add @rulvar/core @rulvar/anthropic @rulvar/store-sqlite zod
@@ -60,7 +60,7 @@ if (outcome.status === 'ok') {
 `ctx.agent` with a schema resolves directly with the validated, typed output. The `budgetUsd: 5` is the run's dollar ceiling, immutable after start and enforced on three layers; see [Budgets](/guide/budgets).
 
 ::: warning Default store
-Without `stores.journal`, the engine uses `InMemoryStore`: fine for tests, but resume is disabled and the engine warns loudly. Use `SqliteStore` (or another durable journal store) for anything you may want to resume. See [Stores](/guide/stores).
+Without `stores.journal`, the engine uses `InMemoryStore`: fine for tests, but nothing survives a process exit, so a restarted process cannot resume, and the engine warns loudly. Use `SqliteStore` (or another durable journal store) for anything you may want to resume. See [Stores](/guide/stores).
 :::
 
 ## The workflow contract

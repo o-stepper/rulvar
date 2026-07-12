@@ -23,7 +23,7 @@ This page explains the reasoning. The user-facing guarantees that fall out of it
 
 ### Vendor neutrality by construction
 
-`@rulvar/core` imports no provider SDK; a CI dependency audit keeps it that way. Every provider lives exclusively inside its own adapter behind the `ProviderAdapter` SPI: `@rulvar/anthropic` and `@rulvar/openai` are the first-class adapters, `openaiCompatible` covers compatible endpoints (Ollama, vLLM, gateways) under explicit ids, and `@rulvar/bridge-ai-sdk` wraps the ai-sdk ecosystem for the long tail.
+`@rulvar/core` imports no provider SDK; its `package.json` declares exactly one runtime dependency, the MCP SDK. Every provider lives exclusively inside its own adapter behind the `ProviderAdapter` SPI: `@rulvar/anthropic` and `@rulvar/openai` are the first-class adapters, `openaiCompatible` covers compatible endpoints (Ollama, vLLM, gateways) under explicit ids, and `@rulvar/bridge-ai-sdk` wraps the ai-sdk ecosystem for the long tail.
 
 Neutrality "by construction" means you cannot accidentally couple a workflow to a vendor: the core has nothing vendor-shaped to couple to. Providers are data you pass in.
 

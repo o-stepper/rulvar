@@ -160,7 +160,7 @@ The repair loop's teeth come from `eslint-plugin-rulvar`, the determinism lint f
 | `rulvar/no-fetch` | error | Ambient network I/O outside agent tools |
 | `rulvar/no-process-env` | error | Ambient host state via `process.env` |
 | `rulvar/no-promise-all-over-ctx` | error | `Promise.all` over ctx calls; `parallel` journals, schedules, and settles |
-| `rulvar/duplicate-identical-call` | warning | Byte-identical `agent`/`workflow` calls that would forward-match one journal entry; a deliberate repeat needs a distinguishing `key` |
+| `rulvar/duplicate-identical-call` | warning | Byte-identical `agent`/`workflow` calls; each repeat gets its own journal entry and forward matching consumes them in execution order, so an edit or reorder can rebind results to the wrong call site; a deliberate repeat needs a distinguishing `key` |
 
 The loop accepts a draft when no error-severity diagnostics remain; leftover warnings are returned on `PlanResult.lint` so you can inspect what the planner shipped with. The plugin is a normal ESLint plugin (the `eslint-plugin-` prefix is an npm requirement; the package is versioned in lockstep with the `@rulvar/*` set), so you can add `eslint-plugin-rulvar` as a dev dependency and run the same preset over your human-authored workflow modules:
 

@@ -223,7 +223,7 @@ The `attribution` block is not decoration. To gate a claim, a human must attest 
 Four op kinds exist: `add` and `supersede` (gated), plus the gate-free maintenance ops `archive` (reasons `deprecated`, `stale`, `rejected`, `falsified`) and `mark_stale` (reason `canary-drift`, idempotent). `validateEditorialCommit` checks a whole batch before you commit and throws one `ConfigError` carrying every issue, so a bad batch is fixed in one round trip.
 
 ::: info Runs propose, humans decide
-An orchestrator can be given an opt-in `kb_propose` tool in a future release: proposals land as journaled ledger records in the proposing run's own ledger, with typed template statements (tool output can never be quoted into a persistent record) and evidence that must resolve into that same run's journal. They are quarantined absolutely: never rendered into any prompt, of any run, until a human gates them through the attribution attestation above, and they expire from the inbox after 14 days (`INBOX_PROPOSAL_TTL_DAYS`). Proposal volume never authorizes eval spend. The `rulvar kb inbox` command is already reserved for this path.
+An orchestrator can be given the opt-in `kb_propose` tool: `@rulvar/plan` registers it when `PlanRunnerOptions.kbPropose` is `true` (default `false`; enabling it changes the toolset hash by design). Proposals land as journaled ledger records in the proposing run's own ledger, with typed template statements (tool output can never be quoted into a persistent record) and evidence that must resolve into that same run's journal. They are quarantined absolutely: never rendered into any prompt, of any run, until a human gates them through the attribution attestation above, and they expire from the inbox after 14 days (`INBOX_PROPOSAL_TTL_DAYS`). Proposal volume never authorizes eval spend. `rulvar kb inbox` is the review surface for this path, and `rulvar kb gate` is the gate.
 :::
 
 ## Decay: TTL and the remeasurement queue
@@ -284,8 +284,9 @@ A fingerprint change immediately flips the model's active eval-measured claims t
 | Command | What it does |
 |---|---|
 | `rulvar kb list` | Prints the claim store with full provenance: subject, task class, polarity, class, status, TTL state, evidence, gate. No run, no pin. |
+| `rulvar kb inbox` | Aggregates the `kb_propose` proposals of finished runs from their ledgers into a read-only review view; proposals expire 14 days after their run finished. Requires `@rulvar/plan` installed. |
+| `rulvar kb gate <runId> <entryRef>` | The human gate: turns one inbox proposal into a committed `human-editorial` claim. `--approver NAME` and `--ruled-out a,b,c` are mandatory (the attribution attestation); `--contrast-run runId#seq` or `--contrast-eval reportId:caseId[,caseId...]` attaches optional contrast evidence. Requires `@rulvar/plan` installed. |
 | `rulvar kb sweep` | Runs the falsification matrix from the `kbSweep` section of `rulvar.config.mjs`: the fixed pool unioned with every negative-claim subject and the remeasurement queue, optional canary probes first. Requires `@rulvar/evals` installed. |
-| `rulvar kb inbox` | Reserved for the proposal inbox; arrives with the in-run proposal feature. |
 
 The sweep is configured next to your engine options; graders and cases are built with `@rulvar/evals` inside the config module (the CLI loads `@rulvar/evals` dynamically at command time):
 

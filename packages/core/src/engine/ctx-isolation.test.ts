@@ -131,3 +131,59 @@ describe('worktree isolation through ctx.agent (M3-T05)', () => {
     await expect(ctx.agent('look around', { isolation: 'readonly' })).resolves.toBe('read only');
   });
 });
+
+describe("'readonly' isolation compiles a write/destructive deny rule into the spawn chain", () => {
+  const riskyTool = (risk: 'read' | 'write' | 'destructive', ran: { value: boolean }) =>
+    tool({
+      name: 'probe',
+      description: 'observable probe tool',
+      parameters: { type: 'object' },
+      risk,
+      execute: () => {
+        ran.value = true;
+        return Promise.resolve('probe ran');
+      },
+    });
+
+  const driveOnce = async (
+    risk: 'read' | 'write' | 'destructive',
+    isolation: 'readonly' | undefined,
+  ): Promise<{ ran: boolean; secondRequest: string }> => {
+    const ran = { value: false };
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? { toolCall: { name: 'probe', args: {} } } : { text: 'settled' },
+    );
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model' },
+    });
+    const ctx = createCtx(internals);
+    const result = await ctx.agent('use the probe', {
+      tools: [riskyTool(risk, ran)],
+      ...(isolation === undefined ? {} : { isolation }),
+    });
+    expect(result).toBe('settled');
+    return { ran: ran.value, secondRequest: JSON.stringify(adapter.calls[1] ?? {}) };
+  };
+
+  it('denies a write tool under readonly without executing it', async () => {
+    const { ran, secondRequest } = await driveOnce('write', 'readonly');
+    expect(ran).toBe(false);
+    expect(secondRequest).toMatch(/deny/i);
+  });
+
+  it('denies a destructive tool under readonly without executing it', async () => {
+    const { ran } = await driveOnce('destructive', 'readonly');
+    expect(ran).toBe(false);
+  });
+
+  it('leaves read tools allowed under readonly', async () => {
+    const { ran } = await driveOnce('read', 'readonly');
+    expect(ran).toBe(true);
+  });
+
+  it('leaves write tools allowed without isolation', async () => {
+    const { ran } = await driveOnce('write', undefined);
+    expect(ran).toBe(true);
+  });
+});

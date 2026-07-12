@@ -71,7 +71,7 @@ Adaptive orchestration is the opt-in machinery for wide fan-out workloads: typed
 | oscillation guard | The guard detecting revision loops (A-B-A plan churn) and forcing a terminating fallback. |
 | reuse-by-reference | The admission outcome linking a new plan node to a completed donor entry (a `node.link`) instead of respawning the work. |
 | graft | Transplanting a donor subtree's results into the current plan via aliasing during reuse. |
-| termination account | The frozen per-run vector of countable resources (spawns, revisions, escalations, wakeups) debited by decision entries; the basis of the termination guarantee. |
+| termination account | The frozen per-run vector of countable resources (spawns, revisions, per-lineage escalations and ladder rungs) debited by decision entries; the basis of the termination guarantee. Wakeups need no counter: every wake is a paid turn against the capped orchestrator sub-account. |
 | run budget ceiling | The immutable dollar ceiling fixed at run start; no API, including human-in-the-loop decisions, can raise it. |
 | overshoot | Spend beyond the ceiling, bounded by one turn per in-flight agent; the tightest bound possible since providers bill aborted streams. |
 

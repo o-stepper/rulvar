@@ -6,7 +6,7 @@
 
 # Class: AgentCallError
 
-Defined in: [packages/core/src/engine/ctx.ts:245](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L245)
+Defined in: [packages/core/src/engine/ctx.ts:246](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L246)
 
 The rejection carrier of ctx.agent value-form calls: a real Error that
 structurally satisfies the typed AgentError and carries the full
@@ -33,7 +33,7 @@ new AgentCallError(
    entryRef?): AgentCallError;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:254](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L254)
+Defined in: [packages/core/src/engine/ctx.ts:255](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L255)
 
 #### Parameters
 
@@ -59,15 +59,15 @@ Error.constructor
 | Property | Modifier | Type | Description | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-cause"></a> `cause?` | `public` | `unknown` | - | `Error.cause` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts:24](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts#L24) |
-| <a id="property-entryref"></a> `entryRef?` | `readonly` | `number` | - | - | [packages/core/src/engine/ctx.ts:252](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L252) |
-| <a id="property-issues"></a> `issues?` | `readonly` | [`Issue`](/api/@rulvar/core/type-aliases/Issue.md)[] | - | - | [packages/core/src/engine/ctx.ts:249](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L249) |
-| <a id="property-kind"></a> `kind` | `readonly` | \| `"transport"` \| `"rate-limit"` \| `"schema-mismatch"` \| `"tool"` \| `"budget"` \| `"terminal"` | - | - | [packages/core/src/engine/ctx.ts:246](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L246) |
+| <a id="property-entryref"></a> `entryRef?` | `readonly` | `number` | - | - | [packages/core/src/engine/ctx.ts:253](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L253) |
+| <a id="property-issues"></a> `issues?` | `readonly` | [`Issue`](/api/@rulvar/core/type-aliases/Issue.md)[] | - | - | [packages/core/src/engine/ctx.ts:250](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L250) |
+| <a id="property-kind"></a> `kind` | `readonly` | \| `"transport"` \| `"rate-limit"` \| `"schema-mismatch"` \| `"tool"` \| `"budget"` \| `"terminal"` | - | - | [packages/core/src/engine/ctx.ts:247](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L247) |
 | <a id="property-message"></a> `message` | `public` | `string` | - | `Error.message` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1075](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1075) |
 | <a id="property-name"></a> `name` | `public` | `string` | - | `Error.name` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1074](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1074) |
-| <a id="property-result"></a> `result` | `readonly` | [`AgentResult`](/api/@rulvar/core/interfaces/AgentResult.md)\&lt;`unknown`\&gt; | - | - | [packages/core/src/engine/ctx.ts:250](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L250) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | - | [packages/core/src/engine/ctx.ts:247](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L247) |
-| <a id="property-retryafterms"></a> `retryAfterMs?` | `readonly` | `number` | - | - | [packages/core/src/engine/ctx.ts:248](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L248) |
-| <a id="property-scope"></a> `scope` | `readonly` | `string` | - | - | [packages/core/src/engine/ctx.ts:251](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L251) |
+| <a id="property-result"></a> `result` | `readonly` | [`AgentResult`](/api/@rulvar/core/interfaces/AgentResult.md)\&lt;`unknown`\&gt; | - | - | [packages/core/src/engine/ctx.ts:251](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L251) |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | - | [packages/core/src/engine/ctx.ts:248](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L248) |
+| <a id="property-retryafterms"></a> `retryAfterMs?` | `readonly` | `number` | - | - | [packages/core/src/engine/ctx.ts:249](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L249) |
+| <a id="property-scope"></a> `scope` | `readonly` | `string` | - | - | [packages/core/src/engine/ctx.ts:252](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L252) |
 | <a id="property-stack"></a> `stack?` | `public` | `string` | - | `Error.stack` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1076](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1076) |
 | <a id="property-stacktracelimit"></a> `stackTraceLimit` | `static` | `number` | The `Error.stackTraceLimit` property specifies the number of stack frames collected by a stack trace (whether generated by `new Error().stack` or `Error.captureStackTrace(obj)`). The default value is `10` but may be set to any valid JavaScript number. Changes will affect any stack trace captured _after_ the value has been changed. If set to a non-number value, or set to a negative number, stack traces will not capture any frames. | `Error.stackTraceLimit` | [node\_modules/.pnpm/@types+node@22.20.0/node\_modules/@types/node/globals.d.ts:68](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/@types+node@22.20.0/node\_modules/@types/node/globals.d.ts#L68) |
 

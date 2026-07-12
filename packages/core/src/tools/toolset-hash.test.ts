@@ -137,7 +137,7 @@ describe('toolset resolution and hashing (M3-T01)', () => {
     ).rejects.toThrow(ConfigError);
   });
 
-  it('tools by registered name are rejected until the sandbox lands (M6)', async () => {
+  it('registered toolset names are rejected in ToolsOption with a typed ConfigError', async () => {
     await expect(resolveToolset(['by-name'], SESSION)).rejects.toThrow(ConfigError);
   });
 

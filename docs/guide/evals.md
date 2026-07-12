@@ -32,7 +32,16 @@ const triage = defineWorkflow(
     }),
 );
 
-const engine = createEngine({ adapters: [anthropic()] });
+const engine = createEngine({
+  adapters: [anthropic()],
+  defaults: {
+    routing: {
+      loop: 'anthropic:claude-sonnet-5',
+      // Schema-bearing agent calls resolve the extract role too.
+      extract: { model: 'anthropic:claude-sonnet-5', effort: 'low' },
+    },
+  },
+});
 
 const result = await runEvalCase(
   engine,
@@ -131,7 +140,9 @@ import { runEvalMatrix } from '@rulvar/evals';
 function engineWithWorkers(loop: ModelRef): Engine {
   return createEngine({
     adapters: [anthropic(), openai()],
-    defaults: { routing: { loop } },
+    // Route extract at the cell's model too, so schema-bearing cases
+    // measure the same member end to end.
+    defaults: { routing: { loop, extract: { model: loop, effort: 'low' } } },
   });
 }
 
@@ -163,11 +174,24 @@ import { record, replay } from '@rulvar/testing';
 // Record once, locally, against the live provider:
 const recording = createEngine({
   adapters: record({ adapters: [anthropic()], cassette: './evals/triage.jsonl' }),
+  defaults: {
+    routing: {
+      loop: 'anthropic:claude-sonnet-5',
+      extract: { model: 'anthropic:claude-sonnet-5', effort: 'low' },
+    },
+  },
 });
 
-// Replay forever, hermetically, in CI:
+// Replay forever, hermetically, in CI. Routing must match the recording
+// engine: the resolved model is part of every request's cassette key.
 const ci = createEngine({
   adapters: replay({ cassette: './evals/triage.jsonl', onMiss: 'throw' }),
+  defaults: {
+    routing: {
+      loop: 'anthropic:claude-sonnet-5',
+      extract: { model: 'anthropic:claude-sonnet-5', effort: 'low' },
+    },
+  },
 });
 ```
 
@@ -233,7 +257,7 @@ if (drift.flipped.length > 0) {
 }
 ```
 
-A fingerprint is a hash over the normalized outputs of a fixed probe set run at temperature 0 (`normalizeCanaryOutput`: NFC, trim, collapse whitespace); prompt order matters and enters the hash. Probes run sequentially through the ordinary engine, one run per probe, so canary runs record and replay like everything else.
+A fingerprint is a sha256 over the normalized outputs of the fixed probe set (`normalizeCanaryOutput`: NFC, trim, collapse whitespace), prefixed with the probe count so a probe-set edit never masquerades as drift; prompt order matters and enters the hash. Nothing on this path pins sampling parameters such as temperature: drift detection rests on the fixed prompts, the normalization, and exact fingerprint comparison. Probes run sequentially through the ordinary engine, one run per probe, so canary runs record and replay like everything else.
 
 Stamp sweeps with the fingerprint so drift detection has a baseline, via `modelEpochFor`:
 

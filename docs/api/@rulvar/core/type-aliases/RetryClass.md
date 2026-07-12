@@ -10,4 +10,4 @@
 type RetryClass = "transport" | "rate-limit" | "overloaded";
 ```
 
-Defined in: [packages/core/src/model/retry.ts:14](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L14)
+Defined in: [packages/core/src/model/retry.ts:21](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L21)

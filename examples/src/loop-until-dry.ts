@@ -1,10 +1,11 @@
 /**
- * Loop-until-dry (recipe; docs/00, section "Orchestration modes"). For
- * unknown-size discovery (bugs, edge cases, missing items), keep
- * spawning finders until K consecutive rounds surface nothing new. A
- * simple `while (count < N)` misses the tail; the dry-streak counter is
- * the point. Prompt-shaped composition over ctx.agent; the library
- * ships no "loop" mode.
+ * Loop-until-dry (recipe; see
+ * https://docs.rulvar.com/guide/orchestration-modes). For unknown-size
+ * discovery (bugs, edge cases, missing items), keep spawning finders
+ * until K consecutive rounds surface nothing new. A simple
+ * `while (count < N)` misses the tail; the dry-streak counter is the
+ * point. Prompt-shaped composition over ctx.agent; the library ships no
+ * "loop" mode.
  */
 import { z } from 'zod';
 

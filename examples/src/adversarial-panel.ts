@@ -1,12 +1,14 @@
 /**
- * Adversarial panel (recipe, not an engine flag; docs/00, section
- * "Orchestration modes"). A claim is verified by N independent skeptics
- * each PROMPTED to refute it; the claim survives only when a majority
- * fail to refute. Prompt-shaped composition over ctx.parallel and
- * ctx.agent: the library ships no "adversarial" mode.
+ * Adversarial panel (recipe, not an engine flag; see
+ * https://docs.rulvar.com/guide/orchestration-modes). A claim is
+ * verified by N independent skeptics each PROMPTED to refute it; the
+ * claim survives only when a majority fail to refute. Prompt-shaped
+ * composition over ctx.parallel and ctx.agent: the library ships no
+ * "adversarial" mode.
  *
  * Runnable reference and integration test (examples/*.test.ts on
- * FakeAdapter, zero live calls; docs/11, section 11).
+ * FakeAdapter, zero live calls); the rendered walk-through is
+ * https://docs.rulvar.com/guide/examples.
  */
 import { z } from 'zod';
 

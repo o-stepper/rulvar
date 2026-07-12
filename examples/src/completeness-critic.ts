@@ -1,8 +1,10 @@
 /**
- * Completeness critic (recipe; docs/00, section "Orchestration modes").
- * A first pass produces a draft; a critic then asks "what is missing?"
- * and its gaps drive one revision pass. Prompt-shaped composition over
- * ctx.phase and ctx.agent; the library ships no "critic" mode.
+ * Completeness critic (recipe; see
+ * https://docs.rulvar.com/guide/orchestration-modes). A first pass
+ * produces a draft; a critic then asks "what is missing?" and its gaps
+ * drive revision passes until the critic reports complete or
+ * `maxRevisions` is reached. Prompt-shaped composition over ctx.phase
+ * and ctx.agent; the library ships no "critic" mode.
  */
 import { z } from 'zod';
 

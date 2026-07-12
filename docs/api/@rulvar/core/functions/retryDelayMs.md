@@ -14,7 +14,7 @@ function retryDelayMs(
    random?): number;
 ```
 
-Defined in: [packages/core/src/model/retry.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L58)
+Defined in: [packages/core/src/model/retry.ts:65](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L65)
 
 The delay before retry number `retryIndex` (0-based: the delay after
 the first failed attempt has index 0). A provider-supplied
@@ -29,7 +29,7 @@ jittered delay never collapses to zero.
 | `policy` | [`RetryPolicy`](/api/@rulvar/core/interfaces/RetryPolicy.md) | `undefined` |
 | `retryIndex` | `number` | `undefined` |
 | `retryAfterMs?` | `number` | `undefined` |
-| `random?` | () => `number` | `Math.random` |
+| `random?` | () => `number` | `nativeRandom` |
 
 ## Returns
 

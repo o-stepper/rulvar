@@ -174,7 +174,7 @@ rulvar ships as 14 packages. All release in lockstep with identical versions; th
 
 | Package | Layer | What it ships |
 |---|---|---|
-| `rulvar` | umbrella | Batteries included: re-exports `@rulvar/core`, both first-class adapters, the file store, and the terminal progress renderer; carries the named strong default models for the `orchestrate` and `plan` roles |
+| `@rulvar/rulvar` | umbrella | Batteries included: re-exports `@rulvar/core`, both first-class adapters, the file store, and the terminal progress renderer; carries the named strong default models for the `orchestrate` and `plan` roles |
 | `@rulvar/core` | L0 to L5 | Contracts, journal kernel, model router, agent runtime, tool system and MCP bus, ctx primitives, dynamic orchestrator, `InProcessRunner`, in-memory and JSONL stores, the event stream; zero provider SDKs |
 | `@rulvar/anthropic` | L1 | Anthropic adapter: thinking-block replay, cache hint compilation, `pause_turn`, typed refusal outcomes, usage normalization |
 | `@rulvar/openai` | L1 | OpenAI Responses API adapter plus the `openaiCompatible` factory for any compatible endpoint |
@@ -194,7 +194,7 @@ rulvar ships as 14 packages. All release in lockstep with identical versions; th
 ```mermaid
 flowchart BT
     core["@rulvar/core"]
-    umbrella["rulvar"] --> core
+    umbrella["@rulvar/rulvar"] --> core
     umbrella --> anthropic["@rulvar/anthropic"]
     umbrella --> openai["@rulvar/openai"]
     anthropic --> core

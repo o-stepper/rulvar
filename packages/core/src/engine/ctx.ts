@@ -88,6 +88,7 @@ import {
   evaluatePermission,
   type AgentProfilePermissions,
   type PermissionConfig,
+  type PermissionRule,
 } from '../runtime/permission-chain.js';
 import { mergeUsageLimits, type UsageLimits } from '../runtime/usage-limits.js';
 import { buildToolContext } from '../tools/context.js';
@@ -1446,7 +1447,19 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       // regardless of tool origin. Profile layers
       // merge over engine defaults; an ask verdict suspends on the
       // journal in the agent's child scope.
-      const chain = compilePermissionChain(internals.defaults.permissions, profile?.permissions);
+      const compiledChain = compilePermissionChain(
+        internals.defaults.permissions,
+        profile?.permissions,
+      );
+      // 'readonly' isolation compiles a deny rule for tools declaring
+      // risk write or destructive into this spawn's chain (tools guide,
+      // IsolationSpec table). Worktree isolation isolates the filesystem
+      // instead, and 'none' adds nothing.
+      const readonlyDeny: PermissionRule = { risk: ['write', 'destructive'] };
+      const chain =
+        isolation === 'readonly'
+          ? { ...compiledChain, deny: [...compiledChain.deny, readonlyDeny] }
+          : compiledChain;
       toolRuntime = {
         defs: toolset.tools,
         contracts: toolset.contracts,

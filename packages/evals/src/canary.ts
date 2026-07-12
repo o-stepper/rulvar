@@ -1,10 +1,11 @@
 /**
  * The canary fingerprint (M11-T04; OQ-06). The optional compensation for silent alias
- * re-pointing that modelEpoch honestly cannot catch: a FIXED probe set
- * at temperature 0, run through the ordinary engine (journaled,
- * budgeted, VCR-recordable), hashed over normalized outputs. A
- * fingerprint change flips the model's eval claims to stale in one
- * command.
+ * re-pointing that modelEpoch honestly cannot catch: a FIXED probe set,
+ * run through the ordinary engine (journaled, budgeted,
+ * VCR-recordable), hashed over normalized outputs. Sampling parameters
+ * are not pinned; drift detection rests on the fixed prompts, the
+ * normalization, and exact fingerprint comparison. A fingerprint change
+ * flips the model's eval claims to stale in one command.
  *
  * The committed v1 design (closing OQ-06): the probe set is CALLER
  * data (fixed, versioned alongside the store); normalization is NFC,

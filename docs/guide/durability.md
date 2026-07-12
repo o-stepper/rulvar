@@ -128,7 +128,11 @@ Now `engine.resume('review-pr-4242', review, { args: 4242 })` replays it:
 { hits: 2, misses: 1, skipped: 0, reruns: 1, orphaned: [], invalidResolutions: [] }
 ```
 
-You paid for the interrupted reviewer's remaining turns and the merge agent. The step, the finished reviewer, and every dollar recorded before the crash are read back, and the pre-crash spend still counts against the run's `budgetUsd` ceiling, because the ledger is a fold over the journal, not process memory.
+You paid for the interrupted reviewer's remaining turns and the merge agent. The step, the finished reviewer, and every dollar recorded before the crash are read back: the ledger is a fold over the journal, not process memory, so the resumed run's spent figures and its final cost report stay truthful.
+
+::: warning The budgetUsd ceiling does not survive resume
+The dollar ceiling is a property of one `engine.run` invocation: it is immutable while that invocation lives, and it does not survive into a resumed run. `ResumeOptions` has no budget field and the engine restores no ceiling, so a resumed run restores the pre-crash spend into its ledger but enforces no USD ceiling over it. Ceiling persistence across resume is a known gap slated for a future release.
+:::
 
 ## Previewing a resume before paying
 
@@ -185,12 +189,12 @@ Two more properties worth relying on:
 
 ## Deadlines survive resume
 
-A suspended approval or escalation can carry a deadline, and the deadline is journaled as `deadlineAt` on the suspended entry itself, not held in a process timer. On resume the engine reads it back: if the deadline has not arrived, the timer is re-armed for the remainder; if it has already passed and no closing entry exists, a timeout resolution attempt is submitted immediately, applying the configured default decision.
+In v1 only escalations carry journaled deadlines. The escalate tool's deadline is journaled as `deadlineAt` on the suspended entry itself, not held in a process timer. On resume the engine reads it back: if the deadline has not arrived, the timer is re-armed for the remainder; if it has already passed and no closing entry exists, a timeout resolution attempt is submitted immediately, applying the configured default decision.
 
 | Suspension | Deadline | On timeout |
 |---|---|---|
 | `ctx.awaitExternal` | none in v1; waits until resolved | n/a |
-| Tool approval (`ask` verdict) | optional, per permission rule; none by default | the rule's default decision is applied as a `timeout` resolution |
+| Tool approval (`ask` verdict) | none in v1; an open approval waits until resolved, like `awaitExternal` | n/a |
 | Escalation (the escalate tool) | required, explicit per spawn | the configured default decision is applied; absent one, the report is accepted |
 
 Wall clock never decides an outcome by itself: time only influences which resolution attempts appear in the journal, and journal order decides which one wins. Two resumes of the same journal always agree.

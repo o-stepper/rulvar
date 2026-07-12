@@ -88,7 +88,7 @@ block a PR and never rerecord fixtures automatically.
 ## Review gates
 
 At least one approving review. PRs touching frozen fixtures, KeyDeriver
-profiles, or (post-freeze) the six SPI seam `.d.ts` rollups require an
+profiles, or (post-freeze) the seven SPI seam `.d.ts` rollups require an
 explicit second review and a pointer to the amending docs PR.
 
 ## Documentation contributions
@@ -96,8 +96,9 @@ explicit second review and a pointer to the amending docs PR.
 The site sources live under `docs/` (VitePress). Conventions, enforced by
 `pnpm docs:lint`: ASCII hyphen only (no em or en dashes), no emojis,
 exactly one H1 per page (home-layout pages carry their heading in
-frontmatter), sentence-case headings, and install commands that always
-use `@rulvar/<name>`. The TypeDoc output under `docs/api/`, the
+frontmatter), and install commands that always use `@rulvar/<name>`.
+Headings use sentence case by convention; the linter does not check
+that. The TypeDoc output under `docs/api/`, the
 aggregated changelog, and the synced contributing page are generated;
 regenerate them with `pnpm docs:build` and commit the result.
 

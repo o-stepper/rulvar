@@ -22,6 +22,12 @@ A judge panel that:
 pnpm add @rulvar/rulvar zod
 ```
 
+The quickstart file below uses top-level `await`, so your project must be ESM: your `package.json` needs `"type": "module"`, which a fresh `pnpm init` does not add. One command sets it:
+
+```bash
+npm pkg set type=module
+```
+
 `@rulvar/rulvar` is the umbrella package: it re-exports all of `@rulvar/core` plus the first-class `anthropic` and `openai` adapters, the recommended model defaults, and a terminal progress renderer. If you prefer granular dependencies, `pnpm add @rulvar/core @rulvar/anthropic` gives you the same engine, stores, and workflow primitives, but `recommendedDefaults` and `renderProgress` ship only in the umbrella package: on the granular path you write your routing by hand and render events yourself. See [Installation](/guide/installation) for the full package map.
 
 You need Node.js 22.12.0 or newer, ESM only, and an `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY`; the [OpenAI variant](#swap-in-openai) is at the bottom of this page).
@@ -54,16 +60,21 @@ const engine = createEngine({
       ...recommendedDefaults.routing,
       // The role every ctx.agent tool loop runs under.
       loop: 'anthropic:claude-sonnet-5',
+      // The recommended extract default targets an OpenAI model, and
+      // this engine registers only the anthropic adapter, so route
+      // extract to anthropic explicitly. Every ctx.agent call that
+      // passes a schema resolves the extract role.
+      extract: { model: 'anthropic:claude-sonnet-5', effort: 'low' },
     },
     roleFloors: recommendedDefaults.floors,
   },
 });
 ```
 
-Models are referenced as `'adapterId:model'` strings; per-role routing and the full resolution chain are covered in [Model routing](/guide/model-routing). One caveat about the spread above: the `extract` default in `recommendedDefaults.routing` targets an OpenAI model, so it applies only when the `openai` adapter is also registered. Nothing on this page uses the extract role; if your workflow does, either register both adapters or override `extract` with an anthropic model.
+Models are referenced as `'adapterId:model'` strings; per-role routing and the full resolution chain are covered in [Model routing](/guide/model-routing). The `extract` override above is load-bearing, not defensive: every `ctx.agent` call that passes a `schema` resolves the `extract` role up front (whether or not a separate extraction call turns out to be needed), and resolving a role to an unregistered adapter is a typed `ConfigError`. An engine that registers only one adapter must route `extract` to that adapter, as here, or register both adapters and keep the recommended default.
 
 ::: warning Durable stores unlock resume
-Without a configured journal store the engine falls back to an in-memory store: runs work, but resume is disabled and the engine warns loudly. The file-backed stores above are the smallest durable setup; SQLite and custom backends are covered in [Stores](/guide/stores).
+Without a configured journal store the engine falls back to an in-memory store: runs work, but nothing survives a process exit, so a restarted process cannot resume them, and the engine warns loudly. The file-backed stores above are the smallest durable setup; SQLite and custom backends are covered in [Stores](/guide/stores).
 :::
 
 ## Define the workflow
@@ -145,7 +156,7 @@ console.log(outcome.cost.totalUsd); // e.g. 0.0261
 console.log(outcome.cost.byModel);  // { 'anthropic:claude-sonnet-5': 0.0261 }
 ```
 
-Save the three snippets above as one file, `quickstart.ts`, and run it with `npx tsx quickstart.ts` (or any TypeScript runner).
+Save the three snippets above as one file, `quickstart.ts`, and run it with `npx tsx quickstart.ts` (or any TypeScript runner). If the run aborts with `Top-level await is currently not supported with the "cjs" output format`, your `package.json` is missing the `"type": "module"` line from the [Install](#install) step (naming the file `quickstart.mts` works too).
 
 `budgetUsd` is the run ceiling: a hard invariant, not a hint. No API can raise it after start, and it is enforced by the three-layer budget:
 
@@ -233,7 +244,12 @@ const engine = createEngine({
     transcripts: new FileTranscriptStore({ dir: '.rulvar/transcripts' }),
   },
   defaults: {
-    routing: { loop: 'openai:gpt-5.4' },
+    routing: {
+      loop: 'openai:gpt-5.4',
+      // Schema-bearing ctx.agent calls resolve the extract role, so
+      // any engine that serves them must route it.
+      extract: { model: 'openai:gpt-5.4-mini', effort: 'low' },
+    },
   },
 });
 ```

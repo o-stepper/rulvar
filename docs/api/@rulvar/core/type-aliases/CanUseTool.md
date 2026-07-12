@@ -21,7 +21,7 @@ type CanUseTool = (toolName, input, ctx) =>
 }>;
 ```
 
-Defined in: [packages/core/src/runtime/permission-chain.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L42)
+Defined in: [packages/core/src/runtime/permission-chain.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L44)
 
 ## Parameters
 

@@ -134,7 +134,7 @@ Pinning buys replay stability too: the requested model spec (including effort) i
 
 ## Does rulvar phone home?
 
-No. Constructing an engine performs no network calls, and the only outbound traffic a run produces goes to the providers behind adapters you explicitly registered, plus whatever your own tools do. `@rulvar/core` has zero provider SDK dependencies and a single vendored runtime dependency (a JSON Schema mini-validator). There is no telemetry endpoint: the [event stream](/guide/observability) is delivered to your process, and OTel export is opt-in and points at your collector.
+No. Constructing an engine performs no network calls, and the only outbound traffic a run produces goes to the providers behind adapters you explicitly registered, plus whatever your own tools do. `@rulvar/core` has zero provider SDK dependencies and exactly one external runtime dependency, the official MCP SDK (`@modelcontextprotocol/sdk`), which serves the [MCP bus](/guide/mcp); the JSON Schema mini-validator and the ULID generator are vendored into the package rather than pulled from the registry. There is no telemetry endpoint: the [event stream](/guide/observability) is delivered to your process, and OTel export is opt-in and points at your collector.
 
 ## Is it TypeScript only?
 
@@ -142,7 +142,7 @@ Yes: TypeScript on Node.js, ESM only, Node 22.12.0 or newer. The floor is exactl
 
 ## What is the license and release status?
 
-Apache-2.0, with contributions accepted under the DCO. The current release line is v1.1.0; the core SPI seams froze at 1.0 and the packages follow semver from there, with journal compatibility governed by an explicit hashVersion support window. See [Versioning](/reference/versioning), the [Changelog](/reference/changelog), and the [Contributing guide](/contributing/).
+Apache-2.0, with contributions accepted under the DCO. The current release line is v<!-- version:lockstep -->1.3.2<!-- /version -->; the core SPI seams froze at 1.0 and the packages follow semver from there, with journal compatibility governed by an explicit hashVersion support window. See [Versioning](/reference/versioning), the [Changelog](/reference/changelog), and the [Contributing guide](/contributing/).
 
 ## Where can I get help?
 

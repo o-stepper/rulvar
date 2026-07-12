@@ -85,7 +85,7 @@ The defined default for the missing field lives in the **fold layer**, never in 
 
 ## The support window
 
-The engine reads and resumes entries with `hashVersion` in the window **`[CURRENT-2, CURRENT]`**, three versions deep. Inside the window, compatibility is unconditional:
+The engine reads and resumes entries with `hashVersion` in the window **`[CURRENT-1, CURRENT]`**, two versions deep. Inside the window, compatibility is unconditional:
 
 ::: info Never pay twice through an upgrade
 For any journal whose versions all lie inside the support window, and an unchanged workflow, replay on the new engine performs zero live calls.
@@ -151,9 +151,9 @@ const engine = createEngine({
 });
 ```
 
-A malformed value in `extraDerivers` is a typed `ConfigError` at engine construction, before any run effect.
+A malformed value in `extraDerivers` is a typed `ConfigError`. The deriver registry is built on the run and resume paths (and again at lease acquire in queue mode), so the error surfaces when you call `engine.run` or `engine.resume`, strictly before any live call or append, not at `createEngine`.
 
-Because no real profile has been retired yet, the package currently exports `deriverV0Synthetic`: a synthetic out-of-window profile (hashVersion 0) that exists so the whole path, refusal, hint, `extraDerivers`, and resume, can be exercised and tested today. When a real profile leaves the window it will be published under the same pattern, and the error's `hint` field will name the export to enable.
+Because no real profile has been retired yet, the package currently exports `deriverV0Synthetic`: a synthetic out-of-window profile (hashVersion 0) that exists so the whole path, refusal, hint, `extraDerivers`, and resume, can be exercised and tested today. The refusal's `hint` names the needed profile by version number (`deriverV0`, `deriverV1`, ...), so the named export will exist once a real profile actually retires under that pattern; today only the synthetic `deriverV0Synthetic` ships.
 
 **Why is @rulvar/compat versioned independently?** Every other rulvar package releases in lockstep with identical versions. `@rulvar/compat` is the sole exemption, on purpose: its contents are frozen profiles, and a lockstep force-bump would republish an unchanged frozen profile under a new version number, falsely suggesting the profile changed, which is precisely what a frozen profile must never do. Instead the package releases only when a profile actually moves into it. Keeping retired profiles out of `@rulvar/core` also keeps the core small and embeddable: you pay for history only when you have history.
 
@@ -178,7 +178,7 @@ The net effect: a run suspended before an upgrade can resume on the new engine a
 
 2. **Read the changelog compat note.** A release that bumps `hashVersion` is at least a minor and states the new current profile, the resulting window, and whether any profile moved to `@rulvar/compat`.
 3. **Dry-run long-lived runs before going live.** `resume` with `dryRun: true` performs replay-strict matching: the first call that would go live fails the run with a typed error, and zero live calls are made. For an unchanged workflow inside the window you should see all hits and no reruns.
-4. **Add `@rulvar/compat` only when asked.** If resume throws `HASH_VERSION_TOO_OLD`, install the package and enable the deriver named in the `hint`:
+4. **Add `@rulvar/compat` only when asked.** If resume throws `HASH_VERSION_TOO_OLD`, install the package and enable the profile the `hint` names by version number (today the package ships only the synthetic `deriverV0Synthetic`; real retired profiles will follow the hint's naming):
 
    ```bash
    pnpm add @rulvar/compat

@@ -20,7 +20,7 @@ Embed the engine directly for scripts, tests, and single-process apps. Reach for
 pnpm add @rulvar/cli
 ```
 
-The package is ESM only and requires Node >= 22.12.0, like the rest of rulvar. Two commands load optional companions dynamically at command time: `rulvar plan` needs `@rulvar/planner` installed, and `rulvar kb sweep` needs `@rulvar/evals`. A missing companion is a clear error on that command, never a load failure of the others. The OTel exporter declares `@opentelemetry/api` (^1.9) as an optional peer.
+The package is ESM only and requires Node >= 22.12.0, like the rest of rulvar. Some commands load optional companions dynamically at command time: `rulvar plan` needs `@rulvar/planner` installed, `rulvar kb sweep` needs `@rulvar/evals`, and `rulvar kb inbox` and `rulvar kb gate` need `@rulvar/plan`. A missing companion is a clear error on that command, never a load failure of the others. The OTel exporter declares `@opentelemetry/api` (^1.9) as an optional peer.
 
 ## The rulvar command
 
@@ -32,14 +32,14 @@ rulvar resume <runId> [--args JSON] [--store PATH]
 rulvar runs ls [--store PATH]
 rulvar inspect <runId> [--store PATH]
 rulvar plan "<goal>" [--dry-run]
-rulvar kb <list | inbox | sweep>
+rulvar kb <list | inbox | gate | sweep>
 ```
 
 | Command | Purpose |
 |---|---|
 | `run` | Start a workflow from a file path or a registered name, drive it to a settled outcome, exit with a code reflecting it. |
 | `resume` | Rebind a journal to its workflow and continue; fully replayed prefixes cost zero live calls. |
-| `runs ls` | List run metadata (id, status, name, tags, last update) from the store. |
+| `runs ls` | List run metadata (id, status, last update, workflow, name) from the store. |
 | `inspect` | Print one run's journal-derived state: entries, suspensions, spend. |
 | `plan` | Ask the planner to write a workflow script for a goal, then run it in the worker sandbox. |
 | `kb` | Maintain the [model knowledge](/guide/model-knowledge) claim store. |
@@ -49,7 +49,7 @@ Flag semantics are uniform:
 - `--store PATH` selects the `JsonlFileStore` directory (default `.rulvar`). Every command that opens a journal store selects it the same way. An explicit `stores` entry in your config's `engineOptions` wins over the flag.
 - `--args JSON` supplies workflow arguments. It appears on `resume` too because original run arguments are not journaled in this version: the host re-supplies them, and a fully replayed prefix never notices their absence.
 - `--budget-usd N` sets the run's dollar ceiling, immutable after start (see [Budgets](/guide/budgets)).
-- `--profile NAME` applies a shipped run profile (`fast`, `standard`, `deep`, `ultra`): pure data bundles of effort hints, concurrency, budget defaults, and a permission preset, merged under your own options so your config always wins.
+- `--profile NAME` applies a shipped run profile (`fast`, `standard`, `deep`, `ultra`): pure data bundles of effort hints, concurrency, budget defaults, and a permission preset, merged under your own options so your config always wins. The effort hints seed only routing entries your config already declares and that carry no effort of their own: an explicit effort wins, a role you do not route stays unrouted, ladder entries are untouched, and a profile never names a model.
 
 The CLI renders progress from the run's event stream: live TUI rendering on a TTY, plain line output otherwise. When a run suspends, the CLI resolves interactively: approvals prompt for allow or deny, `awaitExternal` suspensions prompt for a value. If input runs dry (EOF), the run is left suspended in the store, ready for a later `rulvar resume`, the HTTP server, or a queue worker.
 
@@ -85,8 +85,9 @@ With that file in place, `rulvar run triage --budget-usd 2` starts the registere
 The `kb` subcommands maintain the per-project [model knowledge](/guide/model-knowledge) claim store (`./rulvar.models.json`):
 
 - `rulvar kb list` prints the claims with full provenance.
+- `rulvar kb inbox [--store PATH]` aggregates the `kb_propose` proposals of finished runs from their run ledgers into a read-only review view, grouped by subject, task class, and polarity. Proposals expire 14 days after their run finished; the command writes nothing and authorizes no spend. Requires `@rulvar/plan`.
+- `rulvar kb gate <runId> <entryRef> --approver NAME --ruled-out a,b,c` turns one inbox proposal into a committed `human-editorial` claim. `--approver` and `--ruled-out` are mandatory: they form the attribution attestation, and the ruled-out vocabulary is `prompt`, `tools`, `difficulty`, `transient-provider`. Contrast evidence is optional via `--contrast-run runId#seq` or `--contrast-eval reportId:caseId[,caseId...]` (mutually exclusive), `--confidence high|medium|low` defaults to `medium`, and `--store PATH` selects the journal store as usual. Requires `@rulvar/plan`.
 - `rulvar kb sweep` runs the falsification matrix declared in the `kbSweep` section of your config: a fixed model pool (sweep volume is never authorized by proposal volume) unioned with every model carrying an active negative claim plus the re-measure queue. Optional canary probes run per pool member first and flip drifted claims stale. Requires `@rulvar/evals`.
-- `rulvar kb inbox` is reserved for a future knowledge-base release and currently exits with an explanatory error.
 
 ## The HTTP server
 
@@ -244,7 +245,7 @@ const spanCount = await toOtel(
 );
 ```
 
-Pass `contextApi` and `setSpan` (the `context` API and `trace.setSpan` from `@opentelemetry/api`) to get real parent-child span nesting; without them, spans come out flat but fully attributed. The exporter needs only the tiny structural `TracerLike` surface, so it works with any SDK setup and stays out of your dependency tree until you opt in.
+The options parameter accepts `contextApi` and `setSpan` (the `context` API and `trace.setSpan` from `@opentelemetry/api`) for forward compatibility, but the current exporter does not read them: spans come out flat and fully attributed either way, with the run > phase > agent > tool > child parentage riding the `rulvar.*` attributes rather than OTel parent links (see [Observability](/guide/observability)). The exporter needs only the tiny structural `TracerLike` surface, so it works with any SDK setup and stays out of your dependency tree until you opt in.
 
 ## Deployment notes
 

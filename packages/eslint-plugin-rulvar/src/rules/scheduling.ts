@@ -2,8 +2,10 @@
  * Scheduling and identity rules (M6-T03):
  * Promise.all over ctx calls bypasses the journal-aware scheduler
  * (ctx.parallel journals, schedules, and settles); byte-identical
- * repeated calls forward-match to ONE journal entry unless the caller
- * distinguishes them with opts.key.
+ * repeated calls each get their own journal entry, told apart only by
+ * execution order, so an edit that reorders or removes one can re-pair
+ * recorded results with the wrong call site unless the caller
+ * distinguishes the repeats with opts.key.
  */
 import type { Rule } from 'eslint';
 import type * as ESTree from 'estree';
@@ -82,13 +84,14 @@ export const duplicateIdenticalCall: Rule.RuleModule = {
     type: 'suggestion',
     docs: {
       description:
-        'advisory: byte-identical ctx.agent/ctx.workflow calls in one function forward-match ' +
-        'to ONE journal entry; pass opts.key to distinguish deliberate repeats',
+        'advisory: byte-identical ctx.agent/ctx.workflow calls in one function are told apart ' +
+        'only by execution order; pass opts.key to give deliberate repeats stable identities',
     },
     messages: {
       duplicateCall:
-        'this call is byte-identical to an earlier one in the same function; identical calls ' +
-        'share one journal entry via forward-matching, so a deliberate repeat needs a ' +
+        'this call is byte-identical to an earlier one in the same function; the journal tells ' +
+        'identical repeats apart only by execution order, so an edit that reorders or removes ' +
+        'one can re-pair recorded results with the wrong call site; give a deliberate repeat a ' +
         'distinguishing opts.key',
     },
     schema: [],

@@ -11,7 +11,7 @@ description: Why rulvar workflow modules must stay replay-stable and how eslint-
 pnpm add -D eslint eslint-plugin-rulvar
 ```
 
-The package follows ESLint's plugin naming convention, so it is the one rulvar package whose npm name carries no `@rulvar/` scope. It is still versioned in lockstep with the rest of the release line (currently 1.1.0), requires ESLint 9 or newer (flat config only), and is ESM only on Node 22.12.0 or newer, like every rulvar package.
+The package follows ESLint's plugin naming convention, so it is the one rulvar package whose npm name carries no `@rulvar/` scope. It is still versioned in lockstep with the rest of the release line (currently <!-- version:lockstep -->1.3.2<!-- /version -->), requires ESLint 9 or newer (flat config only), and is ESM only on Node 22.12.0 or newer, like every rulvar package.
 
 ## Why workflow modules must be deterministic
 
@@ -80,7 +80,7 @@ const releases = await ctx.step('fetch releases', () => fetchJson(releasesUrl));
 Configuration should enter through workflow args rather than ambient process state; when a workflow genuinely must read the environment, journal the read (`ctx.step('read env', ...)`) so replays see the original value.
 
 ::: warning
-`no-fetch` flags the global `fetch` token itself, wherever it appears in a workflow module, including inside a `ctx.step` callback. Keep raw `fetch` calls in a separate client module (or behind a tool) and call that from the workflow, as in the example above.
+`no-fetch` flags calls of the global `fetch` (and of `globalThis.fetch`) anywhere in a workflow module, including inside a `ctx.step` callback; a `fetch` reference merely passed around as a value is outside its reach. Keep raw `fetch` calls in a separate client module (or behind a tool) and call that from the workflow, as in the example above.
 :::
 
 ### Fan out with ctx.parallel, not Promise.all

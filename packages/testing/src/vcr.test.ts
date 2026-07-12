@@ -5,7 +5,7 @@
  * request hashing ignores the engine telemetry namespace; cassettes
  * carry the hashVersion header (DEF-6).
  */
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -56,6 +56,26 @@ describe('VCR record/replay (M5-T04)', () => {
     // adapter behind it at all.
     const replayed = replay({ cassette, onMiss: 'throw' });
     expect(await runThrough(replayed, 'do the thing')).toBe('recorded answer');
+  });
+
+  it('replay refuses a cassette recorded outside the hashVersion support window', async () => {
+    const cassette = cassettePath();
+    await runThrough(
+      record({ adapters: [new FakeAdapter({ agents: { '*': 'stale' } })], cassette }),
+      'the stale one',
+    );
+    const [headerLine, ...rest] = readFileSync(cassette, 'utf8').split('\n');
+    const header = JSON.parse(headerLine ?? '{}') as { hashVersion: number };
+
+    header.hashVersion = CURRENT_HASH_VERSION - 2;
+    writeFileSync(cassette, [JSON.stringify(header), ...rest].join('\n'));
+    expect(() => replay({ cassette, onMiss: 'throw' })).toThrow(/outside the supported window/);
+
+    // The oldest in-window profile stays replayable, mirroring the
+    // engine's own journal support window.
+    header.hashVersion = CURRENT_HASH_VERSION - 1;
+    writeFileSync(cassette, [JSON.stringify(header), ...rest].join('\n'));
+    expect(() => replay({ cassette, onMiss: 'throw' })).not.toThrow();
   });
 
   it('onMiss throw raises the typed miss; passthrough forwards to the live adapter', async () => {

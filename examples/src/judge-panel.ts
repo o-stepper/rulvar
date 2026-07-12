@@ -1,10 +1,11 @@
 /**
- * Judge panel (recipe; docs/00, section "Orchestration modes"). N
- * independent attempts are generated from different angles, each scored
- * by a judge, and the highest-scoring attempt wins. The judge floor
- * (docs/04, section 9) is a router constraint the host configures; the
- * panel itself is prompt-shaped composition over ctx.parallel and
- * ctx.agent.
+ * Judge panel (recipe; see
+ * https://docs.rulvar.com/guide/orchestration-modes). N independent
+ * attempts are generated from different angles, each scored by a judge,
+ * and the highest-scoring attempt wins. The judge floor (a role quality
+ * floor; see https://docs.rulvar.com/guide/model-routing) is a router
+ * constraint the host configures; the panel itself is prompt-shaped
+ * composition over ctx.parallel and ctx.agent.
  */
 import { z } from 'zod';
 

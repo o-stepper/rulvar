@@ -1,7 +1,9 @@
 /**
  * InMemoryStore (M1-T04): the default journal store. Process-local, so
- * nothing survives the process and resume is disabled; the store warns
- * loudly exactly once per instance.
+ * nothing survives a process exit and cross-process resume is
+ * impossible (same-process resume of a kept instance works); the store
+ * warns loudly exactly once per instance unless constructed with
+ * `quiet: true` (the deliberate choice of a test tier).
  * An in-memory TranscriptStore ships alongside for the same default.
  */
 import type { Bytes } from '../l0/json.js';
@@ -16,7 +18,13 @@ function deepCopy<T>(value: T): T {
 export class InMemoryStore implements JournalStore {
   private readonly runs = new Map<string, JournalEntry[]>();
   private readonly metas = new Map<string, RunMeta>();
-  private warned = false;
+  private warned: boolean;
+
+  constructor(options?: { quiet?: boolean }) {
+    // A deliberate in-memory choice (a test engine, a throwaway script)
+    // opts out of the durability warning; the accidental default keeps it.
+    this.warned = options?.quiet === true;
+  }
 
   append(runId: string, e: JournalEntry): Promise<void> {
     this.warnOnce();
@@ -65,9 +73,9 @@ export class InMemoryStore implements JournalStore {
     }
     this.warned = true;
     process.emitWarning(
-      'InMemoryStore keeps journals in process memory: nothing survives the ' +
-        'process and resume is disabled. Use JsonlFileStore (M2) or ' +
-        '@rulvar/store-sqlite (M5) for durable runs.',
+      'InMemoryStore keeps journals in process memory: nothing survives a ' +
+        'process exit, and a run cannot be resumed from another process. Use ' +
+        'JsonlFileStore (M2) or @rulvar/store-sqlite (M5) for durable runs.',
       { code: 'RULVAR_INMEMORY_STORE', type: 'RulvarWarning' },
     );
   }

@@ -28,8 +28,10 @@ export type PermissionHook = (
  * position matches every tool WITHOUT declared risk: presets treat the
  * undeclared state conservatively. Argv rules
  * match through the real shell matcher; domain rules are
- * ADVISORY outside the first-party fetch tool: they never
- * change a verdict in M5, and matches surface in audit events.
+ * ADVISORY for every tool in the current release: they never
+ * change a verdict, and matches surface in the tool:end audit
+ * fields (enforcement will live in a first-party fetch tool
+ * when one ships).
  */
 export type RiskRuleValue = ToolRisk | 'undeclared';
 
@@ -93,8 +95,8 @@ export type PermissionVerdict = (
     }
 ) & {
   /**
-   * Advisory domain-rule matches: reported in audit
-   * events, never enforced outside the first-party fetch tool.
+   * Advisory domain-rule matches: reported in the tool:end
+   * audit fields, never enforced in the current release.
    */
   advisory?: PermissionRule[];
 };
@@ -154,8 +156,8 @@ function ruleMatches(
     return risk !== undefined && (risks as ToolRisk[]).includes(risk);
   }
   if ('domains' in rule) {
-    // Advisory outside the first-party fetch tool: never
-    // a verdict in M5; matches surface through the advisory scan.
+    // Advisory for every tool in the current release: never a
+    // verdict; matches surface through the advisory scan.
     return false;
   }
   const tools = Array.isArray(rule.tool) ? rule.tool : [rule.tool];
@@ -178,7 +180,7 @@ function ruleMatches(
 
 /**
  * Advisory domain-rule matches for the audit payload:
- * reported, never enforced outside first-party fetch.
+ * reported, never enforced in the current release.
  */
 function advisoryMatches(chain: CompiledPermissionChain, toolName: string): PermissionRule[] {
   return [...chain.deny, ...chain.ask].filter(

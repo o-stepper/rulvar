@@ -7,6 +7,9 @@ dts-rollup/
 pnpm-lock.yaml
 CHANGELOG.md
 
+# Session scratch output (gitignored); reports keep their own formatting.
+tmp/
+
 # The docs canon is hand-formatted; its conventions are enforced by
 # scripts/docs-lint.mjs, not by Prettier.
 docs/

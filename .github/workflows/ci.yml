@@ -89,10 +89,12 @@ jobs:
       - run: >-
           pnpm exec vitest run
           packages/testing/src/cassettes
+          packages/planner/src/m6-cassettes.test.ts
           packages/plan/src/m7-cassettes.test.ts
           packages/plan/src/m8-cassettes.test.ts
           packages/plan/src/m9-cassettes.test.ts
           packages/plan/src/m10-cassettes.test.ts
+          packages/plan/src/m12-cassettes.test.ts
           packages/cli/src/m8-soak.test.ts
           examples/src/journals.test.ts
 

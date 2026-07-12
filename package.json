@@ -24,6 +24,7 @@
     "check:fixed-group": "node scripts/check-fixed-group.mjs",
     "dts:baseline": "node scripts/dts-baseline.mjs",
     "changeset": "changeset",
+    "version-packages": "changeset version && pnpm --filter @rulvar/docs run build:sync",
     "release": "pnpm publish -r --publish-branch main"
   },
   "devDependencies": {

@@ -124,7 +124,7 @@ flowchart TD
 Three properties make the ceiling a real guarantee:
 
 - Bounded overshoot. Spend beyond the ceiling is bounded by one turn per in-flight agent. No tighter bound is possible, because providers bill aborted streams; rulvar declares the bound instead of pretending it is zero.
-- The ceiling is immutable. The run budget ceiling is fixed at `engine.run(...)` time and no API can raise it afterwards, not even a human approval decision, and not a restart: on resume the journaled ceiling wins and configuration drift is reported, never applied.
+- The ceiling is immutable, and it is per invocation. The run budget ceiling is fixed at `engine.run(...)` time and no API can raise it while that invocation lives, not even a human approval decision. It does not survive resume: `engine.resume` restores the pre-crash spend into the resumed ledger, so cost reports stay truthful, but `ResumeOptions` carries no budget and a resumed run enforces no USD ceiling today. Ceiling persistence across resume is a known gap slated for a future release; see [Durability](/guide/durability).
 - Exhaustion is never null. A run that hits its ceiling settles with status `"exhausted"`, partial results where they exist, an itemized list of dropped work, and a complete cost report. You always learn what your money bought.
 
 ```ts
@@ -178,7 +178,10 @@ The invariant with teeth: every guard state has a non-interactive terminating fa
 
 ```ts
 const triage = defineWorkflow({ name: "triage" }, async (ctx, report: string) => {
-  return ctx.agent(`Assess this incident report and propose a fix:\n${report}`, {
+  const r = await ctx.agent(`Assess this incident report and propose a fix:\n${report}`, {
+    // Opting into escalation requires a consumer for the report:
+    // result: "full" (as here) or an engine-level onEscalation hook.
+    result: "full",
     escalation: {
       flavor: "B",
       deadlineMs: 300_000,
@@ -186,6 +189,9 @@ const triage = defineWorkflow({ name: "triage" }, async (ctx, report: string) =>
       defaultDecision: { kind: "accept" },
     },
   });
+  // An accepted escalation is a terminal status, never an error.
+  if (r.status === "escalated") return r.escalation.scopeDelta;
+  return r.output;
 });
 ```
 

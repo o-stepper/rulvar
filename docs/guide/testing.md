@@ -8,8 +8,10 @@ description: How to test agent workflows with zero live model calls using the Fa
 `@rulvar/testing` lets you test agent workflows end to end without paying for a single model call: a scripted `FakeAdapter` behind the real engine, VCR cassettes recorded once and replayed hermetically, and replay-strict runs that turn any journal into a deterministic regression test.
 
 ```bash
-pnpm add -D @rulvar/testing
+pnpm add -D @rulvar/testing @rulvar/core
 ```
+
+The snippets on this page import the workflow primitives (`defineWorkflow`, the typed errors, the file stores) from `@rulvar/core` directly, so it must be a dependency of your project too: under pnpm's strict `node_modules` layout a transitive copy is not importable. The [recording example](#recording) additionally uses the `@rulvar/anthropic` adapter.
 
 Everything on this page runs through the full engine. The journal, the scheduler, the [three-layer budget](/guide/budgets), the permission chain, and the event stream are all real; the only thing swapped out is where model responses come from. That is the difference between testing your orchestration logic and mocking around it.
 
@@ -80,6 +82,22 @@ How responders resolve:
 - Every `agents` key is auto-registered as an empty agent profile, so `agentType: 'reviewer'` resolves without further setup. Pass `profiles`, `budgetDefaults`, or `concurrency` to exercise real configuration.
 
 The engine exposes two extra members for assertions: `engine.fake` is the adapter instance, whose `calls` array records every request served in order, and `engine.store` is the backing `InMemoryStore`, which is how you capture a journal for the replay-strict tests below.
+
+The store the test engine builds is always in-memory. To browse a fake run from the terminal, assemble the same tier on `createEngine` yourself and hand it a file-backed store:
+
+```ts
+import { createEngine, JsonlFileStore } from '@rulvar/core';
+import { FakeAdapter, FAKE_MODEL_REF } from '@rulvar/testing';
+
+const engine = createEngine({
+  adapters: [new FakeAdapter({ agents: { '*': 'stub text' } })],
+  stores: { journal: new JsonlFileStore({ dir: './fake-runs' }) },
+  // The roles this page's workflows exercise; route others the same way.
+  defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+});
+```
+
+The runs it writes are ordinary on-disk journals: `rulvar runs ls --store ./fake-runs` lists them and `rulvar inspect <runId> --store ./fake-runs` walks the entries, exactly as for a production store (see [CLI](/guide/cli)).
 
 ### Scripting tool calls and failures
 
@@ -263,7 +281,7 @@ const adapters = replay({
 
 Hand the replay adapters to `createEngine` exactly as you would live ones. With `onMiss: 'throw'`, any request without a recorded row raises a typed `VcrMissError` carrying the request hash: that is the hermetic mode, and the only mode CI should run. `onMiss: 'passthrough'` forwards unrecorded requests to a matching live adapter passed alongside; it exists for local development while a cassette is being built and has no place in CI.
 
-Because cassettes record the `hashVersion` they were produced under, a cassette recorded under an older identity profile fails loudly on a newer engine instead of silently drifting.
+Because cassettes record the `hashVersion` they were produced under, `replay` validates the header against the engine's support window, the same `[CURRENT-1, CURRENT]` window that governs journal resume: a cassette recorded outside it is refused with a typed `ConfigError` instead of silently drifting, while an in-window cassette recorded one profile back replays normally.
 
 ### Cassette hygiene
 
@@ -273,7 +291,7 @@ Committed cassettes are fixtures other people's builds depend on. Rules that kee
 - **Review before merging.** Read the recorded file back (`readCassette` parses it) and check rows for residual sensitive payloads. Built-in redaction recognizes credential shapes, not your customer data; treat every committed cassette as public.
 - **Never rerecord automatically.** A replay failure after a provider change means either real drift (fix the adapter, then rerecord deliberately) or a flaky provider surface (document and quarantine). A CI job that silently rerecords converts regressions into fixture updates.
 - **Keep cassette names stable.** The name identifies a scenario; renaming one is a deliberate change to what your suite claims to cover, not a refactor.
-- **Rerecord on identity-profile changes.** The `hashVersion` header makes stale cassettes fail loudly; when that happens, rerecording is a reviewed, intentional act.
+- **Rerecord on identity-profile changes.** A cassette whose recorded `hashVersion` has left the support window is refused at `replay` with a typed `ConfigError`; when that happens, rerecording is a reviewed, intentional act.
 
 ## The live tier
 

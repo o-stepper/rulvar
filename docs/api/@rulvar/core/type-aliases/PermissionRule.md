@@ -25,4 +25,4 @@ type PermissionRule =
 };
 ```
 
-Defined in: [packages/core/src/runtime/permission-chain.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L36)
+Defined in: [packages/core/src/runtime/permission-chain.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L38)

@@ -211,7 +211,22 @@ export function replay(options: {
   /** Live adapters for the passthrough mode. */
   adapters?: ProviderAdapter[];
 }): ProviderAdapter[] {
-  const { rows } = readCassette(options.cassette);
+  const { header, rows } = readCassette(options.cassette);
+  // A cassette recorded outside the engine's hashVersion support window
+  // is stale by construction (journals of the same vintage cannot resume
+  // either), so replay refuses loudly instead of silently drifting.
+  const oldestSupported = CURRENT_HASH_VERSION - 1;
+  if (
+    typeof header.hashVersion !== 'number' ||
+    header.hashVersion < oldestSupported ||
+    header.hashVersion > CURRENT_HASH_VERSION
+  ) {
+    throw new ConfigError(
+      `${options.cassette} was recorded under hashVersion ${String(header.hashVersion)}, ` +
+        `outside the supported window [${oldestSupported}, ${CURRENT_HASH_VERSION}]; ` +
+        'record the cassette again on a current engine',
+    );
+  }
   const byAdapter = new Map<string, Map<string, VcrRow>>();
   for (const row of rows) {
     const forAdapter = byAdapter.get(row.adapterId) ?? new Map<string, VcrRow>();

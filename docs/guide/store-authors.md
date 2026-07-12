@@ -75,13 +75,12 @@ That last rule is the entire point. During a leased resume the engine carries th
 
 ## A complete minimal store
 
-The store below is the smallest correct `LeasableStore`: in-memory maps, a JSON round-trip for payload isolation, per-run epoch counters that survive release, and an injectable clock. It passes the full conformance kit, and the same listing is exercised verbatim in rulvar's own test suite, so it cannot rot.
+The store below is the smallest correct `LeasableStore`: in-memory maps, a JSON round-trip for payload isolation, per-run epoch counters that survive release, and an injectable clock. It passes the full conformance kit, and rulvar's own test suite exercises the same store (the listing differs only in comments and formatting), so it cannot rot unnoticed.
 
 ```ts
 import {
   LeaseHeldError,
   type JournalEntry,
-  type JournalStore,
   type Lease,
   type LeasableStore,
   type RunFilter,
@@ -292,9 +291,9 @@ If that prints `false`, your store altered a payload somewhere between append an
 
 ## Packaging and versioning
 
-A store package should be small and boring. The checklist the shipped stores hold themselves to:
+A store package should be small and boring. The checklist to hold yours to:
 
-- **Depend only on the public SPI.** Import `JournalStore`, `LeasableStore`, `TranscriptStore`, `Lease`, `LeaseHeldError`, and the entry types from `@rulvar/core`; never reach into internals. Since the imports are types plus one error class, declare `@rulvar/core` as a peer dependency with a wide range so your package never forces a second copy into the host.
+- **Depend only on the public SPI.** Import `JournalStore`, `LeasableStore`, `TranscriptStore`, `Lease`, `LeaseHeldError`, and the entry types from `@rulvar/core`; never reach into internals. Since the imports are types plus one error class, a third-party store should declare `@rulvar/core` as a peer dependency with a wide range, so the host never ends up with two copies of the engine (a single engine instance, no duplicated registries). `@rulvar/store-sqlite` itself ships a regular dependency on `@rulvar/core`, pinned to the matching version by the monorepo's lockstep releases; outside the monorepo, the peer range is the safer default.
 - **Match the platform baseline.** rulvar is ESM only and requires Node 22.12.0 or newer; publish your store the same way.
 - **Run the full conformance kit in CI**, on every backend configuration you claim to support, and say so in the README. The kit is the compatibility statement: the seam is frozen, so a store that passes today keeps working across engine versions. Journal-format evolution happens inside payloads via per-entry versioning and is invisible to a correct store, precisely because payloads are opaque (see [Journal compatibility](/guide/journal-compatibility)).
 - **Exercise cross-process fencing** where the backend supports it: two store instances over one database, one acquires, the other's appends must bounce. The `@rulvar/store-sqlite` suite shows the pattern.

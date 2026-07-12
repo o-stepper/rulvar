@@ -2867,8 +2867,10 @@ type PermissionHook = (toolName: string, input: unknown, ctx: ToolContext) => Ho
 * position matches every tool WITHOUT declared risk: presets treat the
 * undeclared state conservatively. Argv rules
 * match through the real shell matcher; domain rules are
-* ADVISORY outside the first-party fetch tool: they never
-* change a verdict in M5, and matches surface in audit events.
+* ADVISORY for every tool in the current release: they never
+* change a verdict, and matches surface in the tool:end audit
+* fields (enforcement will live in a first-party fetch tool
+* when one ships).
 */
 type RiskRuleValue = ToolRisk | "undeclared";
 type PermissionRule = {
@@ -2928,8 +2930,8 @@ type PermissionVerdict = ({
   input: unknown;
 }) & {
   /**
-  * Advisory domain-rule matches: reported in audit
-  * events, never enforced outside the first-party fetch tool.
+  * Advisory domain-rule matches: reported in the tool:end
+  * audit fields, never enforced in the current release.
   */
   advisory?: PermissionRule[];
 };
@@ -5568,6 +5570,9 @@ declare class InMemoryStore implements JournalStore {
   private readonly runs;
   private readonly metas;
   private warned;
+  constructor(options?: {
+    quiet?: boolean;
+  });
   append(runId: string, e: JournalEntry): Promise<void>;
   load(runId: string): Promise<JournalEntry[]>;
   putMeta(m: RunMeta): Promise<void>;
