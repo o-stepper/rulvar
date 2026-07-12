@@ -1,5 +1,11 @@
 # eslint-plugin-rulvar
 
+## 1.2.0
+
+### Patch Changes
+
+- 154507b: TSDoc and inline comments no longer cite the retired internal specification set (the pre-docs-site `docs/NN, section ...` references). The citations either became links to the public documentation at docs.rulvar.com or were dropped where the comment already carried the rule; traceability markers (DEF-n, XF-nn, FR-nnn, OQ-nn, W-nnn) are untouched. Comment-only change: no runtime behavior, no API shapes, and no runtime message strings were modified; the frozen golden-fold fixture is byte-identical.
+
 ## 1.1.0
 
 ## 1.0.0
