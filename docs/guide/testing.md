@@ -1,0 +1,290 @@
+---
+title: Testing
+description: How to test agent workflows with zero live model calls using the FakeAdapter test engine, VCR cassettes with record-time redaction, replay-strict journal runs, and the shipped Vitest and Jest matchers.
+---
+
+# Testing
+
+`@rulvar/testing` lets you test agent workflows end to end without paying for a single model call: a scripted `FakeAdapter` behind the real engine, VCR cassettes recorded once and replayed hermetically, and replay-strict runs that turn any journal into a deterministic regression test.
+
+```bash
+pnpm add -D @rulvar/testing
+```
+
+Everything on this page runs through the full engine. The journal, the scheduler, the [three-layer budget](/guide/budgets), the permission chain, and the event stream are all real; the only thing swapped out is where model responses come from. That is the difference between testing your orchestration logic and mocking around it.
+
+## Three tiers, one seam
+
+Model responses in a test come from one of three places:
+
+| Tier | Responses come from | Cost | Reach for it when |
+|---|---|---|---|
+| Fake | Responders you script in the test | Free, instant | The default: orchestration logic, budgets, resume, schemas, tool loops |
+| Cassette | Recorded provider exchanges, replayed at the adapter seam | Free after one paid recording | Behavior a stub cannot fake: real event streams, refusal shapes, provider quirks |
+| Live | The provider APIs | Real money on every run | Scheduled contract tests that catch provider drift; never PR CI |
+
+The fake and cassette tiers both plug into the `ProviderAdapter` seam, the same seam the [live adapters](/guide/providers) implement, so tests are vendor-neutral by construction and nothing in the engine is stubbed. The journal adds a fourth surface: a replay-strict run re-executes a recorded run and fails loudly on any call that would go live, whichever tier originally produced the journal.
+
+```mermaid
+flowchart LR
+  wf["workflow body"] --> core["engine core: journal, budgets, permissions, events"]
+  core --> seam{"adapter seam"}
+  seam --> fake["FakeAdapter (scripted)"]
+  seam --> vcr["VCR replay (cassette)"]
+  seam --> live["live adapter (real API)"]
+  core --> j[("journal")]
+  j --> rs["replayRun, mode: strict"]
+```
+
+The CI posture that falls out: the default test job performs **zero network I/O**. Pull-request tests run on the fake tier or on cassette replay with misses configured to throw; live traffic is confined to scheduled contract tests (last section).
+
+## The test engine
+
+`createTestEngine` builds a real engine wired to a `FakeAdapter` and an in-memory journal store. You declare responders per agent; the engine does everything else it would do in production.
+
+```ts
+import { defineWorkflow } from '@rulvar/core';
+import { createTestEngine } from '@rulvar/testing';
+
+const review = defineWorkflow({ name: 'review' }, async (ctx) => {
+  const verdict = await ctx.agent('review the diff', {
+    agentType: 'reviewer',
+    schema: {
+      type: 'object',
+      required: ['verdict'],
+      properties: { verdict: { type: 'string' } },
+    },
+  });
+  const prose = await ctx.agent('summarize the findings');
+  return { verdict, prose };
+});
+
+const engine = createTestEngine({
+  agents: {
+    reviewer: () => ({ verdict: 'pass' }),
+    '*': 'stub text',
+  },
+});
+
+const run = engine.run(review, undefined);
+const outcome = await run.result;
+// outcome.status === 'ok'
+// outcome.value: { verdict: { verdict: 'pass' }, prose: 'stub text' }
+// outcome.cost.totalUsd === 0: fake calls are priced at zero by construction
+```
+
+How responders resolve:
+
+- **Patterns** match on `agentType`, on `label`, or as a regex over the prompt, checked in declaration order; `'*'` is the fallback. A call nothing matches is a loud typed error telling you to add a fallback, never a silent empty string.
+- **Responder forms**: a static string (plain text output), a static object (structured output), or a function of the call. The function receives a `FakeCall` (`prompt`, `agentType`, `label`, and the full wire request `req`) and may be async; a thrown error becomes a terminal agent error.
+- Every `agents` key is auto-registered as an empty agent profile, so `agentType: 'reviewer'` resolves without further setup. Pass `profiles`, `budgetDefaults`, or `concurrency` to exercise real configuration.
+
+The engine exposes two extra members for assertions: `engine.fake` is the adapter instance, whose `calls` array records every request served in order, and `engine.store` is the backing `InMemoryStore`, which is how you capture a journal for the replay-strict tests below.
+
+### Scripting tool calls and failures
+
+Two marker helpers script the interesting turns:
+
+```ts
+import { createTestEngine, fakeToolCalls, fakeWireError } from '@rulvar/testing';
+
+const engine = createTestEngine({
+  agents: {
+    // First turn requests a tool call; once the tool result is in the
+    // transcript, answer for real.
+    researcher: (call) =>
+      call.req.messages.some((m) => m.role === 'tool')
+        ? 'summary: three relevant results'
+        : fakeToolCalls({ name: 'search', args: { q: 'rulvar journal' } }),
+    // The stream terminates with a typed, retryable wire failure.
+    flaky: fakeWireError({
+      code: 'rate-limit',
+      message: '429 too many requests',
+      retryable: true,
+      data: { kind: 'rate-limit', retryAfterMs: 1000 },
+    }),
+  },
+});
+```
+
+`fakeToolCalls` makes the fake model answer a turn with tool calls; the engine then executes the declared [tools](/guide/tools) through the real permission chain and feeds results back, so approval suspensions and denials are all testable offline. `fakeWireError` terminates the stream with a typed failure, which is how you exercise retry policies, fallbacks, and error-status journal entries without a misbehaving provider.
+
+## Matchers
+
+`@rulvar/testing/matchers` ships matchers for Vitest 4 and Jest. Register once in a setup file:
+
+```ts
+// vitest.setup.ts
+import { expect } from 'vitest';
+import { rulvarMatchers } from '@rulvar/testing/matchers';
+
+expect.extend(rulvarMatchers);
+```
+
+```ts
+const run = engine.run(review, undefined);
+
+await expect(run).toHaveCalledAgent('reviewer');
+await expect(run).toHaveCalledAgent('reviewer', { times: 1 });
+await expect(run).toStayUnderBudget({ usd: 5 });
+```
+
+Both matchers are async: they await the settled run themselves, so you pass the handle straight from `engine.run`. They operate only on the public surface, the settled outcome and the recorded event stream (`TestRunHandle.eventsSeen`). `toHaveCalledAgent` counts completed agent calls of that `agentType`; `toStayUnderBudget` passes only when `cost.totalUsd` stays strictly under the bound **and** the run did not end `'exhausted'`. The bundle's shapes work with Jest's `expect.extend` too; the shipped type augmentation targets Vitest.
+
+## Testing budget behavior
+
+Fake calls cost zero dollars, so a settled fake run can never spend its way over a ceiling. What you can and should test is the admission layer: reserves committed at spawn time against the run ceiling, which is exactly how real runs are refused before money is spent.
+
+```ts
+const engine = createTestEngine({ agents: { '*': 'x' } });
+
+const fanout = defineWorkflow({ name: 'fanout' }, async (ctx) => {
+  return ctx.parallel([
+    () => ctx.agent('a', { estCost: 0.3 }),
+    () => ctx.agent('b', { estCost: 0.3 }),
+    () => ctx.agent('c', { estCost: 0.3 }),
+  ]);
+});
+
+const outcome = await engine.run(fanout, undefined, { budgetUsd: 0.5 }).result;
+// outcome.status === 'exhausted', outcome.value === undefined
+```
+
+Three concurrent spawns each reserve an estimated 0.30 USD against a 0.50 ceiling; the third is denied and the run reports `'exhausted'` (which always overrides `'error'`), with the full cost report attached. Pair every happy-path `toStayUnderBudget` assertion with an exhaustion-path test like this one; the exhausted outcome is a first-class result your caller must handle, not an exception to swallow. See [Budgets and termination](/guide/budgets) for the semantics being asserted.
+
+## Testing suspension and resume
+
+Durability is public API, so test it through public API: run to a suspension, resolve it, resume, and assert that nothing is paid twice.
+
+```ts
+const release = defineWorkflow({ name: 'release' }, async (ctx) => {
+  const analysis = await ctx.agent('analyze the release diff', { agentType: 'analyst' });
+  const gate = await ctx.awaitExternal<{ approved: boolean }>('release-gate');
+  return { analysis, approved: gate.approved };
+});
+
+const engine = createTestEngine({ agents: { analyst: 'looks safe' } });
+
+const first = engine.run(release, undefined);
+const suspended = await first.result;
+// suspended.status === 'suspended'; suspended.pending lists 'release-gate'
+
+await first.resolveExternal('release-gate', { approved: true });
+
+const resumed = engine.resume(first.runId, release);
+const outcome = await resumed.result;
+// outcome.status === 'ok'
+// outcome.value: { analysis: 'looks safe', approved: true }
+
+const preview = await resumed.preview;
+// preview.misses === 0 and engine.fake.calls.length === 1:
+// the analyst call replayed from the journal; nothing ran twice
+```
+
+The resume rebinds the journal to the workflow and forward-matches every call by scope path, content key, and ordinal: the analyst call is served from its journal entry (a replay), the resolved external is read from its resolution entry, and only genuinely new work would go live. `ResumeHandle.preview` gives you the accounting to assert on: `hits`, `misses`, `reruns`, `skipped`, and `orphaned` (journaled operations no live call consumed, that is, deleted calls). A `misses` of zero is the never-pay-twice invariant made checkable in a unit test. See [Durability](/guide/durability) for the mechanics under test.
+
+## Replay-strict runs
+
+`replayRun` is the regression backbone: it executes a workflow against an existing journal in strict mode, where **any** call that would go live throws a typed `JournalMissError`. Zero live calls or loud failure, nothing in between.
+
+```ts
+import { JournalMissError } from '@rulvar/core';
+import { createTestEngine, replayRun } from '@rulvar/testing';
+
+const engine = createTestEngine({ agents: { analyst: 'looks safe' } });
+const recorded = engine.run(release, undefined);
+await recorded.result;
+const journal = await engine.store.load(recorded.runId);
+
+// The same workflow replays with zero live calls.
+const { outcome, preview } = await replayRun(release, undefined, {
+  journal,
+  profiles: { analyst: {} },
+});
+// preview.misses === 0; outcome matches the recorded run
+
+// A divergent workflow fails at the exact first would-be-live call.
+const edited = defineWorkflow({ name: 'release' }, async (ctx) => {
+  await ctx.agent('analyze the release diff', { agentType: 'analyst' });
+  await ctx.agent('INSERTED CALL', { agentType: 'analyst' });
+  return 'x';
+});
+await expect(
+  replayRun(edited, undefined, { journal, profiles: { analyst: {} } }),
+).rejects.toThrow(JournalMissError);
+```
+
+Facts worth knowing:
+
+- `journal` accepts raw entries or `{ store, runId }`. `mode: 'strict'` is the default and currently the only mode.
+- Entry identity depends on the resolved model spec, so a replay must resolve routing the same way the recording run did. The default is the test engine's fake routing; pass `adapters`, `routing`, and `profiles` when replaying journals recorded against other adapters.
+- A journal with open suspensions completes under strict replay with outcome `'suspended'` and zero live calls; it does not hang and does not fail.
+- The result carries the same `preview` accounting as a resume, so you can assert `misses === 0` explicitly rather than merely observing that nothing threw.
+
+This is also the recommended triage flow for a field bug: export the production run's journal, reproduce under `replayRun` (deterministically, for free), then commit the minimized journal as a fixture so the fix is regression-guarded forever. On the operations side, `engine.resume(runId, wf, { dryRun: true })` gives the same guarantee for a real store: strict matching, zero live calls, and the first divergence surfaced as a typed `journal_miss` error.
+
+## VCR cassettes
+
+Some behavior only exists on the real wire: exact event streams, provider refusal shapes, stop reasons, token accounting. Cassettes capture it once and replay it forever. A cassette is a redacted JSONL file recorded at the adapter seam: one header line carrying the format version, the identity profile version (`hashVersion`), and the recording timestamp, then one row per exchange keyed by a hash of the canonical wire request. The engine's telemetry namespace is excluded from the key, and each row carries the redacted request, the full event stream, the model, and a caps snapshot, so replay adapters report the capabilities that were true at record time.
+
+### Recording
+
+`record` wraps live adapters; the wrapped adapters are drop-in (same ids, providers, caps, and event streams), and every completed stream appends one redacted row.
+
+```ts
+import { createEngine, JsonlFileStore } from '@rulvar/core';
+import { anthropic } from '@rulvar/anthropic';
+import { record } from '@rulvar/testing';
+
+const engine = createEngine({
+  adapters: record({
+    adapters: [anthropic()], // reads ANTHROPIC_API_KEY from the environment
+    cassette: 'fixtures/review-session.jsonl',
+    // Optional: compose payload-specific masking on top of the built-in policy.
+    redact: (value) => value.replaceAll('acme-internal', '[customer]'),
+  }),
+  stores: { journal: new JsonlFileStore({ dir: '.rulvar' }) },
+  defaults: { routing: { loop: 'anthropic:claude-sonnet-5' } },
+});
+```
+
+Redaction happens **at record time**: secrets never reach the cassette bytes, not even transiently in the committed file's history. The built-in `defaultRedact` policy always runs, masking API-key-shaped strings, bearer tokens, and authorization header values; a custom `redact` hook runs first and the built-in policy is applied over its output. It is deliberately aggressive about credential shapes, and deliberately ignorant of your domain secrets, which is what the custom hook is for.
+
+### Replaying hermetically
+
+```ts
+import { replay } from '@rulvar/testing';
+
+const adapters = replay({
+  cassette: 'fixtures/review-session.jsonl',
+  onMiss: 'throw',
+});
+```
+
+Hand the replay adapters to `createEngine` exactly as you would live ones. With `onMiss: 'throw'`, any request without a recorded row raises a typed `VcrMissError` carrying the request hash: that is the hermetic mode, and the only mode CI should run. `onMiss: 'passthrough'` forwards unrecorded requests to a matching live adapter passed alongside; it exists for local development while a cassette is being built and has no place in CI.
+
+Because cassettes record the `hashVersion` they were produced under, a cassette recorded under an older identity profile fails loudly on a newer engine instead of silently drifting.
+
+### Cassette hygiene
+
+Committed cassettes are fixtures other people's builds depend on. Rules that keep them trustworthy:
+
+- **Keys come from the environment, never from checked-in config.** Recording requires real credentials; the cassette must not.
+- **Review before merging.** Read the recorded file back (`readCassette` parses it) and check rows for residual sensitive payloads. Built-in redaction recognizes credential shapes, not your customer data; treat every committed cassette as public.
+- **Never rerecord automatically.** A replay failure after a provider change means either real drift (fix the adapter, then rerecord deliberately) or a flaky provider surface (document and quarantine). A CI job that silently rerecords converts regressions into fixture updates.
+- **Keep cassette names stable.** The name identifies a scenario; renaming one is a deliberate change to what your suite claims to cover, not a refactor.
+- **Rerecord on identity-profile changes.** The `hashVersion` header makes stale cassettes fail loudly; when that happens, rerecording is a reviewed, intentional act.
+
+## The live tier
+
+Live calls have exactly one job in a test suite: catching provider drift before your users do. Run your recorded cassettes against the live provider APIs on a schedule (a weekly cron per adapter is a sensible starting cadence), separate from PR CI and non-blocking for merges, and make failures page a human rather than trigger a rerecord. A live contract failure is information: either the provider changed under you and the adapter needs a fix plus a deliberate rerecording, or the surface is flaky and belongs in quarantine with a note.
+
+Everything else, which is nearly everything, stays on the fake and cassette tiers, where the suite is deterministic, free, and fast. The same discipline extends to quality measurement: [evals](/guide/evals) record judge calls to cassettes too, so PR-triggered eval runs execute with zero live calls.
+
+## Next steps
+
+- [Determinism lint](/guide/determinism): keep workflow modules replay-stable so the tests on this page stay meaningful.
+- [Durability](/guide/durability): the resume and forward-matching semantics the replay tests assert.
+- [Budgets and termination](/guide/budgets): what the exhaustion-path tests exercise.
+- [Evals](/guide/evals): measuring output quality on top of the same cassette determinism.
+- [API reference for @rulvar/testing](/api/@rulvar/testing/): every symbol used on this page.

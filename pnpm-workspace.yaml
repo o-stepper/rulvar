@@ -4,6 +4,13 @@
 packages:
   - packages/*
   - examples
+  - docs
+
+# esbuild's postinstall only validates that the platform binary from its
+# optionalDependencies matches the package version; allowing it keeps the
+# vitepress/vite toolchain in docs/ working out of the box.
+allowBuilds:
+  esbuild: true
 
 catalog:
   '@ai-sdk/google': ^4.0.0

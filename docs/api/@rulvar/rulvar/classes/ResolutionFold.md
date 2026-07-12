@@ -1,0 +1,203 @@
+[**rulvar API reference**](../../../index.md)
+
+***
+
+[rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / ResolutionFold
+
+# Class: ResolutionFold
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+The first-closing-wins fold over a loaded journal: one pass by seq,
+bit-identical on every store returning the same entries. Resolution
+values are validated at consumption against the schema pinned INSIDE
+the suspended entry payload (canonical bare JSON Schema); a
+schema-invalid offline resolution classifies invalid and does NOT close
+the target. Abandon coverage is the target seq plus the transitive
+child scope-prefix; the AbandonFold consumed by the replay predicate is
+a projection of THIS fold (docs/03, section 6.2: not a separate pass).
+
+## Constructors
+
+### Constructor
+
+```ts
+new ResolutionFold(entries): ResolutionFold;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `entries` | readonly [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md)[] |
+
+#### Returns
+
+`ResolutionFold`
+
+## Accessors
+
+### abandonFold
+
+#### Get Signature
+
+```ts
+get abandonFold(): AbandonFold;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+The AbandonFold projection consumed by the replay predicate.
+
+##### Returns
+
+[`AbandonFold`](/api/@rulvar/rulvar/interfaces/AbandonFold.md)
+
+## Methods
+
+### classificationOf()
+
+```ts
+classificationOf(seq): 
+  | RefEntryClassification
+  | undefined;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `seq` | `number` |
+
+#### Returns
+
+  \| [`RefEntryClassification`](/api/@rulvar/rulvar/type-aliases/RefEntryClassification.md)
+  \| `undefined`
+
+***
+
+### invalidResolutions()
+
+```ts
+invalidResolutions(): {
+  detail: string;
+  seq: number;
+}[];
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+Invalid offline resolutions surfaced in the resume report.
+
+#### Returns
+
+\{
+  `detail`: `string`;
+  `seq`: `number`;
+\}[]
+
+***
+
+### openSuspensions()
+
+```ts
+openSuspensions(): JournalEntry[];
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+Open suspended entries (for pending[] and re-arming at resume).
+
+#### Returns
+
+[`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md)[]
+
+***
+
+### registerEntry()
+
+```ts
+registerEntry(entry): void;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+Registers any other live-appended entry (abandon coverage needs scopes).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `entry` | [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md) |
+
+#### Returns
+
+`void`
+
+***
+
+### registerRefEntry()
+
+```ts
+registerRefEntry(entry): RefEntryClassification;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+Registers a live-appended ref-entry, returning its classification.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `entry` | [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md) |
+
+#### Returns
+
+[`RefEntryClassification`](/api/@rulvar/rulvar/type-aliases/RefEntryClassification.md)
+
+***
+
+### registerSuspended()
+
+```ts
+registerSuspended(entry): void;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+Registers a live-appended suspended entry with the fold.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `entry` | [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md) |
+
+#### Returns
+
+`void`
+
+***
+
+### suspensionState()
+
+```ts
+suspensionState(target): SuspensionState;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `target` | `number` |
+
+#### Returns
+
+[`SuspensionState`](/api/@rulvar/rulvar/type-aliases/SuspensionState.md)

@@ -1,0 +1,28 @@
+[**rulvar API reference**](../../../index.md)
+
+***
+
+[rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / Gate
+
+# Type Alias: Gate
+
+```ts
+type Gate = 
+  | {
+  kind: "mechanical";
+  profile: string;
+}
+  | {
+  kind: "judge";
+  rung: number | ModelRef;
+}
+  | {
+  fraction: number;
+  kind: "spot-check";
+};
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+Ladder acceptance gates. Spot-check sibling selection is strictly via
+ctx.random, never Math.random (docs/04, section "ModelLadder summary").

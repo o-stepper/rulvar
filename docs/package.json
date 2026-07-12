@@ -1,0 +1,51 @@
+{
+  "name": "@rulvar/docs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Public documentation site for rulvar. Built with VitePress + TypeDoc, deployed to Cloudflare Pages.",
+  "license": "Apache-2.0",
+  "author": "Oleksiy Stepurenko",
+  "homepage": "https://docs.rulvar.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/o-stepper/rulvar.git",
+    "directory": "docs"
+  },
+  "bugs": {
+    "url": "https://github.com/o-stepper/rulvar/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "predev": "node ./scripts/sync-root-docs.mjs && node ./scripts/build-changelog.mjs",
+    "dev": "vitepress dev .",
+    "build:typedoc": "node ./scripts/run-typedoc-checked.mjs",
+    "build:sanitise": "node ./scripts/sanitise-typedoc.mjs",
+    "build:vitepress": "vitepress build .",
+    "build:llms": "node ./scripts/build-llms-txt.mjs",
+    "build:sync": "node ./scripts/sync-root-docs.mjs && node ./scripts/build-changelog.mjs",
+    "build:site": "pnpm run build:sync && pnpm run build:typedoc && pnpm run build:sanitise && pnpm run build:vitepress && pnpm run build:llms",
+    "preview": "vitepress preview .",
+    "clean": "rimraf .vitepress/dist .vitepress/cache api"
+  },
+  "devDependencies": {
+    "@braintree/sanitize-url": "^7.1.2",
+    "@shikijs/vitepress-twoslash": "^4.0.2",
+    "cytoscape": "^3.33.3",
+    "cytoscape-cose-bilkent": "^4.1.0",
+    "dayjs": "^1.11.20",
+    "debug": "^4.4.0",
+    "mermaid": "^11.15.0",
+    "minisearch": "^7.2.0",
+    "rimraf": "^6.0.1",
+    "typedoc": "^0.28.19",
+    "typedoc-plugin-markdown": "^4.11.0",
+    "typedoc-vitepress-theme": "^1.1.2",
+    "typescript": "catalog:",
+    "vitepress": "^1.6.4",
+    "vitepress-plugin-mermaid": "^2.0.17",
+    "vue": "^3.5.34"
+  }
+}

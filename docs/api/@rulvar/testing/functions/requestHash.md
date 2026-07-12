@@ -1,0 +1,28 @@
+[**rulvar API reference**](../../../index.md)
+
+***
+
+[rulvar API reference](/api/index.md) / [@rulvar/testing](/api/@rulvar/testing/index.md) / requestHash
+
+# Function: requestHash()
+
+```ts
+function requestHash(req): string;
+```
+
+Defined in: [packages/testing/src/vcr.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L109)
+
+The cassette key: a hash of the canonical wire-contract request. The
+engine-populated telemetry namespace is excluded (docs/04, section
+1.8: never identity); everything else the adapter would send keys the
+row.
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `req` | [`ChatRequest`](/api/@rulvar/rulvar/interfaces/ChatRequest.md) |
+
+## Returns
+
+`string`

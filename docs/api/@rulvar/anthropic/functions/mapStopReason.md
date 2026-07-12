@@ -1,0 +1,27 @@
+[**rulvar API reference**](../../../index.md)
+
+***
+
+[rulvar API reference](/api/index.md) / [@rulvar/anthropic](/api/@rulvar/anthropic/index.md) / mapStopReason
+
+# Function: mapStopReason()
+
+```ts
+function mapStopReason(stopReason, stopDetails): MappedStop;
+```
+
+Defined in: [packages/anthropic/src/wire.ts:352](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L352)
+
+The docs/04 section 4.7 stop-reason table. pause_turn never surfaces as
+a canonical finish: the adapter continues internally.
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `stopReason` | `string` \| `null` \| `undefined` |
+| `stopDetails` | `Record`\&lt;`string`, `unknown`\&gt; \| `null` \| `undefined` |
+
+## Returns
+
+`MappedStop`

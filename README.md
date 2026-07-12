@@ -5,19 +5,21 @@ durable (a completed LLM call is never paid for twice), budget-bounded,
 vendor-neutral, observable, and testable, with no server, no database, and
 no control plane required.
 
-Official site: [rulvar.com](https://rulvar.com). The documentation set in
-[docs/](docs/README.md) is the single source of truth; start with
-[docs/00-overview.md](docs/00-overview.md).
+Official site: [rulvar.com](https://rulvar.com). The public documentation
+lives at [docs.rulvar.com](https://docs.rulvar.com) and is built from
+[docs/](docs/README.md); start with the
+[quickstart](https://docs.rulvar.com/guide/quickstart). The internal
+specification set that governed the initial build was retired into git
+history on 2026-07-12 (it lived in `docs/` up to that date).
 
 ## Packages
 
 Fourteen packages under the `@rulvar` scope, released in lockstep (the sole
-exemption is `@rulvar/compat`). The authoritative package map is
-[docs/02-architecture.md](docs/02-architecture.md), section "Package map".
+exemption is `@rulvar/compat`). The package map with the dependency graph
+is documented at
+[docs.rulvar.com/reference/packages](https://docs.rulvar.com/reference/packages).
 Install commands always reference `@rulvar/<name>`; the umbrella publishes
-as `@rulvar/rulvar`
-([docs/13-toolchain-repo.md](docs/13-toolchain-repo.md), section "Naming
-note").
+as `@rulvar/rulvar`.
 
 ## Development
 
@@ -27,6 +29,5 @@ pnpm 11 (pinned via `packageManager`); `pnpm install`, then `pnpm build`,
 
 ## License
 
-[Apache-2.0](LICENSE) (the founder decision of 2026-07-11;
-docs/14-open-questions.md, OQ-23). Every published package carries the
-LICENSE file; contributions are accepted under the DCO.
+[Apache-2.0](LICENSE) (the founder decision of 2026-07-11). Every published
+package carries the LICENSE file; contributions are accepted under the DCO.

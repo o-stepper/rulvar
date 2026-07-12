@@ -1,0 +1,301 @@
+---
+title: Agents
+description: How rulvar runs agents, covering profiles, the tool loop and turns, structured output tiers, turn-boundary checkpoints, cross-provider history projection, compaction, approval suspensions, and agent-as-tool composition.
+---
+
+# Agents
+
+An agent in rulvar is a journaled model-plus-tools loop. You spawn one with `ctx.agent(prompt, opts)` inside a [workflow](/guide/workflows), or the dynamic orchestrator spawns one for you through its `spawn_agent` tool. Either way the same Agent Runtime runs the loop: it resolves the model per invocation role, projects the conversation into the target provider's wire view, executes tool calls through the permission chain, checkpoints every turn boundary, and lands a typed result. Every model turn is paid at most once; that is the never-pay-twice invariant, enforced by the [journal](/guide/journal), not by your code.
+
+## Defining agents
+
+An agent is defined per call: a prompt plus options. Reusable defaults live in an `AgentProfile`, a named bundle of per-spawn defaults registered per engine under `defaults.profiles` and selected by `AgentOpts.agentType`:
+
+```ts
+import { createEngine } from '@rulvar/core';
+import { anthropic } from '@rulvar/anthropic';
+import { openai } from '@rulvar/openai';
+
+const engine = createEngine({
+  adapters: [anthropic(), openai()],
+  defaults: {
+    profiles: {
+      reviewer: {
+        description: 'Reviews a diff and reports concrete risks.',
+        model: 'anthropic:claude-sonnet-5',
+        routing: { extract: 'openai:gpt-5.4-mini' },
+        effort: 'high',
+        limits: { maxTurns: 12 },
+        estCost: 0.4,
+      },
+    },
+  },
+});
+```
+
+| Profile field | What it defaults |
+|---|---|
+| `model` | The model for all roles of this agent; a `ModelRef` like `'anthropic:claude-sonnet-5'`, a `ModelChoice`, or a ladder. |
+| `routing` | Per-role model overrides (`loop`, `extract`, `finalize`, `summarize`, ...). |
+| `effort` | Canonical reasoning effort: `low`, `medium`, `high`, `xhigh`, or `max`. |
+| `tools` | The default toolset: `ToolDef` values, tool sources, or registered names. |
+| `limits` | `UsageLimits` merged below per-call limits and above engine defaults. |
+| `retry` | Transport `RetryPolicy`; runs under the journal, so a retried-then-successful call is one entry. |
+| `permissions`, `isolation` | Tool permission layers and worktree isolation defaults ([tools guide](/guide/tools)). |
+| `escalation` | Opt-in escalation config; without it the `escalated` status is unproducible. |
+| `compaction` | Per-profile compaction threshold; default 0.8 of the loop model's context window. |
+| `taskClass`, `estCost` | Model-knowledge bridge and the admission reserve hint in USD. |
+
+Two rules keep profiles predictable. A profile never carries a prompt or a schema; both are strictly per call. And profiles are data, registered per engine (there is no global registry), so `engine.profileCard()` can render them into a deterministic vocabulary card: the same text teaches the planner in planned mode and populates the `spawn_agent` enum in orchestrator mode.
+
+## Spawning agents from workflows
+
+`ctx.agent` is the workflow-side entry point:
+
+```ts
+import { defineWorkflow } from '@rulvar/core';
+
+interface Verdict {
+  risks: string[];
+  approve: boolean;
+}
+
+const reviewPr = defineWorkflow(
+  { name: 'review-pr' },
+  async (ctx, args: { diff: string }) => {
+    const verdict = await ctx.agent(`Review this diff and list the risks:\n${args.diff}`, {
+      agentType: 'reviewer',
+      schema: {
+        jsonSchema: {
+          type: 'object',
+          properties: {
+            risks: { type: 'array', items: { type: 'string' } },
+            approve: { type: 'boolean' },
+          },
+          required: ['risks', 'approve'],
+          additionalProperties: false,
+        },
+        validate: (v): v is Verdict => typeof v === 'object' && v !== null,
+      },
+    });
+    return verdict; // typed as Verdict
+  },
+);
+
+const handle = engine.run(reviewPr, { diff: myDiffText }, { budgetUsd: 5 });
+const outcome = await handle.result;
+```
+
+The options split into two groups, and the split is what makes replay stable:
+
+- **Identity fields** enter the entry's content key: the prompt, `agentType`, the requested model spec including canonical `effort`, `schema`, `tools`, and `isolation`. The explicit `key` discriminator, when set, replaces the prompt in the content key, so the prompt bears identity only when no `key` is given. Change any identity field and the call is new work.
+- **Policy and telemetry fields** never re-key entries: `onError`, `retry`, `fallback`, `replay`, `memoizeOutcome`, `limits`, `estCost`, `result`, `label`, `stream`. You can tighten a retry policy or rename a label between resumes without re-paying a single paid call.
+
+By default the call resolves with the typed value and throws a typed `AgentError` on failure. Pass `result: 'full'` to receive the complete `AgentResult` for every terminal status and branch yourself:
+
+```ts
+const r = await ctx.agent('Summarize the changelog since v1.0', {
+  agentType: 'reviewer',
+  result: 'full',
+});
+
+if (r.status === 'ok') {
+  console.log(r.output, r.costUsd, r.turns, r.servedBy);
+} else if (r.status === 'limit') {
+  // Paid partial work stays addressable: r.transcriptRef, r.usage
+}
+```
+
+| Status | Meaning |
+|---|---|
+| `ok` | The loop finished and the output validated. |
+| `error` | Typed failure (`transport`, `rate-limit`, `schema-mismatch`, `tool`, `budget`, `terminal`). Under the default `onError: 'throw'` the value form rejects; under `'null'` it resolves `null` and the loss is recorded in `run.dropped`, never silently. |
+| `limit` | A `UsageLimits` cap expired (turns, tool calls, wall clock, no-progress). Partial work is paid and kept. |
+| `cancelled` | Host cancellation or sibling abort; always reruns on resume. |
+| `skipped` | Derived during replay of abandoned branches; only observable through `result: 'full'` or settled `ctx.parallel` branches. |
+| `escalated` | The child filed a typed escalation report; requires the `escalation` opt-in and is never an error. |
+
+Beyond the configured policy the runtime never throws: failures become typed statuses. The one uniform exception is `BudgetExhaustedError`, which every ctx primitive throws at the run ceiling ([budgets](/guide/budgets)).
+
+## The agent loop and turns
+
+A **turn** is one model invocation cycle: one assistant response together with its tool calls. The loop repeats turns while the model keeps calling tools, then produces the final output:
+
+```mermaid
+flowchart LR
+    A[Prompt] --> B[Project history]
+    B --> C[Model turn]
+    C -->|tool calls| D[Permission chain + tools]
+    D --> E[Compaction check]
+    E --> F[Turn checkpoint]
+    F --> B
+    C -->|tools stop| G[Finalize / extract]
+    G --> H[Typed AgentResult]
+```
+
+Each stage of an agent's life resolves its model through an invocation role, so one agent can mix models per stage:
+
+| Role | Fires |
+|---|---|
+| `loop` | Every turn while tools are available to the model. |
+| `extract` | A separate final structured-output call, only when a schema is set and the loop turn cannot carry it (see below). |
+| `finalize` | Only if configured in routing: after tools stop, one synthesis call with tool choice `none` over the full transcript. |
+| `summarize` | At the compaction threshold, and for `ctx.brief`. |
+
+Turns are bounded by `UsageLimits`, merged per spawn (call over profile over engine): `maxTurns` (default 32), `maxToolCalls`, `maxOutputTokensPerTurn`, `timeoutMs`, and the no-progress detector (default 3 consecutive turns without tool calls or artifact deltas). Expiry of any of these lands the terminal status `limit`, with the paid partial work kept. `streamIdleTimeoutMs` (default 120000) is different: a stalled stream is severed and surfaces as a retryable transport error under the retry policy, not as `limit`.
+
+Tools can also ask the model to try again: throwing `ModelRetry` from a tool's `execute` converts into an error-flagged tool result the model sees and can self-correct from, bounded to 2 attempts per call chain by default. See the [tools guide](/guide/tools).
+
+## Model preferences
+
+Model resolution runs on every model invocation, not once per agent: a layered merge in the order call override, agent profile, workflow defaults, engine defaults, with the invocation role attached. `AgentOpts.model` overrides all roles at once; `AgentOpts.routing` overrides per role and wins over `profile.routing`. Role effort defaults fill gaps: `orchestrate` and `plan` default to `high`, `summarize` and `extract` to `low`; `loop` and `finalize` have no default, so the provider default applies when nothing resolves one.
+
+After resolution the router reads the model's capabilities and scrubs illegal parameters visibly (a warning event, never a silent translation), and hard per-role quality floors from engine config can allowlist or denylist models for critical roles. The full chain, failover, and pricing live in [model routing](/guide/model-routing).
+
+## Structured output tiers and the bounded re-prompt
+
+`schema` accepts three forms: a Standard Schema (Zod, ArkType, Valibot, ...), an explicit `{ jsonSchema, validate }` pair, or a bare JSON Schema literal. The first two give you a typed return; the bare literal types as `unknown`.
+
+How the schema reaches the model depends on the target model's capabilities. The router selects one of three tiers:
+
+| Tier | Mechanism |
+|---|---|
+| `native` | The provider's native JSON schema output. Requires a strict-compatible schema (every object closed with `additionalProperties: false` and full `required`); otherwise degrades to `forced-tool`. |
+| `forced-tool` | A synthesized `emit_result` tool with tool choice pinned to it. |
+| `prompt` | The schema is injected into the last user message. |
+
+`native` and `prompt` ride the last loop turn with no extra call. `forced-tool` pins the tool choice and therefore cannot ride a turn on which the agent's tools must remain available, so a separate `extract` invocation fires. The separate extract also fires when routing sends `extract` to a different model, or when `finalize` is routed (the structured output then runs over the full transcript including the synthesis).
+
+When the model's answer fails validation, the runtime sends a bounded re-prompt carrying the concrete validation issues, 2 attempts by default. Exhaustion is a typed `AgentError` of kind `schema-mismatch`; there is never a silent cast. If you want a stronger model to take one second attempt after exhaustion, declare it as the degenerate fallback:
+
+```ts
+const data = await ctx.agent('Extract the verdict from the review above.', {
+  agentType: 'reviewer',
+  schema: verdictSchema, // any of the three schema forms
+  fallback: { model: 'anthropic:claude-fable-5', on: ['schema-exhausted'] },
+});
+```
+
+The fallback is an agent-level second attempt with a new content key and exactly one journaled decision entry, distinct from transport failover, which never changes the content key at all.
+
+## Turn-boundary checkpoints
+
+At every turn boundary the runtime writes a checkpoint: the canonical history up to the boundary, turns already paid, accumulated usage, tool calls used, schema attempts, compaction points, and any approval that is holding the turn open. This is the `CheckpointState` blob, stored next to the agent's two-phase journal entry.
+
+Under a durable journal store this buys you mid-agent crash recovery: a run that dies at turn 7 of a 12-turn agent resumes at turn 7, not turn 1. On resume, the journal replays completed entries for free, finds the dangling dispatch, decodes its checkpoint, and continues the same turn; the paid prefix of the loop is never re-bought. A checkpoint that cannot be parsed is never trusted: the dispatch reruns from the top, which is the documented at-least-once floor.
+
+The default `InMemoryStore` disables resume with a loud warning; wire a durable store for anything you care about. See [durability](/guide/durability) and [stores](/guide/stores).
+
+## Cross-provider history correctness
+
+The runtime keeps one canonical conversation history and projects it per request. Three mechanisms make that projection correct across providers:
+
+- **Canonical tool-call ids.** The library, not the provider, mints tool-call ids. Each adapter keeps a bijective map between canonical ids and its wire ids, so a history that has touched two providers never leaks one provider's id format into the other's request.
+- **Provider-raw retention.** Opaque provider blocks that must survive round trips (thinking blocks with signatures, encrypted reasoning items) are retained in canonical history unconditionally as provider-raw parts.
+- **The projection rule.** On projection, a provider-raw part is included exactly when the target model's provider family matches the part's provider; other providers' raw parts are omitted from the projection, never from retention.
+
+This is the HistoryProjector, and it runs on every outgoing request, loop turns included. It is what makes per-role provider mixing inside one agent correct: the loop can run on Anthropic while `extract` runs on OpenAI, and each request sees a valid wire history. The same property keeps a checkpointed or failover-mixed history valid on any target after resume. The projection itself is exposed as a pure function:
+
+```ts
+import { projectHistory } from '@rulvar/core';
+
+const anthropicView = projectHistory(messages, 'anthropic');
+```
+
+Adapter-side details live in the [providers guide](/guide/providers).
+
+## Compaction
+
+Long tool loops outgrow context windows, so compaction is on by default for every agent. At each tool turn boundary, before the checkpoint, the runtime estimates the context as the last loop turn's input plus output tokens and compares it against the threshold (default 0.8 of the loop model's context window; per-profile override via `compaction.threshold`). Over the threshold it runs a summarize invocation under role `summarize` (resolved through the ordinary chain, falling back to the loop model), then replaces everything after the first message with one user-role summary message.
+
+Compaction is durable by construction: it happens before the boundary checkpoint, so a crash after compaction resumes compact, and the checkpoint records the turns at which compaction fired, so a resumed run never re-summarizes already-compacted history. A failed or empty summarize disables compaction for the rest of the run with a warning rather than looping.
+
+## Approval suspensions
+
+A tool whose permission verdict is `ask` does not fail and does not proceed: the agent suspends mid-turn. The runtime writes the turn checkpoint with the pending tool state, journals a suspended approval entry, and parks. When every in-flight branch of a run is blocked this way, the run completes with status `suspended` and the outcome lists the open keys:
+
+```ts
+import { tool, defineWorkflow } from '@rulvar/core';
+
+const deployTool = tool({
+  name: 'deploy_service',
+  description: 'Deploys a service to production.',
+  parameters: {
+    type: 'object',
+    properties: { service: { type: 'string' } },
+    required: ['service'],
+    additionalProperties: false,
+  },
+  needsApproval: true,
+  execute: async (input) => ({ deployed: true, input }),
+});
+
+const release = defineWorkflow({ name: 'release' }, async (ctx) => {
+  return ctx.agent('Deploy the api service if the checks pass.', {
+    tools: [deployTool],
+  });
+});
+
+const handle = engine.run(release, undefined, { budgetUsd: 3 });
+const outcome = await handle.result;
+
+if (outcome.status === 'suspended') {
+  for (const pending of outcome.pending) {
+    await handle.resolveExternal(pending.key, { decision: 'allow' });
+  }
+  const resumed = engine.resume(handle.runId, release);
+  console.log(await resumed.result);
+}
+```
+
+Approvals never fail open: any resolution that is not an explicit allow is a deny. On resume the agent continues the same turn from its checkpoint, without re-paying turns and without re-running tools that already ran; an approval resolved while the process was down applies immediately and is never re-suspended. Resolutions can arrive through `RunHandle.resolveExternal`, the HTTP server shell, or the CLI. The permission chain that produces `allow`, `deny`, and `ask` verdicts is documented in the [tools guide](/guide/tools).
+
+## Agent-as-tool: the single cross-agent primitive
+
+rulvar has exactly one way for agents to interact: invoke a specialist and return its result. That is agent-as-tool, and it is a load-bearing design decision, not a missing feature. Handoffs, chat rooms, blackboard coordination, and emergent topologies are rejected because they destroy budget attribution (whose sub-account paid for that message?) and scope identity (which call site does this work replay under?).
+
+Call-and-return composition takes three shapes, all journaled the same way:
+
+- `ctx.agent(prompt, opts)` spawns a specialist and returns its typed result.
+- `ctx.workflow(child, args)` runs a whole child workflow under a nested journal scope and a hierarchical budget sub-account whose spend propagates to every ancestor.
+- `spawn_agent` inside the dynamic orchestrator spawns by profile name and returns a handle; the child's result digest is delivered through `await_any` or `await_all`.
+
+Because every cross-agent edge is a call with a typed result, cost folds cleanly up the account tree and every piece of work has one address in the journal.
+
+## Agents under the dynamic orchestrator
+
+The dynamic orchestrator is itself an ordinary agent, running under role `orchestrate`, whose toolset happens to spawn other agents:
+
+```ts
+import { orchestrate } from '@rulvar/core';
+
+const handle = orchestrate(engine, 'Audit the billing module and summarize the risks', {
+  profiles: ['reviewer', 'researcher'],
+  maxSpawns: 24,
+});
+const outcome = await handle.result;
+```
+
+Its typed spawn tools are the whole cross-agent surface of mode (c):
+
+| Tool | Purpose |
+|---|---|
+| `spawn_agent` | Spawn one child by `agentType` with a prompt; returns a handle. |
+| `parallel_agents` | Spawn several children at once. |
+| `await_any` / `await_all` | Block on in-flight handles; deliver per-child digests. |
+| `cancel_agent` | Cancel an in-flight child. |
+| `finish` | Terminal: deliver the final result. |
+
+The `spawn_agent` vocabulary is the profile card: the orchestrator picks a registered `agentType`, never a raw model name. When a profile declares a model ladder, the orchestrator may pass `model_hint.startTier`, clamped to the declared ladder; naming models stays a host decision.
+
+Two execution properties matter for durability. Orchestrator turns are checkpointed mandatorily at every turn boundary. And every spawn is an ordinary agent journal entry whose handle is a journal-derived stable id, so a crashed orchestrator resumes by restoring its own history from the checkpoint and finding child results by content keys, without regenerating spawn decisions and without re-paying children. The orchestrator also runs under its own capped budget sub-account (default 0.2 of the run ceiling) with a protected finalize reserve, so it can always afford to call `finish`; see [budgets](/guide/budgets).
+
+Nested use is the same machinery: `ctx.orchestrate(goal, opts)` runs the identical implementation under the admission controller, clamped by the parent's budget. The opt-in adaptive extension (plan revision, wake digests, escalation) is covered in [adaptive orchestration](/guide/adaptive-orchestration), and the three modes are compared in [orchestration modes](/guide/orchestration-modes).
+
+## Next steps
+
+- [Tools](/guide/tools): defining typed tools, the permission chain, isolation.
+- [Model routing](/guide/model-routing): the resolution chain, failover, pricing, quality floors.
+- [Journal](/guide/journal): content keys, replay, and why identity fields re-key entries.
+- [Durability](/guide/durability): stores, resume semantics, and queue workers.
+- [API reference for @rulvar/core](/api/@rulvar/core/): every symbol on this page.

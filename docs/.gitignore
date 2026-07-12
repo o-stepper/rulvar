@@ -1,0 +1,13 @@
+# VitePress build output + cache
+.vitepress/dist/
+.vitepress/cache/
+
+# Generated, but tracked: contributing/index.md (synced from /CONTRIBUTING.md)
+# and reference/changelog.md (aggregated from packages/*/CHANGELOG.md) are kept
+# under version control so a fresh clone has working dead-link resolution. The
+# `predev` / `build:sync` hook regenerates them on every run.
+
+# llms artefacts are generated on every build and should not be committed
+public/llms.txt
+public/llms-api.txt
+public/llms-full.txt

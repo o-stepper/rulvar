@@ -1,0 +1,178 @@
+/* =============================================================
+   rulvar documentation - VitePress theme overrides
+
+   Palette is sourced from the landing-page CSS at
+   https://rulvar.com so the docs feel like one continuous site.
+   The accent is the ledger blue of the landing page (#0b62d6),
+   with #6ea8ff as its lighter hover companion.
+   ============================================================= */
+
+:root {
+  /* Brand (ledger blue - matches the landing accent) */
+  --vp-c-brand-1: #6ea8ff;
+  --vp-c-brand-2: #2f7de1;
+  --vp-c-brand-3: #0b62d6;
+  --vp-c-brand-soft: rgba(11, 98, 214, 0.22);
+
+  /* Notes / tips / warnings - keep the accent on the cool side */
+  --vp-c-note-1: var(--vp-c-brand-1);
+
+  /* Typography */
+  --vp-font-family-base:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --vp-font-family-mono:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+
+  /* Layout */
+  --vp-layout-max-width: 1440px;
+
+  /* Home page hero gradient (cool blue wash on deep navy) */
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, #6ea8ff 30%, #0b62d6);
+  --vp-home-hero-image-background-image: linear-gradient(
+    -45deg,
+    rgba(11, 98, 214, 0.45) 50%,
+    rgba(110, 168, 255, 0.18) 50%
+  );
+  --vp-home-hero-image-filter: blur(72px);
+}
+
+/* ---------- Dark theme - deep navy surfaces ---------- */
+.dark {
+  /* Surface */
+  --vp-c-bg: #0b0e14;
+  --vp-c-bg-alt: #151a24;
+  --vp-c-bg-elv: #1a1f2b;
+  --vp-c-bg-soft: #151a24;
+
+  /* Borders */
+  --vp-c-border: #232a38;
+  --vp-c-divider: #1c2230;
+  --vp-c-gutter: #0e1219;
+
+  /* Text */
+  --vp-c-text-1: #f0f2f5;
+  --vp-c-text-2: #b6bcc8;
+  --vp-c-text-3: #7b8494;
+
+  /* Custom blocks (tip/info/warning/danger) anchored to the accent */
+  --vp-c-tip-1: var(--vp-c-brand-1);
+  --vp-c-tip-2: var(--vp-c-brand-2);
+  --vp-c-tip-3: var(--vp-c-brand-3);
+  --vp-c-tip-soft: var(--vp-c-brand-soft);
+
+  /* Code blocks */
+  --vp-code-block-bg: #151a24;
+  --vp-code-bg: rgba(11, 98, 214, 0.14);
+  --vp-code-color: #6ea8ff;
+
+  /* Buttons */
+  --vp-button-brand-bg: var(--vp-c-brand-3);
+  --vp-button-brand-hover-bg: var(--vp-c-brand-2);
+  --vp-button-brand-active-bg: #0a4fae;
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-hover-text: #ffffff;
+  --vp-button-brand-active-text: #ffffff;
+  --vp-button-brand-border: var(--vp-c-brand-3);
+  --vp-button-brand-hover-border: var(--vp-c-brand-2);
+  --vp-button-brand-active-border: #0a4fae;
+
+  /* Selection */
+  --vp-c-selection-bg: rgba(11, 98, 214, 0.45);
+}
+
+/* ---------- Light theme - kept legible but with the same cool accent ---------- */
+:root:not(.dark) {
+  --vp-c-bg: #fafafa;
+  --vp-c-bg-alt: #f0f2f5;
+  --vp-c-bg-elv: #ffffff;
+  --vp-c-bg-soft: #f0f2f5;
+  --vp-c-text-1: #14181f;
+  --vp-c-text-2: #4b5261;
+  --vp-c-text-3: #7b8494;
+  --vp-c-border: #e2e5ea;
+  --vp-c-divider: #e6e9ef;
+}
+
+/* ---------- Scrollbar tint ---------- */
+.dark html {
+  scrollbar-color: #262e3d var(--vp-c-bg);
+}
+
+/* ---------- Nav - site title: base accent by default, lighter on hover ---------- */
+.VPNavBarTitle .title {
+  color: var(--vp-c-brand-2);
+}
+
+.VPNavBarTitle .title:hover {
+  color: var(--vp-c-brand-1);
+}
+
+/* ---------- Hero polish ---------- */
+.VPHero .name,
+.VPHero .text {
+  letter-spacing: -0.02em;
+}
+
+.VPHero .tagline {
+  color: var(--vp-c-text-2);
+}
+
+/* ---------- Inline framework-version pill ---------- */
+.framework-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.78em;
+  font-weight: 600;
+  border: 1px solid rgba(11, 98, 214, 0.4);
+  white-space: nowrap;
+}
+
+.framework-badge .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--vp-c-brand-2);
+  box-shadow: 0 0 12px rgba(110, 168, 255, 0.65);
+}
+
+/* ---------- Mermaid block - match navy surface ---------- */
+.rulvar-mermaid {
+  background: var(--vp-c-bg-alt);
+  border: 1px solid var(--vp-c-border);
+  border-radius: 12px;
+  padding: 1rem 1.25rem 1.35rem;
+  overflow: visible;
+}
+
+.rulvar-mermaid svg {
+  overflow: visible;
+  max-height: none;
+}
+
+.rulvar-mermaid foreignObject {
+  overflow: visible;
+}
+
+/* ---------- Footer - small caps, muted ---------- */
+.VPFooter {
+  border-top: 1px solid var(--vp-c-border);
+  background: var(--vp-c-bg-alt);
+}
+
+/* ---------- Code blocks: gentler corners, slightly tighter line height ---------- */
+.vp-doc div[class*='language-'] {
+  border-radius: 12px;
+}
+
+.vp-doc div[class*='language-'] code {
+  line-height: 1.55;
+}

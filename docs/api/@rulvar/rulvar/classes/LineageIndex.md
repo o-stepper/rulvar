@@ -1,0 +1,200 @@
+[**rulvar API reference**](../../../index.md)
+
+***
+
+[rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / LineageIndex
+
+# Class: LineageIndex
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+The incremental lineage fold: attempts, escalation debits, stall
+streaks, single-live-attempt, and legacy canonization, computed from
+journal entries only. `absorb` is idempotent by seq cursor; every read
+accepts an optional `uptoSeq` pin so renders stay snapshot-stable
+(docs/03, 10.4; docs/07, 8.3).
+
+## Constructors
+
+### Constructor
+
+```ts
+new LineageIndex(): LineageIndex;
+```
+
+#### Returns
+
+`LineageIndex`
+
+## Methods
+
+### absorb()
+
+```ts
+absorb(entries): void;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+Absorbs new entries (seq beyond the cursor); earlier ones are no-ops.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `entries` | readonly [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md)[] |
+
+#### Returns
+
+`void`
+
+***
+
+### attemptsUsed()
+
+```ts
+attemptsUsed(logicalTaskId, uptoSeq?): number;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `logicalTaskId` | `string` |
+| `uptoSeq?` | `number` |
+
+#### Returns
+
+`number`
+
+***
+
+### escalationsUsed()
+
+```ts
+escalationsUsed(logicalTaskId, uptoSeq?): number;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `logicalTaskId` | `string` |
+| `uptoSeq?` | `number` |
+
+#### Returns
+
+`number`
+
+***
+
+### hasLiveAttempt()
+
+```ts
+hasLiveAttempt(logicalTaskId): boolean;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+True while the LTID has an unsettled attempt (admitted, dispatched, or
+redispatched without a terminal), including admits whose decision
+entries have not landed yet. Backs the single-live-attempt invariant:
+a competing admit gets `lineage_busy` (docs/03, 10.5).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `logicalTaskId` | `string` |
+
+#### Returns
+
+`boolean`
+
+***
+
+### knownLogicalTaskIds()
+
+```ts
+knownLogicalTaskIds(): string[];
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+Every LTID the fold has seen (diagnostics and renders).
+
+#### Returns
+
+`string`[]
+
+***
+
+### noteAdmitted()
+
+```ts
+noteAdmitted(logicalTaskId): void;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+Registers a live admit strictly before its decision entry lands.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `logicalTaskId` | `string` |
+
+#### Returns
+
+`void`
+
+***
+
+### stallStreak()
+
+```ts
+stallStreak(logicalTaskId, uptoSeq?): number;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+The stall streak per docs/03, 10.4 (pinnable to a snapshot seq).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `logicalTaskId` | `string` |
+| `uptoSeq?` | `number` |
+
+#### Returns
+
+`number`
+
+***
+
+### statsOf()
+
+```ts
+statsOf(logicalTaskId, uptoSeq?): LineageStats;
+```
+
+Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+The pinned LineageStats render (docs/03, 10.3).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `logicalTaskId` | `string` |
+| `uptoSeq?` | `number` |
+
+#### Returns
+
+[`LineageStats`](/api/@rulvar/rulvar/interfaces/LineageStats.md)
