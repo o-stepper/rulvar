@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.3.0
+
+#### Patch Changes
+
+- Updated dependencies [7d1a287]
+  - @rulvar/core@1.3.0
+
 ### 1.2.0
 
 #### Patch Changes
@@ -259,6 +266,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.3.0
+
+#### Patch Changes
+
+- Updated dependencies [7d1a287]
+  - @rulvar/core@1.3.0
+
 ### 1.2.0
 
 #### Patch Changes
@@ -424,6 +438,18 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.3.0
+
+#### Minor Changes
+
+- 969974f: rulvar kb inbox (M12-T03): aggregates kb_propose-born proposals from finished runs through the RunLedger fold behind the LedgerExport seam. Matching (subject, taskClass, polarity) triples group for display ONLY (the command writes nothing, authorizes no spend and schedules no sweeps); each proposal renders with full provenance (initiating run identity, proposal entryRef, lineage, tier, trigger, evidence refs) plus the typed template statement a gated claim would carry; proposals of runs finished more than fourteen days ago expire out of the view. This is the human review surface, so the quarantined note and concrete model names render here verbatim, exactly like kb list.
+- 64aff88: rulvar kb gate (M12-T04, the closing task of ModelKnowledge phase 3): the human gate flow turning one inbox proposal into a human-editorial claim. The attribution attestation is mandatory by construction (without --ruled-out over the closed checklist the GateRecord does not assemble and nothing is written; contrast evidence rides --contrast-run or --contrast-eval); the born claim carries the typed template statement (never the quarantined note), origin provenance back to the proposing run and entry, evidence resolving into that run's journal, and the editorial TTL. The commit is CAS against the per-project rulvar.models.json, whose git review is the authenticating gate. Non-proposal entries, expired proposals (fourteen days from the run's terminal updatedAt), running runs and already-gated proposals reject with typed errors.
+
+#### Patch Changes
+
+- Updated dependencies [7d1a287]
+  - @rulvar/core@1.3.0
 
 ### 1.2.0
 
@@ -700,6 +726,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.3.0
+
+#### Minor Changes
+
+- 7d1a287: ModelKnowledge phase 3, first slice (M12-T02, unlocked by the passed measured-value checkpoint): the kb_propose orchestrator tool and the quarantined modelObservations write path. PlanRunner registers kb_propose on explicit opt-in (PlanRunnerOptions.kbPropose, like any opt-in tool); its payload is tier-relative (the orchestrator never names a model) and the engine resolves the tier against the referenced lineage's declared ladder into the concrete KbProposal subject, validates that the tier has a journaled attempt and that evidence refs resolve to this run's decision entries, and journals the proposal as the observation_add ledger.op through the single-writer path. Quarantine is absolute: the ack is entryRef only, ledger_read withholds observation content behind a count (byte-stable for observation-free renders), worker prompts never see it, and nothing can commit during a run (the runtime handle has no write path by API shape); proposals reach the human gate only through the post-run LedgerExport. Core exports KbProposal, KbProposalTrigger and the typed model-free proposalStatement template. The kb-propose-quarantine cassette joins the frozen catalog (61 IDs).
 
 ### 1.2.0
 
@@ -1489,6 +1521,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.3.0
+
 ### 1.2.0
 
 #### Patch Changes
@@ -1533,6 +1567,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.3.0
+
+#### Patch Changes
+
+- Updated dependencies [7d1a287]
+  - @rulvar/core@1.3.0
+  - @rulvar/testing@1.3.0
 
 ### 1.2.0
 
@@ -1735,6 +1777,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.3.0
+
+#### Patch Changes
+
+- Updated dependencies [7d1a287]
+  - @rulvar/core@1.3.0
 
 ### 1.2.0
 
@@ -1996,6 +2045,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.3.0
+
+#### Minor Changes
+
+- 7d1a287: ModelKnowledge phase 3, first slice (M12-T02, unlocked by the passed measured-value checkpoint): the kb_propose orchestrator tool and the quarantined modelObservations write path. PlanRunner registers kb_propose on explicit opt-in (PlanRunnerOptions.kbPropose, like any opt-in tool); its payload is tier-relative (the orchestrator never names a model) and the engine resolves the tier against the referenced lineage's declared ladder into the concrete KbProposal subject, validates that the tier has a journaled attempt and that evidence refs resolve to this run's decision entries, and journals the proposal as the observation_add ledger.op through the single-writer path. Quarantine is absolute: the ack is entryRef only, ledger_read withholds observation content behind a count (byte-stable for observation-free renders), worker prompts never see it, and nothing can commit during a run (the runtime handle has no write path by API shape); proposals reach the human gate only through the post-run LedgerExport. Core exports KbProposal, KbProposalTrigger and the typed model-free proposalStatement template. The kb-propose-quarantine cassette joins the frozen catalog (61 IDs).
+
+#### Patch Changes
+
+- Updated dependencies [7d1a287]
+  - @rulvar/core@1.3.0
+
 ### 1.2.0
 
 #### Patch Changes
@@ -2238,6 +2298,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.3.0
+
+#### Patch Changes
+
+- Updated dependencies [7d1a287]
+  - @rulvar/core@1.3.0
+  - eslint-plugin-rulvar@1.3.0
+
 ### 1.2.0
 
 #### Patch Changes
@@ -2414,6 +2482,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.3.0
+
+#### Patch Changes
+
+- Updated dependencies [7d1a287]
+  - @rulvar/core@1.3.0
+  - @rulvar/anthropic@1.3.0
+  - @rulvar/openai@1.3.0
 
 ### 1.2.0
 
@@ -2686,6 +2763,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.3.0
+
+#### Patch Changes
+
+- Updated dependencies [7d1a287]
+  - @rulvar/core@1.3.0
+
 ### 1.2.0
 
 #### Patch Changes
@@ -2891,6 +2975,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.3.0
+
+#### Patch Changes
+
+- Updated dependencies [7d1a287]
+  - @rulvar/core@1.3.0
+
 ### 1.2.0
 
 #### Patch Changes
@@ -3062,6 +3153,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.3.0
+
+#### Patch Changes
+
+- Updated dependencies [7d1a287]
+  - @rulvar/core@1.3.0
 
 ### 1.2.0
 
