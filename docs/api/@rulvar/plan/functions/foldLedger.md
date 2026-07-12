@@ -10,7 +10,7 @@
 function foldLedger(entries, options?): LedgerView;
 ```
 
-Defined in: [packages/plan/src/ledger.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L106)
+Defined in: [packages/plan/src/ledger.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L127)
 
 Fold every ledger.op plus the auto-derived joins up to `uptoSeq`.
 

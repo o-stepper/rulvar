@@ -10,7 +10,7 @@
 function ledgerOpKey(op): string;
 ```
 
-Defined in: [packages/plan/src/ledger.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L52)
+Defined in: [packages/plan/src/ledger.ts:69](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L69)
 
 The content key of one authored op (ordinal distinguishes repeats).
 

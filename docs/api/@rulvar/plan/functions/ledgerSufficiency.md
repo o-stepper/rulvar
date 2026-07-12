@@ -10,7 +10,7 @@
 function ledgerSufficiency(view, minimumFacts?): boolean;
 ```
 
-Defined in: [packages/plan/src/ledger.ts:322](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L322)
+Defined in: [packages/plan/src/ledger.ts:346](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L346)
 
 Compaction sufficiency: the orchestrate role may
 compact aggressively only when the ledger measurably suffices (at

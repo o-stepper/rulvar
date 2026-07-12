@@ -14,12 +14,25 @@
  *   coherent.
  */
 import { ConfigError } from '../l0/errors.js';
-import type { ClaimOp, GateRecord, ModelClaim } from '../l0/spi/knowledge.js';
+import type { ClaimOp, GateRecord, KbProposal, ModelClaim } from '../l0/spi/knowledge.js';
 // The decay module owns TTLs since M11-T03; the names stay re-exported
 // here so claim validation and its callers keep one import surface.
 import { claimExpired, claimExpiry, CLAIM_TTL_DAYS } from './decay.js';
 
 export { claimExpired, claimExpiry, CLAIM_TTL_DAYS };
+
+/**
+ * The typed statement template for a proposal-born claim (phase 3):
+ * assembled over the closed enum vocabulary ONLY, so tool-output text
+ * is unquotable into persistence, and model-free, because a claim
+ * statement renders into the knowledge card's notes layer, which never
+ * leaks model names to the orchestrator.
+ */
+export function proposalStatement(
+  proposal: Pick<KbProposal, 'taskClass' | 'polarity' | 'trigger'>,
+): string {
+  return `orchestrator-observed ${proposal.polarity} on ${proposal.taskClass}: trigger ${proposal.trigger}`;
+}
 
 /** Appendix A: KB active-claims cap, default 8 per (model, taskClass). */
 export const KB_ACTIVE_CLAIMS_CAP = 8;

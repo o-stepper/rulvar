@@ -10,7 +10,7 @@
 function ledgerCapViolation(view, op): string | undefined;
 ```
 
-Defined in: [packages/plan/src/ledger.ts:297](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L297)
+Defined in: [packages/plan/src/ledger.ts:321](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L321)
 
 Section-cap check for one authored op (Appendix A).
 

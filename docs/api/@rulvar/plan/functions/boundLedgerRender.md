@@ -10,7 +10,7 @@
 function boundLedgerRender(view, budgetChars?): LedgerView;
 ```
 
-Defined in: [packages/plan/src/ledger.ts:245](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L245)
+Defined in: [packages/plan/src/ledger.ts:269](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L269)
 
 Deterministic render bound: over budget, rows drop
 oldest-first, auto-derived joins before authored sections, and the

@@ -10,7 +10,7 @@
 const LEDGER_RENDER_BUDGET_CHARS: 65536 = 65536;
 ```
 
-Defined in: [packages/plan/src/ledger.ts:236](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L236)
+Defined in: [packages/plan/src/ledger.ts:260](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L260)
 
 The committed ledger_read render budget (Appendix A: 65536
 chars over the serialized view, the character measure; OQ-04 closed

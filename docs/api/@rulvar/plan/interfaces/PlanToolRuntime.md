@@ -6,11 +6,39 @@
 
 # Interface: PlanToolRuntime
 
-Defined in: [packages/plan/src/tools.ts:297](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L297)
+Defined in: [packages/plan/src/tools.ts:338](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L338)
 
 The engine seam the plan tools close over.
 
 ## Methods
+
+### kbPropose()?
+
+```ts
+optional kbPropose(input): Promise<{
+  entryRef: number;
+}>;
+```
+
+Defined in: [packages/plan/src/tools.ts:348](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L348)
+
+Phase 3 opt-in: resolves the tier-relative payload into a concrete
+KbProposal and journals it as the observation_add ledger.op. Absent
+unless the run opted into kb_propose.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `input` | [`KbProposeInput`](/api/@rulvar/plan/interfaces/KbProposeInput.md) |
+
+#### Returns
+
+`Promise`\<\{
+  `entryRef`: `number`;
+\}\>
+
+***
 
 ### ledgerAppend()
 
@@ -20,7 +48,7 @@ ledgerAppend(op): Promise<{
 }>;
 ```
 
-Defined in: [packages/plan/src/tools.ts:300](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L300)
+Defined in: [packages/plan/src/tools.ts:341](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L341)
 
 #### Parameters
 
@@ -42,7 +70,7 @@ Defined in: [packages/plan/src/tools.ts:300](https://github.com/o-stepper/rulvar
 ledgerRead(): LedgerView;
 ```
 
-Defined in: [packages/plan/src/tools.ts:301](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L301)
+Defined in: [packages/plan/src/tools.ts:342](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L342)
 
 #### Returns
 
@@ -56,7 +84,7 @@ Defined in: [packages/plan/src/tools.ts:301](https://github.com/o-stepper/rulvar
 planRevise(request): Promise<PlanReviseResult>;
 ```
 
-Defined in: [packages/plan/src/tools.ts:299](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L299)
+Defined in: [packages/plan/src/tools.ts:340](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L340)
 
 #### Parameters
 
@@ -76,7 +104,7 @@ Defined in: [packages/plan/src/tools.ts:299](https://github.com/o-stepper/rulvar
 planView(): PlanViewRender;
 ```
 
-Defined in: [packages/plan/src/tools.ts:298](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L298)
+Defined in: [packages/plan/src/tools.ts:339](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L339)
 
 #### Returns
 

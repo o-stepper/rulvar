@@ -1,4 +1,4 @@
-import { AdmissionDecision, AgentResult, CanonicalLadderSpec, ChatRequest, Effort, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, JournalStore, Json, KeyDeriver, LadderSpec, LeasableStore, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, ProviderAdapter, ReuseConfig, RunHandle, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, TriggerClass, UsageLimits, WireError } from "@rulvar/core";
+import { AdmissionDecision, AgentResult, CanonicalLadderSpec, ChatRequest, Effort, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, JournalStore, Json, KbProposalTrigger, KeyDeriver, LadderSpec, LeasableStore, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, ProviderAdapter, ReuseConfig, RunHandle, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, TriggerClass, UsageLimits, WireError } from "@rulvar/core";
 
 //#region src/plan-state.d.ts
 /**
@@ -654,6 +654,20 @@ type LedgerOp = {
   outcomeClass?: string;
   note: string;
   evidenceRefs: EntryRef[];
+  /**
+  * ENGINE-resolved kb_propose payload (phase 3): present exactly
+  * when the op was born from the kb_propose tool, whose handler
+  * resolves the tier-relative subject against the lineage's
+  * declared ladder. The model-facing ledger_append vocabulary
+  * never exposes these fields, so an orchestrator cannot forge a
+  * subject model name.
+  */
+  subject?: {
+    model: string;
+    effort?: Effort;
+  };
+  polarity?: "strength" | "weakness";
+  trigger?: KbProposalTrigger;
 };
 /** Appendix A per-section caps. */
 declare const LEDGER_SECTION_CAPS: {
@@ -686,6 +700,13 @@ interface LedgerObservation {
   outcomeClass?: string;
   note: string;
   evidenceRefs: EntryRef[];
+  /** Present exactly on kb_propose-born observations (phase 3). */
+  subject?: {
+    model: string;
+    effort?: Effort;
+  };
+  polarity?: "strength" | "weakness";
+  trigger?: KbProposalTrigger;
   entryRef: EntryRef;
 }
 /** One auto-derived revision history row (fold join, never authored). */
@@ -938,6 +959,13 @@ interface PlanRunnerOptions {
   reuse?: ReuseConfig;
   /** Frozen termination knobs beyond the revision budget (DEF-2). */
   limits?: Partial<Pick<TerminationLimits, "maxTotalSpawns" | "maxEscalationsPerLogicalTask" | "maxDepth">>;
+  /**
+  * ModelKnowledge phase 3 opt-in: registers the kb_propose tool, which
+  * journals quarantined model observations into the RunLedger's
+  * modelObservations section. Registered like any opt-in tool, so
+  * enabling it changes toolsetHash by design. Default false.
+  */
+  kbPropose?: boolean;
 }
 /**
 * Builds the PlanRunner orchestrator extension.
@@ -1109,6 +1137,26 @@ declare const LEDGER_READ_TOOL_NAME = "ledger_read";
 declare const LEDGER_APPEND_SCHEMA: SchemaSpec;
 /** ledger_read takes no parameters and pins to the turn snapshot. */
 declare const LEDGER_READ_SCHEMA: SchemaSpec;
+declare const KB_PROPOSE_TOOL_NAME = "kb_propose";
+/**
+* The normative kb_propose schema (phase 3). The subject is
+* tier-relative: the orchestrator never sees model names, so the
+* handler resolves the rung index against the declared ladder of the
+* referenced lineage into the concrete KbProposal subject.
+*/
+declare const KB_PROPOSE_SCHEMA: SchemaSpec;
+/** The model-facing kb_propose payload (tier-relative subject). */
+interface KbProposeInput {
+  subject: {
+    tier: number;
+  };
+  taskClass: string;
+  polarity: "strength" | "weakness";
+  trigger: "error" | "limit" | "schema-exhausted" | "verify-failed" | "no-progress" | "escalation";
+  logicalTaskId?: string;
+  note?: string;
+  evidenceRefs?: number[];
+}
 /** One rendered node of the pinned plan_view fold. */
 interface PlanViewNode {
   nodeId: NodeId;
@@ -1147,6 +1195,14 @@ interface PlanToolRuntime {
     entryRef: number;
   }>;
   ledgerRead(): LedgerView;
+  /**
+  * Phase 3 opt-in: resolves the tier-relative payload into a concrete
+  * KbProposal and journals it as the observation_add ledger.op. Absent
+  * unless the run opted into kb_propose.
+  */
+  kbPropose?(input: KbProposeInput): Promise<{
+    entryRef: number;
+  }>;
 }
 /** Builds the PlanRunner tools (appended to the mode (c) toolset). */
 declare function buildPlanTools(runtime: PlanToolRuntime): ToolDef[];
@@ -1338,4 +1394,11 @@ declare function runKbPinReplay(): Promise<JournalEntry[]>;
 */
 declare function runKbRepinExpiry(): Promise<JournalEntry[]>;
 //#endregion
-export { AppliedPlanOp, BUDGET, CassetteTurn, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_STALL_REPLAN_CAP, EMPTY_PLAN_HASH, EnginePlanOp, EscalationDebitRow, EscalationDecisionValue, GateVerdictValue, GuardFallback, GuardVerdictValue, GuardsState, JUDGE_VERDICT_SCHEMA, LEDGER_APPEND_SCHEMA, LEDGER_APPEND_TOOL_NAME, LEDGER_READ_SCHEMA, LEDGER_READ_TOOL_NAME, LEDGER_RENDER_BUDGET_CHARS, LEDGER_SECTION_CAPS, LadderVerdictValue, LedgerExport, LedgerFact, LedgerLesson, LedgerObservation, LedgerOp, LedgerRevisionRow, LedgerView, M7CassetteFixture, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, ParkDisposition, PinLedger, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, QueueFailoverDeps, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, UnparkPlacement, agentTypeOfRequest, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, boundLedgerRender, buildPlanTools, canonicalLadderOf, canonicalPlanState, cassetteAdapter, chainEffortOf, clampStartTier, decisionOriginOf, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, engineWith, escalationDecisionKey, executingRungOf, exportLedger, foldLedger, gateVerdictKey, isTerminalPlanStatus, judgePrompt, ladderOfProfile, ladderTriggerOf, ladderVerdictKey, ledgerCapViolation, ledgerOpKey, ledgerSufficiency, normalizeAdaptiveJournal, orchestratePlanned, parkDispositionOf, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, resolvedByOf, runAmendVsRunningThenCancelAdd, runBadBaseStreakTerminates, runBudgetDeniedRung, runCapFreezeThenFinish, runClaimExclusivityAndChain, runClassStormSingleTurn, runCombinedLoopDescent, runConfigDriftResume, runCrashAfterAppendBeforeEffects, runCrashBetweenCapAndEffects, runCrashBetweenLinkAndRoot, runCrashDuringRevision, runDecomposeMintsChildren, runEscalationStormFrozen, runFinalizeFallbackSynthesized, runGraftPartialSubtree, runHalfEscalatedLadder, runIntraRevisionSelfConflict, runKbPinReplay, runKbRepinExpiry, runLegacyJournalResume, runOscillationBounded, runOscillationFreeze, runOscillationFullReuse, runOscillationGuardTrip, runParkRacesChildCompletion, runParkUnpark, runQueueFailoverDuringForcedFinish, runRaceTimeoutVsLive, runReserveSurvivesRunExhaustion, runRespawnPreservesCounter, runReviseMidRun, runReviseRacingDefaultDecision, runRevisionExhaustion, runRewordedLessonsCollide, runRungRetryLineage, runStallStreakClassesAndPinning, runWorktreeDisposedDegrade, settled, unparkPlacementOf, wouldCreateDepCycle };
+//#region src/m12-cassettes.d.ts
+/**
+* kb-propose-quarantine: injected garbage in a proposal is inert, and
+* nothing commits during the run.
+*/
+declare function runKbProposeQuarantine(): Promise<JournalEntry[]>;
+//#endregion
+export { AppliedPlanOp, BUDGET, CassetteTurn, DEFAULT_DROPPED_REVISION_LIMIT, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_STALL_REPLAN_CAP, EMPTY_PLAN_HASH, EnginePlanOp, EscalationDebitRow, EscalationDecisionValue, GateVerdictValue, GuardFallback, GuardVerdictValue, GuardsState, JUDGE_VERDICT_SCHEMA, KB_PROPOSE_SCHEMA, KB_PROPOSE_TOOL_NAME, KbProposeInput, LEDGER_APPEND_SCHEMA, LEDGER_APPEND_TOOL_NAME, LEDGER_READ_SCHEMA, LEDGER_READ_TOOL_NAME, LEDGER_RENDER_BUDGET_CHARS, LEDGER_SECTION_CAPS, LadderVerdictValue, LedgerExport, LedgerFact, LedgerLesson, LedgerObservation, LedgerOp, LedgerRevisionRow, LedgerView, M7CassetteFixture, PLAN_HASH_VERSION, PLAN_REVISE_SCHEMA, PLAN_REVISE_TOOL_NAME, PLAN_SCOPE, PLAN_VIEW_SCHEMA, PLAN_VIEW_TOOL_NAME, ParkDisposition, PinLedger, PlanDecisionOrigin, PlanDecisionValue, PlanFoldState, PlanNode, PlanNodeStatus, PlanOp, PlanReviseErrorCode, PlanReviseRequest, PlanReviseResult, PlanRevisionAdmission, PlanRevisionValue, PlanRunnerOptions, PlanSnapshotRef, PlanToolRuntime, PlanViewNode, PlanViewRender, PlanWorking, PlanWriteLock, QueueFailoverDeps, RebaseContext, RebaseEvaluation, RebaseOutcome, RebaseReasonCode, ReuseTransform, RevisionGuards, RevisionGuardsOptions, TaskPlan, TaskSpec, TaskSpecPatch, UnparkPlacement, agentTypeOfRequest, applyAppliedOp, applyDecisionOps, applyPlanEntry, applyTaskSpecPatch, assertPlanHead, assertPlanTransition, boundLedgerRender, buildPlanTools, canonicalLadderOf, canonicalPlanState, cassetteAdapter, chainEffortOf, clampStartTier, decisionOriginOf, depsSatisfied, effectiveDroppedStreak, emptyPlan, emptyPlanFold, engineWith, escalationDecisionKey, executingRungOf, exportLedger, foldLedger, gateVerdictKey, isTerminalPlanStatus, judgePrompt, ladderOfProfile, ladderTriggerOf, ladderVerdictKey, ledgerCapViolation, ledgerOpKey, ledgerSufficiency, normalizeAdaptiveJournal, orchestratePlanned, parkDispositionOf, planDecisionKey, planHash, planRevisionKey, planRunner, promptSpecHashOf, readPlanDecision, readPlanRevision, rebasePlanRevision, recomputePlanReadiness, resolvedByOf, runAmendVsRunningThenCancelAdd, runBadBaseStreakTerminates, runBudgetDeniedRung, runCapFreezeThenFinish, runClaimExclusivityAndChain, runClassStormSingleTurn, runCombinedLoopDescent, runConfigDriftResume, runCrashAfterAppendBeforeEffects, runCrashBetweenCapAndEffects, runCrashBetweenLinkAndRoot, runCrashDuringRevision, runDecomposeMintsChildren, runEscalationStormFrozen, runFinalizeFallbackSynthesized, runGraftPartialSubtree, runHalfEscalatedLadder, runIntraRevisionSelfConflict, runKbPinReplay, runKbProposeQuarantine, runKbRepinExpiry, runLegacyJournalResume, runOscillationBounded, runOscillationFreeze, runOscillationFullReuse, runOscillationGuardTrip, runParkRacesChildCompletion, runParkUnpark, runQueueFailoverDuringForcedFinish, runRaceTimeoutVsLive, runReserveSurvivesRunExhaustion, runRespawnPreservesCounter, runReviseMidRun, runReviseRacingDefaultDecision, runRevisionExhaustion, runRewordedLessonsCollide, runRungRetryLineage, runStallStreakClassesAndPinning, runWorktreeDisposedDegrade, settled, unparkPlacementOf, wouldCreateDepCycle };

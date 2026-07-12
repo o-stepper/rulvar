@@ -127,6 +127,7 @@
 | [JournalOperation](/api/@rulvar/rulvar/interfaces/JournalOperation.md) | One logical journaled operation: its dispatch entry plus its terminal, when present. |
 | [JournalSerializationHook](/api/@rulvar/rulvar/interfaces/JournalSerializationHook.md) | - |
 | [JournalStore](/api/@rulvar/rulvar/interfaces/JournalStore.md) | - |
+| [KbProposal](/api/@rulvar/rulvar/interfaces/KbProposal.md) | One orchestrator model-knowledge proposal (phase 3). A proposal is a run-ledger record, NOT a claim: it lives ONLY in the RunLedger section modelObservations, is never rendered into any prompt of any run before the human gate (absolute quarantine, the note included), and reaches the gate exclusively through LedgerExport. The engine assembles it from the tier-relative kb_propose payload: the subject model is resolved by the engine from the referenced lineage's declared ladder, never named by the orchestrator; evidence must resolve into the proposing run's own decision entries. |
 | [KeyDeriver](/api/@rulvar/rulvar/interfaces/KeyDeriver.md) | - |
 | [KeyRing](/api/@rulvar/rulvar/interfaces/KeyRing.md) | - |
 | [KnowledgeSnapshot](/api/@rulvar/rulvar/interfaces/KnowledgeSnapshot.md) | - |
@@ -278,6 +279,7 @@
 | [JournalEntry](/api/@rulvar/rulvar/type-aliases/JournalEntry.md) | Final entry form (hashVersion 2). All journaled values MUST be JSON-serializable; a violation raises a typed NonSerializableValueError at the call site. append is serialized by a per-run queue. |
 | [Json](/api/@rulvar/rulvar/type-aliases/Json.md) | L0 JSON value domain. |
 | [JsonSchema](/api/@rulvar/rulvar/type-aliases/JsonSchema.md) | A JSON Schema document (draft 2020-12) as plain JSON data. Canonical serialization and hashing rules live with the KeyDeriver. |
+| [KbProposalTrigger](/api/@rulvar/rulvar/type-aliases/KbProposalTrigger.md) | The closed trigger vocabulary of kb_propose (phase 3). |
 | [Lease](/api/@rulvar/rulvar/type-aliases/Lease.md) | Lease token for queue-mode ownership; epoch is the fencing token. |
 | [LineageRelation](/api/@rulvar/rulvar/type-aliases/LineageRelation.md) | The closed relation vocabulary of the minting and inheritance table. |
 | [LogicalTaskId](/api/@rulvar/rulvar/type-aliases/LogicalTaskId.md) | Logical-task identity across rebirths (DEF-3); engine-minted ULID. |
@@ -524,6 +526,7 @@
 | [projectHistory](/api/@rulvar/rulvar/functions/projectHistory.md) | Projects the canonical history into the target provider's view: provider-raw parts of a DIFFERENT provider are omitted; everything else (text, images, tool calls, tool results, compaction content) passes through untouched. Messages whose parts all belong to another provider vanish entirely rather than ride as empty messages. |
 | [projectIdentity](/api/@rulvar/rulvar/functions/projectIdentity.md) | The canonical identity object of an IdentityInput under the hashVersion 2 profile: what JCS serializes and sha256 hashes. The agent kind projects modelSpec through modelSpecIdentity; every other kind serializes its fields verbatim. Fields not listed for a kind are never included (the types make them unrepresentable). |
 | [projectToJsonSchema](/api/@rulvar/rulvar/functions/projectToJsonSchema.md) | Derives the JSON Schema of a SchemaSpec. Form 1 projects via the StandardJSONSchemaV1 input() converter, target draft 2020-12 with draft-07 fallback; a library without the projection is a typed ConfigError at definition time, never at first call. Transforming schemas therefore project their INPUT type. Forms 2 and 3 are taken verbatim. |
+| [proposalStatement](/api/@rulvar/rulvar/functions/proposalStatement.md) | The typed statement template for a proposal-born claim (phase 3): assembled over the closed enum vocabulary ONLY, so tool-output text is unquotable into persistence, and model-free, because a claim statement renders into the knowledge card's notes layer, which never leaks model names to the orchestrator. |
 | [providerOf](/api/@rulvar/rulvar/functions/providerOf.md) | The provider family of an adapter: `provider` when set, else `id`. |
 | [readTerminationInit](/api/@rulvar/rulvar/functions/readTerminationInit.md) | Reads a termination.init entry's payload; undefined when malformed. |
 | [registryKeyRing](/api/@rulvar/rulvar/functions/registryKeyRing.md) | KeyRing over the registry: the live call is projected DOWN into the profile of the stored entry; there is no upward canonization. |

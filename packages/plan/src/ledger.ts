@@ -14,7 +14,13 @@
  * ModelKnowledge).
  */
 import { deriverV2 } from '@rulvar/core';
-import type { EntryRef, JournalEntry, LogicalTaskId } from '@rulvar/core';
+import type {
+  EntryRef,
+  Effort,
+  JournalEntry,
+  KbProposalTrigger,
+  LogicalTaskId,
+} from '@rulvar/core';
 
 /** The CLOSED authored op vocabulary. */
 export type LedgerOp =
@@ -43,6 +49,17 @@ export type LedgerOp =
       outcomeClass?: string;
       note: string;
       evidenceRefs: EntryRef[];
+      /**
+       * ENGINE-resolved kb_propose payload (phase 3): present exactly
+       * when the op was born from the kb_propose tool, whose handler
+       * resolves the tier-relative subject against the lineage's
+       * declared ladder. The model-facing ledger_append vocabulary
+       * never exposes these fields, so an orchestrator cannot forge a
+       * subject model name.
+       */
+      subject?: { model: string; effort?: Effort };
+      polarity?: 'strength' | 'weakness';
+      trigger?: KbProposalTrigger;
     };
 
 /** Appendix A per-section caps. */
@@ -75,6 +92,10 @@ export interface LedgerObservation {
   outcomeClass?: string;
   note: string;
   evidenceRefs: EntryRef[];
+  /** Present exactly on kb_propose-born observations (phase 3). */
+  subject?: { model: string; effort?: Effort };
+  polarity?: 'strength' | 'weakness';
+  trigger?: KbProposalTrigger;
   entryRef: EntryRef;
 }
 
@@ -183,6 +204,9 @@ export function foldLedger(
             ...(op.outcomeClass === undefined ? {} : { outcomeClass: op.outcomeClass }),
             note: op.note,
             evidenceRefs: op.evidenceRefs,
+            ...(op.subject === undefined ? {} : { subject: op.subject }),
+            ...(op.polarity === undefined ? {} : { polarity: op.polarity }),
+            ...(op.trigger === undefined ? {} : { trigger: op.trigger }),
             entryRef: entry.seq,
           });
           break;
