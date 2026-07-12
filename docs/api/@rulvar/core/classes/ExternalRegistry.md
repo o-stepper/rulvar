@@ -42,7 +42,7 @@ Defined in: [packages/core/src/engine/external.ts:73](https://github.com/o-stepp
 awaitApproval(options): Promise<ApprovalDecision>;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:239](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L239)
+Defined in: [packages/core/src/engine/external.ts:243](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L243)
 
 Tool-approval suspension (M3-T03): journals (or
 re-matches) the suspended approval entry keyed by (toolName, input)
@@ -78,7 +78,7 @@ awaitDecision(options): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:316](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L316)
+Defined in: [packages/core/src/engine/external.ts:320](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L320)
 
 Flavor B escalation suspension (M3-T07): the
 escalate tool suspends the agent on the SAME machinery as approvals
@@ -119,7 +119,7 @@ awaitExternal(
 options?): Promise<Json>;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:169](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L169)
+Defined in: [packages/core/src/engine/external.ts:173](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L173)
 
 ctx.awaitExternal: journal (or re-match) the suspended entry and park
 until a resolution wins the first-closing-wins fold.
@@ -147,7 +147,7 @@ until a resolution wins the first-closing-wins fold.
 enter(): () => void;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:101](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L101)
+Defined in: [packages/core/src/engine/external.ts:105](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L105)
 
 Wraps every non-suspension async operation (agents, steps).
 
@@ -163,7 +163,7 @@ Wraps every non-suspension async operation (agents, steps).
 onQuiesce(listener): void;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:130](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L130)
+Defined in: [packages/core/src/engine/external.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L134)
 
 #### Parameters
 
@@ -183,7 +183,7 @@ Defined in: [packages/core/src/engine/external.ts:130](https://github.com/o-step
 pending(): PendingExternal[];
 ```
 
-Defined in: [packages/core/src/engine/external.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L134)
+Defined in: [packages/core/src/engine/external.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L138)
 
 #### Returns
 
@@ -197,7 +197,7 @@ Defined in: [packages/core/src/engine/external.ts:134](https://github.com/o-step
 resolveExternal(key, value): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:402](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L402)
+Defined in: [packages/core/src/engine/external.ts:406](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L406)
 
 RunHandle.resolveExternal: the live path validates BEFORE append and
 throws InvalidResolutionError without journaling; a winning attempt
@@ -222,7 +222,7 @@ settles the waiting promise in place.
 submitResolution(entryRef, attempt): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:381](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L381)
+Defined in: [packages/core/src/engine/external.ts:385](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L385)
 
 Submits a resolution attempt for a parked suspension and, when it
 wins the first-closing-wins fold, settles the in-process waiter with
@@ -248,7 +248,7 @@ resolutions ride resolveExternal).
 static approvalKey(entryRef): string;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L144)
+Defined in: [packages/core/src/engine/external.ts:148](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L148)
 
 The synthesized resolveExternal key of an approval suspension.
 
