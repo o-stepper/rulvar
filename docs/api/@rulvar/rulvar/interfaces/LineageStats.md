@@ -6,7 +6,7 @@
 
 # Interface: LineageStats
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The pure lineage fold rendered in plan_view and WakeDigest, always
 pinned to a snapshot (`uptoSeq`), never a live read inside a turn.
@@ -18,7 +18,7 @@ from), while `attemptsUsed` still counts every authorized attempt.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-approaches"></a> `approaches` | \{ `approachSig`: `string`; `approachTag`: `string`; `attempts`: `number`; `lastOutcome`: [`AttemptOutcomeClass`](/api/@rulvar/rulvar/type-aliases/AttemptOutcomeClass.md); \}[] | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-attemptsused"></a> `attemptsUsed` | `number` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-escalationsused"></a> `escalationsUsed` | `number` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-stallstreak"></a> `stallStreak` | `number` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-approaches"></a> `approaches` | \{ `approachSig`: `string`; `approachTag`: `string`; `attempts`: `number`; `lastOutcome`: [`AttemptOutcomeClass`](/api/@rulvar/rulvar/type-aliases/AttemptOutcomeClass.md); \}[] | `packages/core/dist/index.d.ts` |
+| <a id="property-attemptsused"></a> `attemptsUsed` | `number` | `packages/core/dist/index.d.ts` |
+| <a id="property-escalationsused"></a> `escalationsUsed` | `number` | `packages/core/dist/index.d.ts` |
+| <a id="property-stallstreak"></a> `stallStreak` | `number` | `packages/core/dist/index.d.ts` |

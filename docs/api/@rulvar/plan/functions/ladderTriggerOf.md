@@ -10,10 +10,10 @@
 function ladderTriggerOf(settled): "no-progress" | "error" | "limit" | "schema-exhausted" | undefined;
 ```
 
-Defined in: [packages/plan/src/ladder.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ladder.ts#L93)
+Defined in: [packages/plan/src/ladder.ts:92](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ladder.ts#L92)
 
-Classifies a settled attempt into the typed transition trigger
-(docs/04, section 12): schema-mismatch errors are 'schema-exhausted';
+Classifies a settled attempt into the typed transition trigger:
+schema-mismatch errors are 'schema-exhausted';
 the engine's no-progress abort is first-class 'no-progress' (it rides
 status 'limit' with the dedicated abort class, distinct from user
 cancellation by construction); cancelled, escalated, and skipped never

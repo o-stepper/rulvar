@@ -8,7 +8,7 @@
 
 Defined in: [packages/core/src/orchestrator/spawn-tools.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L117)
 
-The spawn parameters as validated JSON (docs/07 4.1 TaskSpec subset).
+The spawn parameters as validated JSON (a TaskSpec subset).
 
 ## Properties
 

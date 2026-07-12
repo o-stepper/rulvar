@@ -10,7 +10,7 @@
 function validateEscalationLimits(raw?): EscalationLimits;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Validates a lineage-limits config record. The pre-rename knob name is
 rejected with a migration hint (XF-10): silently honoring it would

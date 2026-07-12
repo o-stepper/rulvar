@@ -10,11 +10,11 @@
 function isStrictCompatibleSchema(schema): boolean;
 ```
 
-Defined in: [packages/core/src/model/caps.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/caps.ts#L26)
+Defined in: [packages/core/src/model/caps.ts:24](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/caps.ts#L24)
 
 Strict-schema compatibility as both first-class providers define it:
 every object node declares `additionalProperties: false` and lists every
-property in `required` (docs/04, section 5.2). Boolean schemas and
+property in `required`. Boolean schemas and
 non-object shapes are trivially compatible.
 
 ## Parameters

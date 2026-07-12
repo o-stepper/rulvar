@@ -10,10 +10,10 @@
 function runReviseMidRun(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:208](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L208)
+Defined in: [packages/plan/src/cassettes.ts:207](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L207)
 
 revise-mid-run: a plan revision arrives while a worker subtree is
-mid-flight (docs/09 round-2). The first worker HANGS until the
+mid-flight. The first worker HANGS until the
 revision cancels it; the added replacement completes.
 
 ## Returns

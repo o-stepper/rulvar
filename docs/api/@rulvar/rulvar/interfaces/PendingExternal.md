@@ -6,7 +6,7 @@
 
 # Interface: PendingExternal
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Suspensions still open at settle time; producers arrive with M2.
 
@@ -14,8 +14,8 @@ Suspensions still open at settle time; producers arrive with M2.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-deadlineat"></a> `deadlineAt?` | `string` | Approvals and Flavor B escalations only. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-entryref"></a> `entryRef` | `number` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-key"></a> `key` | `string` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-prompt"></a> `prompt?` | `string` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-scope"></a> `scope` | `string` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-deadlineat"></a> `deadlineAt?` | `string` | Approvals and Flavor B escalations only. | `packages/core/dist/index.d.ts` |
+| <a id="property-entryref"></a> `entryRef` | `number` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-key"></a> `key` | `string` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-prompt"></a> `prompt?` | `string` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-scope"></a> `scope` | `string` | - | `packages/core/dist/index.d.ts` |

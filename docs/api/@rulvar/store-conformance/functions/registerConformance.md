@@ -10,7 +10,7 @@
 function registerConformance(suite, api): void;
 ```
 
-Defined in: [packages/store-conformance/src/types.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/store-conformance/src/types.ts#L36)
+Defined in: [packages/store-conformance/src/types.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/store-conformance/src/types.ts#L35)
 
 Registers the suite as one `describe` block with one `it` per check.
 

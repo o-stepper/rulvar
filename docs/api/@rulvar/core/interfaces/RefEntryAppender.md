@@ -6,7 +6,7 @@
 
 # Interface: RefEntryAppender
 
-Defined in: [packages/core/src/journal/resolution.ts:270](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L270)
+Defined in: [packages/core/src/journal/resolution.ts:269](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L269)
 
 The append surface the arbiter drives (implemented by the Replayer).
 
@@ -18,7 +18,7 @@ The append surface the arbiter drives (implemented by the Replayer).
 appendRefEntry(input): Promise<JournalEntry>;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:271](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L271)
+Defined in: [packages/core/src/journal/resolution.ts:270](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L270)
 
 #### Parameters
 

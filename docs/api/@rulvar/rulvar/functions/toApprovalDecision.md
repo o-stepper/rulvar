@@ -10,7 +10,7 @@
 function toApprovalDecision(value): ApprovalDecision;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Normalizes a resolution value into an ApprovalDecision. Anything that
 is not an explicit allow is a deny: an approval never fails open.

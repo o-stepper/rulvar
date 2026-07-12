@@ -10,11 +10,11 @@
 function agentErrorToWire(error, message): WireError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:342](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L342)
+Defined in: [packages/core/src/l0/errors.ts:335](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L335)
 
 Projects an AgentError to its WireError form: code 'agent', with kind,
-retryAfterMs, and issues carried in data (docs/02, section "Error
-taxonomy"). Issue paths are flattened to JSON-safe segments.
+retryAfterMs, and issues carried in data. Issue paths are flattened to
+JSON-safe segments.
 
 ## Parameters
 

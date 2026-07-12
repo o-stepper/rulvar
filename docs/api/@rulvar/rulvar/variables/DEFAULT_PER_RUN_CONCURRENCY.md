@@ -10,6 +10,6 @@
 const DEFAULT_PER_RUN_CONCURRENCY: 12 = 12;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-FIFO semaphore; default per-run width is 12 (docs/06, Appendix A).
+FIFO semaphore; default per-run width is 12.

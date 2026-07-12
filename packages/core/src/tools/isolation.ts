@@ -9,10 +9,9 @@
  * retain failed trees under the shared pin cap.
  *
  * The sandbox is a determinism and blast-radius boundary, NOT a security
- * boundary (docs/08, sections 7.2 and 8; docs/01 NFR security posture).
+ * boundary.
  *
- * Owning spec: docs/08-tools-permissions-spec.md, section "Isolation and
- * worktree lifecycle".
+ * Full contract: https://docs.rulvar.com/guide/tools
  */
 import { execFile } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -26,7 +25,7 @@ import type { IsolationProvider } from '../l0/spi/isolation.js';
 
 const execFileAsync = promisify(execFile);
 
-/** docs/06 Appendix A: the shared pin cap (park/unpark and retainWorktree). */
+/** Appendix A: the shared pin cap (park/unpark and retainWorktree). */
 export const DEFAULT_MAX_PINNED_WORKTREES = 4;
 
 export interface GitWorktreeProviderOptions {
@@ -34,7 +33,7 @@ export interface GitWorktreeProviderOptions {
   repoRoot?: string;
   /**
    * Retain the tree of a FAILED agent for inspection when the engine
-   * requests keep on dispose (docs/08, section 8.3). Default false.
+   * requests keep on dispose. Default false.
    */
   keepOnError?: boolean;
   /** Pin cap shared by park/unpark and retainWorktree (default 4). */
@@ -52,7 +51,7 @@ async function git(cwd: string, args: string[]): Promise<string> {
 
 /**
  * The shipped git worktree lifecycle. A non-git host is a typed
- * ConfigError at acquire (docs/08, section 8.3, rule 1).
+ * ConfigError at acquire.
  */
 export class GitWorktreeProvider implements IsolationProvider {
   private readonly repoRoot: string;

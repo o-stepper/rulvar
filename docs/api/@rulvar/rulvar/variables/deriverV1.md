@@ -10,7 +10,7 @@
 const deriverV1: KeyDeriver;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The frozen v1 (round 1) profile: the projection removes effort from the
 requested modelSpec (the v1 predicate is effort-insensitive by

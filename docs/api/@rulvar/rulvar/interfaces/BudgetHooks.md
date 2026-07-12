@@ -6,15 +6,15 @@
 
 # Interface: BudgetHooks
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Budget hooks bound by the three-layer budget (docs/06, section "Three-layer budget").
+Budget hooks bound by the three-layer budget.
 
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-signal"></a> `signal?` | `AbortSignal` | Layer 3: the ceiling AbortSignal. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-signal"></a> `signal?` | `AbortSignal` | Layer 3: the ceiling AbortSignal. | `packages/core/dist/index.d.ts` |
 
 ## Methods
 
@@ -24,7 +24,7 @@ Budget hooks bound by the three-layer budget (docs/06, section "Three-layer budg
 beforeTurn(): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Layer 2: before every turn; throws BudgetExhaustedError to block dispatch.
 
@@ -40,7 +40,7 @@ Layer 2: before every turn; throws BudgetExhaustedError to block dispatch.
 onUsage(usage, servedBy): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Live usage accounting; layer 3 may respond by aborting `signal`.
 

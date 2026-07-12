@@ -15,4 +15,4 @@ Defined in: [packages/core/src/journal/lineage.ts:225](https://github.com/o-step
 The deterministic signature inputs assigned to legacy spawns (journals
 written before lineage existed) and to attempts whose producers did not
 record signature inputs: stable constants, never wall-clock, so replay
-canonizes identically on every engine (docs/03, 10.7).
+canonizes identically on every engine.

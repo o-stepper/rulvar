@@ -54,7 +54,7 @@ type PlanOp =
 
 Defined in: [packages/plan/src/plan-entries.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L45)
 
-The orchestrator-facing PlanOp union (docs/07, 4.7).
+The orchestrator-facing PlanOp union.
 
 ## Union Members
 

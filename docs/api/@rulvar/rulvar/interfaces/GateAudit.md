@@ -6,7 +6,7 @@
 
 # Interface: GateAudit
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The ctx-side verdict for one dispatch, produced by the permission
 chain (M3-T03). For 'ask' the loop writes the turn checkpoint with the
@@ -17,7 +17,7 @@ re-matches an existing one) and parks until a resolution closes it.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-advisory"></a> `advisory?` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-decidedby"></a> `decidedBy` | `string` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-rule"></a> `rule?` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-verdict"></a> `verdict` | `"allow"` \| `"deny"` \| `"ask"` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-advisory"></a> `advisory?` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | `packages/core/dist/index.d.ts` |
+| <a id="property-decidedby"></a> `decidedBy` | `string` | `packages/core/dist/index.d.ts` |
+| <a id="property-rule"></a> `rule?` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | `packages/core/dist/index.d.ts` |
+| <a id="property-verdict"></a> `verdict` | `"allow"` \| `"deny"` \| `"ask"` | `packages/core/dist/index.d.ts` |

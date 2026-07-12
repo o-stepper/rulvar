@@ -13,7 +13,7 @@ function resolvePricing(
    capsPricing): Pricing | undefined;
 ```
 
-Defined in: [packages/core/src/model/pricing.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/pricing.ts#L26)
+Defined in: [packages/core/src/model/pricing.ts:24](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/pricing.ts#L24)
 
 Resolves the pricing for a model: the versioned table wins; the
 adapter-reported caps.pricing is the fallback; undefined means

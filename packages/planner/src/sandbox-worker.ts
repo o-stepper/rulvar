@@ -2,7 +2,7 @@
  * The worker half of the sandbox contract (M6-T02): evaluates a
  * CompiledWorkflow source inside a worker_threads realm with the curated
  * global scope and proxies every primitive call as JSON-RPC over the
- * dedicated MessagePort to the host bridge (docs/06, 8.2).
+ * dedicated MessagePort to the host bridge.
  *
  * Determinism: now, random, uuid, and the Date.now/Math.random realm
  * replacements all draw from ONE seeded stream (seed = sha256(runId)), so
@@ -71,7 +71,7 @@ function main(port: NodeMessagePort, init: SandboxInitMessage): void {
   const frameToken = new AsyncLocalStorage<number>();
   const currentToken = (): number => frameToken.getStore() ?? 0;
 
-  // busy-frame protocol (docs/06, 8.2): the host holds the run's activity
+  // busy-frame protocol: the host holds the run's activity
   // token while any worker frame computes and releases it when every
   // frame is blocked on a host call, so suspension and quiescence behave
   // exactly like in-process runs.
@@ -157,7 +157,7 @@ function main(port: NodeMessagePort, init: SandboxInitMessage): void {
     return value;
   };
 
-  // Realm scrub (docs/06, 8.2): Date.now and Math.random are REPLACED by
+  // Realm scrub: Date.now and Math.random are REPLACED by
   // the seeded journaled shims; import/fetch/process are absent. The
   // worker realm is isolated, so this never touches the host.
   Date.now = shimNow;

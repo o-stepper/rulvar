@@ -6,11 +6,10 @@
 
 # Class: OrchestratorCapConfigError
 
-Defined in: [packages/core/src/l0/errors.ts:221](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L221)
+Defined in: [packages/core/src/l0/errors.ts:219](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L219)
 
 Invalid orchestrator cap and finalize-reserve configuration, thrown
-before the first LLM call (docs/06, section "Three-layer budget", DEF-7;
-producers ship in M6/M7).
+before the first LLM call (DEF-7; producers ship in M6/M7).
 
 ## Extends
 
@@ -24,7 +23,7 @@ producers ship in M6/M7).
 new OrchestratorCapConfigError(message, opts?): OrchestratorCapConfigError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:224](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L224)
+Defined in: [packages/core/src/l0/errors.ts:222](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L222)
 
 #### Parameters
 
@@ -48,7 +47,7 @@ Defined in: [packages/core/src/l0/errors.ts:224](https://github.com/o-stepper/ru
 | Property | Modifier | Type | Description | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-cause"></a> `cause?` | `public` | `unknown` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`cause`](/api/@rulvar/core/classes/RulvarError.md#property-cause) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts:24](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts#L24) |
-| <a id="property-code"></a> `code` | `readonly` | `"orchestrator_cap_config"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:222](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L222) |
+| <a id="property-code"></a> `code` | `readonly` | `"orchestrator_cap_config"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:220](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L220) |
 | <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L57) |
 | <a id="property-message"></a> `message` | `public` | `string` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`message`](/api/@rulvar/core/classes/RulvarError.md#property-message) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1075](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1075) |
 | <a id="property-name"></a> `name` | `public` | `string` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`name`](/api/@rulvar/core/classes/RulvarError.md#property-name) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1074](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1074) |

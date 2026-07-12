@@ -12,11 +12,10 @@ type Out<S> = S extends StandardSchemaV1 ? InferOutput<S> : S extends {
 } ? T : unknown;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Inferred output type per form: the Standard Schema output type; the
-type-guard target of validate(); unknown for a bare JSON Schema
-(docs/08, section "Out&lt;S&gt; inference").
+type-guard target of validate(); unknown for a bare JSON Schema.
 
 ## Type Parameters
 

@@ -16,12 +16,12 @@ type Usage = {
 };
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L139)
+Defined in: [packages/core/src/l0/messages.ts:132](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L132)
 
 Usage under the Usage invariant: inputTokens is the FULL prompt size
 including cache reads and cache writes. Adapters MUST normalize
 provider-reported usage to satisfy this invariant, and the core verifies
-it at the adapter boundary (docs/04, section "Usage invariant").
+it at the adapter boundary.
 
 ## Properties
 
@@ -31,7 +31,7 @@ it at the adapter boundary (docs/04, section "Usage invariant").
 cacheReadTokens: number;
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L142)
+Defined in: [packages/core/src/l0/messages.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L135)
 
 ***
 
@@ -41,7 +41,7 @@ Defined in: [packages/core/src/l0/messages.ts:142](https://github.com/o-stepper/
 cacheWriteTokens: number;
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L143)
+Defined in: [packages/core/src/l0/messages.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L136)
 
 ***
 
@@ -51,7 +51,7 @@ Defined in: [packages/core/src/l0/messages.ts:143](https://github.com/o-stepper/
 inputTokens: number;
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L140)
+Defined in: [packages/core/src/l0/messages.ts:133](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L133)
 
 ***
 
@@ -61,7 +61,7 @@ Defined in: [packages/core/src/l0/messages.ts:140](https://github.com/o-stepper/
 outputTokens: number;
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L141)
+Defined in: [packages/core/src/l0/messages.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L134)
 
 ***
 
@@ -71,4 +71,4 @@ Defined in: [packages/core/src/l0/messages.ts:141](https://github.com/o-stepper/
 optional reasoningTokens?: number;
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L144)
+Defined in: [packages/core/src/l0/messages.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L137)

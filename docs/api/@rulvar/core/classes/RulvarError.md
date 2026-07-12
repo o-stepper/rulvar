@@ -9,7 +9,7 @@
 Defined in: [packages/core/src/l0/errors.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L54)
 
 Base class for all engine-raised errors. "Retryable" means the engine's
-own retry machinery (RetryPolicy under the journal, docs/04) MAY retry;
+own retry machinery (RetryPolicy under the journal) MAY retry;
 it never means a provider SDK autoretry, which is disabled.
 
 ## Extends

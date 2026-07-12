@@ -14,7 +14,7 @@ type OnEscalation = (result) =>
 
 Defined in: [packages/core/src/runner/inprocess.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L33)
 
-Escalation hook (docs/06, section 2.10): decides for value-form calls.
+Escalation hook: decides for value-form calls.
 
 ## Parameters
 

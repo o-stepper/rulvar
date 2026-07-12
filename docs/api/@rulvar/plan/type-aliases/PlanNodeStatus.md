@@ -19,6 +19,7 @@ type PlanNodeStatus =
   | "skipped";
 ```
 
-Defined in: [packages/plan/src/plan-state.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-state.ts#L26)
+Defined in: [packages/plan/src/plan-state.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-state.ts#L29)
 
-The closed status machine (docs/07, 3.1); `skipped` is fold-derived for entries but first-class for plan nodes.
+The closed status machine; `skipped` is fold-derived for entries but
+first-class for plan nodes.

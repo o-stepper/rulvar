@@ -10,10 +10,10 @@
 function classifyAgentError(e): ErrorClass;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 task-class: schema-mismatch, terminal, non-retryable tool. transport,
-rate-limit, and budget are never memoized (docs/03, section 6.4).
+rate-limit, and budget are never memoized.
 
 ## Parameters
 

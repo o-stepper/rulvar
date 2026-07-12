@@ -10,11 +10,9 @@
 const ROLE_EFFORT_DEFAULTS: Partial<Record<InvocationRole, Effort>>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Role effort defaults (docs/04, section "Invocation roles and firing
-protocol"): orchestrate and plan default to high; summarize and extract
+Role effort defaults: orchestrate and plan default to high; summarize and extract
 default to low. loop and finalize have NO role default: when the chain
 resolves nothing, the wire omits effort and identity records the spec
-with the effort member absent (docs/04, section "Router and resolution
-chain", as amended).
+with the effort member absent.

@@ -1,7 +1,6 @@
 /**
- * The phases 1-2 measured-value checkpoint (M12-T01; docs/05, section
- * "Phases and placement"; the quantitative criteria of OQ-09,
- * 14-open-questions.md, closed at M11-T06). The M12 gate: kb_propose
+ * The phases 1-2 measured-value checkpoint (M12-T01; the quantitative
+ * criteria of OQ-09, closed at M11-T06). The M12 gate: kb_propose
  * and the proposal loop ship ONLY if the knowledge card demonstrably
  * improves tier and agentType selection on eval cases.
  *
@@ -77,7 +76,7 @@ export interface RunCheckpointOptions {
   suite?: RunEvalSuiteOptions;
   /**
    * Orchestrated runs need room for the orchestrator cap math (the
-   * run ceiling must host the finalize reserve; docs/07, 12.2): their
+   * run ceiling must host the finalize reserve): their
    * suite options default to `suite` but usually carry a larger
    * budgetUsd.
    */

@@ -2,8 +2,7 @@
  * FileModelKnowledgeStore (M10-T01): the default ModelKnowledgeStore, a
  * single JSON file in the project (`./rulvar.models.json`),
  * git-diffable, serverless, embeddable. The git review of that file IS
- * the human gate's medium (docs/05, sections "Data model" and "Format
- * decision rationale"); the store itself only enforces the mechanics:
+ * the human gate's medium; the store itself only enforces the mechanics:
  * CAS by monotonic version (mirroring the lease fencing discipline),
  * append-only claim evolution (supersede and archive flip status, never
  * delete), and atomic replace on write.
@@ -69,8 +68,8 @@ export function applyClaimOps(
         if (prior === undefined) {
           throw new ConfigError(`knowledge archive rejected: no claim with id '${op.claimId}'`);
         }
-        // Archive never deletes: historical runs keep their audit trail
-        // (docs/05, section "Grounding and decay"). The reason travels
+        // Archive never deletes: historical runs keep their audit trail.
+        // The reason travels
         // in the op and lands in the file's git history, not the file.
         prior.status = 'archived';
         break;
@@ -80,7 +79,7 @@ export function applyClaimOps(
         if (prior === undefined) {
           throw new ConfigError(`knowledge mark_stale rejected: no claim with id '${op.claimId}'`);
         }
-        // Canary drift (docs/05, section "Grounding and decay"; M11-T04):
+        // Canary drift (M11-T04):
         // active flips to stale; already-stale is an idempotent noop;
         // terminal statuses stay (superseded and archived never revive).
         if (prior.status === 'active') {
@@ -94,9 +93,9 @@ export function applyClaimOps(
 }
 
 export interface FileModelKnowledgeStoreOptions {
-  /** Default './rulvar.models.json' (docs/05, section "Data model"). */
+  /** Default './rulvar.models.json'. */
   path?: string;
-  /** docs/06, Appendix A: active claims per (model, taskClass); default 8. */
+  /** Active claims per (model, taskClass); default 8. */
   activeClaimsCap?: number;
 }
 
@@ -158,8 +157,7 @@ export class FileModelKnowledgeStore implements ModelKnowledgeStore {
       const claims = applyClaimOps(snapshot.claims, ops);
       // The editorial path is the ONLY committable path in phase 1:
       // eval-measured claims and metrics wait for the M11 committer
-      // identity; the attestation and the active-claims cap hold here
-      // (docs/05, section "The human gate"; docs/06, Appendix A).
+      // identity; the attestation and the active-claims cap hold here.
       validateEditorialCommit(ops, claims, { cap: this.activeClaimsCap });
       const next: KnowledgeSnapshot = {
         version: snapshot.version + 1,

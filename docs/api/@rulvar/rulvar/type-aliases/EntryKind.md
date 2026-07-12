@@ -25,8 +25,8 @@ type EntryKind =
   | "termination.denied";
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The single kinds registry v2 (docs/03, section "Kinds registry v2").
+The single kinds registry v2.
 Readers MUST tolerate unknown kinds; stores pass them through
 byte-for-byte (obligation A4).

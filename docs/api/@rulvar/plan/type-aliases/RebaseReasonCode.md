@@ -31,4 +31,4 @@ type RebaseReasonCode =
 
 Defined in: [packages/plan/src/plan-entries.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L87)
 
-The complete machine reason vocabulary, normative and closed (docs/07, 3.5).
+The complete machine reason vocabulary, normative and closed.

@@ -3,7 +3,7 @@
  * six invocation roles. The resolution chain itself lives in router.ts;
  * this module decides WHEN a role produces its own invocation.
  *
- * The six roles (docs/04, section "Invocation roles and firing protocol"):
+ * The six roles:
  *
  * - loop:        every turn while tools are available to the model (the
  *                agent loop in runtime/agent-loop.ts).
@@ -18,12 +18,11 @@
  * - plan,
  *   orchestrate: resolved through the same chain (router.ts takes any
  *                role tag); the modes that dispatch them land with
- *                @rulvar/plan (docs/10, M7). No trigger predicate here.
+ *                @rulvar/plan (M7). No trigger predicate here.
  *
- * Owning spec: docs/04-model-layer-spec.md, sections "Invocation roles
- * and firing protocol" and "Caps scrubbing and structured-output tier
- * selection" (M4-T01 amendment); docs/06-execution-spec.md, section
- * "Agent runtime binding".
+ * Docs: https://docs.rulvar.com/guide/model-routing (invocation roles,
+ * firing protocol, and tier selection per the M4-T01 amendment) and
+ * https://docs.rulvar.com/guide/agents (agent runtime binding).
  */
 import type { InvocationRole, ModelRef } from '../l0/messages.js';
 import type { StructuredOutputTier } from './caps.js';
@@ -40,7 +39,7 @@ export function canRideLoopTurn(tier: StructuredOutputTier, toolsAvailable: bool
   return tier !== 'forced-tool' || !toolsAvailable;
 }
 
-/** The inputs of the extract-necessity rule (docs/04, section 8.3, extract row). */
+/** The inputs of the extract-necessity rule. */
 export interface ExtractNecessityInput {
   /** A schema is set on the call; without one extract never fires. */
   schemaSet: boolean;
@@ -48,7 +47,7 @@ export interface ExtractNecessityInput {
   loopRef: ModelRef;
   /** The extract-resolved model (same chain, role 'extract'). */
   extractRef: ModelRef;
-  /** The required tier for the schema on the LOOP model (docs/04, section 8.4). */
+  /** The required tier for the schema on the LOOP model. */
   loopTier: StructuredOutputTier;
   /** The agent's toolset is non-empty (escalate opt-in counts). */
   toolsAvailable: boolean;
@@ -62,7 +61,7 @@ export interface ExtractNecessityInput {
  * to a different model OR the loop model's caps cannot serve the required
  * tier OR finalize is routed, in which case the schema never rides a loop
  * or synthesis turn). Otherwise the schema rides the last loop turn with
- * no extra call (docs/04, sections 8.3 and 8.4 as amended in M4-T01).
+ * no extra call (as amended in M4-T01).
  */
 export function needsSeparateExtract(input: ExtractNecessityInput): boolean {
   if (!input.schemaSet) {
@@ -80,7 +79,7 @@ export function needsSeparateExtract(input: ExtractNecessityInput): boolean {
  * map. This is the finalize TRIGGER: firing is decided by the presence of
  * a routing entry at any layer; the model it fires ON still resolves
  * through the full chain (a higher layer's all-roles `model` may override
- * the routed choice per docs/04, section 8.2).
+ * the routed choice).
  */
 export function roleConfiguredInRouting(
   role: InvocationRole,
@@ -92,8 +91,8 @@ export function roleConfiguredInRouting(
 /**
  * The finalize firing rule: only if configured in routing, and only after
  * tools stop, which presupposes a non-empty toolset. A no-tools agent's
- * single loop turn is already its synthesis (docs/04, section 8.4 as
- * amended in M4-T01). The caller additionally gates on the loop having
+ * single loop turn is already its synthesis (as amended in M4-T01). The
+ * caller additionally gates on the loop having
  * ended without an abort: a limit/error/cancelled/escalated loop never
  * reaches synthesis.
  */
@@ -103,7 +102,7 @@ export function finalizeFires(options: { routed: boolean; toolsAvailable: boolea
 
 /**
  * The summarize trigger: the compaction threshold on the context window
- * (docs/06, Appendix A: default 0.8). Pure predicate; the compaction
+ * (default 0.8). Pure predicate; the compaction
  * pipeline that acts on it is M4-T03.
  */
 export function atCompactionThreshold(

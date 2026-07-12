@@ -8,7 +8,7 @@
 
 Defined in: [packages/plan/src/ledger.ts:327](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L327)
 
-The draft-versioned outward seam (docs/07, 9.3; OQ in docs/14).
+The draft-versioned outward seam; the final shape stays an open question.
 
 ## Properties
 

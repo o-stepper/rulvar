@@ -6,7 +6,7 @@
 
 # Interface: RandIdentityInput
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Deterministic shims: ctx.now / ctx.random / ctx.uuid (kind 'rand').
 
@@ -14,6 +14,6 @@ Deterministic shims: ctx.now / ctx.random / ctx.uuid (kind 'rand').
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-key"></a> `key?` | `string` | ctx.random(key) provides a stable alternative to positional binding. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-kind"></a> `kind` | `"rand"` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-subtype"></a> `subtype` | `"now"` \| `"random"` \| `"uuid"` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-key"></a> `key?` | `string` | ctx.random(key) provides a stable alternative to positional binding. | `packages/core/dist/index.d.ts` |
+| <a id="property-kind"></a> `kind` | `"rand"` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-subtype"></a> `subtype` | `"now"` \| `"random"` \| `"uuid"` | - | `packages/core/dist/index.d.ts` |

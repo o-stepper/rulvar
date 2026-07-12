@@ -29,10 +29,10 @@ type PermissionVerdict =
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ## Type Declaration
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `advisory?` | [`PermissionRule`](/api/@rulvar/rulvar/type-aliases/PermissionRule.md)[] | Advisory domain-rule matches (docs/08, 4.4): reported in audit events, never enforced outside the first-party fetch tool. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| `advisory?` | [`PermissionRule`](/api/@rulvar/rulvar/type-aliases/PermissionRule.md)[] | Advisory domain-rule matches: reported in audit events, never enforced outside the first-party fetch tool. | `packages/core/dist/index.d.ts` |

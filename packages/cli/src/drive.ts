@@ -1,7 +1,7 @@
 /**
  * The run/suspend/resolve/resume loop shared by `rulvar run` and
- * `rulvar resume` (docs/02, section 8.1: the CLI performs interactive
- * resolution of suspended approvals and external inputs). Prompts read
+ * `rulvar resume` (the CLI performs interactive resolution of suspended
+ * approvals and external inputs). Prompts read
  * one line per pending suspension; EOF leaves the run suspended with a
  * notice, never an error.
  */
@@ -85,7 +85,7 @@ export async function driveRun(options: {
   workflow: Workflow<never, unknown>;
   first: RunHandle<unknown>;
   io: CliIo;
-  /** Original run arguments: not journaled in v1, the host re-supplies them (docs/14). */
+  /** Original run arguments: not journaled in v1, the host re-supplies them. */
   args?: unknown;
 }): Promise<RunOutcome<unknown>> {
   let handle = options.first;

@@ -3,9 +3,7 @@
 * L0 JSON value domain.
 *
 * Everything that enters the journal (entry values, error data, artifacts)
-* MUST be JSON-serializable (docs/03-journal-spec.md, section "Two-phase
-* entries, dispatch, and the budget ledger"); `Json` is the type-level face
-* of that rule.
+* MUST be JSON-serializable; `Json` is the type-level face of that rule.
 */
 type Json = null | boolean | number | string | Json[] | {
   [key: string]: Json;
@@ -26,16 +24,16 @@ type WireError = {
   data?: Json;
 };
 /**
-* The closed error-code registry (docs/02, section "Error taxonomy").
+* The closed error-code registry.
 * 'agent' is carried by the AgentError value projection, not by a
 * RulvarError subclass.
 */
 type ErrorCode = "agent" | "config" | "non_serializable_value" | "script_rejected" | "journal_compat" | "invalid_resolution" | "journal_order_violation" | "plan_invariant" | "replay_plan_hash_mismatch" | "orchestrator_cap_config" | "journal_miss" | "budget_exhausted" | "admission_rejected" | "sandbox_limit" | "lease_held" | "knowledge_cas";
-/** docs/02 names the registry type RulvarErrorCode; both names are public. */
+/** An alias for the registry type; both names are public. */
 type RulvarErrorCode = ErrorCode;
 /**
 * Base class for all engine-raised errors. "Retryable" means the engine's
-* own retry machinery (RetryPolicy under the journal, docs/04) MAY retry;
+* own retry machinery (RetryPolicy under the journal) MAY retry;
 * it never means a provider SDK autoretry, which is disabled.
 */
 declare abstract class RulvarError extends Error {
@@ -84,12 +82,12 @@ declare class ScriptRejected extends RulvarError {
     cause?: unknown;
   });
 }
-/** Sub-code detail of JournalCompatibilityError (docs/03, section "hashVersion"). */
+/** Sub-code detail of JournalCompatibilityError. */
 type JournalCompatSubCode = "HASH_VERSION_TOO_OLD" | "HASH_VERSION_TOO_NEW";
 /**
 * Refusal to open a journal whose hashVersion falls outside the engine's
-* support window (docs/03, section "hashVersion"; producers ship in M2).
-* The registry code is 'journal_compat'; the docs/03 sub-codes live on
+* support window (producers ship in M2).
+* The registry code is 'journal_compat'; the sub-codes live on
 * `subCode` and in `data`.
 */
 declare class JournalCompatibilityError extends RulvarError {
@@ -119,8 +117,7 @@ declare class JournalCompatibilityError extends RulvarError {
 }
 /**
 * A resolution attempt against an already-closed suspension, rejected under
-* the first-closing-wins fold; appends no entry (docs/03, section
-* "Suspension and resolutions"; producers ship in M2).
+* the first-closing-wins fold; appends no entry (producers ship in M2).
 */
 declare class InvalidResolutionError extends RulvarError {
   readonly code = "invalid_resolution";
@@ -131,7 +128,7 @@ declare class InvalidResolutionError extends RulvarError {
 }
 /**
 * A breach of the total per-run append order: an unfenced concurrent writer
-* or a store violating contract A2 (docs/03, section "Storage SPI").
+* or a store violating contract A2 (https://docs.rulvar.com/guide/stores).
 */
 declare class JournalOrderViolation extends RulvarError {
   readonly code = "journal_order_violation";
@@ -140,7 +137,7 @@ declare class JournalOrderViolation extends RulvarError {
     cause?: unknown;
   });
 }
-/** PlanRunner plan-invariant rejection (docs/07; producers ship in M7). */
+/** PlanRunner plan-invariant rejection (producers ship in M7). */
 declare class PlanInvariantError extends RulvarError {
   readonly code = "plan_invariant";
   constructor(message: string, opts?: {
@@ -150,7 +147,7 @@ declare class PlanInvariantError extends RulvarError {
 }
 /**
 * Raised at resume when the refolded plan state disagrees with the
-* journaled planHash chain (docs/07; producers ship in M7).
+* journaled planHash chain (producers ship in M7).
 */
 declare class ReplayPlanHashMismatch extends RulvarError {
   readonly code = "replay_plan_hash_mismatch";
@@ -161,8 +158,7 @@ declare class ReplayPlanHashMismatch extends RulvarError {
 }
 /**
 * Invalid orchestrator cap and finalize-reserve configuration, thrown
-* before the first LLM call (docs/06, section "Three-layer budget", DEF-7;
-* producers ship in M6/M7).
+* before the first LLM call (DEF-7; producers ship in M6/M7).
 */
 declare class OrchestratorCapConfigError extends RulvarError {
   readonly code = "orchestrator_cap_config";
@@ -185,8 +181,7 @@ declare class JournalMissError extends RulvarError {
 /**
 * The run budget ceiling blocked further work. The budget guard denial is
 * a decision entry; ctx primitives throw this as AgentError kind 'budget';
-* the run reports outcome 'exhausted', overriding 'error' (docs/06, section
-* "Three-layer budget").
+* the run reports outcome 'exhausted', overriding 'error'.
 */
 declare class BudgetExhaustedError extends RulvarError {
   readonly code = "budget_exhausted";
@@ -197,13 +192,12 @@ declare class BudgetExhaustedError extends RulvarError {
 }
 /**
 * A structural admission rejection (maxDepth, maxChildrenPerNode,
-* maxTotalSpawns) from the AdmissionController (docs/07, section
-* "AdmissionController"; M6-T06). The rejection verdict is embedded in
+* maxTotalSpawns) from the AdmissionController (M6-T06). The rejection verdict is embedded in
 * the carrying spawn-admission decision entry and replays identically;
 * the error surfaces the embedded AdmitRejectReason in `data` to the
 * caller (a typed tool error for orchestrators) and MUST NOT tear down
 * the run. Budget-code rejections throw BudgetExhaustedError instead,
-* keeping the docs/06 5.7 exhaustion semantics.
+* keeping the budget exhaustion semantics (https://docs.rulvar.com/guide/budgets).
 */
 declare class AdmissionRejectedError extends RulvarError {
   readonly code = "admission_rejected";
@@ -213,8 +207,8 @@ declare class AdmissionRejectedError extends RulvarError {
   });
 }
 /**
-* A WorkerSandboxRunner resource-limit breach (docs/06, section 8.2;
-* M6-T02): crossing timeoutMs or memoryMb terminates the worker and the
+* A WorkerSandboxRunner resource-limit breach (M6-T02): crossing
+* timeoutMs or memoryMb terminates the worker and the
 * run completes with outcome 'error' carrying this error's WireError
 * projection; `data` records { reason: 'timeout' | 'memory', limit }.
 * The class itself is never journaled as an entry of its own.
@@ -228,8 +222,7 @@ declare class SandboxError extends RulvarError {
 }
 /**
 * acquire() on a currently held lease. Retryable by contract: retry after
-* the lease ttl elapses or the holder releases (docs/03, section
-* "Storage SPI").
+* the lease ttl elapses or the holder releases.
 */
 declare class LeaseHeldError extends RulvarError {
   readonly code = "lease_held";
@@ -241,8 +234,7 @@ declare class LeaseHeldError extends RulvarError {
 /**
 * commit() on a ModelKnowledgeStore against a snapshot version that is
 * no longer current. Retryable by contract: re-read current(), rebase
-* the ops, commit again, mirroring the lease fencing discipline
-* (docs/05, section "Commit discipline").
+* the ops, commit again, mirroring the lease fencing discipline.
 */
 declare class KnowledgeCasError extends RulvarError {
   readonly code = "knowledge_cas";
@@ -252,8 +244,8 @@ declare class KnowledgeCasError extends RulvarError {
   });
 }
 /**
-* The vendored Standard Schema issue shape (docs/06, section "Canonical Ctx
-* interface"): validation issues carried on AgentError and surfaced to the
+* The vendored Standard Schema issue shape: validation issues carried
+* on AgentError and surfaced to the
 * model during bounded schema re-prompts.
 */
 type Issue$1 = {
@@ -264,8 +256,7 @@ type Issue$1 = {
 };
 /**
 * The structured error value carried on AgentResult.error and journaled
-* inside the agent terminal entry. Deliberately NOT a RulvarError subclass
-* (docs/02, section "Error taxonomy").
+* inside the agent terminal entry. Deliberately NOT a RulvarError subclass.
 */
 type AgentError = {
   kind: "transport" | "rate-limit" | "schema-mismatch" | "tool" | "budget" | "terminal";
@@ -275,8 +266,8 @@ type AgentError = {
 };
 /**
 * Projects an AgentError to its WireError form: code 'agent', with kind,
-* retryAfterMs, and issues carried in data (docs/02, section "Error
-* taxonomy"). Issue paths are flattened to JSON-safe segments.
+* retryAfterMs, and issues carried in data. Issue paths are flattened to
+* JSON-safe segments.
 */
 declare function agentErrorToWire(error: AgentError, message: string): WireError;
 /**
@@ -290,14 +281,12 @@ type Role = "system" | "user" | "assistant" | "tool";
 /**
 * Engine-minted ULID identifying a tool call across providers. The library,
 * not the provider, mints tool-call ids; each adapter keeps a bijective map
-* between canonical ids and wire ids (toolu_* / call_*) in both directions
-* (docs/04, section "Canonical tool-call ids").
+* between canonical ids and wire ids (toolu_* / call_*) in both directions.
 */
 type CanonicalId = string;
 /**
 * Returns a per-engine minter of CanonicalId values. Monotonic within the
-* factory instance; never a module-level singleton (docs/02, section
-* "Dependency rules": no module state).
+* factory instance; never a module-level singleton (no module state).
 */
 declare function createCanonicalIdMinter(options?: {
   now?: () => number;
@@ -312,8 +301,7 @@ interface Msg {
 * The canonical part union. provider-raw parts carry opaque provider blocks
 * that must survive round trips (thinking blocks with signatures, reasoning
 * items including encrypted_content). Retention is unconditional; dropping
-* happens only in projection, never in retention (docs/04, section
-* "Messages and parts").
+* happens only in projection, never in retention.
 */
 type Part = {
   type: "text";
@@ -340,16 +328,14 @@ type Part = {
 };
 /**
 * A JSON Schema document (draft 2020-12) as plain JSON data. Canonical
-* serialization and hashing rules live with the KeyDeriver (docs/03,
-* section "schemaHash and toolsetHash derivation").
+* serialization and hashing rules live with the KeyDeriver.
 */
 type JsonSchema = {
   [key: string]: unknown;
 };
 /**
 * The identity-bearing tool contract: exactly what the model sees and
-* exactly what toolsetHash hashes. Never contains execute or any closure
-* (docs/08, section "Tool definition and toolsetHash").
+* exactly what toolsetHash hashes. Never contains execute or any closure.
 */
 interface ToolContract {
   name: string;
@@ -364,7 +350,7 @@ type ToolChoice = "auto" | "none" | "required" | {
 };
 /**
 * Canonical effort: exactly five levels, a string-literal union, never a TS
-* enum (docs/04, section "Canonical effort"). OpenAI 'none' has no
+* enum. OpenAI 'none' has no
 * canonical equivalent and is reachable only via providerOptions.
 */
 type Effort = "low" | "medium" | "high" | "xhigh" | "max";
@@ -372,7 +358,7 @@ type CacheTtl = "5m" | "1h";
 /**
 * Provider-neutral declaration of intended prompt-cache boundaries.
 * Transport-level cost optimization only: MUST NOT enter IdentityInput and
-* MUST NOT change response semantics (docs/04, section "cacheHint").
+* MUST NOT change response semantics.
 */
 interface CacheHint {
   /** Desired cache boundaries, ordered from shallowest to deepest prefix. */
@@ -388,8 +374,7 @@ interface CacheHint {
 * top_p, top_k) are deliberately absent from the first-class surface: both
 * first-class providers reject them on current reasoning models; where a
 * target legitimately supports them they travel through the adapter's
-* providerOptions namespace, subject to caps scrubbing (docs/04, section
-* "ChatRequest").
+* providerOptions namespace, subject to caps scrubbing.
 */
 interface ChatRequest {
   /** Wire model id: the segment after 'adapterId:' in ModelRef. */
@@ -410,8 +395,7 @@ interface ChatRequest {
   * adapter MUST read only its own namespace and MUST ignore unknown
   * namespaces without error. Canonical fields always win where both
   * express the same thing; a namespaced option silently contradicting a
-  * canonical field is a typed ConfigError (docs/04, section
-  * "providerOptions and providerMetadata namespacing").
+  * canonical field is a typed ConfigError.
   */
   providerOptions?: Record<string, Record<string, unknown>>;
 }
@@ -419,7 +403,7 @@ interface ChatRequest {
 * Usage under the Usage invariant: inputTokens is the FULL prompt size
 * including cache reads and cache writes. Adapters MUST normalize
 * provider-reported usage to satisfy this invariant, and the core verifies
-* it at the adapter boundary (docs/04, section "Usage invariant").
+* it at the adapter boundary.
 */
 type Usage = {
   inputTokens: number;
@@ -441,7 +425,7 @@ interface RefusalInfo {
 /**
 * Typed finish outcomes. A refusal MUST surface as a typed finish outcome
 * carrying the provider stop details; it MUST NOT be projected to a null
-* output silently (docs/04, section "Finish outcomes and typed refusal").
+* output silently.
 */
 type FinishInfo = {
   reason: "stop";
@@ -458,7 +442,7 @@ type FinishInfo = {
 /**
 * The single canonical stream-event vocabulary yielded by
 * ProviderAdapter.stream. Adapters MUST emit exactly one terminal event per
-* stream (finish or error) (docs/04, section "ChatEvent stream").
+* stream (finish or error).
 */
 type ChatEvent = {
   type: "text-delta";
@@ -490,13 +474,12 @@ type ChatEvent = {
   type: "error";
   error: WireError;
 };
-/** Strictly 'adapterId:model', no query parameters (docs/04, section "Registry and ModelRef"). */
+/** Strictly 'adapterId:model', no query parameters. */
 type ModelRef = `${string}:${string}`;
 type InvocationRole = "orchestrate" | "plan" | "loop" | "finalize" | "extract" | "summarize";
 /**
 * What authors write wherever a model is configurable: a call override, an
-* agent profile, a workflow default, or an engine default (docs/04, section
-* "Router and resolution chain").
+* agent profile, a workflow default, or an engine default.
 */
 type ModelSpec = ModelRef | ModelChoice | {
   ladder: LadderSpec;
@@ -505,19 +488,18 @@ interface ModelChoice {
   model: ModelRef;
   /** Absent: resolved by the chain, including role effort defaults. */
   effort?: Effort;
-  /** Namespaced by adapter id (docs/04, section "providerOptions and providerMetadata namespacing"). */
+  /** Namespaced by adapter id. */
   providerOptions?: Record<string, Record<string, unknown>>;
-  /** Transport-failure failover list; never enters identity (docs/04, section "RetryPolicy and failover"). */
+  /** Transport-failure failover list; never enters identity. */
   fallbacks?: ModelRef[];
 }
 /**
 * Identity-facing canonical form of a RESOLVED model request; the value
-* that enters AgentIdentityInput.modelSpec (docs/03, section "Identity
-* model"). providerOptions and fallbacks NEVER enter this form: they are
+* that enters AgentIdentityInput.modelSpec.
+* providerOptions and fallbacks NEVER enter this form: they are
 * delivery options, excluded from identity exactly like label, phase,
 * onError, retry, and replay. `effort` is absent exactly when no layer of
-* the chain and no role effort default resolves one (docs/04, section
-* "Router and resolution chain").
+* the chain and no role effort default resolves one.
 */
 type CanonicalModelSpec = {
   kind: "model";
@@ -530,7 +512,7 @@ type CanonicalModelSpec = {
 type TriggerClass = "error" | "limit" | "schema-exhausted" | "verify-failed" | "no-progress";
 /**
 * Ladder acceptance gates. Spot-check sibling selection is strictly via
-* ctx.random, never Math.random (docs/04, section "ModelLadder summary").
+* ctx.random, never Math.random.
 */
 type Gate = {
   kind: "mechanical";
@@ -544,7 +526,7 @@ type Gate = {
 };
 /**
 * The author-facing ladder declaration. This is the SINGLE declaration of
-* the ladder family: docs/07 references it and never redeclares (runtime
+* the ladder family: other layers reference it and never redeclare (runtime
 * semantics land in M7).
 */
 interface LadderSpec {
@@ -570,7 +552,7 @@ interface CanonicalLadderSpec {
     maxCostUsd?: number;
     memoizeOutcome?: boolean;
   }>;
-  /** After clamping of any orchestrator model_hint (docs/07). */
+  /** After clamping of any orchestrator model_hint. */
   startTier: number;
   escalateOn: TriggerClass[];
   acceptance?: Gate[];
@@ -581,29 +563,27 @@ interface CanonicalLadderSpec {
 * Versions the ENTIRE identity and replay pipeline as one unit: canonical
 * JSON algorithm, identity field sets, hash function, schema/toolset hash
 * derivation, scope grammar and ordinal rules, replay predicate, fold
-* defaults, and the kind/status vocabularies (docs/03, section
-* "hashVersion").
+* defaults, and the kind/status vocabularies.
 */
 type HashVersion = number;
 /** 1 = round 1; 2 = current. */
 declare const CURRENT_HASH_VERSION: HashVersion;
 /**
-* The single kinds registry v2 (docs/03, section "Kinds registry v2").
+* The single kinds registry v2.
 * Readers MUST tolerate unknown kinds; stores pass them through
 * byte-for-byte (obligation A4).
 */
 type EntryKind = "agent" | "step" | "child" | "external" | "approval" | "rand" | "decision" | "plan.revision" | "plan.decision" | "ledger.op" | "resolution" | "abandon" | "node.link" | "termination.init" | "termination.denied";
 /**
 * The stored status vocabulary, exactly. 'skipped' is DELIBERATELY absent:
-* it is a derived fold status, never persisted (docs/03, section "Stored
-* status vocabulary").
+* it is a derived fold status, never persisted.
 */
 type EntryStatus = "running" | "ok" | "error" | "limit" | "suspended" | "cancelled" | "escalated";
-/** The canonical EntryRef between entries is seq (docs/03, section "Full entry identity"). */
+/** The canonical EntryRef between entries is seq. */
 type EntryRef = number;
-/** The journaled by-source of a resolution (docs/03, section 8.6 mapping table). */
+/** The journaled by-source of a resolution. */
 type ResolutionBy = "external" | "timeout" | "class_decision" | "operator" | "quiescence" | "engine_fallback";
-/** Payload of resolution ref-entries (docs/03, section 8.6; DEF-4). */
+/** Payload of resolution ref-entries (DEF-4). */
 type ResolutionPayload = {
   /** Duplicates ref for self-description. */target: number;
   by: ResolutionBy; /** awaitExternal resolution / EscalationDecision / WakeDigest. */
@@ -612,7 +592,7 @@ type ResolutionPayload = {
   logicalTaskId?: string; /** Only on escalation resolutions (DEF-3, M7). */
   countsAgainstLimit?: boolean;
 };
-/** Payload of abandon ref-entries (docs/03, section 8.6; DEF-4/DEF-5). */
+/** Payload of abandon ref-entries (DEF-4/DEF-5). */
 type AbandonPayload = {
   /** Seq of the abandoned branch's spawn entry. */target: number; /** Seq of the plan.revision or decision entry sanctioning it. */
   authorizedBy: number;
@@ -623,7 +603,7 @@ type AbandonPayload = {
   retainWorktree?: boolean;
 };
 /**
-* Final entry form (hashVersion 2; docs/03, section "JournalEntry form").
+* Final entry form (hashVersion 2).
 * All journaled values MUST be JSON-serializable; a violation raises a
 * typed NonSerializableValueError at the call site. append is serialized
 * by a per-run queue.
@@ -652,21 +632,20 @@ type JournalEntry = {
   /**
   * Terminal agent entries: the Artifact list (worktree patch refs and
   * inline values); rides the terminal payload so replay reconstructs
-  * AgentResult.artifacts without live calls (docs/06, section 2.1).
+  * AgentResult.artifacts without live calls.
   */
   artifacts?: Json;
   /**
   * Terminal escalated entries ONLY: the schema-validated
   * EscalationReport with runtime-filled costToDate and salvage; replay
-  * synthesizes the byte-identical report from here (docs/03, section
-  * 5.4; DEF-1).
+  * synthesizes the byte-identical report from here (DEF-1).
   */
   escalation?: Json; /** Only when kind === 'resolution'. */
   resolution?: ResolutionPayload; /** Only when kind === 'abandon'. */
   abandon?: AbandonPayload;
   /**
-  * Policy field on agent entries, fixed in the payload at dispatch time
-  * (docs/03, section "Normative payload schemas"): the M2 predicate reads
+  * Policy field on agent entries, fixed in the payload at dispatch
+  * time: the M2 predicate reads
   * the flag from the ENTRY, never from current code. Excluded from
   * identity like every policy field.
   */
@@ -676,7 +655,7 @@ type JournalEntry = {
   startedAt: string;
   endedAt?: string;
 };
-/** Rand-entry payload (docs/03, section "Normative payload schemas"). */
+/** Rand-entry payload. */
 type RandPayload = {
   subtype: "now";
   value: number;
@@ -691,8 +670,7 @@ type RandPayload = {
 /**
 * Round-1 normalization: hashVersion is taken from `hashVersion`, else
 * from the legacy `v` field, else 1. Stores are never rewritten;
-* normalization happens at read (docs/03, section "The single versioning
-* mechanism").
+* normalization happens at read.
 */
 declare function normalizeEntry(raw: unknown): JournalEntry;
 //#endregion
@@ -706,8 +684,7 @@ type Lease = {
 /**
 * Run-level metadata written by the ENGINE via putMeta as a separate
 * record, so listRuns never parses payloads. The hashVersion range fields
-* are advisory only; the journal is authoritative (docs/03, section
-* "RunMeta").
+* are advisory only; the journal is authoritative.
 */
 type RunMeta = {
   runId: string;
@@ -736,8 +713,7 @@ interface JournalStore {
 /**
 * Lease capability: acquire on a held lease MUST reject with a typed
 * LeaseHeldError; renew MUST run at an interval of at most ttl/3; an
-* append carrying a stale epoch MUST be rejected and never appear in load
-* (docs/03, section "LeasableStore").
+* append carrying a stale epoch MUST be rejected and never appear in load.
 */
 interface LeasableStore extends JournalStore {
   acquire(runId: string, owner: string): Promise<Lease>;
@@ -928,13 +904,12 @@ type SchemaPair<T = unknown> = {
 /**
 * The L0 schema contract with exactly three accepted forms: a Standard
 * Schema (Zod, ArkType, Valibot, ...), a { jsonSchema, validate } pair, or
-* a bare JSON Schema literal (docs/08, section "The three forms").
+* a bare JSON Schema literal.
 */
 type SchemaSpec<T = unknown> = StandardSchemaV1<unknown, T> | SchemaPair<T> | JsonSchema;
 /**
 * Inferred output type per form: the Standard Schema output type; the
-* type-guard target of validate(); unknown for a bare JSON Schema
-* (docs/08, section "Out<S> inference").
+* type-guard target of validate(); unknown for a bare JSON Schema.
 */
 type Out<S> = S extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<S> : S extends {
   validate: (value: unknown) => value is infer T;
@@ -948,8 +923,7 @@ declare function isStandardSchemaSpec(spec: SchemaSpec): spec is StandardSchemaV
 /** Form-2 guard: an explicit { jsonSchema, validate } pair. */
 declare function isSchemaPairSpec(spec: SchemaSpec): spec is SchemaPair;
 /**
-* Derives the JSON Schema of a SchemaSpec (docs/08, section "JSON Schema
-* derivation and acceptance rules"). Form 1 projects via the
+* Derives the JSON Schema of a SchemaSpec. Form 1 projects via the
 * StandardJSONSchemaV1 input() converter, target draft 2020-12 with
 * draft-07 fallback; a library without the projection is a typed
 * ConfigError at definition time, never at first call. Transforming
@@ -958,8 +932,7 @@ declare function isSchemaPairSpec(spec: SchemaSpec): spec is SchemaPair;
 */
 declare function projectToJsonSchema(spec: SchemaSpec): JsonSchema;
 /**
-* Canonical schema derivation (docs/03, section "schemaHash and
-* toolsetHash derivation"): local fragment-only $ref inlined (recursion is
+* Canonical schema derivation: local fragment-only $ref inlined (recursion is
 * a ConfigError), remote and dynamic references forbidden, annotation
 * keywords stripped (format retained), reference infrastructure ($defs,
 * definitions, $anchor) removed once inlined. The result feeds JCS
@@ -968,8 +941,7 @@ declare function projectToJsonSchema(spec: SchemaSpec): JsonSchema;
 declare function canonicalizeSchema(schema: JsonSchema): JsonSchema;
 /**
 * The schemaHash used when no structured-output schema is declared: the
-* hash of the canonical `true` schema (docs/03, section "schemaHash and
-* toolsetHash derivation").
+* hash of the canonical `true` schema.
 */
 declare const EMPTY_SCHEMA_HASH: string;
 /** The toolsetHash of an empty toolset: the hash of the canonical empty contract array. */
@@ -986,8 +958,7 @@ declare function schemaHashOfSpec(spec: SchemaSpec | undefined): string;
 * contract tuples (name, description, canonical parameters, version)
 * sorted by name. Tool description IS part of the contract; schema
 * annotations inside parameters are not. An absent version participates as
-* absent (docs/03, section "schemaHash and toolsetHash derivation";
-* docs/08, section "toolsetHash contract").
+* absent.
 */
 declare function toolsetHash(contracts: ToolContract[]): string;
 /** Result of validating a value against a SchemaSpec. */
@@ -999,7 +970,7 @@ type SchemaValidationResult<T = unknown> = {
   issues: Issue$1[];
 };
 /**
-* Runtime validation per form (docs/08, section "Runtime validation"):
+* Runtime validation per form:
 * form 1 via the Standard Schema's own validate, form 2 via the pair's
 * type guard, form 3 via the vendored draft 2020-12 validator. The same
 * machinery backs the structured-output tiers of the Agent Runtime.
@@ -1008,8 +979,8 @@ declare function validateSchemaSpec<S extends SchemaSpec>(spec: S, value: unknow
 //#endregion
 //#region src/l0/spi/provider.d.ts
 /**
-* Per-model pricing in USD per million tokens (docs/04, section
-* "Pricing"). The registry's versioned price table wins over adapter-
+* Per-model pricing in USD per million tokens. The registry's
+* versioned price table wins over adapter-
 * reported caps.pricing, which is a fallback only.
 */
 interface Pricing {
@@ -1035,8 +1006,8 @@ interface ProviderAdapter {
   /** Stable adapter id; the left segment of ModelRef. */
   id: string;
   /**
-  * Provider family for provider-raw matching and retention (docs/04,
-  * section 2.3; committed during M4-T02). Two adapters of the same
+  * Provider family for provider-raw matching and retention (committed
+  * during M4-T02). Two adapters of the same
   * family share retained blocks and projections; default = id.
   */
   provider?: string;
@@ -1050,7 +1021,7 @@ interface ProviderAdapter {
 //#region src/l0/spi/isolation.d.ts
 /**
 * The canonical identity encoding of spawn isolation: this exact value
-* domain enters spawn identity (docs/03, section "Identity model").
+* domain enters spawn identity.
 * 'readonly' is a determinism and blast-radius declaration, not
 * containment.
 */
@@ -1076,19 +1047,18 @@ interface IsolationProvider {
 //#region src/l0/spi/toolsource.d.ts
 /**
 * Declarative risk metadata on the tool contract. Policy input, not
-* identity: it does NOT enter toolsetHash (docs/08, section "Risk
-* metadata and permission presets").
+* identity: it does NOT enter toolsetHash.
 */
 type ToolRisk = "read" | "write" | "network" | "execute" | "destructive";
 /**
 * The context handed to execute (and to permission hooks and canUseTool).
 * Deliberately exposes NO spawn primitives: tools are leaves of the
 * call-and-return tree (invariant I3); all spawning flows through Ctx
-* primitives (docs/08, section "ToolContext").
+* primitives.
 */
 interface ToolContext {
   runId: string;
-  /** Tool span in the run > phase > agent > tool hierarchy (docs/09). */
+  /** Tool span in the run > phase > agent > tool hierarchy. */
   spanId: string;
   agent: {
     agentType: string;
@@ -1106,23 +1076,21 @@ interface ToolContext {
 /**
 * Where execute runs. A declared capability consumed by dispatch and
 * policy; only 'inprocess' is enforced in v1, subprocess/container remain
-* declared capability until the executor spec closes (docs/08, section
-* "Executors"; OQ in docs/14).
+* declared capability while the executor design stays an open question.
 */
 type ToolExecutor = "inprocess" | "subprocess" | "container";
 /**
 * A defined tool. The identity projection is the ToolContract
 * { name, description, parameters, version }: exactly what the model sees
 * and exactly what toolsetHash hashes; execute and every other
-* non-contract field are excluded by construction (docs/08, section
-* "tool() definition and ToolDef").
+* non-contract field are excluded by construction.
 */
 interface ToolDef<S extends SchemaSpec = SchemaSpec> {
   readonly kind: "tool";
   readonly name: string;
   readonly description: string;
   readonly parameters: S;
-  /** Opaque contract version; part of toolsetHash (docs/08, section 1.2). */
+  /** Opaque contract version; part of toolsetHash. */
   readonly version?: string;
   /** Default 'inprocess'. */
   readonly executor: ToolExecutor;
@@ -1139,7 +1107,7 @@ interface ToolSourceSession {
 * The ToolSource seam: tools() yields the source's current ToolDefs. The
 * toolset snapshot for a given agent spawn is captured at spawn time and
 * hashed into the spawn's identity via toolsetHash; a mid-run change MUST
-* NOT mutate an in-flight agent's toolset (docs/08, section "MCP bus").
+* NOT mutate an in-flight agent's toolset.
 */
 interface ToolSource {
   id: string;
@@ -1149,7 +1117,7 @@ interface ToolSource {
 //#region src/l0/spi/knowledge.d.ts
 /**
 * Task-class vocabulary aligned with the role quality floors vocabulary
-* (docs/04, section "Role quality floors"). Scopeless global statements
+* (https://docs.rulvar.com/guide/model-routing). Scopeless global statements
 * are inexpressible: every claim binds a taskClass.
 */
 type TaskClass = "code-edit" | "investigation" | "synthesis" | "extraction" | "planning" | "judging" | (string & {});
@@ -1196,7 +1164,7 @@ interface ModelClaim {
   confidence: "high" | "medium" | "low";
   /** ISO date. */
   observedAt: string;
-  /** TTL by class and polarity (docs/05, section "Grounding and decay"). */
+  /** TTL by class and polarity (the grounding and decay rules). */
   expiresAt: string;
   /** Honestly best-effort drift signal. */
   modelEpoch?: {
@@ -1269,7 +1237,7 @@ type ClaimOp = {
   reason: "canary-drift";
 };
 /**
-* The SPI seam (docs/05, section "Data model"). commit performs CAS on
+* The SPI seam. commit performs CAS on
 * the monotonic snapshot version, mirroring the fencing-epoch
 * discipline of LeasableStore; concurrent maintenance commits serialize
 * through CAS rejection and rebase. commit is UNREACHABLE from the
@@ -1282,13 +1250,13 @@ interface ModelKnowledgeStore {
 /**
 * The runtime handle: with propose() deleted from the design and
 * commit absent from this shape, a run has no write path into the
-* cross-run medium at all (docs/05, section "Security", channel 3).
+* cross-run medium at all.
 */
 type ModelKnowledgeHandle = Pick<ModelKnowledgeStore, "current">;
 //#endregion
 //#region src/knowledge/decay.d.ts
 /**
-* The asymmetric TTL table (docs/05, section "Grounding and decay"):
+* The asymmetric TTL table:
 * a false negative is costlier through lock-in, so weaknesses expire
 * sooner than strengths.
 */
@@ -1304,37 +1272,37 @@ declare const CLAIM_TTL_DAYS: {
 };
 /** Inbox proposals expire after 14 days (reserved for M12 phase 3). */
 declare const INBOX_PROPOSAL_TTL_DAYS = 14;
-/** The docs/05 TTL applied to an observedAt ISO date. */
+/** The asymmetric TTL applied to an observedAt ISO date. */
 declare function claimExpiry(claimClass: ModelClaim["class"], polarity: ModelClaim["polarity"], observedAt: string): string;
-/** True when the claim steers nothing at `at` (docs/05, read-path filters). */
+/** True when the claim steers nothing at `at` (the read-path filter). */
 declare function claimExpired(claim: Pick<ModelClaim, "expiresAt">, at: string): boolean;
 /** The TTL state a maintenance view renders per claim. */
 type TtlState = "holds" | "expired";
 declare function ttlState(claim: Pick<ModelClaim, "expiresAt">, at: string): TtlState;
 /**
-* The re-measurement queue (docs/05, section "Grounding and decay"):
+* The re-measurement queue:
 * expired eval-measured claims that are still ACTIVE. Just a status
 * filter: the next sweep re-measures these subjects; nothing archives
 * them (archiving would empty the queue and hide the decay).
 */
 declare function remeasureQueue(claims: readonly ModelClaim[], at: string): ModelClaim[];
 /**
-* Deprecation maintenance (docs/05: "deprecations, which archive
-* claims, never delete them, so historical runs keep their audit
-* trail"): archive ops for every non-terminal claim of the deprecated
+* Deprecation maintenance (deprecations archive claims, never delete
+* them, so historical runs keep their audit trail): archive ops for
+* every non-terminal claim of the deprecated
 * models. The caller commits them under its own gate-free archive ops.
 */
 declare function archiveDeprecatedModelOps(claims: readonly ModelClaim[], deprecated: readonly ModelRef[]): ClaimOp[];
 //#endregion
 //#region src/knowledge/claims.d.ts
-/** docs/06, Appendix A: KB active-claims cap, default 8 per (model, taskClass). */
+/** Appendix A: KB active-claims cap, default 8 per (model, taskClass). */
 declare const KB_ACTIVE_CLAIMS_CAP = 8;
-/** docs/05, section "Data model": statement <= 200 chars. */
+/** The committed data model bound: statement <= 200 chars. */
 declare const CLAIM_STATEMENT_MAX_CHARS = 200;
 interface ClaimValidationOptions {
   /**
-  * True on the eval-committer path (the eval-committer gate; docs/05,
-  * 5.4). Editorial validation leaves it false and both eval-measured
+  * True on the eval-committer path (the eval-committer gate).
+  * Editorial validation leaves it false and both eval-measured
   * claims and metrics reject. At the op level the GATE decides this
   * flag; the option exists for direct claim-level validation.
   */
@@ -1349,7 +1317,7 @@ declare function claimIssues(claim: ModelClaim, path: string, options?: ClaimVal
 */
 declare function claimOpIssues(op: ClaimOp, index: number): string[];
 /**
-* The commit-time cap (docs/06, Appendix A): active claims per
+* The commit-time cap (Appendix A): active claims per
 * (model, taskClass) after the batch applies. Supersede chains keep
 * only the head active by construction (applyClaimOps flips the prior
 * to 'superseded'), so a supersede never grows the count.
@@ -1393,9 +1361,9 @@ declare function knowledgeHash(claims: readonly ModelClaim[]): string;
 */
 declare function applyClaimOps(claims: readonly ModelClaim[], ops: readonly ClaimOp[]): ModelClaim[];
 interface FileModelKnowledgeStoreOptions {
-  /** Default './rulvar.models.json' (docs/05, section "Data model"). */
+  /** Default './rulvar.models.json'. */
   path?: string;
-  /** docs/06, Appendix A: active claims per (model, taskClass); default 8. */
+  /** Active claims per (model, taskClass); default 8. */
   activeClaimsCap?: number;
 }
 declare class FileModelKnowledgeStore implements ModelKnowledgeStore {
@@ -1414,9 +1382,9 @@ declare class FileModelKnowledgeStore implements ModelKnowledgeStore {
 type LogicalTaskId = string;
 /** The closed relation vocabulary of the minting and inheritance table. */
 type LineageRelation = "first" | "respawn" | "rung-retry" | "decompose-child" | "unpark-restart";
-/** approachSig/approachSigCoarse derivation version (docs/03, 10.7). */
+/** approachSig/approachSigCoarse derivation version. */
 declare const LINEAGE_SIG_VERSION: 1;
-/** Deterministic LTIDs canonized onto legacy journals (docs/03, 10.7). */
+/** Deterministic LTIDs canonized onto legacy journals. */
 declare const LEGACY_LTID_PREFIX = "legacy:";
 /** The computed lineage record of one spawn-authorizing decision entry. */
 interface LineageRef {
@@ -1434,14 +1402,14 @@ interface LineageRef {
 }
 /**
 * The value-part lineage block embedded in decision entries: the computed
-* LineageRef plus the normalized tag (docs/03, 10.6: the request part
+* LineageRef plus the normalized tag (the request part
 * holds the RAW proposal; the value part holds what was COMPUTED and is
 * reused byte-exact on replay).
 */
 interface SpawnLineage extends LineageRef {
   approachTag: string;
 }
-/** Attempt outcome classes entering LineageStats (docs/03, 10.3). */
+/** Attempt outcome classes entering LineageStats. */
 type AttemptOutcomeClass = "ok" | "escalated" | "task-error" | "transient-error" | "no-progress" | "verify-failed" | "limit" | "abandoned";
 /**
 * The pure lineage fold rendered in plan_view and WakeDigest, always
@@ -1484,13 +1452,13 @@ declare const DEFAULT_ESCALATION_LIMITS: EscalationLimits;
 */
 declare function validateEscalationLimits(raw?: Partial<EscalationLimits> | Record<string, unknown>): EscalationLimits;
 /**
-* Approach-tag normalization (docs/03, 10.2): NFC, lowercase, runs of
+* Approach-tag normalization: NFC, lowercase, runs of
 * non-alphanumerics collapse into a hyphen, truncate to 32 characters; an
 * empty value canonicalizes to 'default'. Prompt prose never enters any
 * signature: rephrasings collide by construction, not by heuristic.
 */
 declare function normalizeApproachTag(raw?: string): string;
-/** The isolation string entering approachSigCoarse (docs/03, 10.3). */
+/** The isolation string entering approachSigCoarse. */
 declare function canonicalIsolationTag(spec: IsolationSpec | undefined): string;
 /** The identity inputs of the coarse signature (prompt prose excluded). */
 interface ApproachSignatureInputs {
@@ -1502,7 +1470,7 @@ interface ApproachSignatureInputs {
 /**
 * approachSigCoarse = sha256(JCS({ sigVersion, agentType, toolsetHash,
 * schemaHash, isolation })). Feeds the stall detector and the oscillation
-* guard, which keys ACROSS LTID boundaries (docs/07, 3.8).
+* guard, which keys ACROSS LTID boundaries.
 */
 declare function approachSigCoarse(inputs: ApproachSignatureInputs): string;
 /** approachSig = sha256(JCS({ sigVersion, coarse, approachTag })); keys lessons. */
@@ -1511,7 +1479,7 @@ declare function approachSigOf(coarse: string, tag?: string): string;
 * The deterministic signature inputs assigned to legacy spawns (journals
 * written before lineage existed) and to attempts whose producers did not
 * record signature inputs: stable constants, never wall-clock, so replay
-* canonizes identically on every engine (docs/03, 10.7).
+* canonizes identically on every engine.
 */
 declare const LEGACY_SIGNATURE_INPUTS: ApproachSignatureInputs;
 /** Classifies one settled root terminal into its attempt outcome class. */
@@ -1520,8 +1488,7 @@ declare function classifyAttemptOutcome(terminal: JournalEntry): AttemptOutcomeC
 * The incremental lineage fold: attempts, escalation debits, stall
 * streaks, single-live-attempt, and legacy canonization, computed from
 * journal entries only. `absorb` is idempotent by seq cursor; every read
-* accepts an optional `uptoSeq` pin so renders stay snapshot-stable
-* (docs/03, 10.4; docs/07, 8.3).
+* accepts an optional `uptoSeq` pin so renders stay snapshot-stable.
 */
 declare class LineageIndex {
   private readonly attemptsByLtid;
@@ -1551,7 +1518,7 @@ declare class LineageIndex {
   * attempt whose bound key matches (an at-least-once redispatch of the
   * same slot after cancelled/error/limit); else a legacy attempt is
   * canonized with the deterministic 'legacy:' + contentHash LTID
-  * (docs/03, 10.7: random ULIDs on replay are forbidden).
+  * (random ULIDs on replay are forbidden).
   */
   private bindRoot;
   private recordEscalation;
@@ -1562,12 +1529,12 @@ declare class LineageIndex {
   * True while the LTID has an unsettled attempt (admitted, dispatched, or
   * redispatched without a terminal), including admits whose decision
   * entries have not landed yet. Backs the single-live-attempt invariant:
-  * a competing admit gets `lineage_busy` (docs/03, 10.5).
+  * a competing admit gets `lineage_busy`.
   */
   hasLiveAttempt(logicalTaskId: LogicalTaskId): boolean;
-  /** The stall streak per docs/03, 10.4 (pinnable to a snapshot seq). */
+  /** The stall streak (pinnable to a snapshot seq). */
   stallStreak(logicalTaskId: LogicalTaskId, uptoSeq?: number): number;
-  /** The pinned LineageStats render (docs/03, 10.3). */
+  /** The pinned LineageStats render. */
   statsOf(logicalTaskId: LogicalTaskId, uptoSeq?: number): LineageStats;
   /** Every LTID the fold has seen (diagnostics and renders). */
   knownLogicalTaskIds(): LogicalTaskId[];
@@ -1581,14 +1548,14 @@ interface AgentIdentityInput {
   /**
   * The REQUESTED model spec, including canonical effort where resolved;
   * for laddered spawns it embeds the declared ladder together with
-  * startTier (docs/04, section "Router and resolution chain").
+  * startTier.
   */
   modelSpec: CanonicalModelSpec;
   /** Replaced verbatim by opts.key when opts.key is set. */
   prompt: string;
   schemaHash: string;
   toolsetHash: string;
-  /** Canonical encoding per docs/08, section "IsolationSpec". */
+  /** The canonical IsolationSpec encoding (see https://docs.rulvar.com/guide/tools). */
   isolation: IsolationSpec;
 }
 /** Nested workflow spawns: ctx.workflow (kind 'child'). */
@@ -1630,8 +1597,8 @@ type IdentityInput = AgentIdentityInput | ChildIdentityInput | StepIdentityInput
 /**
 * The identity projection of a CanonicalModelSpec. For the plain-model
 * kind the projection is `{ model, effort? }` WITHOUT the kind
-* discriminant, exactly as fixed by the docs/03 section 1.5 worked
-* example; `effort` is omitted when unresolved. The ladder embedding lands
+* discriminant, exactly as frozen by the hashVersion 2 profile;
+* `effort` is omitted when unresolved. The ladder embedding lands
 * with ladder execution (M7).
 */
 declare function modelSpecIdentity(spec: CanonicalModelSpec): {
@@ -1651,7 +1618,7 @@ declare function projectIdentity(input: IdentityInput): Record<string, unknown>;
 /** The JCS form of an IdentityInput under the hashVersion 2 profile. */
 declare function identityJcs(input: IdentityInput): string;
 /**
-* key = sha256(JCS(IdentityInput)) (docs/03, section "Content key").
+* key = sha256(JCS(IdentityInput)).
 */
 declare function deriveContentKey(input: IdentityInput): string;
 //#endregion
@@ -1664,8 +1631,8 @@ interface JournalOperation {
 /**
 * Versioned key derivation for matching: the live call is compared
 * against every unconsumed entry with the key computed UNDER THAT ENTRY'S
-* VERSION; 'incomparable' is a guaranteed non-match (docs/03, section
-* 4.4). M2-T05 supplies the real registry; the default ring knows only
+* VERSION; 'incomparable' is a guaranteed non-match.
+* M2-T05 supplies the real registry; the default ring knows only
 * the current version.
 */
 /** A derived key, or the guaranteed non-match marker. */
@@ -1717,7 +1684,7 @@ declare class JournalMatcher {
   private readonly keyRing;
   private disposition;
   private aliasDisposition?;
-  /** Scope-prefix aliases (DEF-5, docs/03 9.5): donor prefix -> target prefix. */
+  /** Scope-prefix aliases (DEF-5): donor prefix -> target prefix. */
   private readonly aliases;
   private readonly keyCache;
   private hitsInternal;
@@ -1731,8 +1698,8 @@ declare class JournalMatcher {
   /** M2-T06 swaps in the full DEF-1 predicate after folds are built. */
   setDisposition(disposition: (op: JournalOperation) => OperationDisposition): void;
   /**
-  * The disposition applied to alias-sourced candidates (DEF-5, docs/03
-  * 9.5): the skipped overlay from abandon is bypassed ONLY through the
+  * The disposition applied to alias-sourced candidates (DEF-5): the
+  * skipped overlay from abandon is bypassed ONLY through the
   * alias, so entries regain their pre-abandon terminal status for
   * matching in the NEW scope; the standalone old scope stays skipped.
   */
@@ -1751,7 +1718,7 @@ declare class JournalMatcher {
   * Forward-matches one live call. A miss does not advance any cursor and
   * does not extinguish future hits: the scan always starts at the scope
   * head and skips consumed operations, so insertion stability holds by
-  * construction (docs/03, section 7.1).
+  * construction.
   */
   match(scope: string, identity: IdentityInput, mode: "scoped" | "cache" | "never"): MatchResult;
   /** Marks an operation consumed without matching (fold-driven paths). */
@@ -1764,8 +1731,8 @@ declare class JournalMatcher {
 type CanonicalIdentity = Record<string, unknown>;
 /**
 * Per-effective-status disposition rules; DATA on the profile, consumed
-* only by the single canonical replayDisposition function (docs/03,
-* section 4.2: there is NO replayAction method).
+* only by the single canonical replayDisposition function (there is NO
+* replayAction method).
 */
 type DispositionRule = "replay" | "rerun" | "memoize-limit" | "memoize-task-error";
 type DispositionTable = Readonly<Partial<Record<"ok" | "escalated" | "limit" | "error" | "cancelled" | "running", DispositionRule>>>;
@@ -1794,20 +1761,19 @@ declare const deriverV1: KeyDeriver;
 type DeriverRegistry = ReadonlyMap<HashVersion, KeyDeriver>;
 /**
 * Builds the per-engine deriver registry: the shipped v1/v2 profiles plus
-* EngineOptions.extraDerivers, the ONLY window extender (docs/03, section
-* 4.5). A malformed extra deriver is a ConfigError before any run effect.
+* EngineOptions.extraDerivers, the ONLY window extender. A malformed
+* extra deriver is a ConfigError before any run effect.
 */
 declare function buildDeriverRegistry(extraDerivers?: readonly unknown[]): DeriverRegistry;
 /**
 * The one compatibility scan: immediately after load, strictly BEFORE any
 * live call, any append, and any admission reserve; repeated at lease
-* acquire in queue mode (docs/03, section 4.5). Side-effect free.
+* acquire in queue mode. Side-effect free.
 */
 declare function scanJournalCompatibility(runId: string, entries: readonly JournalEntry[], registry: DeriverRegistry): void;
 /**
 * KeyRing over the registry: the live call is projected DOWN into the
-* profile of the stored entry; there is no upward canonization (docs/03,
-* section 4.7).
+* profile of the stored entry; there is no upward canonization.
 */
 declare function registryKeyRing(registry: DeriverRegistry): KeyRing;
 //#endregion
@@ -1820,12 +1786,12 @@ interface AbandonFold {
 type ErrorClass = "transport" | "task";
 /**
 * task-class: schema-mismatch, terminal, non-retryable tool. transport,
-* rate-limit, and budget are never memoized (docs/03, section 6.4).
+* rate-limit, and budget are never memoized.
 */
 declare function classifyAgentError(e: AgentError): ErrorClass;
 /**
 * The child scope-prefix an abandon over `target` covers transitively.
-* Agent spawns nest under agent:<seq> (docs/03, section 2.2); a child
+* Agent spawns nest under agent:<seq>; a child
 * workflow's subtree runs under the wf:<name>:<ordinal> scope recorded in
 * its dispatch payload (M6-T06). A child entry without the payload
 * (foreign journals) degrades to the agent:<seq> convention, which covers
@@ -1836,7 +1802,7 @@ declare function childCoveragePrefix(target: JournalEntry): string;
 * Builds the AbandonFold in ONE pass at load, in append order, pinned for
 * the entire resume (DEF-1 ordering rule 4). Coverage is the target seq
 * itself plus, transitively, every entry under the target's child
-* scope-prefix (docs/03, sections 6.2 and 8.4). Repeated abandons over an
+* scope-prefix. Repeated abandons over an
 * already-covered target fold to noop.
 */
 declare function buildAbandonFold(entries: readonly JournalEntry[]): AbandonFold;
@@ -1894,7 +1860,7 @@ type SuspensionState = {
   state: "abandoned";
   by: number;
 };
-/** Fold classification of one ref-entry; NEVER persisted (docs/03, section 8.4). */
+/** Fold classification of one ref-entry; NEVER persisted. */
 type RefEntryClassification = {
   classification: "applied";
 } | {
@@ -1913,7 +1879,7 @@ type RefEntryClassification = {
 * schema-invalid offline resolution classifies invalid and does NOT close
 * the target. Abandon coverage is the target seq plus the transitive
 * child scope-prefix; the AbandonFold consumed by the replay predicate is
-* a projection of THIS fold (docs/03, section 6.2: not a separate pass).
+* a projection of THIS fold (not a separate pass).
 */
 declare class ResolutionFold {
   private readonly targets;
@@ -1955,8 +1921,8 @@ interface RefEntryAppender {
   }): Promise<JournalEntry>;
 }
 /**
-* Per-run, per-target FIFO serializer of resolution/abandon attempts
-* (docs/03, section 8.5): classification against the in-memory fold ->
+* Per-run, per-target FIFO serializer of resolution/abandon attempts:
+* classification against the in-memory fold ->
 * durable append -> settle exactly once; losing attempts are ALSO
 * appended and become journaled noops by fold classification. Winner
 * effects run strictly after the critical section (the caller's job).
@@ -1974,7 +1940,7 @@ declare class ResolutionArbiter {
 //#endregion
 //#region src/journal/replayer.d.ts
 type ReplayMode = "scoped" | "cache" | "never";
-/** docs/06 Appendix A: large-value soft warn threshold (committed for M2). */
+/** Large-value soft warn threshold (committed for M2). */
 declare const LARGE_VALUE_WARN_BYTES = 262144;
 interface Ledger {
   usage: Usage;
@@ -2009,7 +1975,7 @@ interface TerminalPatch {
   servedBy?: ModelRef;
   transcriptRef?: string;
   checkpointRef?: string;
-  /** Terminal agent entries: Artifact list (docs/06, section 2.1). */
+  /** Terminal agent entries: Artifact list. */
   artifacts?: unknown;
   /** Terminal escalated entries: the validated EscalationReport. */
   escalation?: unknown;
@@ -2017,14 +1983,14 @@ interface TerminalPatch {
   * Engine-decided terminal abort classes (the no-progress abort) stamp
   * memoizeOutcome on the TERMINAL entry so the frozen memoize rules
   * replay them on every resume; the running entry keeps the user's
-  * policy verbatim (docs/03, section 6.6, M3 amendment).
+  * policy verbatim (M3 amendment).
   */
   memoizeOutcome?: boolean;
   site?: string;
 }
 /**
 * Per-run journal kernel front end. Everything is per instance: no module
-* state anywhere (docs/02, section "Dependency rules").
+* state anywhere.
 */
 declare class Replayer {
   private readonly runId;
@@ -2047,44 +2013,44 @@ declare class Replayer {
     runId: string;
     store: JournalStore;
     now?: () => number;
-    priceUsd?: (servedBy: ModelRef | undefined, usage: Usage) => number | undefined; /** Receives large-value soft warnings (docs/03: never an error). */
+    priceUsd?: (servedBy: ModelRef | undefined, usage: Usage) => number | undefined; /** Receives large-value soft warnings (never an error). */
     onWarn?: (msg: string) => void;
-    largeValueWarnBytes?: number; /** The loaded, normalized prior journal (resume; docs/03 section 7). */
+    largeValueWarnBytes?: number; /** The loaded, normalized prior journal (resume). */
     priorEntries?: readonly JournalEntry[];
     keyRing?: KeyRing;
     disposition?: (op: JournalOperation) => OperationDisposition; /** Replay-strict: any live-class match throws JournalMissError. */
     strict?: boolean;
     /**
     * Queue mode: every append carries this lease so a stale holder's
-    * writes are rejected by the fencing epoch (docs/03, section 12.3;
-    * M8 entry amendment). Absent means the single-writer precondition
+    * writes are rejected by the fencing epoch (M8 entry amendment).
+    * Absent means the single-writer precondition
     * is asserted instead of fenced (the embedded default).
     */
     lease?: Lease;
   });
   /**
-  * Forward-matches one live call against the prior journal (docs/03,
-  * section 7). Fresh runs always miss; the M2-T06 predicate is injected
+  * Forward-matches one live call against the prior journal. Fresh
+  * runs always miss; the M2-T06 predicate is injected
   * through setDisposition once folds are built.
   */
   match(scope: string, identity: IdentityInput, mode: ReplayMode): MatchResult;
   setDisposition(disposition: (op: JournalOperation) => OperationDisposition): void;
   /**
-  * The disposition for alias-sourced candidates (DEF-5, docs/03 9.5):
+  * The disposition for alias-sourced candidates (DEF-5):
   * bypasses the abandon overlay so donor entries regain their
   * pre-abandon terminal status when matched through the alias.
   */
   setAliasDisposition(disposition: (op: JournalOperation) => OperationDisposition): void;
   /**
-  * Registers a node.link scope-prefix rewrite (DEF-5, docs/03 9.5):
+  * Registers a node.link scope-prefix rewrite (DEF-5):
   * donorPrefix forward-matches into targetPrefix at every nested level.
   * Idempotent; the alias map is rebuilt by fold on resume.
   */
   registerAlias(donorPrefix: string, targetPrefix: string): void;
   /**
-  * invalidate/retry (docs/03, section 6.5): explicit unpinning of a
+  * invalidate/retry: explicit unpinning of a
   * memoized failure; the invalidated entry reruns on this resume. The
-  * safety boundary is an open question (docs/14).
+  * safety boundary is an open question.
   */
   invalidate(seq: number): void;
   get invalidatedSeqs(): ReadonlySet<number>;
@@ -2101,15 +2067,15 @@ declare class Replayer {
     abandon?: AbandonPayload;
   }): Promise<JournalEntry>;
   /**
-  * Submits a resolution attempt through the per-target FIFO arbiter
-  * (docs/03, section 8.7). Losing attempts are journaled noops.
+  * Submits a resolution attempt through the per-target FIFO arbiter.
+  * Losing attempts are journaled noops.
   */
   resolveSuspended(target: number, attempt: ResolutionAttempt): Promise<ResolutionOutcome>;
   abandonBranch(attempt: AbandonAttempt): Promise<ResolutionOutcome>;
-  /** Pure fold view, snapshot-pinned (docs/03, section 8.7). */
+  /** Pure fold view, snapshot-pinned. */
   suspensionState(target: number): SuspensionState;
   /**
-  * Value size policy (docs/03, section "Normative payload schemas"):
+  * Value size policy:
   * there is NO automatic offload in v1; oversized values warn and
   * proceed. Large artifacts belong in TranscriptStore by reference.
   */
@@ -2120,7 +2086,7 @@ declare class Replayer {
   * Two-phase dispatch: the running entry (kinds agent, step, child).
   * `value` is legal on child dispatches only: the child payload
   * `{ workflow, childScope }` lets the abandon fold compute the child's
-  * transitive scope coverage (docs/03, section 8.4; M6-T06). Values
+  * transitive scope coverage (M6-T06). Values
   * never enter identity.
   */
   appendRunning(input: BaseAppend & {
@@ -2137,8 +2103,7 @@ declare class Replayer {
   /** Suspended kinds (external, approval): appended once, closed by ref-entries (M2). */
   appendSuspended(input: SuspendedAppend): Promise<JournalEntry>;
   /**
-  * The budget ledger fold (docs/03, section "Budget ledger fold on
-  * resume"): usage sums over terminal entries exactly once; agentsSpawned
+  * The budget ledger fold: usage sums over terminal entries exactly once; agentsSpawned
   * counts agent dispatches.
   */
   ledger(): Ledger;
@@ -2174,9 +2139,8 @@ declare const DEFAULT_RETRY_POLICY: RetryPolicy;
 /**
 * Classifies a WireError for the retry engine. Task-class failures are
 * never retryable by construction: adapters mark them retryable: false
-* and this returns undefined. The kind travels in WireError.data.kind
-* (docs/04, section 4.9); anything retryable without a specific kind is
-* transport.
+* and this returns undefined. The kind travels in WireError.data.kind;
+* anything retryable without a specific kind is transport.
 */
 declare function retryClassOf(error: WireError): RetryClass | undefined;
 /**
@@ -2191,13 +2155,13 @@ declare function retryDelayMs(policy: RetryPolicy, retryIndex: number, retryAfte
 //#region src/model/failover.d.ts
 /** Transport-level failover triggers; budget is explicitly excluded. */
 type FailoverTrigger = "transport" | "rate-limit";
-/** One resolved failover target (docs/04, section 11.2 rich form). */
+/** One resolved failover target (rich form). */
 interface FailoverTarget {
   model: ModelRef;
   /** Triggers this target serves; absent = both. */
   on?: FailoverTrigger[];
 }
-/** Normalizes the author-facing ModelChoice.fallbacks list (docs/04, 8.1). */
+/** Normalizes the author-facing ModelChoice.fallbacks list. */
 declare function normalizeFallbacks(refs: ModelRef[] | undefined): FailoverTarget[];
 /**
 * Maps a retry class to its failover trigger once retries exhaust.
@@ -2211,7 +2175,7 @@ declare function failoverTriggerOf(retryClass: RetryClass | undefined): Failover
 * moves backwards (sticky failover).
 */
 declare function nextFailover(targets: Array<Pick<FailoverTarget, "on">>, trigger: FailoverTrigger, from: number): number | undefined;
-/** The degenerate fallback triggers (docs/04, section 11.3). */
+/** The degenerate fallback triggers. */
 type FallbackTrigger = "error" | "limit" | "schema-exhausted";
 /** The degenerate fallback field: one agent-level second attempt. */
 interface FallbackField {
@@ -2219,8 +2183,8 @@ interface FallbackField {
   on: FallbackTrigger[];
 }
 /**
-* Classifies a terminal agent outcome for the degenerate fallback
-* (docs/04, 11.3 as amended): schema-mismatch errors are
+* Classifies a terminal agent outcome for the degenerate fallback:
+* schema-mismatch errors are
 * 'schema-exhausted'; any other error is 'error'; limit terminals (the
 * no-progress abort included) are 'limit'; cancelled, escalated, and
 * skipped never trigger.
@@ -2325,8 +2289,7 @@ declare function decodeCheckpoint(blob: Uint8Array): CheckpointState | undefined
 //#region src/model/router.d.ts
 /**
 * Per-engine adapter registry: strictly per engine, no global mutable
-* registry exists. A duplicate adapterId is a typed ConfigError
-* (docs/04, section "Registry and ModelRef").
+* registry exists. A duplicate adapterId is a typed ConfigError.
 */
 declare function buildAdapterRegistry(adapters: ProviderAdapter[]): ReadonlyMap<string, ProviderAdapter>;
 /**
@@ -2339,12 +2302,10 @@ declare function parseModelRef(ref: ModelRef): {
   model: string;
 };
 /**
-* Role effort defaults (docs/04, section "Invocation roles and firing
-* protocol"): orchestrate and plan default to high; summarize and extract
+* Role effort defaults: orchestrate and plan default to high; summarize and extract
 * default to low. loop and finalize have NO role default: when the chain
 * resolves nothing, the wire omits effort and identity records the spec
-* with the effort member absent (docs/04, section "Router and resolution
-* chain", as amended).
+* with the effort member absent.
 */
 declare const ROLE_EFFORT_DEFAULTS: Partial<Record<InvocationRole, Effort>>;
 /** One layer's contribution to the resolution merge. */
@@ -2374,7 +2335,7 @@ interface ResolvedInvocation {
   requestedEffort?: Effort;
   providerOptions?: Record<string, Record<string, unknown>>;
   fallbacks?: ModelRef[];
-  /** Identity-facing canonical form (docs/04, section "Router and resolution chain"). */
+  /** Identity-facing canonical form. */
   canonical: CanonicalModelSpec;
   scrubs: ScrubNote[];
 }
@@ -2382,7 +2343,7 @@ interface ResolvedInvocation {
 * Resolution runs on every model invocation, not once per agent: a layered
 * merge of { model, effort, providerOptions, fallbacks } in the order call
 * override > agent profile > workflow defaults > engine defaults, with the
-* invocation role attached as a tag (docs/04, section "Resolution chain").
+* invocation role attached as a tag.
 * After resolution the router reads ModelCaps and scrubs illegal
 * parameters visibly: unsupported effort is removed from the wire but
 * kept in identity; sampling params rejected by the model are removed
@@ -2399,7 +2360,7 @@ declare function resolveModelInvocation(options: {
   taskClass?: string;
 }): ResolvedInvocation;
 /**
-* Canonicalizes a declared LadderSpec (docs/04, section 12): validates the
+* Canonicalizes a declared LadderSpec: validates the
 * shape once (FR-119 judge declaration included) and resolves every rung's
 * effort to an explicit value. `chainEffort` is the effort the resolution
 * chain would contribute at the declaring layer; a rung that resolves no
@@ -2412,16 +2373,16 @@ declare function canonicalizeLadder(spec: LadderSpec, options?: {
 /**
 * The concrete ModelChoice of one rung attempt: each attempt is an
 * ordinary agent scope whose CanonicalModelSpec is that rung's
-* `{ kind: 'model' }` form (docs/04, section 8.2).
+* `{ kind: 'model' }` form.
 */
 declare function ladderRungChoice(ladder: CanonicalLadderSpec, index: number): ModelChoice;
 //#endregion
 //#region src/runtime/escalation.d.ts
-/** Closed in v1 (docs/07, section 6.3). */
+/** Closed in v1. */
 type EscalationKind = "scope_bigger" | "scope_different" | "blocked_with_evidence";
 /**
 * Minimal TaskSpec stand-in: the full typed TaskSpec is owned by the
-* PlanRunner surface (docs/07, section 4.1) and ships with M7; script
+* PlanRunner surface and ships with M7; script
 * modes carry proposals opaquely until then.
 */
 type TaskSpec = Json;
@@ -2483,15 +2444,15 @@ interface EscalationRequest {
 }
 declare const ESCALATE_TOOL_NAME = "escalate";
 /**
-* The exact tool schema of docs/07, section 4.9. costToDate and salvage
+* The escalate tool's exact request schema. costToDate and salvage
 * MUST NOT appear here: additionalProperties false rejects model-authored
 * values for them at argument validation.
 */
 declare const ESCALATION_REQUEST_SCHEMA: JsonSchema;
-/** The full-report schema applied BEFORE append (docs/03, section 5.4). */
+/** The full-report schema applied BEFORE append. */
 declare const ESCALATION_REPORT_SCHEMA: JsonSchema;
 /**
-* The engine opt-in tool (docs/08, section 6.6): registered through the
+* The engine opt-in tool: registered through the
 * same path as any tool under escalation opt-in of EITHER flavor (the
 * worker's only authoring channel for a report), never available without
 * opt-in, and dispatched through the same permission chain. The loop
@@ -2501,7 +2462,7 @@ declare function escalateTool(): ToolDef;
 /** Validates the runtime-completed report BEFORE append; returns issues. */
 declare function validateEscalationReport(report: EscalationReport): Promise<Issue$1[]>;
 /**
-* countsAgainstLimit derivation (docs/07, section 6.3, XF-06): true iff
+* countsAgainstLimit derivation (XF-06): true iff
 * scope_bigger; scope_different and blocked_with_evidence are exempt and
 * never debit the escalation counter.
 */
@@ -2513,11 +2474,11 @@ declare function countsAgainstLimit(kind: EscalationKind): boolean;
 * journaled as a first-class terminal abort distinct from user
 * cancellation (a cancelled entry always reruns; a no-progress abort
 * must replay, or every resume would re-pay the stuck turns). The
-* interim heuristic is committed in docs/06 Appendix A: N consecutive
+* interim heuristic is committed: N consecutive
 * turns without tool calls or artifact deltas, N = 3; the broader
-* heuristic stays OQ-15 (docs/14), revisited on dogfood traces.
+* heuristic stays OQ-15, revisited on dogfood traces.
 *
-* Encoding (docs/03, sections 6.3 and 6.6): the abort is the agent's
+* Encoding: the abort is the agent's
 * terminal entry with status 'limit', an error payload carrying
 * abortClass 'no-progress', and memoizeOutcome stamped by the ENGINE on
 * the terminal entry, so the frozen memoize-limit rule replays it on
@@ -2525,7 +2486,7 @@ declare function countsAgainstLimit(kind: EscalationKind): boolean;
 * per-turn artifact channel, so the tool-call test subsumes artifact
 * deltas; per-turn artifact producers arrive with M4 compaction.
 */
-/** docs/06 Appendix A: the committed no-progress detector N. */
+/** The committed no-progress detector N. */
 declare const DEFAULT_NO_PROGRESS_TURNS = 3;
 /** The consumer-visible dedicated class marker (FR-424). */
 type AbortClass = "no-progress";
@@ -2553,8 +2514,7 @@ declare class NoProgressDetector {
 /**
 * UsageLimits (M1-T06): normative limit vocabulary and the per-spawn merge.
 *
-* Owning spec: docs/06-execution-spec.md, section "UsageLimits
-* (normative)"; defaults from Appendix A. Expiry of maxTurns, maxToolCalls,
+* Full contract: https://docs.rulvar.com/guide/agents. Expiry of maxTurns, maxToolCalls,
 * or timeoutMs produces the terminal status 'limit' (paid partial work);
 * streamIdleTimeoutMs expiry is a retryable transport-class AgentError,
 * never 'limit'. The run-level deadline is RunOptions.deadlineAt, not a
@@ -2572,7 +2532,7 @@ interface UsageLimits {
   /** Gap between stream events; default 120000. */
   streamIdleTimeoutMs?: number;
   /**
-  * The no-progress detector N (docs/06 Appendix A, committed at 3):
+  * The no-progress detector N (committed at 3):
   * consecutive turns without tool calls or artifact deltas before the
   * engine aborts with the dedicated class (M3-T08).
   */
@@ -2586,18 +2546,18 @@ interface EffectiveUsageLimits {
   maxOutputTokensPerTurn?: number;
   timeoutMs?: number;
   streamIdleTimeoutMs: number;
-  /** Default DEFAULT_NO_PROGRESS_TURNS (docs/06 Appendix A). */
+  /** Default DEFAULT_NO_PROGRESS_TURNS. */
   noProgressTurns?: number;
 }
 /**
 * Limits merge per spawn: AgentOpts.limits over profile limits over engine
-* defaults.limits (docs/06, section "UsageLimits").
+* defaults.limits.
 */
 declare function mergeUsageLimits(call?: UsageLimits, profile?: UsageLimits, engine?: UsageLimits): EffectiveUsageLimits;
 //#endregion
 //#region src/runtime/agent-loop.d.ts
 type AgentStatus = "ok" | "error" | "limit" | "cancelled" | "skipped" | "escalated";
-/** Artifact: the normative shape of AgentResult.artifacts entries (docs/06, section 2.1). */
+/** Artifact: the normative shape of AgentResult.artifacts entries. */
 interface Artifact {
   /** Stable within the result. */
   id: string;
@@ -2612,15 +2572,15 @@ interface Artifact {
   /** Inline JSON content for small values. */
   data?: Json;
 }
-/** The verdict of one mechanical acceptance gate evaluation (docs/07, section 10). */
+/** The verdict of one mechanical acceptance gate evaluation. */
 interface MechanicalGateVerdict {
   pass: boolean;
   detail?: string;
 }
 /**
 * A mechanical acceptance gate: an engine-registered NAMED pure function
-* over AgentResult.artifacts (docs/04, section 12; docs/07, section 10).
-* The registry is per engine like every other registry (docs/02); the
+* over AgentResult.artifacts.
+* The registry is per engine like every other registry; the
 * ladder driver journals each evaluation as a decision entry, so the
 * ladder fold consumes only journaled verdicts, never live re-evaluation.
 */
@@ -2641,8 +2601,8 @@ interface AgentResult<T> {
   error?: AgentError;
   /**
   * Human-readable detail behind `error` (provider message, first schema
-  * issue): feeds the journaled WireError message. Additive to the
-  * docs/06 sketch; never part of identity.
+  * issue): feeds the journaled WireError message. An additive
+  * field; never part of identity.
   */
   errorMessage?: string;
   /** Present if and only if status === 'escalated'. */
@@ -2671,7 +2631,7 @@ interface RuntimeEventSink {
     type: string;
   } & Record<string, unknown>): void;
 }
-/** Budget hooks bound by the three-layer budget (docs/06, section "Three-layer budget"). */
+/** Budget hooks bound by the three-layer budget. */
 interface BudgetHooks {
   /** Layer 2: before every turn; throws BudgetExhaustedError to block dispatch. */
   beforeTurn(): void;
@@ -2714,7 +2674,7 @@ type PermissionGate = ({
     reason?: string;
   }>;
 }) & {
-  /** Chain audit payload ridden into tool:end telemetry (docs/08, 4.5). */audit?: GateAudit;
+  /** Chain audit payload ridden into tool:end telemetry. */audit?: GateAudit;
 };
 /**
 * The spawn's frozen toolset plus the per-call context factory, prepared
@@ -2743,14 +2703,14 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   adapter: ProviderAdapter;
   resolved: ResolvedInvocation;
   /**
-  * Transport failover chain for the loop phase (M4-T04; docs/04,
-  * section 11.2): resolved fallback targets tried in order on
+  * Transport failover chain for the loop phase (M4-T04):
+  * resolved fallback targets tried in order on
   * transport or rate-limit failures after retries exhaust. Failover is
   * sticky and changes only servedBy, never the content key.
   */
   fallbacks?: PhaseTarget[];
   /**
-  * Transport RetryPolicy (M4-T05; docs/04, section 11.1): lives UNDER
+  * Transport RetryPolicy (M4-T05): lives UNDER
   * the journal, wired around every adapter.stream dispatch. sleep and
   * random are injectable for tests; the core owns wall-clock.
   */
@@ -2764,14 +2724,14 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   * under the serving adapter's key; absent = unlimited (Appendix A).
   */
   providerSlot?: <T>(key: string, fn: () => Promise<T>) => Promise<T>;
-  /** The resolved toolset; absent = no tools declared (docs/08). */
+  /** The resolved toolset; absent = no tools declared. */
   tools?: ToolRuntime;
   /**
   * Separate final extract invocation, present only when the role trigger
   * protocol demands one: schema set AND (routing directs extract to a
   * different model OR the loop model's caps cannot serve the required
   * tier OR finalize is routed). Otherwise the schema rides the last loop
-  * turn (docs/06, section "Agent runtime binding"; the necessity rule is
+  * turn (the necessity rule is
   * decided by the ctx layer via model/roles.ts).
   */
   extract?: PhaseTarget & {
@@ -2792,7 +2752,7 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   /**
   * Summarize invocation target for compaction (M4-T03): resolved
   * through the chain with role 'summarize', falling back to the loop
-  * model when routing resolves nothing (docs/06, section 7). Compaction
+  * model when routing resolves nothing. Compaction
   * is ON by default; absence of this option disables it (direct
   * runAgent callers).
   */
@@ -2804,7 +2764,7 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
     threshold?: number;
   };
   /**
-  * Turn-boundary checkpointing (M3-T02; docs/03, section "Checkpoints").
+  * Turn-boundary checkpointing (M3-T02).
   * load() restores the last boundary on a dangling-dispatch resume;
   * save() persists each boundary where the loop continues. The separate
   * extract invocation is not checkpointed in v1: an extract-phase crash
@@ -2826,7 +2786,7 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
     put(ref: string, blob: Uint8Array): Promise<void>;
   };
   priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
-  /** Bounded schema re-prompt attempts; default 2 (docs/06, Appendix A). */
+  /** Bounded schema re-prompt attempts; default 2 (Appendix A). */
   schemaRetryAttempts?: number;
   /** Bounded ModelRetry conversions per tool call chain; default 2 (Appendix A). */
   modelRetryAttempts?: number;
@@ -2834,7 +2794,7 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   * Escalation opt-in (M3-T07): the loop intercepts accepted calls to
   * the escalate tool and terminates with status 'escalated'; the
   * in-run minSpend gate rejects early scope_bigger escalations with a
-  * "keep working" error tool result (M3-T09, docs/07 section 6.4).
+  * "keep working" error tool result (M3-T09).
   */
   escalation?: {
     minSpendUsd: number;
@@ -2842,8 +2802,8 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   /**
   * Terminal-tool interception (M6-T07): an accepted call to the named
   * tool ends the loop with status ok; the call's validated `result`
-  * argument becomes the agent output (the orchestrator finish tool,
-  * docs/07 4.11). The tool's execute never runs, mirroring escalate.
+  * argument becomes the agent output (the orchestrator finish
+  * tool). The tool's execute never runs, mirroring escalate.
   */
   terminalTool?: {
     name: string;
@@ -2868,9 +2828,9 @@ type PermissionHook = (toolName: string, input: unknown, ctx: ToolContext) => Ho
 /**
 * Declarative rule tables (no closures). `'undeclared'` in risk
 * position matches every tool WITHOUT declared risk: presets treat the
-* undeclared state conservatively (docs/08, section 4.3). Argv rules
-* match through the real shell matcher (section 5); domain rules are
-* ADVISORY outside the first-party fetch tool (section 4.4): they never
+* undeclared state conservatively. Argv rules
+* match through the real shell matcher; domain rules are
+* ADVISORY outside the first-party fetch tool: they never
 * change a verdict in M5, and matches surface in audit events.
 */
 type RiskRuleValue = ToolRisk | "undeclared";
@@ -2898,7 +2858,7 @@ interface PermissionConfig {
   canUseTool?: CanUseTool;
 }
 /**
-* Profile-level permissions (docs/08, section "Subagent inheritance").
+* Profile-level permissions.
 * inheritPermissions governs SUBAGENT inheritance (mode c orchestrators,
 * M6+): children get their own config only unless explicitly opted in.
 * It is carried as data here and consumed by the spawning layers.
@@ -2931,7 +2891,7 @@ type PermissionVerdict = ({
   input: unknown;
 }) & {
   /**
-  * Advisory domain-rule matches (docs/08, 4.4): reported in audit
+  * Advisory domain-rule matches: reported in audit
   * events, never enforced outside the first-party fetch tool.
   */
   advisory?: PermissionRule[];
@@ -2939,7 +2899,7 @@ type PermissionVerdict = ({
 /**
 * Merges the engine-wide config and the profile config into one chain.
 * Layers concatenate engine-first; since rules only deny or ask, ordering
-* within a layer cannot change the verdict (docs/08, section 4.2). The
+* within a layer cannot change the verdict. The
 * profile's canUseTool wins over the engine's (a single slot by
 * construction). A declared preset compiles INTO the same layers, after
 * the host-authored rules, never as a fifth layer (M5-T05).
@@ -2947,19 +2907,19 @@ type PermissionVerdict = ({
 declare function compilePermissionChain(engine?: PermissionConfig, profile?: AgentProfilePermissions): CompiledPermissionChain;
 /**
 * Evaluates the chain for one dispatch, or OFFLINE against a
-* hypothetical call by tool name (the dry-run API of docs/08, section
-* 4.5: nothing executes; shells and tests read the verdict, the
+* hypothetical call by tool name (the dry-run API: nothing executes;
+* shells and tests read the verdict, the
 * deciding layer, and the matched rule). Hooks run in deterministic
 * registration order; { modifiedInput } substitutes the input and
 * continues; the first decisive verdict wins. The returned input is what
-* execute receives and what the approval identity hashes (docs/03,
-* section 1.2: post hook modification). Advisory domain-rule matches
-* ride every verdict for the audit payload (docs/08, 4.4).
+* execute receives and what the approval identity hashes (post hook
+* modification). Advisory domain-rule matches
+* ride every verdict for the audit payload.
 */
 declare function evaluatePermission(chain: CompiledPermissionChain, tool: string | Pick<ToolDef, "name" | "needsApproval" | "risk">, input: unknown, ctx?: ToolContext): Promise<PermissionVerdict>;
 //#endregion
 //#region src/tools/toolset-hash.d.ts
-/** The per-spawn tools option value domain (docs/06, section "ctx.agent and AgentOpts"). */
+/** The per-spawn tools option value domain. */
 type ToolsOption = ReadonlyArray<ToolDef | ToolSource | string>;
 /** The spawn's frozen toolset snapshot plus its identity hash. */
 interface ResolvedToolset {
@@ -2971,13 +2931,13 @@ interface ResolvedToolset {
 declare function emptyToolset(): ResolvedToolset;
 /**
 * Expands sources, validates every tool name and duplicate names across
-* the whole toolset (ConfigError at spawn time; docs/08 sections 1.1 and
-* 6.4), and computes the toolsetHash over contracts sorted by name.
+* the whole toolset (ConfigError at spawn time), and computes the
+* toolsetHash over contracts sorted by name.
 */
 declare function resolveToolset(specs: ToolsOption | undefined, session: ToolSourceSession): Promise<ResolvedToolset>;
 //#endregion
 //#region src/journal/termination.d.ts
-/** The frozen limits vector written into termination.init (docs/07, 11.2). */
+/** The frozen limits vector written into termination.init. */
 interface TerminationLimits {
   /** V0, default 32; absolute and non-replenishable. */
   maxRevisionsPerRun: number;
@@ -2999,7 +2959,7 @@ interface TerminationLimits {
 /** Appendix A committed defaults for the countable resources. */
 declare const DEFAULT_MAX_REVISIONS_PER_RUN = 32;
 declare const DEFAULT_MAX_TOTAL_SPAWNS = 128;
-/** The countable resource vocabulary (docs/07, 11.5). */
+/** The countable resource vocabulary. */
 type TerminationResource = "revisionUnits" | "spawnUnits" | "escalationUnits" | "rungs" | "depth";
 interface LineageCounters {
   escalationUnitsRemaining: number;
@@ -3009,7 +2969,7 @@ interface TerminationAccountSnapshot {
   revisionUnitsRemaining: number;
   spawnUnitsRemaining: number;
   perLineage: Record<LogicalTaskId, LineageCounters>;
-  /** The variant function, a pure fold over the journal (docs/07, 11.4). */
+  /** The variant function, a pure fold over the journal. */
   phi: number;
 }
 type DebitResult = {
@@ -3020,13 +2980,13 @@ type DebitResult = {
   deniedEntryRef: EntryRef;
   resource: TerminationResource;
 };
-/** The value payload of a termination.init entry (docs/07, 11.6). */
+/** The value payload of a termination.init entry. */
 interface TerminationInitValue {
   limits: TerminationLimits;
   profileRegistrySnapshotHash: string;
   phiInitial: number;
 }
-/** The value payload of a termination.denied entry (docs/07, 11.6). */
+/** The value payload of a termination.denied entry. */
 interface TerminationDeniedValue {
   resource: TerminationResource;
   logicalTaskId?: LogicalTaskId;
@@ -3038,7 +2998,7 @@ interface TerminationDeniedValue {
 /**
 * Reads the declared ladder length of one agent profile. Ladders are
 * declared through the profile's ModelSpec (`model: { ladder }`, or the
-* loop-role routing entry; docs/04, section 12). The reader is defensive
+* loop-role routing entry). The reader is defensive
 * so the snapshot is total over every registry shape (an undeclared
 * ladder has length 1: the single implicit rung).
 */
@@ -3048,7 +3008,7 @@ declare function kMaxOf(profiles: Record<string, unknown> | undefined): number;
 /**
 * The deterministic profile-registry snapshot hash frozen inside
 * termination.init: profile names mapped to their declared ladder
-* lengths, canonical JSON, sha256 (docs/07, 11.6).
+* lengths, canonical JSON, sha256.
 */
 declare function profileRegistrySnapshotHash(profiles: Record<string, unknown> | undefined): string;
 /**
@@ -3059,14 +3019,14 @@ declare function profileRegistrySnapshotHash(profiles: Record<string, unknown> |
 declare function validateTerminationLimits(raw: Partial<TerminationLimits> | Record<string, unknown>): TerminationLimits;
 /** C = E0 + kMax: the per-spawn weight of the variant function. */
 declare function lineageWeightOf(limits: TerminationLimits): number;
-/** Phi0 = V0 + C * S0, finite and fixed in termination.init (docs/07, 11.4). */
+/** Phi0 = V0 + C * S0, finite and fixed in termination.init. */
 declare function phiInitialOf(limits: TerminationLimits): number;
-/** Builds the termination.init value payload (docs/07, 11.6). */
+/** Builds the termination.init value payload. */
 declare function buildTerminationInitValue(limits: TerminationLimits, registrySnapshotHash: string): TerminationInitValue;
 /** Reads a termination.init entry's payload; undefined when malformed. */
 declare function readTerminationInit(entry: JournalEntry): TerminationInitValue | undefined;
 /**
-* Config-drift detection at resume (docs/07, 11.2): the journaled vector
+* Config-drift detection at resume: the journaled vector
 * always wins; every differing field is reported for the
 * `termination:config-drift` event. Dynamic budget top-up via restart is
 * excluded by construction.
@@ -3079,9 +3039,9 @@ declare function terminationConfigDrift(frozen: TerminationLimits, live: Partial
 /** Injected appender for termination.denied entries (engine-owned I/O). */
 type TerminationDeniedWriter = (denied: TerminationDeniedValue) => Promise<EntryRef>;
 /**
-* The single per-run TerminationAccount (docs/07, 11.5): debit ONLY. No
+* The single per-run TerminationAccount: debit ONLY. No
 * credit operation exists by construction; reclaim never replenishes
-* anything (DEF-5 interaction, docs/07 7.3). Live: the engine debits the
+* anything (DEF-5 interaction). Live: the engine debits the
 * in-memory account, writes the carrying entry with the balance-after,
 * then applies effects. Resume state is rebuilt by TerminationFold from
 * the journal, never from live config.
@@ -3103,7 +3063,7 @@ declare class TerminationAccount {
   */
   bindDeniedWriter(writer: TerminationDeniedWriter): void;
   snapshot(): TerminationAccountSnapshot;
-  /** Phi = V + C * S + sum over live lineages (E + R) (docs/07, 11.4). */
+  /** Phi = V + C * S + sum over live lineages (E + R). */
   phi(): number;
   /** The current rung index of a lineage (0 before any raise). */
   rungIndexOf(logicalTaskId: LogicalTaskId): number;
@@ -3111,7 +3071,7 @@ declare class TerminationAccount {
   get spawnUnitsExhausted(): boolean;
   get revisionUnitsRemaining(): number;
   /**
-  * The spawn-admission debit (docs/07, 11.3b): minus one spawnUnit for
+  * The spawn-admission debit: minus one spawnUnit for
   * an admitted spawn of ANY origin; a NEW lineage receives E0 escalation
   * units and (K_l - 1) rung transitions in the same atomic step, so the
   * lemma's per-spawn decrease is C - (E0 + K_l - 1) = kMax - K_l + 1,
@@ -3130,7 +3090,7 @@ declare class TerminationAccount {
     resource: "spawnUnits";
   };
   /**
-  * The plan_revise debit (docs/07, 11.3a and 11.7): minus one
+  * The plan_revise debit: minus one
   * revisionUnit on EVERY journaled plan.revision, regardless of the op
   * count, guard verdicts, or the auto-rebase outcome; conflict spam is
   * never a free retry.
@@ -3143,7 +3103,7 @@ declare class TerminationAccount {
     resource: "revisionUnits";
   };
   /**
-  * The escalation debit (docs/07, 11.3d): minus one escalationUnit of
+  * The escalation debit: minus one escalationUnit of
   * the affected lineage, including EACH lineage of a class-level
   * decision and timeout defaultDecisions. Conditioned on the
   * countsAgainstLimit flag embedded in the decision entry by the caller.
@@ -3156,7 +3116,7 @@ declare class TerminationAccount {
     resource: "escalationUnits";
   };
   /**
-  * The ladder-raise debit (docs/07, 11.3c): minus one rung of the
+  * The ladder-raise debit: minus one rung of the
   * lineage; rungIndex is strictly monotone, there are no demotions and
   * no runtime startTier promotion in v1.
   */
@@ -3169,7 +3129,7 @@ declare class TerminationAccount {
     resource: "rungs";
   };
   /**
-  * The docs/07 11.5 debit surface: attempts the named resource and, on
+  * The unified debit surface: attempts the named resource and, on
   * underflow, writes `termination.denied` strictly BEFORE resolving with
   * the typed failure (the caller surfaces the error only after this
   * settles). Requires a deniedWriter; pure-fold contexts use the
@@ -3195,10 +3155,10 @@ declare class TerminationAccount {
   private requireLineage;
   private requireLineageId;
 }
-/** The typed error code surfaced after a denied debit (docs/07, 11.3). */
+/** The typed error code surfaced after a denied debit. */
 declare function exhaustionCodeOf(resource: TerminationResource): string;
 /**
-* The replay fold (docs/07, 11.6): rebuilds the account from
+* The replay fold: rebuilds the account from
 * termination.init and the debiting decision entries, asserting every
 * embedded balance-after against the recomputation. A divergence raises
 * the typed journal-integrity error at exactly the diverging entry;
@@ -3220,13 +3180,12 @@ type Spend = {
   usage: Usage;
   agentsSpawned: number;
 };
-/** Last resort of the admission reserve formula (docs/06, Appendix A). */
+/** Last resort of the admission reserve formula. */
 declare const DEFAULT_FLAT_RESERVE_USD = .5;
-/** The run-root account scope (docs/06, section 5.4 scope vocabulary). */
+/** The run-root account scope. */
 declare const ROOT_ACCOUNT = "run";
 /**
-* The admission reserve for a spawn (docs/06, section "Layer 1: admission
-* before spawn"): opts.estCost, else profile.estCost, else
+* The admission reserve for a spawn: opts.estCost, else profile.estCost, else
 * price(countTokens(input) + caps.maxOutputTokens), else the engine flat
 * default.
 */
@@ -3237,7 +3196,7 @@ declare function admissionReserveUsd(options: {
   caps?: ModelCaps;
   flatReserveUsd?: number;
 }): number;
-/** Read-only projection of one account (docs/06, section 5.4). */
+/** Read-only projection of one account. */
 interface BudgetAccountView {
   scope: string;
   ceilingUsd?: number;
@@ -3268,7 +3227,7 @@ declare class RunBudget {
     events?: RuntimeEventSink;
     priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
     /**
-    * The resume ledger fold (docs/03, section 13.3): spend is never
+    * The resume ledger fold: spend is never
     * reset and never double-counted; replayed entries are already inside
     * this seed and add no increments.
     */
@@ -3282,7 +3241,7 @@ declare class RunBudget {
   /** The account chain from `scope` up to and including the root. */
   private chainOf;
   /**
-  * Opens a child sub-account under `parentScope` (docs/06, section 5.4).
+  * Opens a child sub-account under `parentScope`.
   * Re-opening an existing scope is the resume roll-forward path: the
   * recorded ceiling wins once and the accumulated state is kept.
   */
@@ -3306,7 +3265,7 @@ declare class RunBudget {
   /**
   * Marks the run exhausted without a ceiling event: the orchestrator
   * finalize fallback maps to outcome 'exhausted' with the synthesized
-  * partial value (DEF-7, docs/07 12.4; exhaustion is never null).
+  * partial value (DEF-7; exhaustion is never null).
   */
   markExhausted(): void;
   get committedReserveUsd(): number;
@@ -3316,17 +3275,17 @@ declare class RunBudget {
   * Layer 1: admission before spawn. Blocks when spent + committedReserve
   * has reached the ceiling on ANY account in the ancestor chain of
   * `accountScope`, otherwise commits the reserve along the whole chain.
-  * Also enforces the engine lifetime spawn cap (docs/06, "Scheduler").
+  * Also enforces the engine lifetime spawn cap.
   */
   admitSpawn(reserveUsd: number, accountScope?: string): void;
   /**
   * Resume roll-forward: commits a reserve recovered from a journaled
   * spawn-admission decision entry without re-evaluating admission
-  * (docs/06, 5.1: reserves are recovered, never re-estimated).
+  * (reserves are recovered, never re-estimated).
   */
   admitRecovered(reserveUsd: number, accountScope?: string): void;
   /**
-  * Registers the orchestrator finalize reserve (DEF-7, docs/07 12.2):
+  * Registers the orchestrator finalize reserve (DEF-7):
   * absolute dollars set on the named account AND the run root, so
   * admission never lets any spawn eat the finalization money even
   * against whole-run exhaustion. Kept SEPARATE from committedReserveUsd
@@ -3355,17 +3314,17 @@ declare class RunBudget {
   */
   onUsage(usage: Usage, servedBy: ModelRef, accountScope?: string): void;
   spent(): Spend;
-  /** Null when the run has no USD ceiling (docs/06, section "Canonical Ctx interface"). */
+  /** Null when the run has no USD ceiling. */
   remaining(): Spend | null;
   private emitUpdate;
 }
 //#endregion
 //#region src/journal/reuse.d.ts
-/** Kernel contentHash of a spawn root entry (docs/03, 9.2). */
+/** Kernel contentHash of a spawn root entry. */
 type SpawnKey = string;
-/** Plan-node identity (docs/07, 3.1). */
+/** Plan-node identity. */
 type NodeId$1 = string;
-/** The rich donor descriptor embedded in reuse verdicts (docs/03, 9.9). */
+/** The rich donor descriptor embedded in reuse verdicts. */
 interface DonorRef {
   /** Head of the link chain. */
   nodeId: NodeId$1;
@@ -3374,12 +3333,12 @@ interface DonorRef {
   /** Transitive chain, oldest first. */
   chain: NodeId$1[];
   spawnKey: SpawnKey;
-  /** Lineage continues through the link (docs/03, 9.6; DEF-3). */
+  /** Lineage continues through the link (DEF-3). */
   logicalTaskId: LogicalTaskId;
   /** Paid under the chain at the verdict snapshot. */
   paidUsd: number;
 }
-/** Graft bootstrap payload (docs/03, 9.9). */
+/** Graft bootstrap payload. */
 interface GraftBoot {
   /** Retained by the abandon entry, when it was. */
   checkpointRef?: string;
@@ -3387,13 +3346,13 @@ interface GraftBoot {
   eligiblePaidUsd: number;
   worktreePinned: boolean;
 }
-/** Telemetry for a SpawnKey match admitted fresh (docs/03, 9.9). */
+/** Telemetry for a SpawnKey match admitted fresh. */
 interface DedupNote {
   spawnKey: SpawnKey;
   donorNodeId: NodeId$1;
   reason: "donor_failed" | "no_paid_entries" | "graft_unsafe" | "donor_active";
 }
-/** The reuse block of AdmissionConfig (docs/03, 9.9). */
+/** The reuse block of AdmissionConfig. */
 interface ReuseConfig {
   /** Default true. */
   enabled?: boolean;
@@ -3401,11 +3360,11 @@ interface ReuseConfig {
   allowGraft?: boolean;
   /** Default 2 (Appendix A). */
   maxOscillationsPerKey?: number;
-  /** Optional RevisionGuards trigger on netLostUsd (docs/07, 3.8). */
+  /** Optional RevisionGuards trigger on netLostUsd. */
   maxAbandonedNetUsdFraction?: number;
 }
 declare const DEFAULT_MAX_OSCILLATIONS_PER_KEY = 2;
-/** The consumer-facing reuse mark on results (docs/03, 9.9). */
+/** The consumer-facing reuse mark on results. */
 interface AgentResultMeta {
   reusedFrom?: {
     nodeId: NodeId$1;
@@ -3414,7 +3373,7 @@ interface AgentResultMeta {
     reclaimedUsd: number;
   };
 }
-/** The node.link entry value (docs/03, 9.5): an ordinary content-keyed effect entry. */
+/** The node.link entry value: an ordinary content-keyed effect entry. */
 interface NodeLinkValue {
   targetNodeId: NodeId$1;
   /** plan/NewNodeId. */
@@ -3426,19 +3385,19 @@ interface NodeLinkValue {
   spawnKey: SpawnKey;
   logicalTaskId: LogicalTaskId;
   mode: "full" | "graft";
-  /** full is shareable, graft is exclusive (docs/03, 9.5). */
+  /** full is shareable, graft is exclusive. */
   claim: "shared" | "exclusive";
   checkpointRef?: string;
   reclaimedUsdAtLink: number;
   donorRootRef: EntryRef;
 }
 /**
-* node.link identity (docs/03, 9.5): sha256 of {kind, spawnKey,
+* node.link identity: sha256 of {kind, spawnKey,
 * donorScope, targetNodeId}; targetNodeId is deterministic on replay
 * because NodeIds are assigned inside plan.revision.
 */
 declare function nodeLinkKey(spawnKey: SpawnKey, donorScope: string, targetNodeId: NodeId$1): string;
-/** The abandoned-spend ledger fold (docs/03, 9.7). */
+/** The abandoned-spend ledger fold. */
 interface AbandonedSpendView {
   abandonedUsd: number;
   reclaimedUsd: number;
@@ -3449,7 +3408,7 @@ interface AbandonedSpendView {
     reclaimedUsd: number;
   }>;
 }
-/** One donor candidate surfaced by the DedupIndex fold (docs/03, 9.3). */
+/** One donor candidate surfaced by the DedupIndex fold. */
 interface DonorCandidate {
   rootEntryRef: EntryRef;
   rootScope: string;
@@ -3471,7 +3430,7 @@ interface DonorCandidate {
   retainedCheckpoint: boolean;
   /** Seq of the exclusive node.link that captured this donor, if any. */
   claimedBy?: EntryRef;
-  /** Scope chain for transitive drainage, oldest first (docs/03, 9.6). */
+  /** Scope chain for transitive drainage, oldest first. */
   chain: string[];
 }
 /**
@@ -3493,13 +3452,13 @@ declare class DedupIndex {
   donorsOf(spawnKey: SpawnKey): DonorCandidate[];
   /** Every donor for a key including claimed ones (diagnostics). */
   allDonorsOf(spawnKey: SpawnKey): DonorCandidate[];
-  /** Link count per key: the oscillation counter (docs/03, 9.7). */
+  /** Link count per key: the oscillation counter. */
   oscillationCountOf(spawnKey: SpawnKey): number;
   abandonedSpend(): AbandonedSpendView;
 }
 /**
-* The four-outcome verdict evaluation on a SpawnKey match (docs/03,
-* 9.4), computed once live at the fold head and embedded into the
+* The four-outcome verdict evaluation on a SpawnKey match, computed
+* once live at the fold head and embedded into the
 * deciding entry; replay never re-evaluates.
 */
 declare function evaluateReuse(index: DedupIndex, spawnKey: SpawnKey, config?: ReuseConfig): {
@@ -3519,7 +3478,7 @@ declare function evaluateReuse(index: DedupIndex, spawnKey: SpawnKey, config?: R
 };
 //#endregion
 //#region src/orchestrator/admission.d.ts
-/** Plan-node identity; engine-minted ULID (docs/07, section 3.1). */
+/** Plan-node identity; engine-minted ULID. */
 type NodeId = string;
 /** Layer-1 reservation embedded in the carrying decision entry. */
 interface BudgetReserve {
@@ -3534,7 +3493,7 @@ interface AdmitLineage {
   depth: number;
 }
 /**
-* The unified admission verdict (docs/07, section 7.2; XF-11). One union,
+* The unified admission verdict (XF-11). One union,
 * closed now; every debit is atomic with its carrying decision entry and
 * embeds the balance-after (DEF-2).
 */
@@ -3562,7 +3521,7 @@ type AdmitVerdict = {
   kind: "reject";
   reason: AdmitRejectReason;
 };
-/** The merged reject-code set (docs/07, section 7.2). */
+/** The merged reject-code set. */
 type AdmitRejectReason = {
   code: "depth" | "quota" | "budget" | "lifetime" | "termination_exhausted" | "ladder_exceeds_frozen" | "lineage_exhausted" | "lineage_busy";
 } | {
@@ -3570,7 +3529,7 @@ type AdmitRejectReason = {
   spawnKey: SpawnKey;
   oscillationCount: number;
 };
-/** Every spawn origin routed through the single admission point (docs/07, 7.1). */
+/** Every spawn origin routed through the single admission point. */
 type SpawnOrigin = "ctx.workflow" | "ctx.orchestrate" | "spawn_agent" | "parallel_agents" | "escalation-decomposition" | "rung-respawn" | "reuse-link";
 /** What the admission point needs to know about one spawn. */
 interface AdmitSpec {
@@ -3581,24 +3540,24 @@ interface AdmitSpec {
   childScope: string;
   /** The nearest enclosing budget account of the spawner. */
   parentAccountScope: string;
-  /** Explicit child budget; clamped by childBudgetFraction (docs/07, 4.1). */
+  /** Explicit child budget; clamped by childBudgetFraction. */
   budgetUsd?: number;
-  /** Reserve hint; falls back to the flat engine default (docs/06, 5.1). */
+  /** Reserve hint; falls back to the flat engine default. */
   estCostUsd?: number;
   /**
   * Lineage continuation (DEF-3); absence mints a fresh lineage root. A
   * continuation demands a causeRef: the seq of the entry that caused the
-  * rebirth (docs/03, 10.1, rule 2).
+  * rebirth.
   */
   lineage?: SpawnLineageOpt;
-  /** Raw approach tag; normalized by the engine (docs/03, 10.2). */
+  /** Raw approach tag; normalized by the engine. */
   approach?: string;
   /** Decomposition parent-LTID chain (relation 'decompose-child' only). */
   ancestry?: LogicalTaskId[];
   /**
   * Coarse-signature identity inputs; unspecified fields canonize onto
   * the deterministic legacy constants so signatures stay byte-stable
-  * (docs/03, 10.2; the toolset/schema registries land in M7-T05).
+  * (the toolset/schema registries land in M7-T05).
   */
   signature?: Partial<ApproachSignatureInputs>;
   /**
@@ -3611,7 +3570,7 @@ interface AdmitSpec {
   /**
   * The children-quota key (maxChildrenPerNode); defaults to
   * parentAccountScope. Orchestrators pass their own scope so each node
-  * counts its own children (docs/07, 7.3).
+  * counts its own children.
   */
   nodeKey?: string;
 }
@@ -3627,11 +3586,11 @@ interface AdmissionStatsBefore {
 interface AdmissionDecision {
   verdict: AdmitVerdict;
   statsBefore: AdmissionStatsBefore;
-  /** Node identity minted inside the decision (docs/07, section 5); absent on reject. */
+  /** Node identity minted inside the decision; absent on reject. */
   nodeId?: NodeId;
   /**
   * The computed value-part lineage block (DEF-3): reused byte-exact on
-  * replay, never recomputed (docs/03, 10.6). Absent on reject.
+  * replay, never recomputed. Absent on reject.
   */
   lineage?: SpawnLineage;
   /**
@@ -3667,7 +3626,7 @@ declare class AdmissionController {
     maxDepth?: number;
     maxChildrenPerNode?: number;
     childBudgetFraction?: number;
-    flatReserveUsd?: number; /** Per-orchestrate spawn cap (docs/06, 9.3 maxSpawns); engine lifetime cap applies regardless. */
+    flatReserveUsd?: number; /** Per-orchestrate spawn cap (maxSpawns); engine lifetime cap applies regardless. */
     maxTotalSpawns?: number;
     mintId?: () => string;
     /**
@@ -3685,8 +3644,8 @@ declare class AdmissionController {
   /** The validated lineage limits this controller enforces (DEF-3). */
   get escalationLimits(): EscalationLimits;
   /**
-  * Binds the run's TerminationAccount (DEF-2; PlanRunner runs only,
-  * docs/07 section 1): from bind time on, every admitted spawn of any
+  * Binds the run's TerminationAccount (DEF-2; PlanRunner runs only):
+  * from bind time on, every admitted spawn of any
   * origin debits one spawnUnit atomically with its decision entry, and
   * a declared ladder longer than the frozen kMax rejects with
   * ladder_exceeds_frozen. Non-PlanRunner runs never bind an account and
@@ -3696,7 +3655,7 @@ declare class AdmissionController {
   /** The bound account, when this is a PlanRunner run (DEF-2). */
   get termination(): TerminationAccount | undefined;
   /**
-  * The lineage half of admission (DEF-3, docs/03 section 10.5): folds are
+  * The lineage half of admission (DEF-3): folds are
   * computed live STRICTLY BEFORE the carrying decision entry is appended;
   * the caller embeds the returned block in the entry and replay reads it
   * back byte-exact. Enforces the single-live-attempt invariant
@@ -3750,21 +3709,21 @@ declare class AdmissionController {
   * Resume roll-forward for a child that already SETTLED before the
   * resume: re-registers the counters (maxChildrenPerNode, the lifetime
   * cap, statsBefore fidelity) without committing any reserve; the spend
-  * itself sits in the root ledger seed (docs/03, 13.3).
+  * itself sits in the root ledger seed.
   */
   recoverSettled(parentAccountScope: string): void;
   /**
   * Resume roll-forward for an admission whose decision entry exists but
   * whose child has NOT settled: re-applies the recorded reserve and
-  * counters without re-evaluating any limit (docs/07, 7.1: replay never
-  * re-evaluates admission; docs/06, 5.1: reserves are recovered, never
+  * counters without re-evaluating any limit (replay never
+  * re-evaluates admission; reserves are recovered, never
   * re-estimated).
   */
   recoverInFlight(parentAccountScope: string, verdict: AdmitVerdict): void;
 }
 //#endregion
 //#region src/l0/events.d.ts
-/** docs/09 section 1.4, run lifecycle and core telemetry (M1 subset). */
+/** Run lifecycle and core telemetry (M1 subset). */
 type CoreEvents = {
   type: "run:start";
   workflow: string;
@@ -3807,7 +3766,7 @@ type CoreEvents = {
   scope: string;
   status: string;
 };
-/** docs/09 section 1.4, agent lifecycle. */
+/** Agent lifecycle. */
 type AgentEvents = {
   type: "agent:queued";
   agentType: string;
@@ -3841,7 +3800,7 @@ type AgentEvents = {
   type: "agent:stream";
   delta: string;
 };
-/** docs/09 section 1.4, tool lifecycle (emitters arrive with the tool system, M3). */
+/** Tool lifecycle (emitters arrive with the tool system, M3). */
 type ToolEvents = {
   type: "tool:start";
   toolName: string;
@@ -3852,7 +3811,7 @@ type ToolEvents = {
   outcome: "ok" | "error" | "denied";
   durationMs: number;
   /**
-  * Audit fields (docs/08, section 4.5; M5-T05): the chain verdict,
+  * Audit fields (M5-T05): the chain verdict,
   * the deciding layer, the matched rule, and advisory domain-rule
   * matches. Telemetry, never identity; ask verdicts additionally
   * journal as suspended approvals.
@@ -3863,9 +3822,10 @@ type ToolEvents = {
   advisory?: Json;
 };
 /**
-* docs/09 section 1.4, adaptive orchestration, resolutions, and
+* Adaptive orchestration, resolutions, and
 * accounting: emitted only by runs where the corresponding machinery is
-* active (applicability per mode: docs/07, section 1). The types land as
+* active (applicability per mode:
+* https://docs.rulvar.com/guide/adaptive-orchestration). The types land as
 * one closed catalog with M7-T03; emitters arrive with their tasks.
 */
 type AdaptiveEvents = {
@@ -3916,7 +3876,7 @@ type AdaptiveEvents = {
   countsAgainstLimit: boolean;
 } | {
   type: "spawn:admitted";
-  entryRef: number; /** The admitting arms of the unified AdmitVerdict union (docs/07, 7.2). */
+  entryRef: number; /** The admitting arms of the unified AdmitVerdict union. */
   verdict: "admit" | "reuse_full" | "admit_graft";
   agentType: string;
   logicalTaskId: string;
@@ -3981,12 +3941,12 @@ type AdaptiveEvents = {
 };
 type WorkflowEventBody = CoreEvents | AgentEvents | ToolEvents | AdaptiveEvents;
 /**
-* The envelope (docs/09 section 1.1): seq is an independent per-run
+* The envelope: seq is an independent per-run
 * telemetry counter, strictly increasing in emission order and DISTINCT
 * from JournalEntry.seq (never compare or join the two; entryRef fields
 * carry journal seqs explicitly). ts is wall clock, telemetry only.
-* replayed is true only on re-emitted journal-backed lifecycle events
-* (docs/09 section 1.5); stream deltas are never re-emitted.
+* replayed is true only on re-emitted journal-backed lifecycle events;
+* stream deltas are never re-emitted.
 */
 type WorkflowEvent = {
   runId: string;
@@ -4017,7 +3977,7 @@ interface PendingExternal {
   /** Approvals and Flavor B escalations only. */
   deadlineAt?: string;
 }
-/** docs/09, section "CostReport". */
+/** Full contract: https://docs.rulvar.com/guide/observability. */
 interface CostReport {
   totalUsd: number;
   /** Keyed by canonical ModelRef 'adapterId:model'. */
@@ -4049,7 +4009,7 @@ type RunOutcome<R> = {
   usage: Usage;
   cost: CostReport;
 };
-/** Adds 'running' for in-flight inspection (docs/06, section "Engine and ops API"). */
+/** Adds 'running' for in-flight inspection. */
 type RunStatus = RunOutcome<unknown>["status"] | "running";
 interface RunHandle<R> {
   runId: string;
@@ -4084,7 +4044,7 @@ interface CompiledWorkflow {
 interface ScriptRunner {
   execute<A, R>(wf: Workflow<A, R> | CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R>;
 }
-/** Escalation hook (docs/06, section 2.10): decides for value-form calls. */
+/** Escalation hook: decides for value-form calls. */
 type OnEscalation = (result: EscalatedResult<unknown>) => EscalationDecision | Promise<EscalationDecision>;
 /**
 * The mode (a) runner for human-authored closures. Determinism is enforced
@@ -4118,17 +4078,17 @@ interface PriceTable {
 */
 declare function resolvePricing(ref: ModelRef, table: PriceTable | undefined, capsPricing: Pricing | undefined): Pricing | undefined;
 /**
-* Dollars from normalized usage against one pricing row (docs/04,
-* section 1.6: the adapter normalized the usage; inputTokens is the
+* Dollars from normalized usage against one pricing row (the adapter
+* normalized the usage; inputTokens is the
 * full prompt). Cache writes price at the 5m premium rate; the 1h rate
 * applies where a provider distinguishes it in usage, which the
-* canonical Usage does not yet carry (docs/04, section 10).
+* canonical Usage does not yet carry.
 */
 declare function priceUsdOf(pricing: Pricing, usage: Usage): number;
 //#endregion
 //#region src/engine/engine.d.ts
 /**
-* The per-engine workflow registry (docs/06, section 10.4; M5-T01): an
+* The per-engine workflow registry (M5-T01): an
 * explicit, first-class value; no module-level registry exists. Shells
 * resolve by-name runs against it; ctx.workflow's string form (M6) and
 * the queue worker (M8) resolve against it too. CompiledWorkflow values
@@ -4140,24 +4100,23 @@ interface EngineDefaults {
   profiles?: Record<string, AgentProfile>;
   /** The workflow registry for shells and by-name resolution (10.4). */
   workflows?: WorkflowRegistry;
-  /** Registered SchemaSpec names for outputSchemaRef (docs/08; M7-T05). */
+  /** Registered SchemaSpec names for outputSchemaRef (M7-T05). */
   schemas?: Record<string, SchemaSpec>;
-  /** Registered tool profile names for toolsetRef (docs/08; M7-T05). */
+  /** Registered tool profile names for toolsetRef (M7-T05). */
   toolsets?: Record<string, ToolsOption>;
   /**
   * Registered mechanical gate profiles: named pure functions over
-  * AgentResult.artifacts for ladder acceptance gates (docs/02, section
-  * "Registries"; docs/07, section 10; M7-T10).
+  * AgentResult.artifacts for ladder acceptance gates (M7-T10).
   */
   gates?: Record<string, MechanicalGateProfile>;
   limits?: UsageLimits;
-  /** Engine-wide permission chain layers (docs/08, section 3). */
+  /** Engine-wide permission chain layers. */
   permissions?: PermissionConfig;
-  /** The worktree lifecycle provider (docs/08, section 8). */
+  /** The worktree lifecycle provider. */
   isolation?: IsolationProvider;
-  /** Engine-wide transport RetryPolicy (docs/04, 11.1; M4-T05). */
+  /** Engine-wide transport RetryPolicy (M4-T05). */
   retry?: RetryPolicy;
-  /** Hard per-role model constraints (docs/04, section 9; M4-T09). */
+  /** Hard per-role model constraints (M4-T09). */
   roleFloors?: QualityFloors;
 }
 interface BudgetDefaults {
@@ -4167,13 +4126,13 @@ interface BudgetDefaults {
   lifetimeSpawnCap?: number;
   /**
   * Fraction of the parent remainder (minus the parent finalize reserve)
-  * a child sub-account may take; default 0.3 (docs/06, 5.4; M6-T06).
+  * a child sub-account may take; default 0.3 (M6-T06).
   */
   childBudgetFraction?: number;
-  /** AdmissionController nesting depth; default 1, hard ceiling 4 (docs/07, 7.3). */
+  /** AdmissionController nesting depth; default 1, hard ceiling 4. */
   maxDepth?: number;
   /**
-  * Lineage limits (DEF-3, docs/03 section 10.5): maxEscalationsPerLogicalTask
+  * Lineage limits (DEF-3): maxEscalationsPerLogicalTask
   * (default 2) and maxAttemptsPerLogicalTask (default 8), monotonically
   * consumed. The validator rejects the pre-rename knob name
   * maxEscalationsPerNode with a migration hint (XF-10).
@@ -4186,7 +4145,7 @@ interface CreateEngineOptions {
     /** Default InMemoryStore (resume disabled, loud warning). */journal?: JournalStore;
     transcripts?: TranscriptStore;
     /**
-    * The ModelKnowledge claim store (docs/05; M10-T03). Optional and
+    * The ModelKnowledge claim store (M10-T03). Optional and
     * OFF by default: an engine without it writes no kb entries at
     * all. The runtime only ever receives the current()-only handle.
     */
@@ -4198,11 +4157,11 @@ interface CreateEngineOptions {
     perRun?: number; /** Per-adapter-id caps; unlimited unless configured (Appendix A; M4-T07). */
     perProvider?: Record<string, number>;
   };
-  /** Versioned price table; wins over caps.pricing (docs/04, section 10; M4-T06). */
+  /** Versioned price table; wins over caps.pricing (M4-T06). */
   pricing?: PriceTable;
   /**
-  * Runner registrations beyond the built-in InProcessRunner (docs/06,
-  * sections 8 and 10.1; M6-T02). `sandbox` executes CompiledWorkflow
+  * Runner registrations beyond the built-in InProcessRunner (M6-T02).
+  * `sandbox` executes CompiledWorkflow
   * values (WorkerSandboxRunner ships in @rulvar/planner); running or
   * resuming a compiled workflow without one is a typed ConfigError.
   */
@@ -4210,28 +4169,28 @@ interface CreateEngineOptions {
     sandbox?: ScriptRunner;
   };
   /**
-  * The InProcessRunner escalation hook (docs/06, sections 2.10 and 8.1):
+  * The InProcessRunner escalation hook:
   * receives escalated results when the call form cannot carry them; the
   * returned decision is journaled as the authoritative
   * escalation-decision entry.
   */
   onEscalation?: (result: EscalatedResult<unknown>) => EscalationDecision | Promise<EscalationDecision>;
   /**
-  * KeyDeriver registry extension (docs/03, section "hashVersion").
+  * KeyDeriver registry extension (see
+  * https://docs.rulvar.com/guide/journal-compatibility).
   * Plumbed now, consumed by the matching kernel from M2.
   */
   extraDerivers?: readonly unknown[];
   /**
   * Redact/encrypt at the append/put boundaries, symmetric on load/get
-  * (docs/03, section "Serialization hook"; M8-T04, OQ-22 executed).
+  * (M8-T04, OQ-22 executed).
   * Applied by wrapping the configured stores; Engine.stores exposes
   * the wrapped instances, so every reader passes one policy point.
   */
   serialization?: SerializationHook;
   /**
-  * The default key-masking policy at the telemetry boundary (docs/09,
-  * section "Redaction and sensitive data"; docs/06 Appendix A row
-  * "event secret masking"). Default ON: key-shaped strings in every
+  * The default key-masking policy at the telemetry boundary. Default
+  * ON: key-shaped strings in every
   * emitted WorkflowEvent are masked; never touches the journal.
   */
   redaction?: {
@@ -4252,7 +4211,7 @@ interface RunOptions {
   /** Host-initiated cancellation. */
   signal?: AbortSignal;
 }
-/** Resume-time hit/miss/orphan accounting (docs/03, section 11.3). */
+/** Resume-time hit/miss/orphan accounting. */
 interface ResumePreview extends ResumeReport {
   invalidResolutions: Array<{
     seq: number;
@@ -4262,23 +4221,23 @@ interface ResumePreview extends ResumeReport {
 interface ResumeOptions {
   /**
   * The run's original arguments: not journaled for in-process workflows
-  * in v1, so the host supplies them (resume binding residuals, docs/14).
+  * in v1, so the host supplies them (resume binding residuals).
   */
   args?: unknown;
   /**
   * Dry-run: replay-strict matching; the first would-be-live call throws
   * JournalMissError and the run settles with that typed error, zero live
-  * calls performed (docs/03, section 11.3).
+  * calls performed.
   */
   dryRun?: boolean;
-  /** invalidate/retry: entries to unpin before matching (docs/03, section 6.5). */
+  /** invalidate/retry: entries to unpin before matching. */
   invalidate?: number[];
   /**
   * Queue mode: the worker's lease. The engine carries it on EVERY
   * journal append of this resume (the kernel's single append site), so
   * a stale worker's writes are rejected by the fencing epoch and never
-  * become visible (docs/06 10.2 and docs/03 12.3, M8 entry amendment;
-  * DEF-6; FR-703). putMeta and transcript blobs stay advisory and
+  * become visible (M8 entry amendment; DEF-6; FR-703). putMeta and
+  * transcript blobs stay advisory and
   * unfenced.
   */
   lease?: Lease;
@@ -4290,44 +4249,43 @@ interface ResumeHandle<R> extends RunHandle<R> {
 interface Engine {
   run<A, R>(wf: Workflow<A, R> | CompiledWorkflow, args: A, opts?: RunOptions): RunHandle<R>;
   /**
-  * Rebinds a journal to a workflow definition and resumes (docs/06,
-  * section "Engine and ops API"). Requires wf for in-process workflows;
+  * Rebinds a journal to a workflow definition and resumes. Requires wf
+  * for in-process workflows;
   * a name mismatch is a typed ConfigError; a body-hash mismatch warns
   * loudly and proceeds (the journal decides replay per content keys).
   * A compiled run resumes WITHOUT wf: the engine rehydrates the
   * persisted source pinned by workflowHash; supplying a compiled wf
   * whose source hash differs from the recorded one is a typed
-  * ConfigError (docs/06, 10.2; M6-T02).
+  * ConfigError (M6-T02).
   */
   resume<A, R>(runId: string, wf?: Workflow<A, R> | CompiledWorkflow, options?: ResumeOptions): ResumeHandle<R>;
   /**
   * Renders the registered agent profiles into the shared vocabulary
-  * card (docs/06, 9.3), optionally filtered to `names`; the registry
-  * itself stays private to the engine (docs/06, 10.2; M6-T05
-  * amendment). Unknown names are ignored.
+  * card, optionally filtered to `names`; the registry itself stays
+  * private to the engine (M6-T05 amendment). Unknown names are ignored.
   */
   profileCard(names?: readonly string[]): string;
   /**
   * The engine's configured stores, exposed for shells and hosts
-  * (docs/06, 10.2, M8 entry amendment; docs/02, section "Shells
-  * overview": "the journal store comes from the engine"). Exactly the
+  * (M8 entry amendment: the journal store comes from the engine).
+  * Exactly the
   * instances createEngine received, or the defaults it built; no store
   * contract widens through this accessor. With a serialization hook
   * configured these are the HOOKED wrappers, so every reader passes
-  * the one policy point (docs/03, 12.8; M8-T04).
+  * the one policy point (M8-T04).
   */
   readonly stores: {
     journal: JournalStore;
     transcripts: TranscriptStore;
   };
   /**
-  * Retention (docs/06, 10.2; OQ-20 executed at M8-T04): deletes every
+  * Retention (OQ-20 executed at M8-T04): deletes every
   * blob transcripts.list(runId) returns, then the journal; no orphan
   * blobs survive. The caller owns the decision that the run is done.
   */
   deleteRun(runId: string): Promise<void>;
   /**
-  * Checkpoint pruning (docs/03, 12.4 note; OQ-20 executed at M8-T04):
+  * Checkpoint pruning (OQ-20 executed at M8-T04):
   * deletes checkpoint blobs of ok-terminal attempts that no other
   * entry references; returns the count. Parked, cancelled, escalated,
   * and hanging attempts keep theirs (park/unpark, DEF-5 retention, and
@@ -4335,16 +4293,16 @@ interface Engine {
   */
   pruneRun(runId: string): Promise<number>;
 }
-/** Content hash of an in-process workflow body (run-to-definition binding, docs/06 10.2). */
+/** Content hash of an in-process workflow body (run-to-definition binding). */
 declare function hashWorkflowBody(wf: Workflow<never, never> | Workflow<unknown, unknown>): string;
-/** Content hash of a compiled workflow source (run-to-definition binding, docs/06 10.2). */
+/** Content hash of a compiled workflow source (run-to-definition binding). */
 declare function hashWorkflowSource(source: string): string;
 /** TranscriptStore ref of the persisted CompiledWorkflow source blob. */
 declare function workflowSourceRef(runId: string): string;
 declare function createEngine(options: CreateEngineOptions): Engine;
 //#endregion
 //#region src/orchestrator/handles.d.ts
-/** docs/07 section 5: the per-child digest handed to the orchestrator. */
+/** The per-child digest handed to the orchestrator. */
 interface TaskDigest {
   nodeId: string;
   logicalTaskId: string;
@@ -4363,7 +4321,7 @@ interface SpawnRecord {
   result: Promise<AgentResult<unknown>>;
   settled?: AgentResult<unknown>;
   abort: () => void;
-  /** The spawn's escalation flavor, captured at dispatch (docs/07, 5). */
+  /** The spawn's escalation flavor, captured at dispatch. */
   escalationFlavor?: "A" | "B";
 }
 /** The engine seam the spawn tools close over (never on ToolContext). */
@@ -4393,11 +4351,11 @@ interface OrchestratorRuntime {
     cancelled: boolean;
     handle: number;
   }>;
-  /** docs/07 4.8: sleep until a coalesced WakeDigest (M6-T09). */
+  /** Sleep until a coalesced WakeDigest (M6-T09). */
   waitForEvents(triggers: unknown): Promise<unknown>;
 }
 /**
-* The committed WakeDigest render budget (docs/06, Appendix A: 400
+* The committed WakeDigest render budget (Appendix A: 400
 * chars per outputSummary row, the character measure; committed at M10
 * entry by adopting the implemented distillation cap unchanged, the
 * value frozen into every cassette since M6). One value serves both
@@ -4407,8 +4365,8 @@ interface OrchestratorRuntime {
 declare const WAKE_SUMMARY_RENDER_BUDGET_CHARS = 400;
 /**
 * The M6 outputSummary: a deterministic truncation of the child's
-* output (or error message), identical live and on replay (docs/07
-* section 2, clause 3: distillation lives with the child, ordered by
+* output (or error message), identical live and on replay (distillation
+* lives with the child, ordered by
 * spawn ordinal; the LLM distillation upgrade is M7 territory).
 */
 declare function summarizeOutput(result: AgentResult<unknown>): string;
@@ -4428,10 +4386,10 @@ interface SpawnAdmissionValue {
 }
 //#endregion
 //#region src/orchestrator/wake.d.ts
-/** docs/07 4.8: the wait_for_events parameter schema (normative). */
+/** The wait_for_events parameter schema (normative). */
 declare const WAIT_FOR_EVENTS_SCHEMA: SchemaSpec;
 declare const WAIT_FOR_EVENTS_TOOL_NAME = "wait_for_events";
-/** The closed v1 trigger vocabulary (docs/07 4.8). */
+/** The closed v1 trigger vocabulary. */
 type WakeTrigger = {
   kind: "quiescence";
 } | {
@@ -4443,7 +4401,7 @@ type WakeTrigger = {
   kind: "budget_threshold";
   percent: 50 | 80;
 };
-/** docs/07 section 5: the escalation block of a digest. */
+/** The escalation block of a digest. */
 interface EscalationDigest {
   nodeId: string;
   logicalTaskId: string;
@@ -4454,7 +4412,7 @@ interface EscalationDigest {
   /** Flavor B only. */
   deadlineAt?: string;
 }
-/** Passive budget visibility in every digest (DEF-7; docs/07, 12.5). */
+/** Passive budget visibility in every digest (DEF-7). */
 interface WakeBudgetBlock {
   runSpentUsd: number;
   runCeilingUsd: number;
@@ -4467,7 +4425,7 @@ interface WakeBudgetBlock {
   softWarning: boolean;
 }
 /**
-* The FINAL normative WakeDigest (docs/07 section 5): one coordinated
+* The FINAL normative WakeDigest: one coordinated
 * schema change inside the hashVersion-2 profile (XF-12). The digest
 * render enters the content key of orchestrator turns. In runs without
 * the PlanRunner extension the termination, budget, and reuse blocks are
@@ -4512,7 +4470,7 @@ declare function emptyDigestBlocks(): Pick<WakeDigest, "planHash" | "termination
 /** One append into an extension-owned sequential scope. */
 interface ExtensionAppendInput {
   scope: string;
-  /** The content key; extension kinds derive their own (docs/07, 3.3). */
+  /** The content key; extension kinds derive their own. */
   key: string;
   kind: EntryKind;
   value: Json;
@@ -4521,9 +4479,9 @@ interface ExtensionAppendInput {
 interface ExtensionDispatchSpec {
   agentType: string;
   prompt: string;
-  /** Resolved against defaults.schemas (docs/08); unknown names are typed errors. */
+  /** Resolved against defaults.schemas; unknown names are typed errors. */
   outputSchemaRef?: string;
-  /** Resolved against defaults.toolsets (docs/08); unknown names are typed errors. */
+  /** Resolved against defaults.toolsets; unknown names are typed errors. */
   toolsetRef?: string;
   isolation?: IsolationSpec;
   budgetUsd?: number;
@@ -4533,15 +4491,15 @@ interface ExtensionDispatchSpec {
   taskClass?: string;
   /**
   * A retained transcript checkpoint the dispatch boots from (park and
-  * unpark continuation, the DEF-5 graft boot; docs/03, sections 9.5 and
-  * 11.2). Dangling redispatch checkpoints take precedence.
+  * unpark continuation, the DEF-5 graft boot). Dangling redispatch
+  * checkpoints take precedence.
   */
   bootCheckpointRef?: string;
   /**
   * The CONCRETE model of this attempt: the ladder driver resolves each
   * rung to its `{ model, effort }` form and dispatches with it, so the
-  * attempt's identity hash includes the concrete ModelRef (docs/07,
-  * section 10). The orchestrator itself never names models; only the
+  * attempt's identity hash includes the concrete ModelRef. The
+  * orchestrator itself never names models; only the
   * engine-side driver populates this from the declared ladder.
   */
   model?: {
@@ -4549,7 +4507,7 @@ interface ExtensionDispatchSpec {
     effort?: Effort;
   };
   /**
-  * Rung/fallback opt-in (docs/04, section 12): a memoized terminal
+  * Rung/fallback opt-in: a memoized terminal
   * outcome replays by match instead of re-running live; the global
   * default errors-re-run-live is preserved (DEF-1).
   */
@@ -4557,7 +4515,7 @@ interface ExtensionDispatchSpec {
   /**
   * An INLINE SchemaSpec for engine-synthesized children (the ladder
   * judge verdict); user-authored plan specs use `outputSchemaRef`
-  * against the registry instead (docs/07, 4.2).
+  * against the registry instead.
   */
   schema?: unknown;
 }
@@ -4571,7 +4529,7 @@ interface OrchestratorExtensionIO {
   /** Registered agent profiles advertised to this orchestrate call. */
   readonly profiles: Record<string, unknown>;
   /**
-  * The per-engine mechanical gate registry (docs/07, section 10):
+  * The per-engine mechanical gate registry:
   * named pure functions over AgentResult.artifacts. Typed loose at the
   * seam exactly like `profiles`.
   */
@@ -4583,7 +4541,7 @@ interface OrchestratorExtensionIO {
   /**
   * A journaled random draw in [0, 1) under the orchestrate scope: the
   * ctx.random primitive, computed once live and replayed by match. The
-  * spot-check gate draws HERE, never Math.random (docs/04, section 12).
+  * spot-check gate draws HERE, never Math.random.
   */
   random(key?: string): Promise<number>;
   /** Total-order append; the extension owns its scopes' content keys. */
@@ -4592,7 +4550,7 @@ interface OrchestratorExtensionIO {
   snapshot(): readonly JournalEntry[];
   /** Flushes the serialized append queue before reading back. */
   flush(): Promise<void>;
-  /** The single admission point for all spawns (docs/07, 7.1). */
+  /** The single admission point for all spawns. */
   readonly admission: AdmissionController;
   /**
   * Dispatches one child agent under the EXPLICIT child scope through
@@ -4614,7 +4572,7 @@ interface OrchestratorExtensionIO {
   }>;
   /**
   * Appends the severing abandon ref-entry over a branch through the
-  * ResolutionArbiter (DEF-4/DEF-5; docs/03, sections 8.5 and 9.1).
+  * ResolutionArbiter (DEF-4/DEF-5).
   */
   abandonBranch(attempt: {
     target: number;
@@ -4630,10 +4588,10 @@ interface OrchestratorExtensionIO {
   }>;
   /**
   * Registers a node.link scope-prefix alias for forward matching
-  * (DEF-5; docs/03, 9.5). Idempotent; rebuilt by fold on resume.
+  * (DEF-5). Idempotent; rebuilt by fold on resume.
   */
   registerAlias(donorScope: string, targetScope: string): void;
-  /** The engine price fold (journal facts in, USD out; docs/04). */
+  /** The engine price fold (journal facts in, USD out). */
   priceUsd(servedBy: string | undefined, usage: Usage): number | undefined;
   /** Telemetry emission into the run event stream. */
   emit(event: {
@@ -4648,12 +4606,12 @@ interface OrchestratorExtensionIO {
 interface OrchestratorExtension {
   readonly name: string;
   /**
-  * Runs strictly BEFORE the orchestrator agent's first entry (docs/07,
-  * 11.6: termination.init precedes the first scheduling entry and the
+  * Runs strictly BEFORE the orchestrator agent's first entry
+  * (termination.init precedes the first scheduling entry and the
   * budget reserve). On resume it rebuilds state from the journal.
   */
   boot?(io: OrchestratorExtensionIO): Promise<void> | void;
-  /** Extension tools appended to the mode (c) toolset (docs/07, section 4). */
+  /** Extension tools appended to the mode (c) toolset. */
   tools(io: OrchestratorExtensionIO): ToolDef[];
   /** Extra orchestrator prompt lines describing the extension's protocol. */
   promptLines?(): string[];
@@ -4664,7 +4622,7 @@ interface OrchestratorExtension {
   */
   onActivity?(io: OrchestratorExtensionIO): Promise<void> | void;
   /**
-  * Quiescence participation (docs/07, 4.8): the mandatory trigger fires
+  * Quiescence participation: the mandatory trigger fires
   * only when every dispatched child settled AND the extension reports
   * nothing running and nothing ready.
   */
@@ -4679,7 +4637,10 @@ interface OrchestratorExtension {
 }
 //#endregion
 //#region src/orchestrator/orchestrate.d.ts
-/** docs/06 5.5; the cap machinery (reserves, freeze) completes in M7 (DEF-7). */
+/**
+* Budget contract: https://docs.rulvar.com/guide/budgets; the cap
+* machinery (reserves, freeze) completes in M7 (DEF-7).
+*/
 interface OrchestratorBudgetSpec {
   capUsd?: number;
   /** default 0.2; effectiveCap = min of the given bounds */
@@ -4688,7 +4649,7 @@ interface OrchestratorBudgetSpec {
   finalizeTurns?: number;
   atCap?: "finish-with-partial" | "fail-run";
 }
-/** docs/06 9.3: orchestrate(engine, goal, o?). */
+/** Options for orchestrate(engine, goal, o?). */
 interface OrchestrateOptions {
   model?: ModelSpec;
   /** Registered profile names to advertise; default: every profile. */
@@ -4698,17 +4659,17 @@ interface OrchestrateOptions {
   /** The orchestrator's own budget sub-account (cap enforcement layers only in M6). */
   budget?: OrchestratorBudgetSpec;
   /**
-  * Deterministic digest render bound (docs/07, section 5): each
+  * Deterministic digest render bound: each
   * TaskDigest outputSummary is clamped to this many CHARACTERS (the
   * model-independent measure; OQ-04 closed at M10 entry). Default
-  * WAKE_SUMMARY_RENDER_BUDGET_CHARS (docs/06, Appendix A).
+  * WAKE_SUMMARY_RENDER_BUDGET_CHARS.
   */
   renderBudgetChars?: number;
   /** UsageLimits of the orchestrator agent itself (maxTurns etc.). */
   limits?: UsageLimits;
   /**
   * The opt-in mode (c) extension seam (M7-T05): PlanRunner from
-  * @rulvar/plan attaches here (docs/07, section 1). The extension boots
+  * @rulvar/plan attaches here. The extension boots
   * strictly before the orchestrator's first agent entry, contributes
   * tools, schedules ready plan nodes on every settlement, and
   * participates in the mandatory quiescence trigger.
@@ -4723,7 +4684,7 @@ declare const ORCHESTRATE_WORKFLOW_NAME = "rulvar-orchestrate";
 * orchestrator agent with the finish terminal tool.
 */
 declare function makeOrchestratorWorkflow(goal: string, opts?: OrchestrateOptions): Workflow<undefined, unknown>;
-/** Top-level surface: creates a run (docs/06 9.3). */
+/** Top-level surface: creates a run. */
 declare function orchestrate(engine: Engine, goal: string, opts?: OrchestrateOptions): RunHandle<unknown>;
 //#endregion
 //#region src/engine/scheduler.d.ts
@@ -4731,10 +4692,10 @@ declare function orchestrate(engine: Engine, goal: string, opts?: OrchestrateOpt
 * Scheduler and concurrency (M1-T08): the per-run semaphore with a FIFO
 * queue (default 12 concurrent model calls). The engine lifetime spawn cap
 * is enforced by the budget layer at admission; parallel/pipeline
-* composition semantics live with ctx (docs/06, section "Scheduler").
+* composition semantics live with ctx.
 * Per-provider concurrency keys land with M4.
 */
-/** FIFO semaphore; default per-run width is 12 (docs/06, Appendix A). */
+/** FIFO semaphore; default per-run width is 12. */
 declare const DEFAULT_PER_RUN_CONCURRENCY = 12;
 declare class Semaphore {
   private readonly limit;
@@ -4766,7 +4727,7 @@ declare function toApprovalDecision(value: Json): ApprovalDecision;
 * Per-run registry of open external suspensions plus the run's activity
 * counter: when every in-flight branch is blocked on suspensions
 * (activity zero, waiters open), the run quiesces into outcome
-* 'suspended' (docs/06, section 2.7).
+* 'suspended'.
 */
 declare class ExternalRegistry {
   private readonly replayer;
@@ -4798,7 +4759,7 @@ declare class ExternalRegistry {
     prompt?: string;
   }): Promise<Json>;
   /**
-  * Tool-approval suspension (M3-T03; docs/08, section 3.6): journals (or
+  * Tool-approval suspension (M3-T03): journals (or
   * re-matches) the suspended approval entry keyed by (toolName, input)
   * in the agent's child scope and parks until a resolution closes it.
   * The ask verdict is journaled together with the turn checkpoint; on
@@ -4814,7 +4775,7 @@ declare class ExternalRegistry {
     onPending?: (entry: JournalEntry, replayed: boolean) => void;
   }): Promise<ApprovalDecision>;
   /**
-  * Flavor B escalation suspension (M3-T07; docs/07, section 6.2): the
+  * Flavor B escalation suspension (M3-T07): the
   * escalate tool suspends the agent on the SAME machinery as approvals
   * (kind 'approval', toolName 'escalate') with a journaled deadlineAt so
   * deadlines survive resume; the resolution VALUE is the raw
@@ -4843,7 +4804,7 @@ declare class ExternalRegistry {
   /**
   * RunHandle.resolveExternal: the live path validates BEFORE append and
   * throws InvalidResolutionError without journaling; a winning attempt
-  * settles the waiting promise in place (docs/03, section 8.7).
+  * settles the waiting promise in place.
   */
   resolveExternal(key: string, value: Json): Promise<ResolutionOutcome>;
 }
@@ -4851,9 +4812,9 @@ declare class ExternalRegistry {
 //#region src/engine/ctx.d.ts
 type ErrorPolicy = "strict" | "lenient";
 /**
-* The canonical, complete AgentProfile shape (docs/06, section
-* "AgentProfile"); M1 honors description, model, routing, effort, limits,
-* and estCost. A profile never carries a prompt or a schema.
+* The canonical, complete AgentProfile shape; M1 honors description,
+* model, routing, effort, limits, and estCost. A profile never carries
+* a prompt or a schema.
 */
 interface AgentProfile {
   description?: string;
@@ -4862,11 +4823,11 @@ interface AgentProfile {
   effort?: Effort;
   /** Toolset default; the resolved snapshot enters identity via toolsetHash. */
   tools?: ToolsOption;
-  /** Chain layers merged over engine defaults (docs/08, section 3.7). */
+  /** Chain layers merged over engine defaults. */
   permissions?: AgentProfilePermissions;
-  /** Isolation default; the RESOLVED value enters identity (docs/08). */
+  /** Isolation default; the RESOLVED value enters identity. */
   isolation?: IsolationSpec;
-  /** Flavor B opt-in lives here or on the call (docs/07, section 6). */
+  /** Flavor B opt-in lives here or on the call. */
   escalation?: EscalationOptions;
   limits?: UsageLimits;
   /** Transport RetryPolicy layer: call over profile over engine (M4-T05). */
@@ -4875,7 +4836,7 @@ interface AgentProfile {
   taskClass?: string;
   /**
   * Per-profile compaction threshold; default 0.8 of the loop model's
-  * contextWindow (docs/06, Appendix A; M4-T03). Compaction is ON by
+  * contextWindow (M4-T03). Compaction is ON by
   * default; history-processor plumbing stays engine-internal.
   */
   compaction?: {
@@ -4885,7 +4846,7 @@ interface AgentProfile {
   estCost?: number;
 }
 /**
-* Per-spawn options (docs/06, section "ctx.agent and AgentOpts"). The
+* Per-spawn options. The
 * identity split is normative: agentType, model/routing/effort (the
 * requested modelSpec), schema (schemaHash), and key enter the content
 * key; everything else is policy or telemetry and never re-keys entries.
@@ -4899,8 +4860,7 @@ interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   * 'loop'. The plan and orchestrate entry points set it so the
   * resolution chain, role effort defaults, quality floors, and cost
   * buckets see the right role; extract/finalize/summarize stay
-  * trigger-derived and are never settable here (docs/06, 2.1;
-  * M6-T05 amendment).
+  * trigger-derived and are never settable here (M6-T05 amendment).
   */
   role?: "loop" | "plan" | "orchestrate";
   /** Overrides all roles at once. */
@@ -4911,29 +4871,29 @@ interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   effort?: Effort;
   /** schemaHash enters identity. */
   schema?: S;
-  /** toolsetHash enters identity; wins over profile.tools (docs/08). */
+  /** toolsetHash enters identity; wins over profile.tools. */
   tools?: ToolsOption;
-  /** docs/08; the RESOLVED value enters identity; worktree needs defaults.isolation. */
+  /** The RESOLVED value enters identity; worktree needs defaults.isolation. */
   isolation?: IsolationSpec;
   /** Explicit discriminator; replaces the prompt in the content key. */
   key?: string;
   onError?: "throw" | "null";
-  /** Transport RetryPolicy under the journal (docs/04, 11.1; M4-T05). */
+  /** Transport RetryPolicy under the journal (M4-T05). */
   retry?: RetryPolicy;
   /**
-  * The degenerate fallback (docs/04, 11.3; M4-T04): an agent-level
+  * The degenerate fallback (M4-T04): an agent-level
   * second attempt on `model` when the terminal matches `on`; one
   * journaled decision entry; the fallback attempt is a NEW content key.
   */
   fallback?: FallbackField;
-  /** Per-call replay mode; default scoped forward-matching (docs/03, section 7.3). */
+  /** Per-call replay mode; default scoped forward-matching. */
   replay?: "cache" | "never";
   /** Journaled as a policy field from day one; consumed by the M2 predicate. */
   memoizeOutcome?: boolean;
-  /** Opt-in; without it 'escalated' is physically unproducible (docs/07 6.4). */
+  /** Opt-in; without it 'escalated' is physically unproducible. */
   escalation?: EscalationOptions;
   /**
-  * Lineage continuation (DEF-3, docs/03 section 10.3): declares this
+  * Lineage continuation (DEF-3): declares this
   * spawn a rebirth of an existing logical task; absence means a new
   * lineage root. Never enters the content key. Declaring lineage or
   * approach journals a spawn-admission decision entry BEFORE dispatch,
@@ -4944,7 +4904,7 @@ interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   approach?: string;
   /** Admission reserve hint (USD). */
   estCost?: number;
-  /** Merged over profile and engine limits (docs/06, section "UsageLimits"). */
+  /** Merged over profile and engine limits. */
   limits?: UsageLimits;
   result?: "value" | "full";
   /** Telemetry only. */
@@ -4952,7 +4912,7 @@ interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
   /** Enables agent:stream delta events. */
   stream?: boolean;
 }
-/** docs/06, section "Error policy and dropped results". */
+/** One dropped result: its source, scope, entry ref, and wire error. */
 interface DroppedItem {
   source: "pipeline" | "agent-onerror-null" | "parallel-settled";
   /** Scope path of the failed call. */
@@ -4964,8 +4924,7 @@ interface DroppedItem {
 }
 /**
 * The discriminated union over AgentStatus carrying the underlying
-* AgentResult where one exists (docs/06, section "ctx.parallel and
-* Settled").
+* AgentResult where one exists.
 */
 type Settled<T> = {
   status: "ok";
@@ -4991,10 +4950,9 @@ type Settled<T> = {
 type Stage<I, O> = (item: I) => Promise<O>;
 /**
 * The rejection carrier of ctx.agent value-form calls: a real Error that
-* structurally satisfies the typed AgentError (docs/06, section "ctx.agent
-* and AgentOpts") and carries the full AgentResult for Settled mapping.
-* Deliberately not a RulvarError: AgentError is not in the closed code
-* registry (docs/02, section "Error taxonomy").
+* structurally satisfies the typed AgentError and carries the full
+* AgentResult for Settled mapping. Deliberately not a RulvarError:
+* AgentError is not in the closed code registry.
 */
 declare class AgentCallError extends Error implements AgentError {
   readonly kind: AgentError["kind"];
@@ -5011,7 +4969,7 @@ interface PipelineCollected<T> {
   results: T[];
   dropped: DroppedItem[];
 }
-/** The canonical Ctx interface, M1 members (docs/06, section "Canonical Ctx interface"). */
+/** The canonical Ctx interface, M1 members. */
 interface Ctx<P extends ErrorPolicy = "strict"> {
   agent(prompt: string): Promise<P extends "lenient" ? string | null : string>;
   agent<S extends SchemaSpec>(prompt: string, o: AgentOpts<S> & {
@@ -5045,33 +5003,33 @@ interface Ctx<P extends ErrorPolicy = "strict"> {
     key?: string;
   }): Promise<T>;
   /**
-  * Runs a child workflow under the AdmissionController (docs/06, section
-  * 2.5; M6-T06). The child gets a nested journal scope (registered name
+  * Runs a child workflow under the AdmissionController (M6-T06). The
+  * child gets a nested journal scope (registered name
   * plus ordinal) and a hierarchical budget sub-account whose spend
   * propagates to every ancestor. Structural limit violations throw the
   * typed AdmissionRejectedError and never tear the run down; budget
   * rejections throw BudgetExhaustedError. The string form resolves
-  * against the per-engine workflow registry (section 10.4) and is the
+  * against the per-engine workflow registry and is the
   * only form available inside the worker sandbox.
   */
   workflow<A, R>(wf: Workflow<A, R>, args: A, o?: WorkflowCallOpts): Promise<R>;
   workflow(name: string, args?: Json, o?: WorkflowCallOpts): Promise<unknown>;
   /**
-  * Nests a dynamic orchestrator under the AdmissionController (docs/06,
-  * section 2.6; M6-T07): one implementation with the top-level
+  * Nests a dynamic orchestrator under the AdmissionController (M6-T07):
+  * one implementation with the top-level
   * orchestrate(engine, goal, opts) surface, clamped by maxDepth and the
   * parent budget account through the ordinary ctx.workflow admission.
   */
   orchestrate(goal: string, opts?: OrchestrateOptions): Promise<unknown>;
   /**
   * A journaled summarize invocation for handing an inheritable brief to
-  * a child (docs/06, section 2.8; M6-T10): one agent-kind entry under
+  * a child (M6-T10): one agent-kind entry under
   * role 'summarize', therefore free on replay.
   */
   brief(o: BriefOpts): Promise<string>;
   /**
   * Suspends this position on a journaled entry until an external
-  * resolution arrives (docs/06, section 2.7). NO deadline in v1.
+  * resolution arrives. NO deadline in v1.
   */
   awaitExternal<T = Json>(key: string, o?: {
     schema?: SchemaSpec;
@@ -5093,7 +5051,7 @@ interface PipelineOpts {
 interface CollectOpts {
   onItemError: "collect";
 }
-/** Options of ctx.workflow; `key` replaces args in the child identity (docs/03, 1.2). */
+/** Options of ctx.workflow; `key` replaces args in the child identity. */
 interface WorkflowCallOpts {
   key?: string;
   /** Lineage continuation (DEF-3); embedded in the admission decision entry. */
@@ -5102,8 +5060,8 @@ interface WorkflowCallOpts {
   approach?: string;
 }
 /**
-* Options of ctx.brief (docs/06, 2.8; amended during M6-T10 with the
-* concrete shape): the content to distill plus an optional instruction;
+* Options of ctx.brief (concrete shape fixed in M6-T10): the content to
+* distill plus an optional instruction;
 * the invocation resolves role 'summarize', so it needs
 * defaults.routing.summarize, a profile, or the explicit model.
 */
@@ -5113,7 +5071,7 @@ interface BriefOpts {
   model?: ModelSpec;
   agentType?: string;
 }
-/** Closure-form workflow value; in-process only (docs/06, section "Execution model"). */
+/** Closure-form workflow value; in-process only. */
 interface Workflow<A = unknown, R = unknown> {
   readonly kind: "workflow";
   readonly name: string;
@@ -5163,7 +5121,7 @@ interface RunInternals {
   runId: string;
   replayer: Replayer;
   budget: RunBudget;
-  /** The single admission point for all spawns (docs/07, section 7; M6-T06). */
+  /** The single admission point for all spawns (M6-T06). */
   admission?: AdmissionController;
   semaphore: Semaphore;
   events: RunEventSink;
@@ -5175,38 +5133,38 @@ interface RunInternals {
   defaults: {
     routing?: Partial<Record<InvocationRole, ModelSpec>>;
     profiles?: Record<string, AgentProfile>;
-    limits?: UsageLimits; /** Engine-wide permission chain layers (docs/08, section 3). */
-    permissions?: PermissionConfig; /** Engine-wide transport RetryPolicy (docs/04, 11.1; M4-T05). */
-    retry?: RetryPolicy; /** The per-engine workflow registry (docs/06, 10.4; consumers: M6 ctx.workflow, M8 worker). */
-    workflows?: Record<string, unknown>; /** Registered SchemaSpec names for outputSchemaRef (docs/08; M7-T05). */
-    schemas?: Record<string, SchemaSpec>; /** Registered tool profile names for toolsetRef (docs/08; M7-T05). */
-    toolsets?: Record<string, ToolsOption>; /** Registered mechanical gate profiles (docs/07, section 10; M7-T10). */
+    limits?: UsageLimits; /** Engine-wide permission chain layers. */
+    permissions?: PermissionConfig; /** Engine-wide transport RetryPolicy (M4-T05). */
+    retry?: RetryPolicy; /** The per-engine workflow registry (consumers: M6 ctx.workflow, M8 worker). */
+    workflows?: Record<string, unknown>; /** Registered SchemaSpec names for outputSchemaRef (M7-T05). */
+    schemas?: Record<string, SchemaSpec>; /** Registered tool profile names for toolsetRef (M7-T05). */
+    toolsets?: Record<string, ToolsOption>; /** Registered mechanical gate profiles (M7-T10). */
     gates?: Record<string, MechanicalGateProfile>;
   };
-  /** Engine-scoped per-provider keyed limiter (docs/06, section 4; M4-T07). */
+  /** Engine-scoped per-provider keyed limiter (M4-T07). */
   providerLimiter?: KeyedLimiter;
   /** The configured price table's version; pinned in decision entries (M4-T06). */
   pricingVersion?: string;
-  /** budgetDefaults.flatReserveUsd; last resort of the reserve formula (docs/06, 5.1). */
+  /** budgetDefaults.flatReserveUsd; last resort of the reserve formula. */
   flatReserveUsd?: number;
-  /** Hard router constraints from engine config (docs/04, section 9; M4-T09). */
+  /** Hard router constraints from engine config (M4-T09). */
   floors?: QualityFloors;
   errorPolicy: ErrorPolicy;
   dropped: DroppedItem[];
   cost: CostAttribution;
   priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
   runSignal?: AbortSignal;
-  /** The worktree lifecycle provider (docs/08, section 8). */
+  /** The worktree lifecycle provider. */
   isolation?: IsolationProvider;
   /**
-  * The ModelKnowledge runtime handle (docs/05; M10-T03): current()
+  * The ModelKnowledge runtime handle (M10-T03): current()
   * only, commit physically absent. Present only when the engine was
   * given stores.modelKnowledge; absent means the feature is off and
   * no kb entries are ever written.
   */
   knowledge?: ModelKnowledgeHandle;
   /**
-  * The InProcessRunner escalation hook (docs/06, section 2.10): receives
+  * The InProcessRunner escalation hook: receives
   * escalated results when the call form cannot carry them; its decision
   * is journaled as the authoritative escalation-decision entry.
   */
@@ -5237,7 +5195,7 @@ declare function createCtx(internals: RunInternals): Ctx<ErrorPolicy>;
 declare function executeWorkflow<A, R>(internals: RunInternals, wf: Workflow<A, R>, args: A): Promise<R>;
 //#endregion
 //#region src/knowledge/card.d.ts
-/** docs/06, Appendix A: the KB card render budget (characters). */
+/** The KB card render budget (characters). */
 declare const KB_CARD_RENDER_BUDGET_CHARS = 4096;
 /** One declared ladder of the run, named by its agentType. */
 interface DeclaredLadder {
@@ -5250,12 +5208,12 @@ interface DeclaredLadder {
 }
 /**
 * The ladders a run declares: every advertised profile whose model
-* spec is a ladder (docs/04, section 12). The card is tier-relative to
+* spec is a ladder. The card is tier-relative to
 * exactly these.
 */
 declare function collectDeclaredLadders(profiles: Record<string, AgentProfile> | undefined): DeclaredLadder[];
 /**
-* The admission filter (docs/05, 4.1): status active, unexpired at
+* The admission filter: status active, unexpired at
 * `now`, and the subject reachable through the run's declared ladders
 * after the role-floor filter.
 */
@@ -5273,8 +5231,7 @@ interface VerifiedRecommendation {
   votes: number;
 }
 /**
-* The verified-layer compiler (M11-T06; docs/05, sections "Read path"
-* and "Composition with the model layer"): start-tier recommendations
+* The verified-layer compiler (M11-T06): start-tier recommendations
 * per (ladder, taskClass) compiled EXCLUSIVELY from eval-measured
 * claims. A strength on a rung below the default votes down (start
 * cheaper); a weakness on the default rung or below votes up. The net
@@ -5287,9 +5244,9 @@ interface VerifiedRecommendation {
 */
 declare function compileVerifiedLayer(claims: readonly ModelClaim[], ladders: readonly DeclaredLadder[]): VerifiedRecommendation[];
 /**
-* The deterministic card render (docs/05, 4.3). Pure: same filtered
+* The deterministic card render. Pure: same filtered
 * claims and ladders give byte-identical text. The render budget is
-* docs/06 Appendix A (4096 chars); over it, the OLDEST-observed notes
+* 4096 chars; over it, the OLDEST-observed notes
 * withhold first behind an explicit marker.
 */
 declare function modelKnowledgeCard(claims: readonly ModelClaim[], ladders: readonly DeclaredLadder[], options?: {
@@ -5306,7 +5263,7 @@ declare function compilePermissionPreset(preset: PermissionPreset): {
 //#endregion
 //#region src/tools/shell-matcher.d.ts
 /**
-* Argv-parsing shell matcher (M5-T06; docs/08, section 5): shell
+* Argv-parsing shell matcher (M5-T06): shell
 * allow/ask/deny is matched through a real argv parser, never a string
 * prefix. The composition rule is the entire point: for a compound
 * command the verdict is the strictest across segments, and any
@@ -5333,7 +5290,7 @@ interface ShellSegment {
   unmatchable: boolean;
 }
 /**
-* Lexes a command into segments per the docs/08 5.2 algorithm. Quotes
+* Lexes a command into segments per the matching algorithm above. Quotes
 * and escapes are honored; nothing is expanded; `$(`, backticks, `<(`,
 * `>(`, and `<<` (outside single quotes) poison their segment.
 */
@@ -5359,19 +5316,19 @@ interface ShellPatternRules {
 declare function matchShellCommand(command: string, rules: ShellPatternRules): ShellVerdict;
 //#endregion
 //#region src/tools/tool.d.ts
-/** First-party provider tool-name constraint intersection (docs/08, section 1.1). */
+/** First-party provider tool-name constraint intersection. */
 declare const TOOL_NAME_PATTERN: RegExp;
 interface ToolInit<S extends SchemaSpec> {
   name: string;
   description: string;
   parameters: S;
-  /** Contract version, part of toolsetHash (docs/08, section 1.2). */
+  /** Contract version, part of toolsetHash. */
   version?: string;
-  /** Default 'inprocess' (docs/08, section "Executors"). */
+  /** Default 'inprocess'. */
   executor?: ToolExecutor;
-  /** Default false (docs/08, section "Terminal default"). */
+  /** Default false. */
   needsApproval?: boolean;
-  /** Policy metadata; never identity (docs/08, section "ToolRisk"). */
+  /** Policy metadata; never identity. */
   risk?: ToolRisk;
   execute: (input: Out<S>, ctx: ToolContext) => Promise<unknown>;
 }
@@ -5379,13 +5336,12 @@ interface ToolInit<S extends SchemaSpec> {
 * Defines a tool. Definition-time failures are typed ConfigErrors, never
 * first-call surprises: an illegal name, a Standard Schema without the
 * JSON Schema projection, a recursive local $ref, or a remote/dynamic
-* reference all fail here (docs/08, sections 1.1 and 2.3).
+* reference all fail here.
 */
 declare function tool<S extends SchemaSpec>(init: ToolInit<S>): ToolDef<S>;
 /**
 * The identity projection: the contract tuple that enters toolsetHash.
-* parameters is the canonicalized derived JSON Schema (docs/03, section
-* "schemaHash and toolsetHash derivation").
+* parameters is the canonicalized derived JSON Schema.
 */
 declare function toolContract(def: ToolDef): ToolContract;
 //#endregion
@@ -5420,11 +5376,11 @@ interface McpConfig {
   allow?: string[];
   /** Deny wins over allow (pre-prefix names). */
   deny?: string[];
-  /** Namespaces imported names as `${prefix}_${name}` (docs/08 6.4). */
+  /** Namespaces imported names as `${prefix}_${name}`. */
   prefix?: string;
   /** true = every imported tool needsApproval; record form is per name. */
   approval?: boolean | Record<string, boolean>;
-  /** Host-supplied risk labels for imported tools (docs/08 6.2). */
+  /** Host-supplied risk labels for imported tools. */
   risk?: Record<string, ToolRisk>;
 }
 /**
@@ -5432,19 +5388,19 @@ interface McpConfig {
 * first tools() call; tools/list is fetched with cursor pagination until
 * exhaustion and cached per session; a listChanged notification
 * invalidates the cache, affecting subsequently spawned agents only (a
-* spawn's toolset snapshot is immutable by construction; docs/08 6.3).
+* spawn's toolset snapshot is immutable by construction).
 */
 declare function mcp(cfg: McpConfig): ToolSource;
 //#endregion
 //#region src/tools/isolation.d.ts
-/** docs/06 Appendix A: the shared pin cap (park/unpark and retainWorktree). */
+/** Appendix A: the shared pin cap (park/unpark and retainWorktree). */
 declare const DEFAULT_MAX_PINNED_WORKTREES = 4;
 interface GitWorktreeProviderOptions {
   /** Host repository root; default process.cwd(). */
   repoRoot?: string;
   /**
   * Retain the tree of a FAILED agent for inspection when the engine
-  * requests keep on dispose (docs/08, section 8.3). Default false.
+  * requests keep on dispose. Default false.
   */
   keepOnError?: boolean;
   /** Pin cap shared by park/unpark and retainWorktree (default 4). */
@@ -5454,7 +5410,7 @@ interface GitWorktreeProviderOptions {
 }
 /**
 * The shipped git worktree lifecycle. A non-git host is a typed
-* ConfigError at acquire (docs/08, section 8.3, rule 1).
+* ConfigError at acquire.
 */
 declare class GitWorktreeProvider implements IsolationProvider {
   private readonly repoRoot;
@@ -5485,7 +5441,7 @@ declare class GitWorktreeProvider implements IsolationProvider {
 * of wall-clock (invariant I3: structure comes from call-and-return only).
 * The grammar is part of the hashVersion 2 profile.
 *
-* Owning spec: docs/03-journal-spec.md, section "Scope-path grammar".
+* Full contract: https://docs.rulvar.com/guide/journal.
 *
 * Segment rules: a sequential body is ONE scope (sequential calls add no
 * segment; they are distinguished by key and ordinal only). ctx.phase is
@@ -5506,7 +5462,7 @@ declare function workflowScope(parent: string, name: string, ordinal: number): s
 declare function agentScope(parent: string, seq: number): string;
 /** PlanRunner node scopes: `plan/<NodeId>` (NodeIds are engine-minted ULIDs). */
 declare function planNodeScope(nodeId: string): string;
-/** A parsed scope-path segment (docs/03, section 2.1). */
+/** A parsed scope-path segment. */
 type ScopeSegment = {
   kind: "parallel";
   site: number;
@@ -5612,7 +5568,7 @@ declare class JsonlFileStore implements JournalStore {
 /**
 * File-backed TranscriptStore (M6-T02): blobs (transcripts, checkpoints,
 * persisted CompiledWorkflow sources) as one file per ref under `dir`,
-* so compiled runs resume across processes (docs/06, 10.2). Refs follow
+* so compiled runs resume across processes. Refs follow
 * the `<runId>/<name>` convention; each path segment is checked
 * filesystem-safe and nested segments become directories.
 */
@@ -5644,8 +5600,8 @@ interface RunProfile {
   maxDepth?: number;
 }
 /**
-* The shipped presets (docs/06, section 11: fast / standard / deep /
-* ultra "and similar"). Data only; a review-time assertion checks the
+* The shipped presets (fast / standard / deep / ultra "and similar").
+* Data only; a review-time assertion checks the
 * engine has zero behavioral branches keyed on these names.
 */
 declare const RUN_PROFILES: Record<string, RunProfile>;
@@ -5657,15 +5613,15 @@ type StructuredOutputTier = "native" | "forced-tool" | "prompt";
 /**
 * Strict-schema compatibility as both first-class providers define it:
 * every object node declares `additionalProperties: false` and lists every
-* property in `required` (docs/04, section 5.2). Boolean schemas and
+* property in `required`. Boolean schemas and
 * non-object shapes are trivially compatible.
 */
 declare function isStrictCompatibleSchema(schema: JsonSchema | boolean): boolean;
 /**
-* Tier selection (docs/04, section 8.4): the model's declared ceiling
+* Tier selection: the model's declared ceiling
 * bounds the tier; the native tier additionally requires a
-* strict-compatible canonical schema (docs/04, section 5.2: relying on
-* silent server-side fallback is forbidden), degrading to forced-tool.
+* strict-compatible canonical schema (relying on silent server-side
+* fallback is forbidden), degrading to forced-tool.
 * Prefill is not a tier.
 */
 declare function selectStructuredOutputTier(caps: ModelCaps, canonicalSchema: JsonSchema): StructuredOutputTier;
@@ -5693,7 +5649,7 @@ declare function providerOf(adapter: Pick<ProviderAdapter, "id" | "provider">): 
 declare function projectHistory(messages: Msg[], targetProvider: string): Msg[];
 /**
 * Lifts the adapter-shipped retention payload of one finished turn into
-* provider-raw parts (docs/04, section 2.3 retention transport). Reads
+* provider-raw parts (the retention transport). Reads
 * providerMetadata[<adapter id>].retainedParts and tags each block with
 * the adapter's provider family. Returns [] when the adapter shipped
 * nothing.
@@ -5701,17 +5657,17 @@ declare function projectHistory(messages: Msg[], targetProvider: string): Msg[];
 declare function liftRetainedParts(providerMetadata: Record<string, unknown> | undefined, adapter: Pick<ProviderAdapter, "id" | "provider">): Part[];
 //#endregion
 //#region src/runtime/compaction.d.ts
-/** Appendix A: compaction threshold default, 0.8 of contextWindow. */
+/** Compaction threshold default, 0.8 of contextWindow. */
 declare const DEFAULT_COMPACTION_THRESHOLD = .8;
 /** Deterministic marker opening every compaction summary message. */
 declare const COMPACTION_SUMMARY_PREFIX = "Summary of the conversation so far:";
-/** Per-profile compaction config (docs/06, section 6, AgentProfile). */
+/** Per-profile compaction config (AgentProfile). */
 interface CompactionConfig {
   /** Fraction of the loop model's contextWindow; default 0.8. */
   threshold?: number;
 }
 /**
-* The threshold check (docs/06, M4-T03 committed semantics): the context
+* The threshold check (M4-T03 committed semantics): the context
 * estimate is the last loop turn's inputTokens + outputTokens; the Usage
 * invariant makes inputTokens the full prompt, and the turn's output
 * joins the next prompt.
@@ -5747,7 +5703,7 @@ declare function compactMessages(messages: Msg[], summaryText: string): Msg[];
 * agent with no tools every tier rides (the M1 behavior, unchanged).
 */
 declare function canRideLoopTurn(tier: StructuredOutputTier, toolsAvailable: boolean): boolean;
-/** The inputs of the extract-necessity rule (docs/04, section 8.3, extract row). */
+/** The inputs of the extract-necessity rule. */
 interface ExtractNecessityInput {
   /** A schema is set on the call; without one extract never fires. */
   schemaSet: boolean;
@@ -5755,7 +5711,7 @@ interface ExtractNecessityInput {
   loopRef: ModelRef;
   /** The extract-resolved model (same chain, role 'extract'). */
   extractRef: ModelRef;
-  /** The required tier for the schema on the LOOP model (docs/04, section 8.4). */
+  /** The required tier for the schema on the LOOP model. */
   loopTier: StructuredOutputTier;
   /** The agent's toolset is non-empty (escalate opt-in counts). */
   toolsAvailable: boolean;
@@ -5768,7 +5724,7 @@ interface ExtractNecessityInput {
 * to a different model OR the loop model's caps cannot serve the required
 * tier OR finalize is routed, in which case the schema never rides a loop
 * or synthesis turn). Otherwise the schema rides the last loop turn with
-* no extra call (docs/04, sections 8.3 and 8.4 as amended in M4-T01).
+* no extra call (as amended in M4-T01).
 */
 declare function needsSeparateExtract(input: ExtractNecessityInput): boolean;
 /**
@@ -5776,14 +5732,14 @@ declare function needsSeparateExtract(input: ExtractNecessityInput): boolean;
 * map. This is the finalize TRIGGER: firing is decided by the presence of
 * a routing entry at any layer; the model it fires ON still resolves
 * through the full chain (a higher layer's all-roles `model` may override
-* the routed choice per docs/04, section 8.2).
+* the routed choice).
 */
 declare function roleConfiguredInRouting(role: InvocationRole, layers: Array<ResolutionLayer | undefined>): boolean;
 /**
 * The finalize firing rule: only if configured in routing, and only after
 * tools stop, which presupposes a non-empty toolset. A no-tools agent's
-* single loop turn is already its synthesis (docs/04, section 8.4 as
-* amended in M4-T01). The caller additionally gates on the loop having
+* single loop turn is already its synthesis (as amended in M4-T01). The
+* caller additionally gates on the loop having
 * ended without an abort: a limit/error/cancelled/escalated loop never
 * reaches synthesis.
 */
@@ -5793,7 +5749,7 @@ declare function finalizeFires(options: {
 }): boolean;
 /**
 * The summarize trigger: the compaction threshold on the context window
-* (docs/06, Appendix A: default 0.8). Pure predicate; the compaction
+* (default 0.8). Pure predicate; the compaction
 * pipeline that acts on it is M4-T03.
 */
 declare function atCompactionThreshold(usedTokens: number, contextWindow: number, threshold: number): boolean;
@@ -5805,7 +5761,7 @@ declare class ModelRetry extends Error {
     data?: Json;
   });
 }
-/** Bounded semantic retries per tool call chain (docs/06, Appendix A). */
+/** Bounded semantic retries per tool call chain. */
 declare const DEFAULT_MODEL_RETRY_ATTEMPTS = 2;
 //#endregion
 //#region src/runtime/structured-output.d.ts
@@ -5839,18 +5795,18 @@ declare function extractCandidate(turn: CollectedTurn, tier: StructuredOutputTie
 declare function formatRePrompt(issues: Issue$1[], attempt: number, maxAttempts: number): Msg;
 //#endregion
 //#region src/orchestrator/spawn-tools.d.ts
-/** docs/07 4.2: the spawn_agent parameter schema (normative). */
+/** The spawn_agent parameter schema (normative). */
 declare const SPAWN_AGENT_SCHEMA: SchemaSpec;
-/** docs/07 4.3: parallel_agents wraps the spawn_agent params. */
+/** parallel_agents wraps the spawn_agent params. */
 declare const PARALLEL_AGENTS_SCHEMA: SchemaSpec;
-/** docs/07 4.4: await_any and await_all share one parameter shape. */
+/** await_any and await_all share one parameter shape. */
 declare const AWAIT_SCHEMA: SchemaSpec;
-/** docs/07 4.5: cancel_agent. */
+/** The cancel_agent parameter schema. */
 declare const CANCEL_AGENT_SCHEMA: SchemaSpec;
-/** docs/07 4.11: finish; result validates against the declared output schema. */
+/** finish; result validates against the declared output schema. */
 declare const FINISH_SCHEMA: SchemaSpec;
 declare const FINISH_TOOL_NAME = "finish";
-/** The spawn parameters as validated JSON (docs/07 4.1 TaskSpec subset). */
+/** The spawn parameters as validated JSON (a TaskSpec subset). */
 interface SpawnAgentParams {
   agentType: string;
   prompt: string;
@@ -5871,15 +5827,14 @@ interface SpawnAgentParams {
 /**
 * Builds the mode (c) toolset over the per-call runtime. profileCardText
 * rides the spawn tools' descriptions so both modes speak one agent
-* vocabulary (docs/06 9.3; M6-T04).
+* vocabulary (M6-T04).
 */
 declare function buildOrchestratorTools(runtime: OrchestratorRuntime, profileCardText: string): ToolDef[];
 //#endregion
 //#region src/engine/events.d.ts
 /**
 * Spans form a tree per run; spanId values are engine-minted opaque
-* strings, unique per run, pure telemetry, never identity (docs/09,
-* section "Span hierarchy").
+* strings, unique per run, pure telemetry, never identity.
 */
 declare class SpanRegistry {
   private readonly parents;
@@ -5906,8 +5861,7 @@ declare class EventBus {
     spans: SpanRegistry;
     now?: () => number;
     /**
-    * Default true (M8-T04; docs/09, section "Redaction and sensitive
-    * data"): key-shaped strings in every emitted body are masked.
+    * Default true (M8-T04): key-shaped strings in every emitted body are masked.
     * Telemetry only, never the journal: events are excluded from
     * identity by construction, so masking cannot perturb replay.
     */
@@ -5923,7 +5877,7 @@ declare class EventBus {
 }
 //#endregion
 //#region src/runner/sandbox-bridge.d.ts
-/** Methods a sandbox script may proxy to the host ctx (docs/06, 8.2). */
+/** Methods a sandbox script may proxy to the host ctx. */
 type SandboxMethod = "agent" | "step" | "workflow" | "awaitExternal" | "parallel" | "pipeline" | "phase" | "budget.spent" | "budget.remaining";
 /** Worker-to-host protocol messages (JSON only). */
 type SandboxWorkerToHost = {

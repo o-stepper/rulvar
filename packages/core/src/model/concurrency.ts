@@ -1,6 +1,6 @@
 /**
  * Per-provider concurrency keys (M4-T07): a keyed limiter beside the
- * router, ENGINE-scoped (docs/06, section 4: keys constrain calls
+ * router, ENGINE-scoped (keys constrain calls
  * across a single engine per adapter). The Appendix A default is
  * unlimited: an embeddable library must not surprise-throttle hosts, so
  * the per-run semaphore stays the only default bound and provider 429s
@@ -9,7 +9,7 @@
  *
  * There is deliberately NO distributed cross-process limiter: two
  * processes sharing one API key coordinate nothing here (a
- * process-global limiter is an open question, docs/14).
+ * process-global limiter is an open question).
  */
 import { Semaphore } from '../engine/scheduler.js';
 

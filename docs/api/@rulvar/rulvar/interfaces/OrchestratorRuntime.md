@@ -6,7 +6,7 @@
 
 # Interface: OrchestratorRuntime
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The engine seam the spawn tools close over (never on ToolContext).
 
@@ -18,7 +18,7 @@ The engine seam the spawn tools close over (never on ToolContext).
 awaitAll(handles): Promise<TaskDigest[]>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -38,7 +38,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 awaitAny(handles): Promise<TaskDigest>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -61,7 +61,7 @@ cancel(handle, reason?): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -87,7 +87,7 @@ spawn(params): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -122,9 +122,9 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 waitForEvents(triggers): Promise<unknown>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-docs/07 4.8: sleep until a coalesced WakeDigest (M6-T09).
+Sleep until a coalesced WakeDigest (M6-T09).
 
 #### Parameters
 

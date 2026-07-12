@@ -10,7 +10,7 @@
 function tierWithinCaps(tier, caps): boolean;
 ```
 
-Defined in: [packages/core/src/model/caps.ts:98](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/caps.ts#L98)
+Defined in: [packages/core/src/model/caps.ts:96](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/caps.ts#L96)
 
 True when `tier` is at or below the model's declared ceiling.
 

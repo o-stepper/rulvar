@@ -6,9 +6,9 @@
 
 # Interface: ShellSegment
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Argv-parsing shell matcher (M5-T06; docs/08, section 5): shell
+Argv-parsing shell matcher (M5-T06): shell
 allow/ask/deny is matched through a real argv parser, never a string
 prefix. The composition rule is the entire point: for a compound
 command the verdict is the strictest across segments, and any
@@ -32,5 +32,5 @@ Matching algorithm (5.2):
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-argv"></a> `argv` | `string`[] | Argv tokens after lexing and env-assignment stripping. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-unmatchable"></a> `unmatchable` | `boolean` | Substitutions and here-docs make a segment unmatchable (ask). | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-argv"></a> `argv` | `string`[] | Argv tokens after lexing and env-assignment stripping. | `packages/core/dist/index.d.ts` |
+| <a id="property-unmatchable"></a> `unmatchable` | `boolean` | Substitutions and here-docs make a segment unmatchable (ask). | `packages/core/dist/index.d.ts` |

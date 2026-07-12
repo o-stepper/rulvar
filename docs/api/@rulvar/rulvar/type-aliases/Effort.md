@@ -10,8 +10,8 @@
 type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Canonical effort: exactly five levels, a string-literal union, never a TS
-enum (docs/04, section "Canonical effort"). OpenAI 'none' has no
+enum. OpenAI 'none' has no
 canonical equivalent and is reachable only via providerOptions.

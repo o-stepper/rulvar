@@ -14,7 +14,7 @@ function retryDelayMs(
    random?): number;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The delay before retry number `retryIndex` (0-based: the delay after
 the first failed attempt has index 0). A provider-supplied

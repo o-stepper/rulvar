@@ -144,9 +144,10 @@ type AdaptiveEvents =
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-docs/09 section 1.4, adaptive orchestration, resolutions, and
+Adaptive orchestration, resolutions, and
 accounting: emitted only by runs where the corresponding machinery is
-active (applicability per mode: docs/07, section 1). The types land as
+active (applicability per mode:
+https://docs.rulvar.com/guide/adaptive-orchestration). The types land as
 one closed catalog with M7-T03; emitters arrive with their tasks.

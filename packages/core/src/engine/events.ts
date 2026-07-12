@@ -2,19 +2,16 @@
  * Per-run event machinery (M1-T10): the span registry (run > phase >
  * agent > tool > child hierarchy) and the event bus that stamps the
  * WorkflowEvent envelope, feeds RunHandle.events / on(), and fans out to
- * subscribers. EventSink is deliberately not an SPI (docs/02, section
- * "SPI seams and the 1.0 freeze").
+ * subscribers. EventSink is deliberately not an SPI.
  *
- * Owning spec: docs/09-observability-testing-spec.md, section "Event
- * stream".
+ * Full contract: https://docs.rulvar.com/guide/observability.
  */
 import { maskSecretsDeep } from '../l0/serialization.js';
 import type { WorkflowEvent, WorkflowEventBody } from '../l0/events.js';
 
 /**
  * Spans form a tree per run; spanId values are engine-minted opaque
- * strings, unique per run, pure telemetry, never identity (docs/09,
- * section "Span hierarchy").
+ * strings, unique per run, pure telemetry, never identity.
  */
 export class SpanRegistry {
   private readonly parents = new Map<string, string>();
@@ -58,8 +55,7 @@ export class EventBus {
     spans: SpanRegistry;
     now?: () => number;
     /**
-     * Default true (M8-T04; docs/09, section "Redaction and sensitive
-     * data"): key-shaped strings in every emitted body are masked.
+     * Default true (M8-T04): key-shaped strings in every emitted body are masked.
      * Telemetry only, never the journal: events are excluded from
      * identity by construction, so masking cannot perturb replay.
      */

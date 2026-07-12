@@ -1,4 +1,4 @@
-import { a as FAKE_MODEL, c as FakeAdapterOptions, d as FakeToolCallsValue, f as FakeWireErrorValue, i as createTestEngine, l as FakeCall, m as fakeWireError, n as TestEngine, o as FAKE_MODEL_REF, p as fakeToolCalls, r as TestRunHandle, s as FakeAdapter, t as CreateTestEngineOptions, u as FakeResponder } from "./test-engine-kYp9C72n.js";
+import { a as FAKE_MODEL, c as FakeAdapterOptions, d as FakeToolCallsValue, f as FakeWireErrorValue, i as createTestEngine, l as FakeCall, m as fakeWireError, n as TestEngine, o as FAKE_MODEL_REF, p as fakeToolCalls, r as TestRunHandle, s as FakeAdapter, t as CreateTestEngineOptions, u as FakeResponder } from "./test-engine-DwJtTU7M.js";
 import { AgentProfile, ChatEvent, ChatRequest, InvocationRole, JournalEntry, JournalStore, ModelCaps, ModelSpec, ProviderAdapter, ResumePreview, RunOutcome, WireError, Workflow, createEngine } from "@rulvar/core";
 
 //#region src/replay-strict.d.ts
@@ -36,7 +36,7 @@ interface CassetteFixture {
 }
 declare function buildM2CassetteFixtures(): CassetteFixture[];
 /**
-* The frozen v1 journal (docs/11, section "Frozen journal fixtures"): a
+* The frozen v1 journal: a
 * round-1 JSONL file with kinds agent, step, rand, external, approval and
 * the legacy `v: 1` field (no hashVersion member). Returned as raw
 * JSON-ready objects, one per line.
@@ -68,7 +68,7 @@ declare function normalizeM6Entries(entries: readonly JournalEntry[]): JournalEn
 * Phase 1: record the pre-crash journal. The transcripts store carries
 * the boundary checkpoint the resume restores from; the recorder keeps
 * it in memory because the cassette pins only journal bytes (checkpoint
-* blobs are engine-internal at-least-once state, docs/03 section 11).
+* blobs are engine-internal at-least-once state).
 */
 declare function recordOrchestratorCrash(): Promise<{
   entries: JournalEntry[]; /** Boundary checkpoint blobs by ref, base64: the resume restores from them. */
@@ -98,14 +98,14 @@ interface VcrHeader {
 type RedactFn = (value: string) => string;
 /**
 * Built-in redaction: authorization material never reaches cassette
-* bytes (docs/11, section 5.2). Deliberately aggressive; compose a
+* bytes. Deliberately aggressive; compose a
 * custom hook for payload-specific secrets.
 */
 declare function defaultRedact(value: string): string;
 /**
 * The cassette key: a hash of the canonical wire-contract request. The
-* engine-populated telemetry namespace is excluded (docs/04, section
-* 1.8: never identity); everything else the adapter would send keys the
+* engine-populated telemetry namespace is excluded (never identity);
+* everything else the adapter would send keys the
 * row.
 */
 declare function requestHash(req: ChatRequest): string;
@@ -133,8 +133,7 @@ declare function readCassette(path: string): VcrCassette;
 /**
 * Builds replay adapters from a cassette. `onMiss: 'throw'` is the
 * hermetic CI mode; `'passthrough'` forwards unrecorded requests to the
-* matching live adapter in `adapters` (a development convenience only,
-* docs/11 section 5.1).
+* matching live adapter in `adapters` (a development convenience only).
 */
 declare function replay(options: {
   cassette: string;

@@ -1,9 +1,9 @@
 /**
  * L0 error taxonomy (M1-T02).
  *
- * Owning spec: docs/02-architecture.md, section "Error taxonomy". The
+ * Registry contract: https://docs.rulvar.com/guide/architecture. The
  * string-code registry below is CLOSED: adding a code requires an amendment
- * to that section. Classes whose producers ship in later milestones are
+ * to that contract. Classes whose producers ship in later milestones are
  * still defined here so the registry closes exactly once.
  */
 import type { Json } from './json.js';
@@ -21,7 +21,7 @@ export type WireError = {
 };
 
 /**
- * The closed error-code registry (docs/02, section "Error taxonomy").
+ * The closed error-code registry.
  * 'agent' is carried by the AgentError value projection, not by a
  * RulvarError subclass.
  */
@@ -43,12 +43,12 @@ export type ErrorCode =
   | 'lease_held'
   | 'knowledge_cas';
 
-/** docs/02 names the registry type RulvarErrorCode; both names are public. */
+/** An alias for the registry type; both names are public. */
 export type RulvarErrorCode = ErrorCode;
 
 /**
  * Base class for all engine-raised errors. "Retryable" means the engine's
- * own retry machinery (RetryPolicy under the journal, docs/04) MAY retry;
+ * own retry machinery (RetryPolicy under the journal) MAY retry;
  * it never means a provider SDK autoretry, which is disabled.
  */
 export abstract class RulvarError extends Error {
@@ -116,13 +116,13 @@ export class ScriptRejected extends RulvarError {
   }
 }
 
-/** Sub-code detail of JournalCompatibilityError (docs/03, section "hashVersion"). */
+/** Sub-code detail of JournalCompatibilityError. */
 export type JournalCompatSubCode = 'HASH_VERSION_TOO_OLD' | 'HASH_VERSION_TOO_NEW';
 
 /**
  * Refusal to open a journal whose hashVersion falls outside the engine's
- * support window (docs/03, section "hashVersion"; producers ship in M2).
- * The registry code is 'journal_compat'; the docs/03 sub-codes live on
+ * support window (producers ship in M2).
+ * The registry code is 'journal_compat'; the sub-codes live on
  * `subCode` and in `data`.
  */
 export class JournalCompatibilityError extends RulvarError {
@@ -169,8 +169,7 @@ export class JournalCompatibilityError extends RulvarError {
 
 /**
  * A resolution attempt against an already-closed suspension, rejected under
- * the first-closing-wins fold; appends no entry (docs/03, section
- * "Suspension and resolutions"; producers ship in M2).
+ * the first-closing-wins fold; appends no entry (producers ship in M2).
  */
 export class InvalidResolutionError extends RulvarError {
   readonly code = 'invalid_resolution' as const;
@@ -182,7 +181,7 @@ export class InvalidResolutionError extends RulvarError {
 
 /**
  * A breach of the total per-run append order: an unfenced concurrent writer
- * or a store violating contract A2 (docs/03, section "Storage SPI").
+ * or a store violating contract A2 (https://docs.rulvar.com/guide/stores).
  */
 export class JournalOrderViolation extends RulvarError {
   readonly code = 'journal_order_violation' as const;
@@ -192,7 +191,7 @@ export class JournalOrderViolation extends RulvarError {
   }
 }
 
-/** PlanRunner plan-invariant rejection (docs/07; producers ship in M7). */
+/** PlanRunner plan-invariant rejection (producers ship in M7). */
 export class PlanInvariantError extends RulvarError {
   readonly code = 'plan_invariant' as const;
 
@@ -203,7 +202,7 @@ export class PlanInvariantError extends RulvarError {
 
 /**
  * Raised at resume when the refolded plan state disagrees with the
- * journaled planHash chain (docs/07; producers ship in M7).
+ * journaled planHash chain (producers ship in M7).
  */
 export class ReplayPlanHashMismatch extends RulvarError {
   readonly code = 'replay_plan_hash_mismatch' as const;
@@ -215,8 +214,7 @@ export class ReplayPlanHashMismatch extends RulvarError {
 
 /**
  * Invalid orchestrator cap and finalize-reserve configuration, thrown
- * before the first LLM call (docs/06, section "Three-layer budget", DEF-7;
- * producers ship in M6/M7).
+ * before the first LLM call (DEF-7; producers ship in M6/M7).
  */
 export class OrchestratorCapConfigError extends RulvarError {
   readonly code = 'orchestrator_cap_config' as const;
@@ -241,8 +239,7 @@ export class JournalMissError extends RulvarError {
 /**
  * The run budget ceiling blocked further work. The budget guard denial is
  * a decision entry; ctx primitives throw this as AgentError kind 'budget';
- * the run reports outcome 'exhausted', overriding 'error' (docs/06, section
- * "Three-layer budget").
+ * the run reports outcome 'exhausted', overriding 'error'.
  */
 export class BudgetExhaustedError extends RulvarError {
   readonly code = 'budget_exhausted' as const;
@@ -254,13 +251,12 @@ export class BudgetExhaustedError extends RulvarError {
 
 /**
  * A structural admission rejection (maxDepth, maxChildrenPerNode,
- * maxTotalSpawns) from the AdmissionController (docs/07, section
- * "AdmissionController"; M6-T06). The rejection verdict is embedded in
+ * maxTotalSpawns) from the AdmissionController (M6-T06). The rejection verdict is embedded in
  * the carrying spawn-admission decision entry and replays identically;
  * the error surfaces the embedded AdmitRejectReason in `data` to the
  * caller (a typed tool error for orchestrators) and MUST NOT tear down
  * the run. Budget-code rejections throw BudgetExhaustedError instead,
- * keeping the docs/06 5.7 exhaustion semantics.
+ * keeping the budget exhaustion semantics (https://docs.rulvar.com/guide/budgets).
  */
 export class AdmissionRejectedError extends RulvarError {
   readonly code = 'admission_rejected' as const;
@@ -271,8 +267,8 @@ export class AdmissionRejectedError extends RulvarError {
 }
 
 /**
- * A WorkerSandboxRunner resource-limit breach (docs/06, section 8.2;
- * M6-T02): crossing timeoutMs or memoryMb terminates the worker and the
+ * A WorkerSandboxRunner resource-limit breach (M6-T02): crossing
+ * timeoutMs or memoryMb terminates the worker and the
  * run completes with outcome 'error' carrying this error's WireError
  * projection; `data` records { reason: 'timeout' | 'memory', limit }.
  * The class itself is never journaled as an entry of its own.
@@ -287,8 +283,7 @@ export class SandboxError extends RulvarError {
 
 /**
  * acquire() on a currently held lease. Retryable by contract: retry after
- * the lease ttl elapses or the holder releases (docs/03, section
- * "Storage SPI").
+ * the lease ttl elapses or the holder releases.
  */
 export class LeaseHeldError extends RulvarError {
   readonly code = 'lease_held' as const;
@@ -301,8 +296,7 @@ export class LeaseHeldError extends RulvarError {
 /**
  * commit() on a ModelKnowledgeStore against a snapshot version that is
  * no longer current. Retryable by contract: re-read current(), rebase
- * the ops, commit again, mirroring the lease fencing discipline
- * (docs/05, section "Commit discipline").
+ * the ops, commit again, mirroring the lease fencing discipline.
  */
 export class KnowledgeCasError extends RulvarError {
   readonly code = 'knowledge_cas' as const;
@@ -313,8 +307,8 @@ export class KnowledgeCasError extends RulvarError {
 }
 
 /**
- * The vendored Standard Schema issue shape (docs/06, section "Canonical Ctx
- * interface"): validation issues carried on AgentError and surfaced to the
+ * The vendored Standard Schema issue shape: validation issues carried
+ * on AgentError and surfaced to the
  * model during bounded schema re-prompts.
  */
 export type Issue = {
@@ -324,8 +318,7 @@ export type Issue = {
 
 /**
  * The structured error value carried on AgentResult.error and journaled
- * inside the agent terminal entry. Deliberately NOT a RulvarError subclass
- * (docs/02, section "Error taxonomy").
+ * inside the agent terminal entry. Deliberately NOT a RulvarError subclass.
  */
 export type AgentError = {
   kind: 'transport' | 'rate-limit' | 'schema-mismatch' | 'tool' | 'budget' | 'terminal';
@@ -336,8 +329,8 @@ export type AgentError = {
 
 /**
  * Projects an AgentError to its WireError form: code 'agent', with kind,
- * retryAfterMs, and issues carried in data (docs/02, section "Error
- * taxonomy"). Issue paths are flattened to JSON-safe segments.
+ * retryAfterMs, and issues carried in data. Issue paths are flattened to
+ * JSON-safe segments.
  */
 export function agentErrorToWire(error: AgentError, message: string): WireError {
   const data: { [key: string]: Json } = { kind: error.kind };

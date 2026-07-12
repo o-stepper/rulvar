@@ -6,7 +6,7 @@
 
 # Class: EventBus
 
-Defined in: [packages/core/src/engine/events.ts:46](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L46)
+Defined in: [packages/core/src/engine/events.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L43)
 
 The per-run event bus. seq is strictly increasing in emission order;
 `iterate()` yields events from subscription onward; `on()` is the
@@ -20,14 +20,14 @@ callback form over the same stream and the same seq values.
 new EventBus(options): EventBus;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:56](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L56)
+Defined in: [packages/core/src/engine/events.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L53)
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `options` | \{ `maskEvents?`: `boolean`; `now?`: () => `number`; `runId`: `string`; `spans`: [`SpanRegistry`](/api/@rulvar/core/classes/SpanRegistry.md); \} | - |
-| `options.maskEvents?` | `boolean` | Default true (M8-T04; docs/09, section "Redaction and sensitive data"): key-shaped strings in every emitted body are masked. Telemetry only, never the journal: events are excluded from identity by construction, so masking cannot perturb replay. |
+| `options.maskEvents?` | `boolean` | Default true (M8-T04): key-shaped strings in every emitted body are masked. Telemetry only, never the journal: events are excluded from identity by construction, so masking cannot perturb replay. |
 | `options.now?` | () => `number` | - |
 | `options.runId` | `string` | - |
 | `options.spans` | [`SpanRegistry`](/api/@rulvar/core/classes/SpanRegistry.md) | - |
@@ -47,7 +47,7 @@ emit(
    replayed?): WorkflowEvent;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L74)
+Defined in: [packages/core/src/engine/events.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L70)
 
 #### Parameters
 
@@ -69,7 +69,7 @@ Defined in: [packages/core/src/engine/events.ts:74](https://github.com/o-stepper
 end(): void;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:111](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L111)
+Defined in: [packages/core/src/engine/events.ts:107](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L107)
 
 Ends every open iterator once the run has settled.
 
@@ -85,7 +85,7 @@ Ends every open iterator once the run has settled.
 iterate(): AsyncIterable<WorkflowEvent>;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:119](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L119)
+Defined in: [packages/core/src/engine/events.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L115)
 
 #### Returns
 
@@ -99,7 +99,7 @@ Defined in: [packages/core/src/engine/events.ts:119](https://github.com/o-steppe
 on<T>(type, cb): () => void;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:95](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L95)
+Defined in: [packages/core/src/engine/events.ts:91](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L91)
 
 #### Type Parameters
 

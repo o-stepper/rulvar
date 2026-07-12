@@ -10,7 +10,7 @@
 function runRespawnPreservesCounter(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/m9-cassettes.ts:632](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L632)
+Defined in: [packages/plan/src/m9-cassettes.ts:631](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L631)
 
 respawn-preserves-counter (DEF-3): the worker escalates, the
 orchestrator respawns the SAME logical task with an amended prompt

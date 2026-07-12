@@ -10,6 +10,6 @@
 const DEFAULT_NO_PROGRESS_TURNS: 3 = 3;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-docs/06 Appendix A: the committed no-progress detector N.
+The committed no-progress detector N.

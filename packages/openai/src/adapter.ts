@@ -3,8 +3,8 @@
  * Completions as the caps-selected degraded path, SDK autoretries
  * disabled.
  *
- * Owning spec: docs/04-model-layer-spec.md, section "@rulvar/openai
- * (Responses API)". The openaiCompatible factory ships in M3.
+ * Docs: https://docs.rulvar.com/guide/providers
+ * The openaiCompatible factory ships in M3.
  */
 import OpenAI from 'openai';
 import {
@@ -57,8 +57,7 @@ export function openai(options: OpenAiAdapterOptions = {}): ProviderAdapter {
 
   return {
     id: 'openai',
-    // Provider family for provider-raw matching and retention (docs/04,
-    // section 2.3, M4-T02).
+    // Provider family for provider-raw matching and retention (M4-T02).
     provider: 'openai',
 
     caps(model: string): ModelCaps {
@@ -81,7 +80,7 @@ export function openai(options: OpenAiAdapterOptions = {}): ProviderAdapter {
           await mapResponsesStream(stream, ids, emit, { effortDownmapped });
         } else {
           // Degraded-path selection is a caps fact, visible in events,
-          // never silent (docs/04, section 5.6): the finish event carries
+          // never silent: the finish event carries
           // providerMetadata.openai.degradedPath.
           const params = buildChatCompletionsParams(req, ids);
           const stream = (await client.chat.completions.create(

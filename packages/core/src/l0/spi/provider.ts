@@ -1,14 +1,14 @@
 /**
  * ProviderAdapter SPI: one of the six SPI seams frozen at 1.0.
  *
- * Owning spec: docs/04-model-layer-spec.md, section "ProviderAdapter SPI".
+ * Full contract: https://docs.rulvar.com/guide/adapter-authors.
  * Contract highlights adapters MUST honor:
  *
  * - Provider SDK autoretries are DISABLED (max_retries 0 or equivalent).
  *   The core owns retries, backoff, and wall-clock via RetryPolicy;
  *   adapters surface retry-after and rate-limit headers as typed,
  *   retryable WireErrors with retryAfterMs in data and never sleep
- *   internally (docs/04, section "Retries belong to the core").
+ *   internally; retries belong to the core.
  * - stream() MUST emit exactly one terminal event per stream (finish or
  *   error) and absorb provider quirks invisibly (pause_turn continuation,
  *   JSON tool-argument assembly, cacheHint compilation, usage
@@ -20,8 +20,8 @@
 import type { ChatEvent, ChatRequest, Effort } from '../messages.js';
 
 /**
- * Per-model pricing in USD per million tokens (docs/04, section
- * "Pricing"). The registry's versioned price table wins over adapter-
+ * Per-model pricing in USD per million tokens. The registry's
+ * versioned price table wins over adapter-
  * reported caps.pricing, which is a fallback only.
  */
 export interface Pricing {
@@ -51,8 +51,8 @@ export interface ProviderAdapter {
   /** Stable adapter id; the left segment of ModelRef. */
   id: string;
   /**
-   * Provider family for provider-raw matching and retention (docs/04,
-   * section 2.3; committed during M4-T02). Two adapters of the same
+   * Provider family for provider-raw matching and retention (committed
+   * during M4-T02). Two adapters of the same
    * family share retained blocks and projections; default = id.
    */
   provider?: string;

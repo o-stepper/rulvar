@@ -1,6 +1,5 @@
 /**
- * Claim validators, the editorial path (M10-T02; docs/05, sections
- * "Data model", "The human gate", "Grounding and decay"). The types
+ * Claim validators, the editorial path (M10-T02). The types
  * live with the SPI (l0/spi/knowledge.ts); this module owns the
  * RUNTIME enforcement that the types promise:
  *
@@ -22,10 +21,10 @@ import { claimExpired, claimExpiry, CLAIM_TTL_DAYS } from './decay.js';
 
 export { claimExpired, claimExpiry, CLAIM_TTL_DAYS };
 
-/** docs/06, Appendix A: KB active-claims cap, default 8 per (model, taskClass). */
+/** Appendix A: KB active-claims cap, default 8 per (model, taskClass). */
 export const KB_ACTIVE_CLAIMS_CAP = 8;
 
-/** docs/05, section "Data model": statement <= 200 chars. */
+/** The committed data model bound: statement <= 200 chars. */
 export const CLAIM_STATEMENT_MAX_CHARS = 200;
 
 const RULED_OUT_VOCABULARY = new Set(['prompt', 'tools', 'difficulty', 'transient-provider']);
@@ -33,14 +32,14 @@ const RULED_OUT_VOCABULARY = new Set(['prompt', 'tools', 'difficulty', 'transien
 function gateIssues(gate: GateRecord, path: string): string[] {
   const issues: string[] = [];
   if (gate.kind === 'eval-confirmed') {
-    // Reserved for v2, outside the committed roadmap (docs/05, section
-    // "Data model"): the proposal auto-gate is NOT the committer
-    // identity and commits nothing in phases 1..3.
+    // Reserved for v2, outside the committed roadmap: the proposal
+    // auto-gate is NOT the committer identity and commits nothing in
+    // phases 1..3.
     issues.push(`${path}: the eval-confirmed gate is reserved for v2 and commits nothing`);
     return issues;
   }
   if (gate.kind === 'eval-committer') {
-    // The dedicated committer identity (docs/05, 5.4; M11-T01).
+    // The dedicated committer identity (M11-T01).
     if (typeof gate.committerId !== 'string' || gate.committerId.length === 0) {
       issues.push(`${path}: the eval-committer gate requires a committerId`);
     }
@@ -71,8 +70,8 @@ function gateIssues(gate: GateRecord, path: string): string[] {
 
 export interface ClaimValidationOptions {
   /**
-   * True on the eval-committer path (the eval-committer gate; docs/05,
-   * 5.4). Editorial validation leaves it false and both eval-measured
+   * True on the eval-committer path (the eval-committer gate).
+   * Editorial validation leaves it false and both eval-measured
    * claims and metrics reject. At the op level the GATE decides this
    * flag; the option exists for direct claim-level validation.
    */
@@ -141,8 +140,8 @@ export function claimIssues(
 }
 
 /**
- * The coherence square of the committer identity (docs/05, 5.4;
- * M11-T01): an eval-committer-gated claim MUST be eval-measured,
+ * The coherence square of the committer identity (M11-T01): an
+ * eval-committer-gated claim MUST be eval-measured,
  * authored by the eval pipeline, and carry metrics; anything else is
  * an identity mismatch, schema-enforced.
  */
@@ -173,7 +172,7 @@ function committerCoherenceIssues(claim: ModelClaim, path: string): string[] {
 export function claimOpIssues(op: ClaimOp, index: number): string[] {
   const path = `ops[${String(index)}]`;
   if (op.op === 'archive' || op.op === 'mark_stale') {
-    // Maintenance ops carry no gate and no claim body (docs/05).
+    // Maintenance ops carry no gate and no claim body.
     return [];
   }
   const claim = op.op === 'add' ? op.claim : op.by;
@@ -190,7 +189,7 @@ export function claimOpIssues(op: ClaimOp, index: number): string[] {
 }
 
 /**
- * The commit-time cap (docs/06, Appendix A): active claims per
+ * The commit-time cap (Appendix A): active claims per
  * (model, taskClass) after the batch applies. Supersede chains keep
  * only the head active by construction (applyClaimOps flips the prior
  * to 'superseded'), so a supersede never grows the count.

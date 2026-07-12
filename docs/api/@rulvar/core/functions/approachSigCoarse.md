@@ -14,7 +14,7 @@ Defined in: [packages/core/src/journal/lineage.ts:196](https://github.com/o-step
 
 approachSigCoarse = sha256(JCS({ sigVersion, agentType, toolsetHash,
 schemaHash, isolation })). Feeds the stall detector and the oscillation
-guard, which keys ACROSS LTID boundaries (docs/07, 3.8).
+guard, which keys ACROSS LTID boundaries.
 
 ## Parameters
 

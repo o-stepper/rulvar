@@ -20,11 +20,10 @@ type AgentError = {
 };
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:330](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L330)
+Defined in: [packages/core/src/l0/errors.ts:323](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L323)
 
 The structured error value carried on AgentResult.error and journaled
-inside the agent terminal entry. Deliberately NOT a RulvarError subclass
-(docs/02, section "Error taxonomy").
+inside the agent terminal entry. Deliberately NOT a RulvarError subclass.
 
 ## Properties
 
@@ -34,7 +33,7 @@ inside the agent terminal entry. Deliberately NOT a RulvarError subclass
 optional issues?: Issue[];
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:334](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L334)
+Defined in: [packages/core/src/l0/errors.ts:327](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L327)
 
 ***
 
@@ -50,7 +49,7 @@ kind:
   | "terminal";
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:331](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L331)
+Defined in: [packages/core/src/l0/errors.ts:324](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L324)
 
 ***
 
@@ -60,7 +59,7 @@ Defined in: [packages/core/src/l0/errors.ts:331](https://github.com/o-stepper/ru
 retryable: boolean;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:332](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L332)
+Defined in: [packages/core/src/l0/errors.ts:325](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L325)
 
 ***
 
@@ -70,4 +69,4 @@ Defined in: [packages/core/src/l0/errors.ts:332](https://github.com/o-stepper/ru
 optional retryAfterMs?: number;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:333](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L333)
+Defined in: [packages/core/src/l0/errors.ts:326](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L326)

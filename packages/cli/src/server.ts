@@ -1,9 +1,9 @@
 /**
  * createServer (M8-T01): the HTTP shell over the public engine API
- * (docs/02, section 8.2; FR-702). Canonical signature
+ * (FR-702). Canonical signature
  * `createServer({ engine, workflows })` returning
  * `{ fetch(req: Request): Promise<Response> }`; the journal store comes
- * from the engine (Engine.stores, docs/06 10.2, M8 entry amendment).
+ * from the engine (Engine.stores, M8 entry amendment).
  *
  * Routes:
  *   POST /runs                     start a run of a registered workflow
@@ -13,20 +13,19 @@
  *   GET  /runs/:id/cost            CostReport
  *
  * Authentication is explicitly out of scope: the server is host-embedded
- * and auth belongs to host middleware (docs/14, OQ-16). SSE reconnection
- * maps Last-Event-ID to the event seq (the per-run telemetry counter,
- * docs/09, section 1.1); replay is at-least-once by design, matching the
- * journal-backed re-emission contract (docs/09, section 1.5: consumers
+ * and auth belongs to host middleware (OQ-16). SSE reconnection
+ * maps Last-Event-ID to the event seq (the per-run telemetry counter);
+ * replay is at-least-once by design, matching the
+ * journal-backed re-emission contract (consumers
  * deduplicate on `replayed`).
  *
  * The server is a single-process shell: it tracks the runs it started
  * (or resumed) in memory and serves everything else from the engine's
  * stores. A resolution posted for a run that is NOT live in this process
- * is the documented offline append (docs/03, section 8: load, compute
+ * is the documented offline append (load, compute
  * next seq, append, under a lease where the store is leasable); such a
  * run resumes on a queue worker (createWorker, M8-T02), not here,
- * because original run arguments are not journaled in v1 (docs/14,
- * OQ-21).
+ * because original run arguments are not journaled in v1 (OQ-21).
  */
 import {
   InvalidResolutionError,
@@ -57,17 +56,17 @@ import {
 
 export interface CreateServerOptions {
   engine: Engine;
-  /** The explicit, first-class registry (docs/06, section 10.4). */
+  /** The explicit, first-class registry. */
   workflows: WorkflowRegistry;
   /**
    * Prices the journal fold behind GET /runs/:id/cost for runs without a
    * settled in-process outcome (the host assembles pricing exactly as it
    * does for the CLI); absent means those usages surface as `unpriced`,
-   * never a silent zero (docs/04, section 10).
+   * never a silent zero.
    */
   priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
   /**
-   * Opt-in retention (docs/02, 8.2; OQ-20 executed at M8-T04): evaluated
+   * Opt-in retention (OQ-20 executed at M8-T04): evaluated
    * when a tracked run settles terminally; a true verdict applies
    * engine.deleteRun (transcript cascade, then the journal) and
    * untracks the run. Absent means everything persists indefinitely.
@@ -155,7 +154,7 @@ function isLeasable(store: JournalStore): store is LeasableStore {
   );
 }
 
-/** The approval-suspension resolution key (docs/08, section 3.6). */
+/** The approval-suspension resolution key. */
 const APPROVAL_KEY_PREFIX = 'approval:';
 
 function suspensionKeyOf(entry: JournalEntry): string | undefined {
@@ -199,7 +198,7 @@ export function createServer(options: CreateServerOptions): RulvarServer {
           }
           run.feeds.clear();
           if (options.retention !== undefined) {
-            // Opt-in retention at the terminal settle (docs/02, 8.2).
+            // Opt-in retention at the terminal settle.
             void (async () => {
               const meta = await metaOf(run.runId);
               if (meta !== undefined && options.retention?.(meta) === true) {
@@ -326,7 +325,7 @@ export function createServer(options: CreateServerOptions): RulvarServer {
       }
       // Known in the store but not live here: an empty stream that closes
       // immediately is the honest answer (events are process-local
-      // telemetry; docs/09, section 1).
+      // telemetry).
       const empty = new ReadableStream<Uint8Array>({
         start(controller) {
           controller.enqueue(new TextEncoder().encode(': run is not live in this process\n\n'));
@@ -345,7 +344,7 @@ export function createServer(options: CreateServerOptions): RulvarServer {
       start(controller) {
         // Replay strictly AFTER the last delivered seq when it is found in
         // the buffer; otherwise replay the whole buffer (at-least-once;
-        // consumers deduplicate replayed events, docs/09 section 1.5).
+        // consumers deduplicate replayed events).
         let startIndex = 0;
         if (lastEventId !== null) {
           const cursor = Number(lastEventId);
@@ -423,7 +422,7 @@ export function createServer(options: CreateServerOptions): RulvarServer {
       if (outcome.applied && settledSuspended) {
         // The segment had settled: continue the run in place. The
         // registry workflow and the retained original args re-bind it
-        // (docs/06, section 10.2; docs/14, OQ-21).
+        // (OQ-21).
         const workflow = workflows[run.workflowName];
         if (workflow === undefined) {
           return json(409, {
@@ -448,7 +447,7 @@ export function createServer(options: CreateServerOptions): RulvarServer {
   }
 
   /**
-   * The offline path (docs/03, section 8): the run is not live in this
+   * The offline path: the run is not live in this
    * process; append the resolution under a lease where the store is
    * leasable and leave the resume to a queue worker.
    */
@@ -486,8 +485,8 @@ export function createServer(options: CreateServerOptions): RulvarServer {
         });
       }
       // Mirror the live path's validation so an invalid payload fails the
-      // request instead of poisoning the journal (docs/03, section 8.7;
-      // the fold remains the authority at resume).
+      // request instead of poisoning the journal (the fold remains the
+      // authority at resume).
       if (target.kind === 'approval') {
         const decision = (value as { decision?: unknown } | null)?.decision;
         if (decision !== 'allow' && decision !== 'deny') {
@@ -536,7 +535,7 @@ export function createServer(options: CreateServerOptions): RulvarServer {
     const run = runs.get(runId);
     if (run?.outcome !== undefined) {
       // The settled in-process outcome carries the exact attribution
-      // (byPhase/byAgentType live only in process; docs/09, section 4.3).
+      // (byPhase/byAgentType live only in process).
       return json(200, run.outcome.cost);
     }
     const meta = run === undefined ? await metaOf(runId) : undefined;

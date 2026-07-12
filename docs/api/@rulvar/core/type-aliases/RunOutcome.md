@@ -18,7 +18,7 @@ type RunOutcome<R> = {
 };
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L47)
+Defined in: [packages/core/src/engine/run-handle.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L45)
 
 ## Type Parameters
 
@@ -34,7 +34,7 @@ Defined in: [packages/core/src/engine/run-handle.ts:47](https://github.com/o-ste
 cost: CostReport;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:56](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L56)
+Defined in: [packages/core/src/engine/run-handle.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L54)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [packages/core/src/engine/run-handle.ts:56](https://github.com/o-ste
 dropped: DroppedItem[];
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L52)
+Defined in: [packages/core/src/engine/run-handle.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L50)
 
 Pipeline drops and onError:'null' losses; silent losses are forbidden.
 
@@ -56,7 +56,7 @@ Pipeline drops and onError:'null' losses; silent losses are forbidden.
 optional error?: WireError;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L50)
+Defined in: [packages/core/src/engine/run-handle.ts:48](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L48)
 
 ***
 
@@ -66,7 +66,7 @@ Defined in: [packages/core/src/engine/run-handle.ts:50](https://github.com/o-ste
 pending: PendingExternal[];
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L54)
+Defined in: [packages/core/src/engine/run-handle.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L52)
 
 Suspensions open at settle time (M2).
 
@@ -78,7 +78,7 @@ Suspensions open at settle time (M2).
 status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:48](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L48)
+Defined in: [packages/core/src/engine/run-handle.ts:46](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L46)
 
 ***
 
@@ -88,7 +88,7 @@ Defined in: [packages/core/src/engine/run-handle.ts:48](https://github.com/o-ste
 usage: Usage;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:55](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L55)
+Defined in: [packages/core/src/engine/run-handle.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L53)
 
 ***
 
@@ -98,4 +98,4 @@ Defined in: [packages/core/src/engine/run-handle.ts:55](https://github.com/o-ste
 optional value?: R;
 ```
 
-Defined in: [packages/core/src/engine/run-handle.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L49)
+Defined in: [packages/core/src/engine/run-handle.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L47)

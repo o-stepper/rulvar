@@ -10,4 +10,4 @@
 const PLAN_REVISE_TOOL_NAME: "plan_revise" = 'plan_revise';
 ```
 
-Defined in: [packages/plan/src/tools.ts:182](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L182)
+Defined in: [packages/plan/src/tools.ts:181](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L181)

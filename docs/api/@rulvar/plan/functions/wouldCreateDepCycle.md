@@ -13,9 +13,9 @@ function wouldCreateDepCycle(
    deps): boolean;
 ```
 
-Defined in: [packages/plan/src/plan-state.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-state.ts#L180)
+Defined in: [packages/plan/src/plan-state.ts:183](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-state.ts#L183)
 
-Cycle check for rewire_deps (docs/07, 3.6: a resulting cycle drops the
+Cycle check for rewire_deps (a resulting cycle drops the
 WHOLE op with dep_cycle; rewire_deps is atomic). Answers whether the
 graph with `nodeId`'s deps replaced by `deps` contains a cycle
 reachable from `nodeId`. add_task cannot create cycles (nothing depends

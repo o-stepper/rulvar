@@ -10,7 +10,7 @@
 function checkpointRefFor(runId, runningSeq): string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Deterministic checkpoint blob ref for an agent dispatch (running seq).
 

@@ -10,9 +10,9 @@
 function canonicalIsolationTag(spec): string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The isolation string entering approachSigCoarse (docs/03, 10.3).
+The isolation string entering approachSigCoarse.
 
 ## Parameters
 

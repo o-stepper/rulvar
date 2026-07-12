@@ -6,11 +6,10 @@
 
 # Class: LeaseHeldError
 
-Defined in: [packages/core/src/l0/errors.ts:293](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L293)
+Defined in: [packages/core/src/l0/errors.ts:288](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L288)
 
 acquire() on a currently held lease. Retryable by contract: retry after
-the lease ttl elapses or the holder releases (docs/03, section
-"Storage SPI").
+the lease ttl elapses or the holder releases.
 
 ## Extends
 
@@ -24,7 +23,7 @@ the lease ttl elapses or the holder releases (docs/03, section
 new LeaseHeldError(message, opts?): LeaseHeldError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:296](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L296)
+Defined in: [packages/core/src/l0/errors.ts:291](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L291)
 
 #### Parameters
 
@@ -48,7 +47,7 @@ Defined in: [packages/core/src/l0/errors.ts:296](https://github.com/o-stepper/ru
 | Property | Modifier | Type | Description | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-cause"></a> `cause?` | `public` | `unknown` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`cause`](/api/@rulvar/core/classes/RulvarError.md#property-cause) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts:24](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts#L24) |
-| <a id="property-code"></a> `code` | `readonly` | `"lease_held"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:294](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L294) |
+| <a id="property-code"></a> `code` | `readonly` | `"lease_held"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:289](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L289) |
 | <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L57) |
 | <a id="property-message"></a> `message` | `public` | `string` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`message`](/api/@rulvar/core/classes/RulvarError.md#property-message) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1075](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1075) |
 | <a id="property-name"></a> `name` | `public` | `string` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`name`](/api/@rulvar/core/classes/RulvarError.md#property-name) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1074](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1074) |

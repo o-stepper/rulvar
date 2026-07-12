@@ -6,9 +6,8 @@
  * delay, and task-class failures never retry by construction (a
  * non-retryable WireError has no retry class).
  *
- * Owning spec: docs/04-model-layer-spec.md, section "RetryPolicy and
- * failover under the journal"; defaults committed in docs/06 Appendix A
- * (M4 entry gate).
+ * Full contract: https://docs.rulvar.com/guide/model-routing; the
+ * Appendix A defaults were committed at the M4 entry gate.
  */
 import type { WireError } from '../l0/errors.js';
 
@@ -32,9 +31,8 @@ export const DEFAULT_RETRY_POLICY: RetryPolicy = {
 /**
  * Classifies a WireError for the retry engine. Task-class failures are
  * never retryable by construction: adapters mark them retryable: false
- * and this returns undefined. The kind travels in WireError.data.kind
- * (docs/04, section 4.9); anything retryable without a specific kind is
- * transport.
+ * and this returns undefined. The kind travels in WireError.data.kind;
+ * anything retryable without a specific kind is transport.
  */
 export function retryClassOf(error: WireError): RetryClass | undefined {
   if (!error.retryable) {

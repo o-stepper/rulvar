@@ -5,8 +5,8 @@
  * dispatches all of them through the same permission chain, the same
  * journal semantics, and the same toolsetHash contract.
  *
- * Owning spec: docs/08-tools-permissions-spec.md, sections "Tool
- * definition and toolsetHash", "MCP bus", and "ToolContext".
+ * Full contract: https://docs.rulvar.com/guide/tools (MCP sources:
+ * https://docs.rulvar.com/guide/mcp).
  */
 import type { Json } from '../json.js';
 import type { Out, SchemaSpec } from '../schema.js';
@@ -14,8 +14,7 @@ import type { IsolationSpec } from './isolation.js';
 
 /**
  * Declarative risk metadata on the tool contract. Policy input, not
- * identity: it does NOT enter toolsetHash (docs/08, section "Risk
- * metadata and permission presets").
+ * identity: it does NOT enter toolsetHash.
  */
 export type ToolRisk = 'read' | 'write' | 'network' | 'execute' | 'destructive';
 
@@ -23,11 +22,11 @@ export type ToolRisk = 'read' | 'write' | 'network' | 'execute' | 'destructive';
  * The context handed to execute (and to permission hooks and canUseTool).
  * Deliberately exposes NO spawn primitives: tools are leaves of the
  * call-and-return tree (invariant I3); all spawning flows through Ctx
- * primitives (docs/08, section "ToolContext").
+ * primitives.
  */
 export interface ToolContext {
   runId: string;
-  /** Tool span in the run > phase > agent > tool hierarchy (docs/09). */
+  /** Tool span in the run > phase > agent > tool hierarchy. */
   spanId: string;
   agent: { agentType: string; label?: string };
   /** Isolation working directory; host cwd under isolation 'none'. */
@@ -43,8 +42,7 @@ export interface ToolContext {
 /**
  * Where execute runs. A declared capability consumed by dispatch and
  * policy; only 'inprocess' is enforced in v1, subprocess/container remain
- * declared capability until the executor spec closes (docs/08, section
- * "Executors"; OQ in docs/14).
+ * declared capability while the executor design stays an open question.
  */
 export type ToolExecutor = 'inprocess' | 'subprocess' | 'container';
 
@@ -52,15 +50,14 @@ export type ToolExecutor = 'inprocess' | 'subprocess' | 'container';
  * A defined tool. The identity projection is the ToolContract
  * { name, description, parameters, version }: exactly what the model sees
  * and exactly what toolsetHash hashes; execute and every other
- * non-contract field are excluded by construction (docs/08, section
- * "tool() definition and ToolDef").
+ * non-contract field are excluded by construction.
  */
 export interface ToolDef<S extends SchemaSpec = SchemaSpec> {
   readonly kind: 'tool';
   readonly name: string;
   readonly description: string;
   readonly parameters: S;
-  /** Opaque contract version; part of toolsetHash (docs/08, section 1.2). */
+  /** Opaque contract version; part of toolsetHash. */
   readonly version?: string;
   /** Default 'inprocess'. */
   readonly executor: ToolExecutor;
@@ -79,7 +76,7 @@ export interface ToolSourceSession {
  * The ToolSource seam: tools() yields the source's current ToolDefs. The
  * toolset snapshot for a given agent spawn is captured at spawn time and
  * hashed into the spawn's identity via toolsetHash; a mid-run change MUST
- * NOT mutate an in-flight agent's toolset (docs/08, section "MCP bus").
+ * NOT mutate an in-flight agent's toolset.
  */
 export interface ToolSource {
   id: string;

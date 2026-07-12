@@ -8,7 +8,7 @@
 
 Defined in: [packages/plan/src/ledger.ts:90](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ledger.ts#L90)
 
-The pure ledger fold (docs/07, 9.3).
+The pure ledger fold.
 
 ## Properties
 

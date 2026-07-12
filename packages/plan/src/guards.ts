@@ -1,7 +1,7 @@
 /**
  * RevisionGuards, the oscillation detector, and hysteresis (M7-T06).
  *
- * Owning spec: docs/07-adaptive-orchestration-spec.md, section 3.8
+ * Guide: https://docs.rulvar.com/guide/adaptive-orchestration
  * (DEF-8; DEF-2/DEF-5 interactions). The guards are non-HITL and
  * terminating: a human in the loop is NEVER required for a run to end.
  * Every guard verdict is a decision entry written strictly BEFORE its
@@ -22,7 +22,7 @@
  *   further re-adds FREEZE (the per-SpawnKey osc_guard of DEF-5 lands
  *   in M7-T07 and keys the DedupIndex instead).
  * - Stall replans: hard-bounded per run; the streak already excludes
- *   transient and environment classes (docs/03, 10.4).
+ *   transient and environment classes.
  *
  * Hysteresis on almost-done nodes is structural: park and cancel against
  * RUNNING nodes only ever land as boundary flags (requestOnly), so a
@@ -31,7 +31,7 @@
  */
 import type { Json } from '@rulvar/core';
 
-/** RevisionGuards configuration (docs/07, 3.8). */
+/** RevisionGuards configuration. */
 export interface RevisionGuardsOptions {
   /** Default 'finish-with-partial'; the chain is non-HITL and terminating. */
   fallback?: 'reject-revision' | 'finish-with-partial' | 'fail-run';
@@ -60,7 +60,7 @@ export interface GuardVerdictValue {
 
 /** Appendix A: osc_guard reject threshold per key (shared default). */
 export const DEFAULT_MAX_OSCILLATIONS_PER_KEY = 2;
-/** The hard per-run stall replan bound (docs/07, 9.3). */
+/** The hard per-run stall replan bound. */
 export const DEFAULT_STALL_REPLAN_CAP = 4;
 export const DEFAULT_DROPPED_REVISION_LIMIT = 3;
 

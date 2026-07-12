@@ -8,7 +8,7 @@
 
 Defined in: [packages/core/src/orchestrator/wake.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/wake.ts#L78)
 
-docs/07 section 5: the escalation block of a digest.
+The escalation block of a digest.
 
 ## Properties
 

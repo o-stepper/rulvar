@@ -1,6 +1,6 @@
 /**
- * VCR cassettes at the adapter boundary (M5-T04; docs/09, section 5.2;
- * docs/11, section 5): `record` wraps live adapters and captures
+ * VCR cassettes at the adapter boundary (M5-T04): `record` wraps
+ * live adapters and captures
  * request/event pairs into a redacted JSONL cassette keyed by a hash of
  * the canonical wire-contract request; `replay` serves recorded streams
  * back with `onMiss: 'throw'` (hermetic CI) or `'passthrough'` (mixed
@@ -54,7 +54,7 @@ export type RedactFn = (value: string) => string;
 
 /**
  * Built-in redaction: authorization material never reaches cassette
- * bytes (docs/11, section 5.2). Deliberately aggressive; compose a
+ * bytes. Deliberately aggressive; compose a
  * custom hook for payload-specific secrets.
  */
 export function defaultRedact(value: string): string {
@@ -102,8 +102,8 @@ function canonicalJson(value: unknown): string {
 
 /**
  * The cassette key: a hash of the canonical wire-contract request. The
- * engine-populated telemetry namespace is excluded (docs/04, section
- * 1.8: never identity); everything else the adapter would send keys the
+ * engine-populated telemetry namespace is excluded (never identity);
+ * everything else the adapter would send keys the
  * row.
  */
 export function requestHash(req: ChatRequest): string {
@@ -203,8 +203,7 @@ export function readCassette(path: string): VcrCassette {
 /**
  * Builds replay adapters from a cassette. `onMiss: 'throw'` is the
  * hermetic CI mode; `'passthrough'` forwards unrecorded requests to the
- * matching live adapter in `adapters` (a development convenience only,
- * docs/11 section 5.1).
+ * matching live adapter in `adapters` (a development convenience only).
  */
 export function replay(options: {
   cassette: string;

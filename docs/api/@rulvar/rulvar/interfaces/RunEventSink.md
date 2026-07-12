@@ -6,7 +6,7 @@
 
 # Interface: RunEventSink
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Span-aware event sink: bodies are stamped into the WorkflowEvent
 envelope by the per-run EventBus (M1-T10); spanId defaults to the run
@@ -23,7 +23,7 @@ emit(
    replayed?): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 

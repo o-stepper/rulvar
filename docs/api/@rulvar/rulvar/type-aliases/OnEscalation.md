@@ -12,9 +12,9 @@ type OnEscalation = (result) =>
 | Promise<EscalationDecision>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Escalation hook (docs/06, section 2.10): decides for value-form calls.
+Escalation hook: decides for value-form calls.
 
 ## Parameters
 

@@ -3,11 +3,11 @@
  * journaled as a first-class terminal abort distinct from user
  * cancellation (a cancelled entry always reruns; a no-progress abort
  * must replay, or every resume would re-pay the stuck turns). The
- * interim heuristic is committed in docs/06 Appendix A: N consecutive
+ * interim heuristic is committed: N consecutive
  * turns without tool calls or artifact deltas, N = 3; the broader
- * heuristic stays OQ-15 (docs/14), revisited on dogfood traces.
+ * heuristic stays OQ-15, revisited on dogfood traces.
  *
- * Encoding (docs/03, sections 6.3 and 6.6): the abort is the agent's
+ * Encoding: the abort is the agent's
  * terminal entry with status 'limit', an error payload carrying
  * abortClass 'no-progress', and memoizeOutcome stamped by the ENGINE on
  * the terminal entry, so the frozen memoize-limit rule replays it on
@@ -16,7 +16,7 @@
  * deltas; per-turn artifact producers arrive with M4 compaction.
  */
 
-/** docs/06 Appendix A: the committed no-progress detector N. */
+/** The committed no-progress detector N. */
 export const DEFAULT_NO_PROGRESS_TURNS = 3;
 
 /** The consumer-visible dedicated class marker (FR-424). */

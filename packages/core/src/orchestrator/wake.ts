@@ -1,8 +1,8 @@
 /**
  * wait_for_events and the coalesced WakeDigest substrate (M6-T09).
  *
- * Owning spec: docs/07-adaptive-orchestration-spec.md, sections 4.8 and
- * 5; docs/10 scopes M6 to the SUBSTRATE fields (digestSeq,
+ * Full contract: https://docs.rulvar.com/guide/adaptive-orchestration.
+ * M6 is scoped to the SUBSTRATE fields (digestSeq,
  * coversToOrdinal, completedDigests, escalations); the termination,
  * budget, and reuse blocks land with their DEF owners in M7.
  *
@@ -18,7 +18,7 @@
 import type { SchemaSpec } from '../l0/schema.js';
 import type { TaskDigest } from './handles.js';
 
-/** docs/07 4.8: the wait_for_events parameter schema (normative). */
+/** The wait_for_events parameter schema (normative). */
 export const WAIT_FOR_EVENTS_SCHEMA: SchemaSpec = {
   type: 'object',
   additionalProperties: false,
@@ -67,14 +67,14 @@ export const WAIT_FOR_EVENTS_SCHEMA: SchemaSpec = {
 
 export const WAIT_FOR_EVENTS_TOOL_NAME = 'wait_for_events';
 
-/** The closed v1 trigger vocabulary (docs/07 4.8). */
+/** The closed v1 trigger vocabulary. */
 export type WakeTrigger =
   | { kind: 'quiescence' }
   | { kind: 'child_terminal'; handles?: number[] }
   | { kind: 'escalation' }
   | { kind: 'budget_threshold'; percent: 50 | 80 };
 
-/** docs/07 section 5: the escalation block of a digest. */
+/** The escalation block of a digest. */
 export interface EscalationDigest {
   nodeId: string;
   logicalTaskId: string;
@@ -86,7 +86,7 @@ export interface EscalationDigest {
   deadlineAt?: string;
 }
 
-/** Passive budget visibility in every digest (DEF-7; docs/07, 12.5). */
+/** Passive budget visibility in every digest (DEF-7). */
 export interface WakeBudgetBlock {
   runSpentUsd: number;
   runCeilingUsd: number;
@@ -100,7 +100,7 @@ export interface WakeBudgetBlock {
 }
 
 /**
- * The FINAL normative WakeDigest (docs/07 section 5): one coordinated
+ * The FINAL normative WakeDigest: one coordinated
  * schema change inside the hashVersion-2 profile (XF-12). The digest
  * render enters the content key of orchestrator turns. In runs without
  * the PlanRunner extension the termination, budget, and reuse blocks are

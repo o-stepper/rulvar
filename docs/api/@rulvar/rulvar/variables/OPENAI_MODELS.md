@@ -10,6 +10,6 @@
 const OPENAI_MODELS: Record<string, OpenAiModelInfo>;
 ```
 
-Defined in: [packages/openai/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../openai/dist/index.d.ts)
+Defined in: `packages/openai/dist/index.d.ts`
 
-Static seed table; docs/04 section 5 names the current model set.
+Static seed table of the current model set.

@@ -2,13 +2,11 @@
  * The journal kernel write path (M1-T04): two-phase entries, ordinal
  * assignment, the per-run serialized append queue with the JSON
  * serializability check, and the budget-ledger fold. Scoped
- * forward-matching and the replay predicate land with resume in M2
- * (docs/03, sections "Scoped forward-matching" and "Replay predicate");
+ * forward-matching and the replay predicate land with resume in M2;
  * in M1 every lookup is live.
  *
- * Owning spec: docs/03-journal-spec.md, sections "JournalEntry form",
- * "Two-phase entries, dispatch, and the budget ledger"; component sketch
- * in docs/02-architecture.md, section "Journal Kernel".
+ * Full contract: https://docs.rulvar.com/guide/journal; architecture
+ * overview: https://docs.rulvar.com/guide/architecture.
  */
 import { ConfigError, JournalMissError } from '../l0/errors.js';
 import type { WireError } from '../l0/errors.js';
@@ -43,7 +41,7 @@ import type { IdentityInput } from './identity.js';
 
 export type ReplayMode = 'scoped' | 'cache' | 'never';
 
-/** docs/06 Appendix A: large-value soft warn threshold (committed for M2). */
+/** Large-value soft warn threshold (committed for M2). */
 export const LARGE_VALUE_WARN_BYTES = 262_144;
 
 export interface Ledger {
@@ -83,7 +81,7 @@ export interface TerminalPatch {
   servedBy?: ModelRef;
   transcriptRef?: string;
   checkpointRef?: string;
-  /** Terminal agent entries: Artifact list (docs/06, section 2.1). */
+  /** Terminal agent entries: Artifact list. */
   artifacts?: unknown;
   /** Terminal escalated entries: the validated EscalationReport. */
   escalation?: unknown;
@@ -91,7 +89,7 @@ export interface TerminalPatch {
    * Engine-decided terminal abort classes (the no-progress abort) stamp
    * memoizeOutcome on the TERMINAL entry so the frozen memoize rules
    * replay them on every resume; the running entry keeps the user's
-   * policy verbatim (docs/03, section 6.6, M3 amendment).
+   * policy verbatim (M3 amendment).
    */
   memoizeOutcome?: boolean;
   site?: string;
@@ -99,7 +97,7 @@ export interface TerminalPatch {
 
 /**
  * Per-run journal kernel front end. Everything is per instance: no module
- * state anywhere (docs/02, section "Dependency rules").
+ * state anywhere.
  */
 export class Replayer {
   private readonly runId: string;
@@ -124,10 +122,10 @@ export class Replayer {
     store: JournalStore;
     now?: () => number;
     priceUsd?: (servedBy: ModelRef | undefined, usage: Usage) => number | undefined;
-    /** Receives large-value soft warnings (docs/03: never an error). */
+    /** Receives large-value soft warnings (never an error). */
     onWarn?: (msg: string) => void;
     largeValueWarnBytes?: number;
-    /** The loaded, normalized prior journal (resume; docs/03 section 7). */
+    /** The loaded, normalized prior journal (resume). */
     priorEntries?: readonly JournalEntry[];
     keyRing?: KeyRing;
     disposition?: (op: JournalOperation) => OperationDisposition;
@@ -135,8 +133,8 @@ export class Replayer {
     strict?: boolean;
     /**
      * Queue mode: every append carries this lease so a stale holder's
-     * writes are rejected by the fencing epoch (docs/03, section 12.3;
-     * M8 entry amendment). Absent means the single-writer precondition
+     * writes are rejected by the fencing epoch (M8 entry amendment).
+     * Absent means the single-writer precondition
      * is asserted instead of fenced (the embedded default).
      */
     lease?: Lease;
@@ -175,7 +173,7 @@ export class Replayer {
         this.seq = entry.seq + 1;
       }
       // Ordinal spaces continue per (scope, hashVersion, key); new appends
-      // are always CURRENT_HASH_VERSION (docs/03, section 4.4).
+      // are always CURRENT_HASH_VERSION.
       if (
         entry.ref === undefined &&
         entry.kind !== 'resolution' &&
@@ -192,8 +190,8 @@ export class Replayer {
   }
 
   /**
-   * Forward-matches one live call against the prior journal (docs/03,
-   * section 7). Fresh runs always miss; the M2-T06 predicate is injected
+   * Forward-matches one live call against the prior journal. Fresh
+   * runs always miss; the M2-T06 predicate is injected
    * through setDisposition once folds are built.
    */
   match(scope: string, identity: IdentityInput, mode: ReplayMode): MatchResult {
@@ -202,8 +200,7 @@ export class Replayer {
       this.strict &&
       (result.kind === 'live' || result.kind === 'rerun' || result.kind === 'rerun-dangling')
     ) {
-      // Replay-strict (docs/09, section "Tier 3"): zero live calls or a
-      // loud failure at the exact miss.
+      // Replay-strict: zero live calls or a loud failure at the exact miss.
       throw new JournalMissError(
         `replay-strict miss: a '${identity.kind}' call in scope '${scope || '(root)'}' ` +
           `would go live (${result.kind})`,
@@ -218,7 +215,7 @@ export class Replayer {
   }
 
   /**
-   * The disposition for alias-sourced candidates (DEF-5, docs/03 9.5):
+   * The disposition for alias-sourced candidates (DEF-5):
    * bypasses the abandon overlay so donor entries regain their
    * pre-abandon terminal status when matched through the alias.
    */
@@ -227,7 +224,7 @@ export class Replayer {
   }
 
   /**
-   * Registers a node.link scope-prefix rewrite (DEF-5, docs/03 9.5):
+   * Registers a node.link scope-prefix rewrite (DEF-5):
    * donorPrefix forward-matches into targetPrefix at every nested level.
    * Idempotent; the alias map is rebuilt by fold on resume.
    */
@@ -236,9 +233,9 @@ export class Replayer {
   }
 
   /**
-   * invalidate/retry (docs/03, section 6.5): explicit unpinning of a
+   * invalidate/retry: explicit unpinning of a
    * memoized failure; the invalidated entry reruns on this resume. The
-   * safety boundary is an open question (docs/14).
+   * safety boundary is an open question.
    */
   invalidate(seq: number): void {
     this.invalidated.add(seq);
@@ -250,8 +247,8 @@ export class Replayer {
 
   resumeReport(): ResumeReport {
     // Entries never consumed by any live call split by the abandon fold:
-    // covered operations are derived skipped, never orphaned (docs/09,
-    // section 6.4: abandon-then-crash-then-resume).
+    // covered operations are derived skipped, never orphaned
+    // (abandon-then-crash-then-resume).
     const report = this.matcher.report();
     const abandonFold = this.foldInternal.abandonFold;
     const orphaned: number[] = [];
@@ -286,7 +283,7 @@ export class Replayer {
         seq: this.seq,
         ref: input.ref,
         // The scope duplicates the target's scope for telemetry only;
-        // ref-entries never enter cursors (docs/03, section 8.2).
+        // ref-entries never enter cursors.
         scope: input.scope,
         key: '',
         ordinal: 0,
@@ -303,8 +300,8 @@ export class Replayer {
   }
 
   /**
-   * Submits a resolution attempt through the per-target FIFO arbiter
-   * (docs/03, section 8.7). Losing attempts are journaled noops.
+   * Submits a resolution attempt through the per-target FIFO arbiter.
+   * Losing attempts are journaled noops.
    */
   resolveSuspended(target: number, attempt: ResolutionAttempt): Promise<ResolutionOutcome> {
     const targetEntry = this.entries.find((entry) => entry.seq === target);
@@ -322,13 +319,13 @@ export class Replayer {
     return this.arbiter.submitAbandon(targetEntry.scope, targetEntry.spanId, attempt);
   }
 
-  /** Pure fold view, snapshot-pinned (docs/03, section 8.7). */
+  /** Pure fold view, snapshot-pinned. */
   suspensionState(target: number): SuspensionState {
     return this.foldInternal.suspensionState(target);
   }
 
   /**
-   * Value size policy (docs/03, section "Normative payload schemas"):
+   * Value size policy:
    * there is NO automatic offload in v1; oversized values warn and
    * proceed. Large artifacts belong in TranscriptStore by reference.
    */
@@ -373,7 +370,7 @@ export class Replayer {
    * Two-phase dispatch: the running entry (kinds agent, step, child).
    * `value` is legal on child dispatches only: the child payload
    * `{ workflow, childScope }` lets the abandon fold compute the child's
-   * transitive scope coverage (docs/03, section 8.4; M6-T06). Values
+   * transitive scope coverage (M6-T06). Values
    * never enter identity.
    */
   appendRunning(
@@ -483,8 +480,7 @@ export class Replayer {
   }
 
   /**
-   * The budget ledger fold (docs/03, section "Budget ledger fold on
-   * resume"): usage sums over terminal entries exactly once; agentsSpawned
+   * The budget ledger fold: usage sums over terminal entries exactly once; agentsSpawned
    * counts agent dispatches.
    */
   ledger(): Ledger {
@@ -505,7 +501,7 @@ export class Replayer {
         abandonFold.isAbandoned(entry.ref ?? entry.seq)
       ) {
         // Derived-skipped operations contribute a zero increment
-        // (docs/03, section 13.3; DEF-1: zero spend inside an abandoned
+        // (DEF-1: zero spend inside an abandoned
         // subtree).
         continue;
       }
@@ -569,8 +565,8 @@ export class Replayer {
           shapeIssues.map((i) => i.message).join('; '),
       );
     }
-    // The single append site: queue-mode fencing rides here (docs/03,
-    // 12.3): a stale lease makes the store reject and nothing becomes
+    // The single append site: queue-mode fencing rides here: a stale
+    // lease makes the store reject and nothing becomes
     // visible.
     await this.store.append(this.runId, entry, this.lease);
     this.entries.push(entry);

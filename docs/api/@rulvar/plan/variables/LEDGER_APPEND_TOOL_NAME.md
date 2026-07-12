@@ -10,4 +10,4 @@
 const LEDGER_APPEND_TOOL_NAME: "ledger_append" = 'ledger_append';
 ```
 
-Defined in: [packages/plan/src/tools.ts:183](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L183)
+Defined in: [packages/plan/src/tools.ts:182](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L182)

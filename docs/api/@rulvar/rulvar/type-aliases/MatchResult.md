@@ -31,7 +31,7 @@ type MatchResult =
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ## Union Members
 
@@ -70,8 +70,8 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `kind` | `"rerun-dangling"` | A dangling running entry: redispatch live; the terminal reuses running.seq. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `running` | [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md) | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| `kind` | `"rerun-dangling"` | A dangling running entry: redispatch live; the terminal reuses running.seq. | `packages/core/dist/index.d.ts` |
+| `running` | [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md) | - | `packages/core/dist/index.d.ts` |
 
 ***
 
@@ -86,8 +86,8 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `kind` | `"rerun"` | A terminal non-replayable entry: rerun live as a fresh operation. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `running` | [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md) | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| `kind` | `"rerun"` | A terminal non-replayable entry: rerun live as a fresh operation. | `packages/core/dist/index.d.ts` |
+| `running` | [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md) | - | `packages/core/dist/index.d.ts` |
 
 ***
 

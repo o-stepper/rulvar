@@ -25,6 +25,6 @@ type AdmitRejectReason =
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The merged reject-code set (docs/07, section 7.2).
+The merged reject-code set.

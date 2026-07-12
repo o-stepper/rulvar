@@ -1,6 +1,5 @@
 /**
- * TUI progress renderer over the WorkflowEvent stream (docs/06, section
- * 10.5; docs/02, section 8.1). Line-oriented: one compact line per
+ * TUI progress renderer over the WorkflowEvent stream. Line-oriented: one compact line per
  * lifecycle event, replay-marked events dimmed with a prefix, a cost
  * and usage summary at run:end. TTY gets no special screen handling in
  * v1 beyond being the default sink; piped output stays byte-stable for

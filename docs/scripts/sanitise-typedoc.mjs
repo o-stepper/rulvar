@@ -107,6 +107,24 @@ function fixSourceLinkHrefs(text) {
   );
 }
 
+/**
+ * Unlinks 'Defined in' references whose target cannot exist on GitHub:
+ * symbols re-exported across packages resolve to the sibling package's
+ * BUILT `dist/*.d.ts` (hrefs like `blob/main/../../core/dist/index.d.ts`;
+ * dist is not committed), and lib types resolve into `node_modules/`.
+ * Both 404 on GitHub, so the link is replaced by its plain text in code
+ * font; links with a real `packages/...` source path are left alone.
+ */
+function unlinkNonRepoSourceLinks(text) {
+  return text.replace(
+    /\[([^\]]+)\]\(https:\/\/github\.com\/o-stepper\/rulvar\/blob\/main\/[^)]*(?:\.\.\/|node_modules\/|\/dist\/)[^)]*\)/g,
+    (_whole, label) => {
+      const plain = label.replace(/`/g, '');
+      return `\`${plain}\``;
+    },
+  );
+}
+
 async function main() {
   try {
     await stat(apiRoot);
@@ -117,7 +135,9 @@ async function main() {
   let count = 0;
   for await (const file of walkMarkdown(apiRoot)) {
     const before = await readFile(file, 'utf8');
-    const after = rewriteLicenseLinks(fixSourceLinkHrefs(stripDistLineAnchors(sanitise(before))));
+    const after = rewriteLicenseLinks(
+      unlinkNonRepoSourceLinks(fixSourceLinkHrefs(stripDistLineAnchors(sanitise(before)))),
+    );
     if (after !== before) {
       await writeFile(file, after, 'utf8');
       count += 1;

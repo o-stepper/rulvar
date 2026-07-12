@@ -4,7 +4,7 @@
  * hits; inserting one call costs exactly one live call; no global
  * prefix-flip), per-call replay modes scoped/cache/never, and the orphan
  * report. Ref-entries (resolution/abandon) are excluded from cursors and
- * found by fold over ref (docs/03, sections 7 and 8.2).
+ * found by fold over ref.
  *
  * The interim disposition here is the round-1 rule (ok replays; error,
  * limit, cancelled, and dangling running rerun); the full DEF-1 table
@@ -15,7 +15,7 @@ import type { IdentityInput } from './identity.js';
 import { deriveContentKey } from './identity.js';
 import { CURRENT_HASH_VERSION, type JournalEntry } from '../l0/entries.js';
 
-/** Kinds excluded from forward-matching cursors (docs/03, section 8.2). */
+/** Kinds excluded from forward-matching cursors. */
 const REF_ENTRY_KINDS = new Set(['resolution', 'abandon']);
 
 /** One logical journaled operation: its dispatch entry plus its terminal, when present. */
@@ -27,8 +27,8 @@ export interface JournalOperation {
 /**
  * Versioned key derivation for matching: the live call is compared
  * against every unconsumed entry with the key computed UNDER THAT ENTRY'S
- * VERSION; 'incomparable' is a guaranteed non-match (docs/03, section
- * 4.4). M2-T05 supplies the real registry; the default ring knows only
+ * VERSION; 'incomparable' is a guaranteed non-match.
+ * M2-T05 supplies the real registry; the default ring knows only
  * the current version.
  */
 /** A derived key, or the guaranteed non-match marker. */
@@ -93,7 +93,7 @@ export class JournalMatcher {
   private readonly keyRing: KeyRing;
   private disposition: (op: JournalOperation) => OperationDisposition;
   private aliasDisposition?: (op: JournalOperation) => OperationDisposition;
-  /** Scope-prefix aliases (DEF-5, docs/03 9.5): donor prefix -> target prefix. */
+  /** Scope-prefix aliases (DEF-5): donor prefix -> target prefix. */
   private readonly aliases: Array<{ donorPrefix: string; targetPrefix: string }> = [];
   private readonly keyCache = new Map<IdentityInput, Map<number, DerivedKey>>();
   private hitsInternal = 0;
@@ -142,8 +142,8 @@ export class JournalMatcher {
   }
 
   /**
-   * The disposition applied to alias-sourced candidates (DEF-5, docs/03
-   * 9.5): the skipped overlay from abandon is bypassed ONLY through the
+   * The disposition applied to alias-sourced candidates (DEF-5): the
+   * skipped overlay from abandon is bypassed ONLY through the
    * alias, so entries regain their pre-abandon terminal status for
    * matching in the NEW scope; the standalone old scope stays skipped.
    */
@@ -195,7 +195,7 @@ export class JournalMatcher {
 
   private keyOf(identity: IdentityInput, hashVersion: number): DerivedKey {
     // Keys are memoized per (call, version): matching a mixed-version
-    // journal costs one cheap hash per version present (docs/03, 1.5).
+    // journal costs one cheap hash per version present.
     let perVersion = this.keyCache.get(identity);
     if (perVersion === undefined) {
       perVersion = new Map();
@@ -214,7 +214,7 @@ export class JournalMatcher {
    * Forward-matches one live call. A miss does not advance any cursor and
    * does not extinguish future hits: the scan always starts at the scope
    * head and skips consumed operations, so insertion stability holds by
-   * construction (docs/03, section 7.1).
+   * construction.
    */
   match(scope: string, identity: IdentityInput, mode: 'scoped' | 'cache' | 'never'): MatchResult {
     if (mode === 'never') {
@@ -246,14 +246,14 @@ export class JournalMatcher {
           if (dispositionOf({ running: op.running }) === 'skip') {
             // Abandon is stronger than any status, including a hanging
             // running entry: covered dispatches derive skipped instead of
-            // redispatching (DEF-1; docs/03, section 6.9).
+            // redispatching (DEF-1).
             this.skippedInternal += 1;
             return { kind: 'skip', running: op.running };
           }
-          // Dangling two-phase dispatch: redispatch, at-least-once
-          // (docs/03, section 13.1). Through an alias this IS the graft
+          // Dangling two-phase dispatch: redispatch, at-least-once.
+          // Through an alias this IS the graft
           // frontier: the donor's interrupted turn repays live, bounded
-          // by one turn (docs/03, 9.5).
+          // by one turn.
           this.rerunsInternal += 1;
           return { kind: 'rerun-dangling', running: op.running };
         }

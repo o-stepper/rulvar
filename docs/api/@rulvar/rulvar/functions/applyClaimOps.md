@@ -10,7 +10,7 @@
 function applyClaimOps(claims, ops): ModelClaim[];
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Applies one op batch to a claims array, mechanically (M10-T01). The
 editorial validators (attestation, caps, statement bounds) layer on

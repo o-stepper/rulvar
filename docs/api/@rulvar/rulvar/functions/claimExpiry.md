@@ -13,9 +13,9 @@ function claimExpiry(
    observedAt): string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The docs/05 TTL applied to an observedAt ISO date.
+The asymmetric TTL applied to an observedAt ISO date.
 
 ## Parameters
 

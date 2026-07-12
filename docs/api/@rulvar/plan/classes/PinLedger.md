@@ -6,11 +6,11 @@
 
 # Class: PinLedger
 
-Defined in: [packages/plan/src/park.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/park.ts#L27)
+Defined in: [packages/plan/src/park.ts:25](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/park.ts#L25)
 
 The worktree pin ledger: a pure fold counting live pins from abandon
 entries carrying `retainWorktree: true` (park pinning and DEF-5
-retention share the cap by construction; docs/08).
+retention share the cap by construction).
 
 ## Constructors
 
@@ -34,7 +34,7 @@ new PinLedger(): PinLedger;
 get count(): number;
 ```
 
-Defined in: [packages/plan/src/park.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/park.ts#L45)
+Defined in: [packages/plan/src/park.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/park.ts#L43)
 
 ##### Returns
 
@@ -48,7 +48,7 @@ Defined in: [packages/plan/src/park.ts:45](https://github.com/o-stepper/rulvar/b
 hasCapacity(maxPinnedWorktrees?): boolean;
 ```
 
-Defined in: [packages/plan/src/park.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/park.ts#L49)
+Defined in: [packages/plan/src/park.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/park.ts#L47)
 
 #### Parameters
 
@@ -68,7 +68,7 @@ Defined in: [packages/plan/src/park.ts:49](https://github.com/o-stepper/rulvar/b
 isPinnedNode(nodeId): boolean;
 ```
 
-Defined in: [packages/plan/src/park.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/park.ts#L53)
+Defined in: [packages/plan/src/park.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/park.ts#L51)
 
 #### Parameters
 
@@ -88,7 +88,7 @@ Defined in: [packages/plan/src/park.ts:53](https://github.com/o-stepper/rulvar/b
 static fold(entries): PinLedger;
 ```
 
-Defined in: [packages/plan/src/park.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/park.ts#L31)
+Defined in: [packages/plan/src/park.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/park.ts#L29)
 
 #### Parameters
 

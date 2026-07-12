@@ -3,9 +3,7 @@
  * parsing, the per-invocation resolution chain, canonicalization into
  * CanonicalModelSpec, and caps scrubbing with visible scrub notes.
  *
- * Owning spec: docs/04-model-layer-spec.md, sections "Router and
- * resolution chain", "Canonical effort", and "Caps scrubbing and
- * structured-output tier selection".
+ * Public contract: https://docs.rulvar.com/guide/model-routing.
  */
 import { ConfigError } from '../l0/errors.js';
 import { checkFloors, type QualityFloors } from './floors.js';
@@ -25,8 +23,7 @@ import type { ModelCaps, ProviderAdapter } from '../l0/spi/provider.js';
 
 /**
  * Per-engine adapter registry: strictly per engine, no global mutable
- * registry exists. A duplicate adapterId is a typed ConfigError
- * (docs/04, section "Registry and ModelRef").
+ * registry exists. A duplicate adapterId is a typed ConfigError.
  */
 export function buildAdapterRegistry(
   adapters: ProviderAdapter[],
@@ -55,12 +52,10 @@ export function parseModelRef(ref: ModelRef): { adapterId: string; model: string
 }
 
 /**
- * Role effort defaults (docs/04, section "Invocation roles and firing
- * protocol"): orchestrate and plan default to high; summarize and extract
+ * Role effort defaults: orchestrate and plan default to high; summarize and extract
  * default to low. loop and finalize have NO role default: when the chain
  * resolves nothing, the wire omits effort and identity records the spec
- * with the effort member absent (docs/04, section "Router and resolution
- * chain", as amended).
+ * with the effort member absent.
  */
 export const ROLE_EFFORT_DEFAULTS: Partial<Record<InvocationRole, Effort>> = {
   orchestrate: 'high',
@@ -98,7 +93,7 @@ export interface ResolvedInvocation {
   requestedEffort?: Effort;
   providerOptions?: Record<string, Record<string, unknown>>;
   fallbacks?: ModelRef[];
-  /** Identity-facing canonical form (docs/04, section "Router and resolution chain"). */
+  /** Identity-facing canonical form. */
   canonical: CanonicalModelSpec;
   scrubs: ScrubNote[];
 }
@@ -108,7 +103,7 @@ interface MergedFields {
   effort?: Effort;
   providerOptions?: Record<string, Record<string, unknown>>;
   fallbacks?: ModelRef[];
-  /** A declared ladder travelling the chain (docs/04, section 12). */
+  /** A declared ladder travelling the chain. */
   ladder?: LadderSpec;
 }
 
@@ -120,8 +115,8 @@ function contribution(spec: ModelSpec | undefined, _role: InvocationRole): Merge
     return { model: spec };
   }
   if ('ladder' in spec) {
-    // Ladders resolve through the existing chain like any ModelSpec
-    // (docs/04, section 12): a higher layer's concrete model shadows a
+    // Ladders resolve through the existing chain like any ModelSpec:
+    // a higher layer's concrete model shadows a
     // lower ladder and vice versa; a ladder that WINS wire resolution is
     // rejected below (rung attempts always carry a concrete override).
     return { ladder: spec.ladder };
@@ -147,8 +142,7 @@ function layerFields(layer: ResolutionLayer | undefined, role: InvocationRole): 
   const fromModel = contribution(layer.model, role);
   const fromRouting = contribution(layer.routing?.[role], role);
   // Within one layer the per-role routing beats the all-roles model, and
-  // the explicit effort field beats a ModelChoice-carried effort
-  // (docs/04, section "Router and resolution chain").
+  // the explicit effort field beats a ModelChoice-carried effort.
   const merged: MergedFields = { ...fromModel, ...pruneUndefined(fromRouting) };
   if (layer.effort !== undefined) {
     merged.effort = layer.effort;
@@ -190,7 +184,7 @@ const SAMPLING_KEYS = ['temperature', 'top_p', 'top_k'] as const;
  * Resolution runs on every model invocation, not once per agent: a layered
  * merge of { model, effort, providerOptions, fallbacks } in the order call
  * override > agent profile > workflow defaults > engine defaults, with the
- * invocation role attached as a tag (docs/04, section "Resolution chain").
+ * invocation role attached as a tag.
  * After resolution the router reads ModelCaps and scrubs illegal
  * parameters visibly: unsupported effort is removed from the wire but
  * kept in identity; sampling params rejected by the model are removed
@@ -220,7 +214,7 @@ export function resolveModelInvocation(options: {
       providerOptions: mergeProviderOptions(merged.providerOptions, fields.providerOptions),
     };
     // A model and a ladder are mutually exclusive winners: whichever the
-    // HIGHER layer contributes shadows the other (docs/04, section 12).
+    // HIGHER layer contributes shadows the other.
     if (fields.ladder !== undefined) {
       delete merged.model;
     } else if (fields.model !== undefined) {
@@ -245,7 +239,7 @@ export function resolveModelInvocation(options: {
 
   // Quality floors are enforced AT resolution, before any live call,
   // for every invocation the chain produces: primaries, failover
-  // fallbacks, and the summarize fallback alike (docs/04, section 9).
+  // fallbacks, and the summarize fallback alike.
   checkFloors({
     ref: merged.model,
     role,
@@ -316,7 +310,7 @@ export function resolveModelInvocation(options: {
   return resolved;
 }
 
-/** The closed trigger vocabulary guard (docs/04, section 12). */
+/** The closed trigger vocabulary guard. */
 const TRIGGER_CLASSES: readonly TriggerClass[] = [
   'error',
   'limit',
@@ -361,7 +355,7 @@ function validateGate(gate: Gate, rungCount: number, index: number): void {
 }
 
 /**
- * Canonicalizes a declared LadderSpec (docs/04, section 12): validates the
+ * Canonicalizes a declared LadderSpec: validates the
  * shape once (FR-119 judge declaration included) and resolves every rung's
  * effort to an explicit value. `chainEffort` is the effort the resolution
  * chain would contribute at the declaring layer; a rung that resolves no
@@ -434,7 +428,7 @@ export function canonicalizeLadder(
 /**
  * The concrete ModelChoice of one rung attempt: each attempt is an
  * ordinary agent scope whose CanonicalModelSpec is that rung's
- * `{ kind: 'model' }` form (docs/04, section 8.2).
+ * `{ kind: 'model' }` form.
  */
 export function ladderRungChoice(ladder: CanonicalLadderSpec, index: number): ModelChoice {
   const rung = ladder.rungs[index];

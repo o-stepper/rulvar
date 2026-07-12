@@ -6,8 +6,7 @@
  * for the agent's lifetime; provider-side drift of a source's tools
  * changes the content key of NEW spawns only.
  *
- * Owning spec: docs/08-tools-permissions-spec.md, sections "toolsetHash
- * contract", "ToolSource seam", and "Filtering and prefixing".
+ * Docs: https://docs.rulvar.com/guide/tools.
  */
 import { ConfigError } from '../l0/errors.js';
 import type { ToolContract } from '../l0/messages.js';
@@ -15,7 +14,7 @@ import { EMPTY_TOOLSET_HASH, toolsetHash } from '../l0/schema.js';
 import type { ToolDef, ToolSource, ToolSourceSession } from '../l0/spi/toolsource.js';
 import { TOOL_NAME_PATTERN, toolContract } from './tool.js';
 
-/** The per-spawn tools option value domain (docs/06, section "ctx.agent and AgentOpts"). */
+/** The per-spawn tools option value domain. */
 export type ToolsOption = ReadonlyArray<ToolDef | ToolSource | string>;
 
 /** The spawn's frozen toolset snapshot plus its identity hash. */
@@ -36,8 +35,8 @@ function isToolDef(spec: ToolDef | ToolSource | string): spec is ToolDef {
 
 /**
  * Expands sources, validates every tool name and duplicate names across
- * the whole toolset (ConfigError at spawn time; docs/08 sections 1.1 and
- * 6.4), and computes the toolsetHash over contracts sorted by name.
+ * the whole toolset (ConfigError at spawn time), and computes the
+ * toolsetHash over contracts sorted by name.
  */
 export async function resolveToolset(
   specs: ToolsOption | undefined,
@@ -79,8 +78,7 @@ export async function resolveToolset(
     if (def.executor !== 'inprocess') {
       // Fail at registration, not at first call: only the inprocess
       // executor is enforced in v1; subprocess/container stay declared
-      // capability until the executor spec closes (docs/08, section
-      // "Executors"; OQ in docs/14).
+      // capability until the executor design closes (still an open question).
       throw new ConfigError(
         `tool '${def.name}' declares executor '${def.executor}', but this engine ` +
           "implements only 'inprocess' in v1 (docs/08, section 7.1)",

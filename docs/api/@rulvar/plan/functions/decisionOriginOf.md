@@ -12,7 +12,7 @@ function decisionOriginOf(resolvedBy): "escalation-default" | "escalation-class"
 
 Defined in: [packages/plan/src/escalation.ts:79](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/escalation.ts#L79)
 
-The plan.decision origin of one resolvedBy value (docs/07, 3.3).
+The plan.decision origin of one resolvedBy value.
 
 ## Parameters
 

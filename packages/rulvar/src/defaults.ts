@@ -2,7 +2,7 @@
  * Umbrella-only strong default model configuration (M1-T15): named strong
  * defaults for the orchestrate and plan roles live ONLY here, never in
  * @rulvar/core; the core ships the floor mechanism, the umbrella ships
- * opinions (docs/04, section "Role quality floors"). Weak model defaults
+ * opinions. Weak model defaults
  * are forbidden for plan and orchestrate work.
  */
 import type { InvocationRole, ModelSpec, QualityFloors } from '@rulvar/core';
@@ -12,7 +12,7 @@ import type { InvocationRole, ModelSpec, QualityFloors } from '@rulvar/core';
  * recommendedDefaults.routing, roleFloors: recommendedDefaults.floors } })`.
  * Hosts override freely; these are data, not engine semantics. The
  * floors pin orchestrate and plan to strong models as hard router
- * constraints (docs/04, section "Role quality floors"; M4-T09): weak
+ * constraints (M4-T09): weak
  * model defaults are forbidden for plan and orchestrate work, and no
  * advice may override or weaken a floor.
  */

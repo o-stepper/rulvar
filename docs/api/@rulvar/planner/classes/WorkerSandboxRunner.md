@@ -8,7 +8,7 @@
 
 Defined in: [packages/planner/src/sandbox-runner.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/sandbox-runner.ts#L38)
 
-Accepts CompiledWorkflow ONLY: feeding a closure is a type error (docs/06, 8).
+Accepts CompiledWorkflow ONLY: feeding a closure is a type error.
 
 ## Implements
 

@@ -1,8 +1,9 @@
 /**
  * SqliteStore (M5-T02): JournalStore plus LeasableStore with fencing
  * epochs over the builtin node:sqlite driver; the reference
- * implementation for community stores (docs/03, sections 12.3 and
- * 12.6). Zero native dependencies by design.
+ * implementation for community stores (see
+ * https://docs.rulvar.com/guide/stores). Zero native dependencies by
+ * design.
  *
  * Contract highlights (executable definition: @rulvar/store-conformance):
  * - A1-A4: single-statement inserts are atomic; per-run order is the
@@ -29,7 +30,7 @@ import {
   type RunMeta,
 } from '@rulvar/core';
 
-/** Appendix A interim reference for the sqlite store (docs/06). */
+/** Appendix A interim reference for the sqlite store. */
 export const DEFAULT_LEASE_TTL_MS = 60_000;
 
 export interface SqliteStoreOptions {

@@ -10,6 +10,6 @@
 const DEFAULT_FLAT_RESERVE_USD: 0.5 = .5;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Last resort of the admission reserve formula (docs/06, Appendix A).
+Last resort of the admission reserve formula.

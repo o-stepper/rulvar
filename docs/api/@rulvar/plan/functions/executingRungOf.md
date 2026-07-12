@@ -13,11 +13,11 @@ function executingRungOf(
    raises): number;
 ```
 
-Defined in: [packages/plan/src/ladder.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ladder.ts#L76)
+Defined in: [packages/plan/src/ladder.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ladder.ts#L75)
 
 The rung an attempt executes on: the clamped start tier plus the
 journaled raise count, hard-clamped at the top rung. `rungIndex` per
-lineage is strictly monotone; there are no demotions (docs/07, 10).
+lineage is strictly monotone; there are no demotions.
 
 ## Parameters
 

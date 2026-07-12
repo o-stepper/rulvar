@@ -13,6 +13,6 @@ type ToolsOption = ReadonlyArray<
 | string>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The per-spawn tools option value domain (docs/06, section "ctx.agent and AgentOpts").
+The per-spawn tools option value domain.

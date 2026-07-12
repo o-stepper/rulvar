@@ -16,9 +16,9 @@ type IsolationSpec =
 };
 ```
 
-Defined in: [packages/core/src/l0/spi/isolation.ts:17](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/isolation.ts#L17)
+Defined in: [packages/core/src/l0/spi/isolation.ts:16](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/isolation.ts#L16)
 
 The canonical identity encoding of spawn isolation: this exact value
-domain enters spawn identity (docs/03, section "Identity model").
+domain enters spawn identity.
 'readonly' is a determinism and blast-radius declaration, not
 containment.

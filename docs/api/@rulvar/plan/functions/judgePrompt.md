@@ -10,7 +10,7 @@
 function judgePrompt(input): string;
 ```
 
-Defined in: [packages/plan/src/ladder.ts:186](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ladder.ts#L186)
+Defined in: [packages/plan/src/ladder.ts:185](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ladder.ts#L185)
 
 The judge prompt: artifact-grounded, assembled from journaled values
 only (the attempt's output summary and artifact index), so a replayed

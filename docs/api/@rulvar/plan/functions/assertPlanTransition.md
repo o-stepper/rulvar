@@ -10,22 +10,22 @@
 function assertPlanTransition(node, to): void;
 ```
 
-Defined in: [packages/plan/src/plan-state.ts:111](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-state.ts#L111)
+Defined in: [packages/plan/src/plan-state.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-state.ts#L114)
 
 Asserts one status transition against the closed machine. Op-level
 legality (which ops may request which transitions in which state) is
-the rebase conflict table's job (docs/07, 3.6; M7-T04); the machine
+the rebase conflict table's job (M7-T04); the machine
 itself enforces exactly the structural rules:
 
 - nothing leaves a terminal status (`done` is immutable; failed,
   cancelled, skipped are final),
 - `running` is entered only from `ready` (the engine schedules ready
-  nodes; docs/07, 3.1),
+  nodes),
 - a transition never restates the current status (the engine writes no
   no-op set_node_status).
 
 A violation is an engine bug and raises the typed PlanInvariantError
-(docs/07, 3.4: never a silent brick).
+(never a silent brick).
 
 ## Parameters
 

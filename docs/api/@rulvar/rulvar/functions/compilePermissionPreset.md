@@ -13,7 +13,7 @@ function compilePermissionPreset(preset): {
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ## Parameters
 
@@ -32,5 +32,5 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `ask` | [`PermissionRule`](/api/@rulvar/rulvar/type-aliases/PermissionRule.md)[] | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `deny` | [`PermissionRule`](/api/@rulvar/rulvar/type-aliases/PermissionRule.md)[] | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| `ask` | [`PermissionRule`](/api/@rulvar/rulvar/type-aliases/PermissionRule.md)[] | `packages/core/dist/index.d.ts` |
+| `deny` | [`PermissionRule`](/api/@rulvar/rulvar/type-aliases/PermissionRule.md)[] | `packages/core/dist/index.d.ts` |

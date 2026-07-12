@@ -6,9 +6,9 @@
 
 # Class: FileModelKnowledgeStore
 
-Defined in: [packages/core/src/knowledge/file-store.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L103)
+Defined in: [packages/core/src/knowledge/file-store.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L102)
 
-The SPI seam (docs/05, section "Data model"). commit performs CAS on
+The SPI seam. commit performs CAS on
 the monotonic snapshot version, mirroring the fencing-epoch
 discipline of LeasableStore; concurrent maintenance commits serialize
 through CAS rejection and rebase. commit is UNREACHABLE from the
@@ -26,7 +26,7 @@ runtime: runs hold ModelKnowledgeHandle.
 new FileModelKnowledgeStore(options?): FileModelKnowledgeStore;
 ```
 
-Defined in: [packages/core/src/knowledge/file-store.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L109)
+Defined in: [packages/core/src/knowledge/file-store.ts:108](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L108)
 
 #### Parameters
 
@@ -46,7 +46,7 @@ Defined in: [packages/core/src/knowledge/file-store.ts:109](https://github.com/o
 commit(ops, expectedVersion): Promise<number>;
 ```
 
-Defined in: [packages/core/src/knowledge/file-store.ts:147](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L147)
+Defined in: [packages/core/src/knowledge/file-store.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L146)
 
 #### Parameters
 
@@ -71,7 +71,7 @@ Defined in: [packages/core/src/knowledge/file-store.ts:147](https://github.com/o
 current(): Promise<KnowledgeSnapshot>;
 ```
 
-Defined in: [packages/core/src/knowledge/file-store.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L143)
+Defined in: [packages/core/src/knowledge/file-store.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L142)
 
 #### Returns
 

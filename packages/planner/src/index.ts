@@ -1,8 +1,7 @@
 /**
  * @rulvar/planner: rulvar flagship hybrid mode: plan agent, compileScript,
- * WorkerSandboxRunner, self-repair loop (docs/02, package map; docs/06,
- * section "Script runners"). The surface lands across M6
- * (docs/10-implementation-plan.md, section 3.7).
+ * WorkerSandboxRunner, self-repair loop
+ * (https://docs.rulvar.com/guide/planner). The surface lands across M6.
  */
 export {
   SANDBOX_GLOBALS,

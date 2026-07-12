@@ -10,6 +10,6 @@
 const LEDGER_READ_SCHEMA: SchemaSpec;
 ```
 
-Defined in: [packages/plan/src/tools.ts:263](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L263)
+Defined in: [packages/plan/src/tools.ts:262](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L262)
 
-docs/07: ledger_read takes no parameters and pins to the turn snapshot.
+ledger_read takes no parameters and pins to the turn snapshot.

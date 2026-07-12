@@ -13,9 +13,9 @@ function nodeLinkKey(
    targetNodeId): string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-node.link identity (docs/03, 9.5): sha256 of {kind, spawnKey,
+node.link identity: sha256 of {kind, spawnKey,
 donorScope, targetNodeId}; targetNodeId is deterministic on replay
 because NodeIds are assigned inside plan.revision.
 

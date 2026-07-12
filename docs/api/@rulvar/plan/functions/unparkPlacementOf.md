@@ -10,7 +10,7 @@
 function unparkPlacementOf(input): UnparkPlacement;
 ```
 
-Defined in: [packages/plan/src/park.ts:86](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/park.ts#L86)
+Defined in: [packages/plan/src/park.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/park.ts#L84)
 
 ## Parameters
 

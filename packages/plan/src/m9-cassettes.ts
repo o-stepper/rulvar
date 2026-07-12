@@ -1,7 +1,6 @@
 /**
  * M9 catalog completion runners: the DEF-2 and DEF-3 cassette rows that
- * were deferred at M7 (M9-T04; docs/09, sections 6.2 and 6.3; docs/10,
- * section "Gating cassette sets per milestone", M9 row).
+ * were deferred at M7 (M9-T04).
  *
  * Same discipline as the M7 runners (cassettes.ts): every scenario runs
  * fully offline on the scripted adapter over the PUBLIC provider SPI,
@@ -845,7 +844,7 @@ export async function runRewordedLessonsCollide(): Promise<JournalEntry[]> {
     }
     if (phase === 6 && lessonKey !== undefined) {
       // The SECOND lesson_add with the SAME key: keys once (idempotent
-      // recovery by content key, docs/07 ledger rules).
+      // recovery by content key per the ledger rules).
       return {
         toolCall: {
           name: 'ledger_append',
@@ -1201,7 +1200,7 @@ function lineageSliceOf(view: string | undefined): string | undefined {
   const parsed = JSON.parse(view) as {
     nodes?: Array<{ logicalTaskId?: string; lineage?: unknown }>;
   };
-  // Node LTIDs for plain adds are fold-minted live (docs/07: NodeId
+  // Node LTIDs for plain adds are fold-minted live (NodeId
   // minting is live-only), so cross-life equality holds on the STATS,
   // not the identifier string.
   return JSON.stringify((parsed.nodes ?? []).map((node) => node.lineage ?? null));
@@ -1328,7 +1327,7 @@ export async function runLegacyJournalResume(): Promise<JournalEntry[]> {
  * rungs burn their single turn on the echo tool (limit, raise) and whose
  * top rung is scriptable. Severing the node mid-top-rung leaves the two
  * completed rung attempts as ELIGIBLE PAID entries under the node's
- * coverage, which is exactly what a graft donor needs (docs/03, 9.4).
+ * coverage, which is exactly what a graft donor needs.
  */
 function graftLadderProfile(isolation?: unknown): Record<string, unknown> {
   return {
@@ -1387,7 +1386,7 @@ function linkEntriesOf(entries: readonly JournalEntry[]): JournalEntry[] {
  * reuse_full: the verdict is embedded in the plan.revision, the
  * node.link (mode full, claim shared) and the by-ref root are present,
  * the reused subtree costs zero live calls, and reclaimedUsdAtLink
- * equals the donor spend (docs/03, 9.4/9.5).
+ * equals the donor spend.
  */
 export async function runOscillationFullReuse(): Promise<JournalEntry[]> {
   let phase = 0;
@@ -1489,7 +1488,7 @@ export async function runOscillationFullReuse(): Promise<JournalEntry[]> {
  * mid-top-rung after two completed rung attempts; the byte-identical
  * re-add grafts (exclusive link), the completed rung attempts
  * forward-match through the scope alias, and only the interrupted rung
- * reruns live, exactly once (docs/03, 9.5).
+ * reruns live, exactly once.
  */
 export async function runGraftPartialSubtree(): Promise<JournalEntry[]> {
   let phase = 0;
@@ -1587,7 +1586,7 @@ export async function runGraftPartialSubtree(): Promise<JournalEntry[]> {
  * crash-between-link-and-root (DEF-5): the full-reuse scenario is cut
  * strictly AFTER the durable node.link and BEFORE the by-ref root; the
  * resume rolls forward: the link forward-matches, the root is re-issued,
- * and nothing is paid twice (docs/03, 9.10).
+ * and nothing is paid twice.
  */
 export async function runCrashBetweenLinkAndRoot(): Promise<JournalEntry[]> {
   const script = (state: { phase: number; workerCalls: number; escalated?: string }) => {
@@ -1696,7 +1695,7 @@ export async function runCrashBetweenLinkAndRoot(): Promise<JournalEntry[]> {
  * oscillation-guard-trip (DEF-5): the third re-add of one SpawnKey at
  * maxOscillationsPerKey 2 rejects osc_guard as a typed plan_revise
  * error; the run closes through the non-HITL path and the embedded
- * verdicts replay identically (docs/03, 9.4).
+ * verdicts replay identically.
  */
 export async function runOscillationGuardTrip(): Promise<JournalEntry[]> {
   let phase = 0;
@@ -1782,8 +1781,8 @@ export async function runOscillationGuardTrip(): Promise<JournalEntry[]> {
  * worktree-disposed-degrade (DEF-5): a worktree-isolated graft donor
  * whose tree was NOT retained degrades to a fresh admit with the
  * embedded DedupNote graft_unsafe; a second section verifies reuse_full
- * stays allowed for a worktree donor whose root is terminal (docs/03,
- * 9.4: the pin condition applies to grafts only).
+ * stays allowed for a worktree donor whose root is terminal (the pin
+ * condition applies to grafts only).
  */
 export async function runWorktreeDisposedDegrade(): Promise<JournalEntry[]> {
   let phase = 0;
@@ -1934,7 +1933,7 @@ export async function runWorktreeDisposedDegrade(): Promise<JournalEntry[]> {
  * tasks; the first grafts (exclusive claim), the second admits fresh;
  * the grafted node is severed and the key added a third time: the link
  * points at the chain head and the drain is transitive, oldest first;
- * oscillationCount for the key reaches 2 (docs/03, 9.6).
+ * oscillationCount for the key reaches 2.
  */
 export async function runClaimExclusivityAndChain(): Promise<JournalEntry[]> {
   let phase = 0;
@@ -2038,7 +2037,7 @@ export async function runClaimExclusivityAndChain(): Promise<JournalEntry[]> {
  * done, a second node escalates, and a third completes; the wake
  * submits ONE stale-based revision {waive_dep, park_task, cancel_task}
  * whose trio drops with the exact reasons and the blockingRef pointing
- * at the defaultDecision resolution (docs/07, 3.5; docs/09, 6.8).
+ * at the defaultDecision resolution.
  */
 export async function runReviseRacingDefaultDecision(): Promise<JournalEntry[]> {
   let phase = 0;
@@ -2101,7 +2100,7 @@ export async function runReviseRacingDefaultDecision(): Promise<JournalEntry[]> 
     }
     if (phase === 4 && nodes.length >= 4) {
       // The STALE base: the bootstrap digest pair, older but genuine;
-      // conflicts rebase at the head (docs/07, 3.5 step 3).
+      // conflicts rebase at the head.
       return reviseTurn(
         { digestSeq: 0, planHash: EMPTY_PLAN_HASH },
         [
@@ -2163,7 +2162,7 @@ export async function runReviseRacingDefaultDecision(): Promise<JournalEntry[]> 
  * crash-after-append-before-effects (DEF-8): the kill lands immediately
  * after the durable plan.revision carrying add_task x2 plus cancel_task
  * on a running node; the resume re-issues the effects: both children
- * spawn live exactly once and the cancel lands (docs/07, 3.9).
+ * spawn live exactly once and the cancel lands.
  */
 export async function runCrashAfterAppendBeforeEffects(): Promise<JournalEntry[]> {
   const script = (state: { phase: number; slow?: string; children: number }) => {
@@ -2260,7 +2259,7 @@ export async function runCrashAfterAppendBeforeEffects(): Promise<JournalEntry[]
  * amend-vs-running-then-cancel-add (DEF-8): amend_task on a running node
  * drops node_running; the next revision cancels it and adds the amended
  * prompt as a NEW node continuing the SAME logical task; the abandon
- * covers the old branch and replay repays neither (docs/07, 4.7).
+ * covers the old branch and replay repays neither.
  */
 export async function runAmendVsRunningThenCancelAdd(): Promise<JournalEntry[]> {
   let phase = 0;
@@ -2351,7 +2350,7 @@ export async function runAmendVsRunningThenCancelAdd(): Promise<JournalEntry[]> 
  * intra-revision-self-conflict (DEF-8): one revision {cancel_task X,
  * amend_task X, rewire_deps with an edge onto X} resolves strictly in
  * submission order per the sequential intra-revision application
- * semantics (docs/07, 4.7 conflict table).
+ * semantics.
  */
 export async function runIntraRevisionSelfConflict(): Promise<JournalEntry[]> {
   let phase = 0;
@@ -2445,7 +2444,7 @@ export async function runIntraRevisionSelfConflict(): Promise<JournalEntry[]> {
  * bad-base-streak-terminates (DEF-8): three consecutive revisions with a
  * fabricated base.planHash land as all-dropped bad-base entries; the
  * dropped streak reaches its limit and the non-HITL RevisionGuards
- * fallback (finish-with-partial) closes the run (docs/07, 3.5/3.8).
+ * fallback (finish-with-partial) closes the run.
  */
 export async function runBadBaseStreakTerminates(): Promise<JournalEntry[]> {
   let phase = 0;
@@ -2498,7 +2497,7 @@ export async function runBadBaseStreakTerminates(): Promise<JournalEntry[]> {
  * park-races-child-completion (DEF-8): park_task lands on a running node
  * whose terminal appends moments later; parkRequested is extinguished by
  * the child-result transition, no checkpoint is written, and the node is
- * done (docs/07, 3.6).
+ * done.
  */
 export async function runParkRacesChildCompletion(): Promise<JournalEntry[]> {
   let phase = 0;
@@ -2594,7 +2593,7 @@ export async function runParkRacesChildCompletion(): Promise<JournalEntry[]> {
  * reserve-survives-run-exhaustion (DEF-7): cheap workers eat the run
  * ceiling until admission rejects the spawn that would invade the
  * committed finalize reserve; the final wake executes from the reserve
- * and the rejections forward-match on replay (docs/07, 12.4).
+ * and the rejections forward-match on replay.
  */
 export async function runReserveSurvivesRunExhaustion(): Promise<JournalEntry[]> {
   let phase = 0;
@@ -2655,7 +2654,7 @@ export async function runReserveSurvivesRunExhaustion(): Promise<JournalEntry[]>
   );
   const outcome = await handle.result;
   // The forced finish executes FROM the reserve and closes the run ok
-  // with the finalize value (docs/07, 12.4: cap-freeze semantics).
+  // with the finalize value (cap-freeze semantics).
   if (outcome.status !== 'ok' || outcome.value === undefined) {
     throw new Error(
       `reserve-survives: expected ok with the reserve-paid value, got ` +

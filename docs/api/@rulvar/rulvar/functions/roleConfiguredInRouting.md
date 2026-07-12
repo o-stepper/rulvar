@@ -10,13 +10,13 @@
 function roleConfiguredInRouting(role, layers): boolean;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 True when any resolution layer configures the given role in its routing
 map. This is the finalize TRIGGER: firing is decided by the presence of
 a routing entry at any layer; the model it fires ON still resolves
 through the full chain (a higher layer's all-roles `model` may override
-the routed choice per docs/04, section 8.2).
+the routed choice).
 
 ## Parameters
 

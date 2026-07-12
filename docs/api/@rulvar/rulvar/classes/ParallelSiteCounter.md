@@ -6,7 +6,7 @@
 
 # Class: ParallelSiteCounter
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Allocates parallel site numbers per enclosing scope: a monotonic counter
 in execution order, not source position. Because every scope body is
@@ -33,7 +33,7 @@ new ParallelSiteCounter(): ParallelSiteCounter;
 next(enclosingScope): number;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 

@@ -10,4 +10,4 @@
 const DEFAULT_MAX_CHILDREN_PER_NODE: 16 = 16;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`

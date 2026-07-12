@@ -8,7 +8,7 @@
 
 Defined in: [packages/evals/src/case.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L30)
 
-One quality-measurement case (docs/09, section 7.1). The shape is the
+One quality-measurement case. The shape is the
 documented interface verbatim; display names derive from the workflow
 name (the suite runner disambiguates duplicates by ordinal).
 

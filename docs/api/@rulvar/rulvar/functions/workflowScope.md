@@ -13,7 +13,7 @@ function workflowScope(
    ordinal): string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ctx.workflow child scope: `wf:<name>:<ordinal>` (ordinal counts invocations of that name).
 

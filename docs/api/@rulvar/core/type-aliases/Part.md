@@ -37,10 +37,9 @@ type Part =
 };
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L47)
+Defined in: [packages/core/src/l0/messages.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L44)
 
 The canonical part union. provider-raw parts carry opaque provider blocks
 that must survive round trips (thinking blocks with signatures, reasoning
 items including encrypted_content). Retention is unconditional; dropping
-happens only in projection, never in retention (docs/04, section
-"Messages and parts").
+happens only in projection, never in retention.

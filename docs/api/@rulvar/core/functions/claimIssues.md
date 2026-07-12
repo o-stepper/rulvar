@@ -13,7 +13,7 @@ function claimIssues(
    options?): string[];
 ```
 
-Defined in: [packages/core/src/knowledge/claims.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/claims.ts#L83)
+Defined in: [packages/core/src/knowledge/claims.ts:82](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/claims.ts#L82)
 
 Issues of one claim record (empty = valid).
 

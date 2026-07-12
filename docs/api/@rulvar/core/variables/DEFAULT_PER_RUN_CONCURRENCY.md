@@ -12,4 +12,4 @@ const DEFAULT_PER_RUN_CONCURRENCY: 12 = 12;
 
 Defined in: [packages/core/src/engine/scheduler.ts:10](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/scheduler.ts#L10)
 
-FIFO semaphore; default per-run width is 12 (docs/06, Appendix A).
+FIFO semaphore; default per-run width is 12.

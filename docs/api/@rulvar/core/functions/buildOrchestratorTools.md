@@ -14,7 +14,7 @@ Defined in: [packages/core/src/orchestrator/spawn-tools.ts:134](https://github.c
 
 Builds the mode (c) toolset over the per-call runtime. profileCardText
 rides the spawn tools' descriptions so both modes speak one agent
-vocabulary (docs/06 9.3; M6-T04).
+vocabulary (M6-T04).
 
 ## Parameters
 

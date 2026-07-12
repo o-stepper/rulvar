@@ -1,6 +1,5 @@
 /**
- * The canary fingerprint (M11-T04; docs/05, section "Grounding and
- * decay"; OQ-06). The optional compensation for silent alias
+ * The canary fingerprint (M11-T04; OQ-06). The optional compensation for silent alias
  * re-pointing that modelEpoch honestly cannot catch: a FIXED probe set
  * at temperature 0, run through the ordinary engine (journaled,
  * budgeted, VCR-recordable), hashed over normalized outputs. A
@@ -69,9 +68,8 @@ export interface CanaryDriftReport {
 
 /**
  * Flips the model's ACTIVE eval-measured claims to stale when their
- * recorded canary fingerprint differs from the fresh one (docs/05:
- * "a fingerprint change immediately flips the model's eval claims to
- * stale"). Claims without a recorded fingerprint have no baseline and
+ * recorded canary fingerprint differs from the fresh one. Claims
+ * without a recorded fingerprint have no baseline and
  * stay untouched (the documented no-probe posture); a second run is
  * an idempotent noop. CAS-rebased like every maintenance commit.
  */

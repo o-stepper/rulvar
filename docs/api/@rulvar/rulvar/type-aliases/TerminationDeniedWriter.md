@@ -10,7 +10,7 @@
 type TerminationDeniedWriter = (denied) => Promise<EntryRef>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Injected appender for termination.denied entries (engine-owned I/O).
 

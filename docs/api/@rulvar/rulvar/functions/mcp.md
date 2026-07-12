@@ -10,13 +10,13 @@
 function mcp(cfg): ToolSource;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Imports MCP tools as a ToolSource. The client connects lazily on the
 first tools() call; tools/list is fetched with cursor pagination until
 exhaustion and cached per session; a listChanged notification
 invalidates the cache, affecting subsequently spawned agents only (a
-spawn's toolset snapshot is immutable by construction; docs/08 6.3).
+spawn's toolset snapshot is immutable by construction).
 
 ## Parameters
 

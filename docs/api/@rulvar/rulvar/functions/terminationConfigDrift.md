@@ -14,9 +14,9 @@ function terminationConfigDrift(frozen, live): {
 }[];
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Config-drift detection at resume (docs/07, 11.2): the journaled vector
+Config-drift detection at resume: the journaled vector
 always wins; every differing field is reported for the
 `termination:config-drift` event. Dynamic budget top-up via restart is
 excluded by construction.

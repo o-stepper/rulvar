@@ -10,7 +10,7 @@
 function claimOpIssues(op, index): string[];
 ```
 
-Defined in: [packages/core/src/knowledge/claims.ts:173](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/claims.ts#L173)
+Defined in: [packages/core/src/knowledge/claims.ts:172](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/claims.ts#L172)
 
 Issues of one op (empty = valid). GATE-DRIVEN (M11-T01): the gate on
 the op decides which claim rules apply, so the identity is enforced

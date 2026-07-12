@@ -2,9 +2,7 @@
  * ModelCaps consumption helpers (M1-T05): structured-output tier selection
  * and the strict-compatibility predicate the native tier depends on.
  *
- * Owning spec: docs/04-model-layer-spec.md, sections "Caps scrubbing and
- * structured-output tier selection" and "Tools: flattened form and strict
- * semantics".
+ * Full contract: https://docs.rulvar.com/guide/adapter-authors.
  */
 import type { JsonSchema } from '../l0/messages.js';
 import type { ModelCaps } from '../l0/spi/provider.js';
@@ -20,7 +18,7 @@ const TIER_ORDER: Record<StructuredOutputTier, number> = {
 /**
  * Strict-schema compatibility as both first-class providers define it:
  * every object node declares `additionalProperties: false` and lists every
- * property in `required` (docs/04, section 5.2). Boolean schemas and
+ * property in `required`. Boolean schemas and
  * non-object shapes are trivially compatible.
  */
 export function isStrictCompatibleSchema(schema: JsonSchema | boolean): boolean {
@@ -77,10 +75,10 @@ export function isStrictCompatibleSchema(schema: JsonSchema | boolean): boolean 
 }
 
 /**
- * Tier selection (docs/04, section 8.4): the model's declared ceiling
+ * Tier selection: the model's declared ceiling
  * bounds the tier; the native tier additionally requires a
- * strict-compatible canonical schema (docs/04, section 5.2: relying on
- * silent server-side fallback is forbidden), degrading to forced-tool.
+ * strict-compatible canonical schema (relying on silent server-side
+ * fallback is forbidden), degrading to forced-tool.
  * Prefill is not a tier.
  */
 export function selectStructuredOutputTier(

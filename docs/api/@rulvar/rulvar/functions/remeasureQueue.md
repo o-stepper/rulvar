@@ -10,9 +10,9 @@
 function remeasureQueue(claims, at): ModelClaim[];
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The re-measurement queue (docs/05, section "Grounding and decay"):
+The re-measurement queue:
 expired eval-measured claims that are still ACTIVE. Just a status
 filter: the next sweep re-measures these subjects; nothing archives
 them (archiving would empty the queue and hide the decay).

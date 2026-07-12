@@ -10,9 +10,9 @@
 function shouldCompact(options): boolean;
 ```
 
-Defined in: [packages/core/src/runtime/compaction.ts:34](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/compaction.ts#L34)
+Defined in: [packages/core/src/runtime/compaction.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/compaction.ts#L33)
 
-The threshold check (docs/06, M4-T03 committed semantics): the context
+The threshold check (M4-T03 committed semantics): the context
 estimate is the last loop turn's inputTokens + outputTokens; the Usage
 invariant makes inputTokens the full prompt, and the turn's output
 joins the next prompt.

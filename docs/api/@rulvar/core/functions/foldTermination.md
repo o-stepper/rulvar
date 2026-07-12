@@ -22,7 +22,7 @@ function foldTermination(entries):
 
 Defined in: [packages/core/src/journal/termination.ts:553](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L553)
 
-The replay fold (docs/07, 11.6): rebuilds the account from
+The replay fold: rebuilds the account from
 termination.init and the debiting decision entries, asserting every
 embedded balance-after against the recomputation. A divergence raises
 the typed journal-integrity error at exactly the diverging entry;

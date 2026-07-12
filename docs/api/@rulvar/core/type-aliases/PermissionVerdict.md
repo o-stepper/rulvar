@@ -35,4 +35,4 @@ Defined in: [packages/core/src/runtime/permission-chain.ts:80](https://github.co
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `advisory?` | [`PermissionRule`](/api/@rulvar/core/type-aliases/PermissionRule.md)[] | Advisory domain-rule matches (docs/08, 4.4): reported in audit events, never enforced outside the first-party fetch tool. | [packages/core/src/runtime/permission-chain.ts:99](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L99) |
+| `advisory?` | [`PermissionRule`](/api/@rulvar/core/type-aliases/PermissionRule.md)[] | Advisory domain-rule matches: reported in audit events, never enforced outside the first-party fetch tool. | [packages/core/src/runtime/permission-chain.ts:99](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L99) |

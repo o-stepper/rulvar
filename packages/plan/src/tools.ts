@@ -1,8 +1,7 @@
 /**
  * The PlanRunner toolset (M7-T05): plan_view and plan_revise.
  *
- * Owning spec: docs/07-adaptive-orchestration-spec.md, sections 4.6 and
- * 4.7. The JSON Schemas below are NORMATIVE: they enter toolsetHash and
+ * The JSON Schemas below are NORMATIVE: they enter toolsetHash and
  * therefore identity. plan_view is a pure fold pinned to the last
  * WakeDigest (never a live read; a re-executed wake turn reads its
  * original snapshot); plan_revise is the typed PlanOp diff with
@@ -22,14 +21,14 @@ import type { PlanNodeStatus } from './plan-state.js';
 import type { PlanReviseRequest, PlanReviseResult } from './plan-entries.js';
 import type { LedgerOp, LedgerView } from './ledger.js';
 
-/** docs/07, 4.6: plan_view takes no parameters. */
+/** plan_view takes no parameters. */
 export const PLAN_VIEW_SCHEMA: SchemaSpec = {
   type: 'object',
   additionalProperties: false,
   properties: {},
 };
 
-/** The taskSpec projection shared with spawn_agent (docs/07, 4.7 $defs). */
+/** The taskSpec projection shared with spawn_agent. */
 const TASK_SPEC_SCHEMA: Record<string, unknown> = {
   type: 'object',
   additionalProperties: false,
@@ -50,14 +49,14 @@ const TASK_SPEC_SCHEMA: Record<string, unknown> = {
   },
 };
 
-/** Partial<TaskSpec> for amend_task (docs/07, 4.7 $defs). */
+/** Partial<TaskSpec> for amend_task. */
 const TASK_SPEC_PATCH_SCHEMA: Record<string, unknown> = {
   type: 'object',
   additionalProperties: false,
   properties: TASK_SPEC_SCHEMA.properties ?? {},
 };
 
-/** The lineage block of add_task (docs/07, 4.2/4.7 $defs). */
+/** The lineage block of add_task. */
 const LINEAGE_SCHEMA: Record<string, unknown> = {
   type: 'object',
   additionalProperties: false,
@@ -73,7 +72,7 @@ const LINEAGE_SCHEMA: Record<string, unknown> = {
   },
 };
 
-/** docs/07, 4.7: the plan_revise parameter schema (normative). */
+/** The plan_revise parameter schema (normative). */
 export const PLAN_REVISE_SCHEMA: SchemaSpec = {
   type: 'object',
   additionalProperties: false,
@@ -183,7 +182,7 @@ export const PLAN_REVISE_TOOL_NAME = 'plan_revise';
 export const LEDGER_APPEND_TOOL_NAME = 'ledger_append';
 export const LEDGER_READ_TOOL_NAME = 'ledger_read';
 
-/** The closed authored op vocabulary as JSON Schema (docs/07, 9.2). */
+/** The closed authored op vocabulary as JSON Schema. */
 export const LEDGER_APPEND_SCHEMA: SchemaSpec = {
   type: 'object',
   additionalProperties: false,
@@ -259,7 +258,7 @@ export const LEDGER_APPEND_SCHEMA: SchemaSpec = {
   },
 };
 
-/** docs/07: ledger_read takes no parameters and pins to the turn snapshot. */
+/** ledger_read takes no parameters and pins to the turn snapshot. */
 export const LEDGER_READ_SCHEMA: SchemaSpec = {
   type: 'object',
   additionalProperties: false,
@@ -277,7 +276,7 @@ export interface PlanViewNode {
   lineage?: LineageStats;
 }
 
-/** The plan_view render (docs/07, 4.6): plan state, lineage, termination, reuse. */
+/** The plan_view render: plan state, lineage, termination, reuse. */
 export interface PlanViewRender {
   planHash: string;
   revisionCount: number;
@@ -286,7 +285,7 @@ export interface PlanViewRender {
   termination: TerminationAccountSnapshot;
   /** The abandoned-spend ledger (DEF-5); zeros until M7-T07 activates it. */
   abandonedSpend: { abandonedUsd: number; reclaimedUsd: number; netLostUsd: number };
-  /** RevisionGuards state (docs/07, 3.8; M7-T06). */
+  /** RevisionGuards state (M7-T06). */
   guards?: {
     engaged?: 'reject-revision' | 'finish-with-partial' | 'fail-run';
     frozenSignatures: string[];

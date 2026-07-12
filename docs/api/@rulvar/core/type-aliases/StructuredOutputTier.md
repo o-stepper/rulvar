@@ -10,4 +10,4 @@
 type StructuredOutputTier = "native" | "forced-tool" | "prompt";
 ```
 
-Defined in: [packages/core/src/model/caps.ts:12](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/caps.ts#L12)
+Defined in: [packages/core/src/model/caps.ts:10](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/caps.ts#L10)

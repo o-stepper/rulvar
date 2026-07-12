@@ -6,7 +6,7 @@
 
 # Interface: BudgetReserve
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Layer-1 reservation embedded in the carrying decision entry.
 
@@ -14,5 +14,5 @@ Layer-1 reservation embedded in the carrying decision entry.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-childceilingusd"></a> `childCeilingUsd?` | `number` | The child sub-account ceiling; absent when the parent is uncapped. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-reserveusd"></a> `reserveUsd` | `number` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-childceilingusd"></a> `childCeilingUsd?` | `number` | The child sub-account ceiling; absent when the parent is uncapped. | `packages/core/dist/index.d.ts` |
+| <a id="property-reserveusd"></a> `reserveUsd` | `number` | - | `packages/core/dist/index.d.ts` |

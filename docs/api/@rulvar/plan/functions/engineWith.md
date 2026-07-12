@@ -14,7 +14,7 @@ function engineWith(
    extras?): Engine;
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:160](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L160)
+Defined in: [packages/plan/src/cassettes.ts:159](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L159)
 
 ## Parameters
 
@@ -25,7 +25,7 @@ Defined in: [packages/plan/src/cassettes.ts:160](https://github.com/o-stepper/ru
 | `profiles` | `Record`\&lt;`string`, `unknown`\&gt; | - |
 | `extras?` | \{ `isolation?`: `unknown`; `knowledge?`: `unknown`; `lineage?`: `Record`\&lt;`string`, `number`\&gt;; `schemas?`: `Record`\&lt;`string`, `unknown`\&gt;; \} | - |
 | `extras.isolation?` | `unknown` | - |
-| `extras.knowledge?` | `unknown` | ModelKnowledge store for the M10 kb cassettes (docs/05). |
+| `extras.knowledge?` | `unknown` | ModelKnowledge store for the M10 kb cassettes. |
 | `extras.lineage?` | `Record`\&lt;`string`, `number`\&gt; | - |
 | `extras.schemas?` | `Record`\&lt;`string`, `unknown`\&gt; | - |
 

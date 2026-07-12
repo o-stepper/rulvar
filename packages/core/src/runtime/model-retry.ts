@@ -4,11 +4,10 @@
  * converts it into an error-flagged tool result carrying the message (and
  * data when present) so the model can self-correct within the same loop.
  * Deliberately outside the error registry; never journaled. Attempts are
- * bounded per tool call chain (default 2, docs/06 Appendix A); tool
+ * bounded per tool call chain (default 2); tool
  * consumers arrive with the tool system in M3.
  *
- * Owning spec: docs/06-execution-spec.md, section "ModelRetry (normative
- * declaration)".
+ * Docs: https://docs.rulvar.com/guide/tools
  */
 import type { Json } from '../l0/json.js';
 
@@ -24,5 +23,5 @@ export class ModelRetry extends Error {
   }
 }
 
-/** Bounded semantic retries per tool call chain (docs/06, Appendix A). */
+/** Bounded semantic retries per tool call chain. */
 export const DEFAULT_MODEL_RETRY_ATTEMPTS = 2;

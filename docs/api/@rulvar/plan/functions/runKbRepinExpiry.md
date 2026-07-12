@@ -10,9 +10,9 @@
 function runKbRepinExpiry(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/m10-cassettes.ts:184](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m10-cassettes.ts#L184)
+Defined in: [packages/plan/src/m10-cassettes.ts:183](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m10-cassettes.ts#L183)
 
-kb-repin-expiry (docs/09, 6.11): the repin re-applies the docs/05
+kb-repin-expiry: the repin re-applies the claim
 filters against a FRESH read; a claim the store dropped between the
 pin and the wake stops steering, while the boot pin's bytes stand.
 

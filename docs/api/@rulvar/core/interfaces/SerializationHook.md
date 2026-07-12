@@ -6,7 +6,7 @@
 
 # Interface: SerializationHook
 
-Defined in: [packages/core/src/l0/serialization.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L44)
+Defined in: [packages/core/src/l0/serialization.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L43)
 
 createEngine({ serialization }): absent means identity, no wrapping.
 
@@ -14,5 +14,5 @@ createEngine({ serialization }): absent means identity, no wrapping.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-journal"></a> `journal?` | [`JournalSerializationHook`](/api/@rulvar/core/interfaces/JournalSerializationHook.md) | [packages/core/src/l0/serialization.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L45) |
-| <a id="property-transcripts"></a> `transcripts?` | [`TranscriptSerializationHook`](/api/@rulvar/core/interfaces/TranscriptSerializationHook.md) | [packages/core/src/l0/serialization.ts:46](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L46) |
+| <a id="property-journal"></a> `journal?` | [`JournalSerializationHook`](/api/@rulvar/core/interfaces/JournalSerializationHook.md) | [packages/core/src/l0/serialization.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L44) |
+| <a id="property-transcripts"></a> `transcripts?` | [`TranscriptSerializationHook`](/api/@rulvar/core/interfaces/TranscriptSerializationHook.md) | [packages/core/src/l0/serialization.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L45) |

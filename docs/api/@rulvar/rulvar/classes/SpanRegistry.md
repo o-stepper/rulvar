@@ -6,11 +6,10 @@
 
 # Class: SpanRegistry
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Spans form a tree per run; spanId values are engine-minted opaque
-strings, unique per run, pure telemetry, never identity (docs/09,
-section "Span hierarchy").
+strings, unique per run, pure telemetry, never identity.
 
 ## Constructors
 
@@ -32,7 +31,7 @@ new SpanRegistry(): SpanRegistry;
 mint(parentSpanId?): string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -52,7 +51,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 parentOf(spanId): string | undefined;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 

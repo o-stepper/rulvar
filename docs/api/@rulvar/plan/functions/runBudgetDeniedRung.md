@@ -10,11 +10,11 @@
 function runBudgetDeniedRung(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:606](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L606)
+Defined in: [packages/plan/src/cassettes.ts:605](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L605)
 
 budget-denied-rung: the budget guard denies the rung respawn; the
 denial journals as termination.denied strictly before the verdict and
-the ladder takes its declared fallback path (docs/09 round-2).
+the ladder takes its declared fallback path.
 
 ## Returns
 

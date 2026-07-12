@@ -6,7 +6,7 @@
 
 # Interface: OrchestratorExtensionIO
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The per-run IO the extension closes over (engine-owned effects).
 
@@ -14,12 +14,12 @@ The per-run IO the extension closes over (engine-owned effects).
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-admission"></a> `admission` | `readonly` | [`AdmissionController`](/api/@rulvar/rulvar/classes/AdmissionController.md) | The single admission point for all spawns (docs/07, 7.1). | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-basescope"></a> `baseScope` | `readonly` | `string` | The scope the orchestrate call runs in ('' at the top level). | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-gates"></a> `gates` | `readonly` | `Record`\&lt;`string`, `unknown`\&gt; | The per-engine mechanical gate registry (docs/07, section 10): named pure functions over AgentResult.artifacts. Typed loose at the seam exactly like `profiles`. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-profiles"></a> `profiles` | `readonly` | `Record`\&lt;`string`, `unknown`\&gt; | Registered agent profiles advertised to this orchestrate call. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-runceilingusd"></a> `runCeilingUsd?` | `readonly` | `number` | The run USD ceiling (B0), when one exists. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-runid"></a> `runId` | `readonly` | `string` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-admission"></a> `admission` | `readonly` | [`AdmissionController`](/api/@rulvar/rulvar/classes/AdmissionController.md) | The single admission point for all spawns. | `packages/core/dist/index.d.ts` |
+| <a id="property-basescope"></a> `baseScope` | `readonly` | `string` | The scope the orchestrate call runs in ('' at the top level). | `packages/core/dist/index.d.ts` |
+| <a id="property-gates"></a> `gates` | `readonly` | `Record`\&lt;`string`, `unknown`\&gt; | The per-engine mechanical gate registry: named pure functions over AgentResult.artifacts. Typed loose at the seam exactly like `profiles`. | `packages/core/dist/index.d.ts` |
+| <a id="property-profiles"></a> `profiles` | `readonly` | `Record`\&lt;`string`, `unknown`\&gt; | Registered agent profiles advertised to this orchestrate call. | `packages/core/dist/index.d.ts` |
+| <a id="property-runceilingusd"></a> `runCeilingUsd?` | `readonly` | `number` | The run USD ceiling (B0), when one exists. | `packages/core/dist/index.d.ts` |
+| <a id="property-runid"></a> `runId` | `readonly` | `string` | - | `packages/core/dist/index.d.ts` |
 
 ## Methods
 
@@ -32,10 +32,10 @@ abandonBranch(attempt): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Appends the severing abandon ref-entry over a branch through the
-ResolutionArbiter (DEF-4/DEF-5; docs/03, sections 8.5 and 9.1).
+ResolutionArbiter (DEF-4/DEF-5).
 
 #### Parameters
 
@@ -65,7 +65,7 @@ ResolutionArbiter (DEF-4/DEF-5; docs/03, sections 8.5 and 9.1).
 append(input): Promise<JournalEntry>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Total-order append; the extension owns its scopes' content keys.
 
@@ -90,7 +90,7 @@ cancel(handle, reason?): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Cancels an in-flight child by handle (AbortSignal).
 
@@ -121,7 +121,7 @@ dispatch(
 }>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Dispatches one child agent under the EXPLICIT child scope through
 the ordinary ctx.agent path (semaphore, budget layers, forward
@@ -151,7 +151,7 @@ matching). Returns the journal-derived handle (the dispatch seq).
 emit(event): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Telemetry emission into the run event stream.
 
@@ -173,7 +173,7 @@ Telemetry emission into the run event stream.
 flush(): Promise<void>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Flushes the serialized append queue before reading back.
 
@@ -189,7 +189,7 @@ Flushes the serialized append queue before reading back.
 mintId(): string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ULID minting for engine-owned identifiers (NodeIds).
 
@@ -205,7 +205,7 @@ ULID minting for engine-owned identifiers (NodeIds).
 orchestratorScope(): string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The orchestrator's child scope (agent:&lt;seq&gt;); throws before the loop starts.
 
@@ -221,9 +221,9 @@ The orchestrator's child scope (agent:&lt;seq&gt;); throws before the loop start
 priceUsd(servedBy, usage): number | undefined;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The engine price fold (journal facts in, USD out; docs/04).
+The engine price fold (journal facts in, USD out).
 
 #### Parameters
 
@@ -244,34 +244,34 @@ The engine price fold (journal facts in, USD out; docs/04).
 random(key?): Promise<number>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-A journaled random draw in [0, 1) under the orchestrate scope: the
+A journaled random draw in `0, 1) under the orchestrate scope: the
 ctx.random primitive, computed once live and replayed by match. The
-spot-check gate draws HERE, never Math.random (docs/04, section 12).
+spot-check gate draws HERE, never Math.random.
 
 #### Parameters
 
 | Parameter | Type |
 | ------ | ------ |
-| `key?` | `string` |
+| key? | string |
 
 #### Returns
 
-`Promise`\&lt;`number`\&gt;
+Promise\&lt;number\&gt;
 
 ***
 
 ### registerAlias()
 
-```ts
+ts
 registerAlias(donorScope, targetScope): void;
-```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+
+Defined in: [packages/core/dist/index.d.ts`
 
 Registers a node.link scope-prefix alias for forward matching
-(DEF-5; docs/03, 9.5). Idempotent; rebuilt by fold on resume.
+(DEF-5). Idempotent; rebuilt by fold on resume.
 
 #### Parameters
 
@@ -294,7 +294,7 @@ settledOf(handle):
   | undefined;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The settled result of a dispatched child, when it settled.
 
@@ -317,7 +317,7 @@ The settled result of a dispatched child, when it settled.
 snapshot(): readonly JournalEntry[];
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The pinned journal view backing every pure fold.
 

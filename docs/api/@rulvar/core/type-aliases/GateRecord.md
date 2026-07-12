@@ -66,7 +66,7 @@ variant is reserved for v2, outside the committed roadmap.
 }
 ```
 
-The dedicated committer identity (docs/05, section 5.4; M11): the
+The dedicated committer identity (M11): the
 ONLY gate under which eval-measured claims and the metrics block
 commit. Coherence is schema-enforced in both directions.
 

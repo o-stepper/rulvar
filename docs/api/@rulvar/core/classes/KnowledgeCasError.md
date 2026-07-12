@@ -6,12 +6,11 @@
 
 # Class: KnowledgeCasError
 
-Defined in: [packages/core/src/l0/errors.ts:307](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L307)
+Defined in: [packages/core/src/l0/errors.ts:301](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L301)
 
 commit() on a ModelKnowledgeStore against a snapshot version that is
 no longer current. Retryable by contract: re-read current(), rebase
-the ops, commit again, mirroring the lease fencing discipline
-(docs/05, section "Commit discipline").
+the ops, commit again, mirroring the lease fencing discipline.
 
 ## Extends
 
@@ -25,7 +24,7 @@ the ops, commit again, mirroring the lease fencing discipline
 new KnowledgeCasError(message, opts?): KnowledgeCasError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:310](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L310)
+Defined in: [packages/core/src/l0/errors.ts:304](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L304)
 
 #### Parameters
 
@@ -49,7 +48,7 @@ Defined in: [packages/core/src/l0/errors.ts:310](https://github.com/o-stepper/ru
 | Property | Modifier | Type | Description | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-cause"></a> `cause?` | `public` | `unknown` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`cause`](/api/@rulvar/core/classes/RulvarError.md#property-cause) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts:24](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts#L24) |
-| <a id="property-code"></a> `code` | `readonly` | `"knowledge_cas"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:308](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L308) |
+| <a id="property-code"></a> `code` | `readonly` | `"knowledge_cas"` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:302](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L302) |
 | <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L57) |
 | <a id="property-message"></a> `message` | `public` | `string` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`message`](/api/@rulvar/core/classes/RulvarError.md#property-message) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1075](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1075) |
 | <a id="property-name"></a> `name` | `public` | `string` | - | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`name`](/api/@rulvar/core/classes/RulvarError.md#property-name) | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1074](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1074) |

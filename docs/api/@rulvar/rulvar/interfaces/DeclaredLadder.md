@@ -6,7 +6,7 @@
 
 # Interface: DeclaredLadder
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 One declared ladder of the run, named by its agentType.
 
@@ -18,6 +18,6 @@ One declared ladder of the run, named by its agentType.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-name"></a> `name` | `string` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-rungs"></a> `rungs` | \{ `effort?`: [`Effort`](/api/@rulvar/rulvar/type-aliases/Effort.md); `model`: `` `${string}:${string}` ``; \}[] | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-starttier"></a> `startTier` | `number` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-name"></a> `name` | `string` | `packages/core/dist/index.d.ts` |
+| <a id="property-rungs"></a> `rungs` | \{ `effort?`: [`Effort`](/api/@rulvar/rulvar/type-aliases/Effort.md); `model`: `` `${string}:${string}` ``; \}[] | `packages/core/dist/index.d.ts` |
+| <a id="property-starttier"></a> `startTier` | `number` | `packages/core/dist/index.d.ts` |

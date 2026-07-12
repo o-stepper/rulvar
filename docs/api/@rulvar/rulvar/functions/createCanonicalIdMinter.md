@@ -10,11 +10,10 @@
 function createCanonicalIdMinter(options?): () => string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Returns a per-engine minter of CanonicalId values. Monotonic within the
-factory instance; never a module-level singleton (docs/02, section
-"Dependency rules": no module state).
+factory instance; never a module-level singleton (no module state).
 
 ## Parameters
 

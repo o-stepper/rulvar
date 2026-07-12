@@ -1,6 +1,5 @@
 /**
- * M10 ModelKnowledge phase-1 cassette runners (M10-T03; docs/09,
- * section 6.11; docs/05, sections 4.1 and 4.2). Same discipline as the
+ * M10 ModelKnowledge phase-1 cassette runners (M10-T03). Same discipline as the
  * M7/M9 runners: fully offline on the scripted adapter, catalog rows
  * asserted inline, the NORMALIZED journal returned; the committed
  * fixture is the compatibility contract.
@@ -135,7 +134,7 @@ function planScenario(): (req: Parameters<typeof agentTypeOfRequest>[0]) => Cass
 }
 
 /**
- * kb-pin-replay (docs/09, 6.11): the pin at admission and the repin at
+ * kb-pin-replay: the pin at admission and the repin at
  * the wake, card bytes embedded, model names withheld.
  */
 export async function runKbPinReplay(): Promise<JournalEntry[]> {
@@ -177,7 +176,7 @@ export async function runKbPinReplay(): Promise<JournalEntry[]> {
 }
 
 /**
- * kb-repin-expiry (docs/09, 6.11): the repin re-applies the docs/05
+ * kb-repin-expiry: the repin re-applies the claim
  * filters against a FRESH read; a claim the store dropped between the
  * pin and the wake stops steering, while the boot pin's bytes stand.
  */

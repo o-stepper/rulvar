@@ -13,7 +13,7 @@ function replayDisposition(
    options?): OperationDisposition;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The single canonical predicate, dispatched on the entry's own
 hashVersion (compatibility lemma: on the v1 domain the tables

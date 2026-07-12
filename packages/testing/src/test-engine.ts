@@ -1,8 +1,8 @@
 /**
  * createTestEngine (M1-T14): a full engine over FakeAdapter with zero
  * network. Orchestration logic is exercised, not mocked around: journal,
- * scheduler, budget layers, and event stream are all real (docs/09,
- * section "Tier 1"). Returned handles record their event stream so the
+ * scheduler, budget layers, and event stream are all real. Returned
+ * handles record their event stream so the
  * matchers can assert over settled runs.
  */
 import {
@@ -56,7 +56,7 @@ export function createTestEngine(options: CreateTestEngineOptions): TestEngine {
     stores: { journal: store },
     defaults: {
       // finalize is deliberately NOT routed: its routing key is the
-      // firing opt-in (docs/04, section 8.3; M4-T01), and the test
+      // firing opt-in (M4-T01), and the test
       // engine must not summon a synthesis call for every tool-bearing
       // agent. Tests that want finalize route it per call or profile.
       // The other keys only pick models and never summon invocations.

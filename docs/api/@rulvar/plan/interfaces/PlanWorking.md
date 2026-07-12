@@ -10,7 +10,7 @@ Defined in: [packages/plan/src/plan-entries.ts:246](https://github.com/o-stepper
 
 The working state the applier threads: the hashed TaskPlan plus the
 resolved spec table. Specs stay OUT of planHash by construction (the
-hashed projection is promptSpecHash per node, docs/07 3.1) but are
+hashed projection is promptSpecHash per node) but are
 themselves a pure fold of add_task specs, amend patches, and
 decomposition specs, so live and replay converge byte-identically.
 

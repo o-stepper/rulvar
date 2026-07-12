@@ -13,10 +13,10 @@ function atCompactionThreshold(
    threshold): boolean;
 ```
 
-Defined in: [packages/core/src/model/roles.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/roles.ts#L109)
+Defined in: [packages/core/src/model/roles.ts:108](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/roles.ts#L108)
 
 The summarize trigger: the compaction threshold on the context window
-(docs/06, Appendix A: default 0.8). Pure predicate; the compaction
+(default 0.8). Pure predicate; the compaction
 pipeline that acts on it is M4-T03.
 
 ## Parameters

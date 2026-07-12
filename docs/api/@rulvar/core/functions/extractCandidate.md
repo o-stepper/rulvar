@@ -14,7 +14,7 @@ function extractCandidate(turn, tier):
   | undefined;
 ```
 
-Defined in: [packages/core/src/runtime/structured-output.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/structured-output.ts#L70)
+Defined in: [packages/core/src/runtime/structured-output.ts:69](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/structured-output.ts#L69)
 
 Extracts the structured-output candidate from a collected turn per tier.
 Returns `undefined` when the turn carries no candidate (for example the

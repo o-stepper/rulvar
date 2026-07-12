@@ -35,9 +35,9 @@ type JournalEntry = {
 };
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:97](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L97)
+Defined in: [packages/core/src/l0/entries.ts:95](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L95)
 
-Final entry form (hashVersion 2; docs/03, section "JournalEntry form").
+Final entry form (hashVersion 2).
 All journaled values MUST be JSON-serializable; a violation raises a
 typed NonSerializableValueError at the call site. append is serialized
 by a per-run queue.
@@ -50,7 +50,7 @@ by a per-run queue.
 optional abandon?: AbandonPayload;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L138)
+Defined in: [packages/core/src/l0/entries.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L135)
 
 Only when kind === 'abandon'.
 
@@ -62,11 +62,11 @@ Only when kind === 'abandon'.
 optional artifacts?: Json;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L127)
+Defined in: [packages/core/src/l0/entries.ts:125](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L125)
 
 Terminal agent entries: the Artifact list (worktree patch refs and
 inline values); rides the terminal payload so replay reconstructs
-AgentResult.artifacts without live calls (docs/06, section 2.1).
+AgentResult.artifacts without live calls.
 
 ***
 
@@ -76,7 +76,7 @@ AgentResult.artifacts without live calls (docs/06, section 2.1).
 optional checkpointRef?: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:121](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L121)
+Defined in: [packages/core/src/l0/entries.ts:119](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L119)
 
 ***
 
@@ -86,7 +86,7 @@ Defined in: [packages/core/src/l0/entries.ts:121](https://github.com/o-stepper/r
 optional deadlineAt?: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:147](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L147)
+Defined in: [packages/core/src/l0/entries.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L144)
 
 On suspended entries: the journaled deadline.
 
@@ -98,7 +98,7 @@ On suspended entries: the journaled deadline.
 optional endedAt?: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:150](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L150)
+Defined in: [packages/core/src/l0/entries.ts:147](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L147)
 
 ***
 
@@ -108,7 +108,7 @@ Defined in: [packages/core/src/l0/entries.ts:150](https://github.com/o-stepper/r
 optional error?: WireError;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L114)
+Defined in: [packages/core/src/l0/entries.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L112)
 
 ***
 
@@ -118,12 +118,11 @@ Defined in: [packages/core/src/l0/entries.ts:114](https://github.com/o-stepper/r
 optional escalation?: Json;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L134)
+Defined in: [packages/core/src/l0/entries.ts:131](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L131)
 
 Terminal escalated entries ONLY: the schema-validated
 EscalationReport with runtime-filled costToDate and salvage; replay
-synthesizes the byte-identical report from here (docs/03, section
-5.4; DEF-1).
+synthesizes the byte-identical report from here (DEF-1).
 
 ***
 
@@ -133,7 +132,7 @@ synthesizes the byte-identical report from here (docs/03, section
 hashVersion: HashVersion;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:99](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L99)
+Defined in: [packages/core/src/l0/entries.ts:97](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L97)
 
 Identity-derivation and replay-semantics version of THIS entry.
 
@@ -145,7 +144,7 @@ Identity-derivation and replay-semantics version of THIS entry.
 key: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L109)
+Defined in: [packages/core/src/l0/entries.ts:107](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L107)
 
 ***
 
@@ -155,7 +154,7 @@ Defined in: [packages/core/src/l0/entries.ts:109](https://github.com/o-stepper/r
 kind: EntryKind;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:111](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L111)
+Defined in: [packages/core/src/l0/entries.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L109)
 
 ***
 
@@ -165,10 +164,10 @@ Defined in: [packages/core/src/l0/entries.ts:111](https://github.com/o-stepper/r
 optional memoizeOutcome?: boolean;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L145)
+Defined in: [packages/core/src/l0/entries.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L142)
 
-Policy field on agent entries, fixed in the payload at dispatch time
-(docs/03, section "Normative payload schemas"): the M2 predicate reads
+Policy field on agent entries, fixed in the payload at dispatch
+time: the M2 predicate reads
 the flag from the ENTRY, never from current code. Excluded from
 identity like every policy field.
 
@@ -180,7 +179,7 @@ identity like every policy field.
 ordinal: number;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:110](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L110)
+Defined in: [packages/core/src/l0/entries.ts:108](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L108)
 
 ***
 
@@ -190,7 +189,7 @@ Defined in: [packages/core/src/l0/entries.ts:110](https://github.com/o-stepper/r
 optional ref?: number;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:107](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L107)
+Defined in: [packages/core/src/l0/entries.ts:105](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L105)
 
 Backward reference by seq, always ref < seq: on ref-entries
 (resolution/abandon) the seq of the target; on terminal phase entries
@@ -204,7 +203,7 @@ the seq of the running entry.
 optional resolution?: ResolutionPayload;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L136)
+Defined in: [packages/core/src/l0/entries.ts:133](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L133)
 
 Only when kind === 'resolution'.
 
@@ -216,7 +215,7 @@ Only when kind === 'resolution'.
 scope: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:108](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L108)
+Defined in: [packages/core/src/l0/entries.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L106)
 
 ***
 
@@ -226,7 +225,7 @@ Defined in: [packages/core/src/l0/entries.ts:108](https://github.com/o-stepper/r
 seq: number;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:101](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L101)
+Defined in: [packages/core/src/l0/entries.ts:99](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L99)
 
 Total order per run; canonical EntryRef = seq.
 
@@ -238,7 +237,7 @@ Total order per run; canonical EntryRef = seq.
 optional servedBy?: ModelRef;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:119](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L119)
+Defined in: [packages/core/src/l0/entries.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L117)
 
 Who actually served (failover changes only this, never the key).
 
@@ -250,7 +249,7 @@ Who actually served (failover changes only this, never the key).
 spanId: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:148](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L148)
+Defined in: [packages/core/src/l0/entries.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L145)
 
 ***
 
@@ -260,7 +259,7 @@ Defined in: [packages/core/src/l0/entries.ts:148](https://github.com/o-stepper/r
 startedAt: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:149](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L149)
+Defined in: [packages/core/src/l0/entries.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L146)
 
 ***
 
@@ -270,7 +269,7 @@ Defined in: [packages/core/src/l0/entries.ts:149](https://github.com/o-stepper/r
 status: EntryStatus;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L112)
+Defined in: [packages/core/src/l0/entries.ts:110](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L110)
 
 ***
 
@@ -280,7 +279,7 @@ Defined in: [packages/core/src/l0/entries.ts:112](https://github.com/o-stepper/r
 optional transcriptRef?: string;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:120](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L120)
+Defined in: [packages/core/src/l0/entries.ts:118](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L118)
 
 ***
 
@@ -290,7 +289,7 @@ Defined in: [packages/core/src/l0/entries.ts:120](https://github.com/o-stepper/r
 optional usage?: Usage;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L115)
+Defined in: [packages/core/src/l0/entries.ts:113](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L113)
 
 ***
 
@@ -300,7 +299,7 @@ Defined in: [packages/core/src/l0/entries.ts:115](https://github.com/o-stepper/r
 optional usageApprox?: boolean;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L117)
+Defined in: [packages/core/src/l0/entries.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L115)
 
 True when the stream was cut at the budget ceiling or by a stream failure.
 
@@ -312,4 +311,4 @@ True when the stream was cut at the budget ceiling or by a stream failure.
 optional value?: Json;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:113](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L113)
+Defined in: [packages/core/src/l0/entries.ts:111](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L111)

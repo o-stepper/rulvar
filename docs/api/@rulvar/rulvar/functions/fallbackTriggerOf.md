@@ -12,10 +12,10 @@ function fallbackTriggerOf(outcome):
   | undefined;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Classifies a terminal agent outcome for the degenerate fallback
-(docs/04, 11.3 as amended): schema-mismatch errors are
+Classifies a terminal agent outcome for the degenerate fallback:
+schema-mismatch errors are
 'schema-exhausted'; any other error is 'error'; limit terminals (the
 no-progress abort included) are 'limit'; cancelled, escalated, and
 skipped never trigger.

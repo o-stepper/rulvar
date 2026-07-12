@@ -7,8 +7,7 @@
  * execute body never invalidates a journal; changing semantics is
  * signaled by bumping version.
  *
- * Owning spec: docs/08-tools-permissions-spec.md, sections "Tool
- * definition and toolsetHash" and "SchemaSpec".
+ * Public docs: https://docs.rulvar.com/guide/tools
  */
 import { ConfigError } from '../l0/errors.js';
 import type { JsonSchema, ToolContract } from '../l0/messages.js';
@@ -16,20 +15,20 @@ import type { Out, SchemaSpec } from '../l0/schema.js';
 import { canonicalizeSchema, projectToJsonSchema } from '../l0/schema.js';
 import type { ToolContext, ToolDef, ToolExecutor, ToolRisk } from '../l0/spi/toolsource.js';
 
-/** First-party provider tool-name constraint intersection (docs/08, section 1.1). */
+/** First-party provider tool-name constraint intersection. */
 export const TOOL_NAME_PATTERN: RegExp = /^[a-zA-Z0-9_-]{1,64}$/;
 
 export interface ToolInit<S extends SchemaSpec> {
   name: string;
   description: string;
   parameters: S;
-  /** Contract version, part of toolsetHash (docs/08, section 1.2). */
+  /** Contract version, part of toolsetHash. */
   version?: string;
-  /** Default 'inprocess' (docs/08, section "Executors"). */
+  /** Default 'inprocess'. */
   executor?: ToolExecutor;
-  /** Default false (docs/08, section "Terminal default"). */
+  /** Default false. */
   needsApproval?: boolean;
-  /** Policy metadata; never identity (docs/08, section "ToolRisk"). */
+  /** Policy metadata; never identity. */
   risk?: ToolRisk;
   execute: (input: Out<S>, ctx: ToolContext) => Promise<unknown>;
 }
@@ -38,7 +37,7 @@ export interface ToolInit<S extends SchemaSpec> {
  * Defines a tool. Definition-time failures are typed ConfigErrors, never
  * first-call surprises: an illegal name, a Standard Schema without the
  * JSON Schema projection, a recursive local $ref, or a remote/dynamic
- * reference all fail here (docs/08, sections 1.1 and 2.3).
+ * reference all fail here.
  */
 export function tool<S extends SchemaSpec>(init: ToolInit<S>): ToolDef<S> {
   if (!TOOL_NAME_PATTERN.test(init.name)) {
@@ -49,7 +48,7 @@ export function tool<S extends SchemaSpec>(init: ToolInit<S>): ToolDef<S> {
   }
   // Derive and canonicalize NOW so schema problems surface at definition
   // time; the result is recomputed by toolContract (pure and cheap; no
-  // module-level caches, docs/02 "Dependency rules").
+  // module-level caches).
   canonicalizeSchema(projectToJsonSchema(init.parameters));
   const def: ToolDef<S> = {
     kind: 'tool',
@@ -67,8 +66,7 @@ export function tool<S extends SchemaSpec>(init: ToolInit<S>): ToolDef<S> {
 
 /**
  * The identity projection: the contract tuple that enters toolsetHash.
- * parameters is the canonicalized derived JSON Schema (docs/03, section
- * "schemaHash and toolsetHash derivation").
+ * parameters is the canonicalized derived JSON Schema.
  */
 export function toolContract(def: ToolDef): ToolContract {
   const parameters: JsonSchema = canonicalizeSchema(projectToJsonSchema(def.parameters));

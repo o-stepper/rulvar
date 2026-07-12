@@ -10,7 +10,7 @@
 function canRideLoopTurn(tier, toolsAvailable): boolean;
 ```
 
-Defined in: [packages/core/src/model/roles.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/roles.ts#L39)
+Defined in: [packages/core/src/model/roles.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/roles.ts#L38)
 
 True when the given structured-output tier can ride the last loop turn.
 `native` and `prompt` coexist with tool availability; `forced-tool`

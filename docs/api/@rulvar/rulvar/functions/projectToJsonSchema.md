@@ -10,10 +10,9 @@
 function projectToJsonSchema(spec): JsonSchema;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Derives the JSON Schema of a SchemaSpec (docs/08, section "JSON Schema
-derivation and acceptance rules"). Form 1 projects via the
+Derives the JSON Schema of a SchemaSpec. Form 1 projects via the
 StandardJSONSchemaV1 input() converter, target draft 2020-12 with
 draft-07 fallback; a library without the projection is a typed
 ConfigError at definition time, never at first call. Transforming

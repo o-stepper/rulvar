@@ -2,9 +2,9 @@
  * eslint-plugin-rulvar: determinism lint rules with structural JSON
  * diagnostics for the planner self-repair loop (M6-T03).
  *
- * Owning spec: docs/06-execution-spec.md, section 8.4. Lockstep-versioned
+ * Docs: https://docs.rulvar.com/guide/planner. Lockstep-versioned
  * with the fixed group despite the npm-required unscoped name
- * (docs/12, section "Exemptions"). The flat preset `configs.workflows`
+ * (https://docs.rulvar.com/reference/versioning). The flat preset `configs.workflows`
  * wires every rule at its intended severity; hosts scope it to their
  * workflow modules.
  */
@@ -31,8 +31,7 @@ const plugin: ESLint.Plugin = {
 
 /**
  * The flat-config preset for workflow modules: the determinism bans as
- * errors, the duplicate-identical-call advisory as a warning (docs/06,
- * 8.4).
+ * errors, the duplicate-identical-call advisory as a warning.
  */
 export const workflowsConfig: Linter.Config = {
   name: 'rulvar/workflows',

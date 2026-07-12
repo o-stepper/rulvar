@@ -10,7 +10,7 @@
 function stableStringify(value): string;
 ```
 
-Defined in: [packages/store-conformance/src/types.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/store-conformance/src/types.ts#L64)
+Defined in: [packages/store-conformance/src/types.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/store-conformance/src/types.ts#L63)
 
 Canonical JSON with recursively sorted keys (fold-state hashing).
 

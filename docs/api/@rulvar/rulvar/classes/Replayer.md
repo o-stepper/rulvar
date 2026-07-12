@@ -6,10 +6,10 @@
 
 # Class: Replayer
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Per-run journal kernel front end. Everything is per instance: no module
-state anywhere (docs/02, section "Dependency rules").
+state anywhere.
 
 ## Constructors
 
@@ -19,7 +19,7 @@ state anywhere (docs/02, section "Dependency rules").
 new Replayer(options): Replayer;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -29,7 +29,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 | `options.disposition?` | (`op`) => [`OperationDisposition`](/api/@rulvar/rulvar/type-aliases/OperationDisposition.md) | - |
 | `options.keyRing?` | [`KeyRing`](/api/@rulvar/rulvar/interfaces/KeyRing.md) | - |
 | `options.largeValueWarnBytes?` | `number` | - |
-| `options.lease?` | [`Lease`](/api/@rulvar/rulvar/type-aliases/Lease.md) | Queue mode: every append carries this lease so a stale holder's writes are rejected by the fencing epoch (docs/03, section 12.3; M8 entry amendment). Absent means the single-writer precondition is asserted instead of fenced (the embedded default). |
+| `options.lease?` | [`Lease`](/api/@rulvar/rulvar/type-aliases/Lease.md) | Queue mode: every append carries this lease so a stale holder's writes are rejected by the fencing epoch (M8 entry amendment). Absent means the single-writer precondition is asserted instead of fenced (the embedded default). |
 | `options.now?` | () => `number` | - |
 | `options.onWarn?` | (`msg`) => `void` | - |
 | `options.priceUsd?` | (`servedBy`, `usage`) => `number` \| `undefined` | - |
@@ -52,7 +52,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 get fold(): ResolutionFold;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The DEF-4 fold over this run's journal (prior plus live appends).
 
@@ -70,7 +70,7 @@ The DEF-4 fold over this run's journal (prior plus live appends).
 get invalidatedSeqs(): ReadonlySet<number>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ##### Returns
 
@@ -84,7 +84,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 abandonBranch(attempt): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -104,7 +104,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 appendRefEntry(input): Promise<JournalEntry>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Ref-entry append used by the ResolutionArbiter; O2-checked by shape validation.
 
@@ -132,12 +132,12 @@ Ref-entry append used by the ResolutionArbiter; O2-checked by shape validation.
 appendRunning(input): Promise<JournalEntry>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Two-phase dispatch: the running entry (kinds agent, step, child).
 `value` is legal on child dispatches only: the child payload
 `{ workflow, childScope }` lets the abandon fold compute the child's
-transitive scope coverage (docs/03, section 8.4; M6-T06). Values
+transitive scope coverage (M6-T06). Values
 never enter identity.
 
 #### Parameters
@@ -158,7 +158,7 @@ never enter identity.
 appendSinglePhase(input): Promise<JournalEntry>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Single-phase fact entries: rand, decisions, termination facts.
 
@@ -180,7 +180,7 @@ Single-phase fact entries: rand, decisions, termination facts.
 appendSuspended(input): Promise<JournalEntry>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Suspended kinds (external, approval): appended once, closed by ref-entries (M2).
 
@@ -202,7 +202,7 @@ Suspended kinds (external, approval): appended once, closed by ref-entries (M2).
 appendTerminal(runningSeq, patch): Promise<JournalEntry>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Two-phase completion: a terminal entry referencing the running entry
 by ref. Scope, key, ordinal, kind, and hashVersion are inherited from
@@ -228,7 +228,7 @@ the pair shares one ordinal because it is one logical operation).
 flush(): Promise<void>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Resolves when every append enqueued so far has persisted. Deterministic
 shims journal fire-and-forget; the engine awaits this before settling a
@@ -246,11 +246,11 @@ run.
 invalidate(seq): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-invalidate/retry (docs/03, section 6.5): explicit unpinning of a
+invalidate/retry: explicit unpinning of a
 memoized failure; the invalidated entry reruns on this resume. The
-safety boundary is an open question (docs/14).
+safety boundary is an open question.
 
 #### Parameters
 
@@ -270,10 +270,9 @@ safety boundary is an open question (docs/14).
 ledger(): Ledger;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The budget ledger fold (docs/03, section "Budget ledger fold on
-resume"): usage sums over terminal entries exactly once; agentsSpawned
+The budget ledger fold: usage sums over terminal entries exactly once; agentsSpawned
 counts agent dispatches.
 
 #### Returns
@@ -291,10 +290,10 @@ match(
    mode): MatchResult;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Forward-matches one live call against the prior journal (docs/03,
-section 7). Fresh runs always miss; the M2-T06 predicate is injected
+Forward-matches one live call against the prior journal. Fresh
+runs always miss; the M2-T06 predicate is injected
 through setDisposition once folds are built.
 
 #### Parameters
@@ -317,9 +316,9 @@ through setDisposition once folds are built.
 registerAlias(donorPrefix, targetPrefix): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Registers a node.link scope-prefix rewrite (DEF-5, docs/03 9.5):
+Registers a node.link scope-prefix rewrite (DEF-5):
 donorPrefix forward-matches into targetPrefix at every nested level.
 Idempotent; the alias map is rebuilt by fold on resume.
 
@@ -342,10 +341,10 @@ Idempotent; the alias map is rebuilt by fold on resume.
 resolveSuspended(target, attempt): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Submits a resolution attempt through the per-target FIFO arbiter
-(docs/03, section 8.7). Losing attempts are journaled noops.
+Submits a resolution attempt through the per-target FIFO arbiter.
+Losing attempts are journaled noops.
 
 #### Parameters
 
@@ -366,7 +365,7 @@ Submits a resolution attempt through the per-target FIFO arbiter
 resumeReport(): ResumeReport;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Returns
 
@@ -380,9 +379,9 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 setAliasDisposition(disposition): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The disposition for alias-sourced candidates (DEF-5, docs/03 9.5):
+The disposition for alias-sourced candidates (DEF-5):
 bypasses the abandon overlay so donor entries regain their
 pre-abandon terminal status when matched through the alias.
 
@@ -404,7 +403,7 @@ pre-abandon terminal status when matched through the alias.
 setDisposition(disposition): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -424,7 +423,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 snapshot(): readonly JournalEntry[];
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Read-only view of the appended entries, in per-run total order.
 
@@ -440,9 +439,9 @@ readonly [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md)[]
 suspensionState(target): SuspensionState;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Pure fold view, snapshot-pinned (docs/03, section 8.7).
+Pure fold view, snapshot-pinned.
 
 #### Parameters
 

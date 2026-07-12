@@ -21,7 +21,7 @@ const CLAIM_TTL_DAYS: {
 
 Defined in: [packages/core/src/knowledge/decay.ts:18](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/decay.ts#L18)
 
-The asymmetric TTL table (docs/05, section "Grounding and decay"):
+The asymmetric TTL table:
 a false negative is costlier through lock-in, so weaknesses expire
 sooner than strengths.
 

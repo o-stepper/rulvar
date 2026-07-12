@@ -4,8 +4,7 @@
  * resolution and abandon are appends of new entries plus a pure
  * deterministic fold; JournalStore stays exactly five methods.
  *
- * Owning spec: docs/03-journal-spec.md, sections "Suspension and
- * resolutions (DEF-4)" and "Abandon, derived skipped" (9.1).
+ * Full contract: https://docs.rulvar.com/guide/durability
  */
 import { JournalOrderViolation } from '../l0/errors.js';
 import type { Json } from '../l0/json.js';
@@ -49,7 +48,7 @@ export type SuspensionState =
   | { state: 'resolved'; by: number; value: Json }
   | { state: 'abandoned'; by: number };
 
-/** Fold classification of one ref-entry; NEVER persisted (docs/03, section 8.4). */
+/** Fold classification of one ref-entry; NEVER persisted. */
 export type RefEntryClassification =
   | { classification: 'applied' }
   | {
@@ -74,7 +73,7 @@ interface TargetState {
  * schema-invalid offline resolution classifies invalid and does NOT close
  * the target. Abandon coverage is the target seq plus the transitive
  * child scope-prefix; the AbandonFold consumed by the replay predicate is
- * a projection of THIS fold (docs/03, section 6.2: not a separate pass).
+ * a projection of THIS fold (not a separate pass).
  */
 export class ResolutionFold {
   private readonly targets = new Map<number, TargetState>();
@@ -147,7 +146,7 @@ export class ResolutionFold {
       const result = new Validator(schema, '2020-12', false).validate(payload.value);
       if (!result.valid) {
         // Round-1 behavior preserved: the entry stays suspended; a typed
-        // error surfaces in the resume report (docs/03, section 8.4).
+        // error surfaces in the resume report.
         return {
           classification: 'invalid',
           detail: result.errors[0]?.error ?? 'resolution value does not validate',
@@ -179,7 +178,7 @@ export class ResolutionFold {
     if (suspendedTarget?.closedBy !== undefined) {
       // First-closing-wins per target: a suspended target already closed
       // by a resolution cannot be re-closed; the late abandon folds to
-      // noop (docs/09, section 6.4: abandon-vs-resolution-race).
+      // noop (the abandon-vs-resolution race cassette).
       return {
         classification: 'noop',
         supersededBy: suspendedTarget.closedBy,
@@ -279,8 +278,8 @@ export interface RefEntryAppender {
 }
 
 /**
- * Per-run, per-target FIFO serializer of resolution/abandon attempts
- * (docs/03, section 8.5): classification against the in-memory fold ->
+ * Per-run, per-target FIFO serializer of resolution/abandon attempts:
+ * classification against the in-memory fold ->
  * durable append -> settle exactly once; losing attempts are ALSO
  * appended and become journaled noops by fold classification. Winner
  * effects run strictly after the critical section (the caller's job).
@@ -338,7 +337,7 @@ export class ResolutionArbiter {
           reason: classification.reason,
         };
       }
-      // A live attempt is validated BEFORE append (docs/03, section 8.7),
+      // A live attempt is validated BEFORE append,
       // so an invalid classification here means an offline-authored
       // journal; surface it as a noop against the target itself.
       return {

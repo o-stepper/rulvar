@@ -8,7 +8,7 @@
 
 Defined in: [packages/core/src/orchestrator/wake.ts:90](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/wake.ts#L90)
 
-Passive budget visibility in every digest (DEF-7; docs/07, 12.5).
+Passive budget visibility in every digest (DEF-7).
 
 ## Properties
 

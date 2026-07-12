@@ -10,6 +10,6 @@
 const DEFAULT_MAX_PINNED_WORKTREES: 4 = 4;
 ```
 
-Defined in: [packages/plan/src/park.ts:20](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/park.ts#L20)
+Defined in: [packages/plan/src/park.ts:18](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/park.ts#L18)
 
 Appendix A: the single pin cap shared by park/unpark and retainWorktree.

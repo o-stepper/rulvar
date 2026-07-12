@@ -1,5 +1,5 @@
 /**
- * CostReport builders (M5-T03; docs/09, section "CostReport"). Two
+ * CostReport builders (M5-T03). Two
  * sources, one shape:
  *
  * - `buildCostReport` folds the LIVE per-run attribution buckets (ctx
@@ -13,8 +13,7 @@
  *   facts that entries do not carry, so those buckets are empty here;
  *   byRole and the orchestrator block complete in M7 (DEF-7).
  *
- * Unpriced models surface in `unpriced`, never as a silent zero
- * (docs/04, section "Pricing").
+ * Unpriced models surface in `unpriced`, never as a silent zero.
  */
 import { buildAbandonFold } from '../journal/disposition.js';
 import type { JournalEntry } from '../l0/entries.js';
@@ -52,7 +51,7 @@ export function buildCostReport(attribution: CostAttribution, totalUsd: number):
     byRole,
     orchestrator: {
       ...orchestrator,
-      // H-OrchShare: the epsilon-floored share (docs/06, Appendix A).
+      // H-OrchShare: the epsilon-floored share.
       share: orchestrator.spentUsd / Math.max(totalUsd, 0.01),
     },
     unpriced: attribution.unpriced,

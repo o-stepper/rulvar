@@ -10,12 +10,12 @@
 function runParkRacesChildCompletion(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/m9-cassettes.ts:2503](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L2503)
+Defined in: [packages/plan/src/m9-cassettes.ts:2502](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L2502)
 
 park-races-child-completion (DEF-8): park_task lands on a running node
 whose terminal appends moments later; parkRequested is extinguished by
 the child-result transition, no checkpoint is written, and the node is
-done (docs/07, 3.6).
+done.
 
 ## Returns
 

@@ -20,7 +20,7 @@ interactively and resuming until the run settles or input runs dry.
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `options` | \{ `args?`: `unknown`; `engine`: [`Engine`](/api/@rulvar/rulvar/interfaces/Engine.md); `first`: [`RunHandle`](/api/@rulvar/rulvar/interfaces/RunHandle.md)\&lt;`unknown`\&gt;; `io`: [`CliIo`](/api/@rulvar/cli/interfaces/CliIo.md); `workflow`: [`Workflow`](/api/@rulvar/rulvar/interfaces/Workflow.md)\&lt;`never`, `unknown`\&gt;; \} | - |
-| `options.args?` | `unknown` | Original run arguments: not journaled in v1, the host re-supplies them (docs/14). |
+| `options.args?` | `unknown` | Original run arguments: not journaled in v1, the host re-supplies them. |
 | `options.engine` | [`Engine`](/api/@rulvar/rulvar/interfaces/Engine.md) | - |
 | `options.first` | [`RunHandle`](/api/@rulvar/rulvar/interfaces/RunHandle.md)\&lt;`unknown`\&gt; | - |
 | `options.io` | [`CliIo`](/api/@rulvar/cli/interfaces/CliIo.md) | - |

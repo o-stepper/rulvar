@@ -10,9 +10,9 @@
 function escalateTool(): ToolDef;
 ```
 
-Defined in: [packages/core/src/runtime/escalation.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L157)
+Defined in: [packages/core/src/runtime/escalation.ts:155](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L155)
 
-The engine opt-in tool (docs/08, section 6.6): registered through the
+The engine opt-in tool: registered through the
 same path as any tool under escalation opt-in of EITHER flavor (the
 worker's only authoring channel for a report), never available without
 opt-in, and dispatched through the same permission chain. The loop

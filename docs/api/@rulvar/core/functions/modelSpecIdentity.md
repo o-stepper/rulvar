@@ -21,8 +21,8 @@ Defined in: [packages/core/src/journal/identity.ts:90](https://github.com/o-step
 
 The identity projection of a CanonicalModelSpec. For the plain-model
 kind the projection is `{ model, effort? }` WITHOUT the kind
-discriminant, exactly as fixed by the docs/03 section 1.5 worked
-example; `effort` is omitted when unresolved. The ladder embedding lands
+discriminant, exactly as frozen by the hashVersion 2 profile;
+`effort` is omitted when unresolved. The ladder embedding lands
 with ladder execution (M7).
 
 ## Parameters

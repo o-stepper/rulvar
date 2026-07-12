@@ -8,7 +8,7 @@
 
 Defined in: [packages/plan/src/plan-entries.ts:149](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L149)
 
-The value payload of a plan.revision entry (docs/07, 3.3; XF-11).
+The value payload of a plan.revision entry (XF-11).
 
 ## Properties
 

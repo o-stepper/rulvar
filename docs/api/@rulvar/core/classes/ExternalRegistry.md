@@ -11,7 +11,7 @@ Defined in: [packages/core/src/engine/external.ts:61](https://github.com/o-stepp
 Per-run registry of open external suspensions plus the run's activity
 counter: when every in-flight branch is blocked on suspensions
 (activity zero, waiters open), the run quiesces into outcome
-'suspended' (docs/06, section 2.7).
+'suspended'.
 
 ## Constructors
 
@@ -43,7 +43,7 @@ awaitApproval(options): Promise<ApprovalDecision>;
 
 Defined in: [packages/core/src/engine/external.ts:214](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L214)
 
-Tool-approval suspension (M3-T03; docs/08, section 3.6): journals (or
+Tool-approval suspension (M3-T03): journals (or
 re-matches) the suspended approval entry keyed by (toolName, input)
 in the agent's child scope and parks until a resolution closes it.
 The ask verdict is journaled together with the turn checkpoint; on
@@ -79,7 +79,7 @@ awaitDecision(options): Promise<{
 
 Defined in: [packages/core/src/engine/external.ts:291](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L291)
 
-Flavor B escalation suspension (M3-T07; docs/07, section 6.2): the
+Flavor B escalation suspension (M3-T07): the
 escalate tool suspends the agent on the SAME machinery as approvals
 (kind 'approval', toolName 'escalate') with a journaled deadlineAt so
 deadlines survive resume; the resolution VALUE is the raw
@@ -200,7 +200,7 @@ Defined in: [packages/core/src/engine/external.ts:376](https://github.com/o-step
 
 RunHandle.resolveExternal: the live path validates BEFORE append and
 throws InvalidResolutionError without journaling; a winning attempt
-settles the waiting promise in place (docs/03, section 8.7).
+settles the waiting promise in place.
 
 #### Parameters
 

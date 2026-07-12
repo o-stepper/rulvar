@@ -15,7 +15,7 @@ function claimExpiry(
 
 Defined in: [packages/core/src/knowledge/decay.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/decay.ts#L27)
 
-The docs/05 TTL applied to an observedAt ISO date.
+The asymmetric TTL applied to an observedAt ISO date.
 
 ## Parameters
 

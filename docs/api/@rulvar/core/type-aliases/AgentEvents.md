@@ -50,7 +50,7 @@ type AgentEvents =
 
 Defined in: [packages/core/src/l0/events.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L45)
 
-docs/09 section 1.4, agent lifecycle.
+Agent lifecycle.
 
 ## Union Members
 

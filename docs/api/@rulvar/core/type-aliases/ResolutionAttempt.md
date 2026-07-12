@@ -14,7 +14,7 @@ type ResolutionAttempt = {
 };
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:21](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L21)
+Defined in: [packages/core/src/journal/resolution.ts:20](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L20)
 
 ## Properties
 
@@ -24,7 +24,7 @@ Defined in: [packages/core/src/journal/resolution.ts:21](https://github.com/o-st
 by: ResolutionBy;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:22](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L22)
+Defined in: [packages/core/src/journal/resolution.ts:21](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L21)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [packages/core/src/journal/resolution.ts:22](https://github.com/o-st
 optional decisionRef?: number;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:24](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L24)
+Defined in: [packages/core/src/journal/resolution.ts:23](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L23)
 
 ***
 
@@ -44,4 +44,4 @@ Defined in: [packages/core/src/journal/resolution.ts:24](https://github.com/o-st
 value: Json;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:23](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L23)
+Defined in: [packages/core/src/journal/resolution.ts:22](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L22)

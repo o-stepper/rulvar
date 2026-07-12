@@ -13,11 +13,11 @@ function scanJournalCompatibility(
    registry): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The one compatibility scan: immediately after load, strictly BEFORE any
 live call, any append, and any admission reserve; repeated at lease
-acquire in queue mode (docs/03, section 4.5). Side-effect free.
+acquire in queue mode. Side-effect free.
 
 ## Parameters
 

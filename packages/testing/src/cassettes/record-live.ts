@@ -8,7 +8,7 @@
  * producer arrives with mode (c) in M6/M7. Timestamps and span ids are
  * normalized deterministically after recording (matching never reads
  * them); regeneration is DELIBERATE per the frozen-fixture policy
- * (docs/11).
+ * (https://docs.rulvar.com/guide/testing).
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -191,7 +191,7 @@ function subtreeChildReport(): EscalationReport {
  * The orchestrator-subtree shape: written through the KERNEL write APIs
  * (the same calls mode (c) spawning uses from M6), since no script-mode
  * producer can spawn agents under an agent scope yet; re-recorded again
- * live in M7 with the orchestrator producers (docs/10, cassette plan).
+ * live in M7 with the orchestrator producers.
  */
 async function recordAbandonSubtree(): Promise<JournalEntry[]> {
   let tick = 0;
@@ -242,7 +242,7 @@ async function recordAbandonSubtree(): Promise<JournalEntry[]> {
   });
 
   // The owner's cancel decision on the escalation authorizes killing the
-  // whole branch: decision strictly before the abandon (docs/03, 6.8).
+  // whole branch: decision strictly before the abandon.
   const decision = await replayer.appendSinglePhase({
     scope: '',
     key: '',
@@ -309,7 +309,7 @@ function frozenV1JournalPath(): string {
 }
 
 /**
- * effort-defaults-shift (DEF-6; docs/10 M4 gating row): the frozen v1
+ * effort-defaults-shift (DEF-6): the frozen v1
  * prefix (recorded without effort) is closed offline the way an
  * operator would (the external resolves, the approval flow is
  * abandoned under its authority), then the SAME flow resumes LIVE under
@@ -376,7 +376,7 @@ function liveEngine(store: InMemoryStore, agents: ConstructorParameters<typeof F
   });
 }
 
-/** An offline kernel writer over the loaded priors (docs/03, section 8). */
+/** An offline kernel writer over the loaded priors. */
 async function offlineReplayer(store: InMemoryStore, runId: string): Promise<Replayer> {
   let tick = 500;
   return new Replayer({
@@ -424,7 +424,7 @@ function suspendedSeqOf(entries: readonly JournalEntry[], key: string): number {
  * DEF-4 timeout-vs-live-race, LIVE form: the run suspends on the
  * decision, the LIVE resolution wins through RunHandle.resolveExternal,
  * and the late timer attempt lands through the offline kernel writer as
- * the journaled noop (first-wins; docs/03, 8.6).
+ * the journaled noop (first-wins).
  */
 async function recordTimeoutVsLiveRace(): Promise<JournalEntry[]> {
   const store = new InMemoryStore();
@@ -472,7 +472,7 @@ async function recordTimeoutVsLiveRace(): Promise<JournalEntry[]> {
  * the first closes individually (applied by external); ONE class-level
  * decision entry closes the remaining two by class_decision with the
  * decisionRef, and the late class attempt against the first lands noop
- * (docs/03, 8.6; the plan-side class producer has its own cassette,
+ * (the plan-side class producer has its own cassette,
  * class-storm-single-turn).
  */
 async function recordClassDecisionFanout(): Promise<JournalEntry[]> {

@@ -9,7 +9,7 @@
  *
  * Named strong default models live ONLY in the umbrella `rulvar`
  * package config, never here: the core ships the floor mechanism, the
- * umbrella ships opinions (docs/04, section "Role quality floors").
+ * umbrella ships opinions.
  */
 import { ConfigError } from '../l0/errors.js';
 import type { InvocationRole, ModelRef } from '../l0/messages.js';
@@ -20,7 +20,7 @@ export type ModelListConstraint = { allow?: ModelRef[]; deny?: ModelRef[] };
 
 /**
  * Bridges the ModelKnowledge vocabulary; the canonical union lives with
- * the knowledge SPI (docs/05); default unclassified.
+ * the knowledge SPI; default unclassified.
  */
 export type { TaskClass };
 

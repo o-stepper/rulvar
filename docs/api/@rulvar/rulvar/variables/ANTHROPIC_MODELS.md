@@ -10,6 +10,6 @@
 const ANTHROPIC_MODELS: Record<string, AnthropicModelInfo>;
 ```
 
-Defined in: [packages/anthropic/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../anthropic/dist/index.d.ts)
+Defined in: `packages/anthropic/dist/index.d.ts`
 
-Static seed table; docs/04 section 4 names the current model set.
+Static seed table naming the current model set.

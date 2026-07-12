@@ -3,8 +3,8 @@
  * closed PlanNodeStatus machine, and the pure derivations the plan fold
  * consumes (readiness, cycle checks).
  *
- * Owning spec: docs/07-adaptive-orchestration-spec.md, sections 3.1
- * (TaskPlan data model) and 3.2 (single applier and total order) (DEF-8).
+ * Contract: https://docs.rulvar.com/guide/adaptive-orchestration
+ * (TaskPlan data model; single applier and total order) (DEF-8).
  * Nodes carry NodeId ULIDs minted by the engine inside the plan.revision
  * entry that adds them, never by the model; dependencies form a DAG; the
  * status machine is closed and `done` is immutable. State is ALWAYS a pure
@@ -16,13 +16,16 @@ import type { EntryRef, LogicalTaskId, NodeId } from '@rulvar/core';
 
 /**
  * The single sequential scope holding every plan-mutating entry, inside
- * the orchestrator's run scope (docs/07, 3.2): total order = ordinal
+ * the orchestrator's run scope: total order = ordinal
  * order = durable append order. Child node scopes are `plan/NodeId`
- * (core `planNodeScope`; grammar in docs/03, section 2.1).
+ * (core `planNodeScope`).
  */
 export const PLAN_SCOPE = 'plan';
 
-/** The closed status machine (docs/07, 3.1); `skipped` is fold-derived for entries but first-class for plan nodes. */
+/**
+ * The closed status machine; `skipped` is fold-derived for entries but
+ * first-class for plan nodes.
+ */
 export type PlanNodeStatus =
   | 'pending'
   | 'ready'
@@ -35,7 +38,7 @@ export type PlanNodeStatus =
   | 'skipped';
 
 /**
- * Canonical per-node fields entering planHash, exactly the docs/07 3.1
+ * Canonical per-node fields entering planHash, exactly this
  * record. `deps` are sorted in the hash (not necessarily in state);
  * `checkpointRef`/`escalationRef` participate as absent when absent.
  */
@@ -58,11 +61,11 @@ export interface PlanNode {
 }
 
 /**
- * TaskPlan: typed data owned by the engine, never prose in a transcript
- * (docs/07, 3.1). The guard fold counters ride the same record because
- * they enter planHash (docs/07, 3.4): `revisionCount` counts journaled
+ * TaskPlan: typed data owned by the engine, never prose in a transcript.
+ * The guard fold counters ride the same record because
+ * they enter planHash: `revisionCount` counts journaled
  * plan.revision entries; `droppedRevisionStreak` counts consecutive
- * fully-dropped revisions (RevisionGuards, docs/07, 3.8).
+ * fully-dropped revisions (RevisionGuards).
  */
 export interface TaskPlan {
   nodes: Readonly<Record<NodeId, PlanNode>>;
@@ -77,7 +80,7 @@ export function emptyPlan(): TaskPlan {
 
 /**
  * Terminal statuses: no transition ever leaves them. `done` is immutable
- * because its result is paid for (docs/07, 3.6: cancel_task on done drops
+ * because its result is paid for (cancel_task on done drops
  * with node_already_done); failed, cancelled, and skipped are equally
  * final per the conflict table's terminal_status rows.
  */
@@ -95,18 +98,18 @@ export function isTerminalPlanStatus(status: PlanNodeStatus): boolean {
 /**
  * Asserts one status transition against the closed machine. Op-level
  * legality (which ops may request which transitions in which state) is
- * the rebase conflict table's job (docs/07, 3.6; M7-T04); the machine
+ * the rebase conflict table's job (M7-T04); the machine
  * itself enforces exactly the structural rules:
  *
  * - nothing leaves a terminal status (`done` is immutable; failed,
  *   cancelled, skipped are final),
  * - `running` is entered only from `ready` (the engine schedules ready
- *   nodes; docs/07, 3.1),
+ *   nodes),
  * - a transition never restates the current status (the engine writes no
  *   no-op set_node_status).
  *
  * A violation is an engine bug and raises the typed PlanInvariantError
- * (docs/07, 3.4: never a silent brick).
+ * (never a silent brick).
  */
 export function assertPlanTransition(node: PlanNode, to: PlanNodeStatus): void {
   if (isTerminalPlanStatus(node.status)) {
@@ -132,8 +135,8 @@ export function assertPlanTransition(node: PlanNode, to: PlanNodeStatus): void {
 }
 
 /**
- * Dependency satisfaction, derived purely in the fold and NEVER a record
- * (docs/07, 3.3): a dep is satisfied when waived or when its upstream
+ * Dependency satisfaction, derived purely in the fold and NEVER a record:
+ * a dep is satisfied when waived or when its upstream
  * node is `done`. Terminally unsuccessful upstreams (cancelled, failed)
  * keep blocking: such edges "remain blocking" per the rewire_deps row of
  * the conflict table, and waive_dep exists exactly to unblock them.
@@ -171,7 +174,7 @@ export function recomputePlanReadiness(plan: TaskPlan): TaskPlan {
 }
 
 /**
- * Cycle check for rewire_deps (docs/07, 3.6: a resulting cycle drops the
+ * Cycle check for rewire_deps (a resulting cycle drops the
  * WHOLE op with dep_cycle; rewire_deps is atomic). Answers whether the
  * graph with `nodeId`'s deps replaced by `deps` contains a cycle
  * reachable from `nodeId`. add_task cannot create cycles (nothing depends

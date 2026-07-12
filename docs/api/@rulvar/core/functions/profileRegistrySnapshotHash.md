@@ -14,7 +14,7 @@ Defined in: [packages/core/src/journal/termination.ts:128](https://github.com/o-
 
 The deterministic profile-registry snapshot hash frozen inside
 termination.init: profile names mapped to their declared ladder
-lengths, canonical JSON, sha256 (docs/07, 11.6).
+lengths, canonical JSON, sha256.
 
 ## Parameters
 

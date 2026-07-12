@@ -1,11 +1,11 @@
 /**
  * The host half of the worker sandbox contract (M6-T02).
  *
- * Owning spec: docs/06-execution-spec.md, section 8.2. WorkerSandboxRunner
+ * Full contract: https://docs.rulvar.com/guide/planner. WorkerSandboxRunner
  * (@rulvar/planner) owns the worker lifecycle and the MessagePort; this
  * core-owned bridge serves every sandbox primitive against the canonical
- * ctx of the run, so the runner builds exclusively from the public API
- * (docs/02, dependency rules). The boundary is journal-compatible JSON
+ * ctx of the run, so the runner builds exclusively from the public API.
+ * The boundary is journal-compatible JSON
  * validated on both sides; raw structured clone is NOT the contract.
  *
  * Responsibilities:
@@ -30,7 +30,7 @@ import type { SchemaSpec } from '../l0/schema.js';
 import { runtimeOf, type CtxRuntime, type CtxScopeState } from '../engine/internal.js';
 import { AgentCallError, type AgentOpts, type Ctx, type WorkflowCallOpts } from '../engine/ctx.js';
 
-/** Methods a sandbox script may proxy to the host ctx (docs/06, 8.2). */
+/** Methods a sandbox script may proxy to the host ctx. */
 export type SandboxMethod =
   | 'agent'
   | 'step'
@@ -231,7 +231,7 @@ export function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptio
             stepOpts.key = record.key;
           }
           // The fn body executes inside the worker under the caller's
-          // token; only its JSON result crosses back (docs/06, 2.4).
+          // token; only its JSON result crosses back.
           return ctx.step(record.label, () => runThunk(fnId, token, []), stepOpts);
         }
         case 'workflow': {

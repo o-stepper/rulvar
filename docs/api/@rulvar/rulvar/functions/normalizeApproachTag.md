@@ -10,9 +10,9 @@
 function normalizeApproachTag(raw?): string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Approach-tag normalization (docs/03, 10.2): NFC, lowercase, runs of
+Approach-tag normalization: NFC, lowercase, runs of
 non-alphanumerics collapse into a hyphen, truncate to 32 characters; an
 empty value canonicalizes to 'default'. Prompt prose never enters any
 signature: rephrasings collide by construction, not by heuristic.

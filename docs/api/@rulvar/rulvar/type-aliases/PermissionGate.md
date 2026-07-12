@@ -28,10 +28,10 @@ type PermissionGate =
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ## Type Declaration
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `audit?` | [`GateAudit`](/api/@rulvar/rulvar/interfaces/GateAudit.md) | Chain audit payload ridden into tool:end telemetry (docs/08, 4.5). | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| `audit?` | [`GateAudit`](/api/@rulvar/rulvar/interfaces/GateAudit.md) | Chain audit payload ridden into tool:end telemetry. | `packages/core/dist/index.d.ts` |

@@ -10,8 +10,8 @@
 const ESCALATION_REQUEST_SCHEMA: JsonSchema;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The exact tool schema of docs/07, section 4.9. costToDate and salvage
+The escalate tool's exact request schema. costToDate and salvage
 MUST NOT appear here: additionalProperties false rejects model-authored
 values for them at argument validation.

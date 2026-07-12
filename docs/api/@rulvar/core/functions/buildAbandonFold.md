@@ -15,7 +15,7 @@ Defined in: [packages/core/src/journal/disposition.ts:65](https://github.com/o-s
 Builds the AbandonFold in ONE pass at load, in append order, pinned for
 the entire resume (DEF-1 ordering rule 4). Coverage is the target seq
 itself plus, transitively, every entry under the target's child
-scope-prefix (docs/03, sections 6.2 and 8.4). Repeated abandons over an
+scope-prefix. Repeated abandons over an
 already-covered target fold to noop.
 
 ## Parameters

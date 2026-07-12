@@ -6,9 +6,9 @@
 
 # Interface: Workflow\&lt;A, R\&gt;
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Closure-form workflow value; in-process only (docs/06, section "Execution model").
+Closure-form workflow value; in-process only.
 
 ## Type Parameters
 
@@ -21,8 +21,8 @@ Closure-form workflow value; in-process only (docs/06, section "Execution model"
 
 | Property | Modifier | Type | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-argsschema"></a> `argsSchema?` | `readonly` | [`SchemaSpec`](/api/@rulvar/rulvar/type-aliases/SchemaSpec.md)\&lt;`A`\&gt; | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-body"></a> `body` | `readonly` | (`ctx`, `args`) => `Promise`\&lt;`R`\&gt; | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-errorpolicy"></a> `errorPolicy` | `readonly` | [`ErrorPolicy`](/api/@rulvar/rulvar/type-aliases/ErrorPolicy.md) | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-kind"></a> `kind` | `readonly` | `"workflow"` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-name"></a> `name` | `readonly` | `string` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-argsschema"></a> `argsSchema?` | `readonly` | [`SchemaSpec`](/api/@rulvar/rulvar/type-aliases/SchemaSpec.md)\&lt;`A`\&gt; | `packages/core/dist/index.d.ts` |
+| <a id="property-body"></a> `body` | `readonly` | (`ctx`, `args`) => `Promise`\&lt;`R`\&gt; | `packages/core/dist/index.d.ts` |
+| <a id="property-errorpolicy"></a> `errorPolicy` | `readonly` | [`ErrorPolicy`](/api/@rulvar/rulvar/type-aliases/ErrorPolicy.md) | `packages/core/dist/index.d.ts` |
+| <a id="property-kind"></a> `kind` | `readonly` | `"workflow"` | `packages/core/dist/index.d.ts` |
+| <a id="property-name"></a> `name` | `readonly` | `string` | `packages/core/dist/index.d.ts` |

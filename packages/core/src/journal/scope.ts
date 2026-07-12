@@ -3,7 +3,7 @@
  * of wall-clock (invariant I3: structure comes from call-and-return only).
  * The grammar is part of the hashVersion 2 profile.
  *
- * Owning spec: docs/03-journal-spec.md, section "Scope-path grammar".
+ * Full contract: https://docs.rulvar.com/guide/journal.
  *
  * Segment rules: a sequential body is ONE scope (sequential calls add no
  * segment; they are distinguished by key and ordinal only). ctx.phase is
@@ -45,7 +45,7 @@ export function planNodeScope(nodeId: string): string {
   return `plan/${nodeId}`;
 }
 
-/** A parsed scope-path segment (docs/03, section 2.1). */
+/** A parsed scope-path segment. */
 export type ScopeSegment =
   | { kind: 'parallel'; site: number; branch: number }
   | { kind: 'pipeline'; stage: number; item: number }

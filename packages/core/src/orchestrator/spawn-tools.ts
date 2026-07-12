@@ -1,15 +1,15 @@
 /**
  * The mode (c) orchestrator toolset (M6-T07/T08).
  *
- * Owning spec: docs/07-adaptive-orchestration-spec.md, section
- * "Orchestrator toolset". The JSON Schemas below are NORMATIVE: they
+ * Docs: https://docs.rulvar.com/guide/adaptive-orchestration.
+ * The JSON Schemas below are NORMATIVE: they
  * enter toolsetHash and therefore identity, so every field ships now
  * even where its semantics complete later (model_hint clamping and
  * lineage folds in M7). The execute callbacks close over the per-call
  * OrchestratorRuntime; nothing rides ToolContext (tools stay leaves,
  * invariant I3; the closures ARE the engine seam).
  *
- * M6 resolution notes (amended into docs/07 4.2): outputSchemaRef and
+ * M6 resolution notes: outputSchemaRef and
  * toolsetRef are accepted by schema but their registries land in M7;
  * using them today is a typed tool error, never a run failure.
  */
@@ -19,7 +19,7 @@ import type { ToolDef } from '../l0/spi/toolsource.js';
 import type { OrchestratorRuntime } from './handles.js';
 import { WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME } from './wake.js';
 
-/** docs/07 4.2: the spawn_agent parameter schema (normative). */
+/** The spawn_agent parameter schema (normative). */
 export const SPAWN_AGENT_SCHEMA: SchemaSpec = {
   type: 'object',
   additionalProperties: false,
@@ -54,7 +54,7 @@ export const SPAWN_AGENT_SCHEMA: SchemaSpec = {
   },
 };
 
-/** docs/07 4.3: parallel_agents wraps the spawn_agent params. */
+/** parallel_agents wraps the spawn_agent params. */
 export const PARALLEL_AGENTS_SCHEMA: SchemaSpec = {
   type: 'object',
   additionalProperties: false,
@@ -71,7 +71,7 @@ export const PARALLEL_AGENTS_SCHEMA: SchemaSpec = {
   },
 };
 
-/** docs/07 4.4: await_any and await_all share one parameter shape. */
+/** await_any and await_all share one parameter shape. */
 export const AWAIT_SCHEMA: SchemaSpec = {
   type: 'object',
   additionalProperties: false,
@@ -85,7 +85,7 @@ export const AWAIT_SCHEMA: SchemaSpec = {
   },
 };
 
-/** docs/07 4.5: cancel_agent. */
+/** The cancel_agent parameter schema. */
 export const CANCEL_AGENT_SCHEMA: SchemaSpec = {
   type: 'object',
   additionalProperties: false,
@@ -96,7 +96,7 @@ export const CANCEL_AGENT_SCHEMA: SchemaSpec = {
   },
 };
 
-/** docs/07 4.11: finish; result validates against the declared output schema. */
+/** finish; result validates against the declared output schema. */
 export const FINISH_SCHEMA: SchemaSpec = {
   type: 'object',
   additionalProperties: false,
@@ -113,7 +113,7 @@ export const FINISH_SCHEMA: SchemaSpec = {
 
 export const FINISH_TOOL_NAME = 'finish';
 
-/** The spawn parameters as validated JSON (docs/07 4.1 TaskSpec subset). */
+/** The spawn parameters as validated JSON (a TaskSpec subset). */
 export interface SpawnAgentParams {
   agentType: string;
   prompt: string;
@@ -129,7 +129,7 @@ export interface SpawnAgentParams {
 /**
  * Builds the mode (c) toolset over the per-call runtime. profileCardText
  * rides the spawn tools' descriptions so both modes speak one agent
- * vocabulary (docs/06 9.3; M6-T04).
+ * vocabulary (M6-T04).
  */
 export function buildOrchestratorTools(
   runtime: OrchestratorRuntime,

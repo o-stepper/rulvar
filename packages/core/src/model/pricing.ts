@@ -6,8 +6,6 @@
  * updates are registry updates with a pricingVersion bump, never a caps
  * refresh side effect. Unpriced models surface in CostReport as
  * unpriced, never as a silent zero.
- *
- * Owning spec: docs/04-model-layer-spec.md, section "Pricing".
  */
 import type { ModelRef, Usage } from '../l0/messages.js';
 import type { Pricing } from '../l0/spi/provider.js';
@@ -32,11 +30,11 @@ export function resolvePricing(
 }
 
 /**
- * Dollars from normalized usage against one pricing row (docs/04,
- * section 1.6: the adapter normalized the usage; inputTokens is the
+ * Dollars from normalized usage against one pricing row (the adapter
+ * normalized the usage; inputTokens is the
  * full prompt). Cache writes price at the 5m premium rate; the 1h rate
  * applies where a provider distinguishes it in usage, which the
- * canonical Usage does not yet carry (docs/04, section 10).
+ * canonical Usage does not yet carry.
  */
 export function priceUsdOf(pricing: Pricing, usage: Usage): number {
   return (

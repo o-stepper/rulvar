@@ -10,7 +10,7 @@
 function matchShellCommand(command, rules): ShellVerdict;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The strictest-across-segments composition (5.3): deny if ANY segment
 denies; otherwise ask if ANY segment asks or fails to match an allow

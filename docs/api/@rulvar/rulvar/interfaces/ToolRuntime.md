@@ -6,7 +6,7 @@
 
 # Interface: ToolRuntime
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The spawn's frozen toolset plus the per-call context factory, prepared
 by the ctx layer (M3-T01). The contracts are the canonical identity
@@ -17,9 +17,9 @@ exactly them to the model.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-contracts"></a> `contracts` | [`ToolContract`](/api/@rulvar/rulvar/interfaces/ToolContract.md)[] | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-defs"></a> `defs` | [`ToolDef`](/api/@rulvar/rulvar/interfaces/ToolDef.md)\&lt;[`SchemaSpec`](/api/@rulvar/rulvar/type-aliases/SchemaSpec.md)\&lt;`unknown`\&gt;\&gt;[] | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-permission"></a> `permission?` | (`call`) => `Promise`\&lt;[`PermissionGate`](/api/@rulvar/rulvar/type-aliases/PermissionGate.md)\&gt; | Permission chain evaluation (M3-T03); absent = every call allowed. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-contracts"></a> `contracts` | [`ToolContract`](/api/@rulvar/rulvar/interfaces/ToolContract.md)[] | - | `packages/core/dist/index.d.ts` |
+| <a id="property-defs"></a> `defs` | [`ToolDef`](/api/@rulvar/rulvar/interfaces/ToolDef.md)\&lt;[`SchemaSpec`](/api/@rulvar/rulvar/type-aliases/SchemaSpec.md)\&lt;`unknown`\&gt;\&gt;[] | - | `packages/core/dist/index.d.ts` |
+| <a id="property-permission"></a> `permission?` | (`call`) => `Promise`\&lt;[`PermissionGate`](/api/@rulvar/rulvar/type-aliases/PermissionGate.md)\&gt; | Permission chain evaluation (M3-T03); absent = every call allowed. | `packages/core/dist/index.d.ts` |
 
 ## Methods
 
@@ -29,7 +29,7 @@ exactly them to the model.
 contextFor(toolName): ToolContext;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Mints a per-call ToolContext (fresh tool span under the agent span).
 

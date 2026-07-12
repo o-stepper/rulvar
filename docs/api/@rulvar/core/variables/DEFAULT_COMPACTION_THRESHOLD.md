@@ -10,6 +10,6 @@
 const DEFAULT_COMPACTION_THRESHOLD: 0.8 = 0.8;
 ```
 
-Defined in: [packages/core/src/runtime/compaction.ts:17](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/compaction.ts#L17)
+Defined in: [packages/core/src/runtime/compaction.ts:16](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/compaction.ts#L16)
 
-Appendix A: compaction threshold default, 0.8 of contextWindow.
+Compaction threshold default, 0.8 of contextWindow.

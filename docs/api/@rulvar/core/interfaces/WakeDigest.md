@@ -8,7 +8,7 @@
 
 Defined in: [packages/core/src/orchestrator/wake.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/wake.ts#L109)
 
-The FINAL normative WakeDigest (docs/07 section 5): one coordinated
+The FINAL normative WakeDigest: one coordinated
 schema change inside the hashVersion-2 profile (XF-12). The digest
 render enters the content key of orchestrator turns. In runs without
 the PlanRunner extension the termination, budget, and reuse blocks are

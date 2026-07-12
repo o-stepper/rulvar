@@ -10,7 +10,7 @@
 function costReportFromJournal(entries, priceUsd): CostReport;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The pure journal fold: byModel and totals from terminal entries, the
 same summation the kernel ledger uses (terminal usage exactly once,

@@ -9,7 +9,7 @@
 Defined in: [packages/core/src/journal/lineage.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L62)
 
 The value-part lineage block embedded in decision entries: the computed
-LineageRef plus the normalized tag (docs/03, 10.6: the request part
+LineageRef plus the normalized tag (the request part
 holds the RAW proposal; the value part holds what was COMPUTED and is
 reused byte-exact on replay).
 

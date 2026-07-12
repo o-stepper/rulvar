@@ -1,7 +1,7 @@
 /**
- * CLI configuration convention (shell-owned; the canonical grammar in
- * docs/06 section 10.5 says nothing about engine assembly, and the CLI
- * builds exclusively from the public API per docs/02 section 4):
+ * CLI configuration convention (shell-owned; the canonical CLI grammar
+ * says nothing about engine assembly, and the CLI builds exclusively
+ * from the public API):
  *
  * - `rulvar.config.mjs` (or .js) in the working directory default-exports
  *   `{ engineOptions?, workflows? }`: adapters, stores, defaults come
@@ -28,7 +28,7 @@ import {
 export interface CliConfig {
   engineOptions?: Partial<CreateEngineOptions>;
   workflows?: WorkflowRegistry;
-  /** rulvar kb sweep configuration (M11-T05; docs/05, "Grounding and decay"). */
+  /** rulvar kb sweep configuration (M11-T05). */
   kbSweep?: KbSweepCliConfig;
 }
 

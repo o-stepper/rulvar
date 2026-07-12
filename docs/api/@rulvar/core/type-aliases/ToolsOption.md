@@ -13,6 +13,6 @@ type ToolsOption = ReadonlyArray<
 | string>;
 ```
 
-Defined in: [packages/core/src/tools/toolset-hash.ts:19](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/toolset-hash.ts#L19)
+Defined in: [packages/core/src/tools/toolset-hash.ts:18](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/toolset-hash.ts#L18)
 
-The per-spawn tools option value domain (docs/06, section "ctx.agent and AgentOpts").
+The per-spawn tools option value domain.

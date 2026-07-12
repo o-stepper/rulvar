@@ -10,7 +10,7 @@
 function applyTaskSpecPatch(spec, patch): TaskSpec;
 ```
 
-Defined in: [packages/plan/src/task-spec.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/task-spec.ts#L53)
+Defined in: [packages/plan/src/task-spec.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/task-spec.ts#L52)
 
 Applies an amend_task patch onto a spec (undefined fields untouched).
 

@@ -10,7 +10,7 @@
 function buildPlanTools(runtime): ToolDef<SchemaSpec<unknown>>[];
 ```
 
-Defined in: [packages/plan/src/tools.ts:306](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L306)
+Defined in: [packages/plan/src/tools.ts:305](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L305)
 
 Builds the PlanRunner tools (appended to the mode (c) toolset).
 

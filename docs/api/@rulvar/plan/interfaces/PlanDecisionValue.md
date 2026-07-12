@@ -8,7 +8,7 @@
 
 Defined in: [packages/plan/src/plan-entries.ts:202](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L202)
 
-The value payload of a plan.decision entry (docs/07, 3.3).
+The value payload of a plan.decision entry.
 
 ## Properties
 

@@ -10,6 +10,6 @@
 const SPAWN_AGENT_SCHEMA: SchemaSpec;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-docs/07 4.2: the spawn_agent parameter schema (normative).
+The spawn_agent parameter schema (normative).

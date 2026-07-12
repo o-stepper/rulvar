@@ -10,7 +10,7 @@
 function summarizeInstruction(): Msg;
 ```
 
-Defined in: [packages/core/src/runtime/compaction.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/compaction.ts#L52)
+Defined in: [packages/core/src/runtime/compaction.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/compaction.ts#L51)
 
 The instruction message appended to the projected transcript for the
 summarize invocation. Deterministic wording; the response text becomes

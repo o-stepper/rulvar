@@ -10,9 +10,9 @@
 function validateSchemaSpec<S>(spec, value): Promise<SchemaValidationResult<Out<S>>>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Runtime validation per form (docs/08, section "Runtime validation"):
+Runtime validation per form:
 form 1 via the Standard Schema's own validate, form 2 via the pair's
 type guard, form 3 via the vendored draft 2020-12 validator. The same
 machinery backs the structured-output tiers of the Agent Runtime.

@@ -26,4 +26,4 @@ type WakeTrigger =
 
 Defined in: [packages/core/src/orchestrator/wake.ts:71](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/wake.ts#L71)
 
-The closed v1 trigger vocabulary (docs/07 4.8).
+The closed v1 trigger vocabulary.

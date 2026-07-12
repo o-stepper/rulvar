@@ -8,7 +8,7 @@
 
 Defined in: [packages/openai/src/wire.ts:25](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L25)
 
-Bijective canonical-to-wire (call_*) id map (docs/04, section 1.2).
+Bijective canonical-to-wire (call_*) id map.
 
 ## Constructors
 

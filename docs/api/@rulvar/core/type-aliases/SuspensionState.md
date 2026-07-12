@@ -23,4 +23,4 @@ type SuspensionState =
 };
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L47)
+Defined in: [packages/core/src/journal/resolution.ts:46](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L46)

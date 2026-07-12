@@ -11,8 +11,8 @@ Defined in: [packages/plan/src/plan-entries.ts:262](https://github.com/o-stepper
 The plan fold state: the working state plus fold-side records that
 deliberately stay OUT of planHash. `badBaseStreak` reconciles two
 normative clauses: a bad_base revision leaves the hashed state
-byte-identical (docs/07, 3.5 step 2: planHashAfter == planHashBefore)
-yet still lengthens the guard streak (docs/07, 3.6 last row): the
+byte-identical (planHashAfter == planHashBefore)
+yet still lengthens the guard streak: the
 guards therefore consume `effectiveDroppedStreak`, the hashed counter
 plus the trailing bad_base entries. `doneRefs` remembers which entry
 resolved each done node so waive_dep drops can point blockingRef at

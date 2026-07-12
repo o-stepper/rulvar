@@ -12,7 +12,7 @@ function failoverTriggerOf(retryClass):
   | undefined;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Maps a retry class to its failover trigger once retries exhaust.
 Overloaded (529) is transport-class for failover purposes; a

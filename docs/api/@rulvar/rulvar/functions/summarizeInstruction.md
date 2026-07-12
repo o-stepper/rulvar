@@ -10,7 +10,7 @@
 function summarizeInstruction(): Msg;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The instruction message appended to the projected transcript for the
 summarize invocation. Deterministic wording; the response text becomes

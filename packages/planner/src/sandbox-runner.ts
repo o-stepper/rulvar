@@ -2,15 +2,15 @@
  * WorkerSandboxRunner (M6-T02): the mandatory runner for machine-generated
  * scripts, mode (b). Owns the worker lifecycle and the dedicated
  * MessageChannel; every primitive call is served by the core sandbox
- * bridge against the canonical run ctx (docs/06, 8.2).
+ * bridge against the canonical run ctx.
  *
  * Port lifecycle: one channel per run; the worker end rides the init
  * transfer list; the host end is referenced while the worker computes and
  * unreferenced while every worker frame is blocked on a host call, so a
- * suspended run lets the process exit (docs/06, 2.7) and a computing
+ * suspended run lets the process exit and a computing
  * worker keeps it alive. Breaching timeoutMs or memoryMb terminates the
  * worker and the run completes with outcome 'error' carrying the typed
- * SandboxError (docs/02, error taxonomy).
+ * SandboxError.
  */
 import { MessageChannel, Worker } from 'node:worker_threads';
 
@@ -34,7 +34,7 @@ export interface WorkerSandboxRunnerOptions {
   workerUrl?: URL;
 }
 
-/** Accepts CompiledWorkflow ONLY: feeding a closure is a type error (docs/06, 8). */
+/** Accepts CompiledWorkflow ONLY: feeding a closure is a type error. */
 export class WorkerSandboxRunner implements ScriptRunner {
   private readonly timeoutMs: number;
   private readonly memoryMb: number;
@@ -110,7 +110,7 @@ export class WorkerSandboxRunner implements ScriptRunner {
         if (message.t === 'state') {
           // Port referencing mirrors the worker busy state: a computing
           // worker keeps the process alive; a fully blocked one lets a
-          // suspended run exit (docs/06, 8.2).
+          // suspended run exit.
           if ((message as { busy?: boolean }).busy === true) {
             channel.port1.ref();
           } else {

@@ -3,15 +3,15 @@
  * (M2-T11, DEF-4). A store implementation passes journalStoreConformance
  * (and leasableStoreConformance when it has the lease capability) or it
  * is not a rulvar store; the kit is the executable definition of the
- * storage seam frozen at 1.0 (docs/02, section "Compatibility policy").
+ * storage seam frozen at 1.0.
  *
  * Usage under Vitest:
  *
  *   const suite = journalStoreConformance(() => new MyStore());
  *   registerConformance(suite, { describe, it });
  *
- * Owning specs: docs/03, section "Conformance obligations"; docs/11,
- * section "Conformance tier".
+ * Public docs: https://docs.rulvar.com/guide/stores (conformance
+ * obligations) and https://docs.rulvar.com/guide/testing (conformance tier).
  */
 export {
   registerConformance,

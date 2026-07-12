@@ -2,8 +2,7 @@
  * Kinds registry v2 payload validators and the frozen shape rules
  * (M2-T04). The registry and the scope grammar freeze NOW so the v2
  * identity profile never moves; producers of the later kinds arrive in
- * M6/M7 (docs/03, sections "JournalEntry form and the kinds registry v2"
- * and "Normative payload schemas for kernel-owned kinds").
+ * M6/M7. Entry form and payload schemas: https://docs.rulvar.com/guide/journal.
  *
  * Validators apply to entries the ENGINE writes; loaded entries with
  * unknown kinds or fields pass through untouched (store obligation A4,
@@ -30,7 +29,7 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set([
   'termination.denied',
 ]);
 
-/** Legal stored statuses per kind (docs/03, section 5.3). */
+/** Legal stored statuses per kind. */
 const LEGAL_STATUSES: Readonly<Partial<Record<EntryKind, readonly EntryStatus[]>>> = {
   agent: ['running', 'ok', 'error', 'limit', 'cancelled', 'escalated'],
   step: ['running', 'ok', 'error'],

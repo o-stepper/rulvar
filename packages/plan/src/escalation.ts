@@ -1,9 +1,9 @@
 /**
  * EscalationProtocol completion (M7-T11).
  *
- * Owning spec: docs/07-adaptive-orchestration-spec.md, section 6 (the
- * protocol), 3.3 (entry kinds), 3.7 (timer race); docs/03, section 8
- * (DEF-4 resolution family). The M3 producers (report, flavors, the
+ * Full protocol: https://docs.rulvar.com/guide/adaptive-orchestration;
+ * resolutions (the DEF-4 family): https://docs.rulvar.com/guide/durability.
+ * The M3 producers (report, flavors, the
  * escalate tool, countsAgainstLimit derivation) live in core; this module
  * owns the DECISION side under PlanRunner: the authoritative
  * `escalation-decision` entries the lineage and termination folds consume,
@@ -11,7 +11,7 @@
  *
  * Channels, closed in v1:
  * - Live Flavor A: `cancel_task` on an escalated node transforms into an
- *   escalation resolution with verdict `cancel` (docs/07, 3.6 row); the
+ *   escalation resolution with verdict `cancel`; the
  *   other verdicts on a TERMINAL report are engine territory.
  * - Flavor B: the suspended report resolves through the DEF-4 family
  *   (timeout `defaultDecision`, a live `onEscalation` decision, or a
@@ -23,14 +23,14 @@
 import { deriverV2 } from '@rulvar/core';
 import type { EntryRef, EscalationDecision, Json, LogicalTaskId } from '@rulvar/core';
 
-/** One per-lineage debit row of a class-level decision (docs/07, 6.5). */
+/** One per-lineage debit row of a class-level decision. */
 export interface EscalationDebitRow {
   logicalTaskId: LogicalTaskId;
   escalationUnitsAfter: number;
 }
 
 /**
- * The authoritative escalation-decision entry value (docs/07, 6.5; the
+ * The authoritative escalation-decision entry value (the
  * producer contract of LineageIndex and foldTermination). Exactly one
  * such entry per report; the debit is atomic with the append and the
  * balance-after is embedded (DEF-2). A decision whose counting debit was
@@ -49,13 +49,13 @@ export interface EscalationDecisionValue {
   countsAgainstLimit: boolean;
   /** Present exactly when a counting debit executed (fold-asserted). */
   escalationUnitsAfter?: number;
-  /** How the decision was reached (docs/07, 3.3 plan.decision origins). */
+  /** How the decision was reached (the plan.decision origins). */
   resolvedBy: 'default' | 'class' | 'live' | 'revision-transform';
   /** Class-level form: one entry, an array of per-lineage debits. */
   debits?: EscalationDebitRow[];
   /** Decomposition admissions (spawn debits ride this entry; 11.3 b). */
   admissions?: Json[];
-  /** The counting debit was denied: the cap is the message (docs/07, 6.5). */
+  /** The counting debit was denied: the cap is the message. */
   capExceeded?: boolean;
 }
 
@@ -75,7 +75,7 @@ export function resolvedByOf(by: string): 'default' | 'class' | 'live' {
   return 'live';
 }
 
-/** The plan.decision origin of one resolvedBy value (docs/07, 3.3). */
+/** The plan.decision origin of one resolvedBy value. */
 export function decisionOriginOf(
   resolvedBy: 'default' | 'class' | 'live' | 'revision-transform',
 ): 'escalation-default' | 'escalation-class' | 'escalation-live' {

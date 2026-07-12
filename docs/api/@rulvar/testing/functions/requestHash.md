@@ -13,8 +13,8 @@ function requestHash(req): string;
 Defined in: [packages/testing/src/vcr.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L109)
 
 The cassette key: a hash of the canonical wire-contract request. The
-engine-populated telemetry namespace is excluded (docs/04, section
-1.8: never identity); everything else the adapter would send keys the
+engine-populated telemetry namespace is excluded (never identity);
+everything else the adapter would send keys the
 row.
 
 ## Parameters

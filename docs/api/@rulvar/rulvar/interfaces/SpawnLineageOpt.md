@@ -6,7 +6,7 @@
 
 # Interface: SpawnLineageOpt
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The spawn-options lineage block (ctx.agent, ctx.workflow, spawn_agent, add_task).
 
@@ -14,6 +14,6 @@ The spawn-options lineage block (ctx.agent, ctx.workflow, spawn_agent, add_task)
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-causeref"></a> `causeRef` | `number` | Seq of the journal entry that caused the rebirth; mandatory. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-continues"></a> `continues` | `string` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-relation"></a> `relation?` | `"respawn"` \| `"rung-retry"` \| `"decompose-child"` \| `"unpark-restart"` | Default 'respawn'. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-causeref"></a> `causeRef` | `number` | Seq of the journal entry that caused the rebirth; mandatory. | `packages/core/dist/index.d.ts` |
+| <a id="property-continues"></a> `continues` | `string` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-relation"></a> `relation?` | `"respawn"` \| `"rung-retry"` \| `"decompose-child"` \| `"unpark-restart"` | Default 'respawn'. | `packages/core/dist/index.d.ts` |

@@ -13,7 +13,7 @@ function parseModelRef(ref): {
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ModelRef is strictly 'adapterId:model', no query parameters. The wire
 model id may itself contain colons (for example ollama tags), so only
@@ -36,5 +36,5 @@ the FIRST colon splits.
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `adapterId` | `string` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `model` | `string` | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| `adapterId` | `string` | `packages/core/dist/index.d.ts` |
+| `model` | `string` | `packages/core/dist/index.d.ts` |

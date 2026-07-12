@@ -11,11 +11,11 @@ Defined in: [packages/plan/src/write-lock.ts:15](https://github.com/o-stepper/ru
 PlanWriteLock (M7-T01): the in-process FIFO mutex serializing live
 appends to the sequential scope "plan".
 
-Owning spec: docs/07-adaptive-orchestration-spec.md, section 3.2
+Owning contract: https://docs.rulvar.com/guide/adaptive-orchestration
 (DEF-8, XF-07). The lock serializes ONLY plan-scope appends (acquire,
 read the fold head, evaluate, append, release); it MUST NOT substitute
 for resolution arbitration, which is owned by the ResolutionArbiter
-(docs/03, section "Suspension and resolutions (DEF-4)"). In queue mode
+(DEF-4). In queue mode
 the lease fencing epoch applies on top. Wall clock influences only
 WHICH order gets recorded live; replay reads the recorded order and
 never takes the lock.

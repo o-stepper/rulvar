@@ -6,10 +6,10 @@
 
 # Interface: Options
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ## Properties
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-libraryoptions"></a> `libraryOptions?` | `readonly` | `Record`\&lt;`string`, `unknown`\&gt; | Explicit support for additional vendor-specific parameters, if needed. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-libraryoptions"></a> `libraryOptions?` | `readonly` | `Record`\&lt;`string`, `unknown`\&gt; | Explicit support for additional vendor-specific parameters, if needed. | `packages/core/dist/index.d.ts` |

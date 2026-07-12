@@ -6,7 +6,7 @@
  * ceiling severing live streams, with partial usage written usageApprox.
  * B0 is immutable after start: no API tops it up.
  *
- * The account tree (docs/06, section 5.4): the run root plus one
+ * The account tree: the run root plus one
  * sub-account per admitted child workflow (and, from M7, the orchestrator
  * account and plan/NodeId accounts). A child's spend propagates to ALL
  * ancestors up to the run root; the root ceiling remains the true
@@ -15,7 +15,7 @@
  * reserves are recovered from spawn-admission decision entries); the
  * per-account historical fold completes with DEF-7 in M7.
  *
- * Owning spec: docs/06-execution-spec.md, section "Three-layer budget".
+ * Full contract: https://docs.rulvar.com/guide/budgets
  */
 import { BudgetExhaustedError, ConfigError } from '../l0/errors.js';
 import type { ModelRef, Usage } from '../l0/messages.js';
@@ -24,10 +24,10 @@ import { BUDGET_ABORT_REASON, type RuntimeEventSink } from '../runtime/agent-loo
 
 export type Spend = { usd: number; usage: Usage; agentsSpawned: number };
 
-/** Last resort of the admission reserve formula (docs/06, Appendix A). */
+/** Last resort of the admission reserve formula. */
 export const DEFAULT_FLAT_RESERVE_USD = 0.5;
 
-/** The run-root account scope (docs/06, section 5.4 scope vocabulary). */
+/** The run-root account scope. */
 export const ROOT_ACCOUNT = 'run';
 
 const ZERO_USAGE: Usage = {
@@ -38,8 +38,7 @@ const ZERO_USAGE: Usage = {
 };
 
 /**
- * The admission reserve for a spawn (docs/06, section "Layer 1: admission
- * before spawn"): opts.estCost, else profile.estCost, else
+ * The admission reserve for a spawn: opts.estCost, else profile.estCost, else
  * price(countTokens(input) + caps.maxOutputTokens), else the engine flat
  * default.
  */
@@ -66,7 +65,7 @@ export function admissionReserveUsd(options: {
   return options.flatReserveUsd ?? DEFAULT_FLAT_RESERVE_USD;
 }
 
-/** Read-only projection of one account (docs/06, section 5.4). */
+/** Read-only projection of one account. */
 export interface BudgetAccountView {
   scope: string;
   ceilingUsd?: number;
@@ -110,7 +109,7 @@ export class RunBudget {
     events?: RuntimeEventSink;
     priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
     /**
-     * The resume ledger fold (docs/03, section 13.3): spend is never
+     * The resume ledger fold: spend is never
      * reset and never double-counted; replayed entries are already inside
      * this seed and add no increments.
      */
@@ -171,7 +170,7 @@ export class RunBudget {
   }
 
   /**
-   * Opens a child sub-account under `parentScope` (docs/06, section 5.4).
+   * Opens a child sub-account under `parentScope`.
    * Re-opening an existing scope is the resume roll-forward path: the
    * recorded ceiling wins once and the accumulated state is kept.
    */
@@ -259,7 +258,7 @@ export class RunBudget {
   /**
    * Marks the run exhausted without a ceiling event: the orchestrator
    * finalize fallback maps to outcome 'exhausted' with the synthesized
-   * partial value (DEF-7, docs/07 12.4; exhaustion is never null).
+   * partial value (DEF-7; exhaustion is never null).
    */
   markExhausted(): void {
     this.exhaustedInternal = true;
@@ -279,7 +278,7 @@ export class RunBudget {
    * Layer 1: admission before spawn. Blocks when spent + committedReserve
    * has reached the ceiling on ANY account in the ancestor chain of
    * `accountScope`, otherwise commits the reserve along the whole chain.
-   * Also enforces the engine lifetime spawn cap (docs/06, "Scheduler").
+   * Also enforces the engine lifetime spawn cap.
    */
   admitSpawn(reserveUsd: number, accountScope: string = ROOT_ACCOUNT): void {
     if (this.agentsSpawnedInternal >= this.lifetimeSpawnCap) {
@@ -327,7 +326,7 @@ export class RunBudget {
   /**
    * Resume roll-forward: commits a reserve recovered from a journaled
    * spawn-admission decision entry without re-evaluating admission
-   * (docs/06, 5.1: reserves are recovered, never re-estimated).
+   * (reserves are recovered, never re-estimated).
    */
   admitRecovered(reserveUsd: number, accountScope: string = ROOT_ACCOUNT): void {
     this.agentsSpawnedInternal += 1;
@@ -338,7 +337,7 @@ export class RunBudget {
   }
 
   /**
-   * Registers the orchestrator finalize reserve (DEF-7, docs/07 12.2):
+   * Registers the orchestrator finalize reserve (DEF-7):
    * absolute dollars set on the named account AND the run root, so
    * admission never lets any spawn eat the finalization money even
    * against whole-run exhaustion. Kept SEPARATE from committedReserveUsd
@@ -444,7 +443,7 @@ export class RunBudget {
     };
   }
 
-  /** Null when the run has no USD ceiling (docs/06, section "Canonical Ctx interface"). */
+  /** Null when the run has no USD ceiling. */
   remaining(): Spend | null {
     const root = this.root;
     if (root.ceilingUsd === undefined) {

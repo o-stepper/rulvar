@@ -9,8 +9,8 @@
 Defined in: [packages/core/src/l0/errors.ts:128](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L128)
 
 Refusal to open a journal whose hashVersion falls outside the engine's
-support window (docs/03, section "hashVersion"; producers ship in M2).
-The registry code is 'journal_compat'; the docs/03 sub-codes live on
+support window (producers ship in M2).
+The registry code is 'journal_compat'; the sub-codes live on
 `subCode` and in `data`.
 
 ## Extends

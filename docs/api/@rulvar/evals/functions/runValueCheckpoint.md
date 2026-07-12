@@ -10,7 +10,7 @@
 function runValueCheckpoint(checkpointPool, options): Promise<CheckpointReport>;
 ```
 
-Defined in: [packages/evals/src/checkpoint.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/checkpoint.ts#L180)
+Defined in: [packages/evals/src/checkpoint.ts:179](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/checkpoint.ts#L179)
 
 Runs the checkpoint over the fixed pool. Sequential in declaration
 order (deterministic cassette consumption when recorded); every cell

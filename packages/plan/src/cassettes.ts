@@ -1,6 +1,5 @@
 /**
- * M7 gating cassette runners (M7-T14; docs/09, section 6 catalog;
- * docs/11, section "Frozen journal fixtures").
+ * M7 gating cassette runners (M7-T14).
  *
  * Every scenario runs fully offline on a scripted adapter over the
  * PUBLIC provider SPI and produces a NORMALIZED journal: wall clock,
@@ -165,7 +164,7 @@ export function engineWith(
     schemas?: Record<string, unknown>;
     lineage?: Record<string, number>;
     isolation?: unknown;
-    /** ModelKnowledge store for the M10 kb cassettes (docs/05). */
+    /** ModelKnowledge store for the M10 kb cassettes. */
     knowledge?: unknown;
   },
 ): Engine {
@@ -179,7 +178,7 @@ export function engineWith(
       ...(extras?.isolation === undefined ? {} : { isolation: extras.isolation as never }),
       // The full role map minus finalize, exactly the createTestEngine
       // posture: the deliberate finalize gap keeps synthesis calls out
-      // of tool-bearing cassette agents (docs/04, section 8.3).
+      // of tool-bearing cassette agents.
       routing: {
         loop: 'fake:model',
         extract: 'fake:model',
@@ -202,7 +201,7 @@ export async function settled(handle: RunHandle<unknown>): Promise<void> {
 
 /**
  * revise-mid-run: a plan revision arrives while a worker subtree is
- * mid-flight (docs/09 round-2). The first worker HANGS until the
+ * mid-flight. The first worker HANGS until the
  * revision cancels it; the added replacement completes.
  */
 export async function runReviseMidRun(): Promise<JournalEntry[]> {
@@ -282,7 +281,7 @@ function assignedNodeIn(req: ChatRequest): string | undefined {
 
 /**
  * crash-during-revision: process death INSIDE the revision window, at
- * the pre-append kill point (docs/09 round-2): life 1 is truncated
+ * the pre-append kill point: life 1 is truncated
  * strictly BEFORE the second plan.revision entry; life 2 re-issues the
  * revision live and rolls its effects forward.
  */
@@ -366,7 +365,7 @@ export async function runCrashDuringRevision(): Promise<JournalEntry[]> {
 
 /**
  * oscillation-freeze: the coarse-signature oscillation detector freezes
- * further re-adds under hysteresis (docs/09 round-2; distinct from the
+ * further re-adds under hysteresis (distinct from the
  * per-key osc_guard reject).
  */
 export async function runOscillationFreeze(options?: PlanRunnerOptions): Promise<JournalEntry[]> {
@@ -415,7 +414,7 @@ export async function runOscillationFreeze(options?: PlanRunnerOptions): Promise
 
 /**
  * park-unpark: park of a running node with checkpoint retention, later
- * unpark and continuation (docs/09 round-2; docs/03 11.2). The worker
+ * unpark and continuation. The worker
  * pays one tool turn, hangs in its second, parks at the boundary, and
  * the unparked continuation resumes from the retained checkpoint (the
  * booted history carries the paid turn).
@@ -546,7 +545,7 @@ function ladderScript(strongTurn: CassetteTurn): (req: ChatRequest) => CassetteT
 /**
  * half-escalated-ladder: some rungs terminal, the active rung dangling
  * mid-attempt at the crash; resume continues the ladder without
- * repaying completed rungs (docs/09 round-2).
+ * repaying completed rungs.
  */
 export async function runHalfEscalatedLadder(): Promise<JournalEntry[]> {
   const adapter = cassetteAdapter(ladderScript({ hangUntilAborted: true }));
@@ -601,7 +600,7 @@ export async function runHalfEscalatedLadder(): Promise<JournalEntry[]> {
 /**
  * budget-denied-rung: the budget guard denies the rung respawn; the
  * denial journals as termination.denied strictly before the verdict and
- * the ladder takes its declared fallback path (docs/09 round-2).
+ * the ladder takes its declared fallback path.
  */
 export async function runBudgetDeniedRung(): Promise<JournalEntry[]> {
   const adapter = cassetteAdapter(ladderScript({ text: 'never reached' }));
@@ -655,7 +654,7 @@ function capScript(
  * cap-freeze-then-finish (DEF-7): the soft boundary crossed with live
  * children; the cap decision precedes its effects; admitted nodes run to
  * completion; the final quiescence wake gets the finish-only toolset;
- * outcome ok with forcedFinish (docs/09).
+ * outcome ok with forcedFinish.
  */
 export async function runCapFreezeThenFinish(): Promise<JournalEntry[]> {
   const adapter = cassetteAdapter(
@@ -857,7 +856,7 @@ export async function runRungRetryLineage(): Promise<JournalEntry[]> {
 /**
  * decompose-mints-children (DEF-3): an escalation decomposition mints
  * FRESH logical tasks inside the decision entry; the spawn debits ride
- * the same entry (docs/07, 8.1 rule 6, 11.3 b).
+ * the same entry.
  */
 export async function runDecomposeMintsChildren(): Promise<JournalEntry[]> {
   let phase = 0;
@@ -922,15 +921,15 @@ export async function runDecomposeMintsChildren(): Promise<JournalEntry[]> {
 
 /**
  * queue-failover-during-forced-finish (the DEF-7 final cassette;
- * docs/09, section 6.9; M8-T03): worker A loses its lease strictly
+ * M8-T03): worker A loses its lease strictly
  * between the cap decision and the final wake; worker B reclaims with a
  * bumped fencing epoch and rolls the forced finish forward. The stale
  * writer's appends are rejected and invisible, exactly one cap decision
  * exists, and finalization is paid once.
  *
  * The LeasableStore is INJECTED so this package stays core-only: the
- * replay test and the record script supply the reference SqliteStore
- * (docs/03, 12.6). One deterministic clock drives lease expiry.
+ * replay test and the record script supply the reference SqliteStore.
+ * One deterministic clock drives lease expiry.
  */
 export interface QueueFailoverDeps {
   /** A fresh LeasableStore over the injected clock (SqliteStore ':memory:' in the suite). */
@@ -981,7 +980,7 @@ export async function runQueueFailoverDuringForcedFinish(
   const before = (await store.load(handle.runId)).length;
 
   // Worker A held the lease when it stalled; the ttl expires unrenewed
-  // and worker B reclaims with a bumped epoch (docs/03, 12.3).
+  // and worker B reclaims with a bumped epoch.
   const leaseA = await store.acquire(handle.runId, 'worker-a');
   nowMs += 61_000;
   const leaseB = await store.acquire(handle.runId, 'worker-b');

@@ -1,5 +1,5 @@
 /**
- * Rubric grader (docs/09, section 7.1): scores the output against
+ * Rubric grader: scores the output against
  * declared, named criteria with per-criterion verdicts. Criteria are pure
  * predicates; the grader is host-side and involves no engine calls.
  */

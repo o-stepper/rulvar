@@ -10,6 +10,6 @@
 const KB_ACTIVE_CLAIMS_CAP: 8 = 8;
 ```
 
-Defined in: [packages/core/src/knowledge/claims.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/claims.ts#L26)
+Defined in: [packages/core/src/knowledge/claims.ts:25](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/claims.ts#L25)
 
-docs/06, Appendix A: KB active-claims cap, default 8 per (model, taskClass).
+Appendix A: KB active-claims cap, default 8 per (model, taskClass).

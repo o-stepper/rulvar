@@ -13,7 +13,7 @@ function formatRePrompt(
    maxAttempts): Msg;
 ```
 
-Defined in: [packages/core/src/runtime/structured-output.ts:132](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/structured-output.ts#L132)
+Defined in: [packages/core/src/runtime/structured-output.ts:131](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/structured-output.ts#L131)
 
 The bounded re-prompt message sent back to the model on a validation miss.
 

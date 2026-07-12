@@ -10,11 +10,11 @@
 function compilePermissionChain(engine?, profile?): CompiledPermissionChain;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Merges the engine-wide config and the profile config into one chain.
 Layers concatenate engine-first; since rules only deny or ask, ordering
-within a layer cannot change the verdict (docs/08, section 4.2). The
+within a layer cannot change the verdict. The
 profile's canUseTool wins over the engine's (a single slot by
 construction). A declared preset compiles INTO the same layers, after
 the host-authored rules, never as a fifth layer (M5-T05).

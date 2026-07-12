@@ -3,11 +3,10 @@
  * as a ProviderAdapter for the long tail of providers (Google, Bedrock,
  * Vertex) without coupling the core to the ai-sdk release cycle.
  *
- * Owning spec: docs/04-model-layer-spec.md, section "@rulvar/bridge-ai-sdk".
+ * Adapter contract: https://docs.rulvar.com/guide/adapter-authors
  * This is documented as the highest-churn package in the set: it tracks the
- * @ai-sdk/provider major line (^4, pinned in docs/13, section "Dependency
- * baseline pins") and checks specificationVersion at runtime so a transitive
- * provider-package major cannot mis-wire silently.
+ * @ai-sdk/provider major line (^4) and checks specificationVersion at
+ * runtime so a transitive provider-package major cannot mis-wire silently.
  */
 import { APICallError } from '@ai-sdk/provider';
 import type {
@@ -45,8 +44,8 @@ import {
 /**
  * Conservative capability set for a model the bridge cannot introspect:
  * the LanguageModelV4 interface exposes no capability discovery, so the
- * defaults mirror the openaiCompatible factory posture (docs/04, section
- * 6) except structuredOutput, where responseFormat json IS the V4-native
+ * defaults mirror the openaiCompatible factory posture except
+ * structuredOutput, where responseFormat json IS the V4-native
  * mechanism every ai-sdk provider accepts. Callers SHOULD supply caps for
  * anything beyond this.
  */
@@ -61,8 +60,8 @@ const CONSERVATIVE_BRIDGE_CAPS: ModelCaps = {
 
 /**
  * Canonical effort to V4 reasoning effort. Canonical 'max' has no V4
- * equivalent and downmaps to 'xhigh' (the documented lossy downmap pattern
- * of docs/04, section 3.3); the downmap is recorded in providerMetadata.
+ * equivalent and downmaps to 'xhigh' (the documented lossy downmap
+ * pattern); the downmap is recorded in providerMetadata.
  * Identity always keeps the requested canonical effort.
  */
 const EFFORT_TO_V4: Record<Effort, 'low' | 'medium' | 'high' | 'xhigh'> = {
@@ -76,8 +75,7 @@ const EFFORT_TO_V4: Record<Effort, 'low' | 'medium' | 'high' | 'xhigh'> = {
 /**
  * Keys of the bridge's providerOptions namespace that would contradict a
  * canonical ChatRequest field. Canonical fields always win; a namespaced
- * option silently contradicting one is a typed ConfigError (docs/04,
- * section 1.8).
+ * option silently contradicting one is a typed ConfigError.
  */
 const CANONICAL_CONFLICT_KEYS: readonly string[] = [
   'prompt',
@@ -109,8 +107,8 @@ export interface BridgeAiSdkOptions {
    */
   id?: string;
   /**
-   * Provider family for provider-raw retention and projection (docs/04,
-   * section 2.3). Defaults to the wrapped model's `provider` string, so
+   * Provider family for provider-raw retention and projection. Defaults
+   * to the wrapped model's `provider` string, so
    * two bridged models of one provider share retained blocks.
    */
   provider?: string;
@@ -120,7 +118,7 @@ export interface BridgeAiSdkOptions {
 
 /**
  * Bijective map between engine-minted CanonicalIds and the wrapped
- * provider's wire tool-call ids (docs/04, section 1.2). V4 accepts
+ * provider's wire tool-call ids. V4 accepts
  * arbitrary strings as toolCallId, so a canonical id minted outside this
  * provider is used verbatim as its own wire id.
  */
@@ -156,8 +154,8 @@ class BridgeIdMap {
 }
 
 /**
- * Wraps a Vercel AI SDK LanguageModelV4 as a ProviderAdapter (docs/04,
- * section 7). The bridge MUST check specificationVersion at runtime and
+ * Wraps a Vercel AI SDK LanguageModelV4 as a ProviderAdapter. The bridge
+ * MUST check specificationVersion at runtime and
  * fail with a typed ConfigError on mismatch. The published interface names
  * the version V4; the wire literal carried by @ai-sdk/provider ^4 is 'v4'.
  */
@@ -232,7 +230,7 @@ export function bridgeAiSdk(
         return;
       }
       if (!mapper.terminal) {
-        // Exactly one terminal event per stream (docs/04, section 1.4):
+        // Exactly one terminal event per stream:
         // a V4 stream draining without a finish part is a provider fault.
         yield {
           type: 'error',
@@ -312,8 +310,7 @@ function buildCallOptions(req: ChatRequest, context: BuildContext): BuiltCall {
     callOptions.abortSignal = context.signal;
   }
   // cacheHint is ignored silently: V4 exposes no cache-breakpoint surface
-  // (docs/04, section 1.7: adapters for providers without caching MUST
-  // ignore the hint silently).
+  // (adapters for providers without caching MUST ignore the hint silently).
   applyNamespacedOptions(req, callOptions, context.adapterId);
   return { callOptions, effortDownmapped };
 }
@@ -429,7 +426,7 @@ function mapMessages(messages: Msg[], context: BuildContext): LanguageModelV4Pro
 /**
  * Transforms a retained stream part (shipped through finish
  * providerMetadata retainedParts and lifted into a provider-raw part by
- * the runtime, docs/04, section 2.3) back into its V4 prompt-part shape.
+ * the runtime) back into its V4 prompt-part shape.
  * Response-side providerMetadata becomes prompt-side providerOptions.
  */
 function reinsertRetained(block: unknown): AssistantContent[number] | undefined {
@@ -777,8 +774,8 @@ function mapFinishReason(reason: LanguageModelV4FinishReason, adapterId: string)
 
 /**
  * Normalizes V4 nested usage to the flat Usage under the Usage invariant:
- * inputTokens is the FULL prompt including cache reads and writes
- * (docs/04, section 1.6). When the provider's total disagrees with the
+ * inputTokens is the FULL prompt including cache reads and writes.
+ * When the provider's total disagrees with the
  * component sum, the larger value wins so the invariant holds by
  * construction.
  */
@@ -817,8 +814,7 @@ function parseToolArgs(input: string): ParsedArgs {
  * Projects a thrown value from the wrapped model into a typed WireError.
  * APICallError carries the provider's status and headers: 429 surfaces as
  * a retryable rate-limit with retryAfterMs; 5xx and status-less network
- * failures are retryable transport; other statuses are terminal transport
- * (docs/04, section 2.2).
+ * failures are retryable transport; other statuses are terminal transport.
  */
 export function aiSdkErrorToWire(error: unknown): WireError {
   const record = error as {

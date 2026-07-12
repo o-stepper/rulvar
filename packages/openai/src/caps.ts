@@ -1,9 +1,8 @@
 /**
  * Capability table for the July 2026 OpenAI model family (M1-T13). Seed
- * values; pricing is the adapter-reported fallback only (docs/04, section
- * "Pricing"). `api` selects Responses (first class) versus the Chat
- * Completions degraded path (docs/04, section 5.6); degraded-path
- * selection is a caps fact, visible in events, never silent.
+ * values; pricing is the adapter-reported fallback only. `api` selects
+ * Responses (first class) versus the Chat Completions degraded path;
+ * degraded-path selection is a caps fact, visible in events, never silent.
  */
 import type { Effort, ModelCaps } from '@rulvar/core';
 
@@ -12,7 +11,7 @@ const REASONING_EFFORTS: Effort[] = ['low', 'medium', 'high', 'xhigh'];
 export interface OpenAiModelInfo {
   caps: ModelCaps;
   api: 'responses' | 'chat';
-  /** Reasoning models reject non-default sampling parameters (docs/04, section 5.1). */
+  /** Reasoning models reject non-default sampling parameters. */
   reasoning: boolean;
 }
 
@@ -26,8 +25,8 @@ function responses(
       structuredOutput: 'native',
       supportsTemperature: false,
       supportsParallelTools: true,
-      // Canonical max downmaps to wire xhigh; identity keeps max
-      // (docs/04, section 3.3), so caps accept the full canonical set.
+      // Canonical max downmaps to wire xhigh; identity keeps max,
+      // so caps accept the full canonical set.
       reasoningEfforts: [...REASONING_EFFORTS, 'max'],
       contextWindow,
       maxOutputTokens,
@@ -42,7 +41,7 @@ function responses(
   };
 }
 
-/** Static seed table; docs/04 section 5 names the current model set. */
+/** Static seed table of the current model set. */
 export const OPENAI_MODELS: Record<string, OpenAiModelInfo> = {
   'gpt-5.5': responses(400_000, 128_000, { in: 10, out: 40, cacheRead: 1 }),
   'gpt-5.5-pro': responses(400_000, 128_000, { in: 40, out: 160, cacheRead: 4 }),

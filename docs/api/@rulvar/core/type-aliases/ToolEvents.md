@@ -27,7 +27,7 @@ type ToolEvents =
 
 Defined in: [packages/core/src/l0/events.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L63)
 
-docs/09 section 1.4, tool lifecycle (emitters arrive with the tool system, M3).
+Tool lifecycle (emitters arrive with the tool system, M3).
 
 ## Union Members
 
@@ -67,4 +67,4 @@ docs/09 section 1.4, tool lifecycle (emitters arrive with the tool system, M3).
 | `rule?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [packages/core/src/l0/events.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L78) |
 | `toolName` | `string` | - | [packages/core/src/l0/events.ts:67](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L67) |
 | `type` | `"tool:end"` | - | [packages/core/src/l0/events.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L66) |
-| `verdict?` | `"allow"` \| `"deny"` \| `"ask"` | Audit fields (docs/08, section 4.5; M5-T05): the chain verdict, the deciding layer, the matched rule, and advisory domain-rule matches. Telemetry, never identity; ask verdicts additionally journal as suspended approvals. | [packages/core/src/l0/events.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L76) |
+| `verdict?` | `"allow"` \| `"deny"` \| `"ask"` | Audit fields (M5-T05): the chain verdict, the deciding layer, the matched rule, and advisory domain-rule matches. Telemetry, never identity; ask verdicts additionally journal as suspended approvals. | [packages/core/src/l0/events.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L76) |

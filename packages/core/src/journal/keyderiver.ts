@@ -3,7 +3,7 @@
  * per-engine deriver registry, the support-window compatibility scan, and
  * the versioned KeyRing for matching. A profile is immutable after
  * release and versions the ENTIRE identity and replay pipeline as one
- * unit (docs/03, section "hashVersion").
+ * unit. Full contract: https://docs.rulvar.com/guide/journal-compatibility.
  */
 import { createHash } from 'node:crypto';
 import { ConfigError, JournalCompatibilityError } from '../l0/errors.js';
@@ -20,8 +20,8 @@ export type CanonicalIdentity = Record<string, unknown>;
 
 /**
  * Per-effective-status disposition rules; DATA on the profile, consumed
- * only by the single canonical replayDisposition function (docs/03,
- * section 4.2: there is NO replayAction method).
+ * only by the single canonical replayDisposition function (there is NO
+ * replayAction method).
  */
 export type DispositionRule =
   | 'replay'
@@ -54,7 +54,7 @@ function sha256Hex(text: string): string {
   return createHash('sha256').update(text, 'utf8').digest('hex');
 }
 
-/** The full v2 table; the three kernel amendments live in these rules (docs/03, section 6.3). */
+/** The full v2 table; the three kernel amendments live in these rules. */
 const V2_TABLE: DispositionTable = {
   ok: 'replay',
   escalated: 'replay',
@@ -88,7 +88,7 @@ export const deriverV2: KeyDeriver = {
   foldDefaults: { effort: 'medium', memoizeOutcome: false, budgetAccount: 'root' },
 };
 
-/** Kinds that did not exist in round 1: incomparable under v1 (docs/03, section 4.3). */
+/** Kinds that did not exist in round 1: incomparable under v1. */
 const V1_INEXPRESSIBLE_KINDS = new Set([
   'decision',
   'plan.revision',
@@ -122,7 +122,7 @@ export const deriverV1: KeyDeriver = {
     return sha256Hex(jcsSerialize(c));
   },
   // Round 1 used the same canonicalization rules; the derivations are
-  // frozen as shipped (docs/03, section 4.3).
+  // frozen as shipped.
   schemaHash: schemaHashV2,
   toolsetHash: toolsetHashV2,
   dispositionTable: V1_TABLE,
@@ -148,8 +148,8 @@ function isKeyDeriver(value: unknown): value is KeyDeriver {
 
 /**
  * Builds the per-engine deriver registry: the shipped v1/v2 profiles plus
- * EngineOptions.extraDerivers, the ONLY window extender (docs/03, section
- * 4.5). A malformed extra deriver is a ConfigError before any run effect.
+ * EngineOptions.extraDerivers, the ONLY window extender. A malformed
+ * extra deriver is a ConfigError before any run effect.
  */
 export function buildDeriverRegistry(extraDerivers?: readonly unknown[]): DeriverRegistry {
   const registry = new Map<HashVersion, KeyDeriver>([
@@ -170,7 +170,7 @@ export function buildDeriverRegistry(extraDerivers?: readonly unknown[]): Derive
 /**
  * The one compatibility scan: immediately after load, strictly BEFORE any
  * live call, any append, and any admission reserve; repeated at lease
- * acquire in queue mode (docs/03, section 4.5). Side-effect free.
+ * acquire in queue mode. Side-effect free.
  */
 export function scanJournalCompatibility(
   runId: string,
@@ -204,8 +204,7 @@ export function scanJournalCompatibility(
 
 /**
  * KeyRing over the registry: the live call is projected DOWN into the
- * profile of the stored entry; there is no upward canonization (docs/03,
- * section 4.7).
+ * profile of the stored entry; there is no upward canonization.
  */
 export function registryKeyRing(registry: DeriverRegistry): KeyRing {
   return {

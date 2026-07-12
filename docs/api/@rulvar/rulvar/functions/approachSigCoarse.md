@@ -10,11 +10,11 @@
 function approachSigCoarse(inputs): string;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 approachSigCoarse = sha256(JCS({ sigVersion, agentType, toolsetHash,
 schemaHash, isolation })). Feeds the stall detector and the oscillation
-guard, which keys ACROSS LTID boundaries (docs/07, 3.8).
+guard, which keys ACROSS LTID boundaries.
 
 ## Parameters
 

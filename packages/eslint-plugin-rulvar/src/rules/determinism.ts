@@ -1,5 +1,5 @@
 /**
- * The determinism rule set (M6-T03; docs/06, section 8.4): bare
+ * The determinism rule set (M6-T03): bare
  * Date.now, new Date, Math.random, fetch, and process.env are banned in
  * workflow modules because their values never enter the journal and
  * diverge on replay; the journaled ctx shims replace them. Messages are

@@ -6,7 +6,7 @@
 
 # Interface: JournalSerializationHook
 
-Defined in: [packages/core/src/l0/serialization.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L29)
+Defined in: [packages/core/src/l0/serialization.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L28)
 
 ## Methods
 
@@ -16,7 +16,7 @@ Defined in: [packages/core/src/l0/serialization.ts:29](https://github.com/o-step
 fromStored(e): JournalEntry;
 ```
 
-Defined in: [packages/core/src/l0/serialization.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L33)
+Defined in: [packages/core/src/l0/serialization.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L32)
 
 Applied at load; MUST be symmetric with toStored for replay to hold.
 
@@ -38,7 +38,7 @@ Applied at load; MUST be symmetric with toStored for replay to hold.
 toStored(e): JournalEntry;
 ```
 
-Defined in: [packages/core/src/l0/serialization.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L31)
+Defined in: [packages/core/src/l0/serialization.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L30)
 
 Applied at append; kernel ordering/identity fields MUST pass through.
 

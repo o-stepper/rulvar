@@ -10,7 +10,7 @@
 function journalStoreConformance(mk): ConformanceSuite;
 ```
 
-Defined in: [packages/store-conformance/src/journal.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/store-conformance/src/journal.ts#L72)
+Defined in: [packages/store-conformance/src/journal.ts:71](https://github.com/o-stepper/rulvar/blob/main/packages/store-conformance/src/journal.ts#L71)
 
 ## Parameters
 

@@ -10,7 +10,7 @@
 function runConfigDriftResume(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/m9-cassettes.ts:339](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L339)
+Defined in: [packages/plan/src/m9-cassettes.ts:338](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L338)
 
 config-drift-resume (DEF-2): life 1 runs under maxRevisionsPerRun 2
 and crashes at the pre-append kill point of its second revision; life

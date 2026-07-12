@@ -10,7 +10,7 @@
 function runClassStormSingleTurn(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/m9-cassettes.ts:431](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L431)
+Defined in: [packages/plan/src/m9-cassettes.ts:430](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L430)
 
 class-storm-single-turn (DEF-2): five dependency-chained workers each
 escalate (Flavor A); the orchestrator resolves all five in ONE

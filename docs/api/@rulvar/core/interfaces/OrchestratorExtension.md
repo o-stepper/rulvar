@@ -28,8 +28,8 @@ optional boot(io): void | Promise<void>;
 
 Defined in: [packages/core/src/orchestrator/extension.ts:163](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L163)
 
-Runs strictly BEFORE the orchestrator agent's first entry (docs/07,
-11.6: termination.init precedes the first scheduling entry and the
+Runs strictly BEFORE the orchestrator agent's first entry
+(termination.init precedes the first scheduling entry and the
 budget reserve). On resume it rebuilds state from the journal.
 
 #### Parameters
@@ -140,7 +140,7 @@ optional quiescent(): boolean;
 
 Defined in: [packages/core/src/orchestrator/extension.ts:179](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L179)
 
-Quiescence participation (docs/07, 4.8): the mandatory trigger fires
+Quiescence participation: the mandatory trigger fires
 only when every dispatched child settled AND the extension reports
 nothing running and nothing ready.
 
@@ -158,7 +158,7 @@ tools(io): ToolDef<SchemaSpec>[];
 
 Defined in: [packages/core/src/orchestrator/extension.ts:165](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L165)
 
-Extension tools appended to the mode (c) toolset (docs/07, section 4).
+Extension tools appended to the mode (c) toolset.
 
 #### Parameters
 

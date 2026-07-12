@@ -27,4 +27,4 @@ type EscalationDecision =
 };
 ```
 
-Defined in: [packages/core/src/runtime/escalation.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L50)
+Defined in: [packages/core/src/runtime/escalation.ts:48](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L48)

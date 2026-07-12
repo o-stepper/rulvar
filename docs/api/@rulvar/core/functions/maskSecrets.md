@@ -10,7 +10,7 @@
 function maskSecrets(text): string;
 ```
 
-Defined in: [packages/core/src/l0/serialization.ts:153](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L153)
+Defined in: [packages/core/src/l0/serialization.ts:152](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L152)
 
 Masks credential-shaped substrings in one string.
 

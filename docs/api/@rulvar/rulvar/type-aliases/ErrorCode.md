@@ -26,8 +26,8 @@ type ErrorCode =
   | "knowledge_cas";
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The closed error-code registry (docs/02, section "Error taxonomy").
+The closed error-code registry.
 'agent' is carried by the AgentError value projection, not by a
 RulvarError subclass.

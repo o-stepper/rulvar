@@ -6,7 +6,7 @@
 
 # Class: DedupIndex
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The DedupIndex: a pure fold over spawn roots, severing abandons, and
 node.link entries. Prices fold from journal facts (servedBy, usage)
@@ -33,7 +33,7 @@ new DedupIndex(): DedupIndex;
 abandonedSpend(): AbandonedSpendView;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Returns
 
@@ -47,7 +47,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 allDonorsOf(spawnKey): DonorCandidate[];
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Every donor for a key including claimed ones (diagnostics).
 
@@ -69,7 +69,7 @@ Every donor for a key including claimed ones (diagnostics).
 donorsOf(spawnKey): DonorCandidate[];
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Unclaimed donor candidates for a key, oldest (chain head) first.
 
@@ -91,9 +91,9 @@ Unclaimed donor candidates for a key, oldest (chain head) first.
 oscillationCountOf(spawnKey): number;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Link count per key: the oscillation counter (docs/03, 9.7).
+Link count per key: the oscillation counter.
 
 #### Parameters
 
@@ -113,7 +113,7 @@ Link count per key: the oscillation counter (docs/03, 9.7).
 static fold(entries, options?): DedupIndex;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 

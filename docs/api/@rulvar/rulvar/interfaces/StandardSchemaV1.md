@@ -6,7 +6,7 @@
 
 # Interface: StandardSchemaV1\&lt;Input, Output\&gt;
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The Standard Schema interface.
 
@@ -21,4 +21,4 @@ The Standard Schema interface.
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-standard"></a> `~standard` | `readonly` | [`Props`](/api/@rulvar/rulvar/namespaces/StandardSchemaV1/interfaces/Props.md)\&lt;`Input`, `Output`\&gt; | The Standard Schema properties. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-standard"></a> `~standard` | `readonly` | [`Props`](/api/@rulvar/rulvar/namespaces/StandardSchemaV1/interfaces/Props.md)\&lt;`Input`, `Output`\&gt; | The Standard Schema properties. | `packages/core/dist/index.d.ts` |

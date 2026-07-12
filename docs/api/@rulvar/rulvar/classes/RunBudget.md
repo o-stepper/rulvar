@@ -6,7 +6,7 @@
 
 # Class: RunBudget
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The per-run budget account tree. All spend accounting is per instance;
 the journal remains the durable source (the root is seeded by the
@@ -21,7 +21,7 @@ spawn-admission decision entries, M6).
 new RunBudget(options): RunBudget;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -32,7 +32,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 | `options.events?` | [`RuntimeEventSink`](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md) | - |
 | `options.lifetimeSpawnCap?` | `number` | - |
 | `options.priceUsd?` | (`servedBy`, `usage`) => `number` \| `undefined` | - |
-| `options.seed?` | \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \} | The resume ledger fold (docs/03, section 13.3): spend is never reset and never double-counted; replayed entries are already inside this seed and add no increments. |
+| `options.seed?` | \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \} | The resume ledger fold: spend is never reset and never double-counted; replayed entries are already inside this seed and add no increments. |
 | `options.seed.agentsSpawned` | `number` | - |
 | `options.seed.usage` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | - |
 | `options.seed.usd` | `number` | - |
@@ -45,7 +45,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-ceilingusd"></a> `ceilingUsd?` | `readonly` | `number` | B0; immutable after start. Undefined means no USD ceiling. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-ceilingusd"></a> `ceilingUsd?` | `readonly` | `number` | B0; immutable after start. Undefined means no USD ceiling. | `packages/core/dist/index.d.ts` |
 
 ## Accessors
 
@@ -57,7 +57,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 get committedReserveUsd(): number;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ##### Returns
 
@@ -73,7 +73,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 get exhausted(): boolean;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ##### Returns
 
@@ -89,7 +89,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 get signal(): AbortSignal;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Layer 3 ceiling signal of the run root; live streams sever through it.
 
@@ -107,7 +107,7 @@ Layer 3 ceiling signal of the run root; live streams sever through it.
 get spawnHeadroom(): number;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Spawn headroom under the engine lifetime cap (embedded in admission verdicts).
 
@@ -125,7 +125,7 @@ accountView(scope):
   | undefined;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -146,11 +146,11 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 admitRecovered(reserveUsd, accountScope?): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Resume roll-forward: commits a reserve recovered from a journaled
 spawn-admission decision entry without re-evaluating admission
-(docs/06, 5.1: reserves are recovered, never re-estimated).
+(reserves are recovered, never re-estimated).
 
 #### Parameters
 
@@ -171,12 +171,12 @@ spawn-admission decision entry without re-evaluating admission
 admitSpawn(reserveUsd, accountScope?): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Layer 1: admission before spawn. Blocks when spent + committedReserve
 has reached the ceiling on ANY account in the ancestor chain of
 `accountScope`, otherwise commits the reserve along the whole chain.
-Also enforces the engine lifetime spawn cap (docs/06, "Scheduler").
+Also enforces the engine lifetime spawn cap.
 
 #### Parameters
 
@@ -197,7 +197,7 @@ Also enforces the engine lifetime spawn cap (docs/06, "Scheduler").
 beforeTurn(accountScope?): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Layer 2: the per-turn guard. A turn that would cross any ceiling in the chain is not dispatched.
 
@@ -219,9 +219,9 @@ Layer 2: the per-turn guard. A turn that would cross any ceiling in the chain is
 commitFinalizeReserve(scope, reserveUsd): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Registers the orchestrator finalize reserve (DEF-7, docs/07 12.2):
+Registers the orchestrator finalize reserve (DEF-7):
 absolute dollars set on the named account AND the run root, so
 admission never lets any spawn eat the finalization money even
 against whole-run exhaustion. Kept SEPARATE from committedReserveUsd
@@ -247,11 +247,11 @@ Idempotent: re-registering on resume keeps the journaled amount.
 markExhausted(): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Marks the run exhausted without a ceiling event: the orchestrator
 finalize fallback maps to outcome 'exhausted' with the synthesized
-partial value (DEF-7, docs/07 12.4; exhaustion is never null).
+partial value (DEF-7; exhaustion is never null).
 
 #### Returns
 
@@ -268,7 +268,7 @@ onUsage(
    accountScope?): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Live accounting; spend propagates from `accountScope` to every
 ancestor. Crossing a ceiling severs the crossing account's subtree
@@ -295,9 +295,9 @@ in-flight agent; providers bill severed streams).
 openAccount(scope, options): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Opens a child sub-account under `parentScope` (docs/06, section 5.4).
+Opens a child sub-account under `parentScope`.
 Re-opening an existing scope is the resume roll-forward path: the
 recorded ceiling wins once and the accumulated state is kept.
 
@@ -323,7 +323,7 @@ recorded ceiling wins once and the accumulated state is kept.
 releaseFinalizeReserve(scope): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The forced finish CONSUMES its reserve (DEF-7
 reserve-survives-run-exhaustion): once the cap decision is durable
@@ -350,7 +350,7 @@ frozen past the cap, so nothing else can take it.
 releaseReserve(reserveUsd, accountScope?): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The reserve is replaced by real spend when the spawn settles.
 
@@ -373,7 +373,7 @@ The reserve is replaced by real spend when the spawn settles.
 remainderOf(scope): number | undefined;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The admission remainder of one account: ceiling minus spend minus
 committed reserves minus the finalize reserve (DEF-7: childBudget
@@ -397,9 +397,9 @@ fractions never eat finalization money). Undefined when uncapped.
 remaining(): Spend | null;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Null when the run has no USD ceiling (docs/06, section "Canonical Ctx interface").
+Null when the run has no USD ceiling.
 
 #### Returns
 
@@ -413,7 +413,7 @@ Null when the run has no USD ceiling (docs/06, section "Canonical Ctx interface"
 signalOf(scope): AbortSignal | undefined;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The layer-3 signal of one sub-account's subtree, when it exists.
 
@@ -435,7 +435,7 @@ The layer-3 signal of one sub-account's subtree, when it exists.
 spent(): Spend;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Returns
 

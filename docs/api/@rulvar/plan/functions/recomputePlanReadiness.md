@@ -10,7 +10,7 @@
 function recomputePlanReadiness(plan): TaskPlan;
 ```
 
-Defined in: [packages/plan/src/plan-state.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-state.ts#L154)
+Defined in: [packages/plan/src/plan-state.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-state.ts#L157)
 
 Recomputes the derived pending/ready boundary after a fold step: every
 schedulable node (currently pending or ready) becomes `ready` when its

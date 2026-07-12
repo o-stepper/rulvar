@@ -8,7 +8,7 @@
 
 Defined in: [packages/core/src/runtime/agent-loop.ts:147](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L147)
 
-Budget hooks bound by the three-layer budget (docs/06, section "Three-layer budget").
+Budget hooks bound by the three-layer budget.
 
 ## Properties
 

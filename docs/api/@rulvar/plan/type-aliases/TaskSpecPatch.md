@@ -10,6 +10,6 @@
 type TaskSpecPatch = Partial<TaskSpec>;
 ```
 
-Defined in: [packages/plan/src/task-spec.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/task-spec.ts#L39)
+Defined in: [packages/plan/src/task-spec.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/task-spec.ts#L38)
 
-The amend_task patch form: every field optional (docs/07, 4.7).
+The amend_task patch form: every field optional.

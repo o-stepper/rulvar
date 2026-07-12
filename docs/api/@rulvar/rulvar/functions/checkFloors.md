@@ -10,7 +10,7 @@
 function checkFloors(options): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Enforces the floors for one resolved invocation. `taskClass` is the
 profile-declared class; when absent (unclassified) only byRole floors

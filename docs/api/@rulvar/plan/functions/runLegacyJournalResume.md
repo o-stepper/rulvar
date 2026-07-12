@@ -10,7 +10,7 @@
 function runLegacyJournalResume(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/m9-cassettes.ts:1238](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L1238)
+Defined in: [packages/plan/src/m9-cassettes.ts:1237](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L1237)
 
 legacy-journal-resume (DEF-3): a journal whose spawns carry no lineage
 records (the pre-lineage shape) resumes on the current engine; the

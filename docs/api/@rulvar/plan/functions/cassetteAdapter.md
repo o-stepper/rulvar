@@ -12,7 +12,7 @@ function cassetteAdapter(script): ProviderAdapter & {
 };
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:111](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L111)
+Defined in: [packages/plan/src/cassettes.ts:110](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L110)
 
 ## Parameters
 

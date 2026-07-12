@@ -10,7 +10,7 @@
 function isStandardSchemaSpec(spec): spec is StandardSchemaV1<unknown, unknown>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Form-1 guard: the value implements the Standard Schema interface. Some
 libraries expose callable schemas (ArkType types are functions), so both

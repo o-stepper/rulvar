@@ -1,14 +1,13 @@
 /**
  * profileCard (M6-T04): the one agent vocabulary both orchestration
- * modes speak (docs/06, section 9.3; docs/07, section "Orchestrator
- * toolset"). The SAME text feeds the planner prompt (mode b) and the
+ * modes speak. The SAME text feeds the planner prompt (mode b) and the
  * spawn_agent agentType guidance (mode c).
  *
  * The card is a PURE function of the registry and byte-stable across
  * runs: profiles render sorted by name, and only model-agnostic fields
  * appear (name, description, tool names, taskClass, escalation opt-in,
  * estCost). Models are NEVER named on the card: the orchestrator's only
- * model influence is model_hint.startTier (docs/07, 4.1).
+ * model influence is model_hint.startTier.
  */
 import type { AgentProfile } from '../engine/ctx.js';
 
@@ -16,7 +15,7 @@ function toolNamesOf(profile: AgentProfile): string[] {
   const tools = profile.tools ?? [];
   return tools.map((entry) => {
     if (typeof entry === 'string') {
-      // A registered profile name whose toolset is borrowed (docs/06, 8.3).
+      // A registered profile name whose toolset is borrowed.
       return `${entry} (profile toolset)`;
     }
     if ('kind' in entry && entry.kind === 'tool') {

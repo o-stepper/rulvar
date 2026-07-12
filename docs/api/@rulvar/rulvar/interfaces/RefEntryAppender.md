@@ -6,7 +6,7 @@
 
 # Interface: RefEntryAppender
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The append surface the arbiter drives (implemented by the Replayer).
 
@@ -18,7 +18,7 @@ The append surface the arbiter drives (implemented by the Replayer).
 appendRefEntry(input): Promise<JournalEntry>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 

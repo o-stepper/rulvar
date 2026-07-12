@@ -6,7 +6,7 @@
 
 # Class: AdmissionController
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 ## Constructors
 
@@ -16,7 +16,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 new AdmissionController(options): AdmissionController;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -48,7 +48,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 get escalationLimits(): EscalationLimits;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The validated lineage limits this controller enforces (DEF-3).
 
@@ -68,7 +68,7 @@ get termination():
   | undefined;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The bound account, when this is a PlanRunner run (DEF-2).
 
@@ -85,7 +85,7 @@ The bound account, when this is a PlanRunner run (DEF-2).
 admit(spec, options?): AdmissionDecision;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Evaluates one spawn live, strictly BEFORE its decision entry is
 appended. On admit the reserve is committed on the whole ancestor
@@ -115,10 +115,10 @@ re-evaluation.
 bindTermination(account): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Binds the run's TerminationAccount (DEF-2; PlanRunner runs only,
-docs/07 section 1): from bind time on, every admitted spawn of any
+Binds the run's TerminationAccount (DEF-2; PlanRunner runs only):
+from bind time on, every admitted spawn of any
 origin debits one spawnUnit atomically with its decision entry, and
 a declared ladder longer than the frozen kMax rejects with
 ladder_exceeds_frozen. Non-PlanRunner runs never bind an account and
@@ -154,9 +154,9 @@ evaluateLineage(spec): {
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The lineage half of admission (DEF-3, docs/03 section 10.5): folds are
+The lineage half of admission (DEF-3): folds are
 computed live STRICTLY BEFORE the carrying decision entry is appended;
 the caller embeds the returned block in the entry and replay reads it
 back byte-exact. Enforces the single-live-attempt invariant
@@ -194,8 +194,8 @@ back byte-exact. Enforces the single-live-attempt invariant
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `decision` | \| \{ `kind`: `"ok"`; `lineage`: [`SpawnLineage`](/api/@rulvar/rulvar/interfaces/SpawnLineage.md); \} \| \{ `kind`: `"reject"`; `reason`: \{ `code`: `"lineage_busy"` \| `"lineage_exhausted"`; \}; \} | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `statsBefore?` | [`LineageStats`](/api/@rulvar/rulvar/interfaces/LineageStats.md) | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| `decision` | \| \{ `kind`: `"ok"`; `lineage`: [`SpawnLineage`](/api/@rulvar/rulvar/interfaces/SpawnLineage.md); \} \| \{ `kind`: `"reject"`; `reason`: \{ `code`: `"lineage_busy"` \| `"lineage_exhausted"`; \}; \} | `packages/core/dist/index.d.ts` |
+| `statsBefore?` | [`LineageStats`](/api/@rulvar/rulvar/interfaces/LineageStats.md) | `packages/core/dist/index.d.ts` |
 
 ***
 
@@ -207,7 +207,7 @@ lineage():
   | undefined;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The lineage counter folds over the run journal (absorbed lazily).
 
@@ -224,7 +224,7 @@ The lineage counter folds over the run journal (absorbed lazily).
 recoverChild(nodeKey): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Resume roll-forward for an orchestrator child (M6-T07): restores the
 children-quota counter only. The budget seed already counts settled
@@ -249,12 +249,12 @@ through the ctx.agent dispatch path.
 recoverInFlight(parentAccountScope, verdict): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Resume roll-forward for an admission whose decision entry exists but
 whose child has NOT settled: re-applies the recorded reserve and
-counters without re-evaluating any limit (docs/07, 7.1: replay never
-re-evaluates admission; docs/06, 5.1: reserves are recovered, never
+counters without re-evaluating any limit (replay never
+re-evaluates admission; reserves are recovered, never
 re-estimated).
 
 #### Parameters
@@ -276,12 +276,12 @@ re-estimated).
 recoverSettled(parentAccountScope): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Resume roll-forward for a child that already SETTLED before the
 resume: re-registers the counters (maxChildrenPerNode, the lifetime
 cap, statsBefore fidelity) without committing any reserve; the spend
-itself sits in the root ledger seed (docs/03, 13.3).
+itself sits in the root ledger seed.
 
 #### Parameters
 
@@ -301,7 +301,7 @@ itself sits in the root ledger seed (docs/03, 13.3).
 registerLineageAdmit(logicalTaskId): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Registers a live lineage admit the moment its caller commits to
 appending the decision entry, closing the single-live-attempt window

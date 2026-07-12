@@ -10,11 +10,11 @@
 function runDecomposeMintsChildren(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:862](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L862)
+Defined in: [packages/plan/src/cassettes.ts:861](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L861)
 
 decompose-mints-children (DEF-3): an escalation decomposition mints
 FRESH logical tasks inside the decision entry; the spawn debits ride
-the same entry (docs/07, 8.1 rule 6, 11.3 b).
+the same entry.
 
 ## Returns
 

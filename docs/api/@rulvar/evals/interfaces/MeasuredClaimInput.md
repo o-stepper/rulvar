@@ -24,10 +24,10 @@ Defined in: [packages/evals/src/committer.ts:20](https://github.com/o-stepper/ru
 | `metrics.n` | `number` | - | [packages/evals/src/committer.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/committer.ts#L30) |
 | `metrics.passRate` | `number` | - | [packages/evals/src/committer.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/committer.ts#L29) |
 | <a id="property-modelepoch"></a> `modelEpoch?` | \{ `canaryFingerprint?`: `string`; `capsHash?`: `string`; `pricingVersion?`: `string`; `registryVersion?`: `string`; \} | - | [packages/evals/src/committer.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/committer.ts#L39) |
-| `modelEpoch.canaryFingerprint?` | `string` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `modelEpoch.capsHash?` | `string` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `modelEpoch.pricingVersion?` | `string` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| `modelEpoch.registryVersion?` | `string` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| `modelEpoch.canaryFingerprint?` | `string` | - | `packages/core/dist/index.d.ts` |
+| `modelEpoch.capsHash?` | `string` | - | `packages/core/dist/index.d.ts` |
+| `modelEpoch.pricingVersion?` | `string` | - | `packages/core/dist/index.d.ts` |
+| `modelEpoch.registryVersion?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-observedat"></a> `observedAt` | `string` | ISO date of the sweep run. | [packages/evals/src/committer.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/committer.ts#L37) |
 | <a id="property-polarity"></a> `polarity` | `"strength"` \| `"weakness"` | - | [packages/evals/src/committer.ts:25](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/committer.ts#L25) |
 | <a id="property-statement"></a> `statement` | `string` | A typed template render, never a quote from tool output. | [packages/evals/src/committer.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/committer.ts#L27) |

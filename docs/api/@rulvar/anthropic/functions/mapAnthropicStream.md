@@ -14,14 +14,14 @@ function mapAnthropicStream(
 options?): Promise<TurnMapping>;
 ```
 
-Defined in: [packages/anthropic/src/wire.ts:431](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L431)
+Defined in: [packages/anthropic/src/wire.ts:427](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L427)
 
 Maps one Messages API stream into ChatEvents. Emits an early usage event
 from message_start (the input side is known immediately) and exactly one
 terminal finish unless the turn paused (pause_turn) or errored.
 `carryRetained` holds thinking blocks from earlier pause_turn
 continuations of the same turn so the terminal finish ships the whole
-turn's retention payload (docs/04, section 2.3, M4-T02).
+turn's retention payload (M4-T02).
 
 ## Parameters
 

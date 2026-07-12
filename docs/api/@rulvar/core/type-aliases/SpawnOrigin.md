@@ -19,4 +19,4 @@ type SpawnOrigin =
 
 Defined in: [packages/core/src/orchestrator/admission.ts:108](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L108)
 
-Every spawn origin routed through the single admission point (docs/07, 7.1).
+Every spawn origin routed through the single admission point.

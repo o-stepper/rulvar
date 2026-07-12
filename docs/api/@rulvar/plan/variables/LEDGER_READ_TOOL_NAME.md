@@ -10,4 +10,4 @@
 const LEDGER_READ_TOOL_NAME: "ledger_read" = 'ledger_read';
 ```
 
-Defined in: [packages/plan/src/tools.ts:184](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L184)
+Defined in: [packages/plan/src/tools.ts:183](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L183)

@@ -10,9 +10,9 @@
 function phiInitialOf(limits): number;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-Phi0 = V0 + C * S0, finite and fixed in termination.init (docs/07, 11.4).
+Phi0 = V0 + C * S0, finite and fixed in termination.init.
 
 ## Parameters
 

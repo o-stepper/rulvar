@@ -2,7 +2,8 @@
  * Reuse-by-reference: SpawnKey dedup, donor rules, node.link, and the
  * abandoned-spend ledger (M7-T07, DEF-5).
  *
- * Owning spec: docs/03-journal-spec.md, section 9; docs/07, section 7.3.
+ * Full contract: https://docs.rulvar.com/guide/journal and
+ * https://docs.rulvar.com/guide/adaptive-orchestration.
  * Oscillation (cancel followed by a byte-identical re-add) no longer
  * means full repayment: completed work under an abandoned scope comes
  * back by reference, partially completed work grafts through a
@@ -23,13 +24,13 @@ import { jcsSerialize } from '../l0/jcs.js';
 import { childCoveragePrefix } from './disposition.js';
 import type { LogicalTaskId } from './lineage.js';
 
-/** Kernel contentHash of a spawn root entry (docs/03, 9.2). */
+/** Kernel contentHash of a spawn root entry. */
 export type SpawnKey = string;
 
-/** Plan-node identity (docs/07, 3.1). */
+/** Plan-node identity. */
 type NodeId = string;
 
-/** The rich donor descriptor embedded in reuse verdicts (docs/03, 9.9). */
+/** The rich donor descriptor embedded in reuse verdicts. */
 export interface DonorRef {
   /** Head of the link chain. */
   nodeId: NodeId;
@@ -38,13 +39,13 @@ export interface DonorRef {
   /** Transitive chain, oldest first. */
   chain: NodeId[];
   spawnKey: SpawnKey;
-  /** Lineage continues through the link (docs/03, 9.6; DEF-3). */
+  /** Lineage continues through the link (DEF-3). */
   logicalTaskId: LogicalTaskId;
   /** Paid under the chain at the verdict snapshot. */
   paidUsd: number;
 }
 
-/** Graft bootstrap payload (docs/03, 9.9). */
+/** Graft bootstrap payload. */
 export interface GraftBoot {
   /** Retained by the abandon entry, when it was. */
   checkpointRef?: string;
@@ -53,14 +54,14 @@ export interface GraftBoot {
   worktreePinned: boolean;
 }
 
-/** Telemetry for a SpawnKey match admitted fresh (docs/03, 9.9). */
+/** Telemetry for a SpawnKey match admitted fresh. */
 export interface DedupNote {
   spawnKey: SpawnKey;
   donorNodeId: NodeId;
   reason: 'donor_failed' | 'no_paid_entries' | 'graft_unsafe' | 'donor_active';
 }
 
-/** The reuse block of AdmissionConfig (docs/03, 9.9). */
+/** The reuse block of AdmissionConfig. */
 export interface ReuseConfig {
   /** Default true. */
   enabled?: boolean;
@@ -68,13 +69,13 @@ export interface ReuseConfig {
   allowGraft?: boolean;
   /** Default 2 (Appendix A). */
   maxOscillationsPerKey?: number;
-  /** Optional RevisionGuards trigger on netLostUsd (docs/07, 3.8). */
+  /** Optional RevisionGuards trigger on netLostUsd. */
   maxAbandonedNetUsdFraction?: number;
 }
 
 export const DEFAULT_MAX_OSCILLATIONS_PER_KEY = 2;
 
-/** The consumer-facing reuse mark on results (docs/03, 9.9). */
+/** The consumer-facing reuse mark on results. */
 export interface AgentResultMeta {
   reusedFrom?: {
     nodeId: NodeId;
@@ -84,7 +85,7 @@ export interface AgentResultMeta {
   };
 }
 
-/** The node.link entry value (docs/03, 9.5): an ordinary content-keyed effect entry. */
+/** The node.link entry value: an ordinary content-keyed effect entry. */
 export interface NodeLinkValue {
   targetNodeId: NodeId;
   /** plan/NewNodeId. */
@@ -96,7 +97,7 @@ export interface NodeLinkValue {
   spawnKey: SpawnKey;
   logicalTaskId: LogicalTaskId;
   mode: 'full' | 'graft';
-  /** full is shareable, graft is exclusive (docs/03, 9.5). */
+  /** full is shareable, graft is exclusive. */
   claim: 'shared' | 'exclusive';
   checkpointRef?: string;
   reclaimedUsdAtLink: number;
@@ -104,7 +105,7 @@ export interface NodeLinkValue {
 }
 
 /**
- * node.link identity (docs/03, 9.5): sha256 of {kind, spawnKey,
+ * node.link identity: sha256 of {kind, spawnKey,
  * donorScope, targetNodeId}; targetNodeId is deterministic on replay
  * because NodeIds are assigned inside plan.revision.
  */
@@ -114,7 +115,7 @@ export function nodeLinkKey(spawnKey: SpawnKey, donorScope: string, targetNodeId
     .digest('hex');
 }
 
-/** The abandoned-spend ledger fold (docs/03, 9.7). */
+/** The abandoned-spend ledger fold. */
 export interface AbandonedSpendView {
   abandonedUsd: number;
   reclaimedUsd: number;
@@ -122,7 +123,7 @@ export interface AbandonedSpendView {
   byKey: Record<SpawnKey, { oscillationCount: number; abandonedUsd: number; reclaimedUsd: number }>;
 }
 
-/** One donor candidate surfaced by the DedupIndex fold (docs/03, 9.3). */
+/** One donor candidate surfaced by the DedupIndex fold. */
 export interface DonorCandidate {
   rootEntryRef: EntryRef;
   rootScope: string;
@@ -144,7 +145,7 @@ export interface DonorCandidate {
   retainedCheckpoint: boolean;
   /** Seq of the exclusive node.link that captured this donor, if any. */
   claimedBy?: EntryRef;
-  /** Scope chain for transitive drainage, oldest first (docs/03, 9.6). */
+  /** Scope chain for transitive drainage, oldest first. */
   chain: string[];
 }
 
@@ -196,7 +197,7 @@ export class DedupIndex {
       if (entry.kind === 'abandon' && entry.ref !== undefined) {
         const target = bySeq.get(entry.ref);
         if (target === undefined || isCovered(target)) {
-          // Repeated abandons fold to noop (docs/03, 9.1).
+          // Repeated abandons fold to noop.
           continue;
         }
         coveredSeqs.add(target.seq);
@@ -212,7 +213,7 @@ export class DedupIndex {
         // Payments under the donor's coverage at fold time: for plan
         // nodes the branch lives in the root's OWN scope (plan/NodeId,
         // exclusive to the node); nested spawns live under the spawn
-        // prefix (docs/03, 2.2). Shared parent scopes are never swept.
+        // prefix. Shared parent scopes are never swept.
         const prefixes = [spawnPrefix];
         if (isPlanNodeScope(target.scope) && target.scope !== spawnPrefix) {
           prefixes.push(target.scope);
@@ -245,7 +246,7 @@ export class DedupIndex {
         // A severed GRAFTED node inherits its donor ancestry: the new
         // head's chain extends the captured link's chain, and the
         // chain-tail payments keep the head graft-eligible so the next
-        // add drains the whole chain transitively (docs/03, 9.6).
+        // add drains the whole chain transitively.
         const chainTail = index.linkByTargetScope.get(donorScope)?.chain ?? [];
         if (chainTail.length > 0 && eligiblePaidUsd <= 0) {
           for (const member of entries) {
@@ -310,7 +311,7 @@ export class DedupIndex {
         byKey.oscillationCount += 1;
         byKey.reclaimedUsd += value.reclaimedUsdAtLink;
         // Claims resolve first-wins in journal order; chains extend for
-        // transitive drainage (docs/03, 9.6).
+        // transitive drainage.
         const donorsOfKey = index.donors.get(value.spawnKey) ?? [];
         const donor = donorsOfKey.find(
           (candidate) =>
@@ -340,7 +341,7 @@ export class DedupIndex {
     return this.donors.get(spawnKey) ?? [];
   }
 
-  /** Link count per key: the oscillation counter (docs/03, 9.7). */
+  /** Link count per key: the oscillation counter. */
   oscillationCountOf(spawnKey: SpawnKey): number {
     return this.links.get(spawnKey) ?? 0;
   }
@@ -357,7 +358,7 @@ export class DedupIndex {
   }
 }
 
-/** A plan-node scope (docs/03, 2.1): its entries belong to one node. */
+/** A plan-node scope: its entries belong to one node. */
 function isPlanNodeScope(scope: string): boolean {
   return /(^|\/)plan\/[0-9A-Z]{26}$/.test(scope);
 }
@@ -375,8 +376,8 @@ function readIsolation(entry: JournalEntry): string {
 }
 
 /**
- * The four-outcome verdict evaluation on a SpawnKey match (docs/03,
- * 9.4), computed once live at the fold head and embedded into the
+ * The four-outcome verdict evaluation on a SpawnKey match, computed
+ * once live at the fold head and embedded into the
  * deciding entry; replay never re-evaluates.
  */
 export function evaluateReuse(
@@ -402,7 +403,7 @@ export function evaluateReuse(
     return { kind: 'reject_osc_guard', oscillationCount };
   }
   // Oldest first among UNCLAIMED donors: an exclusive node.link captures
-  // its donor first-wins (docs/03, 9.3 rule 3); when every candidate is
+  // its donor first-wins; when every candidate is
   // captured the add degrades to a fresh admit with reason donor_active.
   const donor = candidates.find((candidate) => candidate.claimedBy === undefined);
   if (donor === undefined) {

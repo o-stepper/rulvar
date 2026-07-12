@@ -1,7 +1,7 @@
 /**
  * Shared AST helpers for the determinism rules (M6-T03).
  *
- * Owning spec: docs/06-execution-spec.md, section 8.4. The rules ban
+ * Owning contract: https://docs.rulvar.com/guide/planner. The rules ban
  * ambient nondeterminism in workflow modules and point at the journaled
  * ctx shims instead; diagnostics are structural so the mode (b)
  * self-repair loop can consume them.
@@ -61,7 +61,7 @@ export const CTX_CALL_METHODS: ReadonlySet<string> = new Set([
   'pipeline',
 ]);
 
-/** Bare sandbox globals that are ctx calls in compiled scripts (docs/06, 8.2). */
+/** Bare sandbox globals that are ctx calls in compiled scripts. */
 export const SANDBOX_CALL_GLOBALS: ReadonlySet<string> = new Set([
   'agent',
   'workflow',

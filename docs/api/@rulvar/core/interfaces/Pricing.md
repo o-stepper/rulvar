@@ -8,8 +8,8 @@
 
 Defined in: [packages/core/src/l0/spi/provider.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L27)
 
-Per-model pricing in USD per million tokens (docs/04, section
-"Pricing"). The registry's versioned price table wins over adapter-
+Per-model pricing in USD per million tokens. The registry's
+versioned price table wins over adapter-
 reported caps.pricing, which is a fallback only.
 
 ## Properties

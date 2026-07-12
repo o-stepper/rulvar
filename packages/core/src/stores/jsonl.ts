@@ -4,7 +4,7 @@
  * beside the journal and are replaced atomically, so listRuns never
  * parses payloads.
  *
- * Contract (docs/03, section "Storage SPI", DEF-4 tightening):
+ * Contract (DEF-4 tightening):
  * - A1 atomicity: a torn trailing line (crash mid-append) is never
  *   visible in load; it is dropped and overwritten by the next append.
  * - A2 total per-run order: load returns append order, stable across
@@ -15,7 +15,7 @@
  *
  * Leasing is NOT implemented here: LeasableStore ships with
  * @rulvar/store-sqlite (M5); JsonlFileStore is single-writer by
- * convention (docs/03, section "Shipped stores").
+ * convention.
  */
 import {
   appendFileSync,
@@ -170,7 +170,7 @@ const TRANSCRIPT_SUFFIX = '.bin';
 /**
  * File-backed TranscriptStore (M6-T02): blobs (transcripts, checkpoints,
  * persisted CompiledWorkflow sources) as one file per ref under `dir`,
- * so compiled runs resume across processes (docs/06, 10.2). Refs follow
+ * so compiled runs resume across processes. Refs follow
  * the `<runId>/<name>` convention; each path segment is checked
  * filesystem-safe and nested segments become directories.
  */
@@ -245,7 +245,7 @@ export class FileTranscriptStore implements TranscriptStore {
     try {
       rmSync(this.blobPath(ref));
     } catch (error) {
-      // A missing ref is a no-op, never an error (docs/03, 12.4).
+      // A missing ref is a no-op, never an error.
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         throw error;
       }

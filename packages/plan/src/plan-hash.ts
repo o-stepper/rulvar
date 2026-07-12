@@ -2,15 +2,15 @@
  * planHash (M7-T01): the canonical projection of a TaskPlan and its
  * sha256, plus the fold-head assertion the appenders use.
  *
- * Owning spec: docs/07-adaptive-orchestration-spec.md, section 3.4
- * (DEF-8): planHash = sha256 of the canonical JSON of PlanState, nodes
- * sorted by NodeId, each node exactly the docs/07 3.1 record with `deps`
+ * DEF-8: planHash = sha256 of the canonical JSON of PlanState, nodes
+ * sorted by NodeId, each node exactly the canonicalNode record with `deps`
  * sorted in the hash, plus the guard fold counters revisionCount and
  * droppedRevisionStreak. Nothing wall-clock, nothing telemetric, enters
  * the hash. Canonicalization and digest ride the frozen hashVersion 2
  * deriver (RFC 8785 JCS + sha256), so the plan chain shares the identity
  * pipeline of the journal kernel; a future grammar change arrives as a
- * new deriver, never as an edit here (docs/03, section "hashVersion").
+ * new deriver, never as an edit here
+ * (https://docs.rulvar.com/guide/journal-compatibility).
  */
 import { CURRENT_HASH_VERSION, PlanInvariantError, deriverV2 } from '@rulvar/core';
 import type { EntryRef, HashVersion, KeyDeriver } from '@rulvar/core';
@@ -19,7 +19,7 @@ import type { PlanNode, TaskPlan } from './plan-state.js';
 /** The hashVersion whose profile computes planHash today. */
 export const PLAN_HASH_VERSION: HashVersion = CURRENT_HASH_VERSION;
 
-/** The exact per-node projection entering the hash (docs/07, 3.1). */
+/** The exact per-node projection entering the hash. */
 function canonicalNode(node: PlanNode): Record<string, unknown> {
   const projected: Record<string, unknown> = {
     nodeId: node.nodeId,
@@ -43,7 +43,7 @@ function canonicalNode(node: PlanNode): Record<string, unknown> {
 
 /**
  * The canonical JSON projection of PlanState: nodes sorted by NodeId plus
- * the guard fold counters, nothing else (docs/07, 3.4).
+ * the guard fold counters, nothing else.
  */
 export function canonicalPlanState(plan: TaskPlan): Record<string, unknown> {
   const nodes = Object.values(plan.nodes)
@@ -59,7 +59,7 @@ export function canonicalPlanState(plan: TaskPlan): Record<string, unknown> {
 /**
  * planHash under one deriver profile (default: the current hashVersion 2
  * profile). Replay recomputes each entry's planHashAfter with the
- * predicate of that entry's OWN hashVersion (docs/07, 3.4), so the
+ * predicate of that entry's OWN hashVersion, so the
  * deriver is a parameter, not an ambient.
  */
 export function planHash(plan: TaskPlan, deriver: KeyDeriver = deriverV2): string {
@@ -67,7 +67,7 @@ export function planHash(plan: TaskPlan, deriver: KeyDeriver = deriverV2): strin
 }
 
 /**
- * The append-time head assertion (docs/07, 3.4): planHashBefore of the
+ * The append-time head assertion: planHashBefore of the
  * entry being appended MUST equal the current fold head. A failure is an
  * engine bug and raises the typed PlanInvariantError; the run finishes
  * with outcome error, never a silent brick.

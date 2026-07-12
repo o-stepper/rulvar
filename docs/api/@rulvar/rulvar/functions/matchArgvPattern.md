@@ -10,7 +10,7 @@
 function matchArgvPattern(pattern, argv): boolean;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Pattern grammar (5.1): literal words match one identical token; `*`
 matches exactly one token; `**` matches zero or more remaining tokens

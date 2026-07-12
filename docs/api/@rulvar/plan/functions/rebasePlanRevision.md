@@ -10,9 +10,9 @@
 function rebasePlanRevision(request, context): RebaseEvaluation;
 ```
 
-Defined in: [packages/plan/src/rebase.ts:90](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/rebase.ts#L90)
+Defined in: [packages/plan/src/rebase.ts:89](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/rebase.ts#L89)
 
-Steps 2-4 of the committed algorithm (docs/07, 3.5): base validation,
+Steps 2-4 of the committed algorithm: base validation,
 sequential per-op conflict resolution against the mutating head, and
 the post-revision counter update. Pure: the caller owns the lock, the
 append, and every effect.

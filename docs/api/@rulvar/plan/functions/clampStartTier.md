@@ -10,10 +10,10 @@
 function clampStartTier(ladder, hint?): number;
 ```
 
-Defined in: [packages/plan/src/ladder.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ladder.ts#L64)
+Defined in: [packages/plan/src/ladder.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ladder.ts#L63)
 
-Clamps the orchestrator's `model_hint.startTier` to the declared ladder
-(docs/07, section 4.2): the hint is the ONLY model influence the
+Clamps the orchestrator's `model_hint.startTier` to the declared ladder:
+the hint is the ONLY model influence the
 orchestrator has, and it never names a model.
 
 ## Parameters

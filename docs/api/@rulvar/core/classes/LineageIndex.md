@@ -6,13 +6,12 @@
 
 # Class: LineageIndex
 
-Defined in: [packages/core/src/journal/lineage.ts:355](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L355)
+Defined in: [packages/core/src/journal/lineage.ts:354](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L354)
 
 The incremental lineage fold: attempts, escalation debits, stall
 streaks, single-live-attempt, and legacy canonization, computed from
 journal entries only. `absorb` is idempotent by seq cursor; every read
-accepts an optional `uptoSeq` pin so renders stay snapshot-stable
-(docs/03, 10.4; docs/07, 8.3).
+accepts an optional `uptoSeq` pin so renders stay snapshot-stable.
 
 ## Constructors
 
@@ -34,7 +33,7 @@ new LineageIndex(): LineageIndex;
 absorb(entries): void;
 ```
 
-Defined in: [packages/core/src/journal/lineage.ts:373](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L373)
+Defined in: [packages/core/src/journal/lineage.ts:372](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L372)
 
 Absorbs new entries (seq beyond the cursor); earlier ones are no-ops.
 
@@ -56,7 +55,7 @@ Absorbs new entries (seq beyond the cursor); earlier ones are no-ops.
 attemptsUsed(logicalTaskId, uptoSeq?): number;
 ```
 
-Defined in: [packages/core/src/journal/lineage.ts:682](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L682)
+Defined in: [packages/core/src/journal/lineage.ts:681](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L681)
 
 #### Parameters
 
@@ -77,7 +76,7 @@ Defined in: [packages/core/src/journal/lineage.ts:682](https://github.com/o-step
 escalationsUsed(logicalTaskId, uptoSeq?): number;
 ```
 
-Defined in: [packages/core/src/journal/lineage.ts:686](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L686)
+Defined in: [packages/core/src/journal/lineage.ts:685](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L685)
 
 #### Parameters
 
@@ -98,12 +97,12 @@ Defined in: [packages/core/src/journal/lineage.ts:686](https://github.com/o-step
 hasLiveAttempt(logicalTaskId): boolean;
 ```
 
-Defined in: [packages/core/src/journal/lineage.ts:700](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L700)
+Defined in: [packages/core/src/journal/lineage.ts:699](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L699)
 
 True while the LTID has an unsettled attempt (admitted, dispatched, or
 redispatched without a terminal), including admits whose decision
 entries have not landed yet. Backs the single-live-attempt invariant:
-a competing admit gets `lineage_busy` (docs/03, 10.5).
+a competing admit gets `lineage_busy`.
 
 #### Parameters
 
@@ -123,7 +122,7 @@ a competing admit gets `lineage_busy` (docs/03, 10.5).
 knownLogicalTaskIds(): string[];
 ```
 
-Defined in: [packages/core/src/journal/lineage.ts:772](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L772)
+Defined in: [packages/core/src/journal/lineage.ts:771](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L771)
 
 Every LTID the fold has seen (diagnostics and renders).
 
@@ -139,7 +138,7 @@ Every LTID the fold has seen (diagnostics and renders).
 noteAdmitted(logicalTaskId): void;
 ```
 
-Defined in: [packages/core/src/journal/lineage.ts:368](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L368)
+Defined in: [packages/core/src/journal/lineage.ts:367](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L367)
 
 Registers a live admit strictly before its decision entry lands.
 
@@ -161,9 +160,9 @@ Registers a live admit strictly before its decision entry lands.
 stallStreak(logicalTaskId, uptoSeq?): number;
 ```
 
-Defined in: [packages/core/src/journal/lineage.ts:710](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L710)
+Defined in: [packages/core/src/journal/lineage.ts:709](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L709)
 
-The stall streak per docs/03, 10.4 (pinnable to a snapshot seq).
+The stall streak (pinnable to a snapshot seq).
 
 #### Parameters
 
@@ -184,9 +183,9 @@ The stall streak per docs/03, 10.4 (pinnable to a snapshot seq).
 statsOf(logicalTaskId, uptoSeq?): LineageStats;
 ```
 
-Defined in: [packages/core/src/journal/lineage.ts:734](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L734)
+Defined in: [packages/core/src/journal/lineage.ts:733](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/lineage.ts#L733)
 
-The pinned LineageStats render (docs/03, 10.3).
+The pinned LineageStats render.
 
 #### Parameters
 

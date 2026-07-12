@@ -14,4 +14,4 @@ Defined in: [packages/core/src/l0/spi/knowledge.ts:145](https://github.com/o-ste
 
 The runtime handle: with propose() deleted from the design and
 commit absent from this shape, a run has no write path into the
-cross-run medium at all (docs/05, section "Security", channel 3).
+cross-run medium at all.

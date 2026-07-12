@@ -13,7 +13,7 @@ function nextFailover(
    from): number | undefined;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The next target index past `from` that serves `trigger`, or undefined
 when the chain is exhausted. Index 0 is the primary; the chain never

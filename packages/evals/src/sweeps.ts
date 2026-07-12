@@ -1,14 +1,12 @@
 /**
- * Matrix sweeps (M11-T02; docs/05, section "Grounding and decay";
- * docs/09, section "@rulvar/evals"). The deconfounder of the whole
+ * Matrix sweeps (M11-T02). The deconfounder of the whole
  * knowledge feature: a FIXED eval matrix (workflow x model x
  * taskClass), independent of current routing, measured through the
  * ordinary engine (journaled, budgeted, VCR-recordable), emitting
  * eval-measured claims through the eval-committer identity.
  *
  * Sweep volume is never authorized by proposal volume: the model pool
- * and the case list are EXPLICIT caller data (fixed pools only;
- * docs/05, section 2, attack 7).
+ * and the case list are EXPLICIT caller data (fixed pools only).
  */
 import type {
   Effort,
@@ -49,7 +47,7 @@ export interface SweepThresholds {
 export interface RunSweepOptions {
   /** Deterministic, caller-minted; every claim's evidence and gate reference it. */
   reportId: string;
-  /** The dedicated identity (docs/05, 5.4). */
+  /** The dedicated committer identity. */
   committerId: string;
   /** ISO date of the sweep; the TTL table applies from it (no wall clock inside). */
   observedAt: string;

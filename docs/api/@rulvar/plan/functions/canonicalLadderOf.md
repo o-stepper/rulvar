@@ -12,7 +12,7 @@ function canonicalLadderOf(profile):
   | undefined;
 ```
 
-Defined in: [packages/plan/src/ladder.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ladder.ts#L50)
+Defined in: [packages/plan/src/ladder.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/ladder.ts#L49)
 
 Canonicalizes the profile's declared ladder once per dispatch site.
 

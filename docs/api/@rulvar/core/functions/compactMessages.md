@@ -10,7 +10,7 @@
 function compactMessages(messages, summaryText): Msg[];
 ```
 
-Defined in: [packages/core/src/runtime/compaction.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/compaction.ts#L73)
+Defined in: [packages/core/src/runtime/compaction.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/compaction.ts#L72)
 
 Applies a produced summary: everything after the first message (the
 spawn prompt) is replaced by ONE user-role summary message. Compaction

@@ -10,12 +10,12 @@
 function resolveModelInvocation(options): ResolvedInvocation;
 ```
 
-Defined in: [packages/core/src/model/router.ts:199](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/router.ts#L199)
+Defined in: [packages/core/src/model/router.ts:193](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/router.ts#L193)
 
 Resolution runs on every model invocation, not once per agent: a layered
 merge of { model, effort, providerOptions, fallbacks } in the order call
 override > agent profile > workflow defaults > engine defaults, with the
-invocation role attached as a tag (docs/04, section "Resolution chain").
+invocation role attached as a tag.
 After resolution the router reads ModelCaps and scrubs illegal
 parameters visibly: unsupported effort is removed from the wire but
 kept in identity; sampling params rejected by the model are removed

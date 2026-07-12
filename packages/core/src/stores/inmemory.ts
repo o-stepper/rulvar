@@ -1,7 +1,7 @@
 /**
  * InMemoryStore (M1-T04): the default journal store. Process-local, so
  * nothing survives the process and resume is disabled; the store warns
- * loudly exactly once per instance (docs/03, section "Shipped stores").
+ * loudly exactly once per instance.
  * An in-memory TranscriptStore ships alongside for the same default.
  */
 import type { Bytes } from '../l0/json.js';
@@ -96,7 +96,7 @@ export class InMemoryTranscriptStore implements TranscriptStore {
   }
 
   delete(ref: string): Promise<void> {
-    // A missing ref is a no-op, never an error (docs/03, 12.4).
+    // A missing ref is a no-op, never an error.
     this.blobs.delete(ref);
     return Promise.resolve();
   }

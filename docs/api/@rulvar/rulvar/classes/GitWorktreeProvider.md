@@ -6,10 +6,10 @@
 
 # Class: GitWorktreeProvider
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The shipped git worktree lifecycle. A non-git host is a typed
-ConfigError at acquire (docs/08, section 8.3, rule 1).
+ConfigError at acquire.
 
 ## Implements
 
@@ -23,7 +23,7 @@ ConfigError at acquire (docs/08, section 8.3, rule 1).
 new GitWorktreeProvider(options?): GitWorktreeProvider;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -45,7 +45,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 get pinnedWorktrees(): ReadonlySet<string>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Trees currently retained under the pin cap.
 
@@ -68,7 +68,7 @@ acquire(spawn): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 

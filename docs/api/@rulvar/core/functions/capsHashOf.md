@@ -10,7 +10,7 @@
 function capsHashOf(caps): string;
 ```
 
-Defined in: [packages/core/src/knowledge/epoch.ts:17](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/epoch.ts#L17)
+Defined in: [packages/core/src/knowledge/epoch.ts:16](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/epoch.ts#L16)
 
 Deterministic hash of a caps declaration (JCS + sha256).
 

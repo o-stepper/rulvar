@@ -10,7 +10,7 @@
 function projectHistory(messages, targetProvider): Msg[];
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Projects the canonical history into the target provider's view:
 provider-raw parts of a DIFFERENT provider are omitted; everything

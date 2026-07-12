@@ -26,8 +26,8 @@ type FinishInfo =
 };
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Typed finish outcomes. A refusal MUST surface as a typed finish outcome
 carrying the provider stop details; it MUST NOT be projected to a null
-output silently (docs/04, section "Finish outcomes and typed refusal").
+output silently.

@@ -10,7 +10,7 @@
 function buildV2GoldenIdentity(): Record<string, unknown>;
 ```
 
-Defined in: [packages/testing/src/cassettes/build-fixtures.ts:582](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/cassettes/build-fixtures.ts#L582)
+Defined in: [packages/testing/src/cassettes/build-fixtures.ts:581](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/cassettes/build-fixtures.ts#L581)
 
 v2 golden identity fixtures: worked examples per spawn kind (M2-T12).
 The keys freeze the hashVersion 2 profile; the v1 members freeze the

@@ -1,6 +1,6 @@
 /**
  * @rulvar/anthropic: the first-class Anthropic adapter on the July 2026
- * Messages API surface (docs/04, section "@rulvar/anthropic").
+ * Messages API surface.
  */
 export { anthropic, ANTHROPIC_MODELS, DEFAULT_PAUSE_TURN_MAX_CONTINUATIONS } from './adapter.js';
 export type { AnthropicAdapterOptions, AnthropicClientLike } from './adapter.js';

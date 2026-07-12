@@ -1,5 +1,5 @@
 /**
- * Argv-parsing shell matcher (M5-T06; docs/08, section 5): shell
+ * Argv-parsing shell matcher (M5-T06): shell
  * allow/ask/deny is matched through a real argv parser, never a string
  * prefix. The composition rule is the entire point: for a compound
  * command the verdict is the strictest across segments, and any
@@ -28,7 +28,7 @@ export interface ShellSegment {
 }
 
 /**
- * Lexes a command into segments per the docs/08 5.2 algorithm. Quotes
+ * Lexes a command into segments per the matching algorithm above. Quotes
  * and escapes are honored; nothing is expanded; `$(`, backticks, `<(`,
  * `>(`, and `<<` (outside single quotes) poison their segment.
  */

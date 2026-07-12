@@ -10,8 +10,8 @@
 type TaskSpec = Json;
 ```
 
-Defined in: [packages/core/src/runtime/escalation.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L36)
+Defined in: [packages/core/src/runtime/escalation.ts:34](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L34)
 
 Minimal TaskSpec stand-in: the full typed TaskSpec is owned by the
-PlanRunner surface (docs/07, section 4.1) and ships with M7; script
+PlanRunner surface and ships with M7; script
 modes carry proposals opaquely until then.

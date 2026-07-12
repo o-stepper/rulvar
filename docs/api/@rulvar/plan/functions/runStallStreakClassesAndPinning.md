@@ -10,7 +10,7 @@
 function runStallStreakClassesAndPinning(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/m9-cassettes.ts:1035](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L1035)
+Defined in: [packages/plan/src/m9-cassettes.ts:1034](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L1034)
 
 stall-streak-classes-and-pinning (DEF-3): four attempts of one LTID
 land transient-error, task-error, no-progress, and ok; the pinned

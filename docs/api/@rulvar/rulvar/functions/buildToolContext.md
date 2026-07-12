@@ -10,7 +10,7 @@
 function buildToolContext(seed): ToolContext;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Builds the per-call ToolContext; one fresh span per tool call.
 

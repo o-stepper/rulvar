@@ -6,7 +6,7 @@
 
 # Class: JournalMatcher
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The matching engine over a loaded journal. Consumption is per logical
 operation (running/terminal pairs count once); candidates are consumed
@@ -21,7 +21,7 @@ cross-version double matches deterministically).
 new JournalMatcher(entries, options?): JournalMatcher;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -44,7 +44,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 consume(runningSeq): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Marks an operation consumed without matching (fold-driven paths).
 
@@ -69,12 +69,12 @@ match(
    mode): MatchResult;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Forward-matches one live call. A miss does not advance any cursor and
 does not extinguish future hits: the scan always starts at the scope
 head and skips consumed operations, so insertion stability holds by
-construction (docs/03, section 7.1).
+construction.
 
 #### Parameters
 
@@ -96,7 +96,7 @@ construction (docs/03, section 7.1).
 registerAlias(donorPrefix, targetPrefix): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Registers a scope-prefix rewrite (node.link, DEF-5): donorPrefix maps
 to targetPrefix for forward-matching purposes; the per-scope cursors
@@ -122,7 +122,7 @@ out for free at any depth.
 report(): ResumeReport;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Returns
 
@@ -136,10 +136,10 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 setAliasDisposition(disposition): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-The disposition applied to alias-sourced candidates (DEF-5, docs/03
-9.5): the skipped overlay from abandon is bypassed ONLY through the
+The disposition applied to alias-sourced candidates (DEF-5): the
+skipped overlay from abandon is bypassed ONLY through the
 alias, so entries regain their pre-abandon terminal status for
 matching in the NEW scope; the standalone old scope stays skipped.
 
@@ -161,7 +161,7 @@ matching in the NEW scope; the standalone old scope stays skipped.
 setDisposition(disposition): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 M2-T06 swaps in the full DEF-1 predicate after folds are built.
 

@@ -1,5 +1,5 @@
 /**
- * The model knowledge card (M10-T03; docs/05, section "Read path"). A
+ * The model knowledge card (M10-T03). A
  * deterministic pure render in the profileCard tradition: two layers,
  * tier-relative, and the orchestrator NEVER sees model names (the
  * round-2 invariant). The verified layer compiles EXCLUSIVELY from
@@ -14,7 +14,7 @@ import type { QualityFloors } from '../model/floors.js';
 import { checkFloors } from '../model/floors.js';
 import { claimExpired } from './claims.js';
 
-/** docs/06, Appendix A: the KB card render budget (characters). */
+/** The KB card render budget (characters). */
 export const KB_CARD_RENDER_BUDGET_CHARS = 4096;
 
 /** One declared ladder of the run, named by its agentType. */
@@ -26,7 +26,7 @@ export interface DeclaredLadder {
 
 /**
  * The ladders a run declares: every advertised profile whose model
- * spec is a ladder (docs/04, section 12). The card is tier-relative to
+ * spec is a ladder. The card is tier-relative to
  * exactly these.
  */
 export function collectDeclaredLadders(
@@ -58,7 +58,7 @@ function floored(
   try {
     // Children of an orchestrate-role run resolve as loop-role spawns;
     // floors stay HARD constraints and the card only advises inside
-    // them (docs/05, section "Composition with the model layer").
+    // them.
     checkFloors({ ref: model, role: 'loop', taskClass, floors });
     return false;
   } catch {
@@ -67,7 +67,7 @@ function floored(
 }
 
 /**
- * The admission filter (docs/05, 4.1): status active, unexpired at
+ * The admission filter: status active, unexpired at
  * `now`, and the subject reachable through the run's declared ladders
  * after the role-floor filter.
  */
@@ -112,8 +112,7 @@ export interface VerifiedRecommendation {
 }
 
 /**
- * The verified-layer compiler (M11-T06; docs/05, sections "Read path"
- * and "Composition with the model layer"): start-tier recommendations
+ * The verified-layer compiler (M11-T06): start-tier recommendations
  * per (ladder, taskClass) compiled EXCLUSIVELY from eval-measured
  * claims. A strength on a rung below the default votes down (start
  * cheaper); a weakness on the default rung or below votes up. The net
@@ -173,9 +172,9 @@ export function compileVerifiedLayer(
 }
 
 /**
- * The deterministic card render (docs/05, 4.3). Pure: same filtered
+ * The deterministic card render. Pure: same filtered
  * claims and ladders give byte-identical text. The render budget is
- * docs/06 Appendix A (4096 chars); over it, the OLDEST-observed notes
+ * 4096 chars; over it, the OLDEST-observed notes
  * withhold first behind an explicit marker.
  */
 export function modelKnowledgeCard(
@@ -200,7 +199,7 @@ export function modelKnowledgeCard(
       );
     }
   }
-  // Profile evidence (docs/05, 4.3 as amended 2026-07-11): eval-measured
+  // Profile evidence (2026-07-11 amendment): eval-measured
   // claims projected onto the advertised spawn vocabulary, so agentType
   // choice can consume the card (FR-607). Only profiles pinning a
   // concrete string ModelRef participate; weakness wins over strength

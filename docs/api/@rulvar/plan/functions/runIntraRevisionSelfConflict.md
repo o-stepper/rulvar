@@ -10,12 +10,12 @@
 function runIntraRevisionSelfConflict(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/m9-cassettes.ts:2356](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L2356)
+Defined in: [packages/plan/src/m9-cassettes.ts:2355](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L2355)
 
 intra-revision-self-conflict (DEF-8): one revision {cancel_task X,
 amend_task X, rewire_deps with an edge onto X} resolves strictly in
 submission order per the sequential intra-revision application
-semantics (docs/07, 4.7 conflict table).
+semantics.
 
 ## Returns
 

@@ -10,11 +10,11 @@
 function resolveToolset(specs, session): Promise<ResolvedToolset>;
 ```
 
-Defined in: [packages/core/src/tools/toolset-hash.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/toolset-hash.ts#L42)
+Defined in: [packages/core/src/tools/toolset-hash.ts:41](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/toolset-hash.ts#L41)
 
 Expands sources, validates every tool name and duplicate names across
-the whole toolset (ConfigError at spawn time; docs/08 sections 1.1 and
-6.4), and computes the toolsetHash over contracts sorted by name.
+the whole toolset (ConfigError at spawn time), and computes the
+toolsetHash over contracts sorted by name.
 
 ## Parameters
 

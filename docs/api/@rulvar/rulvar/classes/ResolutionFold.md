@@ -6,7 +6,7 @@
 
 # Class: ResolutionFold
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The first-closing-wins fold over a loaded journal: one pass by seq,
 bit-identical on every store returning the same entries. Resolution
@@ -15,7 +15,7 @@ the suspended entry payload (canonical bare JSON Schema); a
 schema-invalid offline resolution classifies invalid and does NOT close
 the target. Abandon coverage is the target seq plus the transitive
 child scope-prefix; the AbandonFold consumed by the replay predicate is
-a projection of THIS fold (docs/03, section 6.2: not a separate pass).
+a projection of THIS fold (not a separate pass).
 
 ## Constructors
 
@@ -25,7 +25,7 @@ a projection of THIS fold (docs/03, section 6.2: not a separate pass).
 new ResolutionFold(entries): ResolutionFold;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -47,7 +47,7 @@ Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/
 get abandonFold(): AbandonFold;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 The AbandonFold projection consumed by the replay predicate.
 
@@ -65,7 +65,7 @@ classificationOf(seq):
   | undefined;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 
@@ -89,7 +89,7 @@ invalidResolutions(): {
 }[];
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Invalid offline resolutions surfaced in the resume report.
 
@@ -108,7 +108,7 @@ Invalid offline resolutions surfaced in the resume report.
 openSuspensions(): JournalEntry[];
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Open suspended entries (for pending[] and re-arming at resume).
 
@@ -124,7 +124,7 @@ Open suspended entries (for pending[] and re-arming at resume).
 registerEntry(entry): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Registers any other live-appended entry (abandon coverage needs scopes).
 
@@ -146,7 +146,7 @@ Registers any other live-appended entry (abandon coverage needs scopes).
 registerRefEntry(entry): RefEntryClassification;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Registers a live-appended ref-entry, returning its classification.
 
@@ -168,7 +168,7 @@ Registers a live-appended ref-entry, returning its classification.
 registerSuspended(entry): void;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 Registers a live-appended suspended entry with the fold.
 
@@ -190,7 +190,7 @@ Registers a live-appended suspended entry with the fold.
 suspensionState(target): SuspensionState;
 ```
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
 #### Parameters
 

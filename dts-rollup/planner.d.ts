@@ -2,12 +2,12 @@ import { CompiledWorkflow, Ctx, Engine, InMemoryStore, JournalEntry, Json, Model
 
 //#region src/compile.d.ts
 /**
-* The exact curated sandbox global set, in docs order (docs/06, 8.2).
+* The exact curated sandbox global set, in canonical order.
 * The worker binds the ctx methods as bare globals under these names and
 * the API card teaches exactly this list.
 */
 declare const SANDBOX_GLOBALS: readonly string[];
-/** One machine-readable compileScript diagnostic (docs/02, ScriptRejected row). */
+/** One machine-readable compileScript diagnostic (carried by ScriptRejected). */
 interface ScriptDiagnostic {
   ruleId: string;
   message: string;
@@ -19,11 +19,11 @@ interface CompileScriptOptions {
   allowImports?: string[];
 }
 /**
-* Validates and compiles planner-generated source into a CompiledWorkflow
-* (docs/06, 8.3). The source is an async function body over the sandbox
+* Validates and compiles planner-generated source into a CompiledWorkflow.
+* The source is an async function body over the sandbox
 * globals; its `return` value is the workflow result. The compiled form is
 * pure data (the source is evaluated only inside the worker sandbox);
-* machine scripts run under errorPolicy 'lenient' (docs/06, Appendix A).
+* machine scripts run under errorPolicy 'lenient'.
 */
 declare function compileScript(source: string, o?: CompileScriptOptions): CompiledWorkflow;
 /** Typed accessor for the diagnostics carried on a ScriptRejected. */
@@ -56,7 +56,7 @@ interface PlanResult {
   /** Diagnostics of the ACCEPTED draft: advisories only, never errors. */
   lint: PlanDiagnostic[];
 }
-/** The deterministic planner runId: one goal, one journal (docs/06, 9.2). */
+/** The deterministic planner runId: one goal, one journal. */
 declare function planRunIdOf(goal: string): string;
 /**
 * The model may fence the script; the extractor takes the first fenced
@@ -76,7 +76,7 @@ declare function lintScript(source: string): {
 };
 declare function plan(engine: Engine, goal: string, o?: PlanOptions): Promise<PlanResult>;
 /**
-* plan-then-run in one call (docs/06, section 9; amended during M6-T05:
+* plan-then-run in one call (amended during M6-T05:
 * the composition is async because planning itself is a run).
 */
 declare function runPlanned(engine: Engine, goal: string, args?: Json): Promise<RunHandle<unknown>>;
@@ -141,7 +141,7 @@ interface WorkerSandboxRunnerOptions {
   */
   workerUrl?: URL;
 }
-/** Accepts CompiledWorkflow ONLY: feeding a closure is a type error (docs/06, 8). */
+/** Accepts CompiledWorkflow ONLY: feeding a closure is a type error. */
 declare class WorkerSandboxRunner implements ScriptRunner {
   private readonly timeoutMs;
   private readonly memoryMb;

@@ -6,11 +6,10 @@
 
 # Class: SpanRegistry
 
-Defined in: [packages/core/src/engine/events.ts:19](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L19)
+Defined in: [packages/core/src/engine/events.ts:16](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L16)
 
 Spans form a tree per run; spanId values are engine-minted opaque
-strings, unique per run, pure telemetry, never identity (docs/09,
-section "Span hierarchy").
+strings, unique per run, pure telemetry, never identity.
 
 ## Constructors
 
@@ -32,7 +31,7 @@ new SpanRegistry(): SpanRegistry;
 mint(parentSpanId?): string;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:23](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L23)
+Defined in: [packages/core/src/engine/events.ts:20](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L20)
 
 #### Parameters
 
@@ -52,7 +51,7 @@ Defined in: [packages/core/src/engine/events.ts:23](https://github.com/o-stepper
 parentOf(spanId): string | undefined;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L31)
+Defined in: [packages/core/src/engine/events.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L28)
 
 #### Parameters
 

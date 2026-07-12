@@ -10,7 +10,7 @@ Defined in: [packages/evals/src/case.ts:54](https://github.com/o-stepper/rulvar/
 
 A judge invocation specification. The judge runs through the engine as
 an ordinary journaled, budgeted invocation; model selection is subject
-to the router quality floors (docs/04, section "Role quality floors"),
+to the router quality floors,
 and @rulvar/evals ships NO default judge model: weak defaults for
 judging are forbidden, so the model is always explicit.
 

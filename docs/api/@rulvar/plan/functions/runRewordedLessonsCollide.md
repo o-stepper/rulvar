@@ -10,7 +10,7 @@
 function runRewordedLessonsCollide(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/m9-cassettes.ts:743](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L743)
+Defined in: [packages/plan/src/m9-cassettes.ts:742](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/m9-cassettes.ts#L742)
 
 reworded-lessons-collide (DEF-3): two attempts of one LTID whose
 prompts differ but whose signature inputs are identical and share the

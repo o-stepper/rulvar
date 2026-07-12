@@ -6,13 +6,13 @@
 
 # Interface: FailoverTarget
 
-Defined in: [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts)
+Defined in: `packages/core/dist/index.d.ts`
 
-One resolved failover target (docs/04, section 11.2 rich form).
+One resolved failover target (rich form).
 
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-model"></a> `model` | `` `${string}:${string}` `` | - | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
-| <a id="property-on"></a> `on?` | [`FailoverTrigger`](/api/@rulvar/rulvar/type-aliases/FailoverTrigger.md)[] | Triggers this target serves; absent = both. | [packages/core/dist/index.d.ts](https://github.com/o-stepper/rulvar/blob/main/../../core/dist/index.d.ts) |
+| <a id="property-model"></a> `model` | `` `${string}:${string}` `` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-on"></a> `on?` | [`FailoverTrigger`](/api/@rulvar/rulvar/type-aliases/FailoverTrigger.md)[] | Triggers this target serves; absent = both. | `packages/core/dist/index.d.ts` |

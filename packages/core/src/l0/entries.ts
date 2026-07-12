@@ -2,8 +2,8 @@
  * JournalEntry form, the kinds registry v2, the stored status vocabulary,
  * and hashVersion (M1-T04; frozen as the hashVersion 2 profile in M2).
  *
- * Owning spec: docs/03-journal-spec.md, sections "JournalEntry form and the
- * kinds registry v2", "hashVersion (DEF-6)", and "Identity model".
+ * Full contract: https://docs.rulvar.com/guide/journal; hashVersion
+ * (DEF-6): https://docs.rulvar.com/guide/journal-compatibility
  */
 import type { Json } from './json.js';
 import type { WireError } from './errors.js';
@@ -13,8 +13,7 @@ import type { ModelRef, Usage } from './messages.js';
  * Versions the ENTIRE identity and replay pipeline as one unit: canonical
  * JSON algorithm, identity field sets, hash function, schema/toolset hash
  * derivation, scope grammar and ordinal rules, replay predicate, fold
- * defaults, and the kind/status vocabularies (docs/03, section
- * "hashVersion").
+ * defaults, and the kind/status vocabularies.
  */
 export type HashVersion = number;
 
@@ -22,7 +21,7 @@ export type HashVersion = number;
 export const CURRENT_HASH_VERSION: HashVersion = 2;
 
 /**
- * The single kinds registry v2 (docs/03, section "Kinds registry v2").
+ * The single kinds registry v2.
  * Readers MUST tolerate unknown kinds; stores pass them through
  * byte-for-byte (obligation A4).
  */
@@ -45,20 +44,19 @@ export type EntryKind =
 
 /**
  * The stored status vocabulary, exactly. 'skipped' is DELIBERATELY absent:
- * it is a derived fold status, never persisted (docs/03, section "Stored
- * status vocabulary").
+ * it is a derived fold status, never persisted.
  */
 export type EntryStatus =
   'running' | 'ok' | 'error' | 'limit' | 'suspended' | 'cancelled' | 'escalated';
 
-/** The canonical EntryRef between entries is seq (docs/03, section "Full entry identity"). */
+/** The canonical EntryRef between entries is seq. */
 export type EntryRef = number;
 
-/** The journaled by-source of a resolution (docs/03, section 8.6 mapping table). */
+/** The journaled by-source of a resolution. */
 export type ResolutionBy =
   'external' | 'timeout' | 'class_decision' | 'operator' | 'quiescence' | 'engine_fallback';
 
-/** Payload of resolution ref-entries (docs/03, section 8.6; DEF-4). */
+/** Payload of resolution ref-entries (DEF-4). */
 export type ResolutionPayload = {
   /** Duplicates ref for self-description. */
   target: number;
@@ -73,7 +71,7 @@ export type ResolutionPayload = {
   countsAgainstLimit?: boolean;
 };
 
-/** Payload of abandon ref-entries (docs/03, section 8.6; DEF-4/DEF-5). */
+/** Payload of abandon ref-entries (DEF-4/DEF-5). */
 export type AbandonPayload = {
   /** Seq of the abandoned branch's spawn entry. */
   target: number;
@@ -89,7 +87,7 @@ export type AbandonPayload = {
 };
 
 /**
- * Final entry form (hashVersion 2; docs/03, section "JournalEntry form").
+ * Final entry form (hashVersion 2).
  * All journaled values MUST be JSON-serializable; a violation raises a
  * typed NonSerializableValueError at the call site. append is serialized
  * by a per-run queue.
@@ -122,14 +120,13 @@ export type JournalEntry = {
   /**
    * Terminal agent entries: the Artifact list (worktree patch refs and
    * inline values); rides the terminal payload so replay reconstructs
-   * AgentResult.artifacts without live calls (docs/06, section 2.1).
+   * AgentResult.artifacts without live calls.
    */
   artifacts?: Json;
   /**
    * Terminal escalated entries ONLY: the schema-validated
    * EscalationReport with runtime-filled costToDate and salvage; replay
-   * synthesizes the byte-identical report from here (docs/03, section
-   * 5.4; DEF-1).
+   * synthesizes the byte-identical report from here (DEF-1).
    */
   escalation?: Json;
   /** Only when kind === 'resolution'. */
@@ -137,8 +134,8 @@ export type JournalEntry = {
   /** Only when kind === 'abandon'. */
   abandon?: AbandonPayload;
   /**
-   * Policy field on agent entries, fixed in the payload at dispatch time
-   * (docs/03, section "Normative payload schemas"): the M2 predicate reads
+   * Policy field on agent entries, fixed in the payload at dispatch
+   * time: the M2 predicate reads
    * the flag from the ENTRY, never from current code. Excluded from
    * identity like every policy field.
    */
@@ -150,7 +147,7 @@ export type JournalEntry = {
   endedAt?: string;
 };
 
-/** Rand-entry payload (docs/03, section "Normative payload schemas"). */
+/** Rand-entry payload. */
 export type RandPayload =
   | { subtype: 'now'; value: number }
   | { subtype: 'random'; value: number; key?: string }
@@ -159,8 +156,7 @@ export type RandPayload =
 /**
  * Round-1 normalization: hashVersion is taken from `hashVersion`, else
  * from the legacy `v` field, else 1. Stores are never rewritten;
- * normalization happens at read (docs/03, section "The single versioning
- * mechanism").
+ * normalization happens at read.
  */
 export function normalizeEntry(raw: unknown): JournalEntry {
   const record = raw as Record<string, unknown> & { hashVersion?: number; v?: number };

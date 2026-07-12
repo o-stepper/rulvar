@@ -4,11 +4,11 @@
  * turn into TranscriptStore, so an approval and a crash both continue the
  * loop from the same turn without repaying turns and without re-invoking
  * tools. Between a tool's execution and the checkpoint write, tools are
- * at-least-once (idempotency recommendation documented in docs/08).
+ * at-least-once (idempotency recommendation: https://docs.rulvar.com/guide/tools).
  *
  * The blob format is ENGINE-INTERNAL with a leading format byte for
- * future migration (docs/03, section "Checkpoints"; format OQ in
- * docs/14). Nothing in the format enters identity.
+ * future migration; the exact format is a tracked open question.
+ * Nothing in the format enters identity.
  */
 import type { Msg, Part, Usage } from '../l0/messages.js';
 

@@ -3,7 +3,7 @@
  * wire mapping, with pause_turn absorption, SDK autoretries disabled, and
  * refreshCaps from the capabilities-bearing model list.
  *
- * Owning spec: docs/04-model-layer-spec.md, section "@rulvar/anthropic".
+ * Full contract: https://docs.rulvar.com/guide/providers.
  */
 import Anthropic from '@anthropic-ai/sdk';
 import {
@@ -22,7 +22,7 @@ import {
   type AnthropicStreamEvent,
 } from './wire.js';
 
-/** pause_turn continuation cap (docs/06 Appendix A; docs/04, section 4.6). */
+/** pause_turn continuation cap. */
 export const DEFAULT_PAUSE_TURN_MAX_CONTINUATIONS = 5;
 
 /** The client sub-surface the adapter consumes; injectable for tests. */
@@ -50,7 +50,7 @@ export interface AnthropicAdapterOptions {
 /**
  * Creates the first-class Anthropic adapter (id 'anthropic'). SDK
  * autoretries are disabled (max_retries 0): the core owns retries and
- * wall-clock (docs/04, section "Retries belong to the core").
+ * wall-clock.
  */
 export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapter {
   const client: AnthropicClientLike =
@@ -74,8 +74,7 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
 
   return {
     id: 'anthropic',
-    // Provider family for provider-raw matching and retention (docs/04,
-    // section 2.3, M4-T02).
+    // Provider family for provider-raw matching and retention (M4-T02).
     provider: 'anthropic',
 
     caps(model: string): ModelCaps {
@@ -84,8 +83,7 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
 
     async refreshCaps(): Promise<void> {
       // Capabilities-bearing GET /v1/models, paginated via after_id; the
-      // wire has max_input_tokens/max_tokens, never context_window
-      // (docs/04, section 4.8).
+      // wire has max_input_tokens/max_tokens, never context_window.
       let afterId: string | undefined;
       do {
         const page = await client.models.list(afterId === undefined ? {} : { after_id: afterId });
@@ -127,7 +125,7 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
       let continuations = 0;
       // Thinking blocks from earlier pause_turn continuations of this
       // turn: the terminal finish ships the whole turn's retention
-      // payload (docs/04, section 2.3, M4-T02).
+      // payload (M4-T02).
       const carryRetained: Array<Record<string, unknown>> = [];
       while (true) {
         let stream: AsyncIterable<AnthropicStreamEvent>;
@@ -166,7 +164,7 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
         );
         // pause_turn: append the partial assistant content and re-send,
         // WITHOUT a synthetic user message, up to the continuation cap;
-        // never a canonical finish (docs/04, section 4.6).
+        // never a canonical finish.
         continuations += 1;
         if (continuations > pauseCap) {
           yield {

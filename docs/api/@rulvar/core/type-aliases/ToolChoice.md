@@ -16,4 +16,4 @@ type ToolChoice =
 };
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L75)
+Defined in: [packages/core/src/l0/messages.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L70)

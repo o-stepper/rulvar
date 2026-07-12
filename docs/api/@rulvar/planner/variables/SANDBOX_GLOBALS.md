@@ -10,8 +10,8 @@
 const SANDBOX_GLOBALS: readonly string[];
 ```
 
-Defined in: [packages/planner/src/compile.ts:25](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L25)
+Defined in: [packages/planner/src/compile.ts:24](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L24)
 
-The exact curated sandbox global set, in docs order (docs/06, 8.2).
+The exact curated sandbox global set, in canonical order.
 The worker binds the ctx methods as bare globals under these names and
 the API card teaches exactly this list.
