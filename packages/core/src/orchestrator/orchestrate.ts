@@ -809,6 +809,12 @@ export function makeOrchestratorWorkflow(
           );
         }
         if (opts?.maxSpawns !== undefined && spawnOrdinal >= opts.maxSpawns) {
+          // A config-gate rejection precedes any journal append, so the
+          // event carries no entryRef.
+          internals.events.emit(
+            { type: 'spawn:rejected', code: 'lifetime', agentType: params.agentType },
+            callingState.spanId,
+          );
           throw new AdmissionRejectedError(
             `orchestrate maxSpawns ${String(opts.maxSpawns)} reached`,
             { data: { reason: { code: 'lifetime' } } },
@@ -875,7 +881,7 @@ export function makeOrchestratorWorkflow(
           spec: params as unknown as Json,
           decision: decision as unknown as Json,
         };
-        await internals.replayer.appendSinglePhase({
+        const decisionEntry = await internals.replayer.appendSinglePhase({
           scope: callingState.scope,
           key: '',
           kind: 'decision',
@@ -885,6 +891,15 @@ export function makeOrchestratorWorkflow(
         });
         if (decision.verdict.kind === 'reject') {
           rejectedByOrdinal.set(spawnOrdinal, decision);
+          internals.events.emit(
+            {
+              type: 'spawn:rejected',
+              entryRef: decisionEntry.seq,
+              code: decision.verdict.reason.code,
+              agentType: params.agentType,
+            },
+            callingState.spanId,
+          );
           throw new AdmissionRejectedError(
             `admission rejected spawn_agent '${params.agentType}' ` +
               `(${decision.verdict.reason.code})`,
@@ -899,6 +914,8 @@ export function makeOrchestratorWorkflow(
         internals.events.emit(
           {
             type: 'spawn:admitted',
+            entryRef: decisionEntry.seq,
+            verdict: decision.verdict.kind,
             agentType: params.agentType,
             logicalTaskId: decision.verdict.lineage.logicalTaskId,
             spawnUnitsAfter: decision.verdict.spawnUnitsAfter,

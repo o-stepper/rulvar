@@ -212,6 +212,50 @@ describe('createEngine and engine.run (M1-T11)', () => {
     expect(outcome.error?.code).toBe('config');
   });
 
+  it('a live external resolution rides the event stream as resolution:applied', async () => {
+    // The busy branch keeps the run's activity above zero, so the
+    // external resolves on the LIVE path instead of quiescing the run
+    // into 'suspended'. Operators resolve by key, no event needed.
+    const adapter = scriptedAdapter(() => ({ text: 'x', hangMs: 300 }));
+    const engine = createEngine({
+      adapters: [adapter],
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const wf = defineWorkflow({ name: 'ext-live' }, async (ctx) => {
+      const [gate] = await ctx.parallel<unknown>([
+        () =>
+          ctx.awaitExternal<{ approved: boolean }>('gate', {
+            schema: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['approved'],
+              properties: { approved: { type: 'boolean' } },
+            },
+          }),
+        () => ctx.agent('keep the run busy'),
+      ]);
+      return gate;
+    });
+    const handle = engine.run(wf, undefined);
+    const events: WorkflowEvent[] = [];
+    const pump = (async () => {
+      for await (const event of handle.events) {
+        events.push(event);
+      }
+    })();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const resolution = await handle.resolveExternal('gate', { approved: true });
+    expect(resolution.applied).toBe(true);
+    const outcome = await handle.result;
+    await pump;
+    expect(outcome.status).toBe('ok');
+    const applied = events.filter((event) => event.type === 'resolution:applied');
+    expect(applied).toHaveLength(1);
+    expect(applied[0]).toMatchObject({ by: 'external' });
+    expect(typeof (applied[0] as { targetRef?: unknown }).targetRef).toBe('number');
+    expect(typeof (applied[0] as { entryRef?: unknown }).entryRef).toBe('number');
+  });
+
   it('bare engine.resume of a non-compiled run rejects with a typed ConfigError', async () => {
     // Since M6-T02 only compiled runs with a persisted source resume
     // without a workflow value.

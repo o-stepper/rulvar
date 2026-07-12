@@ -8,6 +8,7 @@
 
 ```ts
 type RunMeta = {
+  budgetUsd?: number;
   hashVersionHigh?: number;
   hashVersionLow?: number;
   name?: string;
@@ -28,6 +29,22 @@ record, so listRuns never parses payloads. The hashVersion range fields
 are advisory only; the journal is authoritative.
 
 ## Properties
+
+### budgetUsd?
+
+```ts
+optional budgetUsd?: number;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The run's immutable USD ceiling (RunOptions.budgetUsd), recorded so
+resume restores the original invocation's bound. Absent when the
+run started without a ceiling. Stores must round-trip the field
+(the conformance kit checks); a store that drops it degrades a
+resumed run to uncapped.
+
+***
 
 ### hashVersionHigh?
 

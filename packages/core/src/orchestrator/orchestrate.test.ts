@@ -92,6 +92,12 @@ describe('orchestrate (M6-T07/T08)', () => {
     );
     expect(childAgents).toHaveLength(2);
     expect(events.ofType('spawn:admitted')).toHaveLength(2);
+    // The event carries the journaled decision ref and the admitting
+    // verdict arm, per the typed catalog.
+    for (const admitted of events.ofType('spawn:admitted')) {
+      expect(admitted.verdict).toBe('admit');
+      expect(typeof admitted.entryRef).toBe('number');
+    }
     // The digests reached the model with spawn-ordinal data.
     const finishReq = adapter.calls.filter((r) => agentTypeOf(r) === '').at(-1);
     const digestPart = JSON.stringify(finishReq?.messages.at(-1)?.parts);

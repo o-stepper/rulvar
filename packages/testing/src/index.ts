@@ -14,14 +14,20 @@ export { replayRun } from './replay-strict.js';
 export type { ReplayRunOptions } from './replay-strict.js';
 // Frozen-fixture regeneration tooling (M2-T12): regenerating committed
 // fixtures is DELIBERATE and requires a hashVersion-bump changeset
-// (scripts/record-m2-cassettes.mjs).
+// (scripts/record-m2-cassettes.mjs). These exports serve the
+// repository's own recording scripts, not applications, so they stay
+// out of the public API reference.
+/** @internal */
 export {
   buildFrozenV1JournalRaw,
   buildM2CassetteFixtures,
   buildV2GoldenIdentity,
 } from './cassettes/build-fixtures.js';
+/** @internal */
 export type { CassetteFixture } from './cassettes/build-fixtures.js';
+/** @internal */
 export { recordLiveCassettes } from './cassettes/record-live.js';
+/** @internal */
 export {
   handlesInRequest,
   M6_ORCH_GOAL,

@@ -82,7 +82,7 @@ construction.
 | ------ | ------ |
 | `scope` | `string` |
 | `identity` | [`IdentityInput`](/api/@rulvar/rulvar/type-aliases/IdentityInput.md) |
-| `mode` | `"never"` \| `"cache"` \| `"scoped"` |
+| `mode` | `"cache"` \| `"never"` \| `"scoped"` |
 
 #### Returns
 

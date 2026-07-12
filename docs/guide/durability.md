@@ -128,10 +128,10 @@ Now `engine.resume('review-pr-4242', review, { args: 4242 })` replays it:
 { hits: 2, misses: 1, skipped: 0, reruns: 1, orphaned: [], invalidResolutions: [] }
 ```
 
-You paid for the interrupted reviewer's remaining turns and the merge agent. The step, the finished reviewer, and every dollar recorded before the crash are read back: the ledger is a fold over the journal, not process memory, so the resumed run's spent figures and its final cost report stay truthful.
+You paid for the interrupted reviewer's remaining turns and the merge agent. The step, the finished reviewer, and every dollar recorded before the crash are read back: the ledger is a fold over the journal, not process memory, so the resumed run's spent figures and its final cost report stay truthful, and the pre-crash spend counts against the same ceiling the run started with.
 
-::: warning The budgetUsd ceiling does not survive resume
-The dollar ceiling is a property of one `engine.run` invocation: it is immutable while that invocation lives, and it does not survive into a resumed run. `ResumeOptions` has no budget field and the engine restores no ceiling, so a resumed run restores the pre-crash spend into its ledger but enforces no USD ceiling over it. Ceiling persistence across resume is a known gap slated for a future release.
+::: info The budgetUsd ceiling survives resume through the run record
+The dollar ceiling set at `engine.run(...)` time is recorded in the run's store metadata (`RunMeta.budgetUsd`) and restored on every resume: the restored pre-crash spend counts against the restored ceiling, and `ResumeOptions` deliberately carries no budget field, so no API can raise the ceiling after start, restarts included. Two degradation notes: the ceiling rides the run record rather than the content-addressed journal, so a custom store must round-trip optional `RunMeta` fields (the conformance kit checks this), and a journal written before the field existed resumes uncapped.
 :::
 
 ## Previewing a resume before paying

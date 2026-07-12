@@ -18,7 +18,7 @@ counter: when every in-flight branch is blocked on suspensions
 ### Constructor
 
 ```ts
-new ExternalRegistry(replayer): ExternalRegistry;
+new ExternalRegistry(replayer, emitEvent?): ExternalRegistry;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -28,6 +28,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | Parameter | Type |
 | ------ | ------ |
 | `replayer` | [`Replayer`](/api/@rulvar/rulvar/classes/Replayer.md) |
+| `emitEvent?` | (`body`) => `void` |
 
 #### Returns
 

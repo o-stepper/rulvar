@@ -38,8 +38,8 @@ lineage, ladder, retry) arrive with their milestones.
 | <a id="property-lineage"></a> `lineage?` | [`SpawnLineageOpt`](/api/@rulvar/rulvar/interfaces/SpawnLineageOpt.md) | Lineage continuation (DEF-3): declares this spawn a rebirth of an existing logical task; absence means a new lineage root. Never enters the content key. Declaring lineage or approach journals a spawn-admission decision entry BEFORE dispatch, carrying the engine-minted LTID and the computed approach signature. | `packages/core/dist/index.d.ts` |
 | <a id="property-memoizeoutcome"></a> `memoizeOutcome?` | `boolean` | Journaled as a policy field from day one; consumed by the M2 predicate. | `packages/core/dist/index.d.ts` |
 | <a id="property-model"></a> `model?` | [`ModelSpec`](/api/@rulvar/rulvar/type-aliases/ModelSpec.md) | Overrides all roles at once. | `packages/core/dist/index.d.ts` |
-| <a id="property-onerror"></a> `onError?` | `"null"` \| `"throw"` | - | `packages/core/dist/index.d.ts` |
-| <a id="property-replay"></a> `replay?` | `"never"` \| `"cache"` | Per-call replay mode; default scoped forward-matching. | `packages/core/dist/index.d.ts` |
+| <a id="property-onerror"></a> `onError?` | `"throw"` \| `"null"` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-replay"></a> `replay?` | `"cache"` \| `"never"` | Per-call replay mode; default scoped forward-matching. | `packages/core/dist/index.d.ts` |
 | <a id="property-result"></a> `result?` | `"value"` \| `"full"` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-retry"></a> `retry?` | [`RetryPolicy`](/api/@rulvar/rulvar/interfaces/RetryPolicy.md) | Transport RetryPolicy under the journal (M4-T05). | `packages/core/dist/index.d.ts` |
 | <a id="property-role"></a> `role?` | `"orchestrate"` \| `"plan"` \| `"loop"` | The primary invocation role of the agent's tool loop; default 'loop'. The plan and orchestrate entry points set it so the resolution chain, role effort defaults, quality floors, and cost buckets see the right role; extract/finalize/summarize stay trigger-derived and are never settable here (M6-T05 amendment). | `packages/core/dist/index.d.ts` |

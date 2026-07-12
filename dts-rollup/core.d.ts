@@ -697,6 +697,14 @@ type RunMeta = {
   workflowName?: string; /** Content hash of the body or of the compiled source. */
   workflowHash?: string; /** TranscriptStore ref of the persisted CompiledWorkflow source. */
   workflowSourceRef?: string;
+  /**
+  * The run's immutable USD ceiling (RunOptions.budgetUsd), recorded so
+  * resume restores the original invocation's bound. Absent when the
+  * run started without a ceiling. Stores must round-trip the field
+  * (the conformance kit checks); a store that drops it degrades a
+  * resumed run to uncapped.
+  */
+  budgetUsd?: number;
 };
 type RunFilter = {
   status?: string;
@@ -3895,12 +3903,23 @@ type AdaptiveEvents = {
   coversToOrdinal: number;
   renderSize: number;
 } | {
+  /**
+  * Two emitted shapes share the discriminant: the cap-freeze form
+  * carries { atCap: true, spentUsd, capUsd, finalizeReserveUsd },
+  * and the per-wake digest form carries atCap plus the passive
+  * WakeBudgetBlock fields (runSpentUsd .. softWarning).
+  */
   type: "orchestrator:budget";
-  entryRef: number;
-  spentUsd: number;
-  effectiveCapUsd: number;
-  reserveUsedUsd: number;
-  frozen: boolean;
+  atCap: boolean;
+  spentUsd?: number;
+  capUsd?: number;
+  finalizeReserveUsd?: number;
+  runSpentUsd?: number;
+  runCeilingUsd?: number;
+  orchestratorSpentUsd?: number;
+  orchestratorCapUsd?: number;
+  orchestratorShare?: number;
+  softWarning?: boolean;
 } | {
   type: "escalation:raised";
   entryRef: number;
@@ -3922,7 +3941,12 @@ type AdaptiveEvents = {
   spawnUnitsAfter: number;
 } | {
   type: "spawn:rejected";
-  entryRef: number;
+  /**
+  * The journaled admission decision entry; absent for the
+  * pre-admission config gates (orchestrate maxSpawns), which
+  * reject before anything is journaled.
+  */
+  entryRef?: number;
   code: string;
   agentType: string;
   logicalTaskId?: string;
@@ -3973,6 +3997,12 @@ type AdaptiveEvents = {
   frozenValue: Json;
   liveValue: Json;
 } | {
+  /**
+  * Declared for hosts; not emitted today. The compatibility scan
+  * runs strictly before a run's event stream exists, so the
+  * refusal travels only as the typed JournalCompatibilityError
+  * (which carries the same fields).
+  */
   type: "journal:compat";
   code: "HASH_VERSION_TOO_OLD" | "HASH_VERSION_TOO_NEW";
   found: number;
@@ -4775,7 +4805,14 @@ declare class ExternalRegistry {
   private activity;
   private quiesceListener?;
   private quiesceScheduled;
-  constructor(replayer: Replayer);
+  private readonly emitEvent?;
+  constructor(replayer: Replayer, emitEvent?: (body: WorkflowEventBody) => void);
+  /**
+  * Live resolution telemetry: applied when the attempt won the
+  * first-closing-wins fold, superseded when it lost. Emitted for live
+  * attempts only; folds of prior entries at resume re-emit nothing.
+  */
+  private emitResolutionOutcome;
   /** Wraps every non-suspension async operation (agents, steps). */
   enter(): () => void;
   /**

@@ -6133,10 +6133,6 @@
         "collapsed": true,
         "items": [
           {
-            "text": "CassetteFixture",
-            "link": "/api/@rulvar/testing/interfaces/CassetteFixture.md"
-          },
-          {
             "text": "CreateTestEngineOptions",
             "link": "/api/@rulvar/testing/interfaces/CreateTestEngineOptions.md"
           },
@@ -6203,18 +6199,6 @@
           {
             "text": "FAKE_MODEL_REF",
             "link": "/api/@rulvar/testing/variables/FAKE_MODEL_REF.md"
-          },
-          {
-            "text": "M6_ORCH_GOAL",
-            "link": "/api/@rulvar/testing/variables/M6_ORCH_GOAL.md"
-          },
-          {
-            "text": "M6_ORCH_PROFILES",
-            "link": "/api/@rulvar/testing/variables/M6_ORCH_PROFILES.md"
-          },
-          {
-            "text": "M6_ORCH_RUN_ID",
-            "link": "/api/@rulvar/testing/variables/M6_ORCH_RUN_ID.md"
           }
         ]
       },
@@ -6222,18 +6206,6 @@
         "text": "Functions",
         "collapsed": true,
         "items": [
-          {
-            "text": "buildFrozenV1JournalRaw",
-            "link": "/api/@rulvar/testing/functions/buildFrozenV1JournalRaw.md"
-          },
-          {
-            "text": "buildM2CassetteFixtures",
-            "link": "/api/@rulvar/testing/functions/buildM2CassetteFixtures.md"
-          },
-          {
-            "text": "buildV2GoldenIdentity",
-            "link": "/api/@rulvar/testing/functions/buildV2GoldenIdentity.md"
-          },
           {
             "text": "createTestEngine",
             "link": "/api/@rulvar/testing/functions/createTestEngine.md"
@@ -6251,28 +6223,12 @@
             "link": "/api/@rulvar/testing/functions/fakeWireError.md"
           },
           {
-            "text": "handlesInRequest",
-            "link": "/api/@rulvar/testing/functions/handlesInRequest.md"
-          },
-          {
-            "text": "normalizeM6Entries",
-            "link": "/api/@rulvar/testing/functions/normalizeM6Entries.md"
-          },
-          {
             "text": "readCassette",
             "link": "/api/@rulvar/testing/functions/readCassette.md"
           },
           {
             "text": "record",
             "link": "/api/@rulvar/testing/functions/record.md"
-          },
-          {
-            "text": "recordLiveCassettes",
-            "link": "/api/@rulvar/testing/functions/recordLiveCassettes.md"
-          },
-          {
-            "text": "recordOrchestratorCrash",
-            "link": "/api/@rulvar/testing/functions/recordOrchestratorCrash.md"
           },
           {
             "text": "replay",

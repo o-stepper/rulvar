@@ -5,13 +5,14 @@
  *
  * TypeDoc runs with `validation.invalidLink: true` (typedoc.json), but
  * its only escalation switch is the global `treatWarningsAsErrors`,
- * and this repo's packages-mode conversion currently emits ~2400
- * PRE-EXISTING warnings of unrelated classes (the per-package tag
+ * and the packages-mode conversion emits a small set of PRE-EXISTING
+ * referenced-but-not-included converter notices. (The per-package tag
  * config of `entryPointStrategy: "packages"` does not inherit the
- * root blockTags, so every `@stable` logs "unknown block tag"; plus
- * the referenced-but-not-included converter notices). Flipping the
- * global flag would hold the W-130 fix hostage to that cleanup, so
- * this wrapper escalates EXACTLY the link-validation classes:
+ * root options, so each package carries a typedoc.json extending
+ * docs/typedoc.package.json for the tag vocabulary and the exclusion
+ * switches.) Flipping the global flag would hold the W-130 fix
+ * hostage to that cleanup, so this wrapper escalates EXACTLY the
+ * link-validation classes:
  *
  *   - "Failed to resolve link to ..."            (broken {@link})
  *   - "... which was resolved but is not included ..." (link target

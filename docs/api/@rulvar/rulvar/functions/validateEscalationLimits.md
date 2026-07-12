@@ -20,7 +20,7 @@ change semantics (per logical task, not per node).
 
 | Parameter | Type |
 | ------ | ------ |
-| `raw?` | \| `Record`\&lt;`string`, `unknown`\&gt; \| `Partial`\&lt;[`EscalationLimits`](/api/@rulvar/rulvar/interfaces/EscalationLimits.md)\&gt; |
+| `raw?` | \| `Partial`\&lt;[`EscalationLimits`](/api/@rulvar/rulvar/interfaces/EscalationLimits.md)\&gt; \| `Record`\&lt;`string`, `unknown`\&gt; |
 
 ## Returns
 

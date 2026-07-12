@@ -21,4 +21,4 @@ The model-facing kb_propose payload (tier-relative subject).
 | <a id="property-subject"></a> `subject` | \{ `tier`: `number`; \} | [packages/plan/src/tools.ts:300](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L300) |
 | `subject.tier` | `number` | [packages/plan/src/tools.ts:300](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L300) |
 | <a id="property-taskclass"></a> `taskClass` | `string` | [packages/plan/src/tools.ts:301](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L301) |
-| <a id="property-trigger"></a> `trigger` | \| `"escalation"` \| `"no-progress"` \| `"error"` \| `"limit"` \| `"schema-exhausted"` \| `"verify-failed"` | [packages/plan/src/tools.ts:303](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L303) |
+| <a id="property-trigger"></a> `trigger` | \| `"no-progress"` \| `"escalation"` \| `"error"` \| `"limit"` \| `"schema-exhausted"` \| `"verify-failed"` | [packages/plan/src/tools.ts:303](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/tools.ts#L303) |

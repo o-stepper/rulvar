@@ -36,6 +36,14 @@ export type RunMeta = {
   workflowHash?: string;
   /** TranscriptStore ref of the persisted CompiledWorkflow source. */
   workflowSourceRef?: string;
+  /**
+   * The run's immutable USD ceiling (RunOptions.budgetUsd), recorded so
+   * resume restores the original invocation's bound. Absent when the
+   * run started without a ceiling. Stores must round-trip the field
+   * (the conformance kit checks); a store that drops it degrades a
+   * resumed run to uncapped.
+   */
+  budgetUsd?: number;
 };
 
 export type RunFilter = {

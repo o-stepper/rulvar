@@ -1,0 +1,33 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "blockTags": [
+    "@alpha",
+    "@beta",
+    "@deprecated",
+    "@example",
+    "@experimental",
+    "@inheritDoc",
+    "@param",
+    "@public",
+    "@privateRemarks",
+    "@readonly",
+    "@remarks",
+    "@returns",
+    "@see",
+    "@sealed",
+    "@stable",
+    "@throws",
+    "@typeParam"
+  ],
+  "modifierTags": [
+    "@hidden",
+    "@internal",
+    "@override",
+    "@stable",
+    "@experimental"
+  ],
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "skipErrorChecking": true
+}

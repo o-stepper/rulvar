@@ -22,13 +22,13 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | \{ `budget`: [`RunBudget`](/api/@rulvar/rulvar/classes/RunBudget.md); `childBudgetFraction?`: `number`; `flatReserveUsd?`: `number`; `lineage?`: \{ `journalView`: () => readonly [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md)[]; `limits?`: \| `Record`\&lt;`string`, `unknown`\&gt; \| `Partial`\&lt;[`EscalationLimits`](/api/@rulvar/rulvar/interfaces/EscalationLimits.md)\&gt;; \}; `maxChildrenPerNode?`: `number`; `maxDepth?`: `number`; `maxTotalSpawns?`: `number`; `mintId?`: () => `string`; \} | - |
+| `options` | \{ `budget`: [`RunBudget`](/api/@rulvar/rulvar/classes/RunBudget.md); `childBudgetFraction?`: `number`; `flatReserveUsd?`: `number`; `lineage?`: \{ `journalView`: () => readonly [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md)[]; `limits?`: \| `Partial`\&lt;[`EscalationLimits`](/api/@rulvar/rulvar/interfaces/EscalationLimits.md)\&gt; \| `Record`\&lt;`string`, `unknown`\&gt;; \}; `maxChildrenPerNode?`: `number`; `maxDepth?`: `number`; `maxTotalSpawns?`: `number`; `mintId?`: () => `string`; \} | - |
 | `options.budget` | [`RunBudget`](/api/@rulvar/rulvar/classes/RunBudget.md) | - |
 | `options.childBudgetFraction?` | `number` | - |
 | `options.flatReserveUsd?` | `number` | - |
-| `options.lineage?` | \{ `journalView`: () => readonly [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md)[]; `limits?`: \| `Record`\&lt;`string`, `unknown`\&gt; \| `Partial`\&lt;[`EscalationLimits`](/api/@rulvar/rulvar/interfaces/EscalationLimits.md)\&gt;; \} | The lineage binding (DEF-3): a journal view for the pure counter folds plus the configured limits. Without it the controller mints and embeds lineage but enforces no lineage limits (unit contexts). |
+| `options.lineage?` | \{ `journalView`: () => readonly [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md)[]; `limits?`: \| `Partial`\&lt;[`EscalationLimits`](/api/@rulvar/rulvar/interfaces/EscalationLimits.md)\&gt; \| `Record`\&lt;`string`, `unknown`\&gt;; \} | The lineage binding (DEF-3): a journal view for the pure counter folds plus the configured limits. Without it the controller mints and embeds lineage but enforces no lineage limits (unit contexts). |
 | `options.lineage.journalView` | () => readonly [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md)[] | - |
-| `options.lineage.limits?` | \| `Record`\&lt;`string`, `unknown`\&gt; \| `Partial`\&lt;[`EscalationLimits`](/api/@rulvar/rulvar/interfaces/EscalationLimits.md)\&gt; | - |
+| `options.lineage.limits?` | \| `Partial`\&lt;[`EscalationLimits`](/api/@rulvar/rulvar/interfaces/EscalationLimits.md)\&gt; \| `Record`\&lt;`string`, `unknown`\&gt; | - |
 | `options.maxChildrenPerNode?` | `number` | - |
 | `options.maxDepth?` | `number` | - |
 | `options.maxTotalSpawns?` | `number` | - |

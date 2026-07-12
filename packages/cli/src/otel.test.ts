@@ -132,6 +132,74 @@ describe('toOtel (M5-T08)', () => {
     expect((runSpan?.endTime ?? 0) >= (runSpan?.startTime ?? 0)).toBe(true);
   });
 
+  it('contextApi plus setSpan produce real parent-child nesting', async () => {
+    const run = await runAndCollect();
+    const spans: RecordedSpan[] = [];
+    const contexts: Array<{ name: string; parentContext: unknown }> = [];
+    const bySpan = new Map<SpanLike, RecordedSpan>();
+    const tracer: TracerLike = {
+      startSpan(name, options, context) {
+        const record: RecordedSpan = {
+          name,
+          attributes: { ...options?.attributes },
+          events: [],
+          ended: false,
+        };
+        spans.push(record);
+        contexts.push({ name, parentContext: context });
+        const span: SpanLike = {
+          setAttribute: (key, value) => {
+            record.attributes[key] = value;
+          },
+          addEvent: (eventName) => {
+            record.events.push(eventName);
+          },
+          setStatus: (status) => {
+            record.status = status;
+          },
+          end: () => {
+            record.ended = true;
+          },
+        };
+        bySpan.set(span, record);
+        return span;
+      },
+    };
+    const ACTIVE = { marker: 'active-context' };
+    await toOtel(run, tracer, {
+      contextApi: { active: () => ACTIVE, with: (_context, fn) => fn() },
+      setSpan: (context, span) => ({ context, parent: bySpan.get(span) }),
+    });
+
+    // The run root has no parent context; every child span was started
+    // with a context derived from its parent's span.
+    const rootStart = contexts.find((c) => c.name.startsWith('run '));
+    expect(rootStart?.parentContext).toBeUndefined();
+    const phaseStart = contexts.find((c) => c.name === 'phase scan');
+    const phaseParent = phaseStart?.parentContext as
+      { context: unknown; parent?: RecordedSpan } | undefined;
+    expect(phaseParent?.context).toBe(ACTIVE);
+    expect(phaseParent?.parent?.name.startsWith('run ')).toBe(true);
+    const agentStart = contexts.find((c) => c.name.startsWith('agent '));
+    const agentParent = agentStart?.parentContext as
+      { context: unknown; parent?: RecordedSpan } | undefined;
+    expect(agentParent?.parent?.name).toBe('phase scan');
+  });
+
+  it('without the context options, spans stay flat: no parent context is passed', async () => {
+    const run = await runAndCollect();
+    const contexts: unknown[] = [];
+    const { tracer } = inMemoryTracer();
+    const spying: TracerLike = {
+      startSpan(name, options, context) {
+        contexts.push(context);
+        return tracer.startSpan(name, options);
+      },
+    };
+    await toOtel(run, spying);
+    expect(contexts.every((context) => context === undefined)).toBe(true);
+  });
+
   it('the exporter loads and runs with no @opentelemetry package present', () => {
     // Importing this module did not require any OTel package: toOtel is
     // a function typed against the structural TracerLike.

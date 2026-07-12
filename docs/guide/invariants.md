@@ -124,7 +124,7 @@ flowchart TD
 Three properties make the ceiling a real guarantee:
 
 - Bounded overshoot. Spend beyond the ceiling is bounded by one turn per in-flight agent. No tighter bound is possible, because providers bill aborted streams; rulvar declares the bound instead of pretending it is zero.
-- The ceiling is immutable, and it is per invocation. The run budget ceiling is fixed at `engine.run(...)` time and no API can raise it while that invocation lives, not even a human approval decision. It does not survive resume: `engine.resume` restores the pre-crash spend into the resumed ledger, so cost reports stay truthful, but `ResumeOptions` carries no budget and a resumed run enforces no USD ceiling today. Ceiling persistence across resume is a known gap slated for a future release; see [Durability](/guide/durability).
+- The ceiling is immutable, for the run's whole life. It is fixed at `engine.run(...)` time, recorded in the run's store metadata, and restored on every resume: `engine.resume` reads back both the pre-crash spend and the ceiling it counts against, and `ResumeOptions` deliberately carries no budget field, so no API can raise the ceiling after start, restarts included, not even a human approval decision. A journal written before the ceiling was recorded (or read through a store that drops optional `RunMeta` fields) resumes uncapped; see [Durability](/guide/durability).
 - Exhaustion is never null. A run that hits its ceiling settles with status `"exhausted"`, partial results where they exist, an itemized list of dropped work, and a complete cost report. You always learn what your money bought.
 
 ```ts

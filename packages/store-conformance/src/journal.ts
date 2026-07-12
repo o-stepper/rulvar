@@ -250,6 +250,19 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
           'meta-separation',
           'listRuns must honor the tags filter',
         );
+        // Optional RunMeta fields must round-trip byte-faithfully: the
+        // engine restores the run's budget ceiling from budgetUsd on
+        // resume, so a store that drops the field silently uncaps
+        // resumed runs.
+        await store.putMeta(
+          meta(RUN, { status: 'suspended', name: 'wf-a', tags: ['team:core'], budgetUsd: 12.5 }),
+        );
+        const roundTripped = (await store.listRuns()).find((candidate) => candidate.runId === RUN);
+        ensure(
+          roundTripped?.budgetUsd === 12.5,
+          'meta-separation',
+          'putMeta/listRuns must round-trip optional RunMeta fields (budgetUsd)',
+        );
         await store.delete(RUN);
         ensure(
           (await store.load(RUN)).length === 0 &&

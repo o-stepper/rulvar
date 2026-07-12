@@ -359,12 +359,14 @@ export const PROMPTS = {
 } as const;
 
 /** One cassette fixture file: id, provenance note, and the journal. */
+/** @internal */
 export interface CassetteFixture {
   id: string;
   note: string;
   entries: JournalEntry[];
 }
 
+/** @internal */
 export function buildM2CassetteFixtures(): CassetteFixture[] {
   const fixtures: CassetteFixture[] = [];
 
@@ -531,6 +533,7 @@ export function buildM2CassetteFixtures(): CassetteFixture[] {
  * round-1 JSONL file with kinds agent, step, rand, external, approval and
  * the legacy `v: 1` field (no hashVersion member). Returned as raw
  * JSON-ready objects, one per line.
+ * @internal
  */
 export function buildFrozenV1JournalRaw(): Array<Record<string, unknown>> {
   const j = new FixtureJournal();
@@ -577,6 +580,7 @@ export const WORKED_EXAMPLE_INPUT: AgentIdentityInput = {
  * v2 golden identity fixtures: worked examples per spawn kind (M2-T12).
  * The keys freeze the hashVersion 2 profile; the v1 members freeze the
  * effort-insensitive projection and the incomparable domain.
+ * @internal
  */
 export function buildV2GoldenIdentity(): Record<string, unknown> {
   const perKind: Array<{ name: string; input: IdentityInput }> = [

@@ -194,7 +194,7 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Parameter | Type |
 | ------ | ------ |
-| `level` | `"debug"` \| `"info"` \| `"warn"` \| `"error"` |
+| `level` | `"error"` \| `"debug"` \| `"info"` \| `"warn"` |
 | `msg` | `string` |
 | `data?` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) |
 

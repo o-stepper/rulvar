@@ -22,6 +22,8 @@ pnpm add @rulvar/cli
 
 The package is ESM only and requires Node >= 22.12.0, like the rest of rulvar. Some commands load optional companions dynamically at command time: `rulvar plan` needs `@rulvar/planner` installed, `rulvar kb sweep` needs `@rulvar/evals`, and `rulvar kb inbox` and `rulvar kb gate` need `@rulvar/plan`. A missing companion is a clear error on that command, never a load failure of the others. The OTel exporter declares `@opentelemetry/api` (^1.9) as an optional peer.
 
+One naming caveat: run the binary from a project that installs `@rulvar/cli` (`pnpm exec rulvar ...` or a package script). A bare `npx rulvar` in a project without it fetches the unscoped `rulvar` package from the registry, which is the library alias and ships no binary.
+
 ## The rulvar command
 
 The canonical grammar, with no aliases:
@@ -245,7 +247,7 @@ const spanCount = await toOtel(
 );
 ```
 
-The options parameter accepts `contextApi` and `setSpan` (the `context` API and `trace.setSpan` from `@opentelemetry/api`) for forward compatibility, but the current exporter does not read them: spans come out flat and fully attributed either way, with the run > phase > agent > tool > child parentage riding the `rulvar.*` attributes rather than OTel parent links (see [Observability](/guide/observability)). The exporter needs only the tiny structural `TracerLike` surface, so it works with any SDK setup and stays out of your dependency tree until you opt in.
+Pass `contextApi` and `setSpan` (the `context` API and `trace.setSpan` from `@opentelemetry/api`) to get real parent-child span nesting: every child span starts under a context derived from its parent, so the run > phase > agent > tool > child tree lands in the trace structure. Without them, spans come out flat but fully attributed, with the parentage riding the `rulvar.*` attributes (see [Observability](/guide/observability)). The exporter needs only the tiny structural `TracerLike` surface, so it works with any SDK setup and stays out of your dependency tree until you opt in.
 
 ## Deployment notes
 

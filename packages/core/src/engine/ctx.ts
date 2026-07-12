@@ -1246,6 +1246,16 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           reject?: { code: string };
         };
         if (recorded.reject !== undefined) {
+          internals.events.emit(
+            {
+              type: 'spawn:rejected',
+              entryRef: prior.seq,
+              code: recorded.reject.code,
+              agentType,
+            },
+            state.spanId,
+            true,
+          );
           throw new AdmissionRejectedError(
             `lineage admission rejected agent spawn (${recorded.reject.code}; recorded verdict)`,
             { data: { reason: recorded.reject as unknown as Json } },
@@ -1287,7 +1297,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         } else {
           decisionValue.lineage = evaluated.decision.lineage;
         }
-        await internals.replayer.appendSinglePhase({
+        const decisionEntry = await internals.replayer.appendSinglePhase({
           scope: state.scope,
           key: '',
           kind: 'decision',
@@ -1296,6 +1306,15 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           value: decisionValue,
         });
         if (evaluated.decision.kind === 'reject') {
+          internals.events.emit(
+            {
+              type: 'spawn:rejected',
+              entryRef: decisionEntry.seq,
+              code: evaluated.decision.reason.code,
+              agentType,
+            },
+            state.spanId,
+          );
           throw new AdmissionRejectedError(
             `lineage admission rejected agent spawn (${evaluated.decision.reason.code})`,
             { data: { reason: evaluated.decision.reason as unknown as Json } },
