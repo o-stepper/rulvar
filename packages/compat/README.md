@@ -4,7 +4,11 @@ Frozen key-derivation profiles for journal `hashVersions` that leave the
 engine's support window, attached at engine construction through the
 `extraDerivers` option so old journals stay resumable. Independently
 versioned on purpose: its cadence follows the journal's compatibility
-history, not engine feature releases.
+history, not engine feature releases. No real profile has aged out yet
+at `CURRENT_HASH_VERSION = 2`, so today the package exports only
+`deriverV0Synthetic`, a synthetic out-of-window profile that exercises
+the compatibility path end to end; real profiles move in here when they
+retire.
 
 Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed

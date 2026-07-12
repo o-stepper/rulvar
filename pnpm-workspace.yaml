@@ -16,9 +16,11 @@ catalog:
   '@ai-sdk/google': ^4.0.0
   '@ai-sdk/provider': ^4.0.0
   '@anthropic-ai/sdk': ^0.110.0
+  '@modelcontextprotocol/sdk': ^1.29.0
   '@arethetypeswrong/cli': ^0.18.4
   '@changesets/cli': ^2.31.0
   '@eslint/js': ^9.39.4
+  '@types/estree': ^1.0.6
   '@types/node': ^22.20.0
   '@vitest/coverage-v8': ^4.1.10
   arktype: ^2.2.2

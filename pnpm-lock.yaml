@@ -24,6 +24,12 @@ catalogs:
     '@eslint/js':
       specifier: ^9.39.4
       version: 9.39.4
+    '@modelcontextprotocol/sdk':
+      specifier: ^1.29.0
+      version: 1.29.0
+    '@types/estree':
+      specifier: ^1.0.6
+      version: 1.0.9
     '@types/node':
       specifier: ^22.20.0
       version: 22.20.0
@@ -274,7 +280,7 @@ importers:
   packages/core:
     dependencies:
       '@modelcontextprotocol/sdk':
-        specifier: ^1.29.0
+        specifier: 'catalog:'
         version: 1.29.0(zod@4.4.3)
     devDependencies:
       '@types/node':
@@ -302,7 +308,7 @@ importers:
   packages/eslint-plugin-rulvar:
     devDependencies:
       '@types/estree':
-        specifier: ^1.0.6
+        specifier: 'catalog:'
         version: 1.0.9
       '@types/node':
         specifier: 'catalog:'

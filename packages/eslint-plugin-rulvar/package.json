@@ -32,7 +32,7 @@
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "eslint": "catalog:",
-    "@types/estree": "^1.0.6"
+    "@types/estree": "catalog:"
   },
   "peerDependencies": {
     "eslint": ">=9"

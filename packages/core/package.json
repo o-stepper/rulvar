@@ -37,7 +37,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0"
+    "@modelcontextprotocol/sdk": "catalog:"
   },
   "repository": {
     "type": "git",
