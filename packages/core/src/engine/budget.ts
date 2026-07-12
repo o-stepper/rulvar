@@ -160,7 +160,7 @@ export class RunBudget {
       const account = this.accounts.get(cursor);
       if (account === undefined) {
         throw new ConfigError(
-          `unknown budget account '${cursor}': openAccount precedes any charge (docs/06, 5.4)`,
+          `unknown budget account '${cursor}': openAccount precedes any charge`,
         );
       }
       chain.push(account);

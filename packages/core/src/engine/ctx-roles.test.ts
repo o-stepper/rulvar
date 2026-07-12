@@ -1,7 +1,7 @@
 /**
  * Role trigger protocol at the ctx layer (M4-T01): the firing decisions
- * of docs/04, sections 8.3-8.4 as amended, wired through resolution,
- * toolset capture, and the agent loop. Acceptance (docs/10): no extra
+ * wired through resolution, toolset capture, and the agent loop.
+ * Acceptance: no extra
  * extract call when the loop model can serve the tier; finalize fires
  * only when routed.
  */

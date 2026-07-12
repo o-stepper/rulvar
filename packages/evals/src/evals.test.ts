@@ -1,5 +1,5 @@
 /**
- * M9-T02 self-tests on FakeAdapter (docs/10, "M9-T02 @rulvar/evals base"):
+ * M9-T02 self-tests on FakeAdapter:
  * the three grader families, judge-through-the-engine, suite aggregation
  * with duplicate-name disambiguation, and the config-matrix comparison.
  */

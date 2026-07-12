@@ -168,7 +168,7 @@ export function bridgeAiSdk(
     throw new ConfigError(
       `bridgeAiSdk requires a LanguageModelV4 (specificationVersion 'v4'); ` +
         `received ${JSON.stringify(version)}. A mismatched @ai-sdk/provider major ` +
-        `cannot be bridged (docs/04, section 7).`,
+        `cannot be bridged.`,
       { data: { received: typeof version === 'string' ? version : null } },
     );
   }
@@ -328,7 +328,7 @@ function applyNamespacedOptions(
     if (key in ns) {
       throw new ConfigError(
         `providerOptions.${adapterId}.${key} contradicts a canonical ChatRequest field; ` +
-          `canonical fields always win (docs/04, section 1.8)`,
+          `canonical fields always win`,
       );
     }
   }

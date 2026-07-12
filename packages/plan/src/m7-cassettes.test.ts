@@ -24,7 +24,7 @@ function cassette(id: string): M7CassetteFixture {
 }
 
 /**
- * Every M7 gating cassette (docs/09 catalog; docs/10 milestone table):
+ * Every M7 gating cassette:
  * the committed fixture is the compatibility contract; a fresh offline
  * run of the same scenario must reproduce it byte-for-byte after the
  * deterministic normalization (ULIDs, hashes, clocks, spans).

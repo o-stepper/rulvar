@@ -1,6 +1,6 @@
 /**
- * Permission presets, audit, and the offline dry-run API (M5-T05;
- * docs/08, sections 4.2-4.5): preset compilation equals the documented
+ * Permission presets, audit, and the offline dry-run API (M5-T05):
+ * preset compilation equals the documented
  * rule tables verbatim; undeclared risk is treated conservatively;
  * audit fields ride tool:end; domain rules are advisory and reported,
  * never enforced; the offline evaluatePermission answers hypothetical

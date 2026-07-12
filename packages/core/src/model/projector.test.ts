@@ -1,7 +1,6 @@
 /**
  * HistoryProjector unit tests (M4-T02): the provider-raw projection rule,
- * the retention lift, and the provider-family helper (docs/04, section
- * 2.3 as amended).
+ * the retention lift, and the provider-family helper.
  */
 import { describe, expect, it } from 'vitest';
 

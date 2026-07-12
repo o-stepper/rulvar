@@ -10,6 +10,6 @@
 const EMPTY_TOOLSET_HASH: string;
 ```
 
-Defined in: [packages/core/src/l0/schema.ts:324](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L324)
+Defined in: [packages/core/src/l0/schema.ts:323](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L323)
 
 The toolsetHash of an empty toolset: the hash of the canonical empty contract array.

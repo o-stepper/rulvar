@@ -105,7 +105,7 @@ export class SqliteStore implements JournalStore, LeasableStore {
       throw new LeaseHeldError(
         `stale fencing epoch for run '${lease.runId}': lease (owner ${lease.owner}, epoch ` +
           `${lease.epoch}) is not the current holder; the append or renew is rejected and ` +
-          'nothing became visible (docs/03, section 12.3)',
+          'nothing became visible',
       );
     }
   }
@@ -185,7 +185,7 @@ export class SqliteStore implements JournalStore, LeasableStore {
       if (live !== undefined) {
         throw new LeaseHeldError(
           `run '${runId}' is leased by '${live.owner}' (epoch ${live.epoch}); acquire on a ` +
-            'held lease rejects (docs/03, section 12.3)',
+            'held lease rejects',
         );
       }
       const prior = this.db.prepare('SELECT epoch FROM epochs WHERE run_id = ?').get(runId) as

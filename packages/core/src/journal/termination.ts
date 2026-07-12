@@ -145,7 +145,7 @@ export function validateTerminationLimits(
     throw new ConfigError(
       "config knob 'maxEscalationsPerNode' was renamed: escalations are counted per logical " +
         "task across respawns via the lineage chain; use 'maxEscalationsPerLogicalTask' " +
-        '(XF-10; docs/07, section 6.5)',
+        '(XF-10)',
     );
   }
   const record = raw as Record<string, unknown>;
@@ -340,7 +340,7 @@ export class TerminationAccount {
         throw new ConfigError(
           `ladder length ${String(ladderLength)} exceeds the frozen kMax ` +
             `${String(this.limits.kMax)}; admit() must reject with ladder_exceeds_frozen ` +
-            'before debiting (docs/07, 11.8)',
+            'before debiting',
         );
       }
       if (lineage.isNew && !this.lineages.has(lineage.logicalTaskId)) {
@@ -429,7 +429,7 @@ export class TerminationAccount {
     if (this.deniedWriter === undefined) {
       throw new ConfigError(
         `termination debit of ${resource} underflowed and no deniedWriter is bound; ` +
-          'the denied entry MUST precede the surfaced error (docs/07, 11.3)',
+          'the denied entry MUST precede the surfaced error',
       );
     }
     const deniedEntryRef = await this.deniedWriter({
@@ -583,7 +583,7 @@ export function foldTermination(entries: readonly JournalEntry[]):
       throw new PlanInvariantError(
         `termination fold divergence at seq ${String(entry.seq)}: ${what} recomputes to ` +
           `${String(recomputed)} but the entry embeds ${String(embedded)} ` +
-          '(docs/07, 11.6: the debit fold is authoritative)',
+          '(the debit fold is authoritative)',
         { data: { entryRef: entry.seq, what, embedded: embedded, recomputed } },
       );
     }

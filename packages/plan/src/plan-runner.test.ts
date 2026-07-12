@@ -181,7 +181,7 @@ describe('PlanRunner (M7-T05): the engine schedules, the model revises', () => {
 
     const entries = await store.load(handle.runId);
     // termination.init written strictly before the first plan entry
-    // and before the orchestrator's first agent entry (docs/07, 11.6).
+    // and before the orchestrator's first agent entry.
     const init = entries.find((entry) => entry.kind === 'termination.init');
     const firstAgent = entries.find((entry) => entry.kind === 'agent');
     const firstPlan = entries.find(

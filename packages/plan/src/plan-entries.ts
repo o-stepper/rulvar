@@ -286,7 +286,7 @@ function verifyHash(
     throw new ReplayPlanHashMismatch(
       `plan fold ${which} mismatch at seq ${String(entry.seq)}: recomputed ${actual}, ` +
         `entry carries ${expected} (hashVersion ${String(entry.hashVersion)}); the resume is ` +
-        'rejected without corrupting the journal (docs/07, 3.4)',
+        'rejected without corrupting the journal',
       {
         data: {
           entryRef: entry.seq,

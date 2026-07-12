@@ -1,6 +1,6 @@
 /**
- * The taskClass binding interim rule (M10-T05; docs/05, section
- * "Phases and placement"; docs/14, OQ-12): author-declared, optional,
+ * The taskClass binding interim rule (M10-T05; OQ-12): author-declared,
+ * optional,
  * absent means unclassified. Phase 1 applies NO card recommendations
  * to any spawn (the verified layer is empty), so the rule's teeth here
  * are the SUBSTRATE: a declared class journals inside the

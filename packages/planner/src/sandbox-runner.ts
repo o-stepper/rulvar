@@ -50,8 +50,7 @@ export class WorkerSandboxRunner implements ScriptRunner {
     if ((wf as CompiledWorkflow | Workflow<A, R>).kind !== 'compiled-workflow') {
       // Typed guard for the JS boundary; the type split prevents this in TS.
       throw new ConfigError(
-        'WorkerSandboxRunner executes CompiledWorkflow values only; closures run in process ' +
-          '(docs/06, section "Script runners")',
+        'WorkerSandboxRunner executes CompiledWorkflow values only; closures run in process ' + '',
       );
     }
     const argsJson = toJournalValue(args ?? null, 'sandbox workflow args');

@@ -50,8 +50,8 @@ export async function resolveToolset(
     if (typeof spec === 'string') {
       throw new ConfigError(
         `tools by registered name ('${spec}') resolve only inside the worker sandbox; ` +
-          'name-based tool registries land with compileScript in M6 (docs/06, section ' +
-          '"Script runners")',
+          'name-based tool registries exist for compiled scripts only ' +
+          '(https://docs.rulvar.com/guide/planner)',
       );
     }
     if (isToolDef(spec)) {
@@ -66,13 +66,13 @@ export async function resolveToolset(
     if (!TOOL_NAME_PATTERN.test(def.name)) {
       throw new ConfigError(
         `imported tool name '${def.name}' must match ^[a-zA-Z0-9_-]{1,64}$; ` +
-          'namespace it with the source prefix option (docs/08, section 6.4)',
+          'namespace it with the source prefix option',
       );
     }
     if (seen.has(def.name)) {
       throw new ConfigError(
         `duplicate tool name '${def.name}' in one toolset; disambiguate with the ` +
-          'MCP prefix option (docs/08, sections 1.1 and 6.4)',
+          'MCP prefix option',
       );
     }
     if (def.executor !== 'inprocess') {
@@ -81,7 +81,7 @@ export async function resolveToolset(
       // capability until the executor design closes (still an open question).
       throw new ConfigError(
         `tool '${def.name}' declares executor '${def.executor}', but this engine ` +
-          "implements only 'inprocess' in v1 (docs/08, section 7.1)",
+          "implements only 'inprocess' in v1",
       );
     }
     seen.set(def.name, def);

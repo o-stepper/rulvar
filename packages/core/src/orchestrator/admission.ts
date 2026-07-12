@@ -238,7 +238,7 @@ export class AdmissionController {
     if (maxDepth < 1 || maxDepth > MAX_DEPTH_CEILING) {
       throw new ConfigError(
         `maxDepth ${String(maxDepth)} is outside [1, ${String(MAX_DEPTH_CEILING)}] ` +
-          '(docs/06, Appendix A: default 1, hard ceiling 4)',
+          '(default 1, hard ceiling 4)',
       );
     }
     this.budget = options.budget;
@@ -280,7 +280,7 @@ export class AdmissionController {
    */
   bindTermination(account: TerminationAccount): void {
     if (this.terminationAccount !== undefined && this.terminationAccount !== account) {
-      throw new ConfigError('one run carries exactly one TerminationAccount (docs/07, 11.2)');
+      throw new ConfigError('one run carries exactly one TerminationAccount');
     }
     this.terminationAccount = account;
   }
@@ -313,7 +313,7 @@ export class AdmissionController {
     if (spec.lineage !== undefined && typeof spec.lineage.causeRef !== 'number') {
       throw new ConfigError(
         'a lineage continuation demands a causeRef: the seq of the entry that caused the ' +
-          'rebirth (docs/03, 10.1, rule 2)',
+          'rebirth',
       );
     }
     const index = this.lineage();

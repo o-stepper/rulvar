@@ -1,6 +1,5 @@
 /**
- * DEF-4 live forms (M9-T04 re-record; docs/09 section 6.4; docs/10
- * synthetic-fixture rule): the committed files hold journals produced
+ * DEF-4 live forms (M9-T04 re-record): the committed files hold journals produced
  * through the LIVE producers (engine runs, RunHandle.resolveExternal,
  * the offline kernel writer of the M8 machinery); these replays are the
  * end-to-end gate, seq-agnostic where the synthetic tests hardcoded

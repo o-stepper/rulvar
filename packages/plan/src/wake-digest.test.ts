@@ -83,7 +83,7 @@ describe('WakeDigest final coordinated schema (M7-T13; docs/07, section 5)', () 
     expect(digest.budget.orchestratorShare).toBeGreaterThanOrEqual(0);
     // DEF-5: the reuse stats block.
     expect(digest.reuse).toMatchObject({ abandonedUsd: 0, reclaimedUsd: 0, netLostUsd: 0 });
-    // The deterministic render clamp (characters, docs/07 section 5).
+    // The deterministic render clamp (characters).
     expect(digest.completedDigests[0]?.outputSummary).toBe('a worker output long eno...');
   });
 

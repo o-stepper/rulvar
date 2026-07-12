@@ -763,7 +763,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     ) {
       throw new ConfigError(
         'worktree isolation requires an IsolationProvider: pass defaults.isolation to ' +
-          'createEngine (docs/08, section 8.2)',
+          'createEngine',
       );
     }
 
@@ -844,7 +844,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         // BEFORE any LLM call and before any journal entry.
         throw new ConfigError(
           "flavor 'B' escalation requires an explicit deadlineMs: the suspension deadline " +
-            'has no engine default (docs/06, Appendix A; docs/07, section 6.2)',
+            'has no engine default',
         );
       }
       if (opts.result !== 'full' && internals.onEscalation === undefined) {
@@ -858,9 +858,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       if (escalation.flavor === 'B' && escalation.deadlineMs === undefined) {
         // Appendix A interim rule: no engine default deadline; enabling
         // Flavor B requires an explicit deadlineMs.
-        throw new ConfigError(
-          "escalation flavor 'B' requires an explicit deadlineMs (docs/06, Appendix A)",
-        );
+        throw new ConfigError("escalation flavor 'B' requires an explicit deadlineMs");
       }
     }
 
@@ -1625,9 +1623,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       const request = result.escalationRequest;
       const deadlineMs = escalation.deadlineMs;
       if (deadlineMs === undefined) {
-        throw new ConfigError(
-          "flavor 'B' escalation requires an explicit deadlineMs (docs/06, Appendix A)",
-        );
+        throw new ConfigError("flavor 'B' escalation requires an explicit deadlineMs");
       }
       // An absent defaultDecision canonicalizes to accept at the timeout.
       const defaultDecision: EscalationDecision = escalation.defaultDecision ?? {
@@ -2160,14 +2156,12 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       const registered = internals.defaults.workflows?.[wfOrName];
       if (registered === undefined) {
         throw new ConfigError(
-          `unknown workflow '${wfOrName}': register it under defaults.workflows (docs/06, 10.4)`,
+          `unknown workflow '${wfOrName}': register it under defaults.workflows`,
         );
       }
       const candidate = registered as Workflow<never, unknown>;
       if (candidate.kind !== 'workflow') {
-        throw new ConfigError(
-          `registry entry '${wfOrName}' is not a defineWorkflow value (docs/06, 10.4)`,
-        );
+        throw new ConfigError(`registry entry '${wfOrName}' is not a defineWorkflow value`);
       }
       wf = candidate;
       name = wfOrName;

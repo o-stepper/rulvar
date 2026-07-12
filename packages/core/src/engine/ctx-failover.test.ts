@@ -3,8 +3,7 @@
  * transport failover is ONE journal entry whose servedBy records the
  * actual server while the content key hashes the requested spec
  * (replay-stable); the degenerate fallback is an agent-level second
- * attempt with one decision entry and a NEW content key (docs/04,
- * sections 11.2 and 11.3 as amended).
+ * attempt with one decision entry and a NEW content key.
  */
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';

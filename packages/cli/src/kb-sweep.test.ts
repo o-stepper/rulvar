@@ -1,6 +1,6 @@
 /**
- * rulvar kb sweep e2e (M11-T05; docs/05, section "Grounding and
- * decay"): the falsification guarantee: a sweep over a store with
+ * rulvar kb sweep e2e (M11-T05): the falsification guarantee: a sweep
+ * over a store with
  * active negative claims includes those models in its matrix even when
  * the configured pool omits them; threshold-crossing cells commit
  * eval-measured claims through the committer identity; canary drift

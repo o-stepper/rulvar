@@ -141,7 +141,7 @@ describe('buildAnthropicParams (M1-T12)', () => {
       { ids: ids(), maxOutputTokens: 1024, thinkingForm: 'adaptive' },
     );
     // Tool-use history without tool definitions is rejected by the API:
-    // the tools param stays present, the choice pins none (docs/04, 8.4).
+    // the tools param stays present, the choice pins none.
     expect((params.tools as unknown[]).length).toBe(1);
     expect(params.tool_choice).toEqual({ type: 'none' });
   });
@@ -309,7 +309,7 @@ describe('stream mapping (M1-T12)', () => {
     const finish = events.at(-1) as Extract<ChatEvent, { type: 'finish' }>;
     const meta = finish.providerMetadata?.anthropic as Record<string, unknown>;
     // Whole-turn payload in stream order: the pause_turn carry first,
-    // then this continuation's block, signature intact (docs/04, 4.5).
+    // then this continuation's block, signature intact.
     expect(meta.retainedParts).toEqual([
       carried,
       { type: 'thinking', thinking: 'hm', signature: 'sig-1' },

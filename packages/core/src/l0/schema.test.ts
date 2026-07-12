@@ -38,9 +38,9 @@ describe('SchemaSpec three forms (M1-T03)', () => {
 
   it('valibot 1.x validates as form 1 but rejects projection with ConfigError', async () => {
     // Valibot implements StandardSchemaV1 but (as of 1.4) not the
-    // StandardJSONSchemaV1 converter; per docs/08 section 2.3 the missing
-    // projection is a typed ConfigError at definition time (docs/10,
-    // M1-T03 acceptance as amended in this change).
+    // StandardJSONSchemaV1 converter; the missing projection is a typed
+    // ConfigError at definition time (M1-T03 acceptance as amended in
+    // this change).
     const spec = v.object({ tag: v.string() });
     expect(isStandardSchemaSpec(spec)).toBe(true);
     expect(() => projectToJsonSchema(spec)).toThrow(ConfigError);

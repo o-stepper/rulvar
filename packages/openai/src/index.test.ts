@@ -136,7 +136,7 @@ describe('buildResponsesParams (M1-T13)', () => {
       ids(),
     );
     // Function-call items in the input need their definitions: the tools
-    // param stays present, the choice pins none (docs/04, section 8.4).
+    // param stays present, the choice pins none.
     expect((params.tools as unknown[]).length).toBe(1);
     expect(params.tool_choice).toBe('none');
   });
@@ -254,8 +254,7 @@ describe('Responses stream mapping (M1-T13; docs/04 section 5.4)', () => {
     // Raw output items ride providerMetadata for provider-raw retention.
     expect(meta.outputItems).toEqual(outputItems);
     // The retention payload is EXACTLY the reasoning items, in output
-    // order, encrypted_content intact (docs/04, sections 2.3 and 5.1;
-    // M4-T02).
+    // order, encrypted_content intact (M4-T02).
     expect(meta.retainedParts).toEqual([outputItems[0]]);
     expect(meta.effortDownmapped).toBe('max->xhigh');
     expect(meta.responseId).toBe('resp_1');

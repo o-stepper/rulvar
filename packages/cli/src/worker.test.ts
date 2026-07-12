@@ -1,6 +1,6 @@
 /**
- * createWorker integration (M8-T02 acceptance; docs/02, section 8.3;
- * FR-703): two store connections over one sqlite file stand in for two
+ * createWorker integration (M8-T02 acceptance; FR-703): two store
+ * connections over one sqlite file stand in for two
  * processes (the same isolation boundary the fencing epoch guards).
  * Covers: the non-leasable ConfigError at start, the queue round-trip
  * (suspended run picked up after an offline resolution, resolved through

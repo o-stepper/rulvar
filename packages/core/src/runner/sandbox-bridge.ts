@@ -205,9 +205,7 @@ export function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptio
             const tools: Json = rawOpts.tools;
             const allNames = Array.isArray(tools) && tools.every((v) => typeof v === 'string');
             if (!allNames) {
-              throw new ConfigError(
-                'sandbox agent tools must be registered profile NAMES (docs/06, 8.3)',
-              );
+              throw new ConfigError('sandbox agent tools must be registered profile NAMES');
             }
           }
           const opts = rawOpts as unknown as AgentOpts<SchemaSpec> & { result?: 'full' };
@@ -237,9 +235,7 @@ export function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptio
         case 'workflow': {
           const record = asRecord(params, 'workflow params');
           if (typeof record.name !== 'string') {
-            throw new ConfigError(
-              'sandbox workflow calls take a registered workflow NAME (docs/06, 2.5)',
-            );
+            throw new ConfigError('sandbox workflow calls take a registered workflow NAME');
           }
           const callOpts: WorkflowCallOpts = {};
           if (typeof record.key === 'string') {

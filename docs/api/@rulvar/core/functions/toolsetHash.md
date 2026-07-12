@@ -10,7 +10,7 @@
 function toolsetHash(contracts): string;
 ```
 
-Defined in: [packages/core/src/l0/schema.ts:353](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L353)
+Defined in: [packages/core/src/l0/schema.ts:352](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L352)
 
 toolsetHash = sha256 over the JCS-canonical JSON array of per-tool
 contract tuples (name, description, canonical parameters, version)

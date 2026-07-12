@@ -252,7 +252,7 @@ describe('KeyDeriver profiles and the support window (M2-T05; docs/03 section 4)
     // Two identical v1 calls paid before an upgrade (ordinals 0 and 1 in
     // the v1 space), then a resume with three identical calls: the third
     // goes live and is written with hashVersion 2, ordinal 0 in its own
-    // space (docs/03, section 4.4).
+    // space.
     const v1Key = deriverV1.deriveKey(deriverV1.project(agentIdentity) as Record<string, unknown>);
     const journal: JournalEntry[] = [];
     for (const ordinal of [0, 1]) {

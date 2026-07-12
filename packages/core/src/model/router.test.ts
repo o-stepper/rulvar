@@ -184,7 +184,7 @@ describe('resolution chain (M1-T05; docs/04 section 8.2-8.3)', () => {
 
   it('rejects a ladder that WINS wire resolution with a ConfigError', () => {
     // Ladder execution is owned by the PlanRunner ladder driver: rung
-    // attempts always carry a concrete call-layer override (docs/07, 10).
+    // attempts always carry a concrete call-layer override.
     expect(() =>
       resolveModelInvocation({
         role: 'loop',
@@ -204,7 +204,7 @@ describe('resolution chain (M1-T05; docs/04 section 8.2-8.3)', () => {
 
   it('lets a concrete call override SHADOW a declared profile ladder', () => {
     // The rung attempt's own resolution: the ladder driver dispatches
-    // with a concrete ModelChoice at the call layer (docs/04, 12).
+    // with a concrete ModelChoice at the call layer.
     const resolved = resolveModelInvocation({
       role: 'loop',
       call: { model: { model: 'anthropic:claude-fable-5', effort: 'high' } },

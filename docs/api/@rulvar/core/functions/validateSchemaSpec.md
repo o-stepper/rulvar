@@ -10,7 +10,7 @@
 function validateSchemaSpec<S>(spec, value): Promise<SchemaValidationResult<Out<S>>>;
 ```
 
-Defined in: [packages/core/src/l0/schema.ts:394](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L394)
+Defined in: [packages/core/src/l0/schema.ts:393](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L393)
 
 Runtime validation per form:
 form 1 via the Standard Schema's own validate, form 2 via the pair's

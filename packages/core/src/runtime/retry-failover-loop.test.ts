@@ -3,7 +3,7 @@
  * retries live UNDER the journal (one result, one usage total, turns
  * unaffected), retryAfterMs replaces the computed delay, exhausted
  * retries advance the sticky failover chain, and servedBy records the
- * actual server (docs/04, sections 11.1 and 11.2).
+ * actual server.
  */
 import { describe, expect, it } from 'vitest';
 

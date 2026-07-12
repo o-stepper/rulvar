@@ -3,7 +3,7 @@
  * runs on one provider while extract and finalize run on another, and
  * each sees a valid wire history: retained provider-raw blocks ride only
  * to their own provider, everything else passes through unchanged
- * (docs/04, section 2.3 as amended; docs/10, M4-T02).
+ * (M4-T02).
  */
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -99,7 +99,7 @@ describe('mixed-provider agent (M4-T02 acceptance)', () => {
       { id: 'anth', provider: 'anthropic' },
     );
     // A second adapter of the SAME family (custom id): retained blocks
-    // must ride to it (family granularity, docs/04, section 2.3).
+    // must ride to it (family granularity).
     const anthEu = scriptedAdapter(() => ({ text: 'synthesis from the same family' }), {
       id: 'anth-eu',
       provider: 'anthropic',

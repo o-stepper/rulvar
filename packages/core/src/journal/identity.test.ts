@@ -5,7 +5,7 @@ import { deriveContentKey, identityJcs, modelSpecIdentity } from './identity.js'
 
 describe('content-key derivation (M1-T04; docs/03 section 1)', () => {
   /**
-   * The docs/03 section 1.5 worked example MUST reproduce byte-identically;
+   * The worked example MUST reproduce byte-identically;
    * this test seeds the M2 golden fixtures.
    */
   const workedExample: AgentIdentityInput = {

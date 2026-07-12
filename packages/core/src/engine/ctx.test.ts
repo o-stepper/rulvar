@@ -427,7 +427,7 @@ describe('three-layer budget (M1-T09)', () => {
       // Admissions happen synchronously in branch order: the first two
       // commit 0.6 USD each; the third sees spent + committedReserve
       // (1.2 USD) at the 1 USD ceiling and is blocked before any journal
-      // entry (docs/06, section "Layer 1: admission before spawn").
+      // entry.
       return ctx.parallel([
         () => ctx.agent('c1', { estCost: 0.6 }),
         () => ctx.agent('c2', { estCost: 0.6 }),

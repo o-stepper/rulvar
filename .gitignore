@@ -26,3 +26,6 @@ coverage/
 
 tmp
 tmp/
+
+# Playwright MCP session artifacts (screenshots, snapshots, console logs)
+.playwright-mcp/

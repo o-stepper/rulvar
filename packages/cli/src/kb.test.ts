@@ -1,6 +1,6 @@
 /**
- * rulvar kb list e2e over a fixture store (M10-T04; docs/05, 4.4;
- * docs/06, 10.5): full provenance per claim (author, gate, evidence
+ * rulvar kb list e2e over a fixture store (M10-T04): full provenance
+ * per claim (author, gate, evidence
  * refs, TTL state) for the humans who author ladders, floors, and
  * profiles. No run, no pin; the file store reads directly.
  */

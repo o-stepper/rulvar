@@ -168,7 +168,7 @@ describe('permission chain (M3-T03)', () => {
       compilePermissionChain({ ask: [{ tool: 'fetch', domains: ['example.com'] }] }),
     ).not.toThrow();
     const chain = compilePermissionChain(undefined, { preset: 'strict' });
-    // The preset compiled INTO the layers (docs/08, 4.2), never a fifth.
+    // The preset compiled INTO the layers, never a fifth.
     expect(chain.deny).toEqual([{ risk: 'destructive' }]);
     expect(chain.ask).toEqual([{ risk: ['write', 'network', 'execute'] }, { risk: 'undeclared' }]);
   });

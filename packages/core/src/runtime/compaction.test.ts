@@ -2,7 +2,7 @@
  * Compaction pipeline tests (M4-T03): the threshold check, the summary
  * replacement, the loop integration with long fake transcripts, the
  * checkpointed points, and the no-re-summarize-on-resume acceptance
- * (docs/06, section 7 as amended; docs/10, M4-T03).
+ * (M4-T03).
  */
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';

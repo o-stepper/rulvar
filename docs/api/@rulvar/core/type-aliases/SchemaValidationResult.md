@@ -18,7 +18,7 @@ type SchemaValidationResult<T> =
 };
 ```
 
-Defined in: [packages/core/src/l0/schema.ts:371](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L371)
+Defined in: [packages/core/src/l0/schema.ts:370](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/schema.ts#L370)
 
 Result of validating a value against a SchemaSpec.
 

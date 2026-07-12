@@ -1,6 +1,5 @@
 /**
- * The verified-layer compiler (M11-T06; docs/05, sections "Read path"
- * and "Composition with the model layer"): the one-rung clamp as a
+ * The verified-layer compiler (M11-T06): the one-rung clamp as a
  * PROPERTY over random snapshots, editorial exclusion, and
  * determinism. The generator is a seeded LCG: reproducible, no wall
  * clock, no Math.random.

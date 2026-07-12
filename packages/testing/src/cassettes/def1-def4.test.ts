@@ -1,6 +1,5 @@
 /**
- * M2 gating cassettes, DEF-1 and DEF-4 sets (M2-T12; docs/09, sections
- * 6.1 and 6.4; docs/11, section 8). Every cassette runs against the
+ * M2 gating cassettes, DEF-1 and DEF-4 sets (M2-T12). Every cassette runs against the
  * COMMITTED frozen fixture under repo cassettes/ (never the builder), so
  * a derivation drift fails here before it can silently re-key journals.
  * Synthetic-fixture rule: cassettes whose live producers land later (the
@@ -87,7 +86,7 @@ describe('DEF-1 cassettes (docs/09, section 6.1)', () => {
     expect(preview.orphaned).toEqual([decisionSeq]);
     expect(preview.skipped).toBe(4);
     // Zero spend increment: the ok and escalated children carry usage in
-    // the fixture; the covered fold contributes nothing (docs/03, 13.3).
+    // the fixture; the covered fold contributes nothing.
     const ledger = new Replayer({
       runId: 'ledger-probe',
       store: new InMemoryStore(),
@@ -156,7 +155,7 @@ describe('DEF-1 cassettes (docs/09, section 6.1)', () => {
 
 /**
  * The SYNTHETIC forms stay in the suite as the kernel regression after
- * the M9 live re-record (docs/10, synthetic-fixture rule): these replay
+ * the M9 live re-record: these replay
  * the BUILDER output; the committed files hold the live forms, replayed
  * in def4-live.test.ts.
  */

@@ -13,7 +13,7 @@ function orchestratePlanned(
 opts?): RunHandle<unknown>;
 ```
 
-Defined in: [packages/plan/src/plan-runner.ts:2526](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-runner.ts#L2526)
+Defined in: [packages/plan/src/plan-runner.ts:2522](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-runner.ts#L2522)
 
 The PlanRunner entry surface: mode (c) plus the extension in one call.
 

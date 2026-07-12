@@ -7,7 +7,7 @@ import { InMemoryStore, JsonlFileStore, type JournalEntry, type JournalStore } f
 import { journalStoreConformance } from './journal.js';
 import { registerConformance } from './types.js';
 
-// The M2 required store matrix (docs/11, section "Conformance tier"):
+// The M2 required store matrix:
 // InMemoryStore and JsonlFileStore; @rulvar/store-sqlite joins in M5.
 registerConformance(
   journalStoreConformance(() => new InMemoryStore()),

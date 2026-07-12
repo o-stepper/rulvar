@@ -256,7 +256,7 @@ export function createServer(options: CreateServerOptions): RulvarServer {
       return json(400, {
         error: {
           code: 'config',
-          message: `no workflow named '${name}' in the registry (docs/06, section 10.4)`,
+          message: `no workflow named '${name}' in the registry`,
         },
       });
     }

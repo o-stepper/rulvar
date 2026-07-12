@@ -1,6 +1,0 @@
-- button "Virtual Assistant avatar Need help? Ask the USPTO Virtual Assistant!" [ref=e2] [cursor=pointer]:
-    - generic [ref=e4]:
-        - img "Virtual Assistant avatar" [ref=e5]
-        - strong [ref=e7]:
-            - text: Need help? Ask the
-            - text: USPTO Virtual Assistant!

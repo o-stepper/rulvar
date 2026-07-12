@@ -137,7 +137,7 @@ describe('orchestrator cap and finalize reserve (M7-T12, DEF-7)', () => {
     expect(caps[0]?.fallback).toBe('finish-with-partial');
     expect(caps[0]?.disarmedTriggers).toEqual(['child_terminal', 'escalation', 'budget_threshold']);
     // The admitted worker ran to completion: frozen for adaptation, not
-    // for work (docs/07, 12.4 a).
+    // for work.
     expect(
       entries.some(
         (entry) => entry.kind === 'agent' && entry.scope.includes('plan/') && entry.status === 'ok',
@@ -163,7 +163,7 @@ describe('orchestrator cap and finalize reserve (M7-T12, DEF-7)', () => {
       budget: { capUsd: 0.4, finalizeReserveUsd: 0.01, finalizeTurns: 1 },
     });
     const outcome = await handle.result;
-    // Exhaustion is NEVER null (docs/07, 12.4): the synthesized partial
+    // Exhaustion is NEVER null: the synthesized partial
     // rides the exhausted outcome.
     expect(outcome.status).toBe('exhausted');
     const value = outcome.value as {

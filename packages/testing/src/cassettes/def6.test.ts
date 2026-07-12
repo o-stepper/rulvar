@@ -1,6 +1,5 @@
 /**
- * M2 gating cassettes, DEF-6 set (M2-T12; docs/11, section 4; docs/09,
- * section 6.6): the six compatibility IDs over the frozen round-1 JSONL
+ * M2 gating cassettes, DEF-6 set (M2-T12): the six compatibility IDs over the frozen round-1 JSONL
  * fixture and the synthetic out-of-window fixtures, plus the mandatory
  * mixed-version scenarios (ordinal-space split, forward-cursor
  * preference, cross-version resolution), the compatibility lemma, and the

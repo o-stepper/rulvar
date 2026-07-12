@@ -1,6 +1,6 @@
 /**
  * M9-T02 acceptance: an eval suite is fully deterministic under VCR
- * replay (docs/10, "M9-T02 @rulvar/evals base"; docs/11, "Eval CI":
+ * replay (Eval CI:
  * PR-triggered eval runs MUST execute entirely from cassettes with zero
  * live calls). Latency is the one wall-clock measurement in the report
  * and is compared for presence, not bytes.

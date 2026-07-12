@@ -1,6 +1,5 @@
 /**
- * Multi-process seam soak (M8-T03; docs/09 section 6.10
- * multi-process-fencing-soak; docs/10 section 3.9 exit criteria): two
+ * Multi-process seam soak (M8-T03): two
  * workers over one SqliteStore file with kill/failover across the three
  * boundaries: suspension, plan revision, and forced finish. Every round
  * asserts zero split-brain (a stale writer's appends are rejected and
@@ -8,7 +7,7 @@
  * exactly once). Fully offline and deterministic: scripted adapters,
  * one shared controllable clock for lease expiry, manual sweeps.
  *
- * Queue-mode limitation, documented per OQ-17 (docs/14): there is no
+ * Queue-mode limitation, documented per OQ-17: there is no
  * distributed cross-process rate limiter (EXC-14); hosts divide
  * provider quota per worker or front an external gateway. The soak
  * needs no limiter: its workers never run concurrently on one run,
@@ -109,7 +108,7 @@ describe('M8-T03 multi-process seam soak (two workers, one SqliteStore)', () => 
     }
     await workerA.stop();
 
-    // The resolution lands offline, under a brief lease (docs/03, 8).
+    // The resolution lands offline, under a brief lease.
     const lease = await hostStore.acquire(first.runId, 'resolver');
     const entries = (await hostStore.load(first.runId)).map((raw) => normalizeEntry(raw));
     const target = entries.find(
@@ -377,7 +376,7 @@ describe('M8-T03 multi-process seam soak (two workers, one SqliteStore)', () => 
     }
 
     // The failover worker resolves the workflow through the ENGINE's
-    // registry (docs/06 10.4: never a worker parameter) and rolls the
+    // registry (never a worker parameter) and rolls the
     // forced finish forward from the cap decision.
     const registryWorkflow = makeOrchestratorWorkflow('cap soak', {
       budget,

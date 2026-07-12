@@ -448,9 +448,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       // spawnUnit, zero live budget reserve.
       const debited = requireAccount().debitSpawn({ logicalTaskId, isNew: false });
       if (!debited.ok) {
-        throw new ConfigError(
-          'termination_exhausted: maxTotalSpawns reached at a reuse link (docs/07, 11.3)',
-        );
+        throw new ConfigError('termination_exhausted: maxTotalSpawns reached at a reuse link');
       }
       decision = {
         verdict: {
@@ -708,8 +706,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     for (const gate of ladder.acceptance ?? []) {
       if (gate.kind === 'mechanical' && io.gates[gate.profile] === undefined) {
         throw new ConfigError(
-          `mechanical gate profile '${gate.profile}' is not registered under defaults.gates ` +
-            '(docs/07, section 10)',
+          `mechanical gate profile '${gate.profile}' is not registered under defaults.gates ` + '',
         );
       }
     }
@@ -1896,7 +1893,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       const view = foldLedger(io.snapshot(), { ledgerScope: rootScope, planScope });
       const violation = ledgerCapViolation(view, op);
       if (violation !== undefined) {
-        throw new ConfigError(`ledger_append rejected: ${violation} (docs/06, Appendix A)`);
+        throw new ConfigError(`ledger_append rejected: ${violation}`);
       }
       if (op.op === 'lesson_add') {
         // The lesson key MUST match a journaled attempt of that LTID
@@ -1908,8 +1905,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           stats.approaches.some((approach) => approach.approachSig === op.key.approachSig);
         if (!known) {
           throw new ConfigError(
-            'lesson_add rejected: the key matches no journaled attempt of that logical task ' +
-              '(docs/07, 9.2)',
+            'lesson_add rejected: the key matches no journaled attempt of that logical task ' + '',
           );
         }
       }
