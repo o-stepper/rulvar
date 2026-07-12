@@ -49,9 +49,9 @@ export async function resolveToolset(
   for (const spec of specs) {
     if (typeof spec === 'string') {
       throw new ConfigError(
-        `tools by registered name ('${spec}') resolve only inside the worker sandbox; ` +
-          'name-based tool registries exist for compiled scripts only ' +
-          '(https://docs.rulvar.com/guide/planner)',
+        `tools by registered name ('${spec}') are not supported here: pass ToolDef or ` +
+          'ToolSource values. Registered toolset names exist only for the dynamic ' +
+          "orchestrator's spawn_agent toolsetRef (https://docs.rulvar.com/guide/tools)",
       );
     }
     if (isToolDef(spec)) {

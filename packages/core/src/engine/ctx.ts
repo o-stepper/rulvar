@@ -88,6 +88,7 @@ import {
   evaluatePermission,
   type AgentProfilePermissions,
   type PermissionConfig,
+  type PermissionRule,
 } from '../runtime/permission-chain.js';
 import { mergeUsageLimits, type UsageLimits } from '../runtime/usage-limits.js';
 import { buildToolContext } from '../tools/context.js';
@@ -1245,6 +1246,16 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           reject?: { code: string };
         };
         if (recorded.reject !== undefined) {
+          internals.events.emit(
+            {
+              type: 'spawn:rejected',
+              entryRef: prior.seq,
+              code: recorded.reject.code,
+              agentType,
+            },
+            state.spanId,
+            true,
+          );
           throw new AdmissionRejectedError(
             `lineage admission rejected agent spawn (${recorded.reject.code}; recorded verdict)`,
             { data: { reason: recorded.reject as unknown as Json } },
@@ -1286,7 +1297,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         } else {
           decisionValue.lineage = evaluated.decision.lineage;
         }
-        await internals.replayer.appendSinglePhase({
+        const decisionEntry = await internals.replayer.appendSinglePhase({
           scope: state.scope,
           key: '',
           kind: 'decision',
@@ -1295,6 +1306,15 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           value: decisionValue,
         });
         if (evaluated.decision.kind === 'reject') {
+          internals.events.emit(
+            {
+              type: 'spawn:rejected',
+              entryRef: decisionEntry.seq,
+              code: evaluated.decision.reason.code,
+              agentType,
+            },
+            state.spanId,
+          );
           throw new AdmissionRejectedError(
             `lineage admission rejected agent spawn (${evaluated.decision.reason.code})`,
             { data: { reason: evaluated.decision.reason as unknown as Json } },
@@ -1446,7 +1466,19 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       // regardless of tool origin. Profile layers
       // merge over engine defaults; an ask verdict suspends on the
       // journal in the agent's child scope.
-      const chain = compilePermissionChain(internals.defaults.permissions, profile?.permissions);
+      const compiledChain = compilePermissionChain(
+        internals.defaults.permissions,
+        profile?.permissions,
+      );
+      // 'readonly' isolation compiles a deny rule for tools declaring
+      // risk write or destructive into this spawn's chain (tools guide,
+      // IsolationSpec table). Worktree isolation isolates the filesystem
+      // instead, and 'none' adds nothing.
+      const readonlyDeny: PermissionRule = { risk: ['write', 'destructive'] };
+      const chain =
+        isolation === 'readonly'
+          ? { ...compiledChain, deny: [...compiledChain.deny, readonlyDeny] }
+          : compiledChain;
       toolRuntime = {
         defs: toolset.tools,
         contracts: toolset.contracts,

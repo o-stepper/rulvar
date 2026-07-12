@@ -21,7 +21,7 @@ export const HELP = `rulvar: durable multi-agent workflows (https://docs.rulvar.
   rulvar runs ls         [--store PATH]
   rulvar inspect <runId> [--store PATH]
   rulvar plan "<goal>"   [--dry-run]
-  rulvar kb <list | inbox | sweep>
+  rulvar kb <list | inbox | gate | sweep>
 
 Engine assembly: adapters, defaults, and the workflow registry come from
 rulvar.config.mjs in the working directory (default export
@@ -35,8 +35,11 @@ installed. kb list shows the per-project claim store
 falsification matrix from the kbSweep section of rulvar.config.mjs
 (fixed pool UNIONED with every model carrying an active negative claim
 plus the re-measure queue; optional canary probes flip drifted claims
-stale first; requires @rulvar/evals installed). kb inbox arrives with
-ModelKnowledge phase 3.`;
+stale first; requires @rulvar/evals installed). kb inbox aggregates
+kb_propose proposals from finished runs (14 day TTL); kb gate turns one
+inbox proposal into a committed claim behind a human attestation
+(--approver and --ruled-out are mandatory). inbox and gate require
+@rulvar/plan installed.`;
 
 export async function runCli(argv: string[], options: { cwd: string; io: CliIo }): Promise<number> {
   const [command, ...rest] = argv;

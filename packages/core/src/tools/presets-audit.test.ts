@@ -85,7 +85,7 @@ describe('offline evaluatePermission (docs/08, 4.5 dry-run API)', () => {
     const verdict = await evaluatePermission(advisoryChain, 'curl-ish', {
       url: 'https://evil.test/x',
     });
-    // Advisory outside first-party fetch: allow by default, reported.
+    // Advisory in the current release: allow by default, reported.
     expect(verdict.verdict).toBe('allow');
     expect(verdict.advisory).toEqual([{ tool: 'curl-ish', domains: ['example.com'] }]);
   });

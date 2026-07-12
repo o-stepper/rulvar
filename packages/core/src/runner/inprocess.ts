@@ -72,8 +72,18 @@ export class InProcessRunner implements ScriptRunner {
       const priorRandom = Math.random;
       let warnedNow = false;
       let warnedRandom = false;
+      // Stack line 0 names the Error, line 1 this helper, line 2 the
+      // patched global, line 3 the caller whose provenance decides.
+      // Library code (a provider SDK, any installed dependency, rulvar's
+      // own published dist) lives under node_modules and is exempt: the
+      // guard exists for workflow code, which imports from node_modules
+      // but does not live there.
+      const libraryCaller = (): boolean => {
+        const caller = new Error().stack?.split('\n')[3];
+        return caller !== undefined && caller.includes('node_modules');
+      };
       Date.now = function rulvarPatchedDateNow(): number {
-        if (!warnedNow) {
+        if (!warnedNow && !libraryCaller()) {
           warnedNow = true;
           process.emitWarning(
             'bare Date.now() called inside a rulvar run; use ctx.now() so the value is ' +
@@ -84,7 +94,7 @@ export class InProcessRunner implements ScriptRunner {
         return priorNow();
       };
       Math.random = function rulvarPatchedMathRandom(): number {
-        if (!warnedRandom) {
+        if (!warnedRandom && !libraryCaller()) {
           warnedRandom = true;
           process.emitWarning(
             'bare Math.random() called inside a rulvar run; use ctx.random() so the value is ' +

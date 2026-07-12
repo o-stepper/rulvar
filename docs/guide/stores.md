@@ -109,7 +109,7 @@ The seam is optional and off by default: an engine without a configured `ModelKn
 
 ### In-memory (tests)
 
-`createEngine` without a `stores` block gives you `InMemoryStore` and an in-memory transcript store. Runs execute normally, budgets and journaling all work, but nothing survives the process and resume is disabled, with a one-time loud warning so the misconfiguration cannot hide in production logs. This is the right default exactly once: in tests, where you want zero filesystem residue.
+`createEngine` without a `stores` block gives you `InMemoryStore` and an in-memory transcript store. Runs execute normally, budgets and journaling all work, and a kept engine instance can even resume its own runs within the same process, but nothing survives a process exit, so a run can never be resumed from another process; a one-time loud warning makes sure the misconfiguration cannot hide in production logs. This is the right default exactly once: in tests, where you want zero filesystem residue.
 
 ### The JSONL file store
 
@@ -204,7 +204,7 @@ What "durable" means, per store:
 
 | Store | Survives a process crash | Concurrent writers |
 |---|---|---|
-| `InMemoryStore` | Nothing; resume is disabled | Not applicable |
+| `InMemoryStore` | Nothing; no resume from another process | Not applicable |
 | `JsonlFileStore` | Everything appended; a torn tail line from a mid-append crash is repaired at load | One writing process per directory; no lease capability |
 | `SqliteStore` | Everything appended, in one database file | Safe under leases; stale epochs are fenced out |
 

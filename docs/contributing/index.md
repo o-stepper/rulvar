@@ -96,10 +96,19 @@ Scheduled and non-blocking: weekly live adapter contract tests (gated on
 provider keys) open a `contract-drift` issue on provider drift; they never
 block a PR and never rerecord fixtures automatically.
 
+Besides the CI-wired scripts, `scripts/` holds operator tooling that no
+workflow invokes: the `record-m*-cassettes.mjs` family regenerates frozen
+cassettes deliberately (guarded by the `hashVersion-bump` changeset token
+and the fixtures lock), `contract-tests.mjs` backs the scheduled live
+workflow, and `checkpoint-corpus.mjs` with `run-value-checkpoint.mjs` are
+release-time value checkpoints run by hand. Treat them as production
+scripts: they are versioned, reviewed, and referenced from the milestone
+acceptance notes.
+
 ## Review gates
 
 At least one approving review. PRs touching frozen fixtures, KeyDeriver
-profiles, or (post-freeze) the six SPI seam `.d.ts` rollups require an
+profiles, or (post-freeze) the seven SPI seam `.d.ts` rollups require an
 explicit second review and a pointer to the amending docs PR.
 
 ## Documentation contributions
@@ -107,8 +116,9 @@ explicit second review and a pointer to the amending docs PR.
 The site sources live under `docs/` (VitePress). Conventions, enforced by
 `pnpm docs:lint`: ASCII hyphen only (no em or en dashes), no emojis,
 exactly one H1 per page (home-layout pages carry their heading in
-frontmatter), sentence-case headings, and install commands that always
-use `@rulvar/<name>`. The TypeDoc output under `docs/api/`, the
+frontmatter), and install commands that always use `@rulvar/<name>`.
+Headings use sentence case by convention; the linter does not check
+that. The TypeDoc output under `docs/api/`, the
 aggregated changelog, and the synced contributing page are generated;
 regenerate them with `pnpm docs:build` and commit the result.
 

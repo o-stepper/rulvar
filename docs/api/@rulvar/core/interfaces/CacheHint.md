@@ -16,4 +16,4 @@ MUST NOT change response semantics.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-breakpoints"></a> `breakpoints` | \{ `after`: \| `"system"` \| \{ `messageIndex`: `number`; \} \| `"tools"`; `ttl?`: [`CacheTtl`](/api/@rulvar/core/type-aliases/CacheTtl.md); \}[] | Desired cache boundaries, ordered from shallowest to deepest prefix. | [packages/core/src/l0/messages.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L88) |
+| <a id="property-breakpoints"></a> `breakpoints` | \{ `after`: \| `"system"` \| `"tools"` \| \{ `messageIndex`: `number`; \}; `ttl?`: [`CacheTtl`](/api/@rulvar/core/type-aliases/CacheTtl.md); \}[] | Desired cache boundaries, ordered from shallowest to deepest prefix. | [packages/core/src/l0/messages.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L88) |

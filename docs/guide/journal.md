@@ -119,9 +119,12 @@ Every entry carries an integer `hashVersion` that versions the whole identity an
 | `step` | `ctx.step` | One journaled effectful step (API write, database call) and its JSON result. |
 | `child` | `ctx.workflow` | One nested workflow invocation and its result. |
 | `external` | `ctx.awaitExternal` | A suspension awaiting an external value. |
-| `approval` | the permission chain | A suspended tool-approval request, with a journaled deadline. |
+| `approval` | the permission chain, the escalate tool | A suspended approval request, open until a resolution closes it; only escalate suspensions carry a journaled `deadlineAt`. |
 | `rand` | `ctx.now` / `ctx.random` / `ctx.uuid` | The shim value, identical on every replay. |
 | `decision`, `plan.revision`, `plan.decision`, `ledger.op` | the engine | Dynamic decisions (admission verdicts, escalation decisions, plan revisions), written strictly before any of their effects. |
+| `node.link` | the plan runner's reuse path | A reuse link from a plan revision: aliases an abandoned donor subtree's scope onto the re-added node so the donor's paid entries replay by reference. |
+| `termination.init` | the plan runner, at boot | The frozen termination limits vector; resume reads limits from this entry only, and live-config drift is reported, never applied. |
+| `termination.denied` | the termination account | A denied debit of a countable termination resource, appended strictly before the typed error surfaces. |
 | `resolution`, `abandon` | resolutions and branch abandonment | Ref-entries closing or covering earlier entries (see below). |
 
 Tool calls inside an agent's loop are not individual journal entries: they live in the transcript, and the runtime writes a checkpoint at every turn boundary, so an approval or a crash continues the loop from the same turn without re-invoking tools. Between a tool's execution and the checkpoint write, tools are at-least-once; prefer idempotent tools. See [Tools](/guide/tools) and [Durability](/guide/durability).
@@ -238,7 +241,7 @@ const outcome = await handle.resolveExternal('legal-signoff', { approved: true }
 // outcome.applied is false when an earlier attempt already closed the suspension
 ```
 
-Because every attempt is appended, even losing ones, races resolve by construction: the **first-closing-wins fold** picks the first valid closing entry in journal order; later attempts are classified as no-ops by the fold, never stored as such, and the waiting promise settles exactly once. A deadline timer firing in the same instant as an operator's answer is just two appended attempts; the journal order decides, identically on every replay. Approvals and escalations carry a journaled `deadlineAt`, so deadlines survive resume deterministically (`awaitExternal` itself has no deadline).
+Because every attempt is appended, even losing ones, races resolve by construction: the **first-closing-wins fold** picks the first valid closing entry in journal order; later attempts are classified as no-ops by the fold, never stored as such, and the waiting promise settles exactly once. A deadline timer firing in the same instant as an operator's answer is just two appended attempts; the journal order decides, identically on every replay. Escalation suspensions carry a journaled `deadlineAt`, so their deadlines survive resume deterministically; tool approvals and `awaitExternal` have no deadline in v1 and wait until resolved.
 
 `abandon` is the journaled decision to stop pursuing a subtree. It covers its target and, transitively, every entry under the target's scope. Covered entries get the derived `skipped` status: they are not re-dispatched at resume, contribute zero spend, and the caller sees status `skipped`. The `skipped` status is never persisted; it is always derived by the fold, and the underlying payloads stay addressable so completed work inside an abandoned branch can later be reused by reference. See [Adaptive orchestration](/guide/adaptive-orchestration) for how plan revisions compile into abandons and reuse.
 

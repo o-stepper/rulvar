@@ -138,6 +138,8 @@ export async function toOtel(
   const stack: OpenSpan[] = [];
   let created = 0;
 
+  const { contextApi, setSpan } = options;
+
   const startSpan = (event: WorkflowEvent): void => {
     if (event.replayed === true && openBySpanId.has(event.spanId)) {
       // A replayed opener for a span already exported: mark, do not
@@ -145,10 +147,24 @@ export async function toOtel(
       openBySpanId.get(event.spanId)?.span.setAttribute('rulvar.replayed', true);
       return;
     }
-    const span = tracer.startSpan(spanName(event), {
-      startTime: msOf(event.ts),
-      attributes: openAttributes(event, run.runId),
-    });
+    // Real parent-child nesting when the host wires the OTel context
+    // API: the parent is resolved through the event envelope's
+    // parentSpanId against the still-open spans. Without both options,
+    // spans come out flat but fully attributed.
+    const parent =
+      event.parentSpanId === undefined ? undefined : openBySpanId.get(event.parentSpanId);
+    const parentContext =
+      parent !== undefined && contextApi !== undefined && setSpan !== undefined
+        ? setSpan(contextApi.active(), parent.span)
+        : undefined;
+    const span = tracer.startSpan(
+      spanName(event),
+      {
+        startTime: msOf(event.ts),
+        attributes: openAttributes(event, run.runId),
+      },
+      parentContext,
+    );
     created += 1;
     const open: OpenSpan = {
       span,
@@ -214,6 +230,5 @@ export async function toOtel(
     open.span.end();
     openBySpanId.delete(open.spanId);
   }
-  void options;
   return created;
 }

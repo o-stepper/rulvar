@@ -18,5 +18,7 @@ Declarative rule tables (no closures). `'undeclared'` in risk
 position matches every tool WITHOUT declared risk: presets treat the
 undeclared state conservatively. Argv rules
 match through the real shell matcher; domain rules are
-ADVISORY outside the first-party fetch tool: they never
-change a verdict in M5, and matches surface in audit events.
+ADVISORY for every tool in the current release: they never
+change a verdict, and matches surface in the tool:end audit
+fields (enforcement will live in a first-party fetch tool
+when one ships).

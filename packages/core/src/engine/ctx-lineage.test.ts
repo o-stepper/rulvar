@@ -102,7 +102,7 @@ describe('ctx.agent lineage declarations (DEF-3; M7-T02)', () => {
       }
       return { text: 'two done' };
     });
-    const { internals, store } = makeInternals({ adapters: [adapter], routing: ROUTING });
+    const { internals, store, events } = makeInternals({ adapters: [adapter], routing: ROUTING });
     const wf = defineWorkflow({ name: 'busy' }, async (ctx) => {
       const [first, second] = await ctx.parallel<unknown>([
         () =>
@@ -136,6 +136,12 @@ describe('ctx.agent lineage declarations (DEF-3; M7-T02)', () => {
     expect((outcome.second as AdmissionRejectedError).data).toMatchObject({
       reason: { code: 'lineage_busy' },
     });
+    // The live rejection also rides the event stream, carrying the
+    // journaled decision entry.
+    const rejectedEvents = events.ofType('spawn:rejected');
+    expect(rejectedEvents).toHaveLength(1);
+    expect(rejectedEvents[0]).toMatchObject({ code: 'lineage_busy' });
+    expect(typeof rejectedEvents[0]?.entryRef).toBe('number');
     // The rejection is journaled and re-issues on replay without
     // re-evaluation.
     const entries = (await store.load('test-run')).map(normalizeEntry);

@@ -1,10 +1,12 @@
 // Catalog completeness audit (M9-T04: "Complete catalog green in one CI
 // run"). Parses the canonical cassette IDs from the cassettes/CATALOG.md
 // tables (extracted from the retired spec set when docs/ became the
-// public documentation site) and asserts every ID resolves to either a
-// frozen fixture under cassettes/ or a named in-suite test ID. Any gap
-// fails CI loudly; silent truncation of the catalog is impossible.
-import { existsSync, readFileSync } from 'node:fs';
+// public documentation site) and asserts BOTH directions: every catalog
+// ID resolves to a frozen fixture under cassettes/ or a named in-suite
+// test ID, and every cassettes/<id>.json fixture appears in the catalog
+// (an orphan fixture is an uncatalogued defect claim). Any gap fails CI
+// loudly.
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -49,6 +51,13 @@ for (const id of [...ids].sort()) {
   missing.push(id);
 }
 
+// The reverse direction: a fixture file the catalog never mentions.
+const orphans = readdirSync(join(root, 'cassettes'))
+  .filter((name) => name.endsWith('.json'))
+  .map((name) => name.slice(0, -'.json'.length))
+  .filter((id) => !ids.has(id))
+  .sort();
+
 if (ids.size < 40) {
   console.error(
     `catalog audit: parsed only ${ids.size} IDs from cassettes/CATALOG.md; the parser drifted`,
@@ -62,6 +71,16 @@ if (missing.length > 0) {
   }
   process.exit(1);
 }
+if (orphans.length > 0) {
+  console.error(
+    `catalog audit FAILED: ${orphans.length} fixture(s) under cassettes/ missing from CATALOG.md:`,
+  );
+  for (const id of orphans) {
+    console.error(`  - ${id}`);
+  }
+  process.exit(1);
+}
 console.log(
-  `catalog audit passed: ${ids.size} catalog IDs all resolve (cassettes/ or named suites)`,
+  `catalog audit passed: ${ids.size} catalog IDs all resolve (cassettes/ or named suites), ` +
+    `0 orphan fixtures`,
 );

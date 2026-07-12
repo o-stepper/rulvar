@@ -75,9 +75,19 @@ async function* walkMarkdown(dir) {
   }
 }
 
+/**
+ * HTML comments are invisible on the rendered site and on GitHub, so
+ * they must not leak into the LLM export either (the version stamp
+ * markers of stamp-versions.mjs, the auto-sync banners). No published
+ * page carries a comment inside a code fence, so a flat strip is safe.
+ */
+function stripHtmlComments(source) {
+  return source.replace(/<!--[\s\S]*?-->/g, '');
+}
+
 function frontmatterFields(source) {
   const match = source.match(/^---\n([\s\S]*?)\n---\n?/);
-  if (!match) return { title: null, description: null, body: source };
+  if (!match) return { title: null, description: null, body: stripHtmlComments(source) };
   const yaml = match[1];
   const titleLine = yaml.match(/^title:\s*(.+)$/m);
   const descLine = yaml.match(/^description:\s*(.+)$/m);
@@ -85,7 +95,7 @@ function frontmatterFields(source) {
   return {
     title: stripQuotes(titleLine?.[1]) ?? null,
     description: stripQuotes(descLine?.[1]) ?? null,
-    body: source.slice(match[0].length),
+    body: stripHtmlComments(source.slice(match[0].length)),
   };
 }
 

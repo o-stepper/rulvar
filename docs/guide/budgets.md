@@ -284,12 +284,15 @@ const handle = engine.run(research, "Map the dependency risks", {
 });
 ```
 
-An unresolvable cap (a run with no USD ceiling and no explicit `capUsd`) or a
-cap smaller than the finalize reserve refuses to start with the typed
-`OrchestratorCapConfigError`, before the first LLM call and before any journal
-entry. Opting out of the cap is explicit only: `capFraction: 1.0`, with a
-telemetry warning. A nested orchestrator is additionally clamped by the parent
-account's remainder minus the parent's finalize reserve.
+Under the PlanRunner extension, an unresolvable cap (a run with no USD ceiling
+and no explicit `capUsd`) or a cap smaller than the finalize reserve refuses
+to start with the typed `OrchestratorCapConfigError`, before the first LLM
+call and before any journal entry; a plain dynamic run whose cap resolves to
+no bound simply opens no sub-account. Opting out of the cap is explicit only:
+`capFraction: 1.0` sets the sub-account ceiling to the full B0 and emits
+nothing, while any fraction above 1.0 is refused with the same typed error. A
+nested orchestrator is additionally clamped by the parent account's remainder
+minus the parent's finalize reserve.
 
 Two details make the cap safe rather than merely present:
 

@@ -18,9 +18,9 @@ over the public `ctx` API, never engine flags: the library ships no
 | Completeness critic | `src/completeness-critic.ts` | draft, then "what is missing?" drives revision passes; one `ctx.phase` per stage             |
 
 Alongside the patterns, `src/journals.test.ts` replays every dogfood
-journal under `journals/` replay-strict against its shipped workflow,
+journal under `../journals/` replay-strict against its shipped workflow,
 with zero live calls. The journals are frozen fixtures locked by
-`fixtures.sha256`; re-record them deliberately with
+`../fixtures.sha256`; re-record them deliberately with
 `RECORD_DOGFOOD=1 pnpm vitest run examples/src/journals.test.ts`, then
 refresh the lock with `node scripts/check-frozen-fixtures.mjs --update`.
 
@@ -33,8 +33,8 @@ pnpm vitest run examples/src
 ```
 
 To use a pattern in your own project, copy the workflow file and install
-the runtime: `pnpm add @rulvar/core` (or the umbrella,
-`pnpm add @rulvar/rulvar`).
+the runtime and `zod`: `pnpm add @rulvar/core zod` (or the umbrella,
+`pnpm add @rulvar/rulvar zod`).
 
 Not published: this package is `private` and exists only as the teaching
 and integration-test corpus.

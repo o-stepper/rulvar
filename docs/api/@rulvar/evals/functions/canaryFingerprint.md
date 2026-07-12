@@ -10,7 +10,7 @@
 function canaryFingerprint(engine, probes): Promise<string>;
 ```
 
-Defined in: [packages/evals/src/canary.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/canary.ts#L44)
+Defined in: [packages/evals/src/canary.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/canary.ts#L45)
 
 Runs the fixed probe set through the ordinary engine and returns the
 fingerprint. Probes run sequentially in declaration order, one run

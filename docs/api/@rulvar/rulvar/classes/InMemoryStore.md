@@ -17,8 +17,17 @@ Defined in: `packages/core/dist/index.d.ts`
 ### Constructor
 
 ```ts
-new InMemoryStore(): InMemoryStore;
+new InMemoryStore(options?): InMemoryStore;
 ```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `options?` | \{ `quiet?`: `boolean`; \} |
+| `options.quiet?` | `boolean` |
 
 #### Returns
 

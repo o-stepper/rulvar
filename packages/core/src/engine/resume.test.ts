@@ -71,6 +71,89 @@ describe('engine.resume (M2-T09; docs/06 section 10.2)', () => {
     expect(preview.invalidResolutions).toEqual([]);
   });
 
+  it('the budgetUsd ceiling is recorded in RunMeta and restored on resume', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
+    const store = new JsonlFileStore({ dir });
+    // 600k input tokens at the test caps pricing (1 USD/MTok) put the
+    // first agent's real spend over the 0.5 USD ceiling, so the second
+    // admission blocks and the run settles exhausted.
+    const expensive = () => ({
+      text: 'x',
+      usage: { inputTokens: 600_000, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    });
+    const twoCalls = defineWorkflow({ name: 'capped' }, async (ctx) => {
+      await ctx.agent('a', { estCost: 0.01 });
+      await ctx.agent('b', { estCost: 0.01 });
+      return 'done';
+    });
+    const first = createEngine({
+      adapters: [scriptedAdapter(expensive)],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const firstOutcome = await first.run(twoCalls, undefined, { runId: 'CAP1', budgetUsd: 0.5 })
+      .result;
+    expect(firstOutcome.status).toBe('exhausted');
+    const meta = (await store.listRuns()).find((candidate) => candidate.runId === 'CAP1');
+    expect(meta?.budgetUsd).toBe(0.5);
+
+    // A restarted process resumes: the replayed spend counts against
+    // the RESTORED ceiling, so the second spawn stays blocked and no
+    // live call happens. Before the ceiling was persisted, this resume
+    // ran uncapped and settled ok.
+    const resumeAdapter = scriptedAdapter(() => ({ text: 'MUST NOT RUN' }));
+    const second = createEngine({
+      adapters: [resumeAdapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const resumed = await second.resume('CAP1', twoCalls).result;
+    expect(resumed.status).toBe('exhausted');
+    expect(resumeAdapter.calls).toHaveLength(0);
+    const metaAfter = (await store.listRuns()).find((candidate) => candidate.runId === 'CAP1');
+    expect(metaAfter?.budgetUsd).toBe(0.5);
+  });
+
+  it('a meta record without a ceiling resumes uncapped, preserving old journals', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
+    const store = new JsonlFileStore({ dir });
+    const expensive = () => ({
+      text: 'x',
+      usage: { inputTokens: 600_000, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    });
+    const twoCalls = defineWorkflow({ name: 'capped' }, async (ctx) => {
+      await ctx.agent('a', { estCost: 0.01 });
+      await ctx.agent('b', { estCost: 0.01 });
+      return 'done';
+    });
+    const first = createEngine({
+      adapters: [scriptedAdapter(expensive)],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    await first.run(twoCalls, undefined, { runId: 'CAP2', budgetUsd: 0.5 }).result;
+
+    // Simulate a record written before the field existed (or a store
+    // that dropped it).
+    const recorded = (await store.listRuns()).find((candidate) => candidate.runId === 'CAP2');
+    expect(recorded).toBeDefined();
+    if (recorded !== undefined) {
+      const { budgetUsd: _dropped, ...legacy } = recorded;
+      await store.putMeta(legacy);
+    }
+
+    const resumeAdapter = scriptedAdapter(expensive);
+    const second = createEngine({
+      adapters: [resumeAdapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const resumed = await second.resume('CAP2', twoCalls).result;
+    expect(resumed.status).toBe('ok');
+    expect(resumed.value).toBe('done');
+    expect(resumeAdapter.calls).toHaveLength(1);
+  });
+
   it('requires the workflow and rejects a name mismatch', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'rulvar-resume-'));
     const store = new JsonlFileStore({ dir });

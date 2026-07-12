@@ -10,7 +10,7 @@
 function compilePermissionChain(engine?, profile?): CompiledPermissionChain;
 ```
 
-Defined in: [packages/core/src/runtime/permission-chain.ts:110](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L110)
+Defined in: [packages/core/src/runtime/permission-chain.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L112)
 
 Merges the engine-wide config and the profile config into one chain.
 Layers concatenate engine-first; since rules only deny or ask, ordering

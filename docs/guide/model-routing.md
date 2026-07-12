@@ -116,7 +116,7 @@ Every invocation resolves with one of six roles attached, and each role can rout
 | Role | Fires |
 |---|---|
 | `loop` | Every turn while tools are available to the model. |
-| `extract` | A separate final structured-output invocation, only when a schema is set and either extract routes to a different model or the loop model's caps cannot serve the required tier. Otherwise the schema rides the last loop turn with no extra call. |
+| `extract` | Resolves on every schema-bearing call; the separate final structured-output invocation fires only when extract routes to a different model than the loop, when the schema's tier on the loop model is `forced-tool` while tools stay available (it cannot ride such a turn), or when finalize is routed (the schema never rides a loop or synthesis turn). Otherwise the schema rides the last loop turn with no extra call. |
 | `finalize` | Only if set in routing: after tools stop, one synthesis invocation with tool choice `'none'` over the full transcript. |
 | `summarize` | At the compaction threshold, and for `ctx.brief`. |
 | `plan` | The planner model in planned mode. |
@@ -225,7 +225,7 @@ const pricing: PriceTable = {
       cacheReadUsdPerMTok: 0.3,
       cacheWriteUsdPerMTok: 3.75,
     },
-    'openai:gpt-5.4-mini': { inputUsdPerMTok: 0.4, outputUsdPerMTok: 1.6 },
+    'openai:gpt-5.4-mini': { inputUsdPerMTok: 1.2, outputUsdPerMTok: 4.8, cacheReadUsdPerMTok: 0.12 },
   },
 };
 

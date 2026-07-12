@@ -10,4 +10,4 @@
 const DEFAULT_STORE_DIR: ".rulvar" = '.rulvar';
 ```
 
-Defined in: [packages/cli/src/engine-assembly.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/engine-assembly.ts#L30)
+Defined in: [packages/cli/src/engine-assembly.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/engine-assembly.ts#L33)

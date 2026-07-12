@@ -53,6 +53,20 @@ describe('retryClassOf', () => {
 describe('retryDelayMs', () => {
   const noJitter = { attempts: 3, backoff: { initialMs: 500, factor: 2, maxMs: 8000 } };
 
+  it('the default jitter source is captured natively and survives a patched Math.random', () => {
+    const prior = Math.random;
+    Math.random = () => {
+      throw new Error('patched global reached the retry jitter');
+    };
+    try {
+      const delay = retryDelayMs(DEFAULT_RETRY_POLICY, 0);
+      expect(delay).toBeGreaterThanOrEqual(250);
+      expect(delay).toBeLessThanOrEqual(500);
+    } finally {
+      Math.random = prior;
+    }
+  });
+
   it('grows by the factor and clamps at maxMs', () => {
     expect(retryDelayMs(noJitter, 0)).toBe(500);
     expect(retryDelayMs(noJitter, 1)).toBe(1000);

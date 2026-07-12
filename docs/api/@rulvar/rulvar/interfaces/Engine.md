@@ -159,7 +159,7 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Parameter | Type |
 | ------ | ------ |
-| `wf` | \| [`Workflow`](/api/@rulvar/rulvar/interfaces/Workflow.md)\&lt;`A`, `R`\&gt; \| [`CompiledWorkflow`](/api/@rulvar/rulvar/interfaces/CompiledWorkflow.md) |
+| `wf` | \| [`CompiledWorkflow`](/api/@rulvar/rulvar/interfaces/CompiledWorkflow.md) \| [`Workflow`](/api/@rulvar/rulvar/interfaces/Workflow.md)\&lt;`A`, `R`\&gt; |
 | `args` | `A` |
 | `opts?` | [`RunOptions`](/api/@rulvar/rulvar/interfaces/RunOptions.md) |
 

@@ -14,9 +14,12 @@ import {
   resolvePricing,
   runProfile,
   type CreateEngineOptions,
+  type Effort,
   type Engine,
+  type InvocationRole,
   type JournalStore,
   type ModelRef,
+  type ModelSpec,
   type ProviderAdapter,
   type RunProfile,
   type Usage,
@@ -94,7 +97,7 @@ export function assembleEngine(options: {
  * and budget defaults fill unset slots; the permission preset applies to
  * the engine-wide chain when the host set none.
  */
-function applyRunProfile(
+export function applyRunProfile(
   profile: RunProfile,
   host: Partial<CreateEngineOptions>,
 ): Partial<CreateEngineOptions> {
@@ -116,7 +119,34 @@ function applyRunProfile(
     // the engine config carries no `preset`
     // field, so the profile emits the compiled rules directly.
     const compiled = compilePermissionPreset(profile.permissionPreset);
-    merged.defaults = { ...host.defaults, permissions: compiled };
+    merged.defaults = { ...merged.defaults, permissions: compiled };
+  }
+  if (profile.effortByRole !== undefined && merged.defaults?.routing !== undefined) {
+    // Effort hints seed routing entries that carry none; an explicit
+    // host effort always wins, and a role the host does not route stays
+    // unrouted (profiles carry no model names by construction).
+    const routing: Partial<Record<InvocationRole, ModelSpec>> = { ...merged.defaults.routing };
+    let seeded = false;
+    for (const [role, effort] of Object.entries(profile.effortByRole) as [
+      InvocationRole,
+      Effort,
+    ][]) {
+      const entry = routing[role];
+      if (entry === undefined) {
+        continue;
+      }
+      if (typeof entry === 'string') {
+        routing[role] = { model: entry, effort };
+        seeded = true;
+      } else if ('model' in entry && entry.effort === undefined) {
+        // Ladder specs stay untouched: every rung carries its own effort.
+        routing[role] = { ...entry, effort };
+        seeded = true;
+      }
+    }
+    if (seeded) {
+      merged.defaults = { ...merged.defaults, routing };
+    }
   }
   return merged;
 }

@@ -30,6 +30,12 @@ jobs:
         run: |
           node scripts/dts-baseline.mjs
           git diff --exit-code dts-rollup
+          untracked="$(git status --porcelain -- dts-rollup)"
+          if [ -n "$untracked" ]; then
+            echo "$untracked"
+            echo "::error title=dts-rollup has uncommitted rollups::A new package's public surface baseline must be committed (run node scripts/dts-baseline.mjs and commit dts-rollup)."
+            exit 1
+          fi
       - name: Changesets fixed-group check
         run: node scripts/check-fixed-group.mjs
       - name: Frozen-fixture write protection (M2-T12)
@@ -89,10 +95,12 @@ jobs:
       - run: >-
           pnpm exec vitest run
           packages/testing/src/cassettes
+          packages/planner/src/m6-cassettes.test.ts
           packages/plan/src/m7-cassettes.test.ts
           packages/plan/src/m8-cassettes.test.ts
           packages/plan/src/m9-cassettes.test.ts
           packages/plan/src/m10-cassettes.test.ts
+          packages/plan/src/m12-cassettes.test.ts
           packages/cli/src/m8-soak.test.ts
           examples/src/journals.test.ts
 

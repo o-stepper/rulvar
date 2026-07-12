@@ -1,6 +1,6 @@
 ---
 title: Troubleshooting
-description: Symptom-first fixes for unexpected reruns, journal compatibility errors, early budget exhaustion, stuck runs, determinism lint failures, provider errors, and orphaned journal entries.
+description: Symptom-first fixes for first-run setup failures, missing API keys, unexpected reruns, journal compatibility errors, early budget exhaustion, stuck runs, determinism lint failures, provider errors, and orphaned journal entries.
 ---
 
 # Troubleshooting
@@ -8,6 +8,42 @@ description: Symptom-first fixes for unexpected reruns, journal compatibility er
 Every entry below follows the same shape: the symptom you see, the mechanism
 behind it, and the fix. If your issue is missing, check the
 [FAQ](/reference/faq) or open an issue.
+
+## The quickstart file dies before executing anything
+
+**Symptom.** `npx tsx quickstart.ts` aborts with
+`Top-level await is currently not supported with the "cjs" output format` (an
+esbuild `TransformError`) before a single line of your file runs.
+
+**Cause.** Your project's `package.json` carries no `"type": "module"`, so the
+TypeScript runner treats the file as CommonJS, and the quickstart uses
+top-level `await`. A fresh `pnpm init` does not add the field.
+
+**Fix.** Set the module type once, or name the file `quickstart.mts`:
+
+```bash
+npm pkg set type=module
+```
+
+The [installation requirements](/guide/installation) explain the ESM-only
+policy and the scope of CommonJS support.
+
+## Missing or invalid API keys
+
+**Symptom.** Your first live run stalls for a while, then spawns settle with a
+typed `AgentError` whose message carries the provider's authentication error.
+
+**Cause.** The adapter factories read `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`
+from the environment when no `apiKey` option is passed, and the key is used at
+request time, not validated at `createEngine`. An authentication failure from
+the provider is currently retried like a transport failure, so the engine
+walks the resolved `RetryPolicy` backoff before the spawn settles: the stall
+is backoff, not a hang.
+
+**Fix.** Export the key in the shell that runs your workflow, or pass `apiKey`
+to the factory, and rerun. Nothing was paid and nothing wrong was memoized:
+transport-class failures are never recorded as final outcomes, so the resumed
+or rerun workflow performs the calls live as if for the first time.
 
 ## A resume reruns calls you expected to replay
 

@@ -34,12 +34,50 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec turbo build
+      # A push with no pending changesets is publish-shaped (the merge
+      # of a Version Packages PR): run the full test suite once more as
+      # the release's own gate, instead of relying on branch protection
+      # alone. Pushes that still carry changesets only refresh the
+      # Version Packages PR and are already covered by the CI workflow.
+      - name: Test before a publish-shaped push
+        run: |
+          if ls .changeset/*.md 2>/dev/null | grep -v README >/dev/null; then
+            echo "pending changesets present; version PR path, tests covered by CI"
+          else
+            pnpm exec vitest run
+          fi
+      # `version` routes through the root `version-packages` script (a
+      # package.json script, so the `&&` chain runs in a real shell):
+      # after `changeset version` rewrites manifests and changelogs it
+      # syncs the bare pointer package and regenerates the committed
+      # docs (docs/reference/changelog.md and the stamped version
+      # prose), so the standing Version Packages PR passes the docs
+      # freshness gate without manual fixups.
       - name: Create Version Packages PR or publish
+        id: changesets
         uses: changesets/action@v1
         with:
-          version: pnpm exec changeset version
+          version: pnpm run version-packages
           publish: pnpm run release
           commit: 'Version packages'
           title: 'Version Packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # One v-prefixed tag and one GitHub release per train, named after
+      # the umbrella's version (the fixed group shares it). Idempotent:
+      # a re-run skips whatever already exists.
+      - name: Tag and create the GitHub release
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="$(node -p "require('./packages/rulvar/package.json').version")"
+          tag="v${version}"
+          if ! git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            git tag "${tag}"
+            git push origin "${tag}"
+          fi
+          if ! gh release view "${tag}" >/dev/null 2>&1; then
+            gh release create "${tag}" --title "${tag}" \
+              --notes "Changelog: https://docs.rulvar.com/reference/changelog"
+          fi

@@ -9,8 +9,8 @@ rulvar follows semver with one deliberate simplification: every package releases
 
 | Line | Current version | Policy |
 |---|---|---|
-| The fixed group (thirteen packages) | 1.1.0 | Lockstep: identical versions, released together |
-| `@rulvar/compat` | 0.1.0 | Independent: releases only when a frozen profile moves in |
+| The fixed group (thirteen packages) | <!-- version:lockstep -->1.3.2<!-- /version --> | Lockstep: identical versions, released together |
+| `@rulvar/compat` | <!-- version:compat -->0.1.0<!-- /version --> | Independent: releases only when a frozen profile moves in |
 
 ## Lockstep semver across the fixed group
 
@@ -23,17 +23,17 @@ See [Packages](/reference/packages) for what each one does.
 Two names in that list deserve a note:
 
 - **`eslint-plugin-rulvar` is lockstep despite the unscoped name.** ESLint's plugin resolution requires the `eslint-plugin-` prefix, so the package cannot live under the `@rulvar` scope, but it versions and releases in the fixed group like every other member.
-- **The unscoped `rulvar` name on npm is only a pointer.** The library publishes under the `@rulvar` scope; install `@rulvar/rulvar` (or the individual packages), never the bare name. The pointer does not track lockstep versions.
+- **The unscoped `rulvar` name on npm is only a pointer.** The library publishes under the `@rulvar` scope; depend on `@rulvar/rulvar` (or the individual packages), never on the bare name. The pointer is versioned outside the changesets fixed group, but each release republishes it to match the umbrella, so `rulvar@X` resolves to `@rulvar/rulvar@X`.
 
 Lockstep is what makes the compatibility story simple. There is no matrix of which `@rulvar/core` works with which `@rulvar/plan`: matching versions work together, mixed versions across the scope are unsupported, and each release can state its journal compatibility in one sentence. The packages are developed that way too, in one repository against one spec and one test gate, so independent versions would advertise an independence that does not exist.
 
 ::: warning Upgrade the whole scope together
-Bump every fixed-group package to the same version in one move. A partially upgraded install (say `@rulvar/plan@1.0.0` under `@rulvar/core@1.1.0`) is not a supported configuration.
+Bump every fixed-group package to the same version in one move. A partially upgraded install (say `@rulvar/plan` one minor behind `@rulvar/core`) is not a supported configuration.
 :::
 
 ## The sole exemption: @rulvar/compat
 
-[`@rulvar/compat`](/api/@rulvar/compat/) is the only package outside lockstep, and its version (0.1.0 today, while the group is at 1.1.0) is not a mistake.
+[`@rulvar/compat`](/api/@rulvar/compat/) is the only package outside lockstep, and its version (<!-- version:compat -->0.1.0<!-- /version --> today, while the group is at <!-- version:lockstep -->1.3.2<!-- /version -->) is not a mistake.
 
 The package holds frozen `KeyDeriver` profiles: the identity-derivation code and data for journal `hashVersion`s that have aged out of the engine's support window. A frozen profile's entire value is that it never changes. If lockstep force-bumped it on every release, an unchanged frozen profile would keep reappearing under new version numbers, which falsely suggests the one thing a frozen profile must never do. So `@rulvar/compat` releases only when a profile actually leaves the support window and moves into the package.
 
@@ -41,7 +41,7 @@ No real profile has aged out yet at `CURRENT_HASH_VERSION = 2`, so today the pac
 
 ## The journal support window
 
-Package versions govern the API. Your journals, the durable record of paid work, are governed by a separate number: each journal entry carries a `hashVersion` naming the identity-derivation profile it was written under. The engine reads and resumes entries with `hashVersion` in the window `[CURRENT-2, CURRENT]`, three versions deep. `CURRENT_HASH_VERSION` is 2, and the version 1 and version 2 profiles (`deriverV1`, `deriverV2` in [`@rulvar/core`](/api/@rulvar/core/)) are both in the window and always on.
+Package versions govern the API. Your journals, the durable record of paid work, are governed by a separate number: each journal entry carries a `hashVersion` naming the identity-derivation profile it was written under. The engine reads and resumes entries with `hashVersion` in the window `[CURRENT-1, CURRENT]`, two versions deep. `CURRENT_HASH_VERSION` is 2, and the version 1 and version 2 profiles (`deriverV1`, `deriverV2` in [`@rulvar/core`](/api/@rulvar/core/)) are both in the window and always on.
 
 **This window, not the package version, is the compatibility promise to plan operations against.** Inside it, upgrading rulvar never costs you a journal: replay of an unchanged workflow performs zero live calls, per the never-pay-twice invariant.
 
@@ -119,7 +119,7 @@ One package deserves a standing caveat: `@rulvar/bridge-ai-sdk` tracks the `@ai-
 ## Support statement
 
 - Fixes land on the latest minor of the current major. There are no long-term support branches.
-- Journal compatibility follows the `hashVersion` window `[CURRENT-2, CURRENT]`, extended only by explicitly enabling `@rulvar/compat` derivers. Plan operations against the window, not against package versions.
+- Journal compatibility follows the `hashVersion` window `[CURRENT-1, CURRENT]`, extended only by explicitly enabling `@rulvar/compat` derivers. Plan operations against the window, not against package versions.
 - v1.0.0 is the first published release. The `0.x` sections you may see in changelogs were internal pre-release milestones and never shipped to npm.
 
 ## Provenance and trusted publishing

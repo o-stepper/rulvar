@@ -24,7 +24,7 @@ One donor candidate surfaced by the DedupIndex fold.
 | <a id="property-memoizedfailure"></a> `memoizedFailure` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-nodeid"></a> `nodeId?` | `string` | From the abandon payload when the sever named the node. | `packages/core/dist/index.d.ts` |
 | <a id="property-paidusd"></a> `paidUsd` | `number` | Total paid under the donor's child coverage at fold time. | `packages/core/dist/index.d.ts` |
-| <a id="property-preabandonstatus"></a> `preAbandonStatus` | `"error"` \| `"ok"` \| `"cancelled"` \| `"limit"` \| `"escalated"` \| `"running"` | Effective root status BEFORE the abandon overlay. | `packages/core/dist/index.d.ts` |
+| <a id="property-preabandonstatus"></a> `preAbandonStatus` | `"ok"` \| `"error"` \| `"limit"` \| `"cancelled"` \| `"escalated"` \| `"running"` | Effective root status BEFORE the abandon overlay. | `packages/core/dist/index.d.ts` |
 | <a id="property-retainedcheckpoint"></a> `retainedCheckpoint` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-rootentryref"></a> `rootEntryRef` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-rootscope"></a> `rootScope` | `string` | - | `packages/core/dist/index.d.ts` |

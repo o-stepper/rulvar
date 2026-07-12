@@ -155,7 +155,7 @@ Defined in: [packages/core/src/engine/engine.ts:240](https://github.com/o-steppe
 
 | Parameter | Type |
 | ------ | ------ |
-| `wf` | \| [`CompiledWorkflow`](/api/@rulvar/core/interfaces/CompiledWorkflow.md) \| [`Workflow`](/api/@rulvar/core/interfaces/Workflow.md)\&lt;`A`, `R`\&gt; |
+| `wf` | \| [`Workflow`](/api/@rulvar/core/interfaces/Workflow.md)\&lt;`A`, `R`\&gt; \| [`CompiledWorkflow`](/api/@rulvar/core/interfaces/CompiledWorkflow.md) |
 | `args` | `A` |
 | `opts?` | [`RunOptions`](/api/@rulvar/core/interfaces/RunOptions.md) |
 

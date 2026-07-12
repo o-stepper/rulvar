@@ -42,7 +42,9 @@ export interface CreateTestEngineOptions {
 
 export function createTestEngine(options: CreateTestEngineOptions): TestEngine {
   const fake = new FakeAdapter({ agents: options.agents });
-  const store = new InMemoryStore();
+  // The in-memory store is the deliberate choice of this tier, so the
+  // durability warning would only be noise here.
+  const store = new InMemoryStore({ quiet: true });
   // Pattern keys double as agentTypes; register them as profiles so
   // ctx.agent({ agentType }) resolves without extra ceremony.
   const profiles: Record<string, AgentProfile> = { ...options.profiles };

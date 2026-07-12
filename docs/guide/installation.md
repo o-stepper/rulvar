@@ -5,7 +5,7 @@ description: Install the @rulvar/rulvar umbrella package or compose individual @
 
 # Installation
 
-rulvar is published on the npm registry as a set of scoped packages under `@rulvar/*` (Apache-2.0). All packages release in **lockstep** at the same version, currently `1.1.0`; the single exception is `@rulvar/compat`, which is versioned independently so that frozen compatibility profiles never force a release of everything else.
+rulvar is published on the npm registry as a set of scoped packages under `@rulvar/*` (Apache-2.0). All packages release in **lockstep** at the same version, currently <!-- version:lockstep -->1.3.2<!-- /version -->; the single exception is `@rulvar/compat`, which is versioned independently so that frozen compatibility profiles never force a release of everything else.
 
 ::: tip One line install
 `pnpm add @rulvar/rulvar` gives you everything most applications need: the engine, the Anthropic and OpenAI adapters, the JSONL file store, and the terminal progress renderer, behind one import path.
@@ -14,7 +14,7 @@ rulvar is published on the npm registry as a set of scoped packages under `@rulv
 ## Requirements
 
 - **Node.js 22.12.0 or newer.** Every package declares `engines: { "node": ">=22.12.0" }`. The floor is exactly 22.12.0 because it is the first 22.x release where `require(esm)` works without a flag, which the module format below relies on.
-- **ESM only.** All packages ship `"type": "module"` with no CommonJS artifacts. ESM projects `import` them; CommonJS projects on Node 22.12 or newer can plain `require()` them and receive the same module instance. rulvar deliberately never dual publishes: two module instances of the engine would fork the per engine registries and break content addressed replay identity, so the hazard is removed by construction.
+- **ESM only.** All packages ship `"type": "module"` with no CommonJS artifacts. ESM projects `import` them; CommonJS projects on Node 22.12 or newer can plain `require()` them and receive the same module instance. rulvar deliberately never dual publishes: two module instances of the engine would fork the per engine registries and break content addressed replay identity, so the hazard is removed by construction. Note the scope of that CJS statement: it covers consuming the packages from existing CommonJS code. The runnable examples in these docs (including the [quickstart](/guide/quickstart)) use top-level `await`, so the project that runs them must itself be ESM: set `"type": "module"` in your `package.json` or use `.mts` files.
 - **TypeScript recommended.** The API is typed end to end and every package ships rolled up `.d.ts` files; plain JavaScript works, but workflow signatures, tool schemas, and budget options lose their compile time checks. Types resolve through the `exports` map only (there is no legacy `types` field), so set `moduleResolution` to `nodenext`, `node16`, or `bundler` in your `tsconfig.json`.
 
 Any of pnpm, npm, or yarn installs the published packages; the examples below use pnpm first.
@@ -98,13 +98,13 @@ Both adapter factories accept `apiKey` and `baseURL` options and disable the SDK
 
 Two smaller dependency notes:
 
-- `@rulvar/store-sqlite` has no native driver dependency. It uses the `node:sqlite` module that ships with Node, so installs never compile anything.
+- `@rulvar/store-sqlite` has no native driver dependency. It uses the `node:sqlite` module that ships with Node, so installs never compile anything. One version caveat: the engines floor stays 22.12.0, but `node:sqlite` is flag-free only from Node 22.13; on 22.12 it requires the `--experimental-sqlite` flag.
 - `@rulvar/cli` declares `@opentelemetry/api` as an optional peer. Install it only if you use the OpenTelemetry exporter; every other command works without it.
 
 ## The unscoped npm name
 
 ::: warning Only a pointer
-The bare npm name `rulvar` is a pointer package: it does nothing but depend on `@rulvar/rulvar` and pass its exports through, and it exists so nobody can squat the name. Do not depend on it. Install commands and `package.json` dependencies must always use the scoped form `@rulvar/<name>`; the scoped packages are the real releases, and everything in this documentation refers to them.
+The bare npm name `rulvar` is a pointer package that re-exports `@rulvar/rulvar` and is republished to match the umbrella's version each release: it keeps the name from being squatted and lets `npm install rulvar` resolve to the real library for a quick try. Projects should depend on the scoped `@rulvar/rulvar` in `package.json`; the scoped packages are the real releases, and everything in this documentation refers to them.
 :::
 
 ## Verifying the install
@@ -133,7 +133,7 @@ journal hash version: 2
 No API key is required: constructing an engine performs no network calls, and an empty adapter list is valid right up until you route a model call.
 
 ::: tip Default store
-An engine created without `stores.journal` runs on `InMemoryStore`: runs work, but resume is disabled and the engine warns loudly. Configure `JsonlFileStore` or `@rulvar/store-sqlite` before you rely on durability; see [Stores](/guide/stores).
+An engine created without `stores.journal` runs on `InMemoryStore`: runs work, but nothing survives a process exit, so a restarted process cannot resume them, and the engine warns loudly. Configure `JsonlFileStore` or `@rulvar/store-sqlite` before you rely on durability; see [Stores](/guide/stores).
 :::
 
 From here, the [Quickstart](/guide/quickstart) takes you from this empty engine to a budgeted multi agent run in a few dozen lines.

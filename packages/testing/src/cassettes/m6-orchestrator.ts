@@ -15,9 +15,12 @@ import { createEngine, InMemoryStore, InMemoryTranscriptStore, makeOrchestratorW
 
 import { FakeAdapter, FAKE_MODEL_REF, fakeToolCalls, fakeWireError, type FakeCall } from '../fake-adapter.js';
 
+/** @internal */
 export const M6_ORCH_RUN_ID = 'm6-orchestrator-crash';
+/** @internal */
 export const M6_ORCH_GOAL = 'm6 cassette: gather two facts';
 
+/** @internal */
 export const M6_ORCH_PROFILES = { worker: { description: 'does one task' } };
 
 function agentTypeOf(call: FakeCall): string {
@@ -27,6 +30,7 @@ function agentTypeOf(call: FakeCall): string {
 }
 
 /** Extracts spawn handles from the tool results the model saw. */
+/** @internal */
 export function handlesInRequest(req: ChatRequest): number[] {
   const handles: number[] = [];
   for (const msg of req.messages) {
@@ -43,6 +47,7 @@ export function handlesInRequest(req: ChatRequest): number[] {
 }
 
 /** Fixes wall clock and spans; everything else is deterministic already. */
+/** @internal */
 export function normalizeM6Entries(entries: readonly JournalEntry[]): JournalEntry[] {
   return entries.map((entry) => ({
     ...entry,
@@ -57,6 +62,7 @@ export function normalizeM6Entries(entries: readonly JournalEntry[]): JournalEnt
  * the boundary checkpoint the resume restores from; the recorder keeps
  * it in memory because the cassette pins only journal bytes (checkpoint
  * blobs are engine-internal at-least-once state).
+ * @internal
  */
 export async function recordOrchestratorCrash(): Promise<{
   entries: JournalEntry[];

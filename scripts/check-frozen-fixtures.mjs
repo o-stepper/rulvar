@@ -1,12 +1,14 @@
 // Frozen-fixture write protection (M2-T12 acceptance; docs/11, section
-// "Frozen journal fixtures"): any diff to a frozen fixture fails CI
-// unless an explicit hashVersion-bump changeset accompanies it.
-//
-// The lock file fixtures.sha256 records one sha256 per frozen file. On
-// mismatch, the check scans .changeset/*.md for the literal token
-// 'hashVersion-bump' (docs/10, M2-T12 acceptance); its presence marks
-// the regeneration deliberate. Refresh the lock with:
+// "Frozen journal fixtures"): the tree must ALWAYS match the committed
+// lock, so a fixture edit with a stale lock fails CI with or without
+// ceremony. The ceremony gates the lock refresh instead: --update
+// refuses to run unless a .changeset/*.md carries the literal token
+// 'hashVersion-bump' (docs/10, M2-T12 acceptance), so a deliberate
+// identity-profile revision ships as fixture diff + lock diff +
+// token-carrying changeset in one reviewable PR. Refresh with:
 //   node scripts/check-frozen-fixtures.mjs --update
+// The scan is recursive: a subdirectory added under a frozen root is
+// frozen too.
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
@@ -23,6 +25,19 @@ const FROZEN_DIRS = [
   'packages/store-conformance/src/fixtures',
 ];
 
+function collectFrozen(absolute, files) {
+  for (const entry of readdirSync(absolute, { withFileTypes: true }).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  )) {
+    const path = join(absolute, entry.name);
+    if (entry.isDirectory()) {
+      collectFrozen(path, files);
+    } else if (/\.(json|jsonl|ts)$/.test(entry.name)) {
+      files.push(relative(root, path));
+    }
+  }
+}
+
 function listFrozenFiles() {
   const files = [];
   for (const dir of FROZEN_DIRS) {
@@ -30,14 +45,21 @@ function listFrozenFiles() {
     if (!existsSync(absolute)) {
       continue;
     }
-    for (const name of readdirSync(absolute).sort()) {
-      const path = join(absolute, name);
-      if (/\.(json|jsonl|ts)$/.test(name)) {
-        files.push(relative(root, path));
-      }
-    }
+    collectFrozen(absolute, files);
   }
   return files;
+}
+
+function changesetsCarryBumpToken() {
+  const changesetDir = join(root, '.changeset');
+  return existsSync(changesetDir)
+    ? readdirSync(changesetDir).some(
+        (name) =>
+          name.endsWith('.md') &&
+          name !== 'README.md' &&
+          readFileSync(join(changesetDir, name), 'utf8').includes('hashVersion-bump'),
+      )
+    : false;
 }
 
 function sha256(path) {
@@ -49,6 +71,14 @@ function sha256(path) {
 const current = listFrozenFiles().map((path) => `${sha256(path)}  ${path}`);
 
 if (process.argv.includes('--update')) {
+  if (existsSync(lockPath) && !changesetsCarryBumpToken()) {
+    console.error(
+      'refusing to refresh fixtures.sha256: no .changeset/*.md carries the hashVersion-bump ' +
+        'token. Frozen fixtures are the DEF-6 compatibility contract; ship the token-carrying ' +
+        'changeset first, then rerun with --update.',
+    );
+    process.exit(1);
+  }
   writeFileSync(lockPath, `${current.join('\n')}\n`, 'utf8');
   console.log(`fixtures.sha256 updated (${current.length} files)`);
   process.exit(0);
@@ -72,26 +102,17 @@ if (drifted.length === 0) {
   process.exit(0);
 }
 
-const changesetDir = join(root, '.changeset');
-const hashVersionBump = existsSync(changesetDir)
-  ? readdirSync(changesetDir).some(
-      (name) =>
-        name.endsWith('.md') &&
-        name !== 'README.md' &&
-        readFileSync(join(changesetDir, name), 'utf8').includes('hashVersion-bump'),
-    )
-  : false;
-
 console.error('frozen fixture drift detected:');
 for (const line of drifted) {
   console.error(`  ${line}`);
 }
-if (hashVersionBump) {
+if (changesetsCarryBumpToken()) {
   console.error(
-    '\nan accompanying changeset carries the hashVersion-bump token: regeneration is deliberate.' +
-      '\nupdate the lock in the same PR: node scripts/check-frozen-fixtures.mjs --update',
+    '\nan accompanying changeset carries the hashVersion-bump token: regeneration is' +
+      ' authorized, but the lock must land in the same PR. Refresh it and commit:' +
+      ' node scripts/check-frozen-fixtures.mjs --update',
   );
-  process.exit(0);
+  process.exit(1);
 }
 console.error(
   '\nfrozen fixtures are the DEF-6 compatibility contract (docs/11, section "Frozen journal' +

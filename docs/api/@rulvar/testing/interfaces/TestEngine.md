@@ -142,7 +142,7 @@ ConfigError (M6-T02).
 | Parameter | Type |
 | ------ | ------ |
 | `runId` | `string` |
-| `wf?` | \| [`CompiledWorkflow`](/api/@rulvar/rulvar/interfaces/CompiledWorkflow.md) \| [`Workflow`](/api/@rulvar/rulvar/interfaces/Workflow.md)\&lt;`A`, `R`\&gt; |
+| `wf?` | \| [`Workflow`](/api/@rulvar/rulvar/interfaces/Workflow.md)\&lt;`A`, `R`\&gt; \| [`CompiledWorkflow`](/api/@rulvar/rulvar/interfaces/CompiledWorkflow.md) |
 | `options?` | [`ResumeOptions`](/api/@rulvar/rulvar/interfaces/ResumeOptions.md) |
 
 #### Returns

@@ -14,7 +14,7 @@ function evaluatePermission(
 ctx?): Promise<PermissionVerdict>;
 ```
 
-Defined in: [packages/core/src/runtime/permission-chain.ts:236](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L236)
+Defined in: [packages/core/src/runtime/permission-chain.ts:238](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/permission-chain.ts#L238)
 
 Evaluates the chain for one dispatch, or OFFLINE against a
 hypothetical call by tool name (the dry-run API: nothing executes;
@@ -31,7 +31,7 @@ ride every verdict for the audit payload.
 | Parameter | Type |
 | ------ | ------ |
 | `chain` | [`CompiledPermissionChain`](/api/@rulvar/core/interfaces/CompiledPermissionChain.md) |
-| `tool` | \| `string` \| `Pick`\&lt;[`ToolDef`](/api/@rulvar/core/interfaces/ToolDef.md)\&lt;[`SchemaSpec`](/api/@rulvar/core/type-aliases/SchemaSpec.md)\&gt;, `"name"` \| `"risk"` \| `"needsApproval"`\&gt; |
+| `tool` | \| `string` \| `Pick`\&lt;[`ToolDef`](/api/@rulvar/core/interfaces/ToolDef.md)\&lt;[`SchemaSpec`](/api/@rulvar/core/type-aliases/SchemaSpec.md)\&gt;, `"name"` \| `"needsApproval"` \| `"risk"`\&gt; |
 | `input` | `unknown` |
 | `ctx?` | [`ToolContext`](/api/@rulvar/core/interfaces/ToolContext.md) |
 

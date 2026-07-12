@@ -84,7 +84,7 @@ describe('InMemoryStore (M1-T04; docs/03 section 12)', () => {
     expect(await store.listRuns()).toEqual([]);
   });
 
-  it('warns loudly exactly once per instance about disabled resume', async () => {
+  it('warns loudly exactly once per instance about process-local durability', async () => {
     const warnings: string[] = [];
     const spy = vi.spyOn(process, 'emitWarning').mockImplementation((warning: string | Error) => {
       warnings.push(String(warning));
@@ -94,10 +94,24 @@ describe('InMemoryStore (M1-T04; docs/03 section 12)', () => {
       await store.append('r1', entry(0));
       await store.append('r1', entry(1));
       expect(warnings).toHaveLength(1);
-      expect(warnings[0]).toContain('resume is disabled');
+      expect(warnings[0]).toContain('cannot be resumed from another process');
       const second = new InMemoryStore();
       await second.append('r1', entry(0));
       expect(warnings).toHaveLength(2);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('quiet: true opts a deliberate in-memory choice out of the warning', async () => {
+    const warnings: string[] = [];
+    const spy = vi.spyOn(process, 'emitWarning').mockImplementation((warning: string | Error) => {
+      warnings.push(String(warning));
+    });
+    try {
+      const store = new InMemoryStore({ quiet: true });
+      await store.append('r1', entry(0));
+      expect(warnings).toHaveLength(0);
     } finally {
       spy.mockRestore();
     }

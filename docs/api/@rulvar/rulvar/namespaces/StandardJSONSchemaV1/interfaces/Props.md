@@ -27,5 +27,5 @@ The Standard JSON Schema properties interface.
 | ------ | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-jsonschema"></a> `jsonSchema` | `readonly` | [`Converter`](/api/@rulvar/rulvar/namespaces/StandardJSONSchemaV1/interfaces/Converter.md) | Methods for generating the input/output JSON Schema. | - | `packages/core/dist/index.d.ts` |
 | <a id="property-types"></a> `types?` | `readonly` | `Types`\&lt;`Input`, `Output`\&gt; | Inferred types associated with the schema. | `StandardTypedV1.Props.types` | `packages/core/dist/index.d.ts` |
-| <a id="property-vendor"></a> `vendor` | `readonly` | `string` | The vendor name of the schema library. | `StandardTypedV1.Props.vendor` | `packages/core/dist/index.d.ts` |
-| <a id="property-version"></a> `version` | `readonly` | `1` | The version number of the standard. | `StandardTypedV1.Props.version` | `packages/core/dist/index.d.ts` |
+| <a id="property-vendor"></a> `vendor` | `readonly` | `string` | The vendor name of the schema library. | [`Props`](/api/@rulvar/rulvar/namespaces/StandardSchemaV1/interfaces/Props.md).[`vendor`](/api/@rulvar/rulvar/namespaces/StandardSchemaV1/interfaces/Props.md#property-vendor) | `packages/core/dist/index.d.ts` |
+| <a id="property-version"></a> `version` | `readonly` | `1` | The version number of the standard. | [`Props`](/api/@rulvar/rulvar/namespaces/StandardSchemaV1/interfaces/Props.md).[`version`](/api/@rulvar/rulvar/namespaces/StandardSchemaV1/interfaces/Props.md#property-version) | `packages/core/dist/index.d.ts` |

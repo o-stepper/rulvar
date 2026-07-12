@@ -27,7 +27,7 @@ pnpm --filter @rulvar/docs build:site
 pnpm docs:build
 ```
 
-The output is written to [`.vitepress/dist`](./.vitepress/dist).
+The output is written to `.vitepress/dist`, a gitignored build directory; the deployed result is the site at <https://docs.rulvar.com>.
 
 ## Structure
 

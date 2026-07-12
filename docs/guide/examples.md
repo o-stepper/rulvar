@@ -27,7 +27,7 @@ pnpm build
 pnpm vitest run examples/src
 ```
 
-To use a pattern in your own project, copy the workflow and install the runtime: `pnpm add @rulvar/core` (or the umbrella, `pnpm add @rulvar/rulvar`).
+To use a pattern in your own project, copy the workflow and install the runtime and `zod`: `pnpm add @rulvar/core zod` (or the umbrella, `pnpm add @rulvar/rulvar zod`).
 :::
 
 ## Adversarial panel
@@ -106,7 +106,11 @@ export const judgePanel = defineWorkflow(
       }),
     );
     const ranked = [...scored].sort((a, b) => b.score - a.score);
-    return { task: args.task, winner: ranked[0], ranking: ranked };
+    return {
+      task: args.task,
+      winner: ranked[0],
+      ranking: ranked.map(({ angle, score }) => ({ angle, score })),
+    };
   },
 );
 ```
@@ -193,6 +197,7 @@ export const completenessCritic = defineWorkflow(
       await ctx.phase('draft', () => ctx.agent(`Draft a response to: ${args.brief}`)),
     );
     let revisions = 0;
+    let gaps: string[] = [];
     while (revisions < maxRevisions) {
       const critique = await ctx.phase('critique', () =>
         ctx.agent(
@@ -201,6 +206,7 @@ export const completenessCritic = defineWorkflow(
           { schema: critiqueSchema, label: `critic-${revisions + 1}` },
         ),
       );
+      gaps = critique.gaps;
       if (critique.complete || critique.gaps.length === 0) break;
       revisions += 1;
       draft = String(
@@ -212,7 +218,7 @@ export const completenessCritic = defineWorkflow(
         ),
       );
     }
-    return { brief: args.brief, draft, revisions };
+    return { brief: args.brief, draft, revisions, outstandingGaps: gaps };
   },
 );
 ```

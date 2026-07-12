@@ -783,6 +783,7 @@ async function recordDoubleAbandonIdempotent(): Promise<JournalEntry[]> {
   return normalizeEntries(await store.load('record'));
 }
 
+/** @internal */
 export async function recordLiveCassettes(): Promise<CassetteFixture[]> {
   const fixtures: CassetteFixture[] = [];
 

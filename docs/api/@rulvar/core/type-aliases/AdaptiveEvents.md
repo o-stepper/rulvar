@@ -41,11 +41,16 @@ type AdaptiveEvents =
   type: "orchestrator:woke";
 }
   | {
-  effectiveCapUsd: number;
-  entryRef: number;
-  frozen: boolean;
-  reserveUsedUsd: number;
-  spentUsd: number;
+  atCap: boolean;
+  capUsd?: number;
+  finalizeReserveUsd?: number;
+  orchestratorCapUsd?: number;
+  orchestratorShare?: number;
+  orchestratorSpentUsd?: number;
+  runCeilingUsd?: number;
+  runSpentUsd?: number;
+  softWarning?: boolean;
+  spentUsd?: number;
   type: "orchestrator:budget";
 }
   | {
@@ -73,7 +78,7 @@ type AdaptiveEvents =
   | {
   agentType: string;
   code: string;
-  entryRef: number;
+  entryRef?: number;
   logicalTaskId?: string;
   type: "spawn:rejected";
 }
@@ -225,14 +230,33 @@ one closed catalog with M7-T03; emitters arrive with their tasks.
 
 ```ts
 {
-  effectiveCapUsd: number;
-  entryRef: number;
-  frozen: boolean;
-  reserveUsedUsd: number;
-  spentUsd: number;
+  atCap: boolean;
+  capUsd?: number;
+  finalizeReserveUsd?: number;
+  orchestratorCapUsd?: number;
+  orchestratorShare?: number;
+  orchestratorSpentUsd?: number;
+  runCeilingUsd?: number;
+  runSpentUsd?: number;
+  softWarning?: boolean;
+  spentUsd?: number;
   type: "orchestrator:budget";
 }
 ```
+
+| Name | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| `atCap` | `boolean` | - | [packages/core/src/l0/events.ts:122](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L122) |
+| `capUsd?` | `number` | - | [packages/core/src/l0/events.ts:124](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L124) |
+| `finalizeReserveUsd?` | `number` | - | [packages/core/src/l0/events.ts:125](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L125) |
+| `orchestratorCapUsd?` | `number` | - | [packages/core/src/l0/events.ts:129](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L129) |
+| `orchestratorShare?` | `number` | - | [packages/core/src/l0/events.ts:130](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L130) |
+| `orchestratorSpentUsd?` | `number` | - | [packages/core/src/l0/events.ts:128](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L128) |
+| `runCeilingUsd?` | `number` | - | [packages/core/src/l0/events.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L127) |
+| `runSpentUsd?` | `number` | - | [packages/core/src/l0/events.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L126) |
+| `softWarning?` | `boolean` | - | [packages/core/src/l0/events.ts:131](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L131) |
+| `spentUsd?` | `number` | - | [packages/core/src/l0/events.ts:123](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L123) |
+| `type` | `"orchestrator:budget"` | Two emitted shapes share the discriminant: the cap-freeze form carries { atCap: true, spentUsd, capUsd, finalizeReserveUsd }, and the per-wake digest form carries atCap plus the passive WakeBudgetBlock fields (runSpentUsd .. softWarning). | [packages/core/src/l0/events.ts:121](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L121) |
 
 ***
 
@@ -279,12 +303,12 @@ one closed catalog with M7-T03; emitters arrive with their tasks.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/l0/events.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L141) |
-| `entryRef` | `number` | - | [packages/core/src/l0/events.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L138) |
-| `logicalTaskId` | `string` | - | [packages/core/src/l0/events.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L142) |
-| `spawnUnitsAfter` | `number` | - | [packages/core/src/l0/events.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L143) |
-| `type` | `"spawn:admitted"` | - | [packages/core/src/l0/events.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L137) |
-| `verdict` | `"admit"` \| `"reuse_full"` \| `"admit_graft"` | The admitting arms of the unified AdmitVerdict union. | [packages/core/src/l0/events.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L140) |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:152](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L152) |
+| `entryRef` | `number` | - | [packages/core/src/l0/events.ts:149](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L149) |
+| `logicalTaskId` | `string` | - | [packages/core/src/l0/events.ts:153](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L153) |
+| `spawnUnitsAfter` | `number` | - | [packages/core/src/l0/events.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L154) |
+| `type` | `"spawn:admitted"` | - | [packages/core/src/l0/events.ts:148](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L148) |
+| `verdict` | `"admit"` \| `"reuse_full"` \| `"admit_graft"` | The admitting arms of the unified AdmitVerdict union. | [packages/core/src/l0/events.ts:151](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L151) |
 
 ***
 
@@ -294,11 +318,19 @@ one closed catalog with M7-T03; emitters arrive with their tasks.
 {
   agentType: string;
   code: string;
-  entryRef: number;
+  entryRef?: number;
   logicalTaskId?: string;
   type: "spawn:rejected";
 }
 ```
+
+| Name | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:165](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L165) |
+| `code` | `string` | - | [packages/core/src/l0/events.ts:164](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L164) |
+| `entryRef?` | `number` | The journaled admission decision entry; absent for the pre-admission config gates (orchestrate maxSpawns), which reject before anything is journaled. | [packages/core/src/l0/events.ts:163](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L163) |
+| `logicalTaskId?` | `string` | - | [packages/core/src/l0/events.ts:166](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L166) |
+| `type` | `"spawn:rejected"` | - | [packages/core/src/l0/events.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L157) |
 
 ***
 
@@ -434,3 +466,10 @@ one closed catalog with M7-T03; emitters arrive with their tasks.
   window: [number, number];
 }
 ```
+
+| Name | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| `code` | `"HASH_VERSION_TOO_OLD"` \| `"HASH_VERSION_TOO_NEW"` | - | [packages/core/src/l0/events.ts:201](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L201) |
+| `found` | `number` | - | [packages/core/src/l0/events.ts:202](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L202) |
+| `type` | `"journal:compat"` | Declared for hosts; not emitted today. The compatibility scan runs strictly before a run's event stream exists, so the refusal travels only as the typed JournalCompatibilityError (which carries the same fields). | [packages/core/src/l0/events.ts:200](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L200) |
+| `window` | \[`number`, `number`\] | - | [packages/core/src/l0/events.ts:203](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L203) |

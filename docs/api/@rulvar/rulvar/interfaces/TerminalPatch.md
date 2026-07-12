@@ -19,7 +19,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-memoizeoutcome"></a> `memoizeOutcome?` | `boolean` | Engine-decided terminal abort classes (the no-progress abort) stamp memoizeOutcome on the TERMINAL entry so the frozen memoize rules replay them on every resume; the running entry keeps the user's policy verbatim (M3 amendment). | `packages/core/dist/index.d.ts` |
 | <a id="property-servedby"></a> `servedBy?` | `` `${string}:${string}` `` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-site"></a> `site?` | `string` | - | `packages/core/dist/index.d.ts` |
-| <a id="property-status"></a> `status` | `"error"` \| `"ok"` \| `"cancelled"` \| `"limit"` \| `"escalated"` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-status"></a> `status` | `"ok"` \| `"error"` \| `"limit"` \| `"cancelled"` \| `"escalated"` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-transcriptref"></a> `transcriptRef?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-usage"></a> `usage?` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-usageapprox"></a> `usageApprox?` | `boolean` | - | `packages/core/dist/index.d.ts` |

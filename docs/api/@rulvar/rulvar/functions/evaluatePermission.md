@@ -31,7 +31,7 @@ ride every verdict for the audit payload.
 | Parameter | Type |
 | ------ | ------ |
 | `chain` | [`CompiledPermissionChain`](/api/@rulvar/rulvar/interfaces/CompiledPermissionChain.md) |
-| `tool` | \| `string` \| `Pick`\&lt;[`ToolDef`](/api/@rulvar/rulvar/interfaces/ToolDef.md)\&lt;[`SchemaSpec`](/api/@rulvar/rulvar/type-aliases/SchemaSpec.md)\&lt;`unknown`\&gt;\&gt;, `"risk"` \| `"name"` \| `"needsApproval"`\&gt; |
+| `tool` | \| `string` \| `Pick`\&lt;[`ToolDef`](/api/@rulvar/rulvar/interfaces/ToolDef.md)\&lt;[`SchemaSpec`](/api/@rulvar/rulvar/type-aliases/SchemaSpec.md)\&lt;`unknown`\&gt;\&gt;, `"name"` \| `"needsApproval"` \| `"risk"`\&gt; |
 | `input` | `unknown` |
 | `ctx?` | [`ToolContext`](/api/@rulvar/rulvar/interfaces/ToolContext.md) |
 

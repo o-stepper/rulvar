@@ -10,7 +10,7 @@
 function normalizeCanaryOutput(output): string;
 ```
 
-Defined in: [packages/evals/src/canary.ts:34](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/canary.ts#L34)
+Defined in: [packages/evals/src/canary.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/canary.ts#L35)
 
 The committed v1 normalization (OQ-06): NFC, trim, collapse whitespace.
 

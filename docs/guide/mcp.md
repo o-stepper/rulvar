@@ -84,7 +84,7 @@ interface ToolSource {
 }
 ```
 
-Anywhere the engine accepts tools (`ToolsOption`), you can mix plain `ToolDef` values, tool sources, and registered toolset names side by side. At spawn time the engine expands every source, validates names and duplicates across the whole toolset, and freezes the snapshot:
+Anywhere the engine accepts tools (`ToolsOption`), you can mix plain `ToolDef` values and tool sources side by side; registered toolset names are rejected with a typed `ConfigError`, and they exist only for the `toolsetRef` parameter of the dynamic orchestrator's `spawn_agent` tool. At spawn time the engine expands every source, validates names and duplicates across the whole toolset, and freezes the snapshot:
 
 ```ts
 import { createEngine, defineWorkflow } from '@rulvar/core';
@@ -150,10 +150,10 @@ The three shipped presets compile into the deny and ask layers (never a bypass c
 | (undeclared) | ask | ask | allow |
 
 ::: warning Domain rules are advisory for MCP tools
-Network-domain rules (`{ tool, domains }`) are enforced only for the first-party fetch tool. For MCP tools they are advisory: matches are reported in audit telemetry but there is no enforcement mechanism inside a server you do not control. Do not treat them as containment.
+Network domain rules (`{ tool, domains }`) are advisory for every tool in the current release, MCP tools included: they never change a verdict, and matches surface in the audit fields on `tool:end` events. rulvar ships no fetch tool today, and there is no enforcement mechanism inside a server you do not control. Do not treat domain rules as containment.
 :::
 
-Every chain evaluation emits audit telemetry on the `tool:start` and `tool:end` events: the verdict, the deciding layer, and the matched rule. See [observability](/guide/observability).
+Every chain evaluation emits audit telemetry on the `tool:end` event: the verdict, the deciding layer, the matched rule, and advisory matches. See [observability](/guide/observability).
 
 ### Approvals suspend durably
 

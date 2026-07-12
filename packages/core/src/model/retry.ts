@@ -11,6 +11,13 @@
  */
 import type { WireError } from '../l0/errors.js';
 
+/**
+ * Captured at module load, before the InProcessRunner's nondeterminism
+ * guard can patch the global: the engine's own jitter is journal
+ * invisible and must never be blamed on workflow code.
+ */
+const nativeRandom: () => number = Math.random;
+
 export type RetryClass = 'transport' | 'rate-limit' | 'overloaded';
 
 export interface RetryPolicy {
@@ -59,7 +66,7 @@ export function retryDelayMs(
   policy: RetryPolicy,
   retryIndex: number,
   retryAfterMs?: number,
-  random: () => number = Math.random,
+  random: () => number = nativeRandom,
 ): number {
   if (retryAfterMs !== undefined) {
     return retryAfterMs;

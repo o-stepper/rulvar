@@ -96,17 +96,18 @@ These fire only in runs where the corresponding machinery is active (see [Adapti
 | `node:parked` / `node:cancelled` | A plan node was parked or cancelled. |
 | `node:linked` | A re-added task was linked to a completed donor subtree; `reclaimedUsd` is the spend recovered by reuse. |
 | `orchestrator:woke` | An orchestrator wake turn started; `renderSize` is the rendered digest size. |
-| `orchestrator:budget` | The orchestrator sub-account moved; `frozen: true` when the cap froze the plan. |
+| `orchestrator:budget` | The orchestrator sub-account moved. Each wake digest emits `atCap` plus the digest's budget block (`runSpentUsd`, `runCeilingUsd`, `orchestratorSpentUsd`, `orchestratorCapUsd`, `finalizeReserveUsd`, `orchestratorShare`, `softWarning`); the at-cap freeze emits `atCap: true` with `spentUsd`, `capUsd`, and `finalizeReserveUsd`. |
 | `escalation:raised` / `escalation:decided` | A worker escalated and the decision landed (`retry`, `decompose`, `cancel`, or `accept`). |
-| `spawn:admitted` / `spawn:rejected` | Admission decided a spawn; the admit verdict distinguishes fresh admits from full reuse and grafts. |
+| `spawn:admitted` | Admission admitted a spawn; carries the journaled decision `entryRef`, the admitting `verdict` arm, `agentType`, `logicalTaskId`, and `spawnUnitsAfter`. |
+| `spawn:rejected` | Admission rejected a spawn; carries the rejection `code`, `agentType`, and the journaled decision `entryRef` (absent for pre-admission config gates such as `orchestrate` `maxSpawns`, which reject before anything is journaled). The caller still sees the typed `AdmissionRejectedError`. |
 | `verify:failed` | A verification gate (mechanical, judge, or spot-check) failed a rung attempt. |
 | `ledger:op` | A run-ledger write (brief, fact, lesson, observation). |
 | `stall:detected` | A logical task's no-progress streak advanced. |
 | `guard:oscillation` | The oscillation guard tripped on a repeated spawn key. |
-| `resolution:applied` / `resolution:superseded` | A suspension resolution won, or lost to an earlier close. |
+| `resolution:applied` / `resolution:superseded` | A live resolution attempt won the first-closing-wins fold (`targetRef`, the appended attempt's `entryRef`, `by`), or lost to an earlier close (`supersededBy`, `reason`). Emitted for live attempts only; folds of prior entries at resume re-emit nothing. |
 | `termination:debit` / `termination:denied` | A termination counter was debited, or a request was refused because a counter ran out. |
 | `termination:config-drift` | A resumed run's live limits differ from the frozen ones. |
-| `journal:compat` | A journal outside the engine's hash-version window was loaded; see [Journal compatibility](/guide/journal-compatibility). |
+| `journal:compat` | Declared in the event union but not yet emitted: loading a journal outside the engine's hash-version window throws `JournalCompatibilityError` instead; see [Journal compatibility](/guide/journal-compatibility). |
 
 ## Subscribing from the host
 
@@ -135,17 +136,18 @@ off();
 const outcome = await handle.result;
 ```
 
-Both forms are cheap to stack: a progress bar on `agent:start` and `agent:end`, a spend ticker on `budget:update`, an alert on `spawn:rejected`. In tests, prefer the matchers from `@rulvar/testing`, which fold the same stream; see [Testing](/guide/testing).
+Both forms are cheap to stack: a progress bar on `agent:start` and `agent:end`, a spend ticker on `budget:update`, an alert on `run:end` settling with a status other than `'ok'`. In tests, prefer the matchers from `@rulvar/testing`, which fold the same stream; see [Testing](/guide/testing).
 
 ## Replay re-emission and the replayed flag
 
-On resume, the engine re-emits events for the journal-backed facts it consumes, so a UI can rebuild the run picture without parsing the journal itself. Every re-emission carries `replayed: true` so consumers can deduplicate. The rule: exactly the journal-backed lifecycle events re-emit; live-only diagnostics never do.
+On resume, the engine re-emits events for the journal-backed facts it consumes, so a UI can rebuild the run picture without parsing the journal itself. Every re-emission carries `replayed: true` so consumers can deduplicate. The rule: exactly the journal-backed agent, tool, child, and suspension lifecycle events re-emit; everything else never carries the flag.
 
 | Event types | Re-emitted with `replayed: true` |
 |---|---|
-| `agent:start`, `agent:end`, `child:start`, `child:end` for entries consumed by replay; `tool:start`, `tool:end` for tool results reconstructed from a replayed turn; `external:waiting`, `approval:pending` for suspensions still open; the adaptive lifecycle events (`plan:revised` through `termination:denied`) | yes |
+| `agent:start`, `agent:end`, `child:start`, `child:end` for entries consumed by replay; `tool:start`, `tool:end` for tool results reconstructed from a replayed turn; `external:waiting`, `approval:pending` for suspensions still open | yes |
 | `agent:stream` | never |
-| `run:start`, `run:end`, `phase:start`, `log`, `budget:update`, `agent:queued`, `agent:error`, `agent:schema-retry`, `termination:config-drift`, `journal:compat` | no; they describe the current process, and `phase:start` and `log` fire live again as workflow bodies re-execute |
+| the adaptive events (`plan:revised` through `termination:config-drift`) | no; the orchestration machinery emits them through its live path without the flag, so an adaptive event observed during a resume looks live even when it restates a journal-backed fact |
+| `run:start`, `run:end`, `phase:start`, `log`, `budget:update`, `agent:queued`, `agent:error`, `agent:schema-retry` | no; they describe the current process, and `phase:start` and `log` fire live again as workflow bodies re-execute |
 
 Replayed events carry payloads read from the journaled facts, byte for byte (status, usage, cost, verdicts), never from re-evaluation. This is the observable face of the decision-entry principle: what you see on resume is what was decided, not a recomputation.
 
@@ -183,7 +185,7 @@ const report = costReportFromJournal(entries, (servedBy, usage) => {
 });
 ```
 
-Or use the terminal: `rulvar runs ls` and `rulvar inspect <runId>` from `@rulvar/cli` render the same facts; see [CLI](/guide/cli).
+Or use the terminal: `rulvar runs ls --store .rulvar/journal` and `rulvar inspect <runId> --store .rulvar/journal` from `@rulvar/cli` render the same facts. Point `--store` at the directory your `JsonlFileStore` writes (`.rulvar/journal` in the quickstart's engine assembly; the CLI's own default is `.rulvar`); see [CLI](/guide/cli).
 
 ## CostReport
 
@@ -251,7 +253,7 @@ const finished = engine.resume('quickstart-panel-1', panel, { args, dryRun: true
 await toOtel(finished, tracer);
 ```
 
-Spans are currently exported flat but fully attributed: the exporter does not yet set OTel parent links, so the run > phase > agent > tool > child parentage travels in the `rulvar.*` attributes below (`rulvar.run_id` groups a run's spans, and `rulvar.scope`, where present, places a span in the tree) rather than in the trace structure. Replayed events never create duplicate spans: a span opened by a replayed event is simply marked `rulvar.replayed = true`.
+Pass `contextApi` (the `context` API from `@opentelemetry/api`) and `setSpan` (`trace.setSpan`) in the options and the exporter sets real OTel parent links: every child span starts under a context derived from its parent span, so the run > phase > agent > tool > child tree lands in the trace structure itself. Without those options, spans come out flat but fully attributed: the parentage travels in the `rulvar.*` attributes below (`rulvar.run_id` groups a run's spans, and `rulvar.scope`, where present, places a span in the tree). Replayed events never create duplicate spans: a span opened by a replayed event is simply marked `rulvar.replayed = true`.
 
 Attributes use two namespaces:
 

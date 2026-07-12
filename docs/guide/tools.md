@@ -107,7 +107,7 @@ The same contract discipline governs imported MCP tools: server-side drift of a 
 
 ## Attaching tools to agents
 
-Toolsets attach per spawn through `AgentOpts.tools` (which wins over the profile default), per profile through `AgentProfile.tools`, or as named registrations under engine `defaults.toolsets`. The option accepts `ToolDef` values, `ToolSource` values (what [`mcp()`](/guide/mcp) returns), and registered toolset names, in any mix:
+Toolsets attach per spawn through `AgentOpts.tools` (which wins over the profile default) or per profile through `AgentProfile.tools`. Registered toolset names are not accepted in either place: a string entry throws a typed `ConfigError` at spawn time, and the named registrations under engine `defaults.toolsets` exist solely for the dynamic orchestrator's `toolsetRef` spawn parameter (see [orchestration modes](/guide/orchestration-modes)). The option accepts `ToolDef` values and `ToolSource` values (what [`mcp()`](/guide/mcp) returns), in any mix:
 
 ```ts
 import { defineWorkflow } from '@rulvar/core';
@@ -172,7 +172,7 @@ const engine = createEngine({
 });
 ```
 
-**Hooks** are closures, run in deterministic registration order, sync or async. `'allow'`, `'deny'`, and `'ask'` are decisive and stop the chain. `{ modifiedInput }` substitutes the input and continues: the modified input is what later layers evaluate and what `execute` eventually receives. `undefined` passes through.
+**Hooks** are closures, run in deterministic registration order, sync or async. `'allow'`, `'deny'`, and `'ask'` are decisive and stop the chain. `{ modifiedInput }` substitutes the input and continues: the modified input is what later layers evaluate and what `execute` eventually receives. `undefined` passes through. The hook above gates your own `http_fetch` tool; rulvar ships no tool of that name.
 
 **Deny rules and ask rules** are declarative tables with no closures. A rule matches by tool name, by declared risk class (`'undeclared'` matches every tool without declared risk), by argv pattern for shell tools, or by network domain. A match in the deny layer denies; a match in the ask layer asks. Rules never allow: allow only ever results from falling through to `canUseTool` or the terminal default, which is what lets presets compile into the chain without creating a bypass channel. Because closures cannot cross the worker sandbox, a compiled workflow running there carries only these declarative tables; hooks and `canUseTool` are host-side layers (see [orchestration modes](/guide/orchestration-modes)).
 
@@ -220,7 +220,7 @@ A profile-level `preset` compiles into ordinary deny and ask rules, appended aft
 
 Two honesty notes, because policy that overpromises is worse than none:
 
-- **Domain rules** (`{ tool, domains }`) are enforced only for the first-party fetch tool, which checks the target host before connecting. For arbitrary shell and MCP tools they are advisory: matches are reported in audit telemetry but there is no enforcement mechanism, and you should not treat them as containment.
+- **Domain rules** (`{ tool, domains }`) are advisory for every tool in the current release: they never change a verdict, and matches surface in the audit fields on `tool:end` events. rulvar ships no fetch tool today; when it ships one, domain enforcement will live in that tool. Do not treat domain rules as containment.
 - **The chain governs dispatch, not side effects.** What a running tool does is bounded by executors and isolation (below), not by rules.
 
 ## Shell command matching
@@ -340,7 +340,7 @@ Tool calls inside an agent's loop are not individual journal entries. They live 
 
 - **Replay never re-runs tools.** A replayed agent entry serves its recorded result, and a resumed agent continues from its last checkpoint with all executed tool results intact.
 - **The at-least-once window is real.** Between a tool's side effect and the next turn-boundary checkpoint, a crash means the tool may run again on resume. Prefer idempotent tools; give effectful ones natural idempotency keys.
-- **Verdicts are telemetry, except ask.** Every chain evaluation rides the `tool:start` and `tool:end` events with its verdict, deciding layer, matched rule, and advisory matches, but allow and deny verdicts are never journaled; the tool result in the history is the durable trace. Only ask has a journal footprint: the suspended approval entry and its resolutions.
+- **Verdicts are telemetry, except ask.** Every chain evaluation rides the `tool:end` event with its verdict, deciding layer, matched rule, and advisory matches, but allow and deny verdicts are never journaled; the tool result in the history is the durable trace. Only ask has a journal footprint: the suspended approval entry and its resolutions.
 
 ## Next steps
 

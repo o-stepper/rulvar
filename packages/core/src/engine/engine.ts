@@ -362,6 +362,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
     invalidate: number[];
     /** Queue mode: every journal append of this resume carries it. */
     lease?: Lease;
+    /**
+     * The RunMeta-recorded ceiling (B0): a resumed run keeps the
+     * original invocation's bound, and ResumeOptions deliberately has
+     * no field to override it.
+     */
+    budgetUsd?: number;
     previewResolve: (preview: ResumePreview) => void;
   }
 
@@ -390,9 +396,13 @@ export function createEngine(options: CreateEngineOptions): Engine {
     const bus = new EventBus({ runId, spans, now: realNow, maskEvents });
     const rootSpanId = spans.mint();
     let budgetSeed: { usd: number; usage: Usage; agentsSpawned: number } | undefined;
+    // B0 is immutable across the run's whole life: a fresh run takes it
+    // from RunOptions, a resumed run restores the RunMeta-recorded
+    // value, and no API can change it after start.
+    const ceilingUsd = opts?.budgetUsd ?? resumeCtx?.budgetUsd;
     const makeBudget = (): RunBudget =>
       new RunBudget({
-        ...(opts?.budgetUsd === undefined ? {} : { ceilingUsd: opts.budgetUsd }),
+        ...(ceilingUsd === undefined ? {} : { ceilingUsd }),
         lifetimeSpawnCap: options.budgetDefaults?.lifetimeSpawnCap ?? 500,
         events: { emit: (body) => bus.emit(body as WorkflowEventBody, rootSpanId) },
         priceUsd,
@@ -472,7 +482,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
           : { limits: options.budgetDefaults.lineage }),
       },
     });
-    const external = new ExternalRegistry(replayer);
+    const external = new ExternalRegistry(replayer, (body) => bus.emit(body, rootSpanId));
     let transcriptCounter = 0;
     const internals: RunInternals = {
       runId,
@@ -531,6 +541,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         updatedAt: new Date(realNow()).toISOString(),
         ...(opts?.name === undefined ? {} : { name: opts.name }),
         ...(opts?.tags === undefined ? {} : { tags: opts.tags }),
+        ...(ceilingUsd === undefined ? {} : { budgetUsd: ceilingUsd }),
         workflowName: wf.name,
         workflowHash:
           compiled === undefined
@@ -815,6 +826,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
         strict: resumeOptions?.dryRun ?? false,
         invalidate: resumeOptions?.invalidate ?? [],
         ...(resumeOptions?.lease === undefined ? {} : { lease: resumeOptions.lease }),
+        // The recorded B0 travels back in: journals whose store dropped
+        // the field (or predates it) resume uncapped, exactly as before.
+        ...(typeof meta?.budgetUsd === 'number' ? { budgetUsd: meta.budgetUsd } : {}),
         previewResolve,
       });
     })();

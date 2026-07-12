@@ -57,7 +57,7 @@ Official site: [rulvar.com](https://rulvar.com). Documentation:
 
 ## Sixty seconds to the first run
 
-Requires Node.js 22.12.0 or newer, ESM only.
+Requires Node.js 22.12.0 or newer, ESM only (your project's `package.json` needs `"type": "module"`; `npm pkg set type=module` adds it).
 
 ```bash
 pnpm add @rulvar/rulvar zod
@@ -65,8 +65,10 @@ pnpm add @rulvar/rulvar zod
 
 `@rulvar/rulvar` is the umbrella package: the core engine plus both
 first-class adapters, recommended model defaults, and the progress
-renderer. It is also installable through the unscoped alias `rulvar`,
-which re-exports it.
+renderer. The unscoped alias `rulvar` re-exports it and is republished
+to match the umbrella's version each release, so `npm install rulvar`
+works for a quick try; projects should depend on the scoped
+`@rulvar/rulvar` in `package.json`.
 
 ```ts
 import { z } from 'zod';
@@ -88,7 +90,14 @@ const engine = createEngine({
     transcripts: new FileTranscriptStore({ dir: '.rulvar/transcripts' }),
   },
   defaults: {
-    routing: { ...recommendedDefaults.routing, loop: 'anthropic:claude-sonnet-5' },
+    routing: {
+      ...recommendedDefaults.routing,
+      loop: 'anthropic:claude-sonnet-5',
+      // Schema-bearing ctx.agent calls resolve the extract role, whose
+      // recommended default targets OpenAI; this engine registers only
+      // the anthropic adapter, so route extract to it explicitly.
+      extract: { model: 'anthropic:claude-sonnet-5', effort: 'low' },
+    },
     roleFloors: recommendedDefaults.floors,
   },
 });
@@ -166,7 +175,7 @@ versioning policy at
 | `@rulvar/store-conformance` | Executable conformance kit for custom store implementations                                                                            |
 | `@rulvar/testing`           | `createTestEngine`, `FakeAdapter`, VCR cassettes, replay-strict runs, matchers                                                         |
 | `@rulvar/evals`             | Eval cases, golden outputs, rubric and judge graders, matrix sweeps, canary fingerprints                                               |
-| `@rulvar/plan`              | Adaptive orchestration: `PlanRunner`, `RunLedger`, escalation extensions, `ModelLadder`                                                |
+| `@rulvar/plan`              | Adaptive orchestration: the `planRunner` extension factory, the run ledger, escalation extensions, model ladder configuration          |
 | `@rulvar/planner`           | Flagship hybrid mode: plan agent, `compileScript`, `WorkerSandboxRunner`, self-repair loop                                             |
 | `@rulvar/cli`               | The `rulvar` shell: run, resume, runs, inspect, plan, and kb commands, TUI progress, `createServer`, `createWorker`, OTel exporter     |
 | `@rulvar/compat`            | Frozen `KeyDeriver` profiles for hash versions outside the support window                                                              |

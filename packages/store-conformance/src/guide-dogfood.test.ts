@@ -1,9 +1,10 @@
 /**
  * M9-T03 acceptance: a third-party store built ONLY from the community guide
  * passes conformance. CommunityMemoryStore below is the walkthrough
- * listing of docs/guide-store-authors.md, section "Walkthrough: a
- * complete minimal store", VERBATIM: if the guide's code rots, this
- * suite fails and the guide must be re-amended.
+ * listing of docs/guide/store-authors.md, section "Walkthrough: a
+ * complete minimal store" (differing only in comments and formatting):
+ * if the guide's code rots, this suite fails and the guide must be
+ * re-amended.
  */
 import { describe, it } from 'vitest';
 

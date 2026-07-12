@@ -53,17 +53,18 @@ jobs:
       - name: Build documentation site (sync + TypeDoc + VitePress + llms.txt)
         run: pnpm --filter @rulvar/docs run build:site
 
-      # docs/api (the TypeDoc output), the aggregated changelog, and the
-      # synced contributing page are COMMITTED for GitHub readers, code
-      # search, and LLM ingestion. build:site above just regenerated all
-      # of them, so any diff or untracked page here means the PR forgot
-      # the regeneration.
+      # docs/api (the TypeDoc output), the aggregated changelog, the
+      # synced contributing page, and the version prose stamped from the
+      # package manifests (stamp-versions.mjs) are COMMITTED for GitHub
+      # readers, code search, and LLM ingestion. build:site above just
+      # regenerated all of them, so any diff or untracked page here means
+      # the PR forgot the regeneration.
       - name: Generated docs freshness (regen + diff)
         run: |
-          if ! git diff --exit-code --stat -- docs/api docs/reference/changelog.md docs/contributing/index.md; then
+          if ! git diff --exit-code --stat -- docs/api docs/guide docs/reference docs/contributing/index.md docs/index.md; then
             echo "--- first 200 lines of the content diff (for diagnosis) ---"
-            git diff -- docs/api docs/reference/changelog.md docs/contributing/index.md | head -200
-            echo "::error title=generated docs are stale::Public API/TSDoc, a package changelog, or CONTRIBUTING.md changed without regenerating the committed docs. Run: pnpm --filter @rulvar/docs run clean && pnpm --filter @rulvar/docs run build:site, then commit docs/api, docs/reference/changelog.md, and docs/contributing/index.md."
+            git diff -- docs/api docs/guide docs/reference docs/contributing/index.md docs/index.md | head -200
+            echo "::error title=generated docs are stale::Public API/TSDoc, a package changelog, CONTRIBUTING.md, or a stamped version changed without regenerating the committed docs. Run: pnpm --filter @rulvar/docs run clean && pnpm --filter @rulvar/docs run build:site, then commit the regenerated files."
             exit 1
           fi
           untracked="$(git status --porcelain -- docs/api)"

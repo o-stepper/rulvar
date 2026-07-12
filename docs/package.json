@@ -19,13 +19,13 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "predev": "node ./scripts/sync-root-docs.mjs && node ./scripts/build-changelog.mjs",
+    "predev": "node ./scripts/sync-root-docs.mjs && node ./scripts/build-changelog.mjs && node ./scripts/stamp-versions.mjs",
     "dev": "vitepress dev .",
     "build:typedoc": "node ./scripts/run-typedoc-checked.mjs",
     "build:sanitise": "node ./scripts/sanitise-typedoc.mjs",
     "build:vitepress": "vitepress build .",
     "build:llms": "node ./scripts/build-llms-txt.mjs",
-    "build:sync": "node ./scripts/sync-root-docs.mjs && node ./scripts/build-changelog.mjs",
+    "build:sync": "node ./scripts/sync-root-docs.mjs && node ./scripts/build-changelog.mjs && node ./scripts/stamp-versions.mjs",
     "build:site": "pnpm run build:sync && pnpm run build:typedoc && pnpm run build:sanitise && pnpm run build:vitepress && pnpm run build:llms",
     "preview": "vitepress preview .",
     "clean": "rimraf .vitepress/dist .vitepress/cache api"
