@@ -18,6 +18,7 @@ import {
   costReportFromJournal,
   createEngine,
   FileModelKnowledgeStore,
+  proposalStatement,
   remeasureQueue,
   type CreateEngineOptions,
   type ModelRef,
@@ -343,17 +344,12 @@ export async function planCommand(argv: string[], context: CommandContext): Prom
  * consumption path. Claims with full provenance for the humans who
  * author ladders, floors, and profiles; no run and no pin, so model
  * names render VERBATIM here (only in-run cards are nameless). Reads
- * the per-project file store (./rulvar.models.json). The grammar
- * members inbox (phase 3) and sweep (phase 2) fail loudly until their
- * phases ship.
+ * the per-project file store (./rulvar.models.json).
  */
 export async function kbCommand(argv: string[], context: CommandContext): Promise<number> {
   const [sub, ...rest] = argv;
   if (sub === 'inbox') {
-    throw new ConfigError(
-      'rulvar kb inbox arrives with ModelKnowledge phase 3 (M12, gated by the measured-value ' +
-        'checkpoint; docs/05, section "Phases and placement")',
-    );
+    return await kbInboxCommand(rest, context);
   }
   if (sub === 'sweep') {
     return await kbSweepCommand(rest, context);
@@ -418,6 +414,163 @@ function renderKbList(
       );
     }
   }
+}
+
+/** Inbox proposals expire after 14 days (ModelKnowledge phase 3). */
+const KB_INBOX_TTL_DAYS = 14;
+
+/** The structural face of the @rulvar/plan ledger fold (dynamic import). */
+interface PlanLedgerModule {
+  foldLedger: (
+    entries: readonly unknown[],
+    options?: { ledgerScope?: string; planScope?: string },
+  ) => {
+    observations: Array<{
+      taskClass: string;
+      logicalTaskId: string;
+      tierObserved?: number;
+      note: string;
+      evidenceRefs: number[];
+      subject?: { model: string; effort?: string };
+      polarity?: 'strength' | 'weakness';
+      trigger?: string;
+      entryRef: number;
+    }>;
+  };
+}
+
+/**
+ * rulvar kb inbox (M12-T03): aggregates kb_propose-born proposals from
+ * FINISHED runs through the RunLedger fold behind the LedgerExport
+ * seam. Grouping of matching (subject, taskClass, polarity) triples is
+ * STRICTLY display: the command writes nothing, authorizes no spend,
+ * and schedules no sweeps; gating a proposal into a claim is the
+ * separate human gate flow. The age anchor is the run's terminal
+ * updatedAt (journal entries carry no wall clock by design): proposals
+ * of runs finished more than fourteen days ago expire out of the view.
+ * This is the human review surface, so the quarantined note text and
+ * concrete model names render here VERBATIM, exactly like kb list.
+ */
+async function kbInboxCommand(argv: string[], context: CommandContext): Promise<number> {
+  const flags = parseCommonFlags(argv);
+  if (flags.positionals.length > 0) {
+    throw new ConfigError('usage: rulvar kb inbox [--store PATH]');
+  }
+  let plan: PlanLedgerModule;
+  try {
+    plan = (await import('@rulvar/plan')) as unknown as PlanLedgerModule;
+  } catch {
+    throw new ConfigError(
+      'rulvar kb inbox requires @rulvar/plan (the RunLedger fold behind the LedgerExport seam)',
+    );
+  }
+  const config = await loadCliConfig(context.cwd);
+  const assembled = assembleEngine({
+    config,
+    ...(flags.store === undefined ? {} : { storePath: flags.store }),
+    cwd: context.cwd,
+  });
+  const metas = await assembled.store.listRuns();
+  const finished = metas.filter((meta) => meta.status !== 'running');
+  const cutoffMs = Date.now() - KB_INBOX_TTL_DAYS * 24 * 60 * 60 * 1000;
+
+  interface InboxMember {
+    runId: string;
+    runLabel: string;
+    entryRef: number;
+    logicalTaskId: string;
+    tierObserved?: number;
+    trigger: string;
+    note: string;
+    evidenceRefs: number[];
+    finishedAt: string;
+  }
+  const groups = new Map<
+    string,
+    {
+      subject: { model: string; effort?: string };
+      taskClass: string;
+      polarity: 'strength' | 'weakness';
+      members: InboxMember[];
+    }
+  >();
+  let expired = 0;
+  for (const meta of finished) {
+    const entries = await assembled.store.load(meta.runId);
+    const view = plan.foldLedger(entries, { ledgerScope: '', planScope: 'plan' });
+    for (const row of view.observations) {
+      if (row.subject === undefined || row.polarity === undefined || row.trigger === undefined) {
+        // A plain observation_add is advisory ledger content, not a
+        // proposal: only kb_propose-born rows reach the inbox.
+        continue;
+      }
+      if (Date.parse(meta.updatedAt) < cutoffMs) {
+        expired += 1;
+        continue;
+      }
+      const key = [row.subject.model, row.subject.effort ?? '', row.taskClass, row.polarity].join(
+        '|',
+      );
+      const group = groups.get(key) ?? {
+        subject: row.subject,
+        taskClass: row.taskClass,
+        polarity: row.polarity,
+        members: [],
+      };
+      group.members.push({
+        runId: meta.runId,
+        runLabel: meta.name ?? meta.workflowName ?? '',
+        entryRef: row.entryRef,
+        logicalTaskId: row.logicalTaskId,
+        ...(row.tierObserved === undefined ? {} : { tierObserved: row.tierObserved }),
+        trigger: row.trigger,
+        note: row.note,
+        evidenceRefs: row.evidenceRefs,
+        finishedAt: meta.updatedAt,
+      });
+      groups.set(key, group);
+    }
+  }
+
+  const total = [...groups.values()].reduce((sum, group) => sum + group.members.length, 0);
+  context.io.out(
+    `kb inbox: ${String(total)} live proposal${total === 1 ? '' : 's'} in ` +
+      `${String(groups.size)} group${groups.size === 1 ? '' : 's'} across ` +
+      `${String(finished.length)} finished run${finished.length === 1 ? '' : 's'}` +
+      (expired > 0 ? `; ${String(expired)} expired (older than 14 days)` : ''),
+  );
+  for (const key of [...groups.keys()].sort()) {
+    const group = groups.get(key)!;
+    const effort = group.subject.effort === undefined ? '' : ` effort=${group.subject.effort}`;
+    context.io.out(
+      `${group.subject.model}${effort} :: ${group.taskClass} ${group.polarity} ` +
+        `(${String(group.members.length)} proposal${group.members.length === 1 ? '' : 's'})`,
+    );
+    context.io.out(
+      `  statement: ${proposalStatement({
+        taskClass: group.taskClass,
+        polarity: group.polarity,
+        trigger: group.members[0].trigger as never,
+      })}`,
+    );
+    for (const member of group.members) {
+      const tier = member.tierObserved === undefined ? '' : ` tier=${String(member.tierObserved)}`;
+      const label = member.runLabel === '' ? '' : ` (${member.runLabel})`;
+      context.io.out(
+        `  - run=${member.runId}${label}#${String(member.entryRef)}${tier} ` +
+          `trigger=${member.trigger} lineage=${member.logicalTaskId} finished=${member.finishedAt}`,
+      );
+      if (member.note !== '') {
+        context.io.out(`    note: ${member.note}`);
+      }
+      if (member.evidenceRefs.length > 0) {
+        context.io.out(
+          `    evidence: ${member.evidenceRefs.map((ref) => `#${String(ref)}`).join(', ')}`,
+        );
+      }
+    }
+  }
+  return 0;
 }
 
 /** The structural face of @rulvar/evals (loaded dynamically at command time). */
