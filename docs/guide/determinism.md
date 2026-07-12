@@ -11,7 +11,7 @@ description: Why rulvar workflow modules must stay replay-stable and how eslint-
 pnpm add -D eslint eslint-plugin-rulvar
 ```
 
-The package follows ESLint's plugin naming convention, so it is the one rulvar package whose npm name carries no `@rulvar/` scope. It is still versioned in lockstep with the rest of the release line (currently <!-- version:lockstep -->1.3.2<!-- /version -->), requires ESLint 9 or newer (flat config only), and is ESM only on Node 22.12.0 or newer, like every rulvar package.
+The package follows ESLint's plugin naming convention, so it is the one rulvar package whose npm name carries no `@rulvar/` scope. It is still versioned in lockstep with the rest of the release line (currently <!-- version:lockstep -->1.4.0<!-- /version -->), requires ESLint 9 or newer (flat config only), and is ESM only on Node 22.12.0 or newer, like every rulvar package.
 
 ## Why workflow modules must be deterministic
 
