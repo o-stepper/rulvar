@@ -118,13 +118,11 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     permissions:
       contents: read
-      deployments: write
     steps:
       - uses: actions/checkout@v4
 
-      # wrangler-action detects `pnpm-lock.yaml` at repo root and shells
-      # out to `pnpm dlx wrangler ...`, so pnpm must be on PATH even
-      # though this job never runs `pnpm install`.
+      # pnpm is needed for `pnpm dlx wrangler` below; the job never runs
+      # `pnpm install`.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -141,16 +139,17 @@ jobs:
         run: |
           echo "::warning title=Docs deploy skipped::Repository secrets CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID are not set. The build artefact is uploaded; once the secrets land, re-run this workflow to publish docs.rulvar.com."
 
+      # A plain `pnpm dlx` call instead of cloudflare/wrangler-action:
+      # the action's fallback install path runs a bare `pnpm add
+      # wrangler` at the repo root, which pnpm 11 refuses inside a
+      # workspace (ERR_PNPM_ADDING_TO_ROOT) regardless of the
+      # ignore-workspace-root-check env hint. `pnpm dlx` installs into
+      # a throwaway store and needs no workspace mutation; wrangler
+      # reads CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID from the
+      # job env natively. Version pinned to the one verified against
+      # this project.
       - name: Publish to Cloudflare Pages
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' }}
-        # We're inside a pnpm workspace at the repo root, so a bare
-        # `pnpm add wrangler` (which wrangler-action runs to install
-        # Wrangler) bails out with ERR_PNPM_ADDING_TO_ROOT. Allow it
-        # just for this step.
-        env:
-          NPM_CONFIG_IGNORE_WORKSPACE_ROOT_CHECK: 'true'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy docs/.vitepress/dist --project-name=rulvar-docs --branch=main
+        run: >-
+          pnpm dlx wrangler@4.110.0 pages deploy docs/.vitepress/dist
+          --project-name=rulvar-docs --branch=main
