@@ -1,5 +1,15 @@
 # @rulvar/bridge-ai-sdk
 
+## 1.2.0
+
+### Patch Changes
+
+- 154507b: TSDoc and inline comments no longer cite the retired internal specification set (the pre-docs-site `docs/NN, section ...` references). The citations either became links to the public documentation at docs.rulvar.com or were dropped where the comment already carried the rule; traceability markers (DEF-n, XF-nn, FR-nnn, OQ-nn, W-nnn) are untouched. Comment-only change: no runtime behavior, no API shapes, and no runtime message strings were modified; the frozen golden-fold fixture is byte-identical.
+- Updated dependencies [3bfaec0]
+- Updated dependencies [890f42c]
+- Updated dependencies [154507b]
+  - @rulvar/core@1.2.0
+
 ## 1.1.0
 
 ### Patch Changes

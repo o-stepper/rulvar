@@ -18,6 +18,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.2.0
+
+#### Patch Changes
+
+- 154507b: TSDoc and inline comments no longer cite the retired internal specification set (the pre-docs-site `docs/NN, section ...` references). The citations either became links to the public documentation at docs.rulvar.com or were dropped where the comment already carried the rule; traceability markers (DEF-n, XF-nn, FR-nnn, OQ-nn, W-nnn) are untouched. Comment-only change: no runtime behavior, no API shapes, and no runtime message strings were modified; the frozen golden-fold fixture is byte-identical.
+- Updated dependencies [3bfaec0]
+- Updated dependencies [890f42c]
+- Updated dependencies [154507b]
+  - @rulvar/core@1.2.0
+
 ### 1.1.0
 
 #### Patch Changes
@@ -249,6 +259,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.2.0
+
+#### Patch Changes
+
+- 154507b: TSDoc and inline comments no longer cite the retired internal specification set (the pre-docs-site `docs/NN, section ...` references). The citations either became links to the public documentation at docs.rulvar.com or were dropped where the comment already carried the rule; traceability markers (DEF-n, XF-nn, FR-nnn, OQ-nn, W-nnn) are untouched. Comment-only change: no runtime behavior, no API shapes, and no runtime message strings were modified; the frozen golden-fold fixture is byte-identical.
+- Updated dependencies [3bfaec0]
+- Updated dependencies [890f42c]
+- Updated dependencies [154507b]
+  - @rulvar/core@1.2.0
+
 ### 1.1.0
 
 #### Patch Changes
@@ -404,6 +424,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.2.0
+
+#### Patch Changes
+
+- 154507b: TSDoc and inline comments no longer cite the retired internal specification set (the pre-docs-site `docs/NN, section ...` references). The citations either became links to the public documentation at docs.rulvar.com or were dropped where the comment already carried the rule; traceability markers (DEF-n, XF-nn, FR-nnn, OQ-nn, W-nnn) are untouched. Comment-only change: no runtime behavior, no API shapes, and no runtime message strings were modified; the frozen golden-fold fixture is byte-identical.
+- Updated dependencies [3bfaec0]
+- Updated dependencies [890f42c]
+- Updated dependencies [154507b]
+  - @rulvar/core@1.2.0
 
 ### 1.1.0
 
@@ -670,6 +700,17 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.2.0
+
+#### Minor Changes
+
+- 890f42c: The knowledge card gains the profile-evidence section (docs/05 section 4.3 as amended): eval-measured claims project onto the advertised spawn vocabulary, one line per concrete-model profile with a conservative weakness-over-strength fold across efforts, plus a fixed spawn-guidance line. FR-607 commits the card to feeding agentType choice at spawn, and the M12 checkpoint measured that tier-relative rows alone carry no agentType-actionable signal (criterion 2: equal quality, cost overhead, no steering). Ladder declarers and model-less profiles do not participate; the section renders only when at least one profile line exists, so every previously recorded card stays byte-identical; model names still never render.
+
+#### Patch Changes
+
+- 3bfaec0: A capped orchestrator dispatches its own agent with estCost equal to its effectiveCap, and the forced-finish agent with the finalize reserve (docs/07 section 12.2 as amended): layer 2 makes those the true admission worst cases. Without the hints the default reserve priced the model's full maxOutputTokens (about one dollar on strong tiers) and the commitment rode the whole ancestor chain for the orchestrator's lifetime, so small run ceilings sat at zero admission remainder and every child spawn died with a budget rejection. Found live by the M12 checkpoint: no orchestrated child was ever admitted under the case ceilings, and both A/B arms measured a self-solving orchestrator instead of agentType selection.
+- 154507b: TSDoc and inline comments no longer cite the retired internal specification set (the pre-docs-site `docs/NN, section ...` references). The citations either became links to the public documentation at docs.rulvar.com or were dropped where the comment already carried the rule; traceability markers (DEF-n, XF-nn, FR-nnn, OQ-nn, W-nnn) are untouched. Comment-only change: no runtime behavior, no API shapes, and no runtime message strings were modified; the frozen golden-fold fixture is byte-identical.
 
 ### 1.1.0
 
@@ -1448,6 +1489,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.2.0
+
+#### Patch Changes
+
+- 154507b: TSDoc and inline comments no longer cite the retired internal specification set (the pre-docs-site `docs/NN, section ...` references). The citations either became links to the public documentation at docs.rulvar.com or were dropped where the comment already carried the rule; traceability markers (DEF-n, XF-nn, FR-nnn, OQ-nn, W-nnn) are untouched. Comment-only change: no runtime behavior, no API shapes, and no runtime message strings were modified; the frozen golden-fold fixture is byte-identical.
+
 ### 1.1.0
 
 ### 1.0.0
@@ -1486,6 +1533,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.2.0
+
+#### Patch Changes
+
+- 5ac56b4: Criterion 2 of the measured-value checkpoint gains the quality branch per the founder's OQ-09 amendment (2026-07-12): the card-informed arm passes by matching the baseline pass rate at no more than 105 percent of its cost, OR by beating it by at least 15 points at no more than 115 percent. The reopened gate measured plus 40 and plus 20 points at 107.9 and 106.6 percent: the baseline fails cheaply, so the flat cost bar tightened exactly when the card won on quality. The vacuous-pass guard stands unchanged; the rule now lives in the exported agentTypeRuleHolds next to rungRuleHolds.
+- 154507b: TSDoc and inline comments no longer cite the retired internal specification set (the pre-docs-site `docs/NN, section ...` references). The citations either became links to the public documentation at docs.rulvar.com or were dropped where the comment already carried the rule; traceability markers (DEF-n, XF-nn, FR-nnn, OQ-nn, W-nnn) are untouched. Comment-only change: no runtime behavior, no API shapes, and no runtime message strings were modified; the frozen golden-fold fixture is byte-identical.
+- Updated dependencies [3bfaec0]
+- Updated dependencies [890f42c]
+- Updated dependencies [154507b]
+  - @rulvar/core@1.2.0
+  - @rulvar/testing@1.2.0
 
 ### 1.1.0
 
@@ -1676,6 +1735,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.2.0
+
+#### Patch Changes
+
+- 154507b: TSDoc and inline comments no longer cite the retired internal specification set (the pre-docs-site `docs/NN, section ...` references). The citations either became links to the public documentation at docs.rulvar.com or were dropped where the comment already carried the rule; traceability markers (DEF-n, XF-nn, FR-nnn, OQ-nn, W-nnn) are untouched. Comment-only change: no runtime behavior, no API shapes, and no runtime message strings were modified; the frozen golden-fold fixture is byte-identical.
+- Updated dependencies [3bfaec0]
+- Updated dependencies [890f42c]
+- Updated dependencies [154507b]
+  - @rulvar/core@1.2.0
 
 ### 1.1.0
 
@@ -1927,6 +1996,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.2.0
+
+#### Patch Changes
+
+- 154507b: TSDoc and inline comments no longer cite the retired internal specification set (the pre-docs-site `docs/NN, section ...` references). The citations either became links to the public documentation at docs.rulvar.com or were dropped where the comment already carried the rule; traceability markers (DEF-n, XF-nn, FR-nnn, OQ-nn, W-nnn) are untouched. Comment-only change: no runtime behavior, no API shapes, and no runtime message strings were modified; the frozen golden-fold fixture is byte-identical.
+- Updated dependencies [3bfaec0]
+- Updated dependencies [890f42c]
+- Updated dependencies [154507b]
+  - @rulvar/core@1.2.0
+
 ### 1.1.0
 
 #### Patch Changes
@@ -2159,6 +2238,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.2.0
+
+#### Patch Changes
+
+- 154507b: TSDoc and inline comments no longer cite the retired internal specification set (the pre-docs-site `docs/NN, section ...` references). The citations either became links to the public documentation at docs.rulvar.com or were dropped where the comment already carried the rule; traceability markers (DEF-n, XF-nn, FR-nnn, OQ-nn, W-nnn) are untouched. Comment-only change: no runtime behavior, no API shapes, and no runtime message strings were modified; the frozen golden-fold fixture is byte-identical.
+- Updated dependencies [3bfaec0]
+- Updated dependencies [890f42c]
+- Updated dependencies [154507b]
+  - @rulvar/core@1.2.0
+  - eslint-plugin-rulvar@1.2.0
+
 ### 1.1.0
 
 #### Patch Changes
@@ -2324,6 +2414,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.2.0
+
+#### Patch Changes
+
+- 154507b: TSDoc and inline comments no longer cite the retired internal specification set (the pre-docs-site `docs/NN, section ...` references). The citations either became links to the public documentation at docs.rulvar.com or were dropped where the comment already carried the rule; traceability markers (DEF-n, XF-nn, FR-nnn, OQ-nn, W-nnn) are untouched. Comment-only change: no runtime behavior, no API shapes, and no runtime message strings were modified; the frozen golden-fold fixture is byte-identical.
+- Updated dependencies [3bfaec0]
+- Updated dependencies [890f42c]
+- Updated dependencies [154507b]
+  - @rulvar/core@1.2.0
+  - @rulvar/anthropic@1.2.0
+  - @rulvar/openai@1.2.0
 
 ### 1.1.0
 
@@ -2584,6 +2686,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.2.0
+
+#### Patch Changes
+
+- 154507b: TSDoc and inline comments no longer cite the retired internal specification set (the pre-docs-site `docs/NN, section ...` references). The citations either became links to the public documentation at docs.rulvar.com or were dropped where the comment already carried the rule; traceability markers (DEF-n, XF-nn, FR-nnn, OQ-nn, W-nnn) are untouched. Comment-only change: no runtime behavior, no API shapes, and no runtime message strings were modified; the frozen golden-fold fixture is byte-identical.
+- Updated dependencies [3bfaec0]
+- Updated dependencies [890f42c]
+- Updated dependencies [154507b]
+  - @rulvar/core@1.2.0
+
 ### 1.1.0
 
 #### Patch Changes
@@ -2779,6 +2891,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.2.0
+
+#### Patch Changes
+
+- 154507b: TSDoc and inline comments no longer cite the retired internal specification set (the pre-docs-site `docs/NN, section ...` references). The citations either became links to the public documentation at docs.rulvar.com or were dropped where the comment already carried the rule; traceability markers (DEF-n, XF-nn, FR-nnn, OQ-nn, W-nnn) are untouched. Comment-only change: no runtime behavior, no API shapes, and no runtime message strings were modified; the frozen golden-fold fixture is byte-identical.
+- Updated dependencies [3bfaec0]
+- Updated dependencies [890f42c]
+- Updated dependencies [154507b]
+  - @rulvar/core@1.2.0
+
 ### 1.1.0
 
 #### Patch Changes
@@ -2940,6 +3062,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.2.0
+
+#### Patch Changes
+
+- 154507b: TSDoc and inline comments no longer cite the retired internal specification set (the pre-docs-site `docs/NN, section ...` references). The citations either became links to the public documentation at docs.rulvar.com or were dropped where the comment already carried the rule; traceability markers (DEF-n, XF-nn, FR-nnn, OQ-nn, W-nnn) are untouched. Comment-only change: no runtime behavior, no API shapes, and no runtime message strings were modified; the frozen golden-fold fixture is byte-identical.
+- Updated dependencies [3bfaec0]
+- Updated dependencies [890f42c]
+- Updated dependencies [154507b]
+  - @rulvar/core@1.2.0
 
 ### 1.1.0
 
