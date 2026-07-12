@@ -120,15 +120,17 @@ describe('rulvar kb list (M10-T04)', () => {
     expect(io.outLines.join('\n')).toContain('(version 0, 0 claims)');
   });
 
-  it('rejects unknown subcommands and names the phase of inbox', async () => {
+  it('rejects unknown subcommands', async () => {
     const cwd = mkdtempSync(join(tmpdir(), 'rulvar-kb-cli-'));
     const bad = scriptedIo();
     expect(await runCli(['kb', 'show'], { cwd, io: bad })).toBe(1);
     expect(bad.errLines.join('\n')).toContain('usage: rulvar kb <list | inbox | sweep>');
+    // kb inbox is live since M12-T03 (kb-inbox.test.ts); kb sweep since
+    // M11-T05 (kb-sweep.test.ts): an empty store reads as zero proposals.
     const inbox = scriptedIo();
-    expect(await runCli(['kb', 'inbox'], { cwd, io: inbox })).toBe(1);
-    expect(inbox.errLines.join('\n')).toContain('phase 3');
-    // kb sweep is live since M11-T05; its config-missing path is
-    // covered in kb-sweep.test.ts.
+    expect(await runCli(['kb', 'inbox'], { cwd, io: inbox })).toBe(0);
+    expect(inbox.outLines.join('\n')).toContain(
+      '0 live proposals in 0 groups across 0 finished runs',
+    );
   });
 });
