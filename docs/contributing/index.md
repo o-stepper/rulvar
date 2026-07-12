@@ -26,18 +26,20 @@ this file is the authoritative contributor workflow.
 
 Everyday commands, all from the repository root:
 
-| Command             | What it does                                          |
-| ------------------- | ----------------------------------------------------- |
-| `pnpm build`        | Build all packages (Turborepo over tsdown)            |
-| `pnpm typecheck`    | `tsc --noEmit` per package                            |
-| `pnpm lint`         | ESLint per package (one root flat config)             |
-| `pnpm format:check` | Prettier check (Prettier owns formatting)             |
-| `pnpm test`         | One `vitest run` across every package project         |
-| `pnpm pack-check`   | publint + attw on packed tarballs                     |
-| `pnpm docs:lint`    | Docs conventions (hyphens, emojis, H1, install names) |
-| `pnpm docs:dev`     | Documentation site dev server (VitePress)             |
-| `pnpm docs:build`   | Full documentation site build (TypeDoc + VitePress)   |
-| `pnpm changeset`    | Add a changeset for a user-visible change             |
+| Command                  | What it does                                                |
+| ------------------------ | ----------------------------------------------------------- |
+| `pnpm build`             | Build all packages (Turborepo over tsdown)                  |
+| `pnpm typecheck`         | `tsc --noEmit` per package                                  |
+| `pnpm lint`              | ESLint per package (one root flat config)                   |
+| `pnpm format:check`      | Prettier check (Prettier owns formatting)                   |
+| `pnpm test`              | One `vitest run` across every package project               |
+| `pnpm pack-check`        | publint + attw on packed tarballs                           |
+| `pnpm dts:baseline`      | Regenerate the rolled-up `.d.ts` baselines in `dts-rollup/` |
+| `pnpm check:fixed-group` | Changesets fixed group matches the workspace                |
+| `pnpm docs:lint`         | Docs conventions (hyphens, emojis, H1, install names)       |
+| `pnpm docs:dev`          | Documentation site dev server (VitePress)                   |
+| `pnpm docs:build`        | Full documentation site build (TypeDoc + VitePress)         |
+| `pnpm changeset`         | Add a changeset for a user-visible change                   |
 
 ## Branching and commits
 
@@ -70,11 +72,29 @@ merged before the deviating code lands.
 
 ## PR checks (all required)
 
-Build, typecheck, lint, test matrix (Node 22.x/24.x), pack gates (publint,
-@arethetypeswrong/cli), changeset presence, docs conventions, docs site
-build with offline link check, and a clean or reviewed rolled-up `.d.ts`
-diff (`dts-rollup/` is regenerated in CI; a dirty tree fails). Changes in
-DEF-n areas MUST include or update the named defect cassettes.
+- Build, typecheck, lint, and the Prettier check on Node 24.
+- Test matrix on Node 22.x and 24.x (a Node 26 job runs non-blocking).
+- The complete defect cassette catalog replay-strict in one job, with
+  zero live calls; `scripts/catalog-audit.mjs` first asserts every ID in
+  `cassettes/CATALOG.md` (the normative catalog) resolves to a fixture or
+  a named suite.
+- Pack gates: publint and @arethetypeswrong/cli on packed tarballs, plus
+  the umbrella install smoke test.
+- Changeset presence, the changesets fixed-group check, and frozen-fixture
+  write protection.
+- Rolled-up `.d.ts` drift gate: `dts-rollup/` is regenerated in CI and a
+  dirty tree fails; run `pnpm dts:baseline` after a public API change and
+  commit the result.
+- Docs conventions (`pnpm docs:lint`) over `docs/` plus the root README
+  and this file.
+- Docs site build with the generated-docs freshness gate (committed
+  `docs/api`, the aggregated changelog, and the synced contributing page
+  must be regenerated in the same PR) and the offline link check.
+
+Changes in DEF-n areas MUST include or update the named defect cassettes.
+Scheduled and non-blocking: weekly live adapter contract tests (gated on
+provider keys) open a `contract-drift` issue on provider drift; they never
+block a PR and never rerecord fixtures automatically.
 
 ## Review gates
 

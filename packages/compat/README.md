@@ -1,9 +1,3 @@
-[**rulvar API reference**](../../index.md)
-
-***
-
-[rulvar API reference](/api/index.md) / @rulvar/compat
-
 # @rulvar/compat
 
 Frozen key-derivation profiles for journal `hashVersions` that leave the
@@ -32,15 +26,3 @@ pnpm add @rulvar/compat
 ## License
 
 [Apache-2.0](https://github.com/o-stepper/rulvar/blob/main/LICENSE)
-
-## Interfaces
-
-| Interface | Description |
-| ------ | ------ |
-| [KeyDeriver](/api/@rulvar/compat/interfaces/KeyDeriver.md) | - |
-
-## Variables
-
-| Variable | Description |
-| ------ | ------ |
-| [deriverV0Synthetic](/api/@rulvar/compat/variables/deriverV0Synthetic.md) | Synthetic out-of-window profile for compatibility testing: hashVersion 0 with the round-1 projection and table. NOT a historical profile. |
