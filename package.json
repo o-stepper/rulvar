@@ -25,7 +25,7 @@
     "dts:baseline": "node scripts/dts-baseline.mjs",
     "changeset": "changeset",
     "version-packages": "changeset version && node scripts/sync-pointer.mjs && pnpm --filter @rulvar/docs run build:sync",
-    "release": "pnpm publish -r --publish-branch main"
+    "release": "pnpm publish -r --publish-branch main && node scripts/publish-pointer.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",

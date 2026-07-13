@@ -4,11 +4,10 @@
 // packages/rulvar/package.json; it runs inside the root
 // `version-packages` script, so the standing Version Packages PR
 // carries the bump, and scripts/check-fixed-group.mjs fails CI when
-// the two ever drift. Publishing the pointer stays a manual
-// `npm publish` from pointer/ after the scoped release lands (the
-// pointer is deliberately outside the workspace so `pnpm publish -r`
-// and the OIDC trusted-publishing setup of the scoped packages never
-// depend on it).
+// the two ever drift. Publishing rides the release script's last step
+// (scripts/publish-pointer.mjs, via the npm trusted publisher for
+// release.yml); the pointer stays outside the workspace so
+// `pnpm publish -r` for the scoped packages never depends on it.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
