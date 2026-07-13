@@ -94,7 +94,12 @@ merged before the deviating code lands.
 Changes in DEF-n areas MUST include or update the named defect cassettes.
 Scheduled and non-blocking: weekly live adapter contract tests (gated on
 provider keys) open a `contract-drift` issue on provider drift; they never
-block a PR and never rerecord fixtures automatically.
+block a PR and never rerecord fixtures automatically. The provider VCR
+cassettes they re-send live under `cassettes/vcr/`; record or rerecord
+them deliberately with `node scripts/record-provider-cassettes.mjs` (keys
+from the environment; the script refuses to overwrite an existing
+cassette, so a rerecord starts by deleting the file and shows as a
+whole-file diff).
 
 Besides the CI-wired scripts, `scripts/` holds operator tooling that no
 workflow invokes: the `record-m*-cassettes.mjs` family regenerates frozen

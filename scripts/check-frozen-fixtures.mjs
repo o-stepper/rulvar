@@ -25,12 +25,26 @@ const FROZEN_DIRS = [
   'packages/store-conformance/src/fixtures',
 ];
 
+/**
+ * NOT frozen: the provider VCR cassettes the weekly live contract run
+ * re-sends (cassettes/vcr). Their bytes never enter replay identity, and
+ * rerecording them is a routine, deliberate operation
+ * (scripts/record-provider-cassettes.mjs refuses to overwrite, so a
+ * rerecord is a whole-file diff under review). Freezing them would demand
+ * the hashVersion-bump ceremony, which asserts an identity-profile
+ * revision, for a change that revises no identity.
+ */
+const EXCLUDED_SUBTREES = new Set(['cassettes/vcr']);
+
 function collectFrozen(absolute, files) {
   for (const entry of readdirSync(absolute, { withFileTypes: true }).sort((a, b) =>
     a.name.localeCompare(b.name),
   )) {
     const path = join(absolute, entry.name);
     if (entry.isDirectory()) {
+      if (EXCLUDED_SUBTREES.has(relative(root, path))) {
+        continue;
+      }
       collectFrozen(path, files);
     } else if (/\.(json|jsonl|ts)$/.test(entry.name)) {
       files.push(relative(root, path));
