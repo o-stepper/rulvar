@@ -1,6 +1,6 @@
 {
   "name": "@rulvar/plan",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "rulvar adaptive orchestration extension: PlanRunner, RunLedger, escalation extensions, ModelLadder configuration.",
   "type": "module",
   "license": "Apache-2.0",
