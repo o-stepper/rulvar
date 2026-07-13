@@ -68,19 +68,36 @@ jobs:
       # the REGISTRY, not the action's `published` output: changesets/
       # action only recognizes its own `changeset publish` output, and
       # this repo publishes with `pnpm publish -r`. Idempotent: runs on
-      # every main push, exits early until the version is live, and
-      # skips whatever already exists.
+      # every main push and skips whatever already exists.
+      #
+      # The registry is eventually consistent on READS, so the gate polls.
+      # It used to check once and exit early, which on the 1.5.0 train
+      # read "not on the registry yet" seconds after the publish step had
+      # published it, silently shipping a release with no tag. Skipping
+      # early is only correct when the tag ALREADY exists (an ordinary
+      # main push); a missing tag for an unseen version means wait.
       - name: Tag and create the GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version="$(node -p "require('./packages/rulvar/package.json').version")"
           tag="v${version}"
-          if ! npm view "@rulvar/rulvar@${version}" version >/dev/null 2>&1; then
-            echo "@rulvar/rulvar@${version} is not on the registry yet; nothing to tag"
-            exit 0
-          fi
-          if ! git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            echo "${tag} already exists; nothing to tag"
+          else
+            live=""
+            for attempt in $(seq 1 12); do
+              if npm view "@rulvar/rulvar@${version}" version >/dev/null 2>&1; then
+                live=1
+                break
+              fi
+              echo "@rulvar/rulvar@${version} is not visible yet (attempt ${attempt}/12); waiting for the registry read path"
+              sleep 5
+            done
+            if [ -z "${live}" ]; then
+              echo "::error title=release not tagged::@rulvar/rulvar@${version} never became visible on the registry; publish it, then re-run this job."
+              exit 1
+            fi
             git tag "${tag}"
             git push origin "${tag}"
           fi
