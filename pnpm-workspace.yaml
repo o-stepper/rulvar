@@ -58,3 +58,14 @@ minimumReleaseAgeExclude:
   - '@vitest/utils@4.1.10'
   - typescript-eslint@8.63.0
   - vitest@4.1.10
+
+# VitePress 1.6.4 is its own latest and pins vite ^5.4.14, and the vite 5
+# line carries four unpatched dev-server advisories (one high): the repairs
+# land in vite 6.4.3 and esbuild 0.25, so there is no upstream fix to wait
+# for. Nothing here ships: neither package appears in any publishable
+# `dependencies`, so the exposure is a developer running the docs dev
+# server, never a library user. Scoped to vitepress's subtree on purpose,
+# so the test runner's own vite is untouched; vite 6 pulls the patched
+# esbuild itself. Drop this the day VitePress ships on vite 6 or newer.
+overrides:
+  vitepress>vite: '^6.4.3'
