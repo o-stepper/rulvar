@@ -110,6 +110,38 @@ release-time value checkpoints run by hand. Treat them as production
 scripts: they are versioned, reviewed, and referenced from the milestone
 acceptance notes.
 
+## Branch protection and the release token
+
+`main` is protected by a repository ruleset: pull request required (zero
+approvals, since a solo maintainer cannot approve their own PR), squash
+only, no force push, no deletion, and the eight CI checks above required
+to pass. Release tags (`v*`) are protected against deletion and
+force-moves; creating them stays open, because the release workflow pushes
+them.
+
+There is deliberately **no bypass actor**. If a rule ever deadlocks
+something, disabling the ruleset in Settings takes ten seconds and leaves
+a visible, deliberate trace, which is the point.
+
+Required checks and the release train interact in one non-obvious way, and
+it is the reason the `RELEASE_PAT` secret exists. GitHub does not trigger
+workflows for pushes made with `GITHUB_TOKEN`, so a Version Packages PR
+opened by the changesets action under the default token arrives with **no
+checks at all**: required status checks would then sit at `Expected`
+forever and block every release. The action therefore authenticates with
+`RELEASE_PAT` (a fine-grained token scoped to this repository, Contents
+and Pull requests read/write), whose pushes look like a human's, so the
+release PR gets ordinary CI.
+
+The workflow reads `${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}`.
+**When the PAT expires, nothing breaks**: the fallback degrades the train
+to "publishes fine, but the Version Packages PR has no checks and must be
+merged with the ruleset temporarily disabled". Mint a new token, update
+the secret, and the checks come back. `Changeset presence` exempts the
+release PR (its whole purpose is to consume the changesets) by reporting
+success rather than skipping the job, because a skipped job is a
+documented trap around required status checks.
+
 ## Review gates
 
 At least one approving review. PRs touching frozen fixtures, KeyDeriver
