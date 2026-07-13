@@ -194,6 +194,7 @@ exactly the pieces you need, for example
 | [PhaseTarget](/api/@rulvar/core/interfaces/PhaseTarget.md) | One serving target of a phase: the primary or a failover fallback. |
 | [PipelineCollected](/api/@rulvar/core/interfaces/PipelineCollected.md) | Pipeline results plus the dropped evidence, returned by onItemError: 'collect'. |
 | [PipelineOpts](/api/@rulvar/core/interfaces/PipelineOpts.md) | - |
+| [PricedUsage](/api/@rulvar/core/interfaces/PricedUsage.md) | A priced slice, plus the total and the gaps the price table did not cover. |
 | [PriceTable](/api/@rulvar/core/interfaces/PriceTable.md) | - |
 | [Pricing](/api/@rulvar/core/interfaces/Pricing.md) | Per-model pricing in USD per million tokens. The registry's versioned price table wins over adapter- reported caps.pricing, which is a fallback only. |
 | [ProviderAdapter](/api/@rulvar/core/interfaces/ProviderAdapter.md) | - |
@@ -253,6 +254,7 @@ exactly the pieces you need, for example
 | [TranscriptSerializationHook](/api/@rulvar/core/interfaces/TranscriptSerializationHook.md) | - |
 | [TranscriptStore](/api/@rulvar/core/interfaces/TranscriptStore.md) | - |
 | [UsageLimits](/api/@rulvar/core/interfaces/UsageLimits.md) | UsageLimits (M1-T06): normative limit vocabulary and the per-spawn merge. |
+| [UsageSlice](/api/@rulvar/core/interfaces/UsageSlice.md) | One serving model's slice of a multi-model agent call's usage. |
 | [VerifiedRecommendation](/api/@rulvar/core/interfaces/VerifiedRecommendation.md) | One compiled start-tier recommendation of the verified layer. |
 | [WakeBudgetBlock](/api/@rulvar/core/interfaces/WakeBudgetBlock.md) | Passive budget visibility in every digest (DEF-7). |
 | [WakeDigest](/api/@rulvar/core/interfaces/WakeDigest.md) | The FINAL normative WakeDigest: one coordinated schema change inside the hashVersion-2 profile (XF-12). The digest render enters the content key of orchestrator turns. In runs without the PlanRunner extension the termination, budget, and reuse blocks are all-zero and planHash is empty, mirroring the CostReport convention. |
@@ -500,6 +502,7 @@ exactly the pieces you need, for example
 | [emptyDigestBlocks](/api/@rulvar/core/functions/emptyDigestBlocks.md) | The all-zero blocks of runs without the PlanRunner extension. |
 | [emptyToolset](/api/@rulvar/core/functions/emptyToolset.md) | The empty toolset (no tools declared anywhere). |
 | [encodeCheckpoint](/api/@rulvar/core/functions/encodeCheckpoint.md) | Serializes a checkpoint to its blob: format byte then UTF-8 JSON. |
+| [entryUsageSlices](/api/@rulvar/core/functions/entryUsageSlices.md) | The per-model slices of a terminal entry: the recorded split when the call spanned several models, else the whole usage attributed to `servedBy`. The fallback is what makes every journal written before the split shipped price exactly as it did before. |
 | [escalateTool](/api/@rulvar/core/functions/escalateTool.md) | The engine opt-in tool: registered through the same path as any tool under escalation opt-in of EITHER flavor (the worker's only authoring channel for a report), never available without opt-in, and dispatched through the same permission chain. The loop intercepts accepted calls; execute is unreachable by construction. |
 | [evaluatePermission](/api/@rulvar/core/functions/evaluatePermission.md) | Evaluates the chain for one dispatch, or OFFLINE against a hypothetical call by tool name (the dry-run API: nothing executes; shells and tests read the verdict, the deciding layer, and the matched rule). Hooks run in deterministic registration order; { modifiedInput } substitutes the input and continues; the first decisive verdict wins. The returned input is what execute receives and what the approval identity hashes (post hook modification). Advisory domain-rule matches ride every verdict for the audit payload. |
 | [evaluateReuse](/api/@rulvar/core/functions/evaluateReuse.md) | The four-outcome verdict evaluation on a SpawnKey match, computed once live at the fold head and embedded into the deciding entry; replay never re-evaluates. |
@@ -551,6 +554,7 @@ exactly the pieces you need, for example
 | [phiInitialOf](/api/@rulvar/core/functions/phiInitialOf.md) | Phi0 = V0 + C * S0, finite and fixed in termination.init. |
 | [pipelineScope](/api/@rulvar/core/functions/pipelineScope.md) | Stage `stage` processing source item `item`: `pipe:<stage>:<item>`. |
 | [planNodeScope](/api/@rulvar/core/functions/planNodeScope.md) | PlanRunner node scopes: `plan/<NodeId>` (NodeIds are engine-minted ULIDs). |
+| [priceEntryUsage](/api/@rulvar/core/functions/priceEntryUsage.md) | The single pricing fold over one terminal entry, shared by the kernel ledger and the CostReport fold so a run's total and its per-model breakdown can never disagree. Each slice is priced at ITS OWN model's rate. |
 | [priceUsdOf](/api/@rulvar/core/functions/priceUsdOf.md) | Dollars from normalized usage against one pricing row (the adapter normalized the usage; inputTokens is the full prompt). Cache writes price at the 5m premium rate; the 1h rate applies where a provider distinguishes it in usage, which the canonical Usage does not yet carry. |
 | [profileCard](/api/@rulvar/core/functions/profileCard.md) | Renders the registry into the shared agent vocabulary card. Sorted, deterministic, byte-stable; an empty registry renders explicitly so the planner never guesses at unregistered agentTypes. |
 | [profileRegistrySnapshotHash](/api/@rulvar/core/functions/profileRegistrySnapshotHash.md) | The deterministic profile-registry snapshot hash frozen inside termination.init: profile names mapped to their declared ladder lengths, canonical JSON, sha256. |

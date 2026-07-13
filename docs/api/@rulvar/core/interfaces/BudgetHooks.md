@@ -6,7 +6,7 @@
 
 # Interface: BudgetHooks
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:147](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L147)
+Defined in: [packages/core/src/runtime/agent-loop.ts:156](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L156)
 
 Budget hooks bound by the three-layer budget.
 
@@ -14,7 +14,7 @@ Budget hooks bound by the three-layer budget.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-signal"></a> `signal?` | `AbortSignal` | Layer 3: the ceiling AbortSignal. | [packages/core/src/runtime/agent-loop.ts:153](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L153) |
+| <a id="property-signal"></a> `signal?` | `AbortSignal` | Layer 3: the ceiling AbortSignal. | [packages/core/src/runtime/agent-loop.ts:162](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L162) |
 
 ## Methods
 
@@ -24,7 +24,7 @@ Budget hooks bound by the three-layer budget.
 beforeTurn(): void;
 ```
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:149](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L149)
+Defined in: [packages/core/src/runtime/agent-loop.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L158)
 
 Layer 2: before every turn; throws BudgetExhaustedError to block dispatch.
 
@@ -40,7 +40,7 @@ Layer 2: before every turn; throws BudgetExhaustedError to block dispatch.
 onUsage(usage, servedBy): void;
 ```
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:151](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L151)
+Defined in: [packages/core/src/runtime/agent-loop.ts:160](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L160)
 
 Live usage accounting; layer 3 may respond by aborting `signal`.
 

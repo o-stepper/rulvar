@@ -12,9 +12,11 @@ import { ConfigError, JournalMissError } from '../l0/errors.js';
 import type { WireError } from '../l0/errors.js';
 import {
   CURRENT_HASH_VERSION,
+  priceEntryUsage,
   type EntryKind,
   type EntryStatus,
   type JournalEntry,
+  type UsageSlice,
 } from '../l0/entries.js';
 import type { ModelRef, Usage } from '../l0/messages.js';
 import type { JournalStore, Lease } from '../l0/spi/store.js';
@@ -79,6 +81,8 @@ export interface TerminalPatch {
   usage?: Usage;
   usageApprox?: boolean;
   servedBy?: ModelRef;
+  /** Set only when the call spanned several serving models; see JournalEntry. */
+  usageByModel?: UsageSlice[];
   transcriptRef?: string;
   checkpointRef?: string;
   /** Terminal agent entries: Artifact list. */
@@ -441,6 +445,9 @@ export class Replayer {
       if (patch.servedBy !== undefined) {
         entry.servedBy = patch.servedBy;
       }
+      if (patch.usageByModel !== undefined) {
+        entry.usageByModel = patch.usageByModel;
+      }
       if (patch.transcriptRef !== undefined) {
         entry.transcriptRef = patch.transcriptRef;
       }
@@ -516,7 +523,11 @@ export class Replayer {
       usage.cacheReadTokens += entry.usage.cacheReadTokens;
       usage.cacheWriteTokens += entry.usage.cacheWriteTokens;
       reasoning += entry.usage.reasoningTokens ?? 0;
-      usd += this.priceUsd?.(entry.servedBy, entry.usage) ?? 0;
+      // Each serving model's slice priced at its own rate; an entry with
+      // no split prices its whole usage at servedBy, as before.
+      if (this.priceUsd !== undefined) {
+        usd += priceEntryUsage(entry, this.priceUsd).usd;
+      }
     }
     if (reasoning > 0) {
       usage.reasoningTokens = reasoning;

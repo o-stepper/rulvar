@@ -179,15 +179,21 @@ describe('journal write path (M1-T04; docs/03 sections 5, 7.2, 13)', () => {
       store,
       priceUsd: (_servedBy, usage) => usage.outputTokens * 0.001,
     });
+    // servedBy is what the engine writes on every agent terminal, and it
+    // is what a price table is keyed by: the real priceUsd returns
+    // undefined without it (engine.ts), so a usage-bearing entry with no
+    // servedBy has always folded to zero in production.
     const a = await replayer.appendRunning({ scope: '', key: 'k1', kind: 'agent', spanId: 's' });
     await replayer.appendTerminal(a.seq, {
       status: 'ok',
+      servedBy: 'fake:model',
       usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 2, cacheWriteTokens: 1 },
     });
     const b = await replayer.appendRunning({ scope: '', key: 'k2', kind: 'agent', spanId: 's' });
     await replayer.appendTerminal(b.seq, {
       status: 'error',
       error: { code: 'agent', message: 'x', retryable: false },
+      servedBy: 'fake:model',
       usage: {
         inputTokens: 4,
         outputTokens: 1,

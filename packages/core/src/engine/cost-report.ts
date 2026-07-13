@@ -16,7 +16,7 @@
  * Unpriced models surface in `unpriced`, never as a silent zero.
  */
 import { buildAbandonFold } from '../journal/disposition.js';
-import type { JournalEntry } from '../l0/entries.js';
+import { priceEntryUsage, type JournalEntry } from '../l0/entries.js';
 import type { InvocationRole, ModelRef, Usage } from '../l0/messages.js';
 import type { CostAttribution } from './ctx.js';
 import type { CostReport } from './run-handle.js';
@@ -82,17 +82,18 @@ export function costReportFromJournal(
     if (entry.status === 'running' || entry.usage === undefined) {
       continue;
     }
-    const servedBy = entry.servedBy;
-    if (servedBy === undefined) {
-      continue;
+    // One agent call can span several serving models (loop, extract,
+    // finalize, and summarize route independently): every slice is
+    // priced at its own model's rate. An entry with no split prices its
+    // whole usage at servedBy, exactly as before.
+    const priced = priceEntryUsage(entry, priceUsd);
+    for (const slice of priced.unpriced) {
+      unpriced.push({ model: slice.servedBy, usage: slice.usage });
     }
-    const usd = priceUsd(servedBy, entry.usage);
-    if (usd === undefined) {
-      unpriced.push({ model: servedBy, usage: entry.usage });
-      continue;
+    for (const slice of priced.priced) {
+      byModel[slice.servedBy] = (byModel[slice.servedBy] ?? 0) + slice.usd;
     }
-    byModel[servedBy] = (byModel[servedBy] ?? 0) + usd;
-    totalUsd += usd;
+    totalUsd += priced.usd;
   }
   return {
     totalUsd,

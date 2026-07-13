@@ -10,7 +10,7 @@
 function ladderRungChoice(ladder, index): ModelChoice;
 ```
 
-Defined in: [packages/core/src/model/router.ts:433](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/router.ts#L433)
+Defined in: [packages/core/src/model/router.ts:446](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/router.ts#L446)
 
 The concrete ModelChoice of one rung attempt: each attempt is an
 ordinary agent scope whose CanonicalModelSpec is that rung's

@@ -31,6 +31,7 @@ type JournalEntry = {
   transcriptRef?: string;
   usage?: Usage;
   usageApprox?: boolean;
+  usageByModel?: UsageSlice[];
   value?: Json;
 };
 ```
@@ -290,6 +291,26 @@ optional usageApprox?: boolean;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
+
+***
+
+### usageByModel?
+
+```ts
+optional usageByModel?: UsageSlice[];
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Terminal agent entries whose phases were served by MORE THAN ONE
+model: usage split by the model that actually served each slice. The
+loop, extract, finalize, and summarize roles resolve independently,
+so a single agent call routinely spans models at different prices;
+pricing the whole call at `servedBy` bills the cheap extract at the
+loop model's rate. Absent when one model served the whole call, and
+on entries written before the split shipped: readers fall back to
+pricing `usage` at `servedBy`, which is exactly correct for those.
+Policy, never identity: it does not enter the content key.
 
 ***
 

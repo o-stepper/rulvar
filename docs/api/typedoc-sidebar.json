@@ -963,6 +963,10 @@
             "link": "/api/@rulvar/core/interfaces/PipelineOpts.md"
           },
           {
+            "text": "PricedUsage",
+            "link": "/api/@rulvar/core/interfaces/PricedUsage.md"
+          },
+          {
             "text": "PriceTable",
             "link": "/api/@rulvar/core/interfaces/PriceTable.md"
           },
@@ -1197,6 +1201,10 @@
           {
             "text": "UsageLimits",
             "link": "/api/@rulvar/core/interfaces/UsageLimits.md"
+          },
+          {
+            "text": "UsageSlice",
+            "link": "/api/@rulvar/core/interfaces/UsageSlice.md"
           },
           {
             "text": "VerifiedRecommendation",
@@ -2145,6 +2153,10 @@
             "link": "/api/@rulvar/core/functions/encodeCheckpoint.md"
           },
           {
+            "text": "entryUsageSlices",
+            "link": "/api/@rulvar/core/functions/entryUsageSlices.md"
+          },
+          {
             "text": "escalateTool",
             "link": "/api/@rulvar/core/functions/escalateTool.md"
           },
@@ -2347,6 +2359,10 @@
           {
             "text": "planNodeScope",
             "link": "/api/@rulvar/core/functions/planNodeScope.md"
+          },
+          {
+            "text": "priceEntryUsage",
+            "link": "/api/@rulvar/core/functions/priceEntryUsage.md"
           },
           {
             "text": "priceUsdOf",
@@ -4384,6 +4400,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/PipelineOpts.md"
           },
           {
+            "text": "PricedUsage",
+            "link": "/api/@rulvar/rulvar/interfaces/PricedUsage.md"
+          },
+          {
             "text": "PriceTable",
             "link": "/api/@rulvar/rulvar/interfaces/PriceTable.md"
           },
@@ -4622,6 +4642,10 @@
           {
             "text": "UsageLimits",
             "link": "/api/@rulvar/rulvar/interfaces/UsageLimits.md"
+          },
+          {
+            "text": "UsageSlice",
+            "link": "/api/@rulvar/rulvar/interfaces/UsageSlice.md"
           },
           {
             "text": "VerifiedRecommendation",
@@ -5586,6 +5610,10 @@
             "link": "/api/@rulvar/rulvar/functions/encodeCheckpoint.md"
           },
           {
+            "text": "entryUsageSlices",
+            "link": "/api/@rulvar/rulvar/functions/entryUsageSlices.md"
+          },
+          {
             "text": "escalateTool",
             "link": "/api/@rulvar/rulvar/functions/escalateTool.md"
           },
@@ -5792,6 +5820,10 @@
           {
             "text": "planNodeScope",
             "link": "/api/@rulvar/rulvar/functions/planNodeScope.md"
+          },
+          {
+            "text": "priceEntryUsage",
+            "link": "/api/@rulvar/rulvar/functions/priceEntryUsage.md"
           },
           {
             "text": "priceUsdOf",

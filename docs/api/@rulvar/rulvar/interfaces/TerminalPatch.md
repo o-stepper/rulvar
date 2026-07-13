@@ -23,4 +23,5 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-transcriptref"></a> `transcriptRef?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-usage"></a> `usage?` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-usageapprox"></a> `usageApprox?` | `boolean` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-usagebymodel"></a> `usageByModel?` | [`UsageSlice`](/api/@rulvar/rulvar/interfaces/UsageSlice.md)[] | Set only when the call spanned several serving models; see JournalEntry. | `packages/core/dist/index.d.ts` |
 | <a id="property-value"></a> `value?` | `unknown` | - | `packages/core/dist/index.d.ts` |

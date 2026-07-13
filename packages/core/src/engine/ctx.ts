@@ -53,7 +53,7 @@ import {
   workflowScope,
 } from '../journal/scope.js';
 import type { Replayer } from '../journal/replayer.js';
-import type { JournalEntry } from '../l0/entries.js';
+import { priceEntryUsage, type JournalEntry } from '../l0/entries.js';
 import { selectStructuredOutputTier } from '../model/caps.js';
 import { fallbackTriggerOf, type FallbackField, type FallbackTrigger } from '../model/failover.js';
 import type { KeyedLimiter } from '../model/concurrency.js';
@@ -637,8 +637,17 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     const adapterId = ref.slice(0, colon);
     const adapter = internals.adapters.get(adapterId);
     if (adapter === undefined) {
+      // Naming the adapters that ARE registered turns the most common
+      // routing mistake from a puzzle into a one-line fix: a routing
+      // default that crosses providers (the recommended extract default
+      // targets OpenAI) trips every engine that registered only one
+      // adapter. The router prefixes the role, which is the other half
+      // of the answer.
+      const registered = [...internals.adapters.keys()].sort();
       throw new ConfigError(
-        `no adapter registered for '${adapterId}' (ModelRef '${ref}'); pass it to createEngine`,
+        `no adapter registered for '${adapterId}' (ModelRef '${ref}'); registered: ` +
+          `${registered.length === 0 ? '(none)' : registered.join(', ')}. Pass the adapter to ` +
+          'createEngine, or route this role to a registered adapter through defaults.routing',
       );
     }
     return adapter.caps(ref.slice(colon + 1));
@@ -1031,8 +1040,14 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         cacheReadTokens: 0,
         cacheWriteTokens: 0,
       };
-      const costUsd =
-        terminal?.servedBy === undefined ? 0 : (internals.priceUsd(terminal.servedBy, usage) ?? 0);
+      // The same pricing fold the kernel ledger runs: each serving
+      // model's slice at its own rate, so a replayed multi-model call
+      // reports exactly what the live one did.
+      const replayPriced =
+        terminal === undefined
+          ? undefined
+          : priceEntryUsage(terminal, (ref, sliceUsage) => internals.priceUsd(ref, sliceUsage));
+      const costUsd = replayPriced?.usd ?? 0;
       const result: AgentResult<unknown> = {
         status:
           matched.kind === 'skip'
@@ -1121,7 +1136,12 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       );
       // Replayed spend is already inside the seeded budget fold; only the
       // cost-report buckets accumulate here.
-      bump(internals.cost.byModel, terminal?.servedBy ?? loopResolved.ref, costUsd);
+      for (const slice of replayPriced?.priced ?? []) {
+        bump(internals.cost.byModel, slice.servedBy, slice.usd);
+      }
+      for (const slice of replayPriced?.unpriced ?? []) {
+        internals.cost.unpriced.push({ model: slice.servedBy, usage: slice.usage });
+      }
       bump(internals.cost.byPhase, state.phase ?? '', costUsd);
       bump(internals.cost.byAgentType, agentType, costUsd);
       internals.cost.byRole.set(
@@ -1756,6 +1776,10 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       // Under transport failover only servedBy changes, never the
       // content key (M4-T04).
       servedBy: result.servedBy,
+      // Present only when the call genuinely spanned models; every cost
+      // fold then prices each slice at its own rate instead of billing
+      // the whole call at the loop model's.
+      ...(result.usageByModel === undefined ? {} : { usageByModel: result.usageByModel }),
       transcriptRef: result.transcriptRef,
     };
     if (result.status === 'escalated' && result.escalation !== undefined) {
@@ -1842,15 +1866,24 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
       }
     }
 
-    // Cost attribution buckets (CostReport).
+    // Cost attribution buckets (CostReport). byModel is keyed by the
+    // SERVING model, the same key the journal fold uses, so a run's live
+    // breakdown and its replayed one cannot disagree; and a call that
+    // spanned models contributes one bucket per model at its own rate.
     const usd = result.costUsd;
-    bump(internals.cost.byModel, loopResolved.ref, usd);
+    for (const slice of result.usageByModel ?? [
+      { servedBy: result.servedBy, usage: result.usage },
+    ]) {
+      const priced = internals.priceUsd(slice.servedBy, slice.usage);
+      if (priced === undefined) {
+        internals.cost.unpriced.push({ model: slice.servedBy, usage: slice.usage });
+        continue;
+      }
+      bump(internals.cost.byModel, slice.servedBy, priced);
+    }
     bump(internals.cost.byPhase, state.phase ?? '', usd);
     bump(internals.cost.byAgentType, agentType, usd);
     internals.cost.byRole.set(primaryRole, (internals.cost.byRole.get(primaryRole) ?? 0) + usd);
-    if (internals.priceUsd(loopResolved.ref, result.usage) === undefined) {
-      internals.cost.unpriced.push({ model: loopResolved.ref, usage: result.usage });
-    }
 
     // Uniform ceiling behavior: every ctx primitive throws
     // BudgetExhaustedError at the run ceiling.

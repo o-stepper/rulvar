@@ -249,7 +249,20 @@ export function resolveModelInvocation(options: {
 
   const requestedEffort = merged.effort ?? ROLE_EFFORT_DEFAULTS[role];
   const { adapterId, model } = parseModelRef(merged.model);
-  const caps = options.capsOf(merged.model);
+  // The adapter registry lives above the router, so its lookup failure
+  // arrives without the one fact that makes it actionable: WHICH role
+  // pulled in this model. The extract role in particular resolves on
+  // EVERY schema-bearing ctx.agent call, whether or not a separate
+  // extraction call turns out to be needed.
+  let caps;
+  try {
+    caps = options.capsOf(merged.model);
+  } catch (thrown) {
+    if (thrown instanceof ConfigError) {
+      throw new ConfigError(`role '${role}': ${thrown.message}`);
+    }
+    throw thrown;
+  }
   const scrubs: ScrubNote[] = [];
 
   let wireEffort = requestedEffort;

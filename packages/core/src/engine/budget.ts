@@ -102,6 +102,8 @@ export class RunBudget {
   private usageInternal: Usage = { ...ZERO_USAGE };
   private agentsSpawnedInternal = 0;
   private exhaustedInternal = false;
+  /** Models already warned about; the warning fires once per model per run. */
+  private readonly unpricedWarned = new Set<ModelRef>();
 
   constructor(options: {
     ceilingUsd?: number;
@@ -418,7 +420,28 @@ export class RunBudget {
     if (reasoning > 0) {
       this.usageInternal.reasoningTokens = reasoning;
     }
-    const usd = this.priceUsd?.(servedBy, usage) ?? 0;
+    // A model with no price row contributes zero here, so a USD ceiling
+    // cannot bound it. That is legitimate for a local model (it costs
+    // nothing) and a silent hole for a model whose price row is merely
+    // missing, so the ceiling says so out loud, once per model. The
+    // usage still surfaces through CostReport.unpriced either way.
+    const priced = this.priceUsd?.(servedBy, usage);
+    if (
+      priced === undefined &&
+      this.ceilingUsd !== undefined &&
+      !this.unpricedWarned.has(servedBy)
+    ) {
+      this.unpricedWarned.add(servedBy);
+      this.events?.emit({
+        type: 'log',
+        level: 'warn',
+        msg:
+          `no price row for '${servedBy}': its usage does not debit the budget, so the ` +
+          `${this.ceilingUsd} USD run ceiling does NOT bound this model. Add it to ` +
+          'createEngine({ pricing }) to cap it; its usage is reported under CostReport.unpriced',
+      });
+    }
+    const usd = priced ?? 0;
     for (const account of this.chainOf(accountScope)) {
       account.spentUsd += usd;
       if (

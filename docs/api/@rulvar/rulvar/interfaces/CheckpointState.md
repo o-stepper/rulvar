@@ -21,4 +21,5 @@ The canonical-history snapshot at a turn boundary.
 | <a id="property-toolcallsused"></a> `toolCallsUsed` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-turns"></a> `turns` | `number` | Model turns already paid. | `packages/core/dist/index.d.ts` |
 | <a id="property-usage"></a> `usage` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | Usage accumulated so far (not yet journaled: terminals carry totals). | `packages/core/dist/index.d.ts` |
+| <a id="property-usagebymodel"></a> `usageByModel?` | [`UsageSlice`](/api/@rulvar/rulvar/interfaces/UsageSlice.md)[] | The same usage split by serving model, so a dangling redispatch restores the per-model breakdown instead of collapsing every paid turn onto the loop model. Absent on checkpoints written before the split shipped: those restore the aggregate against the loop model, exactly as they did then. | `packages/core/dist/index.d.ts` |
 | <a id="property-v"></a> `v` | `1` | - | `packages/core/dist/index.d.ts` |
