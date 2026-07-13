@@ -40,11 +40,14 @@ jobs:
       # alone. Pushes that still carry changesets only refresh the
       # Version Packages PR and are already covered by the CI workflow.
       - name: Test before a publish-shaped push
+        id: shape
         run: |
           if ls .changeset/*.md 2>/dev/null | grep -v README >/dev/null; then
             echo "pending changesets present; version PR path, tests covered by CI"
+            echo "publish_shaped=false" >> "$GITHUB_OUTPUT"
           else
             pnpm exec vitest run
+            echo "publish_shaped=true" >> "$GITHUB_OUTPUT"
           fi
       # `version` routes through the root `version-packages` script (a
       # package.json script, so the `&&` chain runs in a real shell):
@@ -70,20 +73,31 @@ jobs:
       # this repo publishes with `pnpm publish -r`. Idempotent: runs on
       # every main push and skips whatever already exists.
       #
-      # The registry is eventually consistent on READS, so the gate polls.
-      # It used to check once and exit early, which on the 1.5.0 train
-      # read "not on the registry yet" seconds after the publish step had
-      # published it, silently shipping a release with no tag. Skipping
-      # early is only correct when the tag ALREADY exists (an ordinary
-      # main push); a missing tag for an unseen version means wait.
+      # The registry is eventually consistent on READS, so a publish-shaped
+      # push POLLS for the version it just published, and fails loudly if it
+      # never appears (checking once, as this did, silently shipped 1.5.0
+      # with no tag and no pointer).
+      #
+      # The manifest version alone cannot tell the two paths apart: on a
+      # VERSION-PR push the changesets action has already run
+      # `version-packages` in THIS runner's tree, so the manifest reads the
+      # NEXT version while nothing has been published. Polling for it would
+      # wait a minute and then fail a perfectly healthy run. So the shape is
+      # captured BEFORE the action consumes the changesets, and only a
+      # publish-shaped push is allowed to wait or to fail.
       - name: Tag and create the GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUBLISH_SHAPED: ${{ steps.shape.outputs.publish_shaped }}
         run: |
           version="$(node -p "require('./packages/rulvar/package.json').version")"
           tag="v${version}"
+          tagged=""
           if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
             echo "${tag} already exists; nothing to tag"
+            tagged=1
+          elif [ "${PUBLISH_SHAPED}" != "true" ]; then
+            echo "version PR path (changesets were pending at push): ${version} is the version the PR proposes, not a published one; nothing to tag"
           else
             live=""
             for attempt in $(seq 1 12); do
@@ -100,8 +114,13 @@ jobs:
             fi
             git tag "${tag}"
             git push origin "${tag}"
+            tagged=1
           fi
-          if ! gh release view "${tag}" >/dev/null 2>&1; then
+          # The GitHub release still repairs idempotently on any push, but
+          # only behind an EXISTING tag: a tag exists only for a version
+          # that really shipped, so this can never mint a release for the
+          # version a Version Packages PR merely proposes.
+          if [ -n "${tagged}" ] && ! gh release view "${tag}" >/dev/null 2>&1; then
             gh release create "${tag}" --title "${tag}" \
               --notes "Changelog: https://docs.rulvar.com/reference/changelog"
           fi
