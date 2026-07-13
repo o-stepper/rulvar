@@ -24,10 +24,13 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Parameter | Type |
 | ------ | ------ |
-| `meta` | \{ `args?`: [`SchemaSpec`](/api/@rulvar/rulvar/type-aliases/SchemaSpec.md)\&lt;`A`\&gt;; `errorPolicy?`: `P`; `name`: `string`; \} |
+| `meta` | \{ `args?`: [`SchemaSpec`](/api/@rulvar/rulvar/type-aliases/SchemaSpec.md)\&lt;`A`\&gt;; `effort?`: [`Effort`](/api/@rulvar/rulvar/type-aliases/Effort.md); `errorPolicy?`: `P`; `model?`: [`ModelSpec`](/api/@rulvar/rulvar/type-aliases/ModelSpec.md); `name`: `string`; `routing?`: `Partial`\&lt;`Record`\&lt;[`InvocationRole`](/api/@rulvar/rulvar/type-aliases/InvocationRole.md), [`ModelSpec`](/api/@rulvar/rulvar/type-aliases/ModelSpec.md)\&gt;\&gt;; \} |
 | `meta.args?` | [`SchemaSpec`](/api/@rulvar/rulvar/type-aliases/SchemaSpec.md)\&lt;`A`\&gt; |
+| `meta.effort?` | [`Effort`](/api/@rulvar/rulvar/type-aliases/Effort.md) |
 | `meta.errorPolicy?` | `P` |
+| `meta.model?` | [`ModelSpec`](/api/@rulvar/rulvar/type-aliases/ModelSpec.md) |
 | `meta.name` | `string` |
+| `meta.routing?` | `Partial`\&lt;`Record`\&lt;[`InvocationRole`](/api/@rulvar/rulvar/type-aliases/InvocationRole.md), [`ModelSpec`](/api/@rulvar/rulvar/type-aliases/ModelSpec.md)\&gt;\&gt; |
 | `body` | (`ctx`, `args`) => `Promise`\&lt;`R`\&gt; |
 
 ## Returns

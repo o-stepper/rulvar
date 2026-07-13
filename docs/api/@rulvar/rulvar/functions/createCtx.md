@@ -7,7 +7,7 @@
 # Function: createCtx()
 
 ```ts
-function createCtx(internals): Ctx<ErrorPolicy>;
+function createCtx(internals, rootWorkflow?): Ctx<ErrorPolicy>;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -22,6 +22,10 @@ structure from call-and-return only).
 | Parameter | Type |
 | ------ | ------ |
 | `internals` | [`RunInternals`](/api/@rulvar/rulvar/interfaces/RunInternals.md) |
+| `rootWorkflow?` | \{ `effort?`: [`Effort`](/api/@rulvar/rulvar/type-aliases/Effort.md); `model?`: [`ModelSpec`](/api/@rulvar/rulvar/type-aliases/ModelSpec.md); `routing?`: `Partial`\&lt;`Record`\&lt;[`InvocationRole`](/api/@rulvar/rulvar/type-aliases/InvocationRole.md), [`ModelSpec`](/api/@rulvar/rulvar/type-aliases/ModelSpec.md)\&gt;\&gt;; \} |
+| `rootWorkflow.effort?` | [`Effort`](/api/@rulvar/rulvar/type-aliases/Effort.md) |
+| `rootWorkflow.model?` | [`ModelSpec`](/api/@rulvar/rulvar/type-aliases/ModelSpec.md) |
+| `rootWorkflow.routing?` | `Partial`\&lt;`Record`\&lt;[`InvocationRole`](/api/@rulvar/rulvar/type-aliases/InvocationRole.md), [`ModelSpec`](/api/@rulvar/rulvar/type-aliases/ModelSpec.md)\&gt;\&gt; |
 
 ## Returns
 

@@ -5215,12 +5215,27 @@ interface Workflow<A = unknown, R = unknown> {
   readonly name: string;
   readonly argsSchema?: SchemaSpec<A>;
   readonly errorPolicy: ErrorPolicy;
+  /**
+  * Workflow defaults: the third layer of the resolution chain, under the
+  * call override and the agent profile and over the engine defaults.
+  * A workflow that declares nothing contributes no layer and resolves
+  * exactly as it did before. The layer follows the CALL TREE, not the
+  * file: a child spawned through `ctx.workflow` contributes ITS OWN
+  * defaults inside its scope, so nesting a cheap workflow under an
+  * expensive one does the obvious thing.
+  */
+  readonly model?: ModelSpec;
+  readonly routing?: Partial<Record<InvocationRole, ModelSpec>>;
+  readonly effort?: Effort;
   readonly body: (ctx: Ctx<never>, args: A) => Promise<R>;
 }
 declare function defineWorkflow<A, R, P extends ErrorPolicy = "strict">(meta: {
   name: string;
   args?: SchemaSpec<A>;
-  errorPolicy?: P;
+  errorPolicy?: P; /** Workflow defaults: resolution-chain layer 3. See Workflow. */
+  model?: ModelSpec;
+  routing?: Partial<Record<InvocationRole, ModelSpec>>;
+  effort?: Effort;
 }, body: (ctx: Ctx<P>, args: A) => Promise<R>): Workflow<A, R>;
 /**
 * Span-aware event sink: bodies are stamped into the WorkflowEvent
@@ -5324,7 +5339,11 @@ interface RunInternals {
 * one ctx object while journaling under their own scope paths (I3:
 * structure from call-and-return only).
 */
-declare function createCtx(internals: RunInternals): Ctx<ErrorPolicy>;
+declare function createCtx(internals: RunInternals, rootWorkflow?: {
+  model?: ModelSpec;
+  routing?: Partial<Record<InvocationRole, ModelSpec>>;
+  effort?: Effort;
+}): Ctx<ErrorPolicy>;
 /**
 * Runs a workflow body against a fresh ctx: the engine core that
 * engine.run wraps with RunHandle, events, and outcome assembly (M1-T11).

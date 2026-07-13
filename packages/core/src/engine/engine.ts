@@ -594,7 +594,10 @@ export function createEngine(options: CreateEngineOptions): Engine {
             );
           }
         }
-        const ctx = createCtx(internals);
+        // The root workflow's defaults become resolution-chain layer 3.
+        // A CompiledWorkflow declares none (the sandbox dialect has no
+        // routing surface), so a planned run contributes no layer.
+        const ctx = createCtx(internals, wf.kind === 'workflow' ? wf : undefined);
         const selectedRunner =
           compiled === undefined ? runner : (options.runners?.sandbox as ScriptRunner);
         const bodyPromise = selectedRunner.execute(wf, ctx, args);

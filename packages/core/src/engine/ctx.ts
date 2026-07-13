@@ -464,17 +464,61 @@ export interface Workflow<A = unknown, R = unknown> {
   readonly name: string;
   readonly argsSchema?: SchemaSpec<A>;
   readonly errorPolicy: ErrorPolicy;
+  /**
+   * Workflow defaults: the third layer of the resolution chain, under the
+   * call override and the agent profile and over the engine defaults.
+   * A workflow that declares nothing contributes no layer and resolves
+   * exactly as it did before. The layer follows the CALL TREE, not the
+   * file: a child spawned through `ctx.workflow` contributes ITS OWN
+   * defaults inside its scope, so nesting a cheap workflow under an
+   * expensive one does the obvious thing.
+   */
+  readonly model?: ModelSpec;
+  readonly routing?: Partial<Record<InvocationRole, ModelSpec>>;
+  readonly effort?: Effort;
   readonly body: (ctx: Ctx<never>, args: A) => Promise<R>;
 }
 
+/** The workflow-defaults layer a Workflow value contributes, or nothing. */
+function workflowLayerOf(wf: {
+  model?: ModelSpec;
+  routing?: Partial<Record<InvocationRole, ModelSpec>>;
+  effort?: Effort;
+}): ResolutionLayer | undefined {
+  const layer: ResolutionLayer = {};
+  if (wf.model !== undefined) {
+    layer.model = wf.model;
+  }
+  if (wf.routing !== undefined) {
+    layer.routing = wf.routing;
+  }
+  if (wf.effort !== undefined) {
+    layer.effort = wf.effort;
+  }
+  // Undefined, not an empty object: an empty layer would still be a layer
+  // to merge, and the point is that a silent workflow changes nothing.
+  return Object.keys(layer).length === 0 ? undefined : layer;
+}
+
 export function defineWorkflow<A, R, P extends ErrorPolicy = 'strict'>(
-  meta: { name: string; args?: SchemaSpec<A>; errorPolicy?: P },
+  meta: {
+    name: string;
+    args?: SchemaSpec<A>;
+    errorPolicy?: P;
+    /** Workflow defaults: resolution-chain layer 3. See Workflow. */
+    model?: ModelSpec;
+    routing?: Partial<Record<InvocationRole, ModelSpec>>;
+    effort?: Effort;
+  },
   body: (ctx: Ctx<P>, args: A) => Promise<R>,
 ): Workflow<A, R> {
   const wf: Workflow<A, R> = {
     kind: 'workflow',
     name: meta.name,
     errorPolicy: meta.errorPolicy ?? 'strict',
+    ...(meta.model === undefined ? {} : { model: meta.model }),
+    ...(meta.routing === undefined ? {} : { routing: meta.routing }),
+    ...(meta.effort === undefined ? {} : { effort: meta.effort }),
     body: body,
   };
   if (meta.args !== undefined) {
@@ -486,6 +530,12 @@ export function defineWorkflow<A, R, P extends ErrorPolicy = 'strict'>(
 interface ScopeState {
   scope: string;
   spanId: string;
+  /**
+   * The enclosing workflow's defaults (resolution-chain layer 3). Rides
+   * the scope, not the run, so a child workflow's defaults apply inside
+   * its scope and stop at its boundary.
+   */
+  workflowLayer?: ResolutionLayer;
   phase?: string;
   signal?: AbortSignal;
   /** The nearest enclosing budget account; the run root when absent (M6-T06). */
@@ -626,10 +676,28 @@ function buildEscalationReport(
  * one ctx object while journaling under their own scope paths (I3:
  * structure from call-and-return only).
  */
-export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
+export function createCtx(
+  internals: RunInternals,
+  /**
+   * The workflow whose body this ctx runs: its defaults become the root
+   * scope's layer 3. Absent for a CompiledWorkflow (the sandbox dialect
+   * declares no routing), which then contributes no layer, exactly as
+   * before.
+   */
+  rootWorkflow?: {
+    model?: ModelSpec;
+    routing?: Partial<Record<InvocationRole, ModelSpec>>;
+    effort?: Effort;
+  },
+): Ctx<ErrorPolicy> {
   const als = new AsyncLocalStorage<ScopeState>();
   const sites = new ParallelSiteCounter();
-  const rootState: ScopeState = { scope: ROOT_SCOPE, spanId: internals.rootSpanId };
+  const rootWorkflowLayer = rootWorkflow === undefined ? undefined : workflowLayerOf(rootWorkflow);
+  const rootState: ScopeState = {
+    scope: ROOT_SCOPE,
+    spanId: internals.rootSpanId,
+    ...(rootWorkflowLayer === undefined ? {} : { workflowLayer: rootWorkflowLayer }),
+  };
   const current = (): ScopeState => als.getStore() ?? rootState;
 
   const capsOf = (ref: ModelRef): ReturnType<ProviderAdapter['caps']> => {
@@ -809,6 +877,10 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     if (internals.defaults.routing !== undefined) {
       engineLayer.routing = internals.defaults.routing;
     }
+    // Layer 3, between the profile and the engine: the defaults of the
+    // workflow whose scope this call sits in. Undefined for a workflow
+    // that declares none, which merges as nothing.
+    const workflowLayer = state.workflowLayer;
 
     const telemetryNamespace: Record<string, unknown> = { agentType };
     if (opts.label !== undefined) {
@@ -828,6 +900,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         role: primaryRole,
         call: callLayer,
         profile: profileLayer,
+        workflow: workflowLayer,
         engine: engineLayer,
         capsOf,
         ...floorContext,
@@ -899,6 +972,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           role: 'extract',
           call: callLayer,
           profile: profileLayer,
+          workflow: workflowLayer,
           engine: engineLayer,
           capsOf,
           ...floorContext,
@@ -928,6 +1002,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
           role: 'finalize',
           call: callLayer,
           profile: profileLayer,
+          workflow: workflowLayer,
           engine: engineLayer,
           capsOf,
           ...floorContext,
@@ -948,6 +1023,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         role: 'summarize',
         call: callLayer,
         profile: profileLayer,
+        workflow: workflowLayer,
         engine: engineLayer,
         capsOf,
         ...floorContext,
@@ -957,6 +1033,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
         role: 'summarize',
         call: callLayer,
         profile: profileLayer,
+        workflow: workflowLayer,
         engine: { ...engineLayer, model: loopResolved.ref },
         capsOf,
         ...floorContext,
@@ -983,6 +1060,7 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
             role,
             call: fallbackLayer,
             profile: profileLayer,
+            workflow: workflowLayer,
             engine: engineLayer,
             capsOf,
             ...floorContext,
@@ -2374,10 +2452,16 @@ export function createCtx(internals: RunInternals): Ctx<ErrorPolicy> {
     const signals = [upstream, accountSignal].filter(
       (signal): signal is AbortSignal => signal !== undefined,
     );
+    // The child's OWN defaults replace the parent's inside its scope: the
+    // layer follows the call tree, so nesting a cheap workflow under an
+    // expensive one does the obvious thing. A child that declares nothing
+    // contributes nothing and falls straight through to the engine.
+    const childLayer = workflowLayerOf(wf);
     const childState: ScopeState = {
       scope: childScope,
       spanId,
       budgetScope: childScope,
+      ...(childLayer === undefined ? {} : { workflowLayer: childLayer }),
     };
     if (signals.length === 1) {
       childState.signal = signals[0];
@@ -2593,7 +2677,7 @@ export async function executeWorkflow<A, R>(
       );
     }
   }
-  const ctx = createCtx(internals);
+  const ctx = createCtx(internals, wf);
   try {
     return await wf.body(ctx, args);
   } finally {
