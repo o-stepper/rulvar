@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.5.1
+
+#### Patch Changes
+
+- Updated dependencies [6c6d56f]
+  - @rulvar/core@1.5.1
+
 ### 1.5.0
 
 #### Patch Changes
@@ -297,6 +304,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.5.1
+
+#### Patch Changes
+
+- Updated dependencies [6c6d56f]
+  - @rulvar/core@1.5.1
+
 ### 1.5.0
 
 #### Patch Changes
@@ -500,6 +514,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.5.1
+
+#### Patch Changes
+
+- Updated dependencies [6c6d56f]
+  - @rulvar/core@1.5.1
 
 ### 1.5.0
 
@@ -835,6 +856,23 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.5.1
+
+#### Patch Changes
+
+- 6c6d56f: The too-old-journal refusal no longer points at an export that does not exist.
+
+  `JournalCompatibilityError` with subCode `HASH_VERSION_TOO_OLD` interpolated the version into a symbol name, so a v0 journal produced the hint `enable deriverV0 from @rulvar/compat via extraDerivers`. `@rulvar/compat` ships `deriverV0Synthetic`; there is no `deriverV0`. A reader with a genuinely too-old journal was sent to an import that is not there, and a dead end is worse than no hint.
+
+  The hint now names the mechanism and the package, never a symbol, so it cannot go stale when a frozen profile is named something else:
+
+  ```
+  register a hashVersion 0 KeyDeriver through createEngine({ extraDerivers });
+  @rulvar/compat ships the frozen profiles
+  ```
+
+  Nothing else changes: the refusal is still typed, still raised before any live call, append, or admission reserve, and `extraDerivers` still reopens the window exactly as before.
 
 ### 1.5.0
 
@@ -1687,6 +1725,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.5.1
+
 ### 1.5.0
 
 ### 1.4.0
@@ -1749,6 +1789,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.5.1
+
+#### Patch Changes
+
+- Updated dependencies [6c6d56f]
+  - @rulvar/core@1.5.1
+  - @rulvar/testing@1.5.1
 
 ### 1.5.0
 
@@ -1994,6 +2042,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.5.1
+
+#### Patch Changes
+
+- Updated dependencies [6c6d56f]
+  - @rulvar/core@1.5.1
 
 ### 1.5.0
 
@@ -2293,6 +2348,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.5.1
+
+#### Patch Changes
+
+- Updated dependencies [6c6d56f]
+  - @rulvar/core@1.5.1
+
 ### 1.5.0
 
 #### Patch Changes
@@ -2577,6 +2639,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.5.1
+
+#### Patch Changes
+
+- Updated dependencies [6c6d56f]
+  - @rulvar/core@1.5.1
+  - eslint-plugin-rulvar@1.5.1
+
 ### 1.5.0
 
 #### Patch Changes
@@ -2796,6 +2866,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.5.1
+
+#### Patch Changes
+
+- Updated dependencies [6c6d56f]
+  - @rulvar/core@1.5.1
+  - @rulvar/anthropic@1.5.1
+  - @rulvar/openai@1.5.1
 
 ### 1.5.0
 
@@ -3116,6 +3195,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.5.1
+
+#### Patch Changes
+
+- Updated dependencies [6c6d56f]
+  - @rulvar/core@1.5.1
+
 ### 1.5.0
 
 #### Patch Changes
@@ -3375,6 +3461,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.5.1
+
+#### Patch Changes
+
+- Updated dependencies [6c6d56f]
+  - @rulvar/core@1.5.1
+
 ### 1.5.0
 
 #### Patch Changes
@@ -3584,6 +3677,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.5.1
+
+#### Patch Changes
+
+- Updated dependencies [6c6d56f]
+  - @rulvar/core@1.5.1
 
 ### 1.5.0
 
