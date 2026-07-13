@@ -25,7 +25,17 @@ jobs:
     name: Version packages or publish
     runs-on: ubuntu-latest
     steps:
+      # The token here is what actually matters, and it is easy to get
+      # wrong: giving RELEASE_PAT to the changesets action alone only
+      # changes the token its API calls use. The `git push` of the
+      # changeset-release/main branch runs under the credentials
+      # actions/checkout persisted, so with a plain checkout the branch is
+      # still pushed as GITHUB_TOKEN, GitHub still refuses to trigger
+      # workflows for it, and the Version Packages PR is still born with
+      # no checks. Checkout must hold the PAT too.
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
