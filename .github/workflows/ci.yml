@@ -41,9 +41,16 @@ jobs:
       - name: Frozen-fixture write protection (M2-T12)
         run: node scripts/check-frozen-fixtures.mjs
 
+  # The Version Packages PR is EXEMPT (its whole job is to consume the
+  # changesets, so requiring one there is a contradiction), but the exempt
+  # case reports SUCCESS rather than skipping the job. A required status
+  # check is satisfied by a real conclusion; a skipped job is a
+  # documented trap around required checks that nobody should have to
+  # remember. Costing one runner minute per release train buys the
+  # release path immunity from that whole class of question.
   changeset:
     name: Changeset presence
-    if: github.event_name == 'pull_request' && github.head_ref != 'changeset-release/main'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -55,7 +62,13 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec changeset status --since=origin/${{ github.base_ref }}
+      - name: Require a changeset for package changes
+        run: |
+          if [ "${{ github.head_ref }}" = "changeset-release/main" ]; then
+            echo "Version Packages PR: the changesets are consumed here; requiring one would be a contradiction."
+            exit 0
+          fi
+          pnpm exec changeset status --since=origin/${{ github.base_ref }}
 
   test:
     name: Test (Node ${{ matrix.node }})

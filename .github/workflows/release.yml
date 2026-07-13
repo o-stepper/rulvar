@@ -56,6 +56,17 @@ jobs:
       # docs (docs/reference/changelog.md and the stamped version
       # prose), so the standing Version Packages PR passes the docs
       # freshness gate without manual fixups.
+      #
+      # The token is RELEASE_PAT when it exists. GitHub does not trigger
+      # workflows for pushes made with GITHUB_TOKEN, so under the default
+      # token the Version Packages PR is born with no checks at all: it
+      # cannot be reviewed by CI, and required status checks on main would
+      # block every release forever. A PAT makes the action's push look
+      # like a human's, so the release PR gets the same CI as any other.
+      #
+      # The fallback is deliberate and load-bearing: an expired or revoked
+      # PAT degrades the release train back to "works, but the version PR
+      # has no checks" instead of breaking it outright.
       - name: Create Version Packages PR or publish
         id: changesets
         uses: changesets/action@v1
@@ -65,7 +76,7 @@ jobs:
           commit: 'Version packages'
           title: 'Version Packages'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
       # One v-prefixed tag and one GitHub release per train, named after
       # the umbrella's version (the fixed group shares it). The gate is
       # the REGISTRY, not the action's `published` output: changesets/
