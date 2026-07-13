@@ -1,6 +1,6 @@
 {
   "name": "@rulvar/anthropic",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "rulvar first-class provider adapter over @anthropic-ai/sdk.",
   "type": "module",
   "license": "Apache-2.0",
