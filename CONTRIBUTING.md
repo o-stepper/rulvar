@@ -122,7 +122,12 @@ forever and block every release. The action therefore authenticates with
 and Pull requests read/write), whose pushes look like a human's, so the
 release PR gets ordinary CI.
 
-The workflow reads `${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}`.
+The release workflow reads the token with a fallback:
+
+```yaml
+GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+```
+
 **When the PAT expires, nothing breaks**: the fallback degrades the train
 to "publishes fine, but the Version Packages PR has no checks and must be
 merged with the ruleset temporarily disabled". Mint a new token, update

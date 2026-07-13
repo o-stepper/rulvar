@@ -27,6 +27,16 @@ const ROOT = new URL('..', import.meta.url).pathname;
 const FORBIDDEN_DASHES = /[‐‑‒–—−]/u;
 const EMOJI = /\p{Extended_Pictographic}/u;
 const BARE_INSTALL = /\b(?:npm\s+(?:install|i|add)|pnpm\s+add|yarn\s+add|npx)\s+rulvar(?![\w/@-])/u;
+/**
+ * VitePress compiles every page as a Vue template, and only FENCED code
+ * blocks are auto-wrapped in v-pre. A `{{ ... }}` in prose, or in an
+ * INLINE code span (backticks are not enough), is evaluated as a Vue
+ * expression at build time, so a page that merely quotes a GitHub Actions
+ * expression crashes the site build with "Cannot read properties of
+ * undefined". The crash names a compiled temp file and not the source, so
+ * catch it here, at the line, instead.
+ */
+const VUE_INTERPOLATION = /\{\{/u;
 
 const EXCLUDED_DIRS = new Set(['api', 'node_modules', '.vitepress']);
 const EXCLUDED_FILES = new Set(
@@ -98,6 +108,15 @@ for (const file of collectFiles()) {
     }
     if (EMOJI.test(line)) {
       fail(file, n, 'emoji characters are forbidden in the documentation set');
+    }
+    if (!inFence && VUE_INTERPOLATION.test(line)) {
+      fail(
+        file,
+        n,
+        'VitePress evaluates {{ ... }} as a Vue expression outside a fenced code block ' +
+          '(an inline code span is NOT enough, and the build error names a temp file, not this ' +
+          'line); move it into a fenced block',
+      );
     }
     if (!inFence && /^# /.test(line)) {
       h1Count++;
