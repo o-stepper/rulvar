@@ -302,7 +302,13 @@ describe('DEF-6 cassettes over the frozen v1 journal (docs/11, section 4)', () =
     await expect(rejection).rejects.toThrow(JournalCompatibilityError);
     await expect(rejection).rejects.toMatchObject({
       subCode: 'HASH_VERSION_TOO_OLD',
-      hint: 'enable deriverV0 from @rulvar/compat via extraDerivers',
+      // The hint names the mechanism, not a symbol: the export this very
+      // test then imports to reopen the window is deriverV0Synthetic, so
+      // a hint saying "enable deriverV0" would send the reader to an
+      // import that does not exist.
+      hint:
+        'register a hashVersion 0 KeyDeriver through createEngine({ extraDerivers }); ' +
+        '@rulvar/compat ships the frozen profiles',
     });
     // Zero live calls, zero appends, zero admission reserves.
     expect(adapter.calls).toHaveLength(0);

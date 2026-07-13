@@ -58,10 +58,27 @@ const orphans = readdirSync(join(root, 'cassettes'))
   .filter((id) => !ids.has(id))
   .sort();
 
-if (ids.size < 40) {
+// Parser-drift guard: EVERY table data row must yield an ID. This used to
+// be a magic floor (`ids.size < 40`) while the catalog held 61, so a regex
+// that silently stopped matching could have dropped a third of the catalog
+// and still passed. A floor is a proxy for "the regex still works" that
+// goes stale the moment the catalog grows; asking the real question costs
+// nothing and cannot go stale, and it fails on the FIRST row it drops.
+const dataRows = section
+  .split('\n')
+  .filter((line) => line.startsWith('|'))
+  .map((line) => (line.split('|')[1] ?? '').trim())
+  .filter((cell) => cell !== '' && cell !== 'Cassette' && !/^:?-{3,}:?$/.test(cell));
+
+const unparsed = dataRows.filter((cell) => !ids.has(cell.replace(/\s*\(mandatory\)$/, '')));
+if (unparsed.length > 0) {
   console.error(
-    `catalog audit: parsed only ${ids.size} IDs from cassettes/CATALOG.md; the parser drifted`,
+    `catalog audit: cassettes/CATALOG.md has ${dataRows.length} table rows but the parser ` +
+      `extracted ${ids.size} IDs; the ID regex drifted or a row is malformed:`,
   );
+  for (const cell of unparsed) {
+    console.error(`  - unparsed row: ${cell}`);
+  }
   process.exit(1);
 }
 if (missing.length > 0) {
