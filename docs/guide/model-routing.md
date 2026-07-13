@@ -54,7 +54,7 @@ Resolution is a layered merge of `{ model, effort, providerOptions, fallbacks }`
 
 1. **Call override**: `AgentOpts.model`, `AgentOpts.routing`, `AgentOpts.effort` on the `ctx.agent` call.
 2. **Agent profile**: the `AgentProfile` selected by `agentType`.
-3. **Workflow defaults**: the defaults the enclosing workflow surface contributes.
+3. **Workflow defaults**: `model`, `routing`, and `effort` declared on `defineWorkflow`.
 4. **Engine defaults**: `defaults.routing` on `createEngine`.
 
 ```mermaid
@@ -68,6 +68,25 @@ flowchart LR
   G --> H["Caps scrub, tier selection"]
   H --> I["Dispatch"]
 ```
+
+Layer 3 lets one workflow carry a model policy of its own without repeating it on
+every call, which is what you usually want for a whole class of work ("triage is
+cheap; the incident report is not"):
+
+```ts
+const triage = defineWorkflow(
+  { name: 'triage', routing: { loop: 'anthropic:claude-haiku-4-5' } },
+  async (ctx, args: { issues: string[] }) =>
+    ctx.parallel(args.issues.map((i) => () => ctx.agent(`Classify: ${i}`))),
+);
+```
+
+The layer follows the **call tree, not the file**. A child spawned through
+`ctx.workflow` contributes its own defaults inside its scope and they stop at its
+boundary, so nesting a cheap workflow under an expensive one does the obvious
+thing. A workflow that declares nothing contributes no layer and resolves through
+the engine defaults exactly as before. A `CompiledWorkflow` (the planner's sandbox
+dialect) has no routing surface and so contributes no layer.
 
 Every configurable spot accepts the same `ModelSpec` union: a bare `ModelRef` string, a `ModelChoice` object, or a ladder.
 
