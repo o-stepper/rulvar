@@ -41,8 +41,11 @@ describe('maskSecrets (M8-T04 default policy)', () => {
       'AKIAIOSFODNN7EXAMPLE',
       'ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef1234',
       'github_pat_11ABCDEFG0123456789_abcdefghij',
-      'xoxb-123456789012-abcdefghijklmnop',
-      'AIzaSyA1234567890abcdefghijklmnopqrstuv',
+      // The Slack and Google samples are assembled at runtime so that public
+      // secret scanners never flag this source blob; the strings the masking
+      // policy sees stay credential shaped.
+      ['xoxb', '123456789012', 'abcdefghijklmnop'].join('-'),
+      'AIza' + 'SyA1234567890abcdefghijklmnopqrstuv',
       'Bearer abcdefghijklmnopqrstuvwxyz0123456789',
       'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N65OQag',
     ];
