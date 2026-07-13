@@ -1,6 +1,6 @@
 {
   "name": "@rulvar/openai",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "rulvar first-class provider adapter for the OpenAI Responses API, plus the openaiCompatible factory.",
   "type": "module",
   "license": "Apache-2.0",

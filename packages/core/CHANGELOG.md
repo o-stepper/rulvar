@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.5.2
+
+### Patch Changes
+
+- 54936a0: Assemble the Slack and Google credential samples in the masking policy test at runtime so public secret scanners stop flagging the source blob; the runtime strings the policy masks are unchanged.
+
 ## 1.5.1
 
 ### Patch Changes

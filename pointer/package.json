@@ -1,6 +1,6 @@
 {
   "name": "rulvar",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Pointer to the rulvar umbrella package: install @rulvar/rulvar (or this alias, which re-exports it). An embeddable TypeScript engine for durable, budget-bounded, testable multi-agent LLM workflows.",
   "type": "module",
   "license": "Apache-2.0",
@@ -20,7 +20,7 @@
   ],
   "sideEffects": false,
   "dependencies": {
-    "@rulvar/rulvar": "^1.5.1"
+    "@rulvar/rulvar": "^1.5.2"
   },
   "repository": {
     "type": "git",
