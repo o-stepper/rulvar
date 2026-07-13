@@ -18,6 +18,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.5.0
+
+#### Patch Changes
+
+- Updated dependencies [4fba3c7]
+- Updated dependencies [8655c0f]
+  - @rulvar/core@1.5.0
+
 ### 1.4.0
 
 #### Patch Changes
@@ -289,6 +297,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.5.0
+
+#### Patch Changes
+
+- Updated dependencies [4fba3c7]
+- Updated dependencies [8655c0f]
+  - @rulvar/core@1.5.0
+
 ### 1.4.0
 
 #### Patch Changes
@@ -484,6 +500,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.5.0
+
+#### Patch Changes
+
+- Updated dependencies [4fba3c7]
+- Updated dependencies [8655c0f]
+  - @rulvar/core@1.5.0
 
 ### 1.4.0
 
@@ -811,6 +835,33 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.5.0
+
+#### Minor Changes
+
+- 4fba3c7: Cost attribution is now correct for agent calls that span several models, and the two adjacent holes around them are closed.
+
+  - **Per-serving-model pricing.** The `loop`, `extract`, `finalize`, and `summarize` roles resolve independently, so one `ctx.agent` call routinely spans models at different prices. The whole call was priced at the loop model's rate, which billed a cheap extract as if it had been the expensive loop and made routing extraction to a small model look free of savings. Usage is now split by the model that actually served it, and every fold (the live `CostReport`, the kernel ledger behind `outcome.cost.totalUsd`, `costReportFromJournal`, and replay) prices each slice at its own rate. The split rides the terminal journal entry as the new optional `usageByModel` field and the turn checkpoint, so it survives a crash and a resume; it is written only when a call genuinely spanned models, leaving single-model journals byte-identical. `usage` and `servedBy` were never part of the content key, so identity and replay are untouched.
+  - **`CostReport.byModel` is keyed consistently.** The live path bucketed by the _requested_ model while the journal fold bucketed by the _serving_ one, so the same run reported two different breakdowns under transport failover. Both now key by the serving model, and `AgentResult` carries the optional `usageByModel` breakdown.
+  - **An unpriced model can no longer escape a ceiling in silence.** A model absent from the price table debits nothing, so a USD ceiling does not bound it. That is honest for a local model and a hole for a hosted one whose price row is merely missing: the run now emits a warning-level `log` event, once per model, naming the model and saying the ceiling does not bound it. Its usage still surfaces under `CostReport.unpriced`.
+  - **Routing to an unregistered adapter names the role and the adapters you do have.** Every schema-bearing `ctx.agent` call resolves the `extract` role up front, so a routing default that crosses providers (the recommended `extract` default targets OpenAI) failed with a bare "no adapter registered for 'openai'". The error now reads `role 'extract': no adapter registered for 'openai' (ModelRef 'openai:gpt-5.4-mini'); registered: anthropic. Pass the adapter to createEngine, or route this role to a registered adapter through defaults.routing`.
+
+- 8655c0f: `defineWorkflow` accepts `model`, `routing`, and `effort`, wiring the workflow-defaults layer the resolution chain always documented.
+
+  The router has always taken a `workflow` layer and the model routing guide has always described a four-layer chain (call override, agent profile, workflow defaults, engine defaults), but nothing could populate layer 3: `defineWorkflow` took only `{ name, args, errorPolicy }`, so a workflow could not carry a model policy of its own. It now can, which is what you usually want for a whole class of work ("triage is cheap; the incident report is not") instead of repeating the routing on every `ctx.agent` call.
+
+  ```ts
+  const triage = defineWorkflow(
+    { name: 'triage', routing: { loop: 'anthropic:claude-haiku-4-5' } },
+    async (ctx, args: { issues: string[] }) =>
+      ctx.parallel(args.issues.map((i) => () => ctx.agent(`Classify: ${i}`))),
+  );
+  ```
+
+  The layer rides the scope, so it follows the **call tree, not the file**: a child spawned through `ctx.workflow` contributes its own defaults inside its scope and they stop at its boundary. It sits under the agent profile and the call override and over the engine defaults, exactly as documented, and it applies to every invocation role the call resolves (loop, extract, finalize, summarize, and each failover fallback).
+
+  Backward compatible by construction: a workflow that declares nothing contributes no layer and resolves precisely as before, so existing journals keep their content keys. A `CompiledWorkflow` has no routing surface and contributes no layer.
 
 ### 1.4.0
 
@@ -1636,6 +1687,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.5.0
+
 ### 1.4.0
 
 ### 1.3.2
@@ -1696,6 +1749,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.5.0
+
+#### Patch Changes
+
+- Updated dependencies [4fba3c7]
+- Updated dependencies [8655c0f]
+  - @rulvar/core@1.5.0
+  - @rulvar/testing@1.5.0
 
 ### 1.4.0
 
@@ -1932,6 +1994,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.5.0
+
+#### Patch Changes
+
+- Updated dependencies [4fba3c7]
+- Updated dependencies [8655c0f]
+  - @rulvar/core@1.5.0
 
 ### 1.4.0
 
@@ -2223,6 +2293,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.5.0
+
+#### Patch Changes
+
+- Updated dependencies [4fba3c7]
+- Updated dependencies [8655c0f]
+  - @rulvar/core@1.5.0
+
 ### 1.4.0
 
 #### Patch Changes
@@ -2499,6 +2577,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.5.0
+
+#### Patch Changes
+
+- Updated dependencies [4fba3c7]
+- Updated dependencies [8655c0f]
+  - @rulvar/core@1.5.0
+  - eslint-plugin-rulvar@1.5.0
+
 ### 1.4.0
 
 #### Patch Changes
@@ -2709,6 +2796,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.5.0
+
+#### Patch Changes
+
+- Updated dependencies [4fba3c7]
+- Updated dependencies [8655c0f]
+  - @rulvar/core@1.5.0
+  - @rulvar/anthropic@1.5.0
+  - @rulvar/openai@1.5.0
 
 ### 1.4.0
 
@@ -3019,6 +3116,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.5.0
+
+#### Patch Changes
+
+- Updated dependencies [4fba3c7]
+- Updated dependencies [8655c0f]
+  - @rulvar/core@1.5.0
+
 ### 1.4.0
 
 #### Minor Changes
@@ -3270,6 +3375,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.5.0
+
+#### Patch Changes
+
+- Updated dependencies [4fba3c7]
+- Updated dependencies [8655c0f]
+  - @rulvar/core@1.5.0
+
 ### 1.4.0
 
 #### Patch Changes
@@ -3471,6 +3584,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.5.0
+
+#### Patch Changes
+
+- Updated dependencies [4fba3c7]
+- Updated dependencies [8655c0f]
+  - @rulvar/core@1.5.0
 
 ### 1.4.0
 
