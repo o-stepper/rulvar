@@ -131,6 +131,22 @@ Practical consequence: the worst case scales with concurrency. At the default
 per-run concurrency of 12, up to 12 agents can be mid-turn when the ceiling is
 crossed, so size B0 with roughly one turn of headroom per concurrent agent.
 
+### The one thing the ceiling cannot bound: a model with no price
+
+All three layers work in dollars, and dollars come from the price table. A model
+absent from it prices as `undefined`, which debits **nothing**, so a USD ceiling
+does not bound it at all. For a local model that is the honest answer, since it
+costs nothing to run; for a hosted model whose price row is merely missing it is
+a hole, and the engine will not let it pass in silence: the first time an
+unpriced model spends under a run that has a ceiling, the run emits a
+warning-level `log` event naming the model and saying plainly that the ceiling
+does not bound it. Its usage still surfaces under
+[`CostReport.unpriced`](#cost-reports) either way, never as a silent zero.
+
+Give the model a price row through `createEngine({ pricing })` to bring it back
+under the ceiling. See
+[The versioned price table](/guide/model-routing#the-versioned-price-table).
+
 ## Sub-accounts and the account tree
 
 Budget accounts form a tree with the run root at the top. A child workflow

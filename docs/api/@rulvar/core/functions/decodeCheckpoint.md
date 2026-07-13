@@ -12,7 +12,7 @@ function decodeCheckpoint(blob):
   | undefined;
 ```
 
-Defined in: [packages/core/src/journal/checkpoint.ts:97](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/checkpoint.ts#L97)
+Defined in: [packages/core/src/journal/checkpoint.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/checkpoint.ts#L106)
 
 Decodes a checkpoint blob. Returns undefined for an empty blob or an
 unknown format byte: a resume never trusts a checkpoint it cannot

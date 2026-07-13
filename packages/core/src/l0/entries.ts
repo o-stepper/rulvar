@@ -86,6 +86,61 @@ export type AbandonPayload = {
   retainWorktree?: boolean;
 };
 
+/** One serving model's slice of a multi-model agent call's usage. */
+export interface UsageSlice {
+  servedBy: ModelRef;
+  usage: Usage;
+}
+
+/**
+ * The per-model slices of a terminal entry: the recorded split when the
+ * call spanned several models, else the whole usage attributed to
+ * `servedBy`. The fallback is what makes every journal written before the
+ * split shipped price exactly as it did before.
+ */
+export function entryUsageSlices(entry: JournalEntry): UsageSlice[] {
+  if (entry.usage === undefined) {
+    return [];
+  }
+  if (entry.usageByModel !== undefined && entry.usageByModel.length > 0) {
+    return entry.usageByModel;
+  }
+  return entry.servedBy === undefined ? [] : [{ servedBy: entry.servedBy, usage: entry.usage }];
+}
+
+/** A priced slice, plus the total and the gaps the price table did not cover. */
+export interface PricedUsage {
+  /** Total of every slice the price table covered. */
+  usd: number;
+  /** Covered slices with their prices; the basis of per-model attribution. */
+  priced: Array<UsageSlice & { usd: number }>;
+  /** Slices with no price row: surfaced as unpriced, never a silent zero. */
+  unpriced: UsageSlice[];
+}
+
+/**
+ * The single pricing fold over one terminal entry, shared by the kernel
+ * ledger and the CostReport fold so a run's total and its per-model
+ * breakdown can never disagree. Each slice is priced at ITS OWN model's
+ * rate.
+ */
+export function priceEntryUsage(
+  entry: JournalEntry,
+  priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined,
+): PricedUsage {
+  const result: PricedUsage = { usd: 0, priced: [], unpriced: [] };
+  for (const slice of entryUsageSlices(entry)) {
+    const usd = priceUsd(slice.servedBy, slice.usage);
+    if (usd === undefined) {
+      result.unpriced.push(slice);
+      continue;
+    }
+    result.usd += usd;
+    result.priced.push({ ...slice, usd });
+  }
+  return result;
+}
+
 /**
  * Final entry form (hashVersion 2).
  * All journaled values MUST be JSON-serializable; a violation raises a
@@ -115,6 +170,18 @@ export type JournalEntry = {
   usageApprox?: boolean;
   /** Who actually served (failover changes only this, never the key). */
   servedBy?: ModelRef;
+  /**
+   * Terminal agent entries whose phases were served by MORE THAN ONE
+   * model: usage split by the model that actually served each slice. The
+   * loop, extract, finalize, and summarize roles resolve independently,
+   * so a single agent call routinely spans models at different prices;
+   * pricing the whole call at `servedBy` bills the cheap extract at the
+   * loop model's rate. Absent when one model served the whole call, and
+   * on entries written before the split shipped: readers fall back to
+   * pricing `usage` at `servedBy`, which is exactly correct for those.
+   * Policy, never identity: it does not enter the content key.
+   */
+  usageByModel?: UsageSlice[];
   transcriptRef?: string;
   checkpointRef?: string;
   /**

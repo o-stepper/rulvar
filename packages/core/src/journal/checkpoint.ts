@@ -10,6 +10,7 @@
  * future migration; the exact format is a tracked open question.
  * Nothing in the format enters identity.
  */
+import type { UsageSlice } from '../l0/entries.js';
 import type { Msg, Part, Usage } from '../l0/messages.js';
 
 /** Leading format byte of the v1 checkpoint blob. */
@@ -38,6 +39,14 @@ export interface CheckpointState {
   turns: number;
   /** Usage accumulated so far (not yet journaled: terminals carry totals). */
   usage: Usage;
+  /**
+   * The same usage split by serving model, so a dangling redispatch
+   * restores the per-model breakdown instead of collapsing every paid
+   * turn onto the loop model. Absent on checkpoints written before the
+   * split shipped: those restore the aggregate against the loop model,
+   * exactly as they did then.
+   */
+  usageByModel?: UsageSlice[];
   toolCallsUsed: number;
   schemaAttempts: number;
   /** Compaction points; producers arrive with M4-T03. */

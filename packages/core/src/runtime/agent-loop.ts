@@ -33,6 +33,7 @@ import type { Out, SchemaSpec } from '../l0/schema.js';
 import { validateSchemaSpec } from '../l0/schema.js';
 import { toJournalValue } from '../journal/serializable.js';
 import type { CheckpointState, PendingToolTurn } from '../journal/checkpoint.js';
+import type { UsageSlice } from '../l0/entries.js';
 import { failoverTriggerOf, nextFailover, type FailoverTrigger } from '../model/failover.js';
 import { liftRetainedParts, projectHistory, providerOf } from '../model/projector.js';
 import {
@@ -104,6 +105,14 @@ export interface AgentResult<T> {
    * differs from the requested spec only under transport failover.
    */
   servedBy: ModelRef;
+  /**
+   * Present only when the call spanned MORE THAN ONE serving model (the
+   * loop, extract, finalize, and summarize roles resolve independently):
+   * usage split per model, so `costUsd` and every cost bucket price each
+   * slice at its own rate. Absent for a single-model call, which
+   * (usage, servedBy) already describes exactly.
+   */
+  usageByModel?: UsageSlice[];
   transcriptRef: string;
   artifacts?: Artifact[];
   error?: AgentError;
@@ -637,6 +646,14 @@ export async function runAgent<S extends SchemaSpec>(
 
   const messages: Msg[] = [{ role: 'user', parts: [{ type: 'text', text: options.prompt }] }];
   let totalUsage: Usage = ZERO_USAGE;
+  // Usage split by the model that actually served it. The loop, extract,
+  // finalize, and summarize phases resolve independently, so one agent
+  // call routinely spans models at different prices; pricing the whole
+  // call at the loop's servedBy bills the cheap extract at the loop
+  // model's rate. The budget already debits per serving model (see
+  // recordUsage); this is the same fact, kept for the cost report and
+  // the journal.
+  const usageByModel = new Map<ModelRef, Usage>();
   let turns = 0;
   let schemaAttempts = 0;
   let output: Out<S> | null = null;
@@ -676,8 +693,37 @@ export async function runAgent<S extends SchemaSpec>(
     // Points restore verbatim: the history is already compact, so a
     // resumed run never re-summarizes it (M4-T03).
     compactionPoints.push(...restored.compaction);
-    options.budget?.onUsage(restored.usage, servedBy);
+    // A checkpoint written before the split shipped carries only the
+    // aggregate: attribute it to the loop model, exactly as before.
+    const restoredSlices = restored.usageByModel ?? [{ servedBy, usage: restored.usage }];
+    for (const slice of restoredSlices) {
+      usageByModel.set(
+        slice.servedBy,
+        addUsage(usageByModel.get(slice.servedBy) ?? ZERO_USAGE, slice.usage),
+      );
+      options.budget?.onUsage(slice.usage, slice.servedBy);
+    }
   }
+
+  const usageSlices = (): UsageSlice[] =>
+    [...usageByModel].map(([sliceServedBy, usage]) => ({ servedBy: sliceServedBy, usage }));
+
+  /**
+   * Every slice priced at ITS OWN model's rate. An unpriced model
+   * contributes zero here and surfaces through CostReport.unpriced, never
+   * as a silent zero.
+   */
+  const priceRecordedUsage = (): number => {
+    const price = options.priceUsd;
+    if (price === undefined) {
+      return 0;
+    }
+    let usd = 0;
+    for (const [sliceServedBy, usage] of usageByModel) {
+      usd += price(sliceServedBy, usage) ?? 0;
+    }
+    return usd;
+  };
 
   const saveBoundary = async (pending?: PendingToolTurn): Promise<void> => {
     if (options.checkpoint === undefined) {
@@ -688,6 +734,7 @@ export async function runAgent<S extends SchemaSpec>(
       messages: [...messages],
       turns,
       usage: totalUsage,
+      usageByModel: usageSlices(),
       toolCallsUsed,
       schemaAttempts,
       compaction: [...compactionPoints],
@@ -820,7 +867,7 @@ export async function runAgent<S extends SchemaSpec>(
           continue;
         }
         const request = validation.value as EscalationRequest;
-        const spentSoFar = options.priceUsd?.(servedBy, totalUsage) ?? 0;
+        const spentSoFar = priceRecordedUsage();
         if (countsAgainstLimit(request.kind) && spentSoFar < options.escalation.minSpendUsd) {
           // Early scope_bigger escalation below minSpend: a bounded
           // "keep working" re-prompt; exempt kinds pass through
@@ -963,6 +1010,7 @@ export async function runAgent<S extends SchemaSpec>(
       invariantViolation = thrown instanceof Error ? thrown.message : String(thrown);
     }
     totalUsage = addUsage(totalUsage, usage);
+    usageByModel.set(ref, addUsage(usageByModel.get(ref) ?? ZERO_USAGE, usage));
     // Mid-stream deltas already reached the budget through streamTurn's
     // onUsage; report only the remainder so nothing double-counts.
     const remainder: Usage = {
@@ -1696,7 +1744,7 @@ export async function runAgent<S extends SchemaSpec>(
     await options.transcript.put(transcriptRef, blob);
   }
 
-  const costUsd = options.priceUsd?.(servedBy, totalUsage) ?? 0;
+  const costUsd = priceRecordedUsage();
   const result: AgentResult<Out<S>> = {
     status,
     output: status === 'ok' ? output : (output ?? null),
@@ -1706,6 +1754,12 @@ export async function runAgent<S extends SchemaSpec>(
     servedBy,
     transcriptRef,
   };
+  // Carried only when the call genuinely spanned models: a single-model
+  // call is already described exactly by (usage, servedBy), and keeping
+  // the field absent leaves those journals byte-identical to before.
+  if (usageByModel.size > 1) {
+    result.usageByModel = usageSlices();
+  }
   if (agentError !== undefined) {
     result.error = agentError;
   }

@@ -31,3 +31,4 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-transcriptref"></a> `transcriptRef` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-turns"></a> `turns` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-usage"></a> `usage` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | - | `packages/core/dist/index.d.ts` |
+| <a id="property-usagebymodel"></a> `usageByModel?` | [`UsageSlice`](/api/@rulvar/rulvar/interfaces/UsageSlice.md)[] | Present only when the call spanned MORE THAN ONE serving model (the loop, extract, finalize, and summarize roles resolve independently): usage split per model, so `costUsd` and every cost bucket price each slice at its own rate. Absent for a single-model call, which (usage, servedBy) already describes exactly. | `packages/core/dist/index.d.ts` |
