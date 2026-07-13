@@ -192,9 +192,15 @@ export function scanJournalCompatibility(
         entrySeq: entry.seq,
         entryHashVersion: entry.hashVersion,
         supportedRange: { min, max },
+        // Name the MECHANISM, never a symbol. The old hint interpolated
+        // the version into an export name ("enable deriverV0"), and
+        // @rulvar/compat has no such export: it ships deriverV0Synthetic.
+        // A dead end is worse than no hint, and a fabricated symbol goes
+        // stale the moment a profile is named anything else.
         hint: tooNew
           ? 'upgrade rulvar'
-          : `enable deriverV${entry.hashVersion} from @rulvar/compat via extraDerivers`,
+          : `register a hashVersion ${entry.hashVersion} KeyDeriver through ` +
+            'createEngine({ extraDerivers }); @rulvar/compat ships the frozen profiles',
       },
     );
   }

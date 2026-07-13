@@ -48,7 +48,7 @@ describe('error taxonomy (M1-T02)', () => {
         entrySeq: 4,
         entryHashVersion: 0,
         supportedRange: { min: 1, max: 2 },
-        hint: 'enable deriverV0 from @rulvar/compat',
+        hint: 'register a hashVersion 0 KeyDeriver through createEngine({ extraDerivers })',
       }),
       code: 'journal_compat',
       retryable: false,
