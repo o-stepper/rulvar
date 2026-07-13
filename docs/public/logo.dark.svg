@@ -2,10 +2,10 @@
 <svg xmlns="http://www.w3.org/2000/svg"
      viewBox="0 0 1254 1254"
      role="img"
-     aria-label="Rulvar symbol"
-     color="#171819"
+     aria-label="Rulvar symbol, dark theme"
+     color="#F6F7F8"
      shape-rendering="geometricPrecision">
-  <title>Rulvar symbol</title>
+  <title>Rulvar symbol, dark theme</title>
   <g fill="none" stroke="currentColor" stroke-width="48" stroke-linecap="butt" stroke-linejoin="round">
     <path d="M613 247 C596 247 584 251 569 260 L329 406 C311 417 302 436 302 457 V595"/>
     <path d="M641 247 C658 247 670 251 685 260 L925 406 C943 417 952 436 952 457 V595"/>

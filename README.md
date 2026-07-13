@@ -1,3 +1,12 @@
+<p align="center">
+  <a href="https://rulvar.com">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/public/logo.dark.svg">
+      <img src="docs/public/logo.svg" alt="rulvar logo" width="96" height="96">
+    </picture>
+  </a>
+</p>
+
 # rulvar
 
 [![npm](https://img.shields.io/npm/v/%40rulvar%2Frulvar)](https://www.npmjs.com/package/@rulvar/rulvar)

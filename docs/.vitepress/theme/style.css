@@ -1,138 +1,423 @@
 /* =============================================================
-   rulvar documentation - VitePress theme overrides
+   rulvar documentation, VitePress theme overrides
 
-   Palette is sourced from the landing-page CSS at
-   https://rulvar.com so the docs feel like one continuous site.
-   The accent is the ledger blue of the landing page (#0b62d6),
-   with #6ea8ff as its lighter hover companion.
+   The design mirrors the rulvar.com landing page (its styles.css
+   is the source of truth): warm paper surfaces, near black ink,
+   a rust accent on light surfaces, an acid green accent on dark
+   ink surfaces, hairline borders, square corners, uppercase mono
+   micro labels, and a serif voice for select accents.
+
+   Landing tokens mirrored here:
+     paper #f3f1eb, panel #eae8e2, code panel #eae8e1
+     ink #101419, soft ink #3e454c, muted #747a7e
+     dark #0b1018, dark panel #111923
+     rust #c85b3e (deep #9b3f29), acid #c7f36a, white #f8f8f5
    ============================================================= */
 
 :root {
-  /* Brand (ledger blue - matches the landing accent) */
-  --vp-c-brand-1: #6ea8ff;
-  --vp-c-brand-2: #2f7de1;
-  --vp-c-brand-3: #0b62d6;
-  --vp-c-brand-soft: rgba(11, 98, 214, 0.22);
+  /* Brand: rust, the landing accent for light surfaces */
+  --vp-c-brand-1: #9b3f29;
+  --vp-c-brand-2: #c85b3e;
+  --vp-c-brand-3: #c85b3e;
+  --vp-c-brand-soft: rgba(200, 91, 62, 0.14);
 
-  /* Notes / tips / warnings - keep the accent on the cool side */
-  --vp-c-note-1: var(--vp-c-brand-1);
-
-  /* Typography */
+  /* Typography: the landing stacks; VitePress bundles Inter */
   --vp-font-family-base:
-    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
+    'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --vp-font-family-mono:
-    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas,
-    'Liberation Mono', 'Courier New', monospace;
+    'SFMono-Regular', ui-monospace, Consolas, 'Liberation Mono', Menlo, monospace;
+  --rulvar-serif: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
 
   /* Layout */
-  --vp-layout-max-width: 1440px;
+  --vp-layout-max-width: 1400px;
+  --vp-nav-logo-height: 30px;
 
-  /* Home page hero gradient (cool blue wash on deep navy) */
-  --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: linear-gradient(120deg, #6ea8ff 30%, #0b62d6);
-  --vp-home-hero-image-background-image: linear-gradient(
-    -45deg,
-    rgba(11, 98, 214, 0.45) 50%,
-    rgba(110, 168, 255, 0.18) 50%
-  );
-  --vp-home-hero-image-filter: blur(72px);
+  /* Home hero: solid ink type, no gradient wash, no glow */
+  --vp-home-hero-name-color: var(--vp-c-text-1);
+  --vp-home-hero-name-background: transparent;
+  --vp-home-hero-image-background-image: none;
+  --vp-home-hero-image-filter: none;
 }
 
-/* ---------- Dark theme - deep navy surfaces ---------- */
-.dark {
-  /* Surface */
-  --vp-c-bg: #0b0e14;
-  --vp-c-bg-alt: #151a24;
-  --vp-c-bg-elv: #1a1f2b;
-  --vp-c-bg-soft: #151a24;
-
-  /* Borders */
-  --vp-c-border: #232a38;
-  --vp-c-divider: #1c2230;
-  --vp-c-gutter: #0e1219;
-
-  /* Text */
-  --vp-c-text-1: #f0f2f5;
-  --vp-c-text-2: #b6bcc8;
-  --vp-c-text-3: #7b8494;
-
-  /* Custom blocks (tip/info/warning/danger) anchored to the accent */
-  --vp-c-tip-1: var(--vp-c-brand-1);
-  --vp-c-tip-2: var(--vp-c-brand-2);
-  --vp-c-tip-3: var(--vp-c-brand-3);
-  --vp-c-tip-soft: var(--vp-c-brand-soft);
-
-  /* Code blocks */
-  --vp-code-block-bg: #151a24;
-  --vp-code-bg: rgba(11, 98, 214, 0.14);
-  --vp-code-color: #6ea8ff;
-
-  /* Buttons */
-  --vp-button-brand-bg: var(--vp-c-brand-3);
-  --vp-button-brand-hover-bg: var(--vp-c-brand-2);
-  --vp-button-brand-active-bg: #0a4fae;
-  --vp-button-brand-text: #ffffff;
-  --vp-button-brand-hover-text: #ffffff;
-  --vp-button-brand-active-text: #ffffff;
-  --vp-button-brand-border: var(--vp-c-brand-3);
-  --vp-button-brand-hover-border: var(--vp-c-brand-2);
-  --vp-button-brand-active-border: #0a4fae;
-
-  /* Selection */
-  --vp-c-selection-bg: rgba(11, 98, 214, 0.45);
-}
-
-/* ---------- Light theme - kept legible but with the same cool accent ---------- */
+/* ---------- Light theme: the paper page of the landing ---------- */
 :root:not(.dark) {
-  --vp-c-bg: #fafafa;
-  --vp-c-bg-alt: #f0f2f5;
-  --vp-c-bg-elv: #ffffff;
-  --vp-c-bg-soft: #f0f2f5;
-  --vp-c-text-1: #14181f;
-  --vp-c-text-2: #4b5261;
-  --vp-c-text-3: #7b8494;
-  --vp-c-border: #e2e5ea;
-  --vp-c-divider: #e6e9ef;
+  --vp-c-bg: #f3f1eb;
+  --vp-c-bg-alt: #eae8e2;
+  --vp-c-bg-elv: #f8f8f5;
+  --vp-c-bg-soft: #eae8e2;
+
+  --vp-c-border: rgba(16, 20, 25, 0.3);
+  --vp-c-divider: rgba(16, 20, 25, 0.16);
+  --vp-c-gutter: rgba(16, 20, 25, 0.16);
+
+  --vp-c-text-1: #101419;
+  --vp-c-text-2: #3e454c;
+  --vp-c-text-3: #747a7e;
+
+  --vp-nav-bg-color: rgba(243, 241, 235, 0.92);
+  --vp-sidebar-bg-color: #f3f1eb;
+
+  --vp-c-default-1: #3e454c;
+  --vp-c-default-2: #747a7e;
+  --vp-c-default-3: #747a7e;
+  --vp-c-default-soft: rgba(16, 20, 25, 0.07);
+
+  --vp-c-tip-1: #51754c;
+  --vp-c-tip-2: #5d8753;
+  --vp-c-tip-3: #5d8753;
+  --vp-c-tip-soft: rgba(93, 135, 83, 0.15);
+
+  --vp-c-warning-1: #8a6220;
+  --vp-c-warning-2: #a1752c;
+  --vp-c-warning-3: #a1752c;
+  --vp-c-warning-soft: rgba(161, 117, 44, 0.15);
+
+  --vp-c-danger-1: #9b3f29;
+  --vp-c-danger-2: #c85b3e;
+  --vp-c-danger-3: #c85b3e;
+  --vp-c-danger-soft: rgba(200, 91, 62, 0.14);
+
+  --vp-c-important-1: #6b4ea0;
+  --vp-c-important-2: #6b4ea0;
+  --vp-c-important-3: #6b4ea0;
+  --vp-c-important-soft: rgba(107, 78, 160, 0.14);
+
+  /* Code: the warm code window panel of the landing */
+  --vp-code-block-bg: #eae8e1;
+  --vp-code-bg: rgba(16, 20, 25, 0.06);
+  --vp-code-color: #9b3f29;
+  --vp-code-lang-color: #747a7e;
+
+  /* Buttons: dark ink primary, hairline outline secondary */
+  --vp-button-brand-bg: #0b1018;
+  --vp-button-brand-text: #f8f8f5;
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-hover-bg: #202833;
+  --vp-button-brand-hover-text: #f8f8f5;
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-active-bg: #0b1018;
+  --vp-button-brand-active-text: #f8f8f5;
+  --vp-button-brand-active-border: transparent;
+
+  --vp-button-alt-bg: transparent;
+  --vp-button-alt-text: #101419;
+  --vp-button-alt-border: rgba(16, 20, 25, 0.3);
+  --vp-button-alt-hover-bg: rgba(16, 20, 25, 0.05);
+  --vp-button-alt-hover-text: #101419;
+  --vp-button-alt-hover-border: #101419;
+  --vp-button-alt-active-bg: rgba(16, 20, 25, 0.08);
+  --vp-button-alt-active-text: #101419;
+  --vp-button-alt-active-border: #101419;
+}
+
+/* ---------- Dark theme: the ink sections of the landing ---------- */
+.dark {
+  --vp-c-bg: #0b1018;
+  --vp-c-bg-alt: #111923;
+  --vp-c-bg-elv: #131c28;
+  --vp-c-bg-soft: #111923;
+
+  --vp-c-border: rgba(255, 255, 255, 0.2);
+  --vp-c-divider: rgba(255, 255, 255, 0.11);
+  --vp-c-gutter: #05080d;
+
+  --vp-c-text-1: #f8f8f5;
+  --vp-c-text-2: #a9b0b6;
+  --vp-c-text-3: #767e86;
+
+  --vp-nav-bg-color: rgba(11, 16, 24, 0.92);
+  --vp-sidebar-bg-color: #0b1018;
+
+  /* Brand: acid, the landing accent for dark surfaces */
+  --vp-c-brand-1: #c7f36a;
+  --vp-c-brand-2: #d3f78a;
+  --vp-c-brand-3: #c7f36a;
+  --vp-c-brand-soft: rgba(199, 243, 106, 0.12);
+
+  --vp-c-default-1: #a9b0b6;
+  --vp-c-default-2: #767e86;
+  --vp-c-default-3: #767e86;
+  --vp-c-default-soft: rgba(255, 255, 255, 0.08);
+
+  --vp-c-tip-1: #c7f36a;
+  --vp-c-tip-2: #d3f78a;
+  --vp-c-tip-3: #c7f36a;
+  --vp-c-tip-soft: rgba(199, 243, 106, 0.12);
+
+  --vp-c-warning-1: #e3b95e;
+  --vp-c-warning-2: #e3b95e;
+  --vp-c-warning-3: #e3b95e;
+  --vp-c-warning-soft: rgba(227, 185, 94, 0.14);
+
+  --vp-c-danger-1: #eb8a6c;
+  --vp-c-danger-2: #c85b3e;
+  --vp-c-danger-3: #c85b3e;
+  --vp-c-danger-soft: rgba(200, 91, 62, 0.18);
+
+  --vp-c-important-1: #b79ae0;
+  --vp-c-important-2: #b79ae0;
+  --vp-c-important-3: #b79ae0;
+  --vp-c-important-soft: rgba(150, 120, 200, 0.16);
+
+  --vp-code-block-bg: #111923;
+  --vp-code-bg: rgba(255, 255, 255, 0.08);
+  --vp-code-color: #ccd0d6;
+  --vp-code-lang-color: #767e86;
+
+  /* Buttons: acid primary on ink, like the selected landing tab */
+  --vp-button-brand-bg: #c7f36a;
+  --vp-button-brand-text: #0b1018;
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-hover-bg: #d3f78a;
+  --vp-button-brand-hover-text: #0b1018;
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-active-bg: #b9ec54;
+  --vp-button-brand-active-text: #0b1018;
+  --vp-button-brand-active-border: transparent;
+
+  --vp-button-alt-bg: transparent;
+  --vp-button-alt-text: #f8f8f5;
+  --vp-button-alt-border: rgba(255, 255, 255, 0.24);
+  --vp-button-alt-hover-bg: rgba(255, 255, 255, 0.05);
+  --vp-button-alt-hover-text: #f8f8f5;
+  --vp-button-alt-hover-border: rgba(255, 255, 255, 0.6);
+  --vp-button-alt-active-bg: rgba(255, 255, 255, 0.08);
+  --vp-button-alt-active-text: #f8f8f5;
+  --vp-button-alt-active-border: rgba(255, 255, 255, 0.6);
+}
+
+/* ---------- Paper grain: the fixed dot film of the landing ---------- */
+body::before {
+  content: '';
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.3;
+  background-image: radial-gradient(rgba(16, 20, 25, 0.11) 0.45px, transparent 0.55px);
+  background-size: 4px 4px;
+}
+
+/* ---------- Selection and focus: acid and rust, as on the landing ---------- */
+::selection {
+  color: #0b1018;
+  background: #c7f36a;
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid #c85b3e;
+  outline-offset: 4px;
+}
+
+.dark a:focus-visible,
+.dark button:focus-visible {
+  outline-color: #c7f36a;
 }
 
 /* ---------- Scrollbar tint ---------- */
 .dark html {
-  scrollbar-color: #262e3d var(--vp-c-bg);
+  scrollbar-color: #232b36 var(--vp-c-bg);
 }
 
-/* ---------- Nav - site title: base accent by default, lighter on hover ---------- */
+/* ---------- Nav: ink wordmark, blurred paper bar ---------- */
+.VPNavBar {
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
 .VPNavBarTitle .title {
-  color: var(--vp-c-brand-2);
+  color: var(--vp-c-text-1);
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.04em;
 }
 
-.VPNavBarTitle .title:hover {
-  color: var(--vp-c-brand-1);
+.VPNavBarMenuLink.VPNavBarMenuLink {
+  font-size: 13px;
+  font-weight: 550;
 }
 
-/* ---------- Hero polish ---------- */
+/* ---------- Search: square corners, hairline border ---------- */
+.DocSearch-Button {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 2px;
+}
+
+.DocSearch-Button:hover {
+  border-color: var(--vp-c-border);
+  background: var(--vp-c-bg-alt);
+}
+
+/* ---------- Sidebar and outline: uppercase mono kickers ---------- */
+.VPSidebarItem.level-0 > .item > .text {
+  color: var(--vp-c-text-2);
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.VPDocAsideOutline .outline-title {
+  color: var(--vp-c-text-2);
+  font-family: var(--vp-font-family-mono);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* ---------- Headings: tight editorial tracking ---------- */
+.vp-doc h1 {
+  font-weight: 560;
+  letter-spacing: -0.045em;
+}
+
+.vp-doc h2 {
+  font-weight: 550;
+  letter-spacing: -0.03em;
+}
+
+.vp-doc h3,
+.vp-doc h4 {
+  font-weight: 550;
+  letter-spacing: -0.02em;
+}
+
+/* ---------- Hero ---------- */
 .VPHero .name,
 .VPHero .text {
-  letter-spacing: -0.02em;
+  font-weight: 560;
+  letter-spacing: -0.05em;
+  line-height: 1.02;
 }
 
 .VPHero .tagline {
   color: var(--vp-c-text-2);
+  font-family: var(--rulvar-serif);
+  letter-spacing: -0.01em;
 }
 
-/* ---------- Inline framework-version pill ---------- */
+/* ---------- Buttons: square, with the landing hover lift ---------- */
+/* Doubled classes match the specificity of the scoped component styles,
+   so these later rules win the cascade. */
+.VPButton.VPButton {
+  font-weight: 620;
+  transition:
+    transform 180ms ease,
+    color 0.25s,
+    background-color 0.25s,
+    border-color 0.25s;
+}
+
+.VPButton.VPButton.medium,
+.VPButton.VPButton.big {
+  border-radius: 2px;
+}
+
+.VPButton.VPButton:hover {
+  transform: translateY(-2px);
+}
+
+/* ---------- Home features: the invariant grid cells ---------- */
+.VPFeatures .VPFeature {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.22);
+  transition: background 250ms ease;
+}
+
+.VPFeatures .VPFeature:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.dark .VPFeatures .VPFeature {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dark .VPFeatures .VPFeature:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.VPFeature .title {
+  font-family: var(--rulvar-serif);
+  font-size: 21px;
+  font-weight: 450;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.VPFeature .details {
+  color: var(--vp-c-text-2);
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+
+/* ---------- Custom blocks: square, hairline ---------- */
+.vp-doc .custom-block {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0;
+}
+
+/* ---------- Code blocks: square panels, mono micro labels ---------- */
+.vp-doc div[class*='language-'] {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0;
+}
+
+.vp-doc [class*='language-'] code {
+  line-height: 1.6;
+}
+
+.vp-doc [class*='language-'] > span.lang {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---------- Tables: mono uppercase headers, hairline rows ---------- */
+.vp-doc th {
+  color: var(--vp-c-text-2);
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ---------- Blockquotes: the serif voice ---------- */
+.vp-doc blockquote {
+  border-left: 2px solid var(--vp-c-brand-2);
+  color: var(--vp-c-text-2);
+  font-family: var(--rulvar-serif);
+  font-size: 17px;
+}
+
+.vp-doc blockquote > p {
+  font-size: inherit;
+}
+
+/* ---------- Pager: square cards ---------- */
+.pager-link.pager-link {
+  border-radius: 0;
+}
+
+/* ---------- Inline framework version pill ---------- */
 .framework-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.25rem 0.65rem;
-  border-radius: 999px;
-  background: var(--vp-c-brand-soft);
-  color: var(--vp-c-brand-1);
+  padding: 7px 11px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0;
+  background: transparent;
+  color: var(--vp-c-text-2);
   font-family: var(--vp-font-family-mono);
-  font-size: 0.78em;
-  font-weight: 600;
-  border: 1px solid rgba(11, 98, 214, 0.4);
+  font-size: 10px;
+  font-weight: 550;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -141,16 +426,23 @@
   height: 6px;
   border-radius: 999px;
   background: var(--vp-c-brand-2);
-  box-shadow: 0 0 12px rgba(110, 168, 255, 0.65);
+  box-shadow: 0 0 0 4px var(--vp-c-brand-soft);
 }
 
-/* ---------- Mermaid block - match navy surface ---------- */
+/* ---------- Mermaid: an ink terminal panel on any page ---------- */
 .rulvar-mermaid {
-  background: var(--vp-c-bg-alt);
-  border: 1px solid var(--vp-c-border);
-  border-radius: 12px;
-  padding: 1rem 1.25rem 1.35rem;
+  margin: 20px 0 28px;
+  padding: 1.25rem 1.4rem 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0;
+  background: #0b1018;
   overflow: visible;
+}
+
+:root:not(.dark) .rulvar-mermaid {
+  margin-right: 18px;
+  margin-bottom: 36px;
+  box-shadow: 18px 18px 0 rgba(16, 20, 25, 0.09);
 }
 
 .rulvar-mermaid svg {
@@ -162,17 +454,31 @@
   overflow: visible;
 }
 
-/* ---------- Footer - small caps, muted ---------- */
-.VPFooter {
-  border-top: 1px solid var(--vp-c-border);
-  background: var(--vp-c-bg-alt);
+/* ---------- Footer: the ink footer of the landing, in both themes ---------- */
+.VPFooter.VPFooter {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0b1018;
 }
 
-/* ---------- Code blocks: gentler corners, slightly tighter line height ---------- */
-.vp-doc div[class*='language-'] {
-  border-radius: 12px;
+.VPFooter .message,
+.VPFooter .copyright {
+  color: rgba(255, 255, 255, 0.5);
+  font-family: var(--vp-font-family-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  line-height: 2;
+  text-transform: uppercase;
 }
 
-.vp-doc div[class*='language-'] code {
-  line-height: 1.55;
+.VPFooter .message a,
+.VPFooter .copyright a {
+  color: rgba(255, 255, 255, 0.82);
+  text-decoration: none;
+  transition: opacity 180ms ease;
+}
+
+.VPFooter .message a:hover,
+.VPFooter .copyright a:hover {
+  opacity: 0.56;
+  text-decoration: none;
 }

@@ -37,7 +37,6 @@ const baseConfig = defineConfig({
   // on a real broken link.
   ignoreDeadLinks: [/^\/api\//, /_media\//, /\/README$/, /\/LICENSE$/, 'localhostLinks'],
   metaChunk: true,
-  appearance: 'dark',
   srcDir: '.',
   srcExclude: ['README.md', 'node_modules/**'],
   outDir: '.vitepress/dist',
@@ -46,8 +45,8 @@ const baseConfig = defineConfig({
   head: [
     ['link', { rel: 'icon', href: '/logo.svg', type: 'image/svg+xml' }],
     ['meta', { name: 'author', content: 'Oleksiy Stepurenko' }],
-    ['meta', { name: 'theme-color', content: '#0b62d6' }],
-    ['meta', { name: 'color-scheme', content: 'dark' }],
+    ['meta', { name: 'theme-color', content: '#f3f1eb' }],
+    ['meta', { name: 'color-scheme', content: 'light dark' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'rulvar' }],
     ['meta', { property: 'og:url', content: SITE_URL }],
@@ -60,7 +59,11 @@ const baseConfig = defineConfig({
           'An embeddable TypeScript engine for durable, budget-bounded, testable multi-agent LLM workflows.',
       },
     ],
+    ['meta', { property: 'og:image', content: `${HOME_URL}/public/og.png` }],
+    ['meta', { property: 'og:image:width', content: '1200' }],
+    ['meta', { property: 'og:image:height', content: '630' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:image', content: `${HOME_URL}/public/og.png` }],
     ['meta', { name: 'twitter:title', content: 'rulvar documentation' }],
     [
       'meta',
@@ -77,7 +80,7 @@ const baseConfig = defineConfig({
   },
 
   markdown: {
-    theme: { light: 'github-light', dark: 'github-dark-dimmed' },
+    theme: { light: 'vitesse-light', dark: 'vitesse-dark' },
     lineNumbers: false,
     codeTransformers: [transformerTwoslash()],
     languages: ['ts', 'tsx', 'js', 'jsx', 'bash', 'json', 'yaml', 'md', 'mermaid'],
@@ -86,7 +89,7 @@ const baseConfig = defineConfig({
 
   themeConfig: {
     siteTitle: 'rulvar',
-    logo: { src: '/logo.svg', alt: 'rulvar' },
+    logo: { light: '/logo.svg', dark: '/logo.dark.svg', alt: 'rulvar' },
 
     nav,
     sidebar,
@@ -147,15 +150,15 @@ export default withMermaid({
   mermaid: {
     theme: 'dark',
     themeVariables: {
-      primaryColor: '#1a1f2b',
-      primaryTextColor: '#e6e9ef',
-      primaryBorderColor: '#232a38',
-      lineColor: '#6b7484',
-      secondaryColor: '#151a24',
-      tertiaryColor: '#0b0e14',
-      mainBkg: '#151a24',
-      nodeTextColor: '#e6e9ef',
-      edgeLabelBackground: '#0b0e14',
+      primaryColor: '#111923',
+      primaryTextColor: '#f8f8f5',
+      primaryBorderColor: '#2e3844',
+      lineColor: '#5b636e',
+      secondaryColor: '#0e1520',
+      tertiaryColor: '#0b1018',
+      mainBkg: '#111923',
+      nodeTextColor: '#f8f8f5',
+      edgeLabelBackground: '#0b1018',
     },
   },
   mermaidPlugin: {
