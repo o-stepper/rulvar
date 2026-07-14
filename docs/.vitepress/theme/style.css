@@ -299,36 +299,91 @@ button:focus-visible {
   letter-spacing: -0.01em;
 }
 
-/* ---------- Home hero symbol: a mounted print plate ----------
-   The landing mark sits on a square, hairline-framed plate carrying the
-   hard print-offset shadow of the diagram panels, so it reads as a
-   mounted print rather than a floating glyph. Rust top edge on paper,
-   acid top edge on ink. The extra .image-container class outspecifies the
-   scoped VitePress defaults (.image-bg / .image-src are 0,2,0); sizes are
-   mobile-first and stay inside the hero container at every breakpoint
-   (320, then 392, then flexible). */
+/* Home hero symbol: a print proof sheet.
+   The mark is printed as misregistered separations: a rust pass and an
+   acid pass sit slightly out of register behind the ink pass, the way a
+   risograph proof drifts. The sheet carries the trade dress of a proof:
+   crop marks outside the corners, a palette strip, a faint grid, and a
+   mono plate legend. Hovering the sheet pulls the separations into
+   register, the invariant the engine sells: replay converges to the
+   recorded state. The separations are cut from /logo.svg with a CSS
+   mask, so no extra artwork exists. The extra .image-container class
+   outspecifies the scoped VitePress defaults (.image-bg and .image-src
+   rules are 0,2,0); sizes track the hero container breakpoints and stay
+   inside it at every width. */
 .VPHero .image-container .image-bg {
   width: 236px;
   height: 236px;
-  border-radius: 0;
   border: 1px solid var(--vp-c-border);
-  border-top: 3px solid var(--vp-c-brand-2);
-  background: var(--vp-c-bg-elv);
+  border-radius: 0;
+  background:
+    linear-gradient(#101419, #101419) 12px 12px / 7px 7px no-repeat,
+    linear-gradient(#c85b3e, #c85b3e) 23px 12px / 7px 7px no-repeat,
+    linear-gradient(#c7f36a, #c7f36a) 34px 12px / 7px 7px no-repeat,
+    repeating-linear-gradient(90deg, rgba(16, 20, 25, 0.05) 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(0deg, rgba(16, 20, 25, 0.05) 0 1px, transparent 1px 26px);
+  background-color: var(--vp-c-bg-elv);
   box-shadow: 13px 13px 0 rgba(16, 20, 25, 0.09);
 }
 
+/* Crop marks, just outside the sheet corners. */
+.VPHero .image-container .image-bg::before {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  pointer-events: none;
+  color: rgba(16, 20, 25, 0.5);
+  background:
+    linear-gradient(currentColor, currentColor) left 0 top 13px / 10px 1px no-repeat,
+    linear-gradient(currentColor, currentColor) left 13px top 0 / 1px 10px no-repeat,
+    linear-gradient(currentColor, currentColor) right 0 top 13px / 10px 1px no-repeat,
+    linear-gradient(currentColor, currentColor) right 13px top 0 / 1px 10px no-repeat,
+    linear-gradient(currentColor, currentColor) left 0 bottom 13px / 10px 1px no-repeat,
+    linear-gradient(currentColor, currentColor) left 13px bottom 0 / 1px 10px no-repeat,
+    linear-gradient(currentColor, currentColor) right 0 bottom 13px / 10px 1px no-repeat,
+    linear-gradient(currentColor, currentColor) right 13px bottom 0 / 1px 10px no-repeat;
+}
+
+/* The plate legend. */
+.VPHero .image-container .image-bg::after {
+  content: 'PROOF · REGISTERS ON REPLAY';
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--vp-c-text-3);
+  font-family: var(--vp-font-family-mono);
+  font-size: 8px;
+  font-weight: 550;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+}
+
+/* The ink pass: the real logo, above the separations. */
 .VPHero .image-container .image-src {
-  max-width: 172px;
-  max-height: 172px;
+  z-index: 2;
+  width: 172px;
+  height: 172px;
+  max-width: none;
+  max-height: none;
 }
 
 .dark .VPHero .image-container .image-bg {
   border-color: rgba(255, 255, 255, 0.14);
-  border-top-color: #c7f36a;
-  background: var(--vp-c-bg-alt);
+  background:
+    linear-gradient(#f8f8f5, #f8f8f5) 12px 12px / 7px 7px no-repeat,
+    linear-gradient(#c85b3e, #c85b3e) 23px 12px / 7px 7px no-repeat,
+    linear-gradient(#c7f36a, #c7f36a) 34px 12px / 7px 7px no-repeat,
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 26px);
+  background-color: var(--vp-c-bg-alt);
   box-shadow:
     0 0 0 1px rgba(199, 243, 106, 0.09),
     0 24px 58px rgba(0, 0, 0, 0.55);
+}
+
+.dark .VPHero .image-container .image-bg::before {
+  color: rgba(248, 248, 245, 0.4);
 }
 
 @media (min-width: 640px) {
@@ -337,9 +392,13 @@ button:focus-visible {
     height: 316px;
     box-shadow: 18px 18px 0 rgba(16, 20, 25, 0.09);
   }
+  .VPHero .image-container .image-bg::after {
+    bottom: 11px;
+    font-size: 9px;
+  }
   .VPHero .image-container .image-src {
-    max-width: 232px;
-    max-height: 232px;
+    width: 232px;
+    height: 232px;
   }
 }
 
@@ -350,8 +409,8 @@ button:focus-visible {
     box-shadow: 20px 20px 0 rgba(16, 20, 25, 0.09);
   }
   .VPHero .image-container .image-src {
-    max-width: 280px;
-    max-height: 280px;
+    width: 280px;
+    height: 280px;
   }
 }
 
@@ -361,9 +420,107 @@ button:focus-visible {
     height: 428px;
     box-shadow: 24px 24px 0 rgba(16, 20, 25, 0.09);
   }
+  .VPHero .image-container .image-bg::after {
+    bottom: 13px;
+  }
   .VPHero .image-container .image-src {
-    max-width: 330px;
-    max-height: 330px;
+    width: 330px;
+    height: 330px;
+  }
+}
+
+/* The misregistered separations, cut from the mark itself. Browsers
+   without mask support skip this block and keep the clean sheet. */
+@supports ((-webkit-mask-image: url('/logo.svg')) or (mask-image: url('/logo.svg'))) {
+  .VPHero .image-container::before,
+  .VPHero .image-container::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 1;
+    width: 172px;
+    height: 172px;
+    pointer-events: none;
+    -webkit-mask: url('/logo.svg') center / 100% 100% no-repeat;
+    mask: url('/logo.svg') center / 100% 100% no-repeat;
+  }
+
+  .VPHero .image-container::before {
+    background-color: #c85b3e;
+    opacity: 0.85;
+    transform: translate(calc(-50% + 5px), calc(-50% + 5px));
+  }
+
+  .VPHero .image-container::after {
+    background-color: #c7f36a;
+    opacity: 0.5;
+    transform: translate(calc(-50% - 4px), calc(-50% - 4px));
+  }
+
+  .dark .VPHero .image-container::before {
+    opacity: 0.8;
+  }
+
+  .dark .VPHero .image-container::after {
+    opacity: 0.75;
+  }
+
+  .VPHero .image-container:hover::before,
+  .VPHero .image-container:hover::after {
+    opacity: 0;
+    transform: translate(-50%, -50%);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .VPHero .image-container::before,
+    .VPHero .image-container::after {
+      transition:
+        transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1),
+        opacity 0.55s cubic-bezier(0.22, 0.61, 0.36, 1);
+    }
+  }
+
+  @media (min-width: 640px) {
+    .VPHero .image-container::before,
+    .VPHero .image-container::after {
+      width: 232px;
+      height: 232px;
+    }
+    .VPHero .image-container::before {
+      transform: translate(calc(-50% + 6px), calc(-50% + 6px));
+    }
+    .VPHero .image-container::after {
+      transform: translate(calc(-50% - 5px), calc(-50% - 5px));
+    }
+  }
+
+  @media (min-width: 960px) {
+    .VPHero .image-container::before,
+    .VPHero .image-container::after {
+      width: 280px;
+      height: 280px;
+    }
+    .VPHero .image-container::before {
+      transform: translate(calc(-50% + 7px), calc(-50% + 7px));
+    }
+    .VPHero .image-container::after {
+      transform: translate(calc(-50% - 5px), calc(-50% - 5px));
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .VPHero .image-container::before,
+    .VPHero .image-container::after {
+      width: 330px;
+      height: 330px;
+    }
+    .VPHero .image-container::before {
+      transform: translate(calc(-50% + 8px), calc(-50% + 8px));
+    }
+    .VPHero .image-container::after {
+      transform: translate(calc(-50% - 6px), calc(-50% - 6px));
+    }
   }
 }
 
