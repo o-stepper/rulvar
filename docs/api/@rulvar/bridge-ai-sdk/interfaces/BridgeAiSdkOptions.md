@@ -1,15 +1,15 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/bridge-ai-sdk](/api/@rulvar/bridge-ai-sdk/index.md) / BridgeAiSdkOptions
+[Rulvar API reference](/api/index.md) / [@rulvar/bridge-ai-sdk](/api/@rulvar/bridge-ai-sdk/index.md) / BridgeAiSdkOptions
 
 # Interface: BridgeAiSdkOptions
 
 Defined in: [packages/bridge-ai-sdk/src/bridge.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/bridge-ai-sdk/src/bridge.ts#L102)
 
 @rulvar/bridge-ai-sdk: wraps any Vercel AI SDK LanguageModelV4 as a
-rulvar ProviderAdapter (https://docs.rulvar.com/guide/providers).
+Rulvar ProviderAdapter (https://docs.rulvar.com/guide/providers).
 Documented as the highest-churn package of the
 set: it tracks the @ai-sdk/provider major line and its provider-major
 bumps are the most likely driver of post-1.0 BREAKING majors.

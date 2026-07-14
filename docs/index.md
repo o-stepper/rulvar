@@ -1,22 +1,22 @@
 ---
 layout: home
-title: rulvar documentation
+title: Rulvar documentation
 titleTemplate: Guides, examples, and API reference
 
 hero:
-  name: rulvar
+  name: Rulvar
   text: An embeddable TypeScript engine for multi-agent LLM workflows.
   tagline: "Durable by construction: a completed LLM call is never paid for twice. Three orchestration modes on one runtime, one journal, one budget path. Hard dollar ceilings, vendor-neutral provider adapters, VCR cassettes for hermetic tests, and ModelKnowledge that remembers which models work in your project. No server, no database, no control plane."
   image:
     light: /logo.svg
     dark: /logo.dark.svg
-    alt: rulvar
+    alt: Rulvar
   actions:
     - theme: brand
       text: Get started
       link: /guide/quickstart
     - theme: alt
-      text: What is rulvar?
+      text: What is Rulvar?
       link: /guide/
     - theme: alt
       text: View on GitHub

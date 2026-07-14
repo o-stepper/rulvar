@@ -1,11 +1,11 @@
 ---
 title: Durability and resume
-description: "How rulvar runs survive crashes, restarts, and machine moves: resume semantics, suspended entries, journaled deadlines, turn checkpoints, and at-least-once dispatch that never pays twice."
+description: "How Rulvar runs survive crashes, restarts, and machine moves: resume semantics, suspended entries, journaled deadlines, turn checkpoints, and at-least-once dispatch that never pays twice."
 ---
 
 # Durability and resume
 
-A rulvar process is disposable. Every effectful operation a run performs is appended to the [journal](/guide/journal) through a pluggable store, so the process can die at any instant, on any machine, and the run loses at most the work that was in flight. Resuming re-executes your workflow body from the top; every call that already completed is served from the journal instead of a provider, and only the genuinely unfinished work runs live. That is the never-pay-twice invariant, and everything on this page is a consequence of it.
+A Rulvar process is disposable. Every effectful operation a run performs is appended to the [journal](/guide/journal) through a pluggable store, so the process can die at any instant, on any machine, and the run loses at most the work that was in flight. Resuming re-executes your workflow body from the top; every call that already completed is served from the journal instead of a provider, and only the genuinely unfinished work runs live. That is the never-pay-twice invariant, and everything on this page is a consequence of it.
 
 There is no snapshotting, no state machine to persist, and no per-step re-entry of your code. The journal entries plus the transcript blobs are the complete durable state of a run.
 

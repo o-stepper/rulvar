@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/plan](/api/@rulvar/plan/index.md) / DEFAULT\_DROPPED\_REVISION\_LIMIT
+[Rulvar API reference](/api/index.md) / [@rulvar/plan](/api/@rulvar/plan/index.md) / DEFAULT\_DROPPED\_REVISION\_LIMIT
 
 # Variable: DEFAULT\_DROPPED\_REVISION\_LIMIT
 

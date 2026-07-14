@@ -1,4 +1,4 @@
-# rulvar documentation site
+# Rulvar documentation site
 
 This workspace builds the public documentation site published at <https://docs.rulvar.com>. The site is built with [VitePress](https://vitepress.dev), with API reference auto-generated from TypeScript by [TypeDoc](https://typedoc.org), Mermaid diagrams via [`vitepress-plugin-mermaid`](https://github.com/emersonbottero/vitepress-plugin-mermaid), and type-aware code samples via [Twoslash](https://shiki.style/packages/twoslash).
 

@@ -1,5 +1,5 @@
 /**
- * @rulvar/planner: rulvar flagship hybrid mode: plan agent, compileScript,
+ * @rulvar/planner: Rulvar flagship hybrid mode: plan agent, compileScript,
  * WorkerSandboxRunner, self-repair loop
  * (https://docs.rulvar.com/guide/planner). The surface lands across M6.
  */

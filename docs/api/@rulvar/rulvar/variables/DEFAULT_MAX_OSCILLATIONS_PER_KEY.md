@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / DEFAULT\_MAX\_OSCILLATIONS\_PER\_KEY
+[Rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / DEFAULT\_MAX\_OSCILLATIONS\_PER\_KEY
 
 # Variable: DEFAULT\_MAX\_OSCILLATIONS\_PER\_KEY
 

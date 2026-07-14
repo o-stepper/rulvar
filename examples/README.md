@@ -1,4 +1,4 @@
-# rulvar examples
+# Rulvar examples
 
 Runnable reference implementations of the four documented quality
 patterns; the rendered walk-through is

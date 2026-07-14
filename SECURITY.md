@@ -22,7 +22,7 @@ Security fixes land on the latest minor of the current major and are published a
 
 ## What is not a vulnerability
 
-rulvar makes some deliberate non-guarantees. They are design decisions, documented as such, and a report that one of them holds is not a security finding. If you think a non-guarantee is the wrong call, that is a design discussion, and an issue is the right place for it.
+Rulvar makes some deliberate non-guarantees. They are design decisions, documented as such, and a report that one of them holds is not a security finding. If you think a non-guarantee is the wrong call, that is a design discussion, and an issue is the right place for it.
 
 - **The worker sandbox is not a security boundary.** `WorkerSandboxRunner` is a determinism and blast-radius boundary: it curates the global scope so a machine-written script cannot reach `fetch`, `process`, or `import`, and it seeds the clock and the RNG so replay is stable. It does not contain hostile code, and it is not designed to. Containment of what a workflow can actually _do_ comes from the tools you give it, from the permission chain, and from worktree isolation. See [Determinism](https://docs.rulvar.com/guide/determinism).
 - **`readonly` isolation is a declaration, not containment.** It compiles a deny rule against tools that _declare_ `risk: 'write'` or `risk: 'destructive'`. A write-capable tool that declares no risk is not blocked, and tools imported from an MCP server carry no risk unless the host supplies one. See [Tools](https://docs.rulvar.com/guide/tools).

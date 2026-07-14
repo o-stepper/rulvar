@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../index.md)
+[**Rulvar API reference**](../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [eslint-plugin-rulvar](/api/eslint-plugin-rulvar/index.md) / toJsonDiagnostics
+[Rulvar API reference](/api/index.md) / [eslint-plugin-rulvar](/api/eslint-plugin-rulvar/index.md) / toJsonDiagnostics
 
 # Function: toJsonDiagnostics()
 

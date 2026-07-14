@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/store-sqlite](/api/@rulvar/store-sqlite/index.md) / DEFAULT\_LEASE\_TTL\_MS
+[Rulvar API reference](/api/index.md) / [@rulvar/store-sqlite](/api/@rulvar/store-sqlite/index.md) / DEFAULT\_LEASE\_TTL\_MS
 
 # Variable: DEFAULT\_LEASE\_TTL\_MS
 

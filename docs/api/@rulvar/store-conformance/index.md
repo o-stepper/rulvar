@@ -1,19 +1,19 @@
-[**rulvar API reference**](../../index.md)
+[**Rulvar API reference**](../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / @rulvar/store-conformance
+[Rulvar API reference](/api/index.md) / @rulvar/store-conformance
 
 # @rulvar/store-conformance
 
-The executable conformance kit for rulvar store adapters: append
+The executable conformance kit for Rulvar store adapters: append
 atomicity, total per-run order, read-your-writes, payload opacity, lease
 fencing, and golden fold-state fixtures. If you implement a custom
 store, this suite is the contract your implementation must pass. Exports
 `journalStoreConformance`, `leasableStoreConformance`, and
 `registerConformance`.
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).
@@ -39,7 +39,7 @@ pnpm add -D @rulvar/store-conformance
 | Interface | Description |
 | ------ | ------ |
 | [ConformanceCheck](/api/@rulvar/store-conformance/interfaces/ConformanceCheck.md) | One mandatory check; `run` rejects with a descriptive Error on violation. |
-| [ConformanceSuite](/api/@rulvar/store-conformance/interfaces/ConformanceSuite.md) | @rulvar/store-conformance: the executable store conformance kit (M2-T11, DEF-4). A store implementation passes journalStoreConformance (and leasableStoreConformance when it has the lease capability) or it is not a rulvar store; the kit is the executable definition of the storage seam frozen at 1.0. |
+| [ConformanceSuite](/api/@rulvar/store-conformance/interfaces/ConformanceSuite.md) | @rulvar/store-conformance: the executable store conformance kit (M2-T11, DEF-4). A store implementation passes journalStoreConformance (and leasableStoreConformance when it has the lease capability) or it is not a Rulvar store; the kit is the executable definition of the storage seam frozen at 1.0. |
 | [TestRegistrar](/api/@rulvar/store-conformance/interfaces/TestRegistrar.md) | Structural subset of the Vitest/Jest registration API. |
 
 ## Type Aliases
@@ -62,7 +62,7 @@ pnpm add -D @rulvar/store-conformance
 | [foldStateSha256](/api/@rulvar/store-conformance/functions/foldStateSha256.md) | - |
 | [journalStoreConformance](/api/@rulvar/store-conformance/functions/journalStoreConformance.md) | - |
 | [leasableStoreConformance](/api/@rulvar/store-conformance/functions/leasableStoreConformance.md) | - |
-| [makeSuite](/api/@rulvar/store-conformance/functions/makeSuite.md) | @rulvar/store-conformance: the executable store conformance kit (M2-T11, DEF-4). A store implementation passes journalStoreConformance (and leasableStoreConformance when it has the lease capability) or it is not a rulvar store; the kit is the executable definition of the storage seam frozen at 1.0. |
+| [makeSuite](/api/@rulvar/store-conformance/functions/makeSuite.md) | @rulvar/store-conformance: the executable store conformance kit (M2-T11, DEF-4). A store implementation passes journalStoreConformance (and leasableStoreConformance when it has the lease capability) or it is not a Rulvar store; the kit is the executable definition of the storage seam frozen at 1.0. |
 | [materializeFoldState](/api/@rulvar/store-conformance/functions/materializeFoldState.md) | Materializes the observable fold state of a journal: ref-entry classifications (invalid details excluded: validator message wording is not contractual), suspension states, and per-seq abandon coverage. |
-| [registerConformance](/api/@rulvar/store-conformance/functions/registerConformance.md) | @rulvar/store-conformance: the executable store conformance kit (M2-T11, DEF-4). A store implementation passes journalStoreConformance (and leasableStoreConformance when it has the lease capability) or it is not a rulvar store; the kit is the executable definition of the storage seam frozen at 1.0. |
-| [stableStringify](/api/@rulvar/store-conformance/functions/stableStringify.md) | @rulvar/store-conformance: the executable store conformance kit (M2-T11, DEF-4). A store implementation passes journalStoreConformance (and leasableStoreConformance when it has the lease capability) or it is not a rulvar store; the kit is the executable definition of the storage seam frozen at 1.0. |
+| [registerConformance](/api/@rulvar/store-conformance/functions/registerConformance.md) | @rulvar/store-conformance: the executable store conformance kit (M2-T11, DEF-4). A store implementation passes journalStoreConformance (and leasableStoreConformance when it has the lease capability) or it is not a Rulvar store; the kit is the executable definition of the storage seam frozen at 1.0. |
+| [stableStringify](/api/@rulvar/store-conformance/functions/stableStringify.md) | @rulvar/store-conformance: the executable store conformance kit (M2-T11, DEF-4). A store implementation passes journalStoreConformance (and leasableStoreConformance when it has the lease capability) or it is not a Rulvar store; the kit is the executable definition of the storage seam frozen at 1.0. |

@@ -1,5 +1,5 @@
 /**
- * @rulvar/cli: the rulvar shell (https://docs.rulvar.com/guide/cli).
+ * @rulvar/cli: the Rulvar shell (https://docs.rulvar.com/guide/cli).
  * M5 surface: run/resume/runs ls/inspect over the canonical
  * grammar, TUI progress on the event stream, interactive resolution of
  * suspended approvals and externals. plan/kb commands land M6+/M10;

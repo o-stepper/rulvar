@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/testing](/api/@rulvar/testing/index.md) / FAKE\_MODEL\_REF
+[Rulvar API reference](/api/index.md) / [@rulvar/testing](/api/@rulvar/testing/index.md) / FAKE\_MODEL\_REF
 
 # Variable: FAKE\_MODEL\_REF
 

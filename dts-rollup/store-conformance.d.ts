@@ -4,7 +4,7 @@ import { JournalEntry, JournalStore, LeasableStore } from "@rulvar/core";
 /**
 * Conformance kit surface (M2-T11, DEF-4): an executable suite
 * parameterized by a store factory. A store implementation passes or it
-* is not a rulvar store.
+* is not a Rulvar store.
 */
 /** One mandatory check; `run` rejects with a descriptive Error on violation. */
 interface ConformanceCheck {

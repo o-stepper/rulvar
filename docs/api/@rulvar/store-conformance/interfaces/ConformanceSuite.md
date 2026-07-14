@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/store-conformance](/api/@rulvar/store-conformance/index.md) / ConformanceSuite
+[Rulvar API reference](/api/index.md) / [@rulvar/store-conformance](/api/@rulvar/store-conformance/index.md) / ConformanceSuite
 
 # Interface: ConformanceSuite
 
@@ -11,7 +11,7 @@ Defined in: [packages/store-conformance/src/types.ts:14](https://github.com/o-st
 @rulvar/store-conformance: the executable store conformance kit
 (M2-T11, DEF-4). A store implementation passes journalStoreConformance
 (and leasableStoreConformance when it has the lease capability) or it
-is not a rulvar store; the kit is the executable definition of the
+is not a Rulvar store; the kit is the executable definition of the
 storage seam frozen at 1.0.
 
 Usage under Vitest:

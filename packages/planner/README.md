@@ -1,6 +1,6 @@
 # @rulvar/planner
 
-The flagship rulvar hybrid mode: a planner model writes a workflow
+The flagship Rulvar hybrid mode: a planner model writes a workflow
 script against the sanctioned `ctx` dialect; the package lints and
 repairs it from structured diagnostics, compiles it with an import
 allowlist, and executes it deterministically in the worker sandbox with
@@ -11,7 +11,7 @@ The one-line mnemonic against its sibling: `@rulvar/planner` plans
 before the run (it writes the script); `@rulvar/plan` replans during the
 run (it revises the task plan).
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).

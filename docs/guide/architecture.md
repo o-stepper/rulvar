@@ -1,11 +1,11 @@
 ---
 title: Architecture
-description: How rulvar's twelve components compose across seven layers, the dependency rules that keep the core vendor neutral, and the full package map with its dependency graph.
+description: How Rulvar's twelve components compose across seven layers, the dependency rules that keep the core vendor neutral, and the full package map with its dependency graph.
 ---
 
 # Architecture
 
-rulvar is an embeddable engine, not a platform. It lives inside your Node.js application and needs no server, no database, and no control plane; the CLI, HTTP server, and queue worker exist, but as optional shells built strictly on the public API. The engine itself is twelve components arranged in seven layers, and everything they do funnels through one runtime, one journal, and one budget path.
+Rulvar is an embeddable engine, not a platform. It lives inside your Node.js application and needs no server, no database, and no control plane; the CLI, HTTP server, and queue worker exist, but as optional shells built strictly on the public API. The engine itself is twelve components arranged in seven layers, and everything they do funnels through one runtime, one journal, and one budget path.
 
 ## Layered overview
 
@@ -170,7 +170,7 @@ const run = orchestrate(engine, "Triage the open issues and draft fixes", {
 
 ## Package map
 
-rulvar ships as 14 packages. All release in lockstep with identical versions; the sole exemption is `@rulvar/compat`, which is versioned independently. Install commands always use the scoped form, for example `pnpm add @rulvar/core`; the unscoped npm name is not the library. See [Packages](/reference/packages) and [Versioning](/reference/versioning).
+Rulvar ships as 14 packages. All release in lockstep with identical versions; the sole exemption is `@rulvar/compat`, which is versioned independently. Install commands always use the scoped form, for example `pnpm add @rulvar/core`; the unscoped npm name is not the library. See [Packages](/reference/packages) and [Versioning](/reference/versioning).
 
 | Package | Layer | What it ships |
 |---|---|---|
@@ -213,7 +213,7 @@ flowchart BT
     cli -. loaded by the plan command only .-> planner
 ```
 
-Every solid arrow is a declared dependency on core types or the public API. `eslint-plugin-rulvar` depends on nothing in rulvar (ESLint peer only), and `@rulvar/cli` loads `@rulvar/planner` dynamically for the `plan` command alone, so the other commands work without it installed.
+Every solid arrow is a declared dependency on core types or the public API. `eslint-plugin-rulvar` depends on nothing in Rulvar (ESLint peer only), and `@rulvar/cli` loads `@rulvar/planner` dynamically for the `plan` command alone, so the other commands work without it installed.
 
 ::: tip @rulvar/plan versus @rulvar/planner
 The names are close by design; they preserve established vocabulary. `@rulvar/planner` is the flagship hybrid mode: the plan agent that writes scripts, `compileScript`, and the worker sandbox. `@rulvar/plan` is the opt-in extension of the dynamic orchestrator: `planRunner` and the plan-as-typed-data machinery. See [The planner](/guide/planner) and [Adaptive orchestration](/guide/adaptive-orchestration).

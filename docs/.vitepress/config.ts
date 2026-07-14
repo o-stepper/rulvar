@@ -24,8 +24,8 @@ const HOME_URL = 'https://rulvar.com';
 
 const baseConfig = defineConfig({
   lang: 'en-US',
-  title: 'rulvar',
-  titleTemplate: ':title - rulvar',
+  title: 'Rulvar',
+  titleTemplate: ':title - Rulvar',
   description:
     'An embeddable TypeScript engine for multi-agent LLM workflows - durable (a completed LLM call is never paid for twice), budget-bounded, vendor-neutral, observable, and testable. No server, no database, no control plane.',
   cleanUrls: true,
@@ -48,9 +48,9 @@ const baseConfig = defineConfig({
     ['meta', { name: 'theme-color', content: '#f3f1eb' }],
     ['meta', { name: 'color-scheme', content: 'light dark' }],
     ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:site_name', content: 'rulvar' }],
+    ['meta', { property: 'og:site_name', content: 'Rulvar' }],
     ['meta', { property: 'og:url', content: SITE_URL }],
-    ['meta', { property: 'og:title', content: 'rulvar documentation' }],
+    ['meta', { property: 'og:title', content: 'Rulvar documentation' }],
     [
       'meta',
       {
@@ -64,7 +64,7 @@ const baseConfig = defineConfig({
     ['meta', { property: 'og:image:height', content: '630' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:image', content: `${HOME_URL}/public/og.png` }],
-    ['meta', { name: 'twitter:title', content: 'rulvar documentation' }],
+    ['meta', { name: 'twitter:title', content: 'Rulvar documentation' }],
     [
       'meta',
       {
@@ -88,8 +88,8 @@ const baseConfig = defineConfig({
   },
 
   themeConfig: {
-    siteTitle: 'rulvar',
-    logo: { light: '/logo.svg', dark: '/logo.dark.svg', alt: 'rulvar' },
+    siteTitle: 'Rulvar',
+    logo: { light: '/logo.svg', dark: '/logo.dark.svg', alt: 'Rulvar' },
 
     nav,
     sidebar,
@@ -132,7 +132,7 @@ const baseConfig = defineConfig({
     docFooter: { prev: 'Previous page', next: 'Next page' },
 
     footer: {
-      message: `Released under the <a href="${REPO_URL}/blob/main/LICENSE">Apache-2.0 License</a>. rulvar · v${VERSION} · created and maintained by <a href="mailto:step.oleksiy@gmail.com">Oleksiy Stepurenko</a>.`,
+      message: `Released under the <a href="${REPO_URL}/blob/main/LICENSE">Apache-2.0 License</a>. Rulvar · v${VERSION} · created and maintained by <a href="mailto:step.oleksiy@gmail.com">Oleksiy Stepurenko</a>.`,
       copyright: `© 2026 Oleksiy Stepurenko · <a href="${HOME_URL}">rulvar.com</a> · <a href="${REPO_URL}">github.com/o-stepper/rulvar</a>`,
     },
   },

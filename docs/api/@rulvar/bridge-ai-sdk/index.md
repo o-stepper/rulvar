@@ -1,18 +1,18 @@
-[**rulvar API reference**](../../index.md)
+[**Rulvar API reference**](../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / @rulvar/bridge-ai-sdk
+[Rulvar API reference](/api/index.md) / @rulvar/bridge-ai-sdk
 
 # @rulvar/bridge-ai-sdk
 
 Bridge adapter that wraps a Vercel AI SDK `LanguageModelV4` model as a
-rulvar provider adapter, covering the long tail of providers; models on
+Rulvar provider adapter, covering the long tail of providers; models on
 other specification versions are rejected by a runtime check, and the
 package is, by design, the highest-churn one in the project. Exports
 `bridgeAiSdk`.
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).
@@ -39,11 +39,11 @@ Add the AI SDK provider package you are bridging alongside it.
 
 | Interface | Description |
 | ------ | ------ |
-| [BridgeAiSdkOptions](/api/@rulvar/bridge-ai-sdk/interfaces/BridgeAiSdkOptions.md) | @rulvar/bridge-ai-sdk: wraps any Vercel AI SDK LanguageModelV4 as a rulvar ProviderAdapter (https://docs.rulvar.com/guide/providers). Documented as the highest-churn package of the set: it tracks the @ai-sdk/provider major line and its provider-major bumps are the most likely driver of post-1.0 BREAKING majors. |
+| [BridgeAiSdkOptions](/api/@rulvar/bridge-ai-sdk/interfaces/BridgeAiSdkOptions.md) | @rulvar/bridge-ai-sdk: wraps any Vercel AI SDK LanguageModelV4 as a Rulvar ProviderAdapter (https://docs.rulvar.com/guide/providers). Documented as the highest-churn package of the set: it tracks the @ai-sdk/provider major line and its provider-major bumps are the most likely driver of post-1.0 BREAKING majors. |
 
 ## Functions
 
 | Function | Description |
 | ------ | ------ |
-| [aiSdkErrorToWire](/api/@rulvar/bridge-ai-sdk/functions/aiSdkErrorToWire.md) | @rulvar/bridge-ai-sdk: wraps any Vercel AI SDK LanguageModelV4 as a rulvar ProviderAdapter (https://docs.rulvar.com/guide/providers). Documented as the highest-churn package of the set: it tracks the @ai-sdk/provider major line and its provider-major bumps are the most likely driver of post-1.0 BREAKING majors. |
-| [bridgeAiSdk](/api/@rulvar/bridge-ai-sdk/functions/bridgeAiSdk.md) | @rulvar/bridge-ai-sdk: wraps any Vercel AI SDK LanguageModelV4 as a rulvar ProviderAdapter (https://docs.rulvar.com/guide/providers). Documented as the highest-churn package of the set: it tracks the @ai-sdk/provider major line and its provider-major bumps are the most likely driver of post-1.0 BREAKING majors. |
+| [aiSdkErrorToWire](/api/@rulvar/bridge-ai-sdk/functions/aiSdkErrorToWire.md) | @rulvar/bridge-ai-sdk: wraps any Vercel AI SDK LanguageModelV4 as a Rulvar ProviderAdapter (https://docs.rulvar.com/guide/providers). Documented as the highest-churn package of the set: it tracks the @ai-sdk/provider major line and its provider-major bumps are the most likely driver of post-1.0 BREAKING majors. |
+| [bridgeAiSdk](/api/@rulvar/bridge-ai-sdk/functions/bridgeAiSdk.md) | @rulvar/bridge-ai-sdk: wraps any Vercel AI SDK LanguageModelV4 as a Rulvar ProviderAdapter (https://docs.rulvar.com/guide/providers). Documented as the highest-churn package of the set: it tracks the @ai-sdk/provider major line and its provider-major bumps are the most likely driver of post-1.0 BREAKING majors. |

@@ -7,7 +7,7 @@ description: The four quality-pattern recipes shipped in the repository, adversa
 
 Four quality-pattern recipes live in [`examples/src`](https://github.com/o-stepper/rulvar/tree/main/examples/src) inside the repository. Each one is a real `defineWorkflow`, not a snippet, and each doubles as an integration test that runs through the full engine on `FakeAdapter` with zero live calls.
 
-The patterns are **recipes, never engine flags**. rulvar ships no "adversarial" mode, no "judge" mode, no "loop" mode, no "critic" mode. Every pattern below is ordinary prompt-shaped composition over the same `ctx` primitives you already know from [Workflows](/guide/workflows): `ctx.agent`, `ctx.parallel`, `ctx.phase`. That is deliberate. Because the patterns are plain code, they journal, replay, and budget exactly like everything else, and you can bend them to your problem without waiting for a framework release.
+The patterns are **recipes, never engine flags**. Rulvar ships no "adversarial" mode, no "judge" mode, no "loop" mode, no "critic" mode. Every pattern below is ordinary prompt-shaped composition over the same `ctx` primitives you already know from [Workflows](/guide/workflows): `ctx.agent`, `ctx.parallel`, `ctx.phase`. That is deliberate. Because the patterns are plain code, they journal, replay, and budget exactly like everything else, and you can bend them to your problem without waiting for a framework release.
 
 | Pattern | Reach for it when | Shape |
 |---|---|---|

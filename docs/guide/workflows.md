@@ -5,13 +5,13 @@ description: Write durable multi-agent workflows as plain async functions over t
 
 # Workflows and ctx
 
-A rulvar workflow is an ordinary async function `(ctx, args) => result`, registered with `defineWorkflow` and executed by an engine you build with `createEngine`. Every primitive, from spawning agents to fanning out to suspending on human input, is a method of the injected `ctx`. There is no DSL, no graph builder, and no module-level registry: the engine creates a fresh `ctx` per run, so concurrent runs, nested workflows, and test mocking stay safe inside a host application.
+A Rulvar workflow is an ordinary async function `(ctx, args) => result`, registered with `defineWorkflow` and executed by an engine you build with `createEngine`. Every primitive, from spawning agents to fanning out to suspending on human input, is a method of the injected `ctx`. There is no DSL, no graph builder, and no module-level registry: the engine creates a fresh `ctx` per run, so concurrent runs, nested workflows, and test mocking stay safe inside a host application.
 
 Everything a workflow does through `ctx` lands in the journal, the content-addressed log of completed effects. That is what makes workflows durable: a crashed, edited, or suspended run resumes by replaying finished entries instead of paying for them again (the never-pay-twice invariant). This page covers authoring and running workflows; the journal mechanics live in [Journal](/guide/journal) and resume semantics in [Durability](/guide/durability).
 
 ## Quick start
 
-rulvar is ESM only and requires Node 22.12.0 or newer; `@rulvar/store-sqlite` additionally needs Node 22.13 or newer, where its `node:sqlite` driver is flag-free (on 22.12 it requires `--experimental-sqlite`). Install the core, a provider adapter, and a durable store:
+Rulvar is ESM only and requires Node 22.12.0 or newer; `@rulvar/store-sqlite` additionally needs Node 22.13 or newer, where its `node:sqlite` driver is flag-free (on 22.12 it requires `--experimental-sqlite`). Install the core, a provider adapter, and a durable store:
 
 ```bash
 pnpm add @rulvar/core @rulvar/anthropic @rulvar/store-sqlite zod
@@ -356,7 +356,7 @@ The reference quality patterns (adversarial panels, judge panels, loop-until-dry
 
 ## Determinism rules for workflow modules
 
-Resume works because a re-executing body produces the same sequence of scope paths and content keys, so every finished call matches its journal entry. Only the sequence of keys must be stable; rulvar deliberately does not wrap your code in a VM to force this. Two things break it:
+Resume works because a re-executing body produces the same sequence of scope paths and content keys, so every finished call matches its journal entry. Only the sequence of keys must be stable; Rulvar deliberately does not wrap your code in a VM to force this. Two things break it:
 
 1. **Non-deterministic values that reach prompts or control flow.** A bare `Date.now()` in a prompt produces a different content key on every attempt, so resume misses the journal and pays for the call again.
 2. **Effects outside the journal.** A bare `fetch` is invisible to the engine and simply runs again on every resume.

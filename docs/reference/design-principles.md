@@ -1,11 +1,11 @@
 ---
 title: Design principles
-description: The seven hard goals behind rulvar, the concrete mechanism that enforces each one, the design stances, and the features deliberately left out.
+description: The seven hard goals behind Rulvar, the concrete mechanism that enforces each one, the design stances, and the features deliberately left out.
 ---
 
 # Design principles
 
-rulvar is an embeddable TypeScript engine for durable, budget-bounded, testable multi-agent LLM workflows. Its design reduces to seven hard goals, four stances, and a short list of deliberate exclusions. Every goal is backed by a concrete mechanism, not a mission statement, and **if a feature contradicts a principle, the feature loses**.
+Rulvar is an embeddable TypeScript engine for durable, budget-bounded, testable multi-agent LLM workflows. Its design reduces to seven hard goals, four stances, and a short list of deliberate exclusions. Every goal is backed by a concrete mechanism, not a mission statement, and **if a feature contradicts a principle, the feature loses**.
 
 This page explains the reasoning. The user-facing guarantees that fall out of it are cataloged on [Core invariants](/guide/invariants), and the layer diagram lives in [Architecture](/guide/architecture).
 
@@ -77,7 +77,7 @@ Because the modes share one substrate, every guarantee on this page holds identi
 
 ### Embeddability first
 
-rulvar lives inside your application. The core requires no server, no database, and no control plane; the default journal store is in-memory, and durable stores are plain values you pass to `createEngine`. The shells (CLI, HTTP server, queue worker in `@rulvar/cli`) are built strictly on the public APIs, and no lower layer depends on them: anything a shell can do, your host process can do.
+Rulvar lives inside your application. The core requires no server, no database, and no control plane; the default journal store is in-memory, and durable stores are plain values you pass to `createEngine`. The shells (CLI, HTTP server, queue worker in `@rulvar/cli`) are built strictly on the public APIs, and no lower layer depends on them: anything a shell can do, your host process can do.
 
 Embedding forces one hard rule on the adaptive machinery: every guard state has a non-interactive terminating fallback. A run inside a queue worker at 3am has no operator to click a button, so an unanswered approval, a stuck plan, or a guard trip always resolves to a journaled terminating decision rather than a hang. The safe default and the embeddable default coincide by construction.
 
@@ -121,7 +121,7 @@ Four stances shape the API more than any single feature.
 
 ### A library, not a platform
 
-rulvar is a dependency, not a deployment. There are no module-level globals or singletons at any layer: the adapter registry, the workflow registry, and all configuration are per-engine values, so two engines in one process cannot interfere and your dependency injection story stays yours. Workflows are ordinary async TypeScript functions over an injected `ctx`; there is nothing to host, register with, or phone home to.
+Rulvar is a dependency, not a deployment. There are no module-level globals or singletons at any layer: the adapter registry, the workflow registry, and all configuration are per-engine values, so two engines in one process cannot interfere and your dependency injection story stays yours. Workflows are ordinary async TypeScript functions over an injected `ctx`; there is nothing to host, register with, or phone home to.
 
 ### Call-and-return only
 
@@ -137,7 +137,7 @@ The payoff is that a resumed run is the same run. Nothing is re-litigated on res
 
 The three orchestration modes are a closed set. Every proposed fourth mode so far has been one of the existing three wearing a costume, and admitting one would fracture the "one runtime, one journal, one budget path" invariant into a compatibility matrix. The documented default for most workloads is the humblest shape: a phase chain of `ctx.phase` with nested `ctx.workflow`, replanning only between phases over compact artifacts. The dynamic orchestrator and the [plan extension](/guide/adaptive-orchestration) are opt-in tools for wide fan-out that cannot wait for a phase boundary, not the default posture.
 
-## What rulvar deliberately leaves out
+## What Rulvar deliberately leaves out
 
 These are decisions with reasons, not gaps awaiting a release.
 
@@ -167,7 +167,7 @@ These are decisions with reasons, not gaps awaiting a release.
 Principles are only real when they cost something:
 
 - **Changed content is a live call.** There is no workflow-versioning API; identity is the content itself, so editing a prompt re-pays exactly the edited call. Pin volatile prompts with the call's `key` option when the text varies but the identity should not.
-- **Bounded overshoot instead of zero overshoot.** Providers bill severed streams, so rulvar declares the honest bound (one turn per in-flight agent) rather than pretending to a perfect ceiling.
+- **Bounded overshoot instead of zero overshoot.** Providers bill severed streams, so Rulvar declares the honest bound (one turn per in-flight agent) rather than pretending to a perfect ceiling.
 - **Determinism for human scripts is by convention.** Lint rules, dev-mode warnings, and the `ctx.now()/ctx.random()/ctx.uuid()` shims enforce it; a VM was rejected as hostile to embedding. Machine-written scripts get the stricter worker sandbox.
 - **ESM only, Node.js 22.12 or newer.** One module format and a modern floor, over a wider but muddier support matrix.
 

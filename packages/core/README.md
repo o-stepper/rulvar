@@ -1,6 +1,6 @@
 # @rulvar/core
 
-The rulvar engine in one dependency-light package: the L0 contracts and
+The Rulvar engine in one dependency-light package: the L0 contracts and
 SPI interfaces, the journal kernel behind the never-pay-twice invariant,
 the model router with the capability and price registry, the agent
 runtime, the tool system and MCP bus, the `ctx` primitives and run
@@ -10,7 +10,7 @@ adapters plug in from their own packages. Key exports: `createEngine`,
 `defineWorkflow`, `tool`, `mcp`, `orchestrate`, `InMemoryStore`,
 `JsonlFileStore`.
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).

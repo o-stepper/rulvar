@@ -1,13 +1,13 @@
 # @rulvar/store-conformance
 
-The executable conformance kit for rulvar store adapters: append
+The executable conformance kit for Rulvar store adapters: append
 atomicity, total per-run order, read-your-writes, payload opacity, lease
 fencing, and golden fold-state fixtures. If you implement a custom
 store, this suite is the contract your implementation must pass. Exports
 `journalStoreConformance`, `leasableStoreConformance`, and
 `registerConformance`.
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).

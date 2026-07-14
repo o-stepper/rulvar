@@ -5,7 +5,7 @@ description: How to implement a JournalStore, the lease capability, and a Transc
 
 # Writing a store
 
-rulvar persists run truth through a deliberately tiny storage seam, and the seam is frozen: the journal contract has exactly five methods, it has not grown since 1.0, and every mechanism added since (suspensions, abandoned branches, plan revisions, reuse-by-reference) rides ordinary appends plus pure folds over loaded entries. That makes a third-party store a small, finishable project. This page walks you through building one, from the byte contract to a green conformance run and a publishable package.
+Rulvar persists run truth through a deliberately tiny storage seam, and the seam is frozen: the journal contract has exactly five methods, it has not grown since 1.0, and every mechanism added since (suspensions, abandoned branches, plan revisions, reuse-by-reference) rides ordinary appends plus pure folds over loaded entries. That makes a third-party store a small, finishable project. This page walks you through building one, from the byte contract to a green conformance run and a publishable package.
 
 If you have not read [Stores](/guide/stores) yet, start there: it covers the seam from the user's side and the shipped implementations. This page is the author's side. The reference implementation to crib from is `SqliteStore` in [`@rulvar/store-sqlite`](/api/@rulvar/store-sqlite/); the executable definition of correctness is [`@rulvar/store-conformance`](/api/@rulvar/store-conformance/).
 
@@ -75,7 +75,7 @@ That last rule is the entire point. During a leased resume the engine carries th
 
 ## A complete minimal store
 
-The store below is the smallest correct `LeasableStore`: in-memory maps, a JSON round-trip for payload isolation, per-run epoch counters that survive release, and an injectable clock. It passes the full conformance kit, and rulvar's own test suite exercises the same store (the listing differs only in comments and formatting), so it cannot rot unnoticed.
+The store below is the smallest correct `LeasableStore`: in-memory maps, a JSON round-trip for payload isolation, per-run epoch counters that survive release, and an injectable clock. It passes the full conformance kit, and Rulvar's own test suite exercises the same store (the listing differs only in comments and formatting), so it cannot rot unnoticed.
 
 ```ts
 import {
@@ -216,7 +216,7 @@ The same discipline applies: blob contents are engine-internal, so store and ret
 
 ## Certifying with the conformance kit
 
-`@rulvar/store-conformance` is the executable definition of the seam: a store that passes it is a rulvar store, and a store that does not is not. Add it as a dev dependency and wire it into any vitest (or jest) suite:
+`@rulvar/store-conformance` is the executable definition of the seam: a store that passes it is a Rulvar store, and a store that does not is not. Add it as a dev dependency and wire it into any vitest (or jest) suite:
 
 ```bash
 pnpm add -D @rulvar/store-conformance
@@ -294,14 +294,14 @@ If that prints `false`, your store altered a payload somewhere between append an
 A store package should be small and boring. The checklist to hold yours to:
 
 - **Depend only on the public SPI.** Import `JournalStore`, `LeasableStore`, `TranscriptStore`, `Lease`, `LeaseHeldError`, and the entry types from `@rulvar/core`; never reach into internals. Since the imports are types plus one error class, a third-party store should declare `@rulvar/core` as a peer dependency with a wide range, so the host never ends up with two copies of the engine (a single engine instance, no duplicated registries). `@rulvar/store-sqlite` itself ships a regular dependency on `@rulvar/core`, pinned to the matching version by the monorepo's lockstep releases; outside the monorepo, the peer range is the safer default.
-- **Match the platform baseline.** rulvar is ESM only and requires Node 22.12.0 or newer; publish your store the same way.
+- **Match the platform baseline.** Rulvar is ESM only and requires Node 22.12.0 or newer; publish your store the same way.
 - **Round-trip every `RunMeta` field**, the optional ones included: the engine restores a resumed run's budget ceiling from `RunMeta.budgetUsd`, so a store that drops unknown fields silently uncaps resumed runs. Persist the record opaquely (the shipped stores store it as one JSON payload) and the conformance kit's round-trip check stays green as fields are added.
 - **Run the full conformance kit in CI**, on every backend configuration you claim to support, and say so in the README. The kit is the compatibility statement: the seam is frozen, so a store that passes today keeps working across engine versions. Journal-format evolution happens inside payloads via per-entry versioning and is invisible to a correct store, precisely because payloads are opaque (see [Journal compatibility](/guide/journal-compatibility)).
 - **Exercise cross-process fencing** where the backend supports it: two store instances over one database, one acquires, the other's appends must bounce. The `@rulvar/store-sqlite` suite shows the pattern.
 - **Make the lease ttl configurable and documented**, and take an injectable clock (`now`) so lease expiry is testable without wall-clock sleeps.
 - **State the durability model in the README**: what survives a process crash, and which backend primitive makes `acquire` atomic.
 
-Version the package on your backend's terms; rulvar's own release policy is in [Versioning](/reference/versioning).
+Version the package on your backend's terms; Rulvar's own release policy is in [Versioning](/reference/versioning).
 
 ## Where to go next
 

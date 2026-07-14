@@ -1,11 +1,11 @@
 ---
 title: Quickstart
-description: Install rulvar, run a parallel judge panel under a hard dollar ceiling, then resume the run and watch every completed model call replay from the journal for free.
+description: Install Rulvar, run a parallel judge panel under a hard dollar ceiling, then resume the run and watch every completed model call replay from the journal for free.
 ---
 
 # Quickstart
 
-Ten minutes, one file. You will install rulvar, define a workflow that fans out three competing agents and judges their answers, run it under a hard two-dollar ceiling, and then resume the finished run to watch every completed call come back from the journal at zero cost. That last step is the point of the library: a completed LLM call is never paid for twice.
+Ten minutes, one file. You will install Rulvar, define a workflow that fans out three competing agents and judges their answers, run it under a hard two-dollar ceiling, and then resume the finished run to watch every completed call come back from the journal at zero cost. That last step is the point of the library: a completed LLM call is never paid for twice.
 
 ## What you'll build
 
@@ -34,7 +34,7 @@ You need Node.js 22.12.0 or newer, ESM only, and an `ANTHROPIC_API_KEY` (or `OPE
 
 ## Create an engine
 
-Everything in rulvar hangs off an `Engine`: adapters talk to providers, stores make runs durable, and routing decides which model serves which role.
+Everything in Rulvar hangs off an `Engine`: adapters talk to providers, stores make runs durable, and routing decides which model serves which role.
 
 ```ts
 import {

@@ -1,17 +1,17 @@
 ---
 title: Glossary
-description: The canonical vocabulary used throughout the rulvar documentation, grouped by subsystem.
+description: The canonical vocabulary used throughout the Rulvar documentation, grouped by subsystem.
 ---
 
 # Glossary
 
-The canonical vocabulary used throughout the rulvar documentation. These terms are used exactly as defined here on every other page; when a page and this glossary appear to disagree, this glossary wins.
+The canonical vocabulary used throughout the Rulvar documentation. These terms are used exactly as defined here on every other page; when a page and this glossary appear to disagree, this glossary wins.
 
 Terms are grouped by the subsystem they belong to: the [journal](/guide/journal), the [agent runtime](/guide/agents), [adaptive orchestration](/guide/adaptive-orchestration), and the platform surface around them.
 
 ## Journal terms
 
-The journal is rulvar's durability substrate: a content-addressed memoizing log, not an event-sourcing stream. The full mechanics live in the [journal guide](/guide/journal) and the [durability guide](/guide/durability).
+The journal is Rulvar's durability substrate: a content-addressed memoizing log, not an event-sourcing stream. The full mechanics live in the [journal guide](/guide/journal) and the [durability guide](/guide/durability).
 
 | Term | Definition |
 | --- | --- |

@@ -1,6 +1,6 @@
 {
   "$schema": "https://typedoc.org/schema.json",
-  "name": "rulvar API reference",
+  "name": "Rulvar API reference",
   "readme": "none",
   "entryPointStrategy": "packages",
   "entryPoints": [

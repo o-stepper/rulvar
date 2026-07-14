@@ -1,10 +1,10 @@
 # @rulvar/store-sqlite
 
-SQLite journal store implementing the rulvar storage SPI with the lease
+SQLite journal store implementing the Rulvar storage SPI with the lease
 capability and a fencing epoch, on the builtin `node:sqlite` driver; the
 reference implementation for community stores. Exports `SqliteStore`.
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).

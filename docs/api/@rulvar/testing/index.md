@@ -1,18 +1,18 @@
-[**rulvar API reference**](../../index.md)
+[**Rulvar API reference**](../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / @rulvar/testing
+[Rulvar API reference](/api/index.md) / @rulvar/testing
 
 # @rulvar/testing
 
-The rulvar test harness: `createTestEngine` and the deterministic
+The Rulvar test harness: `createTestEngine` and the deterministic
 `FakeAdapter` for fast typed unit tests, VCR cassettes with secret
 redaction, replay-strict runs that fail on any unexpected live call, and
 matchers for Vitest and Jest. Also exports `record`, `replay`, and
 `replayRun`.
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).

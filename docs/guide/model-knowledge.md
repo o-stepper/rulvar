@@ -5,9 +5,9 @@ description: A per-project, append-only knowledge base of model suitability. Ver
 
 # Model knowledge
 
-"Which model is good at this kind of task?" is knowledge, not configuration: it changes when providers ship new snapshots, and it should be learned from evidence rather than declared once and trusted forever. rulvar keeps that knowledge in **ModelKnowledge**: an engine-scoped, per-project, append-only store of schematized claims about the suitability of one triple (model, effort, task class).
+"Which model is good at this kind of task?" is knowledge, not configuration: it changes when providers ship new snapshots, and it should be learned from evidence rather than declared once and trusted forever. Rulvar keeps that knowledge in **ModelKnowledge**: an engine-scoped, per-project, append-only store of schematized claims about the suitability of one triple (model, effort, task class).
 
-ModelKnowledge is the single sanctioned exception to rulvar's ban on memory that crosses runs, and the exception is bounded four ways:
+ModelKnowledge is the single sanctioned exception to Rulvar's ban on memory that crosses runs, and the exception is bounded four ways:
 
 1. **Domain: models only.** A scopeless claim like "model X is strong" is inexpressible; every claim binds a `taskClass`.
 2. **Scope: your project.** The default store is a JSON file in your repository under ordinary git review. Sharing knowledge more widely means explicitly passing a different store.
@@ -102,7 +102,7 @@ A run does not consult the live store whenever it feels like it. The engine read
 kb_pinned { version, hash, cardText }
 ```
 
-The card bytes are embedded in the entry itself. Replay and resume read the journal entry and never touch the live store, so a commit landing mid-run affects only subsequent pins, and replay does not depend on live-store retention. This is the same governing principle as every other dynamic decision in rulvar: decision entries before effects, folds pinned to snapshots. See [Journal](/guide/journal) and [Determinism](/guide/determinism).
+The card bytes are embedded in the entry itself. Replay and resume read the journal entry and never touch the live store, so a commit landing mid-run affects only subsequent pins, and replay does not depend on live-store retention. This is the same governing principle as every other dynamic decision in Rulvar: decision entries before effects, folds pinned to snapshots. See [Journal](/guide/journal) and [Determinism](/guide/determinism).
 
 The pin-time filter keeps only claims that are status `active`, unexpired at the pin instant, and whose subject is reachable through the run's declared ladders after the role-floor filter. Knowledge about models the run cannot spawn never costs card budget.
 

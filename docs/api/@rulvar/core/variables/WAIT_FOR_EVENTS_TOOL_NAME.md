@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / WAIT\_FOR\_EVENTS\_TOOL\_NAME
+[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / WAIT\_FOR\_EVENTS\_TOOL\_NAME
 
 # Variable: WAIT\_FOR\_EVENTS\_TOOL\_NAME
 

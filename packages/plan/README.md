@@ -1,6 +1,6 @@
 # @rulvar/plan
 
-The adaptive orchestration extension for dynamic rulvar runs:
+The adaptive orchestration extension for dynamic Rulvar runs:
 `PlanRunner` treats the task plan as typed, engine-owned data with
 journaled revisions, reuse, escalations, and model ladders. Built
 entirely on the public core API. Exports `planRunner`,
@@ -10,7 +10,7 @@ The one-line mnemonic against its sibling: `@rulvar/planner` plans
 before the run (it writes the script); `@rulvar/plan` replans during the
 run (it revises the task plan).
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).

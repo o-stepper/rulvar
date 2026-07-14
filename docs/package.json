@@ -2,7 +2,7 @@
   "name": "@rulvar/docs",
   "version": "0.0.0",
   "private": true,
-  "description": "Public documentation site for rulvar. Built with VitePress + TypeDoc, deployed to Cloudflare Pages.",
+  "description": "Public documentation site for Rulvar. Built with VitePress + TypeDoc, deployed to Cloudflare Pages.",
   "license": "Apache-2.0",
   "author": "Oleksiy Stepurenko",
   "homepage": "https://docs.rulvar.com",

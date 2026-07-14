@@ -1,6 +1,6 @@
-# rulvar (pointer package)
+# Rulvar (pointer package)
 
-rulvar is an embeddable TypeScript engine for multi-agent LLM workflows:
+Rulvar is an embeddable TypeScript engine for multi-agent LLM workflows:
 durable (a completed LLM call is never paid for twice), budget-bounded
 (immutable per-run dollar ceilings), vendor-neutral (Anthropic, OpenAI,
 OpenAI-compatible endpoints, and a Vercel AI SDK bridge), observable, and

@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/planner](/api/@rulvar/planner/index.md) / SELF\_REPAIR\_GOAL
+[Rulvar API reference](/api/index.md) / [@rulvar/planner](/api/@rulvar/planner/index.md) / SELF\_REPAIR\_GOAL
 
 # Variable: SELF\_REPAIR\_GOAL
 

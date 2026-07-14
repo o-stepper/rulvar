@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../index.md)
+[**Rulvar API reference**](../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / @rulvar/compat
+[Rulvar API reference](/api/index.md) / @rulvar/compat
 
 # @rulvar/compat
 
@@ -16,7 +16,7 @@ at `CURRENT_HASH_VERSION = 2`, so today the package exports only
 the compatibility path end to end; real profiles move in here when they
 retire.
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).

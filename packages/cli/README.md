@@ -1,12 +1,12 @@
 # @rulvar/cli
 
-The rulvar ops shell: the `rulvar` binary (`run`, `resume`, `runs`,
+The Rulvar ops shell: the `rulvar` binary (`run`, `resume`, `runs`,
 `inspect`, `plan`, `kb`), TUI progress, the embeddable HTTP server with
 SSE events and external-input resolution (`createServer`), the queue
 worker over any leasable store (`createWorker`), and the OpenTelemetry
 exporter (`toOtel`).
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).

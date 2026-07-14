@@ -5,7 +5,7 @@ description: Where run truth lives - the five-method journal store SPI, leases w
 
 # Stores
 
-Run truth lives in the [journal](/guide/journal), and the journal lives in a store. Everything else rulvar persists goes through two sibling seams: a `TranscriptStore` for large blobs, and an optional `ModelKnowledgeStore` for cross-run model claims. All three contracts are deliberately tiny. The journal and transcript seams treat your data as opaque bytes: neither parses a payload, interprets an entry kind, or derives state; the kernel derives every fact by folding entries, and those stores just keep them. The knowledge store follows its own discipline, a versioned snapshot with compare-and-swap, described below.
+Run truth lives in the [journal](/guide/journal), and the journal lives in a store. Everything else Rulvar persists goes through two sibling seams: a `TranscriptStore` for large blobs, and an optional `ModelKnowledgeStore` for cross-run model claims. All three contracts are deliberately tiny. The journal and transcript seams treat your data as opaque bytes: neither parses a payload, interprets an entry kind, or derives state; the kernel derives every fact by folding entries, and those stores just keep them. The knowledge store follows its own discipline, a versioned snapshot with compare-and-swap, described below.
 
 | Seam | Holds | Shipped implementations |
 |---|---|---|

@@ -161,7 +161,7 @@ function sectionIndexLines(sections) {
  */
 export function buildArtifacts({ index, api, full }) {
   const llmsTxt = [
-    '# rulvar',
+    '# Rulvar',
     '',
     '> An embeddable TypeScript engine for multi-agent LLM workflows:',
     '> durable (a completed LLM call is never paid for twice),',
@@ -186,7 +186,7 @@ export function buildArtifacts({ index, api, full }) {
   ].join('\n');
 
   const llmsApiTxt = [
-    '# rulvar - API reference index',
+    '# Rulvar - API reference index',
     '',
     '> Index of the generated API reference pages (TypeDoc output for every',
     '> @rulvar package). The short site index lives at /llms.txt.',
@@ -195,7 +195,7 @@ export function buildArtifacts({ index, api, full }) {
   ].join('\n');
 
   const fullChunks = [
-    '# rulvar - full documentation snapshot',
+    '# Rulvar - full documentation snapshot',
     '',
     'This is the auto-generated, machine-readable concatenation of every',
     'public documentation page. It is intended for consumption by AI',

@@ -1,11 +1,11 @@
 ---
 title: Versioning and releases
-description: How rulvar versions and releases - lockstep semver across the fixed group, the @rulvar/compat exemption, the journal support window, changesets-driven changelogs, and provenance-attested publishing.
+description: How Rulvar versions and releases - lockstep semver across the fixed group, the @rulvar/compat exemption, the journal support window, changesets-driven changelogs, and provenance-attested publishing.
 ---
 
 # Versioning and releases
 
-rulvar follows semver with one deliberate simplification: every package releases together under one identical version. There is exactly one exemption, and it exists to protect frozen data. This page explains the policy, what a release contains, and what an upgrade means for your code and for your journals.
+Rulvar follows semver with one deliberate simplification: every package releases together under one identical version. There is exactly one exemption, and it exists to protect frozen data. This page explains the policy, what a release contains, and what an upgrade means for your code and for your journals.
 
 | Line | Current version | Policy |
 |---|---|---|
@@ -14,7 +14,7 @@ rulvar follows semver with one deliberate simplification: every package releases
 
 ## Lockstep semver across the fixed group
 
-Every publishable rulvar package except `@rulvar/compat` belongs to one fixed group and publishes at the identical version, even when a package has no changes of its own in a given release. The group is:
+Every publishable Rulvar package except `@rulvar/compat` belongs to one fixed group and publishes at the identical version, even when a package has no changes of its own in a given release. The group is:
 
 `@rulvar/core`, `@rulvar/plan`, `@rulvar/planner`, `@rulvar/anthropic`, `@rulvar/openai`, `@rulvar/bridge-ai-sdk`, `@rulvar/store-sqlite`, `@rulvar/store-conformance`, `@rulvar/testing`, `@rulvar/evals`, `@rulvar/cli`, the umbrella `@rulvar/rulvar`, and `eslint-plugin-rulvar`.
 
@@ -43,7 +43,7 @@ No real profile has aged out yet at `CURRENT_HASH_VERSION = 2`, so today the pac
 
 Package versions govern the API. Your journals, the durable record of paid work, are governed by a separate number: each journal entry carries a `hashVersion` naming the identity-derivation profile it was written under. The engine reads and resumes entries with `hashVersion` in the window `[CURRENT-1, CURRENT]`, two versions deep. `CURRENT_HASH_VERSION` is 2, and the version 1 and version 2 profiles (`deriverV1`, `deriverV2` in [`@rulvar/core`](/api/@rulvar/core/)) are both in the window and always on.
 
-**This window, not the package version, is the compatibility promise to plan operations against.** Inside it, upgrading rulvar never costs you a journal: replay of an unchanged workflow performs zero live calls, per the never-pay-twice invariant.
+**This window, not the package version, is the compatibility promise to plan operations against.** Inside it, upgrading Rulvar never costs you a journal: replay of an unchanged workflow performs zero live calls, per the never-pay-twice invariant.
 
 The release rules that protect the window:
 
@@ -66,7 +66,7 @@ const engine = createEngine({
 });
 ```
 
-`HASH_VERSION_TOO_NEW` means the journal contains entries from a newer engine (a partial downgrade or a stale worker). Downgrade is unsupported, and this typed refusal is the honest failure mode: upgrade rulvar. The full mechanics, including the load-time scan, queue-mode fencing, and a worked example, live in [Journal compatibility](/guide/journal-compatibility).
+`HASH_VERSION_TOO_NEW` means the journal contains entries from a newer engine (a partial downgrade or a stale worker). Downgrade is unsupported, and this typed refusal is the honest failure mode: upgrade Rulvar. The full mechanics, including the load-time scan, queue-mode fencing, and a worked example, live in [Journal compatibility](/guide/journal-compatibility).
 
 One consequence worth internalizing: there is no offline journal migration tool, by construction. Content keys are hashes, and their preimages are not stored in the journal, so entries cannot be rewritten to a newer profile. The engine instead matches every entry under the entry's own profile, or refuses with the typed error. A silent miss that quietly re-runs (and re-bills) your history is ruled out by design.
 
@@ -98,9 +98,9 @@ Within a release section you will find up to three special headings:
 
 ## Breaking changes and migration notes
 
-Post-1.0, rulvar keeps standard semver:
+Post-1.0, Rulvar keeps standard semver:
 
-- **Major releases** are the only place breaking changes ship: API removals, config renames, changed semantics, and dependency major bumps that surface in rulvar's own types.
+- **Major releases** are the only place breaking changes ship: API removals, config renames, changed semantics, and dependency major bumps that surface in Rulvar's own types.
 - **Minor releases** are additive: new features, new options, widened unions behind defaults, and `hashVersion` bumps (which are additive for anyone inside the window).
 - **Patch releases** are fixes only: no new features, no behavior changes, no schema or identity changes. A patch that changes any journaled byte is misclassified by definition.
 
@@ -114,7 +114,7 @@ The note is written so you can act on it without reading the diff. Where a break
 
 Deprecations follow a fixed lifecycle: a deprecated API is marked with `@deprecated` JSDoc naming its replacement, keeps working for the remainder of the current major, and is removed no earlier than the next major. Deprecation never breaks replay. API lifecycle and journal lifecycle are governed independently: journals written through a deprecated (or even removed) API remain readable for as long as their `hashVersion` is in the support window.
 
-One package deserves a standing caveat: `@rulvar/bridge-ai-sdk` tracks the `@ai-sdk/provider` major line and is documented as the highest-churn package in the group. Provider-interface major bumps are the likeliest driver of future rulvar majors, and they are never smuggled into minors.
+One package deserves a standing caveat: `@rulvar/bridge-ai-sdk` tracks the `@ai-sdk/provider` major line and is documented as the highest-churn package in the group. Provider-interface major bumps are the likeliest driver of future Rulvar majors, and they are never smuggled into minors.
 
 ## Support statement
 
@@ -136,7 +136,7 @@ Each package's page on npmjs.com also shows the provenance badge per version. On
 
 ## Upgrading
 
-rulvar is ESM only and requires Node 22.12.0 or newer; see [Installation](/guide/installation). To upgrade, bump the whole scope together:
+Rulvar is ESM only and requires Node 22.12.0 or newer; see [Installation](/guide/installation). To upgrade, bump the whole scope together:
 
 ```bash
 pnpm up "@rulvar/*@latest" eslint-plugin-rulvar@latest

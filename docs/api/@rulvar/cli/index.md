@@ -1,18 +1,18 @@
-[**rulvar API reference**](../../index.md)
+[**Rulvar API reference**](../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / @rulvar/cli
+[Rulvar API reference](/api/index.md) / @rulvar/cli
 
 # @rulvar/cli
 
-The rulvar ops shell: the `rulvar` binary (`run`, `resume`, `runs`,
+The Rulvar ops shell: the `rulvar` binary (`run`, `resume`, `runs`,
 `inspect`, `plan`, `kb`), TUI progress, the embeddable HTTP server with
 SSE events and external-input resolution (`createServer`), the queue
 worker over any leasable store (`createWorker`), and the OpenTelemetry
 exporter (`toOtel`).
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).
@@ -56,7 +56,7 @@ pnpm exec rulvar --help
 | ------ | ------ |
 | [DEFAULT\_STORE\_DIR](/api/@rulvar/cli/variables/DEFAULT_STORE_DIR.md) | - |
 | [DEFAULT\_WORKER\_TTL\_MS](/api/@rulvar/cli/variables/DEFAULT_WORKER_TTL_MS.md) | Appendix A: the committed reference lease ttl. |
-| [HELP](/api/@rulvar/cli/variables/HELP.md) | @rulvar/cli: the rulvar shell (https://docs.rulvar.com/guide/cli). M5 surface: run/resume/runs ls/inspect over the canonical grammar, TUI progress on the event stream, interactive resolution of suspended approvals and externals. plan/kb commands land M6+/M10; createServer/createWorker land M8; the OTel exporter lands M5-T08. |
+| [HELP](/api/@rulvar/cli/variables/HELP.md) | @rulvar/cli: the Rulvar shell (https://docs.rulvar.com/guide/cli). M5 surface: run/resume/runs ls/inspect over the canonical grammar, TUI progress on the event stream, interactive resolution of suspended approvals and externals. plan/kb commands land M6+/M10; createServer/createWorker land M8; the OTel exporter lands M5-T08. |
 
 ## Functions
 
@@ -75,7 +75,7 @@ pnpm exec rulvar --help
 | [renderEventLine](/api/@rulvar/cli/functions/renderEventLine.md) | Renders one event to a line, or undefined for silent event types. |
 | [reportOutcome](/api/@rulvar/cli/functions/reportOutcome.md) | Renders the settled outcome; returns the process exit code. |
 | [resumeCommand](/api/@rulvar/cli/functions/resumeCommand.md) | - |
-| [runCli](/api/@rulvar/cli/functions/runCli.md) | @rulvar/cli: the rulvar shell (https://docs.rulvar.com/guide/cli). M5 surface: run/resume/runs ls/inspect over the canonical grammar, TUI progress on the event stream, interactive resolution of suspended approvals and externals. plan/kb commands land M6+/M10; createServer/createWorker land M8; the OTel exporter lands M5-T08. |
+| [runCli](/api/@rulvar/cli/functions/runCli.md) | @rulvar/cli: the Rulvar shell (https://docs.rulvar.com/guide/cli). M5 surface: run/resume/runs ls/inspect over the canonical grammar, TUI progress on the event stream, interactive resolution of suspended approvals and externals. plan/kb commands land M6+/M10; createServer/createWorker land M8; the OTel exporter lands M5-T08. |
 | [runCommand](/api/@rulvar/cli/functions/runCommand.md) | - |
 | [runsLsCommand](/api/@rulvar/cli/functions/runsLsCommand.md) | - |
 | [toOtel](/api/@rulvar/cli/functions/toOtel.md) | Exports one settled run's event stream onto a tracer. The run's events are consumed in seq order; span openers start spans, the matching closers end them, and payload-only events attach as span events on the innermost open span. Returns the number of spans created. |

@@ -5,7 +5,7 @@ description: Install the @rulvar/rulvar umbrella package or compose individual @
 
 # Installation
 
-rulvar is published on the npm registry as a set of scoped packages under `@rulvar/*` (Apache-2.0). All packages release in **lockstep** at the same version, currently <!-- version:lockstep -->1.5.2<!-- /version -->; the single exception is `@rulvar/compat`, which is versioned independently so that frozen compatibility profiles never force a release of everything else.
+Rulvar is published on the npm registry as a set of scoped packages under `@rulvar/*` (Apache-2.0). All packages release in **lockstep** at the same version, currently <!-- version:lockstep -->1.5.2<!-- /version -->; the single exception is `@rulvar/compat`, which is versioned independently so that frozen compatibility profiles never force a release of everything else.
 
 ::: tip One line install
 `pnpm add @rulvar/rulvar` gives you everything most applications need: the engine, the Anthropic and OpenAI adapters, the JSONL file store, and the terminal progress renderer, behind one import path.
@@ -14,7 +14,7 @@ rulvar is published on the npm registry as a set of scoped packages under `@rulv
 ## Requirements
 
 - **Node.js 22.12.0 or newer.** Every package declares `engines: { "node": ">=22.12.0" }`. The floor is exactly 22.12.0 because it is the first 22.x release where `require(esm)` works without a flag, which the module format below relies on.
-- **ESM only.** All packages ship `"type": "module"` with no CommonJS artifacts. ESM projects `import` them; CommonJS projects on Node 22.12 or newer can plain `require()` them and receive the same module instance. rulvar deliberately never dual publishes: two module instances of the engine would fork the per engine registries and break content addressed replay identity, so the hazard is removed by construction. Note the scope of that CJS statement: it covers consuming the packages from existing CommonJS code. The runnable examples in these docs (including the [quickstart](/guide/quickstart)) use top-level `await`, so the project that runs them must itself be ESM: set `"type": "module"` in your `package.json` or use `.mts` files.
+- **ESM only.** All packages ship `"type": "module"` with no CommonJS artifacts. ESM projects `import` them; CommonJS projects on Node 22.12 or newer can plain `require()` them and receive the same module instance. Rulvar deliberately never dual publishes: two module instances of the engine would fork the per engine registries and break content addressed replay identity, so the hazard is removed by construction. Note the scope of that CJS statement: it covers consuming the packages from existing CommonJS code. The runnable examples in these docs (including the [quickstart](/guide/quickstart)) use top-level `await`, so the project that runs them must itself be ESM: set `"type": "module"` in your `package.json` or use `.mts` files.
 - **TypeScript recommended.** The API is typed end to end and every package ships rolled up `.d.ts` files; plain JavaScript works, but workflow signatures, tool schemas, and budget options lose their compile time checks. Types resolve through the `exports` map only (there is no legacy `types` field), so set `moduleResolution` to `nodenext`, `node16`, or `bundler` in your `tsconfig.json`.
 
 Any of pnpm, npm, or yarn installs the published packages; the examples below use pnpm first.
@@ -140,7 +140,7 @@ From here, the [Quickstart](/guide/quickstart) takes you from this empty engine 
 
 ## From source
 
-For contributors to rulvar itself:
+For contributors to Rulvar itself:
 
 ```bash
 git clone https://github.com/o-stepper/rulvar.git

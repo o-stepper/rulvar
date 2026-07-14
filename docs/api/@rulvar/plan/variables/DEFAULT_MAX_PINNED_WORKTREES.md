@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/plan](/api/@rulvar/plan/index.md) / DEFAULT\_MAX\_PINNED\_WORKTREES
+[Rulvar API reference](/api/index.md) / [@rulvar/plan](/api/@rulvar/plan/index.md) / DEFAULT\_MAX\_PINNED\_WORKTREES
 
 # Variable: DEFAULT\_MAX\_PINNED\_WORKTREES
 

@@ -1,19 +1,19 @@
-[**rulvar API reference**](../index.md)
+[**Rulvar API reference**](../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / eslint-plugin-rulvar
+[Rulvar API reference](/api/index.md) / eslint-plugin-rulvar
 
 # eslint-plugin-rulvar
 
-Determinism lint rules for rulvar workflow modules: ban bare `Date.now`,
+Determinism lint rules for Rulvar workflow modules: ban bare `Date.now`,
 `Math.random`, `new Date`, `fetch`, and `process.env`, and ban
 `Promise.all` over `ctx` calls, so workflows stay replay-safe. Emits
 structured JSON diagnostics (`toJsonDiagnostics`) that drive the
 planner's self-repair loop, and ships a ready `workflowsConfig` for
 ESLint flat config. Requires ESLint 9 or newer (peer dependency).
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).

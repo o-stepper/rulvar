@@ -1,34 +1,34 @@
 ---
 title: FAQ
-description: Honest answers to the questions rulvar users actually ask, covering comparisons with graph frameworks and workflow engines, storage, budgets, local models, replay, the security posture, runtime support, and licensing.
+description: Honest answers to the questions Rulvar users actually ask, covering comparisons with graph frameworks and workflow engines, storage, budgets, local models, replay, the security posture, runtime support, and licensing.
 ---
 
 # FAQ
 
-## What is rulvar in one sentence?
+## What is Rulvar in one sentence?
 
-rulvar is an embeddable TypeScript library for durable, budget-bounded, testable multi-agent LLM workflows: it lives inside your application, needs no server and no database, and guarantees that a completed LLM call is never paid for twice.
+Rulvar is an embeddable TypeScript library for durable, budget-bounded, testable multi-agent LLM workflows: it lives inside your application, needs no server and no database, and guarantees that a completed LLM call is never paid for twice.
 
-## How is rulvar different from LangGraph?
+## How is Rulvar different from LangGraph?
 
-LangGraph, in common-knowledge terms, builds agent applications as explicit graphs: you declare nodes and edges, and a checkpointer persists state so runs can pause and resume. rulvar makes a different set of bets, and it is worth knowing them before you choose:
+LangGraph, in common-knowledge terms, builds agent applications as explicit graphs: you declare nodes and edges, and a checkpointer persists state so runs can pause and resume. Rulvar makes a different set of bets, and it is worth knowing them before you choose:
 
-- **No graph core.** A rulvar workflow is an ordinary async TypeScript function over an injected `ctx`; there is no node/edge DSL and no YAML, deliberately. See [Workflows](/guide/workflows).
+- **No graph core.** A Rulvar workflow is an ordinary async TypeScript function over an injected `ctx`; there is no node/edge DSL and no YAML, deliberately. See [Workflows](/guide/workflows).
 - **Durability at the LLM-call level.** The [journal](/guide/journal) is a content-addressed memo of completed calls. Resume replays every paid call byte-identically at zero cost, and there is no workflow versioning API: edit the code and resume, unchanged calls replay by content, and inserting one new call costs exactly one live call.
 - **Budget as an invariant.** A run carries an immutable dollar ceiling enforced in [three layers](/guide/budgets), not a callback you remember to wire.
 - **A closed topology.** Exactly three [orchestration modes](/guide/orchestration-modes), all call-and-return.
 
-If you want maximal topological freedom and a large ecosystem of prebuilt integrations, a graph framework may serve you better. rulvar trades that freedom for deterministic replay, exact cost attribution, and [testability](/guide/testing).
+If you want maximal topological freedom and a large ecosystem of prebuilt integrations, a graph framework may serve you better. Rulvar trades that freedom for deterministic replay, exact cost attribution, and [testability](/guide/testing).
 
-## How is rulvar different from Temporal and other workflow engines?
+## How is Rulvar different from Temporal and other workflow engines?
 
-Durable-execution platforms such as Temporal run a server (or hosted cluster) that persists an event-sourced history per workflow, with worker processes re-executing code against it. They are excellent at general-purpose reliability at fleet scale. rulvar solves a narrower problem with a smaller footprint:
+Durable-execution platforms such as Temporal run a server (or hosted cluster) that persists an event-sourced history per workflow, with worker processes re-executing code against it. They are excellent at general-purpose reliability at fleet scale. Rulvar solves a narrower problem with a smaller footprint:
 
 - **Library, not platform.** No server, no control plane, no mandatory database: the engine runs in your process, and the durable option for the journal is plain JSONL files, no daemon. Optional [CLI, server, and queue-worker shells](/guide/cli) exist, built strictly on the public API.
 - **Memoization, not event sourcing.** A journal entry is identified by its structural scope path, a content key over the call itself, and an ordinal. Matching is scoped and forward, so editing a workflow between resumes never invalidates the paid prefix. See [Durability and resume](/guide/durability).
 - **The durability unit is the paid LLM call.** Budget accounting, usage, and replay all hang off the same entries, so "never pay twice" and "never exceed the ceiling" are one mechanism, not two systems to reconcile.
 
-If your problem is fleet-scale durable execution across many services, a workflow engine is the right tool. If your problem is long, expensive, crash-prone LLM work inside an application you already own, rulvar is built for exactly that, and the two are not mutually exclusive.
+If your problem is fleet-scale durable execution across many services, a workflow engine is the right tool. If your problem is long, expensive, crash-prone LLM work inside an application you already own, Rulvar is built for exactly that, and the two are not mutually exclusive.
 
 ## Do I need a database?
 
@@ -120,7 +120,7 @@ Under `dryRun` the first would-be-live call throws a typed `JournalMissError` in
 
 ## Is the worker sandbox a security boundary?
 
-No, and rulvar says so on purpose. The `worker_threads` sandbox that executes planner-written scripts is a determinism and blast-radius boundary: seeded, journaled globals, an import allowlist, and no ambient engine access. It is not hostile-code containment, and you should not feed it code you would not review. Actual effect control lives in the permission chain, the single approval surface every tool call passes through regardless of mode. Subprocess and container executors for genuine containment are declared capabilities whose specification is documented as a plan, not a shipped guarantee. See [Planner](/guide/planner) and [Tools](/guide/tools).
+No, and Rulvar says so on purpose. The `worker_threads` sandbox that executes planner-written scripts is a determinism and blast-radius boundary: seeded, journaled globals, an import allowlist, and no ambient engine access. It is not hostile-code containment, and you should not feed it code you would not review. Actual effect control lives in the permission chain, the single approval surface every tool call passes through regardless of mode. Subprocess and container executors for genuine containment are declared capabilities whose specification is documented as a plan, not a shipped guarantee. See [Planner](/guide/planner) and [Tools](/guide/tools).
 
 ## How do I pin model versions?
 
@@ -132,7 +132,7 @@ await ctx.agent('Classify this ticket.', { model: 'anthropic:claude-sonnet-5' })
 
 Pinning buys replay stability too: the requested model spec (including effort) is part of journal identity, so the same ref replays and a changed ref is a new content key, which means one live call. What pinning cannot fix is a provider silently re-pointing an alias behind an unchanged id; the optional canary fingerprint in the model knowledge layer exists to detect exactly that drift. See [Model routing](/guide/model-routing) and [Model knowledge](/guide/model-knowledge).
 
-## Does rulvar phone home?
+## Does Rulvar phone home?
 
 No. Constructing an engine performs no network calls, and the only outbound traffic a run produces goes to the providers behind adapters you explicitly registered, plus whatever your own tools do. `@rulvar/core` has zero provider SDK dependencies and exactly one external runtime dependency, the official MCP SDK (`@modelcontextprotocol/sdk`), which serves the [MCP bus](/guide/mcp); the JSON Schema mini-validator and the ULID generator are vendored into the package rather than pulled from the registry. There is no telemetry endpoint: the [event stream](/guide/observability) is delivered to your process, and OTel export is opt-in and points at your collector.
 

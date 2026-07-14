@@ -1,7 +1,7 @@
 {
   "name": "@rulvar/store-sqlite",
   "version": "1.5.2",
-  "description": "rulvar SQLite store implementing JournalStore and LeasableStore with a fencing epoch.",
+  "description": "Rulvar SQLite store implementing JournalStore and LeasableStore with a fencing epoch.",
   "type": "module",
   "license": "Apache-2.0",
   "engines": {
