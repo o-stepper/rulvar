@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / EntryRef
+[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / EntryRef
 
 # Type Alias: EntryRef
 

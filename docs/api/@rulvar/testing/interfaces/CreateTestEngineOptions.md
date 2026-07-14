@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/testing](/api/@rulvar/testing/index.md) / CreateTestEngineOptions
+[Rulvar API reference](/api/index.md) / [@rulvar/testing](/api/@rulvar/testing/index.md) / CreateTestEngineOptions
 
 # Interface: CreateTestEngineOptions
 

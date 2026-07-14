@@ -1,19 +1,19 @@
 ---
 title: Journal compatibility
-description: "How journals survive rulvar upgrades: per-entry hashVersion, the KeyDeriver support window, JournalCompatibilityError, and frozen profiles from @rulvar/compat."
+description: "How journals survive Rulvar upgrades: per-entry hashVersion, the KeyDeriver support window, JournalCompatibilityError, and frozen profiles from @rulvar/compat."
 ---
 
 # Journal compatibility
 
-Journals outlive the library that wrote them. A run can sit suspended on an approval for weeks; a queue worker can pick up a journal written by a different deployment; you will upgrade rulvar mid-project with thousands of paid entries on disk. This page explains the mechanism that keeps those journals working: what is versioned, what happens when an old journal meets a new engine, and what you do about it.
+Journals outlive the library that wrote them. A run can sit suspended on an approval for weeks; a queue worker can pick up a journal written by a different deployment; you will upgrade Rulvar mid-project with thousands of paid entries on disk. This page explains the mechanism that keeps those journals working: what is versioned, what happens when an old journal meets a new engine, and what you do about it.
 
 The one-sentence promise: **an entry is always matched under the rules of the version that wrote it, or the engine refuses with a typed error.** There is no third mode. A silent key miss that quietly reruns (and repays) your whole run is excluded by construction.
 
 ## Why upgrades threaten a journal
 
-The [journal](/guide/journal) is content-addressed: each entry's content key is a sha256 over the canonical JSON of the call's identity input. Replay on resume works by deriving the key of each live call and matching it against journaled entries. That makes key derivation itself load-bearing: if a new rulvar release derived keys even slightly differently (a new identity field, a changed schema canonicalization, a different scope-path rule), every pre-upgrade entry would miss, and the entire paid prefix of the run would rerun live. That is exactly the defect the never-pay-twice invariant exists to prevent.
+The [journal](/guide/journal) is content-addressed: each entry's content key is a sha256 over the canonical JSON of the call's identity input. Replay on resume works by deriving the key of each live call and matching it against journaled entries. That makes key derivation itself load-bearing: if a new Rulvar release derived keys even slightly differently (a new identity field, a changed schema canonicalization, a different scope-path rule), every pre-upgrade entry would miss, and the entire paid prefix of the run would rerun live. That is exactly the defect the never-pay-twice invariant exists to prevent.
 
-Offline migration is not an option either: the journal stores hashes, not hash preimages, so old keys cannot be recomputed under new rules. The only honest designs are the two rulvar implements: match each entry under its own version, or refuse loudly.
+Offline migration is not an option either: the journal stores hashes, not hash preimages, so old keys cannot be recomputed under new rules. The only honest designs are the two Rulvar implements: match each entry under its own version, or refuse loudly.
 
 ## hashVersion: one number per entry
 
@@ -30,7 +30,7 @@ Every journal entry carries an integer `hashVersion` field that versions the **e
 | Fold defaults for fields absent in older entries |
 | The kind and status vocabularies the engine must interpret |
 
-Everything in that table changes only together, in one bump. As of rulvar 1.1.0, `CURRENT_HASH_VERSION` is `2`.
+Everything in that table changes only together, in one bump. As of Rulvar 1.1.0, `CURRENT_HASH_VERSION` is `2`.
 
 The rules that follow from per-entry versioning:
 
@@ -119,7 +119,7 @@ class JournalCompatibilityError extends RulvarError {
 | Sub-code | Meaning | Your move |
 |---|---|---|
 | `HASH_VERSION_TOO_OLD` | The journal predates the window. | Add the named frozen profile from `@rulvar/compat` to `extraDerivers` and resume again. |
-| `HASH_VERSION_TOO_NEW` | The journal contains entries from a newer engine (a partial downgrade, or a stale worker). | Upgrade rulvar. Downgrade is unsupported; this refusal is the honest failure mode. |
+| `HASH_VERSION_TOO_NEW` | The journal contains entries from a newer engine (a partial downgrade, or a stale worker). | Upgrade Rulvar. Downgrade is unsupported; this refusal is the honest failure mode. |
 
 The check runs as **one scan immediately after load, strictly before any live call, any append, and any admission budget reserve**, so the refusal is free of side effects: nothing is paid, nothing is written, and the journal is byte-identical afterwards. In queue mode the same check repeats at lease acquire, which (together with the lease's fencing epoch) guarantees a worker running an older library can never write into a journal that already contains newer entries.
 
@@ -155,7 +155,7 @@ A malformed value in `extraDerivers` is a typed `ConfigError`. The deriver regis
 
 Because no real profile has been retired yet, the package currently exports `deriverV0Synthetic`: a synthetic out-of-window profile (hashVersion 0) that exists so the whole path, refusal, hint, `extraDerivers`, and resume, can be exercised and tested today. The refusal's `hint` names the needed profile by version number (`deriverV0`, `deriverV1`, ...), so the named export will exist once a real profile actually retires under that pattern; today only the synthetic `deriverV0Synthetic` ships.
 
-**Why is @rulvar/compat versioned independently?** Every other rulvar package releases in lockstep with identical versions. `@rulvar/compat` is the sole exemption, on purpose: its contents are frozen profiles, and a lockstep force-bump would republish an unchanged frozen profile under a new version number, falsely suggesting the profile changed, which is precisely what a frozen profile must never do. Instead the package releases only when a profile actually moves into it. Keeping retired profiles out of `@rulvar/core` also keeps the core small and embeddable: you pay for history only when you have history.
+**Why is @rulvar/compat versioned independently?** Every other Rulvar package releases in lockstep with identical versions. `@rulvar/compat` is the sole exemption, on purpose: its contents are frozen profiles, and a lockstep force-bump would republish an unchanged frozen profile under a new version number, falsely suggesting the profile changed, which is precisely what a frozen profile must never do. Instead the package releases only when a profile actually moves into it. Keeping retired profiles out of `@rulvar/core` also keeps the core small and embeddable: you pay for history only when you have history.
 
 ## Cross-version reuse: donor-profile projection
 

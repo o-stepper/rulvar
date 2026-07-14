@@ -1,11 +1,11 @@
 ---
 title: Orchestration modes
-description: The three ways to drive a rulvar run, human scripts, planner-written scripts in the worker sandbox, and the dynamic orchestrator agent, all on one runtime, one journal, and one budget path.
+description: The three ways to drive a Rulvar run, human scripts, planner-written scripts in the worker sandbox, and the dynamic orchestrator agent, all on one runtime, one journal, and one budget path.
 ---
 
 # Orchestration modes
 
-rulvar gives you exactly three answers to the question "who decides what runs next": a person, a planner model that writes the whole script once before anything executes, or an orchestrator model that decides live, turn by turn. All three run on the same subagent runtime, write the same journal, and pass through the same three-layer budget. Switching modes changes who authors control flow; it never changes durability, budget enforcement, replay semantics, or observability.
+Rulvar gives you exactly three answers to the question "who decides what runs next": a person, a planner model that writes the whole script once before anything executes, or an orchestrator model that decides live, turn by turn. All three run on the same subagent runtime, write the same journal, and pass through the same three-layer budget. Switching modes changes who authors control flow; it never changes durability, budget enforcement, replay semantics, or observability.
 
 ```bash
 pnpm add @rulvar/core @rulvar/anthropic   # mode (a): human scripts

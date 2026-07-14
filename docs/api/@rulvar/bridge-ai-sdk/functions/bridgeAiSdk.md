@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/bridge-ai-sdk](/api/@rulvar/bridge-ai-sdk/index.md) / bridgeAiSdk
+[Rulvar API reference](/api/index.md) / [@rulvar/bridge-ai-sdk](/api/@rulvar/bridge-ai-sdk/index.md) / bridgeAiSdk
 
 # Function: bridgeAiSdk()
 

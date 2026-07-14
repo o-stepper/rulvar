@@ -1,11 +1,11 @@
 ---
 title: Model routing
-description: How rulvar resolves a model for every invocation through the call, profile, workflow, and engine layers, routes six invocation roles across providers, scrubs capabilities, enforces role quality floors, and prices usage from a versioned price table.
+description: How Rulvar resolves a model for every invocation through the call, profile, workflow, and engine layers, routes six invocation roles across providers, scrubs capabilities, enforces role quality floors, and prices usage from a versioned price table.
 ---
 
 # Model routing
 
-rulvar is **multi-model at every level**. A workflow can default to one provider, an agent profile can override it, a single call can override that, and one agent can send its tool loop, its structured extraction, and its history compaction to three different models from three different providers. The router resolves the model **on every model invocation**, not once per agent, so the answer to "which model runs this?" is always the same layered merge, evaluated fresh at each call site.
+Rulvar is **multi-model at every level**. A workflow can default to one provider, an agent profile can override it, a single call can override that, and one agent can send its tool loop, its structured extraction, and its history compaction to three different models from three different providers. The router resolves the model **on every model invocation**, not once per agent, so the answer to "which model runs this?" is always the same layered merge, evaluated fresh at each call site.
 
 Models are named by `ModelRef`, strictly `'adapterId:model'` with no query parameters: `'anthropic:claude-sonnet-5'`, `'openai:gpt-5.4-mini'`, `'ollama:qwen3:8b'`. Only the first colon splits, so wire ids that contain colons (Ollama tags) work unmodified.
 

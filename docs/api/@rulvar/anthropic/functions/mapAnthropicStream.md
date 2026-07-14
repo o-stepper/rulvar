@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/anthropic](/api/@rulvar/anthropic/index.md) / mapAnthropicStream
+[Rulvar API reference](/api/index.md) / [@rulvar/anthropic](/api/@rulvar/anthropic/index.md) / mapAnthropicStream
 
 # Function: mapAnthropicStream()
 

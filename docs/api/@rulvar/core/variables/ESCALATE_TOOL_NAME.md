@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / ESCALATE\_TOOL\_NAME
+[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / ESCALATE\_TOOL\_NAME
 
 # Variable: ESCALATE\_TOOL\_NAME
 

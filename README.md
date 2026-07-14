@@ -3,11 +3,11 @@
 <a href="https://rulvar.com">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/public/logo.dark.svg">
-    <img src="docs/public/logo.svg" alt="rulvar logo" width="180" height="180">
+    <img src="docs/public/logo.svg" alt="Rulvar logo" width="180" height="180">
   </picture>
 </a>
 
-# rulvar
+# Rulvar
 
 **An embeddable TypeScript engine for durable, budget-bounded multi-agent LLM workflows.**
 
@@ -23,7 +23,7 @@ Your workflow is an ordinary async function. Your infrastructure is a directory 
 files (or SQLite). And through crashes, edits, and redeploys, one invariant holds:
 **a completed LLM call is never paid for twice.** No server, no database, no control plane.
 
-## Why rulvar
+## Why Rulvar
 
 - **Never pay twice.** Every effect is appended to a content-addressed journal. Crash the
   process, add a step, resume: completed calls replay from disk with zero live requests and

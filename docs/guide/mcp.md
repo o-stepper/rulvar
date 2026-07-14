@@ -1,13 +1,13 @@
 ---
 title: MCP
-description: Connect MCP servers as tool sources on the rulvar tool bus, with the same permission chain, journal semantics, and toolset identity as native tools.
+description: Connect MCP servers as tool sources on the Rulvar tool bus, with the same permission chain, journal semantics, and toolset identity as native tools.
 ---
 
 # MCP
 
 `mcp()` in `@rulvar/core` imports a Model Context Protocol server as a `ToolSource` on the tool bus, wrapping [`@modelcontextprotocol/sdk`](https://github.com/modelcontextprotocol/typescript-sdk) (pinned at `^1.29`). Every imported tool becomes an ordinary `ToolDef`: the Agent Runtime dispatches it through the same [permission chain](/guide/tools), records its result in the same canonical history, and hashes its contract into the same `toolsetHash` as a native tool. There is no MCP-specific dispatch channel and nothing for policy to miss.
 
-The bus is consume-only: rulvar connects to MCP servers as a client. It does not serve its own tools or agents over MCP.
+The bus is consume-only: Rulvar connects to MCP servers as a client. It does not serve its own tools or agents over MCP.
 
 ## Transports
 
@@ -71,7 +71,7 @@ const github = mcp({
 
 Two naming rules are enforced for you. Every final tool name (after prefixing) must match `^[a-zA-Z0-9_-]{1,64}$`, else `ConfigError`. And a name collision between two sources in one toolset without a disambiguating `prefix` is a `ConfigError` at spawn time, never a silent shadowing.
 
-MCP servers declare no risk metadata of their own, and rulvar deliberately does not trust a server's self-description for policy. The `risk` map is your trust decision: unlabeled imported tools fall under the undeclared-risk row of every preset, which asks under `strict` and `standard`.
+MCP servers declare no risk metadata of their own, and Rulvar deliberately does not trust a server's self-description for policy. The `risk` map is your trust decision: unlabeled imported tools fall under the undeclared-risk row of every preset, which asks under `strict` and `standard`.
 
 ## One bus for every tool
 
@@ -150,7 +150,7 @@ The three shipped presets compile into the deny and ask layers (never a bypass c
 | (undeclared) | ask | ask | allow |
 
 ::: warning Domain rules are advisory for MCP tools
-Network domain rules (`{ tool, domains }`) are advisory for every tool in the current release, MCP tools included: they never change a verdict, and matches surface in the audit fields on `tool:end` events. rulvar ships no fetch tool today, and there is no enforcement mechanism inside a server you do not control. Do not treat domain rules as containment.
+Network domain rules (`{ tool, domains }`) are advisory for every tool in the current release, MCP tools included: they never change a verdict, and matches surface in the audit fields on `tool:end` events. Rulvar ships no fetch tool today, and there is no enforcement mechanism inside a server you do not control. Do not treat domain rules as containment.
 :::
 
 Every chain evaluation emits audit telemetry on the `tool:end` event: the verdict, the deciding layer, the matched rule, and advisory matches. See [observability](/guide/observability).

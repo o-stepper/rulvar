@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/planner](/api/@rulvar/planner/index.md) / DEFAULT\_SANDBOX\_MEMORY\_MB
+[Rulvar API reference](/api/index.md) / [@rulvar/planner](/api/@rulvar/planner/index.md) / DEFAULT\_SANDBOX\_MEMORY\_MB
 
 # Variable: DEFAULT\_SANDBOX\_MEMORY\_MB
 

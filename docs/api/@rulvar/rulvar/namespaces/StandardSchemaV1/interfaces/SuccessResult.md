@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../../../index.md)
+[**Rulvar API reference**](../../../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / [StandardSchemaV1](/api/@rulvar/rulvar/namespaces/StandardSchemaV1/index.md) / SuccessResult
+[Rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / [StandardSchemaV1](/api/@rulvar/rulvar/namespaces/StandardSchemaV1/index.md) / SuccessResult
 
 # Interface: SuccessResult\&lt;Output\&gt;
 

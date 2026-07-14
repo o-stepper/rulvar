@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/evals](/api/@rulvar/evals/index.md) / SWEEP\_THRESHOLD\_DEFAULTS
+[Rulvar API reference](/api/index.md) / [@rulvar/evals](/api/@rulvar/evals/index.md) / SWEEP\_THRESHOLD\_DEFAULTS
 
 # Variable: SWEEP\_THRESHOLD\_DEFAULTS
 

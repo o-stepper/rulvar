@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/plan](/api/@rulvar/plan/index.md) / LEDGER\_APPEND\_TOOL\_NAME
+[Rulvar API reference](/api/index.md) / [@rulvar/plan](/api/@rulvar/plan/index.md) / LEDGER\_APPEND\_TOOL\_NAME
 
 # Variable: LEDGER\_APPEND\_TOOL\_NAME
 

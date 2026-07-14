@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / DEFAULT\_MAX\_REVISIONS\_PER\_RUN
+[Rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / DEFAULT\_MAX\_REVISIONS\_PER\_RUN
 
 # Variable: DEFAULT\_MAX\_REVISIONS\_PER\_RUN
 

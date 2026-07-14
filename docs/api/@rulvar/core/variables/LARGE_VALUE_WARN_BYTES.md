@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / LARGE\_VALUE\_WARN\_BYTES
+[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / LARGE\_VALUE\_WARN\_BYTES
 
 # Variable: LARGE\_VALUE\_WARN\_BYTES
 

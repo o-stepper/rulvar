@@ -1,13 +1,13 @@
 # @rulvar/rulvar
 
-The batteries-included rulvar install: re-exports the entire
+The batteries-included Rulvar install: re-exports the entire
 `@rulvar/core` surface plus both first-class adapters (`anthropic`,
 `openai`), the terminal progress renderer, and `recommendedDefaults`,
 the only place the project names strong default models for the
 orchestrate and plan roles. Also installable through the unscoped alias
 package `rulvar`, which re-exports this one.
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).

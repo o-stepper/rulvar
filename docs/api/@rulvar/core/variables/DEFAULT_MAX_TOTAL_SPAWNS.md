@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / DEFAULT\_MAX\_TOTAL\_SPAWNS
+[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / DEFAULT\_MAX\_TOTAL\_SPAWNS
 
 # Variable: DEFAULT\_MAX\_TOTAL\_SPAWNS
 

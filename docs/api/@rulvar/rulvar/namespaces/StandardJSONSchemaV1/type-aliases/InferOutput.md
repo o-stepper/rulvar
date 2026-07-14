@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../../../index.md)
+[**Rulvar API reference**](../../../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / [StandardJSONSchemaV1](/api/@rulvar/rulvar/namespaces/StandardJSONSchemaV1/index.md) / InferOutput
+[Rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / [StandardJSONSchemaV1](/api/@rulvar/rulvar/namespaces/StandardJSONSchemaV1/index.md) / InferOutput
 
 # Type Alias: InferOutput\&lt;Schema\&gt;
 

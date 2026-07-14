@@ -1,4 +1,4 @@
-# Contributing to rulvar
+# Contributing to Rulvar
 
 The public documentation site at [docs.rulvar.com](https://docs.rulvar.com)
 is built from `docs/` in this repository. The internal specification set

@@ -1,13 +1,13 @@
 ---
-title: What is rulvar?
+title: What is Rulvar?
 description: An embeddable TypeScript engine for durable, budget-bounded, testable multi-agent LLM workflows that runs entirely inside your application.
 ---
 
-# What is rulvar?
+# What is Rulvar?
 
-> rulvar is an embeddable TypeScript engine for multi-agent LLM workflows: durable, budget-bounded, vendor-neutral, observable, and testable, running entirely inside your own application.
+> Rulvar is an embeddable TypeScript engine for multi-agent LLM workflows: durable, budget-bounded, vendor-neutral, observable, and testable, running entirely inside your own application.
 
-It is intentionally a **library**, not a platform. rulvar lives inside a host application and requires no server, no database, and no control plane. You call `createEngine`, hand it a workflow, and get back a typed handle with a result promise and an event stream. Shells (a CLI, an HTTP server, a queue worker) exist in `@rulvar/cli`, but they are optional and are built strictly on top of the same public APIs you use.
+It is intentionally a **library**, not a platform. Rulvar lives inside a host application and requires no server, no database, and no control plane. You call `createEngine`, hand it a workflow, and get back a typed handle with a result promise and an event stream. Shells (a CLI, an HTTP server, a queue worker) exist in `@rulvar/cli`, but they are optional and are built strictly on top of the same public APIs you use.
 
 The engine owns everything around the model calls that is easy to get wrong and expensive to get wrong twice: remembering completed work across crashes, enforcing a dollar ceiling that nothing can talk past, keeping provider SDKs out of your core logic, and making the whole thing testable without live API keys.
 
@@ -73,7 +73,7 @@ The [Quickstart](/guide/quickstart) builds this out step by step, including stru
 
 ## Three orchestration modes at a glance
 
-rulvar has exactly three ways to decide what work happens, and all three run on one runtime, one journal, and one budget path. There is no fourth mode.
+Rulvar has exactly three ways to decide what work happens, and all three run on one runtime, one journal, and one budget path. There is no fourth mode.
 
 ```mermaid
 flowchart TB
@@ -94,17 +94,17 @@ Because the modes share the journal and the budget path, everything on this page
 
 For most workloads the recommended shape is the simplest one: a phase chain using `ctx.phase` with nested `ctx.workflow` calls, replanning only between phases over compact artifacts with fresh context. The dynamic plan machinery is opt-in and aimed at wide fan-out workloads that cannot wait for a phase boundary. Quality patterns (adversarial panels, judge panels, completeness critics) ship as recipes and prompt templates, never as engine flags. See [Orchestration modes](/guide/orchestration-modes), [The planner](/guide/planner), and [Adaptive orchestration](/guide/adaptive-orchestration).
 
-## What rulvar is not
+## What Rulvar is not
 
 - **Not a platform.** There is no server to deploy, no database to provision, and no control plane to operate. Persistence is a pluggable store; the in-memory and JSONL file stores ship in the core, SQLite in `@rulvar/store-sqlite`. The CLI, HTTP server, and queue worker in `@rulvar/cli` are optional shells over the public API, not a hosted product.
-- **No handoffs, no chat rooms.** The single cross-agent primitive is call-and-return: invoke a specialist, get its result back. Handoffs, chat-room emergence, and blackboard coordination are rejected on principle, because they destroy budget attribution and scope identity. If you want agents that wander a shared conversation, rulvar is the wrong tool.
+- **No handoffs, no chat rooms.** The single cross-agent primitive is call-and-return: invoke a specialist, get its result back. Handoffs, chat-room emergence, and blackboard coordination are rejected on principle, because they destroy budget attribution and scope identity. If you want agents that wander a shared conversation, Rulvar is the wrong tool.
 - **No graph or YAML execution core.** Workflows are TypeScript. Control flow is your `if`, `for`, and `await`, checked by your compiler, not a DSL interpreted by the engine.
 - **No engine-level strategy flags.** Patterns like judge panels or loop-until-done ship as recipes you compose from the primitives, so the engine surface stays small and every behavior stays inspectable in your own code.
 - **No cross-run memory or vector store.** Runs are isolated by design. The one sanctioned exception is [Model knowledge](/guide/model-knowledge), an opt-in, evidence-backed store of model behavior claims used for routing, which is off by default.
 
-## When to choose rulvar
+## When to choose Rulvar
 
-Reach for rulvar when:
+Reach for Rulvar when:
 
 - You are embedding LLM workflows inside an existing TypeScript application and refuse to operate a separate orchestration service.
 - Your workflows are long or expensive enough that a crash, deploy, or retry must not re-bill completed model calls.
@@ -115,8 +115,8 @@ Reach for rulvar when:
 Look elsewhere when:
 
 - You need a single prompt call; a provider SDK alone is simpler.
-- You want open-ended agent societies with emergent communication; rulvar's call-and-return topology forbids that on purpose.
-- You want a hosted, click-ops workflow product; rulvar is a library you ship inside your own software.
+- You want open-ended agent societies with emergent communication; Rulvar's call-and-return topology forbids that on purpose.
+- You want a hosted, click-ops workflow product; Rulvar is a library you ship inside your own software.
 
 ## What's in the box
 
@@ -135,7 +135,7 @@ Look elsewhere when:
 
 ## Status
 
-rulvar is released at **v<!-- version:lockstep -->1.5.2<!-- /version -->** under the **Apache-2.0** license. It requires **Node.js 22.12.0 or newer** and is **ESM only**. All `@rulvar/*` packages version in lockstep, with one exception: `@rulvar/compat`, which carries frozen key-derivation profiles for old journals and is versioned independently. See [Versioning](/reference/versioning) and the [Changelog](/reference/changelog).
+Rulvar is released at **v<!-- version:lockstep -->1.5.2<!-- /version -->** under the **Apache-2.0** license. It requires **Node.js 22.12.0 or newer** and is **ESM only**. All `@rulvar/*` packages version in lockstep, with one exception: `@rulvar/compat`, which carries frozen key-derivation profiles for old journals and is versioned independently. See [Versioning](/reference/versioning) and the [Changelog](/reference/changelog).
 
 ## Where to go next
 

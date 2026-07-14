@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../index.md)
+[**Rulvar API reference**](../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / @rulvar/anthropic
+[Rulvar API reference](/api/index.md) / @rulvar/anthropic
 
 # @rulvar/anthropic
 
@@ -12,7 +12,7 @@ compilation, `pause_turn` continuation, typed refusal outcomes, and
 usage normalization. Exports the `anthropic` adapter factory; models are
 addressed as `'anthropic:<model>'` in routing.
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).

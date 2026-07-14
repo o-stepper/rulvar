@@ -1,11 +1,11 @@
 ---
 title: Agents
-description: How rulvar runs agents, covering profiles, the tool loop and turns, structured output tiers, turn-boundary checkpoints, cross-provider history projection, compaction, approval suspensions, and agent-as-tool composition.
+description: How Rulvar runs agents, covering profiles, the tool loop and turns, structured output tiers, turn-boundary checkpoints, cross-provider history projection, compaction, approval suspensions, and agent-as-tool composition.
 ---
 
 # Agents
 
-An agent in rulvar is a journaled model-plus-tools loop. You spawn one with `ctx.agent(prompt, opts)` inside a [workflow](/guide/workflows), or the dynamic orchestrator spawns one for you through its `spawn_agent` tool. Either way the same Agent Runtime runs the loop: it resolves the model per invocation role, projects the conversation into the target provider's wire view, executes tool calls through the permission chain, checkpoints every turn boundary, and lands a typed result. Every model turn is paid at most once; that is the never-pay-twice invariant, enforced by the [journal](/guide/journal), not by your code.
+An agent in Rulvar is a journaled model-plus-tools loop. You spawn one with `ctx.agent(prompt, opts)` inside a [workflow](/guide/workflows), or the dynamic orchestrator spawns one for you through its `spawn_agent` tool. Either way the same Agent Runtime runs the loop: it resolves the model per invocation role, projects the conversation into the target provider's wire view, executes tool calls through the permission chain, checkpoints every turn boundary, and lands a typed result. Every model turn is paid at most once; that is the never-pay-twice invariant, enforced by the [journal](/guide/journal), not by your code.
 
 ## Defining agents
 
@@ -252,7 +252,7 @@ Approvals never fail open: any resolution that is not an explicit allow is a den
 
 ## Agent-as-tool: the single cross-agent primitive
 
-rulvar has exactly one way for agents to interact: invoke a specialist and return its result. That is agent-as-tool, and it is a load-bearing design decision, not a missing feature. Handoffs, chat rooms, blackboard coordination, and emergent topologies are rejected because they destroy budget attribution (whose sub-account paid for that message?) and scope identity (which call site does this work replay under?).
+Rulvar has exactly one way for agents to interact: invoke a specialist and return its result. That is agent-as-tool, and it is a load-bearing design decision, not a missing feature. Handoffs, chat rooms, blackboard coordination, and emergent topologies are rejected because they destroy budget attribution (whose sub-account paid for that message?) and scope identity (which call site does this work replay under?).
 
 Call-and-return composition takes three shapes, all journaled the same way:
 

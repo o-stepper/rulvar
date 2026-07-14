@@ -17,7 +17,7 @@ const guideSidebar: DefaultTheme.SidebarItem[] = [
     text: 'Introduction',
     collapsed: false,
     items: [
-      { text: 'What is rulvar?', link: '/guide/' },
+      { text: 'What is Rulvar?', link: '/guide/' },
       { text: 'Installation', link: '/guide/installation' },
       { text: 'Quickstart', link: '/guide/quickstart' },
       { text: 'Architecture', link: '/guide/architecture' },
@@ -82,7 +82,7 @@ const guideSidebar: DefaultTheme.SidebarItem[] = [
     ],
   },
   {
-    text: 'Extending rulvar',
+    text: 'Extending Rulvar',
     collapsed: false,
     items: [
       { text: 'Writing a provider adapter', link: '/guide/adapter-authors' },

@@ -1,15 +1,15 @@
 ---
 title: The journal
-description: How rulvar's content-addressed journal identifies effects, replays paid work on resume, and guarantees you never pay for the same call twice.
+description: How Rulvar's content-addressed journal identifies effects, replays paid work on resume, and guarantees you never pay for the same call twice.
 ---
 
 # The journal
 
-The journal is the heart of rulvar: a per-run, append-only, **content-addressed memoizing log of completed effects**. Every effectful operation in a workflow, every LLM call, every journaled step, every suspension and decision, is appended as a journal entry through a pluggable store. On resume, your workflow code runs again from the top; every call whose identity matches a completed entry is served from the journal instead of hitting a provider. That is the never-pay-twice invariant: work that was paid for once is never paid for again.
+The journal is the heart of Rulvar: a per-run, append-only, **content-addressed memoizing log of completed effects**. Every effectful operation in a workflow, every LLM call, every journaled step, every suspension and decision, is appended as a journal entry through a pluggable store. On resume, your workflow code runs again from the top; every call whose identity matches a completed entry is served from the journal instead of hitting a provider. That is the never-pay-twice invariant: work that was paid for once is never paid for again.
 
 ## Not event sourcing
 
-The journal is deliberately not an event-sourcing system. rulvar never reconstructs workflow state from events through reducers or projections, and there is no command/event split to design. Your code is the control flow: it re-executes on every resume, and for each call the journal answers exactly one question: has this exact effect already completed, and what did it produce? Entries record completed effects and journaled decisions, never intentions. Derived views (budget ledger, plan state, resume reports) are pure folds over the entries; they never produce new effects.
+The journal is deliberately not an event-sourcing system. Rulvar never reconstructs workflow state from events through reducers or projections, and there is no command/event split to design. Your code is the control flow: it re-executes on every resume, and for each call the journal answers exactly one question: has this exact effect already completed, and what did it produce? Entries record completed effects and journaled decisions, never intentions. Derived views (budget ledger, plan state, resume reports) are pure folds over the entries; they never produce new effects.
 
 ## Wiring a durable journal
 
@@ -109,7 +109,7 @@ Consequence: you can change retry policy, error handling, or memoization between
 
 ### hashVersion
 
-Every entry carries an integer `hashVersion` that versions the whole identity and replay pipeline as one unit. New entries are always written at the current version, a mixed-version journal is legal, and each entry is matched under its own version's rules, so upgrading rulvar never silently re-keys paid work. See [Journal compatibility](/guide/journal-compatibility) for the support window and the `@rulvar/compat` package.
+Every entry carries an integer `hashVersion` that versions the whole identity and replay pipeline as one unit. New entries are always written at the current version, a mixed-version journal is legal, and each entry is matched under its own version's rules, so upgrading Rulvar never silently re-keys paid work. See [Journal compatibility](/guide/journal-compatibility) for the support window and the `@rulvar/compat` package.
 
 ## What gets journaled
 
@@ -186,7 +186,7 @@ The cursor rules are what make edits cheap:
 
 * A miss does not advance the cursor and does not extinguish later hits. Inserting a new call in the middle of a paid body costs exactly one live call; every neighbor keeps replaying.
 * Deleting a call marks its entry orphaned. Orphans go to the resume report and are never charged again.
-* Completed neighbors are never repaid. There is no global prefix flip: systems that match by position must treat the first divergence as invalidating everything after it; rulvar matches by content within scope, so a change costs exactly the changed call.
+* Completed neighbors are never repaid. There is no global prefix flip: systems that match by position must treat the first divergence as invalidating everything after it; Rulvar matches by content within scope, so a change costs exactly the changed call.
 * There is no workflow-versioning API and no migration ceremony. Changed content means a new key, which means one live call. Edit prompts freely; the journal decides per call.
 
 ### Per-call replay modes

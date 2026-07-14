@@ -161,7 +161,7 @@ The error tells you exactly what happened:
 | `supportedRange` | The `{ min, max }` window this engine reads |
 | `hint` | The suggested fix |
 
-**Fix.** For `HASH_VERSION_TOO_NEW`, the journal was written by a newer rulvar
+**Fix.** For `HASH_VERSION_TOO_NEW`, the journal was written by a newer Rulvar
 than the one trying to read it: upgrade the reading side. Downgrade is
 unsupported by design. For `HASH_VERSION_TOO_OLD`, the journal predates the
 window: install `@rulvar/compat` (`pnpm add @rulvar/compat`) and enable the

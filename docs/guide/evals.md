@@ -1,6 +1,6 @@
 ---
 title: Evals
-description: Quality measurement for rulvar workflows with golden, rubric, and LLM-judge graders that run through the engine itself, config-matrix comparisons, model sweeps that feed ModelKnowledge, and a canary fingerprint that catches silent model drift.
+description: Quality measurement for Rulvar workflows with golden, rubric, and LLM-judge graders that run through the engine itself, config-matrix comparisons, model sweeps that feed ModelKnowledge, and a canary fingerprint that catches silent model drift.
 ---
 
 # Evals

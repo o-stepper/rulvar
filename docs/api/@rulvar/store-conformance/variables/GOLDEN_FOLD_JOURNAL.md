@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/store-conformance](/api/@rulvar/store-conformance/index.md) / GOLDEN\_FOLD\_JOURNAL
+[Rulvar API reference](/api/index.md) / [@rulvar/store-conformance](/api/@rulvar/store-conformance/index.md) / GOLDEN\_FOLD\_JOURNAL
 
 # Variable: GOLDEN\_FOLD\_JOURNAL
 

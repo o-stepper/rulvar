@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / DEFAULT\_MODEL\_RETRY\_ATTEMPTS
+[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / DEFAULT\_MODEL\_RETRY\_ATTEMPTS
 
 # Variable: DEFAULT\_MODEL\_RETRY\_ATTEMPTS
 

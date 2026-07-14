@@ -1,11 +1,11 @@
 ---
 title: Core invariants
-description: The six load-bearing guarantees behind every rulvar run and the mechanism that enforces each one.
+description: The six load-bearing guarantees behind every Rulvar run and the mechanism that enforces each one.
 ---
 
 # Core invariants
 
-Six invariants drive every design decision in rulvar. Each one is a user-facing guarantee backed by a concrete mechanism, not a policy statement. If a proposed feature would contradict an invariant, the feature loses.
+Six invariants drive every design decision in Rulvar. Each one is a user-facing guarantee backed by a concrete mechanism, not a policy statement. If a proposed feature would contradict an invariant, the feature loses.
 
 | Invariant | Mechanism | What it buys you |
 | --- | --- | --- |
@@ -18,7 +18,7 @@ Six invariants drive every design decision in rulvar. Each one is a user-facing 
 
 ## Never pay twice
 
-A completed LLM call is never paid for twice. The journal enforces this: rulvar records every completed effect (agent calls, steps, child workflow calls, random draws) in a content-addressed memoizing log, and on resume serves completed work back instead of re-executing it. Tool turns inside an agent call are not journal entries of their own; they live in the agent's transcript, and turn-boundary checkpoints in the transcript store let an agent interrupted mid-call resume from its last completed turn instead of re-paying earlier turns.
+A completed LLM call is never paid for twice. The journal enforces this: Rulvar records every completed effect (agent calls, steps, child workflow calls, random draws) in a content-addressed memoizing log, and on resume serves completed work back instead of re-executing it. Tool turns inside an agent call are not journal entries of their own; they live in the agent's transcript, and turn-boundary checkpoints in the transcript store let an agent interrupted mid-call resume from its last completed turn instead of re-paying earlier turns.
 
 The journal is not event sourcing. It does not replay your code's history; it memoizes the results of paid work. Entry identity is structural and content based:
 
@@ -96,7 +96,7 @@ Handoffs, chat rooms, blackboard coordination, and emergent topologies are rejec
 - Budget attribution. Every dollar of spend must map to exactly one call site and propagate up a chain of budget accounts to the run ceiling. A handoff has no answer to "who pays for the conversation after the transfer"; a chat room has no answer at all. Call-and-return makes attribution exact by construction.
 - Scope identity. Journal entry identity starts with a structural scope path, and the never-pay-twice guarantee depends on that path being stable across executions. Emergent topologies have no stable call structure, so their work could not be matched on resume and would be paid again.
 
-This is a deliberate trade: rulvar gives up free-form agent societies and in exchange every unit of work has a stable identity, an owner, and a price. See [Agents](/guide/agents) and [Orchestration modes](/guide/orchestration-modes).
+This is a deliberate trade: Rulvar gives up free-form agent societies and in exchange every unit of work has a stable identity, an owner, and a price. See [Agents](/guide/agents) and [Orchestration modes](/guide/orchestration-modes).
 
 ## The three-layer budget
 
@@ -123,7 +123,7 @@ flowchart TD
 
 Three properties make the ceiling a real guarantee:
 
-- Bounded overshoot. Spend beyond the ceiling is bounded by one turn per in-flight agent. No tighter bound is possible, because providers bill aborted streams; rulvar declares the bound instead of pretending it is zero.
+- Bounded overshoot. Spend beyond the ceiling is bounded by one turn per in-flight agent. No tighter bound is possible, because providers bill aborted streams; Rulvar declares the bound instead of pretending it is zero.
 - The ceiling is immutable, for the run's whole life. It is fixed at `engine.run(...)` time, recorded in the run's store metadata, and restored on every resume: `engine.resume` reads back both the pre-crash spend and the ceiling it counts against, and `ResumeOptions` deliberately carries no budget field, so no API can raise the ceiling after start, restarts included, not even a human approval decision. A journal written before the ceiling was recorded (or read through a store that drops optional `RunMeta` fields) resumes uncapped; see [Durability](/guide/durability).
 - Exhaustion is never null. A run that hits its ceiling settles with status `"exhausted"`, partial results where they exist, an itemized list of dropped work, and a complete cost report. You always learn what your money bought.
 
@@ -153,7 +153,7 @@ Inside a workflow, `ctx.budget.spent()` and `ctx.budget.remaining()` expose the 
 
 ## One runtime, one journal, one budget path
 
-rulvar has exactly three orchestration modes, and all three execute on the same runtime, the same journal identity model, and the same budget layers:
+Rulvar has exactly three orchestration modes, and all three execute on the same runtime, the same journal identity model, and the same budget layers:
 
 | Mode | Who writes the workflow | Runner |
 | --- | --- | --- |
@@ -167,7 +167,7 @@ This invariant is what makes the other five worth having. Because there is a sin
 
 ## Embeddable by construction
 
-rulvar is a library, not a platform. The core runs inside your process with no server, no database, and no control plane; the CLI, HTTP, and queue shells are optional and built strictly on the public APIs, so nothing in the engine depends on them.
+Rulvar is a library, not a platform. The core runs inside your process with no server, no database, and no control plane; the CLI, HTTP, and queue shells are optional and built strictly on the public APIs, so nothing in the engine depends on them.
 
 The invariant with teeth: every guard state has a non-interactive terminating fallback. An embedded run with no operator present always terminates rather than hanging.
 

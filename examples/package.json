@@ -1,7 +1,7 @@
 {
   "name": "@rulvar/examples",
   "version": "0.0.0",
-  "description": "Runnable reference implementations of the rulvar quality patterns; integration tests, never published.",
+  "description": "Runnable reference implementations of the Rulvar quality patterns; integration tests, never published.",
   "type": "module",
   "license": "Apache-2.0",
   "private": true,

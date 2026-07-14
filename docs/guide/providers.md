@@ -5,7 +5,7 @@ description: The ProviderAdapter SPI and the shipped adapters, including @rulvar
 
 # Providers
 
-Every model call in rulvar goes through one interface: `ProviderAdapter`. The adapter absorbs the provider's wire quirks invisibly, so the engine, the journal, and your workflow code see one canonical request shape, one stream vocabulary, and one usage accounting model no matter who serves the tokens. Adapters are registered per engine, and models are addressed as `ModelRef` strings of the form `adapterId:model`.
+Every model call in Rulvar goes through one interface: `ProviderAdapter`. The adapter absorbs the provider's wire quirks invisibly, so the engine, the journal, and your workflow code see one canonical request shape, one stream vocabulary, and one usage accounting model no matter who serves the tokens. Adapters are registered per engine, and models are addressed as `ModelRef` strings of the form `adapterId:model`.
 
 ## Shipped adapters
 
@@ -255,7 +255,7 @@ The AI SDK ecosystem moved its language model interface through three majors in 
 ## Next steps
 
 - [Model routing](/guide/model-routing): the resolution chain, invocation roles, effort, fallbacks, and quality floors.
-- [Adapter authors](/guide/adapter-authors): implement `ProviderAdapter` for a provider rulvar does not ship.
+- [Adapter authors](/guide/adapter-authors): implement `ProviderAdapter` for a provider Rulvar does not ship.
 - [Budgets and termination](/guide/budgets): how normalized usage and the price table bound spend.
 - [Testing](/guide/testing): `FakeAdapter` and VCR cassettes for provider free tests.
 - API reference: [@rulvar/anthropic](/api/@rulvar/anthropic/), [@rulvar/openai](/api/@rulvar/openai/), [@rulvar/bridge-ai-sdk](/api/@rulvar/bridge-ai-sdk/), [@rulvar/core](/api/@rulvar/core/).

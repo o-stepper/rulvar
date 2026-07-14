@@ -5,7 +5,7 @@ description: One typed WorkflowEvent stream feeds host subscriptions, cost repor
 
 # Observability
 
-rulvar has exactly one observability surface: a discriminated stream of typed `WorkflowEvent` values. Everything else on this page is a consumer of that stream: `RunHandle.events` and `on()` for host code, the terminal progress renderer in `@rulvar/cli`, and the OpenTelemetry exporter. There is no pluggable event-sink seam to configure; you subscribe on the handle and fold what you need.
+Rulvar has exactly one observability surface: a discriminated stream of typed `WorkflowEvent` values. Everything else on this page is a consumer of that stream: `RunHandle.events` and `on()` for host code, the terminal progress renderer in `@rulvar/cli`, and the OpenTelemetry exporter. There is no pluggable event-sink seam to configure; you subscribe on the handle and fold what you need.
 
 Events are pure telemetry. No event, field, or ordering of events participates in journal identity: you can drop every event and no run outcome changes. That separation is what lets the engine mask secrets in telemetry, re-emit history on resume, and evolve the catalog without ever perturbing replay.
 
@@ -219,7 +219,7 @@ The budget machinery behind these numbers, including the `'exhausted'` outcome a
 
 ## Metrics
 
-rulvar ships metric definitions and their inputs, not a metrics backend. Each metric below is a pure fold over the event stream, the journal, or `CostReport`, so any dashboard that agrees on the definitions agrees on the numbers:
+Rulvar ships metric definitions and their inputs, not a metrics backend. Each metric below is a pure fold over the event stream, the journal, or `CostReport`, so any dashboard that agrees on the definitions agrees on the numbers:
 
 | Metric | Definition | Source | What it tells you |
 |---|---|---|---|
@@ -269,7 +269,7 @@ Attributes use two namespaces:
 | `gen_ai.request.model` | agent spans |
 | `gen_ai.operation.name` | agent spans (the invocation role) |
 
-The `gen_ai.*` semantic conventions are flagged unstable upstream, so the exact mapping is documented per release and may change in minor releases; OTel attribute names are outside rulvar's compatibility surface (see [Versioning](/reference/versioning)).
+The `gen_ai.*` semantic conventions are flagged unstable upstream, so the exact mapping is documented per release and may change in minor releases; OTel attribute names are outside Rulvar's compatibility surface (see [Versioning](/reference/versioning)).
 
 ::: info Content never rides spans
 Prompts, completions, tool inputs, tool outputs, and provider-raw blocks are never exported as span attributes or span events. Only identifiers, statuses, usage counters, and cost figures leave the process, and every string attribute additionally passes the secret-masking policy below.

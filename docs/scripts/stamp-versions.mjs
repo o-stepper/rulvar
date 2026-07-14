@@ -27,7 +27,7 @@
  *     markers has none, so a rewrite cannot silently detach a page from
  *     the source of truth.
  *
- * Historical statements ("v1.0.0 was published manually", "As of rulvar
+ * Historical statements ("v1.0.0 was published manually", "As of Rulvar
  * 1.1.0, CURRENT_HASH_VERSION is 2") are deliberately NOT marked: they
  * describe fixed points in time and must never be rewritten.
  */

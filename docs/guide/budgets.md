@@ -5,7 +5,7 @@ description: How the three-layer budget bounds run spend to an immutable USD cei
 
 # Budgets and termination
 
-Every rulvar run can carry a hard USD ceiling. Enforcement is one budget path
+Every Rulvar run can carry a hard USD ceiling. Enforcement is one budget path
 shared by all three [orchestration modes](/guide/orchestration-modes): the same
 three layers guard a hand-written workflow, a planned script, and a dynamic
 orchestrator. This page covers the three layers, what happens at the ceiling,

@@ -5,7 +5,7 @@ description: Defining typed tools with tool() and SchemaSpec, how toolsetHash ma
 
 # Tools and permissions
 
-A tool in rulvar is a typed, contract-hashed capability the model can call. Every dispatch, whether the tool is native, imported from an [MCP server](/guide/mcp), or one of the engine's own opt-in tools such as `escalate`, passes through one layered permission chain, lands in the agent's checkpointed history the same way, and enters spawn identity through the same `toolsetHash`. This page covers defining tools, why tool identity matters for [replay](/guide/journal), the permission chain, approval suspensions, executors, and worktree isolation.
+A tool in Rulvar is a typed, contract-hashed capability the model can call. Every dispatch, whether the tool is native, imported from an [MCP server](/guide/mcp), or one of the engine's own opt-in tools such as `escalate`, passes through one layered permission chain, lands in the agent's checkpointed history the same way, and enters spawn identity through the same `toolsetHash`. This page covers defining tools, why tool identity matters for [replay](/guide/journal), the permission chain, approval suspensions, executors, and worktree isolation.
 
 ## Defining a tool
 
@@ -172,7 +172,7 @@ const engine = createEngine({
 });
 ```
 
-**Hooks** are closures, run in deterministic registration order, sync or async. `'allow'`, `'deny'`, and `'ask'` are decisive and stop the chain. `{ modifiedInput }` substitutes the input and continues: the modified input is what later layers evaluate and what `execute` eventually receives. `undefined` passes through. The hook above gates your own `http_fetch` tool; rulvar ships no tool of that name.
+**Hooks** are closures, run in deterministic registration order, sync or async. `'allow'`, `'deny'`, and `'ask'` are decisive and stop the chain. `{ modifiedInput }` substitutes the input and continues: the modified input is what later layers evaluate and what `execute` eventually receives. `undefined` passes through. The hook above gates your own `http_fetch` tool; Rulvar ships no tool of that name.
 
 **Deny rules and ask rules** are declarative tables with no closures. A rule matches by tool name, by declared risk class (`'undeclared'` matches every tool without declared risk), by argv pattern for shell tools, or by network domain. A match in the deny layer denies; a match in the ask layer asks. Rules never allow: allow only ever results from falling through to `canUseTool` or the terminal default, which is what lets presets compile into the chain without creating a bypass channel. Because closures cannot cross the worker sandbox, a compiled workflow running there carries only these declarative tables; hooks and `canUseTool` are host-side layers (see [orchestration modes](/guide/orchestration-modes)).
 
@@ -220,7 +220,7 @@ A profile-level `preset` compiles into ordinary deny and ask rules, appended aft
 
 Two honesty notes, because policy that overpromises is worse than none:
 
-- **Domain rules** (`{ tool, domains }`) are advisory for every tool in the current release: they never change a verdict, and matches surface in the audit fields on `tool:end` events. rulvar ships no fetch tool today; when it ships one, domain enforcement will live in that tool. Do not treat domain rules as containment.
+- **Domain rules** (`{ tool, domains }`) are advisory for every tool in the current release: they never change a verdict, and matches surface in the audit fields on `tool:end` events. Rulvar ships no fetch tool today; when it ships one, domain enforcement will live in that tool. Do not treat domain rules as containment.
 - **The chain governs dispatch, not side effects.** What a running tool does is bounded by executors and isolation (below), not by rules.
 
 ## Shell command matching

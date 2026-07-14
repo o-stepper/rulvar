@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / KB\_ACTIVE\_CLAIMS\_CAP
+[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / KB\_ACTIVE\_CLAIMS\_CAP
 
 # Variable: KB\_ACTIVE\_CLAIMS\_CAP
 

@@ -1,6 +1,6 @@
 ---
 title: Determinism lint
-description: Why rulvar workflow modules must stay replay-stable and how eslint-plugin-rulvar enforces it with six flat config rules and structured JSON diagnostics for the planner self-repair loop.
+description: Why Rulvar workflow modules must stay replay-stable and how eslint-plugin-rulvar enforces it with six flat config rules and structured JSON diagnostics for the planner self-repair loop.
 ---
 
 # Determinism lint
@@ -11,7 +11,7 @@ description: Why rulvar workflow modules must stay replay-stable and how eslint-
 pnpm add -D eslint eslint-plugin-rulvar
 ```
 
-The package follows ESLint's plugin naming convention, so it is the one rulvar package whose npm name carries no `@rulvar/` scope. It is still versioned in lockstep with the rest of the release line (currently <!-- version:lockstep -->1.5.2<!-- /version -->), requires ESLint 9 or newer (flat config only), and is ESM only on Node 22.12.0 or newer, like every rulvar package.
+The package follows ESLint's plugin naming convention, so it is the one Rulvar package whose npm name carries no `@rulvar/` scope. It is still versioned in lockstep with the rest of the release line (currently <!-- version:lockstep -->1.5.2<!-- /version -->), requires ESLint 9 or newer (flat config only), and is ESM only on Node 22.12.0 or newer, like every Rulvar package.
 
 ## Why workflow modules must be deterministic
 
@@ -19,7 +19,7 @@ Everything a workflow does through `ctx` lands in the journal under an identity 
 
 That makes bare `Date.now()` or `Math.random()` in workflow code a billing problem, not a style problem. A prompt that embeds a timestamp hashes to a different content key on every execution, so on resume the journal misses and the never-pay-twice invariant has nothing to match: the work is paid again. Ambient reads fail in the other direction: a bare `fetch()` or `process.env` read produces a value that never enters the journal, so a replayed run silently computes over different data than the original did.
 
-rulvar deliberately does not force a VM onto your code to fix this. For in-process workflows only the sequence of identities must be stable, and determinism is enforced by three cooperating layers:
+Rulvar deliberately does not force a VM onto your code to fix this. For in-process workflows only the sequence of identities must be stable, and determinism is enforced by three cooperating layers:
 
 * the `ctx.now()`, `ctx.random(key?)`, and `ctx.uuid()` shims, which journal their values so every replay returns them byte for byte,
 * this lint, which catches the ambient escapes statically,

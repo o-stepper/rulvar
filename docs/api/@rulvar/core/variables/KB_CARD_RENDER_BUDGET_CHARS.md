@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / KB\_CARD\_RENDER\_BUDGET\_CHARS
+[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / KB\_CARD\_RENDER\_BUDGET\_CHARS
 
 # Variable: KB\_CARD\_RENDER\_BUDGET\_CHARS
 

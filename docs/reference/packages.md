@@ -1,11 +1,11 @@
 ---
 title: Packages
-description: The authoritative table of every rulvar package, with layer placement, key exports, dependencies, the dependency graph, and the lockstep versioning policy.
+description: The authoritative table of every Rulvar package, with layer placement, key exports, dependencies, the dependency graph, and the lockstep versioning policy.
 ---
 
 # Packages
 
-rulvar ships as fourteen packages from a single monorepo: thirteen under the `@rulvar` npm scope, plus `eslint-plugin-rulvar`, which follows the ESLint plugin naming convention. The packages release lockstep at one version, currently <!-- version:lockstep -->1.5.2<!-- /version -->, with a single exemption: `@rulvar/compat` is versioned independently and currently sits at <!-- version:compat -->0.1.0<!-- /version -->. Every package is ESM only, requires Node.js >= 22.12.0, and is licensed Apache-2.0.
+Rulvar ships as fourteen packages from a single monorepo: thirteen under the `@rulvar` npm scope, plus `eslint-plugin-rulvar`, which follows the ESLint plugin naming convention. The packages release lockstep at one version, currently <!-- version:lockstep -->1.5.2<!-- /version -->, with a single exemption: `@rulvar/compat` is versioned independently and currently sits at <!-- version:compat -->0.1.0<!-- /version -->. Every package is ESM only, requires Node.js >= 22.12.0, and is licensed Apache-2.0.
 
 A fifteenth npm name exists: the unscoped `rulvar`, a pointer package that re-exports the umbrella so a bare install still lands on the real library. Documentation and install commands always use the scoped names.
 
@@ -63,7 +63,7 @@ The Layer column in the table below uses the labels of the architecture's layer 
 | [`@rulvar/core`](/api/@rulvar/core/) | L0 to L5 | The engine: L0 contracts and SPI interfaces, the journal kernel, the model router and capability registry, the agent runtime, the tool system and MCP bus, ctx primitives and the run engine, the dynamic orchestrator, the in-memory and JSONL stores, the file-backed model knowledge store, the event stream. Zero provider SDK dependencies | `createEngine`, `defineWorkflow`, `tool`, `mcp`, `orchestrate`, `InMemoryStore`, `JsonlFileStore`, `replayDisposition` | `@modelcontextprotocol/sdk` (the MCP bus); a vendored JSON Schema validator |
 | [`@rulvar/anthropic`](/api/@rulvar/anthropic/) | L1 | First-class Anthropic adapter over the official SDK: thinking-block replay with signatures, cache hint compilation, pause_turn continuation, typed refusal outcomes, usage normalization | `anthropic` | `@rulvar/core`, `@anthropic-ai/sdk` |
 | [`@rulvar/openai`](/api/@rulvar/openai/) | L1 | First-class adapter for the OpenAI Responses API (reasoning items, strict json_schema), plus the factory for any OpenAI-compatible endpoint with an explicit id and baseURL | `openai`, `openaiCompatible` | `@rulvar/core`, `openai` |
-| [`@rulvar/bridge-ai-sdk`](/api/@rulvar/bridge-ai-sdk/) | L1 | Wraps any Vercel AI SDK language model as a rulvar provider adapter, covering the long tail of providers; performs a specification-version check at runtime. The highest-churn package by design | `bridgeAiSdk` | `@rulvar/core`, `@ai-sdk/provider` |
+| [`@rulvar/bridge-ai-sdk`](/api/@rulvar/bridge-ai-sdk/) | L1 | Wraps any Vercel AI SDK language model as a Rulvar provider adapter, covering the long tail of providers; performs a specification-version check at runtime. The highest-churn package by design | `bridgeAiSdk` | `@rulvar/core`, `@ai-sdk/provider` |
 | [`@rulvar/store-sqlite`](/api/@rulvar/store-sqlite/) | L1 | SQLite journal store implementing the storage SPI with the lease capability and a fencing epoch, on the builtin node:sqlite driver; the reference implementation for community stores | `SqliteStore` | `@rulvar/core` |
 | [`@rulvar/store-conformance`](/api/@rulvar/store-conformance/) | L6 | The executable conformance kit for store adapters: append atomicity, total per-run order, read-your-writes, payload opacity, lease fencing, and golden fold-state fixtures | `journalStoreConformance`, `leasableStoreConformance`, `registerConformance` | `@rulvar/core` |
 | [`@rulvar/compat`](/api/@rulvar/compat/) | L2 extension | Frozen key-derivation profiles for journal hashVersions that leave the engine's support window, attached at engine construction via `extraDerivers`. Independently versioned | `deriverV0Synthetic` | `@rulvar/core` |

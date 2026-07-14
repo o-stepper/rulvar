@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/compat](/api/@rulvar/compat/index.md) / deriverV0Synthetic
+[Rulvar API reference](/api/index.md) / [@rulvar/compat](/api/@rulvar/compat/index.md) / deriverV0Synthetic
 
 # Variable: deriverV0Synthetic
 

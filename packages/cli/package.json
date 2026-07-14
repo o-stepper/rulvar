@@ -1,7 +1,7 @@
 {
   "name": "@rulvar/cli",
   "version": "1.5.2",
-  "description": "rulvar shell: run/resume/runs/inspect/plan/kb commands, TUI progress, createServer, createWorker, OTel exporter.",
+  "description": "Rulvar shell: run/resume/runs/inspect/plan/kb commands, TUI progress, createServer, createWorker, OTel exporter.",
   "type": "module",
   "license": "Apache-2.0",
   "engines": {

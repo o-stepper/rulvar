@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/cli](/api/@rulvar/cli/index.md) / runCli
+[Rulvar API reference](/api/index.md) / [@rulvar/cli](/api/@rulvar/cli/index.md) / runCli
 
 # Function: runCli()
 
@@ -12,7 +12,7 @@ function runCli(argv, options): Promise<number>;
 
 Defined in: [packages/cli/src/cli-main.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/cli-main.ts#L44)
 
-@rulvar/cli: the rulvar shell (https://docs.rulvar.com/guide/cli).
+@rulvar/cli: the Rulvar shell (https://docs.rulvar.com/guide/cli).
 M5 surface: run/resume/runs ls/inspect over the canonical
 grammar, TUI progress on the event stream, interactive resolution of
 suspended approvals and externals. plan/kb commands land M6+/M10;

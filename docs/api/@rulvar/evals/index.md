@@ -1,18 +1,18 @@
-[**rulvar API reference**](../../index.md)
+[**Rulvar API reference**](../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / @rulvar/evals
+[Rulvar API reference](/api/index.md) / @rulvar/evals
 
 # @rulvar/evals
 
-The rulvar eval framework: eval cases with golden outputs, rubric and
+The Rulvar eval framework: eval cases with golden outputs, rubric and
 judge graders that run through the engine itself, matrix sweeps across
 models and configurations, and the canary fingerprint. Exports
 `runEvalSuite`, `runEvalMatrix`, `goldenGrader`, `rubricGrader`,
 `judgeGrader`, and `canaryFingerprint`.
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).

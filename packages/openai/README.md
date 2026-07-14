@@ -6,7 +6,7 @@ points the same adapter at any OpenAI-compatible endpoint (Ollama, vLLM,
 gateways) with an explicit id and baseURL. Models are addressed as
 `'openai:<model>'` in routing.
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).

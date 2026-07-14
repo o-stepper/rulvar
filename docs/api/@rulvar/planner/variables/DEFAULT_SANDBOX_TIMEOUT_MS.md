@@ -1,8 +1,8 @@
-[**rulvar API reference**](../../../index.md)
+[**Rulvar API reference**](../../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / [@rulvar/planner](/api/@rulvar/planner/index.md) / DEFAULT\_SANDBOX\_TIMEOUT\_MS
+[Rulvar API reference](/api/index.md) / [@rulvar/planner](/api/@rulvar/planner/index.md) / DEFAULT\_SANDBOX\_TIMEOUT\_MS
 
 # Variable: DEFAULT\_SANDBOX\_TIMEOUT\_MS
 

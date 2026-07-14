@@ -1,6 +1,6 @@
 ---
 title: CLI, server, and worker
-description: "The optional shells in @rulvar/cli: the rulvar command with TUI progress, an embeddable HTTP server with SSE and external resolution endpoints, a lease-fenced queue worker, and the OTel exporter."
+description: "The optional shells in @rulvar/cli: the Rulvar CLI with TUI progress, an embeddable HTTP server with SSE and external resolution endpoints, a lease-fenced queue worker, and the OTel exporter."
 ---
 
 # CLI, server, and worker
@@ -20,11 +20,11 @@ Embed the engine directly for scripts, tests, and single-process apps. Reach for
 pnpm add @rulvar/cli
 ```
 
-The package is ESM only and requires Node >= 22.12.0, like the rest of rulvar. Some commands load optional companions dynamically at command time: `rulvar plan` needs `@rulvar/planner` installed, `rulvar kb sweep` needs `@rulvar/evals`, and `rulvar kb inbox` and `rulvar kb gate` need `@rulvar/plan`. A missing companion is a clear error on that command, never a load failure of the others. The OTel exporter declares `@opentelemetry/api` (^1.9) as an optional peer.
+The package is ESM only and requires Node >= 22.12.0, like the rest of Rulvar. Some commands load optional companions dynamically at command time: `rulvar plan` needs `@rulvar/planner` installed, `rulvar kb sweep` needs `@rulvar/evals`, and `rulvar kb inbox` and `rulvar kb gate` need `@rulvar/plan`. A missing companion is a clear error on that command, never a load failure of the others. The OTel exporter declares `@opentelemetry/api` (^1.9) as an optional peer.
 
 One naming caveat: run the binary from a project that installs `@rulvar/cli` (`pnpm exec rulvar ...` or a package script). A bare `npx rulvar` in a project without it fetches the unscoped `rulvar` package from the registry, which is the library alias and ships no binary.
 
-## The rulvar command
+## The `rulvar` command
 
 The canonical grammar, with no aliases:
 

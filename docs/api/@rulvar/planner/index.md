@@ -1,12 +1,12 @@
-[**rulvar API reference**](../../index.md)
+[**Rulvar API reference**](../../index.md)
 
 ***
 
-[rulvar API reference](/api/index.md) / @rulvar/planner
+[Rulvar API reference](/api/index.md) / @rulvar/planner
 
 # @rulvar/planner
 
-The flagship rulvar hybrid mode: a planner model writes a workflow
+The flagship Rulvar hybrid mode: a planner model writes a workflow
 script against the sanctioned `ctx` dialect; the package lints and
 repairs it from structured diagnostics, compiles it with an import
 allowlist, and executes it deterministically in the worker sandbox with
@@ -17,7 +17,7 @@ The one-line mnemonic against its sibling: `@rulvar/planner` plans
 before the run (it writes the script); `@rulvar/plan` replans during the
 run (it revises the task plan).
 
-Part of [rulvar](https://rulvar.com), an embeddable TypeScript engine
+Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed
 LLM call is never paid for twice. Full documentation:
 [docs.rulvar.com](https://docs.rulvar.com).
@@ -48,7 +48,7 @@ pnpm add @rulvar/core @rulvar/planner
 
 | Interface | Description |
 | ------ | ------ |
-| [CompileScriptOptions](/api/@rulvar/planner/interfaces/CompileScriptOptions.md) | @rulvar/planner: rulvar flagship hybrid mode: plan agent, compileScript, WorkerSandboxRunner, self-repair loop (https://docs.rulvar.com/guide/planner). The surface lands across M6. |
+| [CompileScriptOptions](/api/@rulvar/planner/interfaces/CompileScriptOptions.md) | @rulvar/planner: Rulvar flagship hybrid mode: plan agent, compileScript, WorkerSandboxRunner, self-repair loop (https://docs.rulvar.com/guide/planner). The surface lands across M6. |
 | [M6CassetteFixture](/api/@rulvar/planner/interfaces/M6CassetteFixture.md) | The cassette file shape shared with the M3 sets. |
 | [PlanDiagnostic](/api/@rulvar/planner/interfaces/PlanDiagnostic.md) | One repair-loop diagnostic: lint and compile findings share the shape. |
 | [PlanOptions](/api/@rulvar/planner/interfaces/PlanOptions.md) | - |
@@ -75,7 +75,7 @@ pnpm add @rulvar/core @rulvar/planner
 | Function | Description |
 | ------ | ------ |
 | [apiCard](/api/@rulvar/planner/functions/apiCard.md) | Renders the sandbox-dialect API card; pure and byte-stable. |
-| [compileScript](/api/@rulvar/planner/functions/compileScript.md) | @rulvar/planner: rulvar flagship hybrid mode: plan agent, compileScript, WorkerSandboxRunner, self-repair loop (https://docs.rulvar.com/guide/planner). The surface lands across M6. |
+| [compileScript](/api/@rulvar/planner/functions/compileScript.md) | @rulvar/planner: Rulvar flagship hybrid mode: plan agent, compileScript, WorkerSandboxRunner, self-repair loop (https://docs.rulvar.com/guide/planner). The surface lands across M6. |
 | [extractScript](/api/@rulvar/planner/functions/extractScript.md) | The model may fence the script; the extractor takes the first fenced block when one exists, else the whole reply, and is deterministic. |
 | [lintScript](/api/@rulvar/planner/functions/lintScript.md) | Lints a script BODY with the workflows preset plus compileScript. The body is wrapped in an async function for parsing (top-level return/await are legal in the dialect); reported lines shift back so they index into the body source. |
 | [normalizeCassetteEntries](/api/@rulvar/planner/functions/normalizeCassetteEntries.md) | The M3-convention cassette normalization: wall clock and spans only. |
@@ -84,4 +84,4 @@ pnpm add @rulvar/core @rulvar/planner
 | [runPlanned](/api/@rulvar/planner/functions/runPlanned.md) | plan-then-run in one call (amended during M6-T05: the composition is async because planning itself is a run). |
 | [runPlannerSelfRepair](/api/@rulvar/planner/functions/runPlannerSelfRepair.md) | One planner-self-repair run: the first draft fails lint, the JSON diagnostics ride the repair prompt, the second draft compiles. Returns the normalized planning journal plus the plan result. |
 | [runSandboxDeterminism](/api/@rulvar/planner/functions/runSandboxDeterminism.md) | One fresh sandbox-determinism run on a fresh store; two invocations with the same worker produce byte-identical normalized journals (the cassette assertion). The adapter factory keeps @rulvar/testing out of the planner's dependency graph. |
-| [scriptDiagnosticsOf](/api/@rulvar/planner/functions/scriptDiagnosticsOf.md) | @rulvar/planner: rulvar flagship hybrid mode: plan agent, compileScript, WorkerSandboxRunner, self-repair loop (https://docs.rulvar.com/guide/planner). The surface lands across M6. |
+| [scriptDiagnosticsOf](/api/@rulvar/planner/functions/scriptDiagnosticsOf.md) | @rulvar/planner: Rulvar flagship hybrid mode: plan agent, compileScript, WorkerSandboxRunner, self-repair loop (https://docs.rulvar.com/guide/planner). The surface lands across M6. |
