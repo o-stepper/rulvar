@@ -299,6 +299,74 @@ button:focus-visible {
   letter-spacing: -0.01em;
 }
 
+/* ---------- Home hero symbol: a mounted print plate ----------
+   The landing mark sits on a square, hairline-framed plate carrying the
+   hard print-offset shadow of the diagram panels, so it reads as a
+   mounted print rather than a floating glyph. Rust top edge on paper,
+   acid top edge on ink. The extra .image-container class outspecifies the
+   scoped VitePress defaults (.image-bg / .image-src are 0,2,0); sizes are
+   mobile-first and stay inside the hero container at every breakpoint
+   (320, then 392, then flexible). */
+.VPHero .image-container .image-bg {
+  width: 236px;
+  height: 236px;
+  border-radius: 0;
+  border: 1px solid var(--vp-c-border);
+  border-top: 3px solid var(--vp-c-brand-2);
+  background: var(--vp-c-bg-elv);
+  box-shadow: 13px 13px 0 rgba(16, 20, 25, 0.09);
+}
+
+.VPHero .image-container .image-src {
+  max-width: 172px;
+  max-height: 172px;
+}
+
+.dark .VPHero .image-container .image-bg {
+  border-color: rgba(255, 255, 255, 0.14);
+  border-top-color: #c7f36a;
+  background: var(--vp-c-bg-alt);
+  box-shadow:
+    0 0 0 1px rgba(199, 243, 106, 0.09),
+    0 24px 58px rgba(0, 0, 0, 0.55);
+}
+
+@media (min-width: 640px) {
+  .VPHero .image-container .image-bg {
+    width: 316px;
+    height: 316px;
+    box-shadow: 18px 18px 0 rgba(16, 20, 25, 0.09);
+  }
+  .VPHero .image-container .image-src {
+    max-width: 232px;
+    max-height: 232px;
+  }
+}
+
+@media (min-width: 960px) {
+  .VPHero .image-container .image-bg {
+    width: 372px;
+    height: 372px;
+    box-shadow: 20px 20px 0 rgba(16, 20, 25, 0.09);
+  }
+  .VPHero .image-container .image-src {
+    max-width: 280px;
+    max-height: 280px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .VPHero .image-container .image-bg {
+    width: 428px;
+    height: 428px;
+    box-shadow: 24px 24px 0 rgba(16, 20, 25, 0.09);
+  }
+  .VPHero .image-container .image-src {
+    max-width: 330px;
+    max-height: 330px;
+  }
+}
+
 /* ---------- Buttons: square, with the landing hover lift ---------- */
 /* Doubled classes match the specificity of the scoped component styles,
    so these later rules win the cascade. */
