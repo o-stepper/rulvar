@@ -52,14 +52,22 @@ let globalsPatched = false;
 
 /**
  * Stack line 0 names the Error, line 1 this helper, line 2 the patched
- * global, line 3 the caller whose provenance decides. Library code (a
- * provider SDK, any installed dependency, rulvar's own published dist)
- * lives under node_modules and is exempt: the guard exists for workflow
- * code, which imports from node_modules but does not live there.
+ * global, line 3 the caller whose provenance decides (the layout is
+ * pinned by construction: this helper is only ever called by the two
+ * patched globals). Two origins are exempt: installed dependencies (a
+ * provider SDK, any transitive package, rulvar's own published dist),
+ * which live under node_modules, and Node's own machinery (the undici
+ * transport behind fetch, timers, stream internals), whose frames carry
+ * `node:` specifiers and inherit the run's async context. The guard
+ * exists for workflow code, which imports from both but lives in
+ * neither.
  */
 function libraryCaller(): boolean {
   const caller = new Error().stack?.split('\n')[3];
-  return caller !== undefined && caller.includes('node_modules');
+  if (caller === undefined) {
+    return false;
+  }
+  return caller.includes('node_modules') || /[(\s]node:/.test(caller);
 }
 
 /**

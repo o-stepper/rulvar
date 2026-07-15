@@ -1,3 +1,6 @@
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import type { WorkflowEvent } from '../l0/events.js';
@@ -370,6 +373,73 @@ describe('createEngine and engine.run (M1-T11)', () => {
       Date.now();
       Math.random();
       expect(warnings.filter((code) => code.startsWith('RULVAR_BARE'))).toHaveLength(2);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('never warns when Node internals consult the globals inside a run (undici class)', async () => {
+    const warnings: string[] = [];
+    const spy = vi
+      .spyOn(process, 'emitWarning')
+      .mockImplementation((warning: string | Error, opts?: { code?: string }) => {
+        warnings.push(typeof opts?.code === 'string' ? opts.code : String(warning));
+      });
+    try {
+      const engine = createEngine({ adapters: [] });
+      const server = createServer((_req, res) => {
+        res.end('ok');
+      });
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as AddressInfo;
+      const wf = defineWorkflow({ name: 'fetching' }, async () => {
+        // Node's own transport (undici behind global fetch) may consult
+        // Date.now while processing the response INSIDE the workflow's
+        // async context; its node: frames are library provenance, not
+        // workflow code (the v1.6.0 review's remaining false positive).
+        const res = await fetch(`http://127.0.0.1:${String(port)}/`);
+        return res.text();
+      });
+      const outcome = await engine.run(wf, undefined).result;
+      await new Promise((resolve) => server.close(resolve));
+      expect(outcome.status).toBe('ok');
+      expect(warnings.filter((code) => code.startsWith('RULVAR_BARE'))).toHaveLength(0);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('exempts node: internal frames while the direct workflow caller still warns', async () => {
+    const warnings: string[] = [];
+    const spy = vi
+      .spyOn(process, 'emitWarning')
+      .mockImplementation((warning: string | Error, opts?: { code?: string }) => {
+        warnings.push(typeof opts?.code === 'string' ? opts.code : String(warning));
+      });
+    try {
+      const engine = createEngine({ adapters: [] });
+      const wf = defineWorkflow({ name: 'timered' }, async () => {
+        // Date.now dispatched BY node:internal/timers under the run's
+        // captured async context: a deterministic stand-in for the
+        // undici class that does not depend on fetch internals calling
+        // Date.now on this Node version.
+        await new Promise<void>((resolve) => {
+          setTimeout(Date.now, 0);
+          setTimeout(resolve, 1);
+        });
+        return 'x';
+      });
+      const first = await engine.run(wf, undefined).result;
+      expect(first.status).toBe('ok');
+      expect(warnings.filter((code) => code.startsWith('RULVAR_BARE'))).toHaveLength(0);
+      // The same classification still warns for workflow-file frames.
+      const direct = defineWorkflow({ name: 'direct' }, async () => {
+        await Promise.resolve();
+        Date.now();
+        return 'y';
+      });
+      await engine.run(direct, undefined).result;
+      expect(warnings.filter((code) => code === 'RULVAR_BARE_DATE_NOW')).toHaveLength(1);
     } finally {
       spy.mockRestore();
     }
