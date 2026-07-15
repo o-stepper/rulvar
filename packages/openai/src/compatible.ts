@@ -87,24 +87,19 @@ export function openaiCompatible(cfg: OpenAiCompatibleConfig): ProviderAdapter {
     },
 
     async *stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent> {
-      const pending: ChatEvent[] = [];
-      const emit = (event: ChatEvent): void => {
-        pending.push(event);
-      };
+      // Live delegation: events reach the consumer as chunks arrive,
+      // with the consumer's pull as the only pacing (no buffering).
       try {
         const params = buildChatCompletionsParams(req, ids);
         const stream = (await client.chat.completions.create(
           { ...params, stream: true, stream_options: { include_usage: true } },
           signal === undefined ? undefined : { signal },
         )) as AsyncIterable<Record<string, unknown>>;
-        await mapChatCompletionsStream(stream, ids, emit);
+        yield* mapChatCompletionsStream(stream, ids);
       } catch (thrown) {
         if (signal?.aborted !== true) {
-          pending.push({ type: 'error', error: openAiErrorToWire(thrown) });
+          yield { type: 'error', error: openAiErrorToWire(thrown) };
         }
-      }
-      for (const event of pending) {
-        yield event;
       }
     },
   };

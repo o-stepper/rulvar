@@ -12,10 +12,25 @@ import {
   mapStopReason,
   normalizeAnthropicUsage,
   type AnthropicStreamEvent,
+  type TurnMapping,
 } from './wire.js';
 
 function ids(): IdMap {
   return new IdMap(createCanonicalIdMinter());
+}
+
+/** Drains the mapper generator, capturing events and its return value. */
+async function drain(
+  gen: AsyncGenerator<ChatEvent, TurnMapping>,
+): Promise<{ events: ChatEvent[]; mapping: TurnMapping }> {
+  const events: ChatEvent[] = [];
+  while (true) {
+    const next = await gen.next();
+    if (next.done === true) {
+      return { events, mapping: next.value };
+    }
+    events.push(next.value);
+  }
 }
 
 const baseReq: ChatRequest = {
@@ -243,8 +258,7 @@ describe('stream mapping (M1-T12)', () => {
 
   it('maps a tool turn with bijective canonical ids and the Usage invariant', async () => {
     const idMap = ids();
-    const events: ChatEvent[] = [];
-    const mapping = await mapAnthropicStream(fixture(toolTurn), idMap, (e) => events.push(e));
+    const { events, mapping } = await drain(mapAnthropicStream(fixture(toolTurn), idMap));
     expect(mapping.finished).toBe(true);
 
     const types = events.map((e) => e.type);
@@ -302,10 +316,9 @@ describe('stream mapping (M1-T12)', () => {
       { type: 'message_stop' },
     ];
     const carried = { type: 'thinking', thinking: 'earlier continuation', signature: 'sig-0' };
-    const events: ChatEvent[] = [];
-    await mapAnthropicStream(fixture(thinkingTurn), ids(), (e) => events.push(e), {
-      carryRetained: [carried],
-    });
+    const { events } = await drain(
+      mapAnthropicStream(fixture(thinkingTurn), ids(), { carryRetained: [carried] }),
+    );
     const finish = events.at(-1) as Extract<ChatEvent, { type: 'finish' }>;
     const meta = finish.providerMetadata?.anthropic as Record<string, unknown>;
     // Whole-turn payload in stream order: the pause_turn carry first,
@@ -522,4 +535,188 @@ describe('the Haiku 4.5 caps entry (found by the M12 checkpoint)', () => {
     // and a run ceiling warns, instead of silently billing a wrong rate.
     expect(info.caps.pricing).toBeUndefined();
   });
+});
+
+describe('live incremental streaming (the reliability-review P0)', () => {
+  const SEGMENT_HEAD: AnthropicStreamEvent[] = [
+    { type: 'message_start', message: { id: 'msg_live', usage: { input_tokens: 5 } } },
+    { type: 'content_block_start', index: 0, content_block: { type: 'text' } },
+    { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'live' } },
+  ];
+  const SEGMENT_TAIL: AnthropicStreamEvent[] = [
+    { type: 'content_block_stop', index: 0 },
+    { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 2 } },
+    { type: 'message_stop' },
+  ];
+  const req: ChatRequest = {
+    model: 'claude-fable-5',
+    messages: [{ role: 'user', parts: [{ type: 'text', text: 'go' }] }],
+  };
+
+  function gatedClient(): {
+    client: AnthropicClientLike;
+    release: () => void;
+    pulls: () => number;
+  } {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let pulls = 0;
+    const client: AnthropicClientLike = {
+      messages: {
+        create: (_params, opts) =>
+          Promise.resolve(
+            (async function* stream(): AsyncIterable<AnthropicStreamEvent> {
+              for (const event of SEGMENT_HEAD) {
+                if (opts?.signal?.aborted === true) {
+                  throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+                }
+                pulls += 1;
+                yield event;
+              }
+              await gate;
+              for (const event of SEGMENT_TAIL) {
+                if (opts?.signal?.aborted === true) {
+                  throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+                }
+                pulls += 1;
+                yield event;
+              }
+            })(),
+          ),
+        countTokens: () => Promise.reject(new Error('unused')),
+      },
+      models: { list: () => Promise.reject(new Error('unused')) },
+    };
+    return { client, release, pulls: () => pulls };
+  }
+
+  it('yields events while the provider is still mid-stream', async () => {
+    const { client, release } = gatedClient();
+    const adapter = anthropic({ client });
+    const iterator = adapter.stream(req)[Symbol.asyncIterator]();
+    // A buffering adapter deadlocks here: nothing is yielded until the
+    // provider terminal, and the gate only opens after these asserts.
+    const first = await iterator.next();
+    expect((first.value as ChatEvent).type).toBe('usage');
+    const second = await iterator.next();
+    expect((second.value as ChatEvent).type).toBe('text-delta');
+    release();
+    const rest: ChatEvent[] = [];
+    while (true) {
+      const next = await iterator.next();
+      if (next.done === true) {
+        break;
+      }
+      rest.push(next.value);
+    }
+    // Exactly one canonical terminal event, at the end.
+    expect(rest.at(-1)?.type).toBe('finish');
+    expect(rest.filter((e) => e.type === 'finish' || e.type === 'error')).toHaveLength(1);
+  }, 5_000);
+
+  it('an abort after the first delta reaches the in-flight provider stream', async () => {
+    const { client, release } = gatedClient();
+    const adapter = anthropic({ client });
+    const controller = new AbortController();
+    const iterator = adapter.stream(req, controller.signal)[Symbol.asyncIterator]();
+    await iterator.next(); // usage
+    await iterator.next(); // the first delta
+    controller.abort();
+    release();
+    const rest: ChatEvent[] = [];
+    while (true) {
+      const next = await iterator.next();
+      if (next.done === true) {
+        break;
+      }
+      rest.push(next.value);
+    }
+    // The provider iterable observed the signal (threw AbortError); the
+    // adapter ends the stream without fabricating a terminal event, and
+    // the normal finish never happens.
+    expect(rest.find((e) => e.type === 'finish')).toBeUndefined();
+    expect(rest.find((e) => e.type === 'error')).toBeUndefined();
+  }, 5_000);
+
+  it('a slow consumer never causes read-ahead buffering (lock-step pulls)', async () => {
+    const { client, release, pulls } = gatedClient();
+    release(); // no gate: every provider event is available immediately
+    const adapter = anthropic({ client });
+    const iterator = adapter.stream(req)[Symbol.asyncIterator]();
+    await iterator.next(); // usage <- message_start (pull 1)
+    await iterator.next(); // text-delta <- block_start + delta (pulls 2, 3)
+    // The consumer paused: the mapper must not have read further ahead
+    // even though the whole provider stream is ready.
+    expect(pulls()).toBeLessThanOrEqual(3);
+    while (true) {
+      const next = await iterator.next();
+      if (next.done === true) {
+        break;
+      }
+    }
+    expect(pulls()).toBe(SEGMENT_HEAD.length + SEGMENT_TAIL.length);
+  }, 5_000);
+
+  it('pause_turn: the first segment streams live BEFORE the continuation dispatches', async () => {
+    let creates = 0;
+    const client: AnthropicClientLike = {
+      messages: {
+        create: (params) => {
+          creates += 1;
+          const segment: AnthropicStreamEvent[] =
+            creates === 1
+              ? [
+                  ...SEGMENT_HEAD,
+                  { type: 'content_block_stop', index: 0 },
+                  { type: 'message_delta', delta: { stop_reason: 'pause_turn' } },
+                  { type: 'message_stop' },
+                ]
+              : [
+                  {
+                    type: 'message_start',
+                    message: { id: 'msg_cont', usage: { input_tokens: 9 } },
+                  },
+                  { type: 'content_block_start', index: 0, content_block: { type: 'text' } },
+                  {
+                    type: 'content_block_delta',
+                    index: 0,
+                    delta: { type: 'text_delta', text: 'done' },
+                  },
+                  ...SEGMENT_TAIL,
+                ];
+          void params;
+          return Promise.resolve(
+            (async function* stream(): AsyncIterable<AnthropicStreamEvent> {
+              for (const event of segment) {
+                yield await Promise.resolve(event);
+              }
+            })(),
+          );
+        },
+        countTokens: () => Promise.reject(new Error('unused')),
+      },
+      models: { list: () => Promise.reject(new Error('unused')) },
+    };
+    const adapter = anthropic({ client });
+    const iterator = adapter.stream(req)[Symbol.asyncIterator]();
+    await iterator.next(); // usage of segment 1
+    const delta = await iterator.next();
+    expect((delta.value as ChatEvent).type).toBe('text-delta');
+    // The first segment's delta arrived while ONLY the first provider
+    // request exists: continuation has not dispatched yet.
+    expect(creates).toBe(1);
+    const rest: ChatEvent[] = [];
+    while (true) {
+      const next = await iterator.next();
+      if (next.done === true) {
+        break;
+      }
+      rest.push(next.value);
+    }
+    expect(creates).toBe(2);
+    // Exactly one terminal finish for the WHOLE paused turn.
+    expect(rest.filter((e) => e.type === 'finish')).toHaveLength(1);
+  }, 5_000);
 });

@@ -409,7 +409,6 @@ export function normalizeAnthropicUsage(raw: Record<string, unknown> | undefined
 }
 
 export interface TurnMapping {
-  events: ChatEvent[];
   /** Assistant content blocks collected verbatim (pause_turn continuation). */
   assistantContent: Block[];
   pauseTurn: boolean;
@@ -417,28 +416,26 @@ export interface TurnMapping {
 }
 
 /**
- * Maps one Messages API stream into ChatEvents. Emits an early usage event
- * from message_start (the input side is known immediately) and exactly one
- * terminal finish unless the turn paused (pause_turn) or errored.
- * `carryRetained` holds thinking blocks from earlier pause_turn
- * continuations of the same turn so the terminal finish ships the whole
- * turn's retention payload (M4-T02).
+ * Maps one Messages API stream into ChatEvents, yielding each canonical
+ * event AS the corresponding provider event is consumed: the consumer's
+ * pull drives the provider read (natural backpressure, no buffering, no
+ * detached work). The generator's RETURN value carries the accumulated
+ * turn state the adapter needs for pause_turn continuation. Yields an
+ * early usage event from message_start (the input side is known
+ * immediately) and exactly one terminal finish unless the turn paused
+ * (pause_turn) or errored. `carryRetained` holds thinking blocks from
+ * earlier pause_turn continuations of the same turn so the terminal
+ * finish ships the whole turn's retention payload (M4-T02).
  */
-export async function mapAnthropicStream(
+export async function* mapAnthropicStream(
   stream: AsyncIterable<AnthropicStreamEvent>,
   ids: IdMap,
-  emit: (event: ChatEvent) => void,
   options?: { carryRetained?: Block[] },
-): Promise<TurnMapping> {
+): AsyncGenerator<ChatEvent, TurnMapping> {
   const mapping: TurnMapping = {
-    events: [],
     assistantContent: [],
     pauseTurn: false,
     finished: false,
-  };
-  const push = (event: ChatEvent): void => {
-    mapping.events.push(event);
-    emit(event);
   };
 
   let usage: Usage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
@@ -462,7 +459,7 @@ export async function mapAnthropicStream(
         const message = event.message as Record<string, unknown> | undefined;
         responseId = typeof message?.id === 'string' ? message.id : undefined;
         usage = normalizeAnthropicUsage(message?.usage as Record<string, unknown> | undefined);
-        push({ type: 'usage', usage: { ...usage } });
+        yield { type: 'usage', usage: { ...usage } };
         break;
       }
       case 'content_block_start': {
@@ -473,7 +470,7 @@ export async function mapAnthropicStream(
           const wireId = block.id as string;
           const canonicalId = ids.canonicalFor(wireId);
           openBlocks.set(index, { kind: 'tool_use', canonicalId, json: '', block: { ...block } });
-          push({ type: 'tool-call-start', id: canonicalId, name: block.name as string });
+          yield { type: 'tool-call-start', id: canonicalId, name: block.name as string };
         } else if (type === 'thinking' || type === 'redacted_thinking') {
           openBlocks.set(index, { kind: 'thinking', json: '', block: { ...block } });
         } else if (type === 'text') {
@@ -493,16 +490,16 @@ export async function mapAnthropicStream(
         if (delta.type === 'text_delta') {
           const text = delta.text as string;
           open.block.text = `${(open.block.text as string) ?? ''}${text}`;
-          push({ type: 'text-delta', text });
+          yield { type: 'text-delta', text };
         } else if (delta.type === 'thinking_delta') {
           const text = delta.thinking as string;
           open.block.thinking = `${(open.block.thinking as string) ?? ''}${text}`;
-          push({ type: 'reasoning-delta', text });
+          yield { type: 'reasoning-delta', text };
         } else if (delta.type === 'input_json_delta') {
           const partial = delta.partial_json as string;
           open.json += partial;
           if (open.canonicalId !== undefined) {
-            push({ type: 'tool-call-delta', id: open.canonicalId, argsTextDelta: partial });
+            yield { type: 'tool-call-delta', id: open.canonicalId, argsTextDelta: partial };
           }
         } else if (delta.type === 'signature_delta') {
           open.block.signature = `${(open.block.signature as string) ?? ''}${delta.signature as string}`;
@@ -524,7 +521,7 @@ export async function mapAnthropicStream(
             args = { __unparsed: open.json };
           }
           open.block.input = args;
-          push({ type: 'tool-call-end', id: open.canonicalId, args });
+          yield { type: 'tool-call-end', id: open.canonicalId, args };
         }
         mapping.assistantContent.push(open.block);
         break;
@@ -573,12 +570,12 @@ export async function mapAnthropicStream(
         if (retained.length > 0) {
           meta.retainedParts = retained;
         }
-        push({
+        yield {
           type: 'finish',
           finish: mapped.finish ?? { reason: 'stop' },
           usage,
           providerMetadata,
-        });
+        };
         mapping.finished = true;
         return mapping;
       }

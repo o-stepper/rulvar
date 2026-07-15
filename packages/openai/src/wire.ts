@@ -257,18 +257,19 @@ export function normalizeOpenAiUsage(raw: Record<string, unknown> | undefined): 
 }
 
 /**
- * Maps the typed Responses SSE stream to ChatEvents.
- * Canonical parts come from the typed output array,
- * never the output_text aggregate. Raw output items ride
+ * Maps the typed Responses SSE stream to ChatEvents, yielding each
+ * canonical event AS the corresponding provider event is consumed: the
+ * consumer's pull drives the provider read (natural backpressure, no
+ * buffering, no detached work). Canonical parts come from the typed
+ * output array, never the output_text aggregate. Raw output items ride
  * finish.providerMetadata.openai.outputItems so the runtime can retain
  * reasoning items as provider-raw parts.
  */
-export async function mapResponsesStream(
+export async function* mapResponsesStream(
   stream: AsyncIterable<ResponsesStreamEvent>,
   ids: OpenAiIdMap,
-  emit: (event: ChatEvent) => void,
   options?: { effortDownmapped?: boolean },
-): Promise<void> {
+): AsyncGenerator<ChatEvent, void> {
   const callIdByItemId = new Map<string, string>();
 
   for await (const event of stream) {
@@ -280,11 +281,11 @@ export async function mapResponsesStream(
           if (typeof item.id === 'string') {
             callIdByItemId.set(item.id, callId);
           }
-          emit({
+          yield {
             type: 'tool-call-start',
             id: ids.canonicalFor(callId),
             name: (item.name as string | undefined) ?? '',
-          });
+          };
         }
         break;
       }
@@ -292,11 +293,11 @@ export async function mapResponsesStream(
         const itemId = event.item_id as string | undefined;
         const callId = itemId === undefined ? undefined : callIdByItemId.get(itemId);
         if (callId !== undefined) {
-          emit({
+          yield {
             type: 'tool-call-delta',
             id: ids.canonicalFor(callId),
             argsTextDelta: (event.delta as string | undefined) ?? '',
-          });
+          };
         }
         break;
       }
@@ -313,22 +314,22 @@ export async function mapResponsesStream(
           } catch {
             args = { __unparsed: item.arguments };
           }
-          emit({ type: 'tool-call-end', id: ids.canonicalFor(callId), args });
+          yield { type: 'tool-call-end', id: ids.canonicalFor(callId), args };
         }
         break;
       }
       case 'response.output_text.delta':
-        emit({ type: 'text-delta', text: (event.delta as string | undefined) ?? '' });
+        yield { type: 'text-delta', text: (event.delta as string | undefined) ?? '' };
         break;
       case 'response.reasoning_summary_text.delta':
       case 'response.reasoning_text.delta':
-        emit({ type: 'reasoning-delta', text: (event.delta as string | undefined) ?? '' });
+        yield { type: 'reasoning-delta', text: (event.delta as string | undefined) ?? '' };
         break;
       case 'response.completed':
       case 'response.incomplete': {
         const response = event.response as Item | undefined;
         const usage = normalizeOpenAiUsage(response?.usage as Record<string, unknown> | undefined);
-        emit({ type: 'usage', usage });
+        yield { type: 'usage', usage };
         let finish: FinishInfo = { reason: 'stop' };
         if (event.type === 'response.incomplete') {
           const details = response?.incomplete_details as Item | undefined;
@@ -370,13 +371,13 @@ export async function mapResponsesStream(
         if (options?.effortDownmapped === true) {
           meta.effortDownmapped = 'max->xhigh';
         }
-        emit({ type: 'finish', finish, usage, providerMetadata: { openai: meta } });
+        yield { type: 'finish', finish, usage, providerMetadata: { openai: meta } };
         return;
       }
       case 'response.failed': {
         const response = event.response as Item | undefined;
         const error = response?.error as Item | undefined;
-        emit({
+        yield {
           type: 'error',
           error: {
             code: 'agent',
@@ -384,11 +385,11 @@ export async function mapResponsesStream(
             retryable: false,
             data: { kind: 'transport' },
           },
-        });
+        };
         return;
       }
       case 'error': {
-        emit({
+        yield {
           type: 'error',
           error: {
             code: 'agent',
@@ -396,7 +397,7 @@ export async function mapResponsesStream(
             retryable: false,
             data: { kind: 'transport' },
           },
-        });
+        };
         return;
       }
       default:
@@ -549,12 +550,15 @@ export function buildChatCompletionsParams(
   return params;
 }
 
-/** Delta-patched chunk assembly for the degraded path. */
-export async function mapChatCompletionsStream(
+/**
+ * Delta-patched chunk assembly for the degraded path; yields each
+ * canonical event as its chunk is consumed (same live-streaming contract
+ * as mapResponsesStream).
+ */
+export async function* mapChatCompletionsStream(
   stream: AsyncIterable<Record<string, unknown>>,
   ids: OpenAiIdMap,
-  emit: (event: ChatEvent) => void,
-): Promise<void> {
+): AsyncGenerator<ChatEvent, void> {
   const pendingCalls = new Map<number, { id: string; name: string; args: string }>();
   let finishReason: string | undefined;
   let usage: Usage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
@@ -564,7 +568,7 @@ export async function mapChatCompletionsStream(
     const choice = choices?.[0];
     const delta = choice?.delta as Item | undefined;
     if (typeof delta?.content === 'string' && delta.content !== '') {
-      emit({ type: 'text-delta', text: delta.content });
+      yield { type: 'text-delta', text: delta.content };
     }
     const toolCalls = delta?.tool_calls as Item[] | undefined;
     if (toolCalls !== undefined) {
@@ -575,22 +579,22 @@ export async function mapChatCompletionsStream(
         if (pending === undefined) {
           pending = { id: (call.id as string | undefined) ?? `call_${index}`, name: '', args: '' };
           pendingCalls.set(index, pending);
-          emit({
+          yield {
             type: 'tool-call-start',
             id: ids.canonicalFor(pending.id),
             name: (fn?.name as string | undefined) ?? '',
-          });
+          };
         }
         if (typeof fn?.name === 'string') {
           pending.name += fn.name;
         }
         if (typeof fn?.arguments === 'string' && fn.arguments !== '') {
           pending.args += fn.arguments;
-          emit({
+          yield {
             type: 'tool-call-delta',
             id: ids.canonicalFor(pending.id),
             argsTextDelta: fn.arguments,
-          });
+          };
         }
       }
     }
@@ -618,9 +622,9 @@ export async function mapChatCompletionsStream(
     } catch {
       args = { __unparsed: pending.args };
     }
-    emit({ type: 'tool-call-end', id: ids.canonicalFor(pending.id), args });
+    yield { type: 'tool-call-end', id: ids.canonicalFor(pending.id), args };
   }
-  emit({ type: 'usage', usage });
+  yield { type: 'usage', usage };
   const finish: FinishInfo =
     finishReason === 'length'
       ? { reason: 'max-tokens' }
@@ -629,5 +633,5 @@ export async function mapChatCompletionsStream(
         : finishReason === 'content_filter'
           ? { reason: 'refusal', refusal: { provider: 'openai' } }
           : { reason: 'stop' };
-  emit({ type: 'finish', finish, usage, providerMetadata: { openai: { degradedPath: 'chat' } } });
+  yield { type: 'finish', finish, usage, providerMetadata: { openai: { degradedPath: 'chat' } } };
 }
