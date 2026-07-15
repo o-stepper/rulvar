@@ -40,9 +40,14 @@ export interface TerminationLimits {
   kMax: number;
   /** B0; immutable after start, no API including HITL can top up. */
   runBudgetUsdCeiling: number;
-  /** From the orchestrator budget (DEF-7; XF-09). */
+  /**
+   * The resolved orchestrator cap in absolute USD (DEF-7; XF-09),
+   * frozen with the counters. Journals recorded before v1.8 store 0
+   * ("not yet resolved"); for them the orchestrator_budget_reserve
+   * decision is the authority and is recovered on resume.
+   */
   orchestratorCapUsd: number;
-  /** From the orchestrator budget (DEF-7; XF-09). */
+  /** The finalize reserve carved out of the cap; 0 in pre-v1.8 journals. */
   finalizeReserveUsd: number;
 }
 

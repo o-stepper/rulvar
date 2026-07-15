@@ -94,6 +94,16 @@ export interface OrchestratorExtensionIO {
   readonly gates: Record<string, unknown>;
   /** The run USD ceiling (B0), when one exists. */
   readonly runCeilingUsd?: number;
+  /**
+   * The resolved orchestrator cap in absolute USD (DEF-7; XF-09):
+   * min(budget.capUsd, capFraction x B0) on a fresh run, the frozen
+   * orchestrator_budget_reserve dollars on resume. Resolved strictly
+   * before boot so an extension can freeze it into termination.init;
+   * always present under PlanRunner (an unresolvable cap refuses boot).
+   */
+  readonly orchestratorCapUsd?: number;
+  /** The finalize reserve carved out of the cap, resolved with it. */
+  readonly finalizeReserveUsd?: number;
   /** ULID minting for engine-owned identifiers (NodeIds). */
   mintId(): string;
   /**

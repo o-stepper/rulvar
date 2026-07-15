@@ -10,4 +10,4 @@
 const DEFAULT_MAX_TOTAL_SPAWNS: 128 = 128;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L51)
+Defined in: [packages/core/src/journal/termination.ts:56](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L56)

@@ -6,7 +6,7 @@
 
 # Interface: TerminationInitValue
 
-Defined in: [packages/core/src/journal/termination.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L75)
+Defined in: [packages/core/src/journal/termination.ts:80](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L80)
 
 The value payload of a termination.init entry.
 
@@ -14,6 +14,6 @@ The value payload of a termination.init entry.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-limits"></a> `limits` | [`TerminationLimits`](/api/@rulvar/core/interfaces/TerminationLimits.md) | [packages/core/src/journal/termination.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L76) |
-| <a id="property-phiinitial"></a> `phiInitial` | `number` | [packages/core/src/journal/termination.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L78) |
-| <a id="property-profileregistrysnapshothash"></a> `profileRegistrySnapshotHash` | `string` | [packages/core/src/journal/termination.ts:77](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L77) |
+| <a id="property-limits"></a> `limits` | [`TerminationLimits`](/api/@rulvar/core/interfaces/TerminationLimits.md) | [packages/core/src/journal/termination.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L81) |
+| <a id="property-phiinitial"></a> `phiInitial` | `number` | [packages/core/src/journal/termination.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L83) |
+| <a id="property-profileregistrysnapshothash"></a> `profileRegistrySnapshotHash` | `string` | [packages/core/src/journal/termination.ts:82](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L82) |

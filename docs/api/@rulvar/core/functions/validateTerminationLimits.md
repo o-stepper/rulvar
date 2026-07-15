@@ -10,7 +10,7 @@
 function validateTerminationLimits(raw): TerminationLimits;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L141)
+Defined in: [packages/core/src/journal/termination.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L146)
 
 Validates a raw limits record into the frozen vector. The pre-rename
 escalation knob is rejected with a migration hint (XF-10); counters

@@ -20,8 +20,8 @@
           "maxDepth": 1,
           "kMax": 1,
           "runBudgetUsdCeiling": 0,
-          "orchestratorCapUsd": 0,
-          "finalizeReserveUsd": 0
+          "orchestratorCapUsd": 5,
+          "finalizeReserveUsd": 1
         },
         "profileRegistrySnapshotHash": "hash-0002-------------------------------------------------------",
         "phiInitial": 1184

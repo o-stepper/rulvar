@@ -14,9 +14,11 @@ The per-run IO the extension closes over (engine-owned effects).
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-admission"></a> `admission` | `readonly` | [`AdmissionController`](/api/@rulvar/core/classes/AdmissionController.md) | The single admission point for all spawns. | [packages/core/src/orchestrator/extension.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L112) |
+| <a id="property-admission"></a> `admission` | `readonly` | [`AdmissionController`](/api/@rulvar/core/classes/AdmissionController.md) | The single admission point for all spawns. | [packages/core/src/orchestrator/extension.ts:122](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L122) |
 | <a id="property-basescope"></a> `baseScope` | `readonly` | `string` | The scope the orchestrate call runs in ('' at the top level). | [packages/core/src/orchestrator/extension.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L84) |
+| <a id="property-finalizereserveusd"></a> `finalizeReserveUsd?` | `readonly` | `number` | The finalize reserve carved out of the cap, resolved with it. | [packages/core/src/orchestrator/extension.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L106) |
 | <a id="property-gates"></a> `gates` | `readonly` | `Record`\&lt;`string`, `unknown`\&gt; | The per-engine mechanical gate registry: named pure functions over AgentResult.artifacts. Typed loose at the seam exactly like `profiles`. | [packages/core/src/orchestrator/extension.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L94) |
+| <a id="property-orchestratorcapusd"></a> `orchestratorCapUsd?` | `readonly` | `number` | The resolved orchestrator cap in absolute USD (DEF-7; XF-09): min(budget.capUsd, capFraction x B0) on a fresh run, the frozen orchestrator_budget_reserve dollars on resume. Resolved strictly before boot so an extension can freeze it into termination.init; always present under PlanRunner (an unresolvable cap refuses boot). | [packages/core/src/orchestrator/extension.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L104) |
 | <a id="property-profiles"></a> `profiles` | `readonly` | `Record`\&lt;`string`, `unknown`\&gt; | Registered agent profiles advertised to this orchestrate call. | [packages/core/src/orchestrator/extension.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L88) |
 | <a id="property-runceilingusd"></a> `runCeilingUsd?` | `readonly` | `number` | The run USD ceiling (B0), when one exists. | [packages/core/src/orchestrator/extension.ts:96](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L96) |
 | <a id="property-runid"></a> `runId` | `readonly` | `string` | - | [packages/core/src/orchestrator/extension.ts:82](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L82) |
@@ -32,7 +34,7 @@ abandonBranch(attempt): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:131](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L131)
+Defined in: [packages/core/src/orchestrator/extension.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L141)
 
 Appends the severing abandon ref-entry over a branch through the
 ResolutionArbiter (DEF-4/DEF-5).
@@ -65,7 +67,7 @@ ResolutionArbiter (DEF-4/DEF-5).
 append(input): Promise<JournalEntry>;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L106)
+Defined in: [packages/core/src/orchestrator/extension.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L116)
 
 Total-order append; the extension owns its scopes' content keys.
 
@@ -90,7 +92,7 @@ cancel(handle, reason?): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L126)
+Defined in: [packages/core/src/orchestrator/extension.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L136)
 
 Cancels an in-flight child by handle (AbortSignal).
 
@@ -121,7 +123,7 @@ dispatch(
 }>;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:118](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L118)
+Defined in: [packages/core/src/orchestrator/extension.ts:128](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L128)
 
 Dispatches one child agent under the EXPLICIT child scope through
 the ordinary ctx.agent path (semaphore, budget layers, forward
@@ -151,7 +153,7 @@ matching). Returns the journal-derived handle (the dispatch seq).
 emit(event): void;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:148](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L148)
+Defined in: [packages/core/src/orchestrator/extension.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L158)
 
 Telemetry emission into the run event stream.
 
@@ -173,7 +175,7 @@ Telemetry emission into the run event stream.
 flush(): Promise<void>;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:110](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L110)
+Defined in: [packages/core/src/orchestrator/extension.ts:120](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L120)
 
 Flushes the serialized append queue before reading back.
 
@@ -189,7 +191,7 @@ Flushes the serialized append queue before reading back.
 mintId(): string;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:98](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L98)
+Defined in: [packages/core/src/orchestrator/extension.ts:108](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L108)
 
 ULID minting for engine-owned identifiers (NodeIds).
 
@@ -221,7 +223,7 @@ The orchestrator's child scope (agent:&lt;seq&gt;); throws before the loop start
 priceUsd(servedBy, usage): number | undefined;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L146)
+Defined in: [packages/core/src/orchestrator/extension.ts:156](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L156)
 
 The engine price fold (journal facts in, USD out).
 
@@ -244,7 +246,7 @@ The engine price fold (journal facts in, USD out).
 random(key?): Promise<number>;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L104)
+Defined in: [packages/core/src/orchestrator/extension.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L114)
 
 A journaled random draw in [0, 1) under the orchestrate scope: the
 ctx.random primitive, computed once live and replayed by match. The
@@ -268,7 +270,7 @@ spot-check gate draws HERE, never Math.random.
 registerAlias(donorScope, targetScope): void;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L144)
+Defined in: [packages/core/src/orchestrator/extension.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L154)
 
 Registers a node.link scope-prefix alias for forward matching
 (DEF-5). Idempotent; rebuilt by fold on resume.
@@ -294,7 +296,7 @@ settledOf(handle):
   | undefined;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:124](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L124)
+Defined in: [packages/core/src/orchestrator/extension.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L134)
 
 The settled result of a dispatched child, when it settled.
 
@@ -317,7 +319,7 @@ The settled result of a dispatched child, when it settled.
 snapshot(): readonly JournalEntry[];
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:108](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L108)
+Defined in: [packages/core/src/orchestrator/extension.ts:118](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L118)
 
 The pinned journal view backing every pure fold.
 

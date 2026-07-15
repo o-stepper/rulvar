@@ -275,6 +275,15 @@ the API, no journal entry kind carries a credit, and the frozen vector cannot
 be edited after start. Growing the plan does not grow the revision budget;
 abandoning work reclaims dollars but never returns counters.
 
+The two dollar fields freeze the values the engine resolves strictly before
+the extension boots, and the `orchestrator_budget_reserve` decision that
+follows refers to the same immutable dollars. On resume the frozen dollars
+win over live options: a diverging `capUsd`, `capFraction`, or
+`finalizeReserveUsd` emits `termination:config-drift` and is never honored.
+Journals recorded before v1.8 store `0` for both fields ("not yet resolved");
+for those journals the reserve decision is the authority, and they replay
+unchanged.
+
 Wakeups need no counter of their own: every orchestrator wake is a paid turn
 against the capped orchestrator sub-account, so the number of wakes is bounded
 by the usable cap (cap minus the finalize reserve) divided by the minimal cost

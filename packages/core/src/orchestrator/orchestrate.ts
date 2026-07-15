@@ -266,6 +266,8 @@ export function makeOrchestratorWorkflow(
     // reserve decision entries and the at-cap freeze are M7 (DEF-7).
     const extension = opts?.extension;
     let orchestratorAccount: string | undefined;
+    /** DEF-2 cap drift found in the sync prologue; emitted after boot. */
+    const pendingCapDrifts: Array<{ field: string; frozenValue: number; liveValue: number }> = [];
     let capState:
       | {
           effectiveCapUsd: number;
@@ -292,7 +294,73 @@ export function makeOrchestratorWorkflow(
       const bounds = [spec?.capUsd, fromFraction].filter(
         (bound): bound is number => bound !== undefined,
       );
-      if (extension !== undefined && bounds.length === 0) {
+      // DEF-2 config-drift-resume for the cap dollars: a resumed run
+      // recovers the FROZEN reserve decision (absolute USD) instead of
+      // re-deriving from live options; a diverging live knob is reported,
+      // never honored. The decision exists only for extension runs, so
+      // plain dynamic orchestrations always take the live path.
+      const priorReserveDecision = internals.replayer.snapshot().find((entry) => {
+        if (entry.kind !== 'decision' || entry.scope !== callingState.scope) {
+          return false;
+        }
+        return (
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_budget_reserve'
+        );
+      });
+      if (priorReserveDecision !== undefined) {
+        const frozen = priorReserveDecision.value as {
+          capUsd: number;
+          finalizeReserveUsd: number;
+          finalizeTurns: number;
+          source: 'call' | 'profile' | 'engine';
+        };
+        const turnEstimateUsd = internals.flatReserveUsd ?? 0.5;
+        const liveFinalizeReserveUsd =
+          spec?.finalizeReserveUsd ?? (spec?.finalizeTurns ?? 2) * turnEstimateUsd;
+        // Emission is DEFERRED past the synchronous prologue: a caller
+        // attaches handle listeners after run()/resume() returns, and
+        // this block runs before the first await.
+        pendingCapDrifts.push(
+          ...(bounds.length > 0 && Math.min(...bounds) !== frozen.capUsd
+            ? [
+                {
+                  field: 'orchestratorCapUsd',
+                  frozenValue: frozen.capUsd,
+                  liveValue: Math.min(...bounds),
+                },
+              ]
+            : []),
+          ...(liveFinalizeReserveUsd !== frozen.finalizeReserveUsd
+            ? [
+                {
+                  field: 'finalizeReserveUsd',
+                  frozenValue: frozen.finalizeReserveUsd,
+                  liveValue: liveFinalizeReserveUsd,
+                },
+              ]
+            : []),
+        );
+        orchestratorAccount =
+          callingState.scope === '' ? 'orchestrator' : `${callingState.scope}/orchestrator`;
+        internals.budget.openAccount(orchestratorAccount, {
+          parentScope: callingState.budgetScope ?? ROOT_ACCOUNT,
+          ceilingUsd: frozen.capUsd,
+          kind: 'orchestrator-cap',
+        });
+        if (extension !== undefined) {
+          internals.budget.commitFinalizeReserve(orchestratorAccount, frozen.finalizeReserveUsd);
+        }
+        capState = {
+          effectiveCapUsd: frozen.capUsd,
+          finalizeReserveUsd: frozen.finalizeReserveUsd,
+          finalizeTurns: frozen.finalizeTurns,
+          turnEstimateUsd,
+          atCap: spec?.atCap ?? 'finish-with-partial',
+          source: frozen.source,
+        };
+      }
+      if (capState === undefined && extension !== undefined && bounds.length === 0) {
         // An uncapped orchestrator was precisely the defect (DEF-7):
         // PlanRunner refuses to start BEFORE the first LLM call and
         // before any journal entries.
@@ -301,7 +369,7 @@ export function makeOrchestratorWorkflow(
             'budget.capUsd; PlanRunner requires a resolved effectiveCap',
         );
       }
-      if (bounds.length > 0) {
+      if (capState === undefined && bounds.length > 0) {
         const effectiveCapUsd = Math.min(...bounds);
         // The deterministic per-turn estimate of v1: the engine flat
         // reserve default; the journaled reserve entry freezes the
@@ -540,6 +608,15 @@ export function makeOrchestratorWorkflow(
       ...(internals.budget.ceilingUsd === undefined
         ? {}
         : { runCeilingUsd: internals.budget.ceilingUsd }),
+      // The authoritative cap dollars (DEF-7; XF-09): resolved strictly
+      // before boot, recovered from the frozen reserve decision on
+      // resume, so an extension can freeze them into termination.init.
+      ...(capState === undefined
+        ? {}
+        : {
+            orchestratorCapUsd: capState.effectiveCapUsd,
+            finalizeReserveUsd: capState.finalizeReserveUsd,
+          }),
       mintId: createCanonicalIdMinter(),
       // The journaled draw lands in the orchestrate call's own scope so a
       // re-executed turn replays the SAME value by content-key match.
@@ -1248,6 +1325,17 @@ export function makeOrchestratorWorkflow(
     if (extension?.boot !== undefined) {
       await extension.boot(io);
     }
+    for (const drift of pendingCapDrifts) {
+      internals.events.emit(
+        {
+          type: 'termination:config-drift',
+          field: drift.field,
+          frozenValue: drift.frozenValue,
+          liveValue: drift.liveValue,
+        },
+        callingState.spanId,
+      );
+    }
     // Model knowledge pinning (M10-T03): one knowledge read at run admission,
     // ONLY for orchestrate-role runs over a CONFIGURED store; the pin
     // embeds the card bytes, so resume and replay read the entry and
@@ -1315,7 +1403,12 @@ export function makeOrchestratorWorkflow(
       capState !== undefined &&
       !internals.replayer
         .snapshot()
-        .some((entry) => entry.kind === 'decision' && entry.key === reserveKey)
+        .some(
+          (entry) =>
+            entry.kind === 'decision' &&
+            entry.scope === callingState.scope &&
+            entry.key === reserveKey,
+        )
     ) {
       // ONE decision entry strictly AFTER termination.init and strictly
       // BEFORE the orchestrator's first agent entry (XF-09): absolute
