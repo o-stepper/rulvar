@@ -1,5 +1,17 @@
 # @rulvar/openai
 
+## 1.7.0
+
+### Patch Changes
+
+- Updated dependencies [45285aa]
+- Updated dependencies [2f20d1d]
+- Updated dependencies [22f65a8]
+- Updated dependencies [2ddfa29]
+- Updated dependencies [2abd9c2]
+- Updated dependencies [1c1175d]
+  - @rulvar/core@1.7.0
+
 ## 1.6.0
 
 ### Minor Changes

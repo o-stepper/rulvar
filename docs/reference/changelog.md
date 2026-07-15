@@ -18,6 +18,18 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.7.0
+
+#### Patch Changes
+
+- Updated dependencies [45285aa]
+- Updated dependencies [2f20d1d]
+- Updated dependencies [22f65a8]
+- Updated dependencies [2ddfa29]
+- Updated dependencies [2abd9c2]
+- Updated dependencies [1c1175d]
+  - @rulvar/core@1.7.0
+
 ### 1.6.0
 
 #### Minor Changes
@@ -346,6 +358,18 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.7.0
+
+#### Patch Changes
+
+- Updated dependencies [45285aa]
+- Updated dependencies [2f20d1d]
+- Updated dependencies [22f65a8]
+- Updated dependencies [2ddfa29]
+- Updated dependencies [2abd9c2]
+- Updated dependencies [1c1175d]
+  - @rulvar/core@1.7.0
+
 ### 1.6.0
 
 #### Patch Changes
@@ -579,6 +603,18 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.7.0
+
+#### Patch Changes
+
+- Updated dependencies [45285aa]
+- Updated dependencies [2f20d1d]
+- Updated dependencies [22f65a8]
+- Updated dependencies [2ddfa29]
+- Updated dependencies [2abd9c2]
+- Updated dependencies [1c1175d]
+  - @rulvar/core@1.7.0
 
 ### 1.6.0
 
@@ -944,6 +980,20 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.7.0
+
+#### Minor Changes
+
+- 45285aa: Budget exhaustion errors now name the ceiling that actually ended the work. `BudgetExhaustedError` from agent execution reports the first closed account walking up from the debited scope (its scope, ceiling, spend, and reserves) plus the run root state, classified as `root`, `orchestrator-cap`, or `child-account`, both in the message and in typed `data`; a crossed orchestrator cap no longer masquerades as `run budget ceiling reached`. `RunBudget` gains the `exhaustionDiagnostics(scope)` projection behind this, and the orchestrator emits a warn log when an explicit `budget.capUsd` is silently bounded by the default `capFraction` 0.2 of the run ceiling (pass `capFraction: 1.0` to make `capUsd` the sole bound; the docs now spell out the min formula trap).
+- 2f20d1d: `CostReport` is now replay stable and internally consistent: the engine builds every settled outcome's report from one pure journal fold (`costReportFromJournal`), so a replay only resume reproduces the complete report byte for byte, including the orchestrator block (`spentUsd`, `share`, `wakes`, `forcedFinish`, `reserveUsedUsd`), which previously read this process's live budget accounts and collapsed to zero on replay. Terminal entries now carry additive `costAttribution` facts (phase, agent type, primary role, debited budget account, finalize reserve flag); they are policy, never identity, exactly like `usageByModel`, and entries written before the field shipped fold under documented fallback buckets. One inclusion policy applies to the total and every breakdown alike: non abandoned terminal usage exactly once, so `byModel`, `byPhase`, `byAgentType`, and `byRole` each sum to `totalUsd` even after resumes that re paid attempts. `orchestrator.wakes` now counts armed (journaled) wake suspensions. The frozen cassette catalog was re recorded for the new journal byte form; identity derivation is untouched and old journals replay unchanged (the hashVersion stays 2; the token hashVersion-bump here sanctions the fixture lock refresh ceremony, not a version change).
+
+#### Patch Changes
+
+- 22f65a8: The development mode bare nondeterminism detector no longer warns when Node's own machinery consults `Date.now` or `Math.random` inside a run's async context. Frames with `node:` specifiers (the undici transport behind global `fetch`, timers, stream internals) are now classified as library provenance alongside `node_modules`, eliminating the false `RULVAR_BARE_DATE_NOW` observed at `processResponseEndOfBody` during in run `fetch` calls. Direct calls from workflow files still warn exactly once per run.
+- 2ddfa29: Documentation: the mode (c) resume contract is now stated as it actually works. `orchestrate()` builds its workflow internally and never registers it, so bare `engine.resume(runId)` cannot resolve it; the orchestration modes guide and the resume table now document the two working forms, `engine.resume(runId, makeOrchestratorWorkflow(goal, opts))` with the original inputs or a one time registration under `defaults.workflows` with `ORCHESTRATE_WORKFLOW_NAME`, with an executable test covering both, and the troubleshooting guide gains the symptom first entry for the `rulvar-orchestrate` not registered error.
+- 2abd9c2: A resumed dynamic orchestration now honors the documented mode (c) contract after a budget cancelled root. Recovery is orchestration scoped instead of attempt scoped: journaled spawn decisions recover across root attempts (they live at the orchestrate call's own stable scope), recovered children re dispatch pinned to their journaled child scope so settled ones replay by content key for free and only dangling ones rerun, prior attempt handles alias to the recovered records so a restored transcript's await and cancel calls keep working, and the rerun root boots from the cancelled attempt's last turn boundary checkpoint instead of re planning from scratch. A regenerated turn that diverges from a lost one decides fresh (the recovered verdict binds only when the incoming spec matches the journaled one). Previously the rerun derived its recovery scope from the new dispatch seq, saw nothing, re decided every spawn, and re paid completed children.
+- 1c1175d: An agent configured with a required terminal tool (the dynamic orchestrator's `finish`) no longer settles ok on a turn that ends without any tool call. Such a turn, including one cut by the output token bound before any call, now consumes the no progress budget and re prompts the model toward the tool, so `orchestrate()` returns ok only after a validated `finish({ result })` was intercepted; a model that never complies terminates as a bounded typed `limit`, never as ok with unproven output. The forced finish exhaustion path keeps synthesizing its documented partial. Ordinary `ctx.agent` calls without a terminal tool are unchanged.
 
 ### 1.6.0
 
@@ -1858,6 +1908,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.7.0
+
 ### 1.6.0
 
 #### Patch Changes
@@ -1934,6 +1986,19 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.7.0
+
+#### Patch Changes
+
+- Updated dependencies [45285aa]
+- Updated dependencies [2f20d1d]
+- Updated dependencies [22f65a8]
+- Updated dependencies [2ddfa29]
+- Updated dependencies [2abd9c2]
+- Updated dependencies [1c1175d]
+  - @rulvar/core@1.7.0
+  - @rulvar/testing@1.7.0
 
 ### 1.6.0
 
@@ -2212,6 +2277,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.7.0
+
+#### Patch Changes
+
+- Updated dependencies [45285aa]
+- Updated dependencies [2f20d1d]
+- Updated dependencies [22f65a8]
+- Updated dependencies [2ddfa29]
+- Updated dependencies [2abd9c2]
+- Updated dependencies [1c1175d]
+  - @rulvar/core@1.7.0
 
 ### 1.6.0
 
@@ -2560,6 +2637,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.7.0
+
+#### Patch Changes
+
+- Updated dependencies [45285aa]
+- Updated dependencies [2f20d1d]
+- Updated dependencies [22f65a8]
+- Updated dependencies [2ddfa29]
+- Updated dependencies [2abd9c2]
+- Updated dependencies [1c1175d]
+  - @rulvar/core@1.7.0
+
 ### 1.6.0
 
 #### Patch Changes
@@ -2874,6 +2963,19 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.7.0
+
+#### Patch Changes
+
+- Updated dependencies [45285aa]
+- Updated dependencies [2f20d1d]
+- Updated dependencies [22f65a8]
+- Updated dependencies [2ddfa29]
+- Updated dependencies [2abd9c2]
+- Updated dependencies [1c1175d]
+  - @rulvar/core@1.7.0
+  - eslint-plugin-rulvar@1.7.0
+
 ### 1.6.0
 
 #### Patch Changes
@@ -3126,6 +3228,20 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.7.0
+
+#### Patch Changes
+
+- Updated dependencies [45285aa]
+- Updated dependencies [2f20d1d]
+- Updated dependencies [22f65a8]
+- Updated dependencies [2ddfa29]
+- Updated dependencies [2abd9c2]
+- Updated dependencies [1c1175d]
+  - @rulvar/core@1.7.0
+  - @rulvar/anthropic@1.7.0
+  - @rulvar/openai@1.7.0
 
 ### 1.6.0
 
@@ -3483,6 +3599,18 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.7.0
+
+#### Patch Changes
+
+- Updated dependencies [45285aa]
+- Updated dependencies [2f20d1d]
+- Updated dependencies [22f65a8]
+- Updated dependencies [2ddfa29]
+- Updated dependencies [2abd9c2]
+- Updated dependencies [1c1175d]
+  - @rulvar/core@1.7.0
+
 ### 1.6.0
 
 #### Patch Changes
@@ -3772,6 +3900,18 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.7.0
+
+#### Patch Changes
+
+- Updated dependencies [45285aa]
+- Updated dependencies [2f20d1d]
+- Updated dependencies [22f65a8]
+- Updated dependencies [2ddfa29]
+- Updated dependencies [2abd9c2]
+- Updated dependencies [1c1175d]
+  - @rulvar/core@1.7.0
+
 ### 1.6.0
 
 #### Patch Changes
@@ -4011,6 +4151,18 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.7.0
+
+#### Patch Changes
+
+- Updated dependencies [45285aa]
+- Updated dependencies [2f20d1d]
+- Updated dependencies [22f65a8]
+- Updated dependencies [2ddfa29]
+- Updated dependencies [2abd9c2]
+- Updated dependencies [1c1175d]
+  - @rulvar/core@1.7.0
 
 ### 1.6.0
 
