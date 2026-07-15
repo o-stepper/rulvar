@@ -10,11 +10,13 @@ Defined in: `packages/core/dist/index.d.ts`
 
 The mode (a) runner for human-authored closures. Determinism is enforced
 by convention, lint, and the ctx shims, NOT by a VM: only the sequence
-of keys must be stable. Dev mode (NODE_ENV !== 'production') patches
-Date.now and Math.random for the duration of execute to emit one warning
-per run pointing at ctx.now()/ctx.random(); the patch preserves behavior
-and restores the prior functions on exit (nesting-safe by capturing the
-prior value; concurrent runs may lose the warning, never correctness).
+of keys must be stable. Dev mode (NODE_ENV !== 'production') detects
+bare Date.now and Math.random and emits one warning per run pointing at
+ctx.now()/ctx.random(). Detection is attributed by AsyncLocalStorage:
+only code inside the workflow body's async context can trigger it, so
+host code running concurrently, engine internals outside the body, and
+other runs never produce a false warning, and nothing is ever restored,
+so concurrent executes cannot race the patch state.
 
 ## Implements
 
