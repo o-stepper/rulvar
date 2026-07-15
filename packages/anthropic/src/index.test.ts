@@ -513,4 +513,13 @@ describe('the Haiku 4.5 caps entry (found by the M12 checkpoint)', () => {
     // Unknown ids still assume the current generation.
     expect(anthropicModelInfo('claude-nova-9').thinkingForm).toBe('adaptive');
   });
+
+  it('unknown models keep transport caps but are never silently priced', () => {
+    const info = anthropicModelInfo('claude-nova-9');
+    expect(info.caps.contextWindow).toBe(400_000);
+    expect(info.caps.maxOutputTokens).toBe(64_000);
+    // No fabricated price row: the usage surfaces in CostReport.unpriced
+    // and a run ceiling warns, instead of silently billing a wrong rate.
+    expect(info.caps.pricing).toBeUndefined();
+  });
 });

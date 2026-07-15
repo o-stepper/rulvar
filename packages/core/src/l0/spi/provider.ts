@@ -20,6 +20,26 @@
 import type { ChatEvent, ChatRequest, Effort } from '../messages.js';
 
 /**
+ * One long-context price tier. When the full prompt (canonical
+ * inputTokens, cache included) is strictly above `aboveInputTokens`, the
+ * ENTIRE request is re-priced with these multipliers, not only the tokens
+ * past the threshold (how providers state their long-context rules).
+ * `inputMultiplier` scales every input-side rate: input, cache read, and
+ * cache write.
+ * `outputMultiplier` scales the output rate. Provider pricing pages state
+ * multipliers for "input" without saying whether cache rates scale;
+ * scaling them with input is the conservative reading for budget
+ * enforcement (it never underestimates spend). With several tiers, the
+ * highest threshold below the prompt size wins, independent of array
+ * order.
+ */
+export interface PricingTier {
+  aboveInputTokens: number;
+  inputMultiplier: number;
+  outputMultiplier: number;
+}
+
+/**
  * Per-model pricing in USD per million tokens. The registry's
  * versioned price table wins over adapter-
  * reported caps.pricing, which is a fallback only.
@@ -32,6 +52,8 @@ export interface Pricing {
   cacheWriteUsdPerMTok?: number;
   /** 1h write premium rate where the provider distinguishes. */
   cacheWrite1hUsdPerMTok?: number;
+  /** Long-context tiers; a row without them is one linear price. */
+  tiers?: PricingTier[];
 }
 
 /** Capability facts the router consumes for tier selection and scrubbing. */

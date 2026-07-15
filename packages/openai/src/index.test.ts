@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { ConfigError, createCanonicalIdMinter, type ChatEvent, type Part } from '@rulvar/core';
 import type { OpenAiClientLike } from './adapter.js';
 import { openai } from './adapter.js';
+import { OPENAI_MODELS, openAiModelInfo } from './caps.js';
 import {
   buildChatCompletionsParams,
   buildResponsesParams,
@@ -472,4 +473,54 @@ describe('adapter surface (M1-T13)', () => {
     },
     30_000,
   );
+});
+
+describe('the GPT-5.6 caps entries and unknown-model safety', () => {
+  it('seeds gpt-5.6-sol and its alias with the official caps and tiered pricing', () => {
+    for (const model of ['gpt-5.6-sol', 'gpt-5.6']) {
+      const info = openAiModelInfo(model);
+      expect(info.api).toBe('responses');
+      expect(info.reasoning).toBe(true);
+      expect(info.caps.contextWindow).toBe(1_050_000);
+      expect(info.caps.maxOutputTokens).toBe(128_000);
+      expect(info.caps.reasoningEfforts).toContain('max');
+      expect(info.caps.pricing).toEqual({
+        inputUsdPerMTok: 5,
+        outputUsdPerMTok: 30,
+        cacheReadUsdPerMTok: 0.5,
+        cacheWriteUsdPerMTok: 6.25,
+        tiers: [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
+      });
+    }
+  });
+
+  it('passes the gpt-5.6-sol wire id through the Responses params unchanged', () => {
+    const { params } = buildResponsesParams(
+      {
+        model: 'gpt-5.6-sol',
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'go' }] }],
+        effort: 'high',
+      },
+      ids(),
+    );
+    expect(params.model).toBe('gpt-5.6-sol');
+    expect(params.reasoning).toEqual({ effort: 'high' });
+  });
+
+  it('resolves dated snapshots by the longest matching prefix', () => {
+    // 'gpt-5.5-pro-...' must reach the pro entry, never the shorter
+    // 'gpt-5.5' sibling.
+    expect(openAiModelInfo('gpt-5.5-pro-2026-07-01')).toBe(OPENAI_MODELS['gpt-5.5-pro']);
+    expect(openAiModelInfo('gpt-5.6-sol-2026-08-01').caps.contextWindow).toBe(1_050_000);
+  });
+
+  it('unknown models keep conservative transport caps but are never silently priced', () => {
+    const info = openAiModelInfo('gpt-7-hyperion');
+    expect(info.api).toBe('responses');
+    expect(info.caps.contextWindow).toBe(272_000);
+    expect(info.caps.maxOutputTokens).toBe(100_000);
+    // No fabricated price row: the usage surfaces in CostReport.unpriced
+    // and a run ceiling warns, instead of silently billing a wrong rate.
+    expect(info.caps.pricing).toBeUndefined();
+  });
 });

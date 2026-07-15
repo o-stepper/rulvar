@@ -10,11 +10,12 @@
 function admissionReserveUsd(options): number;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L45)
+Defined in: [packages/core/src/engine/budget.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L47)
 
 The admission reserve for a spawn: opts.estCost, else profile.estCost, else
 price(countTokens(input) + caps.maxOutputTokens), else the engine flat
-default.
+default. The priced path uses the SAME price function as settlement
+(priceUsdOf), so long-context tiers apply to estimates too.
 
 ## Parameters
 

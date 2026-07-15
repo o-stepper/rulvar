@@ -173,7 +173,7 @@ const adapter = openai({
 });
 ```
 
-The adapter id is `openai`; address models as `openai:gpt-5.5` or `openai:gpt-5.4-mini`. `OPENAI_MODELS` exports the seeded capability table. The primary surface is the Responses API; Chat Completions exists only as a documented degraded path.
+The adapter id is `openai`; address models as `openai:gpt-5.6-sol`, `openai:gpt-5.5`, or `openai:gpt-5.4-mini` (`openai:gpt-5.6` is the published alias for Sol). `OPENAI_MODELS` exports the seeded capability table, long-context price tiers included. The primary surface is the Responses API; Chat Completions exists only as a documented degraded path.
 
 Provider notes:
 

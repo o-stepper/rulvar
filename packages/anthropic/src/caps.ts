@@ -25,7 +25,7 @@ export interface AnthropicModelInfo {
 function current(
   contextWindow: number,
   maxOutputTokens: number,
-  pricing: { in: number; out: number; cacheRead: number; cacheWrite: number },
+  pricing: { in: number; out: number; cacheRead: number; cacheWrite: number } | undefined,
   cacheMinTokens: number,
 ): AnthropicModelInfo {
   return {
@@ -37,12 +37,16 @@ function current(
       reasoningEfforts: ALL_EFFORTS,
       contextWindow,
       maxOutputTokens,
-      pricing: {
-        inputUsdPerMTok: pricing.in,
-        outputUsdPerMTok: pricing.out,
-        cacheReadUsdPerMTok: pricing.cacheRead,
-        cacheWriteUsdPerMTok: pricing.cacheWrite,
-      },
+      ...(pricing === undefined
+        ? {}
+        : {
+            pricing: {
+              inputUsdPerMTok: pricing.in,
+              outputUsdPerMTok: pricing.out,
+              cacheReadUsdPerMTok: pricing.cacheRead,
+              cacheWriteUsdPerMTok: pricing.cacheWrite,
+            },
+          }),
     },
     thinkingForm: 'adaptive',
     cacheMinTokens,
@@ -108,17 +112,28 @@ export const ANTHROPIC_MODELS: Record<string, AnthropicModelInfo> = {
 /**
  * Unknown Anthropic models are assumed current-generation: adaptive
  * thinking, native structured outputs, no sampling parameters. refreshCaps
- * corrects window/output figures from the live model list.
+ * corrects window/output figures from the live model list. Pricing stays
+ * ABSENT for an unknown model: a fabricated row silently misprices every
+ * model newer than this table. Hosts price it via a versioned
+ * createEngine({ pricing }) row; until then its usage surfaces in
+ * CostReport.unpriced and a run ceiling warns that it cannot bound the
+ * model.
  */
 export function anthropicModelInfo(model: string): AnthropicModelInfo {
   const exact = ANTHROPIC_MODELS[model];
   if (exact !== undefined) {
     return exact;
   }
+  // Longest matching prefix wins, so a dated snapshot of a longer name
+  // never resolves to a shorter sibling entry.
+  let best: { name: string; info: AnthropicModelInfo } | undefined;
   for (const [name, info] of Object.entries(ANTHROPIC_MODELS)) {
-    if (model.startsWith(`${name}-`)) {
-      return info;
+    if (model.startsWith(`${name}-`) && (best === undefined || name.length > best.name.length)) {
+      best = { name, info };
     }
   }
-  return current(400_000, 64_000, { in: 10, out: 50, cacheRead: 1, cacheWrite: 12.5 }, 4_096);
+  if (best !== undefined) {
+    return best.info;
+  }
+  return current(400_000, 64_000, undefined, 4_096);
 }
