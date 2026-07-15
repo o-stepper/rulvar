@@ -14,6 +14,7 @@ import type { ChatRequest } from '../l0/messages.js';
 import type { JournalEntry } from '../l0/entries.js';
 import { FileTranscriptStore, JsonlFileStore } from '../stores/jsonl.js';
 import { createEngine, type EngineDefaults } from '../engine/engine.js';
+import type { Workflow } from '../engine/ctx.js';
 import { scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
 import { makeOrchestratorWorkflow, ORCHESTRATE_WORKFLOW_NAME } from './orchestrate.js';
 
@@ -204,7 +205,12 @@ describe('dynamic orchestrator resume after a budget-cancelled root', () => {
       defaults: {
         ...defaults,
         workflows: {
-          [ORCHESTRATE_WORKFLOW_NAME]: makeOrchestratorWorkflow('finish fast', {}),
+          // The registry erases the args type; the orchestrator
+          // workflow takes none.
+          [ORCHESTRATE_WORKFLOW_NAME]: makeOrchestratorWorkflow(
+            'finish fast',
+            {},
+          ) as unknown as Workflow<never, unknown>,
         },
       },
     }).resume('FORMS').result;

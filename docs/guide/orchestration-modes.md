@@ -206,6 +206,7 @@ import {
   anthropic,
   makeOrchestratorWorkflow,
   ORCHESTRATE_WORKFLOW_NAME,
+  type Workflow,
 } from "@rulvar/rulvar";
 
 // One-off: pass the value, built from the same goal and options.
@@ -221,7 +222,10 @@ const worker = createEngine({
   stores,
   defaults: {
     workflows: {
-      [ORCHESTRATE_WORKFLOW_NAME]: makeOrchestratorWorkflow(goal, opts),
+      // The registry erases the args type; the orchestrator workflow
+      // takes none.
+      [ORCHESTRATE_WORKFLOW_NAME]: makeOrchestratorWorkflow(goal, opts) as
+        unknown as Workflow<never, unknown>,
     },
   },
 });
