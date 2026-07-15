@@ -1,5 +1,15 @@
 # @rulvar/anthropic
 
+## 1.8.0
+
+### Patch Changes
+
+- Updated dependencies [25724b5]
+- Updated dependencies [57ea1de]
+- Updated dependencies [7884ec5]
+- Updated dependencies [52db30d]
+  - @rulvar/core@1.8.0
+
 ## 1.7.0
 
 ### Patch Changes
