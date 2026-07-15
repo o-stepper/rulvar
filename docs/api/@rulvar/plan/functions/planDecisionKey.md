@@ -13,7 +13,7 @@ function planDecisionKey(
    causeRef): string;
 ```
 
-Defined in: [packages/plan/src/plan-entries.ts:226](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L226)
+Defined in: [packages/plan/src/plan-entries.ts:235](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L235)
 
 ## Parameters
 

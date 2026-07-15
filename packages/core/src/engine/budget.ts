@@ -118,8 +118,13 @@ interface AccountState {
   committedReserveUsd: number;
   finalizeReserveUsd: number;
   parentScope?: string;
-  /** Diagnostic label; the orchestrator cap account marks itself. */
-  kind?: 'orchestrator-cap';
+  /**
+   * Diagnostic label: the orchestrator cap account marks itself, and a
+   * per-child allowance (a plan node's own sub-account, a ctx.workflow
+   * child ceiling) marks itself so projected admission can clamp
+   * reserves to the money the child was actually given.
+   */
+  kind?: 'orchestrator-cap' | 'child-allowance';
   /** Layer-3 severing for the account's own subtree. */
   controller: AbortController;
 }
@@ -226,7 +231,7 @@ export class RunBudget {
       parentScope?: string;
       ceilingUsd?: number;
       finalizeReserveUsd?: number;
-      kind?: 'orchestrator-cap';
+      kind?: 'orchestrator-cap' | 'child-allowance';
     },
   ): void {
     if (scope === ROOT_ACCOUNT) {
@@ -342,6 +347,35 @@ export class RunBudget {
         account.committedReserveUsd -
         account.finalizeReserveUsd,
     );
+  }
+
+  /**
+   * The tightest allowance headroom on the chain of `scope`: the minimum
+   * remainder across 'child-allowance' accounts. An allowance ceiling
+   * bounds the child's LIFETIME spend, so projected admission must never
+   * hold more than this against the chain (the layer-2 mirror lives in
+   * the orchestrator admission's childCeiling clamp): a reserve above
+   * the allowance would deny work that the allowance itself already
+   * bounds. Undefined when no allowance account is on the chain; the
+   * clamp never applies to the run root or an orchestrator cap, whose
+   * headroom is shared money that projected admission must protect.
+   */
+  allowanceHeadroomOf(scope: string): number | undefined {
+    let headroom: number | undefined;
+    for (const account of this.chainOf(scope)) {
+      if (account.kind !== 'child-allowance' || account.ceilingUsd === undefined) {
+        continue;
+      }
+      const remainder = Math.max(
+        0,
+        account.ceilingUsd -
+          account.spentUsd -
+          account.committedReserveUsd -
+          account.finalizeReserveUsd,
+      );
+      headroom = headroom === undefined ? remainder : Math.min(headroom, remainder);
+    }
+    return headroom;
   }
 
   /** Layer 3 ceiling signal of the run root; live streams sever through it. */

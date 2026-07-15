@@ -13,7 +13,7 @@ function applyAppliedOp(
    context): PlanWorking;
 ```
 
-Defined in: [packages/plan/src/plan-entries.ts:328](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L328)
+Defined in: [packages/plan/src/plan-entries.ts:337](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L337)
 
 Applies ONE applied op to the working state. The applier consumes
 recorded outcomes; op-level legality was decided at rebase time and is

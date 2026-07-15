@@ -16,6 +16,7 @@
 import { deriverV2, PlanInvariantError, ReplayPlanHashMismatch } from '@rulvar/core';
 import type {
   AdmissionDecision,
+  AdmitRejectReason,
   EntryRef,
   EscalationDecision,
   HashVersion,
@@ -127,7 +128,14 @@ export interface PlanReviseRequest {
 
 /** The canonical result form (XF-11): DEF-8 shape plus the DEF-2 balance. */
 export interface PlanReviseResult {
-  outcomes: RebaseOutcome[];
+  /**
+   * Journaled outcomes, enriched IN THE RESULT ONLY: a dropped
+   * admission_denied op carries its typed reject reason (account,
+   * reserves, minimum correction) so the model can act on it without
+   * digging into the journal. The plan.revision entry stays byte-stable;
+   * the full verdicts live in its `admissions`.
+   */
+  outcomes: Array<RebaseOutcome & { verdictReason?: AdmitRejectReason }>;
   assignedNodeIds: Record<number, NodeId>;
   planHashAfter: string;
   droppedAll: boolean;
@@ -171,7 +179,8 @@ export type PlanDecisionOrigin =
   | 'no-progress'
   | 'child-result'
   | 'park-landed'
-  | 'cancel-landed';
+  | 'cancel-landed'
+  | 'dispatch-rejected';
 
 /** The closed EnginePlanOp set. */
 export type EnginePlanOp =
@@ -180,7 +189,7 @@ export type EnginePlanOp =
       nodeId: NodeId;
       from: PlanNodeStatus;
       to: PlanNodeStatus;
-      cause: 'child-result' | 'no-progress' | 'park-landed' | 'cancel-landed';
+      cause: 'child-result' | 'no-progress' | 'park-landed' | 'cancel-landed' | 'dispatch-rejected';
       causeRef: EntryRef;
       /** The retained checkpoint anchor recorded at park landing (M7-T08). */
       checkpointRef?: EntryRef;

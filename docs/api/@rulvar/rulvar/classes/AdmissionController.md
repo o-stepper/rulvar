@@ -87,14 +87,6 @@ admit(spec, options?): AdmissionDecision;
 
 Defined in: `packages/core/dist/index.d.ts`
 
-Evaluates one spawn live, strictly BEFORE its decision entry is
-appended. On admit the reserve is committed on the whole ancestor
-account chain atomically with the evaluation; the caller journals the
-returned decision and only then produces effects (child account,
-dispatch). On reject nothing is committed and the reject verdict is
-journaled by the caller so replay re-delivers it without
-re-evaluation.
-
 #### Parameters
 
 | Parameter | Type |
@@ -215,6 +207,35 @@ The lineage counter folds over the run journal (absorbed lazily).
 
   \| [`LineageIndex`](/api/@rulvar/rulvar/classes/LineageIndex.md)
   \| `undefined`
+
+***
+
+### projectedDispatchReserveUsd()
+
+```ts
+projectedDispatchReserveUsd(spec): number;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The reserve the DISPATCH layer will actually commit for this spec:
+the estimate (or the flat default) clamped by the explicit child
+budget when one exists, because only an explicit budget opens a
+child-allowance account at dispatch; the childBudgetFraction cap
+never materializes as an account and must not shrink the
+projection. The token-count-priced estimate of ctx.agent is
+unreachable here (async); a divergence there lands as a journaled
+dispatch rejection instead of a strand.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `spec` | `Pick`\&lt;[`AdmitSpec`](/api/@rulvar/rulvar/interfaces/AdmitSpec.md), `"estCostUsd"` \| `"budgetUsd"`\&gt; |
+
+#### Returns
+
+`number`
 
 ***
 

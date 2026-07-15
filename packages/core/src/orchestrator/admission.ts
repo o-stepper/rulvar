@@ -102,7 +102,25 @@ export type AdmitRejectReason =
         | 'lineage_exhausted'
         | 'lineage_busy';
     }
-  | { code: 'osc_guard'; spawnKey: SpawnKey; oscillationCount: number };
+  | { code: 'osc_guard'; spawnKey: SpawnKey; oscillationCount: number }
+  | {
+      /**
+       * The declared estimate cannot fit the child's own ceiling: the
+       * host said the work costs more than the budget buys, so the op
+       * is bounced with the actionable correction BEFORE it changes
+       * plan state or consumes a spawn unit (the v1.7.0 follow-up
+       * review's P1). Heuristic reserves never produce this code; they
+       * clamp to the allowance instead.
+       */
+      code: 'reserve_exceeds_budget';
+      agentType: string;
+      childAccount: string;
+      estCostUsd: number;
+      resolvedReserveUsd: number;
+      childCeilingUsd: number;
+      minimumBudgetUsd: number;
+      message: string;
+    };
 
 /** Every spawn origin routed through the single admission point. */
 export type SpawnOrigin =
@@ -127,6 +145,13 @@ export interface AdmitSpec {
   budgetUsd?: number;
   /** Reserve hint; falls back to the flat engine default. */
   estCostUsd?: number;
+  /**
+   * Same-batch reserves already admitted read-only but not yet
+   * committed (a multi-op plan revision): the read-only branch adds
+   * them to this spawn's reserve so every embedded admit of one batch
+   * is dispatchable under the same snapshot, not just the first.
+   */
+  pendingReserveUsd?: number;
   /**
    * Lineage continuation (DEF-3); absence mints a fresh lineage root. A
    * continuation demands a causeRef: the seq of the entry that caused the
@@ -379,6 +404,21 @@ export class AdmissionController {
    * journaled by the caller so replay re-delivers it without
    * re-evaluation.
    */
+  /**
+   * The reserve the DISPATCH layer will actually commit for this spec:
+   * the estimate (or the flat default) clamped by the explicit child
+   * budget when one exists, because only an explicit budget opens a
+   * child-allowance account at dispatch; the childBudgetFraction cap
+   * never materializes as an account and must not shrink the
+   * projection. The token-count-priced estimate of ctx.agent is
+   * unreachable here (async); a divergence there lands as a journaled
+   * dispatch rejection instead of a strand.
+   */
+  projectedDispatchReserveUsd(spec: Pick<AdmitSpec, 'estCostUsd' | 'budgetUsd'>): number {
+    const base = spec.estCostUsd ?? this.flatReserveUsd;
+    return spec.budgetUsd === undefined ? base : Math.min(base, spec.budgetUsd);
+  }
+
   admit(spec: AdmitSpec, options?: { commitReserve?: boolean }): AdmissionDecision {
     const commitReserve = options?.commitReserve ?? true;
     const nodeKey = spec.nodeKey ?? spec.parentAccountScope;
@@ -461,10 +501,19 @@ export class AdmissionController {
     } else {
       // The spawn tools dispatch through ctx.agent, whose OWN layer-1
       // admission commits the real reserve moments later (one debit,
-      // never two); admission still evaluates the chain read-only so a
-      // rejection embeds before any dispatch (M6-T07).
+      // never two); admission still evaluates the parent read-only with
+      // the SAME arithmetic that dispatch will apply (the projection
+      // below, NOT the fraction-clamped verdict reserve), plus the
+      // caller's pending same-batch reserves, so an embedded admit is
+      // dispatchable under the snapshot it was decided on (M6-T07; the
+      // v1.7.0 follow-up review's P1). Exact fill passes, like
+      // admitSpawn.
       const remainder = this.budget.remainderOf(spec.parentAccountScope);
-      if (remainder !== undefined && remainder <= 0) {
+      const projection = this.projectedDispatchReserveUsd(spec);
+      if (
+        remainder !== undefined &&
+        (remainder <= 0 || remainder < projection + (spec.pendingReserveUsd ?? 0))
+      ) {
         return { verdict: { kind: 'reject', reason: { code: 'budget' } }, statsBefore };
       }
     }

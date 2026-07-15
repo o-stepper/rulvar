@@ -52,7 +52,7 @@ type PlanOp =
 };
 ```
 
-Defined in: [packages/plan/src/plan-entries.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L45)
+Defined in: [packages/plan/src/plan-entries.ts:46](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L46)
 
 The orchestrator-facing PlanOp union.
 
@@ -74,13 +74,13 @@ The orchestrator-facing PlanOp union.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `approach?` | `string` | - | [packages/plan/src/plan-entries.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L52) |
-| `deps?` | [`NodeId`](/api/@rulvar/rulvar/type-aliases/NodeId.md)[] | - | [packages/plan/src/plan-entries.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L49) |
-| `fresh?` | `boolean` | Forbids reuse-by-reference for this addition (DEF-5). | [packages/plan/src/plan-entries.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L54) |
-| `lineage?` | [`SpawnLineageOpt`](/api/@rulvar/rulvar/interfaces/SpawnLineageOpt.md) | - | [packages/plan/src/plan-entries.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L51) |
-| `op` | `"add_task"` | - | [packages/plan/src/plan-entries.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L47) |
-| `priority?` | `number` | - | [packages/plan/src/plan-entries.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L50) |
-| `spec` | [`TaskSpec`](/api/@rulvar/plan/interfaces/TaskSpec.md) | - | [packages/plan/src/plan-entries.ts:48](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L48) |
+| `approach?` | `string` | - | [packages/plan/src/plan-entries.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L53) |
+| `deps?` | [`NodeId`](/api/@rulvar/rulvar/type-aliases/NodeId.md)[] | - | [packages/plan/src/plan-entries.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L50) |
+| `fresh?` | `boolean` | Forbids reuse-by-reference for this addition (DEF-5). | [packages/plan/src/plan-entries.ts:55](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L55) |
+| `lineage?` | [`SpawnLineageOpt`](/api/@rulvar/rulvar/interfaces/SpawnLineageOpt.md) | - | [packages/plan/src/plan-entries.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L52) |
+| `op` | `"add_task"` | - | [packages/plan/src/plan-entries.ts:48](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L48) |
+| `priority?` | `number` | - | [packages/plan/src/plan-entries.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L51) |
+| `spec` | [`TaskSpec`](/api/@rulvar/plan/interfaces/TaskSpec.md) | - | [packages/plan/src/plan-entries.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L49) |
 
 ***
 

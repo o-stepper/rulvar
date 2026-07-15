@@ -506,7 +506,10 @@ export function makeOrchestratorWorkflow(
           parentScope: callingState.budgetScope ?? ROOT_ACCOUNT,
           ...(placement.childCeilingUsd === undefined
             ? {}
-            : { ceilingUsd: placement.childCeilingUsd }),
+            : // The node's own allowance: spawn reserves inside it clamp
+              // to its headroom instead of denying on estimates the
+              // ceiling already bounds ("admit implies dispatchable").
+              { ceilingUsd: placement.childCeilingUsd, kind: 'child-allowance' as const }),
         });
       }
       const childState: CtxScopeState = {
@@ -1039,6 +1042,11 @@ export function makeOrchestratorWorkflow(
             parentAccountScope: callingState.budgetScope ?? ROOT_ACCOUNT,
             nodeKey: scope,
             ...(params.budgetUsd === undefined ? {} : { budgetUsd: params.budgetUsd }),
+            // The profile's estimate rides the read-only projection so
+            // layer 2 evaluates the SAME reserve layer 1 will commit
+            // (without it, the flat default over-rejects under small
+            // ceilings; the v1.7.0 follow-up review's P1).
+            ...(profile?.estCost === undefined ? {} : { estCostUsd: profile.estCost }),
             ...(params.lineage === undefined
               ? {}
               : {

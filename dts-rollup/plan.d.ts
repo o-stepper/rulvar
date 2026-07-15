@@ -1,4 +1,4 @@
-import { AdmissionDecision, AgentResult, CanonicalLadderSpec, ChatRequest, Effort, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, JournalStore, Json, KbProposalTrigger, KeyDeriver, LadderSpec, LeasableStore, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, ProviderAdapter, ReuseConfig, RunHandle, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, TriggerClass, UsageLimits, WireError } from "@rulvar/core";
+import { AdmissionDecision, AdmitRejectReason, AgentResult, CanonicalLadderSpec, ChatRequest, Effort, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, JournalStore, Json, KbProposalTrigger, KeyDeriver, LadderSpec, LeasableStore, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, ProviderAdapter, ReuseConfig, RunHandle, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, TriggerClass, UsageLimits, WireError } from "@rulvar/core";
 
 //#region src/plan-state.d.ts
 /**
@@ -287,7 +287,16 @@ interface PlanReviseRequest {
 }
 /** The canonical result form (XF-11): DEF-8 shape plus the DEF-2 balance. */
 interface PlanReviseResult {
-  outcomes: RebaseOutcome[];
+  /**
+  * Journaled outcomes, enriched IN THE RESULT ONLY: a dropped
+  * admission_denied op carries its typed reject reason (account,
+  * reserves, minimum correction) so the model can act on it without
+  * digging into the journal. The plan.revision entry stays byte-stable;
+  * the full verdicts live in its `admissions`.
+  */
+  outcomes: Array<RebaseOutcome & {
+    verdictReason?: AdmitRejectReason;
+  }>;
   assignedNodeIds: Record<number, NodeId>;
   planHashAfter: string;
   droppedAll: boolean;
@@ -327,14 +336,14 @@ interface PlanRevisionValue {
   }>;
 }
 /** Engine authorship origins of plan.decision entries. */
-type PlanDecisionOrigin = "escalation-default" | "escalation-class" | "escalation-live" | "no-progress" | "child-result" | "park-landed" | "cancel-landed";
+type PlanDecisionOrigin = "escalation-default" | "escalation-class" | "escalation-live" | "no-progress" | "child-result" | "park-landed" | "cancel-landed" | "dispatch-rejected";
 /** The closed EnginePlanOp set. */
 type EnginePlanOp = {
   kind: "set_node_status";
   nodeId: NodeId;
   from: PlanNodeStatus;
   to: PlanNodeStatus;
-  cause: "child-result" | "no-progress" | "park-landed" | "cancel-landed";
+  cause: "child-result" | "no-progress" | "park-landed" | "cancel-landed" | "dispatch-rejected";
   causeRef: EntryRef; /** The retained checkpoint anchor recorded at park landing (M7-T08). */
   checkpointRef?: EntryRef;
 } | {

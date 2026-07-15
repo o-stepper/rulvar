@@ -1466,7 +1466,17 @@ export function createCtx(
         ? 0
         : admissionReserveUsd(reserveOptions);
     const budgetAccount = state.budgetScope ?? ROOT_ACCOUNT;
-    internals.budget.admitSpawn(reserve, budgetAccount);
+    // The reserve never exceeds the tightest allowance on the account
+    // chain: an allowance ceiling already bounds this spawn's lifetime
+    // spend, so an estimate above it must clamp, not deny (the layer-2
+    // admission applies the same childCeiling clamp; this is what makes
+    // an admitted plan op dispatchable by construction). A FULL
+    // allowance still rejects inside admitSpawn.
+    const allowanceHeadroomUsd = internals.budget.allowanceHeadroomOf(budgetAccount);
+    internals.budget.admitSpawn(
+      allowanceHeadroomUsd === undefined ? reserve : Math.min(reserve, allowanceHeadroomUsd),
+      budgetAccount,
+    );
 
     // Worktree lifecycle: acquired before the
     // dispatch entry so an acquire failure never leaves a dangling
@@ -2501,6 +2511,9 @@ export function createCtx(
     };
     if (reserve.childCeilingUsd !== undefined) {
       openOptions.ceilingUsd = reserve.childCeilingUsd;
+      // The ceiling is this child's allowance: reserves for ITS spawns
+      // clamp to it instead of denying on estimates it already bounds.
+      openOptions.kind = 'child-allowance';
     }
     internals.budget.openAccount(childScope, openOptions);
 

@@ -10,7 +10,7 @@
 function emptyPlanFold(plan): PlanFoldState;
 ```
 
-Defined in: [packages/plan/src/plan-entries.ts:267](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L267)
+Defined in: [packages/plan/src/plan-entries.ts:276](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L276)
 
 ## Parameters
 

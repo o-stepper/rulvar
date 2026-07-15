@@ -12,7 +12,7 @@ function readPlanRevision(entry):
   | undefined;
 ```
 
-Defined in: [packages/plan/src/plan-entries.ts:427](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L427)
+Defined in: [packages/plan/src/plan-entries.ts:436](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L436)
 
 Reads a plan.revision entry's payload (tolerant of foreign journals).
 

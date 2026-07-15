@@ -13,7 +13,7 @@ function applyPlanEntry(
    options?): PlanFoldState;
 ```
 
-Defined in: [packages/plan/src/plan-entries.ts:456](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L456)
+Defined in: [packages/plan/src/plan-entries.ts:465](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L465)
 
 THE single applier: folds one plan-scope entry into the
 state. Replay consumes recorded outcomes (the APPLIED diff), never

@@ -10,7 +10,7 @@
 function planRunner(options?): OrchestratorExtension;
 ```
 
-Defined in: [packages/plan/src/plan-runner.ts:176](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-runner.ts#L176)
+Defined in: [packages/plan/src/plan-runner.ts:178](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-runner.ts#L178)
 
 Builds the PlanRunner orchestrator extension.
 Attach via `orchestrate(engine, goal, { extension: planRunner(o) })` or

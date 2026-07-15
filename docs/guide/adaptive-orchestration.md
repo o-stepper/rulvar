@@ -71,7 +71,7 @@ Several parties author plan mutations, but exactly one applier consumes them: a 
 | Entry kind | Author | Written when |
 |---|---|---|
 | `plan.revision` | The orchestrator, via `plan_revise` | The one kind that needs rebase, because only the orchestrator authors against a pinned (possibly stale) snapshot. |
-| `plan.decision` | The engine, at the current plan head | Child results landing, escalation resolutions, no-progress aborts, park and cancel requests landing at turn boundaries. |
+| `plan.decision` | The engine, at the current plan head | Child results landing, escalation resolutions, no-progress aborts, park and cancel requests landing at turn boundaries, and dispatch rejections (a node whose dispatch is refused by budget facts that changed after its admission lands terminally `failed` instead of sitting ready forever). |
 
 Every plan-mutating entry carries `planHashBefore`, `planHashAfter`, and its hash version. On append the engine asserts the before-hash equals the current fold head; on replay the fold recomputes every after-hash under that entry's own hash profile. A mismatch is a typed error (`PlanInvariantError` live, `ReplayPlanHashMismatch` on resume), never a silent brick, and a stale revision can never corrupt the plan because its rebase outcome is what gets recorded.
 
