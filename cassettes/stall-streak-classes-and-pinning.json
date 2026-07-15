@@ -804,7 +804,7 @@
       "endedAt": "2026-02-01T00:00:00.000Z",
       "error": {
         "code": "agent",
-        "message": "no-progress abort after 2 consecutive turns without tool calls or artifact deltas (threshold 2; docs/06 Appendix A)",
+        "message": "no-progress abort after 2 consecutive turns without tool calls or artifact deltas (threshold 2; https://docs.rulvar.com/guide/agents#the-agent-loop-and-turns)",
         "retryable": false,
         "data": {
           "kind": "terminal",
@@ -919,7 +919,7 @@
               "nodeId": "ULID-0006--------------------",
               "logicalTaskId": "ULID-0002--------------------",
               "status": "limit",
-              "outputSummary": "no-progress abort after 2 consecutive turns without tool calls or artifact deltas (threshold 2; docs/06 Appendix A)",
+              "outputSummary": "no-progress abort after 2 consecutive turns without tool calls or artifact deltas (threshold 2; https://docs.rulvar.com/guide/agents#the-agent-loop-and-turns)",
               "costUsd": 0.00012,
               "artifactsIndex": []
             }
