@@ -1236,15 +1236,27 @@ export function makeOrchestratorWorkflow(
       result: 'full',
       tools,
       // A capped orchestrator can never spend past its effectiveCap
-      // (layer 2), so the cap IS its admission worst case: without this
-      // hint the default reserve prices the model's FULL maxOutputTokens
-      // (about one dollar on strong tiers), pins small run ceilings at
-      // zero remainder for the whole orchestration, and every child
-      // spawn dies with a budget rejection (found live by the M12
-      // checkpoint: no orchestrated child was
-      // EVER admitted under the case ceilings, both A/B arms measured a
-      // self-solving orchestrator).
-      ...(capState === undefined ? {} : { estCost: capState.effectiveCapUsd }),
+      // (layer 2), so its admission worst case is the cap MINUS the
+      // finalize carve-out (the forced-finish wake is a separate spawn
+      // with its own estCost drawn from the released finalize reserve):
+      // under projected admission, cap + finalizeReserve on the cap-sized
+      // account would double-count that carve-out and self-reject. The
+      // hint itself exists because the default reserve prices the model's
+      // FULL maxOutputTokens (about one dollar on strong tiers), pins
+      // small run ceilings at zero remainder for the whole orchestration,
+      // and every child spawn dies with a budget rejection (found live by
+      // the M12 checkpoint: no orchestrated child was EVER admitted under
+      // the case ceilings, both A/B arms measured a self-solving
+      // orchestrator).
+      ...(capState === undefined
+        ? {}
+        : {
+            estCost:
+              capState.effectiveCapUsd -
+              (orchestratorAccount === undefined
+                ? 0
+                : (internals.budget.accountView(orchestratorAccount)?.finalizeReserveUsd ?? 0)),
+          }),
       ...(opts?.model === undefined ? {} : { model: opts.model }),
       ...(opts?.limits === undefined ? {} : { limits: opts.limits }),
       [kOnRunning]: (seq: number) => {

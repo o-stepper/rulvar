@@ -11,6 +11,7 @@
  * https://docs.rulvar.com/guide/model-routing (roles, tiers, refusal).
  */
 import {
+  BudgetExhaustedError,
   NonSerializableValueError,
   type AgentError,
   type Issue,
@@ -156,6 +157,18 @@ export interface RuntimeEventSink {
 export interface BudgetHooks {
   /** Layer 2: before every turn; throws BudgetExhaustedError to block dispatch. */
   beforeTurn(): void;
+  /**
+   * Layer 2b, the pre-dispatch output bound: the output tokens the
+   * remaining budget still affords from `servedBy` for a prompt of
+   * `estimatedInputTokens`. The dispatch clamps the request's
+   * maxOutputTokens to it and denies the turn entirely when not even one
+   * output token fits. Undefined = unbounded (no ceiling, no price row,
+   * or free output).
+   */
+  maxAffordableOutputTokens?: (
+    servedBy: ModelRef,
+    estimatedInputTokens: number,
+  ) => number | undefined;
   /** Live usage accounting; layer 3 may respond by aborting `signal`. */
   onUsage(usage: Usage, servedBy: ModelRef): void;
   /** Layer 3: the ceiling AbortSignal. */
@@ -532,6 +545,63 @@ function buildRequest(
   }
   if (tools !== undefined && tools.length > 0) {
     req.tools = tools;
+  }
+  return req;
+}
+
+/**
+ * Cheap deterministic prompt-size estimate (about four serialized
+ * characters per token) for the layer-2b output bound. Never used for
+ * identity, accounting, or anything the journal records.
+ */
+function estimateInputTokens(messages: Msg[]): number {
+  let chars = 0;
+  for (const msg of messages) {
+    chars += JSON.stringify(msg.parts).length;
+  }
+  return Math.ceil(chars / 4);
+}
+
+/**
+ * Layer 2b at the wire boundary: clamps the outgoing request's
+ * maxOutputTokens to what the remaining budget affords from the serving
+ * model. The clamp uses the heuristic prompt estimate; the DENIAL does
+ * not: a turn is refused (BudgetExhaustedError, never dispatched) only
+ * when the remainder cannot buy even ONE output token at zero input,
+ * which is exact. Denying on the estimate would kill turns the budget
+ * still funds, including the DEF-7 forced finish paid from the released
+ * finalize reserve; when the estimate says the prompt alone spends the
+ * remainder, the turn dispatches with a one-token output floor and the
+ * exact layers (2 and 3) settle the difference. A no-op without a hook
+ * or when the hook reports no bound. The clamp touches only the wire
+ * request, exactly like limits.maxOutputTokensPerTurn above it; identity
+ * is computed at the ctx layer and never sees it.
+ */
+function applyOutputBudget(
+  req: ChatRequest,
+  target: PhaseTarget,
+  budget: BudgetHooks | undefined,
+): ChatRequest {
+  const hook = budget?.maxAffordableOutputTokens;
+  if (hook === undefined) {
+    return req;
+  }
+  const affordable = hook(target.resolved.ref, estimateInputTokens(req.messages));
+  if (affordable === undefined) {
+    return req;
+  }
+  if (affordable < 1) {
+    const zeroInputAffordable = hook(target.resolved.ref, 0);
+    if (zeroInputAffordable !== undefined && zeroInputAffordable < 1) {
+      throw new BudgetExhaustedError(
+        `the remaining budget cannot afford one output token from ${target.resolved.ref}; ` +
+          'the turn was not dispatched',
+      );
+    }
+    return { ...req, maxOutputTokens: 1 };
+  }
+  if (req.maxOutputTokens === undefined || affordable < req.maxOutputTokens) {
+    return { ...req, maxOutputTokens: affordable };
   }
   return req;
 }
@@ -1180,40 +1250,53 @@ export async function runAgent<S extends SchemaSpec>(
     // Every outgoing request is a projection of the canonical history
     // into the SERVING provider's view (M4-T02);
     // the dispatch engine may serve the turn from a failover target.
-    const { outcome, target: servedTarget } = await dispatchPhase({
-      chain: loopChain,
-      cursor: loopCursor,
-      requestFor: (target) => {
-        let req = buildRequest(
-          target.resolved,
-          projectHistory(messages, providerOf(target.adapter)),
-          limits,
-          options.tools?.contracts,
-        );
-        if (
-          options.schema !== undefined &&
-          options.canonicalSchema !== undefined &&
-          !separateExtract
-        ) {
-          req = applyStructuredOutputTier(req, rideTierFor(target), options.canonicalSchema);
-        }
-        return req;
-      },
-      streamOptionsFor: (target) => {
-        const streamTurnOptions: Parameters<typeof streamTurn>[2] = {
-          idleTimeoutMs: limits.streamIdleTimeoutMs,
-          signals,
-          onUsage: (delta) => options.budget?.onUsage(delta, target.resolved.ref),
-        };
-        if (options.budget?.signal !== undefined) {
-          streamTurnOptions.budgetSignal = options.budget.signal;
-        }
-        if (options.stream === true) {
-          streamTurnOptions.onDelta = (delta) => events?.emit({ type: 'agent:stream', delta });
-        }
-        return streamTurnOptions;
-      },
-    });
+    let loopDispatch: Awaited<ReturnType<typeof dispatchPhase>>;
+    try {
+      loopDispatch = await dispatchPhase({
+        chain: loopChain,
+        cursor: loopCursor,
+        requestFor: (target) => {
+          let req = buildRequest(
+            target.resolved,
+            projectHistory(messages, providerOf(target.adapter)),
+            limits,
+            options.tools?.contracts,
+          );
+          if (
+            options.schema !== undefined &&
+            options.canonicalSchema !== undefined &&
+            !separateExtract
+          ) {
+            req = applyStructuredOutputTier(req, rideTierFor(target), options.canonicalSchema);
+          }
+          return applyOutputBudget(req, target, options.budget);
+        },
+        streamOptionsFor: (target) => {
+          const streamTurnOptions: Parameters<typeof streamTurn>[2] = {
+            idleTimeoutMs: limits.streamIdleTimeoutMs,
+            signals,
+            onUsage: (delta) => options.budget?.onUsage(delta, target.resolved.ref),
+          };
+          if (options.budget?.signal !== undefined) {
+            streamTurnOptions.budgetSignal = options.budget.signal;
+          }
+          if (options.stream === true) {
+            streamTurnOptions.onDelta = (delta) => events?.emit({ type: 'agent:stream', delta });
+          }
+          return streamTurnOptions;
+        },
+      });
+    } catch (thrown) {
+      if (!(thrown instanceof BudgetExhaustedError)) {
+        throw thrown;
+      }
+      // Layer 2b denied the dispatch: same surface as a layer-2 block.
+      status = 'error';
+      agentError = { kind: 'budget', retryable: false };
+      errorMessage = thrown.message;
+      break;
+    }
+    const { outcome, target: servedTarget } = loopDispatch;
     servedBy = servedTarget.resolved.ref;
     usageApprox = usageApprox || outcome.usageApprox;
     lastTurnUsage = {
@@ -1375,36 +1458,48 @@ export async function runAgent<S extends SchemaSpec>(
           break;
         }
         turns += 1;
-        const { outcome: summary } = await dispatchPhase({
-          chain: [
-            { adapter: options.summarize.adapter, resolved: options.summarize.resolved },
-            ...(options.summarize.fallbacks ?? []),
-          ],
-          cursor: { index: 0 },
-          requestFor: (target) => {
-            let req = buildRequest(
-              target.resolved,
-              [...projectHistory(messages, providerOf(target.adapter)), summarizeInstruction()],
-              limits,
-              options.tools?.contracts,
-            );
-            if (req.tools !== undefined) {
-              req = { ...req, toolChoice: 'none' };
-            }
-            return req;
-          },
-          streamOptionsFor: (target) => {
-            const summarizeStreamOptions: Parameters<typeof streamTurn>[2] = {
-              idleTimeoutMs: limits.streamIdleTimeoutMs,
-              signals: options.signal === undefined ? [] : [options.signal],
-              onUsage: (delta) => options.budget?.onUsage(delta, target.resolved.ref),
-            };
-            if (options.budget?.signal !== undefined) {
-              summarizeStreamOptions.budgetSignal = options.budget.signal;
-            }
-            return summarizeStreamOptions;
-          },
-        });
+        let summaryDispatch: Awaited<ReturnType<typeof dispatchPhase>>;
+        try {
+          summaryDispatch = await dispatchPhase({
+            chain: [
+              { adapter: options.summarize.adapter, resolved: options.summarize.resolved },
+              ...(options.summarize.fallbacks ?? []),
+            ],
+            cursor: { index: 0 },
+            requestFor: (target) => {
+              let req = buildRequest(
+                target.resolved,
+                [...projectHistory(messages, providerOf(target.adapter)), summarizeInstruction()],
+                limits,
+                options.tools?.contracts,
+              );
+              if (req.tools !== undefined) {
+                req = { ...req, toolChoice: 'none' };
+              }
+              return applyOutputBudget(req, target, options.budget);
+            },
+            streamOptionsFor: (target) => {
+              const summarizeStreamOptions: Parameters<typeof streamTurn>[2] = {
+                idleTimeoutMs: limits.streamIdleTimeoutMs,
+                signals: options.signal === undefined ? [] : [options.signal],
+                onUsage: (delta) => options.budget?.onUsage(delta, target.resolved.ref),
+              };
+              if (options.budget?.signal !== undefined) {
+                summarizeStreamOptions.budgetSignal = options.budget.signal;
+              }
+              return summarizeStreamOptions;
+            },
+          });
+        } catch (thrown) {
+          if (!(thrown instanceof BudgetExhaustedError)) {
+            throw thrown;
+          }
+          status = 'error';
+          agentError = { kind: 'budget', retryable: false };
+          errorMessage = thrown.message;
+          break;
+        }
+        const { outcome: summary } = summaryDispatch;
         usageApprox = usageApprox || summary.usageApprox;
         if (summary.aborted === 'budget') {
           status = 'cancelled';
@@ -1527,74 +1622,92 @@ export async function runAgent<S extends SchemaSpec>(
     }
     if (proceed) {
       turns += 1;
-      const { outcome, target: finalizeTarget } = await dispatchPhase({
-        chain: [
-          { adapter: options.finalize.adapter, resolved: options.finalize.resolved },
-          ...(options.finalize.fallbacks ?? []),
-        ],
-        cursor: { index: 0 },
-        requestFor: (target) => ({
-          ...buildRequest(
-            target.resolved,
-            projectHistory(messages, providerOf(target.adapter)),
-            limits,
-            options.tools?.contracts,
+      let finalizeDispatch: Awaited<ReturnType<typeof dispatchPhase>> | undefined;
+      try {
+        finalizeDispatch = await dispatchPhase({
+          chain: [
+            { adapter: options.finalize.adapter, resolved: options.finalize.resolved },
+            ...(options.finalize.fallbacks ?? []),
+          ],
+          cursor: { index: 0 },
+          requestFor: (target) =>
+            applyOutputBudget(
+              {
+                ...buildRequest(
+                  target.resolved,
+                  projectHistory(messages, providerOf(target.adapter)),
+                  limits,
+                  options.tools?.contracts,
+                ),
+                toolChoice: 'none',
+              },
+              target,
+              options.budget,
+            ),
+          streamOptionsFor: (target) => {
+            const finalizeStreamOptions: Parameters<typeof streamTurn>[2] = {
+              idleTimeoutMs: limits.streamIdleTimeoutMs,
+              signals: options.signal === undefined ? [] : [options.signal],
+              onUsage: (delta) => options.budget?.onUsage(delta, target.resolved.ref),
+            };
+            if (options.budget?.signal !== undefined) {
+              finalizeStreamOptions.budgetSignal = options.budget.signal;
+            }
+            if (options.stream === true) {
+              finalizeStreamOptions.onDelta = (delta) =>
+                events?.emit({ type: 'agent:stream', delta });
+            }
+            return finalizeStreamOptions;
+          },
+        });
+      } catch (thrown) {
+        if (!(thrown instanceof BudgetExhaustedError)) {
+          throw thrown;
+        }
+        status = 'error';
+        agentError = { kind: 'budget', retryable: false };
+        errorMessage = thrown.message;
+      }
+      if (finalizeDispatch !== undefined) {
+        const { outcome, target: finalizeTarget } = finalizeDispatch;
+        usageApprox = usageApprox || outcome.usageApprox;
+        messages.push(
+          assistantMsg(
+            outcome.turn,
+            liftRetainedParts(outcome.providerMetadata, finalizeTarget.adapter),
           ),
-          toolChoice: 'none',
-        }),
-        streamOptionsFor: (target) => {
-          const finalizeStreamOptions: Parameters<typeof streamTurn>[2] = {
-            idleTimeoutMs: limits.streamIdleTimeoutMs,
-            signals: options.signal === undefined ? [] : [options.signal],
-            onUsage: (delta) => options.budget?.onUsage(delta, target.resolved.ref),
-          };
-          if (options.budget?.signal !== undefined) {
-            finalizeStreamOptions.budgetSignal = options.budget.signal;
-          }
-          if (options.stream === true) {
-            finalizeStreamOptions.onDelta = (delta) =>
-              events?.emit({ type: 'agent:stream', delta });
-          }
-          return finalizeStreamOptions;
-        },
-      });
-      usageApprox = usageApprox || outcome.usageApprox;
-      messages.push(
-        assistantMsg(
-          outcome.turn,
-          liftRetainedParts(outcome.providerMetadata, finalizeTarget.adapter),
-        ),
-      );
-      if (invariantViolation !== undefined) {
-        status = 'error';
-        agentError = { kind: 'transport', retryable: false };
-        errorMessage = invariantViolation;
-      } else if (outcome.aborted !== undefined || outcome.wireError !== undefined) {
-        status = outcome.aborted === 'external' ? 'cancelled' : 'error';
-        if (outcome.wireError !== undefined) {
-          agentError = classifyWireError(outcome.wireError);
-          errorMessage = outcome.wireError.message;
-        } else if (outcome.aborted === 'budget') {
-          status = 'cancelled';
-          agentError = { kind: 'budget', retryable: false };
-        } else if (outcome.aborted === 'idle') {
+        );
+        if (invariantViolation !== undefined) {
           status = 'error';
-          agentError = { kind: 'transport', retryable: true };
-          errorMessage = `stream idle for ${limits.streamIdleTimeoutMs}ms`;
+          agentError = { kind: 'transport', retryable: false };
+          errorMessage = invariantViolation;
+        } else if (outcome.aborted !== undefined || outcome.wireError !== undefined) {
+          status = outcome.aborted === 'external' ? 'cancelled' : 'error';
+          if (outcome.wireError !== undefined) {
+            agentError = classifyWireError(outcome.wireError);
+            errorMessage = outcome.wireError.message;
+          } else if (outcome.aborted === 'budget') {
+            status = 'cancelled';
+            agentError = { kind: 'budget', retryable: false };
+          } else if (outcome.aborted === 'idle') {
+            status = 'error';
+            agentError = { kind: 'transport', retryable: true };
+            errorMessage = `stream idle for ${limits.streamIdleTimeoutMs}ms`;
+          }
+        } else if (
+          outcome.finish?.reason === 'refusal' ||
+          outcome.finish?.reason === 'context-window-exceeded'
+        ) {
+          status = 'error';
+          agentError = { kind: 'terminal', retryable: false };
+          if (outcome.finish.reason === 'refusal') {
+            errorMessage = `model refusal (${outcome.finish.refusal.provider})`;
+          }
+        } else if (options.schema === undefined) {
+          // The synthesis is the final answer for schema-less calls; a
+          // schema-bearing call reads its output from the extract phase.
+          output = outcome.turn.text as Out<S>;
         }
-      } else if (
-        outcome.finish?.reason === 'refusal' ||
-        outcome.finish?.reason === 'context-window-exceeded'
-      ) {
-        status = 'error';
-        agentError = { kind: 'terminal', retryable: false };
-        if (outcome.finish.reason === 'refusal') {
-          errorMessage = `model refusal (${outcome.finish.refusal.provider})`;
-        }
-      } else if (options.schema === undefined) {
-        // The synthesis is the final answer for schema-less calls; a
-        // schema-bearing call reads its output from the extract phase.
-        output = outcome.turn.text as Out<S>;
       }
     }
   }
@@ -1650,39 +1763,52 @@ export async function runAgent<S extends SchemaSpec>(
         break;
       }
       turns += 1;
-      const { outcome, target: extractTarget } = await dispatchPhase({
-        chain: extractChain,
-        cursor: extractCursor,
-        requestFor: (target) => {
-          // A tool-bearing transcript must carry the tool contracts:
-          // both providers reject tool-use history without tool
-          // definitions. The forced-tool tier pins toolChoice to
-          // emit_result; the other tiers pin 'none' so the extract call
-          // cannot re-enter tools (M4-T01).
-          const targetTier = extractTierFor(target);
-          let req = buildRequest(
-            target.resolved,
-            projectHistory(extractMessages, providerOf(target.adapter)),
-            limits,
-            options.tools?.contracts,
-          );
-          if (req.tools !== undefined && targetTier !== 'forced-tool') {
-            req = { ...req, toolChoice: 'none' };
-          }
-          return applyStructuredOutputTier(req, targetTier, options.canonicalSchema ?? {});
-        },
-        streamOptionsFor: (target) => {
-          const extractStreamOptions: Parameters<typeof streamTurn>[2] = {
-            idleTimeoutMs: limits.streamIdleTimeoutMs,
-            signals: options.signal === undefined ? [] : [options.signal],
-            onUsage: (delta) => options.budget?.onUsage(delta, target.resolved.ref),
-          };
-          if (options.budget?.signal !== undefined) {
-            extractStreamOptions.budgetSignal = options.budget.signal;
-          }
-          return extractStreamOptions;
-        },
-      });
+      let extractDispatch: Awaited<ReturnType<typeof dispatchPhase>>;
+      try {
+        extractDispatch = await dispatchPhase({
+          chain: extractChain,
+          cursor: extractCursor,
+          requestFor: (target) => {
+            // A tool-bearing transcript must carry the tool contracts:
+            // both providers reject tool-use history without tool
+            // definitions. The forced-tool tier pins toolChoice to
+            // emit_result; the other tiers pin 'none' so the extract call
+            // cannot re-enter tools (M4-T01).
+            const targetTier = extractTierFor(target);
+            let req = buildRequest(
+              target.resolved,
+              projectHistory(extractMessages, providerOf(target.adapter)),
+              limits,
+              options.tools?.contracts,
+            );
+            if (req.tools !== undefined && targetTier !== 'forced-tool') {
+              req = { ...req, toolChoice: 'none' };
+            }
+            req = applyStructuredOutputTier(req, targetTier, options.canonicalSchema ?? {});
+            return applyOutputBudget(req, target, options.budget);
+          },
+          streamOptionsFor: (target) => {
+            const extractStreamOptions: Parameters<typeof streamTurn>[2] = {
+              idleTimeoutMs: limits.streamIdleTimeoutMs,
+              signals: options.signal === undefined ? [] : [options.signal],
+              onUsage: (delta) => options.budget?.onUsage(delta, target.resolved.ref),
+            };
+            if (options.budget?.signal !== undefined) {
+              extractStreamOptions.budgetSignal = options.budget.signal;
+            }
+            return extractStreamOptions;
+          },
+        });
+      } catch (thrown) {
+        if (!(thrown instanceof BudgetExhaustedError)) {
+          throw thrown;
+        }
+        status = 'error';
+        agentError = { kind: 'budget', retryable: false };
+        errorMessage = thrown.message;
+        break;
+      }
+      const { outcome, target: extractTarget } = extractDispatch;
       usageApprox = usageApprox || outcome.usageApprox;
       if (invariantViolation !== undefined) {
         status = 'error';

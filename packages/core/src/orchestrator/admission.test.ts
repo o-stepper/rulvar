@@ -173,9 +173,11 @@ describe('AdmissionController', () => {
     expect(rejected.statsBefore.childrenOfParentBefore).toBe(DEFAULT_MAX_CHILDREN_PER_NODE);
   });
 
-  it('rejects with budget when the parent chain is at its ceiling', () => {
-    // The first reserve alone reaches the ceiling; while it is still
-    // committed (the child in flight), the second spawn is blocked.
+  it('caps the reserve at the child ceiling so capped children fit small budgets', () => {
+    // The flat reserve (1 USD) exceeds what this child could ever spend:
+    // its fraction-capped ceiling is 0.3 of the remainder. Projected
+    // admission holds only that much against the chain, so the spawn is
+    // admitted instead of one child freezing the whole run.
     const { admission } = makeController({ budgetUsd: 1, flatReserveUsd: 1 });
     const first = admission.admit({
       origin: 'ctx.workflow',
@@ -183,7 +185,18 @@ describe('AdmissionController', () => {
       childScope: 'wf:a:0',
       parentAccountScope: 'run',
     });
-    expect(first.verdict.kind).toBe('admit');
+    expect(first.verdict).toMatchObject({
+      kind: 'admit',
+      reserve: { reserveUsd: 0.3, childCeilingUsd: 0.3 },
+    });
+  });
+
+  it('rejects with budget when the parent chain is at its ceiling', () => {
+    // An agent-style spawn (no sub-account of its own) holds the whole
+    // ceiling in one committed reserve; while it is in flight, any
+    // further spawn is blocked.
+    const { admission, budget } = makeController({ budgetUsd: 1, flatReserveUsd: 1 });
+    budget.admitSpawn(1);
     const second = admission.admit({
       origin: 'ctx.workflow',
       name: 'b',

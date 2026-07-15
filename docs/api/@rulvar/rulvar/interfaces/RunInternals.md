@@ -41,6 +41,7 @@ Everything one run's ctx needs; created per run by the engine (M1-T11).
 | <a id="property-now"></a> `now` | () => `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-onescalation"></a> `onEscalation?` | (`result`) => \| [`EscalationDecision`](/api/@rulvar/rulvar/type-aliases/EscalationDecision.md) \| `Promise`\&lt;[`EscalationDecision`](/api/@rulvar/rulvar/type-aliases/EscalationDecision.md)\&gt; | The InProcessRunner escalation hook: receives escalated results when the call form cannot carry them; its decision is journaled as the authoritative escalation-decision entry. | `packages/core/dist/index.d.ts` |
 | <a id="property-priceusd"></a> `priceUsd` | (`servedBy`, `usage`) => `number` \| `undefined` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-pricingof"></a> `pricingOf?` | (`servedBy`) => [`Pricing`](/api/@rulvar/rulvar/interfaces/Pricing.md) \| `undefined` | Raw price-row resolution (table wins, caps fallback); undefined = unpriced. | `packages/core/dist/index.d.ts` |
 | <a id="property-pricingversion"></a> `pricingVersion?` | `string` | The configured price table's version; pinned in decision entries (M4-T06). | `packages/core/dist/index.d.ts` |
 | <a id="property-providerlimiter"></a> `providerLimiter?` | [`KeyedLimiter`](/api/@rulvar/rulvar/classes/KeyedLimiter.md) | Engine-scoped per-provider keyed limiter (M4-T07). | `packages/core/dist/index.d.ts` |
 | <a id="property-replayer"></a> `replayer` | [`Replayer`](/api/@rulvar/rulvar/classes/Replayer.md) | - | `packages/core/dist/index.d.ts` |

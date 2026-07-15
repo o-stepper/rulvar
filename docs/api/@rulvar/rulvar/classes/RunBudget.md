@@ -27,11 +27,12 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | \{ `ceilingUsd?`: `number`; `events?`: [`RuntimeEventSink`](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md); `lifetimeSpawnCap?`: `number`; `priceUsd?`: (`servedBy`, `usage`) => `number` \| `undefined`; `seed?`: \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \}; \} | - |
+| `options` | \{ `ceilingUsd?`: `number`; `events?`: [`RuntimeEventSink`](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md); `lifetimeSpawnCap?`: `number`; `priceUsd?`: (`servedBy`, `usage`) => `number` \| `undefined`; `pricingOf?`: (`servedBy`) => [`Pricing`](/api/@rulvar/rulvar/interfaces/Pricing.md) \| `undefined`; `seed?`: \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \}; \} | - |
 | `options.ceilingUsd?` | `number` | - |
 | `options.events?` | [`RuntimeEventSink`](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md) | - |
 | `options.lifetimeSpawnCap?` | `number` | - |
 | `options.priceUsd?` | (`servedBy`, `usage`) => `number` \| `undefined` | - |
+| `options.pricingOf?` | (`servedBy`) => [`Pricing`](/api/@rulvar/rulvar/interfaces/Pricing.md) \| `undefined` | - |
 | `options.seed?` | \{ `agentsSpawned`: `number`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); `usd`: `number`; \} | The resume ledger fold: spend is never reset and never double-counted; replayed entries are already inside this seed and add no increments. |
 | `options.seed.agentsSpawned` | `number` | - |
 | `options.seed.usage` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | - |
@@ -173,9 +174,15 @@ admitSpawn(reserveUsd, accountScope?): void;
 
 Defined in: `packages/core/dist/index.d.ts`
 
-Layer 1: admission before spawn. Blocks when spent + committedReserve
-has reached the ceiling on ANY account in the ancestor chain of
-`accountScope`, otherwise commits the reserve along the whole chain.
+Layer 1: PROJECTED admission before spawn. A spawn is admitted only
+when every account in the ancestor chain of `accountScope` still has
+admission headroom AND fits the PROPOSED reserve on top of spent +
+committedReserve + finalizeReserve (the finalize reserve is
+untouchable by admission, DEF-7). An exact fill is allowed; one
+dollar past the ceiling is not: a spawn is never admitted on the
+argument that the money it needs is merely not committed yet. The
+whole chain is checked before anything commits, so a rejection
+mutates no account, increments no counter, and journals nothing.
 Also enforces the engine lifetime spawn cap.
 
 #### Parameters
@@ -256,6 +263,40 @@ partial value (DEF-7; exhaustion is never null).
 #### Returns
 
 `void`
+
+***
+
+### maxAffordableOutputTokens()
+
+```ts
+maxAffordableOutputTokens(
+   servedBy, 
+   estimatedInputTokens, 
+   accountScope?): number | undefined;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Layer 2b, the pre-dispatch output bound: the output tokens the
+remaining chain budget (min over capped ancestors of ceiling minus
+spend) still affords from `servedBy` for an estimated prompt, priced
+by the same function as settlement, long-context tiers included.
+Undefined when no account in the chain carries a USD ceiling, when
+the model has no price row (the once-per-model unpriced warning in
+onUsage covers that hole), or when output is free. Zero or negative
+means the turn cannot be dispatched within the budget.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `servedBy` | `` `${string}:${string}` `` |
+| `estimatedInputTokens` | `number` |
+| `accountScope?` | `string` |
+
+#### Returns
+
+`number` \| `undefined`
 
 ***
 

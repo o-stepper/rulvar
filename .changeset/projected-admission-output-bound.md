@@ -1,0 +1,12 @@
+---
+'@rulvar/core': minor
+---
+
+Make budget admission projected and add a pre-dispatch output bound (layer 2b).
+
+- **Projected admission (layer 1).** A spawn is admitted only when `spent + committedReserve + finalizeReserve + proposedReserve` fits the ceiling of every account in its ancestor chain, checked atomically before anything commits. An exact fill is allowed; one dollar past the ceiling is not. Previously the proposed reserve was not part of the check, so the first call under a `budgetUsd: 0.001` run with a `0.01` estimate was admitted and one full provider turn was paid (10.5x the ceiling in the live reproduction). The denial happens strictly before any provider dispatch, journal entry, spawn counter, or reserve commit.
+- **Pre-dispatch output bound (layer 2b).** Every turn's wire `maxOutputTokens` is clamped to `min(model capability, limits.maxOutputTokensPerTurn, budget-derived limit)`, where the budget-derived limit is what the tightest remaining ceiling in the chain buys at the serving model's output price (long-context tiers included) after a heuristic prompt-cost estimate. A turn is denied outright only when the remainder cannot buy one output token at zero input (exact, no heuristic); when only the prompt estimate says the turn does not fit, it dispatches with a one-token output floor and the exact layers settle the difference. `RunBudget.maxAffordableOutputTokens` and the pure `affordableOutputTokens` helper are new public API; `BudgetHooks` gains the optional hook.
+- **Reserves never exceed what a spawn can spend.** A child with its own sub-account ceiling reserves at most that ceiling; a capped orchestrator reserves its cap minus the committed finalize carve-out (the forced finish has its own reserve); an unpriced model reserves nothing unless an explicit `estCost` is given, because a USD ceiling cannot bound it anyway (the existing loud warning and `CostReport.unpriced` still apply).
+- `admissionReserveUsd` accepts `maxOutputTokensPerTurn` and clamps the priced worst-case output term with it, so hosts can bound reserves through limits instead of hand-written estimates.
+
+Migration: runs whose ceilings are smaller than their spawns' reserves now fail fast at admission with `BudgetExhaustedError` instead of overshooting. Give calls realistic `estCost` hints (see the updated Quickstart), set `limits.maxOutputTokensPerTurn`, or raise the ceiling.

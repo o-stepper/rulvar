@@ -424,10 +424,11 @@ describe('three-layer budget (M1-T09)', () => {
       budgetUsd: 1,
     });
     const wf = defineWorkflow({ name: 'w' }, async (ctx) => {
-      // Admissions happen synchronously in branch order: the first two
-      // commit 0.6 USD each; the third sees spent + committedReserve
-      // (1.2 USD) at the 1 USD ceiling and is blocked before any journal
-      // entry.
+      // Admissions happen synchronously in branch order and are
+      // PROJECTED: the first commits 0.6 USD; the second proposes another
+      // 0.6 USD, the projection (1.2 USD) does not fit the 1 USD ceiling,
+      // and it is blocked before any journal entry. Being merely "not
+      // committed yet" no longer admits a reserve past the ceiling.
       return ctx.parallel([
         () => ctx.agent('c1', { estCost: 0.6 }),
         () => ctx.agent('c2', { estCost: 0.6 }),
@@ -437,11 +438,11 @@ describe('three-layer budget (M1-T09)', () => {
     await expect(executeWorkflow(internals, wf, undefined)).rejects.toBeInstanceOf(
       BudgetExhaustedError,
     );
-    // The blocked third spawn journaled nothing.
+    // The blocked second and third spawns journaled nothing.
     const runnings = agentEntries(await store.load('test-run')).filter(
       (e) => e.status === 'running',
     );
-    expect(runnings.length).toBeLessThanOrEqual(2);
+    expect(runnings.length).toBeLessThanOrEqual(1);
   });
 
   it('enforces the engine lifetime spawn cap', async () => {
@@ -481,6 +482,78 @@ describe('three-layer budget (M1-T09)', () => {
     expect(terminal?.status).toBe('cancelled');
     expect(terminal?.usageApprox).toBe(true);
   }, 10_000);
+
+  it('layer 1 denies a reserve that does not fit, strictly before any effect', async () => {
+    // The reviewer probe, hermetic: estCost 0.01 under a 0.001 ceiling.
+    // Projected admission denies the FIRST spawn; the old rule admitted
+    // it because nothing was committed yet, and one full provider turn
+    // was paid (10.5x the ceiling in the live reproduction).
+    const adapter = scriptedAdapter(() => ({ text: 'never reached' }));
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model' },
+      budgetUsd: 0.001,
+    });
+    const wf = defineWorkflow({ name: 'w' }, (ctx) => ctx.agent('probe', { estCost: 0.01 }));
+    await expect(executeWorkflow(internals, wf, undefined)).rejects.toBeInstanceOf(
+      BudgetExhaustedError,
+    );
+    // No provider dispatch, no journal entry, no counter, no spend.
+    expect(adapter.calls).toHaveLength(0);
+    expect(agentEntries(await store.load('test-run'))).toHaveLength(0);
+    expect(internals.budget.spent().usd).toBe(0);
+    expect(internals.budget.spent().agentsSpawned).toBe(0);
+  });
+
+  it('layer 2b clamps the wire maxOutputTokens to what the budget affords', async () => {
+    const adapter = scriptedAdapter(() => ({ text: 'ok' }));
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model' },
+      // At the fake model's 10 USD/MTok output price, under 1000 output
+      // tokens are affordable; the request must carry that bound.
+      budgetUsd: 0.01,
+    });
+    const wf = defineWorkflow({ name: 'w' }, (ctx) => ctx.agent('small', { estCost: 0.001 }));
+    await executeWorkflow(internals, wf, undefined);
+    const req = adapter.calls[0];
+    expect(req?.maxOutputTokens).toBeDefined();
+    expect(req?.maxOutputTokens).toBeGreaterThan(0);
+    expect(req?.maxOutputTokens).toBeLessThan(1_000);
+  });
+
+  it('layer 2b keeps a tighter explicit per-turn output limit', async () => {
+    const adapter = scriptedAdapter(() => ({ text: 'ok' }));
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model' },
+      budgetUsd: 0.01,
+    });
+    const wf = defineWorkflow({ name: 'w' }, (ctx) =>
+      ctx.agent('small', { estCost: 0.001, limits: { maxOutputTokensPerTurn: 50 } }),
+    );
+    await executeWorkflow(internals, wf, undefined);
+    expect(adapter.calls[0]?.maxOutputTokens).toBe(50);
+  });
+
+  it('layer 2b denies a turn when the remainder cannot buy one output token', async () => {
+    const adapter = scriptedAdapter(() => ({ text: 'never reached' }));
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model' },
+      // Half a microdollar cannot buy ONE output token at 10 USD/MTok
+      // even with a zero-cost prompt: the exact denial case, no
+      // heuristic estimate involved.
+      budgetUsd: 0.000_000_5,
+    });
+    const wf = defineWorkflow({ name: 'w' }, (ctx) => ctx.agent('tiny', { estCost: 0.000_000_1 }));
+    await expect(executeWorkflow(internals, wf, undefined)).rejects.toBeInstanceOf(
+      BudgetExhaustedError,
+    );
+    expect(adapter.calls).toHaveLength(0);
+    const terminal = agentEntries(await store.load('test-run')).find((e) => e.status !== 'running');
+    expect(terminal?.status).toBe('error');
+  });
 
   it('exposes spent and remaining through ctx.budget', async () => {
     const adapter = scriptedAdapter(() => ({

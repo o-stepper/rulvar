@@ -29,6 +29,20 @@ export function resolvePricing(
   return table?.models[ref] ?? capsPricing;
 }
 
+/** The tier a full prompt lands in: the highest threshold strictly below it. */
+function tierFor(pricing: Pricing, inputTokens: number): PricingTier | undefined {
+  let tier: PricingTier | undefined;
+  for (const candidate of pricing.tiers ?? []) {
+    if (
+      inputTokens > candidate.aboveInputTokens &&
+      (tier === undefined || candidate.aboveInputTokens > tier.aboveInputTokens)
+    ) {
+      tier = candidate;
+    }
+  }
+  return tier;
+}
+
 /**
  * Dollars from normalized usage against one pricing row. Under the Usage
  * invariant inputTokens is the FULL prompt including cache reads and
@@ -43,15 +57,7 @@ export function resolvePricing(
  * canonical Usage does not yet carry.
  */
 export function priceUsdOf(pricing: Pricing, usage: Usage): number {
-  let tier: PricingTier | undefined;
-  for (const candidate of pricing.tiers ?? []) {
-    if (
-      usage.inputTokens > candidate.aboveInputTokens &&
-      (tier === undefined || candidate.aboveInputTokens > tier.aboveInputTokens)
-    ) {
-      tier = candidate;
-    }
-  }
+  const tier = tierFor(pricing, usage.inputTokens);
   const inputMul = tier?.inputMultiplier ?? 1;
   const outputMul = tier?.outputMultiplier ?? 1;
   const uncachedInputTokens = Math.max(
@@ -68,4 +74,32 @@ export function priceUsdOf(pricing: Pricing, usage: Usage): number {
       (pricing.cacheWriteUsdPerMTok ?? pricing.inputUsdPerMTok) *
       inputMul
   );
+}
+
+/**
+ * The output tokens `remainingUsd` still buys from one pricing row after
+ * paying for an estimated prompt of `estimatedInputTokens`, priced with
+ * the same tier rules as settlement (the tier is selected by the
+ * estimated prompt). Floored to whole tokens; zero or negative means not
+ * even one output token fits, so the turn must not be dispatched.
+ * Undefined when the row prices output at zero (a free model needs no
+ * output bound).
+ */
+export function affordableOutputTokens(
+  pricing: Pricing,
+  remainingUsd: number,
+  estimatedInputTokens: number,
+): number | undefined {
+  const tier = tierFor(pricing, estimatedInputTokens);
+  const outputRate = pricing.outputUsdPerMTok * (tier?.outputMultiplier ?? 1);
+  if (outputRate <= 0) {
+    return undefined;
+  }
+  const inputUsd = priceUsdOf(pricing, {
+    inputTokens: estimatedInputTokens,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  });
+  return Math.floor(((remainingUsd - inputUsd) / outputRate) * 1_000_000);
 }

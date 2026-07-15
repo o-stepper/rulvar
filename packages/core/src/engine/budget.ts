@@ -1,9 +1,15 @@
 /**
  * Three-layer budget (M1-T09, hierarchical sub-accounts M6-T06;
- * invariant I4). Layer 1: admission before spawn (spent + committedReserve
- * >= ceiling blocks on ANY account in the ancestor chain). Layer 2: the
- * per-turn guard against the spawn's own chain. Layer 3: the AbortSignal
- * ceiling severing live streams, with partial usage written usageApprox.
+ * invariant I4). Layer 1: PROJECTED admission before spawn: a spawn is
+ * admitted only when spent + committedReserve + finalizeReserve + the
+ * PROPOSED reserve fits the ceiling of EVERY account in the ancestor
+ * chain (exact fill allowed), checked atomically before any commit.
+ * Layer 2: the per-turn guard against the spawn's own chain, plus the
+ * pre-dispatch output bound (layer 2b): every turn's maxOutputTokens is
+ * clamped to what the remaining chain budget affords from the serving
+ * model, and a turn that cannot afford one output token is denied before
+ * dispatch. Layer 3: the AbortSignal ceiling severing live streams, with
+ * partial usage written usageApprox.
  * B0 is immutable after start: no API tops it up.
  *
  * The account tree: the run root plus one
@@ -19,8 +25,8 @@
  */
 import { BudgetExhaustedError, ConfigError } from '../l0/errors.js';
 import type { ModelRef, Usage } from '../l0/messages.js';
-import type { ModelCaps } from '../l0/spi/provider.js';
-import { priceUsdOf } from '../model/pricing.js';
+import type { ModelCaps, Pricing } from '../l0/spi/provider.js';
+import { affordableOutputTokens, priceUsdOf } from '../model/pricing.js';
 import { BUDGET_ABORT_REASON, type RuntimeEventSink } from '../runtime/agent-loop.js';
 
 export type Spend = { usd: number; usage: Usage; agentsSpawned: number };
@@ -39,16 +45,20 @@ const ZERO_USAGE: Usage = {
 };
 
 /**
- * The admission reserve for a spawn: opts.estCost, else profile.estCost, else
- * price(countTokens(input) + caps.maxOutputTokens), else the engine flat
- * default. The priced path uses the SAME price function as settlement
- * (priceUsdOf), so long-context tiers apply to estimates too.
+ * The admission reserve for a spawn: opts.estCost, else profile.estCost,
+ * else price(countTokens(input) + one turn's worth of output), else the
+ * engine flat default. The output term is caps.maxOutputTokens clamped to
+ * limits.maxOutputTokensPerTurn when the spawn carries one, so a host can
+ * bound reserves without hand-written estimates. The priced path uses the
+ * SAME price function as settlement (priceUsdOf), so long-context tiers
+ * apply to estimates too.
  */
 export function admissionReserveUsd(options: {
   estCost?: number;
   profileEstCost?: number;
   inputTokens?: number;
   caps?: ModelCaps;
+  maxOutputTokensPerTurn?: number;
   flatReserveUsd?: number;
 }): number {
   if (options.estCost !== undefined) {
@@ -59,9 +69,13 @@ export function admissionReserveUsd(options: {
   }
   const pricing = options.caps?.pricing;
   if (options.inputTokens !== undefined && pricing !== undefined && options.caps !== undefined) {
+    const outputTokens =
+      options.maxOutputTokensPerTurn === undefined
+        ? options.caps.maxOutputTokens
+        : Math.min(options.caps.maxOutputTokens, options.maxOutputTokensPerTurn);
     return priceUsdOf(pricing, {
       inputTokens: options.inputTokens,
-      outputTokens: options.caps.maxOutputTokens,
+      outputTokens,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     });
@@ -102,6 +116,7 @@ export class RunBudget {
   private readonly lifetimeSpawnCap: number;
   private readonly events?: RuntimeEventSink;
   private readonly priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
+  private readonly pricingOf?: (servedBy: ModelRef) => Pricing | undefined;
   private readonly accounts = new Map<string, AccountState>();
   private usageInternal: Usage = { ...ZERO_USAGE };
   private agentsSpawnedInternal = 0;
@@ -114,6 +129,8 @@ export class RunBudget {
     lifetimeSpawnCap?: number;
     events?: RuntimeEventSink;
     priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
+    /** Raw price-row resolution for the layer-2b output bound. */
+    pricingOf?: (servedBy: ModelRef) => Pricing | undefined;
     /**
      * The resume ledger fold: spend is never
      * reset and never double-counted; replayed entries are already inside
@@ -130,6 +147,9 @@ export class RunBudget {
     }
     if (options.priceUsd !== undefined) {
       this.priceUsd = options.priceUsd;
+    }
+    if (options.pricingOf !== undefined) {
+      this.pricingOf = options.pricingOf;
     }
     const root: AccountState = {
       scope: ROOT_ACCOUNT,
@@ -281,9 +301,15 @@ export class RunBudget {
   }
 
   /**
-   * Layer 1: admission before spawn. Blocks when spent + committedReserve
-   * has reached the ceiling on ANY account in the ancestor chain of
-   * `accountScope`, otherwise commits the reserve along the whole chain.
+   * Layer 1: PROJECTED admission before spawn. A spawn is admitted only
+   * when every account in the ancestor chain of `accountScope` still has
+   * admission headroom AND fits the PROPOSED reserve on top of spent +
+   * committedReserve + finalizeReserve (the finalize reserve is
+   * untouchable by admission, DEF-7). An exact fill is allowed; one
+   * dollar past the ceiling is not: a spawn is never admitted on the
+   * argument that the money it needs is merely not committed yet. The
+   * whole chain is checked before anything commits, so a rejection
+   * mutates no account, increments no counter, and journals nothing.
    * Also enforces the engine lifetime spawn cap.
    */
   admitSpawn(reserveUsd: number, accountScope: string = ROOT_ACCOUNT): void {
@@ -297,25 +323,26 @@ export class RunBudget {
     }
     const chain = this.chainOf(accountScope);
     for (const account of chain) {
-      if (
-        account.ceilingUsd !== undefined &&
-        // The finalize reserve is untouchable by admission (DEF-7).
-        account.spentUsd + account.committedReserveUsd + account.finalizeReserveUsd >=
-          account.ceilingUsd
-      ) {
+      if (account.ceilingUsd === undefined) {
+        continue;
+      }
+      const committed = account.spentUsd + account.committedReserveUsd + account.finalizeReserveUsd;
+      if (committed >= account.ceilingUsd || committed + reserveUsd > account.ceilingUsd) {
         if (account.scope === ROOT_ACCOUNT) {
           this.exhaustedInternal = true;
         }
         throw new BudgetExhaustedError(
           `budget ceiling reached on account '${account.scope}': spent ` +
-            `${account.spentUsd.toFixed(4)} USD plus committed reserve ` +
-            `${account.committedReserveUsd.toFixed(4)} USD is at the ceiling ` +
-            `${account.ceilingUsd.toFixed(4)} USD`,
+            `${account.spentUsd.toFixed(4)} USD plus committed reserves ` +
+            `${(account.committedReserveUsd + account.finalizeReserveUsd).toFixed(4)} USD ` +
+            `plus the proposed reserve ${reserveUsd.toFixed(4)} USD does not fit the ` +
+            `ceiling ${account.ceilingUsd.toFixed(4)} USD`,
           {
             data: {
               account: account.scope,
               spentUsd: account.spentUsd,
               committedReserveUsd: account.committedReserveUsd,
+              proposedReserveUsd: reserveUsd,
               ceilingUsd: account.ceilingUsd,
             },
           },
@@ -405,6 +432,39 @@ export class RunBudget {
         );
       }
     }
+  }
+
+  /**
+   * Layer 2b, the pre-dispatch output bound: the output tokens the
+   * remaining chain budget (min over capped ancestors of ceiling minus
+   * spend) still affords from `servedBy` for an estimated prompt, priced
+   * by the same function as settlement, long-context tiers included.
+   * Undefined when no account in the chain carries a USD ceiling, when
+   * the model has no price row (the once-per-model unpriced warning in
+   * onUsage covers that hole), or when output is free. Zero or negative
+   * means the turn cannot be dispatched within the budget.
+   */
+  maxAffordableOutputTokens(
+    servedBy: ModelRef,
+    estimatedInputTokens: number,
+    accountScope: string = ROOT_ACCOUNT,
+  ): number | undefined {
+    const pricing = this.pricingOf?.(servedBy);
+    if (pricing === undefined) {
+      return undefined;
+    }
+    let remainingUsd: number | undefined;
+    for (const account of this.chainOf(accountScope)) {
+      if (account.ceilingUsd === undefined) {
+        continue;
+      }
+      const headroom = account.ceilingUsd - account.spentUsd;
+      remainingUsd = remainingUsd === undefined ? headroom : Math.min(remainingUsd, headroom);
+    }
+    if (remainingUsd === undefined) {
+      return undefined;
+    }
+    return affordableOutputTokens(pricing, Math.max(0, remainingUsd), estimatedInputTokens);
   }
 
   /**

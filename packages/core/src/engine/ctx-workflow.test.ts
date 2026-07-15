@@ -144,27 +144,21 @@ describe('ctx.workflow (M6-T06)', () => {
   });
 
   it('blocks a parallel sibling while an in-flight reserve holds the ceiling', async () => {
-    const { internals } = makeInternals({ budgetUsd: 1, flatReserveUsd: 1 });
-    let releaseFirst: () => void = () => undefined;
-    const gate = new Promise<void>((resolve) => {
-      releaseFirst = resolve;
-    });
-    const holding = defineWorkflow({ name: 'holding' }, async () => {
-      await gate;
-      return 'held';
+    // A ctx.workflow child reserves at most its fraction-capped ceiling,
+    // so the holder here is an agent spawn: its estCost fills the whole
+    // ceiling exactly (an exact fill is admitted) and stays committed
+    // while the call is in flight; the sibling's admission is rejected.
+    const adapter = scriptedAdapter(() => ({ text: 'held', hangMs: 25 }));
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model' },
+      budgetUsd: 1,
+      flatReserveUsd: 1,
     });
     const wf = defineWorkflow({ name: 'parent' }, (ctx) =>
       ctx.parallel([
-        () => ctx.workflow(holding, undefined),
-        async () => {
-          try {
-            // The sibling's committed reserve already fills the ceiling:
-            // this admission is rejected while the first child is live.
-            return await ctx.workflow(echoChild, { item: 'late' });
-          } finally {
-            releaseFirst();
-          }
-        },
+        () => ctx.agent('hold', { estCost: 1 }),
+        () => ctx.workflow(echoChild, { item: 'late' }),
       ]),
     );
     await expect(executeWorkflow(internals, wf, undefined)).rejects.toThrow(BudgetExhaustedError);
