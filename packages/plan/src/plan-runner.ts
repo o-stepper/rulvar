@@ -15,7 +15,9 @@
  * orchestrator extension seam (the seam-sufficiency rule).
  */
 import {
+  AdmissionRejectedError,
   approachSigCoarse,
+  BudgetExhaustedError,
   buildTerminationInitValue,
   ConfigError,
   countsAgainstLimit,
@@ -1716,6 +1718,49 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     };
   };
 
+  /**
+   * A dispatch refused by budget/admission facts that changed AFTER the
+   * op was admitted (another child consumed the shared parent between
+   * turns, a rung ceiling re-resolved differently) lands as a terminal
+   * plan decision: the node fails loudly instead of sitting ready
+   * forever, the other ready nodes still dispatch, and the wake digest
+   * carries the failure to the orchestrator (the v1.7.0 follow-up
+   * review's P1: no stranded node without a dispatch root or terminal
+   * decision). Everything else (engine bugs) still propagates.
+   */
+  const landDispatchRejection = async (
+    node: PlanNode,
+    from: 'ready' | 'running',
+    thrown: unknown,
+  ): Promise<void> => {
+    const message = thrown instanceof Error ? thrown.message : String(thrown);
+    io.emit({
+      type: 'log',
+      level: 'warn',
+      msg:
+        `plan node ${node.nodeId} failed dispatch admission and lands terminally ` +
+        `failed: ${message}`,
+      data: { nodeId: node.nodeId, logicalTaskId: node.logicalTaskId },
+    });
+    await appendPlanDecision(
+      'dispatch-rejected',
+      [
+        {
+          kind: 'set_node_status',
+          nodeId: node.nodeId,
+          from,
+          to: 'failed',
+          cause: 'dispatch-rejected',
+          causeRef: Math.max(planCursor, 0),
+        },
+      ],
+      Math.max(planCursor, 0),
+    );
+  };
+
+  const isDispatchRejection = (thrown: unknown): boolean =>
+    thrown instanceof AdmissionRejectedError || thrown instanceof BudgetExhaustedError;
+
   /** Dispatches every ready node under its plan/NodeId scope. */
   const scheduleReady = async (): Promise<void> => {
     for (const node of Object.values(fold.plan.nodes)) {
@@ -1729,15 +1774,22 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         // ready-to-running decision is NOT re-appended.
         const spec = fold.specs[node.nodeId];
         if (spec !== undefined) {
-          const { handle } = await io.dispatch(
-            buildDispatchSpec(node, spec),
-            nodeScopeOf(node.nodeId),
-            {
-              nodeId: node.nodeId,
-              logicalTaskId: node.logicalTaskId,
-            },
-          );
-          dispatched.set(node.nodeId, handle);
+          try {
+            const { handle } = await io.dispatch(
+              buildDispatchSpec(node, spec),
+              nodeScopeOf(node.nodeId),
+              {
+                nodeId: node.nodeId,
+                logicalTaskId: node.logicalTaskId,
+              },
+            );
+            dispatched.set(node.nodeId, handle);
+          } catch (thrown) {
+            if (!isDispatchRejection(thrown)) {
+              throw thrown;
+            }
+            await landDispatchRejection(node, 'running', thrown);
+          }
         }
         continue;
       }
@@ -1784,14 +1836,19 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       if (spec === undefined) {
         continue;
       }
-      const { handle } = await io.dispatch(
-        buildDispatchSpec(node, spec),
-        nodeScopeOf(node.nodeId),
-        {
+      let handle: number;
+      try {
+        ({ handle } = await io.dispatch(buildDispatchSpec(node, spec), nodeScopeOf(node.nodeId), {
           nodeId: node.nodeId,
           logicalTaskId: node.logicalTaskId,
-        },
-      );
+        }));
+      } catch (thrown) {
+        if (!isDispatchRejection(thrown)) {
+          throw thrown;
+        }
+        await landDispatchRejection(node, 'ready', thrown);
+        continue;
+      }
       dispatched.set(node.nodeId, handle);
       // ready -> running lands as an engine decision whose cause is the
       // child's own dispatch record (the closed cause set).
@@ -1921,6 +1978,24 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     },
     planRevise: async (request: PlanReviseRequest): Promise<PlanReviseResult> =>
       writeLock.runExclusive(async () => {
+        // The RESULT enrichment (never the journaled value): a dropped
+        // admission_denied op carries its typed reject reason so the
+        // model sees the account, reserves, and minimum correction in
+        // the tool result itself.
+        const withVerdictDetail = (
+          outcomes: PlanRevisionValue['outcomes'],
+          admissions: PlanRevisionValue['admissions'],
+        ): PlanReviseResult['outcomes'] =>
+          outcomes.map((outcome, opIndex) => {
+            if (outcome.kind !== 'dropped' || outcome.reason !== 'admission_denied') {
+              return outcome;
+            }
+            const verdict = admissions.find((admission) => admission.opIndex === opIndex)?.decision
+              .verdict;
+            return verdict !== undefined && verdict.kind === 'reject'
+              ? { ...outcome, verdictReason: verdict.reason }
+              : outcome;
+          });
         await io.flush();
         absorbPlan();
         absorbGuardVerdicts();
@@ -1989,7 +2064,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           }
           await scheduleReady();
           return {
-            outcomes: value.outcomes,
+            outcomes: withVerdictDetail(value.outcomes, value.admissions),
             assignedNodeIds: value.assignedNodeIds,
             planHashAfter: value.planHashAfter,
             droppedAll: value.outcomes.every((outcome) => outcome.kind === 'dropped'),
@@ -2028,6 +2103,11 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         // (claim-exclusivity): the second identical add of
         // the same revision degrades to a fresh admit, donor_active.
         const claimedThisRevision = new Set<string>();
+        // Reserves admitted read-only earlier in THIS revision: each
+        // subsequent admit projects them against the parent so every
+        // embedded admit of the batch is dispatchable under the same
+        // snapshot (the v1.7.0 follow-up review's P1).
+        let pendingReserveUsd = 0;
         const evaluation: RebaseEvaluation = rebasePlanRevision(request, {
           state: fold,
           // The cap decision freezes the plan for ADAPTATION, not for
@@ -2104,17 +2184,73 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
                 statsBefore: { spawnsBefore: 0, childrenOfParentBefore: 0, depth: 1 },
               };
             }
+            const profile = io.profiles[op.spec.agentType] as AgentProfile | undefined;
+            // A journaled admit must guarantee its dispatch cannot be
+            // rejected by the same budget facts. The DISPATCH-time
+            // ceiling is rung-resolved (rung.maxCostUsd overrides
+            // budgetUsd), so the check resolves the same facts here,
+            // BEFORE the op changes plan state or consumes a spawn unit.
+            const childAccount =
+              rootScope === '' ? planNodeScope(nodeId) : `${rootScope}/${planNodeScope(nodeId)}`;
+            const ladder = canonicalLadderOf(profile);
+            const dispatchCeilingUsd = ((): number | undefined => {
+              if (ladder !== undefined) {
+                const startTier = clampStartTier(ladder, op.spec.model_hint?.startTier);
+                const raises =
+                  op.lineage === undefined ? 0 : requireAccount().rungIndexOf(op.lineage.continues);
+                const rung = ladder.rungs[executingRungOf(ladder, startTier, raises)];
+                if (rung?.maxCostUsd !== undefined) {
+                  return rung.maxCostUsd;
+                }
+              }
+              return op.spec.budgetUsd;
+            })();
+            if (
+              profile?.estCost !== undefined &&
+              dispatchCeilingUsd !== undefined &&
+              profile.estCost > dispatchCeilingUsd
+            ) {
+              // The host's own estimate says the budget cannot buy the
+              // work: bounce the op with the minimum actionable
+              // correction instead of stranding it at dispatch.
+              // Heuristic reserves never reject here; they clamp to the
+              // allowance (layer 1 mirrors the same clamp).
+              return {
+                verdict: {
+                  kind: 'reject',
+                  reason: {
+                    code: 'reserve_exceeds_budget',
+                    agentType: op.spec.agentType,
+                    childAccount,
+                    estCostUsd: profile.estCost,
+                    resolvedReserveUsd: Math.min(profile.estCost, dispatchCeilingUsd),
+                    childCeilingUsd: dispatchCeilingUsd,
+                    minimumBudgetUsd: profile.estCost,
+                    message:
+                      `agent profile '${op.spec.agentType}' declares estCost ` +
+                      `${profile.estCost.toFixed(4)} USD, which cannot fit the child ceiling ` +
+                      `${dispatchCeilingUsd.toFixed(4)} USD of account '${childAccount}'; ` +
+                      `raise budgetUsd to at least ${profile.estCost.toFixed(4)} or pick a ` +
+                      'cheaper profile',
+                  },
+                },
+                statsBefore: { spawnsBefore: 0, childrenOfParentBefore: 0, depth: 1 },
+              };
+            }
             const admitted = io.admission.admit(
               {
                 origin: 'spawn_agent',
                 name: op.spec.agentType,
-                childScope:
-                  rootScope === ''
-                    ? planNodeScope(nodeId)
-                    : `${rootScope}/${planNodeScope(nodeId)}`,
+                childScope: childAccount,
                 parentAccountScope: ROOT_ACCOUNT,
                 nodeKey: planScope,
                 ...(op.spec.budgetUsd === undefined ? {} : { budgetUsd: op.spec.budgetUsd }),
+                ...(profile?.estCost === undefined ? {} : { estCostUsd: profile.estCost }),
+                // Same-batch projection: earlier admits of THIS revision
+                // hold their reserves against the parent read-only, so
+                // the second op of one revision cannot be admitted into
+                // money the first already spoke for.
+                ...(pendingReserveUsd === 0 ? {} : { pendingReserveUsd }),
                 ...(op.lineage === undefined ? {} : { lineage: op.lineage }),
                 ...((op.approach ?? op.spec.approach) === undefined
                   ? {}
@@ -2130,6 +2266,14 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
               },
               { commitReserve: false },
             );
+            if (admitted.verdict.kind === 'admit') {
+              // Accumulate what DISPATCH will commit (the projection),
+              // not the fraction-clamped verdict reserve.
+              pendingReserveUsd += io.admission.projectedDispatchReserveUsd({
+                ...(profile?.estCost === undefined ? {} : { estCostUsd: profile.estCost }),
+                ...(op.spec.budgetUsd === undefined ? {} : { budgetUsd: op.spec.budgetUsd }),
+              });
+            }
             // A SpawnKey match served fresh embeds its DedupNote for
             // telemetry.
             const note = freshNotes.get(opIndex);
@@ -2152,13 +2296,14 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
             // a never-started parked node just
             // resumes scheduling under its existing attempt.
             const wasDispatched = nodeRootOf(op.nodeId) !== undefined;
-            return io.admission.admit(
+            const unparkAdmitted = io.admission.admit(
               {
                 origin: 'spawn_agent',
                 name: spec?.agentType ?? 'unknown',
                 childScope: nodeScopeOf(op.nodeId),
                 parentAccountScope: ROOT_ACCOUNT,
                 nodeKey: planScope,
+                ...(pendingReserveUsd === 0 ? {} : { pendingReserveUsd }),
                 ...(wasDispatched
                   ? {
                       lineage: {
@@ -2179,6 +2324,10 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
               },
               { commitReserve: false },
             );
+            if (unparkAdmitted.verdict.kind === 'admit') {
+              pendingReserveUsd += io.admission.projectedDispatchReserveUsd({});
+            }
+            return unparkAdmitted;
           },
           lineageCheck: (continues: LogicalTaskId) => {
             const index = io.admission.lineage();
@@ -2220,6 +2369,25 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         consumedRevisionSeqs.add(entry.seq);
         await io.flush();
         absorbPlan();
+        // Telemetry rides the durable append, strictly BEFORE the
+        // effects: a scheduling fault must not erase an applied revision
+        // from the event stream (the v1.7.0 follow-up review's P1).
+        const appliedCount = evaluation.outcomes.filter((o) => o.kind !== 'dropped').length;
+        io.emit({
+          type: 'plan:revised',
+          entryRef: entry.seq,
+          planHash: evaluation.planHashAfter,
+          applied: appliedCount,
+          dropped: evaluation.outcomes.length - appliedCount,
+          revisionUnitsRemaining: debit.balanceAfter,
+        });
+        io.emit({
+          type: 'termination:debit',
+          entryRef: entry.seq,
+          counter: 'revisionUnits',
+          remaining: debit.balanceAfter,
+          phi: requireAccount().phi(),
+        });
         // Guard verdicts fired by this revision land strictly BEFORE the
         // scheduling effects.
         await drainGuardVerdicts();
@@ -2250,24 +2418,8 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           }
         }
         await scheduleReady();
-        const appliedCount = evaluation.outcomes.filter((o) => o.kind !== 'dropped').length;
-        io.emit({
-          type: 'plan:revised',
-          entryRef: entry.seq,
-          planHash: evaluation.planHashAfter,
-          applied: appliedCount,
-          dropped: evaluation.outcomes.length - appliedCount,
-          revisionUnitsRemaining: debit.balanceAfter,
-        });
-        io.emit({
-          type: 'termination:debit',
-          entryRef: entry.seq,
-          counter: 'revisionUnits',
-          remaining: debit.balanceAfter,
-          phi: requireAccount().phi(),
-        });
         return {
-          outcomes: evaluation.outcomes,
+          outcomes: withVerdictDetail(evaluation.outcomes, evaluation.admissions),
           assignedNodeIds: evaluation.assignedNodeIds,
           planHashAfter: evaluation.planHashAfter,
           droppedAll: evaluation.droppedAll,

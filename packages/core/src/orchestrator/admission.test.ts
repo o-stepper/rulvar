@@ -291,3 +291,107 @@ describe('AdmissionController', () => {
     expect(budget.spent().agentsSpawned).toBe(1);
   });
 });
+
+describe('admit implies dispatchable (the v1.7.0 follow-up review invariant)', () => {
+  /**
+   * The layer-1 arithmetic ctx.agent applies at dispatch: the reserve is
+   * the estimate (or the flat default) clamped to the tightest
+   * child-allowance headroom on the chain, then admitSpawn projects it
+   * against every capped ancestor.
+   */
+  function simulateDispatch(
+    budget: RunBudget,
+    spec: { budgetUsd?: number; estCostUsd?: number },
+    flatReserveUsd: number,
+    childScope: string,
+  ): void {
+    if (spec.budgetUsd !== undefined) {
+      budget.openAccount(childScope, {
+        parentScope: 'run',
+        ceilingUsd: spec.budgetUsd,
+        kind: 'child-allowance',
+      });
+    }
+    const account = spec.budgetUsd === undefined ? 'run' : childScope;
+    const reserve = spec.estCostUsd ?? flatReserveUsd;
+    const allowance = budget.allowanceHeadroomOf(account);
+    budget.admitSpawn(allowance === undefined ? reserve : Math.min(reserve, allowance), account);
+  }
+
+  it('every read-only admit of a batch dispatches under the same snapshot', () => {
+    const estCosts = [undefined, 0.005, 0.015, 0.3, 0.8];
+    const budgets = [undefined, 0.01, 0.03, 0.5];
+    const ceilings = [0.02, 0.05, 0.4, 1];
+    const flats = [0.0002, 0.05, 0.5];
+    const preSpentFractions = [0, 0.5, 0.9];
+    let admitted = 0;
+    let rejected = 0;
+    for (const estCostUsd of estCosts) {
+      for (const budgetUsd of budgets) {
+        for (const ceilingUsd of ceilings) {
+          for (const flatReserveUsd of flats) {
+            for (const preSpent of preSpentFractions) {
+              const { admission, budget } = makeController({
+                budgetUsd: ceilingUsd,
+                flatReserveUsd,
+              });
+              if (preSpent > 0) {
+                // A pre-existing commitment shrinks the remainder the
+                // same way spend does.
+                budget.admitSpawn(preSpent * ceilingUsd, 'run');
+              }
+              // A batch of two identical specs: the SECOND admit must
+              // project the first's dispatch commitment.
+              let pendingReserveUsd = 0;
+              const dispatchable: Array<{ budgetUsd?: number; estCostUsd?: number }> = [];
+              for (const index of [0, 1]) {
+                const decision = admission.admit(
+                  {
+                    origin: 'spawn_agent',
+                    name: 'worker',
+                    childScope: `plan/0${String(index)}TESTNODE0000000000000000`,
+                    parentAccountScope: 'run',
+                    nodeKey: 'plan',
+                    ...(budgetUsd === undefined ? {} : { budgetUsd }),
+                    ...(estCostUsd === undefined ? {} : { estCostUsd }),
+                    ...(pendingReserveUsd === 0 ? {} : { pendingReserveUsd }),
+                    signature: { agentType: 'worker', isolation: 'none' },
+                  },
+                  { commitReserve: false },
+                );
+                if (decision.verdict.kind === 'admit') {
+                  admitted += 1;
+                  pendingReserveUsd += admission.projectedDispatchReserveUsd({
+                    ...(budgetUsd === undefined ? {} : { budgetUsd }),
+                    ...(estCostUsd === undefined ? {} : { estCostUsd }),
+                  });
+                  dispatchable.push({
+                    ...(budgetUsd === undefined ? {} : { budgetUsd }),
+                    ...(estCostUsd === undefined ? {} : { estCostUsd }),
+                  });
+                } else {
+                  rejected += 1;
+                }
+              }
+              // Every admit of the batch dispatches, in order, with no
+              // interleaved facts: the review's property.
+              for (const [index, spec] of dispatchable.entries()) {
+                expect(() =>
+                  simulateDispatch(
+                    budget,
+                    spec,
+                    flatReserveUsd,
+                    `plan/0${String(index)}TESTNODE0000000000000000`,
+                  ),
+                ).not.toThrow();
+              }
+            }
+          }
+        }
+      }
+    }
+    // The grid genuinely exercises both verdicts.
+    expect(admitted).toBeGreaterThan(100);
+    expect(rejected).toBeGreaterThan(100);
+  });
+});

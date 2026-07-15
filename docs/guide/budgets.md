@@ -104,6 +104,20 @@ cannot spend more), and an unpriced model reserves nothing unless you pass an
 explicit `estCost` (a dollar reserve would deny work the ceiling cannot bound
 anyway; see the unpriced-model section below).
 
+One case is deliberately NOT clamped away. When a PlanRunner `add_task` op
+declares an explicit `budgetUsd` and the resolved profile's `estCost` cannot
+fit it, the op is bounced at `plan_revise` time with the typed reason
+`reserve_exceeds_budget` naming the child account, the requested and resolved
+reserve, the ceiling, and the minimum correction. Nothing changes in the plan
+and no spawn unit is consumed: the host's own estimate says the budget cannot
+buy the work, so the orchestrator gets to fix the number instead of paying for
+a child that would be cancelled mid-task. Heuristic reserves (the flat default
+or the priced estimate) never bounce an op this way; they clamp to the child's
+allowance, and an admitted op is guaranteed dispatchable under the same budget
+snapshot, including every op of a multi-op revision. A dispatch refused by
+facts that changed after admission lands the node terminally `failed` through
+a journaled `plan.decision` instead of stranding it.
+
 Reserves ride the journaled admission decision entry, so on resume they are
 recovered from the journal, never re-estimated: a price-table change between
 crash and resume does not move an already-committed number (see
