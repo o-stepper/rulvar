@@ -107,23 +107,26 @@ declare function mapStopReason(stopReason: string | null | undefined, stopDetail
 */
 declare function normalizeAnthropicUsage(raw: Record<string, unknown> | undefined): Usage;
 interface TurnMapping {
-  events: ChatEvent[];
   /** Assistant content blocks collected verbatim (pause_turn continuation). */
   assistantContent: Block[];
   pauseTurn: boolean;
   finished: boolean;
 }
 /**
-* Maps one Messages API stream into ChatEvents. Emits an early usage event
-* from message_start (the input side is known immediately) and exactly one
-* terminal finish unless the turn paused (pause_turn) or errored.
-* `carryRetained` holds thinking blocks from earlier pause_turn
-* continuations of the same turn so the terminal finish ships the whole
-* turn's retention payload (M4-T02).
+* Maps one Messages API stream into ChatEvents, yielding each canonical
+* event AS the corresponding provider event is consumed: the consumer's
+* pull drives the provider read (natural backpressure, no buffering, no
+* detached work). The generator's RETURN value carries the accumulated
+* turn state the adapter needs for pause_turn continuation. Yields an
+* early usage event from message_start (the input side is known
+* immediately) and exactly one terminal finish unless the turn paused
+* (pause_turn) or errored. `carryRetained` holds thinking blocks from
+* earlier pause_turn continuations of the same turn so the terminal
+* finish ships the whole turn's retention payload (M4-T02).
 */
-declare function mapAnthropicStream(stream: AsyncIterable<AnthropicStreamEvent>, ids: IdMap, emit: (event: ChatEvent) => void, options?: {
+declare function mapAnthropicStream(stream: AsyncIterable<AnthropicStreamEvent>, ids: IdMap, options?: {
   carryRetained?: Block[];
-}): Promise<TurnMapping>;
+}): AsyncGenerator<ChatEvent, TurnMapping>;
 /**
 * Projects an SDK/API error into the retryable WireError vocabulary:
 * 429 rate limits surface retryAfterMs and the x-ratelimit-* buckets; 529

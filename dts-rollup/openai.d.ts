@@ -106,15 +106,17 @@ type ResponsesStreamEvent = Record<string, unknown> & {
 /** Normalizes Responses usage: input_tokens already includes cached reads. */
 declare function normalizeOpenAiUsage(raw: Record<string, unknown> | undefined): Usage;
 /**
-* Maps the typed Responses SSE stream to ChatEvents.
-* Canonical parts come from the typed output array,
-* never the output_text aggregate. Raw output items ride
+* Maps the typed Responses SSE stream to ChatEvents, yielding each
+* canonical event AS the corresponding provider event is consumed: the
+* consumer's pull drives the provider read (natural backpressure, no
+* buffering, no detached work). Canonical parts come from the typed
+* output array, never the output_text aggregate. Raw output items ride
 * finish.providerMetadata.openai.outputItems so the runtime can retain
 * reasoning items as provider-raw parts.
 */
-declare function mapResponsesStream(stream: AsyncIterable<ResponsesStreamEvent>, ids: OpenAiIdMap, emit: (event: ChatEvent) => void, options?: {
+declare function mapResponsesStream(stream: AsyncIterable<ResponsesStreamEvent>, ids: OpenAiIdMap, options?: {
   effortDownmapped?: boolean;
-}): Promise<void>;
+}): AsyncGenerator<ChatEvent, void>;
 /** Projects SDK/API errors into the retryable WireError vocabulary. */
 declare function openAiErrorToWire(error: unknown): WireError;
 /**
@@ -125,7 +127,11 @@ declare function openAiErrorToWire(error: unknown): WireError;
 * events, never silent.
 */
 declare function buildChatCompletionsParams(req: ChatRequest, ids: OpenAiIdMap): Record<string, unknown>;
-/** Delta-patched chunk assembly for the degraded path. */
-declare function mapChatCompletionsStream(stream: AsyncIterable<Record<string, unknown>>, ids: OpenAiIdMap, emit: (event: ChatEvent) => void): Promise<void>;
+/**
+* Delta-patched chunk assembly for the degraded path; yields each
+* canonical event as its chunk is consumed (same live-streaming contract
+* as mapResponsesStream).
+*/
+declare function mapChatCompletionsStream(stream: AsyncIterable<Record<string, unknown>>, ids: OpenAiIdMap): AsyncGenerator<ChatEvent, void>;
 //#endregion
 export { CONSERVATIVE_COMPATIBLE_CAPS, OPENAI_MODELS, type OpenAiAdapterOptions, type OpenAiClientLike, type OpenAiCompatibleConfig, OpenAiIdMap, type OpenAiModelInfo, type ResponsesStreamEvent, buildChatCompletionsParams, buildResponsesParams, mapChatCompletionsStream, mapOpenAiEffort, mapResponsesStream, normalizeOpenAiUsage, openAiErrorToWire, openAiModelInfo, openai, openaiCompatible };

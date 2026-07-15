@@ -66,10 +66,10 @@ export function openai(options: OpenAiAdapterOptions = {}): ProviderAdapter {
 
     async *stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent> {
       const info = openAiModelInfo(req.model);
-      const pending: ChatEvent[] = [];
-      const emit = (event: ChatEvent): void => {
-        pending.push(event);
-      };
+      // Each canonical event is yielded AS its provider event is
+      // consumed (yield* delegates to the mapper generator): the
+      // consumer's pull drives the provider read, so a slow consumer
+      // slows the read and nothing buffers.
       try {
         if (info.api === 'responses') {
           const { params, effortDownmapped } = buildResponsesParams(req, ids);
@@ -77,7 +77,7 @@ export function openai(options: OpenAiAdapterOptions = {}): ProviderAdapter {
             { ...params, stream: true },
             signal === undefined ? undefined : { signal },
           )) as AsyncIterable<ResponsesStreamEvent>;
-          await mapResponsesStream(stream, ids, emit, { effortDownmapped });
+          yield* mapResponsesStream(stream, ids, { effortDownmapped });
         } else {
           // Degraded-path selection is a caps fact, visible in events,
           // never silent: the finish event carries
@@ -87,15 +87,12 @@ export function openai(options: OpenAiAdapterOptions = {}): ProviderAdapter {
             { ...params, stream: true, stream_options: { include_usage: true } },
             signal === undefined ? undefined : { signal },
           )) as AsyncIterable<Record<string, unknown>>;
-          await mapChatCompletionsStream(stream, ids, emit);
+          yield* mapChatCompletionsStream(stream, ids);
         }
       } catch (thrown) {
         if (signal?.aborted !== true) {
-          pending.push({ type: 'error', error: openAiErrorToWire(thrown) });
+          yield { type: 'error', error: openAiErrorToWire(thrown) };
         }
-      }
-      for (const event of pending) {
-        yield event;
       }
     },
   };

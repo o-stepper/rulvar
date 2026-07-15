@@ -10,18 +10,21 @@
 function mapAnthropicStream(
    stream, 
    ids, 
-   emit, 
-options?): Promise<TurnMapping>;
+options?): AsyncGenerator<ChatEvent, TurnMapping>;
 ```
 
-Defined in: [packages/anthropic/src/wire.ts:427](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L427)
+Defined in: [packages/anthropic/src/wire.ts:430](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L430)
 
-Maps one Messages API stream into ChatEvents. Emits an early usage event
-from message_start (the input side is known immediately) and exactly one
-terminal finish unless the turn paused (pause_turn) or errored.
-`carryRetained` holds thinking blocks from earlier pause_turn
-continuations of the same turn so the terminal finish ships the whole
-turn's retention payload (M4-T02).
+Maps one Messages API stream into ChatEvents, yielding each canonical
+event AS the corresponding provider event is consumed: the consumer's
+pull drives the provider read (natural backpressure, no buffering, no
+detached work). The generator's RETURN value carries the accumulated
+turn state the adapter needs for pause_turn continuation. Yields an
+early usage event from message_start (the input side is known
+immediately) and exactly one terminal finish unless the turn paused
+(pause_turn) or errored. `carryRetained` holds thinking blocks from
+earlier pause_turn continuations of the same turn so the terminal
+finish ships the whole turn's retention payload (M4-T02).
 
 ## Parameters
 
@@ -29,10 +32,9 @@ turn's retention payload (M4-T02).
 | ------ | ------ |
 | `stream` | `AsyncIterable`\&lt;[`AnthropicStreamEvent`](/api/@rulvar/anthropic/type-aliases/AnthropicStreamEvent.md)\&gt; |
 | `ids` | [`IdMap`](/api/@rulvar/anthropic/classes/IdMap.md) |
-| `emit` | (`event`) => `void` |
 | `options?` | \{ `carryRetained?`: `Block`[]; \} |
 | `options.carryRetained?` | `Block`[] |
 
 ## Returns
 
-`Promise`\&lt;[`TurnMapping`](/api/@rulvar/anthropic/interfaces/TurnMapping.md)\&gt;
+`AsyncGenerator`\&lt;[`ChatEvent`](/api/@rulvar/rulvar/type-aliases/ChatEvent.md), [`TurnMapping`](/api/@rulvar/anthropic/interfaces/TurnMapping.md)\&gt;

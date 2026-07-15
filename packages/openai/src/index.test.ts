@@ -19,6 +19,15 @@ function ids(): OpenAiIdMap {
   return new OpenAiIdMap(createCanonicalIdMinter());
 }
 
+/** Collects every event a mapper generator yields. */
+async function collect(gen: AsyncGenerator<ChatEvent, void>): Promise<ChatEvent[]> {
+  const events: ChatEvent[] = [];
+  for await (const event of gen) {
+    events.push(event);
+  }
+  return events;
+}
+
 describe('buildResponsesParams (M1-T13)', () => {
   it('uses manual item replay: store false plus encrypted reasoning include', () => {
     const { params } = buildResponsesParams(
@@ -187,47 +196,47 @@ describe('Responses stream mapping (M1-T13; docs/04 section 5.4)', () => {
         arguments: '{"q":"x"}',
       },
     ];
-    const events: ChatEvent[] = [];
-    await mapResponsesStream(
-      fixture([
-        { type: 'response.created' },
-        { type: 'response.output_item.added', item: { type: 'reasoning', id: 'rs_1' } },
-        { type: 'response.reasoning_summary_text.delta', delta: 'thinking...' },
-        {
-          type: 'response.output_item.added',
-          item: { type: 'function_call', id: 'fc_1', call_id: 'call_9', name: 'search' },
-        },
-        { type: 'response.function_call_arguments.delta', item_id: 'fc_1', delta: '{"q":' },
-        { type: 'response.function_call_arguments.delta', item_id: 'fc_1', delta: '"x"}' },
-        {
-          type: 'response.output_item.done',
-          item: {
-            type: 'function_call',
-            id: 'fc_1',
-            call_id: 'call_9',
-            name: 'search',
-            arguments: '{"q":"x"}',
+    const events = await collect(
+      mapResponsesStream(
+        fixture([
+          { type: 'response.created' },
+          { type: 'response.output_item.added', item: { type: 'reasoning', id: 'rs_1' } },
+          { type: 'response.reasoning_summary_text.delta', delta: 'thinking...' },
+          {
+            type: 'response.output_item.added',
+            item: { type: 'function_call', id: 'fc_1', call_id: 'call_9', name: 'search' },
           },
-        },
-        { type: 'response.output_text.delta', delta: 'partial' },
-        { type: 'response.output_text.done', text: 'partial' },
-        {
-          type: 'response.completed',
-          response: {
-            id: 'resp_1',
-            output: outputItems,
-            usage: {
-              input_tokens: 90,
-              input_tokens_details: { cached_tokens: 40 },
-              output_tokens: 12,
-              output_tokens_details: { reasoning_tokens: 6 },
+          { type: 'response.function_call_arguments.delta', item_id: 'fc_1', delta: '{"q":' },
+          { type: 'response.function_call_arguments.delta', item_id: 'fc_1', delta: '"x"}' },
+          {
+            type: 'response.output_item.done',
+            item: {
+              type: 'function_call',
+              id: 'fc_1',
+              call_id: 'call_9',
+              name: 'search',
+              arguments: '{"q":"x"}',
             },
           },
-        },
-      ]),
-      ids(),
-      (event) => events.push(event),
-      { effortDownmapped: true },
+          { type: 'response.output_text.delta', delta: 'partial' },
+          { type: 'response.output_text.done', text: 'partial' },
+          {
+            type: 'response.completed',
+            response: {
+              id: 'resp_1',
+              output: outputItems,
+              usage: {
+                input_tokens: 90,
+                input_tokens_details: { cached_tokens: 40 },
+                output_tokens: 12,
+                output_tokens_details: { reasoning_tokens: 6 },
+              },
+            },
+          },
+        ]),
+        ids(),
+        { effortDownmapped: true },
+      ),
     );
 
     const types = events.map((e) => e.type);
@@ -271,19 +280,19 @@ describe('Responses stream mapping (M1-T13; docs/04 section 5.4)', () => {
   });
 
   it('maps response.incomplete per incomplete_details', async () => {
-    const events: ChatEvent[] = [];
-    await mapResponsesStream(
-      fixture([
-        {
-          type: 'response.incomplete',
-          response: {
-            incomplete_details: { reason: 'max_output_tokens' },
-            usage: { input_tokens: 5, output_tokens: 64 },
+    const events = await collect(
+      mapResponsesStream(
+        fixture([
+          {
+            type: 'response.incomplete',
+            response: {
+              incomplete_details: { reason: 'max_output_tokens' },
+              usage: { input_tokens: 5, output_tokens: 64 },
+            },
           },
-        },
-      ]),
-      ids(),
-      (event) => events.push(event),
+        ]),
+        ids(),
+      ),
     );
     const finish = events.at(-1) as Extract<ChatEvent, { type: 'finish' }>;
     expect(finish.finish).toEqual({ reason: 'max-tokens' });
@@ -369,8 +378,7 @@ describe('Chat Completions degraded path (M1-T13; docs/04 section 5.6)', () => {
         },
       };
     }
-    const events: ChatEvent[] = [];
-    await mapChatCompletionsStream(chunks(), ids(), (event) => events.push(event));
+    const events = await collect(mapChatCompletionsStream(chunks(), ids()));
     expect(events.map((e) => e.type)).toEqual([
       'text-delta',
       'tool-call-start',
@@ -523,4 +531,146 @@ describe('the GPT-5.6 caps entries and unknown-model safety', () => {
     // and a run ceiling warns, instead of silently billing a wrong rate.
     expect(info.caps.pricing).toBeUndefined();
   });
+});
+
+describe('live incremental streaming (the reliability-review P0)', () => {
+  const HEAD: ResponsesStreamEvent[] = [
+    { type: 'response.output_text.delta', delta: 'live' },
+    { type: 'response.output_text.delta', delta: ' text' },
+  ];
+  const TAIL: ResponsesStreamEvent[] = [
+    {
+      type: 'response.completed',
+      response: {
+        id: 'resp_live',
+        output: [],
+        usage: { input_tokens: 5, output_tokens: 2 },
+      },
+    },
+  ];
+  const req = {
+    model: 'gpt-5.5',
+    messages: [{ role: 'user' as const, parts: [{ type: 'text' as const, text: 'go' }] }],
+  };
+
+  function gatedClient(): {
+    client: OpenAiClientLike;
+    release: () => void;
+    pulls: () => number;
+  } {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let pulls = 0;
+    const client: OpenAiClientLike = {
+      responses: {
+        create: (_params: Record<string, unknown>, opts?: { signal?: AbortSignal }) =>
+          Promise.resolve(
+            (async function* stream(): AsyncIterable<ResponsesStreamEvent> {
+              for (const event of HEAD) {
+                if (opts?.signal?.aborted === true) {
+                  throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+                }
+                pulls += 1;
+                yield event;
+              }
+              await gate;
+              for (const event of TAIL) {
+                if (opts?.signal?.aborted === true) {
+                  throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+                }
+                pulls += 1;
+                yield event;
+              }
+            })(),
+          ),
+      },
+      chat: { completions: { create: () => Promise.reject(new Error('unused')) } },
+    };
+    return { client, release, pulls: () => pulls };
+  }
+
+  it('yields events while the provider is still mid-stream', async () => {
+    const { client, release } = gatedClient();
+    const adapter = openai({ client });
+    const iterator = adapter.stream(req)[Symbol.asyncIterator]();
+    // A buffering adapter deadlocks here: the gate only opens below.
+    const first = await iterator.next();
+    expect((first.value as ChatEvent).type).toBe('text-delta');
+    release();
+    const rest: ChatEvent[] = [];
+    while (true) {
+      const next = await iterator.next();
+      if (next.done === true) {
+        break;
+      }
+      rest.push(next.value);
+    }
+    expect(rest.at(-1)?.type).toBe('finish');
+    expect(rest.filter((e) => e.type === 'finish' || e.type === 'error')).toHaveLength(1);
+  }, 5_000);
+
+  it('an abort after the first delta reaches the in-flight provider stream', async () => {
+    const { client, release } = gatedClient();
+    const adapter = openai({ client });
+    const controller = new AbortController();
+    const iterator = adapter.stream(req, controller.signal)[Symbol.asyncIterator]();
+    await iterator.next(); // the first delta
+    controller.abort();
+    release();
+    const rest: ChatEvent[] = [];
+    while (true) {
+      const next = await iterator.next();
+      if (next.done === true) {
+        break;
+      }
+      rest.push(next.value);
+    }
+    // The provider iterable observed the signal; no normal terminal, no
+    // fabricated one either.
+    expect(rest.find((e) => e.type === 'finish')).toBeUndefined();
+    expect(rest.find((e) => e.type === 'error')).toBeUndefined();
+  }, 5_000);
+
+  it('a slow consumer never causes read-ahead buffering (lock-step pulls)', async () => {
+    const { client, release, pulls } = gatedClient();
+    release();
+    const adapter = openai({ client });
+    const iterator = adapter.stream(req)[Symbol.asyncIterator]();
+    await iterator.next(); // first delta (pull 1)
+    // The consumer paused: nothing further may have been read ahead.
+    expect(pulls()).toBeLessThanOrEqual(2);
+    while (true) {
+      const next = await iterator.next();
+      if (next.done === true) {
+        break;
+      }
+    }
+    expect(pulls()).toBe(HEAD.length + TAIL.length);
+  }, 5_000);
+
+  it('the degraded chat path also yields chunk by chunk', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    async function* chunks(): AsyncIterable<Record<string, unknown>> {
+      yield { choices: [{ index: 0, delta: { content: 'early' } }] };
+      await gate;
+      yield {
+        choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 3, completion_tokens: 1 },
+      };
+    }
+    const gen = mapChatCompletionsStream(chunks(), ids());
+    const first = await gen.next();
+    expect((first.value as ChatEvent).type).toBe('text-delta');
+    release();
+    const rest: ChatEvent[] = [];
+    for await (const event of gen) {
+      rest.push(event);
+    }
+    expect(rest.map((e) => e.type)).toEqual(['usage', 'finish']);
+  }, 5_000);
 });
