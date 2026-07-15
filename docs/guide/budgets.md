@@ -322,6 +322,18 @@ turns is an LLM call. It therefore gets its own sub-account with a hard cap:
 effectiveCap = min(capUsd, capFraction x B0)     // capFraction default 0.2
 ```
 
+::: warning An explicit capUsd is still bounded by the default fraction
+`capUsd` never replaces the fraction bound; the two always meet in the min.
+Under `budgetUsd: 0.90`, `budget: { capUsd: 0.70 }` yields
+`min(0.70, 0.2 x 0.90) = 0.18`: the ceiling that ends the orchestrator is the
+default fraction, not the number you wrote. When `capUsd` should be the sole
+bound, pass `capFraction: 1.0` alongside it. The engine emits a `log` warning
+at orchestration start whenever an explicit `capUsd` gets bounded this way,
+and budget exhaustion errors name the account that actually crossed (its
+scope, ceiling, spend, and reserves, plus the run root state) instead of
+blaming the run ceiling.
+:::
+
 Configure it through the `budget` option of `orchestrate` or
 `ctx.orchestrate`:
 

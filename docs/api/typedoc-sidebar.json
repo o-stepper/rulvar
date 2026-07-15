@@ -671,6 +671,10 @@
             "link": "/api/@rulvar/core/interfaces/BudgetDefaults.md"
           },
           {
+            "text": "BudgetExhaustionDiagnostics",
+            "link": "/api/@rulvar/core/interfaces/BudgetExhaustionDiagnostics.md"
+          },
+          {
             "text": "BudgetHooks",
             "link": "/api/@rulvar/core/interfaces/BudgetHooks.md"
           },
@@ -4110,6 +4114,10 @@
           {
             "text": "BudgetDefaults",
             "link": "/api/@rulvar/rulvar/interfaces/BudgetDefaults.md"
+          },
+          {
+            "text": "BudgetExhaustionDiagnostics",
+            "link": "/api/@rulvar/rulvar/interfaces/BudgetExhaustionDiagnostics.md"
           },
           {
             "text": "BudgetHooks",

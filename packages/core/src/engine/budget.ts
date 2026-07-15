@@ -93,6 +93,24 @@ export interface BudgetAccountView {
   parentScope?: string;
 }
 
+/**
+ * Why a ceiling error ended the work: the first closed account walking
+ * from the debited scope toward the root, plus the root state, so the
+ * outward message can name WHICH ceiling actually crossed instead of
+ * blaming the run ceiling for every crossing.
+ */
+export interface BudgetExhaustionDiagnostics {
+  crossed?: {
+    scope: string;
+    source: 'root' | 'orchestrator-cap' | 'child-account';
+    ceilingUsd: number;
+    spentUsd: number;
+    committedReserveUsd: number;
+    finalizeReserveUsd: number;
+  };
+  root: { ceilingUsd?: number; spentUsd: number };
+}
+
 interface AccountState {
   scope: string;
   ceilingUsd?: number;
@@ -100,6 +118,8 @@ interface AccountState {
   committedReserveUsd: number;
   finalizeReserveUsd: number;
   parentScope?: string;
+  /** Diagnostic label; the orchestrator cap account marks itself. */
+  kind?: 'orchestrator-cap';
   /** Layer-3 severing for the account's own subtree. */
   controller: AbortController;
 }
@@ -202,7 +222,12 @@ export class RunBudget {
    */
   openAccount(
     scope: string,
-    options: { parentScope?: string; ceilingUsd?: number; finalizeReserveUsd?: number },
+    options: {
+      parentScope?: string;
+      ceilingUsd?: number;
+      finalizeReserveUsd?: number;
+      kind?: 'orchestrator-cap';
+    },
   ): void {
     if (scope === ROOT_ACCOUNT) {
       throw new ConfigError("the root account 'run' exists from construction and cannot reopen");
@@ -225,7 +250,59 @@ export class RunBudget {
     if (options.ceilingUsd !== undefined) {
       account.ceilingUsd = options.ceilingUsd;
     }
+    if (options.kind !== undefined) {
+      account.kind = options.kind;
+    }
     this.accounts.set(scope, account);
+  }
+
+  /**
+   * The diagnostic projection behind a ceiling error: the first CLOSED
+   * account (projected commitments included, exactly the layer-1
+   * closure test) walking from `scope` toward the root, plus the root
+   * state. 'run budget ceiling reached' under a healthy root misled the
+   * v1.6.0 follow-up review's live probe when only a 0.18 USD
+   * orchestrator cap had crossed under a 0.90 USD root; the message can
+   * now name the account that actually ended the work. An unknown scope
+   * degrades to root-only diagnostics instead of throwing: this runs on
+   * the error path.
+   */
+  exhaustionDiagnostics(scope: string): BudgetExhaustionDiagnostics {
+    let chain: AccountState[];
+    try {
+      chain = this.chainOf(scope);
+    } catch {
+      chain = [this.root];
+    }
+    const crossed = chain.find(
+      (account) =>
+        account.ceilingUsd !== undefined &&
+        account.spentUsd + account.committedReserveUsd + account.finalizeReserveUsd >=
+          account.ceilingUsd,
+    );
+    const root = this.root;
+    const diagnostics: BudgetExhaustionDiagnostics = {
+      root: {
+        spentUsd: root.spentUsd,
+        ...(root.ceilingUsd === undefined ? {} : { ceilingUsd: root.ceilingUsd }),
+      },
+    };
+    if (crossed?.ceilingUsd !== undefined) {
+      diagnostics.crossed = {
+        scope: crossed.scope,
+        source:
+          crossed.scope === ROOT_ACCOUNT
+            ? 'root'
+            : crossed.kind === 'orchestrator-cap'
+              ? 'orchestrator-cap'
+              : 'child-account',
+        ceilingUsd: crossed.ceilingUsd,
+        spentUsd: crossed.spentUsd,
+        committedReserveUsd: crossed.committedReserveUsd,
+        finalizeReserveUsd: crossed.finalizeReserveUsd,
+      };
+    }
+    return diagnostics;
   }
 
   accountView(scope: string): BudgetAccountView | undefined {

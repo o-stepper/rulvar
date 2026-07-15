@@ -121,6 +121,7 @@ exactly the pieces you need, for example
 | [BriefOpts](/api/@rulvar/core/interfaces/BriefOpts.md) | Options of ctx.brief (concrete shape fixed in M6-T10): the content to distill plus an optional instruction; the invocation resolves role 'summarize', so it needs defaults.routing.summarize, a profile, or the explicit model. |
 | [BudgetAccountView](/api/@rulvar/core/interfaces/BudgetAccountView.md) | Read-only projection of one account. |
 | [BudgetDefaults](/api/@rulvar/core/interfaces/BudgetDefaults.md) | - |
+| [BudgetExhaustionDiagnostics](/api/@rulvar/core/interfaces/BudgetExhaustionDiagnostics.md) | Why a ceiling error ended the work: the first closed account walking from the debited scope toward the root, plus the root state, so the outward message can name WHICH ceiling actually crossed instead of blaming the run ceiling for every crossing. |
 | [BudgetHooks](/api/@rulvar/core/interfaces/BudgetHooks.md) | Budget hooks bound by the three-layer budget. |
 | [BudgetReserve](/api/@rulvar/core/interfaces/BudgetReserve.md) | Layer-1 reservation embedded in the carrying decision entry. |
 | [CacheHint](/api/@rulvar/core/interfaces/CacheHint.md) | Provider-neutral declaration of intended prompt-cache boundaries. Transport-level cost optimization only: MUST NOT enter IdentityInput and MUST NOT change response semantics. |

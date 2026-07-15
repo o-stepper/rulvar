@@ -1980,10 +1980,48 @@ export function createCtx(
     internals.cost.byRole.set(primaryRole, (internals.cost.byRole.get(primaryRole) ?? 0) + usd);
 
     // Uniform ceiling behavior: every ctx primitive throws
-    // BudgetExhaustedError at the run ceiling.
+    // BudgetExhaustedError at the run ceiling. The message names the
+    // account that actually closed: blaming the run ceiling while only
+    // an orchestrator cap had crossed misled the v1.6.0 follow-up
+    // review's live probe.
     if (result.error?.kind === 'budget' || (internals.budget.exhausted && result.status !== 'ok')) {
-      throw new BudgetExhaustedError('run budget ceiling reached during agent execution', {
-        data: { scope: state.scope, entryRef: terminal.seq },
+      const diagnostics = internals.budget.exhaustionDiagnostics(state.budgetScope ?? ROOT_ACCOUNT);
+      const crossed = diagnostics.crossed;
+      const rootSuffix =
+        `run root: spent ${diagnostics.root.spentUsd.toFixed(4)}` +
+        (diagnostics.root.ceilingUsd === undefined
+          ? ' USD, no ceiling'
+          : ` of ${diagnostics.root.ceilingUsd.toFixed(4)} USD`);
+      const message =
+        crossed === undefined || crossed.source === 'root'
+          ? 'run budget ceiling reached during agent execution'
+          : (crossed.source === 'orchestrator-cap'
+              ? 'orchestrator budget cap reached during agent execution'
+              : 'budget sub-account ceiling reached during agent execution') +
+            ` (account '${crossed.scope}': spent ${crossed.spentUsd.toFixed(4)}` +
+            (crossed.committedReserveUsd + crossed.finalizeReserveUsd > 0
+              ? ` plus ${(crossed.committedReserveUsd + crossed.finalizeReserveUsd).toFixed(4)} reserved`
+              : '') +
+            ` of ${crossed.ceilingUsd.toFixed(4)} USD; ${rootSuffix})`;
+      throw new BudgetExhaustedError(message, {
+        data: {
+          scope: state.scope,
+          entryRef: terminal.seq,
+          source: crossed?.source ?? 'root',
+          rootSpentUsd: diagnostics.root.spentUsd,
+          ...(diagnostics.root.ceilingUsd === undefined
+            ? {}
+            : { rootCeilingUsd: diagnostics.root.ceilingUsd }),
+          ...(crossed === undefined
+            ? {}
+            : {
+                crossedScope: crossed.scope,
+                crossedCeilingUsd: crossed.ceilingUsd,
+                crossedSpentUsd: crossed.spentUsd,
+                crossedCommittedReserveUsd: crossed.committedReserveUsd,
+                crossedFinalizeReserveUsd: crossed.finalizeReserveUsd,
+              }),
+        },
       });
     }
 
