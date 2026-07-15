@@ -484,4 +484,65 @@ describe('orchestrate (M6-T07/T08)', () => {
     const nested = entries.filter((e) => e.scope.startsWith('wf:rulvar-orchestrate:0/agent:'));
     expect(nested.length).toBeGreaterThan(0);
   });
+
+  it('re-prompts a plain end turn toward finish and recovers when the model complies', async () => {
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((): ScriptedTurn => {
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        // A text-only end turn: previously this settled the whole
+        // orchestration ok with this text as the value, without finish
+        // ever firing (v1.6.0 follow-up review).
+        return { text: 'here is my answer in plain text' };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'complied' } } };
+    });
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('answer the question', {});
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe('complied');
+    expect(adapter.calls).toHaveLength(2);
+    const rePrompt = JSON.stringify(adapter.calls[1]?.messages.at(-1)?.parts);
+    expect(rePrompt).toContain("Call the 'finish' tool to complete");
+    expect(rePrompt).not.toContain('output token limit');
+  });
+
+  it('terminates as a bounded limit, never ok, when the model never calls finish', async () => {
+    const adapter = scriptedAdapter((): ScriptedTurn => ({ text: 'still thinking out loud' }));
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('answer the question', {});
+    await expect(executeWorkflow(internals, wf, undefined)).rejects.toThrow(
+      /status 'limit'.*no-progress/,
+    );
+    // The no-progress detector bounds the retries: three consecutive
+    // toolless turns, then the typed abort; the loop never spins.
+    expect(adapter.calls).toHaveLength(3);
+    const entries = await store.load('test-run');
+    expect(admissionEntries(entries)).toHaveLength(0);
+  });
+
+  it('treats a turn cut at the output bound without a tool call as non-success', async () => {
+    // The live shape behind the review finding: the whole turn allowance
+    // consumed by reasoning, zero visible text, zero tool calls, the
+    // stream ending at the output token bound.
+    const adapter = scriptedAdapter((): ScriptedTurn => ({ finish: 'max-tokens' }));
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('answer the question', {});
+    await expect(executeWorkflow(internals, wf, undefined)).rejects.toThrow(/status 'limit'/);
+    // The corrective re-prompt names the cut so the model can adapt.
+    const rePrompt = JSON.stringify(adapter.calls[1]?.messages.at(-1)?.parts);
+    expect(rePrompt).toContain('cut at the output token limit');
+  });
 });

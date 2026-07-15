@@ -1412,6 +1412,12 @@ export function makeOrchestratorWorkflow(
       internals.cost.orchestrator.spentUsd =
         internals.budget.accountView(orchestratorAccount)?.spentUsd ?? 0;
     }
+    // The loop's terminal-tool discipline makes 'ok' here PROOF that
+    // finish({ result }) validated and was intercepted: a turn ending
+    // without the tool re-prompts and terminates as a bounded 'limit'
+    // when the model never complies, so unproven output cannot reach
+    // this return (the forced-finish path above owns the exhaustion
+    // exception and synthesizes its partial without the tool).
     if (result.status !== 'ok') {
       throw new ConfigError(
         `the orchestrator agent terminated with status '${result.status}'` +
