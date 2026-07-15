@@ -1,5 +1,15 @@
 # eslint-plugin-rulvar
 
+## 1.6.0
+
+### Patch Changes
+
+- da4dbad: Write the product name as Rulvar in prose: package READMEs, npm descriptions, and the
+  documentation site now capitalize the brand. Identifiers keep their exact casing, so
+  package names, the `rulvar` binary, `rulvar.config.mjs`, the `.rulvar` store directory,
+  the `rulvar.*` OTel attributes, and every URL are unchanged. Documentation and metadata
+  only; no runtime behaviour changes.
+
 ## 1.5.2
 
 ## 1.5.1

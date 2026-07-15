@@ -1,5 +1,24 @@
 # @rulvar/rulvar
 
+## 1.6.0
+
+### Patch Changes
+
+- da4dbad: Write the product name as Rulvar in prose: package READMEs, npm descriptions, and the
+  documentation site now capitalize the brand. Identifiers keep their exact casing, so
+  package names, the `rulvar` binary, `rulvar.config.mjs`, the `.rulvar` store directory,
+  the `rulvar.*` OTel attributes, and every URL are unchanged. Documentation and metadata
+  only; no runtime behaviour changes.
+- Updated dependencies [da4dbad]
+- Updated dependencies [487da86]
+- Updated dependencies [df416fc]
+- Updated dependencies [886d065]
+- Updated dependencies [a737810]
+- Updated dependencies [9eb66b4]
+  - @rulvar/anthropic@1.6.0
+  - @rulvar/core@1.6.0
+  - @rulvar/openai@1.6.0
+
 ## 1.5.2
 
 ### Patch Changes

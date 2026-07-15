@@ -18,6 +18,41 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.6.0
+
+#### Minor Changes
+
+- df416fc: Correct and extend model pricing: GPT-5.6 entries, long-context tiers, no fabricated prices, no double-charged cache.
+
+  - `Pricing` gains optional long-context `tiers` (`PricingTier`): the highest threshold strictly below the full prompt re-prices the entire request, input-side rates (cache included) scaling by `inputMultiplier` and the output rate by `outputMultiplier`. Existing linear rows are untouched.
+  - `@rulvar/openai` seeds `gpt-5.6-sol` and its `gpt-5.6` alias with the official caps and pricing (1,050,000 context, 128,000 max output, $5/$0.50/$30 per MTok, $6.25 cache write, 2x input and 1.5x output above 272K input tokens). Previously the unknown-model fallback silently priced them as gpt-5.4.
+  - Unknown model ids in both first-class adapters keep conservative transport caps but no longer receive a fabricated price row: their usage surfaces in `CostReport.unpriced` and a USD ceiling warns that it cannot bound them. Provide a versioned `createEngine({ pricing })` row for hosted models the tables do not know yet.
+  - `priceUsdOf` no longer double-charges cache tokens: under the Usage invariant `inputTokens` is the full prompt, so the input rate now bills only the uncached remainder while cache reads and writes bill at their own rates (a row without cache rates bills them at the input rate). Cache-heavy runs previously over-attributed cost by the full input rate on every cached token.
+  - Admission reserve estimation routes through the same `priceUsdOf`, so estimates and settled costs share one formula, tiers included.
+  - Model id resolution picks the longest matching table prefix, so a dated `gpt-5.5-pro-...` snapshot resolves to the pro entry, never the shorter `gpt-5.5` sibling.
+
+- 886d065: Make the first-class adapters genuinely streaming: every canonical event is yielded AS its provider event is consumed.
+
+  Both adapters (and `openaiCompatible`) buffered the complete canonical event stream in an internal array and yielded it only after the provider response finished. Consequences fixed by this change: `agent:stream` was never live; the stream-idle watchdog saw zero events during healthy generation, so any turn longer than `streamIdleTimeoutMs` (default 120s) was falsely severed as idle and retried; a budget or external abort lost ALL partial usage (the journal recorded zero for tokens the provider billed); and every delta of a long response was retained in memory.
+
+  - `mapAnthropicStream`, `mapResponsesStream`, and `mapChatCompletionsStream` are now async generators: they yield each `ChatEvent` as the corresponding provider event is consumed, with the consumer's pull as the only pacing (natural backpressure, no queue, no detached work). The Anthropic mapper's return value carries the accumulated `pause_turn` state; `TurnMapping` no longer has the redundant `events` array field. Callers of the old callback signatures (`emit` parameter) must switch to iterating the generator.
+  - Adapter behavior is preserved: canonical id mapping, thinking/reasoning retention, `pause_turn` continuation and its cap (each segment now streams live before the continuation dispatches), tool argument assembly, typed refusals and errors, exactly one canonical terminal event, the degraded Chat Completions path (visible in `providerMetadata.openai.degradedPath`), abort propagation, usage normalization, and SDK autoretries disabled.
+  - New regression tests with gated fake SDK clients prove the first `stream().next()` resolves before the provider terminal exists, aborts reach the in-flight provider iterable after the first delta, a paused consumer causes zero read-ahead (lock-step pulls), `pause_turn` segment deltas arrive before the continuation request, and exactly one terminal event survives.
+
+#### Patch Changes
+
+- da4dbad: Write the product name as Rulvar in prose: package READMEs, npm descriptions, and the
+  documentation site now capitalize the brand. Identifiers keep their exact casing, so
+  package names, the `rulvar` binary, `rulvar.config.mjs`, the `.rulvar` store directory,
+  the `rulvar.*` OTel attributes, and every URL are unchanged. Documentation and metadata
+  only; no runtime behaviour changes.
+- Updated dependencies [da4dbad]
+- Updated dependencies [487da86]
+- Updated dependencies [df416fc]
+- Updated dependencies [a737810]
+- Updated dependencies [9eb66b4]
+  - @rulvar/core@1.6.0
+
 ### 1.5.2
 
 #### Patch Changes
@@ -311,6 +346,22 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.6.0
+
+#### Patch Changes
+
+- da4dbad: Write the product name as Rulvar in prose: package READMEs, npm descriptions, and the
+  documentation site now capitalize the brand. Identifiers keep their exact casing, so
+  package names, the `rulvar` binary, `rulvar.config.mjs`, the `.rulvar` store directory,
+  the `rulvar.*` OTel attributes, and every URL are unchanged. Documentation and metadata
+  only; no runtime behaviour changes.
+- Updated dependencies [da4dbad]
+- Updated dependencies [487da86]
+- Updated dependencies [df416fc]
+- Updated dependencies [a737810]
+- Updated dependencies [9eb66b4]
+  - @rulvar/core@1.6.0
+
 ### 1.5.2
 
 #### Patch Changes
@@ -528,6 +579,22 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.6.0
+
+#### Patch Changes
+
+- da4dbad: Write the product name as Rulvar in prose: package READMEs, npm descriptions, and the
+  documentation site now capitalize the brand. Identifiers keep their exact casing, so
+  package names, the `rulvar` binary, `rulvar.config.mjs`, the `.rulvar` store directory,
+  the `rulvar.*` OTel attributes, and every URL are unchanged. Documentation and metadata
+  only; no runtime behaviour changes.
+- Updated dependencies [da4dbad]
+- Updated dependencies [487da86]
+- Updated dependencies [df416fc]
+- Updated dependencies [a737810]
+- Updated dependencies [9eb66b4]
+  - @rulvar/core@1.6.0
 
 ### 1.5.2
 
@@ -877,6 +944,45 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.6.0
+
+#### Minor Changes
+
+- df416fc: Correct and extend model pricing: GPT-5.6 entries, long-context tiers, no fabricated prices, no double-charged cache.
+
+  - `Pricing` gains optional long-context `tiers` (`PricingTier`): the highest threshold strictly below the full prompt re-prices the entire request, input-side rates (cache included) scaling by `inputMultiplier` and the output rate by `outputMultiplier`. Existing linear rows are untouched.
+  - `@rulvar/openai` seeds `gpt-5.6-sol` and its `gpt-5.6` alias with the official caps and pricing (1,050,000 context, 128,000 max output, $5/$0.50/$30 per MTok, $6.25 cache write, 2x input and 1.5x output above 272K input tokens). Previously the unknown-model fallback silently priced them as gpt-5.4.
+  - Unknown model ids in both first-class adapters keep conservative transport caps but no longer receive a fabricated price row: their usage surfaces in `CostReport.unpriced` and a USD ceiling warns that it cannot bound them. Provide a versioned `createEngine({ pricing })` row for hosted models the tables do not know yet.
+  - `priceUsdOf` no longer double-charges cache tokens: under the Usage invariant `inputTokens` is the full prompt, so the input rate now bills only the uncached remainder while cache reads and writes bill at their own rates (a row without cache rates bills them at the input rate). Cache-heavy runs previously over-attributed cost by the full input rate on every cached token.
+  - Admission reserve estimation routes through the same `priceUsdOf`, so estimates and settled costs share one formula, tiers included.
+  - Model id resolution picks the longest matching table prefix, so a dated `gpt-5.5-pro-...` snapshot resolves to the pro entry, never the shorter `gpt-5.5` sibling.
+
+- a737810: Make budget admission projected and add a pre-dispatch output bound (layer 2b).
+
+  - **Projected admission (layer 1).** A spawn is admitted only when `spent + committedReserve + finalizeReserve + proposedReserve` fits the ceiling of every account in its ancestor chain, checked atomically before anything commits. An exact fill is allowed; one dollar past the ceiling is not. Previously the proposed reserve was not part of the check, so the first call under a `budgetUsd: 0.001` run with a `0.01` estimate was admitted and one full provider turn was paid (10.5x the ceiling in the live reproduction). The denial happens strictly before any provider dispatch, journal entry, spawn counter, or reserve commit.
+  - **Pre-dispatch output bound (layer 2b).** Every turn's wire `maxOutputTokens` is clamped to `min(model capability, limits.maxOutputTokensPerTurn, budget-derived limit)`, where the budget-derived limit is what the tightest remaining ceiling in the chain buys at the serving model's output price (long-context tiers included) after a heuristic prompt-cost estimate. A turn is denied outright only when the remainder cannot buy one output token at zero input (exact, no heuristic); when only the prompt estimate says the turn does not fit, it dispatches with a one-token output floor and the exact layers settle the difference. `RunBudget.maxAffordableOutputTokens` and the pure `affordableOutputTokens` helper are new public API; `BudgetHooks` gains the optional hook.
+  - **Reserves never exceed what a spawn can spend.** A child with its own sub-account ceiling reserves at most that ceiling; a capped orchestrator reserves its cap minus the committed finalize carve-out (the forced finish has its own reserve); an unpriced model reserves nothing unless an explicit `estCost` is given, because a USD ceiling cannot bound it anyway (the existing loud warning and `CostReport.unpriced` still apply).
+  - `admissionReserveUsd` accepts `maxOutputTokensPerTurn` and clamps the priced worst-case output term with it, so hosts can bound reserves through limits instead of hand-written estimates.
+
+  Migration: runs whose ceilings are smaller than their spawns' reserves now fail fast at admission with `BudgetExhaustedError` instead of overshooting. Give calls realistic `estCost` hints (see the updated Quickstart), set `limits.maxOutputTokensPerTurn`, or raise the ceiling.
+
+- 9eb66b4: Scope the dev-mode bare-nondeterminism detector to the workflow's async context.
+
+  The `RULVAR_BARE_DATE_NOW` / `RULVAR_BARE_MATH_RANDOM` detector patched `Date.now` and `Math.random` per execute inside a process-global window and restored them on exit. Anything on the event loop during that window (host code, telemetry, code entirely unrelated to the run) could trigger a false warning, and two overlapping runs could race the patch/restore pair, leaving a stale patched global installed forever that then warned outside any run. The published Quickstart reproduced a false `RULVAR_BARE_DATE_NOW` this way.
+
+  The globals are now patched once per process (dev mode only, never restored) and attribution rides an `AsyncLocalStorage` store entered around the workflow body: only code inside a run's own async context can warn, at most once per run per global. Host code running concurrently with a run, engine internals awaiting the result, and other runs are structurally silent; the `node_modules` exemption for provider SDKs and installed dependencies stays as the secondary check. Direct `Date.now()` / `Math.random()` inside workflow code still warns exactly as before.
+
+#### Patch Changes
+
+- da4dbad: Write the product name as Rulvar in prose: package READMEs, npm descriptions, and the
+  documentation site now capitalize the brand. Identifiers keep their exact casing, so
+  package names, the `rulvar` binary, `rulvar.config.mjs`, the `.rulvar` store directory,
+  the `rulvar.*` OTel attributes, and every URL are unchanged. Documentation and metadata
+  only; no runtime behaviour changes.
+- 487da86: Align every budget claim with the enforced contract.
+
+  One precise formulation now appears everywhere the budget is described (README, docs landing, quickstart, budgets guide, design principles, invariants table, and the `RunOptions.budgetUsd` API comment): an immutable run budget with pre-dispatch reservation (projected admission, exact fill allowed), a budget-derived `maxOutputTokens` clamp on every turn, live stream cuts on crossing, and a documented provider-dependent residual overshoot of at most one clamped in-flight turn per concurrent agent. No surface claims a literal hard dollar cap without stating the bound in the same breath.
 
 ### 1.5.2
 
@@ -1752,6 +1858,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.6.0
+
+#### Patch Changes
+
+- da4dbad: Write the product name as Rulvar in prose: package READMEs, npm descriptions, and the
+  documentation site now capitalize the brand. Identifiers keep their exact casing, so
+  package names, the `rulvar` binary, `rulvar.config.mjs`, the `.rulvar` store directory,
+  the `rulvar.*` OTel attributes, and every URL are unchanged. Documentation and metadata
+  only; no runtime behaviour changes.
+
 ### 1.5.2
 
 ### 1.5.1
@@ -1818,6 +1934,23 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.6.0
+
+#### Patch Changes
+
+- da4dbad: Write the product name as Rulvar in prose: package READMEs, npm descriptions, and the
+  documentation site now capitalize the brand. Identifiers keep their exact casing, so
+  package names, the `rulvar` binary, `rulvar.config.mjs`, the `.rulvar` store directory,
+  the `rulvar.*` OTel attributes, and every URL are unchanged. Documentation and metadata
+  only; no runtime behaviour changes.
+- Updated dependencies [da4dbad]
+- Updated dependencies [487da86]
+- Updated dependencies [df416fc]
+- Updated dependencies [a737810]
+- Updated dependencies [9eb66b4]
+  - @rulvar/core@1.6.0
+  - @rulvar/testing@1.6.0
 
 ### 1.5.2
 
@@ -2079,6 +2212,41 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.6.0
+
+#### Minor Changes
+
+- df416fc: Correct and extend model pricing: GPT-5.6 entries, long-context tiers, no fabricated prices, no double-charged cache.
+
+  - `Pricing` gains optional long-context `tiers` (`PricingTier`): the highest threshold strictly below the full prompt re-prices the entire request, input-side rates (cache included) scaling by `inputMultiplier` and the output rate by `outputMultiplier`. Existing linear rows are untouched.
+  - `@rulvar/openai` seeds `gpt-5.6-sol` and its `gpt-5.6` alias with the official caps and pricing (1,050,000 context, 128,000 max output, $5/$0.50/$30 per MTok, $6.25 cache write, 2x input and 1.5x output above 272K input tokens). Previously the unknown-model fallback silently priced them as gpt-5.4.
+  - Unknown model ids in both first-class adapters keep conservative transport caps but no longer receive a fabricated price row: their usage surfaces in `CostReport.unpriced` and a USD ceiling warns that it cannot bound them. Provide a versioned `createEngine({ pricing })` row for hosted models the tables do not know yet.
+  - `priceUsdOf` no longer double-charges cache tokens: under the Usage invariant `inputTokens` is the full prompt, so the input rate now bills only the uncached remainder while cache reads and writes bill at their own rates (a row without cache rates bills them at the input rate). Cache-heavy runs previously over-attributed cost by the full input rate on every cached token.
+  - Admission reserve estimation routes through the same `priceUsdOf`, so estimates and settled costs share one formula, tiers included.
+  - Model id resolution picks the longest matching table prefix, so a dated `gpt-5.5-pro-...` snapshot resolves to the pro entry, never the shorter `gpt-5.5` sibling.
+
+- 886d065: Make the first-class adapters genuinely streaming: every canonical event is yielded AS its provider event is consumed.
+
+  Both adapters (and `openaiCompatible`) buffered the complete canonical event stream in an internal array and yielded it only after the provider response finished. Consequences fixed by this change: `agent:stream` was never live; the stream-idle watchdog saw zero events during healthy generation, so any turn longer than `streamIdleTimeoutMs` (default 120s) was falsely severed as idle and retried; a budget or external abort lost ALL partial usage (the journal recorded zero for tokens the provider billed); and every delta of a long response was retained in memory.
+
+  - `mapAnthropicStream`, `mapResponsesStream`, and `mapChatCompletionsStream` are now async generators: they yield each `ChatEvent` as the corresponding provider event is consumed, with the consumer's pull as the only pacing (natural backpressure, no queue, no detached work). The Anthropic mapper's return value carries the accumulated `pause_turn` state; `TurnMapping` no longer has the redundant `events` array field. Callers of the old callback signatures (`emit` parameter) must switch to iterating the generator.
+  - Adapter behavior is preserved: canonical id mapping, thinking/reasoning retention, `pause_turn` continuation and its cap (each segment now streams live before the continuation dispatches), tool argument assembly, typed refusals and errors, exactly one canonical terminal event, the degraded Chat Completions path (visible in `providerMetadata.openai.degradedPath`), abort propagation, usage normalization, and SDK autoretries disabled.
+  - New regression tests with gated fake SDK clients prove the first `stream().next()` resolves before the provider terminal exists, aborts reach the in-flight provider iterable after the first delta, a paused consumer causes zero read-ahead (lock-step pulls), `pause_turn` segment deltas arrive before the continuation request, and exactly one terminal event survives.
+
+#### Patch Changes
+
+- da4dbad: Write the product name as Rulvar in prose: package READMEs, npm descriptions, and the
+  documentation site now capitalize the brand. Identifiers keep their exact casing, so
+  package names, the `rulvar` binary, `rulvar.config.mjs`, the `.rulvar` store directory,
+  the `rulvar.*` OTel attributes, and every URL are unchanged. Documentation and metadata
+  only; no runtime behaviour changes.
+- Updated dependencies [da4dbad]
+- Updated dependencies [487da86]
+- Updated dependencies [df416fc]
+- Updated dependencies [a737810]
+- Updated dependencies [9eb66b4]
+  - @rulvar/core@1.6.0
 
 ### 1.5.2
 
@@ -2392,6 +2560,22 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.6.0
+
+#### Patch Changes
+
+- da4dbad: Write the product name as Rulvar in prose: package READMEs, npm descriptions, and the
+  documentation site now capitalize the brand. Identifiers keep their exact casing, so
+  package names, the `rulvar` binary, `rulvar.config.mjs`, the `.rulvar` store directory,
+  the `rulvar.*` OTel attributes, and every URL are unchanged. Documentation and metadata
+  only; no runtime behaviour changes.
+- Updated dependencies [da4dbad]
+- Updated dependencies [487da86]
+- Updated dependencies [df416fc]
+- Updated dependencies [a737810]
+- Updated dependencies [9eb66b4]
+  - @rulvar/core@1.6.0
+
 ### 1.5.2
 
 #### Patch Changes
@@ -2690,6 +2874,23 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.6.0
+
+#### Patch Changes
+
+- da4dbad: Write the product name as Rulvar in prose: package READMEs, npm descriptions, and the
+  documentation site now capitalize the brand. Identifiers keep their exact casing, so
+  package names, the `rulvar` binary, `rulvar.config.mjs`, the `.rulvar` store directory,
+  the `rulvar.*` OTel attributes, and every URL are unchanged. Documentation and metadata
+  only; no runtime behaviour changes.
+- Updated dependencies [da4dbad]
+- Updated dependencies [487da86]
+- Updated dependencies [df416fc]
+- Updated dependencies [a737810]
+- Updated dependencies [9eb66b4]
+  - @rulvar/core@1.6.0
+  - eslint-plugin-rulvar@1.6.0
+
 ### 1.5.2
 
 #### Patch Changes
@@ -2925,6 +3126,25 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.6.0
+
+#### Patch Changes
+
+- da4dbad: Write the product name as Rulvar in prose: package READMEs, npm descriptions, and the
+  documentation site now capitalize the brand. Identifiers keep their exact casing, so
+  package names, the `rulvar` binary, `rulvar.config.mjs`, the `.rulvar` store directory,
+  the `rulvar.*` OTel attributes, and every URL are unchanged. Documentation and metadata
+  only; no runtime behaviour changes.
+- Updated dependencies [da4dbad]
+- Updated dependencies [487da86]
+- Updated dependencies [df416fc]
+- Updated dependencies [886d065]
+- Updated dependencies [a737810]
+- Updated dependencies [9eb66b4]
+  - @rulvar/anthropic@1.6.0
+  - @rulvar/core@1.6.0
+  - @rulvar/openai@1.6.0
 
 ### 1.5.2
 
@@ -3263,6 +3483,22 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.6.0
+
+#### Patch Changes
+
+- da4dbad: Write the product name as Rulvar in prose: package READMEs, npm descriptions, and the
+  documentation site now capitalize the brand. Identifiers keep their exact casing, so
+  package names, the `rulvar` binary, `rulvar.config.mjs`, the `.rulvar` store directory,
+  the `rulvar.*` OTel attributes, and every URL are unchanged. Documentation and metadata
+  only; no runtime behaviour changes.
+- Updated dependencies [da4dbad]
+- Updated dependencies [487da86]
+- Updated dependencies [df416fc]
+- Updated dependencies [a737810]
+- Updated dependencies [9eb66b4]
+  - @rulvar/core@1.6.0
+
 ### 1.5.2
 
 #### Patch Changes
@@ -3536,6 +3772,22 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.6.0
+
+#### Patch Changes
+
+- da4dbad: Write the product name as Rulvar in prose: package READMEs, npm descriptions, and the
+  documentation site now capitalize the brand. Identifiers keep their exact casing, so
+  package names, the `rulvar` binary, `rulvar.config.mjs`, the `.rulvar` store directory,
+  the `rulvar.*` OTel attributes, and every URL are unchanged. Documentation and metadata
+  only; no runtime behaviour changes.
+- Updated dependencies [da4dbad]
+- Updated dependencies [487da86]
+- Updated dependencies [df416fc]
+- Updated dependencies [a737810]
+- Updated dependencies [9eb66b4]
+  - @rulvar/core@1.6.0
+
 ### 1.5.2
 
 #### Patch Changes
@@ -3759,6 +4011,22 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.6.0
+
+#### Patch Changes
+
+- da4dbad: Write the product name as Rulvar in prose: package READMEs, npm descriptions, and the
+  documentation site now capitalize the brand. Identifiers keep their exact casing, so
+  package names, the `rulvar` binary, `rulvar.config.mjs`, the `.rulvar` store directory,
+  the `rulvar.*` OTel attributes, and every URL are unchanged. Documentation and metadata
+  only; no runtime behaviour changes.
+- Updated dependencies [da4dbad]
+- Updated dependencies [487da86]
+- Updated dependencies [df416fc]
+- Updated dependencies [a737810]
+- Updated dependencies [9eb66b4]
+  - @rulvar/core@1.6.0
 
 ### 1.5.2
 
