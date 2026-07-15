@@ -14,6 +14,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | ------ | ------ | ------ | ------ |
 | <a id="property-artifacts"></a> `artifacts?` | `unknown` | Terminal agent entries: Artifact list. | `packages/core/dist/index.d.ts` |
 | <a id="property-checkpointref"></a> `checkpointRef?` | `string` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-costattribution"></a> `costAttribution?` | [`CostAttributionFacts`](/api/@rulvar/rulvar/interfaces/CostAttributionFacts.md) | Attribution facts behind the CostReport breakdowns; see JournalEntry. | `packages/core/dist/index.d.ts` |
 | <a id="property-error"></a> `error?` | [`WireError`](/api/@rulvar/rulvar/type-aliases/WireError.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-escalation"></a> `escalation?` | `unknown` | Terminal escalated entries: the validated EscalationReport. | `packages/core/dist/index.d.ts` |
 | <a id="property-memoizeoutcome"></a> `memoizeOutcome?` | `boolean` | Engine-decided terminal abort classes (the no-progress abort) stamp memoizeOutcome on the TERMINAL entry so the frozen memoize rules replay them on every resume; the running entry keeps the user's policy verbatim (M3 amendment). | `packages/core/dist/index.d.ts` |

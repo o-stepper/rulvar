@@ -6,10 +6,10 @@
 
 # Interface: PipelineOpts
 
-Defined in: [packages/core/src/engine/ctx.ts:431](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L431)
+Defined in: [packages/core/src/engine/ctx.ts:432](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L432)
 
 ## Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-onitemerror"></a> `onItemError?` | `"throw"` \| `"drop"` | [packages/core/src/engine/ctx.ts:432](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L432) |
+| <a id="property-onitemerror"></a> `onItemError?` | `"throw"` \| `"drop"` | [packages/core/src/engine/ctx.ts:433](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L433) |

@@ -10,6 +10,6 @@
 const LARGE_VALUE_WARN_BYTES: 262144 = 262_144;
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L47)
+Defined in: [packages/core/src/journal/replayer.ts:48](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L48)
 
 Large-value soft warn threshold (committed for M2).

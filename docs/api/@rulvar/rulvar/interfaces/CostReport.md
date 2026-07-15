@@ -18,7 +18,7 @@ Full contract: https://docs.rulvar.com/guide/observability.
 | <a id="property-bymodel"></a> `byModel` | `Record`\&lt;`string`, `number`\&gt; | Keyed by canonical ModelRef 'adapterId:model'. | `packages/core/dist/index.d.ts` |
 | <a id="property-byphase"></a> `byPhase` | `Record`\&lt;`string`, `number`\&gt; | ctx.phase names; phase is structural for this map. | `packages/core/dist/index.d.ts` |
 | <a id="property-byrole"></a> `byRole` | `Record`\&lt;[`InvocationRole`](/api/@rulvar/rulvar/type-aliases/InvocationRole.md), `number`\&gt; | - | `packages/core/dist/index.d.ts` |
-| <a id="property-orchestrator"></a> `orchestrator` | \{ `forcedFinish`: `boolean`; `reserveUsedUsd`: `number`; `share`: `number`; `spentUsd`: `number`; `wakes`: `number`; \} | All-zero with forcedFinish false in runs without a dynamic orchestrator. | `packages/core/dist/index.d.ts` |
+| <a id="property-orchestrator"></a> `orchestrator` | \{ `forcedFinish`: `boolean`; `reserveUsedUsd`: `number`; `share`: `number`; `spentUsd`: `number`; `wakes`: `number`; \} | All-zero with forcedFinish false in runs without a dynamic orchestrator (or when no cap resolved, so no sub-account opened). Folded purely from the journal: spentUsd is the priced usage of entries debited to the orchestrator sub-account, reserveUsedUsd its reserve-funded forced-finish share, wakes the ARMED (journaled) wake suspensions (a wait satisfied synchronously never suspends and is not counted), and forcedFinish the journaled at-cap decision. | `packages/core/dist/index.d.ts` |
 | `orchestrator.forcedFinish` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | `orchestrator.reserveUsedUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | `orchestrator.share` | `number` | - | `packages/core/dist/index.d.ts` |
