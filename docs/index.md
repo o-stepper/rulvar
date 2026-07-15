@@ -6,7 +6,7 @@ titleTemplate: Guides, examples, and API reference
 hero:
   name: Rulvar
   text: An embeddable TypeScript engine for multi-agent LLM workflows.
-  tagline: "Durable by construction: a completed LLM call is never paid for twice. Three orchestration modes on one runtime, one journal, one budget path. Hard dollar ceilings, vendor-neutral provider adapters, VCR cassettes for hermetic tests, and ModelKnowledge that remembers which models work in your project. No server, no database, no control plane."
+  tagline: "Durable by construction: a completed LLM call is never paid for twice. Three orchestration modes on one runtime, one journal, one budget path. Immutable dollar budgets with a documented overshoot bound, vendor-neutral provider adapters, VCR cassettes for hermetic tests, and ModelKnowledge that remembers which models work in your project. No server, no database, no control plane."
   image:
     light: /logo.svg
     dark: /logo.dark.svg
@@ -28,8 +28,8 @@ features:
     link: /guide/journal
     linkText: The journal
 
-  - title: Budgets as hard invariants
-    details: A per-run USD ceiling enforced at admission, before every agent turn, and by cutting live streams on crossing. Overshoot is bounded and documented; exhaustion returns partial results, never null.
+  - title: Immutable budgets, bounded overshoot
+    details: A per-run USD ceiling no API can raise, enforced by projected admission with pre-dispatch reservation, a budget-derived output bound on every turn, and live stream cuts on crossing. The residual overshoot is documented, at most one in-flight turn per concurrent agent; exhaustion returns partial results, never null.
     link: /guide/budgets
     linkText: Budgets and termination
 

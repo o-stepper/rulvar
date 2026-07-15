@@ -12,7 +12,7 @@ Six invariants drive every design decision in Rulvar. Each one is a user-facing 
 | Never pay twice | Content-addressed memoizing journal | Crash, resume, and edit workflows without re-billing completed LLM calls |
 | Decision entries precede effects | One journal entry per dynamic decision; derived state is a pure fold | A resumed run is the same run; nothing is re-litigated |
 | Call-and-return only | Agent-as-tool is the single cross-agent primitive | Exact budget attribution and stable identity for every piece of work |
-| Three-layer budget | Admission, per-turn guard, ceiling signal | A hard dollar ceiling with a declared, bounded overshoot |
+| Three-layer budget | Projected admission, per-turn guard with an output bound, ceiling signal | An immutable dollar ceiling with a declared, bounded overshoot |
 | One runtime, one journal, one budget path | All three orchestration modes share one engine | Every guarantee holds identically in every mode |
 | Embeddable by construction | Every guard state has a non-interactive terminating fallback | Unattended runs settle; they never hang waiting for a human |
 

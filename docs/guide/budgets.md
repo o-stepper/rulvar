@@ -5,12 +5,17 @@ description: How the three-layer budget bounds run spend to an immutable USD cei
 
 # Budgets and termination
 
-Every Rulvar run can carry a hard USD ceiling. Enforcement is one budget path
-shared by all three [orchestration modes](/guide/orchestration-modes): the same
-three layers guard a hand-written workflow, a planned script, and a dynamic
-orchestrator. This page covers the three layers, what happens at the ceiling,
-the integer counters that make termination a proof rather than a hope, and how
-to size all of it.
+Every Rulvar run can carry an **immutable run budget with pre-dispatch
+reservation and a documented, provider-dependent in-flight overshoot bound**:
+projected admission denies a spawn whose reserve does not fit before anything
+is dispatched, every turn's output tokens are clamped to what the remaining
+budget buys, live streams are cut on crossing, and what physically cannot be
+prevented (a provider bills the tokens it has already generated) is stated
+quantitatively rather than hidden. Enforcement is one budget path shared by
+all three [orchestration modes](/guide/orchestration-modes): the same layers
+guard a hand-written workflow, a planned script, and a dynamic orchestrator.
+This page covers the layers, what happens at the ceiling, the integer counters
+that make termination a proof rather than a hope, and how to size all of it.
 
 ## The immutable run ceiling
 
@@ -147,19 +152,24 @@ stream deltas up to the cut is written to the journal with
 the number came from a severed stream rather than a provider's final usage
 report.
 
-### Bounded overshoot: one turn, and why not less
+### Bounded overshoot: one clamped turn, and why not less
 
-The worst-case overshoot past the ceiling is **at most one turn per in-flight
-agent**, and that bound is the tightest achievable. Once a turn has been
-dispatched, the provider bills the tokens it streams whether or not you read
-the stream to its end; cutting mid-stream stops the meter as early as
-physically possible, but the tokens already generated are owed. A tighter
-bound would require knowing a turn's output length before dispatching it,
-which is exactly the estimate layers 1 and 2 already apply.
+The worst-case overshoot past the ceiling is **at most one in-flight turn per
+concurrent agent**, and the output side of that turn is not open-ended: the
+derived output bound clamps each request's `maxOutputTokens` to what the
+remaining budget bought at dispatch time. What remains provider-dependent is
+unavoidable: once a turn has been dispatched, the provider bills the tokens it
+streams whether or not you read the stream to its end. Cutting mid-stream
+(layer 3) stops the meter as early as the provider's incremental usage
+reporting allows, but the tokens already generated are owed, and a provider
+that reports usage only at the end of the stream is bounded by the clamp
+alone.
 
-Practical consequence: the worst case scales with concurrency. At the default
+Practical consequence: the worst case scales with concurrency, because every
+concurrent agent's turn was clamped against the same remainder. At the default
 per-run concurrency of 12, up to 12 agents can be mid-turn when the ceiling is
-crossed, so size B0 with roughly one turn of headroom per concurrent agent.
+crossed, so size B0 with roughly one turn of headroom per concurrent agent, or
+lower the per-run concurrency where the ceiling is tight.
 
 ### The one thing the ceiling cannot bound: a model with no price
 
