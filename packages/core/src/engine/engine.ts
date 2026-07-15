@@ -16,7 +16,7 @@ import {
 import type { WorkflowEventBody } from '../l0/events.js';
 import type { InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
 import type { IsolationProvider } from '../l0/spi/isolation.js';
-import type { ProviderAdapter } from '../l0/spi/provider.js';
+import type { Pricing, ProviderAdapter } from '../l0/spi/provider.js';
 import type { JournalStore, Lease } from '../l0/spi/store.js';
 import type { TranscriptStore } from '../l0/spi/transcript.js';
 import {
@@ -332,19 +332,19 @@ export function createEngine(options: CreateEngineOptions): Engine {
   // bare-Date.now warning.
   const realNow: () => number = Date.now.bind(globalThis);
 
+  // The versioned price table wins; adapter-reported caps.pricing is
+  // the fallback; undefined stays undefined so the CostReport surfaces
+  // the model as unpriced, never a silent zero.
+  const pricingOf = (servedBy: ModelRef): Pricing | undefined => {
+    const { adapterId, model } = parseModelRef(servedBy);
+    return resolvePricing(servedBy, options.pricing, adapters.get(adapterId)?.caps(model).pricing);
+  };
+
   const priceUsd = (servedBy: ModelRef | undefined, usage: Usage): number | undefined => {
     if (servedBy === undefined) {
       return undefined;
     }
-    const { adapterId, model } = parseModelRef(servedBy);
-    // The versioned price table wins; adapter-reported caps.pricing is
-    // the fallback; undefined stays undefined so the CostReport surfaces
-    // the model as unpriced, never a silent zero.
-    const pricing = resolvePricing(
-      servedBy,
-      options.pricing,
-      adapters.get(adapterId)?.caps(model).pricing,
-    );
+    const pricing = pricingOf(servedBy);
     if (pricing === undefined) {
       return undefined;
     }
@@ -406,6 +406,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         lifetimeSpawnCap: options.budgetDefaults?.lifetimeSpawnCap ?? 500,
         events: { emit: (body) => bus.emit(body as WorkflowEventBody, rootSpanId) },
         priceUsd,
+        pricingOf,
         ...(budgetSeed === undefined ? {} : { seed: budgetSeed }),
       });
     const invalidated = new Set(resumeCtx?.invalidate ?? []);
@@ -526,6 +527,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         orchestrator: { spentUsd: 0, wakes: 0, forcedFinish: false, reserveUsedUsd: 0 },
       },
       priceUsd: (servedBy, usage) => priceUsd(servedBy, usage),
+      pricingOf,
       runSignal: controller.signal,
       ...(defaults.isolation === undefined ? {} : { isolation: defaults.isolation }),
       ...(options.onEscalation === undefined ? {} : { onEscalation: options.onEscalation }),

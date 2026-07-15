@@ -221,7 +221,7 @@ The lineage counter folds over the run journal (absorbed lazily).
 recoverChild(nodeKey): void;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:510](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L510)
+Defined in: [packages/core/src/orchestrator/admission.ts:521](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L521)
 
 Resume roll-forward for an orchestrator child (M6-T07): restores the
 children-quota counter only. The budget seed already counts settled
@@ -246,7 +246,7 @@ through the ctx.agent dispatch path.
 recoverInFlight(parentAccountScope, verdict): void;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:534](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L534)
+Defined in: [packages/core/src/orchestrator/admission.ts:545](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L545)
 
 Resume roll-forward for an admission whose decision entry exists but
 whose child has NOT settled: re-applies the recorded reserve and
@@ -273,7 +273,7 @@ re-estimated).
 recoverSettled(parentAccountScope): void;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:521](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L521)
+Defined in: [packages/core/src/orchestrator/admission.ts:532](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L532)
 
 Resume roll-forward for a child that already SETTLED before the
 resume: re-registers the counters (maxChildrenPerNode, the lifetime

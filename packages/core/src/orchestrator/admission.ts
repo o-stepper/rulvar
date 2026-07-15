@@ -425,15 +425,26 @@ export class AdmissionController {
     if (this.maxTotalSpawns !== undefined && this.admittedTotal >= this.maxTotalSpawns) {
       return { verdict: { kind: 'reject', reason: { code: 'lifetime' } }, statsBefore };
     }
-    const reserveUsd = spec.estCostUsd ?? this.flatReserveUsd;
-    const reserve: BudgetReserve = { reserveUsd };
+    let childCeilingUsd: number | undefined;
     const parentRemainder = this.budget.remainderOf(spec.parentAccountScope);
     if (parentRemainder !== undefined) {
       const fractionCap = this.childBudgetFraction * parentRemainder;
-      reserve.childCeilingUsd =
+      childCeilingUsd =
         spec.budgetUsd === undefined ? fractionCap : Math.min(spec.budgetUsd, fractionCap);
     } else if (spec.budgetUsd !== undefined) {
-      reserve.childCeilingUsd = spec.budgetUsd;
+      childCeilingUsd = spec.budgetUsd;
+    }
+    // The reserve never exceeds the child's own ceiling: a sub-account
+    // bounded to X can never spend more than X, so projected admission
+    // must not hold more than X against the parent chain (a flat reserve
+    // above a small run ceiling would otherwise deny every capped child).
+    let reserveUsd = spec.estCostUsd ?? this.flatReserveUsd;
+    if (childCeilingUsd !== undefined) {
+      reserveUsd = Math.min(reserveUsd, childCeilingUsd);
+    }
+    const reserve: BudgetReserve = { reserveUsd };
+    if (childCeilingUsd !== undefined) {
+      reserve.childCeilingUsd = childCeilingUsd;
     }
     if (this.budget.spawnHeadroom <= 0) {
       return { verdict: { kind: 'reject', reason: { code: 'lifetime' } }, statsBefore };

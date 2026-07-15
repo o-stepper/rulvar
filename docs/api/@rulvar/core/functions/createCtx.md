@@ -10,7 +10,7 @@
 function createCtx(internals, rootWorkflow?): Ctx<ErrorPolicy>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:679](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L679)
+Defined in: [packages/core/src/engine/ctx.ts:681](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L681)
 
 Creates the per-run Ctx bound to `internals`. The current scope travels
 through AsyncLocalStorage so parallel branches and pipeline stages keep

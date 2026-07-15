@@ -70,18 +70,34 @@ flowchart TD
   OK -. next turn .-> L2
 ```
 
-### Layer 1: admission before spawn
+### Layer 1: projected admission before spawn
 
-A spawn is blocked when `spent + committedReserve >= ceiling` on **any**
-account in its ancestor chain. Because a call's true cost is unknown before it
-runs, admission works with a reserve, resolved in this order:
+Admission is **projected**: a spawn is admitted only when
+
+```text
+spent + committedReserve + finalizeReserve + proposedReserve <= ceiling
+```
+
+holds on **every** account in its ancestor chain, checked atomically before
+anything commits. An exact fill is allowed; one dollar past the ceiling is
+not. A spawn is never admitted on the argument that the money it needs is
+merely not committed yet: the first call under a 0.001 USD ceiling with a
+0.01 USD estimate is denied outright, before any provider dispatch or journal
+entry. Because a call's true cost is unknown before it runs, admission works
+with a reserve, resolved in this order:
 
 ```text
 reserve = opts.estCost
        ?? profile.estCost
-       ?? price(countTokens(input) + caps.maxOutputTokens)
+       ?? price(countTokens(input) + min(caps.maxOutputTokens, limits.maxOutputTokensPerTurn))
        ?? 0.50 USD   (engine flat default, budgetDefaults.flatReserveUsd)
 ```
+
+Two refinements keep estimates honest instead of paralyzing: a child with its
+own sub-account ceiling never reserves more than that ceiling (it physically
+cannot spend more), and an unpriced model reserves nothing unless you pass an
+explicit `estCost` (a dollar reserve would deny work the ceiling cannot bound
+anyway; see the unpriced-model section below).
 
 Reserves ride the journaled admission decision entry, so on resume they are
 recovered from the journal, never re-estimated: a price-table change between
@@ -99,13 +115,27 @@ const label = await ctx.agent("Classify: build failure on main after merge", {
 });
 ```
 
-### Layer 2: the per-turn guard
+### Layer 2: the per-turn guard and the output bound
 
 Before every agent turn the runtime checks the agent's own sub-account. A turn
 that would cross the sub-account ceiling is never dispatched; the blocked
 primitive throws the typed `BudgetExhaustedError` (error code
 `budget_exhausted`). Nothing is sent to a provider, so a blocked turn costs
 zero.
+
+Every dispatched turn also carries a **derived output bound**: the request's
+`maxOutputTokens` is clamped to
+`min(model capability, limits.maxOutputTokensPerTurn, budget-derived limit)`,
+where the budget-derived limit is what the tightest remaining ceiling in the
+account chain still buys at the serving model's output price (long-context
+tiers included), after a heuristic estimate of the prompt's input cost. This
+makes the marginal turn's output spend deterministic even for providers that
+report usage only at the end of the stream. When the remainder cannot buy even
+one output token at zero input, the turn is denied exactly like the turn
+guard; when only the heuristic prompt estimate says the turn does not fit, the
+turn dispatches with a one-token output floor and the exact layers settle the
+difference. Unpriced models have no output bound; the ceiling cannot bound
+them at all (see below).
 
 ### Layer 3: cutting live streams at the ceiling
 
