@@ -63,6 +63,17 @@ Three rules worth knowing up front:
 | `openaiCompatible()` | `apiKey` (optional), `baseURL` (required) | A placeholder key is sent, so keyless local endpoints like Ollama and vLLM work without configuration. |
 | `bridgeAiSdk()` | none | Credentials belong to the wrapped AI SDK model; configure them on the provider package you bring. |
 
+Keys are created in the provider dashboards: Anthropic keys in the [Claude Console](https://platform.claude.com/settings/keys), OpenAI keys on the platform's [API keys page](https://platform.openai.com/api-keys). The providers' own guides cover account setup end to end: [Get started with Claude](https://platform.claude.com/docs/en/get-started) and the [OpenAI developer quickstart](https://developers.openai.com/api/docs/quickstart). For `openaiCompatible()` the credential belongs to whoever operates the endpoint (an OpenRouter key, a gateway token); keyless local servers need none.
+
+The zero-configuration path is the environment. Export the variable in the shell, service manager, or CI secret store that runs your host process, construct the factory with no options, and the official SDK picks the key up itself:
+
+```bash
+export ANTHROPIC_API_KEY="your-api-key" # anthropic()
+export OPENAI_API_KEY="your-api-key"    # openai()
+```
+
+Reserve the explicit `apiKey` option for hosts that already own secret distribution (a vault client, per-tenant credentials). Either way, treat keys as secrets end to end: keep them out of source control and out of workflow code. Rulvar masks key-shaped strings at the telemetry boundary ([Redaction](/guide/observability#redaction)), but that is a last line of defense, not a reason to inline keys.
+
 All shipped adapters construct their SDK client with autoretries disabled (`maxRetries: 0`). This is deliberate: the engine owns retries, backoff, and wall clock, because SDK internal retries would be invisible to the journal, the budget ledger, and your timeouts. Adapters surface rate limit and overload responses as typed retryable errors instead, and the engine's `RetryPolicy` honors any provider supplied retry delay.
 
 ## The ProviderAdapter SPI

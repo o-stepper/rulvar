@@ -53,7 +53,11 @@ walks the resolved `RetryPolicy` backoff before the spawn settles: the stall
 is backoff, not a hang.
 
 **Fix.** Export the key in the shell that runs your workflow, or pass `apiKey`
-to the factory, and rerun. Nothing was paid and nothing wrong was memoized:
+to the factory, and rerun. Keys are created and rotated in the
+[Claude Console](https://platform.claude.com/settings/keys) and on the
+[OpenAI API keys page](https://platform.openai.com/api-keys); the
+[API keys](/guide/providers#api-keys) section of the Providers guide covers
+how the adapters resolve them. Nothing was paid and nothing wrong was memoized:
 transport-class failures are never recorded as final outcomes, so the resumed
 or rerun workflow performs the calls live as if for the first time.
 
