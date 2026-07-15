@@ -5,7 +5,7 @@ description: The authoritative table of every Rulvar package, with layer placeme
 
 # Packages
 
-Rulvar ships as fourteen packages from a single monorepo: thirteen under the `@rulvar` npm scope, plus `eslint-plugin-rulvar`, which follows the ESLint plugin naming convention. The packages release lockstep at one version, currently <!-- version:lockstep -->1.7.0<!-- /version -->, with a single exemption: `@rulvar/compat` is versioned independently and currently sits at <!-- version:compat -->0.1.0<!-- /version -->. Every package is ESM only, requires Node.js >= 22.12.0, and is licensed Apache-2.0.
+Rulvar ships as fourteen packages from a single monorepo: thirteen under the `@rulvar` npm scope, plus `eslint-plugin-rulvar`, which follows the ESLint plugin naming convention. The packages release lockstep at one version, currently <!-- version:lockstep -->1.8.0<!-- /version -->, with a single exemption: `@rulvar/compat` is versioned independently and currently sits at <!-- version:compat -->0.1.0<!-- /version -->. Every package is ESM only, requires Node.js >= 22.12.0, and is licensed Apache-2.0.
 
 A fifteenth npm name exists: the unscoped `rulvar`, a pointer package that re-exports the umbrella so a bare install still lands on the real library. Documentation and install commands always use the scoped names.
 
@@ -110,7 +110,7 @@ Four rules keep this graph honest, and they are enforced permanently, not just a
 
 ## Lockstep versioning
 
-All packages, including `eslint-plugin-rulvar` despite its unscoped name, release together at one version; the current release is <!-- version:lockstep -->1.7.0<!-- /version -->. Lockstep buys a simple compatibility rule: a set of `@rulvar` packages at the same version is the tested configuration. When you upgrade, upgrade them together. The unscoped `rulvar` pointer tracks the umbrella's version.
+All packages, including `eslint-plugin-rulvar` despite its unscoped name, release together at one version; the current release is <!-- version:lockstep -->1.8.0<!-- /version -->. Lockstep buys a simple compatibility rule: a set of `@rulvar` packages at the same version is the tested configuration. When you upgrade, upgrade them together. The unscoped `rulvar` pointer tracks the umbrella's version.
 
 The sole exemption is `@rulvar/compat`, currently 0.1.0. Its job is to accrete frozen key-derivation profiles when a journal hashVersion leaves the engine's support window, so old journals stay resumable; that cadence follows the journal's compatibility history, not the engine's feature releases, and pinning it to the engine version would produce meaningless version churn in both directions. You attach its profiles at engine construction through the `extraDerivers` option. See [Journal compatibility](/guide/journal-compatibility) for when you need it and [Versioning](/reference/versioning) for the full policy; per-release notes are in the [Changelog](/reference/changelog).
 
