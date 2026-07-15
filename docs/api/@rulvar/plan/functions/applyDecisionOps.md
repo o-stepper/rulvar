@@ -17,7 +17,7 @@ function applyDecisionOps(
 };
 ```
 
-Defined in: [packages/plan/src/plan-entries.ts:527](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L527)
+Defined in: [packages/plan/src/plan-entries.ts:536](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L536)
 
 The shared plan.decision applier core: engine authorship happens at
 the fold head under PlanWriteLock, so the producer can
@@ -44,6 +44,6 @@ and the fold re-applies the recorded ops identically on replay.
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `doneRefs` | `Record`\&lt;[`NodeId`](/api/@rulvar/rulvar/type-aliases/NodeId.md), [`EntryRef`](/api/@rulvar/rulvar/type-aliases/EntryRef.md)\&gt; | [packages/plan/src/plan-entries.ts:531](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L531) |
-| `plan` | [`TaskPlan`](/api/@rulvar/plan/interfaces/TaskPlan.md) | [packages/plan/src/plan-entries.ts:531](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L531) |
-| `specs` | `Readonly`\&lt;`Record`\&lt;`string`, [`TaskSpec`](/api/@rulvar/plan/interfaces/TaskSpec.md)\&gt;\&gt; | [packages/plan/src/plan-entries.ts:531](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L531) |
+| `doneRefs` | `Record`\&lt;[`NodeId`](/api/@rulvar/rulvar/type-aliases/NodeId.md), [`EntryRef`](/api/@rulvar/rulvar/type-aliases/EntryRef.md)\&gt; | [packages/plan/src/plan-entries.ts:540](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L540) |
+| `plan` | [`TaskPlan`](/api/@rulvar/plan/interfaces/TaskPlan.md) | [packages/plan/src/plan-entries.ts:540](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L540) |
+| `specs` | `Readonly`\&lt;`Record`\&lt;`string`, [`TaskSpec`](/api/@rulvar/plan/interfaces/TaskSpec.md)\&gt;\&gt; | [packages/plan/src/plan-entries.ts:540](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L540) |

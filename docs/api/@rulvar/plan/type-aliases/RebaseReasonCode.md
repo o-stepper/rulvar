@@ -29,6 +29,6 @@ type RebaseReasonCode =
   | "immediate_satisfaction";
 ```
 
-Defined in: [packages/plan/src/plan-entries.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L87)
+Defined in: [packages/plan/src/plan-entries.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L88)
 
 The complete machine reason vocabulary, normative and closed.

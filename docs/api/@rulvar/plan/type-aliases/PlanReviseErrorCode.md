@@ -12,4 +12,4 @@ type PlanReviseErrorCode =
   | RebaseReasonCode;
 ```
 
-Defined in: [packages/plan/src/plan-entries.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L137)
+Defined in: [packages/plan/src/plan-entries.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L145)

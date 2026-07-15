@@ -12,7 +12,7 @@ function readPlanDecision(entry):
   | undefined;
 ```
 
-Defined in: [packages/plan/src/plan-entries.ts:439](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L439)
+Defined in: [packages/plan/src/plan-entries.ts:448](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L448)
 
 Reads a plan.decision entry's payload.
 

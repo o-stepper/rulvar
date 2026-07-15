@@ -26,4 +26,4 @@ type RebaseOutcome =
 };
 ```
 
-Defined in: [packages/plan/src/plan-entries.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L109)
+Defined in: [packages/plan/src/plan-entries.ts:110](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L110)

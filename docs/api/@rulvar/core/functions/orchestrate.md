@@ -13,7 +13,7 @@ function orchestrate(
 opts?): RunHandle<unknown>;
 ```
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:1670](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L1670)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:1678](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L1678)
 
 Top-level surface: creates a run.
 

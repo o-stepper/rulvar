@@ -10,7 +10,7 @@
 function effectiveDroppedStreak(state): number;
 ```
 
-Defined in: [packages/plan/src/plan-entries.ts:272](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L272)
+Defined in: [packages/plan/src/plan-entries.ts:281](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L281)
 
 The streak RevisionGuards consume.
 

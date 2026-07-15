@@ -14,9 +14,10 @@ type PlanDecisionOrigin =
   | "no-progress"
   | "child-result"
   | "park-landed"
-  | "cancel-landed";
+  | "cancel-landed"
+  | "dispatch-rejected";
 ```
 
-Defined in: [packages/plan/src/plan-entries.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L167)
+Defined in: [packages/plan/src/plan-entries.ts:175](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L175)
 
 Engine authorship origins of plan.decision entries.

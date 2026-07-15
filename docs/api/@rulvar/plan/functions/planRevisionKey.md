@@ -10,7 +10,7 @@
 function planRevisionKey(base, requestedOps): string;
 ```
 
-Defined in: [packages/plan/src/plan-entries.ts:218](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L218)
+Defined in: [packages/plan/src/plan-entries.ts:227](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L227)
 
 Content keys: plan.revision keys over {kind, base,
 requestedOps}; plan.decision over {kind, origin, ops, causeRef}.

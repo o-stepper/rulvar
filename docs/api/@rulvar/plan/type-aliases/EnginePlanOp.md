@@ -9,7 +9,11 @@
 ```ts
 type EnginePlanOp = 
   | {
-  cause: "child-result" | "no-progress" | "park-landed" | "cancel-landed";
+  cause:   | "child-result"
+     | "no-progress"
+     | "park-landed"
+     | "cancel-landed"
+     | "dispatch-rejected";
   causeRef: EntryRef;
   checkpointRef?: EntryRef;
   from: PlanNodeStatus;
@@ -35,7 +39,7 @@ type EnginePlanOp =
 };
 ```
 
-Defined in: [packages/plan/src/plan-entries.ts:177](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L177)
+Defined in: [packages/plan/src/plan-entries.ts:186](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L186)
 
 The closed EnginePlanOp set.
 
@@ -45,7 +49,11 @@ The closed EnginePlanOp set.
 
 ```ts
 {
-  cause: "child-result" | "no-progress" | "park-landed" | "cancel-landed";
+  cause:   | "child-result"
+     | "no-progress"
+     | "park-landed"
+     | "cancel-landed"
+     | "dispatch-rejected";
   causeRef: EntryRef;
   checkpointRef?: EntryRef;
   from: PlanNodeStatus;
@@ -57,13 +65,13 @@ The closed EnginePlanOp set.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `cause` | `"child-result"` \| `"no-progress"` \| `"park-landed"` \| `"cancel-landed"` | - | [packages/plan/src/plan-entries.ts:183](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L183) |
-| `causeRef` | [`EntryRef`](/api/@rulvar/rulvar/type-aliases/EntryRef.md) | - | [packages/plan/src/plan-entries.ts:184](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L184) |
-| `checkpointRef?` | [`EntryRef`](/api/@rulvar/rulvar/type-aliases/EntryRef.md) | The retained checkpoint anchor recorded at park landing (M7-T08). | [packages/plan/src/plan-entries.ts:186](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L186) |
-| `from` | [`PlanNodeStatus`](/api/@rulvar/plan/type-aliases/PlanNodeStatus.md) | - | [packages/plan/src/plan-entries.ts:181](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L181) |
-| `kind` | `"set_node_status"` | - | [packages/plan/src/plan-entries.ts:179](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L179) |
-| `nodeId` | [`NodeId`](/api/@rulvar/rulvar/type-aliases/NodeId.md) | - | [packages/plan/src/plan-entries.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L180) |
-| `to` | [`PlanNodeStatus`](/api/@rulvar/plan/type-aliases/PlanNodeStatus.md) | - | [packages/plan/src/plan-entries.ts:182](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L182) |
+| `cause` | \| `"child-result"` \| `"no-progress"` \| `"park-landed"` \| `"cancel-landed"` \| `"dispatch-rejected"` | - | [packages/plan/src/plan-entries.ts:192](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L192) |
+| `causeRef` | [`EntryRef`](/api/@rulvar/rulvar/type-aliases/EntryRef.md) | - | [packages/plan/src/plan-entries.ts:193](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L193) |
+| `checkpointRef?` | [`EntryRef`](/api/@rulvar/rulvar/type-aliases/EntryRef.md) | The retained checkpoint anchor recorded at park landing (M7-T08). | [packages/plan/src/plan-entries.ts:195](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L195) |
+| `from` | [`PlanNodeStatus`](/api/@rulvar/plan/type-aliases/PlanNodeStatus.md) | - | [packages/plan/src/plan-entries.ts:190](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L190) |
+| `kind` | `"set_node_status"` | - | [packages/plan/src/plan-entries.ts:188](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L188) |
+| `nodeId` | [`NodeId`](/api/@rulvar/rulvar/type-aliases/NodeId.md) | - | [packages/plan/src/plan-entries.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L189) |
+| `to` | [`PlanNodeStatus`](/api/@rulvar/plan/type-aliases/PlanNodeStatus.md) | - | [packages/plan/src/plan-entries.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L191) |
 
 ***
 

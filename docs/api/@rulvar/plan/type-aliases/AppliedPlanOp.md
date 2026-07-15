@@ -46,7 +46,7 @@ type AppliedPlanOp =
 }>;
 ```
 
-Defined in: [packages/plan/src/plan-entries.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L70)
+Defined in: [packages/plan/src/plan-entries.ts:71](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-entries.ts#L71)
 
 Applied forms the fold consumes. cancel_task gains the engine-computed
 cascade (computed at apply time, never a parameter);

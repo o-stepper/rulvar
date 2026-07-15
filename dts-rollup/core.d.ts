@@ -3457,7 +3457,7 @@ declare class RunBudget {
     parentScope?: string;
     ceilingUsd?: number;
     finalizeReserveUsd?: number;
-    kind?: "orchestrator-cap";
+    kind?: "orchestrator-cap" | "child-allowance";
   }): void;
   /**
   * The diagnostic projection behind a ceiling error: the first CLOSED
@@ -3478,6 +3478,18 @@ declare class RunBudget {
   * fractions never eat finalization money). Undefined when uncapped.
   */
   remainderOf(scope: string): number | undefined;
+  /**
+  * The tightest allowance headroom on the chain of `scope`: the minimum
+  * remainder across 'child-allowance' accounts. An allowance ceiling
+  * bounds the child's LIFETIME spend, so projected admission must never
+  * hold more than this against the chain (the layer-2 mirror lives in
+  * the orchestrator admission's childCeiling clamp): a reserve above
+  * the allowance would deny work that the allowance itself already
+  * bounds. Undefined when no allowance account is on the chain; the
+  * clamp never applies to the run root or an orchestrator cap, whose
+  * headroom is shared money that projected admission must protect.
+  */
+  allowanceHeadroomOf(scope: string): number | undefined;
   /** Layer 3 ceiling signal of the run root; live streams sever through it. */
   get signal(): AbortSignal;
   /** The layer-3 signal of one sub-account's subtree, when it exists. */
@@ -3766,6 +3778,23 @@ type AdmitRejectReason = {
   code: "osc_guard";
   spawnKey: SpawnKey;
   oscillationCount: number;
+} | {
+  /**
+  * The declared estimate cannot fit the child's own ceiling: the
+  * host said the work costs more than the budget buys, so the op
+  * is bounced with the actionable correction BEFORE it changes
+  * plan state or consumes a spawn unit (the v1.7.0 follow-up
+  * review's P1). Heuristic reserves never produce this code; they
+  * clamp to the allowance instead.
+  */
+  code: "reserve_exceeds_budget";
+  agentType: string;
+  childAccount: string;
+  estCostUsd: number;
+  resolvedReserveUsd: number;
+  childCeilingUsd: number;
+  minimumBudgetUsd: number;
+  message: string;
 };
 /** Every spawn origin routed through the single admission point. */
 type SpawnOrigin = "ctx.workflow" | "ctx.orchestrate" | "spawn_agent" | "parallel_agents" | "escalation-decomposition" | "rung-respawn" | "reuse-link";
@@ -3782,6 +3811,13 @@ interface AdmitSpec {
   budgetUsd?: number;
   /** Reserve hint; falls back to the flat engine default. */
   estCostUsd?: number;
+  /**
+  * Same-batch reserves already admitted read-only but not yet
+  * committed (a multi-op plan revision): the read-only branch adds
+  * them to this spawn's reserve so every embedded admit of one batch
+  * is dispatchable under the same snapshot, not just the first.
+  */
+  pendingReserveUsd?: number;
   /**
   * Lineage continuation (DEF-3); absence mints a fresh lineage root. A
   * continuation demands a causeRef: the seq of the entry that caused the
@@ -3933,6 +3969,17 @@ declare class AdmissionController {
   * journaled by the caller so replay re-delivers it without
   * re-evaluation.
   */
+  /**
+  * The reserve the DISPATCH layer will actually commit for this spec:
+  * the estimate (or the flat default) clamped by the explicit child
+  * budget when one exists, because only an explicit budget opens a
+  * child-allowance account at dispatch; the childBudgetFraction cap
+  * never materializes as an account and must not shrink the
+  * projection. The token-count-priced estimate of ctx.agent is
+  * unreachable here (async); a divergence there lands as a journaled
+  * dispatch rejection instead of a strand.
+  */
+  projectedDispatchReserveUsd(spec: Pick<AdmitSpec, "estCostUsd" | "budgetUsd">): number;
   admit(spec: AdmitSpec, options?: {
     commitReserve?: boolean;
   }): AdmissionDecision;

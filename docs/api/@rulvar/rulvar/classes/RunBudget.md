@@ -198,6 +198,36 @@ Also enforces the engine lifetime spawn cap.
 
 ***
 
+### allowanceHeadroomOf()
+
+```ts
+allowanceHeadroomOf(scope): number | undefined;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The tightest allowance headroom on the chain of `scope`: the minimum
+remainder across 'child-allowance' accounts. An allowance ceiling
+bounds the child's LIFETIME spend, so projected admission must never
+hold more than this against the chain (the layer-2 mirror lives in
+the orchestrator admission's childCeiling clamp): a reserve above
+the allowance would deny work that the allowance itself already
+bounds. Undefined when no allowance account is on the chain; the
+clamp never applies to the run root or an orchestrator cap, whose
+headroom is shared money that projected admission must protect.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `scope` | `string` |
+
+#### Returns
+
+`number` \| `undefined`
+
+***
+
 ### beforeTurn()
 
 ```ts
@@ -377,10 +407,10 @@ recorded ceiling wins once and the accumulated state is kept.
 | Parameter | Type |
 | ------ | ------ |
 | `scope` | `string` |
-| `options` | \{ `ceilingUsd?`: `number`; `finalizeReserveUsd?`: `number`; `kind?`: `"orchestrator-cap"`; `parentScope?`: `string`; \} |
+| `options` | \{ `ceilingUsd?`: `number`; `finalizeReserveUsd?`: `number`; `kind?`: `"orchestrator-cap"` \| `"child-allowance"`; `parentScope?`: `string`; \} |
 | `options.ceilingUsd?` | `number` |
 | `options.finalizeReserveUsd?` | `number` |
-| `options.kind?` | `"orchestrator-cap"` |
+| `options.kind?` | `"orchestrator-cap"` \| `"child-allowance"` |
 | `options.parentScope?` | `string` |
 
 #### Returns
