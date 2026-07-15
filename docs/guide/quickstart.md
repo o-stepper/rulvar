@@ -30,7 +30,13 @@ npm pkg set type=module
 
 `@rulvar/rulvar` is the umbrella package: it re-exports all of `@rulvar/core` plus the first-class `anthropic` and `openai` adapters, the recommended model defaults, and a terminal progress renderer. If you prefer granular dependencies, `pnpm add @rulvar/core @rulvar/anthropic` gives you the same engine, stores, and workflow primitives, but `recommendedDefaults` and `renderProgress` ship only in the umbrella package: on the granular path you write your routing by hand and render events yourself. See [Installation](/guide/installation) for the full package map.
 
-You need Node.js 22.12.0 or newer, ESM only, and an `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY`; the [OpenAI variant](#swap-in-openai) is at the bottom of this page).
+You need Node.js 22.12.0 or newer, ESM only, and an `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY`; the [OpenAI variant](#swap-in-openai) is at the bottom of this page). Keys are created in the [Claude Console](https://platform.claude.com/settings/keys) or on the [OpenAI API keys page](https://platform.openai.com/api-keys); export yours in the shell that will run the script:
+
+```bash
+export ANTHROPIC_API_KEY="your-api-key"
+```
+
+The adapter hands it to the official SDK unchanged; [API keys](/guide/providers#api-keys) covers the explicit `apiKey` option and compatible endpoints.
 
 ## Create an engine
 
