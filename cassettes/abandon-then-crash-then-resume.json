@@ -33,6 +33,11 @@
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:fake-model",
+      "costAttribution": {
+        "agentType": "",
+        "role": "loop",
+        "budgetAccount": "run"
+      },
       "transcriptRef": "record/t0"
     },
     {
@@ -85,6 +90,11 @@
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:fake-model",
+      "costAttribution": {
+        "agentType": "",
+        "role": "loop",
+        "budgetAccount": "run"
+      },
       "transcriptRef": "record/t0"
     }
   ]

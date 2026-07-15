@@ -11,6 +11,7 @@ type JournalEntry = {
   abandon?: AbandonPayload;
   artifacts?: Json;
   checkpointRef?: string;
+  costAttribution?: CostAttributionFacts;
   deadlineAt?: string;
   endedAt?: string;
   error?: WireError;
@@ -76,6 +77,21 @@ optional checkpointRef?: string;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
+
+***
+
+### costAttribution?
+
+```ts
+optional costAttribution?: CostAttributionFacts;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Terminal usage-bearing entries: the attribution facts behind the
+CostReport breakdowns, so a pure journal fold reproduces the live
+report byte for byte on replay. Policy, never identity, exactly
+like usageByModel.
 
 ***
 

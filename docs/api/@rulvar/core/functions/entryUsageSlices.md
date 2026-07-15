@@ -10,7 +10,7 @@
 function entryUsageSlices(entry): UsageSlice[];
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:101](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L101)
+Defined in: [packages/core/src/l0/entries.ts:119](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L119)
 
 The per-model slices of a terminal entry: the recorded split when the
 call spanned several models, else the whole usage attributed to

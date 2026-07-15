@@ -10,4 +10,4 @@
 type ReplayMode = "scoped" | "cache" | "never";
 ```
 
-Defined in: [packages/core/src/journal/replayer.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L44)
+Defined in: [packages/core/src/journal/replayer.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/replayer.ts#L45)

@@ -731,6 +731,10 @@
             "link": "/api/@rulvar/core/interfaces/CostAttribution.md"
           },
           {
+            "text": "CostAttributionFacts",
+            "link": "/api/@rulvar/core/interfaces/CostAttributionFacts.md"
+          },
+          {
             "text": "CostReport",
             "link": "/api/@rulvar/core/interfaces/CostReport.md"
           },
@@ -4174,6 +4178,10 @@
           {
             "text": "CostAttribution",
             "link": "/api/@rulvar/rulvar/interfaces/CostAttribution.md"
+          },
+          {
+            "text": "CostAttributionFacts",
+            "link": "/api/@rulvar/rulvar/interfaces/CostAttributionFacts.md"
           },
           {
             "text": "CostReport",

@@ -13,6 +13,7 @@ import type { WireError } from '../l0/errors.js';
 import {
   CURRENT_HASH_VERSION,
   priceEntryUsage,
+  type CostAttributionFacts,
   type EntryKind,
   type EntryStatus,
   type JournalEntry,
@@ -83,6 +84,8 @@ export interface TerminalPatch {
   servedBy?: ModelRef;
   /** Set only when the call spanned several serving models; see JournalEntry. */
   usageByModel?: UsageSlice[];
+  /** Attribution facts behind the CostReport breakdowns; see JournalEntry. */
+  costAttribution?: CostAttributionFacts;
   transcriptRef?: string;
   checkpointRef?: string;
   /** Terminal agent entries: Artifact list. */
@@ -447,6 +450,9 @@ export class Replayer {
       }
       if (patch.usageByModel !== undefined) {
         entry.usageByModel = patch.usageByModel;
+      }
+      if (patch.costAttribution !== undefined) {
+        entry.costAttribution = patch.costAttribution;
       }
       if (patch.transcriptRef !== undefined) {
         entry.transcriptRef = patch.transcriptRef;

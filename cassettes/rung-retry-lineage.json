@@ -210,6 +210,11 @@
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:cheap",
+      "costAttribution": {
+        "agentType": "climber",
+        "role": "loop",
+        "budgetAccount": "plan/ULID-0001--------------------"
+      },
       "transcriptRef": "fixture-transcript",
       "checkpointRef": "fixture-checkpoint"
     },
@@ -334,6 +339,11 @@
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:strong",
+      "costAttribution": {
+        "agentType": "climber",
+        "role": "loop",
+        "budgetAccount": "plan/ULID-0001--------------------"
+      },
       "transcriptRef": "fixture-transcript"
     },
     {
@@ -452,6 +462,11 @@
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:model",
+      "costAttribution": {
+        "agentType": "",
+        "role": "orchestrate",
+        "budgetAccount": "orchestrator"
+      },
       "transcriptRef": "fixture-transcript",
       "checkpointRef": "fixture-checkpoint"
     }

@@ -33,6 +33,11 @@
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:fake-model",
+      "costAttribution": {
+        "agentType": "",
+        "role": "plan",
+        "budgetAccount": "run"
+      },
       "transcriptRef": "plan-68a6611f52f56567c84b641e/t0"
     },
     {
@@ -66,6 +71,11 @@
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:fake-model",
+      "costAttribution": {
+        "agentType": "",
+        "role": "plan",
+        "budgetAccount": "run"
+      },
       "transcriptRef": "plan-68a6611f52f56567c84b641e/t1"
     }
   ]

@@ -51,10 +51,19 @@ export const kTerminalTool: unique symbol = Symbol('rulvar.terminalTool');
  */
 export const kBootCheckpoint: unique symbol = Symbol('rulvar.bootCheckpoint');
 
+/**
+ * Internal AgentOpts channel: marks the orchestrator forced-finish
+ * dispatch, whose spend draws from the released finalize reserve
+ * (DEF-7). Settlement stamps the flag into the terminal's cost
+ * attribution so the journal fold reproduces reserveUsedUsd.
+ */
+export const kFinalizeReserve: unique symbol = Symbol('rulvar.finalizeReserve');
+
 export interface InternalAgentHooks {
   [kOnRunning]?: (seq: number) => void;
   [kTerminalTool]?: { name: string };
   [kBootCheckpoint]?: string;
+  [kFinalizeReserve]?: boolean;
 }
 
 /** Typed accessor used by the in-package consumers. */

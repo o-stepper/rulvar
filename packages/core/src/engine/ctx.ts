@@ -100,6 +100,7 @@ import { admissionReserveUsd, ROOT_ACCOUNT, type RunBudget, type Spend } from '.
 import {
   ctxRuntimes,
   kBootCheckpoint,
+  kFinalizeReserve,
   kOnRunning,
   kTerminalTool,
   type InternalAgentHooks,
@@ -1874,6 +1875,19 @@ export function createCtx(
       // fold then prices each slice at its own rate instead of billing
       // the whole call at the loop model's.
       ...(result.usageByModel === undefined ? {} : { usageByModel: result.usageByModel }),
+      // The attribution facts behind the CostReport breakdowns: policy,
+      // never identity. Folding these from the journal is what makes a
+      // replayed run report the same numbers byte for byte instead of
+      // mixing the persistent ledger with this process's buckets.
+      costAttribution: {
+        ...(state.phase === undefined ? {} : { phase: state.phase }),
+        agentType,
+        role: primaryRole,
+        budgetAccount: state.budgetScope ?? ROOT_ACCOUNT,
+        ...((opts as InternalAgentHooks)[kFinalizeReserve] === true
+          ? { finalizeReserve: true }
+          : {}),
+      },
       transcriptRef: result.transcriptRef,
     };
     if (result.status === 'escalated' && result.escalation !== undefined) {

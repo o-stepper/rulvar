@@ -78,6 +78,11 @@
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:fake-model",
+      "costAttribution": {
+        "agentType": "",
+        "role": "loop",
+        "budgetAccount": "run"
+      },
       "transcriptRef": "record/t0",
       "escalation": {
         "kind": "scope_bigger",

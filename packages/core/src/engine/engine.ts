@@ -53,10 +53,10 @@ import {
   type RunInternals,
   type Workflow,
 } from './ctx.js';
+import { costReportFromJournal } from './cost-report.js';
 import { EventBus, SpanRegistry } from './events.js';
 import { ExternalRegistry } from './external.js';
 import {
-  buildCostReport,
   type PendingExternal,
   type RunHandle,
   type RunOutcome,
@@ -683,17 +683,19 @@ export function createEngine(options: CreateEngineOptions): Engine {
         }
         await replayer.flush().catch(() => undefined);
       }
-      // Report totals are the LEDGER FOLD totals at settle, not the live
-      // budget accumulator: the journal is the truth cost reconciles
-      // against, and one summation order keeps the equality exact
-      // (M5-T03 acceptance).
+      // The COMPLETE report is the journal fold at settle, not the live
+      // buckets: the journal is the truth cost reconciles against, one
+      // summation order keeps totalUsd equal to the ledger fold exactly
+      // (M5-T03 acceptance), and a replay-only resume reproduces every
+      // breakdown byte for byte because it folds the same entries
+      // (v1.6.0 follow-up review).
       const ledger = replayer.ledger();
       const outcome: RunOutcome<R> = {
         status,
         dropped: internals.dropped,
         pending,
         usage: ledger.usage,
-        cost: buildCostReport(internals.cost, ledger.usd),
+        cost: costReportFromJournal(replayer.snapshot(), priceUsd),
       };
       if (value !== undefined && (status === 'ok' || status === 'exhausted')) {
         // Exhaustion is never null when a value exists: the DEF-7

@@ -520,6 +520,11 @@
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:model",
+      "costAttribution": {
+        "agentType": "escB",
+        "role": "loop",
+        "budgetAccount": "plan/ULID-0004--------------------"
+      },
       "transcriptRef": "fixture-transcript",
       "escalation": {
         "kind": "scope_bigger",
@@ -560,6 +565,11 @@
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:model",
+      "costAttribution": {
+        "agentType": "worker",
+        "role": "loop",
+        "budgetAccount": "plan/ULID-0005--------------------"
+      },
       "transcriptRef": "fixture-transcript"
     },
     {
@@ -672,6 +682,11 @@
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:model",
+      "costAttribution": {
+        "agentType": "escA",
+        "role": "loop",
+        "budgetAccount": "plan/ULID-0001--------------------"
+      },
       "transcriptRef": "fixture-transcript",
       "escalation": {
         "kind": "scope_bigger",
@@ -991,6 +1006,11 @@
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:model",
+      "costAttribution": {
+        "agentType": "",
+        "role": "orchestrate",
+        "budgetAccount": "orchestrator"
+      },
       "transcriptRef": "fixture-transcript",
       "checkpointRef": "fixture-checkpoint"
     }

@@ -31,6 +31,7 @@ import {
 } from '../knowledge/card.js';
 import {
   kBootCheckpoint,
+  kFinalizeReserve,
   kOnRunning,
   kTerminalTool,
   runtimeOf,
@@ -1344,6 +1345,9 @@ export function makeOrchestratorWorkflow(
         ...(capState === undefined ? {} : { estCost: capState.finalizeReserveUsd }),
         ...(opts?.model === undefined ? {} : { model: opts.model }),
         [kTerminalTool]: { name: FINISH_TOOL_NAME },
+        // Stamped into the terminal's cost attribution: the journal
+        // fold derives reserveUsedUsd from it.
+        [kFinalizeReserve]: true,
       };
       const finalState: CtxScopeState = { ...callingState };
       if (orchestratorAccount !== undefined) {
