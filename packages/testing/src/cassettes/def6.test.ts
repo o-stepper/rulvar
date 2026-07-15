@@ -427,8 +427,9 @@ describe('mixed-version scenarios (docs/11, section 4 MUSTs)', () => {
     expect(outcome.status).toBe('ok');
     expect(outcome.value).toBe('v1 wins');
     expect(adapter.calls).toHaveLength(0);
-    // The unconsumed v2 twin is reported honestly.
-    expect((await handle.preview).orphaned).toEqual([2]);
+    // The unconsumed v2 twin is a complete settled operation: silently
+    // skipped, never re-paid, and not listed (nothing needs recovery).
+    expect((await handle.preview).orphaned).toEqual([]);
   });
 
   it('compatibility lemma: v1 and v2 disposition tables agree on the v1 domain', () => {

@@ -415,13 +415,17 @@ hanging `running` entry. Two things can then happen at resume:
   (dispatch is at-least-once; deduplication comes from the journal, so nothing
   completed is ever paid twice), and the fresh terminal completes the same
   journaled operation.
-- The call no longer exists (you deleted or re-keyed it): the entry is never
-  consumed by any live call and is reported as orphaned.
+- The call no longer exists (you deleted or re-keyed it): the hanging entry is
+  never consumed by any live call and is reported as orphaned. A deleted call
+  whose operation COMPLETED is simply skipped and never listed: `orphaned`
+  names only effects that still need recovery (a dangling dispatch, an
+  unresolved suspension), so a fully successful replay reports `orphaned: []`.
 
 **Fix.** Usually nothing. Orphaned entries are inert: they are never
 re-dispatched, never charged again, and their payloads stay addressable for
-audit. Treat the `orphaned` list as a diff signal; if a seq shows up there for
-a call you expected to replay, you re-keyed it, and the
+audit. If a seq shows up there for a call your current code still issues, the
+live call is deriving a different identity than the recorded one (you re-keyed
+it), and the
 [first section](#a-resume-reruns-calls-you-expected-to-replay) applies. One
 edge case worth knowing: running and terminal entries always pair within one
 `hashVersion`, so a hanging entry written before an engine upgrade is

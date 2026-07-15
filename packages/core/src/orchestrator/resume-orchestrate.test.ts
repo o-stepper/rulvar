@@ -218,4 +218,59 @@ describe('dynamic orchestrator resume after a budget-cancelled root', () => {
     expect(viaRegistry.value).toBe('done');
     expect(adapterC.calls).toHaveLength(0);
   });
+
+  it('a fully successful replay reports no orphaned refs (pairing rules)', async () => {
+    // The v1.7.0 follow-up review's shape: the plain dynamic replay
+    // previously reported the terminal spawn-admission decision entries
+    // as orphaned. A successful replay must read clean.
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-orch-clean-'));
+    const store = new JsonlFileStore({ dir });
+    const transcripts = new FileTranscriptStore({ dir: join(dir, 'transcripts') });
+    const makeAdapter = () =>
+      scriptedAdapter((req): ScriptedTurn => {
+        if (agentTypeOf(req) === 'worker') {
+          return { text: 'part done' };
+        }
+        const transcript = JSON.stringify(req.messages);
+        if (!transcript.includes('"handle"')) {
+          return {
+            toolCalls: [
+              { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'p1' } },
+              { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'p2' } },
+            ],
+          };
+        }
+        if (!transcript.includes('part done')) {
+          return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+        }
+        return { toolCall: { name: 'finish', args: { result: 'assembled' } } };
+      });
+    const defaults: EngineDefaults = {
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: { worker: { description: 'does one task' } },
+    };
+    const first = await createEngine({
+      adapters: [makeAdapter()],
+      stores: { journal: store, transcripts },
+      defaults,
+    }).run(makeOrchestratorWorkflow('assemble', {}), undefined, {
+      runId: 'CLEAN',
+      budgetUsd: 5,
+    }).result;
+    expect(first.status).toBe('ok');
+    expect(spawnDecisions(await store.load('CLEAN')).length).toBeGreaterThan(0);
+
+    const adapterB = makeAdapter();
+    const handle = createEngine({
+      adapters: [adapterB],
+      stores: { journal: store, transcripts },
+      defaults,
+    }).resume('CLEAN', makeOrchestratorWorkflow('assemble', {}));
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    expect(adapterB.calls).toHaveLength(0);
+    const preview = await handle.preview;
+    expect(preview.hits).toBeGreaterThan(0);
+    expect(preview).toMatchObject({ misses: 0, reruns: 0, orphaned: [] });
+  });
 });

@@ -6,7 +6,7 @@
 
 # Class: JournalMatcher
 
-Defined in: [packages/core/src/journal/matching.ts:89](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L89)
+Defined in: [packages/core/src/journal/matching.ts:98](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L98)
 
 The matching engine over a loaded journal. Consumption is per logical
 operation (running/terminal pairs count once); candidates are consumed
@@ -21,7 +21,7 @@ cross-version double matches deterministically).
 new JournalMatcher(entries, options?): JournalMatcher;
 ```
 
-Defined in: [packages/core/src/journal/matching.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L104)
+Defined in: [packages/core/src/journal/matching.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L115)
 
 #### Parameters
 
@@ -44,7 +44,7 @@ Defined in: [packages/core/src/journal/matching.ts:104](https://github.com/o-ste
 consume(runningSeq): void;
 ```
 
-Defined in: [packages/core/src/journal/matching.ts:291](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L291)
+Defined in: [packages/core/src/journal/matching.ts:305](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L305)
 
 Marks an operation consumed without matching (fold-driven paths).
 
@@ -69,7 +69,7 @@ match(
    mode): MatchResult;
 ```
 
-Defined in: [packages/core/src/journal/matching.ts:219](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L219)
+Defined in: [packages/core/src/journal/matching.ts:233](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L233)
 
 Forward-matches one live call. A miss does not advance any cursor and
 does not extinguish future hits: the scan always starts at the scope
@@ -96,7 +96,7 @@ construction.
 registerAlias(donorPrefix, targetPrefix): void;
 ```
 
-Defined in: [packages/core/src/journal/matching.ts:160](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L160)
+Defined in: [packages/core/src/journal/matching.ts:174](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L174)
 
 Registers a scope-prefix rewrite (node.link, DEF-5): donorPrefix maps
 to targetPrefix for forward-matching purposes; the per-scope cursors
@@ -122,7 +122,7 @@ out for free at any depth.
 report(): ResumeReport;
 ```
 
-Defined in: [packages/core/src/journal/matching.ts:295](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L295)
+Defined in: [packages/core/src/journal/matching.ts:309](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L309)
 
 #### Returns
 
@@ -136,7 +136,7 @@ Defined in: [packages/core/src/journal/matching.ts:295](https://github.com/o-ste
 setAliasDisposition(disposition): void;
 ```
 
-Defined in: [packages/core/src/journal/matching.ts:150](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L150)
+Defined in: [packages/core/src/journal/matching.ts:164](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L164)
 
 The disposition applied to alias-sourced candidates (DEF-5): the
 skipped overlay from abandon is bypassed ONLY through the
@@ -161,7 +161,7 @@ matching in the NEW scope; the standalone old scope stays skipped.
 setDisposition(disposition): void;
 ```
 
-Defined in: [packages/core/src/journal/matching.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L140)
+Defined in: [packages/core/src/journal/matching.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/matching.ts#L154)
 
 M2-T06 swaps in the full DEF-1 predicate after folds are built.
 

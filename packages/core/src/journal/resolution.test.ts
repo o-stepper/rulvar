@@ -235,7 +235,10 @@ describe('ResolutionArbiter races (M2-T07; docs/03 section 8.5)', () => {
     expect(ledger.agentsSpawned).toBe(0);
     const report = resumed.resumeReport();
     expect(report.orphaned).toEqual([]);
-    expect(report.skipped).toBe(2);
+    // One derived skip: the matched covered dispatch. The settled child
+    // under the abandoned branch is a COMPLETE operation (running plus
+    // terminal); it never passes through the orphan channel at all.
+    expect(report.skipped).toBe(1);
   });
 
   it('abandonBranch covers a subtree and later resolutions fold to noop', async () => {
