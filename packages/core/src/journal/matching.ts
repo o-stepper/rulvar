@@ -76,7 +76,16 @@ export interface ResumeReport {
   misses: number;
   skipped: number;
   reruns: number;
-  /** Journaled operations never consumed by any live call (deleted calls). */
+  /**
+   * Effect roots that genuinely need recovery under the entry-type
+   * pairing rules: dangling dispatches (status 'running' with no
+   * terminal) and suspensions with no resolution, neither consumed by a
+   * live call nor covered by abandon. Complete operations are NEVER
+   * listed: settled roots, single-entry kinds (decisions, facts, plan
+   * and termination entries), and resolved suspensions are whole by
+   * construction. A call deleted from the code is silently skipped and
+   * never re-paid; it appears here only while its effect is dangling.
+   */
   orphaned: number[];
 }
 
@@ -90,6 +99,8 @@ export class JournalMatcher {
   private readonly byScope = new Map<string, JournalOperation[]>();
   private readonly all: JournalOperation[] = [];
   private readonly consumed = new Set<number>();
+  /** Suspension seqs holding at least one resolution ref-entry. */
+  private readonly resolvedRefs = new Set<number>();
   private readonly keyRing: KeyRing;
   private disposition: (op: JournalOperation) => OperationDisposition;
   private aliasDisposition?: (op: JournalOperation) => OperationDisposition;
@@ -114,6 +125,9 @@ export class JournalMatcher {
     const terminalsByRef = new Map<number, JournalEntry>();
     for (const entry of entries) {
       if (REF_ENTRY_KINDS.has(entry.kind)) {
+        if (entry.kind === 'resolution' && entry.ref !== undefined) {
+          this.resolvedRefs.add(entry.ref);
+        }
         continue;
       }
       if (entry.ref !== undefined) {
@@ -298,8 +312,24 @@ export class JournalMatcher {
       misses: this.missesInternal,
       skipped: this.skippedInternal,
       reruns: this.rerunsInternal,
+      // The pairing rules, per entry shape: an operation with a terminal
+      // is whole; a single-entry kind is its own terminal; a suspension
+      // pairs with any resolution ref (validity problems surface in
+      // invalidResolutions, not here). Only a dangling dispatch or an
+      // unresolved suspension that no live call consumed needs recovery.
       orphaned: this.all
-        .filter((op) => !this.consumed.has(op.running.seq))
+        .filter((op) => {
+          if (this.consumed.has(op.running.seq) || op.terminal !== undefined) {
+            return false;
+          }
+          if (op.running.status === 'running') {
+            return true;
+          }
+          if (op.running.status === 'suspended') {
+            return !this.resolvedRefs.has(op.running.seq);
+          }
+          return false;
+        })
         .map((op) => op.running.seq),
     };
   }

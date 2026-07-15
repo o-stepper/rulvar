@@ -99,7 +99,7 @@ What happens to a matched entry depends on its terminal status:
 | `running` (hanging) | redispatch | The crash interrupted it; see the two-phase section below. |
 | `suspended` | wait or continue | Closed by a resolution entry if one exists, otherwise the run stays suspended. |
 
-Entries that no live call consumes (you deleted the call from your code) are **orphaned**: they are listed in the resume report and never charged again. There is no global prefix rule and no invalidation cascade; editing code between resumes costs exactly the calls whose identity changed. The identity rules themselves (content keys, scope paths, ordinals) live on [the journal page](/guide/journal).
+Entries that no live call consumes (you deleted the call from your code) are silently skipped: never re-dispatched, never charged again, their payloads still addressable for audit. The resume report's `orphaned` list is stricter than that: it names only effects that genuinely need recovery under the per-kind pairing rules, meaning a dangling `running` dispatch with no terminal and a suspension with no resolution. Completed operations, decisions, plan and termination entries, and resolved suspensions never appear there, so a fully successful replay reports `orphaned: []`. There is no global prefix rule and no invalidation cascade; editing code between resumes costs exactly the calls whose identity changed. The identity rules themselves (content keys, scope paths, ordinals) live on [the journal page](/guide/journal).
 
 ## A crash and resume walkthrough
 

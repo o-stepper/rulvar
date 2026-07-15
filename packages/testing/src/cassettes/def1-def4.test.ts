@@ -78,13 +78,15 @@ describe('DEF-1 cassettes (docs/09, section 6.1)', () => {
     const { outcome, preview } = await replayRun(wf, undefined as never, { journal: entries });
     expect(outcome.status).toBe('ok');
     expect(outcome.value).toBe('skipped');
-    // The whole subtree is skipped, never re-paid; the authorizing
-    // escalation.decision fact is reported orphaned honestly until its
-    // plan-surface consumers arrive (M7; class-decision-fanout precedent).
+    // The whole subtree is skipped, never re-paid. The authorizing
+    // escalation.decision fact is a complete single-entry operation, so
+    // the pairing rules keep it out of `orphaned`; the settled children
+    // (ok, escalated) are complete pairs and drop out of the skip
+    // accounting too. What remains skipped: the matched covered parent
+    // and the covered hanging running child.
     expect(preview.misses).toBe(0);
-    const decisionSeq = entries.find((e) => e.kind === 'decision')?.seq;
-    expect(preview.orphaned).toEqual([decisionSeq]);
-    expect(preview.skipped).toBe(4);
+    expect(preview.orphaned).toEqual([]);
+    expect(preview.skipped).toBe(2);
     // Zero spend increment: the ok and escalated children carry usage in
     // the fixture; the covered fold contributes nothing.
     const ledger = new Replayer({
@@ -216,9 +218,10 @@ describe('DEF-4 cassettes, synthetic kernel regression (docs/09, section 6.4)', 
     expect(fold.classificationOf(7)).toEqual({ classification: 'applied' });
     expect(entries[5]?.resolution?.decisionRef).toBe(4);
     expect(entries[5]?.resolution?.by).toBe('class_decision');
-    // The class decision FACT gains its live consumer with the M4
-    // escalation machinery; until then the report lists it honestly.
-    expect(preview.orphaned).toEqual([4]);
+    // The class decision FACT is a complete single-entry operation:
+    // never orphaned under the pairing rules, with or without a live
+    // consumer.
+    expect(preview.orphaned).toEqual([]);
     // Fold state is identical when folded twice (bit-stable on replay).
     expect(fold.suspensionState(1)).toEqual(new ResolutionFold(entries).suspensionState(1));
   });
@@ -243,7 +246,10 @@ describe('DEF-4 cassettes, synthetic kernel regression (docs/09, section 6.4)', 
     expect(adapter.calls).toHaveLength(1);
     expect(adapter.calls[0]?.prompt).toBe(PROMPTS.revisionEffects);
     const preview = await handle.preview;
-    expect(preview.skipped).toBe(3);
+    // One derived skip: the matched covered branch. Its settled
+    // children are complete pairs and never pass through the orphan
+    // channel, so they no longer inflate the skip count.
+    expect(preview.skipped).toBe(1);
     expect(preview.orphaned).toEqual([]);
     expect(preview.misses).toBe(1);
   });

@@ -61,13 +61,82 @@ describe('scoped forward-matching (M2-T03; docs/03 section 7)', () => {
     expect(report).toMatchObject({ hits: 2, misses: 1, orphaned: [] });
   });
 
-  it('marks deleted calls orphaned, never re-paid', () => {
+  it('skips deleted settled calls silently: never re-paid, never orphaned', () => {
     seqCounter = 0;
     const journal = [...op('', keyOf(idA), 'ok'), ...op('', keyOf(idB), 'ok')];
     const matcher = new JournalMatcher(journal);
     expect(matcher.match('', idB, 'scoped').kind).toBe('replay');
     const report = matcher.report();
-    expect(report.orphaned).toEqual([0]);
+    // The deleted settled call is a COMPLETE operation: nothing needs
+    // recovery, so the pairing rules keep it out of `orphaned`.
+    expect(report.orphaned).toEqual([]);
+  });
+
+  it('reports orphans by the entry-type pairing rules over every journal kind', () => {
+    seqCounter = 0;
+    const single = (kind: JournalEntry['kind'], status: JournalEntry['status']): JournalEntry => ({
+      hashVersion: 2,
+      seq: seqCounter++,
+      scope: '',
+      key: `${kind}:${String(seqCounter)}`,
+      ordinal: 0,
+      kind,
+      status,
+      spanId: 's',
+      startedAt: 't',
+    });
+    const danglingAgent = single('agent', 'running'); // seq 0: orphaned
+    const settled = op('', keyOf(idA), 'ok'); // seqs 1, 2: complete
+    const failed = op('', keyOf(idB), 'error'); // seqs 3, 4: complete pair
+    const cancelled = op('', keyOf(idC), 'cancelled'); // seqs 5, 6: complete pair
+    const danglingStep = {
+      ...single('step', 'running'),
+      key: keyOf({ kind: 'step', key: 'step-key', deps: [] }),
+    }; // seq 7: orphaned until consumed below
+    const danglingChild = single('child', 'running'); // seq 8: orphaned
+    const unresolvedExternal = single('external', 'suspended'); // seq 9: orphaned
+    const resolvedExternal = single('external', 'suspended'); // seq 10: paired below
+    const resolution: JournalEntry = {
+      ...single('resolution', 'ok'),
+      ref: resolvedExternal.seq,
+    }; // seq 11: ref-entry, excluded from operations
+    const suspendedApproval = single('approval', 'suspended'); // seq 12: orphaned
+    const journal: JournalEntry[] = [
+      danglingAgent,
+      ...settled,
+      ...failed,
+      ...cancelled,
+      danglingStep,
+      danglingChild,
+      unresolvedExternal,
+      resolvedExternal,
+      resolution,
+      suspendedApproval,
+      // Single-entry kinds are their own terminal: never orphaned.
+      single('rand', 'ok'),
+      single('decision', 'ok'),
+      single('plan.revision', 'ok'),
+      single('plan.decision', 'ok'),
+      single('ledger.op', 'ok'),
+      single('node.link', 'ok'),
+      single('termination.init', 'ok'),
+      single('termination.denied', 'ok'),
+    ];
+    const matcher = new JournalMatcher(journal);
+    // Zero live calls: the report must list exactly the dangling
+    // dispatches and the unresolved suspensions.
+    expect(matcher.report().orphaned).toEqual([
+      danglingAgent.seq,
+      danglingStep.seq,
+      danglingChild.seq,
+      unresolvedExternal.seq,
+      suspendedApproval.seq,
+    ]);
+    // A consumed dangling dispatch is being repaid live, not orphaned.
+    expect(matcher.match('', { kind: 'step', key: 'step-key', deps: [] }, 'cache').kind).toBe(
+      'rerun-dangling',
+    );
+    expect(matcher.report().orphaned).not.toContain(danglingStep.seq);
   });
 
   it('identical calls bind in journal order (documented residual)', () => {

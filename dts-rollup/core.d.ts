@@ -1800,7 +1800,16 @@ interface ResumeReport {
   misses: number;
   skipped: number;
   reruns: number;
-  /** Journaled operations never consumed by any live call (deleted calls). */
+  /**
+  * Effect roots that genuinely need recovery under the entry-type
+  * pairing rules: dangling dispatches (status 'running' with no
+  * terminal) and suspensions with no resolution, neither consumed by a
+  * live call nor covered by abandon. Complete operations are NEVER
+  * listed: settled roots, single-entry kinds (decisions, facts, plan
+  * and termination entries), and resolved suspensions are whole by
+  * construction. A call deleted from the code is silently skipped and
+  * never re-paid; it appears here only while its effect is dangling.
+  */
   orphaned: number[];
 }
 /**
@@ -1813,6 +1822,8 @@ declare class JournalMatcher {
   private readonly byScope;
   private readonly all;
   private readonly consumed;
+  /** Suspension seqs holding at least one resolution ref-entry. */
+  private readonly resolvedRefs;
   private readonly keyRing;
   private disposition;
   private aliasDisposition?;

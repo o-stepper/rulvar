@@ -196,12 +196,15 @@ describe('engine.resume (M2-T09; docs/06 section 10.2)', () => {
       const outcome = await handle.result;
       expect(outcome.status).toBe('ok');
       expect(warnings).toContain('RULVAR_RESUME_HASH_MISMATCH');
-      // Exactly one live call ('c'); 'b' is orphaned, never re-paid.
+      // Exactly one live call ('c'); the deleted 'b' is never re-paid.
+      // Its recorded operation is COMPLETE (running plus terminal), so
+      // the pairing rules keep it out of `orphaned`: that list names
+      // only effects that genuinely need recovery.
       expect(adapter.calls).toHaveLength(1);
       const preview = await handle.preview;
       expect(preview.hits).toBe(1);
       expect(preview.misses).toBe(1);
-      expect(preview.orphaned).toHaveLength(1);
+      expect(preview.orphaned).toEqual([]);
     } finally {
       spy.mockRestore();
     }
