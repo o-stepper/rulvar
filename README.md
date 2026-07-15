@@ -29,10 +29,13 @@ files (or SQLite). And through crashes, edits, and redeploys, one invariant hold
   process, add a step, resume: completed calls replay from disk with zero live requests and
   zero new spend, and reordering steps never invalidates unrelated work.
   [Durability](https://docs.rulvar.com/guide/durability)
-- **Hard budgets, not hints.** `budgetUsd` is an immutable per-run ceiling, enforced at
-  admission, before every turn, and at the abort line. Runs settle with a full cost report;
-  exhaustion is a typed outcome, never a bare null.
-  [Budgets](https://docs.rulvar.com/guide/budgets)
+- **Immutable budgets with a stated bound.** `budgetUsd` is a per-run ceiling no API can raise,
+  enforced by projected admission (a spawn whose reserve does not fit is denied before any
+  dispatch), a per-turn guard that also clamps each request's output tokens to what the
+  remaining budget buys, and live stream cuts on crossing. The residual overshoot is documented
+  and provider-dependent: at most one in-flight turn per concurrent agent, because a provider
+  bills tokens it has already generated. Exhaustion is a typed outcome with a full cost report,
+  never a bare null. [Budgets](https://docs.rulvar.com/guide/budgets)
 - **Any vendor, per role.** First-class Anthropic and OpenAI adapters, an `openaiCompatible`
   factory for Ollama, vLLM, and gateways, and a bridge for any Vercel AI SDK model. Models are
   `'adapterId:model'` strings, so one engine routes each role wherever it belongs.
@@ -105,7 +108,7 @@ const panel = defineWorkflow(
 
 const question = 'Should a five-person startup adopt a monorepo?';
 
-const handle = engine.run(panel, { question }, { runId: 'panel-1', budgetUsd: 2 }); // hard ceiling
+const handle = engine.run(panel, { question }, { runId: 'panel-1', budgetUsd: 2 }); // immutable run ceiling
 void renderProgress(handle.events); // live progress lines on stderr
 
 const outcome = await handle.result;

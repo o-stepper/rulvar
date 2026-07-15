@@ -12,7 +12,7 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-budgetusd"></a> `budgetUsd?` | `number` | Run ceiling B0; immutable after start. | `packages/core/dist/index.d.ts` |
+| <a id="property-budgetusd"></a> `budgetUsd?` | `number` | Run ceiling B0; immutable after start. Enforced by projected admission (a spawn whose reserve does not fit is denied before any dispatch), the per-turn guard with a budget-derived maxOutputTokens clamp, and live stream cuts on crossing; the residual provider-dependent overshoot is bounded by one in-flight turn per concurrent agent. Contract: https://docs.rulvar.com/guide/budgets. | `packages/core/dist/index.d.ts` |
 | <a id="property-deadlineat"></a> `deadlineAt?` | `string` | Run-level deadline (ISO 8601); crossing cancels the run. | `packages/core/dist/index.d.ts` |
 | <a id="property-limits"></a> `limits?` | [`UsageLimits`](/api/@rulvar/rulvar/interfaces/UsageLimits.md) | Run-level defaults merged over engine defaults. | `packages/core/dist/index.d.ts` |
 | <a id="property-name"></a> `name?` | `string` | - | `packages/core/dist/index.d.ts` |

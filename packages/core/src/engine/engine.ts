@@ -189,7 +189,14 @@ export interface CreateEngineOptions {
 export interface RunOptions {
   /** Explicit id; otherwise the engine mints a ULID. */
   runId?: string;
-  /** Run ceiling B0; immutable after start. */
+  /**
+   * Run ceiling B0; immutable after start. Enforced by projected
+   * admission (a spawn whose reserve does not fit is denied before any
+   * dispatch), the per-turn guard with a budget-derived maxOutputTokens
+   * clamp, and live stream cuts on crossing; the residual
+   * provider-dependent overshoot is bounded by one in-flight turn per
+   * concurrent agent. Contract: https://docs.rulvar.com/guide/budgets.
+   */
   budgetUsd?: number;
   /** Run-level defaults merged over engine defaults. */
   limits?: UsageLimits;

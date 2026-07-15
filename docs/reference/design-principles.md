@@ -18,7 +18,7 @@ This page explains the reasoning. The user-facing guarantees that fall out of it
 | Three modes on one runtime | One engine, one journal, one budget path for all modes |
 | Embeddability first | Optional shells on public APIs; terminating guard fallbacks |
 | Durability, never pay twice | Content-addressed memoizing journal with scoped forward-matching |
-| Budget as a hard invariant | Three enforcement layers with a declared, bounded overshoot |
+| Budget as an enforced invariant | Three enforcement layers with a declared, bounded overshoot |
 | Observability and testability | One event stream, fake adapters, cassettes, replay-strict runs |
 
 ### Vendor neutrality by construction
@@ -87,15 +87,15 @@ The journal is a **content-addressed memoizing log of completed effects**, not e
 
 The central invariant is blunt: a completed LLM call is never paid for twice. Crash and resume, edit and rerun, suspend for a week and pick the run back up; completed work replays byte-identically at zero cost. See [Journal](/guide/journal) and [Durability](/guide/durability).
 
-### Budget as a hard invariant
+### Budget as an enforced invariant
 
 A run's dollar ceiling is enforced in three layers:
 
-1. **Admission before spawn**: a spawn that would push spend plus committed reserves past the ceiling is rejected before it costs anything.
-2. **A guard before every agent turn**, checked against the agent's budget sub-account.
+1. **Projected admission before spawn**: a spawn whose PROPOSED reserve does not fit spend plus committed reserves under every ceiling in its account chain is rejected before it costs anything (an exact fill is allowed).
+2. **A guard before every agent turn**, checked against the agent's budget sub-account, plus a derived output bound: each request's `maxOutputTokens` is clamped to what the remaining budget buys at the serving model's price.
 3. **An abort signal at the ceiling**: live streams are severed, and the partial usage is journaled as approximate rather than dropped.
 
-Overshoot is declared and bounded: at most one turn per in-flight agent. No tighter bound is honest, because providers bill severed streams. The ceiling itself is immutable after start; no API, including a human approval decision, can top it up mid-run. And exhaustion is never a bare `null`: at the ceiling, `ctx` primitives throw a typed `BudgetExhaustedError`, and the run settles with the `'exhausted'` outcome carrying partial results and a complete cost report.
+Overshoot is declared and bounded: at most one clamped in-flight turn per concurrent agent. No tighter bound is honest, because providers bill the tokens a severed stream already generated. The ceiling itself is immutable after start; no API, including a human approval decision, can top it up mid-run. And exhaustion is never a bare `null`: at the ceiling, `ctx` primitives throw a typed `BudgetExhaustedError`, and the run settles with the `'exhausted'` outcome carrying partial results and a complete cost report.
 
 ```ts
 const run = engine.run(review, { diff }, { budgetUsd: 5 });
