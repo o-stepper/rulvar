@@ -23,7 +23,7 @@ import {
 } from '../l0/errors.js';
 import type { Json } from '../l0/json.js';
 import type { Effort, InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
-import type { ProviderAdapter } from '../l0/spi/provider.js';
+import type { Pricing, ProviderAdapter } from '../l0/spi/provider.js';
 import type { TranscriptStore } from '../l0/spi/transcript.js';
 import type { IsolationProvider, IsolationSpec } from '../l0/spi/isolation.js';
 import type { ModelKnowledgeHandle } from '../l0/spi/knowledge.js';
@@ -610,6 +610,8 @@ export interface RunInternals {
   dropped: DroppedItem[];
   cost: CostAttribution;
   priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
+  /** Raw price-row resolution (table wins, caps fallback); undefined = unpriced. */
+  pricingOf?: (servedBy: ModelRef) => Pricing | undefined;
   runSignal?: AbortSignal;
   /** The worktree lifecycle provider. */
   isolation?: IsolationProvider;
@@ -1424,6 +1426,7 @@ export function createCtx(
 
     const adapter = adapterOf(loopResolved);
     const caps = adapter.caps(loopResolved.model);
+    const limits = mergeUsageLimits(opts.limits, profile?.limits, internals.defaults.limits);
     let inputTokens: number | undefined;
     if (opts.estCost === undefined && profile?.estCost === undefined && adapter.countTokens) {
       try {
@@ -1445,10 +1448,22 @@ export function createCtx(
     if (inputTokens !== undefined) {
       reserveOptions.inputTokens = inputTokens;
     }
+    if (limits.maxOutputTokensPerTurn !== undefined) {
+      reserveOptions.maxOutputTokensPerTurn = limits.maxOutputTokensPerTurn;
+    }
     if (internals.flatReserveUsd !== undefined) {
       reserveOptions.flatReserveUsd = internals.flatReserveUsd;
     }
-    const reserve = admissionReserveUsd(reserveOptions);
+    // An unpriced model spends zero against a USD ceiling by definition
+    // (the once-per-model warning and CostReport.unpriced say so out
+    // loud), so a dollar reserve for it would deny work while bounding
+    // nothing. An explicit estCost still wins: that is the host speaking.
+    const unpriced =
+      internals.pricingOf !== undefined && internals.pricingOf(loopResolved.ref) === undefined;
+    const reserve =
+      unpriced && opts.estCost === undefined && profile?.estCost === undefined
+        ? 0
+        : admissionReserveUsd(reserveOptions);
     const budgetAccount = state.budgetScope ?? ROOT_ACCOUNT;
     internals.budget.admitSpawn(reserve, budgetAccount);
 
@@ -1502,7 +1517,6 @@ export function createCtx(
     }
     (opts as InternalAgentHooks)[kOnRunning]?.(running.seq);
 
-    const limits = mergeUsageLimits(opts.limits, profile?.limits, internals.defaults.limits);
     const agentSink = {
       emit: (body: { type: string } & Record<string, unknown>) =>
         internals.events.emit(body, spanId),
@@ -1653,6 +1667,8 @@ export function createCtx(
       },
       budget: {
         beforeTurn: () => internals.budget.beforeTurn(budgetAccount),
+        maxAffordableOutputTokens: (servedBy, estimatedInputTokens) =>
+          internals.budget.maxAffordableOutputTokens(servedBy, estimatedInputTokens, budgetAccount),
         onUsage: (usage, servedBy) => internals.budget.onUsage(usage, servedBy, budgetAccount),
         // Layer 3 severs through the whole account chain: the account's
         // own subtree signal composed with the run root (M6-T06).

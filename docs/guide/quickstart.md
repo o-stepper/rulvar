@@ -101,18 +101,22 @@ const panel = defineWorkflow(
 
     const judged = await ctx.parallel(
       angles.map((angle) => async () => {
-        // No schema: the agent returns text.
+        // No schema: the agent returns text. estCost is the admission
+        // reserve for this call; without it the engine reserves a whole
+        // maxOutputTokens turn at the model's price (about a dollar on
+        // strong tiers), and three parallel reservations like that would
+        // not fit the two-dollar ceiling below.
         const attempt = String(
           await ctx.agent(
             `Answer from a strictly ${angle} point of view, in one paragraph: ${args.question}`,
-            { label: `attempt-${angle}` },
+            { label: `attempt-${angle}`, estCost: 0.05 },
           ),
         );
         // With a schema the return value is typed and validated.
         const verdict = await ctx.agent(
           `Score this answer from 0 to 10 for the question "${args.question}".` +
             `\n\nAnswer to score:\n\n${attempt}`,
-          { schema: verdictSchema, label: `judge-${angle}` },
+          { schema: verdictSchema, label: `judge-${angle}`, estCost: 0.02 },
         );
         return { angle, attempt, score: verdict.score };
       }),
@@ -158,13 +162,13 @@ console.log(outcome.cost.byModel);  // { 'anthropic:claude-sonnet-5': 0.0261 }
 
 Save the three snippets above as one file, `quickstart.ts`, and run it with `npx tsx quickstart.ts` (or any TypeScript runner). If the run aborts with `Top-level await is currently not supported with the "cjs" output format`, your `package.json` is missing the `"type": "module"` line from the [Install](#install) step (naming the file `quickstart.mts` works too).
 
-`budgetUsd` is the run ceiling: a hard invariant, not a hint. No API can raise it after start, and it is enforced by the three-layer budget:
+`budgetUsd` is the run ceiling. No API can raise it after start, and it is enforced by the three-layer budget:
 
 | Layer | When it acts | What it does |
 |---|---|---|
-| Admission | before every spawn | Blocks a spawn when spend plus committed reserves would cross a ceiling |
-| Per-turn guard | before every agent turn | Refuses to dispatch a turn the agent's own sub-account cannot afford |
-| Abort ceiling | while streams are live | Severs in-flight streams; overshoot is bounded by one turn per in-flight agent |
+| Projected admission | before every spawn | Denies a spawn whose reserve (`estCost`, or a priced worst-case turn) does not fit spend plus committed reserves under every ceiling in its chain |
+| Per-turn guard + output bound | before every agent turn | Refuses a turn the sub-account cannot afford and clamps the request's `maxOutputTokens` to what the remaining budget buys |
+| Abort ceiling | while streams are live | Severs in-flight streams; the residual overshoot is bounded by one turn per in-flight agent, because a provider bills the tokens it has already generated |
 
 If the ceiling is hit, ctx primitives throw a typed `BudgetExhaustedError` and the run settles with status `'exhausted'`, carrying the full cost report plus the dropped and pending evidence. Exhaustion is never a bare null. Details in [Budgets](/guide/budgets).
 

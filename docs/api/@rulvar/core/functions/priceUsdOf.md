@@ -10,7 +10,7 @@
 function priceUsdOf(pricing, usage): number;
 ```
 
-Defined in: [packages/core/src/model/pricing.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/pricing.ts#L45)
+Defined in: [packages/core/src/model/pricing.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/pricing.ts#L59)
 
 Dollars from normalized usage against one pricing row. Under the Usage
 invariant inputTokens is the FULL prompt including cache reads and

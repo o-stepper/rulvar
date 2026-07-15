@@ -1953,6 +1953,10 @@
             "link": "/api/@rulvar/core/functions/admissionReserveUsd.md"
           },
           {
+            "text": "affordableOutputTokens",
+            "link": "/api/@rulvar/core/functions/affordableOutputTokens.md"
+          },
+          {
             "text": "agentErrorFromWire",
             "link": "/api/@rulvar/core/functions/agentErrorFromWire.md"
           },
@@ -5408,6 +5412,10 @@
           {
             "text": "admissionReserveUsd",
             "link": "/api/@rulvar/rulvar/functions/admissionReserveUsd.md"
+          },
+          {
+            "text": "affordableOutputTokens",
+            "link": "/api/@rulvar/rulvar/functions/affordableOutputTokens.md"
           },
           {
             "text": "agentErrorFromWire",

@@ -219,17 +219,20 @@ export function makeInternals(options: TestInternalsOptions = {}): {
   const store = options.store ?? new InMemoryStore();
   const events = recordingSink();
   const adapters = buildAdapterRegistry(options.adapters ?? []);
-  const priceUsd = (servedBy: ModelRef | undefined, usage: Usage): number | undefined => {
-    if (servedBy === undefined) {
-      return undefined;
-    }
+  const pricingOf = (servedBy: ModelRef): ReturnType<typeof resolvePricing> => {
     const colon = servedBy.indexOf(':');
     const adapter = adapters.get(servedBy.slice(0, colon));
-    const pricing = resolvePricing(
+    return resolvePricing(
       servedBy,
       options.pricing,
       adapter?.caps(servedBy.slice(colon + 1)).pricing,
     );
+  };
+  const priceUsd = (servedBy: ModelRef | undefined, usage: Usage): number | undefined => {
+    if (servedBy === undefined) {
+      return undefined;
+    }
+    const pricing = pricingOf(servedBy);
     if (pricing === undefined) {
       return undefined;
     }
@@ -238,7 +241,11 @@ export function makeInternals(options: TestInternalsOptions = {}): {
       (usage.outputTokens / 1_000_000) * pricing.outputUsdPerMTok
     );
   };
-  const budgetOptions: ConstructorParameters<typeof RunBudget>[0] = { events, priceUsd };
+  const budgetOptions: ConstructorParameters<typeof RunBudget>[0] = {
+    events,
+    priceUsd,
+    pricingOf,
+  };
   if (options.budgetUsd !== undefined) {
     budgetOptions.ceilingUsd = options.budgetUsd;
   }
@@ -308,6 +315,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
       ...(options.permissions === undefined ? {} : { permissions: options.permissions }),
     },
     errorPolicy: options.errorPolicy ?? 'strict',
+    pricingOf,
     dropped: [],
     cost: {
       byModel: new Map(),
