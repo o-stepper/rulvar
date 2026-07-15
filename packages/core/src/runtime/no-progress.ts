@@ -56,7 +56,8 @@ export class NoProgressDetector {
   describe(): string {
     return (
       `no-progress abort after ${this.streakInternal} consecutive turns without tool calls ` +
-      `or artifact deltas (threshold ${this.threshold}; docs/06 Appendix A)`
+      `or artifact deltas (threshold ${this.threshold}; ` +
+      'https://docs.rulvar.com/guide/agents#the-agent-loop-and-turns)'
     );
   }
 }
