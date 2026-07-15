@@ -30,7 +30,10 @@ describe('resolvePricing (M4-T06)', () => {
     expect(resolvePricing('fake:model', undefined, undefined)).toBeUndefined();
   });
 
-  it('prices normalized usage, cache rates included', () => {
+  it('bills cache tokens at their own rates and the uncached remainder at input, never twice', () => {
+    // inputTokens is the FULL prompt (Usage invariant): 2M input of which
+    // 1M was a cache read. The cached million bills at the cache rate
+    // ONLY; charging it the input rate too would double-charge.
     expect(
       priceUsdOf(
         {
@@ -40,7 +43,98 @@ describe('resolvePricing (M4-T06)', () => {
         },
         usage,
       ),
-    ).toBeCloseTo(2 * 3 + 1 * 15 + 1 * 0.3, 10);
+    ).toBeCloseTo(1 * 3 + 1 * 15 + 1 * 0.3, 10);
+  });
+
+  it('a row without cache rates bills cache tokens at the plain input rate, not zero', () => {
+    expect(priceUsdOf({ inputUsdPerMTok: 3, outputUsdPerMTok: 15 }, usage)).toBeCloseTo(
+      1 * 3 + 1 * 15 + 1 * 3,
+      10,
+    );
+  });
+
+  it('bills cache writes at the write premium rate', () => {
+    expect(
+      priceUsdOf(
+        {
+          inputUsdPerMTok: 5,
+          outputUsdPerMTok: 30,
+          cacheReadUsdPerMTok: 0.5,
+          cacheWriteUsdPerMTok: 6.25,
+        },
+        { inputTokens: 200_000, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 100_000 },
+      ),
+    ).toBeCloseTo((100_000 / 1e6) * 5 + (100_000 / 1e6) * 6.25, 10);
+  });
+});
+
+describe('long-context pricing tiers', () => {
+  // The GPT-5.6 Sol rule: strictly above 272K input, the FULL request
+  // prices at 2x input and 1.5x output.
+  const base = {
+    inputUsdPerMTok: 5,
+    outputUsdPerMTok: 30,
+    cacheReadUsdPerMTok: 0.5,
+    cacheWriteUsdPerMTok: 6.25,
+  };
+  const tiered = {
+    ...base,
+    tiers: [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
+  };
+  const flat = (usage: Usage): number => priceUsdOf(base, usage);
+
+  it('272,000 exactly stays on the base rates; 272,001 enters the tier', () => {
+    const atThreshold: Usage = {
+      inputTokens: 272_000,
+      outputTokens: 10_000,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    };
+    expect(priceUsdOf(tiered, atThreshold)).toBeCloseTo(flat(atThreshold), 12);
+    const overThreshold: Usage = { ...atThreshold, inputTokens: 272_001 };
+    expect(priceUsdOf(tiered, overThreshold)).toBeCloseTo(
+      (272_001 / 1e6) * 5 * 2 + (10_000 / 1e6) * 30 * 1.5,
+      12,
+    );
+  });
+
+  it('the tier re-prices the ENTIRE request, cache rates scaling with input', () => {
+    const usage: Usage = {
+      inputTokens: 500_000,
+      outputTokens: 100_000,
+      cacheReadTokens: 300_000,
+      cacheWriteTokens: 100_000,
+    };
+    expect(priceUsdOf(tiered, usage)).toBeCloseTo(
+      (100_000 / 1e6) * 5 * 2 + // uncached input
+        (100_000 / 1e6) * 30 * 1.5 + // output
+        (300_000 / 1e6) * 0.5 * 2 + // cache reads
+        (100_000 / 1e6) * 6.25 * 2, // cache writes
+      12,
+    );
+  });
+
+  it('with several tiers the highest crossed threshold wins, independent of order', () => {
+    const twoTiers = {
+      inputUsdPerMTok: 1,
+      outputUsdPerMTok: 1,
+      tiers: [
+        { aboveInputTokens: 500_000, inputMultiplier: 3, outputMultiplier: 3 },
+        { aboveInputTokens: 100_000, inputMultiplier: 2, outputMultiplier: 2 },
+      ],
+    };
+    const reversed = { ...twoTiers, tiers: [...twoTiers.tiers].reverse() };
+    const mid: Usage = {
+      inputTokens: 200_000,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    };
+    const high: Usage = { ...mid, inputTokens: 600_000 };
+    expect(priceUsdOf(twoTiers, mid)).toBeCloseTo((200_000 / 1e6) * 2, 12);
+    expect(priceUsdOf(reversed, mid)).toBeCloseTo((200_000 / 1e6) * 2, 12);
+    expect(priceUsdOf(twoTiers, high)).toBeCloseTo((600_000 / 1e6) * 3, 12);
+    expect(priceUsdOf(reversed, high)).toBeCloseTo((600_000 / 1e6) * 3, 12);
   });
 });
 

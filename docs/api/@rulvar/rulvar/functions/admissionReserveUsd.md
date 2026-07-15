@@ -14,7 +14,8 @@ Defined in: `packages/core/dist/index.d.ts`
 
 The admission reserve for a spawn: opts.estCost, else profile.estCost, else
 price(countTokens(input) + caps.maxOutputTokens), else the engine flat
-default.
+default. The priced path uses the SAME price function as settlement
+(priceUsdOf), so long-context tiers apply to estimates too.
 
 ## Parameters
 

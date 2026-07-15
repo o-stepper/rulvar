@@ -20,6 +20,7 @@
 import { BudgetExhaustedError, ConfigError } from '../l0/errors.js';
 import type { ModelRef, Usage } from '../l0/messages.js';
 import type { ModelCaps } from '../l0/spi/provider.js';
+import { priceUsdOf } from '../model/pricing.js';
 import { BUDGET_ABORT_REASON, type RuntimeEventSink } from '../runtime/agent-loop.js';
 
 export type Spend = { usd: number; usage: Usage; agentsSpawned: number };
@@ -40,7 +41,8 @@ const ZERO_USAGE: Usage = {
 /**
  * The admission reserve for a spawn: opts.estCost, else profile.estCost, else
  * price(countTokens(input) + caps.maxOutputTokens), else the engine flat
- * default.
+ * default. The priced path uses the SAME price function as settlement
+ * (priceUsdOf), so long-context tiers apply to estimates too.
  */
 export function admissionReserveUsd(options: {
   estCost?: number;
@@ -57,10 +59,12 @@ export function admissionReserveUsd(options: {
   }
   const pricing = options.caps?.pricing;
   if (options.inputTokens !== undefined && pricing !== undefined && options.caps !== undefined) {
-    return (
-      (options.inputTokens / 1_000_000) * pricing.inputUsdPerMTok +
-      (options.caps.maxOutputTokens / 1_000_000) * pricing.outputUsdPerMTok
-    );
+    return priceUsdOf(pricing, {
+      inputTokens: options.inputTokens,
+      outputTokens: options.caps.maxOutputTokens,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
   }
   return options.flatReserveUsd ?? DEFAULT_FLAT_RESERVE_USD;
 }

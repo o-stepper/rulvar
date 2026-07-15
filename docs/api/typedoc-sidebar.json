@@ -975,6 +975,10 @@
             "link": "/api/@rulvar/core/interfaces/Pricing.md"
           },
           {
+            "text": "PricingTier",
+            "link": "/api/@rulvar/core/interfaces/PricingTier.md"
+          },
+          {
             "text": "ProviderAdapter",
             "link": "/api/@rulvar/core/interfaces/ProviderAdapter.md"
           },
@@ -4410,6 +4414,10 @@
           {
             "text": "Pricing",
             "link": "/api/@rulvar/rulvar/interfaces/Pricing.md"
+          },
+          {
+            "text": "PricingTier",
+            "link": "/api/@rulvar/rulvar/interfaces/PricingTier.md"
           },
           {
             "text": "ProviderAdapter",

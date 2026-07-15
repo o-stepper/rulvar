@@ -21,3 +21,4 @@ reported caps.pricing, which is a fallback only.
 | <a id="property-cachewriteusdpermtok"></a> `cacheWriteUsdPerMTok?` | `number` | 5m write premium rate. | `packages/core/dist/index.d.ts` |
 | <a id="property-inputusdpermtok"></a> `inputUsdPerMTok` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-outputusdpermtok"></a> `outputUsdPerMTok` | `number` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-tiers"></a> `tiers?` | [`PricingTier`](/api/@rulvar/rulvar/interfaces/PricingTier.md)[] | Long-context tiers; a row without them is one linear price. | `packages/core/dist/index.d.ts` |

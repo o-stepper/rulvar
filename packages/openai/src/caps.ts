@@ -4,7 +4,7 @@
  * Responses (first class) versus the Chat Completions degraded path;
  * degraded-path selection is a caps fact, visible in events, never silent.
  */
-import type { Effort, ModelCaps } from '@rulvar/core';
+import type { Effort, ModelCaps, Pricing } from '@rulvar/core';
 
 const REASONING_EFFORTS: Effort[] = ['low', 'medium', 'high', 'xhigh'];
 
@@ -18,7 +18,7 @@ export interface OpenAiModelInfo {
 function responses(
   contextWindow: number,
   maxOutputTokens: number,
-  pricing: { in: number; out: number; cacheRead: number },
+  pricing?: Pricing,
 ): OpenAiModelInfo {
   return {
     caps: {
@@ -30,35 +30,77 @@ function responses(
       reasoningEfforts: [...REASONING_EFFORTS, 'max'],
       contextWindow,
       maxOutputTokens,
-      pricing: {
-        inputUsdPerMTok: pricing.in,
-        outputUsdPerMTok: pricing.out,
-        cacheReadUsdPerMTok: pricing.cacheRead,
-      },
+      ...(pricing === undefined ? {} : { pricing }),
     },
     api: 'responses',
     reasoning: true,
   };
 }
 
+/**
+ * GPT-5.6 Sol (developers.openai.com/api/docs/models/gpt-5.6-sol):
+ * prompts strictly above 272K input tokens price the FULL request at
+ * 2x input and 1.5x output; cache writes bill at 1.25x uncached input.
+ */
+const GPT_56_SOL: OpenAiModelInfo = responses(1_050_000, 128_000, {
+  inputUsdPerMTok: 5,
+  outputUsdPerMTok: 30,
+  cacheReadUsdPerMTok: 0.5,
+  cacheWriteUsdPerMTok: 6.25,
+  tiers: [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
+});
+
 /** Static seed table of the current model set. */
 export const OPENAI_MODELS: Record<string, OpenAiModelInfo> = {
-  'gpt-5.5': responses(400_000, 128_000, { in: 10, out: 40, cacheRead: 1 }),
-  'gpt-5.5-pro': responses(400_000, 128_000, { in: 40, out: 160, cacheRead: 4 }),
-  'gpt-5.4': responses(272_000, 100_000, { in: 6, out: 24, cacheRead: 0.6 }),
-  'gpt-5.4-mini': responses(272_000, 100_000, { in: 1.2, out: 4.8, cacheRead: 0.12 }),
+  'gpt-5.6-sol': GPT_56_SOL,
+  // The published alias routes to Sol.
+  'gpt-5.6': GPT_56_SOL,
+  'gpt-5.5': responses(400_000, 128_000, {
+    inputUsdPerMTok: 10,
+    outputUsdPerMTok: 40,
+    cacheReadUsdPerMTok: 1,
+  }),
+  'gpt-5.5-pro': responses(400_000, 128_000, {
+    inputUsdPerMTok: 40,
+    outputUsdPerMTok: 160,
+    cacheReadUsdPerMTok: 4,
+  }),
+  'gpt-5.4': responses(272_000, 100_000, {
+    inputUsdPerMTok: 6,
+    outputUsdPerMTok: 24,
+    cacheReadUsdPerMTok: 0.6,
+  }),
+  'gpt-5.4-mini': responses(272_000, 100_000, {
+    inputUsdPerMTok: 1.2,
+    outputUsdPerMTok: 4.8,
+    cacheReadUsdPerMTok: 0.12,
+  }),
 };
 
-/** Unknown OpenAI models are assumed current-generation Responses models. */
+/**
+ * Unknown OpenAI models are assumed current-generation Responses models
+ * with conservative transport caps and NO pricing: a fabricated price row
+ * silently misprices every model newer than this table (it priced
+ * gpt-5.6-sol as gpt-5.4 before the 5.6 entries landed). Hosts price an
+ * unrecognized hosted model via a versioned createEngine({ pricing }) row;
+ * until then its usage surfaces in CostReport.unpriced and a run ceiling
+ * warns that it cannot bound the model.
+ */
 export function openAiModelInfo(model: string): OpenAiModelInfo {
   const exact = OPENAI_MODELS[model];
   if (exact !== undefined) {
     return exact;
   }
+  // Longest matching prefix wins: a dated 'gpt-5.5-pro-...' snapshot must
+  // resolve to 'gpt-5.5-pro', never to the shorter 'gpt-5.5'.
+  let best: { name: string; info: OpenAiModelInfo } | undefined;
   for (const [name, info] of Object.entries(OPENAI_MODELS)) {
-    if (model.startsWith(`${name}-`)) {
-      return info;
+    if (model.startsWith(`${name}-`) && (best === undefined || name.length > best.name.length)) {
+      best = { name, info };
     }
   }
-  return responses(272_000, 100_000, { in: 6, out: 24, cacheRead: 0.6 });
+  if (best !== undefined) {
+    return best.info;
+  }
+  return responses(272_000, 100_000);
 }

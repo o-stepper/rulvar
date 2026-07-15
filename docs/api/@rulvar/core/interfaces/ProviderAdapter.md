@@ -6,14 +6,14 @@
 
 # Interface: ProviderAdapter
 
-Defined in: [packages/core/src/l0/spi/provider.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L50)
+Defined in: [packages/core/src/l0/spi/provider.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L72)
 
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-id"></a> `id` | `string` | Stable adapter id; the left segment of ModelRef. | [packages/core/src/l0/spi/provider.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L52) |
-| <a id="property-provider"></a> `provider?` | `string` | Provider family for provider-raw matching and retention (committed during M4-T02). Two adapters of the same family share retained blocks and projections; default = id. | [packages/core/src/l0/spi/provider.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L58) |
+| <a id="property-id"></a> `id` | `string` | Stable adapter id; the left segment of ModelRef. | [packages/core/src/l0/spi/provider.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L74) |
+| <a id="property-provider"></a> `provider?` | `string` | Provider family for provider-raw matching and retention (committed during M4-T02). Two adapters of the same family share retained blocks and projections; default = id. | [packages/core/src/l0/spi/provider.ts:80](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L80) |
 
 ## Methods
 
@@ -23,7 +23,7 @@ Defined in: [packages/core/src/l0/spi/provider.ts:50](https://github.com/o-stepp
 caps(model): ModelCaps;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L59)
+Defined in: [packages/core/src/l0/spi/provider.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L81)
 
 #### Parameters
 
@@ -43,7 +43,7 @@ Defined in: [packages/core/src/l0/spi/provider.ts:59](https://github.com/o-stepp
 optional countTokens(req): Promise<number>;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L63)
+Defined in: [packages/core/src/l0/spi/provider.ts:85](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L85)
 
 #### Parameters
 
@@ -63,7 +63,7 @@ Defined in: [packages/core/src/l0/spi/provider.ts:63](https://github.com/o-stepp
 optional refreshCaps(): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L61)
+Defined in: [packages/core/src/l0/spi/provider.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L83)
 
 Refresh the capability table from live model lists.
 
@@ -79,7 +79,7 @@ Refresh the capability table from live model lists.
 stream(req, signal?): AsyncIterable<ChatEvent>;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L62)
+Defined in: [packages/core/src/l0/spi/provider.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L84)
 
 #### Parameters
 
