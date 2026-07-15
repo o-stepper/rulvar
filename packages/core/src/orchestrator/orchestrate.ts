@@ -364,6 +364,15 @@ export function makeOrchestratorWorkflow(
     const records = new Map<number, SpawnRecord>();
     const byOrdinal = new Map<number, SpawnRecord>();
     const rejectedByOrdinal = new Map<number, AdmissionDecision>();
+    /**
+     * The journaled spec behind each recovered ordinal: the idempotent
+     * re-execution guard compares it against the incoming call, because
+     * after a cross-attempt resume a REGENERATED turn (the boundary
+     * checkpoint predates the lost turn) may decide differently, and
+     * handing it the prior ordinal's handle would bind the transcript
+     * to a stranger's child.
+     */
+    const recoveredSpecByOrdinal = new Map<number, SpawnAgentParams>();
     let nextOrdinal = 0;
     let orchSeq: number | undefined;
     // Wake substrate (M6-T09): coalescing state plus settle listeners.
@@ -415,14 +424,16 @@ export function makeOrchestratorWorkflow(
       spec: SpawnAgentParams | ExtensionDispatchSpec,
       spawnOrdinal: number,
       identity: { nodeId: string; logicalTaskId: string },
-      placement?: { childScope: string; childCeilingUsd?: number },
+      placement?: { childScope: string; childCeilingUsd?: number; ownAccount?: boolean },
     ): Promise<SpawnRecord> => {
       const controller = new AbortController();
       const upstream = callingState.signal ?? internals.runSignal;
       const scope = placement?.childScope ?? childScopeOf();
-      if (placement !== undefined) {
+      if (placement?.ownAccount === true) {
         // Plan nodes get their own sub-account beside the orchestrator
-        // account; reopening on resume keeps state.
+        // account; reopening on resume keeps state. Recovery placements
+        // pin only the SCOPE (so forward matching finds the prior
+        // attempt's children); their budget flows like a plain spawn.
         internals.budget.openAccount(scope, {
           parentScope: callingState.budgetScope ?? ROOT_ACCOUNT,
           ...(placement.childCeilingUsd === undefined
@@ -437,7 +448,8 @@ export function makeOrchestratorWorkflow(
           upstream === undefined
             ? controller.signal
             : AbortSignal.any([upstream, controller.signal]),
-        budgetScope: placement !== undefined ? scope : (callingState.budgetScope ?? ROOT_ACCOUNT),
+        budgetScope:
+          placement?.ownAccount === true ? scope : (callingState.budgetScope ?? ROOT_ACCOUNT),
       };
       let resolveHandle: (seq: number) => void = () => undefined;
       const handlePromise = new Promise<number>((resolve) => {
@@ -551,6 +563,7 @@ export function makeOrchestratorWorkflow(
         nextOrdinal += 1;
         const record = await dispatchChild(spec, spawnOrdinal, identity, {
           childScope,
+          ownAccount: true,
           ...(spec.budgetUsd === undefined ? {} : { childCeilingUsd: spec.budgetUsd }),
         });
         return { handle: record.handle };
@@ -590,20 +603,41 @@ export function makeOrchestratorWorkflow(
       return { cancelled: true, handle };
     };
 
-    /** Rebuilds spawn records from the journal (the crash-resume contract). */
+    /**
+     * True when `scope` is a root-attempt scope of THIS orchestration:
+     * agentScope(callingState.scope, n) for some dispatch seq n. Nested
+     * orchestrations live under their own wf: child scopes and never
+     * match a foreign calling scope.
+     */
+    const scopeOfThisOrchestration = (scope: string): boolean => {
+      const prefix = callingState.scope === '' ? '' : `${callingState.scope}/`;
+      return scope.startsWith(prefix) && /^agent:\d+$/.test(scope.slice(prefix.length));
+    };
+
+    /**
+     * Rebuilds spawn records from the journal (the crash-resume
+     * contract). Recovery is ORCHESTRATION-scoped, not attempt-scoped:
+     * decisions journal at the orchestrate call's own scope, which is
+     * stable across root attempts, so a rerun after a cancelled root
+     * (the budget-abort shape the v1.6.0 follow-up review resumed) sees
+     * every prior decision instead of re-deciding and re-paying.
+     * Recovered children re-dispatch PINNED to their journaled child
+     * scope: settled ones forward-match and replay for free, a dangling
+     * one redispatches live (at-least-once), and a decision without a
+     * dispatch entry rolls forward to a fresh dispatch.
+     */
     const recover = async (): Promise<void> => {
-      const scope = childScopeOf();
+      const currentScope = childScopeOf();
       const admissions = internals.replayer
         .snapshot()
         .filter((entry) => {
-          if (entry.kind !== 'decision') {
+          if (entry.kind !== 'decision' || entry.scope !== callingState.scope) {
             return false;
           }
           const value = entry.value as Partial<SpawnAdmissionValue> | undefined;
           return (
             value?.decisionType === 'spawn-admission' &&
-            (value.origin === 'spawn_agent' || value.origin === 'parallel_agents') &&
-            value.orchestratorScope === scope
+            (value.origin === 'spawn_agent' || value.origin === 'parallel_agents')
           );
         })
         .map((entry) => entry.value as unknown as SpawnAdmissionValue)
@@ -611,31 +645,71 @@ export function makeOrchestratorWorkflow(
       for (const value of admissions) {
         nextOrdinal = Math.max(nextOrdinal, value.spawnOrdinal + 1);
         const decision = value.decision as unknown as AdmissionDecision;
+        recoveredSpecByOrdinal.set(value.spawnOrdinal, value.spec as unknown as SpawnAgentParams);
         if (decision.verdict.kind !== 'admit') {
           rejectedByOrdinal.set(value.spawnOrdinal, decision);
           continue;
         }
-        admission.recoverChild(scope);
-        // Re-dispatch through forward matching: settled children replay
-        // instantly, a dangling one redispatches live, and a decision
-        // without a dispatch entry rolls forward to a fresh dispatch.
-        await dispatchChild(value.spec as unknown as SpawnAgentParams, value.spawnOrdinal, {
-          nodeId: decision.nodeId ?? 'unknown',
-          logicalTaskId: decision.verdict.lineage.logicalTaskId,
-        });
+        // Quota continuity: recovered children count against the node
+        // key future admissions of THIS attempt will use.
+        admission.recoverChild(currentScope);
+        const childScope = value.childScope ?? value.orchestratorScope;
+        const record = await dispatchChild(
+          value.spec as unknown as SpawnAgentParams,
+          value.spawnOrdinal,
+          {
+            nodeId: decision.nodeId ?? 'unknown',
+            logicalTaskId: decision.verdict.lineage.logicalTaskId,
+          },
+          { childScope },
+        );
+        // Handle stability across attempts: a restored transcript holds
+        // the handles its turns saw (running-entry seqs). A replayed
+        // child keeps its seq, but a cancelled child RERUNS under a new
+        // one, so prior attempts of the SAME call, the running entries
+        // sharing the dispatched entry's (scope, key, ordinal) triple,
+        // alias to the recovered record and await_all / cancel_agent
+        // keep working on the old numbers. Identical siblings differ by
+        // ordinal and never cross-link.
+        const dispatched = internals.replayer
+          .snapshot()
+          .find((entry) => entry.seq === record.handle);
+        if (dispatched !== undefined) {
+          for (const prior of internals.replayer.snapshot()) {
+            if (
+              prior.kind === 'agent' &&
+              prior.status === 'running' &&
+              prior.seq !== record.handle &&
+              prior.scope === dispatched.scope &&
+              prior.key === dispatched.key &&
+              prior.ordinal === dispatched.ordinal &&
+              !records.has(prior.seq)
+            ) {
+              records.set(prior.seq, record);
+            }
+          }
+        }
       }
       // Wake recovery (M6-T09): prior wake suspensions restore the
       // coalescing state; resolved digests are authoritative (pinned).
-      const wakePrefix = `wake:${String(orchSeq ?? -1)}:`;
+      // The scan spans attempts exactly like decision recovery: a wake
+      // key is 'wake:<dispatch seq>:<ordinal>' under its attempt's
+      // scope, so membership tests the scope's orchestration, never the
+      // current seq.
       for (const entry of internals.replayer.snapshot()) {
         if (entry.status !== 'suspended' || entry.kind !== 'external') {
           continue;
         }
-        const payload = entry.value as { key?: string } | undefined;
-        if (typeof payload?.key !== 'string' || !payload.key.startsWith(wakePrefix)) {
+        if (!scopeOfThisOrchestration(entry.scope)) {
           continue;
         }
-        wakeOrdinal = Math.max(wakeOrdinal, Number(payload.key.slice(wakePrefix.length)) + 1);
+        const payload = entry.value as { key?: string } | undefined;
+        const match =
+          typeof payload?.key === 'string' ? /^wake:\d+:(\d+)$/.exec(payload.key) : null;
+        if (match === null) {
+          continue;
+        }
+        wakeOrdinal = Math.max(wakeOrdinal, Number(match[1]) + 1);
         const suspension = internals.replayer.suspensionState(entry.seq);
         if (suspension.state === 'resolved') {
           markDelivered(suspension.value as unknown as WakeDigest);
@@ -827,13 +901,22 @@ export function makeOrchestratorWorkflow(
         const spawnOrdinal = nextOrdinal;
         nextOrdinal += 1;
         // Idempotent re-execution after a mid-turn resume: the recovery
-        // scan already rebuilt this ordinal's record or rejection.
+        // scan already rebuilt this ordinal's record or rejection. The
+        // recovered verdict binds ONLY when the incoming call matches
+        // the journaled spec: a cross-attempt rerun regenerating a lost
+        // turn may decide differently, and a divergent call must decide
+        // fresh instead of receiving a stranger's handle (the prior
+        // decision's child stays paid, at-least-once).
+        const priorSpec = recoveredSpecByOrdinal.get(spawnOrdinal);
+        const specMatches =
+          priorSpec === undefined ||
+          (priorSpec.agentType === params.agentType && priorSpec.prompt === params.prompt);
         const recovered = byOrdinal.get(spawnOrdinal);
-        if (recovered !== undefined) {
+        if (recovered !== undefined && specMatches) {
           return { handle: recovered.handle };
         }
         const recoveredRejection = rejectedByOrdinal.get(spawnOrdinal);
-        if (recoveredRejection !== undefined) {
+        if (recoveredRejection !== undefined && specMatches) {
           throw new AdmissionRejectedError(
             `admission rejected spawn ordinal ${String(spawnOrdinal)} (recovered verdict)`,
             { data: { decision: recoveredRejection as unknown as Json } },
@@ -1300,6 +1383,34 @@ export function makeOrchestratorWorkflow(
         void recover().then(releaseRecovery, releaseRecovery);
       },
       [kTerminalTool]: { name: FINISH_TOOL_NAME },
+      // Checkpoint lineage across root attempts (the v1.6.0 follow-up
+      // review's mode (c) contract): a rerun after a cancelled root
+      // (the budget abort mid-wait) boots from the prior attempt's last
+      // turn-boundary checkpoint, so the restored transcript re-executes
+      // its pending calls against the recovered decisions instead of
+      // re-planning and re-paying from scratch. Cancelled agents
+      // normally rerun from scratch because their tools may have
+      // half-executed; the orchestration toolset is idempotent BY the
+      // recovery maps, which is what makes the boot safe exactly here.
+      // Errored attempts stay from-scratch (a poisoned transcript must
+      // not replay), and without a saved boundary (first-turn
+      // cancellation) nothing restores and at most one turn's decisions
+      // existed.
+      ...(() => {
+        const priorCancelledRoot = internals.replayer
+          .snapshot()
+          .filter(
+            (entry) =>
+              entry.kind === 'agent' &&
+              entry.scope === callingState.scope &&
+              entry.status === 'cancelled' &&
+              entry.checkpointRef !== undefined,
+          )
+          .at(-1);
+        return priorCancelledRoot?.checkpointRef === undefined
+          ? {}
+          : { [kBootCheckpoint]: priorCancelledRoot.checkpointRef };
+      })(),
     };
     const orchestratorState: CtxScopeState = { ...callingState };
     if (orchestratorAccount !== undefined) {
