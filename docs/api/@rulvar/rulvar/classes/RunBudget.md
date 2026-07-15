@@ -248,6 +248,36 @@ Idempotent: re-registering on resume keeps the journaled amount.
 
 ***
 
+### exhaustionDiagnostics()
+
+```ts
+exhaustionDiagnostics(scope): BudgetExhaustionDiagnostics;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The diagnostic projection behind a ceiling error: the first CLOSED
+account (projected commitments included, exactly the layer-1
+closure test) walking from `scope` toward the root, plus the root
+state. 'run budget ceiling reached' under a healthy root misled the
+v1.6.0 follow-up review's live probe when only a 0.18 USD
+orchestrator cap had crossed under a 0.90 USD root; the message can
+now name the account that actually ended the work. An unknown scope
+degrades to root-only diagnostics instead of throwing: this runs on
+the error path.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `scope` | `string` |
+
+#### Returns
+
+[`BudgetExhaustionDiagnostics`](/api/@rulvar/rulvar/interfaces/BudgetExhaustionDiagnostics.md)
+
+***
+
 ### markExhausted()
 
 ```ts
@@ -347,9 +377,10 @@ recorded ceiling wins once and the accumulated state is kept.
 | Parameter | Type |
 | ------ | ------ |
 | `scope` | `string` |
-| `options` | \{ `ceilingUsd?`: `number`; `finalizeReserveUsd?`: `number`; `parentScope?`: `string`; \} |
+| `options` | \{ `ceilingUsd?`: `number`; `finalizeReserveUsd?`: `number`; `kind?`: `"orchestrator-cap"`; `parentScope?`: `string`; \} |
 | `options.ceilingUsd?` | `number` |
 | `options.finalizeReserveUsd?` | `number` |
+| `options.kind?` | `"orchestrator-cap"` |
 | `options.parentScope?` | `string` |
 
 #### Returns
