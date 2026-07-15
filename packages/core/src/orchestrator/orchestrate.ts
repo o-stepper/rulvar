@@ -67,6 +67,13 @@ import type { EscalationDigest, WakeDigest, WakeTrigger } from './wake.js';
  * machinery (reserves, freeze) completes in M7 (DEF-7).
  */
 export interface OrchestratorBudgetSpec {
+  /**
+   * Absolute bound in USD. It never REPLACES the fraction bound:
+   * effectiveCap = min(capUsd, (capFraction ?? 0.2) * ceiling), so an
+   * explicit capUsd larger than the default fraction of the run ceiling
+   * is still cut to that fraction (and a warn log says so). Pass
+   * capFraction: 1.0 to make capUsd the sole bound.
+   */
   capUsd?: number;
   /** default 0.2; effectiveCap = min of the given bounds */
   capFraction?: number;
@@ -307,11 +314,34 @@ export function makeOrchestratorWorkflow(
               `${finalizeReserveUsd.toFixed(4)} USD`,
           );
         }
+        if (
+          spec?.capUsd !== undefined &&
+          spec.capFraction === undefined &&
+          effectiveCapUsd < spec.capUsd
+        ) {
+          // An explicit capUsd is STILL bounded by the DEFAULT fraction:
+          // min(0.70, 0.2 * 0.90) = 0.18 surprised the v1.6.0 follow-up
+          // review's live probe. The semantics stay (the default
+          // fraction is a safety net); the surprise gets loud.
+          internals.events.emit(
+            {
+              type: 'log',
+              level: 'warn',
+              msg:
+                `orchestrator budget.capUsd ${spec.capUsd.toFixed(4)} USD is bounded to ` +
+                `${effectiveCapUsd.toFixed(4)} USD by the default capFraction 0.2 of the run ` +
+                `ceiling (effectiveCap = min(capUsd, capFraction * ceiling)); pass ` +
+                `capFraction: 1.0 to make capUsd the sole bound`,
+            },
+            callingState.spanId,
+          );
+        }
         orchestratorAccount =
           callingState.scope === '' ? 'orchestrator' : `${callingState.scope}/orchestrator`;
         internals.budget.openAccount(orchestratorAccount, {
           parentScope: callingState.budgetScope ?? ROOT_ACCOUNT,
           ceilingUsd: effectiveCapUsd,
+          kind: 'orchestrator-cap',
         });
         if (extension !== undefined) {
           // The reserve registers in the orchestrator account AND the

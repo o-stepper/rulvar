@@ -130,3 +130,52 @@ describe('affordableOutputTokens (pure)', () => {
     ).toBeUndefined();
   });
 });
+
+describe('exhaustionDiagnostics', () => {
+  const usage = { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 };
+
+  it('names the first closed account walking up from the debited scope', () => {
+    const budget = new RunBudget({ ceilingUsd: 1, priceUsd: () => 0.25 });
+    budget.openAccount('orchestrator', { ceilingUsd: 0.2, kind: 'orchestrator-cap' });
+    budget.onUsage(usage, 'fake:model', 'orchestrator');
+    const diagnostics = budget.exhaustionDiagnostics('orchestrator');
+    expect(diagnostics.crossed).toMatchObject({
+      scope: 'orchestrator',
+      source: 'orchestrator-cap',
+      ceilingUsd: 0.2,
+      spentUsd: 0.25,
+    });
+    // The healthy root rides along so the message can prove it healthy.
+    expect(diagnostics.root).toEqual({ ceilingUsd: 1, spentUsd: 0.25 });
+  });
+
+  it('classifies plain child accounts and the root crossing distinctly', () => {
+    const budget = new RunBudget({ ceilingUsd: 0.5, priceUsd: () => 0.3 });
+    budget.openAccount('wf:child:0', { ceilingUsd: 0.25 });
+    budget.onUsage(usage, 'fake:model', 'wf:child:0');
+    expect(budget.exhaustionDiagnostics('wf:child:0').crossed?.source).toBe('child-account');
+    // A second root-only charge closes the root itself.
+    budget.onUsage(usage, 'fake:model');
+    expect(budget.exhaustionDiagnostics('run').crossed?.source).toBe('root');
+  });
+
+  it('counts projected reserves as closure and degrades on unknown scopes', () => {
+    const budget = new RunBudget({ ceilingUsd: 1 });
+    budget.admitSpawn(1);
+    // The error path never throws for an unopened scope: root-only view.
+    const diagnostics = budget.exhaustionDiagnostics('never-opened');
+    expect(diagnostics.crossed).toMatchObject({
+      scope: 'run',
+      source: 'root',
+      spentUsd: 0,
+      committedReserveUsd: 1,
+    });
+  });
+
+  it('reports no crossing while every ceiling has headroom', () => {
+    const budget = new RunBudget({ ceilingUsd: 1, priceUsd: () => 0.1 });
+    budget.openAccount('orchestrator', { ceilingUsd: 0.5, kind: 'orchestrator-cap' });
+    budget.onUsage(usage, 'fake:model', 'orchestrator');
+    expect(budget.exhaustionDiagnostics('orchestrator').crossed).toBeUndefined();
+  });
+});

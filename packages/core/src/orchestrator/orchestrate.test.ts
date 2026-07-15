@@ -529,6 +529,53 @@ describe('orchestrate (M6-T07/T08)', () => {
     expect(admissionEntries(entries)).toHaveLength(0);
   });
 
+  it('a crossed orchestrator cap names itself in the budget error, not the run ceiling', async () => {
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((): ScriptedTurn => {
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        // One expensive toolless orchestrator turn: 600k input tokens at
+        // 1 USD/MTok crosses the 0.2 USD default-fraction cap while the
+        // 1.0 USD root stays healthy.
+        return { usage: { inputTokens: 600_000 } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'r' } } };
+    });
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+      budgetUsd: 1,
+    });
+    const wf = makeOrchestratorWorkflow('spend a lot', {});
+    await expect(executeWorkflow(internals, wf, undefined)).rejects.toThrow(
+      /orchestrator budget cap reached during agent execution \(account 'orchestrator': spent 0\.6000 of 0\.2000 USD; run root: spent 0\.6000 of 1\.0000 USD\)/,
+    );
+  });
+
+  it('warns when an explicit capUsd is bounded by the default capFraction', async () => {
+    const adapter = scriptedAdapter((): ScriptedTurn => ({
+      toolCall: { name: 'finish', args: { result: 'r' } },
+    }));
+    const { internals, events } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+      budgetUsd: 0.9,
+    });
+    const wf = makeOrchestratorWorkflow('quick', { budget: { capUsd: 0.7 } });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe('r');
+    // The review's live shape: min(0.70, 0.2 * 0.90) = 0.18 silently.
+    const warns = events
+      .ofType('log')
+      .map((event) => ({ level: event.level, msg: typeof event.msg === 'string' ? event.msg : '' }))
+      .filter((event) => event.level === 'warn' && event.msg.includes('capFraction: 1.0'));
+    expect(warns).toHaveLength(1);
+    expect(warns[0]?.msg).toContain('0.7000');
+    expect(warns[0]?.msg).toContain('0.1800');
+  });
+
   it('treats a turn cut at the output bound without a tool call as non-success', async () => {
     // The live shape behind the review finding: the whole turn allowance
     // consumed by reasoning, zero visible text, zero tool calls, the
