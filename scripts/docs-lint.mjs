@@ -21,8 +21,12 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+// fileURLToPath, not URL.pathname: pathname keeps percent-escapes (a
+// checkout under a path with a space reads "rulvar%20test") and is not a
+// Windows filesystem path.
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 const FORBIDDEN_DASHES = /[‐‑‒–—−]/u;
 const EMOJI = /\p{Extended_Pictographic}/u;

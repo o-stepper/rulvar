@@ -157,3 +157,14 @@ jobs:
         with:
           node-version: 24
       - run: node scripts/docs-lint.mjs
+      # Repo scripts must work from a checkout path containing a space and
+      # non-ASCII characters (URL.pathname regressions leave %20 in paths).
+      # Runs the dependency-free read-only scripts from such a copy.
+      - name: Scripts from a path with a space
+        run: |
+          dest="$RUNNER_TEMP/rulvar spåce test"
+          mkdir -p "$dest"
+          cp -R . "$dest"
+          cd "$dest"
+          node scripts/docs-lint.mjs
+          node scripts/check-fixed-group.mjs
