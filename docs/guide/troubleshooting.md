@@ -61,6 +61,22 @@ how the adapters resolve them. Nothing was paid and nothing wrong was memoized:
 transport-class failures are never recorded as final outcomes, so the resumed
 or rerun workflow performs the calls live as if for the first time.
 
+## Resume says workflow 'rulvar-orchestrate' is not registered
+
+**Symptom.** `engine.resume(runId)` for a run produced by `orchestrate()`
+throws a typed `ConfigError`: the run records workflow
+`rulvar-orchestrate`, which is not registered.
+
+**Cause.** The convenience `orchestrate(engine, goal, opts)` builds its
+workflow value internally and does not register it; a fresh engine has
+nothing under that name, and bare resume resolves workflows only through
+`defaults.workflows` (or the persisted source of compiled runs).
+
+**Fix.** Pass the value, rebuilt from the ORIGINAL inputs:
+`engine.resume(runId, makeOrchestratorWorkflow(goal, opts))`, or register it
+under `defaults.workflows` and resume bare. See
+[Resuming a dynamic run](/guide/orchestration-modes#resuming-a-dynamic-run).
+
 ## A resume reruns calls you expected to replay
 
 **Symptom.** `engine.resume` performs live provider calls (and spends money)

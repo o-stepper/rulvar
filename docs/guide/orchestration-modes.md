@@ -189,12 +189,46 @@ Resume is the same journal mechanism in every mode, scoped forward-matching agai
 |---|---|---|
 | (a) Human scripts | `engine.resume(runId, wf)`, or bare `engine.resume(runId)` when the workflow is registered under `defaults.workflows` | The body reruns from the top; every journaled call is served by scoped forward-matching, so completed work is never re-paid. Original args are not journaled in v1; re-supply them via `ResumeOptions.args`. |
 | (b) Flagship hybrid | `engine.resume(runId)`, no workflow argument | Resumable by construction: the engine reloads the persisted script source, verifies it byte-for-byte against the recorded hash, and re-executes it in the sandbox, where the seeded shims regenerate identical values. |
-| (c) Dynamic orchestrator | `engine.resume(runId)` | The orchestrator restores its transcript from the last turn-boundary checkpoint. Spawn handles are journal-derived (the spawn entry's seq) and stable across resume, so completed children are found by content key without regenerating spawn decisions and without re-paying children. |
-| (c) with PlanRunner | `engine.resume(runId)` | Plan state re-folds purely from journaled revision and decision entries; recorded rebase outcomes are reproduced, never re-evaluated against live state; timers do not run on replay. |
+| (c) Dynamic orchestrator | `engine.resume(runId, makeOrchestratorWorkflow(goal, opts))` with the ORIGINAL goal and options, or bare `engine.resume(runId)` when that workflow is registered under `defaults.workflows` (see [Resuming a dynamic run](#resuming-a-dynamic-run)) | The orchestrator restores its transcript from the last turn-boundary checkpoint, across root attempts when the previous one was cancelled. Journaled spawn decisions recover, handles stay stable, and completed children are found by content key without regenerating decisions and without re-paying children; only dangling work reruns. |
+| (c) with PlanRunner | Same as (c): the workflow value or the registration | Plan state re-folds purely from journaled revision and decision entries; recorded rebase outcomes are reproduced, never re-evaluated against live state; timers do not run on replay. |
 
 ::: warning Durable stores required
 The default `InMemoryStore` disables resume with a loud warning. Cross-process resume needs a durable journal store (`JsonlFileStore` or `@rulvar/store-sqlite`), and compiled workflows additionally need a durable transcript store (`FileTranscriptStore`) to hold the persisted source. See [Durability](/guide/durability) and [Stores](/guide/stores).
 :::
+
+### Resuming a dynamic run
+
+`orchestrate()` builds its workflow internally and does not register it, so a bare `engine.resume(runId)` from a fresh engine fails with a typed `ConfigError` naming `rulvar-orchestrate`. Rebuild the same workflow value from the ORIGINAL inputs, or register it once:
+
+```ts
+import {
+  createEngine,
+  anthropic,
+  makeOrchestratorWorkflow,
+  ORCHESTRATE_WORKFLOW_NAME,
+} from "@rulvar/rulvar";
+
+// One-off: pass the value, built from the same goal and options.
+const outcome = await engine.resume(
+  runId,
+  makeOrchestratorWorkflow("Audit the public API for breaking changes", opts)
+).result;
+
+// Or register once and resume bare; shells and queue workers resolve
+// through the same registry.
+const worker = createEngine({
+  adapters: [anthropic()],
+  stores,
+  defaults: {
+    workflows: {
+      [ORCHESTRATE_WORKFLOW_NAME]: makeOrchestratorWorkflow(goal, opts),
+    },
+  },
+});
+await worker.resume(runId).result;
+```
+
+The options must be the original ones: tools, schemas, profiles, and the extension are live values the journal cannot reconstruct, and a resume under different options is a different workflow that misses its own history. `ctx.orchestrate` needs none of this: resuming the PARENT workflow replays the nested orchestration with it.
 
 ## Comparison
 

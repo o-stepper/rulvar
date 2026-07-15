@@ -15,7 +15,7 @@ import type { JournalEntry } from '../l0/entries.js';
 import { FileTranscriptStore, JsonlFileStore } from '../stores/jsonl.js';
 import { createEngine, type EngineDefaults } from '../engine/engine.js';
 import { scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
-import { makeOrchestratorWorkflow } from './orchestrate.js';
+import { makeOrchestratorWorkflow, ORCHESTRATE_WORKFLOW_NAME } from './orchestrate.js';
 
 function agentTypeOf(req: ChatRequest): string {
   const rulvar = (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)?.rulvar;
@@ -161,5 +161,55 @@ describe('dynamic orchestrator resume after a budget-cancelled root', () => {
     expect(digest).toContain('did: w1');
     expect(digest).toContain('did: w2');
     expect(digest).toContain('did: w3');
+  });
+
+  it('the documented resume forms both replay a finished dynamic run', async () => {
+    // The executable form of the mode (c) resume table row: the
+    // workflow value rebuilt from the ORIGINAL inputs, and the
+    // defaults.workflows registration that makes bare resume work.
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-orch-forms-'));
+    const store = new JsonlFileStore({ dir });
+    const transcripts = new FileTranscriptStore({ dir: join(dir, 'transcripts') });
+    const makeAdapter = () =>
+      scriptedAdapter((): ScriptedTurn => ({
+        toolCall: { name: 'finish', args: { result: 'done' } },
+      }));
+    const defaults: EngineDefaults = {
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: { worker: { description: 'does one task' } },
+    };
+    const first = await createEngine({
+      adapters: [makeAdapter()],
+      stores: { journal: store, transcripts },
+      defaults,
+    }).run(makeOrchestratorWorkflow('finish fast', {}), undefined, { runId: 'FORMS' }).result;
+    expect(first.status).toBe('ok');
+
+    // Form 1: the workflow value.
+    const adapterB = makeAdapter();
+    const viaValue = await createEngine({
+      adapters: [adapterB],
+      stores: { journal: store, transcripts },
+      defaults,
+    }).resume('FORMS', makeOrchestratorWorkflow('finish fast', {})).result;
+    expect(viaValue.status).toBe('ok');
+    expect(viaValue.value).toBe('done');
+    expect(adapterB.calls).toHaveLength(0);
+
+    // Form 2: registration under defaults.workflows, then bare resume.
+    const adapterC = makeAdapter();
+    const viaRegistry = await createEngine({
+      adapters: [adapterC],
+      stores: { journal: store, transcripts },
+      defaults: {
+        ...defaults,
+        workflows: {
+          [ORCHESTRATE_WORKFLOW_NAME]: makeOrchestratorWorkflow('finish fast', {}),
+        },
+      },
+    }).resume('FORMS').result;
+    expect(viaRegistry.status).toBe('ok');
+    expect(viaRegistry.value).toBe('done');
+    expect(adapterC.calls).toHaveLength(0);
   });
 });
