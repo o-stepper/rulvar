@@ -33,6 +33,11 @@
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:model",
+      "costAttribution": {
+        "agentType": "",
+        "role": "loop",
+        "budgetAccount": "run"
+      },
       "transcriptRef": "fixture-transcript"
     },
     {
@@ -66,6 +71,11 @@
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:model",
+      "costAttribution": {
+        "agentType": "",
+        "role": "loop",
+        "budgetAccount": "run"
+      },
       "transcriptRef": "fixture-transcript"
     },
     {
@@ -142,6 +152,11 @@
         "cacheWriteTokens": 0
       },
       "servedBy": "fake:model",
+      "costAttribution": {
+        "agentType": "",
+        "role": "loop",
+        "budgetAccount": "run"
+      },
       "transcriptRef": "fixture-transcript"
     }
   ]

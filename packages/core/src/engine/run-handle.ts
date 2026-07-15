@@ -29,7 +29,15 @@ export interface CostReport {
   byPhase: Record<string, number>;
   byAgentType: Record<string, number>;
   byRole: Record<InvocationRole, number>;
-  /** All-zero with forcedFinish false in runs without a dynamic orchestrator. */
+  /**
+   * All-zero with forcedFinish false in runs without a dynamic
+   * orchestrator (or when no cap resolved, so no sub-account opened).
+   * Folded purely from the journal: spentUsd is the priced usage of
+   * entries debited to the orchestrator sub-account, reserveUsedUsd its
+   * reserve-funded forced-finish share, wakes the ARMED (journaled)
+   * wake suspensions (a wait satisfied synchronously never suspends and
+   * is not counted), and forcedFinish the journaled at-cap decision.
+   */
   orchestrator: {
     spentUsd: number;
     /** spentUsd / max(totalUsd, 0.01): the epsilon-floored H-OrchShare input. */

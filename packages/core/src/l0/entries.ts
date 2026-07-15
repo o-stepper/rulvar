@@ -7,7 +7,7 @@
  */
 import type { Json } from './json.js';
 import type { WireError } from './errors.js';
-import type { ModelRef, Usage } from './messages.js';
+import type { InvocationRole, ModelRef, Usage } from './messages.js';
 
 /**
  * Versions the ENTIRE identity and replay pipeline as one unit: canonical
@@ -90,6 +90,24 @@ export type AbandonPayload = {
 export interface UsageSlice {
   servedBy: ModelRef;
   usage: Usage;
+}
+
+/**
+ * Cost-attribution facts a live run knows at settlement and a pure
+ * journal fold cannot re-derive: the innermost phase name at the call
+ * site, the agent profile, the primary invocation role, the budget
+ * account the call debited, and whether the dispatch spent the
+ * orchestrator finalize reserve. Policy, never identity, exactly like
+ * usageByModel: none of it enters the content key, and entries written
+ * before the field shipped fold under the documented fallback buckets
+ * (empty phase, 'unknown' agent type, role 'loop').
+ */
+export interface CostAttributionFacts {
+  phase?: string;
+  agentType?: string;
+  role?: InvocationRole;
+  budgetAccount?: string;
+  finalizeReserve?: boolean;
 }
 
 /**
@@ -182,6 +200,13 @@ export type JournalEntry = {
    * Policy, never identity: it does not enter the content key.
    */
   usageByModel?: UsageSlice[];
+  /**
+   * Terminal usage-bearing entries: the attribution facts behind the
+   * CostReport breakdowns, so a pure journal fold reproduces the live
+   * report byte for byte on replay. Policy, never identity, exactly
+   * like usageByModel.
+   */
+  costAttribution?: CostAttributionFacts;
   transcriptRef?: string;
   checkpointRef?: string;
   /**
