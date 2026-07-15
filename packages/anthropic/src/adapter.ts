@@ -20,6 +20,7 @@ import {
   IdMap,
   mapAnthropicStream,
   type AnthropicStreamEvent,
+  type TurnMapping,
 } from './wire.js';
 
 /** pause_turn continuation cap. */
@@ -121,7 +122,6 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
         thinkingForm: info.thinkingForm,
       });
 
-      const pending: ChatEvent[] = [];
       let continuations = 0;
       // Thinking blocks from earlier pause_turn continuations of this
       // turn: the terminal finish ships the whole turn's retention
@@ -138,11 +138,22 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
           yield { type: 'error', error: anthropicErrorToWire(thrown) };
           return;
         }
-        let mapping;
+        // Manual consumption instead of yield*: each canonical event is
+        // yielded AS its provider event is consumed (the consumer's pull
+        // drives the provider read; a slow consumer slows the read, so
+        // nothing buffers), and the generator's return value carries the
+        // accumulated pause_turn state.
+        const mapper = mapAnthropicStream(stream, ids, { carryRetained });
+        let mapping: TurnMapping;
         try {
-          mapping = await mapAnthropicStream(stream, ids, (event) => pending.push(event), {
-            carryRetained,
-          });
+          while (true) {
+            const next = await mapper.next();
+            if (next.done === true) {
+              mapping = next.value;
+              break;
+            }
+            yield next.value;
+          }
         } catch (thrown) {
           if (signal?.aborted === true) {
             return;
@@ -150,10 +161,6 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
           yield { type: 'error', error: anthropicErrorToWire(thrown) };
           return;
         }
-        for (const event of pending) {
-          yield event;
-        }
-        pending.length = 0;
         if (!mapping.pauseTurn) {
           return;
         }
