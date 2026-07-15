@@ -414,6 +414,9 @@ entry is reported as an orphan. That report entry is bookkeeping, not a bug.
 
 ## Still stuck
 
+- If an AI assistant is debugging alongside you, give it
+  [Rulvar for LLMs](/guide/llms): a one-page, machine-oriented summary of the
+  API surface, the identity rules, and these failure modes.
 - [The journal](/guide/journal) explains entry identity and the replay rules
   this whole page leans on.
 - [Durability and resume](/guide/durability) covers resume semantics end to

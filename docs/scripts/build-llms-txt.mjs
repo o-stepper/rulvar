@@ -175,6 +175,10 @@ export function buildArtifacts({ index, api, full }) {
     '- Maintainer: Oleksiy Stepurenko <step.oleksiy@gmail.com>',
     '- License: Apache-2.0 (© 2026 Oleksiy Stepurenko)',
     '',
+    `Read [Rulvar for LLMs](${SITE_URL}/guide/llms) first: a single self-contained`,
+    'orientation page for AI assistants, with the API surface, the rules generated',
+    'code must follow, and one canonical program.',
+    '',
     ...sectionIndexLines(index),
     // llmstxt.org convention: secondary resources go under `## Optional`
     // so a consumer with a tight context can skip them knowingly.
@@ -298,6 +302,7 @@ function selfTest() {
       llmsTxt.includes(`${SITE_URL}/llms-api.txt`) && llmsTxt.includes(`${SITE_URL}/llms-full.txt`),
     ],
     ['llms.txt has the Optional section', llmsTxt.includes('## Optional')],
+    ['llms.txt points at the LLM primer page', llmsTxt.includes(`${SITE_URL}/guide/llms`)],
     ['llms-api.txt carries the api pages', llmsApiTxt.includes('/api/@rulvar/core/functions')],
     ['llms-full.txt still concatenates everything', llmsFullTxt.includes('=== API reference ===')],
   ];

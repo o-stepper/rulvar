@@ -143,3 +143,4 @@ Rulvar is released at **v<!-- version:lockstep -->1.6.0<!-- /version -->** under
 2. [Quickstart](/guide/quickstart): a complete workflow with structured outputs, tools, resume, and the event stream.
 3. [Architecture](/guide/architecture): how the journal kernel, the runtime, the model layer, and the stores fit together.
 4. [API reference](/api/): the generated TypeScript surface, package by package.
+5. [Rulvar for LLMs](/guide/llms): the one-page orientation to hand an AI assistant that writes Rulvar code, with the machine-readable exports of this site.

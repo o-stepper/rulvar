@@ -275,3 +275,4 @@ You can also register both adapters in one engine and route roles across vendors
 - [Testing](/guide/testing): VCR cassettes for hermetic workflow tests.
 - [Examples](/guide/examples): runnable recipes, including the fuller judge panel this page is based on.
 - [API reference](/api/@rulvar/core/): every symbol used above, generated from the source.
+- [Rulvar for LLMs](/guide/llms): this page condensed for machine consumption; hand it to the AI assistant that writes your Rulvar code.

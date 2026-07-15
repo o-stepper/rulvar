@@ -136,7 +136,7 @@ No API key is required: constructing an engine performs no network calls, and an
 An engine created without `stores.journal` runs on `InMemoryStore`: runs work, but nothing survives a process exit, so a restarted process cannot resume them, and the engine warns loudly. Configure `JsonlFileStore` or `@rulvar/store-sqlite` before you rely on durability; see [Stores](/guide/stores).
 :::
 
-From here, the [Quickstart](/guide/quickstart) takes you from this empty engine to a budgeted multi agent run in a few dozen lines.
+From here, the [Quickstart](/guide/quickstart) takes you from this empty engine to a budgeted multi agent run in a few dozen lines. If an AI assistant writes your Rulvar code, hand it [Rulvar for LLMs](/guide/llms), the one-page orientation built for machine consumption.
 
 ## From source
 

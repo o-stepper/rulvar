@@ -144,6 +144,12 @@ Yes: TypeScript on Node.js, ESM only, Node 22.12.0 or newer. The floor is exactl
 
 Apache-2.0, with contributions accepted under the DCO. The current release line is v<!-- version:lockstep -->1.6.0<!-- /version -->; the core SPI seams froze at 1.0 and the packages follow semver from there, with journal compatibility governed by an explicit hashVersion support window. See [Versioning](/reference/versioning), the [Changelog](/reference/changelog), and the [Contributing guide](/contributing/).
 
+## Can I point an AI assistant at these docs?
+
+Yes, and there is a dedicated entry point: [Rulvar for LLMs](/guide/llms) is a single self-contained page written for machine consumption, with the exact API surface, the hard rules generated code must follow, one canonical program, and a link map. Paste its URL into the conversation or add it to your project's assistant rules file.
+
+The whole site also ships machine-readable exports following the llmstxt.org convention: [llms.txt](https://docs.rulvar.com/llms.txt) (the short index), [llms-api.txt](https://docs.rulvar.com/llms-api.txt) (one line per generated API page), and [llms-full.txt](https://docs.rulvar.com/llms-full.txt) (the concatenated Markdown of every published page).
+
 ## Where can I get help?
 
 - [Troubleshooting](/guide/troubleshooting) for the typed errors you will actually see, and the [Glossary](/reference/glossary) for the vocabulary.
