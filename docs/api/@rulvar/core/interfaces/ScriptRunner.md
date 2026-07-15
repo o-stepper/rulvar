@@ -6,7 +6,7 @@
 
 # Interface: ScriptRunner
 
-Defined in: [packages/core/src/runner/inprocess.ts:25](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L25)
+Defined in: [packages/core/src/runner/inprocess.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L27)
 
 ## Methods
 
@@ -19,7 +19,7 @@ execute<A, R>(
 args): Promise<R>;
 ```
 
-Defined in: [packages/core/src/runner/inprocess.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L26)
+Defined in: [packages/core/src/runner/inprocess.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L28)
 
 #### Type Parameters
 

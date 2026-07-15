@@ -288,4 +288,90 @@ describe('createEngine and engine.run (M1-T11)', () => {
       spy.mockRestore();
     }
   });
+
+  it('never warns for host code running concurrently with an active run', async () => {
+    const warnings: string[] = [];
+    const spy = vi
+      .spyOn(process, 'emitWarning')
+      .mockImplementation((warning: string | Error, opts?: { code?: string }) => {
+        warnings.push(typeof opts?.code === 'string' ? opts.code : String(warning));
+      });
+    try {
+      const engine = createEngine({ adapters: [] });
+      let release: () => void = () => undefined;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const wf = defineWorkflow({ name: 'parked' }, async () => {
+        await gate;
+        return 'done';
+      });
+      const handle = engine.run(wf, undefined);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      // Host code ticking while the run is live: the old process-global
+      // detection window attributed this to the run (the false
+      // RULVAR_BARE_DATE_NOW class the 1.5.2 review reproduced in the
+      // published Quickstart). Attribution is per async context now.
+      Date.now();
+      Math.random();
+      release();
+      await handle.result;
+      // After the run the globals stay silent too.
+      Date.now();
+      Math.random();
+      expect(warnings.filter((code) => code.startsWith('RULVAR_BARE'))).toHaveLength(0);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('scopes detection per run: concurrent workflows warn independently, once each', async () => {
+    const warnings: string[] = [];
+    const spy = vi
+      .spyOn(process, 'emitWarning')
+      .mockImplementation((warning: string | Error, opts?: { code?: string }) => {
+        warnings.push(typeof opts?.code === 'string' ? opts.code : String(warning));
+      });
+    try {
+      const engine = createEngine({ adapters: [] });
+      let releaseA: () => void = () => undefined;
+      const gateA = new Promise<void>((resolve) => {
+        releaseA = resolve;
+      });
+      let releaseB: () => void = () => undefined;
+      const gateB = new Promise<void>((resolve) => {
+        releaseB = resolve;
+      });
+      const wfA = defineWorkflow({ name: 'a' }, async () => {
+        Date.now();
+        Date.now();
+        await gateA;
+        // Still the same run after resuming from the await: no re-warn.
+        Date.now();
+        return 1;
+      });
+      const wfB = defineWorkflow({ name: 'b' }, async () => {
+        await gateB;
+        Math.random();
+        return 2;
+      });
+      const runA = engine.run(wfA, undefined);
+      const runB = engine.run(wfB, undefined);
+      // B finishes FIRST while A is still parked: under the old
+      // patch/restore pair this left a stale patched global installed
+      // forever once A also finished.
+      releaseB();
+      await runB.result;
+      releaseA();
+      await runA.result;
+      expect(warnings.filter((code) => code === 'RULVAR_BARE_DATE_NOW')).toHaveLength(1);
+      expect(warnings.filter((code) => code === 'RULVAR_BARE_MATH_RANDOM')).toHaveLength(1);
+      // Outside any run the globals never warn again.
+      Date.now();
+      Math.random();
+      expect(warnings.filter((code) => code.startsWith('RULVAR_BARE'))).toHaveLength(2);
+    } finally {
+      spy.mockRestore();
+    }
+  });
 });
