@@ -1547,6 +1547,43 @@ export async function runAgent<S extends SchemaSpec>(
       continue loop;
     }
 
+    // A required terminal tool (the orchestrator finish): a turn that
+    // ends without ANY tool call is not an answer, whatever text it
+    // carries; settling ok here would return unproven output (the
+    // v1.6.0 follow-up review reproduced a reasoning-only turn settling
+    // ok with an empty value). The turn consumes the no-progress budget
+    // and the model is re-prompted toward the tool, naming the output
+    // token cut when that is what ended the turn, so a model that never
+    // calls the tool terminates as a bounded 'limit', never as ok.
+    if (options.terminalTool !== undefined) {
+      noProgress.recordTurn({ toolCalls: 0 });
+      if (noProgress.tripped) {
+        status = 'limit';
+        abortClass = 'no-progress';
+        agentError = { kind: 'terminal', retryable: false };
+        errorMessage = noProgress.describe();
+        break;
+      }
+      messages.push({
+        role: 'user',
+        parts: [
+          {
+            type: 'text',
+            text:
+              outcome.finish?.reason === 'max-tokens'
+                ? `The turn was cut at the output token limit before any tool call. Be brief ` +
+                  `and call the '${options.terminalTool.name}' tool now; plain text is not a ` +
+                  `valid completion.`
+                : `The turn ended without a tool call. Call the ` +
+                  `'${options.terminalTool.name}' tool to complete; plain text is not a valid ` +
+                  `completion.`,
+          },
+        ],
+      });
+      await saveBoundary();
+      continue loop;
+    }
+
     if (options.schema === undefined) {
       output = outcome.turn.text as Out<S>;
       break;
