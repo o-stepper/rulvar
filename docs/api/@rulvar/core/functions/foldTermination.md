@@ -20,7 +20,7 @@ function foldTermination(entries):
   | undefined;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:553](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L553)
+Defined in: [packages/core/src/journal/termination.ts:558](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L558)
 
 The replay fold: rebuilds the account from
 termination.init and the debiting decision entries, asserting every

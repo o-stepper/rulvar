@@ -14,7 +14,7 @@ function terminationConfigDrift(frozen, live): {
 }[];
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:222](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L222)
+Defined in: [packages/core/src/journal/termination.ts:227](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L227)
 
 Config-drift detection at resume: the journaled vector
 always wins; every differing field is reported for the

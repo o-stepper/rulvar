@@ -2416,10 +2416,14 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
           maxDepth: options?.limits?.maxDepth ?? 1,
           kMax: kMaxOf(io.profiles),
           runBudgetUsdCeiling: io.runCeilingUsd ?? 0,
-          // The orchestrator cap and finalize reserve freeze here once
-          // DEF-7 lands (M7-T12); zero states "not yet resolved".
-          orchestratorCapUsd: 0,
-          finalizeReserveUsd: 0,
+          // The engine resolves both strictly before boot (DEF-7;
+          // XF-09), so the actual dollars freeze in the SAME vector as
+          // the counters. Journals recorded before v1.8 stored zeros
+          // here ("not yet resolved"); their authoritative dollars live
+          // in the orchestrator_budget_reserve decision, which the
+          // engine recovers on resume, so they replay unchanged.
+          orchestratorCapUsd: io.orchestratorCapUsd ?? 0,
+          finalizeReserveUsd: io.finalizeReserveUsd ?? 0,
         });
         const value = buildTerminationInitValue(limits, profileRegistrySnapshotHash(io.profiles));
         await io.append({

@@ -16,7 +16,9 @@ The per-run IO the extension closes over (engine-owned effects).
 | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-admission"></a> `admission` | `readonly` | [`AdmissionController`](/api/@rulvar/rulvar/classes/AdmissionController.md) | The single admission point for all spawns. | `packages/core/dist/index.d.ts` |
 | <a id="property-basescope"></a> `baseScope` | `readonly` | `string` | The scope the orchestrate call runs in ('' at the top level). | `packages/core/dist/index.d.ts` |
+| <a id="property-finalizereserveusd"></a> `finalizeReserveUsd?` | `readonly` | `number` | The finalize reserve carved out of the cap, resolved with it. | `packages/core/dist/index.d.ts` |
 | <a id="property-gates"></a> `gates` | `readonly` | `Record`\&lt;`string`, `unknown`\&gt; | The per-engine mechanical gate registry: named pure functions over AgentResult.artifacts. Typed loose at the seam exactly like `profiles`. | `packages/core/dist/index.d.ts` |
+| <a id="property-orchestratorcapusd"></a> `orchestratorCapUsd?` | `readonly` | `number` | The resolved orchestrator cap in absolute USD (DEF-7; XF-09): min(budget.capUsd, capFraction x B0) on a fresh run, the frozen orchestrator_budget_reserve dollars on resume. Resolved strictly before boot so an extension can freeze it into termination.init; always present under PlanRunner (an unresolvable cap refuses boot). | `packages/core/dist/index.d.ts` |
 | <a id="property-profiles"></a> `profiles` | `readonly` | `Record`\&lt;`string`, `unknown`\&gt; | Registered agent profiles advertised to this orchestrate call. | `packages/core/dist/index.d.ts` |
 | <a id="property-runceilingusd"></a> `runCeilingUsd?` | `readonly` | `number` | The run USD ceiling (B0), when one exists. | `packages/core/dist/index.d.ts` |
 | <a id="property-runid"></a> `runId` | `readonly` | `string` | - | `packages/core/dist/index.d.ts` |

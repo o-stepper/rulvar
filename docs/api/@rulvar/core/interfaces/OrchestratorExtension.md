@@ -6,7 +6,7 @@
 
 # Interface: OrchestratorExtension
 
-Defined in: [packages/core/src/orchestrator/extension.ts:156](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L156)
+Defined in: [packages/core/src/orchestrator/extension.ts:166](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L166)
 
 The extension contract. PlanRunner implements it in @rulvar/plan; the
 mode (c) orchestrator hosts it. Everything is optional except the
@@ -16,7 +16,7 @@ toolset: an extension that adds no tools has no reason to exist.
 
 | Property | Modifier | Type | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-name"></a> `name` | `readonly` | `string` | [packages/core/src/orchestrator/extension.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L157) |
+| <a id="property-name"></a> `name` | `readonly` | `string` | [packages/core/src/orchestrator/extension.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L167) |
 
 ## Methods
 
@@ -26,7 +26,7 @@ toolset: an extension that adds no tools has no reason to exist.
 optional boot(io): void | Promise<void>;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:163](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L163)
+Defined in: [packages/core/src/orchestrator/extension.ts:173](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L173)
 
 Runs strictly BEFORE the orchestrator agent's first entry
 (termination.init precedes the first scheduling entry and the
@@ -52,7 +52,7 @@ optional digestExtras(io):
   | undefined;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:184](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L184)
+Defined in: [packages/core/src/orchestrator/extension.ts:194](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L194)
 
 Extra fields merged into every WakeDigest (the hash-v2 coordinated
 schema lands in M7-T13; the substrate merges extras verbatim).
@@ -76,7 +76,7 @@ schema lands in M7-T13; the substrate merges extras verbatim).
 optional onActivity(io): void | Promise<void>;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:173](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L173)
+Defined in: [packages/core/src/orchestrator/extension.ts:183](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L183)
 
 Called after boot and after EVERY child settlement, strictly before
 wake triggers are evaluated: the scheduling edge (ready nodes
@@ -100,7 +100,7 @@ dispatch here, terminal transitions journal here).
 optional onWake(digest): void;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:186](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L186)
+Defined in: [packages/core/src/orchestrator/extension.ts:196](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L196)
 
 Observes every delivered digest, including recovered pinned ones.
 
@@ -122,7 +122,7 @@ Observes every delivered digest, including recovered pinned ones.
 optional promptLines(): string[];
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L167)
+Defined in: [packages/core/src/orchestrator/extension.ts:177](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L177)
 
 Extra orchestrator prompt lines describing the extension's protocol.
 
@@ -138,7 +138,7 @@ Extra orchestrator prompt lines describing the extension's protocol.
 optional quiescent(): boolean;
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:179](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L179)
+Defined in: [packages/core/src/orchestrator/extension.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L189)
 
 Quiescence participation: the mandatory trigger fires
 only when every dispatched child settled AND the extension reports
@@ -156,7 +156,7 @@ nothing running and nothing ready.
 tools(io): ToolDef<SchemaSpec>[];
 ```
 
-Defined in: [packages/core/src/orchestrator/extension.ts:165](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L165)
+Defined in: [packages/core/src/orchestrator/extension.ts:175](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L175)
 
 Extension tools appended to the mode (c) toolset.
 

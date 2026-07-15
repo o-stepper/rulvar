@@ -6,7 +6,7 @@
 
 # Class: TerminationAccount
 
-Defined in: [packages/core/src/journal/termination.ts:254](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L254)
+Defined in: [packages/core/src/journal/termination.ts:259](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L259)
 
 The single per-run TerminationAccount: debit ONLY. No
 credit operation exists by construction; reclaim never replenishes
@@ -23,7 +23,7 @@ the journal, never from live config.
 new TerminationAccount(options): TerminationAccount;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:261](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L261)
+Defined in: [packages/core/src/journal/termination.ts:266](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L266)
 
 #### Parameters
 
@@ -41,7 +41,7 @@ Defined in: [packages/core/src/journal/termination.ts:261](https://github.com/o-
 
 | Property | Modifier | Type | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-limits"></a> `limits` | `readonly` | [`TerminationLimits`](/api/@rulvar/core/interfaces/TerminationLimits.md) | [packages/core/src/journal/termination.ts:255](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L255) |
+| <a id="property-limits"></a> `limits` | `readonly` | [`TerminationLimits`](/api/@rulvar/core/interfaces/TerminationLimits.md) | [packages/core/src/journal/termination.ts:260](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L260) |
 
 ## Accessors
 
@@ -53,7 +53,7 @@ Defined in: [packages/core/src/journal/termination.ts:261](https://github.com/o-
 get revisionUnitsRemaining(): number;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:317](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L317)
+Defined in: [packages/core/src/journal/termination.ts:322](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L322)
 
 ##### Returns
 
@@ -69,7 +69,7 @@ Defined in: [packages/core/src/journal/termination.ts:317](https://github.com/o-
 get spawnUnitsExhausted(): boolean;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:313](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L313)
+Defined in: [packages/core/src/journal/termination.ts:318](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L318)
 
 True when a spawn-unit debit would underflow (pre-reserve check).
 
@@ -85,7 +85,7 @@ True when a spawn-unit debit would underflow (pre-reserve check).
 bindDeniedWriter(writer): void;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:275](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L275)
+Defined in: [packages/core/src/journal/termination.ts:280](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L280)
 
 Binds the denied-entry appender onto an account rebuilt by the fold
 (resume path): the fold is pure and cannot own I/O. Never rebinds an
@@ -112,7 +112,7 @@ debit(
 context?): Promise<DebitResult>;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:420](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L420)
+Defined in: [packages/core/src/journal/termination.ts:425](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L425)
 
 The unified debit surface: attempts the named resource and, on
 underflow, writes `termination.denied` strictly BEFORE resolving with
@@ -150,7 +150,7 @@ debitEscalation(logicalTaskId):
 };
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:379](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L379)
+Defined in: [packages/core/src/journal/termination.ts:384](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L384)
 
 The escalation debit: minus one escalationUnit of
 the affected lineage, including EACH lineage of a class-level
@@ -190,7 +190,7 @@ debitRevision():
 };
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:364](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L364)
+Defined in: [packages/core/src/journal/termination.ts:369](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L369)
 
 The plan_revise debit: minus one
 revisionUnit on EVERY journaled plan.revision, regardless of the op
@@ -225,7 +225,7 @@ debitRung(logicalTaskId):
 };
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:395](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L395)
+Defined in: [packages/core/src/journal/termination.ts:400](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L400)
 
 The ladder-raise debit: minus one rung of the
 lineage; rungIndex is strictly monotone, there are no demotions and
@@ -265,7 +265,7 @@ debitSpawn(lineage?):
 };
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:329](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L329)
+Defined in: [packages/core/src/journal/termination.ts:334](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L334)
 
 The spawn-admission debit: minus one spawnUnit for
 an admitted spawn of ANY origin; a NEW lineage receives E0 escalation
@@ -302,7 +302,7 @@ decision entry it appends next.
 phi(): number;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:299](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L299)
+Defined in: [packages/core/src/journal/termination.ts:304](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L304)
 
 Phi = V + C * S + sum over live lineages (E + R).
 
@@ -318,7 +318,7 @@ Phi = V + C * S + sum over live lineages (E + R).
 restoreCounters(state): void;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:485](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L485)
+Defined in: [packages/core/src/journal/termination.ts:490](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L490)
 
 Fold use only: restores the run counters from journaled balances.
 
@@ -342,7 +342,7 @@ Fold use only: restores the run counters from journaled balances.
 restoreLineage(logicalTaskId, state): void;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:473](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L473)
+Defined in: [packages/core/src/journal/termination.ts:478](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L478)
 
 Restores one lineage's counters from journaled balances (fold use
 only): never a credit path, the fold consumes recorded balances.
@@ -366,7 +366,7 @@ only): never a credit path, the fold consumes recorded balances.
 rungIndexOf(logicalTaskId): number;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:308](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L308)
+Defined in: [packages/core/src/journal/termination.ts:313](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L313)
 
 The current rung index of a lineage (0 before any raise).
 
@@ -388,7 +388,7 @@ The current rung index of a lineage (0 before any raise).
 snapshot(): TerminationAccountSnapshot;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:282](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L282)
+Defined in: [packages/core/src/journal/termination.ts:287](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L287)
 
 #### Returns
 

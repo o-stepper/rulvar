@@ -10,7 +10,7 @@
 function lineageWeightOf(limits): number;
 ```
 
-Defined in: [packages/core/src/journal/termination.ts:183](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L183)
+Defined in: [packages/core/src/journal/termination.ts:188](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/termination.ts#L188)
 
 C = E0 + kMax: the per-spawn weight of the variant function.
 

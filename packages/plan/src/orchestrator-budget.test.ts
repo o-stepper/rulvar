@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { createEngine, InMemoryStore, OrchestratorCapConfigError } from '@rulvar/core';
+import {
+  createEngine,
+  InMemoryStore,
+  makeOrchestratorWorkflow,
+  OrchestratorCapConfigError,
+} from '@rulvar/core';
 import type { JournalEntry } from '@rulvar/core';
 
 import { planHash } from './plan-hash.js';
 import { emptyPlan } from './plan-state.js';
-import { orchestratePlanned } from './plan-runner.js';
+import { orchestratePlanned, planRunner } from './plan-runner.js';
 import { agentTypeOf, scriptedAdapter, type ScriptedTurn } from './test-harness.js';
 
 const EMPTY_PLAN_HASH = planHash(emptyPlan());
@@ -176,5 +181,138 @@ describe('orchestrator cap and finalize reserve (M7-T12, DEF-7)', () => {
 
     const entries = await store.load(handle.runId);
     expect(decisionsOf(entries, 'orchestrator_finalize_fallback')).toHaveLength(1);
+  });
+});
+
+describe('the frozen budget vector in termination.init (v1.7.0 follow-up review)', () => {
+  const limitsOf = (entries: readonly JournalEntry[]): Record<string, number> | undefined =>
+    (
+      entries.find((entry) => entry.kind === 'termination.init')?.value as
+        { limits?: Record<string, number> } | undefined
+    )?.limits;
+
+  /** A pre-v1.8 journal: the init froze zeros for the cap dollars. */
+  async function cloneWithZeroedInit(source: InMemoryStore, runId: string): Promise<InMemoryStore> {
+    const legacy = new InMemoryStore();
+    for (const meta of await source.listRuns()) {
+      if (meta.runId === runId) {
+        await legacy.putMeta(meta);
+      }
+    }
+    for (const entry of await source.load(runId)) {
+      if (entry.kind !== 'termination.init') {
+        await legacy.append(runId, entry);
+        continue;
+      }
+      const value = entry.value as { limits: Record<string, number> };
+      await legacy.append(runId, {
+        ...entry,
+        value: {
+          ...value,
+          limits: { ...value.limits, orchestratorCapUsd: 0, finalizeReserveUsd: 0 },
+        },
+      });
+    }
+    return legacy;
+  }
+
+  it('freezes the ACTUAL cap and finalize reserve, matching the reserve decision', async () => {
+    const adapter = scriptedAdapter(planScript());
+    const store = new InMemoryStore();
+    const handle = orchestratePlanned(engineWith(adapter, store), 'frozen vector', {
+      budget: { capUsd: 5, finalizeReserveUsd: 1 },
+    });
+    expect((await handle.result).status).toBe('ok');
+
+    const entries = await store.load(handle.runId);
+    const limits = limitsOf(entries);
+    expect(limits?.orchestratorCapUsd).toBe(5);
+    expect(limits?.finalizeReserveUsd).toBe(1);
+    // One authority: the following reserve decision refers to the SAME
+    // immutable dollars, never contradicting the init vector.
+    const reserve = decisionsOf(entries, 'orchestrator_budget_reserve');
+    expect(reserve).toHaveLength(1);
+    expect(reserve[0]?.capUsd).toBe(limits?.orchestratorCapUsd);
+    expect(reserve[0]?.finalizeReserveUsd).toBe(limits?.finalizeReserveUsd);
+  });
+
+  it('reports drift for changed live cap options on resume and retains the frozen dollars', async () => {
+    const store = new InMemoryStore();
+    const life1 = orchestratePlanned(engineWith(scriptedAdapter(planScript()), store), 'cap run', {
+      budget: { capUsd: 5, finalizeReserveUsd: 1 },
+    });
+    expect((await life1.result).status).toBe('ok');
+
+    const adapter2 = scriptedAdapter(planScript());
+    const engine2 = engineWith(adapter2, store);
+    const drift: Array<{ field: string; frozenValue: unknown; liveValue: unknown }> = [];
+    const resumed = engine2.resume(
+      life1.runId,
+      makeOrchestratorWorkflow('cap run', {
+        // The RAISED live cap: the journaled dollars win; the divergence
+        // is reported, never honored (DEF-2 config-drift-resume).
+        budget: { capUsd: 7, finalizeReserveUsd: 1 },
+        extension: planRunner({}),
+      }),
+    );
+    const off = resumed.on('termination:config-drift', (event) => {
+      drift.push(event);
+    });
+    const outcome = await resumed.result;
+    off();
+    expect(outcome.status).toBe('ok');
+    expect(drift).toHaveLength(1);
+    expect(drift[0]).toMatchObject({
+      type: 'termination:config-drift',
+      field: 'orchestratorCapUsd',
+      frozenValue: 5,
+      liveValue: 7,
+    });
+    // Frozen-wins is observable end to end: the wake digest budget block
+    // renders the FROZEN dollars, so the whole life replays without one
+    // live model call, and no second freeze is journaled.
+    expect(adapter2.calls).toHaveLength(0);
+    const entries = await store.load(life1.runId);
+    expect(decisionsOf(entries, 'orchestrator_budget_reserve')).toHaveLength(1);
+    expect(limitsOf(entries)?.orchestratorCapUsd).toBe(5);
+  });
+
+  it('replays a legacy zero-init journal under the reserve-decision authority', async () => {
+    const store = new InMemoryStore();
+    const life1 = orchestratePlanned(
+      engineWith(scriptedAdapter(planScript()), store),
+      'legacy run',
+      { budget: { capUsd: 5, finalizeReserveUsd: 1 } },
+    );
+    expect((await life1.result).status).toBe('ok');
+    const legacyStore = await cloneWithZeroedInit(store, life1.runId);
+
+    const adapter2 = scriptedAdapter(planScript());
+    const engine2 = engineWith(adapter2, legacyStore);
+    const drift: unknown[] = [];
+    const resumed = engine2.resume(
+      life1.runId,
+      makeOrchestratorWorkflow('legacy run', {
+        budget: { capUsd: 5, finalizeReserveUsd: 1 },
+        extension: planRunner({}),
+      }),
+    );
+    const off = resumed.on('termination:config-drift', (event) => {
+      drift.push(event);
+    });
+    const outcome = await resumed.result;
+    off();
+    // No hash-version change, no semantic ambiguity: the zeros are the
+    // documented pre-v1.8 sentinel, the reserve decision is the
+    // authority, live options matching it produce NO drift, and the
+    // whole life replays without repaying anything.
+    expect(outcome.status).toBe('ok');
+    expect(drift).toEqual([]);
+    expect(adapter2.calls).toHaveLength(0);
+    const entries = await legacyStore.load(life1.runId);
+    const inits = entries.filter((entry) => entry.kind === 'termination.init');
+    expect(inits).toHaveLength(1);
+    expect(limitsOf(entries)?.orchestratorCapUsd).toBe(0);
+    expect(decisionsOf(entries, 'orchestrator_budget_reserve')).toHaveLength(1);
   });
 });
