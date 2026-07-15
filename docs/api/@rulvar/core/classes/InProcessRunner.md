@@ -6,7 +6,7 @@
 
 # Class: InProcessRunner
 
-Defined in: [packages/core/src/runner/inprocess.ts:118](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L118)
+Defined in: [packages/core/src/runner/inprocess.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L126)
 
 The mode (a) runner for human-authored closures. Determinism is enforced
 by convention, lint, and the ctx shims, NOT by a VM: only the sequence
@@ -30,7 +30,7 @@ so concurrent executes cannot race the patch state.
 new InProcessRunner(o?): InProcessRunner;
 ```
 
-Defined in: [packages/core/src/runner/inprocess.ts:121](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L121)
+Defined in: [packages/core/src/runner/inprocess.ts:129](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L129)
 
 #### Parameters
 
@@ -55,7 +55,7 @@ get escalationHook():
   | undefined;
 ```
 
-Defined in: [packages/core/src/runner/inprocess.ts:128](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L128)
+Defined in: [packages/core/src/runner/inprocess.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L136)
 
 The hook is read by the escalation delivery path from M3 onward.
 
@@ -75,7 +75,7 @@ execute<A, R>(
 args): Promise<R>;
 ```
 
-Defined in: [packages/core/src/runner/inprocess.ts:132](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L132)
+Defined in: [packages/core/src/runner/inprocess.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L140)
 
 #### Type Parameters
 
