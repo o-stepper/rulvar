@@ -22,6 +22,7 @@ const guideSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Quickstart', link: '/guide/quickstart' },
       { text: 'Architecture', link: '/guide/architecture' },
       { text: 'Core invariants', link: '/guide/invariants' },
+      { text: 'Rulvar for LLMs', link: '/guide/llms' },
     ],
   },
   {

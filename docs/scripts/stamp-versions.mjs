@@ -54,6 +54,7 @@ const EXPECTED_MARKER_FILES = [
   'guide/index.md',
   'guide/installation.md',
   'guide/determinism.md',
+  'guide/llms.md',
   'reference/faq.md',
   'reference/packages.md',
   'reference/versioning.md',

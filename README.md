@@ -172,6 +172,9 @@ Built from [docs/](docs/README.md) and published at [docs.rulvar.com](https://do
   [CLI](https://docs.rulvar.com/guide/cli),
   [observability](https://docs.rulvar.com/guide/observability)
 - [API reference](https://docs.rulvar.com/api/%40rulvar/core/), generated from the sources
+- [Rulvar for LLMs](https://docs.rulvar.com/guide/llms): a one-page orientation for AI
+  assistants, plus machine-readable exports at
+  [llms.txt](https://docs.rulvar.com/llms.txt)
 
 ## Development
 

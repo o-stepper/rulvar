@@ -19,6 +19,9 @@ hero:
       text: What is Rulvar?
       link: /guide/
     - theme: alt
+      text: For LLMs and agents
+      link: /guide/llms
+    - theme: alt
       text: View on GitHub
       link: https://github.com/o-stepper/rulvar
 
