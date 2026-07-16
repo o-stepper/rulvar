@@ -1,5 +1,15 @@
 # @rulvar/testing
 
+## 1.13.0
+
+### Minor Changes
+
+- c28c4c0: `FakeAdapter` honors the caller's `AbortSignal` under the same contract as live adapters (v1.12 follow-up review, P2). `stream` now accepts the optional `signal` every `ProviderAdapter` receives and obeys the adapter-authors abort rule: an abort ends the stream promptly with no terminal event and is never converted into a fake provider error. A request whose signal is already aborted on arrival is never served: no responder runs, nothing is recorded in `fake.calls`, no events are emitted. An abort while an async responder is pending detaches the responder (its late value is discarded and a late rejection cannot become an unhandled rejection) and ends the iterator without waiting it out; an abort during event emission stops at the next synchronous boundary. Cancellation, deadline, and budget tests over `createTestEngine` therefore observe the same journal shapes as production adapters: a cancelled run journals the agent as `cancelled`, never as a false `agent: ok` terminal. Non-aborted behavior (output events, usage, tool calls, structured-output tiers, call recording, deterministic ids) is unchanged.
+
+### Patch Changes
+
+- @rulvar/core@1.13.0
+
 ## 1.12.0
 
 ### Patch Changes
