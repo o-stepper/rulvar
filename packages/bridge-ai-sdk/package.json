@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "@ai-sdk/google": "catalog:",
+    "@rulvar/testing": "workspace:*",
     "@types/node": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:"

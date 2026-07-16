@@ -6241,6 +6241,10 @@
             "link": "/api/@rulvar/testing/interfaces/ReplayRunOptions.md"
           },
           {
+            "text": "RunLiveSmokeOptions",
+            "link": "/api/@rulvar/testing/interfaces/RunLiveSmokeOptions.md"
+          },
+          {
             "text": "TestEngine",
             "link": "/api/@rulvar/testing/interfaces/TestEngine.md"
           },
@@ -6265,6 +6269,10 @@
           {
             "text": "FakeResponder",
             "link": "/api/@rulvar/testing/type-aliases/FakeResponder.md"
+          },
+          {
+            "text": "LiveSmokeOutcome",
+            "link": "/api/@rulvar/testing/type-aliases/LiveSmokeOutcome.md"
           },
           {
             "text": "RedactFn",
@@ -6307,6 +6315,10 @@
             "link": "/api/@rulvar/testing/functions/fakeWireError.md"
           },
           {
+            "text": "liveTestEnabled",
+            "link": "/api/@rulvar/testing/functions/liveTestEnabled.md"
+          },
+          {
             "text": "readCassette",
             "link": "/api/@rulvar/testing/functions/readCassette.md"
           },
@@ -6325,6 +6337,10 @@
           {
             "text": "requestHash",
             "link": "/api/@rulvar/testing/functions/requestHash.md"
+          },
+          {
+            "text": "runLiveSmoke",
+            "link": "/api/@rulvar/testing/functions/runLiveSmoke.md"
           }
         ]
       }

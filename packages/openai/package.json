@@ -32,6 +32,7 @@
     "openai": "catalog:"
   },
   "devDependencies": {
+    "@rulvar/testing": "workspace:*",
     "@types/node": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:"

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createCanonicalIdMinter, type ChatEvent, type ChatRequest } from '@rulvar/core';
+import { liveTestEnabled, runLiveSmoke } from '@rulvar/testing';
 import type { AnthropicClientLike } from './adapter.js';
 import { anthropic } from './adapter.js';
 import { anthropicModelInfo } from './caps.js';
@@ -493,22 +494,22 @@ describe('adapter surface (M1-T12)', () => {
     ).toBe(42);
   });
 
-  it.skipIf(process.env.ANTHROPIC_API_KEY === undefined)(
-    'live smoke: one small call (manual, key-gated)',
+  it.skipIf(!liveTestEnabled('ANTHROPIC_API_KEY'))(
+    'live smoke: one small call (opt-in via RULVAR_LIVE_TESTS=1, spends budget)',
     async () => {
-      const adapter = anthropic({});
-      const events: ChatEvent[] = [];
-      for await (const event of adapter.stream({
+      // Bounded retry so a transient 529/429 gets a second chance while a
+      // non-retryable error (auth, invalid model) fails immediately with
+      // the typed diagnostics intact (v1.13 review P3-1).
+      const outcome = await runLiveSmoke(anthropic({}), {
         model: 'claude-sonnet-5',
         messages: [{ role: 'user', parts: [{ type: 'text', text: 'Reply with the word ok.' }] }],
         maxOutputTokens: 32,
-      })) {
-        events.push(event);
+      });
+      if (outcome.status !== 'ok') {
+        throw new Error(`live smoke did not reach finish: ${JSON.stringify(outcome)}`);
       }
-      const finish = events.find((e) => e.type === 'finish');
-      expect(finish).toBeDefined();
     },
-    30_000,
+    90_000,
   );
 });
 

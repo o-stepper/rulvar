@@ -300,6 +300,34 @@ Live calls have exactly one job in a test suite: catching provider drift before 
 
 Everything else, which is nearly everything, stays on the fake and cassette tiers, where the suite is deterministic, free, and fast. The same discipline extends to quality measurement: [evals](/guide/evals) record judge calls to cassettes too, so PR-triggered eval runs execute with zero live calls.
 
+### Opt-in gating and the bounded smoke
+
+A provider key in the environment is not an opt-in. Live tests spend money, so gate them on an explicit switch on top of the key: `liveTestEnabled` is true only when `RULVAR_LIVE_TESTS=1` AND every named key is present, which keeps an ordinary `vitest run` hermetic even in a shell that happens to export `ANTHROPIC_API_KEY`.
+
+For the smoke itself, `runLiveSmoke` drains one adapter stream per attempt and classifies the terminal event instead of asserting blindly: a `finish` passes, a typed retryable error (429 rate limit, 529 overload) gets a bounded retry with linear backoff, a non-retryable error (authentication, invalid model) fails immediately with the typed `WireError` intact, and a stream that ends without any terminal event is reported as the adapter-contract violation it is. A live smoke never converts a real adapter failure into a pass and never spends more than its attempt bound.
+
+```ts
+import { liveTestEnabled, runLiveSmoke } from '@rulvar/testing';
+import { anthropic } from '@rulvar/anthropic';
+
+it.skipIf(!liveTestEnabled('ANTHROPIC_API_KEY'))(
+  'live smoke: one small call',
+  async () => {
+    const outcome = await runLiveSmoke(anthropic({}), {
+      model: 'claude-sonnet-5',
+      messages: [{ role: 'user', parts: [{ type: 'text', text: 'Reply with the word ok.' }] }],
+      maxOutputTokens: 32,
+    });
+    if (outcome.status !== 'ok') {
+      throw new Error(`live smoke did not reach finish: ${JSON.stringify(outcome)}`);
+    }
+  },
+  90_000,
+);
+```
+
+Rulvar's own repository gates all of its key-gated live suites this way behind a dedicated `pnpm test:live` command, which reports which suites will fire for the keys it finds and never prints key values. Keep live requests small (a one-word reply with a tight `maxOutputTokens` is plenty) and label the command as spending provider budget wherever you document it.
+
 ## Next steps
 
 - [Determinism lint](/guide/determinism): keep workflow modules replay-stable so the tests on this page stay meaningful.

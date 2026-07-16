@@ -27,6 +27,67 @@ declare function replayRun<A, R>(wf: Workflow<A, R>, args: A, options: ReplayRun
   preview: ResumePreview;
 }>;
 //#endregion
+//#region src/live.d.ts
+/**
+* True only when `RULVAR_LIVE_TESTS` is exactly `'1'` AND every named
+* environment key is set to a non-empty value. Gate live tests as
+* `it.skipIf(!liveTestEnabled('ANTHROPIC_API_KEY'))(...)` so an
+* unrelated key in the shell never triggers a paid provider call from
+* an ordinary test run.
+*/
+declare function liveTestEnabled(...requiredEnvKeys: string[]): boolean;
+interface RunLiveSmokeOptions {
+  /** Total attempts including the first (default 3, minimum 1). */
+  attempts?: number;
+  /**
+  * Backoff before retry n (1-based) is `baseDelayMs * n` (default
+  * 2000). Pass 0 to retry without sleeping (unit tests).
+  */
+  baseDelayMs?: number;
+}
+/**
+* The classified result of a bounded live smoke. `attempts` is how many
+* streams were actually opened; only `'exhausted'` reaches the
+* configured bound.
+*/
+type LiveSmokeOutcome = {
+  status: "ok";
+  attempts: number;
+  events: ChatEvent[];
+} | {
+  status: "failed";
+  attempts: number;
+  error: WireError;
+  events: ChatEvent[];
+} | {
+  status: "exhausted";
+  attempts: number;
+  errors: WireError[];
+} | {
+  status: "no-terminal";
+  attempts: number;
+  events: ChatEvent[];
+};
+/**
+* Drains `adapter.stream(req)` with a bounded retry policy and classifies
+* the outcome instead of throwing:
+*
+* - `'ok'`: a `finish` event arrived (the events of the successful
+*   attempt are included for further assertions).
+* - `'failed'`: a terminal error with `retryable: false`; never retried,
+*   diagnostics preserved.
+* - `'exhausted'`: every attempt ended in a `retryable: true` error; the
+*   per-attempt errors are preserved in order.
+* - `'no-terminal'`: the stream ended with neither `finish` nor `error`,
+*   which violates the provider SPI; never retried (spending again on a
+*   misbehaving adapter is wrong).
+*
+* Retries only ever follow typed retryable errors, so a live smoke never
+* converts a real adapter failure into a pass and never spends more than
+* `attempts` calls.
+*/
+declare function runLiveSmoke(adapter: Pick<ProviderAdapter, "stream">, req: ChatRequest, options?: RunLiveSmokeOptions): Promise<LiveSmokeOutcome>;
+//#endregion
 //#region src/cassettes/build-fixtures.d.ts
 /** One cassette fixture file: id, provenance note, and the journal. */
 /** @internal */
@@ -152,4 +213,4 @@ declare function replay(options: {
   adapters?: ProviderAdapter[];
 }): ProviderAdapter[];
 //#endregion
-export { type CassetteFixture, type CreateTestEngineOptions, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type FakeToolCallsValue, type FakeWireErrorValue, M6_ORCH_GOAL, M6_ORCH_PROFILES, M6_ORCH_RUN_ID, RedactFn, type ReplayRunOptions, type TestEngine, type TestRunHandle, VcrCassette, VcrMissError, VcrRow, buildFrozenV1JournalRaw, buildM2CassetteFixtures, buildV2GoldenIdentity, createTestEngine, defaultRedact, fakeToolCalls, fakeWireError, handlesInRequest, normalizeM6Entries, readCassette, record, recordLiveCassettes, recordOrchestratorCrash, replay, replayRun, requestHash };
+export { type CassetteFixture, type CreateTestEngineOptions, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type FakeToolCallsValue, type FakeWireErrorValue, type LiveSmokeOutcome, M6_ORCH_GOAL, M6_ORCH_PROFILES, M6_ORCH_RUN_ID, RedactFn, type ReplayRunOptions, type RunLiveSmokeOptions, type TestEngine, type TestRunHandle, VcrCassette, VcrMissError, VcrRow, buildFrozenV1JournalRaw, buildM2CassetteFixtures, buildV2GoldenIdentity, createTestEngine, defaultRedact, fakeToolCalls, fakeWireError, handlesInRequest, liveTestEnabled, normalizeM6Entries, readCassette, record, recordLiveCassettes, recordOrchestratorCrash, replay, replayRun, requestHash, runLiveSmoke };

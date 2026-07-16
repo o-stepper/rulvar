@@ -12,6 +12,8 @@ export { createTestEngine } from './test-engine.js';
 export type { CreateTestEngineOptions, TestEngine, TestRunHandle } from './test-engine.js';
 export { replayRun } from './replay-strict.js';
 export type { ReplayRunOptions } from './replay-strict.js';
+export { liveTestEnabled, runLiveSmoke } from './live.js';
+export type { LiveSmokeOutcome, RunLiveSmokeOptions } from './live.js';
 // Frozen-fixture regeneration tooling (M2-T12): regenerating committed
 // fixtures is DELIBERATE and requires a hashVersion-bump changeset
 // (scripts/record-m2-cassettes.mjs). These exports serve the

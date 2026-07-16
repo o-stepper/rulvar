@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ConfigError, createCanonicalIdMinter, type ChatEvent, type Part } from '@rulvar/core';
+import { liveTestEnabled, runLiveSmoke } from '@rulvar/testing';
 import type { OpenAiClientLike } from './adapter.js';
 import { openai } from './adapter.js';
 import { OPENAI_MODELS, openAiModelInfo } from './caps.js';
@@ -465,21 +466,22 @@ describe('adapter surface (M1-T13)', () => {
     expect(error.error.data).toMatchObject({ kind: 'rate-limit', retryAfterMs: 3000 });
   });
 
-  it.skipIf(process.env.OPENAI_API_KEY === undefined)(
-    'live smoke: one small call (manual, key-gated)',
+  it.skipIf(!liveTestEnabled('OPENAI_API_KEY'))(
+    'live smoke: one small call (opt-in via RULVAR_LIVE_TESTS=1, spends budget)',
     async () => {
-      const adapter = openai({});
-      const events: ChatEvent[] = [];
-      for await (const event of adapter.stream({
+      // Bounded retry so a transient 529/429 gets a second chance while a
+      // non-retryable error (auth, invalid model) fails immediately with
+      // the typed diagnostics intact (v1.13 review P3-1).
+      const outcome = await runLiveSmoke(openai({}), {
         model: 'gpt-5.4-mini',
         messages: [{ role: 'user', parts: [{ type: 'text', text: 'Reply with the word ok.' }] }],
         maxOutputTokens: 32,
-      })) {
-        events.push(event);
+      });
+      if (outcome.status !== 'ok') {
+        throw new Error(`live smoke did not reach finish: ${JSON.stringify(outcome)}`);
       }
-      expect(events.find((e) => e.type === 'finish')).toBeDefined();
     },
-    30_000,
+    90_000,
   );
 });
 
