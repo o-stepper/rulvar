@@ -38,6 +38,8 @@ export interface CreateTestEngineOptions {
   profiles?: Record<string, AgentProfile>;
   budgetDefaults?: CreateEngineOptions['budgetDefaults'];
   concurrency?: CreateEngineOptions['concurrency'];
+  /** Versioned price table; wins over adapter caps.pricing, as in production. */
+  pricing?: CreateEngineOptions['pricing'];
 }
 
 export function createTestEngine(options: CreateTestEngineOptions): TestEngine {
@@ -73,6 +75,7 @@ export function createTestEngine(options: CreateTestEngineOptions): TestEngine {
     },
     ...(options.budgetDefaults === undefined ? {} : { budgetDefaults: options.budgetDefaults }),
     ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),
+    ...(options.pricing === undefined ? {} : { pricing: options.pricing }),
   });
 
   return {

@@ -1,4 +1,4 @@
-import { CanonicalId, ChatEvent, ChatRequest, FinishInfo, ModelCaps, ProviderAdapter, Usage, WireError } from "@rulvar/core";
+import { CanonicalId, ChatEvent, ChatRequest, FinishInfo, ModelCaps, PriceTable, ProviderAdapter, Usage, WireError } from "@rulvar/core";
 
 //#region src/caps.d.ts
 interface AnthropicModelInfo {
@@ -24,6 +24,18 @@ declare const ANTHROPIC_MODELS: Record<string, AnthropicModelInfo>;
 * CostReport.unpriced and a run ceiling warns that it cannot bound the
 * model.
 */
+/**
+* The seed pricing rows as a versioned price table, keyed by full
+* ModelRef under the adapter's fixed id 'anthropic'. Pass it to
+* createEngine({ pricing }) so the run journals a concrete
+* pricingVersion instead of 'unpriced': the versioned table wins over
+* the caps fallback by rule, and a later table revision surfaces as
+* explicit configuration drift on resume rather than a silent
+* reinterpretation. Extend or override rows by spreading `models` into
+* your own table with a new version string (the documented path for the
+* Sonnet 5 promotion ending on 2026-08-31).
+*/
+declare const ANTHROPIC_PRICING: PriceTable;
 declare function anthropicModelInfo(model: string): AnthropicModelInfo;
 //#endregion
 //#region src/adapter.d.ts
@@ -135,4 +147,4 @@ declare function mapAnthropicStream(stream: AsyncIterable<AnthropicStreamEvent>,
 */
 declare function anthropicErrorToWire(error: unknown): WireError;
 //#endregion
-export { ANTHROPIC_MODELS, type AnthropicAdapterOptions, type AnthropicClientLike, type AnthropicModelInfo, type AnthropicStreamEvent, DEFAULT_PAUSE_TURN_MAX_CONTINUATIONS, IdMap, type TurnMapping, anthropic, anthropicErrorToWire, anthropicModelInfo, buildAnthropicParams, mapAnthropicStream, mapStopReason, normalizeAnthropicUsage };
+export { ANTHROPIC_MODELS, ANTHROPIC_PRICING, type AnthropicAdapterOptions, type AnthropicClientLike, type AnthropicModelInfo, type AnthropicStreamEvent, DEFAULT_PAUSE_TURN_MAX_CONTINUATIONS, IdMap, type TurnMapping, anthropic, anthropicErrorToWire, anthropicModelInfo, buildAnthropicParams, mapAnthropicStream, mapStopReason, normalizeAnthropicUsage };

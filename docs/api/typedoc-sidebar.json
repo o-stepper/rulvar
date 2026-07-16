@@ -55,6 +55,10 @@
             "link": "/api/@rulvar/anthropic/variables/ANTHROPIC_MODELS.md"
           },
           {
+            "text": "ANTHROPIC_PRICING",
+            "link": "/api/@rulvar/anthropic/variables/ANTHROPIC_PRICING.md"
+          },
+          {
             "text": "DEFAULT_PAUSE_TURN_MAX_CONTINUATIONS",
             "link": "/api/@rulvar/anthropic/variables/DEFAULT_PAUSE_TURN_MAX_CONTINUATIONS.md"
           }
@@ -2877,6 +2881,10 @@
           {
             "text": "OPENAI_MODELS",
             "link": "/api/@rulvar/openai/variables/OPENAI_MODELS.md"
+          },
+          {
+            "text": "OPENAI_PRICING",
+            "link": "/api/@rulvar/openai/variables/OPENAI_PRICING.md"
           }
         ]
       },

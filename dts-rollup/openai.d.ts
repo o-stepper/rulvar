@@ -1,4 +1,4 @@
-import { CanonicalId, ChatEvent, ChatRequest, Effort, ModelCaps, ProviderAdapter, Usage, WireError } from "@rulvar/core";
+import { CanonicalId, ChatEvent, ChatRequest, Effort, ModelCaps, PriceTable, ProviderAdapter, Usage, WireError } from "@rulvar/core";
 
 //#region src/caps.d.ts
 interface OpenAiModelInfo {
@@ -18,6 +18,17 @@ declare const OPENAI_MODELS: Record<string, OpenAiModelInfo>;
 * until then its usage surfaces in CostReport.unpriced and a run ceiling
 * warns that it cannot bound the model.
 */
+/**
+* The seed pricing rows as a versioned price table, keyed by full
+* ModelRef under the adapter's fixed id 'openai' (long-context tiers
+* included; the 'gpt-5.6' alias carries the same row as its Sol
+* target). Pass it to createEngine({ pricing }) so the run journals a
+* concrete pricingVersion instead of 'unpriced': the versioned table
+* wins over the caps fallback by rule, and a later table revision
+* surfaces as explicit configuration drift on resume rather than a
+* silent reinterpretation.
+*/
+declare const OPENAI_PRICING: PriceTable;
 declare function openAiModelInfo(model: string): OpenAiModelInfo;
 //#endregion
 //#region src/adapter.d.ts
@@ -134,4 +145,4 @@ declare function buildChatCompletionsParams(req: ChatRequest, ids: OpenAiIdMap):
 */
 declare function mapChatCompletionsStream(stream: AsyncIterable<Record<string, unknown>>, ids: OpenAiIdMap): AsyncGenerator<ChatEvent, void>;
 //#endregion
-export { CONSERVATIVE_COMPATIBLE_CAPS, OPENAI_MODELS, type OpenAiAdapterOptions, type OpenAiClientLike, type OpenAiCompatibleConfig, OpenAiIdMap, type OpenAiModelInfo, type ResponsesStreamEvent, buildChatCompletionsParams, buildResponsesParams, mapChatCompletionsStream, mapOpenAiEffort, mapResponsesStream, normalizeOpenAiUsage, openAiErrorToWire, openAiModelInfo, openai, openaiCompatible };
+export { CONSERVATIVE_COMPATIBLE_CAPS, OPENAI_MODELS, OPENAI_PRICING, type OpenAiAdapterOptions, type OpenAiClientLike, type OpenAiCompatibleConfig, OpenAiIdMap, type OpenAiModelInfo, type ResponsesStreamEvent, buildChatCompletionsParams, buildResponsesParams, mapChatCompletionsStream, mapOpenAiEffort, mapResponsesStream, normalizeOpenAiUsage, openAiErrorToWire, openAiModelInfo, openai, openaiCompatible };

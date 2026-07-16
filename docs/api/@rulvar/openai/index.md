@@ -62,6 +62,7 @@ The umbrella package `@rulvar/rulvar` already bundles this adapter.
 | ------ | ------ |
 | [CONSERVATIVE\_COMPATIBLE\_CAPS](/api/@rulvar/openai/variables/CONSERVATIVE_COMPATIBLE_CAPS.md) | Gateways cannot be introspected reliably: when caps are not supplied the factory assumes the most conservative capability set. Callers SHOULD supply caps for anything beyond it; the window and output floors here are deliberately small so an unprobed endpoint is never overcommitted. Absent pricing is legitimate for local models: they surface as unpriced in CostReport. |
 | [OPENAI\_MODELS](/api/@rulvar/openai/variables/OPENAI_MODELS.md) | Static seed table of the current model set. |
+| [OPENAI\_PRICING](/api/@rulvar/openai/variables/OPENAI_PRICING.md) | The seed pricing rows as a versioned price table, keyed by full ModelRef under the adapter's fixed id 'openai' (long-context tiers included; the 'gpt-5.6' alias carries the same row as its Sol target). Pass it to createEngine({ pricing }) so the run journals a concrete pricingVersion instead of 'unpriced': the versioned table wins over the caps fallback by rule, and a later table revision surfaces as explicit configuration drift on resume rather than a silent reinterpretation. |
 
 ## Functions
 
@@ -76,4 +77,4 @@ The umbrella package `@rulvar/rulvar` already bundles this adapter.
 | [openai](/api/@rulvar/openai/functions/openai.md) | @rulvar/openai: the first-class OpenAI Responses API adapter with the Chat Completions degraded path, plus the openaiCompatible factory for Ollama, vLLM, and gateways. |
 | [openaiCompatible](/api/@rulvar/openai/functions/openaiCompatible.md) | Creates a Chat Completions dialect adapter for a compatible endpoint. |
 | [openAiErrorToWire](/api/@rulvar/openai/functions/openAiErrorToWire.md) | Projects SDK/API errors into the retryable WireError vocabulary. |
-| [openAiModelInfo](/api/@rulvar/openai/functions/openAiModelInfo.md) | Unknown OpenAI models are assumed current-generation Responses models with conservative transport caps and NO pricing: a fabricated price row silently misprices every model newer than this table (it priced gpt-5.6-sol as gpt-5.4 before the 5.6 entries landed). Hosts price an unrecognized hosted model via a versioned createEngine({ pricing }) row; until then its usage surfaces in CostReport.unpriced and a run ceiling warns that it cannot bound the model. |
+| [openAiModelInfo](/api/@rulvar/openai/functions/openAiModelInfo.md) | - |
