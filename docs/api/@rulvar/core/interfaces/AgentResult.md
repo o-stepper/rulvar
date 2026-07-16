@@ -18,7 +18,7 @@ Defined in: [packages/core/src/runtime/agent-loop.ts:98](https://github.com/o-st
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-abortclass"></a> `abortClass?` | `"no-progress"` | The dedicated first-class abort class (M3-T08): present on the engine-decided no-progress abort (status 'limit'), never on user cancellation or ordinary cap hits. | [packages/core/src/runtime/agent-loop.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L139) |
+| <a id="property-abortclass"></a> `abortClass?` | [`AbortClass`](/api/@rulvar/core/type-aliases/AbortClass.md) | The dedicated first-class abort class (M3-T08): present on the engine-decided no-progress abort (status 'limit'), never on user cancellation or ordinary cap hits. | [packages/core/src/runtime/agent-loop.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L139) |
 | <a id="property-artifacts"></a> `artifacts?` | [`Artifact`](/api/@rulvar/core/interfaces/Artifact.md)[] | - | [packages/core/src/runtime/agent-loop.ts:118](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L118) |
 | <a id="property-costusd"></a> `costUsd` | `number` | - | [packages/core/src/runtime/agent-loop.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L102) |
 | <a id="property-error"></a> `error?` | [`AgentError`](/api/@rulvar/core/type-aliases/AgentError.md) | - | [packages/core/src/runtime/agent-loop.ts:119](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L119) |

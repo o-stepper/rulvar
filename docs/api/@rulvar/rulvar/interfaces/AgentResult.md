@@ -18,7 +18,7 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-abortclass"></a> `abortClass?` | `"no-progress"` | The dedicated first-class abort class (M3-T08): present on the engine-decided no-progress abort (status 'limit'), never on user cancellation or ordinary cap hits. | `packages/core/dist/index.d.ts` |
+| <a id="property-abortclass"></a> `abortClass?` | [`AbortClass`](/api/@rulvar/rulvar/type-aliases/AbortClass.md) | The dedicated first-class abort class (M3-T08): present on the engine-decided no-progress abort (status 'limit'), never on user cancellation or ordinary cap hits. | `packages/core/dist/index.d.ts` |
 | <a id="property-artifacts"></a> `artifacts?` | [`Artifact`](/api/@rulvar/rulvar/interfaces/Artifact.md)[] | - | `packages/core/dist/index.d.ts` |
 | <a id="property-costusd"></a> `costUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-error"></a> `error?` | [`AgentError`](/api/@rulvar/rulvar/type-aliases/AgentError.md) | - | `packages/core/dist/index.d.ts` |

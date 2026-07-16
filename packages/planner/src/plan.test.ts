@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { Engine } from '@rulvar/core';
+import type { ChatEvent, ChatRequest, Engine, ModelCaps, ProviderAdapter } from '@rulvar/core';
 import { createEngine, JsonlFileStore, ScriptRejected } from '@rulvar/core';
 import { FAKE_MODEL_REF, FakeAdapter, type FakeResponder } from '@rulvar/testing';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -118,6 +118,58 @@ describe('plan (M6-T05)', () => {
     expect(adapter.calls.filter((c) => c.prompt.includes('GOAL:'))).toHaveLength(2);
     const data = (caught as ScriptRejected).data as { error?: { data?: unknown } };
     expect(JSON.stringify(data)).toContain('no-bare-date');
+  });
+
+  it('stops on the first truncated empty draft instead of burning repair rounds', async () => {
+    // A planner model whose whole output allowance goes to reasoning:
+    // finish 'max-tokens' with no visible text (v1.9.0 follow-up
+    // review). Source repair cannot fix a completion that contains no
+    // source, so plan() must stop after ONE provider call and surface
+    // the typed truncation, not compile/empty-source.
+    const truncCaps: ModelCaps = {
+      structuredOutput: 'prompt',
+      supportsTemperature: false,
+      supportsParallelTools: false,
+      reasoningEfforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+      contextWindow: 200_000,
+      maxOutputTokens: 4_096,
+    };
+    const calls: ChatRequest[] = [];
+    const adapter: ProviderAdapter & { calls: ChatRequest[] } = {
+      id: 'trunc',
+      calls,
+      caps: () => truncCaps,
+      // eslint-disable-next-line @typescript-eslint/require-await
+      async *stream(req: ChatRequest): AsyncIterable<ChatEvent> {
+        calls.push(req);
+        yield {
+          type: 'finish',
+          finish: { reason: 'max-tokens' },
+          usage: { inputTokens: 50, outputTokens: 1_600, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        };
+      },
+    };
+    const engine = createEngine({
+      adapters: [adapter],
+      defaults: { routing: { plan: 'trunc:model' } },
+    });
+    let caught: unknown;
+    try {
+      await plan(engine, 'truncated goal', { repairRounds: 3 });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ScriptRejected);
+    // One provider call, never repairRounds + 1.
+    expect(adapter.calls).toHaveLength(1);
+    const data = (caught as ScriptRejected).data as {
+      status?: string;
+      error?: { message?: string; data?: { kind?: string; abortClass?: string } };
+    };
+    expect(data.status).toBe('error');
+    expect(data.error?.data?.abortClass).toBe('output-truncated');
+    expect(data.error?.message).toContain('output token allowance');
+    expect(JSON.stringify(data)).not.toContain('empty-source');
   });
 
   it('runPlanned composes plan-then-run in the sandbox', async () => {

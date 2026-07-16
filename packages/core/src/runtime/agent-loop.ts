@@ -607,6 +607,22 @@ function applyOutputBudget(
 }
 
 /**
+ * The output-truncation abort message (v1.9.0 follow-up review). The
+ * constraint is named neutrally as the turn's output token allowance:
+ * the effective request cap can come from limits.maxOutputTokensPerTurn,
+ * the budget clamp above, or the adapter's own default, and the provider
+ * can also cut at its model maximum with no request cap at all.
+ */
+function outputTruncatedMessage(invocation: 'turn' | 'finalize invocation'): string {
+  return (
+    `the ${invocation} ended at its output token allowance (finish reason 'max-tokens') ` +
+    `before producing visible output; raise limits.maxOutputTokensPerTurn, reduce the ` +
+    `reasoning effort, or free budget for the turn ` +
+    '(https://docs.rulvar.com/guide/agents#output-truncation)'
+  );
+}
+
+/**
  * Builds the turn's canonical assistant message. Retained provider-raw
  * parts go at the HEAD: on both first-class providers the retained
  * blocks (thinking blocks, reasoning items) precede the turn's text and
@@ -1585,6 +1601,24 @@ export async function runAgent<S extends SchemaSpec>(
     }
 
     if (options.schema === undefined) {
+      // A turn cut at the output token allowance with nothing visible is
+      // a bounded failure, never a successful '' value: the caller (the
+      // planner reproduced this) cannot repair an answer that contains no
+      // content and would re-pay the same cap every retry (v1.9.0
+      // follow-up review). Non-empty partial text keeps settling ok, and
+      // when a finalize invocation is routed the loop turn's text is not
+      // the answer, so the finalize arm below owns the check instead.
+      if (
+        options.finalize === undefined &&
+        outcome.finish?.reason === 'max-tokens' &&
+        outcome.turn.text.trim() === ''
+      ) {
+        status = 'limit';
+        abortClass = 'output-truncated';
+        agentError = { kind: 'terminal', retryable: false };
+        errorMessage = outputTruncatedMessage('turn');
+        break;
+      }
       output = outcome.turn.text as Out<S>;
       break;
     }
@@ -1740,6 +1774,18 @@ export async function runAgent<S extends SchemaSpec>(
           if (outcome.finish.reason === 'refusal') {
             errorMessage = `model refusal (${outcome.finish.refusal.provider})`;
           }
+        } else if (
+          options.schema === undefined &&
+          outcome.finish?.reason === 'max-tokens' &&
+          outcome.turn.text.trim() === ''
+        ) {
+          // The synthesis IS the schema-less answer, so an empty
+          // truncated synthesis is the same bounded failure as an empty
+          // truncated loop turn (v1.9.0 follow-up review).
+          status = 'limit';
+          abortClass = 'output-truncated';
+          agentError = { kind: 'terminal', retryable: false };
+          errorMessage = outputTruncatedMessage('finalize invocation');
         } else if (options.schema === undefined) {
           // The synthesis is the final answer for schema-less calls; a
           // schema-bearing call reads its output from the extract phase.
