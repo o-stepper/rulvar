@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.10.0
+
+#### Patch Changes
+
+- Updated dependencies [0e8d78e]
+  - @rulvar/core@1.10.0
+
 ### 1.9.0
 
 #### Minor Changes
@@ -383,6 +390,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.10.0
+
+#### Patch Changes
+
+- Updated dependencies [0e8d78e]
+  - @rulvar/core@1.10.0
+
 ### 1.9.0
 
 #### Patch Changes
@@ -645,6 +659,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.10.0
+
+#### Patch Changes
+
+- Updated dependencies [0e8d78e]
+  - @rulvar/core@1.10.0
 
 ### 1.9.0
 
@@ -1039,6 +1060,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.10.0
+
+#### Minor Changes
+
+- 0e8d78e: Settle empty max-tokens turns as a typed output truncation, never an empty success. A schema-less turn (no schema, no required terminal tool) whose completion ends with finish reason `max-tokens` and no visible text now settles `limit` with the new `abortClass: 'output-truncated'`, a terminal-kind error, and an actionable message, instead of `ok` with `''`. The same check covers a routed finalize invocation, whose synthesis is the schema-less answer; a max-tokens turn with visible text keeps settling `ok` with the partial text. Like the no-progress abort, the truncation stamps `memoizeOutcome` on the terminal entry, so every resume replays the typed outcome with zero provider calls. The abort class now rides every projection of the failure: the journaled terminal error payload, the run-level `outcome.error.data`, dropped items, and thrown `AgentCallError` wires, so consumers such as the planner see the typed truncation instead of burning self-repair rounds on `compile/empty-source` under an unchanged output limit. `AbortClass` widens to `'no-progress' | 'output-truncated'`, and the projection helper is exported as `agentResultWire(result, fallbackMessage)` alongside `agentErrorToWire`.
 
 ### 1.9.0
 
@@ -2006,6 +2033,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.10.0
+
 ### 1.9.0
 
 ### 1.8.0
@@ -2088,6 +2117,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.10.0
+
+#### Patch Changes
+
+- Updated dependencies [0e8d78e]
+  - @rulvar/core@1.10.0
+  - @rulvar/testing@1.10.0
 
 ### 1.9.0
 
@@ -2399,6 +2436,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.10.0
+
+#### Patch Changes
+
+- Updated dependencies [0e8d78e]
+  - @rulvar/core@1.10.0
 
 ### 1.9.0
 
@@ -2784,6 +2828,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.10.0
+
+#### Patch Changes
+
+- Updated dependencies [0e8d78e]
+  - @rulvar/core@1.10.0
+
 ### 1.9.0
 
 #### Patch Changes
@@ -3148,6 +3199,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.10.0
+
+#### Patch Changes
+
+- Updated dependencies [0e8d78e]
+  - @rulvar/core@1.10.0
+  - eslint-plugin-rulvar@1.10.0
+
 ### 1.9.0
 
 #### Patch Changes
@@ -3432,6 +3491,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.10.0
+
+#### Patch Changes
+
+- Updated dependencies [0e8d78e]
+  - @rulvar/core@1.10.0
+  - @rulvar/anthropic@1.10.0
+  - @rulvar/openai@1.10.0
 
 ### 1.9.0
 
@@ -3825,6 +3893,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.10.0
+
+#### Patch Changes
+
+- Updated dependencies [0e8d78e]
+  - @rulvar/core@1.10.0
+
 ### 1.9.0
 
 #### Patch Changes
@@ -4143,6 +4218,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.10.0
+
+#### Patch Changes
+
+- Updated dependencies [0e8d78e]
+  - @rulvar/core@1.10.0
+
 ### 1.9.0
 
 #### Patch Changes
@@ -4411,6 +4493,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.10.0
+
+#### Patch Changes
+
+- Updated dependencies [0e8d78e]
+  - @rulvar/core@1.10.0
 
 ### 1.9.0
 
