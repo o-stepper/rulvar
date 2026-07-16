@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.11.0
+
+#### Patch Changes
+
+- Updated dependencies [0c70c5e]
+  - @rulvar/core@1.11.0
+
 ### 1.10.0
 
 #### Patch Changes
@@ -390,6 +397,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.11.0
+
+#### Patch Changes
+
+- Updated dependencies [0c70c5e]
+  - @rulvar/core@1.11.0
+
 ### 1.10.0
 
 #### Patch Changes
@@ -659,6 +673,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.11.0
+
+#### Patch Changes
+
+- Updated dependencies [0c70c5e]
+  - @rulvar/core@1.11.0
 
 ### 1.10.0
 
@@ -1060,6 +1081,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.11.0
+
+#### Minor Changes
+
+- 0c70c5e: Close the execution segment at settle: exactly one segment owns a run (v1.10 deep E2E review, P1). Previously, `resolveExternal` on a handle whose `result` had already settled `'suspended'` silently woke the parked body through the live registry, and the documented resolve-then-resume sequence then started a second segment over the same journal: the approved tool executed twice, the post-approval turn was paid twice, and both segments minted the same journal seq (two terminal agent entries with duplicate seqs). Now every settle closes the registry: parked branches never run again, a post-settle `resolveExternal` validates like the live path and appends the durable resolution through the journal fold WITHOUT waking anything, and the one continuation belongs to the next `engine.resume`. The pre-settle live path (resolving from an `approval:pending` listener) is unchanged. Repeated resolution is now the documented no-op instead of a throw: once the target suspension is closed, `resolveExternal` returns `{ applied: false, reason: 'already_resolved' }` (journaled through the first-closing-wins arbiter) rather than `InvalidResolutionError`; an unknown key still throws, and an invalid payload still throws without journaling. Segment ownership is also enforced at the front door: a second concurrent `engine.run` or `engine.resume` of a runId that already has a live segment in the same engine throws a typed `ConfigError` before any side effect. Defense in depth at the store boundary: `InMemoryStore` and `JsonlFileStore` now enforce the monotonic-seq obligation, rejecting an append whose `seq` is not strictly greater than the stored tail with the typed `JournalOrderViolation`, so two stale-tail writers can never both persist. New public API: `ExternalRegistry.close()`, `ExternalRegistry.closed`, and `ExternalRegistry.suspensionKeyOf(entry)`. Docs: `guide/durability#resolving-a-settled-run` states the ownership rule and both safe orders; tools, testing, troubleshooting, CLI, stores, and store-authors pages align with it, and the documented sequences are now executable regression fixtures.
 
 ### 1.10.0
 
@@ -2033,6 +2060,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.11.0
+
 ### 1.10.0
 
 ### 1.9.0
@@ -2117,6 +2146,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.11.0
+
+#### Patch Changes
+
+- Updated dependencies [0c70c5e]
+- Updated dependencies [0c70c5e]
+  - @rulvar/testing@1.11.0
+  - @rulvar/core@1.11.0
 
 ### 1.10.0
 
@@ -2436,6 +2474,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.11.0
+
+#### Patch Changes
+
+- Updated dependencies [0c70c5e]
+  - @rulvar/core@1.11.0
 
 ### 1.10.0
 
@@ -2828,6 +2873,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.11.0
+
+#### Patch Changes
+
+- Updated dependencies [0c70c5e]
+  - @rulvar/core@1.11.0
+
 ### 1.10.0
 
 #### Patch Changes
@@ -3199,6 +3251,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.11.0
+
+#### Patch Changes
+
+- Updated dependencies [0c70c5e]
+  - @rulvar/core@1.11.0
+  - eslint-plugin-rulvar@1.11.0
+
 ### 1.10.0
 
 #### Patch Changes
@@ -3491,6 +3551,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.11.0
+
+#### Patch Changes
+
+- Updated dependencies [0c70c5e]
+  - @rulvar/core@1.11.0
+  - @rulvar/anthropic@1.11.0
+  - @rulvar/openai@1.11.0
 
 ### 1.10.0
 
@@ -3893,6 +3962,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.11.0
+
+#### Minor Changes
+
+- 0c70c5e: New mandatory obligation A5, monotonic seq: three new checks reject stores that persist duplicate or stale seqs. `a5-monotonic-seq` (a duplicate or stale append rejects with code `journal_order_violation` and never becomes visible, while the true next seq still lands), `a5-stale-tail-race` (two writers appending the same next seq: exactly one persists, the loser observes the typed conflict, reload shows a strictly increasing order), and `a5-stale-replayer-fencing` (the same race driven through two kernel Replayers from one loaded tail). The `CommunityMemoryStore` walkthrough listing gains the guard in step with `docs/guide/store-authors.md`. Third-party stores that pass the previous kit but accept duplicate seqs will fail the new checks until they add the guard; the obligation is documented in `guide/stores` and `guide/store-authors`.
+
+#### Patch Changes
+
+- Updated dependencies [0c70c5e]
+  - @rulvar/core@1.11.0
+
 ### 1.10.0
 
 #### Patch Changes
@@ -4218,6 +4298,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.11.0
+
+#### Minor Changes
+
+- 0c70c5e: Enforce the monotonic-seq store obligation: `append` commits through one atomic conditional INSERT that rejects an entry whose `seq` is not strictly greater than the run's stored tail with the typed `JournalOrderViolation`, so two writers racing the same journal from a stale tail can never both persist (the second writer of a split-brain resume gets a typed conflict instead of silently corrupting replay). Entries without a finite `seq` (legacy or exotic shapes) pass through unguarded, preserving payload opacity. A non-unique expression index over `(run_id, seq)` keeps the tail check cheap on long journals; existing database files need no migration.
+
+#### Patch Changes
+
+- Updated dependencies [0c70c5e]
+  - @rulvar/core@1.11.0
+
 ### 1.10.0
 
 #### Patch Changes
@@ -4493,6 +4584,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.11.0
+
+#### Patch Changes
+
+- 0c70c5e: Repair the committed `class-decision-fanout` cassette: the M9 live re-record was itself corrupted by the suspension split-brain fixed in this release (its recorder resolved `report-1` on the settled handle, waking the closed body while a resume appended concurrently), so the committed journal held two byte-identical `report-2` suspended entries with the same seq. Re-recording through the fixed engine drops exactly the duplicate twin; every other live cassette is byte-identical. This is NOT a hashVersion-bump and no identity profile changed; the literal ceremony token appears here only because the frozen-fixture lock refresh requires a changeset carrying it, and a corrupt-fixture repair is precisely the deliberate, reviewable diff the ceremony exists to force.
+- Updated dependencies [0c70c5e]
+  - @rulvar/core@1.11.0
 
 ### 1.10.0
 
