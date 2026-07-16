@@ -173,6 +173,24 @@ export default [{ files: ["workflows/**/*.ts"], ...workflowsConfig }];
 
 For CI pipelines that want the planner's view of raw ESLint output, `toJsonDiagnostics(messages)` converts `LintMessage[]` into the same JSON shape the repair loop consumes.
 
+### Give the planner output room
+
+The `plan` role defaults to high reasoning effort, and adaptive thinking shares the output-token allowance with the visible script. A tight `maxOutputTokensPerTurn` can be consumed entirely by reasoning, leaving an empty completion:
+
+```ts
+defaults: {
+  routing: {
+    plan: { model: 'anthropic:claude-fable-5', effort: 'max' },
+  },
+  // High-effort adaptive reasoning shares the output-token allowance.
+  limits: { maxOutputTokensPerTurn: 5_000 },
+}
+```
+
+`5_000` is a practical starting point, not a guarantee; tune it to prompt complexity and budget. Reducing `effort` is the cheaper alternative when the goal does not need deep planning.
+
+When a draft does come back truncated and empty (finish reason `max-tokens`, no visible text), the run does not burn repair rounds on it: source repair cannot fix a completion that contains no source. The draft settles as the typed [output truncation](/guide/agents#output-truncation) (`limit`, `abortClass: 'output-truncated'`), `plan()` stops after that one provider call, and the `ScriptRejected` it throws carries the truncation in `data.error`, not `compile/empty-source`. One consequence to know: the truncated draft memoizes, and the planner run id derives from the goal, so re-planning the same goal against the same store replays the memoized abort even after you raise the limit. Re-plan against a fresh store, rephrase the goal, or unpin the entry with resume's `invalidate` knob ([durability](/guide/durability)).
+
 ## The worker sandbox
 
 `WorkerSandboxRunner` executes the compiled script inside a `worker_threads` worker. Its contract:

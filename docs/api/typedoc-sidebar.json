@@ -1977,6 +1977,10 @@
             "link": "/api/@rulvar/core/functions/agentErrorToWire.md"
           },
           {
+            "text": "agentResultWire",
+            "link": "/api/@rulvar/core/functions/agentResultWire.md"
+          },
+          {
             "text": "agentScope",
             "link": "/api/@rulvar/core/functions/agentScope.md"
           },
@@ -5448,6 +5452,10 @@
           {
             "text": "agentErrorToWire",
             "link": "/api/@rulvar/rulvar/functions/agentErrorToWire.md"
+          },
+          {
+            "text": "agentResultWire",
+            "link": "/api/@rulvar/rulvar/functions/agentResultWire.md"
           },
           {
             "text": "agentScope",

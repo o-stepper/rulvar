@@ -6,7 +6,7 @@
 
 # Class: NoProgressDetector
 
-Defined in: [packages/core/src/runtime/no-progress.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/no-progress.ts#L31)
+Defined in: [packages/core/src/runtime/no-progress.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/no-progress.ts#L39)
 
 Counts consecutive progress-free turns. A turn with at least one tool
 call (or, later, an artifact delta) resets the streak; a turn with
@@ -21,7 +21,7 @@ threshold AND the loop would otherwise continue.
 new NoProgressDetector(threshold?): NoProgressDetector;
 ```
 
-Defined in: [packages/core/src/runtime/no-progress.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/no-progress.ts#L35)
+Defined in: [packages/core/src/runtime/no-progress.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/no-progress.ts#L43)
 
 #### Parameters
 
@@ -43,7 +43,7 @@ Defined in: [packages/core/src/runtime/no-progress.ts:35](https://github.com/o-s
 get streak(): number;
 ```
 
-Defined in: [packages/core/src/runtime/no-progress.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/no-progress.ts#L39)
+Defined in: [packages/core/src/runtime/no-progress.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/no-progress.ts#L47)
 
 ##### Returns
 
@@ -59,7 +59,7 @@ Defined in: [packages/core/src/runtime/no-progress.ts:39](https://github.com/o-s
 get tripped(): boolean;
 ```
 
-Defined in: [packages/core/src/runtime/no-progress.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/no-progress.ts#L52)
+Defined in: [packages/core/src/runtime/no-progress.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/no-progress.ts#L60)
 
 ##### Returns
 
@@ -73,7 +73,7 @@ Defined in: [packages/core/src/runtime/no-progress.ts:52](https://github.com/o-s
 describe(): string;
 ```
 
-Defined in: [packages/core/src/runtime/no-progress.ts:56](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/no-progress.ts#L56)
+Defined in: [packages/core/src/runtime/no-progress.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/no-progress.ts#L64)
 
 #### Returns
 
@@ -87,7 +87,7 @@ Defined in: [packages/core/src/runtime/no-progress.ts:56](https://github.com/o-s
 recordTurn(progress): void;
 ```
 
-Defined in: [packages/core/src/runtime/no-progress.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/no-progress.ts#L44)
+Defined in: [packages/core/src/runtime/no-progress.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/no-progress.ts#L52)
 
 Records one completed model turn.
 

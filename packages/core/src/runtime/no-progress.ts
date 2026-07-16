@@ -19,8 +19,16 @@
 /** The committed no-progress detector N. */
 export const DEFAULT_NO_PROGRESS_TURNS = 3;
 
-/** The consumer-visible dedicated class marker (FR-424). */
-export type AbortClass = 'no-progress';
+/**
+ * The consumer-visible engine-decided abort classes (FR-424).
+ * 'no-progress' is the detector below; 'output-truncated' is a
+ * schema-less turn that ended at its output token allowance
+ * (finish reason 'max-tokens') without visible output (v1.9.0
+ * follow-up review). Both stamp memoizeOutcome on the terminal:
+ * the work is paid, so every resume replays the abort instead of
+ * re-paying the same bounded failure.
+ */
+export type AbortClass = 'no-progress' | 'output-truncated';
 
 /**
  * Counts consecutive progress-free turns. A turn with at least one tool

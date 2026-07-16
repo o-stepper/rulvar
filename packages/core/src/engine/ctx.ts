@@ -74,6 +74,7 @@ import {
   type PhaseTarget,
   type ToolRuntime,
 } from '../runtime/agent-loop.js';
+import type { AbortClass } from '../runtime/no-progress.js';
 import {
   countsAgainstLimit,
   escalateTool,
@@ -271,6 +272,29 @@ export class AgentCallError extends Error implements AgentError {
       this.entryRef = entryRef;
     }
   }
+}
+
+/**
+ * Projects a settled AgentResult's error to its wire form, carrying the
+ * engine-decided abort class in data. AgentError itself has no data
+ * field, so without this every projection past the terminal entry (the
+ * run-level outcome.error, thrown AgentCallError wires, dropped items)
+ * would keep only the message text and lose the typed class (v1.9.0
+ * follow-up review).
+ */
+export function agentResultWire(result: AgentResult<unknown>, fallbackMessage: string): WireError {
+  const wire = agentErrorToWire(
+    result.error ?? { kind: 'terminal', retryable: false },
+    (result as { errorMessage?: string }).errorMessage ?? fallbackMessage,
+  );
+  if (result.abortClass === undefined) {
+    return wire;
+  }
+  const data =
+    typeof wire.data === 'object' && wire.data !== null && !Array.isArray(wire.data)
+      ? wire.data
+      : {};
+  return { ...wire, data: { ...data, abortClass: result.abortClass } };
 }
 
 /** Pipeline results plus the dropped evidence, returned by onItemError: 'collect'. */
@@ -1155,10 +1179,16 @@ export function createCtx(
         // escalated entry replays as completed, paid work).
         result.escalation = terminal.escalation as unknown as EscalationReport;
       }
-      if (
-        (terminal?.error?.data as { abortClass?: string } | undefined)?.abortClass === 'no-progress'
-      ) {
-        result.abortClass = 'no-progress';
+      {
+        // Engine-decided abort classes ride the terminal error payload;
+        // replay restores whichever class was stamped (no-progress,
+        // output-truncated) so a resumed consumer sees the same typed
+        // result the live run reported.
+        const stamped = (terminal?.error?.data as { abortClass?: AbortClass } | undefined)
+          ?.abortClass;
+        if (stamped !== undefined) {
+          result.abortClass = stamped;
+        }
       }
       // Tool results reconstructed from the replayed turn checkpoint are
       // re-emitted with the replay marker.
@@ -1286,11 +1316,7 @@ export function createCtx(
       }
       const effectivePolicy =
         opts.onError ?? (internals.errorPolicy === 'lenient' ? 'null' : 'throw');
-      const replayWire = agentErrorToWire(
-        result.error ?? { kind: 'terminal', retryable: false },
-        (result as { errorMessage?: string }).errorMessage ??
-          `agent replayed with status ${result.status}`,
-      );
+      const replayWire = agentResultWire(result, `agent replayed with status ${result.status}`);
       if (effectivePolicy === 'null') {
         const droppedItem: DroppedItem = {
           source: 'agent-onerror-null',
@@ -1918,10 +1944,12 @@ export function createCtx(
     if (result.artifacts !== undefined) {
       terminalPatch.artifacts = result.artifacts;
     }
-    if (result.abortClass === 'no-progress') {
-      // The engine-decided abort replays on every resume: memoizeOutcome
+    if (result.abortClass !== undefined) {
+      // An engine-decided abort replays on every resume: memoizeOutcome
       // stamped on the TERMINAL, the class marker in the error payload
-      // (M3-T08).
+      // (M3-T08 for no-progress; the v1.9.0 follow-up review added
+      // output-truncated). The work is paid, so a rerun would only
+      // re-pay the same bounded failure.
       terminalPatch.memoizeOutcome = true;
       if (terminalPatch.error !== undefined) {
         const priorData = terminalPatch.error.data;
@@ -1931,7 +1959,7 @@ export function createCtx(
             : {};
         terminalPatch.error = {
           ...terminalPatch.error,
-          data: { ...dataRecord, abortClass: 'no-progress' },
+          data: { ...dataRecord, abortClass: result.abortClass },
         };
       }
     }
@@ -2076,10 +2104,7 @@ export function createCtx(
 
     const effectiveOnError =
       opts.onError ?? (internals.errorPolicy === 'lenient' ? 'null' : 'throw');
-    const wire = agentErrorToWire(
-      result.error ?? { kind: 'terminal', retryable: false },
-      result.errorMessage ?? `agent terminated with status ${result.status}`,
-    );
+    const wire = agentResultWire(result, `agent terminated with status ${result.status}`);
     if (effectiveOnError === 'null') {
       const droppedItem: DroppedItem = {
         source: 'agent-onerror-null',
@@ -2261,10 +2286,7 @@ export function createCtx(
           }
           const wire: WireError =
             thrown instanceof AgentCallError
-              ? agentErrorToWire(
-                  thrown.result.error ?? { kind: 'terminal', retryable: false },
-                  thrown.message,
-                )
+              ? agentResultWire(thrown.result, thrown.message)
               : thrown instanceof RulvarError
                 ? thrown.toWire()
                 : {

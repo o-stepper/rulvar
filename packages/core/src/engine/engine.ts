@@ -6,13 +6,7 @@
  * kernel in M2.
  */
 import { createHash } from 'node:crypto';
-import {
-  agentErrorToWire,
-  BudgetExhaustedError,
-  ConfigError,
-  RulvarError,
-  type WireError,
-} from '../l0/errors.js';
+import { BudgetExhaustedError, ConfigError, RulvarError, type WireError } from '../l0/errors.js';
 import type { WorkflowEventBody } from '../l0/events.js';
 import type { InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
 import type { IsolationProvider } from '../l0/spi/isolation.js';
@@ -48,6 +42,7 @@ import { AdmissionController } from '../orchestrator/admission.js';
 import { RunBudget } from './budget.js';
 import {
   AgentCallError,
+  agentResultWire,
   createCtx,
   type AgentProfile,
   type RunInternals,
@@ -665,10 +660,10 @@ export function createEngine(options: CreateEngineOptions): Engine {
           status = 'error';
           wireError =
             thrown instanceof AgentCallError
-              ? agentErrorToWire(
-                  thrown.result.error ?? { kind: 'terminal', retryable: false },
-                  thrown.message,
-                )
+              ? // Carries the engine-decided abort class (abortClass in
+                // data) past the run settle, so consumers of the run
+                // outcome keep the typed failure, not just its message.
+                agentResultWire(thrown.result, thrown.message)
               : thrown instanceof RulvarError
                 ? thrown.toWire()
                 : {

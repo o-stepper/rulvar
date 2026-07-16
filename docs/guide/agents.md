@@ -110,7 +110,7 @@ if (r.status === 'ok') {
 |---|---|
 | `ok` | The loop finished and the output validated. |
 | `error` | Typed failure (`transport`, `rate-limit`, `schema-mismatch`, `tool`, `budget`, `terminal`). Under the default `onError: 'throw'` the value form rejects; under `'null'` it resolves `null` and the loss is recorded in `run.dropped`, never silently. |
-| `limit` | A `UsageLimits` cap expired (turns, tool calls, wall clock, no-progress). Partial work is paid and kept. |
+| `limit` | A `UsageLimits` cap expired (turns, tool calls, wall clock, no-progress), or the turn was cut at its output token allowance with nothing visible ([output truncation](#output-truncation)). Partial work is paid and kept. |
 | `cancelled` | Host cancellation or sibling abort; always reruns on resume. |
 | `skipped` | Derived during replay of abandoned branches; only observable through `result: 'full'` or settled `ctx.parallel` branches. |
 | `escalated` | The child filed a typed escalation report; requires the `escalation` opt-in and is never an error. |
@@ -145,6 +145,14 @@ Each stage of an agent's life resolves its model through an invocation role, so 
 Turns are bounded by `UsageLimits`, merged per spawn (call over profile over engine): `maxTurns` (default 32), `maxToolCalls`, `maxOutputTokensPerTurn`, `timeoutMs`, and the no-progress detector (default 3 consecutive turns without tool calls or artifact deltas). Expiry of any of these lands the terminal status `limit`, with the paid partial work kept. `streamIdleTimeoutMs` (default 120000) is different: a stalled stream is severed and surfaces as a retryable transport error under the retry policy, not as `limit`.
 
 Tools can also ask the model to try again: throwing `ModelRetry` from a tool's `execute` converts into an error-flagged tool result the model sees and can self-correct from, bounded to 2 attempts per call chain by default. See the [tools guide](/guide/tools).
+
+## Output truncation
+
+A schema-less turn (no schema, no required terminal tool) whose provider completion ends with finish reason `max-tokens` and no visible text settles `limit` with `abortClass: 'output-truncated'`, never `ok` with an empty value. An empty truncated turn usually means the whole allowance went to reasoning: high-effort adaptive thinking shares the output-token allowance with the visible answer. When a `finalize` role is routed the check moves to the synthesis invocation, because its text, not the loop turn's, is the schema-less answer. A max-tokens turn **with** visible text still settles `ok` and keeps the partial text.
+
+The effective cap can come from `limits.maxOutputTokensPerTurn`, from the budget clamp (the remaining budget affords fewer tokens than requested), or from the adapter's own default. Recovery is explicit, never automatic: raise `maxOutputTokensPerTurn`, reduce the reasoning `effort`, or free budget. A configured `fallback: { model, on: ['limit'] }` composes as the one explicit second attempt, and in plan mode an escalation ladder rung on `limit` does the same.
+
+Like the no-progress abort, the truncation memoizes: the engine stamps `memoizeOutcome` on the terminal entry, so every resume replays the typed outcome with zero provider calls and the paid work is never re-paid. Limits are not part of agent identity, so re-running the same prompt on the same store after raising the limit still replays the memoized abort. To actually retry, unpin the entry with resume's `invalidate` knob ([durability](/guide/durability)), use a fresh store or run id, or change the prompt.
 
 ## Model preferences
 
