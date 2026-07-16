@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { ChatEvent, ChatRequest, Engine, ModelCaps, ProviderAdapter } from '@rulvar/core';
 import { createEngine, JsonlFileStore, ScriptRejected } from '@rulvar/core';
 import { FAKE_MODEL_REF, FakeAdapter, type FakeResponder } from '@rulvar/testing';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { extractScript, lintScript, plan, planRunIdOf, runPlanned } from './plan.js';
 import { WorkerSandboxRunner } from './sandbox-runner.js';
@@ -183,6 +183,95 @@ describe('plan (M6-T05)', () => {
     const value = outcome.value as { startedAt: number; result: string };
     expect(value.result).toBe('worked');
     expect(typeof value.startedAt).toBe('number');
+  });
+});
+
+describe('planning budgets (v1.11 follow-up)', () => {
+  it('freezes the genesis ceiling, replays under it, and warns on drift', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-plan-budget-'));
+    tempDirs.push(dir);
+    const store = new JsonlFileStore({ dir });
+    const { engine, adapter } = makeEngine({ planner: () => GOOD_SCRIPT, store });
+
+    // Genesis: options.run applies and the ceiling is RECORDED.
+    const first = await plan(engine, 'bounded goal', { run: { budgetUsd: 5 } });
+    expect(first.workflow.kind).toBe('compiled-workflow');
+    expect(adapter.calls).toHaveLength(1);
+    const runId = planRunIdOf('bounded goal');
+    const meta = (await store.listRuns()).find((m) => m.runId === runId);
+    expect(meta?.budgetUsd).toBe(5);
+
+    // Replay: free, and the frozen ceiling is untouched.
+    const second = await plan(engine, 'bounded goal', { run: { budgetUsd: 5 } });
+    expect(second.source).toBe(first.source);
+    expect(adapter.calls).toHaveLength(1);
+
+    // A differing explicit budget is loud drift, never a top-up.
+    const spy = vi.spyOn(process, 'emitWarning').mockImplementation(() => undefined);
+    try {
+      await plan(engine, 'bounded goal', { run: { budgetUsd: 9 } });
+      expect(
+        spy.mock.calls.some((call) => {
+          const options = call[1] as string | { code?: string } | undefined;
+          return typeof options === 'object' && options?.code === 'RULVAR_PLAN_BUDGET_DRIFT';
+        }),
+      ).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
+    const after = (await store.listRuns()).find((m) => m.runId === runId);
+    expect(after?.budgetUsd).toBe(5);
+    expect(adapter.calls).toHaveLength(1);
+  });
+
+  it('a too-small ceiling denies the first draft typed, with zero provider calls', async () => {
+    const { engine, adapter } = makeEngine({ planner: () => GOOD_SCRIPT });
+    let caught: unknown;
+    try {
+      await plan(engine, 'starved goal', { run: { budgetUsd: 0.1 } });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ScriptRejected);
+    const data = (caught as ScriptRejected).data as {
+      status?: string;
+      error?: { code?: string; message?: string };
+    };
+    expect(data.status).toBe('exhausted');
+    expect(data.error?.code).toBe('budget_exhausted');
+    // Zero over-ceiling calls: the admission reserve did not fit, so no
+    // provider turn was ever paid.
+    expect(adapter.calls).toHaveLength(0);
+  });
+
+  it('runPlanned stores and enforces independent planning and execution ceilings', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-plan-budget-'));
+    tempDirs.push(dir);
+    const store = new JsonlFileStore({ dir });
+    const { engine, adapter } = makeEngine({
+      planner: () => GOOD_SCRIPT,
+      store,
+      withLoopRouting: true,
+    });
+    const handle = await runPlanned(engine, 'double bounded goal', null, {
+      plan: { run: { budgetUsd: 4 } },
+      run: { budgetUsd: 7 },
+    });
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    const metas = await store.listRuns();
+    expect(metas.find((m) => m.runId === planRunIdOf('double bounded goal'))?.budgetUsd).toBe(4);
+    expect(metas.find((m) => m.runId === handle.runId)?.budgetUsd).toBe(7);
+
+    // The execution ceiling survives a bare resume of the compiled run:
+    // the journal replays free and B0 stays the recorded value.
+    const calls = adapter.calls.length;
+    const resumed = engine.resume(handle.runId);
+    const replayed = await resumed.result;
+    expect(replayed.status).toBe('ok');
+    expect(adapter.calls).toHaveLength(calls);
+    expect((await resumed.preview).misses).toBe(0);
+    expect((await store.listRuns()).find((m) => m.runId === handle.runId)?.budgetUsd).toBe(7);
   });
 });
 

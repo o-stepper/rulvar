@@ -8,6 +8,7 @@ import { ConfigError } from '../l0/errors.js';
 import { InMemoryStore } from '../stores/inmemory.js';
 import { createEngine } from './engine.js';
 import { defineWorkflow } from './ctx.js';
+import { tool } from '../tools/tool.js';
 import { scriptedAdapter, testCaps } from './test-harness.js';
 
 describe('createEngine and engine.run (M1-T11)', () => {
@@ -443,5 +444,42 @@ describe('createEngine and engine.run (M1-T11)', () => {
     } finally {
       spy.mockRestore();
     }
+  });
+
+  it('an in-loop budget failure keeps its typed wire on the exhausted outcome', async () => {
+    // Turn 1 executes a tool and its usage is priced far over the
+    // ceiling; the turn-2 budget guard then throws INSIDE the agent and
+    // the run settles exhausted. The outcome must carry the typed
+    // budget failure, never drop the wire (v1.11 follow-up review,
+    // requirement 5; the racier AgentCallError-while-exhausted shape is
+    // preserved by the same settle branch).
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? { toolCall: { name: 'noop', args: {} } } : { text: 'never reached' },
+    );
+    const noop = tool({
+      name: 'noop',
+      description: 'does nothing',
+      parameters: { type: 'object' },
+      execute: () => Promise.resolve('ok'),
+    });
+    const engine = createEngine({
+      adapters: [adapter],
+      defaults: { routing: { loop: 'fake:model' } },
+      pricing: {
+        pricingVersion: 'test-exhaustion',
+        models: { 'fake:model': { inputUsdPerMTok: 1_000_000, outputUsdPerMTok: 1_000_000 } },
+      },
+      budgetDefaults: { flatReserveUsd: 0.01 },
+    });
+    const wf = defineWorkflow({ name: 'overspender' }, async (ctx) =>
+      ctx.agent('spend', { tools: [noop], onError: 'throw' }),
+    );
+    const outcome = await engine.run(wf, undefined, { budgetUsd: 1 }).result;
+    expect(outcome.status).toBe('exhausted');
+    expect(outcome.error).toBeDefined();
+    expect(outcome.error?.code).toBe('budget_exhausted');
+    expect(outcome.error?.message).toContain('budget');
+    // Turn 2 was never paid: the guard cut the loop before dispatch.
+    expect(adapter.calls).toHaveLength(1);
   });
 });

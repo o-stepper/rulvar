@@ -46,15 +46,25 @@ const engine = createEngine({
   runners: { sandbox: new WorkerSandboxRunner() },
 });
 
-const planned = await plan(engine, "Compare three storage engines and draft a recommendation");
+const planned = await plan(engine, "Compare three storage engines and draft a recommendation", {
+  run: { budgetUsd: 1 }, // the planning conversation's own immutable ceiling
+});
 console.log(planned.source); // the frozen script: read it before you pay for execution
 console.log(planned.lint);   // advisories on the accepted draft; never errors
 
 const handle = engine.run(planned.workflow, {}, { budgetUsd: 10 });
 const outcome = await handle.result;
 
-// Or compose plan-then-run in one call:
-const direct = await runPlanned(engine, "Compare three storage engines and draft a recommendation");
+// Or compose plan-then-run in one call, with the two ceilings set
+// independently: `plan.run` bounds the planning conversation, `run`
+// bounds the generated workflow's execution.
+const direct = await runPlanned(engine, "Compare three storage engines and draft a recommendation", null, {
+  plan: { run: { budgetUsd: 1 } },
+  run: { budgetUsd: 10 },
+});
+
+// The bare legacy forms still work and are UNBOUNDED: without options,
+// neither the planning run nor the execution run has a dollar ceiling.
 ```
 
 Registering a sandbox runner is not optional decoration: running or resuming a `CompiledWorkflow` on an engine without `runners.sandbox` is a typed `ConfigError` before any journal entry is written.
@@ -77,6 +87,14 @@ flowchart LR
 `plan()` asks a planner model (invocation role `plan`; override with `PlanOptions.model`) to write a script against the rendered cards. The reply's first fenced code block is extracted deterministically (or the whole reply when there is no fence), then linted and compiled. Error diagnostics are serialized back into a repair prompt; the loop accepts the first draft with zero errors, and after `repairRounds` repair rounds it gives up with a typed `ScriptRejected` carrying the last diagnostics, so a planner that cannot produce a valid script terminates loudly instead of looping.
 
 The planning conversation is itself an ordinary journaled run whose id derives deterministically from the goal: `planRunIdOf(goal)` returns `plan-` plus a hash prefix, so one goal maps to one planning journal on your store. Calling `plan()` again with the same goal resumes that journal: already-paid drafts and repair turns replay for free under the never-pay-twice invariant, and only genuinely new turns cost money.
+
+## Budgeting the planning conversation
+
+`PlanOptions.run` carries run options for the planning conversation itself: `budgetUsd`, `limits`, `deadlineAt`, and `signal` (the runId stays goal-derived and is not overridable). They apply at **genesis** only. The first `plan()` of a goal starts the planning journal with them, and `budgetUsd` freezes as the run's immutable ceiling B0, recorded in the journal metadata like any other run ([Budgets](/guide/budgets)). A later `plan()` of the same goal resumes the existing journal under its RECORDED ceiling: a differing explicit `budgetUsd` emits a `RULVAR_PLAN_BUDGET_DRIFT` warning and never tops up or replaces the frozen value, and `limits`, `deadlineAt`, and `signal` do not apply to a resumed journal (core resume semantics; cancel through the returned handle). Delete the run or plan a new goal to change a ceiling.
+
+When the ceiling cannot fit the next draft, planning stops typed: `plan()` throws `ScriptRejected` whose `data` carries `status: 'exhausted'` and the `budget_exhausted` error, the planning journal survives intact, and no over-ceiling provider call is made. Mind the admission reserve: absent an `estCost` hint the engine reserves the flat default (0.50 USD) per spawn, so a ceiling below the reserve denies even the first draft.
+
+`runPlanned(engine, goal, args, { plan, run })` sets the two ceilings independently: `plan.run.budgetUsd` bounds the planning conversation and `run.budgetUsd` bounds the generated workflow's execution run (`run` is `RunOptions`, passed to `engine.run` verbatim). Both are ordinary run ceilings: recorded in metadata, restored on resume, and enforced by projected admission and the per-turn guard. Without options, both legs run unbounded, exactly like the pre-1.12 forms.
 
 ## What the planner sees
 
@@ -187,7 +205,7 @@ defaults: {
 }
 ```
 
-`5_000` is a practical starting point, not a guarantee; tune it to prompt complexity and budget. Reducing `effort` is the cheaper alternative when the goal does not need deep planning.
+`5_000` is a practical starting point, not a guarantee; tune it to prompt complexity and budget. Reducing `effort` is the cheaper alternative when the goal does not need deep planning. The same limit can also ride one goal instead of the whole engine: `plan(engine, goal, { run: { limits: { maxOutputTokensPerTurn: 5_000 } } })` applies it at the planning journal's genesis.
 
 When a draft does come back truncated and empty (finish reason `max-tokens`, no visible text), the run does not burn repair rounds on it: source repair cannot fix a completion that contains no source. The draft settles as the typed [output truncation](/guide/agents#output-truncation) (`limit`, `abortClass: 'output-truncated'`), `plan()` stops after that one provider call, and the `ScriptRejected` it throws carries the truncation in `data.error`, not `compile/empty-source`. One consequence to know: the truncated draft memoizes, and the planner run id derives from the goal, so re-planning the same goal against the same store replays the memoized abort even after you raise the limit. Re-plan against a fresh store, rephrase the goal, or unpin the entry with resume's `invalidate` knob ([durability](/guide/durability)).
 

@@ -10,13 +10,17 @@
 function runPlanned(
    engine, 
    goal, 
-args?): Promise<RunHandle<unknown>>;
+   args?, 
+options?): Promise<RunHandle<unknown>>;
 ```
 
-Defined in: [packages/planner/src/plan.ts:223](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/plan.ts#L223)
+Defined in: [packages/planner/src/plan.ts:280](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/plan.ts#L280)
 
 plan-then-run in one call (amended during M6-T05:
 the composition is async because planning itself is a run).
+options.plan bounds the planning conversation, options.run bounds the
+generated workflow's execution; the two ceilings are independent, and
+the bare form without options runs BOTH legs unbounded, as before.
 
 ## Parameters
 
@@ -25,6 +29,7 @@ the composition is async because planning itself is a run).
 | `engine` | [`Engine`](/api/@rulvar/rulvar/interfaces/Engine.md) |
 | `goal` | `string` |
 | `args?` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) |
+| `options?` | `RunPlannedOptions` |
 
 ## Returns
 

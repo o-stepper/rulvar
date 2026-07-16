@@ -1,4 +1,4 @@
-import { CompiledWorkflow, Ctx, Engine, InMemoryStore, JournalEntry, Json, ModelSpec, RunHandle, ScriptRejected, ScriptRunner } from "@rulvar/core";
+import { CompiledWorkflow, Ctx, Engine, InMemoryStore, JournalEntry, Json, ModelSpec, RunHandle, RunOptions, ScriptRejected, ScriptRunner } from "@rulvar/core";
 
 //#region src/compile.d.ts
 /**
@@ -49,6 +49,30 @@ interface PlanOptions {
   profiles?: string[];
   /** Self-repair rounds from JSON diagnostics; default 3 (Appendix A). */
   repairRounds?: number;
+  /**
+  * Run options of the planning conversation itself, applied at GENESIS
+  * only: the first plan() of a goal starts the journal with them, and
+  * budgetUsd becomes the run's immutable ceiling B0, recorded in
+  * RunMeta. A later plan() of the same goal resumes the existing
+  * journal under its RECORDED ceiling: a differing explicit budgetUsd
+  * warns (RULVAR_PLAN_BUDGET_DRIFT) and never tops up or replaces the
+  * frozen value, and limits/deadlineAt/signal do not apply to a
+  * resumed journal (core resume semantics; cancel through the handle).
+  * The runId stays goal-derived (planRunIdOf) and is not overridable.
+  * Absent options, the planning run is UNBOUNDED, as before.
+  */
+  run?: Pick<RunOptions, "budgetUsd" | "limits" | "deadlineAt" | "signal">;
+}
+interface RunPlannedOptions {
+  /** Options of the planning conversation (see plan()). */
+  plan?: PlanOptions;
+  /**
+  * RunOptions of the generated workflow's execution run, passed to
+  * engine.run verbatim (budgetUsd here is the EXECUTION ceiling,
+  * independent of the planning ceiling). Absent, the execution run is
+  * UNBOUNDED, as before.
+  */
+  run?: RunOptions;
 }
 interface PlanResult {
   source: string;
@@ -78,8 +102,11 @@ declare function plan(engine: Engine, goal: string, o?: PlanOptions): Promise<Pl
 /**
 * plan-then-run in one call (amended during M6-T05:
 * the composition is async because planning itself is a run).
+* options.plan bounds the planning conversation, options.run bounds the
+* generated workflow's execution; the two ceilings are independent, and
+* the bare form without options runs BOTH legs unbounded, as before.
 */
-declare function runPlanned(engine: Engine, goal: string, args?: Json): Promise<RunHandle<unknown>>;
+declare function runPlanned(engine: Engine, goal: string, args?: Json, options?: RunPlannedOptions): Promise<RunHandle<unknown>>;
 //#endregion
 //#region src/cassettes.d.ts
 /** The M3-convention cassette normalization: wall clock and spans only. */
