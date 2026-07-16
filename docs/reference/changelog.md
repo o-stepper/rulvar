@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.12.0
+
+#### Patch Changes
+
+- Updated dependencies [46edcc0]
+  - @rulvar/core@1.12.0
+
 ### 1.11.0
 
 #### Patch Changes
@@ -397,6 +404,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.12.0
+
+#### Patch Changes
+
+- Updated dependencies [46edcc0]
+  - @rulvar/core@1.12.0
+
 ### 1.11.0
 
 #### Patch Changes
@@ -673,6 +687,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.12.0
+
+#### Patch Changes
+
+- Updated dependencies [46edcc0]
+  - @rulvar/core@1.12.0
 
 ### 1.11.0
 
@@ -1081,6 +1102,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.12.0
+
+#### Patch Changes
+
+- 46edcc0: An exhausted run settle no longer drops the typed failure when the throw was an `AgentCallError`: the exhausted branch now projects it through `agentResultWire` exactly like the error branch, so `outcome.error` keeps the agent's typed budget failure (and any engine-decided abort class) in the parallel-exhaustion race where one branch's agent fails while the run budget is already exhausted. The common paths were already typed: a direct `BudgetExhaustedError` carried its wire before, and the in-loop turn-guard denial surfaces as `budget_exhausted` with zero over-ceiling calls, now pinned by an engine-level regression test.
 
 ### 1.11.0
 
@@ -2060,6 +2087,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.12.0
+
 ### 1.11.0
 
 ### 1.10.0
@@ -2146,6 +2175,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.12.0
+
+#### Patch Changes
+
+- Updated dependencies [46edcc0]
+  - @rulvar/core@1.12.0
+  - @rulvar/testing@1.12.0
 
 ### 1.11.0
 
@@ -2474,6 +2511,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.12.0
+
+#### Patch Changes
+
+- Updated dependencies [46edcc0]
+  - @rulvar/core@1.12.0
 
 ### 1.11.0
 
@@ -2873,6 +2917,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.12.0
+
+#### Patch Changes
+
+- Updated dependencies [46edcc0]
+  - @rulvar/core@1.12.0
+
 ### 1.11.0
 
 #### Patch Changes
@@ -3251,6 +3302,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.12.0
+
+#### Minor Changes
+
+- 46edcc0: Budget-safe planner APIs (v1.11 follow-up review, P2). `PlanOptions.run` carries run options for the planning conversation itself (`budgetUsd`, `limits`, `deadlineAt`, `signal`; the runId stays goal-derived and is not overridable): they apply at GENESIS, where `budgetUsd` freezes as the planning run's immutable ceiling B0, recorded in RunMeta. A later `plan()` of the same goal resumes the existing journal under its RECORDED ceiling: a differing explicit `budgetUsd` emits a `RULVAR_PLAN_BUDGET_DRIFT` warning and never tops up or replaces the frozen value. When the ceiling cannot fit the next draft, `plan()` throws `ScriptRejected` whose data carries `status: 'exhausted'` and the typed `budget_exhausted` error, with zero over-ceiling provider calls and the planning journal intact. `runPlanned(engine, goal, args, options)` gains `RunPlannedOptions { plan?, run? }`: `plan` bounds (and fully parameterizes) the planning leg, `run` is passed to `engine.run` verbatim as the execution leg's own independent RunOptions. Existing calls stay source-compatible; the bare forms without options remain UNBOUNDED and are now documented as such, with the bounded form shown first in the planner and orchestration-modes guides.
+
+#### Patch Changes
+
+- Updated dependencies [46edcc0]
+  - @rulvar/core@1.12.0
+  - eslint-plugin-rulvar@1.12.0
+
 ### 1.11.0
 
 #### Patch Changes
@@ -3551,6 +3614,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.12.0
+
+#### Patch Changes
+
+- Updated dependencies [46edcc0]
+  - @rulvar/core@1.12.0
+  - @rulvar/anthropic@1.12.0
+  - @rulvar/openai@1.12.0
 
 ### 1.11.0
 
@@ -3962,6 +4034,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.12.0
+
+#### Patch Changes
+
+- Updated dependencies [46edcc0]
+  - @rulvar/core@1.12.0
+
 ### 1.11.0
 
 #### Minor Changes
@@ -4298,6 +4377,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.12.0
+
+#### Patch Changes
+
+- Updated dependencies [46edcc0]
+  - @rulvar/core@1.12.0
+
 ### 1.11.0
 
 #### Minor Changes
@@ -4584,6 +4670,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.12.0
+
+#### Patch Changes
+
+- Updated dependencies [46edcc0]
+  - @rulvar/core@1.12.0
 
 ### 1.11.0
 
