@@ -32,6 +32,7 @@ export {
   type PlanDiagnostic,
   type PlanOptions,
   type PlanResult,
+  type RunPlannedOptions,
 } from './plan.js';
 export {
   DEFAULT_SANDBOX_MEMORY_MB,

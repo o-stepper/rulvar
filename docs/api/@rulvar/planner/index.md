@@ -53,6 +53,7 @@ pnpm add @rulvar/core @rulvar/planner
 | [PlanDiagnostic](/api/@rulvar/planner/interfaces/PlanDiagnostic.md) | One repair-loop diagnostic: lint and compile findings share the shape. |
 | [PlanOptions](/api/@rulvar/planner/interfaces/PlanOptions.md) | - |
 | [PlanResult](/api/@rulvar/planner/interfaces/PlanResult.md) | - |
+| [RunPlannedOptions](/api/@rulvar/planner/interfaces/RunPlannedOptions.md) | - |
 | [ScriptDiagnostic](/api/@rulvar/planner/interfaces/ScriptDiagnostic.md) | One machine-readable compileScript diagnostic (carried by ScriptRejected). |
 | [WorkerSandboxRunnerOptions](/api/@rulvar/planner/interfaces/WorkerSandboxRunnerOptions.md) | - |
 

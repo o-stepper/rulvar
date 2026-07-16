@@ -6,7 +6,7 @@
 
 # Class: FakeAdapter
 
-Defined in: [packages/testing/src/fake-adapter.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L109)
+Defined in: [packages/testing/src/fake-adapter.ts:149](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L149)
 
 @rulvar/testing tier 1 (M1-T14): FakeAdapter and createTestEngine for
 fast, fully typed, zero-network unit tests through the real engine.
@@ -25,7 +25,7 @@ replay-strict arrive with M5/M2.
 new FakeAdapter(options): FakeAdapter;
 ```
 
-Defined in: [packages/testing/src/fake-adapter.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L116)
+Defined in: [packages/testing/src/fake-adapter.ts:159](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L159)
 
 #### Parameters
 
@@ -41,8 +41,8 @@ Defined in: [packages/testing/src/fake-adapter.ts:116](https://github.com/o-step
 
 | Property | Modifier | Type | Default value | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-calls"></a> `calls` | `readonly` | [`FakeCall`](/api/@rulvar/testing/interfaces/FakeCall.md)[] | `[]` | Every request this adapter served, in order. | [packages/testing/src/fake-adapter.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L114) |
-| <a id="property-id"></a> `id` | `readonly` | `"fake"` | `undefined` | Stable adapter id; the left segment of ModelRef. | [packages/testing/src/fake-adapter.ts:110](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L110) |
+| <a id="property-calls"></a> `calls` | `readonly` | [`FakeCall`](/api/@rulvar/testing/interfaces/FakeCall.md)[] | `[]` | Every request this adapter served, in order. A request whose signal was already aborted on arrival was never served and is not recorded. | [packages/testing/src/fake-adapter.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L157) |
+| <a id="property-id"></a> `id` | `readonly` | `"fake"` | `undefined` | Stable adapter id; the left segment of ModelRef. | [packages/testing/src/fake-adapter.ts:150](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L150) |
 
 ## Methods
 
@@ -52,7 +52,7 @@ Defined in: [packages/testing/src/fake-adapter.ts:116](https://github.com/o-step
 caps(this): ModelCaps;
 ```
 
-Defined in: [packages/testing/src/fake-adapter.ts:120](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L120)
+Defined in: [packages/testing/src/fake-adapter.ts:163](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L163)
 
 #### Parameters
 
@@ -73,16 +73,17 @@ Defined in: [packages/testing/src/fake-adapter.ts:120](https://github.com/o-step
 ### stream()
 
 ```ts
-stream(req): AsyncIterable<ChatEvent>;
+stream(req, signal?): AsyncIterable<ChatEvent>;
 ```
 
-Defined in: [packages/testing/src/fake-adapter.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L145)
+Defined in: [packages/testing/src/fake-adapter.ts:188](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L188)
 
 #### Parameters
 
 | Parameter | Type |
 | ------ | ------ |
 | `req` | [`ChatRequest`](/api/@rulvar/rulvar/interfaces/ChatRequest.md) |
+| `signal?` | `AbortSignal` |
 
 #### Returns
 

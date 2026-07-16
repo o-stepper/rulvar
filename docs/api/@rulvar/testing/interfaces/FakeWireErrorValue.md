@@ -6,7 +6,7 @@
 
 # Interface: FakeWireErrorValue
 
-Defined in: [packages/testing/src/fake-adapter.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L47)
+Defined in: [packages/testing/src/fake-adapter.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L50)
 
 Marker value: the stream terminates with this typed wire error (M3).
 
@@ -14,5 +14,5 @@ Marker value: the stream terminates with this typed wire error (M3).
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-__fake"></a> `__fake` | `"wire-error"` | [packages/testing/src/fake-adapter.ts:48](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L48) |
-| <a id="property-error"></a> `error` | [`WireError`](/api/@rulvar/rulvar/type-aliases/WireError.md) | [packages/testing/src/fake-adapter.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L49) |
+| <a id="property-__fake"></a> `__fake` | `"wire-error"` | [packages/testing/src/fake-adapter.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L51) |
+| <a id="property-error"></a> `error` | [`WireError`](/api/@rulvar/rulvar/type-aliases/WireError.md) | [packages/testing/src/fake-adapter.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L52) |

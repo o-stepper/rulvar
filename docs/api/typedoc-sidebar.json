@@ -3657,6 +3657,10 @@
             "link": "/api/@rulvar/planner/interfaces/PlanResult.md"
           },
           {
+            "text": "RunPlannedOptions",
+            "link": "/api/@rulvar/planner/interfaces/RunPlannedOptions.md"
+          },
+          {
             "text": "ScriptDiagnostic",
             "link": "/api/@rulvar/planner/interfaces/ScriptDiagnostic.md"
           },

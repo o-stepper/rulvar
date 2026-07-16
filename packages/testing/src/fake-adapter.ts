@@ -2,7 +2,10 @@
  * FakeAdapter (M1-T14): a REAL ProviderAdapter that resolves calls from
  * declared patterns instead of the network, behind the same seam as live
  * adapters, so unit tests run through the full engine: journal, scheduler,
- * budget layers, and event stream. Calls cost zero USD.
+ * budget layers, and event stream. Calls cost zero USD. Honors the
+ * caller's AbortSignal exactly like a live adapter: an abort ends the
+ * stream promptly with no terminal event, so cancellation, deadline, and
+ * budget tests observe the same journal shapes as production adapters.
  */
 import {
   createCanonicalIdMinter,
@@ -92,6 +95,43 @@ const FAKE_CAPS: ModelCaps = {
   pricing: { inputUsdPerMTok: 0, outputUsdPerMTok: 0 },
 };
 
+/**
+ * Races a responder promise against the caller's abort. On abort the
+ * pending responder is detached: its eventual value is discarded and an
+ * eventual rejection is swallowed (the caller cancelled; a late failure
+ * of the abandoned work must not become an unhandled rejection). A
+ * rejection that settles first propagates to the caller unchanged.
+ */
+async function raceAbort(
+  pending: Promise<unknown>,
+  signal: AbortSignal | undefined,
+): Promise<{ aborted: true } | { aborted: false; value: unknown }> {
+  if (signal === undefined) {
+    return { aborted: false, value: await pending };
+  }
+  if (signal.aborted) {
+    void pending.catch(() => undefined);
+    return { aborted: true };
+  }
+  let onAbort = (): void => undefined;
+  const abortPromise = new Promise<{ aborted: true }>((resolve) => {
+    onAbort = () => resolve({ aborted: true });
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+  try {
+    const raced = await Promise.race([
+      pending.then((value) => ({ aborted: false as const, value })),
+      abortPromise,
+    ]);
+    if (raced.aborted) {
+      void pending.catch(() => undefined);
+    }
+    return raced;
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+  }
+}
+
 function lastUserText(req: ChatRequest): string {
   for (let i = req.messages.length - 1; i >= 0; i -= 1) {
     const msg = req.messages[i];
@@ -110,7 +150,10 @@ export class FakeAdapter implements ProviderAdapter {
   readonly id = 'fake' as const;
   private readonly agents: Record<string, FakeResponder>;
   private readonly mintId = createCanonicalIdMinter();
-  /** Every request this adapter served, in order. */
+  /**
+   * Every request this adapter served, in order. A request whose signal
+   * was already aborted on arrival was never served and is not recorded.
+   */
   readonly calls: FakeCall[] = [];
 
   constructor(options: FakeAdapterOptions) {
@@ -142,7 +185,15 @@ export class FakeAdapter implements ProviderAdapter {
     return fallback;
   }
 
-  async *stream(req: ChatRequest): AsyncIterable<ChatEvent> {
+  async *stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent> {
+    // Read through a closure: the flag flips between suspension points,
+    // which inline narrowing would reason away.
+    const aborted = (): boolean => signal?.aborted === true;
+    if (aborted()) {
+      // Never served: no call record, no responder work, no terminal
+      // event (the adapter contract for an abort the caller asked for).
+      return;
+    }
     const telemetry = (req.providerOptions?.rulvar ?? {}) as {
       agentType?: string;
       label?: string;
@@ -175,8 +226,21 @@ export class FakeAdapter implements ProviderAdapter {
 
     let value: unknown;
     try {
-      value = typeof responder === 'function' ? await responder(call) : responder;
+      if (typeof responder === 'function') {
+        // Promise.resolve keeps the invocation synchronous (a sync throw
+        // still lands in this catch, as before the signal support).
+        const raced = await raceAbort(Promise.resolve(responder(call)), signal);
+        if (raced.aborted) {
+          return;
+        }
+        value = raced.value;
+      } else {
+        value = responder;
+      }
     } catch (thrown) {
+      if (aborted()) {
+        return;
+      }
       yield {
         type: 'error',
         error: {
@@ -189,11 +253,10 @@ export class FakeAdapter implements ProviderAdapter {
       return;
     }
 
+    const events: ChatEvent[] = [];
     if (isFakeWireError(value)) {
-      yield { type: 'error', error: value.error };
-      return;
-    }
-    if (isFakeToolCalls(value)) {
+      events.push({ type: 'error', error: value.error });
+    } else if (isFakeToolCalls(value)) {
       const usage: Usage = {
         inputTokens: Math.max(1, Math.ceil(call.prompt.length / 4)),
         outputTokens: Math.max(1, value.calls.length * 8),
@@ -202,39 +265,47 @@ export class FakeAdapter implements ProviderAdapter {
       };
       for (const toolCall of value.calls) {
         const id = this.mintId();
-        yield { type: 'tool-call-start', id, name: toolCall.name };
-        yield { type: 'tool-call-end', id, args: toolCall.args };
+        events.push({ type: 'tool-call-start', id, name: toolCall.name });
+        events.push({ type: 'tool-call-end', id, args: toolCall.args });
       }
-      yield { type: 'finish', finish: { reason: 'tool-calls' }, usage };
-      return;
-    }
-    const text = typeof value === 'string' ? value : JSON.stringify(value);
-    const usage: Usage = {
-      inputTokens: Math.max(1, Math.ceil(call.prompt.length / 4)),
-      outputTokens: Math.max(1, Math.ceil(text.length / 4)),
-      cacheReadTokens: 0,
-      cacheWriteTokens: 0,
-    };
-    // Honor the structured-output tier the runtime selected: a pinned
-    // toolChoice (forced-tool) answers with the tool call; native and
-    // prompt tiers answer with text.
-    const forcedName = typeof req.toolChoice === 'object' ? req.toolChoice.name : undefined;
-    if (forcedName !== undefined) {
-      let args: unknown = value;
-      if (typeof value === 'string') {
-        try {
-          args = JSON.parse(value);
-        } catch {
-          args = { text: value };
+      events.push({ type: 'finish', finish: { reason: 'tool-calls' }, usage });
+    } else {
+      const text = typeof value === 'string' ? value : JSON.stringify(value);
+      const usage: Usage = {
+        inputTokens: Math.max(1, Math.ceil(call.prompt.length / 4)),
+        outputTokens: Math.max(1, Math.ceil(text.length / 4)),
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+      };
+      // Honor the structured-output tier the runtime selected: a pinned
+      // toolChoice (forced-tool) answers with the tool call; native and
+      // prompt tiers answer with text.
+      const forcedName = typeof req.toolChoice === 'object' ? req.toolChoice.name : undefined;
+      if (forcedName !== undefined) {
+        let args: unknown = value;
+        if (typeof value === 'string') {
+          try {
+            args = JSON.parse(value);
+          } catch {
+            args = { text: value };
+          }
         }
+        const id = this.mintId();
+        events.push({ type: 'tool-call-start', id, name: forcedName });
+        events.push({ type: 'tool-call-end', id, args });
+        events.push({ type: 'finish', finish: { reason: 'tool-calls' }, usage });
+      } else {
+        events.push({ type: 'text-delta', text });
+        events.push({ type: 'finish', finish: { reason: 'stop' }, usage });
       }
-      const id = this.mintId();
-      yield { type: 'tool-call-start', id, name: forcedName };
-      yield { type: 'tool-call-end', id, args };
-      yield { type: 'finish', finish: { reason: 'tool-calls' }, usage };
-      return;
     }
-    yield { type: 'text-delta', text };
-    yield { type: 'finish', finish: { reason: 'stop' }, usage };
+    for (const event of events) {
+      if (aborted()) {
+        // Stop at the next synchronous boundary: an abort mid-emission
+        // ends the stream without a terminal event.
+        return;
+      }
+      yield event;
+    }
   }
 }

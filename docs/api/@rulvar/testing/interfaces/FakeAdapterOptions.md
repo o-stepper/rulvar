@@ -6,10 +6,10 @@
 
 # Interface: FakeAdapterOptions
 
-Defined in: [packages/testing/src/fake-adapter.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L73)
+Defined in: [packages/testing/src/fake-adapter.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L76)
 
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-agents"></a> `agents` | `Record`\&lt;`string`, [`FakeResponder`](/api/@rulvar/testing/type-aliases/FakeResponder.md)\&gt; | Patterns match on agentType, label, or a regex over the prompt; '*' is the fallback. | [packages/testing/src/fake-adapter.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L78) |
+| <a id="property-agents"></a> `agents` | `Record`\&lt;`string`, [`FakeResponder`](/api/@rulvar/testing/type-aliases/FakeResponder.md)\&gt; | Patterns match on agentType, label, or a regex over the prompt; '*' is the fallback. | [packages/testing/src/fake-adapter.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L81) |
