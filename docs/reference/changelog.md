@@ -18,6 +18,21 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.9.0
+
+#### Minor Changes
+
+- 7577f8e: Correct the Anthropic fallback pricing to the official table and export versioned price tables from both first-party adapters.
+
+  The `ANTHROPIC_MODELS` seed rows had never been audited against the published price list and overcharged every current Claude model: Fable 5 was seeded at exactly 2x the official rate (20/100 vs 10/50 per MTok, cache rates likewise), Opus 4.8 at 12/60 vs 5/25, Opus 4.7 at 10/50 vs 5/25, and Opus 4.6 at 15/75 vs 5/25. Claude Sonnet 5 now carries its introductory price (2/10, in effect through 2026-08-31); Haiku 4.5 and Sonnet 4.6 were already correct. Cost reports for affected models drop accordingly, and budget ceilings admit roughly twice the work they previously rejected.
+
+  New exports `ANTHROPIC_PRICING` (`anthropic-2026-07-16`) and `OPENAI_PRICING` (`openai-2026-07-16`) publish the seed rows as versioned `PriceTable`s for `createEngine({ pricing })`, so runs journal a concrete pricing version instead of `unpriced` and price revisions become explicit table updates. `createTestEngine` gained a `pricing` passthrough for testing against a versioned table.
+
+#### Patch Changes
+
+- Updated dependencies [3a53383]
+  - @rulvar/core@1.9.0
+
 ### 1.8.0
 
 #### Patch Changes
@@ -368,6 +383,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.9.0
+
+#### Patch Changes
+
+- Updated dependencies [3a53383]
+  - @rulvar/core@1.9.0
+
 ### 1.8.0
 
 #### Patch Changes
@@ -623,6 +645,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.9.0
+
+#### Patch Changes
+
+- Updated dependencies [3a53383]
+  - @rulvar/core@1.9.0
 
 ### 1.8.0
 
@@ -1010,6 +1039,14 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.9.0
+
+#### Minor Changes
+
+- 3a53383: Report pricingVersion drift on resume.
+
+  The `orchestrator_budget_reserve` decision already pins the `pricingVersion` in effect when a run started, but the resume recovery only compared the frozen cap dollars. A resumed run now also compares the journaled version against the live table (`unpriced` when priced from the adapter caps fallback) and emits `termination:config-drift` with field `pricingVersion` when they differ. The divergence is reported, never honored or refused: price interpretation is live by design (the journal stores usage; dollars are re-derived from the current table against the frozen cap dollars), replay stays byte-identical, and no provider work is repeated. Reserve decisions journaled before the field shipped resume quietly.
 
 ### 1.8.0
 
@@ -1969,6 +2006,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.9.0
+
 ### 1.8.0
 
 ### 1.7.0
@@ -2049,6 +2088,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.9.0
+
+#### Patch Changes
+
+- Updated dependencies [7577f8e]
+- Updated dependencies [3a53383]
+  - @rulvar/testing@1.9.0
+  - @rulvar/core@1.9.0
 
 ### 1.8.0
 
@@ -2351,6 +2399,21 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.9.0
+
+#### Minor Changes
+
+- 7577f8e: Correct the Anthropic fallback pricing to the official table and export versioned price tables from both first-party adapters.
+
+  The `ANTHROPIC_MODELS` seed rows had never been audited against the published price list and overcharged every current Claude model: Fable 5 was seeded at exactly 2x the official rate (20/100 vs 10/50 per MTok, cache rates likewise), Opus 4.8 at 12/60 vs 5/25, Opus 4.7 at 10/50 vs 5/25, and Opus 4.6 at 15/75 vs 5/25. Claude Sonnet 5 now carries its introductory price (2/10, in effect through 2026-08-31); Haiku 4.5 and Sonnet 4.6 were already correct. Cost reports for affected models drop accordingly, and budget ceilings admit roughly twice the work they previously rejected.
+
+  New exports `ANTHROPIC_PRICING` (`anthropic-2026-07-16`) and `OPENAI_PRICING` (`openai-2026-07-16`) publish the seed rows as versioned `PriceTable`s for `createEngine({ pricing })`, so runs journal a concrete pricing version instead of `unpriced` and price revisions become explicit table updates. `createTestEngine` gained a `pricing` passthrough for testing against a versioned table.
+
+#### Patch Changes
+
+- Updated dependencies [3a53383]
+  - @rulvar/core@1.9.0
 
 ### 1.8.0
 
@@ -2721,6 +2784,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.9.0
+
+#### Patch Changes
+
+- Updated dependencies [3a53383]
+  - @rulvar/core@1.9.0
+
 ### 1.8.0
 
 #### Minor Changes
@@ -3078,6 +3148,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.9.0
+
+#### Patch Changes
+
+- Updated dependencies [3a53383]
+  - @rulvar/core@1.9.0
+  - eslint-plugin-rulvar@1.9.0
+
 ### 1.8.0
 
 #### Patch Changes
@@ -3354,6 +3432,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.9.0
+
+#### Patch Changes
+
+- Updated dependencies [7577f8e]
+- Updated dependencies [3a53383]
+  - @rulvar/anthropic@1.9.0
+  - @rulvar/openai@1.9.0
+  - @rulvar/core@1.9.0
 
 ### 1.8.0
 
@@ -3737,6 +3825,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.9.0
+
+#### Patch Changes
+
+- Updated dependencies [3a53383]
+  - @rulvar/core@1.9.0
+
 ### 1.8.0
 
 #### Patch Changes
@@ -4048,6 +4143,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.9.0
+
+#### Patch Changes
+
+- Updated dependencies [3a53383]
+  - @rulvar/core@1.9.0
+
 ### 1.8.0
 
 #### Patch Changes
@@ -4309,6 +4411,21 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.9.0
+
+#### Minor Changes
+
+- 7577f8e: Correct the Anthropic fallback pricing to the official table and export versioned price tables from both first-party adapters.
+
+  The `ANTHROPIC_MODELS` seed rows had never been audited against the published price list and overcharged every current Claude model: Fable 5 was seeded at exactly 2x the official rate (20/100 vs 10/50 per MTok, cache rates likewise), Opus 4.8 at 12/60 vs 5/25, Opus 4.7 at 10/50 vs 5/25, and Opus 4.6 at 15/75 vs 5/25. Claude Sonnet 5 now carries its introductory price (2/10, in effect through 2026-08-31); Haiku 4.5 and Sonnet 4.6 were already correct. Cost reports for affected models drop accordingly, and budget ceilings admit roughly twice the work they previously rejected.
+
+  New exports `ANTHROPIC_PRICING` (`anthropic-2026-07-16`) and `OPENAI_PRICING` (`openai-2026-07-16`) publish the seed rows as versioned `PriceTable`s for `createEngine({ pricing })`, so runs journal a concrete pricing version instead of `unpriced` and price revisions become explicit table updates. `createTestEngine` gained a `pricing` passthrough for testing against a versioned table.
+
+#### Patch Changes
+
+- Updated dependencies [3a53383]
+  - @rulvar/core@1.9.0
 
 ### 1.8.0
 
