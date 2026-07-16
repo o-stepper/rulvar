@@ -19,9 +19,21 @@ this file is the authoritative contributor workflow.
 
 ## Toolchain
 
-- Node.js >= 22.12.0 (developed and released on Node 24).
-- pnpm 11.x, pinned via the root `packageManager` field. With Corepack:
-  `corepack enable pnpm` (or invoke `corepack pnpm ...` directly).
+- Node.js >= 22.12.0 (developed and released on Node 24). Development
+  and CI cover Linux and macOS; Windows is untested.
+- pnpm 11.x, pinned via the root `packageManager` field. Any modern pnpm
+  (>= 10.9) invoked directly resolves the pin and switches to it by
+  itself, so a differently versioned global pnpm is fine. With Corepack,
+  run `corepack enable pnpm` ONCE and check that `command -v pnpm` now
+  resolves to the shim; never invoke `corepack pnpm ...` directly
+  against this repository. Turborepo spawns every package task as
+  `pnpm run <task>` resolved from PATH, a Corepack-launched root exports
+  `COREPACK_ROOT` to those children, and a PATH pnpm whose version
+  differs from the pin then refuses to self-switch and fails every task
+  with "This project is configured to use ... of pnpm. Your current pnpm
+  is ..." - deterministically, on every run, not only on first
+  bootstrap. The `bootstrap` CI job keeps both supported paths (direct
+  pnpm, enabled Corepack shim) working and keeps this trap note honest.
 - One-time setup: `pnpm install --frozen-lockfile`.
 
 Everyday commands, all from the repository root:
@@ -33,6 +45,7 @@ Everyday commands, all from the repository root:
 | `pnpm lint`              | ESLint per package (one root flat config)                   |
 | `pnpm format:check`      | Prettier check (Prettier owns formatting)                   |
 | `pnpm test`              | One `vitest run` across every package project               |
+| `pnpm test:live`         | Key-gated live provider smokes (opt-in; SPENDS budget)      |
 | `pnpm pack-check`        | publint + attw on packed tarballs                           |
 | `pnpm dts:baseline`      | Regenerate the rolled-up `.d.ts` baselines in `dts-rollup/` |
 | `pnpm check:fixed-group` | Changesets fixed group matches the workspace                |
@@ -90,6 +103,11 @@ merged before the deviating code lands.
 - Docs site build with the generated-docs freshness gate (committed
   `docs/api`, the aggregated changelog, and the synced contributing page
   must be regenerated in the same PR) and the offline link check.
+- Pinned-pnpm bootstrap on Linux and macOS: with a stale global pnpm
+  first on PATH, the direct-pnpm path and the enabled-Corepack path both
+  run Turbo tasks on the pinned version, and un-enabled `corepack pnpm`
+  keeps failing in Turbo children (if an upstream fix ever lands, the
+  job turns red so the toolchain trap note gets updated).
 
 Changes in DEF-n areas MUST include or update the named defect cassettes.
 Scheduled and non-blocking: weekly live adapter contract tests (gated on
@@ -100,6 +118,18 @@ them deliberately with `node scripts/record-provider-cassettes.mjs` (keys
 from the environment; the script refuses to overwrite an existing
 cassette, so a rerecord starts by deleting the file and shows as a
 whole-file diff).
+
+Live provider tests in the vitest suite are double-gated: they run only
+when `RULVAR_LIVE_TESTS=1` AND the provider key is present
+(`liveTestEnabled` in `@rulvar/testing`), so `pnpm test` stays hermetic
+even in a shell that exports `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or
+`GOOGLE_GENERATIVE_AI_API_KEY`. Opt in deliberately with
+`pnpm test:live`: it reports which suites will fire for the keys it
+finds, never prints key values, and SPENDS provider budget. Inside the
+adapter smokes, a typed retryable provider error (429 rate limit, 529
+overload) gets a bounded retry with backoff (`runLiveSmoke`); a
+persistent or non-retryable failure fails the command with the typed
+diagnostics intact.
 
 Besides the CI-wired scripts, `scripts/` holds operator tooling that no
 workflow invokes: the `record-m*-cassettes.mjs` family regenerates frozen

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createTestEngine } from '@rulvar/testing';
+import { createTestEngine, liveTestEnabled } from '@rulvar/testing';
 
 import { anthropic, createEngine, openai } from './index.js';
 import { basicReview } from './example/basic-review.js';
@@ -28,10 +28,11 @@ describe('M1 exit criteria: the example workflow (docs/10, section 3.2)', () => 
     expect(engine.fake.calls).toHaveLength(6);
   });
 
-  it.skipIf(
-    process.env.ANTHROPIC_API_KEY === undefined || process.env.OPENAI_API_KEY === undefined,
-  )(
-    'runs against both live adapters (manual, key-gated)',
+  // Gate only, no test-level retry wrapper: this is an engine E2E and
+  // the core already owns retries and backoff for retryable provider
+  // errors (RetryPolicy); wrapping the whole run would double the spend.
+  it.skipIf(!liveTestEnabled('ANTHROPIC_API_KEY', 'OPENAI_API_KEY'))(
+    'runs against both live adapters (opt-in via RULVAR_LIVE_TESTS=1, spends budget)',
     async () => {
       const engine = createEngine({
         adapters: [anthropic({}), openai({})],

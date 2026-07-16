@@ -148,6 +148,61 @@ jobs:
       - name: Umbrella install smoke on packed tarballs
         run: node scripts/install-smoke.mjs
 
+  # The pinned-pnpm bootstrap (v1.13 review P3-2): Turborepo spawns each
+  # package task as `pnpm run <task>` resolved from PATH, so a stale
+  # global pnpm earlier on PATH must not break the two supported entry
+  # paths (CONTRIBUTING "Toolchain"). The trap step asserts the KNOWN
+  # broken third path stays broken: a Corepack-launched root exports
+  # COREPACK_ROOT to children, a differently versioned PATH pnpm then
+  # refuses to self-switch, and every Turbo child dies on the version
+  # mismatch. Both pnpm versions involved are pinned (the stale one by
+  # this job, the target by packageManager), so this job only turns red
+  # when the toolchain itself changes behavior - which is exactly when
+  # the CONTRIBUTING note must be rewritten.
+  bootstrap:
+    name: Pinned pnpm bootstrap (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    env:
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+    steps:
+      - uses: actions/checkout@v4
+      # Deliberately NO pnpm/action-setup and no pnpm cache: the job
+      # simulates a fresh machine whose only pnpm is a stale global.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Put a stale global pnpm first on PATH
+        run: |
+          npm install pnpm@11.1.2 --prefix "$RUNNER_TEMP/stale-pnpm"
+          echo "$RUNNER_TEMP/stale-pnpm/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Direct pnpm self-switches to the pin (root and Turbo children)
+        run: |
+          pin="$(node -p "require('./package.json').packageManager.split('@')[1]")"
+          command -v pnpm
+          test "$(pnpm --version)" = "$pin"
+          pnpm install --frozen-lockfile
+          pnpm exec turbo run typecheck --filter=@rulvar/compat --force
+      - name: Un-enabled corepack pnpm keeps failing in Turbo children (the documented trap)
+        run: |
+          if corepack pnpm exec turbo run typecheck --filter=@rulvar/compat --force; then
+            echo "::error title=corepack pnpm now works without corepack enable::The COREPACK_ROOT child trap appears fixed upstream; update the CONTRIBUTING toolchain note and this job."
+            exit 1
+          fi
+          echo "the un-enabled corepack path still fails in children, as documented"
+      - name: Enabled Corepack shim first on PATH runs root and children on the pin
+        run: |
+          pin="$(node -p "require('./package.json').packageManager.split('@')[1]")"
+          mkdir -p "$RUNNER_TEMP/corepack-bin"
+          corepack enable --install-directory "$RUNNER_TEMP/corepack-bin" pnpm
+          export PATH="$RUNNER_TEMP/corepack-bin:$PATH"
+          command -v pnpm | grep corepack-bin
+          test "$(pnpm --version)" = "$pin"
+          pnpm exec turbo run typecheck --filter=@rulvar/compat --force
+
   docs-lint:
     name: Docs conventions
     runs-on: ubuntu-latest

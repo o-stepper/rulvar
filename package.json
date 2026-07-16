@@ -17,6 +17,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:live": "node scripts/test-live.mjs",
     "pack-check": "turbo pack-check",
     "docs:lint": "node scripts/docs-lint.mjs",
     "docs:dev": "pnpm --filter @rulvar/docs dev",
