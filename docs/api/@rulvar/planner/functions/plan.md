@@ -13,7 +13,7 @@ function plan(
 o?): Promise<PlanResult>;
 ```
 
-Defined in: [packages/planner/src/plan.ts:192](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/plan.ts#L192)
+Defined in: [packages/planner/src/plan.ts:224](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/plan.ts#L224)
 
 ## Parameters
 

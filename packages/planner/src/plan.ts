@@ -13,7 +13,14 @@
  */
 import { createHash } from 'node:crypto';
 
-import type { CompiledWorkflow, Engine, Json, ModelSpec, RunHandle } from '@rulvar/core';
+import type {
+  CompiledWorkflow,
+  Engine,
+  Json,
+  ModelSpec,
+  RunHandle,
+  RunOptions,
+} from '@rulvar/core';
 import { defineWorkflow, ScriptRejected } from '@rulvar/core';
 import { Linter } from 'eslint';
 import { toJsonDiagnostics, workflowsConfig } from 'eslint-plugin-rulvar';
@@ -37,6 +44,31 @@ export interface PlanOptions {
   profiles?: string[];
   /** Self-repair rounds from JSON diagnostics; default 3 (Appendix A). */
   repairRounds?: number;
+  /**
+   * Run options of the planning conversation itself, applied at GENESIS
+   * only: the first plan() of a goal starts the journal with them, and
+   * budgetUsd becomes the run's immutable ceiling B0, recorded in
+   * RunMeta. A later plan() of the same goal resumes the existing
+   * journal under its RECORDED ceiling: a differing explicit budgetUsd
+   * warns (RULVAR_PLAN_BUDGET_DRIFT) and never tops up or replaces the
+   * frozen value, and limits/deadlineAt/signal do not apply to a
+   * resumed journal (core resume semantics; cancel through the handle).
+   * The runId stays goal-derived (planRunIdOf) and is not overridable.
+   * Absent options, the planning run is UNBOUNDED, as before.
+   */
+  run?: Pick<RunOptions, 'budgetUsd' | 'limits' | 'deadlineAt' | 'signal'>;
+}
+
+export interface RunPlannedOptions {
+  /** Options of the planning conversation (see plan()). */
+  plan?: PlanOptions;
+  /**
+   * RunOptions of the generated workflow's execution run, passed to
+   * engine.run verbatim (budgetUsd here is the EXECUTION ceiling,
+   * independent of the planning ceiling). Absent, the execution run is
+   * UNBOUNDED, as before.
+   */
+  run?: RunOptions;
 }
 
 export interface PlanResult {
@@ -199,8 +231,30 @@ export async function plan(engine: Engine, goal: string, o?: PlanOptions): Promi
     ...(o?.model === undefined ? {} : { model: o.model }),
   };
   // Resume-or-start on the deterministic runId: a fresh store starts a
-  // new journal, a prior planning journal replays its unchanged prefix.
-  const handle = engine.resume(planRunIdOf(goal), planWorkflow, { args });
+  // new journal (genesis, where options.run applies and budgetUsd
+  // freezes as the run's immutable B0), a prior planning journal
+  // replays its unchanged prefix under its RECORDED ceiling.
+  const runId = planRunIdOf(goal);
+  const recorded = (await engine.stores.journal.listRuns()).find((meta) => meta.runId === runId);
+  const existing = recorded !== undefined || (await engine.stores.journal.load(runId)).length > 0;
+  const requested = o?.run?.budgetUsd;
+  if (existing && requested !== undefined && recorded?.budgetUsd !== requested) {
+    // B0 is immutable: the recorded ceiling (or its recorded absence)
+    // wins, and a differing request is loud drift, never a top-up
+    // (the pricingVersion-drift precedent).
+    process.emitWarning(
+      `plan: run '${runId}' already has a planning journal ` +
+        (recorded?.budgetUsd === undefined
+          ? 'with no recorded budget ceiling'
+          : `with its ceiling frozen at $${String(recorded.budgetUsd)}`) +
+        `; the requested budgetUsd ${String(requested)} does not apply ` +
+        '(delete the run or plan a new goal to change the ceiling)',
+      { code: 'RULVAR_PLAN_BUDGET_DRIFT', type: 'RulvarWarning' },
+    );
+  }
+  const handle = existing
+    ? engine.resume(runId, planWorkflow, { args })
+    : engine.run(planWorkflow, args, { runId, ...o?.run });
   const outcome = await handle.result;
   if (outcome.status !== 'ok' || outcome.value === undefined) {
     const wire = outcome.error;
@@ -219,12 +273,16 @@ export async function plan(engine: Engine, goal: string, o?: PlanOptions): Promi
 /**
  * plan-then-run in one call (amended during M6-T05:
  * the composition is async because planning itself is a run).
+ * options.plan bounds the planning conversation, options.run bounds the
+ * generated workflow's execution; the two ceilings are independent, and
+ * the bare form without options runs BOTH legs unbounded, as before.
  */
 export async function runPlanned(
   engine: Engine,
   goal: string,
   args?: Json,
+  options?: RunPlannedOptions,
 ): Promise<RunHandle<unknown>> {
-  const planned = await plan(engine, goal);
-  return engine.run(planned.workflow, args ?? null);
+  const planned = await plan(engine, goal, options?.plan);
+  return engine.run(planned.workflow, args ?? null, options?.run);
 }

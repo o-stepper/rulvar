@@ -52,6 +52,13 @@ A run without `budgetUsd` has no USD ceiling: `ctx.budget.remaining()` returns
 spawns per run, the nesting depth limit, and per-agent `UsageLimits`). For
 anything that spawns real models against a real account, set a ceiling.
 
+The planner's convenience calls take the same ceilings: `plan(engine, goal,
+{ run: { budgetUsd } })` freezes B0 on the planning conversation at its
+genesis, and `runPlanned(engine, goal, args, { plan, run })` bounds the
+planning leg and the execution leg independently. The bare forms without
+options run unbounded; see
+[Budgeting the planning conversation](/guide/planner#budgeting-the-planning-conversation).
+
 ## The three layers
 
 Each layer answers a different question at a different moment:

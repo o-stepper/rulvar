@@ -673,7 +673,17 @@ export function createEngine(options: CreateEngineOptions): Engine {
         if (thrown instanceof BudgetExhaustedError || budget.exhausted) {
           // Exhausted overrides error.
           status = 'exhausted';
-          wireError = thrown instanceof RulvarError ? thrown.toWire() : undefined;
+          wireError =
+            thrown instanceof AgentCallError
+              ? // An in-loop budget failure surfaces as AgentCallError
+                // (which is NOT a RulvarError): the exhausted outcome
+                // keeps the typed failure and its diagnostics exactly
+                // like the error branch below, instead of dropping the
+                // wire (v1.11 follow-up review, requirement 5).
+                agentResultWire(thrown.result, thrown.message)
+              : thrown instanceof RulvarError
+                ? thrown.toWire()
+                : undefined;
         } else if (controller.signal.aborted) {
           status = 'cancelled';
           wireError = {

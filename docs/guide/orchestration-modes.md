@@ -93,12 +93,18 @@ const engine = createEngine({
   runners: { sandbox: new WorkerSandboxRunner() },
 });
 
-const planned = await plan(engine, "Research and draft a migration guide");
+const planned = await plan(engine, "Research and draft a migration guide", {
+  run: { budgetUsd: 1 }, // the planning conversation's own immutable ceiling
+});
 console.log(planned.source); // read the script before you pay for execution
 const handle = engine.run(planned.workflow, {}, { budgetUsd: 10 });
 
-// Or compose plan-then-run in one call:
-const direct = await runPlanned(engine, "Research and draft a migration guide");
+// Or compose plan-then-run in one call, each leg under its own ceiling
+// (the bare runPlanned(engine, goal) form runs BOTH legs unbounded):
+const direct = await runPlanned(engine, "Research and draft a migration guide", null, {
+  plan: { run: { budgetUsd: 1 } },
+  run: { budgetUsd: 10 },
+});
 ```
 
 The sandbox (a `worker_threads` worker) executes the script against a curated global scope: `agent`, `parallel`, `pipeline`, `step`, `phase`, `log`, `budget`, `workflow`, `awaitExternal`, `now`, `random`, `uuid`, and nothing else. `Date.now` and `Math.random` are replaced by seeded, journaled shims; `import`, `fetch`, and `process` are absent; every primitive call crosses to the host as validated JSON. Scripts run under the `lenient` error policy, child workflows are referenced by registered name, and breaching the runner's `timeoutMs` (default 300000) or `memoryMb` (default 512) terminates the worker with a typed error. Attaching tools to an agent spawn by registered name is not available in the current release: a compiled script that tries it fails with a typed `ConfigError` at spawn time. The sandbox is a determinism and blast-radius boundary, not a security boundary; containment of hostile code belongs to executors and worktree isolation (see [Tools](/guide/tools)).
