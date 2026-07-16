@@ -267,7 +267,11 @@ export function makeOrchestratorWorkflow(
     const extension = opts?.extension;
     let orchestratorAccount: string | undefined;
     /** DEF-2 cap drift found in the sync prologue; emitted after boot. */
-    const pendingCapDrifts: Array<{ field: string; frozenValue: number; liveValue: number }> = [];
+    const pendingCapDrifts: Array<{
+      field: string;
+      frozenValue: number | string;
+      liveValue: number | string;
+    }> = [];
     let capState:
       | {
           effectiveCapUsd: number;
@@ -314,6 +318,7 @@ export function makeOrchestratorWorkflow(
           finalizeReserveUsd: number;
           finalizeTurns: number;
           source: 'call' | 'profile' | 'engine';
+          pricingVersion?: string;
         };
         const turnEstimateUsd = internals.flatReserveUsd ?? 0.5;
         const liveFinalizeReserveUsd =
@@ -337,6 +342,21 @@ export function makeOrchestratorWorkflow(
                   field: 'finalizeReserveUsd',
                   frozenValue: frozen.finalizeReserveUsd,
                   liveValue: liveFinalizeReserveUsd,
+                },
+              ]
+            : []),
+          // Price interpretation is LIVE by design (usage is journaled,
+          // dollars are re-derived), so a version change cannot be
+          // honored-or-refused like the cap dollars; it is REPORTED so a
+          // resumed run never reprices under a different table silently.
+          // Decisions journaled before the field shipped stay quiet.
+          ...(frozen.pricingVersion !== undefined &&
+          frozen.pricingVersion !== (internals.pricingVersion ?? 'unpriced')
+            ? [
+                {
+                  field: 'pricingVersion',
+                  frozenValue: frozen.pricingVersion,
+                  liveValue: internals.pricingVersion ?? 'unpriced',
                 },
               ]
             : []),

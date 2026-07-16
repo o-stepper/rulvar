@@ -5,7 +5,7 @@ import {
   makeOrchestratorWorkflow,
   OrchestratorCapConfigError,
 } from '@rulvar/core';
-import type { JournalEntry } from '@rulvar/core';
+import type { JournalEntry, PriceTable } from '@rulvar/core';
 
 import { planHash } from './plan-hash.js';
 import { emptyPlan } from './plan-state.js';
@@ -60,7 +60,11 @@ function planScript(): (req: import('@rulvar/core').ChatRequest) => ScriptedTurn
   };
 }
 
-function engineWith(adapter: ReturnType<typeof scriptedAdapter>, store: InMemoryStore) {
+function engineWith(
+  adapter: ReturnType<typeof scriptedAdapter>,
+  store: InMemoryStore,
+  pricing?: PriceTable,
+) {
   return createEngine({
     adapters: [adapter],
     stores: { journal: store },
@@ -68,6 +72,7 @@ function engineWith(adapter: ReturnType<typeof scriptedAdapter>, store: InMemory
       routing: { loop: 'fake:model', orchestrate: 'fake:model' },
       profiles: { worker: { description: 'w' } },
     },
+    ...(pricing === undefined ? {} : { pricing }),
   });
 }
 
@@ -314,5 +319,118 @@ describe('the frozen budget vector in termination.init (v1.7.0 follow-up review)
     expect(inits).toHaveLength(1);
     expect(limitsOf(entries)?.orchestratorCapUsd).toBe(0);
     expect(decisionsOf(entries, 'orchestrator_budget_reserve')).toHaveLength(1);
+  });
+
+  it('replays byte-identically under the same pricingVersion and reports drift to a new one', async () => {
+    const tableV1: PriceTable = {
+      pricingVersion: 'table-v1',
+      models: { 'fake:model': { inputUsdPerMTok: 1, outputUsdPerMTok: 10 } },
+    };
+    const store = new InMemoryStore();
+    const life1 = orchestratePlanned(
+      engineWith(scriptedAdapter(planScript()), store, tableV1),
+      'priced run',
+      { budget: { capUsd: 5, finalizeReserveUsd: 1 } },
+    );
+    expect((await life1.result).status).toBe('ok');
+    const before = await store.load(life1.runId);
+    expect(decisionsOf(before, 'orchestrator_budget_reserve')[0]?.pricingVersion).toBe('table-v1');
+
+    // Same version: no drift, zero live calls, and the journal is
+    // byte-identical after the whole life replays.
+    const sameAdapter = scriptedAdapter(planScript());
+    const sameDrift: unknown[] = [];
+    const sameResumed = engineWith(sameAdapter, store, tableV1).resume(
+      life1.runId,
+      makeOrchestratorWorkflow('priced run', {
+        budget: { capUsd: 5, finalizeReserveUsd: 1 },
+        extension: planRunner({}),
+      }),
+    );
+    const offSame = sameResumed.on('termination:config-drift', (event) => sameDrift.push(event));
+    expect((await sameResumed.result).status).toBe('ok');
+    offSame();
+    expect(sameDrift).toEqual([]);
+    expect(sameAdapter.calls).toHaveLength(0);
+    expect(await store.load(life1.runId)).toEqual(before);
+
+    // A bumped table version: ONE explicit drift naming both versions,
+    // still zero provider work (drift is reported, work is never
+    // duplicated), and the journal keeps the version that priced the run.
+    const adapter2 = scriptedAdapter(planScript());
+    const drift: Array<Record<string, unknown>> = [];
+    const resumed = engineWith(adapter2, store, {
+      ...tableV1,
+      pricingVersion: 'table-v2',
+    }).resume(
+      life1.runId,
+      makeOrchestratorWorkflow('priced run', {
+        budget: { capUsd: 5, finalizeReserveUsd: 1 },
+        extension: planRunner({}),
+      }),
+    );
+    const off = resumed.on('termination:config-drift', (event) => drift.push(event));
+    const outcome = await resumed.result;
+    off();
+    expect(outcome.status).toBe('ok');
+    expect(drift).toHaveLength(1);
+    expect(drift[0]).toMatchObject({
+      type: 'termination:config-drift',
+      field: 'pricingVersion',
+      frozenValue: 'table-v1',
+      liveValue: 'table-v2',
+    });
+    expect(adapter2.calls).toHaveLength(0);
+    const after = await store.load(life1.runId);
+    expect(decisionsOf(after, 'orchestrator_budget_reserve')[0]?.pricingVersion).toBe('table-v1');
+  });
+
+  it('a reserve decision journaled without pricingVersion resumes quietly under any table', async () => {
+    const store = new InMemoryStore();
+    const life1 = orchestratePlanned(
+      engineWith(scriptedAdapter(planScript()), store),
+      'pre-field run',
+      { budget: { capUsd: 5, finalizeReserveUsd: 1 } },
+    );
+    expect((await life1.result).status).toBe('ok');
+
+    // A journal from before the decision carried pricingVersion.
+    const legacy = new InMemoryStore();
+    for (const meta of await store.listRuns()) {
+      if (meta.runId === life1.runId) {
+        await legacy.putMeta(meta);
+      }
+    }
+    for (const entry of await store.load(life1.runId)) {
+      const value = entry.value as { decisionType?: string; pricingVersion?: string } | undefined;
+      if (entry.kind === 'decision' && value?.decisionType === 'orchestrator_budget_reserve') {
+        const { pricingVersion: _stripped, ...rest } = value;
+        void _stripped;
+        await legacy.append(life1.runId, { ...entry, value: rest });
+        continue;
+      }
+      await legacy.append(life1.runId, entry);
+    }
+
+    const adapter2 = scriptedAdapter(planScript());
+    const drift: Array<{ field?: string }> = [];
+    const resumed = engineWith(adapter2, legacy, {
+      pricingVersion: 'table-v9',
+      models: { 'fake:model': { inputUsdPerMTok: 1, outputUsdPerMTok: 10 } },
+    }).resume(
+      life1.runId,
+      makeOrchestratorWorkflow('pre-field run', {
+        budget: { capUsd: 5, finalizeReserveUsd: 1 },
+        extension: planRunner({}),
+      }),
+    );
+    const off = resumed.on('termination:config-drift', (event) => drift.push(event));
+    const outcome = await resumed.result;
+    off();
+    // No field means no comparison: the guard keeps pre-field journals
+    // quiet instead of inventing a frozen version for them.
+    expect(outcome.status).toBe('ok');
+    expect(drift.filter((event) => event.field === 'pricingVersion')).toEqual([]);
+    expect(adapter2.calls).toHaveLength(0);
   });
 });
