@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.10.0
+
+### Minor Changes
+
+- 0e8d78e: Settle empty max-tokens turns as a typed output truncation, never an empty success. A schema-less turn (no schema, no required terminal tool) whose completion ends with finish reason `max-tokens` and no visible text now settles `limit` with the new `abortClass: 'output-truncated'`, a terminal-kind error, and an actionable message, instead of `ok` with `''`. The same check covers a routed finalize invocation, whose synthesis is the schema-less answer; a max-tokens turn with visible text keeps settling `ok` with the partial text. Like the no-progress abort, the truncation stamps `memoizeOutcome` on the terminal entry, so every resume replays the typed outcome with zero provider calls. The abort class now rides every projection of the failure: the journaled terminal error payload, the run-level `outcome.error.data`, dropped items, and thrown `AgentCallError` wires, so consumers such as the planner see the typed truncation instead of burning self-repair rounds on `compile/empty-source` under an unchanged output limit. `AbortClass` widens to `'no-progress' | 'output-truncated'`, and the projection helper is exported as `agentResultWire(result, fallbackMessage)` alongside `agentErrorToWire`.
+
 ## 1.9.0
 
 ### Minor Changes
