@@ -230,21 +230,30 @@ const engine = createEngine({
 
 ## The versioned price table
 
-Cost accounting needs prices, and prices change. The engine takes a versioned price table whose entries win over any adapter-reported `caps.pricing` (that field is a fallback only):
+Cost accounting needs prices, and prices change. The engine takes a versioned price table whose entries win over any adapter-reported `caps.pricing` (that field is a fallback only). The first-party adapters export their seed rows as ready-made tables, `ANTHROPIC_PRICING` (`anthropic-2026-07-16`) and `OPENAI_PRICING` (`openai-2026-07-16`), each mirroring the provider's official price list as of its version date:
 
 ```ts
 import { createEngine, type PriceTable } from '@rulvar/core';
+import { anthropic, ANTHROPIC_PRICING } from '@rulvar/anthropic';
+import { openai, OPENAI_PRICING } from '@rulvar/openai';
 
+// Start from the shipped tables and override rows as prices change,
+// always under a NEW version string. Example: the Claude Sonnet 5
+// introductory price ends on 2026-08-31, and the host moves to the
+// standard row on its own schedule instead of waiting for a library
+// release (prices are never fetched live and never switch by wall
+// clock inside a run).
 const pricing: PriceTable = {
-  pricingVersion: '2026-07-01',
+  pricingVersion: 'my-app-2026-09-01',
   models: {
+    ...ANTHROPIC_PRICING.models,
+    ...OPENAI_PRICING.models,
     'anthropic:claude-sonnet-5': {
       inputUsdPerMTok: 3,
       outputUsdPerMTok: 15,
       cacheReadUsdPerMTok: 0.3,
       cacheWriteUsdPerMTok: 3.75,
     },
-    'openai:gpt-5.4-mini': { inputUsdPerMTok: 1.2, outputUsdPerMTok: 4.8, cacheReadUsdPerMTok: 0.12 },
   },
 };
 

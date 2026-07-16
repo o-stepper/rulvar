@@ -201,6 +201,19 @@ Give the model a price row through `createEngine({ pricing })` to bring it back
 under the ceiling. See
 [The versioned price table](/guide/model-routing#the-versioned-price-table).
 
+### A CostReport is an estimate, not an invoice
+
+Dollars are computed from normalized usage at the table's **base** rates. The
+report does not model provider billing modifiers such as batch discounts,
+regional or data-residency multipliers, or premium serving modes; if your
+account pays a modified rate, encode it in your own versioned table rows (a
+single multiplier applied to every field of a row keeps the arithmetic exact).
+The same applies in reverse: prices are never fetched from the provider at run
+time, and a row never switches by wall clock inside a run. A price change is a
+new table with a new `pricingVersion`, and runs priced from the adapter caps
+fallback journal the version as `unpriced`, which is precisely why passing a
+versioned table is recommended for anything whose journals outlive a deploy.
+
 ## Sub-accounts and the account tree
 
 Budget accounts form a tree with the run root at the top. A child workflow

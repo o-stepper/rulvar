@@ -4,7 +4,7 @@
  * Responses (first class) versus the Chat Completions degraded path;
  * degraded-path selection is a caps fact, visible in events, never silent.
  */
-import type { Effort, ModelCaps, Pricing } from '@rulvar/core';
+import type { Effort, ModelCaps, ModelRef, PriceTable, Pricing } from '@rulvar/core';
 
 const REASONING_EFFORTS: Effort[] = ['low', 'medium', 'high', 'xhigh'];
 
@@ -86,6 +86,29 @@ export const OPENAI_MODELS: Record<string, OpenAiModelInfo> = {
  * until then its usage surfaces in CostReport.unpriced and a run ceiling
  * warns that it cannot bound the model.
  */
+/**
+ * The seed pricing rows as a versioned price table, keyed by full
+ * ModelRef under the adapter's fixed id 'openai' (long-context tiers
+ * included; the 'gpt-5.6' alias carries the same row as its Sol
+ * target). Pass it to createEngine({ pricing }) so the run journals a
+ * concrete pricingVersion instead of 'unpriced': the versioned table
+ * wins over the caps fallback by rule, and a later table revision
+ * surfaces as explicit configuration drift on resume rather than a
+ * silent reinterpretation.
+ */
+export const OPENAI_PRICING: PriceTable = {
+  pricingVersion: 'openai-2026-07-16',
+  models: ((): Record<ModelRef, Pricing> => {
+    const models: Record<ModelRef, Pricing> = {};
+    for (const [name, info] of Object.entries(OPENAI_MODELS)) {
+      if (info.caps.pricing !== undefined) {
+        models[`openai:${name}`] = info.caps.pricing;
+      }
+    }
+    return models;
+  })(),
+};
+
 export function openAiModelInfo(model: string): OpenAiModelInfo {
   const exact = OPENAI_MODELS[model];
   if (exact !== undefined) {

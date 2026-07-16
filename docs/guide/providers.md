@@ -160,6 +160,8 @@ const adapter = anthropic({
 
 The adapter id is `anthropic`; address models as `anthropic:claude-sonnet-5`, `anthropic:claude-fable-5`, and so on. `ANTHROPIC_MODELS` exports the seeded capability table, and `refreshCaps()` corrects context window and output figures from the live model list. `countTokens` is implemented over the stateless count tokens endpoint.
 
+`ANTHROPIC_PRICING` exports the same pricing rows as a versioned `PriceTable` (`pricingVersion: "anthropic-2026-07-16"`, mirroring the official price list published on that date; Claude Sonnet 5 carries its introductory price, in effect through 2026-08-31). Pass it to `createEngine({ pricing })` so runs journal a concrete pricing version instead of `unpriced`; see [Model routing](/guide/model-routing#the-versioned-price-table) for the override pattern when a promotion ends or the provider revises prices.
+
 Provider notes:
 
 - **Thinking block replay.** Thinking blocks arrive signed and are retained unconditionally as `provider-raw` parts. On requests to any Anthropic model they are echoed byte exact; stripping them client side risks 400 ordering and signature errors, so the adapter never does it. The server silently drops blocks minted by a different model, unbilled.
@@ -184,7 +186,7 @@ const adapter = openai({
 });
 ```
 
-The adapter id is `openai`; address models as `openai:gpt-5.6-sol`, `openai:gpt-5.5`, or `openai:gpt-5.4-mini` (`openai:gpt-5.6` is the published alias for Sol). `OPENAI_MODELS` exports the seeded capability table, long-context price tiers included. The primary surface is the Responses API; Chat Completions exists only as a documented degraded path.
+The adapter id is `openai`; address models as `openai:gpt-5.6-sol`, `openai:gpt-5.5`, or `openai:gpt-5.4-mini` (`openai:gpt-5.6` is the published alias for Sol). `OPENAI_MODELS` exports the seeded capability table, long-context price tiers included, and `OPENAI_PRICING` exports the same pricing rows as a versioned `PriceTable` (`pricingVersion: "openai-2026-07-16"`) for `createEngine({ pricing })`. The primary surface is the Responses API; Chat Completions exists only as a documented degraded path.
 
 Provider notes:
 
