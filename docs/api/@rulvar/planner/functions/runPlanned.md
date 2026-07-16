@@ -29,7 +29,7 @@ the bare form without options runs BOTH legs unbounded, as before.
 | `engine` | [`Engine`](/api/@rulvar/rulvar/interfaces/Engine.md) |
 | `goal` | `string` |
 | `args?` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) |
-| `options?` | `RunPlannedOptions` |
+| `options?` | [`RunPlannedOptions`](/api/@rulvar/planner/interfaces/RunPlannedOptions.md) |
 
 ## Returns
 

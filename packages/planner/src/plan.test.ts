@@ -273,6 +273,20 @@ describe('planning budgets (v1.11 follow-up)', () => {
     expect((await resumed.preview).misses).toBe(0);
     expect((await store.listRuns()).find((m) => m.runId === handle.runId)?.budgetUsd).toBe(7);
   });
+
+  it('RunPlannedOptions is importable from the package barrel', async () => {
+    // Regression: the interface appears in the public runPlanned signature,
+    // so the barrel must export it or consumers hit TS2459 on the named
+    // type import.
+    const barrel: typeof import('./index.js') = await import('./index.js');
+    const options: import('./index.js').RunPlannedOptions = {
+      plan: { run: { budgetUsd: 1 }, repairRounds: 2 },
+      run: { budgetUsd: 2, limits: { maxTurns: 3 } },
+    };
+    expect(typeof barrel.runPlanned).toBe('function');
+    expect(options.plan?.run?.budgetUsd).toBe(1);
+    expect(options.run?.budgetUsd).toBe(2);
+  });
 });
 
 describe('plan helpers', () => {
