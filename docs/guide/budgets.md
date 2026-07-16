@@ -311,6 +311,17 @@ Journals recorded before v1.8 store `0` for both fields ("not yet resolved");
 for those journals the reserve decision is the authority, and they replay
 unchanged.
 
+The reserve decision also pins the `pricingVersion` in effect when the run
+started (`unpriced` when the run priced from the adapter caps fallback).
+Unlike the cap dollars, price interpretation is live by design: the journal
+stores usage, and dollars are re-derived from the current table, so a resumed
+run under a revised table recomputes spend at the new rates against the same
+frozen cap. That divergence is therefore **reported, never honored or
+refused**: a live table whose version differs from the journaled one emits
+`termination:config-drift` with field `pricingVersion`, and the replay itself
+stays byte-identical with zero repeated provider work. Decisions journaled
+before the field shipped resume quietly.
+
 Wakeups need no counter of their own: every orchestrator wake is a paid turn
 against the capped orchestrator sub-account, so the number of wakes is bounded
 by the usable cap (cap minus the finalize reserve) divided by the minimal cost
