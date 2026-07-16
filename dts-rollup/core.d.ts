@@ -5104,6 +5104,7 @@ declare class ExternalRegistry {
   private readonly waiters;
   private readonly keysByScope;
   private activity;
+  private closedFlag;
   private quiesceListener?;
   private quiesceScheduled;
   private readonly emitEvent?;
@@ -5126,6 +5127,22 @@ declare class ExternalRegistry {
   pending(): PendingExternal[];
   /** The synthesized resolveExternal key of an approval suspension. */
   static approvalKey(entryRef: number): string;
+  /**
+  * The resolveExternal key a journaled suspension answers to: externals
+  * carry the workflow-chosen key in the payload; approvals and Flavor B
+  * decisions synthesize `approval:<seq>`. Undefined for anything that
+  * is not a suspended entry.
+  */
+  static suspensionKeyOf(entry: JournalEntry): string | undefined;
+  /**
+  * Settling the run closes this execution segment permanently: every
+  * parked waiter is detached, so a resolution arriving after
+  * handle.result settled appends durably through the fold and wakes
+  * NOTHING; exactly one subsequent engine.resume owns the continuation.
+  * Idempotent. (Suspension ownership rule; v1.10 deep E2E review.)
+  */
+  close(): void;
+  get closed(): boolean;
   private scheduleQuiesceCheck;
   /**
   * ctx.awaitExternal: journal (or re-match) the suspended entry and park
@@ -5181,9 +5198,25 @@ declare class ExternalRegistry {
   /**
   * RunHandle.resolveExternal: the live path validates BEFORE append and
   * throws InvalidResolutionError without journaling; a winning attempt
-  * settles the waiting promise in place.
+  * settles the waiting promise in place. Without an open waiter the
+  * attempt goes through the journal fold instead: a repeated resolution
+  * is the documented journaled no-op ('already_resolved'), and once the
+  * segment settled the resolution appends durably WITHOUT waking the
+  * closed body (exactly one engine.resume owns the continuation).
   */
   resolveExternal(key: string, value: Json): Promise<ResolutionOutcome>;
+  /** The shared live-path payload validation (throws, journals nothing). */
+  private validatePayload;
+  /**
+  * Resolution without a live waiter, over the journal fold. Three cases:
+  * a key no suspension ever carried throws InvalidResolutionError; a key
+  * whose suspensions are all closed submits through the arbiter and
+  * returns the journaled no-op ('already_resolved' or
+  * 'target_abandoned', durability.md contract); an OPEN suspension is
+  * resolvable this way only once the segment settled (closed registry),
+  * with the exact live-path validation and no wake.
+  */
+  private resolveDetached;
 }
 //#endregion
 //#region src/engine/ctx.d.ts
@@ -5963,6 +5996,12 @@ declare class InMemoryTranscriptStore implements TranscriptStore {
 //#region src/stores/jsonl.d.ts
 declare class JsonlFileStore implements JournalStore {
   private readonly dir;
+  /**
+  * The stored tail seq per run, lazily initialized from the file on the
+  * first append this instance performs (obligation A5). Per instance by
+  * design: cross-process writers are the lease seam's job.
+  */
+  private readonly lastSeq;
   constructor(options: {
     dir: string;
   });

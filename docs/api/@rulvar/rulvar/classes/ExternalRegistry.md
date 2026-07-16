@@ -34,6 +34,22 @@ Defined in: `packages/core/dist/index.d.ts`
 
 `ExternalRegistry`
 
+## Accessors
+
+### closed
+
+#### Get Signature
+
+```ts
+get closed(): boolean;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+##### Returns
+
+`boolean`
+
 ## Methods
 
 ### awaitApproval()
@@ -141,6 +157,26 @@ until a resolution wins the first-closing-wins fold.
 
 ***
 
+### close()
+
+```ts
+close(): void;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Settling the run closes this execution segment permanently: every
+parked waiter is detached, so a resolution arriving after
+handle.result settled appends durably through the fold and wakes
+NOTHING; exactly one subsequent engine.resume owns the continuation.
+Idempotent. (Suspension ownership rule; v1.10 deep E2E review.)
+
+#### Returns
+
+`void`
+
+***
+
 ### enter()
 
 ```ts
@@ -201,7 +237,11 @@ Defined in: `packages/core/dist/index.d.ts`
 
 RunHandle.resolveExternal: the live path validates BEFORE append and
 throws InvalidResolutionError without journaling; a winning attempt
-settles the waiting promise in place.
+settles the waiting promise in place. Without an open waiter the
+attempt goes through the journal fold instead: a repeated resolution
+is the documented journaled no-op ('already_resolved'), and once the
+segment settled the resolution appends durably WITHOUT waking the
+closed body (exactly one engine.resume owns the continuation).
 
 #### Parameters
 
@@ -261,3 +301,28 @@ The synthesized resolveExternal key of an approval suspension.
 #### Returns
 
 `string`
+
+***
+
+### suspensionKeyOf()
+
+```ts
+static suspensionKeyOf(entry): string | undefined;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The resolveExternal key a journaled suspension answers to: externals
+carry the workflow-chosen key in the payload; approvals and Flavor B
+decisions synthesize `approval:<seq>`. Undefined for anything that
+is not a suspended entry.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `entry` | [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md) |
+
+#### Returns
+
+`string` \| `undefined`

@@ -6,6 +6,7 @@
  * `quiet: true` (the deliberate choice of a test tier).
  * An in-memory TranscriptStore ships alongside for the same default.
  */
+import { JournalOrderViolation } from '../l0/errors.js';
 import type { Bytes } from '../l0/json.js';
 import type { JournalEntry } from '../l0/entries.js';
 import type { JournalStore, RunFilter, RunMeta } from '../l0/spi/store.js';
@@ -29,6 +30,24 @@ export class InMemoryStore implements JournalStore {
   append(runId: string, e: JournalEntry): Promise<void> {
     this.warnOnce();
     const entries = this.runs.get(runId) ?? [];
+    // Monotonic seq (obligation A5): a stale or duplicate seq means a
+    // second writer raced this journal from an outdated tail; exactly
+    // one of them may persist, the loser gets the typed conflict.
+    // Entries without a finite seq pass through unguarded (A4 opacity).
+    const tail = entries[entries.length - 1];
+    if (
+      tail !== undefined &&
+      Number.isFinite(e.seq) &&
+      Number.isFinite(tail.seq) &&
+      e.seq <= tail.seq
+    ) {
+      return Promise.reject(
+        new JournalOrderViolation(
+          `InMemoryStore: append of seq ${e.seq} to run '${runId}' is not after the stored ` +
+            `tail seq ${tail.seq}; a concurrent writer raced this journal from a stale tail`,
+        ),
+      );
+    }
     // Deep copy on write: A4 opacity plus decoupling from caller mutation.
     entries.push(deepCopy(e));
     this.runs.set(runId, entries);

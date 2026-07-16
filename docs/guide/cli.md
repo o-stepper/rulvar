@@ -150,7 +150,7 @@ curl -N -H 'Last-Event-ID: 42' http://localhost:8787/runs/$RUN_ID/events
 
 ### Resolving approvals and external input
 
-`POST /runs/:id/external/:key` is the HTTP form of `RunHandle.resolveExternal`. The key of an `awaitExternal` suspension is the key the workflow chose (`editor-signoff` above), and its value must validate against the schema pinned at suspension time, when one was set. An approval suspension synthesizes its key as `approval:<seq>` and resolves with `{ "decision": "allow" | "deny", "reason"?: string }`. Both appear in the `pending` list of the run status.
+`POST /runs/:id/external/:key` is the HTTP form of `RunHandle.resolveExternal`. The key of an `awaitExternal` suspension is the key the workflow chose (`editor-signoff` above), and its value must validate against the schema pinned at suspension time, when one was set. An approval suspension synthesizes its key as `approval:<seq>` and resolves with `{ "decision": "allow" | "deny", "reason"?: string }`. Both appear in the `pending` list of the run status. For a run this server started that has settled `suspended`, the response's `resumed: true` means the server applied the durable resolution and started the run's ONE continuation segment itself; an approved tool executes exactly once (see [Resolving a settled run](/guide/durability#resolving-a-settled-run)).
 
 ```bash
 curl -X POST http://localhost:8787/runs/$RUN_ID/external/editor-signoff \

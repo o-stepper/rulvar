@@ -289,7 +289,7 @@ if (outcome.status === 'suspended') {
 }
 ```
 
-The resolution value normalizes to an `ApprovalDecision`, and it fails closed: anything that is not an explicit allow is a deny. Racing resolutions are settled by the first-closing-wins fold, so a live decision and a timeout default can never both apply. On resume the agent continues the same turn from its checkpoint: executed tools are not re-run, paid turns are not re-paid, and an approval that was resolved while the process was down applies immediately without re-suspending. The full resume mechanics live in the [agents guide](/guide/agents) and [durability](/guide/durability).
+The resolution value normalizes to an `ApprovalDecision`, and it fails closed: anything that is not an explicit allow is a deny. Racing resolutions are settled by the first-closing-wins fold, so a live decision and a timeout default can never both apply. The sequence above is safe because a settled handle's `resolveExternal` only appends the durable resolution; it never restarts the closed segment, so the `engine.resume` that follows is the ONE continuation, the approved tool executes exactly once, and the pre-approval turn is never re-paid (see [Resolving a settled run](/guide/durability#resolving-a-settled-run)). On resume the agent continues the same turn from its checkpoint: executed tools are not re-run, paid turns are not re-paid, and an approval that was resolved while the process was down applies immediately without re-suspending. The full resume mechanics live in the [agents guide](/guide/agents) and [durability](/guide/durability).
 
 ## Executors
 

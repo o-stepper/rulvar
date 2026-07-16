@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ChatRequest } from '../l0/messages.js';
 import type { JournalEntry } from '../l0/entries.js';
+import { InMemoryStore } from '../stores/inmemory.js';
 import { executeWorkflow } from '../engine/ctx.js';
 import { makeInternals, scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
 import { makeOrchestratorWorkflow } from './orchestrate.js';
@@ -244,6 +245,14 @@ describe('wait_for_events and WakeDigest (M6-T09)', () => {
         e.status !== 'suspended',
     );
     const priorEntries = phase1Entries.filter((e) => e.seq < (orchestratorTerminal?.seq ?? 0));
+    // A real crash loses the unappended tail EVERYWHERE: the truncated
+    // journal must live in an equally truncated store, or the resumed
+    // replayer appends from a stale tail and the A5 monotonic-seq guard
+    // rejects it (the guard exists exactly for that corruption).
+    const truncatedStore = new InMemoryStore({ quiet: true });
+    for (const entry of priorEntries) {
+      await truncatedStore.append('test-run', entry);
+    }
 
     const adapter2 = scriptedAdapter((req): ScriptedTurn => {
       if (agentTypeOf(req) === 'worker') {
@@ -258,11 +267,11 @@ describe('wait_for_events and WakeDigest (M6-T09)', () => {
       routing: ROUTING,
       profiles: PROFILES,
       priorEntries,
-      store: phase1.store,
+      store: truncatedStore,
       transcripts,
     });
     await expect(executeWorkflow(phase2.internals, wf, undefined)).resolves.toBe('resumed');
-    const finalEntries = await phase1.store.load('test-run');
+    const finalEntries = await truncatedStore.load('test-run');
     // The digest was NOT rebuilt: still exactly the phase-1 resolution.
     const digests = wakeResolutions(finalEntries);
     expect(digests).toHaveLength(1);
