@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.14.0
+
+#### Patch Changes
+
+- @rulvar/core@1.14.0
+
 ### 1.13.0
 
 #### Patch Changes
@@ -410,6 +416,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.14.0
+
+#### Patch Changes
+
+- @rulvar/core@1.14.0
+
 ### 1.13.0
 
 #### Patch Changes
@@ -699,6 +711,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.14.0
+
+#### Patch Changes
+
+- @rulvar/core@1.14.0
 
 ### 1.13.0
 
@@ -1120,6 +1138,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.14.0
 
 ### 1.13.0
 
@@ -2107,6 +2127,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.14.0
+
 ### 1.13.0
 
 ### 1.12.0
@@ -2197,6 +2219,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.14.0
+
+#### Patch Changes
+
+- Updated dependencies [6073226]
+  - @rulvar/testing@1.14.0
+  - @rulvar/core@1.14.0
 
 ### 1.13.0
 
@@ -2541,6 +2571,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.14.0
+
+#### Patch Changes
+
+- @rulvar/core@1.14.0
 
 ### 1.13.0
 
@@ -2953,6 +2989,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.14.0
+
+#### Patch Changes
+
+- @rulvar/core@1.14.0
+
 ### 1.13.0
 
 #### Patch Changes
@@ -3344,6 +3386,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.14.0
+
+#### Patch Changes
+
+- @rulvar/core@1.14.0
+- eslint-plugin-rulvar@1.14.0
+
 ### 1.13.0
 
 #### Patch Changes
@@ -3664,6 +3713,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.14.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.14.0
+- @rulvar/openai@1.14.0
+- @rulvar/core@1.14.0
 
 ### 1.13.0
 
@@ -4092,6 +4149,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.14.0
+
+#### Patch Changes
+
+- @rulvar/core@1.14.0
+
 ### 1.13.0
 
 #### Patch Changes
@@ -4441,6 +4504,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.14.0
+
+#### Patch Changes
+
+- @rulvar/core@1.14.0
+
 ### 1.13.0
 
 #### Patch Changes
@@ -4740,6 +4809,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.14.0
+
+#### Minor Changes
+
+- 6073226: Add the live-test opt-in gate and the bounded live smoke. `liveTestEnabled(...keys)` is true only when `RULVAR_LIVE_TESTS=1` AND every named environment key is present, so a provider key alone never triggers a paid call from an ordinary test run. `runLiveSmoke(adapter, req, options?)` drains one adapter stream per attempt and classifies the terminal event: `finish` passes, a typed retryable error (429 rate limit, 529 overload, transport) retries with linear backoff up to the attempt bound, a non-retryable error fails immediately with the typed `WireError` intact, a stream without any terminal event is reported as the adapter-contract violation it is, and a thrown stream propagates unchanged. Rulvar's own key-gated live suites (Anthropic, OpenAI, ai-sdk bridge, the umbrella example) now require the explicit opt-in and run via the documented `pnpm test:live` command, which reports which suites will fire and never prints key values.
+
+#### Patch Changes
+
+- @rulvar/core@1.14.0
 
 ### 1.13.0
 
