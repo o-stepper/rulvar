@@ -180,6 +180,25 @@ const resolution = await resumed.resolveExternal('rollout-approval', { approved:
 const final = await resumed.result; // continues into the execution agent
 ```
 
+## Resolving a settled run
+
+Exactly one live execution segment owns a run at a time. The moment `handle.result` settles (with `suspended` or any other status) that segment is closed permanently: its parked branches never run again. A `resolveExternal` on the settled handle still works, but it appends the durable resolution through the journal fold and **wakes nothing**; the continuation belongs to exactly one subsequent `engine.resume`. The engine enforces the rule at both ends: starting a second concurrent segment of the same run in one engine throws a typed `ConfigError` before any side effect, and a stale writer racing the journal from an outdated tail is rejected by the store with the typed `JournalOrderViolation` (see [Stores](/guide/stores)).
+
+That gives you two equivalent safe orders, one per situation:
+
+- **Same process, settled handle in hand** (what the CLI and the HTTP server do): resolve on the settled handle first, then resume once.
+
+  ```ts
+  const outcome = await handle.result; // 'suspended'
+  await handle.resolveExternal(outcome.pending[0].key, { approved: true }); // durable, wakes nothing
+  const resumed = engine.resume(handle.runId, deploy, { args: 'billing' }); // the ONE continuation
+  await resumed.result;
+  ```
+
+- **Fresh process, no handle**: resume first (journaled work replays for free and the body parks again), then resolve on the RESUMED handle, which settles the parked position in place. That is the example above.
+
+Before the settle, a live `resolveExternal` (from an `approval:pending` listener, say) still settles the waiting position in place without any resume at all.
+
 Resolution never mutates the suspended entry. Every attempt to close a suspension, whether a live `resolveExternal`, an operator action in the CLI, a deadline timer, a class-level escalation decision, or an engine fallback, is itself an **appended resolution entry** referencing the suspended entry by sequence number. The first valid closing entry in journal order wins; later attempts are also journaled but classify as no-ops, so a second `resolveExternal` returns an outcome with `applied: false` and the reason `already_resolved` instead of throwing. A racing timer and a racing human can both fire; exactly one of them takes effect, deterministically, on every store and every replay.
 
 Two more properties worth relying on:

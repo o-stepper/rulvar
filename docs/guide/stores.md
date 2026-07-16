@@ -27,9 +27,9 @@ interface JournalStore {
 }
 ```
 
-That is the whole seam. Suspensions, resolutions, abandoned branches, plan revisions, reuse-by-reference: every mechanism above the kernel is expressed as ordinary appends plus pure folds over the loaded entries, so the storage contract never grows. There is no compare-and-swap, no entry mutation, no query language.
+That is the whole seam. Suspensions, resolutions, abandoned branches, plan revisions, reuse-by-reference: every mechanism above the kernel is expressed as ordinary appends plus pure folds over the loaded entries, so the storage contract never grows. There is no caller-driven compare-and-swap, no entry mutation, no query language.
 
-The store is dumb by design, and the dumbness is normative. Four obligations define correctness:
+The store is dumb by design, and the dumbness is normative. Five obligations define correctness:
 
 | Obligation | Meaning |
 |---|---|
@@ -37,8 +37,11 @@ The store is dumb by design, and the dumbness is normative. Four obligations def
 | Total per-run order | `load(runId)` returns entries exactly in append order, stable across calls. |
 | Read-your-writes | Once an `append` promise resolves, an immediate `load` sees the entry. |
 | Opaque payload | Entries come back byte-equivalent as JSON values; unknown kinds and unknown fields pass through untouched. |
+| Monotonic seq | An append whose `seq` is not strictly greater than the run's stored tail rejects with the typed `JournalOrderViolation` and never becomes visible; two entries with the same `(runId, seq)` can never both persist. |
 
-The last one matters most. Content keys, the replay disposition, and every fold read loaded entries verbatim; a store that normalizes, deduplicates, reorders, or trims fields silently corrupts replay identity. Run metadata is kept apart on purpose: the engine writes `RunMeta` through `putMeta` as a separate record, so `listRuns` never has to parse journal payloads.
+Monotonic seq is the store's one integrity constraint, and it reads a single top-level field of the entry envelope, never the payload. It exists to fence off a second writer racing the same journal from a stale tail (a double resume, a zombie segment): exactly one racer persists and the loser gets the typed conflict instead of silently corrupting replay. In-process it complements the engine's own rule that exactly one live segment owns a run (see [Resolving a settled run](/guide/durability#resolving-a-settled-run)); cross-process, fencing remains the lease epoch's job.
+
+Opaque payload matters most. Content keys, the replay disposition, and every fold read loaded entries verbatim; a store that normalizes, deduplicates, reorders, or trims fields silently corrupts replay identity. Run metadata is kept apart on purpose: the engine writes `RunMeta` through `putMeta` as a separate record, so `listRuns` never has to parse journal payloads.
 
 Any store satisfying these obligations works, and the executable definition of "satisfying" is [`@rulvar/store-conformance`](/api/@rulvar/store-conformance/). If you want to build one, see [Writing a store](/guide/store-authors).
 

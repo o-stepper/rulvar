@@ -2,9 +2,11 @@
  * journalStoreConformance (M2-T11, DEF-4): the executable definition of
  * the JournalStore seam. Mandatory checks for the conformance tier:
  * A1 append atomicity, A2 total per-run order, A3 read-your-writes,
- * A4 opaque payload, meta separation, the golden fold-state fixture, the
- * end-to-end decide-once oracle, and the abandon fixture (zero live
- * classes inside a skipped subtree, zero ledger increment).
+ * A4 opaque payload, A5 monotonic seq (a stale or duplicate seq append
+ * rejects with the typed journal_order_violation and never persists),
+ * meta separation, the golden fold-state fixture, the end-to-end
+ * decide-once oracle, and the abandon fixture (zero live classes inside
+ * a skipped subtree, zero ledger increment).
  *
  * The oracle and the abandon fixture drive the kernel (Replayer,
  * ResolutionFold, the DEF-1 predicate) directly over the store under
@@ -207,6 +209,145 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
           (loaded as unknown as { hashVersion?: number }).hashVersion === undefined,
           'a4-opaque-payload',
           'the store injected hashVersion into a legacy entry (normalization is read-side only)',
+        );
+      },
+    },
+    {
+      id: 'a5-monotonic-seq',
+      title: 'append rejects a duplicate or stale seq with the typed journal_order_violation',
+      async run() {
+        const store = await mk();
+        await store.append(RUN, baseEntry(0));
+        await store.append(RUN, baseEntry(1));
+        for (const stale of [1, 0]) {
+          let thrown: unknown;
+          try {
+            await store.append(RUN, baseEntry(stale, { value: { seq: stale, second: true } }));
+          } catch (error) {
+            thrown = error;
+          }
+          ensure(
+            (thrown as { code?: string } | undefined)?.code === 'journal_order_violation',
+            'a5-monotonic-seq',
+            `append of stale seq ${stale} must reject with code 'journal_order_violation'`,
+          );
+        }
+        const loaded = await store.load(RUN);
+        ensure(
+          loaded.map((item) => item.seq).join(',') === '0,1',
+          'a5-monotonic-seq',
+          'a rejected stale append must never become visible',
+        );
+        // The guard rejects only stale seqs; the true next always lands.
+        await store.append(RUN, baseEntry(2));
+        ensure(
+          (await store.load(RUN)).length === 3,
+          'a5-monotonic-seq',
+          'the append of the true next seq must succeed after rejections',
+        );
+      },
+    },
+    {
+      id: 'a5-stale-tail-race',
+      title: 'two writers appending the same next seq: exactly one persists, the loser is typed',
+      async run() {
+        const store = await mk();
+        for (let i = 0; i < 3; i += 1) {
+          await store.append(RUN, baseEntry(i));
+        }
+        const settled = await Promise.allSettled([
+          store.append(RUN, baseEntry(3, { value: { seq: 3, writer: 'a' } })),
+          store.append(RUN, baseEntry(3, { value: { seq: 3, writer: 'b' } })),
+        ]);
+        const fulfilled = settled.filter((item) => item.status === 'fulfilled');
+        const rejected = settled.filter(
+          (item): item is PromiseRejectedResult => item.status === 'rejected',
+        );
+        ensure(
+          fulfilled.length === 1 && rejected.length === 1,
+          'a5-stale-tail-race',
+          `exactly one of two same-seq appends may persist (got ${fulfilled.length} fulfilled)`,
+        );
+        ensure(
+          (rejected[0]?.reason as { code?: string } | undefined)?.code ===
+            'journal_order_violation',
+          'a5-stale-tail-race',
+          "the losing writer must observe the typed 'journal_order_violation' conflict",
+        );
+        const loaded = await store.load(RUN);
+        ensure(
+          loaded.length === 4 && loaded.filter((item) => item.seq === 3).length === 1,
+          'a5-stale-tail-race',
+          'the journal must hold exactly one entry at the raced seq',
+        );
+        const seqs = loaded.map((item) => item.seq);
+        ensure(
+          seqs.every((seq, index) => index === 0 || seq > (seqs[index - 1] ?? Number.NaN)),
+          'a5-stale-tail-race',
+          'reloading after the race must show a strictly increasing total order',
+        );
+      },
+    },
+    {
+      id: 'a5-stale-replayer-fencing',
+      title:
+        'two kernel replayers from the same tail: one append wins, the loser gets the conflict',
+      async run() {
+        const store = await mk();
+        const seed = new Replayer({ runId: RUN, store });
+        for (let i = 0; i < 3; i += 1) {
+          await seed.appendSinglePhase({
+            scope: '',
+            key: `seed-${i}`,
+            kind: 'step',
+            status: 'ok',
+            spanId: 'conf-span',
+            value: { i },
+          });
+        }
+        const tail = await store.load(RUN);
+        const writerA = new Replayer({ runId: RUN, store, priorEntries: tail });
+        const writerB = new Replayer({ runId: RUN, store, priorEntries: tail });
+        const settled = await Promise.allSettled([
+          writerA.appendSinglePhase({
+            scope: '',
+            key: 'race',
+            kind: 'step',
+            status: 'ok',
+            spanId: 'conf-span',
+            value: 'a',
+          }),
+          writerB.appendSinglePhase({
+            scope: '',
+            key: 'race',
+            kind: 'step',
+            status: 'ok',
+            spanId: 'conf-span',
+            value: 'b',
+          }),
+        ]);
+        const rejected = settled.filter(
+          (item): item is PromiseRejectedResult => item.status === 'rejected',
+        );
+        ensure(
+          settled.filter((item) => item.status === 'fulfilled').length === 1 &&
+            rejected.length === 1,
+          'a5-stale-replayer-fencing',
+          'exactly one stale-tail replayer append may persist',
+        );
+        ensure(
+          (rejected[0]?.reason as { code?: string } | undefined)?.code ===
+            'journal_order_violation',
+          'a5-stale-replayer-fencing',
+          "the losing replayer must observe the typed 'journal_order_violation' conflict",
+        );
+        const reload = await store.load(RUN);
+        const seqs = reload.map((item) => item.seq);
+        ensure(
+          new Set(seqs).size === seqs.length &&
+            seqs.every((seq, index) => index === 0 || seq > (seqs[index - 1] ?? Number.NaN)),
+          'a5-stale-replayer-fencing',
+          'reopening the store must show a unique, strictly increasing seq order',
         );
       },
     },

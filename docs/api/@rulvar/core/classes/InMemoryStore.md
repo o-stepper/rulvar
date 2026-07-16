@@ -6,7 +6,7 @@
 
 # Class: InMemoryStore
 
-Defined in: [packages/core/src/stores/inmemory.ts:18](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L18)
+Defined in: [packages/core/src/stores/inmemory.ts:19](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L19)
 
 ## Implements
 
@@ -20,7 +20,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:18](https://github.com/o-stepp
 new InMemoryStore(options?): InMemoryStore;
 ```
 
-Defined in: [packages/core/src/stores/inmemory.ts:23](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L23)
+Defined in: [packages/core/src/stores/inmemory.ts:24](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L24)
 
 #### Parameters
 
@@ -41,7 +41,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:23](https://github.com/o-stepp
 append(runId, e): Promise<void>;
 ```
 
-Defined in: [packages/core/src/stores/inmemory.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L29)
+Defined in: [packages/core/src/stores/inmemory.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L30)
 
 #### Parameters
 
@@ -66,7 +66,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:29](https://github.com/o-stepp
 delete(runId): Promise<void>;
 ```
 
-Defined in: [packages/core/src/stores/inmemory.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L64)
+Defined in: [packages/core/src/stores/inmemory.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L83)
 
 #### Parameters
 
@@ -90,7 +90,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:64](https://github.com/o-stepp
 listRuns(f?): Promise<RunMeta[]>;
 ```
 
-Defined in: [packages/core/src/stores/inmemory.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L47)
+Defined in: [packages/core/src/stores/inmemory.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L66)
 
 #### Parameters
 
@@ -114,7 +114,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:47](https://github.com/o-stepp
 load(runId): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/core/src/stores/inmemory.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L38)
+Defined in: [packages/core/src/stores/inmemory.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L57)
 
 #### Parameters
 
@@ -138,7 +138,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:38](https://github.com/o-stepp
 putMeta(m): Promise<void>;
 ```
 
-Defined in: [packages/core/src/stores/inmemory.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L42)
+Defined in: [packages/core/src/stores/inmemory.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L61)
 
 #### Parameters
 

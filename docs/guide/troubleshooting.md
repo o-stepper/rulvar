@@ -269,16 +269,31 @@ if (outcome.status === 'suspended') {
 ```
 
 **Fix.** Resolve the suspension and let the run continue. Against a live run,
-`resolveExternal` settles the waiting position in place; against an exited run,
-resume and resolve:
+`resolveExternal` settles the waiting position in place. Holding the SETTLED
+handle in the same process, resolve on it first (the append is durable and
+wakes nothing) and then resume once:
+
+```ts
+await handle.resolveExternal('legal-signoff', { approved: true });
+const resumed = engine.resume(runId, workflow);
+```
+
+Against an exited run with no handle, resume first and resolve on the resumed
+handle:
 
 ```ts
 const resumed = engine.resume(runId, workflow);
 await resumed.resolveExternal('legal-signoff', { approved: true });
 ```
 
+Both orders are safe because exactly one live segment owns a run: a settled
+segment never restarts, and a second concurrent resume throws a typed
+`ConfigError` (see
+[Resolving a settled run](/guide/durability#resolving-a-settled-run)).
 An invalid payload (when the `awaitExternal` declared a schema) throws a typed
 `InvalidResolutionError` and journals nothing; the entry stays suspended.
+A repeated resolution of an already-closed suspension returns
+`{ applied: false, reason: 'already_resolved' }` instead of throwing.
 Interactively, `rulvar resume <runId>` prompts for open suspensions from the
 terminal; see [the CLI](/guide/cli).
 

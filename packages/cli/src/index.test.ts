@@ -3,7 +3,7 @@
  * the real command paths against FakeAdapter, engine assembly from the
  * host config convention, runs ls, and the inspect journal summary.
  */
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -95,6 +95,86 @@ describe('rulvar CLI (M5-T01)', () => {
     const value = JSON.parse(io.outLines.join('\n')) as Record<string, unknown>;
     expect(value).toEqual({ analysis: 'analysis complete', approved: true, item: 7 });
     expect(io.errLines.some((line) => line.includes('status: ok'))).toBe(true);
+  });
+
+  it('interactive tool approval creates exactly one continuation (split-brain regression)', async () => {
+    // v1.10 deep E2E review: driveRun resolves the approval on the
+    // SETTLED handle and then resumes; the approved tool must execute
+    // once, one terminal agent entry lands, and every seq stays unique.
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-'));
+    const markerPath = join(cwd, 'deploys.log');
+    writeFileSync(
+      join(cwd, 'rulvar.config.mjs'),
+      `import { appendFileSync } from 'node:fs';
+import { defineWorkflow, tool } from ${JSON.stringify(CORE_DIST)};
+import { FakeAdapter, FAKE_MODEL_REF, fakeToolCalls } from ${JSON.stringify(TESTING_DIST)};
+
+const deploy = tool({
+  name: 'deploy',
+  description: 'deploys the site',
+  parameters: { type: 'object' },
+  needsApproval: true,
+  execute: async (input) => {
+    appendFileSync(${JSON.stringify(markerPath)}, JSON.stringify(input) + '\\n');
+    return 'deployed';
+  },
+});
+
+const guarded = defineWorkflow({ name: 'guarded' }, async (ctx) =>
+  ctx.agent('ship it', { tools: [deploy] }),
+);
+
+let turns = 0;
+export default {
+  engineOptions: {
+    adapters: [
+      new FakeAdapter({
+        agents: {
+          '*': () => {
+            turns += 1;
+            return turns === 1
+              ? fakeToolCalls({ name: 'deploy', args: { site: 'prod' } })
+              : 'released';
+          },
+        },
+      }),
+    ],
+    defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+  },
+  workflows: { guarded },
+};
+`,
+      'utf8',
+    );
+
+    const io = scriptedIo(['allow']);
+    const code = await runCli(['run', 'guarded', '--store', '.rulvar'], { cwd, io });
+    expect(code).toBe(0);
+    expect(JSON.parse(io.outLines.join('\n'))).toBe('released');
+    expect(io.errLines.some((line) => line.includes('status: ok'))).toBe(true);
+
+    // The execution marker: exactly one tool execution.
+    const markers = readFileSync(markerPath, 'utf8').trim().split('\n');
+    expect(markers).toEqual(['{"site":"prod"}']);
+
+    // The journal: unique strictly increasing seqs, one approval, one
+    // resolution, ONE terminal agent entry, so usage is counted once.
+    const runId = runIdOf(io);
+    const lines = readFileSync(join(cwd, '.rulvar', `${runId}.jsonl`), 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as { seq: number; kind: string; status: string });
+    const seqs = lines.map((entry) => entry.seq);
+    expect(new Set(seqs).size).toBe(seqs.length);
+    expect(seqs.every((seq, i) => i === 0 || seq > (seqs[i - 1] ?? Number.NaN))).toBe(true);
+    expect(lines.filter((entry) => entry.kind === 'approval')).toHaveLength(1);
+    expect(lines.filter((entry) => entry.kind === 'resolution')).toHaveLength(1);
+    expect(
+      lines.filter(
+        (entry) =>
+          entry.kind === 'agent' && entry.status !== 'running' && entry.status !== 'suspended',
+      ),
+    ).toHaveLength(1);
   });
 
   it('run/suspend/exit then resume completes the round-trip (acceptance)', async () => {

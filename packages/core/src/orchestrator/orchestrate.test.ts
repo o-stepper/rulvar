@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ChatRequest } from '../l0/messages.js';
 import type { JournalEntry } from '../l0/entries.js';
-import { InMemoryTranscriptStore } from '../stores/inmemory.js';
+import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { executeWorkflow } from '../engine/ctx.js';
 import { makeInternals, scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
 import type { AgentProfile } from '../engine/ctx.js';
@@ -397,6 +397,14 @@ describe('orchestrate (M6-T07/T08)', () => {
     );
     expect(orchestratorTerminal?.status).toBe('error');
     const priorEntries = phase1Entries.filter((e) => e.seq < (orchestratorTerminal?.seq ?? 0));
+    // A real crash loses the unappended tail EVERYWHERE: the truncated
+    // journal must live in an equally truncated store, or the resumed
+    // replayer appends from a stale tail and the A5 monotonic-seq guard
+    // rejects it (the guard exists exactly for that corruption).
+    const truncatedStore = new InMemoryStore({ quiet: true });
+    for (const entry of priorEntries) {
+      await truncatedStore.append('test-run', entry);
+    }
 
     // Phase 2: children must never be re-paid; the orchestrator resumes
     // mid-conversation and completes.
@@ -418,7 +426,7 @@ describe('orchestrate (M6-T07/T08)', () => {
       routing: { loop: 'fake:model', orchestrate: 'fake:model' },
       profiles: PROFILES,
       priorEntries,
-      store: phase1.store,
+      store: truncatedStore,
       transcripts,
     });
     const outcome = (await executeWorkflow(phase2.internals, wf, undefined)) as {
@@ -427,7 +435,7 @@ describe('orchestrate (M6-T07/T08)', () => {
     // Handles are journal-derived and STABLE across the resume.
     expect(outcome.recovered.sort()).toEqual([...phase1Handles].sort());
 
-    const finalEntries = await phase1.store.load('test-run');
+    const finalEntries = await truncatedStore.load('test-run');
     // No duplicate spawn decisions and no re-dispatched children.
     expect(admissionEntries(finalEntries)).toHaveLength(2);
     expect(

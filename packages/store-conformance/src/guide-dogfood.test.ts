@@ -9,6 +9,7 @@
 import { describe, it } from 'vitest';
 
 import {
+  JournalOrderViolation,
   LeaseHeldError,
   type JournalEntry,
   type Lease,
@@ -70,6 +71,16 @@ export class CommunityMemoryStore implements LeasableStore {
     // mutation (A4).
     const row = JSON.stringify(e);
     const rows = this.entries.get(runId) ?? [];
+    // Monotonic seq (A5): a stale or duplicate seq means a second writer
+    // raced this journal from an outdated tail; the loser gets the typed
+    // conflict and nothing becomes visible.
+    const tail = rows[rows.length - 1];
+    const tailSeq = tail === undefined ? undefined : (JSON.parse(tail) as JournalEntry).seq;
+    if (typeof tailSeq === 'number' && Number.isFinite(e.seq) && e.seq <= tailSeq) {
+      throw new JournalOrderViolation(
+        `append of seq ${e.seq} to run '${runId}' is not after the stored tail seq ${tailSeq}`,
+      );
+    }
     rows.push(row);
     this.entries.set(runId, rows);
   }

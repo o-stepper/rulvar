@@ -48,6 +48,12 @@ function safeName(runId: string): string {
 
 export class JsonlFileStore implements JournalStore {
   private readonly dir: string;
+  /**
+   * The stored tail seq per run, lazily initialized from the file on the
+   * first append this instance performs (obligation A5). Per instance by
+   * design: cross-process writers are the lease seam's job.
+   */
+  private readonly lastSeq = new Map<string, number>();
 
   constructor(options: { dir: string }) {
     this.dir = options.dir;
@@ -62,12 +68,32 @@ export class JsonlFileStore implements JournalStore {
     return join(this.dir, `${safeName(runId)}${META_SUFFIX}`);
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   async append(runId: string, e: JournalEntry): Promise<void> {
+    // Monotonic seq (obligation A5): a stale or duplicate seq means a
+    // second writer raced this journal from an outdated tail; exactly
+    // one of them may persist, the loser gets the typed conflict.
+    // Entries without a finite seq (legacy or exotic shapes) pass
+    // through unguarded (A4 opacity).
+    let tail = this.lastSeq.get(runId);
+    if (tail === undefined) {
+      const existing = await this.load(runId);
+      const last = existing[existing.length - 1];
+      tail = last !== undefined && Number.isFinite(last.seq) ? last.seq : Number.NEGATIVE_INFINITY;
+      this.lastSeq.set(runId, tail);
+    }
+    if (Number.isFinite(e.seq) && e.seq <= tail) {
+      throw new JournalOrderViolation(
+        `JsonlFileStore: append of seq ${e.seq} to run '${runId}' is not after the stored ` +
+          `tail seq ${tail}; a concurrent writer raced this journal from a stale tail`,
+      );
+    }
     // One serialized line per entry; a crash can only tear the final
     // line, which load discards (A1). The kernel's per-run queue is the
     // single writer (A2).
     appendFileSync(this.journalPath(runId), `${JSON.stringify(e)}\n`, 'utf8');
+    if (Number.isFinite(e.seq)) {
+      this.lastSeq.set(runId, e.seq);
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -162,6 +188,7 @@ export class JsonlFileStore implements JournalStore {
   async delete(runId: string): Promise<void> {
     rmSync(this.journalPath(runId), { force: true });
     rmSync(this.metaPath(runId), { force: true });
+    this.lastSeq.delete(runId);
   }
 }
 

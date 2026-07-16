@@ -199,7 +199,7 @@ const preview = await resumed.preview;
 // the analyst call replayed from the journal; nothing ran twice
 ```
 
-The resume rebinds the journal to the workflow and forward-matches every call by scope path, content key, and ordinal: the analyst call is served from its journal entry (a replay), the resolved external is read from its resolution entry, and only genuinely new work would go live. `ResumeHandle.preview` gives you the accounting to assert on: `hits`, `misses`, `reruns`, `skipped`, and `orphaned` (journaled operations no live call consumed, that is, deleted calls). A `misses` of zero is the never-pay-twice invariant made checkable in a unit test. See [Durability](/guide/durability) for the mechanics under test.
+The resume rebinds the journal to the workflow and forward-matches every call by scope path, content key, and ordinal: the analyst call is served from its journal entry (a replay), the resolved external is read from its resolution entry, and only genuinely new work would go live. `ResumeHandle.preview` gives you the accounting to assert on: `hits`, `misses`, `reruns`, `skipped`, and `orphaned` (journaled operations no live call consumed, that is, deleted calls). A `misses` of zero is the never-pay-twice invariant made checkable in a unit test. Note the order in the snippet: `first.resolveExternal` after `first.result` settled appends the durable resolution without restarting the settled segment, and the `engine.resume` that follows is the run's ONE continuation (see [Resolving a settled run](/guide/durability#resolving-a-settled-run)). See [Durability](/guide/durability) for the mechanics under test.
 
 ## Replay-strict runs
 

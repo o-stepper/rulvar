@@ -6,7 +6,7 @@
 
 # Interface: SqliteStoreOptions
 
-Defined in: [packages/store-sqlite/src/store.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L36)
+Defined in: [packages/store-sqlite/src/store.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L37)
 
 @rulvar/store-sqlite: SqliteStore implementing JournalStore and
 LeasableStore with fencing epochs over the builtin node:sqlite driver;
@@ -18,6 +18,6 @@ Requires a Node.js with node:sqlite available
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-now"></a> `now?` | () => `number` | Injectable clock for lease-expiry tests. | [packages/store-sqlite/src/store.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L42) |
-| <a id="property-path"></a> `path` | `string` | Database file path, or ':memory:' for an in-process store. | [packages/store-sqlite/src/store.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L38) |
-| <a id="property-ttlms"></a> `ttlMs?` | `number` | Lease ttl; default the Appendix A interim reference (60000 ms). | [packages/store-sqlite/src/store.ts:40](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L40) |
+| <a id="property-now"></a> `now?` | () => `number` | Injectable clock for lease-expiry tests. | [packages/store-sqlite/src/store.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L43) |
+| <a id="property-path"></a> `path` | `string` | Database file path, or ':memory:' for an in-process store. | [packages/store-sqlite/src/store.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L39) |
+| <a id="property-ttlms"></a> `ttlMs?` | `number` | Lease ttl; default the Appendix A interim reference (60000 ms). | [packages/store-sqlite/src/store.ts:41](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L41) |

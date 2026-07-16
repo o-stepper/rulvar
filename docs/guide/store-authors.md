@@ -31,7 +31,7 @@ interface JournalStore {
 }
 ```
 
-Your store is a dumb byte mover. The kernel above it derives every fact (replay decisions, budget ledgers, plan state) by folding loaded entries; the store never interprets what it holds. Four obligations define correctness:
+Your store is a dumb byte mover. The kernel above it derives every fact (replay decisions, budget ledgers, plan state) by folding loaded entries; the store never interprets what it holds. Five obligations define correctness:
 
 | Obligation | Meaning |
 |---|---|
@@ -39,6 +39,9 @@ Your store is a dumb byte mover. The kernel above it derives every fact (replay 
 | Total per-run order | `load(runId)` returns entries exactly in append order, stable across calls. The store never reorders. |
 | Read-your-writes | Once an `append` promise resolves, an immediately following `load` from the same client sees the entry. |
 | Opaque payload | Entries come back byte-equivalent as JSON values. Unknown kinds and unknown fields pass through untouched. |
+| Monotonic seq | An append whose `seq` is not strictly greater than the run's stored tail rejects with the typed `JournalOrderViolation` and never becomes visible. Two entries with the same `(runId, seq)` can never both persist. |
+
+Monotonic seq is the store's one integrity constraint, and the exception that proves the dumbness rule: it reads a single top-level field of the entry envelope (never the payload) to fence off a second writer racing the journal from a stale tail. Exactly one of the racers persists; the loser gets the typed conflict instead of silently corrupting replay.
 
 Opacity is the one authors break most often, and it is the one with the worst blast radius. Content keys, the replay disposition, and every fold read loaded entries verbatim; a store that deduplicates, normalizes key order, trims fields, or coerces numbers silently corrupts replay identity, and the run pays for work it already paid for. Never parse a payload; store the serialized bytes and hand them back.
 
@@ -47,7 +50,7 @@ Two structural rules complete the contract:
 - **Meta separation.** The engine writes `RunMeta` through `putMeta` as its own record, precisely so that `listRuns` can filter by `status`, `name`, and `tags` without ever parsing a journal payload. Keep the two record types apart in your schema.
 - **`delete(runId)` removes the journal and the meta** (and any lease state you keep). It does not touch transcript blobs: the engine owns that cascade (`Engine.deleteRun` lists and deletes blobs first, then calls your `delete`), so stores never reach into a `TranscriptStore`.
 
-There is no compare-and-swap, no entry mutation, no query language, and nothing for you to validate inside a payload. In particular, do not enforce `seq` contiguity: `seq` belongs to the kernel. Your store checks nothing about contents; it only preserves order.
+There is no caller-driven compare-and-swap, no entry mutation, no query language, and nothing for you to validate inside a payload. The one envelope field you read is `seq`, for the monotonicity guard, and monotonic means strictly greater than the stored tail, never contiguous: do not require `seq` to advance by exactly one, and do not inspect anything else. Your store validates no payload contents; it preserves order and rejects a stale tail.
 
 ## The lease capability and fencing
 
@@ -79,6 +82,7 @@ The store below is the smallest correct `LeasableStore`: in-memory maps, a JSON 
 
 ```ts
 import {
+  JournalOrderViolation,
   LeaseHeldError,
   type JournalEntry,
   type Lease,
@@ -135,6 +139,16 @@ export class CommunityMemoryStore implements LeasableStore {
     // caller mutation (opaque payload).
     const row = JSON.stringify(e);
     const rows = this.entries.get(runId) ?? [];
+    // Monotonic seq: a stale or duplicate seq means a second writer raced
+    // this journal from an outdated tail; the loser gets the typed
+    // conflict and nothing becomes visible.
+    const tail = rows[rows.length - 1];
+    const tailSeq = tail === undefined ? undefined : (JSON.parse(tail) as JournalEntry).seq;
+    if (typeof tailSeq === 'number' && Number.isFinite(e.seq) && e.seq <= tailSeq) {
+      throw new JournalOrderViolation(
+        `append of seq ${e.seq} to run '${runId}' is not after the stored tail seq ${tailSeq}`,
+      );
+    }
     rows.push(row);
     this.entries.set(runId, rows);
   }
@@ -287,7 +301,8 @@ If that prints `false`, your store altered a payload somewhere between append an
 - **Shared mutable objects.** Handing the same object to `append` bookkeeping and later `load` callers lets a caller mutate history. Snapshot on the way in or the way out.
 - **Resetting the epoch on release.** A zombie writer can then reuse an epoch after a failover; the fencing conformance check will catch it, but design it right first: the counter lives outside the lease.
 - **Rejecting `acquire` on an expired lease.** Expiry means the run is free. Only a live lease rejects.
-- **Enforcing `seq` contiguity in the store.** `seq` belongs to the kernel. The store checks nothing about payload contents; it only preserves order.
+- **Enforcing `seq` contiguity instead of monotonicity.** The guard rejects a `seq` that is not strictly greater than the stored tail; requiring exactly tail plus one is stricter than the contract and will fail journals with legitimate gaps. And the guard reads only that one envelope field: the store still validates no payload contents.
+- **Skipping the monotonicity guard.** Without it, two writers racing the same journal from a stale tail (a double resume, a zombie segment) both persist, and replay folds over a corrupt double history. The `a5-monotonic-seq` and `a5-stale-tail-race` conformance checks fail a store that accepts duplicates.
 
 ## Packaging and versioning
 

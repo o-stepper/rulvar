@@ -21,6 +21,7 @@
 import { DatabaseSync } from 'node:sqlite';
 
 import {
+  JournalOrderViolation,
   LeaseHeldError,
   type JournalEntry,
   type JournalStore,
@@ -67,6 +68,8 @@ export class SqliteStore implements JournalStore, LeasableStore {
         payload TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS entries_by_run ON entries (run_id, id);
+      CREATE INDEX IF NOT EXISTS entries_run_seq
+        ON entries (run_id, CAST(json_extract(payload, '$.seq') AS INTEGER));
       CREATE TABLE IF NOT EXISTS meta (
         run_id TEXT PRIMARY KEY,
         payload TEXT NOT NULL
@@ -116,10 +119,31 @@ export class SqliteStore implements JournalStore, LeasableStore {
       this.assertFencing(lease);
     }
     // A single INSERT is atomic (A1); rowid order IS the append order
-    // (A2); the payload is opaque JSON (A4).
-    this.db
-      .prepare('INSERT INTO entries (run_id, payload) VALUES (?, ?)')
-      .run(runId, JSON.stringify(e));
+    // (A2); the payload is opaque JSON (A4). Entries without a finite
+    // seq (legacy or exotic shapes) skip the monotonicity guard.
+    if (!Number.isFinite(e.seq)) {
+      this.db
+        .prepare('INSERT INTO entries (run_id, payload) VALUES (?, ?)')
+        .run(runId, JSON.stringify(e));
+      return;
+    }
+    // Monotonic seq (obligation A5) as ONE conditional statement, so the
+    // tail check and the insert commit atomically even across
+    // connections: a stale or duplicate seq means a second writer raced
+    // this journal from an outdated tail, and exactly one may persist.
+    const inserted = this.db
+      .prepare(
+        'INSERT INTO entries (run_id, payload) SELECT ?, ? WHERE NOT EXISTS (' +
+          'SELECT 1 FROM entries WHERE run_id = ? ' +
+          "AND CAST(json_extract(payload, '$.seq') AS INTEGER) >= ?)",
+      )
+      .run(runId, JSON.stringify(e), runId, e.seq);
+    if (inserted.changes === 0) {
+      throw new JournalOrderViolation(
+        `SqliteStore: append of seq ${e.seq} to run '${runId}' is not after the stored ` +
+          'tail seq; a concurrent writer raced this journal from a stale tail',
+      );
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

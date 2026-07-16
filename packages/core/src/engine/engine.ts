@@ -357,6 +357,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
   // engine shares the same keyed limiter (M4-T07).
   const providerLimiter = new KeyedLimiter(options.concurrency?.perProvider);
 
+  // Execution-segment ownership (the suspension ownership rule): at most
+  // one live segment per runId in this engine, so a double resume fails
+  // typed BEFORE any side effect instead of racing the journal.
+  // Cross-process ownership stays with store leases.
+  const activeSegments = new Set<string>();
+
   interface ResumeContext {
     runId: string;
     priorEntries: JournalEntry[];
@@ -554,6 +560,15 @@ export function createEngine(options: CreateEngineOptions): Engine {
         ...(compiled === undefined ? {} : { workflowSourceRef: workflowSourceRef(runId) }),
       });
 
+    if (activeSegments.has(runId)) {
+      throw new ConfigError(
+        `run '${runId}' already has a live execution segment in this engine; await its ` +
+          'settled result before starting another one (exactly one segment owns a run; ' +
+          'https://docs.rulvar.com/guide/durability#resolving-a-settled-run)',
+      );
+    }
+    activeSegments.add(runId);
+
     const result: Promise<RunOutcome<R>> = (async () => {
       let status: RunOutcome<R>['status'] = 'ok';
       let value: R | undefined;
@@ -613,8 +628,18 @@ export function createEngine(options: CreateEngineOptions): Engine {
         ]);
         if (raced.kind === 'suspended') {
           bodyPromise.catch(() => undefined);
+          // Settling closes this execution segment permanently: parked
+          // branches never run again, a later resolveExternal appends
+          // through the fold without waking them, and exactly one
+          // engine.resume owns the continuation (suspension ownership
+          // rule; v1.10 deep E2E review).
+          external.close();
           status = 'suspended';
-          pending = raced.open;
+          // A resolution that won in the quiesce-to-close window is
+          // durable but no longer pending.
+          pending = raced.open.filter(
+            (item) => replayer.suspensionState(item.entryRef).state === 'suspended',
+          );
           for (const item of pending) {
             bus.emit(
               {
@@ -676,6 +701,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
         if (deadlineTimer !== undefined) {
           clearTimeout(deadlineTimer);
         }
+        // Every settle closes the segment (idempotent): waiters a body
+        // raced away from must never wake after the outcome is out.
+        external.close();
         await replayer.flush().catch(() => undefined);
       }
       // The COMPLETE report is the journal fold at settle, not the live
@@ -711,8 +739,13 @@ export function createEngine(options: CreateEngineOptions): Engine {
     })();
 
     // The outcome is delivered through handle.result; an unobserved copy
-    // must not crash the process.
-    result.catch(() => undefined);
+    // must not crash the process. Segment ownership releases on ANY
+    // settlement, including rejects that never reach the run try block.
+    void result
+      .catch(() => undefined)
+      .finally(() => {
+        activeSegments.delete(runId);
+      });
 
     return {
       runId,

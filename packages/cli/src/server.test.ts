@@ -12,12 +12,14 @@ import { describe, expect, it } from 'vitest';
 import {
   createEngine,
   defineWorkflow,
+  normalizeEntry,
+  tool,
   type Engine,
   type Workflow,
   type WorkflowRegistry,
 } from '@rulvar/core';
 import { SqliteStore } from '@rulvar/store-sqlite';
-import { FAKE_MODEL_REF, FakeAdapter } from '@rulvar/testing';
+import { FAKE_MODEL_REF, FakeAdapter, fakeToolCalls } from '@rulvar/testing';
 
 import { createServer, type RulvarServer } from './server.js';
 
@@ -356,5 +358,127 @@ describe('createServer (M8-T01)', () => {
     expect((await get(server, `/runs/${runId}`)).status).toBe(404);
     expect(await engine.stores.journal.load(runId)).toEqual([]);
     expect(await engine.stores.transcripts.list(runId)).toEqual([]);
+  });
+});
+
+/**
+ * The suspension split-brain regression over HTTP (v1.10 deep E2E
+ * review): resolving a tool approval on a run that already settled
+ * 'suspended' must create exactly ONE continuation segment. The approved
+ * tool executes once, the pre-approval turn is never re-paid, one
+ * terminal agent entry lands, and every journal seq stays unique.
+ */
+function assembleGuarded(): {
+  server: RulvarServer;
+  engine: Engine;
+  executions: string[];
+  adapter: FakeAdapter;
+} {
+  const executions: string[] = [];
+  const deploy = tool({
+    name: 'deploy',
+    description: 'deploys the site',
+    parameters: { type: 'object' },
+    needsApproval: true,
+    execute: (input) => {
+      executions.push(JSON.stringify(input));
+      return Promise.resolve('deployed');
+    },
+  });
+  const guarded = defineWorkflow({ name: 'guarded' }, async (ctx) =>
+    ctx.agent('ship it', { tools: [deploy] }),
+  ) as unknown as Workflow<never, unknown>;
+  let turns = 0;
+  const adapter = new FakeAdapter({
+    agents: {
+      '*': () => {
+        turns += 1;
+        return turns === 1 ? fakeToolCalls({ name: 'deploy', args: { site: 'prod' } }) : 'released';
+      },
+    },
+  });
+  const engine = createEngine({
+    adapters: [adapter],
+    stores: { journal: new SqliteStore({ path: ':memory:' }) },
+    defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+  });
+  const server = createServer({ engine, workflows: { guarded } });
+  return { server, engine, executions, adapter };
+}
+
+describe('tracked approval after the suspended settle (split-brain regression)', () => {
+  it('allow: one tool execution, one continuation, unique seqs, clean SSE', async () => {
+    const { server, engine, executions, adapter } = assembleGuarded();
+    const started = await post(server, '/runs', { workflow: 'guarded' });
+    expect(started.status).toBe(201);
+    const { runId } = (await bodyOf(started)) as { runId: string };
+
+    const suspended = await untilStatus(server, runId, 'suspended');
+    const pending = suspended.pending as Array<{ key: string }>;
+    expect(pending).toHaveLength(1);
+    const key = pending[0]?.key ?? '';
+    expect(key).toMatch(/^approval:/);
+    // The settle closed the segment: nothing has executed yet.
+    expect(executions).toEqual([]);
+    expect(adapter.calls).toHaveLength(1);
+
+    const resolved = await post(server, `/runs/${runId}/external/${key}`, {
+      decision: 'allow',
+    });
+    expect(resolved.status).toBe(200);
+    expect(await bodyOf(resolved)).toMatchObject({ applied: true, resumed: true });
+
+    const settled = await untilStatus(server, runId, 'ok');
+    expect(settled.value).toBe('released');
+
+    // Exactly one execution segment did the work.
+    expect(executions).toEqual(['{"site":"prod"}']);
+    expect(adapter.calls).toHaveLength(2);
+    const entries = (await engine.stores.journal.load(runId)).map((e) => normalizeEntry(e));
+    const seqs = entries.map((e) => e.seq);
+    expect(new Set(seqs).size).toBe(seqs.length);
+    expect(entries.filter((e) => e.kind === 'approval')).toHaveLength(1);
+    expect(entries.filter((e) => e.kind === 'resolution')).toHaveLength(1);
+    expect(
+      entries.filter(
+        (e) => e.kind === 'agent' && e.status !== 'running' && e.status !== 'suspended',
+      ),
+    ).toHaveLength(1);
+
+    // The SSE buffer shows one terminal agent settle and one ok run:end
+    // (the suspended run:end of segment 1 is part of the record).
+    const replay = parseFrames(
+      await (await get(server, `/runs/${runId}/events`, { 'last-event-id': '-1' })).text(),
+    );
+    const agentEnds = replay.filter((frame) => frame.data?.type === 'agent:end');
+    expect(agentEnds).toHaveLength(1);
+    const runEnds = replay.filter((frame) => frame.data?.type === 'run:end');
+    expect(runEnds.map((frame) => frame.data?.status)).toEqual(['suspended', 'ok']);
+
+    // A duplicate resolution against the now-ok run is a 409, never a
+    // second continuation.
+    const late = await post(server, `/runs/${runId}/external/${key}`, { decision: 'allow' });
+    expect(late.status).toBe(409);
+    expect(executions).toHaveLength(1);
+  });
+
+  it('deny: the tool never executes; only the post-denial turn runs', async () => {
+    const { server, engine, executions, adapter } = assembleGuarded();
+    const started = await post(server, '/runs', { workflow: 'guarded' });
+    const { runId } = (await bodyOf(started)) as { runId: string };
+    const suspended = await untilStatus(server, runId, 'suspended');
+    const key = (suspended.pending as Array<{ key: string }>)[0]?.key ?? '';
+    const resolved = await post(server, `/runs/${runId}/external/${key}`, {
+      decision: 'deny',
+      reason: 'not now',
+    });
+    expect(await bodyOf(resolved)).toMatchObject({ applied: true, resumed: true });
+    const settled = await untilStatus(server, runId, 'ok');
+    expect(settled.value).toBe('released');
+    expect(executions).toEqual([]);
+    expect(adapter.calls).toHaveLength(2);
+    const entries = (await engine.stores.journal.load(runId)).map((e) => normalizeEntry(e));
+    const seqs = entries.map((e) => e.seq);
+    expect(new Set(seqs).size).toBe(seqs.length);
   });
 });
