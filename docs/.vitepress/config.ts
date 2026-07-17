@@ -154,9 +154,10 @@ export default withMermaid({
     // imports), and route-scoped page data (the changelog). The theme
     // bundle sits well under 1 MB and VitePress offers no route-level
     // splitting for it, so manualChunks would only shuffle bytes
-    // between requests. The limit sits just above today's search index;
-    // if the warning returns, the index outgrew it and the decision is
-    // due for a revisit.
+    // between requests. Growth control does NOT rest on this warning
+    // limit (v1.16.1 review P4): scripts/docs-search-budget.mjs fails
+    // the docs build when the search index regresses more than 10
+    // percent over its committed size baseline.
     build: { chunkSizeWarningLimit: 3600 },
   },
   mermaid: {

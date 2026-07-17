@@ -52,6 +52,11 @@ jobs:
 
       - name: Build documentation site (sync + TypeDoc + VitePress + llms.txt)
         run: pnpm --filter @rulvar/docs run build:site
+      # The raised chunkSizeWarningLimit must not hide search-index
+      # growth (v1.16.1 review P4): fail on >10% regression over the
+      # committed baseline, refreeze deliberately via --update.
+      - name: Search index size budget
+        run: node scripts/docs-search-budget.mjs
 
       # docs/api (the TypeDoc output), the aggregated changelog, the
       # synced contributing page, and the version prose stamped from the
