@@ -13,7 +13,7 @@ function runLiveSmoke(
 options?): Promise<LiveSmokeOutcome>;
 ```
 
-Defined in: [packages/testing/src/live.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/live.ts#L112)
+Defined in: [packages/testing/src/live.ts:124](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/live.ts#L124)
 
 Drains `adapter.stream(req)` with a bounded retry policy and classifies
 the outcome instead of throwing:

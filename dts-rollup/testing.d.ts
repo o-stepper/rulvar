@@ -43,6 +43,14 @@ declare const DEFAULT_LIVE_SMOKE_ATTEMPTS = 3;
 * is a bounded spend, so it refuses configurations that are not.
 */
 declare const MAX_LIVE_SMOKE_ATTEMPTS = 10;
+/**
+* Hard ceiling on every scheduled backoff: Node's maximum timer delay
+* (2^31 - 1 ms). Anything above it would not sleep longer, it would be
+* clamped to 1 ms with a TimeoutOverflowWarning, so both `baseDelayMs`
+* and the largest scheduled delay, `baseDelayMs * (attempts - 1)`, are
+* validated against this bound before any stream opens.
+*/
+declare const MAX_LIVE_SMOKE_DELAY_MS = 2147483647;
 interface RunLiveSmokeOptions {
   /**
   * Total attempts including the first: an integer from 1 to
@@ -53,8 +61,11 @@ interface RunLiveSmokeOptions {
   /**
   * Backoff before retry n (1-based) is `baseDelayMs * n`: a
   * non-negative integer (default 2000). Pass 0 to retry without
-  * sleeping (unit tests). Anything else rejects with ConfigError
-  * before any stream opens.
+  * sleeping (unit tests). The value AND the largest scheduled delay,
+  * `baseDelayMs * (attempts - 1)`, must not exceed
+  * {@link MAX_LIVE_SMOKE_DELAY_MS} (Node's timer maximum, which would
+  * otherwise clamp the sleep to 1 ms). Anything else rejects with
+  * ConfigError before any stream opens.
   */
   baseDelayMs?: number;
 }
@@ -239,4 +250,4 @@ declare function replay(options: {
   adapters?: ProviderAdapter[];
 }): ProviderAdapter[];
 //#endregion
-export { type CassetteFixture, type CreateTestEngineOptions, DEFAULT_LIVE_SMOKE_ATTEMPTS, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type FakeToolCallsValue, type FakeWireErrorValue, type LiveSmokeOutcome, M6_ORCH_GOAL, M6_ORCH_PROFILES, M6_ORCH_RUN_ID, MAX_LIVE_SMOKE_ATTEMPTS, RedactFn, type ReplayRunOptions, type RunLiveSmokeOptions, type TestEngine, type TestRunHandle, VcrCassette, VcrMissError, VcrRow, buildFrozenV1JournalRaw, buildM2CassetteFixtures, buildV2GoldenIdentity, createTestEngine, defaultRedact, fakeToolCalls, fakeWireError, handlesInRequest, liveTestEnabled, normalizeM6Entries, readCassette, record, recordLiveCassettes, recordOrchestratorCrash, replay, replayRun, requestHash, runLiveSmoke };
+export { type CassetteFixture, type CreateTestEngineOptions, DEFAULT_LIVE_SMOKE_ATTEMPTS, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type FakeToolCallsValue, type FakeWireErrorValue, type LiveSmokeOutcome, M6_ORCH_GOAL, M6_ORCH_PROFILES, M6_ORCH_RUN_ID, MAX_LIVE_SMOKE_ATTEMPTS, MAX_LIVE_SMOKE_DELAY_MS, RedactFn, type ReplayRunOptions, type RunLiveSmokeOptions, type TestEngine, type TestRunHandle, VcrCassette, VcrMissError, VcrRow, buildFrozenV1JournalRaw, buildM2CassetteFixtures, buildV2GoldenIdentity, createTestEngine, defaultRedact, fakeToolCalls, fakeWireError, handlesInRequest, liveTestEnabled, normalizeM6Entries, readCassette, record, recordLiveCassettes, recordOrchestratorCrash, replay, replayRun, requestHash, runLiveSmoke };

@@ -7,8 +7,11 @@
  * a canonical finish against a synthetic endpoint. Assertions only ever
  * inspect header PRESENCE and scheme, never credential values.
  */
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -166,6 +169,105 @@ describe('anthropic() production auth surface', () => {
       }
       expect(last.finish).toEqual({ reason: 'stop' });
       expect(last.usage.outputTokens).toBe(2);
+    });
+  });
+
+  it('lets a credentials provider win over ambient env keys (v1.15 review P2-2)', async () => {
+    // On v1.15.0 this exact configuration called the provider ZERO
+    // times and sent x-api-key from the environment: the SDK lets any
+    // apiKey, an env-read one included, beat the token provider. The
+    // adapter now suppresses ambient env credentials whenever
+    // structured auth is configured and no apiKey/authToken is set.
+    vi.stubEnv('ANTHROPIC_API_KEY', 'sentinel-env-key');
+    vi.stubEnv('ANTHROPIC_AUTH_TOKEN', 'sentinel-env-bearer');
+    let minted = 0;
+    await withSyntheticEndpoint(async (baseURL, captured) => {
+      const adapter = anthropic({
+        baseURL,
+        sdkOptions: {
+          credentials: () => {
+            minted += 1;
+            return Promise.resolve({ token: 'synthetic-provider-token', expiresAt: null });
+          },
+        },
+      });
+      const events = await drain(adapter.stream(helloReq()));
+      expect(minted).toBe(1);
+      expect(captured).toHaveLength(1);
+      expect(captured[0]?.hasXApiKey).toBe(false);
+      expect(captured[0]?.authorizationScheme).toBe('Bearer');
+      expect(events.at(-1)?.type).toBe('finish');
+      // No credential value, ambient or minted, may surface in events.
+      const serialized = JSON.stringify(events);
+      expect(serialized).not.toContain('sentinel-env-key');
+      expect(serialized).not.toContain('sentinel-env-bearer');
+      expect(serialized).not.toContain('synthetic-provider-token');
+    });
+  });
+
+  it('keeps verbatim SDK precedence when an apiKey is set next to structured auth', async () => {
+    // An EXPLICIT apiKey beside a provider is the caller's choice: no
+    // suppression, and per the SDK's own precedence the key wins.
+    vi.stubEnv('ANTHROPIC_AUTH_TOKEN', undefined);
+    let minted = 0;
+    await withSyntheticEndpoint(async (baseURL, captured) => {
+      const adapter = anthropic({
+        baseURL,
+        sdkOptions: {
+          apiKey: 'sentinel-explicit-key',
+          credentials: () => {
+            minted += 1;
+            return Promise.resolve({ token: 'synthetic-provider-token', expiresAt: null });
+          },
+        },
+      });
+      const events = await drain(adapter.stream(helloReq()));
+      expect(minted).toBe(0);
+      expect(captured).toHaveLength(1);
+      expect(captured[0]?.hasXApiKey).toBe(true);
+      expect(events.at(-1)?.type).toBe('finish');
+    });
+  });
+
+  it('applies the same env suppression to a profile, verified end to end', async () => {
+    // A hermetic file-backed profile: user_oauth with no client_id
+    // treats the stored access token as static, so no network beyond
+    // the API call itself. The ambient env key must not beat it.
+    vi.stubEnv('ANTHROPIC_API_KEY', 'sentinel-env-key');
+    vi.stubEnv('ANTHROPIC_AUTH_TOKEN', undefined);
+    const configDir = mkdtempSync(join(tmpdir(), 'rulvar-anthropic-profile-'));
+    mkdirSync(join(configDir, 'configs'), { recursive: true });
+    mkdirSync(join(configDir, 'credentials'), { recursive: true });
+    writeFileSync(
+      join(configDir, 'configs', 'smoke.json'),
+      JSON.stringify({ authentication: { type: 'user_oauth' } }),
+    );
+    // The SDK refuses group/world-readable credential files.
+    writeFileSync(
+      join(configDir, 'credentials', 'smoke.json'),
+      JSON.stringify({ type: 'oauth_token', access_token: 'synthetic-profile-token' }),
+      { mode: 0o600 },
+    );
+    vi.stubEnv('ANTHROPIC_CONFIG_DIR', configDir);
+    await withSyntheticEndpoint(async (baseURL, captured) => {
+      const adapter = anthropic({ baseURL, sdkOptions: { profile: 'smoke' } });
+      const events = await drain(adapter.stream(helloReq()));
+      expect(captured).toHaveLength(1);
+      expect(captured[0]?.hasXApiKey).toBe(false);
+      expect(captured[0]?.authorizationScheme).toBe('Bearer');
+      expect(events.at(-1)?.type).toBe('finish');
+      expect(JSON.stringify(events)).not.toContain('synthetic-profile-token');
+    });
+  });
+
+  it('keeps the plain apiKey path on x-api-key', async () => {
+    vi.stubEnv('ANTHROPIC_AUTH_TOKEN', undefined);
+    await withSyntheticEndpoint(async (baseURL, captured) => {
+      const adapter = anthropic({ baseURL, apiKey: 'sentinel-key' });
+      const events = await drain(adapter.stream(helloReq()));
+      expect(captured).toHaveLength(1);
+      expect(captured[0]?.hasXApiKey).toBe(true);
+      expect(events.at(-1)?.type).toBe('finish');
     });
   });
 });

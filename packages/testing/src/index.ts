@@ -16,6 +16,7 @@ export {
   DEFAULT_LIVE_SMOKE_ATTEMPTS,
   liveTestEnabled,
   MAX_LIVE_SMOKE_ATTEMPTS,
+  MAX_LIVE_SMOKE_DELAY_MS,
   runLiveSmoke,
 } from './live.js';
 export type { LiveSmokeOutcome, RunLiveSmokeOptions } from './live.js';

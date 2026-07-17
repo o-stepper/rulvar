@@ -48,6 +48,15 @@ export const DEFAULT_LIVE_SMOKE_ATTEMPTS = 3;
  */
 export const MAX_LIVE_SMOKE_ATTEMPTS = 10;
 
+/**
+ * Hard ceiling on every scheduled backoff: Node's maximum timer delay
+ * (2^31 - 1 ms). Anything above it would not sleep longer, it would be
+ * clamped to 1 ms with a TimeoutOverflowWarning, so both `baseDelayMs`
+ * and the largest scheduled delay, `baseDelayMs * (attempts - 1)`, are
+ * validated against this bound before any stream opens.
+ */
+export const MAX_LIVE_SMOKE_DELAY_MS = 2_147_483_647;
+
 export interface RunLiveSmokeOptions {
   /**
    * Total attempts including the first: an integer from 1 to
@@ -58,8 +67,11 @@ export interface RunLiveSmokeOptions {
   /**
    * Backoff before retry n (1-based) is `baseDelayMs * n`: a
    * non-negative integer (default 2000). Pass 0 to retry without
-   * sleeping (unit tests). Anything else rejects with ConfigError
-   * before any stream opens.
+   * sleeping (unit tests). The value AND the largest scheduled delay,
+   * `baseDelayMs * (attempts - 1)`, must not exceed
+   * {@link MAX_LIVE_SMOKE_DELAY_MS} (Node's timer maximum, which would
+   * otherwise clamp the sleep to 1 ms). Anything else rejects with
+   * ConfigError before any stream opens.
    */
   baseDelayMs?: number;
 }
@@ -115,7 +127,7 @@ export async function runLiveSmoke(
   options?: RunLiveSmokeOptions,
 ): Promise<LiveSmokeOutcome> {
   const attempts = validatedAttempts(options?.attempts);
-  const baseDelayMs = validatedBaseDelayMs(options?.baseDelayMs);
+  const baseDelayMs = validatedBaseDelayMs(options?.baseDelayMs, attempts);
   const retryableErrors: WireError[] = [];
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     const events: ChatEvent[] = [];
@@ -166,18 +178,36 @@ function validatedAttempts(value: number | undefined): number {
   if (!Number.isSafeInteger(value) || value < 1 || value > MAX_LIVE_SMOKE_ATTEMPTS) {
     throw new ConfigError(
       `runLiveSmoke attempts must be an integer from 1 to ${MAX_LIVE_SMOKE_ATTEMPTS}, got ${String(value)}`,
+      { data: { field: 'attempts', value: String(value), max: MAX_LIVE_SMOKE_ATTEMPTS } },
     );
   }
   return value;
 }
 
-function validatedBaseDelayMs(value: number | undefined): number {
+function validatedBaseDelayMs(value: number | undefined, attempts: number): number {
   if (value === undefined) {
     return 2000;
   }
-  if (!Number.isSafeInteger(value) || value < 0) {
+  if (!Number.isSafeInteger(value) || value < 0 || value > MAX_LIVE_SMOKE_DELAY_MS) {
     throw new ConfigError(
-      `runLiveSmoke baseDelayMs must be a non-negative integer, got ${String(value)}`,
+      `runLiveSmoke baseDelayMs must be an integer from 0 to ${MAX_LIVE_SMOKE_DELAY_MS} (Node's timer maximum), got ${String(value)}`,
+      { data: { field: 'baseDelayMs', value: String(value), max: MAX_LIVE_SMOKE_DELAY_MS } },
+    );
+  }
+  // Both factors are already bounded (delay <= 2^31 - 1, attempts <= 10),
+  // so the product stays far under Number.MAX_SAFE_INTEGER and the
+  // comparison is exact.
+  const largestDelayMs = value * (attempts - 1);
+  if (largestDelayMs > MAX_LIVE_SMOKE_DELAY_MS) {
+    throw new ConfigError(
+      `runLiveSmoke largest scheduled backoff baseDelayMs * (attempts - 1) = ${String(largestDelayMs)} exceeds ${MAX_LIVE_SMOKE_DELAY_MS} (Node's timer maximum); lower baseDelayMs or attempts`,
+      {
+        data: {
+          field: 'baseDelayMs * (attempts - 1)',
+          value: String(largestDelayMs),
+          max: MAX_LIVE_SMOKE_DELAY_MS,
+        },
+      },
     );
   }
   return value;

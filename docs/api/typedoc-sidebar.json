@@ -6307,6 +6307,10 @@
           {
             "text": "MAX_LIVE_SMOKE_ATTEMPTS",
             "link": "/api/@rulvar/testing/variables/MAX_LIVE_SMOKE_ATTEMPTS.md"
+          },
+          {
+            "text": "MAX_LIVE_SMOKE_DELAY_MS",
+            "link": "/api/@rulvar/testing/variables/MAX_LIVE_SMOKE_DELAY_MS.md"
           }
         ]
       },

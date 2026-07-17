@@ -6,7 +6,9 @@
 // declarations; exercise the published live-smoke helpers at runtime;
 // and typecheck the production auth contract (official SDK clients
 // assignable to the adapter `client` option without casts) under strict
-// NodeNext, as a consumer would. Run via `node scripts/install-smoke.mjs`
+// NodeNext, as a consumer would, using the WORKSPACE TypeScript. The
+// tarball npm install is the only network step; everything after runs
+// with npm forced offline. Run via `node scripts/install-smoke.mjs`
 // (PNPM_CMD overrides the pnpm executable, e.g. 'corepack pnpm').
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -47,6 +49,14 @@ execFileSync(
   ['install', '--no-audit', '--no-fund', ...tarballs.map((file) => `./${file}`)],
   { cwd: scratch, stdio: 'inherit' },
 );
+
+// The tarball install above is the ONLY step allowed to touch the
+// registry (transitive deps: the provider SDKs, zod). Everything after
+// runs offline; forcing it here makes any future registry access fail
+// loudly (ENOTCACHED) instead of silently depending on a mutable
+// latest, which is how an unpinned typescript slipped in (v1.15 review
+// P3).
+process.env.npm_config_offline = 'true';
 
 writeFileSync(
   join(scratch, 'smoke.mjs'),
@@ -102,10 +112,17 @@ execFileSync('node', ['live-smoke.mjs'], { cwd: scratch, stdio: 'inherit' });
 // The production auth type contract, checked as a consumer would see it:
 // under strict NodeNext the official SDK clients are directly assignable
 // to the adapter `client` option, no casts (the v1.14 review's TS2322).
-execFileSync('npm', ['install', '--no-save', '--no-audit', '--no-fund', 'typescript'], {
-  cwd: scratch,
-  stdio: 'inherit',
-});
+// The compiler is the WORKSPACE TypeScript (lockfile-pinned), never a
+// mutable registry latest (v1.15 review P3): same tag + lockfile always
+// checks with the same compiler, and this stage needs no network.
+// NodeNext resolution starts at the fixture file, so its imports still
+// come from the scratch project's freshly packed tarballs, not from
+// workspace links.
+const tscVersion = execFileSync(pnpmBin, [...pnpmPre, 'exec', 'tsc', '--version'], {
+  cwd: process.cwd(),
+  encoding: 'utf8',
+}).trim();
+console.log(`[install-smoke] auth type contract compiler: workspace ${tscVersion}`);
 writeFileSync(
   join(scratch, 'auth-contract.ts'),
   [
@@ -124,8 +141,10 @@ writeFileSync(
   ].join('\n'),
 );
 execFileSync(
-  'npx',
+  pnpmBin,
   [
+    ...pnpmPre,
+    'exec',
     'tsc',
     '--strict',
     '--noEmit',
@@ -136,9 +155,9 @@ execFileSync(
     '--target',
     'es2023',
     '--skipLibCheck',
-    'auth-contract.ts',
+    join(scratch, 'auth-contract.ts'),
   ],
-  { cwd: scratch, stdio: 'inherit' },
+  { cwd: process.cwd(), stdio: 'inherit' },
 );
 console.log('auth type contract install smoke: ok');
 

@@ -82,7 +82,7 @@ An API key is one credential mode among several, and the modes differ in how the
 |---|---|---|---|
 | API key | The provider API account | `apiKey` option or `ANTHROPIC_API_KEY` | `apiKey` option or `OPENAI_API_KEY` |
 | Static bearer token | The provider API account | `sdkOptions.authToken` or `ANTHROPIC_AUTH_TOKEN` | Not offered by the SDK |
-| Token provider / workload identity federation | The provider API account: federation changes credential distribution (short-lived tokens minted from your identity provider), never billing | `sdkOptions.credentials` (an `AccessTokenProvider`), `sdkOptions.config` (OIDC federation), or `sdkOptions.profile` | `sdkOptions.workloadIdentity`; mutually exclusive with any API key, the environment variable included |
+| Token provider / workload identity federation | The provider API account: federation changes credential distribution (short-lived tokens minted from your identity provider), never billing | `sdkOptions.credentials` (an `AccessTokenProvider`), `sdkOptions.config` (OIDC federation), or `sdkOptions.profile`; ambient env keys are suppressed ([precedence](#anthropic-credential-precedence)) | `sdkOptions.workloadIdentity`; mutually exclusive with any API key, the environment variable included |
 | Implicit SDK credential chain | Whatever the resolved credential bills | Construct with no auth option: the SDK resolves the key, then the bearer variable, then its config files | `OPENAI_API_KEY` only |
 | Consumer subscription (Claude or ChatGPT app plans) | Not applicable | Not a credential mode | Not a credential mode |
 | Local or keyless endpoint | Nobody | Not applicable | Via `openaiCompatible({ baseURL })` |
@@ -100,7 +100,11 @@ Two boundaries worth stating explicitly:
 import { anthropic } from "@rulvar/anthropic";
 import { openai } from "@rulvar/openai";
 
-// A token provider minting short-lived bearers (Anthropic).
+// A token provider minting short-lived bearers (Anthropic). Safe in an
+// ordinary environment: with structured auth configured and no
+// apiKey/authToken set, the adapter suppresses ambient env credentials,
+// so a stray ANTHROPIC_API_KEY in the shell cannot silently win (the
+// precedence rules below).
 const viaProvider = anthropic({
   sdkOptions: {
     credentials: async () => ({ token: await mintFromVault(), expiresAt: null }),
@@ -120,7 +124,17 @@ const viaFederation = openai({
 });
 ```
 
-A preconstructed client is equally first-class: `client` accepts the official `Anthropic` or `OpenAI` instance directly, no casts, or a structural `AnthropicClientLike`/`OpenAiClientLike` mock in tests. The constraints are all typed `ConfigError` raised before any network I/O: `client` is mutually exclusive with the construction options; an injected official client must have been constructed with `maxRetries: 0`; the same field set both top-level and inside `sdkOptions` is rejected; `apiKey` conflicts with `sdkOptions.workloadIdentity`. Rulvar never reads, logs, journals, or stringifies credential contents on any of these paths; credentials go to the official SDK and nowhere else.
+#### Anthropic credential precedence
+
+The `@anthropic-ai/sdk` decides what authenticates a request in this order, and an `apiKey` it read from the environment counts the same as one you passed:
+
+1. **`apiKey`**, explicit or from `ANTHROPIC_API_KEY`. When set, requests carry `x-api-key`, and a configured `credentials`/`config`/`profile` token provider is **not called at all** (if `authToken` is also set, its `Authorization` header is sent alongside).
+2. **Token providers** (`credentials`, then the `config`/`profile` chain), only when `apiKey` is null: requests carry the provider's bearer `Authorization`.
+3. **`authToken`**, explicit or from `ANTHROPIC_AUTH_TOKEN`, only when neither of the above applies.
+
+That first rule is a footgun for structured auth: a stray `ANTHROPIC_API_KEY` exported in the shell or CI would silently bypass your vault provider or federation profile and bill whatever principal that key belongs to. The adapter closes it: **when `sdkOptions` carries structured auth (`credentials`, `config`, or `profile`) and no `apiKey` or `authToken` is set anywhere, the adapter passes explicit `apiKey: null, authToken: null` to the SDK**, so the configured provider is the one that authenticates, environment or not. Setting an `apiKey` or `authToken` yourself next to structured auth is respected verbatim, with the SDK precedence above. The same suppression applies to `profile` and `config`, which resolve through the same token-provider chain.
+
+A preconstructed client is equally first-class: `client` accepts the official `Anthropic` or `OpenAI` instance directly, no casts, or a structural `AnthropicClientLike`/`OpenAiClientLike` mock in tests. The constraints are all typed `ConfigError` raised before any network I/O: `client` is mutually exclusive with the construction options; an injected official client must have been constructed with `maxRetries: 0`; the same field set both top-level and inside `sdkOptions` is rejected; `apiKey` conflicts with `sdkOptions.workloadIdentity`. Note that a preconstructed client bypasses the suppression rule above; construct it with `apiKey: null, authToken: null` yourself when it should authenticate through a token provider in an environment that may carry keys. Rulvar never reads, logs, journals, or stringifies credential contents on any of these paths; credentials go to the official SDK and nowhere else.
 
 All shipped adapters construct their SDK client with autoretries disabled (`maxRetries: 0`), and refuse an injected client that has them enabled. This is deliberate: the engine owns retries, backoff, and wall clock, because SDK internal retries would be invisible to the journal, the budget ledger, and your timeouts. Adapters surface rate limit and overload responses as typed retryable errors instead, and the engine's `RetryPolicy` honors any provider supplied retry delay.
 
