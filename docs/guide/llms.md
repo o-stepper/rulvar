@@ -185,7 +185,7 @@ These never re-key anything and are safe to change between resumes: `label`, `ct
 | Symptom | Cause and fix |
 |---|---|
 | `Top-level await is currently not supported with the "cjs" output format` | The project is not ESM. Run `npm pkg set type=module`, or use `.mts`. [Installation](/guide/installation) |
-| First live run stalls, then a typed `AgentError` carrying a provider authentication error | Missing `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`; the stall is retry backoff. Export the key or pass `apiKey` to the adapter factory. [API keys](/guide/providers#api-keys) |
+| First live run stalls, then a typed `AgentError` carrying a provider authentication error | Missing `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`; the stall is retry backoff. Export the key or pass `apiKey` to the adapter factory. [Authentication](/guide/providers#authentication) |
 | A typed `ConfigError` about a role resolving to an unregistered adapter | A schema-bearing call resolved `extract` to an adapter the engine does not register. Route `extract` explicitly, as in the program above. |
 | Resume performs live calls you expected to replay (`preview.misses` > 0) | Call identity changed (prompt, schema, tools, model, scope). Pin with `opts.key`; diagnose free of charge with `engine.resume(runId, wf, { dryRun: true })`. [Troubleshooting](/guide/troubleshooting#a-resume-reruns-calls-you-expected-to-replay) |
 | `exhausted` while `cost.totalUsd` is far below `budgetUsd` | Committed admission reserves (0.50 USD flat default per spawn) hit the ceiling before real spend. Set realistic `estCost` hints. [Budgets](/guide/budgets) |
@@ -205,7 +205,7 @@ These never re-key anything and are safe to change between resumes: `label`, `ct
 | The three budget layers, reserves, sub-accounts, termination counters | [Budgets and termination](/guide/budgets) |
 | Entry identity, replay versus rerun, content keys | [The journal](/guide/journal) |
 | Resume, crash recovery, leases, queue workers | [Durability](/guide/durability) |
-| Adapters, API keys, local models, the SPI | [Providers](/guide/providers) |
+| Adapters, authentication and credential modes (keys, bearers, workload identity; consumer subscriptions are not credentials), local models, the SPI | [Providers](/guide/providers) |
 | Per-role routing, effort, failover, pricing, quality floors | [Model routing](/guide/model-routing) |
 | `tool()`, the permission chain, approvals, isolation | [Tools](/guide/tools), [MCP](/guide/mcp) |
 | The three orchestration modes, the planner, PlanRunner | [Orchestration modes](/guide/orchestration-modes), [Planner](/guide/planner), [Adaptive orchestration](/guide/adaptive-orchestration) |

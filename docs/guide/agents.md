@@ -36,7 +36,7 @@ const engine = createEngine({
 | Profile field | What it defaults |
 |---|---|
 | `model` | The model for all roles of this agent; a `ModelRef` like `'anthropic:claude-sonnet-5'`, a `ModelChoice`, or a ladder. |
-| `routing` | Per-role model overrides (`loop`, `extract`, `finalize`, `summarize`, ...). |
+| `routing` | Per-role model overrides, keyed by any of the six [invocation roles](#invocation-roles). |
 | `effort` | Canonical reasoning effort: `low`, `medium`, `high`, `xhigh`, or `max`. |
 | `tools` | The default toolset: `ToolDef` values, tool sources, or registered names. |
 | `limits` | `UsageLimits` merged below per-call limits and above engine defaults. |
@@ -133,14 +133,20 @@ flowchart LR
     G --> H[Typed AgentResult]
 ```
 
-Each stage of an agent's life resolves its model through an invocation role, so one agent can mix models per stage:
+### Invocation roles
 
-| Role | Fires |
-|---|---|
-| `loop` | Every turn while tools are available to the model. |
-| `extract` | A separate final structured-output call, only when a schema is set and the loop turn cannot carry it (see below). |
-| `finalize` | Only if configured in routing: after tools stop, one synthesis call with tool choice `none` over the full transcript. |
-| `summarize` | At the compaction threshold, and for `ctx.brief`. |
+Every model invocation in a run carries exactly one invocation role, and each stage of an agent's life resolves its model through its role, so one agent can mix models per stage. This table is the complete `InvocationRole` union, four worker-stage roles plus two control-plane roles, and a docs check fails CI when a new role appears in core without a row here:
+
+| Role | Belongs to | Fires |
+|---|---|---|
+| `loop` | Worker-agent execution | Every turn while tools are available to the model. |
+| `extract` | Worker-agent execution | A separate final structured-output call, only when a schema is set and the loop turn cannot carry it (see below). |
+| `finalize` | Worker-agent execution | Only if configured in routing: after tools stop, one synthesis call with tool choice `none` over the full transcript. |
+| `summarize` | Worker-agent execution | At the compaction threshold, and for `ctx.brief`. |
+| `plan` | The [planner](/guide/planner) | Each turn of the planning conversation that writes a frozen script; never during the planned run itself. |
+| `orchestrate` | The [dynamic orchestrator](/guide/adaptive-orchestration) | Every turn of the orchestrator agent, which is an ordinary agent whose toolset spawns other agents ([below](#agents-under-the-dynamic-orchestrator)). |
+
+Four boundaries keep this taxonomy honest. `agentType` is the name of a registered `AgentProfile`, and the registry is yours: it is an open namespace, not a built-in catalog of agent kinds. An [eval judge](/guide/evals) is an ordinary agent invocation on the same engine, not a seventh role. Reviewer, critic, and panel members are likewise profiles or [recipes](/guide/examples), never roles. And human-written workflows, the planner, and the dynamic orchestrator are the three control-flow authoring modes from [orchestration modes](/guide/orchestration-modes); modes decide who writes the control flow, roles label the model invocations it makes.
 
 Turns are bounded by `UsageLimits`, merged per spawn (call over profile over engine): `maxTurns` (default 32), `maxToolCalls`, `maxOutputTokensPerTurn`, `timeoutMs`, and the no-progress detector (default 3 consecutive turns without tool calls or artifact deltas). Expiry of any of these lands the terminal status `limit`, with the paid partial work kept. `streamIdleTimeoutMs` (default 120000) is different: a stalled stream is severed and surfaces as a retryable transport error under the retry policy, not as `limit`.
 

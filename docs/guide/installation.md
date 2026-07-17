@@ -94,7 +94,7 @@ Installing an adapter package brings its provider SDK along as a regular depende
 
 The bridge is the one case where you bring a package yourself: install the concrete AI SDK provider for your target (for example `@ai-sdk/google`) and hand its model object to the bridge. See [Providers](/guide/providers).
 
-Both adapter factories accept `apiKey` and `baseURL` options and disable the SDK's internal retries: the engine owns retries, budgets, and wall clock. Keys are created in the provider dashboards, the [Claude Console](https://platform.claude.com/settings/keys) and the [OpenAI API keys page](https://platform.openai.com/api-keys); [API keys](/guide/providers#api-keys) in the Providers guide covers how the adapters pick them up from the environment.
+Both adapter factories accept `apiKey` and `baseURL` options, forward the SDK's other credential modes (bearer tokens, workload identity federation) through `sdkOptions`, and disable the SDK's internal retries: the engine owns retries, budgets, and wall clock. Keys are created in the provider dashboards, the [Claude Console](https://platform.claude.com/settings/keys) and the [OpenAI API keys page](https://platform.openai.com/api-keys); [Authentication](/guide/providers#authentication) in the Providers guide covers how the adapters pick them up from the environment and the full credential-mode matrix (a consumer Claude or ChatGPT subscription is not among them; API accounts only).
 
 Two smaller dependency notes:
 

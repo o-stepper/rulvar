@@ -13,6 +13,11 @@
 //   4. Install commands never reference the bare package name `rulvar`
 //      (npm install / pnpm add / yarn add / npx).
 //
+// Plus one cross-file check:
+//   5. Every member of the InvocationRole union in core has a canonical
+//      table row on docs/guide/agents.md, so a new role cannot ship
+//      undocumented.
+//
 // Scope: every hand-written .md under docs/, recursively. Generated or
 // mirrored trees are excluded: docs/api (TypeDoc output), docs/node_modules,
 // docs/.vitepress (build output and cache), docs/contributing/index.md
@@ -140,6 +145,31 @@ for (const file of collectFiles()) {
   const expectedH1 = isHomeLayout ? 0 : 1;
   if (h1Count !== expectedH1) {
     fail(file, 1, `expected exactly ${expectedH1} H1(s), found ${h1Count}`);
+  }
+}
+
+// Check 5: the InvocationRole union vs the canonical roles table. The
+// union is parsed from source, not imported, so the check needs no build
+// and cannot drift behind a stale dist.
+{
+  const rolesPath = join(ROOT, 'packages', 'core', 'src', 'l0', 'messages.ts');
+  const agentsPath = join(ROOT, 'docs', 'guide', 'agents.md');
+  const unionMatch = readFileSync(rolesPath, 'utf8').match(/export type InvocationRole =([^;]+);/u);
+  const roles =
+    unionMatch === null ? [] : [...unionMatch[1].matchAll(/'([a-z-]+)'/gu)].map((m) => m[1]);
+  if (roles.length === 0) {
+    fail(rolesPath, 1, 'InvocationRole union not found; update the docs-lint role check');
+  } else {
+    const agentsDoc = readFileSync(agentsPath, 'utf8');
+    for (const role of roles) {
+      if (!new RegExp(`^\\| \`${role}\` \\|`, 'mu').test(agentsDoc)) {
+        fail(
+          agentsPath,
+          1,
+          `invocation role '${role}' has no canonical table row; add it to the Invocation roles table`,
+        );
+      }
+    }
   }
 }
 

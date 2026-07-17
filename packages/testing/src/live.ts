@@ -9,12 +9,17 @@
  * (429 rate limit, 529 overload, transport) is retried a bounded number
  * of times with linear backoff; a non-retryable error (authentication,
  * invalid model, invalid request) fails immediately with the typed
- * WireError intact; a stream that ends without any terminal event is the
- * adapter-contract violation it is (provider SPI: exactly one terminal
- * event per stream) and is never retried. A stream that THROWS
- * propagates unchanged: adapters surface failures as typed error events,
- * so a raw throw is itself a contract violation the caller must see.
+ * WireError intact. The provider SPI requires exactly one terminal event
+ * per stream, as its final event: a stream with no terminal is
+ * `'no-terminal'`, one with multiple terminals or a terminal followed by
+ * more events is `'contract-violation'`, and neither is ever retried
+ * (spending again cannot repair a broken adapter contract). A stream
+ * that THROWS propagates unchanged: adapters surface failures as typed
+ * error events, so a raw throw is itself a contract violation the caller
+ * must see. Options are validated before any stream is opened; invalid
+ * values reject with ConfigError instead of being clamped or defaulted.
  */
+import { ConfigError } from '@rulvar/core';
 import type { ChatEvent, ChatRequest, ProviderAdapter, WireError } from '@rulvar/core';
 
 /**
@@ -34,12 +39,27 @@ export function liveTestEnabled(...requiredEnvKeys: string[]): boolean {
   });
 }
 
+/** Default total `runLiveSmoke` attempts including the first. */
+export const DEFAULT_LIVE_SMOKE_ATTEMPTS = 3;
+
+/**
+ * Hard ceiling on `runLiveSmoke` attempts. The helper's whole contract
+ * is a bounded spend, so it refuses configurations that are not.
+ */
+export const MAX_LIVE_SMOKE_ATTEMPTS = 10;
+
 export interface RunLiveSmokeOptions {
-  /** Total attempts including the first (default 3, minimum 1). */
+  /**
+   * Total attempts including the first: an integer from 1 to
+   * {@link MAX_LIVE_SMOKE_ATTEMPTS} (default 3). Anything else, NaN and
+   * Infinity included, rejects with ConfigError before any stream opens.
+   */
   attempts?: number;
   /**
-   * Backoff before retry n (1-based) is `baseDelayMs * n` (default
-   * 2000). Pass 0 to retry without sleeping (unit tests).
+   * Backoff before retry n (1-based) is `baseDelayMs * n`: a
+   * non-negative integer (default 2000). Pass 0 to retry without
+   * sleeping (unit tests). Anything else rejects with ConfigError
+   * before any stream opens.
    */
   baseDelayMs?: number;
 }
@@ -53,14 +73,22 @@ export type LiveSmokeOutcome =
   | { status: 'ok'; attempts: number; events: ChatEvent[] }
   | { status: 'failed'; attempts: number; error: WireError; events: ChatEvent[] }
   | { status: 'exhausted'; attempts: number; errors: WireError[] }
-  | { status: 'no-terminal'; attempts: number; events: ChatEvent[] };
+  | { status: 'no-terminal'; attempts: number; events: ChatEvent[] }
+  | {
+      status: 'contract-violation';
+      attempts: number;
+      reason: 'multiple-terminals' | 'terminal-not-final';
+      events: ChatEvent[];
+    };
+
+type TerminalEvent = Extract<ChatEvent, { type: 'finish' } | { type: 'error' }>;
 
 /**
  * Drains `adapter.stream(req)` with a bounded retry policy and classifies
  * the outcome instead of throwing:
  *
- * - `'ok'`: a `finish` event arrived (the events of the successful
- *   attempt are included for further assertions).
+ * - `'ok'`: the stream ended on a single terminal `finish` (the events of
+ *   the successful attempt are included for further assertions).
  * - `'failed'`: a terminal error with `retryable: false`; never retried,
  *   diagnostics preserved.
  * - `'exhausted'`: every attempt ended in a `retryable: true` error; the
@@ -68,42 +96,91 @@ export type LiveSmokeOutcome =
  * - `'no-terminal'`: the stream ended with neither `finish` nor `error`,
  *   which violates the provider SPI; never retried (spending again on a
  *   misbehaving adapter is wrong).
+ * - `'contract-violation'`: the stream carried more than one terminal
+ *   event (`'multiple-terminals'`, e.g. an error followed by a finish) or
+ *   its single terminal was not the final event
+ *   (`'terminal-not-final'`). Equally an SPI violation, equally never
+ *   retried, and never reported as a pass.
  *
- * Retries only ever follow typed retryable errors, so a live smoke never
- * converts a real adapter failure into a pass and never spends more than
- * `attempts` calls.
+ * Retries only ever follow a well-formed stream whose single final
+ * terminal is a typed retryable error, so a live smoke never converts a
+ * real adapter failure or a malformed stream into a pass and never
+ * spends more than `attempts` calls. Options are validated first:
+ * invalid `attempts` or `baseDelayMs` reject with ConfigError before any
+ * adapter call.
  */
 export async function runLiveSmoke(
   adapter: Pick<ProviderAdapter, 'stream'>,
   req: ChatRequest,
   options?: RunLiveSmokeOptions,
 ): Promise<LiveSmokeOutcome> {
-  const attempts = Math.max(1, options?.attempts ?? 3);
-  const baseDelayMs = options?.baseDelayMs ?? 2000;
+  const attempts = validatedAttempts(options?.attempts);
+  const baseDelayMs = validatedBaseDelayMs(options?.baseDelayMs);
   const retryableErrors: WireError[] = [];
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     const events: ChatEvent[] = [];
     for await (const event of adapter.stream(req)) {
       events.push(event);
     }
-    if (events.some((event) => event.type === 'finish')) {
-      return { status: 'ok', attempts: attempt, events };
-    }
-    const errorEvent = events.find(
-      (event): event is Extract<ChatEvent, { type: 'error' }> => event.type === 'error',
+    const terminals = events.filter(
+      (event): event is TerminalEvent => event.type === 'finish' || event.type === 'error',
     );
-    if (errorEvent === undefined) {
+    const terminal = terminals[0];
+    if (terminal === undefined) {
       return { status: 'no-terminal', attempts: attempt, events };
     }
-    if (!errorEvent.error.retryable) {
-      return { status: 'failed', attempts: attempt, error: errorEvent.error, events };
+    if (terminals.length > 1) {
+      return {
+        status: 'contract-violation',
+        attempts: attempt,
+        reason: 'multiple-terminals',
+        events,
+      };
     }
-    retryableErrors.push(errorEvent.error);
+    if (terminal !== events.at(-1)) {
+      return {
+        status: 'contract-violation',
+        attempts: attempt,
+        reason: 'terminal-not-final',
+        events,
+      };
+    }
+    if (terminal.type === 'finish') {
+      return { status: 'ok', attempts: attempt, events };
+    }
+    if (!terminal.error.retryable) {
+      return { status: 'failed', attempts: attempt, error: terminal.error, events };
+    }
+    retryableErrors.push(terminal.error);
     if (attempt < attempts && baseDelayMs > 0) {
       await delay(baseDelayMs * attempt);
     }
   }
   return { status: 'exhausted', attempts, errors: retryableErrors };
+}
+
+function validatedAttempts(value: number | undefined): number {
+  if (value === undefined) {
+    return DEFAULT_LIVE_SMOKE_ATTEMPTS;
+  }
+  if (!Number.isSafeInteger(value) || value < 1 || value > MAX_LIVE_SMOKE_ATTEMPTS) {
+    throw new ConfigError(
+      `runLiveSmoke attempts must be an integer from 1 to ${MAX_LIVE_SMOKE_ATTEMPTS}, got ${String(value)}`,
+    );
+  }
+  return value;
+}
+
+function validatedBaseDelayMs(value: number | undefined): number {
+  if (value === undefined) {
+    return 2000;
+  }
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new ConfigError(
+      `runLiveSmoke baseDelayMs must be a non-negative integer, got ${String(value)}`,
+    );
+  }
+  return value;
 }
 
 function delay(ms: number): Promise<void> {

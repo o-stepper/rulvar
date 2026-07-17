@@ -1,3 +1,4 @@
+import OpenAI, { ClientOptions } from "openai";
 import { CanonicalId, ChatEvent, ChatRequest, Effort, ModelCaps, PriceTable, ProviderAdapter, Usage, WireError } from "@rulvar/core";
 
 //#region src/caps.d.ts
@@ -47,11 +48,31 @@ interface OpenAiClientLike {
     };
   };
 }
+/**
+* Official SDK construction options forwarded verbatim to
+* `new OpenAI(...)`, minus `maxRetries`: Rulvar owns retries and
+* wall-clock, so SDK autoretries stay disabled no matter what is passed
+* here. This is the production surface for auth beyond a plain API key,
+* `workloadIdentity` federation included, plus `fetch`, `timeout`, and
+* `defaultHeaders`. The SDK's own rules still apply inside it, e.g.
+* `sdkOptions.apiKey` and `sdkOptions.workloadIdentity` are mutually
+* exclusive and rejected typed at construction.
+*/
+type OpenAiSdkOptions = Omit<ClientOptions, "maxRetries">;
 interface OpenAiAdapterOptions {
+  /** Shorthand for `sdkOptions.apiKey`; setting both is a ConfigError. */
   apiKey?: string;
+  /** Shorthand for `sdkOptions.baseURL`; setting both is a ConfigError. */
   baseURL?: string;
-  /** Test seam: a preconstructed client; production uses the openai SDK. */
-  client?: OpenAiClientLike;
+  /** Official SDK construction options; see `OpenAiSdkOptions`. */
+  sdkOptions?: OpenAiSdkOptions;
+  /**
+  * A preconstructed client instead of the construction options above
+  * (combining them is a ConfigError): the official `OpenAI` instance
+  * (production; it must be constructed with `maxRetries: 0`) or a
+  * structural `OpenAiClientLike` mock (tests).
+  */
+  client?: OpenAI | OpenAiClientLike;
 }
 /** Creates the first-class OpenAI adapter (id 'openai'); maxRetries 0. */
 declare function openai(options?: OpenAiAdapterOptions): ProviderAdapter;
@@ -145,4 +166,4 @@ declare function buildChatCompletionsParams(req: ChatRequest, ids: OpenAiIdMap):
 */
 declare function mapChatCompletionsStream(stream: AsyncIterable<Record<string, unknown>>, ids: OpenAiIdMap): AsyncGenerator<ChatEvent, void>;
 //#endregion
-export { CONSERVATIVE_COMPATIBLE_CAPS, OPENAI_MODELS, OPENAI_PRICING, type OpenAiAdapterOptions, type OpenAiClientLike, type OpenAiCompatibleConfig, OpenAiIdMap, type OpenAiModelInfo, type ResponsesStreamEvent, buildChatCompletionsParams, buildResponsesParams, mapChatCompletionsStream, mapOpenAiEffort, mapResponsesStream, normalizeOpenAiUsage, openAiErrorToWire, openAiModelInfo, openai, openaiCompatible };
+export { CONSERVATIVE_COMPATIBLE_CAPS, OPENAI_MODELS, OPENAI_PRICING, type OpenAiAdapterOptions, type OpenAiClientLike, type OpenAiCompatibleConfig, OpenAiIdMap, type OpenAiModelInfo, type OpenAiSdkOptions, type ResponsesStreamEvent, buildChatCompletionsParams, buildResponsesParams, mapChatCompletionsStream, mapOpenAiEffort, mapResponsesStream, normalizeOpenAiUsage, openAiErrorToWire, openAiModelInfo, openai, openaiCompatible };

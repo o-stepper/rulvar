@@ -6,8 +6,9 @@
  * Docs: https://docs.rulvar.com/guide/providers
  * The openaiCompatible factory ships in M3.
  */
-import OpenAI from 'openai';
+import OpenAI, { type ClientOptions as OpenAiClientOptions } from 'openai';
 import {
+  ConfigError,
   createCanonicalIdMinter,
   type ChatEvent,
   type ChatRequest,
@@ -37,22 +38,86 @@ export interface OpenAiClientLike {
   };
 }
 
+/**
+ * Official SDK construction options forwarded verbatim to
+ * `new OpenAI(...)`, minus `maxRetries`: Rulvar owns retries and
+ * wall-clock, so SDK autoretries stay disabled no matter what is passed
+ * here. This is the production surface for auth beyond a plain API key,
+ * `workloadIdentity` federation included, plus `fetch`, `timeout`, and
+ * `defaultHeaders`. The SDK's own rules still apply inside it, e.g.
+ * `sdkOptions.apiKey` and `sdkOptions.workloadIdentity` are mutually
+ * exclusive and rejected typed at construction.
+ */
+export type OpenAiSdkOptions = Omit<OpenAiClientOptions, 'maxRetries'>;
+
 export interface OpenAiAdapterOptions {
+  /** Shorthand for `sdkOptions.apiKey`; setting both is a ConfigError. */
   apiKey?: string;
+  /** Shorthand for `sdkOptions.baseURL`; setting both is a ConfigError. */
   baseURL?: string;
-  /** Test seam: a preconstructed client; production uses the openai SDK. */
-  client?: OpenAiClientLike;
+  /** Official SDK construction options; see `OpenAiSdkOptions`. */
+  sdkOptions?: OpenAiSdkOptions;
+  /**
+   * A preconstructed client instead of the construction options above
+   * (combining them is a ConfigError): the official `OpenAI` instance
+   * (production; it must be constructed with `maxRetries: 0`) or a
+   * structural `OpenAiClientLike` mock (tests).
+   */
+  client?: OpenAI | OpenAiClientLike;
+}
+
+function resolveOpenAiClient(options: OpenAiAdapterOptions): OpenAiClientLike {
+  if (options.client !== undefined) {
+    if (
+      options.apiKey !== undefined ||
+      options.baseURL !== undefined ||
+      options.sdkOptions !== undefined
+    ) {
+      throw new ConfigError(
+        "openai(): 'client' is mutually exclusive with 'apiKey', 'baseURL', and 'sdkOptions'; configure the preconstructed client directly",
+      );
+    }
+    // The official client would autoretry under the core's RetryPolicy
+    // (its default is 2); structural mocks without the field pass.
+    const maxRetries = (options.client as { maxRetries?: unknown }).maxRetries;
+    if (typeof maxRetries === 'number' && maxRetries !== 0) {
+      throw new ConfigError(
+        `openai(): the injected client has SDK autoretries enabled (maxRetries ${String(maxRetries)}); construct it with maxRetries: 0, Rulvar owns retries and wall-clock`,
+      );
+    }
+    // Runtime-compatible by SPI; the official class is not structurally
+    // assignable to the mock seam (narrower method params), hence the
+    // one widening cast for both union members.
+    return options.client as OpenAiClientLike;
+  }
+  const sdkOptions = options.sdkOptions ?? {};
+  if (options.apiKey !== undefined && sdkOptions.apiKey !== undefined) {
+    throw new ConfigError(
+      "openai(): 'apiKey' and 'sdkOptions.apiKey' are both set; pick one place",
+    );
+  }
+  if (options.apiKey !== undefined && sdkOptions.workloadIdentity !== undefined) {
+    throw new ConfigError(
+      "openai(): 'apiKey' and 'sdkOptions.workloadIdentity' are mutually exclusive auth modes",
+    );
+  }
+  if (options.baseURL !== undefined && sdkOptions.baseURL !== undefined) {
+    throw new ConfigError(
+      "openai(): 'baseURL' and 'sdkOptions.baseURL' are both set; pick one place",
+    );
+  }
+  return new OpenAI({
+    ...sdkOptions,
+    ...(options.apiKey === undefined ? {} : { apiKey: options.apiKey }),
+    ...(options.baseURL === undefined ? {} : { baseURL: options.baseURL }),
+    // Last so nothing smuggled past the Omit at runtime re-enables it.
+    maxRetries: 0,
+  }) as unknown as OpenAiClientLike;
 }
 
 /** Creates the first-class OpenAI adapter (id 'openai'); maxRetries 0. */
 export function openai(options: OpenAiAdapterOptions = {}): ProviderAdapter {
-  const client: OpenAiClientLike =
-    options.client ??
-    (new OpenAI({
-      ...(options.apiKey === undefined ? {} : { apiKey: options.apiKey }),
-      ...(options.baseURL === undefined ? {} : { baseURL: options.baseURL }),
-      maxRetries: 0,
-    }) as unknown as OpenAiClientLike);
+  const client = resolveOpenAiClient(options);
   const ids = new OpenAiIdMap(createCanonicalIdMinter());
 
   return {

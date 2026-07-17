@@ -36,7 +36,7 @@ You need Node.js 22.12.0 or newer, ESM only, and an `ANTHROPIC_API_KEY` (or `OPE
 export ANTHROPIC_API_KEY="your-api-key"
 ```
 
-The adapter hands it to the official SDK unchanged; [API keys](/guide/providers#api-keys) covers the explicit `apiKey` option and compatible endpoints.
+The adapter hands it to the official SDK unchanged; [Authentication](/guide/providers#authentication) covers the explicit `apiKey` option and compatible endpoints.
 
 ## Create an engine
 

@@ -56,8 +56,12 @@ is backoff, not a hang.
 to the factory, and rerun. Keys are created and rotated in the
 [Claude Console](https://platform.claude.com/settings/keys) and on the
 [OpenAI API keys page](https://platform.openai.com/api-keys); the
-[API keys](/guide/providers#api-keys) section of the Providers guide covers
-how the adapters resolve them. Nothing was paid and nothing wrong was memoized:
+[Authentication](/guide/providers#authentication) section of the Providers guide covers
+how the adapters resolve them, and the credential-mode matrix there covers the
+non-key modes (bearer tokens, workload identity federation via `sdkOptions`).
+One non-fix worth naming: a Claude or ChatGPT consumer subscription is not an
+API credential, and tokens lifted from a logged-in app will not authenticate
+these endpoints. Nothing was paid and nothing wrong was memoized:
 transport-class failures are never recorded as final outcomes, so the resumed
 or rerun workflow performs the calls live as if for the first time.
 

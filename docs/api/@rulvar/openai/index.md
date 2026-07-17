@@ -54,6 +54,7 @@ The umbrella package `@rulvar/rulvar` already bundles this adapter.
 
 | Type Alias | Description |
 | ------ | ------ |
+| [OpenAiSdkOptions](/api/@rulvar/openai/type-aliases/OpenAiSdkOptions.md) | Official SDK construction options forwarded verbatim to `new OpenAI(...)`, minus `maxRetries`: Rulvar owns retries and wall-clock, so SDK autoretries stay disabled no matter what is passed here. This is the production surface for auth beyond a plain API key, `workloadIdentity` federation included, plus `fetch`, `timeout`, and `defaultHeaders`. The SDK's own rules still apply inside it, e.g. `sdkOptions.apiKey` and `sdkOptions.workloadIdentity` are mutually exclusive and rejected typed at construction. |
 | [ResponsesStreamEvent](/api/@rulvar/openai/type-aliases/ResponsesStreamEvent.md) | Raw Responses SSE events, structurally typed. |
 
 ## Variables

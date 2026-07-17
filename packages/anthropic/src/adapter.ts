@@ -5,8 +5,9 @@
  *
  * Full contract: https://docs.rulvar.com/guide/providers.
  */
-import Anthropic from '@anthropic-ai/sdk';
+import Anthropic, { type ClientOptions as AnthropicClientOptions } from '@anthropic-ai/sdk';
 import {
+  ConfigError,
   createCanonicalIdMinter,
   type ChatEvent,
   type ChatRequest,
@@ -41,26 +42,87 @@ export interface AnthropicClientLike {
   };
 }
 
+/**
+ * Official SDK construction options forwarded verbatim to
+ * `new Anthropic(...)`, minus `maxRetries`: Rulvar owns retries and
+ * wall-clock, so SDK autoretries stay disabled no matter what is passed
+ * here. This is the production surface for every credential mode the
+ * SDK supports beyond a plain API key: bearer `authToken`, an
+ * `AccessTokenProvider` via `credentials`, an `AnthropicConfig` via
+ * `config` (OIDC/workload-identity federation included), a named
+ * `profile`, plus `fetch`, `timeout`, and `defaultHeaders`.
+ */
+export type AnthropicSdkOptions = Omit<AnthropicClientOptions, 'maxRetries'>;
+
 export interface AnthropicAdapterOptions {
+  /** Shorthand for `sdkOptions.apiKey`; setting both is a ConfigError. */
   apiKey?: string;
+  /** Shorthand for `sdkOptions.baseURL`; setting both is a ConfigError. */
   baseURL?: string;
-  /** Test seam: a preconstructed client; production uses @anthropic-ai/sdk. */
-  client?: AnthropicClientLike;
+  /** Official SDK construction options; see `AnthropicSdkOptions`. */
+  sdkOptions?: AnthropicSdkOptions;
+  /**
+   * A preconstructed client instead of the construction options above
+   * (combining them is a ConfigError): the official `Anthropic` instance
+   * (production; it must be constructed with `maxRetries: 0`) or a
+   * structural `AnthropicClientLike` mock (tests).
+   */
+  client?: Anthropic | AnthropicClientLike;
+}
+
+function resolveAnthropicClient(options: AnthropicAdapterOptions): AnthropicClientLike {
+  if (options.client !== undefined) {
+    if (
+      options.apiKey !== undefined ||
+      options.baseURL !== undefined ||
+      options.sdkOptions !== undefined
+    ) {
+      throw new ConfigError(
+        "anthropic(): 'client' is mutually exclusive with 'apiKey', 'baseURL', and 'sdkOptions'; configure the preconstructed client directly",
+      );
+    }
+    // The official client would autoretry under the core's RetryPolicy
+    // (its default is 2); structural mocks without the field pass.
+    const maxRetries = (options.client as { maxRetries?: unknown }).maxRetries;
+    if (typeof maxRetries === 'number' && maxRetries !== 0) {
+      throw new ConfigError(
+        `anthropic(): the injected client has SDK autoretries enabled (maxRetries ${String(maxRetries)}); construct it with maxRetries: 0, Rulvar owns retries and wall-clock`,
+      );
+    }
+    // Runtime-compatible by SPI; the official class is not structurally
+    // assignable to the mock seam (narrower method params), hence the
+    // one widening cast for both union members.
+    return options.client as AnthropicClientLike;
+  }
+  const sdkOptions = options.sdkOptions ?? {};
+  if (options.apiKey !== undefined && sdkOptions.apiKey !== undefined) {
+    throw new ConfigError(
+      "anthropic(): 'apiKey' and 'sdkOptions.apiKey' are both set; pick one place",
+    );
+  }
+  if (options.baseURL !== undefined && sdkOptions.baseURL !== undefined) {
+    throw new ConfigError(
+      "anthropic(): 'baseURL' and 'sdkOptions.baseURL' are both set; pick one place",
+    );
+  }
+  return new Anthropic({
+    ...sdkOptions,
+    ...(options.apiKey === undefined ? {} : { apiKey: options.apiKey }),
+    ...(options.baseURL === undefined ? {} : { baseURL: options.baseURL }),
+    // Last so nothing smuggled past the Omit at runtime re-enables it.
+    maxRetries: 0,
+  }) as unknown as AnthropicClientLike;
 }
 
 /**
  * Creates the first-class Anthropic adapter (id 'anthropic'). SDK
  * autoretries are disabled (max_retries 0): the core owns retries and
- * wall-clock.
+ * wall-clock. With no auth option at all, the underlying SDK resolves
+ * credentials itself: `ANTHROPIC_API_KEY`, then bearer
+ * `ANTHROPIC_AUTH_TOKEN`, then its config-file credential chain.
  */
 export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapter {
-  const client: AnthropicClientLike =
-    options.client ??
-    (new Anthropic({
-      ...(options.apiKey === undefined ? {} : { apiKey: options.apiKey }),
-      ...(options.baseURL === undefined ? {} : { baseURL: options.baseURL }),
-      maxRetries: 0,
-    }) as unknown as AnthropicClientLike);
+  const client = resolveAnthropicClient(options);
   const ids = new IdMap(createCanonicalIdMinter());
   const refreshed = new Map<string, Partial<ModelCaps>>();
 
