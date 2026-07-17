@@ -273,17 +273,17 @@ importers:
   packages/compat:
     dependencies:
       '@rulvar/core':
-        specifier: workspace:*
-        version: link:../core
+        specifier: 1.0.0
+        version: 1.0.0(zod@4.4.3)
     devDependencies:
       '@types/node':
-        specifier: 'catalog:'
+        specifier: ^22.20.0
         version: 22.20.0
       tsdown:
-        specifier: 'catalog:'
+        specifier: ^0.22.3
         version: 0.22.3(@arethetypeswrong/core@0.18.4)(publint@0.3.21)(typescript@6.0.3)
       typescript:
-        specifier: 'catalog:'
+        specifier: ~6.0.3
         version: 6.0.3
 
   packages/core:
@@ -1330,6 +1330,10 @@ packages:
     resolution: {integrity: sha512-BfzEnDJOt9T8M989/lA37EcJgat01wLRnoi5dQf3QzOH7jzpqTAzdDbVfRljVr5r+jzKqpbHeyOfAaXxAd0PAA==}
     cpu: [x64]
     os: [win32]
+
+  '@rulvar/core@1.0.0':
+    resolution: {integrity: sha512-TTJ5frBH6F4W2C3OUFofnTRnZfrz/3HOEHmoJ/eWrBxKSX1GM6aRO3Nag5l0FHdzKwcJZpkyTKPWHwiWfWiweQ==}
+    engines: {node: '>=22.12.0'}
 
   '@shikijs/core@2.5.0':
     resolution: {integrity: sha512-uu/8RExTKtavlpH7XqnVYBrfBkUc20ngXiX9NSrBhOVZYv/7XQRKUyhtkeflY5QsxC0GbJThCerruZfsUaSldg==}
@@ -4828,6 +4832,14 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.62.2':
     optional: true
+
+  '@rulvar/core@1.0.0(zod@4.4.3)':
+    dependencies:
+      '@modelcontextprotocol/sdk': 1.29.0(zod@4.4.3)
+    transitivePeerDependencies:
+      - '@cfworker/json-schema'
+      - supports-color
+      - zod
 
   '@shikijs/core@2.5.0':
     dependencies:

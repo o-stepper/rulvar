@@ -176,6 +176,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec turbo pack-check
+      - name: Compat artifact immutability gate (offline)
+        run: node scripts/compat-immutability.mjs
       - name: Umbrella install smoke on packed tarballs
         run: node scripts/install-smoke.mjs
 

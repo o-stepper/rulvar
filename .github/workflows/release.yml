@@ -59,6 +59,12 @@ jobs:
             pnpm exec vitest run
             echo "publish_shaped=true" >> "$GITHUB_OUTPUT"
           fi
+      # A release must never ship a compat whose pack drifted from the
+      # published artifact of the same version (v1.16.1 review P3);
+      # registry mode also re-verifies the committed canonical manifest
+      # against npm itself before anything publishes.
+      - name: Compat artifact immutability (registry mode)
+        run: node scripts/compat-immutability.mjs --registry
       # `version` routes through the root `version-packages` script (a
       # package.json script, so the `&&` chain runs in a real shell):
       # after `changeset version` rewrites manifests and changelogs it

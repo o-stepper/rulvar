@@ -40,13 +40,39 @@ if (tarballs.length !== packDirs.length) {
   process.exit(1);
 }
 
+// The REGISTRY compat artifact rides the same (only) network step: the
+// immutability gate proves a fresh pack matches the published bytes, and
+// this proves the artifact npm users actually download (with its own
+// nested frozen core dependency) interoperates with the CURRENT core.
+// During a compat release PR the bumped version is not published yet, so
+// fall back to the latest published artifact.
+const compatSourceVersion = JSON.parse(
+  readFileSync(join(process.cwd(), 'packages', 'compat', 'package.json'), 'utf8'),
+).version;
+const compatPackument = await (await fetch('https://registry.npmjs.org/@rulvar/compat')).json();
+const compatVersion =
+  compatPackument.versions?.[compatSourceVersion] === undefined
+    ? compatPackument['dist-tags'].latest
+    : compatSourceVersion;
+if (compatVersion !== compatSourceVersion) {
+  console.log(
+    `[install-smoke] compat ${compatSourceVersion} is not published yet; smoking ${compatVersion}`,
+  );
+}
+
 writeFileSync(
   join(scratch, 'package.json'),
   JSON.stringify({ name: 'smoke', private: true, type: 'module' }, null, 2),
 );
 execFileSync(
   'npm',
-  ['install', '--no-audit', '--no-fund', ...tarballs.map((file) => `./${file}`)],
+  [
+    'install',
+    '--no-audit',
+    '--no-fund',
+    ...tarballs.map((file) => `./${file}`),
+    `@rulvar/compat@${compatVersion}`,
+  ],
   { cwd: scratch, stdio: 'inherit' },
 );
 
@@ -108,6 +134,59 @@ writeFileSync(
   ].join('\n'),
 );
 execFileSync('node', ['live-smoke.mjs'], { cwd: scratch, stdio: 'inherit' });
+
+// The registry compat artifact next to the current core, offline: the
+// frozen deriver's golden values (hashVersion, foldDefaults, the round-1
+// disposition table, the effort-insensitive projection) and the current
+// buildDeriverRegistry accepting it, plus the dependency layout: compat
+// must resolve exactly the core version it froze against, never a
+// hoisted current one (the DEF-6 cassette replays stay in the workspace
+// suite; this is the published-artifact interop check).
+writeFileSync(
+  join(scratch, 'compat-smoke.mjs'),
+  [
+    "import { existsSync, readFileSync } from 'node:fs';",
+    "import { buildDeriverRegistry } from '@rulvar/core';",
+    "import { deriverV0Synthetic } from '@rulvar/compat';",
+    "const compatManifest = JSON.parse(readFileSync('./node_modules/@rulvar/compat/package.json', 'utf8'));",
+    "const declaredCore = compatManifest.dependencies['@rulvar/core'];",
+    "const nestedPath = './node_modules/@rulvar/compat/node_modules/@rulvar/core/package.json';",
+    'const resolvedCore = existsSync(nestedPath)',
+    "  ? JSON.parse(readFileSync(nestedPath, 'utf8')).version",
+    "  : JSON.parse(readFileSync('./node_modules/@rulvar/core/package.json', 'utf8')).version;",
+    'if (resolvedCore !== declaredCore) {',
+    '  console.error(`compat resolves core ${resolvedCore}, expected its frozen ${declaredCore}`);',
+    '  process.exit(1);',
+    '}',
+    "if (deriverV0Synthetic.hashVersion !== 0) { console.error('compat deriver hashVersion drifted'); process.exit(1); }",
+    'const fold = deriverV0Synthetic.foldDefaults;',
+    "if (fold.effort !== 'medium' || fold.memoizeOutcome !== false || fold.budgetAccount !== 'root') {",
+    "  console.error('compat foldDefaults drifted'); process.exit(1);",
+    '}',
+    'const table = deriverV0Synthetic.dispositionTable;',
+    "if (table.ok !== 'replay' || table.limit !== 'rerun' || table.error !== 'rerun' || table.cancelled !== 'rerun' || table.running !== 'rerun') {",
+    "  console.error('compat disposition table drifted'); process.exit(1);",
+    '}',
+    'const projected = deriverV0Synthetic.project({',
+    "  kind: 'agent',",
+    "  agentType: 'r',",
+    "  modelSpec: { kind: 'model', model: 'a:m', effort: 'high' },",
+    "  prompt: 'p',",
+    "  schemaHash: 'x',",
+    "  toolsetHash: 'y',",
+    "  isolation: 'none',",
+    '});',
+    "if (projected === 'incomparable' || JSON.stringify(projected.modelSpec) !== JSON.stringify({ model: 'a:m' })) {",
+    "  console.error('compat round-1 projection drifted'); process.exit(1);",
+    '}',
+    'const registry = buildDeriverRegistry([deriverV0Synthetic]);',
+    'if (!registry.has(0) || !registry.has(1) || !registry.has(2)) {',
+    "  console.error('current core rejects the frozen compat deriver'); process.exit(1);",
+    '}',
+    "console.log('registry compat install smoke: frozen deriver golden values ok with the current core');",
+  ].join('\n'),
+);
+execFileSync('node', ['compat-smoke.mjs'], { cwd: scratch, stdio: 'inherit' });
 
 // The production auth type contract, checked as a consumer would see it:
 // under strict NodeNext the official SDK clients are directly assignable

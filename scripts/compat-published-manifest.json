@@ -1,0 +1,58 @@
+{
+  "comment": "Canonical manifest of the published @rulvar/compat artifact. Regenerated only via `node scripts/compat-immutability.mjs --update` after a deliberate compat release; the gate compares every pack of an unchanged version against it.",
+  "package": "@rulvar/compat",
+  "version": "0.1.0",
+  "verifiedAgainstRegistry": "2026-07-17",
+  "files": {
+    "LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "dist/index.d.ts": "47b56e386d10066076728e9c91defec32af4a0f2730ad231142bebd8b0bfe99f",
+    "dist/index.js": "b8137821707136456f14b21b8fae789efecf35f4efb20297f629656c7ea18b94"
+  },
+  "packageJson": {
+    "bugs": {
+      "url": "https://github.com/o-stepper/rulvar/issues"
+    },
+    "dependencies": {
+      "@rulvar/core": "1.0.0"
+    },
+    "description": "rulvar frozen KeyDeriver profiles for hashVersions outside the support window (DEF-6); independently versioned.",
+    "devDependencies": {
+      "@types/node": "^22.20.0",
+      "tsdown": "^0.22.3",
+      "typescript": "~6.0.3"
+    },
+    "engines": {
+      "node": ">=22.12.0"
+    },
+    "exports": {
+      ".": {
+        "default": "./dist/index.js",
+        "types": "./dist/index.d.ts"
+      },
+      "./package.json": "./package.json"
+    },
+    "files": [
+      "dist"
+    ],
+    "homepage": "https://rulvar.com",
+    "license": "Apache-2.0",
+    "name": "@rulvar/compat",
+    "publishConfig": {
+      "access": "public"
+    },
+    "repository": {
+      "directory": "packages/compat",
+      "type": "git",
+      "url": "git+https://github.com/o-stepper/rulvar.git"
+    },
+    "scripts": {
+      "build": "tsdown",
+      "lint": "eslint .",
+      "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only",
+      "typecheck": "tsc --noEmit"
+    },
+    "sideEffects": false,
+    "type": "module",
+    "version": "0.1.0"
+  }
+}

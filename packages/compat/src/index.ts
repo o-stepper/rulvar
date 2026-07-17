@@ -1,12 +1,12 @@
 /**
  * @rulvar/compat: frozen KeyDeriver profiles for hashVersions that left
  * the support window, attached via EngineOptions.extraDerivers, the only
- * window extender (independently versioned, the sole lockstep
- * exemption). Window rules: https://docs.rulvar.com/guide/journal-compatibility.
+ * window extender (docs/03, section "hashVersion"; docs/12, section
+ * "Exemptions": independently versioned, the sole lockstep exemption).
  *
  * No real profile has aged out yet: this package ships the plumbing plus
  * a synthetic hashVersion 0 deriver used by the reject-version-too-old
- * cassette (M2-T05). Real derivers move in as versions retire.
+ * cassette (docs/10, M2-T05). Real derivers move in as versions retire.
  */
 import { deriverV1, type KeyDeriver } from '@rulvar/core';
 
