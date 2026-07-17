@@ -146,6 +146,18 @@ export default withMermaid({
         'vitepress-plugin-mermaid/Mermaid.vue': resolve(here, 'theme/components/DocsMermaid.vue'),
       },
     },
+    // Explicit chunk-size decision (v1.16 review P4): every chunk over
+    // Vite's 500 kB default is loaded on demand, not on first paint -
+    // the local search index (~3.3 MB, dynamically imported when search
+    // is focused, and the only chunk that legitimately grows with
+    // content), the mermaid/cytoscape diagram engines (per-diagram
+    // imports), and route-scoped page data (the changelog). The theme
+    // bundle sits well under 1 MB and VitePress offers no route-level
+    // splitting for it, so manualChunks would only shuffle bytes
+    // between requests. The limit sits just above today's search index;
+    // if the warning returns, the index outgrew it and the decision is
+    // due for a revisit.
+    build: { chunkSizeWarningLimit: 3600 },
   },
   mermaid: {
     theme: 'dark',
