@@ -8,8 +8,13 @@ this file is the authoritative contributor workflow.
 
 ## Toolchain
 
-- Node.js >= 22.12.0 (developed and released on Node 24). Development
-  and CI cover Linux and macOS; Windows is untested.
+- Node.js: two floors, deliberately different. The published packages
+  declare `engines.node >= 22.12.0` (the first 22.x where `require(esm)`
+  is flag-free), and a dedicated CI job runs the built suite on exactly
+  that binary. The repository workspace itself needs Node >= 22.13.0,
+  because the pinned pnpm 11.x refuses to start below that; development
+  and releases run on Node 24. Development and CI cover Linux and macOS;
+  Windows is untested.
 - pnpm 11.x, pinned via the root `packageManager` field. Any modern pnpm
   (>= 10.9) invoked directly resolves the pin and switches to it by
   itself, so a differently versioned global pnpm is fine. With Corepack,
@@ -75,7 +80,11 @@ merged before the deviating code lands.
 ## PR checks (all required)
 
 - Build, typecheck, lint, and the Prettier check on Node 24.
-- Test matrix on Node 22.x and 24.x (a Node 26 job runs non-blocking).
+- Test matrix on Node 22.x and 24.x (a Node 26 job runs non-blocking),
+  plus the exact runtime floor job: bootstrap on Node 24, then the full
+  built suite on the exact Node 22.12.0 binary with
+  `NODE_OPTIONS=--experimental-sqlite` (published packages promise that
+  floor; the workspace toolchain itself needs >= 22.13.0).
 - The complete defect cassette catalog replay-strict in one job, with
   zero live calls; `scripts/catalog-audit.mjs` first asserts every ID in
   `cassettes/CATALOG.md` (the normative catalog) resolves to a fixture or

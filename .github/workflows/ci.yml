@@ -117,6 +117,37 @@ jobs:
           packages/cli/src/m8-soak.test.ts
           examples/src/journals.test.ts
 
+  # Exact runtime floor (the v1.16.1 review P2): published packages
+  # declare engines.node >=22.12.0, but `node: 22` in the matrix means
+  # the latest 22.x, and the pinned pnpm itself needs >=22.13, so the
+  # floor was never actually executed. Bootstrap (install + build) runs
+  # on Node 24; the suite then runs on the exact 22.12.0 binary invoked
+  # directly (never through pnpm). node:sqlite needs the experimental
+  # flag on 22.12 only, and it must arrive via NODE_OPTIONS: argv flags
+  # do not propagate to the Vitest worker forks.
+  test-node-floor:
+    name: Test (exact Node 22.12.0 runtime floor)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+      - name: Full suite on the exact floor binary
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+        run: |
+          node --version
+          test "$(node --version)" = "v22.12.0"
+          node node_modules/vitest/vitest.mjs run
+
   # Optional and non-blocking per docs/13: Node 26 is Current, not LTS.
   test-node-26:
     name: Test (Node 26, non-blocking)
