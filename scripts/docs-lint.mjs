@@ -193,7 +193,11 @@ for (const file of collectFiles()) {
     ...new Set([...commandsSrc.matchAll(/import\('@rulvar\/([a-z-]+)'\)/gu)].map((m) => m[1])),
   ].sort();
   if (companions.length === 0) {
-    fail(commandsPath, 1, 'no dynamic companion imports found; update the docs-lint companion check');
+    fail(
+      commandsPath,
+      1,
+      'no dynamic companion imports found; update the docs-lint companion check',
+    );
   } else {
     const doc = readFileSync(packagesDocPath, 'utf8');
     const cliRow = doc

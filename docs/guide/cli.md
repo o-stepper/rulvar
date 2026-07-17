@@ -33,7 +33,7 @@ rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N] [--profile 
 rulvar resume <runId> [--args JSON] [--store PATH]
 rulvar runs ls [--store PATH]
 rulvar inspect <runId> [--store PATH]
-rulvar plan "<goal>" [--dry-run]
+rulvar plan "<goal>" [--planning-budget-usd N] [--budget-usd N] [--allow-unbounded] [--dry-run]
 rulvar kb <list | inbox | gate | sweep>
 ```
 
@@ -50,7 +50,9 @@ Flag semantics are uniform:
 
 - `--store PATH` selects the `JsonlFileStore` directory (default `.rulvar`). Every command that opens a journal store selects it the same way. An explicit `stores` entry in your config's `engineOptions` wins over the flag.
 - `--args JSON` supplies workflow arguments. It appears on `resume` too because original run arguments are not journaled in this version: the host re-supplies them, and a fully replayed prefix never notices their absence.
-- `--budget-usd N` sets the run's dollar ceiling, immutable after start (see [Budgets](/guide/budgets)).
+- `--budget-usd N` sets the run's dollar ceiling, immutable after start (see [Budgets](/guide/budgets)). On `plan` it caps the execution run of the generated workflow, consistent with `run`.
+- `--planning-budget-usd N` (`plan` only) caps the planning run: the planner conversation is its own paid run with its own journal, so its ceiling is separate from the execution ceiling by construction.
+- `--allow-unbounded` (`plan` only) waives the missing ceilings explicitly. `plan` never runs unbounded silently: without this flag, `--planning-budget-usd` is required, and full execution additionally requires `--budget-usd`.
 - `--profile NAME` applies a shipped run profile (`fast`, `standard`, `deep`, `ultra`): pure data bundles of effort hints, concurrency, budget defaults, and a permission preset, merged under your own options so your config always wins. The effort hints seed only routing entries your config already declares and that carry no effort of their own: an explicit effort wins, a role you do not route stays unrouted, ladder entries are untouched, and a profile never names a model.
 
 The CLI renders progress from the run's event stream: live TUI rendering on a TTY, plain line output otherwise. When a run suspends, the CLI resolves interactively: approvals prompt for allow or deny, `awaitExternal` suspensions prompt for a value. If input runs dry (EOF), the run is left suspended in the store, ready for a later `rulvar resume`, the HTTP server, or a queue worker.
@@ -81,6 +83,14 @@ With that file in place, `rulvar run triage --budget-usd 2` starts the registere
 ## The plan command
 
 `rulvar plan "<goal>"` is the terminal entry to the [planned mode](/guide/planner): the planner model writes a workflow script against the ctx dialect and your profile cards, the script is linted and self-repaired from structured diagnostics, compiled, and executed deterministically in the worker sandbox. `--dry-run` prints the accepted script without running it. The command imports `@rulvar/planner` dynamically, so install it alongside `@rulvar/cli` to use planning.
+
+Both stages are paid runs with their own immutable ceilings, and a machine-written workflow never runs unbounded silently:
+
+- `--planning-budget-usd N` freezes as the planning run's ceiling B0 at its journal's genesis (`PlanOptions.run.budgetUsd`; re-planning the same goal resumes the existing journal under its recorded ceiling, see [The planner](/guide/planner)). Required unless waived.
+- `--budget-usd N` is the execution run's ceiling (`RunOptions.budgetUsd`), exactly as on `rulvar run`. Required for full execution unless waived; combining it with `--dry-run` is an error, because a dry run executes nothing for it to bound.
+- `--allow-unbounded` waives the missing ceilings explicitly and loudly.
+
+Planning exhaustion stops before execution starts (`plan()` throws its typed `ScriptRejected` carrying `budget_exhausted`), and execution exhaustion never touches the planning journal: two runs, two ceilings, two journals.
 
 ## Knowledge-base maintenance
 

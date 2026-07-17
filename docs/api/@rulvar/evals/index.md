@@ -37,6 +37,8 @@ pnpm add -D @rulvar/evals
 | Class | Description |
 | ------ | ------ |
 | [EvalJudgeError](/api/@rulvar/evals/classes/EvalJudgeError.md) | Thrown when a judge run does not settle ok. |
+| [SpendEnvelope](/api/@rulvar/evals/classes/SpendEnvelope.md) | One envelope bounds one whole sweep invocation: share the instance across the canary loop and runSweepMatrix so canary, target, and judge runs all draw from the same remainder. |
+| [SweepBudgetError](/api/@rulvar/evals/classes/SweepBudgetError.md) | Thrown when authorizing a run's ceiling would exceed the envelope. |
 
 ## Interfaces
 
@@ -44,6 +46,8 @@ pnpm add -D @rulvar/evals
 | ------ | ------ |
 | [CanaryDriftReport](/api/@rulvar/evals/interfaces/CanaryDriftReport.md) | - |
 | [CanaryProbeSet](/api/@rulvar/evals/interfaces/CanaryProbeSet.md) | - |
+| [CanaryReport](/api/@rulvar/evals/interfaces/CanaryReport.md) | - |
+| [CanaryRunOptions](/api/@rulvar/evals/interfaces/CanaryRunOptions.md) | - |
 | [CheckpointArm](/api/@rulvar/evals/interfaces/CheckpointArm.md) | - |
 | [CheckpointCell](/api/@rulvar/evals/interfaces/CheckpointCell.md) | - |
 | [CheckpointLadder](/api/@rulvar/evals/interfaces/CheckpointLadder.md) | One declared checkpoint ladder: rungs are concrete pool members. |
@@ -90,15 +94,16 @@ pnpm add -D @rulvar/evals
 
 | Function | Description |
 | ------ | ------ |
-| [canaryFingerprint](/api/@rulvar/evals/functions/canaryFingerprint.md) | Runs the fixed probe set through the ordinary engine and returns the fingerprint. Probes run sequentially in declaration order, one run per probe, so recordings replay deterministically. |
+| [canaryFingerprint](/api/@rulvar/evals/functions/canaryFingerprint.md) | The fingerprint alone (the pre-v1.16.2-review surface, kept compatible). Prefer runCanary: its allOk is the drift-flip gate. |
 | [commitEvalMeasured](/api/@rulvar/evals/functions/commitEvalMeasured.md) | Commits measured claims through the eval-committer gate with the documented rebase recipe: on a CAS rejection, re-read current() and retry against the fresh version. Returns the committed version. |
 | [evalMeasuredClaim](/api/@rulvar/evals/functions/evalMeasuredClaim.md) | One measured claim; claimExpiry applies the TTL from the decay table. |
-| [flipStaleOnCanaryDrift](/api/@rulvar/evals/functions/flipStaleOnCanaryDrift.md) | Flips the model's ACTIVE eval-measured claims to stale when their recorded canary fingerprint differs from the fresh one. Claims without a recorded fingerprint have no baseline and stay untouched (the documented no-probe posture); a second run is an idempotent noop. CAS-rebased like every maintenance commit. |
+| [flipStaleOnCanaryDrift](/api/@rulvar/evals/functions/flipStaleOnCanaryDrift.md) | Flips the model's ACTIVE eval-measured claims to stale when their recorded canary fingerprint differs from the fresh one. Claims without a recorded fingerprint have no baseline and stay untouched (the documented no-probe posture); a second run is an idempotent noop. CAS-rebased like every maintenance commit; the retries run no engine work and pay nothing. |
 | [goldenGrader](/api/@rulvar/evals/functions/goldenGrader.md) | - |
 | [judgeGrader](/api/@rulvar/evals/functions/judgeGrader.md) | - |
 | [normalizeCanaryOutput](/api/@rulvar/evals/functions/normalizeCanaryOutput.md) | The committed v1 normalization (OQ-06): NFC, trim, collapse whitespace. |
 | [renderCheckpointReport](/api/@rulvar/evals/functions/renderCheckpointReport.md) | The deterministic render for the M12 gate docs amendment. |
 | [rubricGrader](/api/@rulvar/evals/functions/rubricGrader.md) | - |
+| [runCanary](/api/@rulvar/evals/functions/runCanary.md) | Runs the fixed probe set through the ordinary engine. Probes run sequentially in declaration order, one run per probe, so recordings replay deterministically. Each probe run carries the optional immutable ceiling (options.budgetUsd) and authorizes it against the optional envelope before starting. A non-ok probe enters the fingerprint as `!status` and clears allOk: callers gate drift flipping on allOk, because a budget-starved or transiently failing probe fingerprints differently without the model having drifted. |
 | [runEvalCase](/api/@rulvar/evals/functions/runEvalCase.md) | @rulvar/evals: quality measurement strictly on the public APIs (L6). EvalCase with golden, rubric, and LLM-judge graders; judge calls run through the engine (journaled, budgeted, VCR-recordable), so eval CI is deterministic; config-matrix comparison reports pass-rate, cost, and latency per cell. Matrix sweeps feeding ModelKnowledge, the eval-committer identity, and canary fingerprints are the M11 round-3 extensions. |
 | [runEvalMatrix](/api/@rulvar/evals/functions/runEvalMatrix.md) | Runs the same case list against every cell's engine, sequentially and in declaration order (deterministic cassette consumption), and reports per-cell aggregates for side-by-side comparison. |
 | [runEvalSuite](/api/@rulvar/evals/functions/runEvalSuite.md) | @rulvar/evals: quality measurement strictly on the public APIs (L6). EvalCase with golden, rubric, and LLM-judge graders; judge calls run through the engine (journaled, budgeted, VCR-recordable), so eval CI is deterministic; config-matrix comparison reports pass-rate, cost, and latency per cell. Matrix sweeps feeding ModelKnowledge, the eval-committer identity, and canary fingerprints are the M11 round-3 extensions. |

@@ -10,7 +10,7 @@
 function looksLikeFile(target): boolean;
 ```
 
-Defined in: [packages/cli/src/config.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/config.ts#L136)
+Defined in: [packages/cli/src/config.ts:164](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/config.ts#L164)
 
 True when the `run` target names a file rather than a registry entry.
 

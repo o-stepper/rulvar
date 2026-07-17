@@ -6,7 +6,7 @@
 
 # Interface: Grader
 
-Defined in: [packages/evals/src/case.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L74)
+Defined in: [packages/evals/src/case.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L76)
 
 @rulvar/evals: quality measurement strictly on the public APIs (L6).
 EvalCase with golden, rubric, and LLM-judge graders; judge calls run
@@ -19,7 +19,7 @@ identity, and canary fingerprints are the M11 round-3 extensions.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-name"></a> `name` | `string` | [packages/evals/src/case.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L75) |
+| <a id="property-name"></a> `name` | `string` | [packages/evals/src/case.ts:77](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L77) |
 
 ## Methods
 
@@ -31,7 +31,7 @@ grade(context):
 | Promise<GraderVerdict>;
 ```
 
-Defined in: [packages/evals/src/case.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L76)
+Defined in: [packages/evals/src/case.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L78)
 
 #### Parameters
 

@@ -246,7 +246,7 @@ Expired eval-measured claims that are still active form the **remeasurement queu
 
 Eval-measured claims come from matrix sweeps in [@rulvar/evals](/api/@rulvar/evals/): a fixed pool of (model, effort) members run against eval cases tagged by task class. The matrix is fixed and independent of your current routing beliefs, which is the deconfounder: a model your routing currently avoids still gets measured, so routing bias cannot become self-fulfilling.
 
-`runSweepMatrix(pool, options)` runs the cells sequentially through ordinary engines (one per pool member via `engineFor`), so a sweep is journaled, budgeted, and VCR-recordable like any other run; see [Evals](/guide/evals) and [Testing](/guide/testing). Cells crossing the thresholds emit claims: pass rate at or above 0.9 emits a strength, at or below 0.5 emits a weakness, and the mid-band emits nothing (uninformative results should not become beliefs). The defaults are exported as `SWEEP_THRESHOLD_DEFAULTS`. When you pass a `store`, the emitted claims commit through the `eval-committer` identity with the sweep's `reportId` on every gate.
+`runSweepMatrix(pool, options)` runs the cells sequentially through ordinary engines (one per pool member via `engineFor`), so a sweep is journaled, budgeted, and VCR-recordable like any other run; see [Evals](/guide/evals) and [Testing](/guide/testing). Budgets are explicit: `suite.budgetUsd` and `suite.judgeBudgetUsd` give every target and judge run an immutable ceiling, and the optional `envelope` (a `SpendEnvelope`) bounds the whole matrix in aggregate; a run the envelope refuses, or a cell whose target hit its own ceiling, is reported honestly and emits no claim. Cells crossing the thresholds emit claims: pass rate at or above 0.9 emits a strength, at or below 0.5 emits a weakness, and the mid-band emits nothing (uninformative results should not become beliefs). The defaults are exported as `SWEEP_THRESHOLD_DEFAULTS`. When you pass a `store`, the emitted claims commit through the `eval-committer` identity with the sweep's `reportId` on every gate.
 
 Two falsification rules keep negative beliefs honest:
 
@@ -263,21 +263,27 @@ The optional compensation is the canary fingerprint: a fixed probe set run throu
 
 ```ts
 import { FileModelKnowledgeStore } from '@rulvar/core';
-import { canaryFingerprint, flipStaleOnCanaryDrift } from '@rulvar/evals';
+import { runCanary, flipStaleOnCanaryDrift } from '@rulvar/evals';
 import { engine } from './engine.js'; // your ordinary engine assembly
 
 const store = new FileModelKnowledgeStore();
 
-const fresh = await canaryFingerprint(engine, {
-  agentType: 'extractor',
-  prompts: ['Name the three primary colors.', 'Sort these numbers: 3, 1, 2.'],
-});
+const canary = await runCanary(
+  engine,
+  {
+    agentType: 'extractor',
+    prompts: ['Name the three primary colors.', 'Sort these numbers: 3, 1, 2.'],
+  },
+  { budgetUsd: 0.2 }, // each probe run's immutable ceiling
+);
 
-const drift = await flipStaleOnCanaryDrift(store, 'anthropic:claude-haiku-4-5', fresh);
-console.log(drift.flipped); // claim ids flipped to 'stale'; the next pin stops rendering them
+if (canary.allOk) {
+  const drift = await flipStaleOnCanaryDrift(store, 'anthropic:claude-haiku-4-5', canary.fingerprint);
+  console.log(drift.flipped); // claim ids flipped to 'stale'; the next pin stops rendering them
+}
 ```
 
-A fingerprint change immediately flips the model's active eval-measured claims to `stale` (they stop steering at the next pin and land in the next sweep). Claims without a recorded fingerprint have no baseline and stay untouched; a second run is an idempotent noop. And if you run no probes at all, the insurance is already in the TTL table: negative eval claims expire in 30 days regardless.
+A fingerprint change immediately flips the model's active eval-measured claims to `stale` (they stop steering at the next pin and land in the next sweep). The `allOk` gate protects the claims from measurement artifacts: a probe that did not settle `ok` (its own budget ceiling, a transient provider failure) fingerprints differently without the model having drifted, so only an all-`ok` fingerprint may flip anything. Claims without a recorded fingerprint have no baseline and stay untouched; a second run is an idempotent noop. And if you run no probes at all, the insurance is already in the TTL table: negative eval claims expire in 30 days regardless.
 
 ## Maintenance from the CLI
 
@@ -286,7 +292,7 @@ A fingerprint change immediately flips the model's active eval-measured claims t
 | `rulvar kb list` | Prints the claim store with full provenance: subject, task class, polarity, class, status, TTL state, evidence, gate. No run, no pin. |
 | `rulvar kb inbox` | Aggregates the `kb_propose` proposals of finished runs from their ledgers into a read-only review view; proposals expire 14 days after their run finished. Requires `@rulvar/plan` installed. |
 | `rulvar kb gate <runId> <entryRef>` | The human gate: turns one inbox proposal into a committed `human-editorial` claim. `--approver NAME` and `--ruled-out a,b,c` are mandatory (the attribution attestation); `--contrast-run runId#seq` or `--contrast-eval reportId:caseId[,caseId...]` attaches optional contrast evidence. Requires `@rulvar/plan` installed. |
-| `rulvar kb sweep` | Runs the falsification matrix from the `kbSweep` section of `rulvar.config.mjs`: the fixed pool unioned with every negative-claim subject and the remeasurement queue, optional canary probes first. Requires `@rulvar/evals` installed. |
+| `rulvar kb sweep` | Runs the falsification matrix from the `kbSweep` section of `rulvar.config.mjs`: the fixed pool unioned with every negative-claim subject and the remeasurement queue, optional canary probes first. `kbSweep.budgets` (per-run ceilings plus the `maxTotalUsd` envelope) is required unless waived with `allowUnbounded: true`; see [CLI](/guide/cli#knowledge-base-maintenance). Requires `@rulvar/evals` installed. |
 
 The sweep is configured next to your engine options; graders and cases are built with `@rulvar/evals` inside the config module (the CLI loads `@rulvar/evals` dynamically at command time):
 
@@ -315,6 +321,9 @@ export default {
     ],
     thresholds: { strength: 0.9, weakness: 0.5 },
     canary: { agentType: 'extractor', prompts: ['Name the three primary colors.'] },
+    // Required (or waive with allowUnbounded: true): immutable per-run
+    // ceilings plus the debit-only envelope over the whole sweep.
+    budgets: { targetUsd: 0.5, judgeUsd: 0.5, canaryUsd: 0.2, maxTotalUsd: 25 },
   },
 };
 ```

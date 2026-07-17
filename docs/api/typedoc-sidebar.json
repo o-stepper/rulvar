@@ -2586,6 +2586,14 @@
           {
             "text": "EvalJudgeError",
             "link": "/api/@rulvar/evals/classes/EvalJudgeError.md"
+          },
+          {
+            "text": "SpendEnvelope",
+            "link": "/api/@rulvar/evals/classes/SpendEnvelope.md"
+          },
+          {
+            "text": "SweepBudgetError",
+            "link": "/api/@rulvar/evals/classes/SweepBudgetError.md"
           }
         ]
       },
@@ -2600,6 +2608,14 @@
           {
             "text": "CanaryProbeSet",
             "link": "/api/@rulvar/evals/interfaces/CanaryProbeSet.md"
+          },
+          {
+            "text": "CanaryReport",
+            "link": "/api/@rulvar/evals/interfaces/CanaryReport.md"
+          },
+          {
+            "text": "CanaryRunOptions",
+            "link": "/api/@rulvar/evals/interfaces/CanaryRunOptions.md"
           },
           {
             "text": "CheckpointArm",
@@ -2792,6 +2808,10 @@
           {
             "text": "rubricGrader",
             "link": "/api/@rulvar/evals/functions/rubricGrader.md"
+          },
+          {
+            "text": "runCanary",
+            "link": "/api/@rulvar/evals/functions/runCanary.md"
           },
           {
             "text": "runEvalCase",

@@ -23,7 +23,14 @@ import { ConfigError } from '@rulvar/core';
 
 import type { CliIo } from './io.js';
 import { HELP, runCli } from './cli-main.js';
-import { GRAMMAR, helpCommandLines, parseBudgetValue, parseCommand, usageOf } from './grammar.js';
+import {
+  docsGrammarLines,
+  GRAMMAR,
+  helpCommandLines,
+  parseBudgetValue,
+  parseCommand,
+  usageOf,
+} from './grammar.js';
 
 interface ScriptedIo extends CliIo {
   outLines: string[];
@@ -158,6 +165,21 @@ describe('canonical CLI grammar (v1.16.2 review P2-1 + P3-1)', () => {
         '[--contrast-run runId#seq | --contrast-eval reportId:caseId[,caseId...]] ' +
         '[--confidence high|medium|low] [--store PATH]',
     );
+  });
+
+  it('the docs grammar block is the grammar structure, line for line', () => {
+    // The golden the v1.16.2 review asked for: help, usage errors, and
+    // the documented grammar all derive from GRAMMAR, so the docs
+    // fenced block must equal docsGrammarLines() literally.
+    const cliGuide = readFileSync(
+      resolve(import.meta.dirname, '../../../docs/guide/cli.md'),
+      'utf8',
+    );
+    const fence = /The canonical grammar, with no aliases:\n\n```text\n([\s\S]*?)```/u.exec(
+      cliGuide,
+    );
+    expect(fence).not.toBeNull();
+    expect(fence![1].trimEnd().split('\n')).toEqual(docsGrammarLines());
   });
 
   it('rejects the whole command x flag table with exit 1 and zero provider calls', async () => {

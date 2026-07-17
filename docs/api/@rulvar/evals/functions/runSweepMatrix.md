@@ -10,7 +10,7 @@
 function runSweepMatrix(pool, options): Promise<SweepReport>;
 ```
 
-Defined in: [packages/evals/src/sweeps.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/sweeps.ts#L116)
+Defined in: [packages/evals/src/sweeps.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/sweeps.ts#L143)
 
 Runs the fixed matrix sequentially in declaration order
 (deterministic cassette consumption), aggregates per (model,

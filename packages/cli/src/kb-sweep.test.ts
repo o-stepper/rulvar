@@ -54,7 +54,8 @@ const EVALS_DIST = pathToFileURL(resolve(import.meta.dirname, '../../evals/dist/
 // Each is above the engine's per-call admission reserve (~$0.50 for the
 // unpriced FakeAdapter) so canary and target runs settle ok rather than
 // exhausting on admission.
-const BOUNDED_BUDGETS = 'budgets: { targetUsd: 0.75, judgeUsd: 0.6, canaryUsd: 0.5, maxTotalUsd: 100 },';
+const BOUNDED_BUDGETS =
+  'budgets: { targetUsd: 0.75, judgeUsd: 0.6, canaryUsd: 0.5, maxTotalUsd: 100 },';
 
 /**
  * The fixture: an EMPTY configured pool; the store must carry the

@@ -131,7 +131,9 @@ for (const file of collectFiles()) {
           // body[0] sits at file line startLine + 1; a diagnostic on
           // body line index k reports at startLine + 1 + k.
           const bodyLineIndex =
-            diagnostic.start === undefined ? 0 : code.slice(0, diagnostic.start).split('\n').length - 1;
+            diagnostic.start === undefined
+              ? 0
+              : code.slice(0, diagnostic.start).split('\n').length - 1;
           fail(
             file,
             startLine + 1 + bodyLineIndex,

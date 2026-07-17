@@ -39,7 +39,9 @@ Requires @rulvar/planner installed. kb list shows the per-project claim store
 falsification matrix from the kbSweep section of rulvar.config.mjs
 (fixed pool UNIONED with every model carrying an active negative claim
 plus the re-measure queue; optional canary probes flip drifted claims
-stale first; requires @rulvar/evals installed). kb inbox aggregates
+stale first; kbSweep.budgets sets per-run ceilings plus the maxTotalUsd
+envelope, required unless allowUnbounded waives it; requires
+@rulvar/evals installed). kb inbox aggregates
 kb_propose proposals from finished runs (14 day TTL); kb gate turns one
 inbox proposal into a committed claim behind a human attestation
 (--approver and --ruled-out are mandatory). inbox and gate require

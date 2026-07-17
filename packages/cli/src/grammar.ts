@@ -167,6 +167,22 @@ export function helpCommandLines(): string[] {
   return lines;
 }
 
+/**
+ * The grammar block of docs/guide/cli.md, line for line: the top-level
+ * commands as single-spaced invocations (usage notes are CLI-error
+ * material, not grammar) plus the kb family head. The docs contract
+ * test compares the fenced block against this list literally.
+ */
+export function docsGrammarLines(): string[] {
+  const top = [GRAMMAR.run, GRAMMAR.resume, GRAMMAR['runs ls'], GRAMMAR.inspect, GRAMMAR.plan];
+  return [
+    ...top.map((grammar) =>
+      ['rulvar', grammar.command, ...grammar.positionals, ...renderFlags(grammar.flags)].join(' '),
+    ),
+    'rulvar kb <list | inbox | gate | sweep>',
+  ];
+}
+
 export interface ParsedCommand {
   positionals: string[];
   /** Value flags as their single string; boolean flags as true when given. */
