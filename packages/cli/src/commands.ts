@@ -797,6 +797,14 @@ async function kbGateCommand(argv: string[], context: CommandContext): Promise<n
   return 0;
 }
 
+/** The debit-only aggregate envelope instance (v1.16.2 review P1-2). */
+interface SpendEnvelopeInstance {
+  readonly maxTotalUsd: number;
+  readonly authorizedUsd: number;
+  readonly remainingUsd: number;
+  authorize(ceilingUsd: number | undefined, runLabel: string): void;
+}
+
 /** The structural face of @rulvar/evals (loaded dynamically at command time). */
 interface EvalsModule {
   runSweepMatrix: (
@@ -804,19 +812,41 @@ interface EvalsModule {
     options: Record<string, unknown>,
   ) => Promise<{
     reportId: string;
-    cells: Array<{ model: string; taskClass: string; passRate: number; n: number }>;
+    cells: Array<{
+      model: string;
+      taskClass: string;
+      passRate: number;
+      n: number;
+      /** Count of target runs that hit their own ceiling; the cell emits no claim. */
+      exhaustedRuns?: number;
+      /** The envelope refused a run of this cell before it started; no claim. */
+      envelopeExhausted?: true;
+    }>;
     claims: Array<{ id: string; polarity: string; taskClass: string }>;
     committedVersion?: number;
   }>;
-  canaryFingerprint: (
+  /**
+   * Runs the probe set and returns the drift-flip gate: allOk is false
+   * when any probe did not settle ok (budget exhaustion or a transient
+   * failure fingerprints differently WITHOUT the model having drifted),
+   * so the caller must not flip claims on a non-ok fingerprint.
+   */
+  runCanary: (
     engine: unknown,
     probes: { agentType: string; prompts: string[] },
-  ) => Promise<string>;
+    options?: { budgetUsd?: number; envelope?: unknown },
+  ) => Promise<{
+    fingerprint: string;
+    allOk: boolean;
+    probes: Array<{ prompt: string; status: string }>;
+  }>;
   flipStaleOnCanaryDrift: (
     store: unknown,
     model: string,
     fingerprint: string,
   ) => Promise<{ flipped: string[]; version?: number }>;
+  /** The aggregate debit-only envelope constructor; one instance per sweep. */
+  SpendEnvelope: new (maxTotalUsd: number) => SpendEnvelopeInstance;
 }
 
 /**
@@ -838,6 +868,29 @@ async function kbSweepCommand(argv: string[], context: CommandContext): Promise<
       'rulvar kb sweep requires a kbSweep section in rulvar.config.mjs ' +
         '({ committerId, models, cases })',
     );
+  }
+  // Budget posture (v1.16.2 review P1-2): a sweep runs paid target,
+  // judge, and canary runs, so it carries immutable per-run ceilings
+  // and an aggregate envelope, OR the config waives them explicitly.
+  // Never silently unbounded.
+  const budgets = sweep.budgets;
+  if (budgets === undefined && sweep.allowUnbounded !== true) {
+    throw new ConfigError(
+      'rulvar kb sweep runs paid target, judge, and canary runs; set kbSweep.budgets ' +
+        '({ targetUsd, judgeUsd, canaryUsd, maxTotalUsd }) so every run carries an immutable ' +
+        'ceiling and the whole sweep stays under maxTotalUsd, or waive the ceilings explicitly ' +
+        'with kbSweep.allowUnbounded: true',
+    );
+  }
+  if (budgets !== undefined) {
+    for (const field of ['targetUsd', 'judgeUsd', 'canaryUsd', 'maxTotalUsd'] as const) {
+      const value = budgets[field];
+      if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+        throw new ConfigError(
+          `kbSweep.budgets.${field} must be a positive finite number, got ${String(value)}`,
+        );
+      }
+    }
   }
   const evals = await loadCompanion<EvalsModule>(
     import('@rulvar/evals'),
@@ -895,20 +948,68 @@ async function kbSweepCommand(argv: string[], context: CommandContext): Promise<
           },
         },
       }));
+  // The aggregate debit-only envelope, shared across the canary loop
+  // and the matrix so probes, targets, and judges all draw from one
+  // remainder. The worst-case authorized target and canary spend is
+  // printed BEFORE the first provider call; judge counts are grader
+  // behavior (unknowable upfront) and authorize against the same
+  // envelope at grade time.
+  const usd = (amount: number): string => `$${String(Math.round(amount * 1_000_000) / 1_000_000)}`;
+  let envelope: SpendEnvelopeInstance | undefined;
+  if (budgets !== undefined) {
+    envelope = new evals.SpendEnvelope(budgets.maxTotalUsd);
+    const probeCount = sweep.canary?.prompts.length ?? 0;
+    const canaryRuns = probeCount * pool.size;
+    const targetRuns = sweep.cases.length * pool.size;
+    context.io.out(
+      `sweep budget: ${usd(budgets.maxTotalUsd)} maxTotalUsd hard ceiling; authorizes up to ` +
+        `${usd(canaryRuns * budgets.canaryUsd + targetRuns * budgets.targetUsd)} for ` +
+        `${String(canaryRuns)} canary + ${String(targetRuns)} target run(s) before judges ` +
+        `(each judge run up to ${usd(budgets.judgeUsd)} draws from the same envelope at grade time)`,
+    );
+  } else {
+    context.io.err(
+      'kb sweep: running UNBOUNDED (kbSweep.allowUnbounded); no target, judge, or canary run ' +
+        'carries a ceiling',
+    );
+  }
+
   for (const { member, origin } of pool.values()) {
     const effort = member.effort === undefined ? '' : ` effort=${member.effort}`;
     context.io.out(`pool: ${member.model}${effort} [${origin}]`);
   }
 
-  // Canary before measurement (drift flips eval claims to
-  // stale immediately; the sweep then re-measures the subjects).
+  // Canary before measurement (drift flips eval claims to stale
+  // immediately; the sweep then re-measures the subjects). Flipping is
+  // gated on allOk: a non-ok probe (budget exhaustion, transient
+  // failure) fingerprints differently WITHOUT the model having
+  // drifted, so it must never flip claims (v1.16.2 review, canary
+  // safety). An envelope refusal skips the member honestly.
   if (sweep.canary !== undefined) {
     for (const { member } of pool.values()) {
       const engine = await engineFor(member);
-      const fingerprint = await evals.canaryFingerprint(engine, sweep.canary);
-      const drift = await evals.flipStaleOnCanaryDrift(store, member.model, fingerprint);
+      let canary;
+      try {
+        canary = await evals.runCanary(engine, sweep.canary, {
+          ...(budgets === undefined ? {} : { budgetUsd: budgets.canaryUsd, envelope }),
+        });
+      } catch (error) {
+        if (error instanceof Error && error.name === 'SweepBudgetError') {
+          context.io.out(`canary ${member.model}: envelope exhausted, skipped`);
+          continue;
+        }
+        throw error;
+      }
+      if (!canary.allOk) {
+        context.io.out(
+          `canary ${member.model}: ${canary.fingerprint.slice(0, 12)}... incomplete ` +
+            '(a probe did not settle ok); NOT flipping claims',
+        );
+        continue;
+      }
+      const drift = await evals.flipStaleOnCanaryDrift(store, member.model, canary.fingerprint);
       context.io.out(
-        `canary ${member.model}: ${fingerprint.slice(0, 12)}...` +
+        `canary ${member.model}: ${canary.fingerprint.slice(0, 12)}...` +
           (drift.flipped.length === 0
             ? ' no drift'
             : ` DRIFT, ${String(drift.flipped.length)} claim(s) flipped stale`),
@@ -925,12 +1026,28 @@ async function kbSweepCommand(argv: string[], context: CommandContext): Promise<
       engineFor,
       store,
       ...(sweep.thresholds === undefined ? {} : { thresholds: sweep.thresholds }),
+      ...(budgets === undefined
+        ? {}
+        : {
+            suite: { budgetUsd: budgets.targetUsd, judgeBudgetUsd: budgets.judgeUsd },
+            envelope,
+          }),
     },
   );
   for (const cell of report.cells) {
+    if (cell.envelopeExhausted === true) {
+      context.io.out(
+        `cell ${cell.model} :: ${cell.taskClass}: envelope exhausted, not measured (no claim)`,
+      );
+      continue;
+    }
+    const exhausted =
+      cell.exhaustedRuns === undefined
+        ? ''
+        : ` (${String(cell.exhaustedRuns)} run(s) hit their own ceiling; no claim)`;
     context.io.out(
       `cell ${cell.model} :: ${cell.taskClass}: passRate ${cell.passRate.toFixed(2)} ` +
-        `over ${String(cell.n)} case${cell.n === 1 ? '' : 's'}`,
+        `over ${String(cell.n)} case${cell.n === 1 ? '' : 's'}${exhausted}`,
     );
   }
   for (const claim of report.claims) {
@@ -942,5 +1059,10 @@ async function kbSweepCommand(argv: string[], context: CommandContext): Promise<
       : `committed ${String(report.claims.length)} claim(s) as store version ` +
           `${String(report.committedVersion)} (report ${report.reportId})`,
   );
+  if (envelope !== undefined) {
+    context.io.out(
+      `sweep budget: authorized ${usd(envelope.authorizedUsd)} of ${usd(envelope.maxTotalUsd)}`,
+    );
+  }
   return 0;
 }

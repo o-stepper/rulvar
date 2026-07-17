@@ -53,6 +53,34 @@ export interface KbSweepCliConfig {
   reportId?: string;
   /** Per-member engine override; default: engineOptions with loop/extract routed at the member. */
   engineFor?: (member: { model: `${string}:${string}`; effort?: string }) => unknown;
+  /**
+   * Immutable per-run ceilings and the aggregate debit-only envelope
+   * (v1.16.2 review P1-2). A sweep multiplies paid runs: pool members
+   * times cases for targets, one judge run per judge-grader call, one
+   * canary run per probe per member, and the falsification union can
+   * grow the pool past the configured models. Per-run ceilings alone do
+   * not bound that product, so maxTotalUsd is the hard aggregate ceiling
+   * every target, judge, and canary run authorizes against BEFORE it
+   * starts. Required unless allowUnbounded is set: a sweep is never
+   * silently unbounded.
+   */
+  budgets?: {
+    /** Immutable ceiling B0 of every eval target run. */
+    targetUsd: number;
+    /** Immutable ceiling of every judge run. */
+    judgeUsd: number;
+    /** Immutable ceiling of every canary probe run. */
+    canaryUsd: number;
+    /** The debit-only envelope over the WHOLE sweep (targets, judges, canary). */
+    maxTotalUsd: number;
+  };
+  /**
+   * Explicitly waive the ceilings and run every target, judge, and
+   * canary run unbounded (the pre-v1.16.2 behavior). A sweep with
+   * neither budgets nor this flag set fails loudly: an unbounded paid
+   * matrix is never the silent default.
+   */
+  allowUnbounded?: boolean;
 }
 
 const CONFIG_BASENAMES = ['rulvar.config.mjs', 'rulvar.config.js'];

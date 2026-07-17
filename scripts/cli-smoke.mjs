@@ -193,8 +193,12 @@ check(
 );
 writeFileSync(
   join(bare, 'rulvar.config.mjs'),
-  "export default { kbSweep: { committerId: 'smoke', models: [{ model: 'fake:model' }], cases: [] } };\n",
+  'export default { kbSweep: { ' +
+    "committerId: 'smoke', models: [{ model: 'fake:model' }], cases: [], " +
+    'budgets: { targetUsd: 1, judgeUsd: 1, canaryUsd: 1, maxTotalUsd: 100 } } };\n',
 );
+// Budgets are set, so the ONLY reason this fails is the missing
+// companion: the install hint, not a budget-config error.
 check('bare kb sweep reports the missing evals', rulvar(bare, ['kb', 'sweep']), {
   code: 1,
   errIncludes: [MISSING_EVALS],
@@ -225,7 +229,12 @@ writeFileSync(
     '    defaults: { routing: { plan: FAKE_MODEL_REF, loop: FAKE_MODEL_REF } },',
     '    runners: { sandbox: new WorkerSandboxRunner() },',
     '  },',
-    "  kbSweep: { committerId: 'smoke', models: [{ model: FAKE_MODEL_REF }], cases: [] },",
+    '  kbSweep: {',
+    "    committerId: 'smoke',",
+    '    models: [{ model: FAKE_MODEL_REF }],',
+    '    cases: [],',
+    '    budgets: { targetUsd: 1, judgeUsd: 1, canaryUsd: 1, maxTotalUsd: 100 },',
+    '  },',
     '};',
     '',
   ].join('\n'),

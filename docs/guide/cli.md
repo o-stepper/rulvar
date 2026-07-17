@@ -89,7 +89,31 @@ The `kb` subcommands maintain the per-project [model knowledge](/guide/model-kno
 - `rulvar kb list` prints the claims with full provenance.
 - `rulvar kb inbox [--store PATH]` aggregates the `kb_propose` proposals of finished runs from their run ledgers into a read-only review view, grouped by subject, task class, and polarity. Proposals expire 14 days after their run finished; the command writes nothing and authorizes no spend. Requires `@rulvar/plan`.
 - `rulvar kb gate <runId> <entryRef> --approver NAME --ruled-out a,b,c` turns one inbox proposal into a committed `human-editorial` claim. `--approver` and `--ruled-out` are mandatory: they form the attribution attestation, and the ruled-out vocabulary is `prompt`, `tools`, `difficulty`, `transient-provider`. Contrast evidence is optional via `--contrast-run runId#seq` or `--contrast-eval reportId:caseId[,caseId...]` (mutually exclusive), `--confidence high|medium|low` defaults to `medium`, and `--store PATH` selects the journal store as usual. Requires `@rulvar/plan`.
-- `rulvar kb sweep` runs the falsification matrix declared in the `kbSweep` section of your config: a fixed model pool (sweep volume is never authorized by proposal volume) unioned with every model carrying an active negative claim plus the re-measure queue. Optional canary probes run per pool member first and flip drifted claims stale. Requires `@rulvar/evals`.
+- `rulvar kb sweep` runs the falsification matrix declared in the `kbSweep` section of your config: a fixed model pool (sweep volume is never authorized by proposal volume) unioned with every model carrying an active negative claim plus the re-measure queue. Optional canary probes run per pool member first and flip drifted claims stale (only when every probe settled `ok`: a budget-starved or transiently failed probe fingerprints differently without the model having drifted, so it never flips a claim). Requires `@rulvar/evals`.
+
+A sweep multiplies paid runs, so `kbSweep.budgets` is required (or waive it explicitly with `allowUnbounded: true`): every target, judge, and canary run carries an immutable per-run ceiling, and `maxTotalUsd` is a debit-only envelope over the whole sweep. Each run authorizes its ceiling against the envelope BEFORE it starts, so a run that would breach it is refused before any provider call and its cell reports `envelope exhausted, not measured`. A target that hits its OWN ceiling reports `exhausted` and emits no claim, because a budget-starved measurement must not become a false weakness that blames the model for the ceiling.
+
+```ts
+// rulvar.config.mjs: the kb sweep budget surface
+export default {
+  kbSweep: {
+    committerId: 'ci-evals',
+    models: [{ model: 'anthropic:claude-fable-5' }],
+    cases: [/* EvalCases tagged by taskClass, built with @rulvar/evals */],
+    canary: { agentType: 'probe', prompts: ['ping one', 'ping two'] },
+    // Immutable per-run ceilings and the aggregate envelope. Required
+    // unless you set allowUnbounded: true.
+    budgets: {
+      targetUsd: 0.5, // ceiling of every eval target run
+      judgeUsd: 0.5, // ceiling of every judge run
+      canaryUsd: 0.2, // ceiling of every canary probe run
+      maxTotalUsd: 50, // hard debit-only envelope over the whole sweep
+    },
+  },
+};
+```
+
+The worst-case authorized spend the command prints before its first call is `canaryUsd * probes * pool + targetUsd * cases * pool`, plus `judgeUsd` per judge call. Judge-call counts are grader behavior and unknowable upfront, so `maxTotalUsd` is the only guaranteed aggregate ceiling: keep it at or above that worst case for the sweep to finish, or set it lower deliberately to stop the matrix partway.
 
 ## The HTTP server
 
