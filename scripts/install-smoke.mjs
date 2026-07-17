@@ -138,6 +138,15 @@ writeFileSync(
     "    credentials: () => Promise.resolve({ token: 'sentinel-token', expiresAt: null }),",
     '  },',
     '});',
+    '// Explicit nulls stay typed without casts (v1.16 review P3): they',
+    '// count as absent credentials, not as chosen ones.',
+    'export const withTypedNulls = anthropic({',
+    '  sdkOptions: {',
+    '    apiKey: null,',
+    '    authToken: null,',
+    "    credentials: () => Promise.resolve({ token: 'sentinel-token', expiresAt: null }),",
+    '  },',
+    '});',
   ].join('\n'),
 );
 execFileSync(

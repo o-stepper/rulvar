@@ -93,11 +93,14 @@ interface AnthropicAdapterOptions {
 * credentials itself: `ANTHROPIC_API_KEY`, then bearer
 * `ANTHROPIC_AUTH_TOKEN`, then its config-file credential chain. When
 * `sdkOptions` carries structured auth (`credentials`, `config`, or
-* `profile`) and no `apiKey`/`authToken` is set anywhere, ambient
-* environment credentials are suppressed (explicit `apiKey: null,
-* authToken: null` are passed to the SDK), so the configured provider
-* is the one that authenticates; the SDK itself would otherwise let an
-* environment `ANTHROPIC_API_KEY` win over the provider.
+* `profile`) and no `apiKey`/`authToken` is set to a string anywhere,
+* ambient environment credentials are suppressed (explicit
+* `apiKey: null, authToken: null` are passed to the SDK), so the
+* configured provider is the one that authenticates; the SDK itself
+* would otherwise let an environment `ANTHROPIC_API_KEY` or
+* `ANTHROPIC_AUTH_TOKEN` win over the provider. An explicit
+* `apiKey: null` or `authToken: null` counts as absence for this rule,
+* never as a chosen credential.
 */
 declare function anthropic(options?: AnthropicAdapterOptions): ProviderAdapter;
 //#endregion

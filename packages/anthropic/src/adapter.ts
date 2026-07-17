@@ -105,23 +105,28 @@ function resolveAnthropicClient(options: AnthropicAdapterOptions): AnthropicClie
       "anthropic(): 'baseURL' and 'sdkOptions.baseURL' are both set; pick one place",
     );
   }
-  // Structured auth wins over ambient env (v1.15 review P2-2): the SDK
-  // sends x-api-key whenever an apiKey is set, INCLUDING one it read
-  // from ANTHROPIC_API_KEY itself, and only falls back to a
-  // credentials/config/profile token provider when apiKey is null. So a
-  // stray key in the environment would silently bypass an explicitly
-  // configured provider and bill a different principal. When the caller
-  // chose structured auth and set no apiKey/authToken anywhere, pass
-  // explicit nulls to suppress the SDK's env reads. Callers that DO set
-  // an apiKey or authToken next to structured auth keep verbatim
-  // forwarding and the SDK's own precedence.
+  // Structured auth wins over ambient env (v1.15 review P2-2, v1.16
+  // review P3): the SDK reads ANTHROPIC_API_KEY/ANTHROPIC_AUTH_TOKEN at
+  // construction (skipped only when a profile is named) and consults a
+  // credentials/config/profile token provider ONLY when both apiKey and
+  // authToken end up null; either one set, an env-read one included,
+  // means the provider is never even cached. So a stray env credential
+  // would silently bypass an explicitly configured provider and bill a
+  // different principal. When the caller chose structured auth and set
+  // no apiKey/authToken STRING anywhere, pass explicit nulls to
+  // suppress the SDK's env reads; a typed `apiKey: null` or
+  // `authToken: null` counts as absence, not as a chosen credential
+  // (v1.16 compared === undefined here, so an explicit null quietly
+  // disabled this protection). Callers that DO set a real apiKey or
+  // authToken next to structured auth keep verbatim forwarding and the
+  // SDK's own precedence.
   const structuredAuth =
     sdkOptions.credentials != null || sdkOptions.config != null || sdkOptions.profile != null;
   const suppressAmbientEnv =
     structuredAuth &&
-    options.apiKey === undefined &&
-    sdkOptions.apiKey === undefined &&
-    sdkOptions.authToken === undefined;
+    options.apiKey == null &&
+    sdkOptions.apiKey == null &&
+    sdkOptions.authToken == null;
   return new Anthropic({
     ...sdkOptions,
     ...(suppressAmbientEnv ? { apiKey: null, authToken: null } : {}),
@@ -139,11 +144,14 @@ function resolveAnthropicClient(options: AnthropicAdapterOptions): AnthropicClie
  * credentials itself: `ANTHROPIC_API_KEY`, then bearer
  * `ANTHROPIC_AUTH_TOKEN`, then its config-file credential chain. When
  * `sdkOptions` carries structured auth (`credentials`, `config`, or
- * `profile`) and no `apiKey`/`authToken` is set anywhere, ambient
- * environment credentials are suppressed (explicit `apiKey: null,
- * authToken: null` are passed to the SDK), so the configured provider
- * is the one that authenticates; the SDK itself would otherwise let an
- * environment `ANTHROPIC_API_KEY` win over the provider.
+ * `profile`) and no `apiKey`/`authToken` is set to a string anywhere,
+ * ambient environment credentials are suppressed (explicit
+ * `apiKey: null, authToken: null` are passed to the SDK), so the
+ * configured provider is the one that authenticates; the SDK itself
+ * would otherwise let an environment `ANTHROPIC_API_KEY` or
+ * `ANTHROPIC_AUTH_TOKEN` win over the provider. An explicit
+ * `apiKey: null` or `authToken: null` counts as absence for this rule,
+ * never as a chosen credential.
  */
 export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapter {
   const client = resolveAnthropicClient(options);

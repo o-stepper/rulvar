@@ -1,11 +1,14 @@
 /**
- * Production auth surface (v1.14 review P2-2): the official SDK client
- * injects without casts under strict TypeScript, sdkOptions forwards
- * every SDK credential mode with maxRetries forced to 0, conflicting
- * construction options fail typed before any network I/O, and the
- * bearer modes (env ANTHROPIC_AUTH_TOKEN, an AccessTokenProvider) reach
- * a canonical finish against a synthetic endpoint. Assertions only ever
- * inspect header PRESENCE and scheme, never credential values.
+ * Production auth surface (v1.14 review P2-2, v1.15 review P2-2, v1.16
+ * review P3): the official SDK client injects without casts under
+ * strict TypeScript, sdkOptions forwards every SDK credential mode with
+ * maxRetries forced to 0, conflicting construction options fail typed
+ * before any network I/O, the bearer modes (env ANTHROPIC_AUTH_TOKEN,
+ * an AccessTokenProvider) reach a canonical finish against a synthetic
+ * endpoint, and structured auth beats ambient env credentials with
+ * explicit `apiKey: null`/`authToken: null` counting as absence, not as
+ * a chosen credential. Assertions only ever inspect header PRESENCE and
+ * scheme, never credential values.
  */
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -205,6 +208,93 @@ describe('anthropic() production auth surface', () => {
     });
   });
 
+  it('treats an explicit authToken: null as absent for suppression (v1.16 review P3)', async () => {
+    // The SDK types allow `authToken?: string | null`. On v1.16.0 a
+    // typed null here defeated the === undefined suppression check, so
+    // this exact configuration called the provider ZERO times and sent
+    // x-api-key from the ambient environment.
+    vi.stubEnv('ANTHROPIC_API_KEY', 'sentinel-env-key');
+    vi.stubEnv('ANTHROPIC_AUTH_TOKEN', undefined);
+    let minted = 0;
+    await withSyntheticEndpoint(async (baseURL, captured) => {
+      const adapter = anthropic({
+        baseURL,
+        sdkOptions: {
+          authToken: null,
+          credentials: () => {
+            minted += 1;
+            return Promise.resolve({ token: 'synthetic-provider-token', expiresAt: null });
+          },
+        },
+      });
+      const events = await drain(adapter.stream(helloReq()));
+      expect(minted).toBe(1);
+      expect(captured).toHaveLength(1);
+      expect(captured[0]?.hasXApiKey).toBe(false);
+      expect(captured[0]?.authorizationScheme).toBe('Bearer');
+      expect(events.at(-1)?.type).toBe('finish');
+      const serialized = JSON.stringify(events);
+      expect(serialized).not.toContain('sentinel-env-key');
+      expect(serialized).not.toContain('synthetic-provider-token');
+    });
+  });
+
+  it('treats an explicit apiKey: null as absent for suppression', async () => {
+    // Without suppression the SDK would read ANTHROPIC_AUTH_TOKEN and,
+    // with any authToken set, never even build the provider token
+    // cache: the ambient bearer would authenticate instead of the
+    // configured provider.
+    vi.stubEnv('ANTHROPIC_API_KEY', undefined);
+    vi.stubEnv('ANTHROPIC_AUTH_TOKEN', 'sentinel-env-bearer');
+    let minted = 0;
+    await withSyntheticEndpoint(async (baseURL, captured) => {
+      const adapter = anthropic({
+        baseURL,
+        sdkOptions: {
+          apiKey: null,
+          credentials: () => {
+            minted += 1;
+            return Promise.resolve({ token: 'synthetic-provider-token', expiresAt: null });
+          },
+        },
+      });
+      const events = await drain(adapter.stream(helloReq()));
+      expect(minted).toBe(1);
+      expect(captured).toHaveLength(1);
+      expect(captured[0]?.hasXApiKey).toBe(false);
+      expect(captured[0]?.authorizationScheme).toBe('Bearer');
+      expect(events.at(-1)?.type).toBe('finish');
+      const serialized = JSON.stringify(events);
+      expect(serialized).not.toContain('sentinel-env-bearer');
+      expect(serialized).not.toContain('synthetic-provider-token');
+    });
+  });
+
+  it('lets the provider win with both fields explicitly null and both env vars set', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'sentinel-env-key');
+    vi.stubEnv('ANTHROPIC_AUTH_TOKEN', 'sentinel-env-bearer');
+    let minted = 0;
+    await withSyntheticEndpoint(async (baseURL, captured) => {
+      const adapter = anthropic({
+        baseURL,
+        sdkOptions: {
+          apiKey: null,
+          authToken: null,
+          credentials: () => {
+            minted += 1;
+            return Promise.resolve({ token: 'synthetic-provider-token', expiresAt: null });
+          },
+        },
+      });
+      const events = await drain(adapter.stream(helloReq()));
+      expect(minted).toBe(1);
+      expect(captured).toHaveLength(1);
+      expect(captured[0]?.hasXApiKey).toBe(false);
+      expect(captured[0]?.authorizationScheme).toBe('Bearer');
+      expect(events.at(-1)?.type).toBe('finish');
+    });
+  });
+
   it('keeps verbatim SDK precedence when an apiKey is set next to structured auth', async () => {
     // An EXPLICIT apiKey beside a provider is the caller's choice: no
     // suppression, and per the SDK's own precedence the key wins.
@@ -226,6 +316,35 @@ describe('anthropic() production auth surface', () => {
       expect(captured).toHaveLength(1);
       expect(captured[0]?.hasXApiKey).toBe(true);
       expect(events.at(-1)?.type).toBe('finish');
+    });
+  });
+
+  it('keeps verbatim SDK precedence when an authToken is set next to structured auth', async () => {
+    // An EXPLICIT bearer beside a provider is the caller's choice: no
+    // suppression, and per the SDK's own precedence any set authToken
+    // means the provider token cache is never built, so the explicit
+    // bearer authenticates and the provider is not called.
+    vi.stubEnv('ANTHROPIC_API_KEY', undefined);
+    vi.stubEnv('ANTHROPIC_AUTH_TOKEN', undefined);
+    let minted = 0;
+    await withSyntheticEndpoint(async (baseURL, captured) => {
+      const adapter = anthropic({
+        baseURL,
+        sdkOptions: {
+          authToken: 'sentinel-explicit-bearer',
+          credentials: () => {
+            minted += 1;
+            return Promise.resolve({ token: 'synthetic-provider-token', expiresAt: null });
+          },
+        },
+      });
+      const events = await drain(adapter.stream(helloReq()));
+      expect(minted).toBe(0);
+      expect(captured).toHaveLength(1);
+      expect(captured[0]?.hasXApiKey).toBe(false);
+      expect(captured[0]?.authorizationScheme).toBe('Bearer');
+      expect(events.at(-1)?.type).toBe('finish');
+      expect(JSON.stringify(events)).not.toContain('sentinel-explicit-bearer');
     });
   });
 
@@ -257,6 +376,50 @@ describe('anthropic() production auth surface', () => {
       expect(captured[0]?.authorizationScheme).toBe('Bearer');
       expect(events.at(-1)?.type).toBe('finish');
       expect(JSON.stringify(events)).not.toContain('synthetic-profile-token');
+    });
+  });
+
+  it('keeps a profile winning over the ambient env key with authToken: null passed', async () => {
+    // Same scaffolding as above; the explicit null must not disable the
+    // structured-auth protection. (The SDK additionally skips both env
+    // reads whenever a profile is named, so this locks two layers.)
+    vi.stubEnv('ANTHROPIC_API_KEY', 'sentinel-env-key');
+    vi.stubEnv('ANTHROPIC_AUTH_TOKEN', undefined);
+    const configDir = mkdtempSync(join(tmpdir(), 'rulvar-anthropic-profile-'));
+    mkdirSync(join(configDir, 'configs'), { recursive: true });
+    mkdirSync(join(configDir, 'credentials'), { recursive: true });
+    writeFileSync(
+      join(configDir, 'configs', 'smoke.json'),
+      JSON.stringify({ authentication: { type: 'user_oauth' } }),
+    );
+    writeFileSync(
+      join(configDir, 'credentials', 'smoke.json'),
+      JSON.stringify({ type: 'oauth_token', access_token: 'synthetic-profile-token' }),
+      { mode: 0o600 },
+    );
+    vi.stubEnv('ANTHROPIC_CONFIG_DIR', configDir);
+    await withSyntheticEndpoint(async (baseURL, captured) => {
+      const adapter = anthropic({ baseURL, sdkOptions: { profile: 'smoke', authToken: null } });
+      const events = await drain(adapter.stream(helloReq()));
+      expect(captured).toHaveLength(1);
+      expect(captured[0]?.hasXApiKey).toBe(false);
+      expect(captured[0]?.authorizationScheme).toBe('Bearer');
+      expect(events.at(-1)?.type).toBe('finish');
+      expect(JSON.stringify(events)).not.toContain('synthetic-profile-token');
+    });
+  });
+
+  it('inherits env key auth implicitly: ANTHROPIC_API_KEY, x-api-key, no bearer', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'sentinel-env-key');
+    vi.stubEnv('ANTHROPIC_AUTH_TOKEN', undefined);
+    await withSyntheticEndpoint(async (baseURL, captured) => {
+      const adapter = anthropic({ baseURL });
+      const events = await drain(adapter.stream(helloReq()));
+      expect(captured).toHaveLength(1);
+      expect(captured[0]?.hasXApiKey).toBe(true);
+      expect(captured[0]?.authorizationScheme).toBeUndefined();
+      expect(events.at(-1)?.type).toBe('finish');
+      expect(JSON.stringify(events)).not.toContain('sentinel-env-key');
     });
   });
 
