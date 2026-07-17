@@ -1,9 +1,0 @@
----
-'@rulvar/cli': minor
----
-
-Every paid CLI surface is now budget-bounded, and the grammar ignores nothing (the v1.16.2 review P1-1, P1-2, P2-1, P3-1).
-
-- `rulvar plan` gained separate immutable ceilings for its two paid runs: `--planning-budget-usd N` freezes as the planning run's B0 at its journal's genesis (`PlanOptions.run.budgetUsd`) and `--budget-usd N` caps the execution run exactly like `rulvar run`. A machine-written workflow never runs unbounded silently: missing ceilings fail loudly unless `--allow-unbounded` waives them explicitly, and `--dry-run` beside `--budget-usd` is a contradiction, not an ignorable leftover.
-- `rulvar kb sweep` requires `kbSweep.budgets` (`{ targetUsd, judgeUsd, canaryUsd, maxTotalUsd }`) or an explicit `kbSweep.allowUnbounded: true`: every target, judge, and canary run carries an immutable per-run ceiling, the whole sweep authorizes against the debit-only `maxTotalUsd` envelope (falsification pool growth included), the worst-case authorized spend prints before the first provider call, and envelope-refused or ceiling-exhausted cells report honestly and emit no claim. Canary drift flips claims stale only when every probe settled `ok`, so a budget-starved or transiently failing probe can never blame the model.
-- The canonical grammar is one data structure now: `--help`, every per-command usage error, and the documented grammar block render from it and are locked together by tests. Nothing accepted is ignored: `resume` rejects `--budget-usd` and `--profile` at parse time (the ceiling is immutable from genesis by the documented budget invariant), every command enforces exact positional arity, duplicate value flags fail, and unknown options report as ConfigError usage lines instead of raw parseArgs stack traces. All rejections happen before any config, store, or adapter loads, with zero provider calls and byte-identical journals.
