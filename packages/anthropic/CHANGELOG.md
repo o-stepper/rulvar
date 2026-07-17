@@ -1,5 +1,12 @@
 # @rulvar/anthropic
 
+## 1.16.1
+
+### Patch Changes
+
+- fac1ecc: Treat explicit `apiKey: null`/`authToken: null` as absent credentials for the structured-auth env suppression, not as chosen ones. The SDK types allow `authToken?: string | null`, and on v1.16.0 a typed null beside `credentials`, `config`, or `profile` defeated the `=== undefined` suppression check, so an ambient `ANTHROPIC_API_KEY` (or, with `apiKey: null`, an ambient `ANTHROPIC_AUTH_TOKEN`) silently authenticated instead of the configured provider and billed a different principal. The suppression now uses nullish checks: any combination of unset and explicitly null keeps the configured provider in charge, while a real `apiKey`/`authToken` string next to structured auth still forwards verbatim under the SDK's own precedence (which never consults the provider once either is set). The [Anthropic credential precedence](https://docs.rulvar.com/guide/providers#anthropic-credential-precedence) docs now state the SDK's actual order: a set `apiKey` or `authToken` disables token providers entirely; providers run only when both are null; a named `profile` skips both env reads inside the SDK itself.
+  - @rulvar/core@1.16.1
+
 ## 1.16.0
 
 ### Minor Changes

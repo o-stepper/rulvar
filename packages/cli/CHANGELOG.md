@@ -1,5 +1,12 @@
 # @rulvar/cli
 
+## 1.16.1
+
+### Patch Changes
+
+- fac1ecc: Mark eslint's optional TypeScript-config loader `jiti` as external in the CLI bundle. The bundled eslint (pulled in through @rulvar/planner's programmatic `Linter`) lazily imports `jiti` only on its config-file loading path, which the CLI never executes; the import now stays an import instead of producing UNRESOLVED_IMPORT build warnings. No runtime behavior change.
+  - @rulvar/core@1.16.1
+
 ## 1.16.0
 
 ### Patch Changes

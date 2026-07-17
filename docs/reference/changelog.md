@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.16.1
+
+#### Patch Changes
+
+- fac1ecc: Treat explicit `apiKey: null`/`authToken: null` as absent credentials for the structured-auth env suppression, not as chosen ones. The SDK types allow `authToken?: string | null`, and on v1.16.0 a typed null beside `credentials`, `config`, or `profile` defeated the `=== undefined` suppression check, so an ambient `ANTHROPIC_API_KEY` (or, with `apiKey: null`, an ambient `ANTHROPIC_AUTH_TOKEN`) silently authenticated instead of the configured provider and billed a different principal. The suppression now uses nullish checks: any combination of unset and explicitly null keeps the configured provider in charge, while a real `apiKey`/`authToken` string next to structured auth still forwards verbatim under the SDK's own precedence (which never consults the provider once either is set). The [Anthropic credential precedence](https://docs.rulvar.com/guide/providers#anthropic-credential-precedence) docs now state the SDK's actual order: a set `apiKey` or `authToken` disables token providers entirely; providers run only when both are null; a named `profile` skips both env reads inside the SDK itself.
+  - @rulvar/core@1.16.1
+
 ### 1.16.0
 
 #### Minor Changes
@@ -436,6 +443,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.16.1
+
+#### Patch Changes
+
+- @rulvar/core@1.16.1
+
 ### 1.16.0
 
 #### Patch Changes
@@ -743,6 +756,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.16.1
+
+#### Patch Changes
+
+- fac1ecc: Mark eslint's optional TypeScript-config loader `jiti` as external in the CLI bundle. The bundled eslint (pulled in through @rulvar/planner's programmatic `Linter`) lazily imports `jiti` only on its config-file loading path, which the CLI never executes; the import now stays an import instead of producing UNRESOLVED_IMPORT build warnings. No runtime behavior change.
+  - @rulvar/core@1.16.1
 
 ### 1.16.0
 
@@ -1182,6 +1202,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.16.1
 
 ### 1.16.0
 
@@ -2175,6 +2197,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.16.1
+
 ### 1.16.0
 
 ### 1.15.0
@@ -2271,6 +2295,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.16.1
+
+#### Patch Changes
+
+- @rulvar/core@1.16.1
+- @rulvar/testing@1.16.1
 
 ### 1.16.0
 
@@ -2639,6 +2670,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.16.1
+
+#### Patch Changes
+
+- @rulvar/core@1.16.1
 
 ### 1.16.0
 
@@ -3073,6 +3110,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.16.1
+
+#### Patch Changes
+
+- @rulvar/core@1.16.1
+
 ### 1.16.0
 
 #### Patch Changes
@@ -3482,6 +3525,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.16.1
+
+#### Patch Changes
+
+- @rulvar/core@1.16.1
+- eslint-plugin-rulvar@1.16.1
+
 ### 1.16.0
 
 #### Patch Changes
@@ -3823,6 +3873,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.16.1
+
+#### Patch Changes
+
+- Updated dependencies [fac1ecc]
+  - @rulvar/anthropic@1.16.1
+  - @rulvar/core@1.16.1
+  - @rulvar/openai@1.16.1
 
 ### 1.16.0
 
@@ -4278,6 +4337,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.16.1
+
+#### Patch Changes
+
+- @rulvar/core@1.16.1
+
 ### 1.16.0
 
 #### Patch Changes
@@ -4645,6 +4710,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.16.1
+
+#### Patch Changes
+
+- @rulvar/core@1.16.1
+
 ### 1.16.0
 
 #### Patch Changes
@@ -4962,6 +5033,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.16.1
+
+#### Patch Changes
+
+- @rulvar/core@1.16.1
 
 ### 1.16.0
 
