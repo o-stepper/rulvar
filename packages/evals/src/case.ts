@@ -22,6 +22,8 @@ import {
   type Workflow,
 } from '@rulvar/core';
 
+import type { SpendEnvelope } from './envelope.js';
+
 /**
  * One quality-measurement case. The shape is the
  * documented interface verbatim; display names derive from the workflow
@@ -106,6 +108,13 @@ export interface RunEvalCaseOptions {
   budgetUsd?: number;
   /** Run ceiling for each judge run. */
   judgeBudgetUsd?: number;
+  /**
+   * Aggregate debit-only envelope (v1.16.2 review P1-2): every target
+   * and judge run authorizes its ceiling here BEFORE starting, and an
+   * envelope requires the matching per-run ceiling to be set. A
+   * refusal throws SweepBudgetError before any provider work.
+   */
+  envelope?: SpendEnvelope;
 }
 
 /** Thrown when a judge run does not settle ok. */
@@ -135,6 +144,7 @@ export async function runEvalCase(
 ): Promise<EvalCaseResult> {
   const name = options.name ?? evalCase.workflow.name;
   const timing: { start?: string; end?: string } = {};
+  options.envelope?.authorize(options.budgetUsd, `eval target '${name}'`);
   const handle = engine.run(evalCase.workflow, evalCase.args, {
     name: `eval:${name}`,
     ...(options.budgetUsd === undefined ? {} : { budgetUsd: options.budgetUsd }),
@@ -158,6 +168,12 @@ export async function runEvalCase(
     async judge(spec: JudgeSpec): Promise<Json> {
       const ordinal = judgeOrdinal;
       judgeOrdinal += 1;
+      // Judge run counts are grader behavior, unknowable upfront, so
+      // the envelope authorizes each judge run at call time.
+      options.envelope?.authorize(
+        options.judgeBudgetUsd,
+        `eval judge '${name}:${String(ordinal)}'`,
+      );
       const judged = await runJudge(engine, `${name}:${ordinal}`, spec, options.judgeBudgetUsd);
       judgeCostUsd += judged.costUsd;
       return judged.output;
@@ -228,6 +244,8 @@ export interface EvalSuiteResult {
 export interface RunEvalSuiteOptions {
   budgetUsd?: number;
   judgeBudgetUsd?: number;
+  /** See RunEvalCaseOptions.envelope; shared across every case of the suite. */
+  envelope?: SpendEnvelope;
 }
 
 /**
@@ -252,6 +270,7 @@ export async function runEvalSuite(
         name,
         ...(options.budgetUsd === undefined ? {} : { budgetUsd: options.budgetUsd }),
         ...(options.judgeBudgetUsd === undefined ? {} : { judgeBudgetUsd: options.judgeBudgetUsd }),
+        ...(options.envelope === undefined ? {} : { envelope: options.envelope }),
       }),
     );
   }

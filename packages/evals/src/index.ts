@@ -39,9 +39,13 @@ export {
   canaryFingerprint,
   flipStaleOnCanaryDrift,
   normalizeCanaryOutput,
+  runCanary,
   type CanaryDriftReport,
   type CanaryProbeSet,
+  type CanaryReport,
+  type CanaryRunOptions,
 } from './canary.js';
+export { SpendEnvelope, SweepBudgetError } from './envelope.js';
 export {
   renderCheckpointReport,
   rungRuleHolds,
