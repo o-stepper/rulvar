@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.16.2
+
+#### Patch Changes
+
+- 9f07130: Correct five stale rows in the seed capability table: Claude Opus 4.8, Opus 4.7, Opus 4.6, Sonnet 5, and Sonnet 4.6 all carry a 1M context window and 128k max output, verified against the official models table and live `GET /v1/models` on 2026-07-17. Default routing, the compaction threshold, and the wire `max_tokens` clamp no longer under-provision runs that never call `refreshCaps()` (Sonnet 5 was clamped to 64k output for no reason). Every row is now pinned by a committed `caps-snapshot.json`: an offline test fails when the table and the snapshot disagree, and the weekly live contract workflow audits the snapshot against the model list so provider-side drift pages instead of rotting. Pricing rows are untouched.
+  - @rulvar/core@1.16.2
+
 ### 1.16.1
 
 #### Patch Changes
@@ -443,6 +450,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.16.2
+
+#### Patch Changes
+
+- @rulvar/core@1.16.2
+
 ### 1.16.1
 
 #### Patch Changes
@@ -756,6 +769,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.16.2
+
+#### Patch Changes
+
+- 9f07130: The published CLI now actually loads its command-local optional companions. The build had been inlining `@rulvar/planner`, `@rulvar/plan`, and `@rulvar/evals` into local chunks, so the packed `rulvar plan` failed with a false "install @rulvar/planner" even with the planner installed (the inlined eslint broke at load time and a bare catch reported it as missing), while `rulvar kb inbox` ran without `@rulvar/plan` installed, against the documented dependency contract. The three companions are external again (dist keeps the real `import("@rulvar/...")` specifiers, the planner's worker sandbox loads from the installed package, and the CLI dist shrinks from megabytes to about 82 kB), and import failures are classified: only a genuine module-not-found for the requested companion produces the install hint, while an installed companion that fails to initialize surfaces its own error with the cause preserved. A packed-consumer E2E matrix (`scripts/cli-smoke.mjs`) now gates releases on exactly this behavior.
+  - @rulvar/core@1.16.2
 
 ### 1.16.1
 
@@ -1202,6 +1222,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.16.2
 
 ### 1.16.1
 
@@ -2197,6 +2219,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.16.2
+
 ### 1.16.1
 
 ### 1.16.0
@@ -2295,6 +2319,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.16.2
+
+#### Patch Changes
+
+- @rulvar/core@1.16.2
+- @rulvar/testing@1.16.2
 
 ### 1.16.1
 
@@ -2670,6 +2701,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.16.2
+
+#### Patch Changes
+
+- @rulvar/core@1.16.2
 
 ### 1.16.1
 
@@ -3110,6 +3147,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.16.2
+
+#### Patch Changes
+
+- @rulvar/core@1.16.2
+
 ### 1.16.1
 
 #### Patch Changes
@@ -3525,6 +3568,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.16.2
+
+#### Patch Changes
+
+- @rulvar/core@1.16.2
+- eslint-plugin-rulvar@1.16.2
+
 ### 1.16.1
 
 #### Patch Changes
@@ -3873,6 +3923,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.16.2
+
+#### Patch Changes
+
+- Updated dependencies [9f07130]
+  - @rulvar/anthropic@1.16.2
+  - @rulvar/core@1.16.2
+  - @rulvar/openai@1.16.2
 
 ### 1.16.1
 
@@ -4337,6 +4396,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.16.2
+
+#### Patch Changes
+
+- @rulvar/core@1.16.2
+
 ### 1.16.1
 
 #### Patch Changes
@@ -4710,6 +4775,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.16.2
+
+#### Patch Changes
+
+- @rulvar/core@1.16.2
+
 ### 1.16.1
 
 #### Patch Changes
@@ -5033,6 +5104,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.16.2
+
+#### Patch Changes
+
+- @rulvar/core@1.16.2
 
 ### 1.16.1
 

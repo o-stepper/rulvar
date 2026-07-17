@@ -1,6 +1,6 @@
 {
   "name": "@rulvar/bridge-ai-sdk",
-  "version": "1.16.1",
+  "version": "1.16.2",
   "description": "Rulvar bridge adapter wrapping any Vercel AI SDK LanguageModelV4 as a ProviderAdapter.",
   "type": "module",
   "license": "Apache-2.0",
