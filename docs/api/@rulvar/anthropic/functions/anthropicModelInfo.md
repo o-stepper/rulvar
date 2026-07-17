@@ -10,7 +10,7 @@
 function anthropicModelInfo(model): AnthropicModelInfo;
 ```
 
-Defined in: [packages/anthropic/src/caps.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/caps.ts#L157)
+Defined in: [packages/anthropic/src/caps.ts:165](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/caps.ts#L165)
 
 ## Parameters
 

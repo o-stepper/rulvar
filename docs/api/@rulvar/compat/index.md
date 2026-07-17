@@ -37,12 +37,6 @@ pnpm add @rulvar/compat
 
 [Apache-2.0](https://github.com/o-stepper/rulvar/blob/main/LICENSE)
 
-## Interfaces
-
-| Interface | Description |
-| ------ | ------ |
-| [KeyDeriver](/api/@rulvar/compat/interfaces/KeyDeriver.md) | - |
-
 ## Variables
 
 | Variable | Description |

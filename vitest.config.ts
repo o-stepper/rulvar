@@ -6,16 +6,17 @@
 // adapters from M1-T12 onward) resolve through the packages' exports maps,
 // which point at dist/: build before testing (`pnpm build`, cheap and
 // cached under Turborepo; CI test jobs do the same).
-import { existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
+import { ensureRunScopedMemoDir } from './scripts/vitest-warning-dedupe.mjs';
+
 // Run-scoped memo dir for the warning dedupe below: workers inherit the
 // env, so the first RulvarWarning per code prints once per RUN, not
-// once per per-file fork.
-process.env.RULVAR_VITEST_WARNING_MEMO_DIR ??= mkdtempSync(join(tmpdir(), 'rulvar-vitest-warn-'));
+// once per per-file fork. The dir is removed when this (main) process
+// exits.
+ensureRunScopedMemoDir();
 
 // 'packages/*' plus 'examples', expanded by hand: glob-string projects
 // inherit nothing from this config, and each project must inherit the
@@ -34,7 +35,9 @@ export default defineConfig({
     // Per worker process: keep the first RulvarWarning per code, swallow
     // the hundreds of deliberate fixture repeats that made the suite
     // output ~85 percent duplicate advisory lines.
-    setupFiles: [fileURLToPath(new URL('./scripts/vitest-warning-dedupe.mjs', import.meta.url))],
+    setupFiles: [
+      fileURLToPath(new URL('./scripts/vitest-warning-dedupe.setup.mjs', import.meta.url)),
+    ],
     projects: projectRoots.map((root) => ({
       extends: true,
       test: {

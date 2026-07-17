@@ -20,7 +20,7 @@ Embed the engine directly for scripts, tests, and single-process apps. Reach for
 pnpm add @rulvar/cli
 ```
 
-The package is ESM only and requires Node >= 22.12.0, like the rest of Rulvar. Some commands load optional companions dynamically at command time: `rulvar plan` needs `@rulvar/planner` installed, `rulvar kb sweep` needs `@rulvar/evals`, and `rulvar kb inbox` and `rulvar kb gate` need `@rulvar/plan`. A missing companion is a clear error on that command, never a load failure of the others. The OTel exporter declares `@opentelemetry/api` (^1.9) as an optional peer.
+The package is ESM only and requires Node >= 22.12.0, like the rest of Rulvar. Some commands load optional companions dynamically at command time: `rulvar plan` needs `@rulvar/planner` installed, `rulvar kb sweep` needs `@rulvar/evals`, and `rulvar kb inbox` and `rulvar kb gate` need `@rulvar/plan`. A missing companion is a clear error on that command, never a load failure of the others, and missing is distinguished from broken: only a real module-not-found for the companion itself produces the install hint, while an installed companion that fails to load surfaces its own error with the cause preserved. The OTel exporter declares `@opentelemetry/api` (^1.9) as an optional peer.
 
 One naming caveat: run the binary from a project that installs `@rulvar/cli` (`pnpm exec rulvar ...` or a package script). A bare `npx rulvar` in a project without it fetches the unscoped `rulvar` package from the registry, which is the library alias and ships no binary.
 

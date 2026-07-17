@@ -1,0 +1,5 @@
+---
+'@rulvar/cli': patch
+---
+
+The published CLI now actually loads its command-local optional companions. The build had been inlining `@rulvar/planner`, `@rulvar/plan`, and `@rulvar/evals` into local chunks, so the packed `rulvar plan` failed with a false "install @rulvar/planner" even with the planner installed (the inlined eslint broke at load time and a bare catch reported it as missing), while `rulvar kb inbox` ran without `@rulvar/plan` installed, against the documented dependency contract. The three companions are external again (dist keeps the real `import("@rulvar/...")` specifiers, the planner's worker sandbox loads from the installed package, and the CLI dist shrinks from megabytes to about 82 kB), and import failures are classified: only a genuine module-not-found for the requested companion produces the install hint, while an installed companion that fails to initialize surfaces its own error with the cause preserved. A packed-consumer E2E matrix (`scripts/cli-smoke.mjs`) now gates releases on exactly this behavior.

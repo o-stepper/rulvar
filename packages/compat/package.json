@@ -1,7 +1,7 @@
 {
   "name": "@rulvar/compat",
   "version": "0.1.0",
-  "description": "Rulvar frozen KeyDeriver profiles for hashVersions outside the support window (DEF-6); independently versioned.",
+  "description": "rulvar frozen KeyDeriver profiles for hashVersions outside the support window (DEF-6); independently versioned.",
   "type": "module",
   "license": "Apache-2.0",
   "engines": {
@@ -28,12 +28,12 @@
     "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only"
   },
   "dependencies": {
-    "@rulvar/core": "workspace:*"
+    "@rulvar/core": "1.0.0"
   },
   "devDependencies": {
-    "@types/node": "catalog:",
-    "tsdown": "catalog:",
-    "typescript": "catalog:"
+    "@types/node": "^22.20.0",
+    "tsdown": "^0.22.3",
+    "typescript": "~6.0.3"
   },
   "repository": {
     "type": "git",

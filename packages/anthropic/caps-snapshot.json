@@ -1,0 +1,17 @@
+{
+  "comment": "Verified context window and max output figures for every row of ANTHROPIC_MODELS. The offline caps test fails when src/caps.ts and this file disagree, so changing either side is a conscious two-file review. The weekly live contract workflow compares this snapshot against GET /v1/models and pages on provider-side drift. Not published (files whitelists dist only).",
+  "verifiedAt": "2026-07-17",
+  "sources": [
+    "https://platform.claude.com/docs/en/about-claude/models/overview",
+    "GET https://api.anthropic.com/v1/models/{id} (max_input_tokens / max_tokens)"
+  ],
+  "models": {
+    "claude-fable-5": { "contextWindow": 1000000, "maxOutputTokens": 128000 },
+    "claude-opus-4-8": { "contextWindow": 1000000, "maxOutputTokens": 128000 },
+    "claude-opus-4-7": { "contextWindow": 1000000, "maxOutputTokens": 128000 },
+    "claude-sonnet-5": { "contextWindow": 1000000, "maxOutputTokens": 128000 },
+    "claude-haiku-4-5": { "contextWindow": 200000, "maxOutputTokens": 64000 },
+    "claude-opus-4-6": { "contextWindow": 1000000, "maxOutputTokens": 128000 },
+    "claude-sonnet-4-6": { "contextWindow": 1000000, "maxOutputTokens": 128000 }
+  }
+}

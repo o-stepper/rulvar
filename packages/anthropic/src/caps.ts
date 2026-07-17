@@ -14,6 +14,14 @@
  * distinguish 1h writes, so the 5m rate is the seed). A price revision
  * is a new release with a new pricingVersion, never a wall-clock switch
  * inside a run.
+ *
+ * Window/output rows mirror the official models table and the live
+ * GET /v1/models figures as of 2026-07-17 (the v1.16.1 review caught
+ * five stale rows). caps-snapshot.json next to this package pins every
+ * row: editing one side without the other fails the offline snapshot
+ * test, and the weekly live contract workflow audits the snapshot
+ * against GET /v1/models, so a provider-side raise pages instead of
+ * silently under-provisioning admission and compaction.
  */
 import type { Effort, ModelCaps, ModelRef, PriceTable, Pricing } from '@rulvar/core';
 
@@ -71,22 +79,22 @@ export const ANTHROPIC_MODELS: Record<string, AnthropicModelInfo> = {
     2_048,
   ),
   'claude-opus-4-8': current(
-    400_000,
+    1_000_000,
     128_000,
     { in: 5, out: 25, cacheRead: 0.5, cacheWrite: 6.25 },
     4_096,
   ),
   'claude-opus-4-7': current(
-    400_000,
-    64_000,
+    1_000_000,
+    128_000,
     { in: 5, out: 25, cacheRead: 0.5, cacheWrite: 6.25 },
     4_096,
   ),
   // Introductory pricing in effect through 2026-08-31; the standard
   // 3/15/0.3/3.75 row ships in a release after the promotion ends.
   'claude-sonnet-5': current(
-    400_000,
-    64_000,
+    1_000_000,
+    128_000,
     { in: 2, out: 10, cacheRead: 0.2, cacheWrite: 2.5 },
     2_048,
   ),
@@ -111,11 +119,11 @@ export const ANTHROPIC_MODELS: Record<string, AnthropicModelInfo> = {
     };
   })(),
   'claude-opus-4-6': {
-    ...current(200_000, 32_000, { in: 5, out: 25, cacheRead: 0.5, cacheWrite: 6.25 }, 4_096),
+    ...current(1_000_000, 128_000, { in: 5, out: 25, cacheRead: 0.5, cacheWrite: 6.25 }, 4_096),
     thinkingForm: 'enabled-budget',
   },
   'claude-sonnet-4-6': {
-    ...current(200_000, 64_000, { in: 3, out: 15, cacheRead: 0.3, cacheWrite: 3.75 }, 2_048),
+    ...current(1_000_000, 128_000, { in: 3, out: 15, cacheRead: 0.3, cacheWrite: 3.75 }, 2_048),
     thinkingForm: 'enabled-budget',
   },
 };

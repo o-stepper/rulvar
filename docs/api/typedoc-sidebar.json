@@ -290,16 +290,6 @@
     "collapsed": true,
     "items": [
       {
-        "text": "Interfaces",
-        "collapsed": true,
-        "items": [
-          {
-            "text": "KeyDeriver",
-            "link": "/api/@rulvar/compat/interfaces/KeyDeriver.md"
-          }
-        ]
-      },
-      {
         "text": "Variables",
         "collapsed": true,
         "items": [

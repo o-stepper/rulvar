@@ -178,7 +178,8 @@ Built from [docs/](docs/README.md) and published at [docs.rulvar.com](https://do
 
 ## Development
 
-Node.js 22.12.0 or newer and pnpm 11 (pinned via `packageManager`): `pnpm install`, then
+Node.js 22.13.0 or newer for the workspace (the pinned pnpm 11 refuses to start below
+that; the published packages themselves keep running on 22.12.0+): `pnpm install`, then
 `pnpm build`, `pnpm test`, `pnpm lint`. Details in [CONTRIBUTING.md](CONTRIBUTING.md);
 contributions are accepted under the DCO (`git commit -s`).
 

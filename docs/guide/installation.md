@@ -151,4 +151,4 @@ pnpm build
 pnpm test
 ```
 
-The workspace pins its pnpm version through the `packageManager` field, which `corepack enable` picks up automatically; development targets Node 24 while CI tests the Node 22 floor. See the [Contributing guide](/contributing/) for the full workflow.
+The workspace pins its pnpm version through the `packageManager` field, which `corepack enable` picks up automatically. The workspace toolchain needs Node 22.13.0 or newer (the pinned pnpm's own floor), development targets Node 24, and a dedicated CI job runs the full built suite on the exact 22.12.0 binary that the published packages promise as their runtime floor. See the [Contributing guide](/contributing/) for the full workflow.

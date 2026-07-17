@@ -48,6 +48,8 @@ Every adapter answers `caps(model)` with a `ModelCaps` record, the capability fa
 
 Adapters that implement `refreshCaps()` can refresh their capability table from the provider's live model list. Price updates are deliberately not a side effect of that: they are registry updates with a `pricingVersion` bump.
 
+The first-party tables are verified static seeds, and nothing calls `refreshCaps()` for you: call it before `createEngine` when routing, compaction, and the output clamp should see the provider's current window and output figures instead of the seeded ones. See [Providers](/guide/providers#rulvar-anthropic) for the pattern.
+
 ## The resolution chain
 
 Resolution is a layered merge of `{ model, effort, providerOptions, fallbacks }`, highest priority first:

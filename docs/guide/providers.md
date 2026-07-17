@@ -222,6 +222,16 @@ const adapter = anthropic({
 
 The adapter id is `anthropic`; address models as `anthropic:claude-sonnet-5`, `anthropic:claude-fable-5`, and so on. `ANTHROPIC_MODELS` exports the seeded capability table, and `refreshCaps()` corrects context window and output figures from the live model list. `countTokens` is implemented over the stateless count tokens endpoint.
 
+The capability table is a **static seed**, verified against the provider's official figures on the release date, and the engine never refreshes it on its own: a hidden network call inside `createEngine` would make run identity depend on wall-clock provider state. When the host wants live figures driving admission, compaction, and the output clamp, refresh the adapter before handing it to the engine:
+
+```ts
+const adapter = anthropic();
+await adapter.refreshCaps(); // GET /v1/models, paginated; corrects window/output rows
+const engine = createEngine({ adapters: [adapter] /* ... */ });
+```
+
+A refresh failure rejects without touching the seed table, and pricing is never a refresh side effect: price revisions ship as versioned releases.
+
 `ANTHROPIC_PRICING` exports the same pricing rows as a versioned `PriceTable` (`pricingVersion: "anthropic-2026-07-16"`, mirroring the official price list published on that date; Claude Sonnet 5 carries its introductory price, in effect through 2026-08-31). Pass it to `createEngine({ pricing })` so runs journal a concrete pricing version instead of `unpriced`; see [Model routing](/guide/model-routing#the-versioned-price-table) for the override pattern when a promotion ends or the provider revises prices.
 
 Provider notes:

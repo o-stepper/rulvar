@@ -41,6 +41,49 @@ export interface CommandContext {
   io: CliIo;
 }
 
+/**
+ * True exactly when a companion dynamic import failed because THAT
+ * package is not installed (the v1.16.1 review P1): the Node code must
+ * be ERR_MODULE_NOT_FOUND and the quoted missing specifier must be the
+ * requested companion itself. A transitive miss inside a found
+ * companion (same code, different quoted specifier) or any throw during
+ * module evaluation is that package's own defect, never install advice.
+ */
+export function isCompanionMissing(error: unknown, specifier: string): boolean {
+  return (
+    error instanceof Error &&
+    (error as NodeJS.ErrnoException).code === 'ERR_MODULE_NOT_FOUND' &&
+    error.message.includes(`'${specifier}'`)
+  );
+}
+
+/**
+ * Awaits a command-local companion import. Call sites keep the literal
+ * `import('@rulvar/...')` so the specifier stays analyzable and the
+ * tsdown external rule preserves it in dist. Missing package: the
+ * friendly ConfigError install hint. Anything else: the original error
+ * survives as `cause` under a command-prefixed message.
+ */
+export async function loadCompanion<T>(
+  loading: Promise<unknown>,
+  specifier: string,
+  command: string,
+  missingMessage: string,
+): Promise<T> {
+  try {
+    return (await loading) as T;
+  } catch (error) {
+    if (isCompanionMissing(error, specifier)) {
+      throw new ConfigError(missingMessage);
+    }
+    throw new Error(
+      `${command}: ${specifier} is installed but failed to load; the cause below is a defect ` +
+        'in the installed package or its dependencies, not a missing install',
+      { cause: error },
+    );
+  }
+}
+
 interface CommonFlags {
   store?: string;
 }
@@ -302,7 +345,7 @@ export async function planCommand(argv: string[], context: CommandContext): Prom
   if (goal === undefined || parsed.positionals.length > 1) {
     throw new ConfigError('usage: rulvar plan "<goal>" [--dry-run]');
   }
-  let plannerModule: {
+  interface PlannerModule {
     plan: (
       engine: unknown,
       goal: string,
@@ -311,15 +354,14 @@ export async function planCommand(argv: string[], context: CommandContext): Prom
       workflow: unknown;
       lint: Array<{ ruleId: string; message: string }>;
     }>;
-  };
-  try {
-    plannerModule = (await import('@rulvar/planner')) as unknown as typeof plannerModule;
-  } catch {
-    throw new ConfigError(
-      'rulvar plan requires @rulvar/planner (the plan agent, compileScript, and the worker ' +
-        'sandbox live there); install it next to the CLI',
-    );
   }
+  const plannerModule = await loadCompanion<PlannerModule>(
+    import('@rulvar/planner'),
+    '@rulvar/planner',
+    'rulvar plan',
+    'rulvar plan requires @rulvar/planner (the plan agent, compileScript, and the worker ' +
+      'sandbox live there); install it next to the CLI',
+  );
   const config = await loadCliConfig(context.cwd);
   const assembled = assembleEngine({ config, cwd: context.cwd });
   const planned = await plannerModule.plan(assembled.engine, goal);
@@ -461,14 +503,12 @@ async function kbInboxCommand(argv: string[], context: CommandContext): Promise<
   if (flags.positionals.length > 0) {
     throw new ConfigError('usage: rulvar kb inbox [--store PATH]');
   }
-  let plan: PlanLedgerModule;
-  try {
-    plan = (await import('@rulvar/plan')) as unknown as PlanLedgerModule;
-  } catch {
-    throw new ConfigError(
-      'rulvar kb inbox requires @rulvar/plan (the RunLedger fold behind the LedgerExport seam)',
-    );
-  }
+  const plan = await loadCompanion<PlanLedgerModule>(
+    import('@rulvar/plan'),
+    '@rulvar/plan',
+    'rulvar kb inbox',
+    'rulvar kb inbox requires @rulvar/plan (the RunLedger fold behind the LedgerExport seam)',
+  );
   const config = await loadCliConfig(context.cwd);
   const assembled = assembleEngine({
     config,
@@ -671,14 +711,12 @@ async function kbGateCommand(argv: string[], context: CommandContext): Promise<n
     );
   }
 
-  let plan: PlanLedgerModule;
-  try {
-    plan = (await import('@rulvar/plan')) as unknown as PlanLedgerModule;
-  } catch {
-    throw new ConfigError(
-      'rulvar kb gate requires @rulvar/plan (the RunLedger fold behind the LedgerExport seam)',
-    );
-  }
+  const plan = await loadCompanion<PlanLedgerModule>(
+    import('@rulvar/plan'),
+    '@rulvar/plan',
+    'rulvar kb gate',
+    'rulvar kb gate requires @rulvar/plan (the RunLedger fold behind the LedgerExport seam)',
+  );
   const config = await loadCliConfig(context.cwd);
   const assembled = assembleEngine({
     config,
@@ -832,15 +870,13 @@ async function kbSweepCommand(argv: string[], context: CommandContext): Promise<
         '({ committerId, models, cases })',
     );
   }
-  let evals: EvalsModule;
-  try {
-    evals = (await import('@rulvar/evals')) as unknown as EvalsModule;
-  } catch {
-    throw new ConfigError(
-      'rulvar kb sweep requires @rulvar/evals (matrix sweeps, the eval-committer identity, ' +
-        'and the canary live there); install it next to the CLI',
-    );
-  }
+  const evals = await loadCompanion<EvalsModule>(
+    import('@rulvar/evals'),
+    '@rulvar/evals',
+    'rulvar kb sweep',
+    'rulvar kb sweep requires @rulvar/evals (matrix sweeps, the eval-committer identity, ' +
+      'and the canary live there); install it next to the CLI',
+  );
   const store = new FileModelKnowledgeStore({ path: join(context.cwd, 'rulvar.models.json') });
   const snapshot = await store.current();
   const observedAt = new Date().toISOString();
