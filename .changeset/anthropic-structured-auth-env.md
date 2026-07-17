@@ -1,5 +1,0 @@
----
-'@rulvar/anthropic': minor
----
-
-Structured auth wins over ambient env (v1.15 review P2-2). The underlying SDK lets any `apiKey`, one it read from `ANTHROPIC_API_KEY` included, beat a configured `credentials`/`config`/`profile` token provider: the provider was called zero times and requests carried `x-api-key` from the environment. When `sdkOptions` carries structured auth and no `apiKey`/`authToken` is set anywhere, the adapter now passes explicit `apiKey: null, authToken: null` to the SDK, so the configured provider is the one that authenticates regardless of what the environment exports. Setting an `apiKey` or `authToken` yourself next to structured auth keeps verbatim forwarding and the SDK's own precedence, which is now documented exactly (apiKey, then token providers, then authToken). Covered by synthetic tests for the provider, an end-to-end file-backed `profile` (static `user_oauth` token, `ANTHROPIC_CONFIG_DIR` isolated, 0600 credentials), and the explicit-key-beside-provider case.
