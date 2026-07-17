@@ -279,19 +279,56 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
 }
 
 /**
- * rulvar plan "<goal>" [--dry-run] (M6-T11): plans a
- * workflow script through @rulvar/planner (loaded dynamically: the CLI's
- * static dependency stays @rulvar/core only),
- * prints the accepted script and its advisories, and runs it in the
- * worker sandbox unless --dry-run.
+ * rulvar plan (M6-T11; grammar in grammar.ts): plans a workflow script
+ * through @rulvar/planner (loaded dynamically: the CLI's static
+ * dependency stays @rulvar/core only), prints the accepted script and
+ * its advisories, and runs it in the worker sandbox unless --dry-run.
+ *
+ * Both stages are paid runs with their OWN immutable ceilings (the
+ * v1.16.2 review P1-1): --planning-budget-usd caps the planning run
+ * (PlanOptions.run.budgetUsd, frozen at the planning journal's
+ * genesis), --budget-usd caps the execution run (RunOptions.budgetUsd,
+ * consistent with rulvar run). A machine-written workflow never runs
+ * unbounded silently: missing ceilings fail loudly unless
+ * --allow-unbounded waives them explicitly, and an execution ceiling
+ * beside --dry-run is a contradiction, not an ignorable leftover.
  */
 export async function planCommand(argv: string[], context: CommandContext): Promise<number> {
   const parsed = parseCommand(GRAMMAR.plan, argv);
   const goal = parsed.positionals[0];
+  const dryRun = parsed.values['dry-run'] === true;
+  const allowUnbounded = parsed.values['allow-unbounded'] === true;
+  const planningBudgetUsd =
+    parsed.values['planning-budget-usd'] === undefined
+      ? undefined
+      : parseBudgetValue('planning-budget-usd', parsed.values['planning-budget-usd'] as string);
+  const executionBudgetUsd =
+    parsed.values['budget-usd'] === undefined
+      ? undefined
+      : parseBudgetValue('budget-usd', parsed.values['budget-usd'] as string);
+  if (dryRun && executionBudgetUsd !== undefined) {
+    throw new ConfigError(
+      '--dry-run never executes the planned workflow, so --budget-usd (the execution ' +
+        'ceiling) has nothing to bound; drop one of the two',
+    );
+  }
+  if (!allowUnbounded && planningBudgetUsd === undefined) {
+    throw new ConfigError(
+      'rulvar plan runs the planner model as a paid run; set --planning-budget-usd N ' +
+        '(its immutable ceiling) or waive it explicitly with --allow-unbounded',
+    );
+  }
+  if (!allowUnbounded && !dryRun && executionBudgetUsd === undefined) {
+    throw new ConfigError(
+      'executing the planned workflow is a second paid run; set --budget-usd N ' +
+        '(its immutable ceiling) or waive it explicitly with --allow-unbounded',
+    );
+  }
   interface PlannerModule {
     plan: (
       engine: unknown,
       goal: string,
+      options?: { run?: { budgetUsd?: number } },
     ) => Promise<{
       source: string;
       workflow: unknown;
@@ -307,17 +344,25 @@ export async function planCommand(argv: string[], context: CommandContext): Prom
   );
   const config = await loadCliConfig(context.cwd);
   const assembled = assembleEngine({ config, cwd: context.cwd });
-  const planned = await plannerModule.plan(assembled.engine, goal);
+  const planned = await plannerModule.plan(
+    assembled.engine,
+    goal,
+    planningBudgetUsd === undefined ? undefined : { run: { budgetUsd: planningBudgetUsd } },
+  );
   context.io.err(`plan: accepted with ${String(planned.lint.length)} advisory diagnostic(s)`);
   for (const diagnostic of planned.lint) {
     context.io.err(`  ${diagnostic.ruleId}: ${diagnostic.message}`);
   }
-  if (parsed.values['dry-run'] === true) {
+  if (dryRun) {
     context.io.out(planned.source);
     return 0;
   }
   const workflow = planned.workflow as Workflow<unknown, unknown>;
-  const first = assembled.engine.run(workflow, null);
+  const first = assembled.engine.run(
+    workflow,
+    null,
+    executionBudgetUsd === undefined ? {} : { budgetUsd: executionBudgetUsd },
+  );
   context.io.err(`runId: ${first.runId}`);
   const outcome = await driveRun({
     engine: assembled.engine,

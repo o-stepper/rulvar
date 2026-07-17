@@ -73,7 +73,12 @@ export const GRAMMAR: {
   plan: {
     command: 'plan',
     positionals: ['"<goal>"'],
-    flags: [{ name: 'dry-run' }],
+    flags: [
+      { name: 'planning-budget-usd', placeholder: 'N' },
+      { name: 'budget-usd', placeholder: 'N' },
+      { name: 'allow-unbounded' },
+      { name: 'dry-run' },
+    ],
   },
   'kb list': { command: 'kb list', positionals: [], flags: [] },
   'kb inbox': { command: 'kb inbox', positionals: [], flags: [STORE] },

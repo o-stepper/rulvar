@@ -30,8 +30,11 @@ rulvar.config.mjs in the working directory (default export
 exports. --store selects the JsonlFileStore directory (default .rulvar).
 plan asks the planner model (role plan) to write a workflow script,
 lints and self-repairs it, then runs it in the worker sandbox; --dry-run
-prints the accepted script without running. Requires @rulvar/planner
-installed. kb list shows the per-project claim store
+prints the accepted script without running. Both stages are paid runs
+with their own immutable ceilings: --planning-budget-usd caps the
+planning run, --budget-usd caps the execution run, and a missing
+ceiling fails loudly unless --allow-unbounded waives it explicitly.
+Requires @rulvar/planner installed. kb list shows the per-project claim store
 (./rulvar.models.json) with full provenance. kb sweep runs the
 falsification matrix from the kbSweep section of rulvar.config.mjs
 (fixed pool UNIONED with every model carrying an active negative claim
