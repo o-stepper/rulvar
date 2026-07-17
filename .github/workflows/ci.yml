@@ -181,6 +181,27 @@ jobs:
       - name: Umbrella install smoke on packed tarballs
         run: node scripts/install-smoke.mjs
 
+  # Packed CLI companion matrix (the v1.16.1 review P1): the published
+  # binary in isolated npm consumers, never the source command
+  # functions. The bare install reports each missing companion with its
+  # exact message; an installed planner runs plan end to end through the
+  # worker sandbox; kb inbox/gate/sweep execute their features; a broken
+  # installed companion surfaces its cause instead of install advice;
+  # and dist keeps the three dynamic package specifiers un-bundled.
+  cli-smoke:
+    name: Packed CLI companion matrix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo build
+      - run: node scripts/cli-smoke.mjs
+
   # The pinned-pnpm bootstrap (v1.13 review P3-2): Turborepo spawns each
   # package task as `pnpm run <task>` resolved from PATH, so a stale
   # global pnpm earlier on PATH must not break the two supported entry
