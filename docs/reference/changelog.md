@@ -18,6 +18,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.15.0
+
+#### Minor Changes
+
+- 4aee1f3: Production auth surface (v1.14 review P2-2). New `sdkOptions` on `AnthropicAdapterOptions` forwards official SDK construction options verbatim, `maxRetries` excluded from the type (`AnthropicSdkOptions`) and forced to 0: bearer `authToken`, an `AccessTokenProvider` via `credentials`, `config` (OIDC/workload-identity federation), `profile`, plus `fetch`, `timeout`, and `defaultHeaders`. The `client` option now accepts the official `Anthropic` instance directly under strict TypeScript, no casts, alongside the structural `AnthropicClientLike` mock; an injected client with SDK autoretries enabled (`maxRetries !== 0`) is rejected with a typed `ConfigError`, as are `client` combined with construction options and the same field set both top-level and in `sdkOptions`, all before any network I/O. The implicit SDK credential chain (`ANTHROPIC_API_KEY`, then bearer `ANTHROPIC_AUTH_TOKEN`, then config files) is now documented and covered by tests.
+
+#### Patch Changes
+
+- @rulvar/core@1.15.0
+
 ### 1.14.0
 
 #### Patch Changes
@@ -416,6 +426,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.15.0
+
+#### Patch Changes
+
+- @rulvar/core@1.15.0
+
 ### 1.14.0
 
 #### Patch Changes
@@ -711,6 +727,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.15.0
+
+#### Patch Changes
+
+- @rulvar/core@1.15.0
 
 ### 1.14.0
 
@@ -1138,6 +1160,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.15.0
 
 ### 1.14.0
 
@@ -2127,6 +2151,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.15.0
+
 ### 1.14.0
 
 ### 1.13.0
@@ -2219,6 +2245,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.15.0
+
+#### Patch Changes
+
+- Updated dependencies [4aee1f3]
+  - @rulvar/testing@1.15.0
+  - @rulvar/core@1.15.0
 
 ### 1.14.0
 
@@ -2571,6 +2605,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.15.0
+
+#### Minor Changes
+
+- 4aee1f3: Production auth surface (v1.14 review P2-2). New `sdkOptions` on `OpenAiAdapterOptions` forwards official SDK construction options verbatim, `maxRetries` excluded from the type (`OpenAiSdkOptions`) and forced to 0: `workloadIdentity` federation included, plus `fetch`, `timeout`, and `defaultHeaders`. The `client` option now accepts the official `OpenAI` instance directly under strict TypeScript, no casts, alongside the structural `OpenAiClientLike` mock; an injected client with SDK autoretries enabled (`maxRetries !== 0`) is rejected with a typed `ConfigError`, as are `client` combined with construction options, duplicated fields, and the `apiKey` plus `sdkOptions.workloadIdentity` conflict, all before any network I/O. A synthetic workload-identity test covers the full path: one token exchange, one Responses API request under the short-lived bearer, canonical finish.
+
+#### Patch Changes
+
+- @rulvar/core@1.15.0
 
 ### 1.14.0
 
@@ -2989,6 +3033,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.15.0
+
+#### Patch Changes
+
+- @rulvar/core@1.15.0
+
 ### 1.14.0
 
 #### Patch Changes
@@ -3386,6 +3436,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.15.0
+
+#### Patch Changes
+
+- @rulvar/core@1.15.0
+- eslint-plugin-rulvar@1.15.0
+
 ### 1.14.0
 
 #### Patch Changes
@@ -3713,6 +3770,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.15.0
+
+#### Patch Changes
+
+- Updated dependencies [4aee1f3]
+- Updated dependencies [4aee1f3]
+  - @rulvar/anthropic@1.15.0
+  - @rulvar/openai@1.15.0
+  - @rulvar/core@1.15.0
 
 ### 1.14.0
 
@@ -4149,6 +4216,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.15.0
+
+#### Patch Changes
+
+- @rulvar/core@1.15.0
+
 ### 1.14.0
 
 #### Patch Changes
@@ -4504,6 +4577,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.15.0
+
+#### Patch Changes
+
+- @rulvar/core@1.15.0
+
 ### 1.14.0
 
 #### Patch Changes
@@ -4809,6 +4888,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.15.0
+
+#### Minor Changes
+
+- 4aee1f3: Harden `runLiveSmoke` (v1.14 review P2-1 and P3-1). Options are validated before any stream opens: `attempts` must be an integer from 1 to the new exported `MAX_LIVE_SMOKE_ATTEMPTS` (10) and `baseDelayMs` a non-negative integer; anything else, `NaN`, `Infinity`, and fractions included, rejects with a typed `ConfigError` instead of being clamped, defaulted, or (for `Infinity`) allowed to spend without bound. The provider SPI's terminal contract is now enforced per attempt: a stream with multiple terminal events, or whose single terminal is not the final event, classifies as the new `'contract-violation'` outcome (`reason: 'multiple-terminals' | 'terminal-not-final'`) and is never retried; `'no-terminal'` keeps meaning exactly zero terminals. Previously an `error` followed by a `finish` classified as `'ok'`, and explicit `attempts: 0` or fractional values were silently coerced. `DEFAULT_LIVE_SMOKE_ATTEMPTS` is also exported.
+
+#### Patch Changes
+
+- @rulvar/core@1.15.0
 
 ### 1.14.0
 
