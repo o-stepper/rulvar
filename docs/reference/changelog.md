@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.17.0
+
+#### Patch Changes
+
+- @rulvar/core@1.17.0
+
 ### 1.16.2
 
 #### Patch Changes
@@ -450,6 +456,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.17.0
+
+#### Patch Changes
+
+- @rulvar/core@1.17.0
+
 ### 1.16.2
 
 #### Patch Changes
@@ -769,6 +781,20 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.17.0
+
+#### Minor Changes
+
+- 7909b6b: Every paid CLI surface is now budget-bounded, and the grammar ignores nothing (the v1.16.2 review P1-1, P1-2, P2-1, P3-1).
+
+  - `rulvar plan` gained separate immutable ceilings for its two paid runs: `--planning-budget-usd N` freezes as the planning run's B0 at its journal's genesis (`PlanOptions.run.budgetUsd`) and `--budget-usd N` caps the execution run exactly like `rulvar run`. A machine-written workflow never runs unbounded silently: missing ceilings fail loudly unless `--allow-unbounded` waives them explicitly, and `--dry-run` beside `--budget-usd` is a contradiction, not an ignorable leftover.
+  - `rulvar kb sweep` requires `kbSweep.budgets` (`{ targetUsd, judgeUsd, canaryUsd, maxTotalUsd }`) or an explicit `kbSweep.allowUnbounded: true`: every target, judge, and canary run carries an immutable per-run ceiling, the whole sweep authorizes against the debit-only `maxTotalUsd` envelope (falsification pool growth included), the worst-case authorized spend prints before the first provider call, and envelope-refused or ceiling-exhausted cells report honestly and emit no claim. Canary drift flips claims stale only when every probe settled `ok`, so a budget-starved or transiently failing probe can never blame the model.
+  - The canonical grammar is one data structure now: `--help`, every per-command usage error, and the documented grammar block render from it and are locked together by tests. Nothing accepted is ignored: `resume` rejects `--budget-usd` and `--profile` at parse time (the ceiling is immutable from genesis by the documented budget invariant), every command enforces exact positional arity, duplicate value flags fail, and unknown options report as ConfigError usage lines instead of raw parseArgs stack traces. All rejections happen before any config, store, or adapter loads, with zero provider calls and byte-identical journals.
+
+#### Patch Changes
+
+- @rulvar/core@1.17.0
 
 ### 1.16.2
 
@@ -1222,6 +1248,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.17.0
 
 ### 1.16.2
 
@@ -2219,6 +2247,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.17.0
+
 ### 1.16.2
 
 ### 1.16.1
@@ -2319,6 +2349,22 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.17.0
+
+#### Minor Changes
+
+- 7909b6b: Budget surfaces for sweeps and the canary (the v1.16.2 review P1-2).
+
+  - New `SpendEnvelope(maxTotalUsd)`: the debit-only aggregate bound over a whole sweep. Every target, judge, and canary run authorizes its immutable per-run ceiling against it BEFORE starting (integer micro-USD accounting, so exact fits pass); a refusal throws the new `SweepBudgetError` before any provider work, and authorizations are never returned, not on completion, not on replay, not on CAS retries.
+  - `runEvalCase`, `runEvalSuite`, and `runSweepMatrix` accept `envelope`; an envelope requires the matching per-run ceiling (`budgetUsd`, and `judgeBudgetUsd` once a grader judges), because an unbounded run under an aggregate envelope would be unaccountable.
+  - Sweep cells now separate measurement from budget artifacts: a cell the envelope refused reports `envelopeExhausted`, a cell whose target runs hit their own ceiling reports `exhaustedRuns`, and neither emits a claim, so a budget-starved measurement can never become a false weakness belief about the model.
+  - New `runCanary(engine, probes, { budgetUsd?, envelope? })` returns `{ fingerprint, allOk, probes }`: each probe run carries the optional immutable ceiling, and `allOk` is the drift-flip gate, because a non-`ok` probe fingerprints differently without the model having drifted. `canaryFingerprint` stays exported (now accepting the same options) for fingerprint-only callers.
+
+#### Patch Changes
+
+- @rulvar/core@1.17.0
+- @rulvar/testing@1.17.0
 
 ### 1.16.2
 
@@ -2701,6 +2747,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.17.0
+
+#### Patch Changes
+
+- @rulvar/core@1.17.0
 
 ### 1.16.2
 
@@ -3147,6 +3199,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.17.0
+
+#### Patch Changes
+
+- @rulvar/core@1.17.0
+
 ### 1.16.2
 
 #### Patch Changes
@@ -3568,6 +3626,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.17.0
+
+#### Patch Changes
+
+- @rulvar/core@1.17.0
+- eslint-plugin-rulvar@1.17.0
+
 ### 1.16.2
 
 #### Patch Changes
@@ -3923,6 +3988,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.17.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.17.0
+- @rulvar/core@1.17.0
+- @rulvar/openai@1.17.0
 
 ### 1.16.2
 
@@ -4396,6 +4469,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.17.0
+
+#### Patch Changes
+
+- @rulvar/core@1.17.0
+
 ### 1.16.2
 
 #### Patch Changes
@@ -4775,6 +4854,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.17.0
+
+#### Patch Changes
+
+- @rulvar/core@1.17.0
+
 ### 1.16.2
 
 #### Patch Changes
@@ -5104,6 +5189,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.17.0
+
+#### Patch Changes
+
+- @rulvar/core@1.17.0
 
 ### 1.16.2
 
