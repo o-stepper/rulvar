@@ -221,12 +221,16 @@ writeFileSync(
     '',
   ].join('\n'),
 );
-check('installed plan --dry-run prints the accepted script', rulvar(bare, ['plan', 'smoke goal', '--dry-run']), {
-  code: 0,
-  outIncludes: ['const startedAt = now();'],
-  errIncludes: ['plan: accepted'],
-  errExcludes: [MISSING_PLANNER, 'failed to load'],
-});
+check(
+  'installed plan --dry-run prints the accepted script',
+  rulvar(bare, ['plan', 'smoke goal', '--dry-run']),
+  {
+    code: 0,
+    outIncludes: ['const startedAt = now();'],
+    errIncludes: ['plan: accepted'],
+    errExcludes: [MISSING_PLANNER, 'failed to load'],
+  },
+);
 const fullPlan = rulvar(bare, ['plan', 'smoke goal, executed']);
 check('installed plan executes through the worker sandbox', fullPlan, {
   code: 0,
@@ -280,7 +284,10 @@ check(
   rulvar(broken, ['plan', 'goal', '--dry-run']),
   {
     code: 1,
-    errIncludes: ['synthetic companion init failure', '@rulvar/planner is installed but failed to load'],
+    errIncludes: [
+      'synthetic companion init failure',
+      '@rulvar/planner is installed but failed to load',
+    ],
     errExcludes: ['install it next to the CLI'],
   },
 );

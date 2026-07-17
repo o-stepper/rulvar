@@ -31,9 +31,7 @@
       },
       "./package.json": "./package.json"
     },
-    "files": [
-      "dist"
-    ],
+    "files": ["dist"],
     "homepage": "https://rulvar.com",
     "license": "Apache-2.0",
     "name": "@rulvar/compat",

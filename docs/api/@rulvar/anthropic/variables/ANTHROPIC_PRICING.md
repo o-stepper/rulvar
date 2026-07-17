@@ -10,7 +10,7 @@
 const ANTHROPIC_PRICING: PriceTable;
 ```
 
-Defined in: [packages/anthropic/src/caps.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/caps.ts#L144)
+Defined in: [packages/anthropic/src/caps.ts:152](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/caps.ts#L152)
 
 The seed pricing rows as a versioned price table, keyed by full
 ModelRef under the adapter's fixed id 'anthropic'. Pass it to

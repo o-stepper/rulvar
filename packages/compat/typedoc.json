@@ -1,4 +1,5 @@
 {
   "$schema": "https://typedoc.org/schema.json",
-  "extends": ["../../docs/typedoc.package.json"]
+  "extends": ["../../docs/typedoc.package.json"],
+  "readme": "typedoc-readme.md"
 }

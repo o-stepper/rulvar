@@ -31,7 +31,9 @@ const snapshot = JSON.parse(
 ) as CapsSnapshot;
 
 async function* turn(events: AnthropicStreamEvent[]): AsyncIterable<AnthropicStreamEvent> {
-  yield* events;
+  for (const event of events) {
+    yield await Promise.resolve(event);
+  }
 }
 
 const FULL_TURN: AnthropicStreamEvent[] = [

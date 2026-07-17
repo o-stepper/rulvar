@@ -138,9 +138,7 @@ async function fetchRegistryArtifact(version) {
   return describeArtifact(extractTarball(tgz));
 }
 
-const sourceVersion = JSON.parse(
-  readFileSync(join(COMPAT_DIR, 'package.json'), 'utf8'),
-).version;
+const sourceVersion = JSON.parse(readFileSync(join(COMPAT_DIR, 'package.json'), 'utf8')).version;
 
 if (mode === 'update') {
   const artifact = await fetchRegistryArtifact(sourceVersion);

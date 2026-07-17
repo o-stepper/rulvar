@@ -166,10 +166,7 @@ describe('vitest warning dedupe (v1.16.1 review P3)', () => {
       rulvar('RUL_A');
       rulvar('RUL_B');
       expect(emitted).toHaveLength(2);
-      expect(emitted.map((args) => (args[1] as { code: string }).code)).toEqual([
-        'RUL_A',
-        'RUL_B',
-      ]);
+      expect(emitted.map((args) => (args[1] as { code: string }).code)).toEqual(['RUL_A', 'RUL_B']);
     });
   });
 

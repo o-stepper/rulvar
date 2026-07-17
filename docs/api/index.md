@@ -11,7 +11,7 @@
 | [@rulvar/anthropic](/api/@rulvar/anthropic/index.md) | Rulvar first-class provider adapter over @anthropic-ai/sdk. |
 | [@rulvar/bridge-ai-sdk](/api/@rulvar/bridge-ai-sdk/index.md) | Rulvar bridge adapter wrapping any Vercel AI SDK LanguageModelV4 as a ProviderAdapter. |
 | [@rulvar/cli](/api/@rulvar/cli/index.md) | Rulvar shell: run/resume/runs/inspect/plan/kb commands, TUI progress, createServer, createWorker, OTel exporter. |
-| [@rulvar/compat](/api/@rulvar/compat/index.md) | Rulvar frozen KeyDeriver profiles for hashVersions outside the support window (DEF-6); independently versioned. |
+| [@rulvar/compat](/api/@rulvar/compat/index.md) | rulvar frozen KeyDeriver profiles for hashVersions outside the support window (DEF-6); independently versioned. |
 | [@rulvar/core](/api/@rulvar/core/index.md) | Rulvar core: L0 contracts, journal kernel, ctx primitives, agent runtime, model router, tool system, dynamic orchestrator, InMemory and JSONL stores, event stream. |
 | [@rulvar/evals](/api/@rulvar/evals/index.md) | Rulvar evals: eval cases, golden outputs, rubric and judge graders, matrix sweeps, canary fingerprint. |
 | [@rulvar/openai](/api/@rulvar/openai/index.md) | Rulvar first-class provider adapter for the OpenAI Responses API, plus the openaiCompatible factory. |
