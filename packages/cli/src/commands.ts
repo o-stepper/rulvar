@@ -9,7 +9,6 @@
  * `plan` and `kb` land with M6+/M10. Every command builds strictly from
  * the public @rulvar/core API.
  */
-import { parseArgs } from 'node:util';
 import { join } from 'node:path';
 
 import {
@@ -34,6 +33,7 @@ import {
 import { loadCliConfig, loadWorkflowModule, looksLikeFile } from './config.js';
 import { assembleEngine } from './engine-assembly.js';
 import { driveRun, reportOutcome } from './drive.js';
+import { GRAMMAR, KB_FAMILY_USAGE, parseBudgetValue, parseCommand, usageOf } from './grammar.js';
 import type { CliIo } from './io.js';
 
 export interface CommandContext {
@@ -84,73 +84,35 @@ export async function loadCompanion<T>(
   }
 }
 
-interface CommonFlags {
-  store?: string;
-}
-
-function parseRunFlags(argv: string[]): {
-  positionals: string[];
-  store?: string;
-  args?: string;
-  budgetUsd?: number;
-  profile?: string;
-} {
-  const { values, positionals } = parseArgs({
-    args: argv,
-    allowPositionals: true,
-    options: {
-      args: { type: 'string' },
-      store: { type: 'string' },
-      'budget-usd': { type: 'string' },
-      profile: { type: 'string' },
-    },
-  });
-  const parsed: ReturnType<typeof parseRunFlags> = { positionals };
-  if (values.store !== undefined) {
-    parsed.store = values.store;
+/** Parses --args JSON into workflow arguments; undefined when absent. */
+function parseArgsJson(raw: string | undefined): unknown {
+  if (raw === undefined) {
+    return undefined;
   }
-  if (values.profile !== undefined) {
-    parsed.profile = values.profile;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new ConfigError(`--args is not valid JSON: ${raw}`);
   }
-  if (values.args !== undefined) {
-    parsed.args = values.args;
-  }
-  if (values['budget-usd'] !== undefined) {
-    const budget = Number(values['budget-usd']);
-    if (!Number.isFinite(budget) || budget <= 0) {
-      throw new ConfigError(
-        `--budget-usd must be a positive number, got '${values['budget-usd']}'`,
-      );
-    }
-    parsed.budgetUsd = budget;
-  }
-  return parsed;
-}
-
-function parseCommonFlags(argv: string[]): { positionals: string[] } & CommonFlags {
-  const { values, positionals } = parseArgs({
-    args: argv,
-    allowPositionals: true,
-    options: { store: { type: 'string' } },
-  });
-  return { positionals, ...(values.store === undefined ? {} : { store: values.store }) };
 }
 
 export async function runCommand(argv: string[], context: CommandContext): Promise<number> {
-  const flags = parseRunFlags(argv);
-  const target = flags.positionals[0];
-  if (target === undefined) {
-    throw new ConfigError(
-      'usage: rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N]',
-    );
-  }
+  const parsed = parseCommand(GRAMMAR.run, argv);
+  const target = parsed.positionals[0];
+  const store = parsed.values.store as string | undefined;
+  const profile = parsed.values.profile as string | undefined;
+  const budgetUsd =
+    parsed.values['budget-usd'] === undefined
+      ? undefined
+      : parseBudgetValue('budget-usd', parsed.values['budget-usd'] as string);
+  const args = parseArgsJson(parsed.values.args as string | undefined);
   const config = await loadCliConfig(context.cwd);
   const module = looksLikeFile(target) ? await loadWorkflowModule(target, context.cwd) : undefined;
   const assembled = assembleEngine({
     config,
     ...(module === undefined ? {} : { module }),
-    ...(flags.store === undefined ? {} : { storePath: flags.store }),
-    ...(flags.profile === undefined ? {} : { profile: flags.profile }),
+    ...(store === undefined ? {} : { storePath: store }),
+    ...(profile === undefined ? {} : { profile }),
     cwd: context.cwd,
   });
   const workflow = module?.workflow ?? assembled.workflows[target];
@@ -161,16 +123,8 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
         : `no workflow named '${target}' in the registry; register it in rulvar.config.mjs`,
     );
   }
-  let args: unknown;
-  if (flags.args !== undefined) {
-    try {
-      args = JSON.parse(flags.args);
-    } catch {
-      throw new ConfigError(`--args is not valid JSON: ${flags.args}`);
-    }
-  }
   const runOptions: RunOptions = {
-    ...(flags.budgetUsd === undefined ? {} : { budgetUsd: flags.budgetUsd }),
+    ...(budgetUsd === undefined ? {} : { budgetUsd }),
   };
   const first = assembled.engine.run(
     workflow as unknown as Workflow<unknown, unknown>,
@@ -189,26 +143,23 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
 }
 
 export async function resumeCommand(argv: string[], context: CommandContext): Promise<number> {
-  const flags = parseRunFlags(argv);
-  const runId = flags.positionals[0];
-  if (runId === undefined) {
-    throw new ConfigError('usage: rulvar resume <runId> [--args JSON] [--store PATH]');
-  }
+  // resume accepts EXACTLY the documented grammar (v1.16.2 review
+  // P2-1): --budget-usd and --profile are rejected here at parse time,
+  // before any config, store, or adapter loads. There is nothing they
+  // could mean: the ceiling B0 is immutable from genesis by the
+  // documented budget invariant (ResumeOptions carries no budget by
+  // design), and a profile shapes engine assembly only at run start.
+  const parsed = parseCommand(GRAMMAR.resume, argv);
+  const runId = parsed.positionals[0];
   // Original arguments are not journaled for in-process workflows in
   // v1: the host re-supplies them on resume (the resume binding
   // residuals stay an open question).
-  let args: unknown;
-  if (flags.args !== undefined) {
-    try {
-      args = JSON.parse(flags.args);
-    } catch {
-      throw new ConfigError(`--args is not valid JSON: ${flags.args}`);
-    }
-  }
+  const args = parseArgsJson(parsed.values.args as string | undefined);
+  const store = parsed.values.store as string | undefined;
   const config = await loadCliConfig(context.cwd);
   const assembled = assembleEngine({
     config,
-    ...(flags.store === undefined ? {} : { storePath: flags.store }),
+    ...(store === undefined ? {} : { storePath: store }),
     cwd: context.cwd,
   });
   const metas = await assembled.store.listRuns();
@@ -242,11 +193,12 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
 }
 
 export async function runsLsCommand(argv: string[], context: CommandContext): Promise<number> {
-  const flags = parseCommonFlags(argv);
+  const parsed = parseCommand(GRAMMAR['runs ls'], argv);
+  const store = parsed.values.store as string | undefined;
   const config = await loadCliConfig(context.cwd);
   const assembled = assembleEngine({
     config,
-    ...(flags.store === undefined ? {} : { storePath: flags.store }),
+    ...(store === undefined ? {} : { storePath: store }),
     cwd: context.cwd,
   });
   const metas = await assembled.store.listRuns();
@@ -263,15 +215,13 @@ export async function runsLsCommand(argv: string[], context: CommandContext): Pr
 }
 
 export async function inspectCommand(argv: string[], context: CommandContext): Promise<number> {
-  const flags = parseCommonFlags(argv);
-  const runId = flags.positionals[0];
-  if (runId === undefined) {
-    throw new ConfigError('usage: rulvar inspect <runId> [--store PATH]');
-  }
+  const parsed = parseCommand(GRAMMAR.inspect, argv);
+  const runId = parsed.positionals[0];
+  const store = parsed.values.store as string | undefined;
   const config = await loadCliConfig(context.cwd);
   const assembled = assembleEngine({
     config,
-    ...(flags.store === undefined ? {} : { storePath: flags.store }),
+    ...(store === undefined ? {} : { storePath: store }),
     cwd: context.cwd,
   });
   const metas = await assembled.store.listRuns();
@@ -336,15 +286,8 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
  * worker sandbox unless --dry-run.
  */
 export async function planCommand(argv: string[], context: CommandContext): Promise<number> {
-  const parsed = parseArgs({
-    args: argv,
-    allowPositionals: true,
-    options: { 'dry-run': { type: 'boolean' } },
-  });
+  const parsed = parseCommand(GRAMMAR.plan, argv);
   const goal = parsed.positionals[0];
-  if (goal === undefined || parsed.positionals.length > 1) {
-    throw new ConfigError('usage: rulvar plan "<goal>" [--dry-run]');
-  }
   interface PlannerModule {
     plan: (
       engine: unknown,
@@ -404,9 +347,10 @@ export async function kbCommand(argv: string[], context: CommandContext): Promis
   if (sub === 'sweep') {
     return await kbSweepCommand(rest, context);
   }
-  if (sub !== 'list' || rest.length > 0) {
-    throw new ConfigError('usage: rulvar kb <list | inbox | gate | sweep> (no aliases in v1)');
+  if (sub !== 'list') {
+    throw new ConfigError(KB_FAMILY_USAGE);
   }
+  parseCommand(GRAMMAR['kb list'], rest);
   const path = join(context.cwd, 'rulvar.models.json');
   const store = new FileModelKnowledgeStore({ path });
   const snapshot = await store.current();
@@ -499,10 +443,8 @@ interface PlanLedgerModule {
  * concrete model names render here VERBATIM, exactly like kb list.
  */
 async function kbInboxCommand(argv: string[], context: CommandContext): Promise<number> {
-  const flags = parseCommonFlags(argv);
-  if (flags.positionals.length > 0) {
-    throw new ConfigError('usage: rulvar kb inbox [--store PATH]');
-  }
+  const parsed = parseCommand(GRAMMAR['kb inbox'], argv);
+  const flags = { store: parsed.values.store as string | undefined };
   const plan = await loadCompanion<PlanLedgerModule>(
     import('@rulvar/plan'),
     '@rulvar/plan',
@@ -631,27 +573,12 @@ const RULED_OUT_VOCABULARY = ['prompt', 'tools', 'difficulty', 'transient-provid
  * per-project file store, whose git review is the authenticating gate.
  */
 async function kbGateCommand(argv: string[], context: CommandContext): Promise<number> {
-  const { values, positionals } = parseArgs({
-    args: argv,
-    allowPositionals: true,
-    options: {
-      store: { type: 'string' },
-      approver: { type: 'string' },
-      'ruled-out': { type: 'string' },
-      'contrast-run': { type: 'string' },
-      'contrast-eval': { type: 'string' },
-      confidence: { type: 'string' },
-    },
-  });
-  const usage =
-    'usage: rulvar kb gate <runId> <entryRef> --approver NAME --ruled-out a,b,c ' +
-    '[--contrast-run runId#seq | --contrast-eval reportId:caseId[,caseId...]] ' +
-    '[--confidence high|medium|low] [--store PATH]';
-  const runId = positionals[0];
-  const entryRefRaw = positionals[1];
-  if (runId === undefined || entryRefRaw === undefined || positionals.length > 2) {
-    throw new ConfigError(usage);
-  }
+  const parsed = parseCommand(GRAMMAR['kb gate'], argv);
+  // Every kb gate flag carries a value placeholder, so no booleans here.
+  const values = parsed.values as Record<string, string | undefined>;
+  const usage = usageOf(GRAMMAR['kb gate']);
+  const runId = parsed.positionals[0];
+  const entryRefRaw = parsed.positionals[1];
   const entryRef = Number(entryRefRaw);
   if (!Number.isInteger(entryRef) || entryRef < 1) {
     throw new ConfigError(`entryRef must be a positive integer entry seq, got '${entryRefRaw}'`);
@@ -678,9 +605,8 @@ async function kbGateCommand(argv: string[], context: CommandContext): Promise<n
       );
     }
   }
-  if (values['contrast-run'] !== undefined && values['contrast-eval'] !== undefined) {
-    throw new ConfigError('--contrast-run and --contrast-eval are mutually exclusive');
-  }
+  // --contrast-run and --contrast-eval exclusivity is enforced by the
+  // grammar (exclusiveGroup) before this command body runs.
   let contrastEvidence: EvidenceRef | undefined;
   if (values['contrast-run'] !== undefined) {
     const [contrastRun, seqRaw, ...tail] = values['contrast-run'].split('#');
@@ -859,9 +785,7 @@ interface EvalsModule {
  * sweep re-measures.
  */
 async function kbSweepCommand(argv: string[], context: CommandContext): Promise<number> {
-  if (argv.length > 0) {
-    throw new ConfigError('usage: rulvar kb sweep (configuration lives in rulvar.config.mjs)');
-  }
+  parseCommand(GRAMMAR['kb sweep'], argv);
   const config = await loadCliConfig(context.cwd);
   const sweep = config.kbSweep;
   if (sweep === undefined) {

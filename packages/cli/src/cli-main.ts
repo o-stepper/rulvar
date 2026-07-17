@@ -12,16 +12,17 @@ import {
   runCommand,
   runsLsCommand,
 } from './commands.js';
+import { GRAMMAR, helpCommandLines, usageOf } from './grammar.js';
 import type { CliIo } from './io.js';
 
-export const HELP = `rulvar: durable multi-agent workflows (https://docs.rulvar.com)
+// The command block renders from the one canonical grammar structure
+// (v1.16.2 review P3-1): help, per-command usage errors, and the docs
+// grammar block can no longer drift apart.
+export const HELP: string = `rulvar: durable multi-agent workflows (https://docs.rulvar.com)
 
-  rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N]
-  rulvar resume <runId>  [--store PATH]
-  rulvar runs ls         [--store PATH]
-  rulvar inspect <runId> [--store PATH]
-  rulvar plan "<goal>"   [--dry-run]
-  rulvar kb <list | inbox | gate | sweep>
+${helpCommandLines()
+  .map((line) => `  ${line}`)
+  .join('\n')}
 
 Engine assembly: adapters, defaults, and the workflow registry come from
 rulvar.config.mjs in the working directory (default export
@@ -53,7 +54,7 @@ export async function runCli(argv: string[], options: { cwd: string; io: CliIo }
       case 'runs': {
         const [sub, ...subRest] = rest;
         if (sub !== 'ls') {
-          throw new ConfigError('usage: rulvar runs ls [--store PATH] (no aliases in v1)');
+          throw new ConfigError(usageOf(GRAMMAR['runs ls']));
         }
         return await runsLsCommand(subRest, context);
       }
