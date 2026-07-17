@@ -57,6 +57,13 @@ jobs:
       # committed baseline, refreeze deliberately via --update.
       - name: Search index size budget
         run: node scripts/docs-search-budget.mjs
+      # Every authored ts/js fence must parse as a standalone module
+      # (v1.16.2 review P4-1): a copy/paste example is never a
+      # syntactically incomplete fragment. Needs the installed
+      # typescript, so it rides this job, not the dependency-free
+      # docs-lint job.
+      - name: Docs fence syntax gate
+        run: node scripts/docs-fence-syntax.mjs
 
       # docs/api (the TypeDoc output), the aggregated changelog, the
       # synced contributing page, and the version prose stamped from the

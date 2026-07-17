@@ -13,7 +13,7 @@ function runEvalCase(
 options?): Promise<EvalCaseResult>;
 ```
 
-Defined in: [packages/evals/src/case.ts:131](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L131)
+Defined in: [packages/evals/src/case.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L140)
 
 Runs one EvalCase on the given engine: the target workflow as its own
 run, pure graders host-side over the outcome, judge graders through the

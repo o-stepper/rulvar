@@ -13,10 +13,15 @@
 //   4. Install commands never reference the bare package name `rulvar`
 //      (npm install / pnpm add / yarn add / npx).
 //
-// Plus one cross-file check:
+// Plus two cross-file checks:
 //   5. Every member of the InvocationRole union in core has a canonical
 //      table row on docs/guide/agents.md, so a new role cannot ship
 //      undocumented.
+//   6. The CLI's dynamic companions, the literal import('@rulvar/x')
+//      specifiers in packages/cli/src/commands.ts, exactly match the
+//      companions named in the @rulvar/cli package row and drawn as
+//      dotted edges in the dependency graph on docs/reference/packages.md
+//      (both directions, so a new or dropped companion cannot drift).
 //
 // Scope: every hand-written .md under docs/, recursively. Generated or
 // mirrored trees are excluded: docs/api (TypeDoc output), docs/node_modules,
@@ -167,6 +172,56 @@ for (const file of collectFiles()) {
           agentsPath,
           1,
           `invocation role '${role}' has no canonical table row; add it to the Invocation roles table`,
+        );
+      }
+    }
+  }
+}
+
+// Check 6: the CLI's dynamic companions vs the package reference
+// (v1.16.2 review P3-2). The literal import('@rulvar/x') specifiers in
+// commands.ts are the source of truth; the CLI package row and the
+// dependency graph must name every one and no more. Parsed from source,
+// so the check needs no build.
+{
+  const commandsPath = join(ROOT, 'packages', 'cli', 'src', 'commands.ts');
+  const packagesDocPath = join(ROOT, 'docs', 'reference', 'packages.md');
+  const commandsSrc = readFileSync(commandsPath, 'utf8');
+  // The `...` in the analyzability comment is not [a-z-]+, so the
+  // documentation placeholder import('@rulvar/...') never matches.
+  const companions = [
+    ...new Set([...commandsSrc.matchAll(/import\('@rulvar\/([a-z-]+)'\)/gu)].map((m) => m[1])),
+  ].sort();
+  if (companions.length === 0) {
+    fail(
+      commandsPath,
+      1,
+      'no dynamic companion imports found; update the docs-lint companion check',
+    );
+  } else {
+    const doc = readFileSync(packagesDocPath, 'utf8');
+    const cliRow = doc
+      .split('\n')
+      .find((line) => line.includes('`@rulvar/cli`') && line.includes('runCli'));
+    // The dotted edges out of cli in the mermaid graph; the node id is
+    // the companion name without the @rulvar/ scope.
+    const edgeTargets = new Set(
+      [...doc.matchAll(/cli -\.->\|[^|]*\| ([a-z-]+)/gu)].map((m) => m[1]),
+    );
+    for (const name of companions) {
+      if (cliRow === undefined || !cliRow.includes(`\`@rulvar/${name}\``)) {
+        fail(packagesDocPath, 1, `CLI package row omits the dynamic companion @rulvar/${name}`);
+      }
+      if (!edgeTargets.has(name)) {
+        fail(packagesDocPath, 1, `dependency graph has no dotted cli edge to @rulvar/${name}`);
+      }
+    }
+    for (const target of edgeTargets) {
+      if (!companions.includes(target)) {
+        fail(
+          packagesDocPath,
+          1,
+          `dependency graph dots cli to '${target}', which commands.ts never imports`,
         );
       }
     }

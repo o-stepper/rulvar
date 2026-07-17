@@ -73,7 +73,10 @@ describe('rulvar plan (M6-T11)', () => {
   it('plans with --dry-run: prints the repaired script without running it', async () => {
     const cwd = writePlanProject();
     const io = scriptedIo();
-    const code = await runCli(['plan', 'collect the facts', '--dry-run'], { cwd, io });
+    const code = await runCli(
+      ['plan', 'collect the facts', '--dry-run', '--planning-budget-usd', '1'],
+      { cwd, io },
+    );
     expect(code).toBe(0);
     const source = io.outLines.join('\n');
     expect(source).toContain('const t = now();');
@@ -84,12 +87,23 @@ describe('rulvar plan (M6-T11)', () => {
   it('plans and runs the script in the worker sandbox', async () => {
     const cwd = writePlanProject();
     const io = scriptedIo();
-    const code = await runCli(['plan', 'collect the facts'], { cwd, io });
+    const code = await runCli(
+      ['plan', 'collect the facts', '--planning-budget-usd', '1', '--budget-usd', '1'],
+      { cwd, io },
+    );
     expect(code).toBe(0);
     expect(io.errLines.join('\n')).toContain('status: ok');
     const value = JSON.parse(io.outLines.join('\n')) as { t: number; facts: string };
     expect(value.facts).toBe('the collected facts');
     expect(typeof value.t).toBe('number');
+  });
+
+  it('plans and runs unbounded only behind the explicit --allow-unbounded waiver', async () => {
+    const cwd = writePlanProject();
+    const io = scriptedIo();
+    const code = await runCli(['plan', 'collect the facts', '--allow-unbounded'], { cwd, io });
+    expect(code).toBe(0);
+    expect(io.errLines.join('\n')).toContain('status: ok');
   });
 
   it('rejects a missing goal with usage', async () => {

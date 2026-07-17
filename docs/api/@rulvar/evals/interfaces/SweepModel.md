@@ -6,7 +6,7 @@
 
 # Interface: SweepModel
 
-Defined in: [packages/evals/src/sweeps.ts:24](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/sweeps.ts#L24)
+Defined in: [packages/evals/src/sweeps.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/sweeps.ts#L26)
 
 One fixed pool member; effort is part of the claim subject identity.
 
@@ -14,5 +14,5 @@ One fixed pool member; effort is part of the claim subject identity.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-effort"></a> `effort?` | [`Effort`](/api/@rulvar/rulvar/type-aliases/Effort.md) | [packages/evals/src/sweeps.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/sweeps.ts#L26) |
-| <a id="property-model"></a> `model` | `` `${string}:${string}` `` | [packages/evals/src/sweeps.ts:25](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/sweeps.ts#L25) |
+| <a id="property-effort"></a> `effort?` | [`Effort`](/api/@rulvar/rulvar/type-aliases/Effort.md) | [packages/evals/src/sweeps.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/sweeps.ts#L28) |
+| <a id="property-model"></a> `model` | `` `${string}:${string}` `` | [packages/evals/src/sweeps.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/sweeps.ts#L27) |

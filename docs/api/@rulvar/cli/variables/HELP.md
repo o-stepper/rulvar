@@ -7,10 +7,10 @@
 # Variable: HELP
 
 ```ts
-const HELP: "rulvar: durable multi-agent workflows (https://docs.rulvar.com)\n\n  rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N]\n  rulvar resume <runId>  [--store PATH]\n  rulvar runs ls         [--store PATH]\n  rulvar inspect <runId> [--store PATH]\n  rulvar plan \"<goal>\"   [--dry-run]\n  rulvar kb <list | inbox | gate | sweep>\n\nEngine assembly: adapters, defaults, and the workflow registry come from\nrulvar.config.mjs in the working directory (default export\n{ engineOptions?, workflows? }) or from the workflow module's named\nexports. --store selects the JsonlFileStore directory (default .rulvar).\nplan asks the planner model (role plan) to write a workflow script,\nlints and self-repairs it, then runs it in the worker sandbox; --dry-run\nprints the accepted script without running. Requires @rulvar/planner\ninstalled. kb list shows the per-project claim store\n(./rulvar.models.json) with full provenance. kb sweep runs the\nfalsification matrix from the kbSweep section of rulvar.config.mjs\n(fixed pool UNIONED with every model carrying an active negative claim\nplus the re-measure queue; optional canary probes flip drifted claims\nstale first; requires @rulvar/evals installed). kb inbox aggregates\nkb_propose proposals from finished runs (14 day TTL); kb gate turns one\ninbox proposal into a committed claim behind a human attestation\n(--approver and --ruled-out are mandatory). inbox and gate require\n@rulvar/plan installed.";
+const HELP: string;
 ```
 
-Defined in: [packages/cli/src/cli-main.ts:17](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/cli-main.ts#L17)
+Defined in: [packages/cli/src/cli-main.ts:21](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/cli-main.ts#L21)
 
 @rulvar/cli: the Rulvar shell (https://docs.rulvar.com/guide/cli).
 M5 surface: run/resume/runs ls/inspect over the canonical

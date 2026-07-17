@@ -1,5 +1,39 @@
 import { CompiledWorkflow, DeclaredLadder, Effort, Engine, EvidenceRef, Json, JsonSchema, KnowledgeSnapshot, ModelClaim, ModelKnowledgeStore, ModelRef, ModelSpec, RunOutcome, SchemaSpec, TaskClass, Usage, WireError, Workflow } from "@rulvar/core";
 
+//#region src/envelope.d.ts
+/** Thrown when authorizing a run's ceiling would exceed the envelope. */
+declare class SweepBudgetError extends Error {
+  /** What was about to start, e.g. `eval target 'sweep-math'`. */
+  readonly runLabel: string;
+  /** The per-run ceiling that did not fit. */
+  readonly ceilingUsd: number;
+  /** Total already authorized before this refusal. */
+  readonly authorizedUsd: number;
+  readonly maxTotalUsd: number;
+  constructor(runLabel: string, ceilingUsd: number, authorizedUsd: number, maxTotalUsd: number);
+}
+/**
+* One envelope bounds one whole sweep invocation: share the instance
+* across the canary loop and runSweepMatrix so canary, target, and
+* judge runs all draw from the same remainder.
+*/
+declare class SpendEnvelope {
+  readonly maxTotalUsd: number;
+  private readonly maxMicroUsd;
+  private authorizedMicroUsd;
+  constructor(maxTotalUsd: number);
+  /** Total authorized so far (debit-only; never decreases). */
+  get authorizedUsd(): number;
+  get remainingUsd(): number;
+  /**
+  * Authorizes one run's immutable ceiling or throws SweepBudgetError.
+  * An unbounded run cannot be authorized: under an envelope every run
+  * MUST carry an explicit positive ceiling, otherwise the aggregate
+  * bound would be unaccountable.
+  */
+  authorize(ceilingUsd: number | undefined, runLabel: string): void;
+}
+//#endregion
 //#region src/case.d.ts
 /**
 * One quality-measurement case. The shape is the
@@ -79,6 +113,13 @@ interface RunEvalCaseOptions {
   budgetUsd?: number;
   /** Run ceiling for each judge run. */
   judgeBudgetUsd?: number;
+  /**
+  * Aggregate debit-only envelope (v1.16.2 review P1-2): every target
+  * and judge run authorizes its ceiling here BEFORE starting, and an
+  * envelope requires the matching per-run ceiling to be set. A
+  * refusal throws SweepBudgetError before any provider work.
+  */
+  envelope?: SpendEnvelope;
 }
 /** Thrown when a judge run does not settle ok. */
 declare class EvalJudgeError extends Error {
@@ -105,6 +146,8 @@ interface EvalSuiteResult {
 interface RunEvalSuiteOptions {
   budgetUsd?: number;
   judgeBudgetUsd?: number;
+  /** See RunEvalCaseOptions.envelope; shared across every case of the suite. */
+  envelope?: SpendEnvelope;
 }
 /**
 * Runs cases sequentially (deterministic journal and cassette order) and
@@ -232,14 +275,52 @@ interface CanaryProbeSet {
   /** The fixed prompts; order matters and enters the fingerprint. */
   prompts: string[];
 }
+interface CanaryRunOptions {
+  /**
+  * Immutable ceiling per probe run (v1.16.2 review P1-2): every probe
+  * is an ordinary paid engine run and gets its own recorded
+  * RunMeta.budgetUsd.
+  */
+  budgetUsd?: number;
+  /**
+  * Aggregate debit-only envelope shared with the surrounding sweep;
+  * each probe authorizes budgetUsd BEFORE running, and an envelope
+  * requires budgetUsd to be set.
+  */
+  envelope?: SpendEnvelope;
+}
+interface CanaryReport {
+  fingerprint: string;
+  /**
+  * True only when every probe settled ok. A fingerprint containing a
+  * non-ok probe status is a measurement artifact (budget exhaustion,
+  * transient provider failure), NOT evidence of model drift: never
+  * feed it to flipStaleOnCanaryDrift.
+  */
+  allOk: boolean;
+  probes: Array<{
+    prompt: string;
+    status: RunOutcome<unknown>["status"];
+  }>;
+}
 /** The committed v1 normalization (OQ-06): NFC, trim, collapse whitespace. */
 declare function normalizeCanaryOutput(output: unknown): string;
 /**
-* Runs the fixed probe set through the ordinary engine and returns the
-* fingerprint. Probes run sequentially in declaration order, one run
-* per probe, so recordings replay deterministically.
+* Runs the fixed probe set through the ordinary engine. Probes run
+* sequentially in declaration order, one run per probe, so recordings
+* replay deterministically. Each probe run carries the optional
+* immutable ceiling (options.budgetUsd) and authorizes it against the
+* optional envelope before starting. A non-ok probe enters the
+* fingerprint as `!status` and clears allOk: callers gate drift
+* flipping on allOk, because a budget-starved or transiently failing
+* probe fingerprints differently without the model having drifted.
 */
-declare function canaryFingerprint(engine: Engine, probes: CanaryProbeSet): Promise<string>;
+declare function runCanary(engine: Engine, probes: CanaryProbeSet, options?: CanaryRunOptions): Promise<CanaryReport>;
+/**
+* The fingerprint alone (the pre-v1.16.2-review surface, kept
+* compatible). Prefer runCanary: its allOk is the drift-flip gate.
+*/
+declare function canaryFingerprint(engine: Engine, probes: CanaryProbeSet, options?: CanaryRunOptions): Promise<string>;
 interface CanaryDriftReport {
   model: ModelRef;
   freshFingerprint: string;
@@ -253,7 +334,13 @@ interface CanaryDriftReport {
 * recorded canary fingerprint differs from the fresh one. Claims
 * without a recorded fingerprint have no baseline and
 * stay untouched (the documented no-probe posture); a second run is
-* an idempotent noop. CAS-rebased like every maintenance commit.
+* an idempotent noop. CAS-rebased like every maintenance commit; the
+* retries run no engine work and pay nothing.
+*
+* Only pass fingerprints from an allOk probe set (runCanary): a
+* fingerprint containing a `!status` probe differs from any healthy
+* baseline by construction, and flipping on it would blame the model
+* for a budget ceiling or a transient provider failure.
 */
 declare function flipStaleOnCanaryDrift(store: ModelKnowledgeStore, model: ModelRef, freshFingerprint: string, options?: {
   attempts?: number;
@@ -297,6 +384,17 @@ interface RunSweepOptions {
   thresholds?: Partial<SweepThresholds>;
   /** Passed through to every suite run (budget, VCR hooks ride the engine). */
   suite?: RunEvalSuiteOptions;
+  /**
+  * Aggregate debit-only envelope over the WHOLE matrix (v1.16.2
+  * review P1-2): every target and judge run authorizes its immutable
+  * ceiling before starting, so the pool times cases times judge-call
+  * product cannot exceed it, falsification pool growth included. An
+  * envelope requires suite.budgetUsd (and suite.judgeBudgetUsd once a
+  * grader judges); a cell refused by the envelope lands in the report
+  * as envelopeExhausted with NO claim. Share the instance with the
+  * canary loop so probes draw from the same remainder.
+  */
+  envelope?: SpendEnvelope;
   /** When given, emitted claims commit through the committer identity. */
   store?: ModelKnowledgeStore;
   /**
@@ -313,6 +411,20 @@ interface SweepCellReport {
   n: number;
   totalCostUsd: number;
   caseNames: string[];
+  /**
+  * Count of case results whose TARGET run settled 'exhausted' (its
+  * per-run ceiling, not the envelope). A budget-starved measurement
+  * must not become a model belief, so any exhausted target suppresses
+  * the cell's claim even when the degraded passRate crosses a
+  * threshold: the alternative is committing a false weakness that
+  * blames the model for the ceiling.
+  */
+  exhaustedRuns?: number;
+  /**
+  * The aggregate envelope refused a run of this cell before it
+  * started; stats cover nothing reliable and the cell emits no claim.
+  */
+  envelopeExhausted?: true;
 }
 interface SweepReport {
   reportId: string;
@@ -417,4 +529,4 @@ declare function runValueCheckpoint(checkpointPool: CheckpointPool, options: Run
 /** The deterministic render for the M12 gate docs amendment. */
 declare function renderCheckpointReport(report: CheckpointReport): string;
 //#endregion
-export { type CanaryDriftReport, type CanaryProbeSet, type CheckpointArm, type CheckpointCell, type CheckpointLadder, type CheckpointPool, type CheckpointReport, type CriterionOneReport, type CriterionTwoReport, type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type OrchestratedCase, type RubricCriterion, type RubricGraderOptions, type RunCheckpointOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, canaryFingerprint, commitEvalMeasured, evalMeasuredClaim, flipStaleOnCanaryDrift, goldenGrader, judgeGrader, normalizeCanaryOutput, renderCheckpointReport, rubricGrader, runEvalCase, runEvalMatrix, runEvalSuite, runSweepMatrix, runValueCheckpoint, rungRuleHolds };
+export { type CanaryDriftReport, type CanaryProbeSet, type CanaryReport, type CanaryRunOptions, type CheckpointArm, type CheckpointCell, type CheckpointLadder, type CheckpointPool, type CheckpointReport, type CriterionOneReport, type CriterionTwoReport, type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type OrchestratedCase, type RubricCriterion, type RubricGraderOptions, type RunCheckpointOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, SpendEnvelope, SweepBudgetError, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, canaryFingerprint, commitEvalMeasured, evalMeasuredClaim, flipStaleOnCanaryDrift, goldenGrader, judgeGrader, normalizeCanaryOutput, renderCheckpointReport, rubricGrader, runCanary, runEvalCase, runEvalMatrix, runEvalSuite, runSweepMatrix, runValueCheckpoint, rungRuleHolds };

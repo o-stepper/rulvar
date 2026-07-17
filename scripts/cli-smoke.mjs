@@ -168,10 +168,19 @@ check('bare inspect missing run', rulvar(bare, ['inspect', 'nope']), {
   code: 1,
   errIncludes: ['error:'],
 });
-check('bare plan reports the missing planner', rulvar(bare, ['plan', 'goal', '--dry-run']), {
+check(
+  'bare plan reports the missing planner',
+  rulvar(bare, ['plan', 'goal', '--dry-run', '--planning-budget-usd', '1']),
+  {
+    code: 1,
+    errIncludes: [MISSING_PLANNER],
+    errExcludes: ['failed to load'],
+  },
+);
+check('bare plan without a ceiling fails before anything loads', rulvar(bare, ['plan', 'goal']), {
   code: 1,
-  errIncludes: [MISSING_PLANNER],
-  errExcludes: ['failed to load'],
+  errIncludes: ['set --planning-budget-usd N'],
+  errExcludes: [MISSING_PLANNER],
 });
 check('bare kb inbox reports the missing plan', rulvar(bare, ['kb', 'inbox']), {
   code: 1,
@@ -184,8 +193,12 @@ check(
 );
 writeFileSync(
   join(bare, 'rulvar.config.mjs'),
-  "export default { kbSweep: { committerId: 'smoke', models: [{ model: 'fake:model' }], cases: [] } };\n",
+  'export default { kbSweep: { ' +
+    "committerId: 'smoke', models: [{ model: 'fake:model' }], cases: [], " +
+    'budgets: { targetUsd: 1, judgeUsd: 1, canaryUsd: 1, maxTotalUsd: 100 } } };\n',
 );
+// Budgets are set, so the ONLY reason this fails is the missing
+// companion: the install hint, not a budget-config error.
 check('bare kb sweep reports the missing evals', rulvar(bare, ['kb', 'sweep']), {
   code: 1,
   errIncludes: [MISSING_EVALS],
@@ -216,14 +229,19 @@ writeFileSync(
     '    defaults: { routing: { plan: FAKE_MODEL_REF, loop: FAKE_MODEL_REF } },',
     '    runners: { sandbox: new WorkerSandboxRunner() },',
     '  },',
-    "  kbSweep: { committerId: 'smoke', models: [{ model: FAKE_MODEL_REF }], cases: [] },",
+    '  kbSweep: {',
+    "    committerId: 'smoke',",
+    '    models: [{ model: FAKE_MODEL_REF }],',
+    '    cases: [],',
+    '    budgets: { targetUsd: 1, judgeUsd: 1, canaryUsd: 1, maxTotalUsd: 100 },',
+    '  },',
     '};',
     '',
   ].join('\n'),
 );
 check(
   'installed plan --dry-run prints the accepted script',
-  rulvar(bare, ['plan', 'smoke goal', '--dry-run']),
+  rulvar(bare, ['plan', 'smoke goal', '--dry-run', '--planning-budget-usd', '1']),
   {
     code: 0,
     outIncludes: ['const startedAt = now();'],
@@ -231,7 +249,14 @@ check(
     errExcludes: [MISSING_PLANNER, 'failed to load'],
   },
 );
-const fullPlan = rulvar(bare, ['plan', 'smoke goal, executed']);
+const fullPlan = rulvar(bare, [
+  'plan',
+  'smoke goal, executed',
+  '--planning-budget-usd',
+  '1',
+  '--budget-usd',
+  '1',
+]);
 check('installed plan executes through the worker sandbox', fullPlan, {
   code: 0,
   errIncludes: ['runId:'],
@@ -281,7 +306,7 @@ writeFileSync(
 );
 check(
   'broken planner surfaces its cause, never install advice',
-  rulvar(broken, ['plan', 'goal', '--dry-run']),
+  rulvar(broken, ['plan', 'goal', '--dry-run', '--planning-budget-usd', '1']),
   {
     code: 1,
     errIncludes: [

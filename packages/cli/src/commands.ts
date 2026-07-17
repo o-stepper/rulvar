@@ -9,7 +9,6 @@
  * `plan` and `kb` land with M6+/M10. Every command builds strictly from
  * the public @rulvar/core API.
  */
-import { parseArgs } from 'node:util';
 import { join } from 'node:path';
 
 import {
@@ -34,6 +33,7 @@ import {
 import { loadCliConfig, loadWorkflowModule, looksLikeFile } from './config.js';
 import { assembleEngine } from './engine-assembly.js';
 import { driveRun, reportOutcome } from './drive.js';
+import { GRAMMAR, KB_FAMILY_USAGE, parseBudgetValue, parseCommand, usageOf } from './grammar.js';
 import type { CliIo } from './io.js';
 
 export interface CommandContext {
@@ -84,73 +84,35 @@ export async function loadCompanion<T>(
   }
 }
 
-interface CommonFlags {
-  store?: string;
-}
-
-function parseRunFlags(argv: string[]): {
-  positionals: string[];
-  store?: string;
-  args?: string;
-  budgetUsd?: number;
-  profile?: string;
-} {
-  const { values, positionals } = parseArgs({
-    args: argv,
-    allowPositionals: true,
-    options: {
-      args: { type: 'string' },
-      store: { type: 'string' },
-      'budget-usd': { type: 'string' },
-      profile: { type: 'string' },
-    },
-  });
-  const parsed: ReturnType<typeof parseRunFlags> = { positionals };
-  if (values.store !== undefined) {
-    parsed.store = values.store;
+/** Parses --args JSON into workflow arguments; undefined when absent. */
+function parseArgsJson(raw: string | undefined): unknown {
+  if (raw === undefined) {
+    return undefined;
   }
-  if (values.profile !== undefined) {
-    parsed.profile = values.profile;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new ConfigError(`--args is not valid JSON: ${raw}`);
   }
-  if (values.args !== undefined) {
-    parsed.args = values.args;
-  }
-  if (values['budget-usd'] !== undefined) {
-    const budget = Number(values['budget-usd']);
-    if (!Number.isFinite(budget) || budget <= 0) {
-      throw new ConfigError(
-        `--budget-usd must be a positive number, got '${values['budget-usd']}'`,
-      );
-    }
-    parsed.budgetUsd = budget;
-  }
-  return parsed;
-}
-
-function parseCommonFlags(argv: string[]): { positionals: string[] } & CommonFlags {
-  const { values, positionals } = parseArgs({
-    args: argv,
-    allowPositionals: true,
-    options: { store: { type: 'string' } },
-  });
-  return { positionals, ...(values.store === undefined ? {} : { store: values.store }) };
 }
 
 export async function runCommand(argv: string[], context: CommandContext): Promise<number> {
-  const flags = parseRunFlags(argv);
-  const target = flags.positionals[0];
-  if (target === undefined) {
-    throw new ConfigError(
-      'usage: rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N]',
-    );
-  }
+  const parsed = parseCommand(GRAMMAR.run, argv);
+  const target = parsed.positionals[0];
+  const store = parsed.values.store as string | undefined;
+  const profile = parsed.values.profile as string | undefined;
+  const budgetUsd =
+    parsed.values['budget-usd'] === undefined
+      ? undefined
+      : parseBudgetValue('budget-usd', parsed.values['budget-usd'] as string);
+  const args = parseArgsJson(parsed.values.args as string | undefined);
   const config = await loadCliConfig(context.cwd);
   const module = looksLikeFile(target) ? await loadWorkflowModule(target, context.cwd) : undefined;
   const assembled = assembleEngine({
     config,
     ...(module === undefined ? {} : { module }),
-    ...(flags.store === undefined ? {} : { storePath: flags.store }),
-    ...(flags.profile === undefined ? {} : { profile: flags.profile }),
+    ...(store === undefined ? {} : { storePath: store }),
+    ...(profile === undefined ? {} : { profile }),
     cwd: context.cwd,
   });
   const workflow = module?.workflow ?? assembled.workflows[target];
@@ -161,16 +123,8 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
         : `no workflow named '${target}' in the registry; register it in rulvar.config.mjs`,
     );
   }
-  let args: unknown;
-  if (flags.args !== undefined) {
-    try {
-      args = JSON.parse(flags.args);
-    } catch {
-      throw new ConfigError(`--args is not valid JSON: ${flags.args}`);
-    }
-  }
   const runOptions: RunOptions = {
-    ...(flags.budgetUsd === undefined ? {} : { budgetUsd: flags.budgetUsd }),
+    ...(budgetUsd === undefined ? {} : { budgetUsd }),
   };
   const first = assembled.engine.run(
     workflow as unknown as Workflow<unknown, unknown>,
@@ -189,26 +143,23 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
 }
 
 export async function resumeCommand(argv: string[], context: CommandContext): Promise<number> {
-  const flags = parseRunFlags(argv);
-  const runId = flags.positionals[0];
-  if (runId === undefined) {
-    throw new ConfigError('usage: rulvar resume <runId> [--args JSON] [--store PATH]');
-  }
+  // resume accepts EXACTLY the documented grammar (v1.16.2 review
+  // P2-1): --budget-usd and --profile are rejected here at parse time,
+  // before any config, store, or adapter loads. There is nothing they
+  // could mean: the ceiling B0 is immutable from genesis by the
+  // documented budget invariant (ResumeOptions carries no budget by
+  // design), and a profile shapes engine assembly only at run start.
+  const parsed = parseCommand(GRAMMAR.resume, argv);
+  const runId = parsed.positionals[0];
   // Original arguments are not journaled for in-process workflows in
   // v1: the host re-supplies them on resume (the resume binding
   // residuals stay an open question).
-  let args: unknown;
-  if (flags.args !== undefined) {
-    try {
-      args = JSON.parse(flags.args);
-    } catch {
-      throw new ConfigError(`--args is not valid JSON: ${flags.args}`);
-    }
-  }
+  const args = parseArgsJson(parsed.values.args as string | undefined);
+  const store = parsed.values.store as string | undefined;
   const config = await loadCliConfig(context.cwd);
   const assembled = assembleEngine({
     config,
-    ...(flags.store === undefined ? {} : { storePath: flags.store }),
+    ...(store === undefined ? {} : { storePath: store }),
     cwd: context.cwd,
   });
   const metas = await assembled.store.listRuns();
@@ -242,11 +193,12 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
 }
 
 export async function runsLsCommand(argv: string[], context: CommandContext): Promise<number> {
-  const flags = parseCommonFlags(argv);
+  const parsed = parseCommand(GRAMMAR['runs ls'], argv);
+  const store = parsed.values.store as string | undefined;
   const config = await loadCliConfig(context.cwd);
   const assembled = assembleEngine({
     config,
-    ...(flags.store === undefined ? {} : { storePath: flags.store }),
+    ...(store === undefined ? {} : { storePath: store }),
     cwd: context.cwd,
   });
   const metas = await assembled.store.listRuns();
@@ -263,15 +215,13 @@ export async function runsLsCommand(argv: string[], context: CommandContext): Pr
 }
 
 export async function inspectCommand(argv: string[], context: CommandContext): Promise<number> {
-  const flags = parseCommonFlags(argv);
-  const runId = flags.positionals[0];
-  if (runId === undefined) {
-    throw new ConfigError('usage: rulvar inspect <runId> [--store PATH]');
-  }
+  const parsed = parseCommand(GRAMMAR.inspect, argv);
+  const runId = parsed.positionals[0];
+  const store = parsed.values.store as string | undefined;
   const config = await loadCliConfig(context.cwd);
   const assembled = assembleEngine({
     config,
-    ...(flags.store === undefined ? {} : { storePath: flags.store }),
+    ...(store === undefined ? {} : { storePath: store }),
     cwd: context.cwd,
   });
   const metas = await assembled.store.listRuns();
@@ -329,26 +279,56 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
 }
 
 /**
- * rulvar plan "<goal>" [--dry-run] (M6-T11): plans a
- * workflow script through @rulvar/planner (loaded dynamically: the CLI's
- * static dependency stays @rulvar/core only),
- * prints the accepted script and its advisories, and runs it in the
- * worker sandbox unless --dry-run.
+ * rulvar plan (M6-T11; grammar in grammar.ts): plans a workflow script
+ * through @rulvar/planner (loaded dynamically: the CLI's static
+ * dependency stays @rulvar/core only), prints the accepted script and
+ * its advisories, and runs it in the worker sandbox unless --dry-run.
+ *
+ * Both stages are paid runs with their OWN immutable ceilings (the
+ * v1.16.2 review P1-1): --planning-budget-usd caps the planning run
+ * (PlanOptions.run.budgetUsd, frozen at the planning journal's
+ * genesis), --budget-usd caps the execution run (RunOptions.budgetUsd,
+ * consistent with rulvar run). A machine-written workflow never runs
+ * unbounded silently: missing ceilings fail loudly unless
+ * --allow-unbounded waives them explicitly, and an execution ceiling
+ * beside --dry-run is a contradiction, not an ignorable leftover.
  */
 export async function planCommand(argv: string[], context: CommandContext): Promise<number> {
-  const parsed = parseArgs({
-    args: argv,
-    allowPositionals: true,
-    options: { 'dry-run': { type: 'boolean' } },
-  });
+  const parsed = parseCommand(GRAMMAR.plan, argv);
   const goal = parsed.positionals[0];
-  if (goal === undefined || parsed.positionals.length > 1) {
-    throw new ConfigError('usage: rulvar plan "<goal>" [--dry-run]');
+  const dryRun = parsed.values['dry-run'] === true;
+  const allowUnbounded = parsed.values['allow-unbounded'] === true;
+  const planningBudgetUsd =
+    parsed.values['planning-budget-usd'] === undefined
+      ? undefined
+      : parseBudgetValue('planning-budget-usd', parsed.values['planning-budget-usd'] as string);
+  const executionBudgetUsd =
+    parsed.values['budget-usd'] === undefined
+      ? undefined
+      : parseBudgetValue('budget-usd', parsed.values['budget-usd'] as string);
+  if (dryRun && executionBudgetUsd !== undefined) {
+    throw new ConfigError(
+      '--dry-run never executes the planned workflow, so --budget-usd (the execution ' +
+        'ceiling) has nothing to bound; drop one of the two',
+    );
+  }
+  if (!allowUnbounded && planningBudgetUsd === undefined) {
+    throw new ConfigError(
+      'rulvar plan runs the planner model as a paid run; set --planning-budget-usd N ' +
+        '(its immutable ceiling) or waive it explicitly with --allow-unbounded',
+    );
+  }
+  if (!allowUnbounded && !dryRun && executionBudgetUsd === undefined) {
+    throw new ConfigError(
+      'executing the planned workflow is a second paid run; set --budget-usd N ' +
+        '(its immutable ceiling) or waive it explicitly with --allow-unbounded',
+    );
   }
   interface PlannerModule {
     plan: (
       engine: unknown,
       goal: string,
+      options?: { run?: { budgetUsd?: number } },
     ) => Promise<{
       source: string;
       workflow: unknown;
@@ -364,17 +344,25 @@ export async function planCommand(argv: string[], context: CommandContext): Prom
   );
   const config = await loadCliConfig(context.cwd);
   const assembled = assembleEngine({ config, cwd: context.cwd });
-  const planned = await plannerModule.plan(assembled.engine, goal);
+  const planned = await plannerModule.plan(
+    assembled.engine,
+    goal,
+    planningBudgetUsd === undefined ? undefined : { run: { budgetUsd: planningBudgetUsd } },
+  );
   context.io.err(`plan: accepted with ${String(planned.lint.length)} advisory diagnostic(s)`);
   for (const diagnostic of planned.lint) {
     context.io.err(`  ${diagnostic.ruleId}: ${diagnostic.message}`);
   }
-  if (parsed.values['dry-run'] === true) {
+  if (dryRun) {
     context.io.out(planned.source);
     return 0;
   }
   const workflow = planned.workflow as Workflow<unknown, unknown>;
-  const first = assembled.engine.run(workflow, null);
+  const first = assembled.engine.run(
+    workflow,
+    null,
+    executionBudgetUsd === undefined ? {} : { budgetUsd: executionBudgetUsd },
+  );
   context.io.err(`runId: ${first.runId}`);
   const outcome = await driveRun({
     engine: assembled.engine,
@@ -404,9 +392,10 @@ export async function kbCommand(argv: string[], context: CommandContext): Promis
   if (sub === 'sweep') {
     return await kbSweepCommand(rest, context);
   }
-  if (sub !== 'list' || rest.length > 0) {
-    throw new ConfigError('usage: rulvar kb <list | inbox | gate | sweep> (no aliases in v1)');
+  if (sub !== 'list') {
+    throw new ConfigError(KB_FAMILY_USAGE);
   }
+  parseCommand(GRAMMAR['kb list'], rest);
   const path = join(context.cwd, 'rulvar.models.json');
   const store = new FileModelKnowledgeStore({ path });
   const snapshot = await store.current();
@@ -499,10 +488,8 @@ interface PlanLedgerModule {
  * concrete model names render here VERBATIM, exactly like kb list.
  */
 async function kbInboxCommand(argv: string[], context: CommandContext): Promise<number> {
-  const flags = parseCommonFlags(argv);
-  if (flags.positionals.length > 0) {
-    throw new ConfigError('usage: rulvar kb inbox [--store PATH]');
-  }
+  const parsed = parseCommand(GRAMMAR['kb inbox'], argv);
+  const flags = { store: parsed.values.store as string | undefined };
   const plan = await loadCompanion<PlanLedgerModule>(
     import('@rulvar/plan'),
     '@rulvar/plan',
@@ -631,27 +618,12 @@ const RULED_OUT_VOCABULARY = ['prompt', 'tools', 'difficulty', 'transient-provid
  * per-project file store, whose git review is the authenticating gate.
  */
 async function kbGateCommand(argv: string[], context: CommandContext): Promise<number> {
-  const { values, positionals } = parseArgs({
-    args: argv,
-    allowPositionals: true,
-    options: {
-      store: { type: 'string' },
-      approver: { type: 'string' },
-      'ruled-out': { type: 'string' },
-      'contrast-run': { type: 'string' },
-      'contrast-eval': { type: 'string' },
-      confidence: { type: 'string' },
-    },
-  });
-  const usage =
-    'usage: rulvar kb gate <runId> <entryRef> --approver NAME --ruled-out a,b,c ' +
-    '[--contrast-run runId#seq | --contrast-eval reportId:caseId[,caseId...]] ' +
-    '[--confidence high|medium|low] [--store PATH]';
-  const runId = positionals[0];
-  const entryRefRaw = positionals[1];
-  if (runId === undefined || entryRefRaw === undefined || positionals.length > 2) {
-    throw new ConfigError(usage);
-  }
+  const parsed = parseCommand(GRAMMAR['kb gate'], argv);
+  // Every kb gate flag carries a value placeholder, so no booleans here.
+  const values = parsed.values as Record<string, string | undefined>;
+  const usage = usageOf(GRAMMAR['kb gate']);
+  const runId = parsed.positionals[0];
+  const entryRefRaw = parsed.positionals[1];
   const entryRef = Number(entryRefRaw);
   if (!Number.isInteger(entryRef) || entryRef < 1) {
     throw new ConfigError(`entryRef must be a positive integer entry seq, got '${entryRefRaw}'`);
@@ -678,9 +650,8 @@ async function kbGateCommand(argv: string[], context: CommandContext): Promise<n
       );
     }
   }
-  if (values['contrast-run'] !== undefined && values['contrast-eval'] !== undefined) {
-    throw new ConfigError('--contrast-run and --contrast-eval are mutually exclusive');
-  }
+  // --contrast-run and --contrast-eval exclusivity is enforced by the
+  // grammar (exclusiveGroup) before this command body runs.
   let contrastEvidence: EvidenceRef | undefined;
   if (values['contrast-run'] !== undefined) {
     const [contrastRun, seqRaw, ...tail] = values['contrast-run'].split('#');
@@ -826,6 +797,14 @@ async function kbGateCommand(argv: string[], context: CommandContext): Promise<n
   return 0;
 }
 
+/** The debit-only aggregate envelope instance (v1.16.2 review P1-2). */
+interface SpendEnvelopeInstance {
+  readonly maxTotalUsd: number;
+  readonly authorizedUsd: number;
+  readonly remainingUsd: number;
+  authorize(ceilingUsd: number | undefined, runLabel: string): void;
+}
+
 /** The structural face of @rulvar/evals (loaded dynamically at command time). */
 interface EvalsModule {
   runSweepMatrix: (
@@ -833,19 +812,41 @@ interface EvalsModule {
     options: Record<string, unknown>,
   ) => Promise<{
     reportId: string;
-    cells: Array<{ model: string; taskClass: string; passRate: number; n: number }>;
+    cells: Array<{
+      model: string;
+      taskClass: string;
+      passRate: number;
+      n: number;
+      /** Count of target runs that hit their own ceiling; the cell emits no claim. */
+      exhaustedRuns?: number;
+      /** The envelope refused a run of this cell before it started; no claim. */
+      envelopeExhausted?: true;
+    }>;
     claims: Array<{ id: string; polarity: string; taskClass: string }>;
     committedVersion?: number;
   }>;
-  canaryFingerprint: (
+  /**
+   * Runs the probe set and returns the drift-flip gate: allOk is false
+   * when any probe did not settle ok (budget exhaustion or a transient
+   * failure fingerprints differently WITHOUT the model having drifted),
+   * so the caller must not flip claims on a non-ok fingerprint.
+   */
+  runCanary: (
     engine: unknown,
     probes: { agentType: string; prompts: string[] },
-  ) => Promise<string>;
+    options?: { budgetUsd?: number; envelope?: unknown },
+  ) => Promise<{
+    fingerprint: string;
+    allOk: boolean;
+    probes: Array<{ prompt: string; status: string }>;
+  }>;
   flipStaleOnCanaryDrift: (
     store: unknown,
     model: string,
     fingerprint: string,
   ) => Promise<{ flipped: string[]; version?: number }>;
+  /** The aggregate debit-only envelope constructor; one instance per sweep. */
+  SpendEnvelope: new (maxTotalUsd: number) => SpendEnvelopeInstance;
 }
 
 /**
@@ -859,9 +860,7 @@ interface EvalsModule {
  * sweep re-measures.
  */
 async function kbSweepCommand(argv: string[], context: CommandContext): Promise<number> {
-  if (argv.length > 0) {
-    throw new ConfigError('usage: rulvar kb sweep (configuration lives in rulvar.config.mjs)');
-  }
+  parseCommand(GRAMMAR['kb sweep'], argv);
   const config = await loadCliConfig(context.cwd);
   const sweep = config.kbSweep;
   if (sweep === undefined) {
@@ -869,6 +868,29 @@ async function kbSweepCommand(argv: string[], context: CommandContext): Promise<
       'rulvar kb sweep requires a kbSweep section in rulvar.config.mjs ' +
         '({ committerId, models, cases })',
     );
+  }
+  // Budget posture (v1.16.2 review P1-2): a sweep runs paid target,
+  // judge, and canary runs, so it carries immutable per-run ceilings
+  // and an aggregate envelope, OR the config waives them explicitly.
+  // Never silently unbounded.
+  const budgets = sweep.budgets;
+  if (budgets === undefined && sweep.allowUnbounded !== true) {
+    throw new ConfigError(
+      'rulvar kb sweep runs paid target, judge, and canary runs; set kbSweep.budgets ' +
+        '({ targetUsd, judgeUsd, canaryUsd, maxTotalUsd }) so every run carries an immutable ' +
+        'ceiling and the whole sweep stays under maxTotalUsd, or waive the ceilings explicitly ' +
+        'with kbSweep.allowUnbounded: true',
+    );
+  }
+  if (budgets !== undefined) {
+    for (const field of ['targetUsd', 'judgeUsd', 'canaryUsd', 'maxTotalUsd'] as const) {
+      const value = budgets[field];
+      if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+        throw new ConfigError(
+          `kbSweep.budgets.${field} must be a positive finite number, got ${String(value)}`,
+        );
+      }
+    }
   }
   const evals = await loadCompanion<EvalsModule>(
     import('@rulvar/evals'),
@@ -926,20 +948,68 @@ async function kbSweepCommand(argv: string[], context: CommandContext): Promise<
           },
         },
       }));
+  // The aggregate debit-only envelope, shared across the canary loop
+  // and the matrix so probes, targets, and judges all draw from one
+  // remainder. The worst-case authorized target and canary spend is
+  // printed BEFORE the first provider call; judge counts are grader
+  // behavior (unknowable upfront) and authorize against the same
+  // envelope at grade time.
+  const usd = (amount: number): string => `$${String(Math.round(amount * 1_000_000) / 1_000_000)}`;
+  let envelope: SpendEnvelopeInstance | undefined;
+  if (budgets !== undefined) {
+    envelope = new evals.SpendEnvelope(budgets.maxTotalUsd);
+    const probeCount = sweep.canary?.prompts.length ?? 0;
+    const canaryRuns = probeCount * pool.size;
+    const targetRuns = sweep.cases.length * pool.size;
+    context.io.out(
+      `sweep budget: ${usd(budgets.maxTotalUsd)} maxTotalUsd hard ceiling; authorizes up to ` +
+        `${usd(canaryRuns * budgets.canaryUsd + targetRuns * budgets.targetUsd)} for ` +
+        `${String(canaryRuns)} canary + ${String(targetRuns)} target run(s) before judges ` +
+        `(each judge run up to ${usd(budgets.judgeUsd)} draws from the same envelope at grade time)`,
+    );
+  } else {
+    context.io.err(
+      'kb sweep: running UNBOUNDED (kbSweep.allowUnbounded); no target, judge, or canary run ' +
+        'carries a ceiling',
+    );
+  }
+
   for (const { member, origin } of pool.values()) {
     const effort = member.effort === undefined ? '' : ` effort=${member.effort}`;
     context.io.out(`pool: ${member.model}${effort} [${origin}]`);
   }
 
-  // Canary before measurement (drift flips eval claims to
-  // stale immediately; the sweep then re-measures the subjects).
+  // Canary before measurement (drift flips eval claims to stale
+  // immediately; the sweep then re-measures the subjects). Flipping is
+  // gated on allOk: a non-ok probe (budget exhaustion, transient
+  // failure) fingerprints differently WITHOUT the model having
+  // drifted, so it must never flip claims (v1.16.2 review, canary
+  // safety). An envelope refusal skips the member honestly.
   if (sweep.canary !== undefined) {
     for (const { member } of pool.values()) {
       const engine = await engineFor(member);
-      const fingerprint = await evals.canaryFingerprint(engine, sweep.canary);
-      const drift = await evals.flipStaleOnCanaryDrift(store, member.model, fingerprint);
+      let canary;
+      try {
+        canary = await evals.runCanary(engine, sweep.canary, {
+          ...(budgets === undefined ? {} : { budgetUsd: budgets.canaryUsd, envelope }),
+        });
+      } catch (error) {
+        if (error instanceof Error && error.name === 'SweepBudgetError') {
+          context.io.out(`canary ${member.model}: envelope exhausted, skipped`);
+          continue;
+        }
+        throw error;
+      }
+      if (!canary.allOk) {
+        context.io.out(
+          `canary ${member.model}: ${canary.fingerprint.slice(0, 12)}... incomplete ` +
+            '(a probe did not settle ok); NOT flipping claims',
+        );
+        continue;
+      }
+      const drift = await evals.flipStaleOnCanaryDrift(store, member.model, canary.fingerprint);
       context.io.out(
-        `canary ${member.model}: ${fingerprint.slice(0, 12)}...` +
+        `canary ${member.model}: ${canary.fingerprint.slice(0, 12)}...` +
           (drift.flipped.length === 0
             ? ' no drift'
             : ` DRIFT, ${String(drift.flipped.length)} claim(s) flipped stale`),
@@ -956,12 +1026,28 @@ async function kbSweepCommand(argv: string[], context: CommandContext): Promise<
       engineFor,
       store,
       ...(sweep.thresholds === undefined ? {} : { thresholds: sweep.thresholds }),
+      ...(budgets === undefined
+        ? {}
+        : {
+            suite: { budgetUsd: budgets.targetUsd, judgeBudgetUsd: budgets.judgeUsd },
+            envelope,
+          }),
     },
   );
   for (const cell of report.cells) {
+    if (cell.envelopeExhausted === true) {
+      context.io.out(
+        `cell ${cell.model} :: ${cell.taskClass}: envelope exhausted, not measured (no claim)`,
+      );
+      continue;
+    }
+    const exhausted =
+      cell.exhaustedRuns === undefined
+        ? ''
+        : ` (${String(cell.exhaustedRuns)} run(s) hit their own ceiling; no claim)`;
     context.io.out(
       `cell ${cell.model} :: ${cell.taskClass}: passRate ${cell.passRate.toFixed(2)} ` +
-        `over ${String(cell.n)} case${cell.n === 1 ? '' : 's'}`,
+        `over ${String(cell.n)} case${cell.n === 1 ? '' : 's'}${exhausted}`,
     );
   }
   for (const claim of report.claims) {
@@ -973,5 +1059,10 @@ async function kbSweepCommand(argv: string[], context: CommandContext): Promise<
       : `committed ${String(report.claims.length)} claim(s) as store version ` +
           `${String(report.committedVersion)} (report ${report.reportId})`,
   );
+  if (envelope !== undefined) {
+    context.io.out(
+      `sweep budget: authorized ${usd(envelope.authorizedUsd)} of ${usd(envelope.maxTotalUsd)}`,
+    );
+  }
   return 0;
 }

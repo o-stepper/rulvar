@@ -8,17 +8,19 @@
  * Sweep volume is never authorized by proposal volume: the model pool
  * and the case list are EXPLICIT caller data (fixed pools only).
  */
-import type {
-  Effort,
-  Engine,
-  ModelClaim,
-  ModelKnowledgeStore,
-  ModelRef,
-  TaskClass,
+import {
+  ConfigError,
+  type Effort,
+  type Engine,
+  type ModelClaim,
+  type ModelKnowledgeStore,
+  type ModelRef,
+  type TaskClass,
 } from '@rulvar/core';
 
 import { runEvalSuite, type EvalCase, type RunEvalSuiteOptions } from './case.js';
 import { commitEvalMeasured, type MeasuredClaimInput } from './committer.js';
+import { SweepBudgetError, type SpendEnvelope } from './envelope.js';
 
 /** One fixed pool member; effort is part of the claim subject identity. */
 export interface SweepModel {
@@ -61,6 +63,17 @@ export interface RunSweepOptions {
   thresholds?: Partial<SweepThresholds>;
   /** Passed through to every suite run (budget, VCR hooks ride the engine). */
   suite?: RunEvalSuiteOptions;
+  /**
+   * Aggregate debit-only envelope over the WHOLE matrix (v1.16.2
+   * review P1-2): every target and judge run authorizes its immutable
+   * ceiling before starting, so the pool times cases times judge-call
+   * product cannot exceed it, falsification pool growth included. An
+   * envelope requires suite.budgetUsd (and suite.judgeBudgetUsd once a
+   * grader judges); a cell refused by the envelope lands in the report
+   * as envelopeExhausted with NO claim. Share the instance with the
+   * canary loop so probes draw from the same remainder.
+   */
+  envelope?: SpendEnvelope;
   /** When given, emitted claims commit through the committer identity. */
   store?: ModelKnowledgeStore;
   /**
@@ -78,6 +91,20 @@ export interface SweepCellReport {
   n: number;
   totalCostUsd: number;
   caseNames: string[];
+  /**
+   * Count of case results whose TARGET run settled 'exhausted' (its
+   * per-run ceiling, not the envelope). A budget-starved measurement
+   * must not become a model belief, so any exhausted target suppresses
+   * the cell's claim even when the degraded passRate crosses a
+   * threshold: the alternative is committing a false weakness that
+   * blames the model for the ceiling.
+   */
+  exhaustedRuns?: number;
+  /**
+   * The aggregate envelope refused a run of this cell before it
+   * started; stats cover nothing reliable and the cell emits no claim.
+   */
+  envelopeExhausted?: true;
 }
 
 export interface SweepReport {
@@ -121,6 +148,12 @@ export async function runSweepMatrix(
     ...SWEEP_THRESHOLD_DEFAULTS,
     ...options.thresholds,
   };
+  if (options.envelope !== undefined && options.suite?.budgetUsd === undefined) {
+    throw new ConfigError(
+      'runSweepMatrix: an aggregate envelope requires suite.budgetUsd (the per-target ' +
+        'ceiling); unbounded targets under an envelope would be unaccountable',
+    );
+  }
   const byTaskClass = new Map<TaskClass, SweepCase[]>();
   for (const entry of pool.cases) {
     const bucket = byTaskClass.get(entry.taskClass) ?? [];
@@ -132,11 +165,37 @@ export async function runSweepMatrix(
   for (const member of pool.models) {
     const engine = await options.engineFor(member);
     for (const [taskClass, bucket] of byTaskClass) {
-      const suite = await runEvalSuite(
-        engine,
-        bucket.map((entry) => entry.case),
-        options.suite ?? {},
-      );
+      let suite;
+      try {
+        suite = await runEvalSuite(
+          engine,
+          bucket.map((entry) => entry.case),
+          {
+            ...(options.suite ?? {}),
+            ...(options.envelope === undefined ? {} : { envelope: options.envelope }),
+          },
+        );
+      } catch (error) {
+        if (!(error instanceof SweepBudgetError)) {
+          throw error;
+        }
+        // The envelope refused a run of this cell before it started:
+        // record the refusal honestly and keep walking the matrix (the
+        // remaining cells cost nothing to check and each gets its own
+        // honest envelopeExhausted row).
+        cells.push({
+          model: member.model,
+          ...(member.effort === undefined ? {} : { effort: member.effort }),
+          taskClass,
+          passRate: 0,
+          n: 0,
+          totalCostUsd: 0,
+          caseNames: [],
+          envelopeExhausted: true,
+        });
+        continue;
+      }
+      const exhaustedRuns = suite.results.filter((result) => result.status === 'exhausted').length;
       const cell: SweepCellReport = {
         model: member.model,
         ...(member.effort === undefined ? {} : { effort: member.effort }),
@@ -145,6 +204,7 @@ export async function runSweepMatrix(
         n: suite.results.length,
         totalCostUsd: suite.totalCostUsd,
         caseNames: suite.results.map((result) => result.name),
+        ...(exhaustedRuns === 0 ? {} : { exhaustedRuns }),
       };
       cells.push(cell);
       const polarity =
@@ -153,7 +213,7 @@ export async function runSweepMatrix(
           : cell.passRate <= thresholds.weakness
             ? ('weakness' as const)
             : undefined;
-      if (polarity !== undefined && cell.n > 0) {
+      if (polarity !== undefined && cell.n > 0 && exhaustedRuns === 0) {
         const epoch = options.modelEpochFor?.(member);
         claims.push({
           id: claimIdOf(options.reportId, member, taskClass),

@@ -14,13 +14,19 @@ function flipStaleOnCanaryDrift(
 options?): Promise<CanaryDriftReport>;
 ```
 
-Defined in: [packages/evals/src/canary.ts:77](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/canary.ts#L77)
+Defined in: [packages/evals/src/canary.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/canary.ts#L145)
 
 Flips the model's ACTIVE eval-measured claims to stale when their
 recorded canary fingerprint differs from the fresh one. Claims
 without a recorded fingerprint have no baseline and
 stay untouched (the documented no-probe posture); a second run is
-an idempotent noop. CAS-rebased like every maintenance commit.
+an idempotent noop. CAS-rebased like every maintenance commit; the
+retries run no engine work and pay nothing.
+
+Only pass fingerprints from an allOk probe set (runCanary): a
+fingerprint containing a `!status` probe differs from any healthy
+baseline by construction, and flipping on it would blame the model
+for a budget ceiling or a transient provider failure.
 
 ## Parameters
 

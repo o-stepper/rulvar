@@ -127,7 +127,7 @@ The default verdict shape is `JUDGE_VERDICT_SCHEMA` with its boolean `passed`; s
 
 ## Suites and the config matrix
 
-`runEvalSuite(engine, cases, options?)` runs a case list sequentially, in declaration order, and aggregates `passRate`, `totalCostUsd`, and `meanLatencyMs` into an `EvalSuiteResult`. Sequential execution is deliberate: it keeps journal and cassette order deterministic. Duplicate workflow names get `#<ordinal>` suffixes so every result row is unambiguous.
+`runEvalSuite(engine, cases, options?)` runs a case list sequentially, in declaration order, and aggregates `passRate`, `totalCostUsd`, and `meanLatencyMs` into an `EvalSuiteResult`. Sequential execution is deliberate: it keeps journal and cassette order deterministic. Duplicate workflow names get `#<ordinal>` suffixes so every result row is unambiguous. Options carry the budget surface: `budgetUsd` is every target run's immutable ceiling, `judgeBudgetUsd` every judge run's, and `envelope` (a `SpendEnvelope`) is the aggregate debit-only bound each of those runs authorizes its ceiling against before starting; a refusal throws `SweepBudgetError` before any provider work.
 
 `runEvalMatrix` runs the same cases against several engine configurations for side-by-side comparison: profile vs profile, cheap workers vs premium, reviewer on vs off. Each `MatrixCell` supplies a fresh engine factory, so cells stay isolated:
 
@@ -233,6 +233,7 @@ The moving parts:
 - **Thresholds gate claim emission.** A cell's pass rate at or above `thresholds.strength` (default 0.9) emits a strength claim; at or below `thresholds.weakness` (default 0.5) a weakness claim; the mid-band emits nothing, because a 0.7 pass rate is uninformative. The defaults ship as `SWEEP_THRESHOLD_DEFAULTS`.
 - **The sweep is the deconfounder.** The matrix is independent of your current routing, so it measures models where routing would never send them, which is what breaks self-fulfilling routing bias.
 - **`observedAt` is explicit.** The sweep reads no wall clock; claim TTLs apply from the date you pass, which keeps recorded sweeps replayable.
+- **Budgets compose from per-run ceilings and one envelope.** `suite: { budgetUsd, judgeBudgetUsd }` gives every target and judge run its own immutable ceiling, and `envelope: new SpendEnvelope(maxTotalUsd)` bounds the whole matrix: each run authorizes its ceiling against the envelope BEFORE starting (debit-only; completions, replays, and CAS retries return nothing), so pool times cases times judge-call growth cannot exceed `maxTotalUsd` even when falsification widens the pool. A run the envelope refuses lands in the report as an `envelopeExhausted` cell, and a cell whose target runs hit their own ceiling reports `exhaustedRuns`; neither emits a claim, because a budget-starved measurement must never become a belief about the model.
 
 When `store` is given, emitted claims commit through the eval-committer identity (below); either way the `SweepReport` carries every cell and every emitted `MeasuredClaimInput` for inspection.
 
@@ -241,23 +242,31 @@ When `store` is given, emitted claims commit through the eval-committer identity
 Provider model ids can silently start pointing at different weights. The registry-derived `modelEpoch` stamp (registry version, price-table version, caps hash; built by `modelEpochOf` in `@rulvar/core`) catches overt swaps and deprecations, but not silent alias re-pointing. The canary fingerprint is the probe that does:
 
 ```ts
-import { canaryFingerprint, flipStaleOnCanaryDrift } from '@rulvar/evals';
+import { runCanary, flipStaleOnCanaryDrift } from '@rulvar/evals';
 
-const fresh = await canaryFingerprint(engine, {
-  agentType: 'canary', // a registered profile pinned to the model under probe
-  prompts: [
-    'List the prime numbers below 30, comma separated.',
-    'Rewrite in one sentence: the cat sat on the mat because it was warm.',
-  ],
-});
+const canary = await runCanary(
+  engine,
+  {
+    agentType: 'canary', // a registered profile pinned to the model under probe
+    prompts: [
+      'List the prime numbers below 30, comma separated.',
+      'Rewrite in one sentence: the cat sat on the mat because it was warm.',
+    ],
+  },
+  { budgetUsd: 0.2 }, // each probe run's immutable ceiling
+);
 
-const drift = await flipStaleOnCanaryDrift(store, 'anthropic:claude-sonnet-5', fresh);
-if (drift.flipped.length > 0) {
-  console.warn(`model drift: ${drift.flipped.length} claims flipped to stale`);
+if (canary.allOk) {
+  const drift = await flipStaleOnCanaryDrift(store, 'anthropic:claude-sonnet-5', canary.fingerprint);
+  if (drift.flipped.length > 0) {
+    console.warn(`model drift: ${drift.flipped.length} claims flipped to stale`);
+  }
 }
 ```
 
-A fingerprint is a sha256 over the normalized outputs of the fixed probe set (`normalizeCanaryOutput`: NFC, trim, collapse whitespace), prefixed with the probe count so a probe-set edit never masquerades as drift; prompt order matters and enters the hash. Nothing on this path pins sampling parameters such as temperature: drift detection rests on the fixed prompts, the normalization, and exact fingerprint comparison. Probes run sequentially through the ordinary engine, one run per probe, so canary runs record and replay like everything else.
+A fingerprint is a sha256 over the normalized outputs of the fixed probe set (`normalizeCanaryOutput`: NFC, trim, collapse whitespace), prefixed with the probe count so a probe-set edit never masquerades as drift; prompt order matters and enters the hash. Nothing on this path pins sampling parameters such as temperature: drift detection rests on the fixed prompts, the normalization, and exact fingerprint comparison. Probes run sequentially through the ordinary engine, one run per probe, each under the optional `budgetUsd` ceiling, so canary runs record and replay like everything else.
+
+The `allOk` gate is load-bearing: a probe that did not settle `ok` enters the fingerprint as its status marker, so a budget-starved or transiently failing probe fingerprints differently without the model having drifted. Never feed a non-`allOk` fingerprint to `flipStaleOnCanaryDrift`; the `rulvar kb sweep` command skips flipping on such runs automatically. (`canaryFingerprint` remains exported for fingerprint-only callers; `runCanary` is the drift-flip surface.)
 
 Stamp sweeps with the fingerprint so drift detection has a baseline, via `modelEpochFor`:
 
@@ -295,7 +304,7 @@ The contract, in full:
 - **The eval-committer identity is the only gate** under which eval-measured claims commit. Runs themselves physically cannot write: the runtime holds a read-only handle to the store, so no prompt injection can forge a measurement.
 - **The blast radius of a false belief is clamped.** A verified-layer recommendation shifts a ladder's entry tier by at most one rung, and role quality floors stay hard constraints no claim can weaken.
 - **Claims decay.** Eval strength claims expire after 90 days, eval weakness claims after 30 (a stale negative belief is costlier, through lock-in); expiry is re-applied on every knowledge pin and every resume re-pin, so a multi-day suspension never resumes under dead beliefs.
-- **Standing claims get falsified.** `rulvar kb sweep` (in `@rulvar/cli`, see [CLI](/guide/cli)) re-tests claims through the ordinary engine, journaled, recordable, and budgeted, and always includes models with active negative claims, so a model that improved gets a chance to clear its name.
+- **Standing claims get falsified.** `rulvar kb sweep` (in `@rulvar/cli`, see [CLI](/guide/cli)) re-tests claims through the ordinary engine, journaled, recordable, and budgeted (immutable per-run ceilings plus the `maxTotalUsd` envelope from `kbSweep.budgets`), and always includes models with active negative claims, so a model that improved gets a chance to clear its name.
 
 `runSweepMatrix` with a `store` does the committing for you. For custom pipelines, the same two primitives are exported directly: `evalMeasuredClaim` builds one claim with the TTL applied per the decay table, and `commitEvalMeasured` commits a batch with the CAS-rebase recipe (on rejection, re-read and retry against the fresh version; default 3 attempts):
 

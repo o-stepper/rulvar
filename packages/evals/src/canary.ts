@@ -21,14 +21,44 @@ import {
   type Engine,
   type ModelKnowledgeStore,
   type ModelRef,
+  type RunOutcome,
 } from '@rulvar/core';
 import { defineWorkflow } from '@rulvar/core';
+
+import type { SpendEnvelope } from './envelope.js';
 
 export interface CanaryProbeSet {
   /** Registered agent profile the probes run under. */
   agentType: string;
   /** The fixed prompts; order matters and enters the fingerprint. */
   prompts: string[];
+}
+
+export interface CanaryRunOptions {
+  /**
+   * Immutable ceiling per probe run (v1.16.2 review P1-2): every probe
+   * is an ordinary paid engine run and gets its own recorded
+   * RunMeta.budgetUsd.
+   */
+  budgetUsd?: number;
+  /**
+   * Aggregate debit-only envelope shared with the surrounding sweep;
+   * each probe authorizes budgetUsd BEFORE running, and an envelope
+   * requires budgetUsd to be set.
+   */
+  envelope?: SpendEnvelope;
+}
+
+export interface CanaryReport {
+  fingerprint: string;
+  /**
+   * True only when every probe settled ok. A fingerprint containing a
+   * non-ok probe status is a measurement artifact (budget exhaustion,
+   * transient provider failure), NOT evidence of model drift: never
+   * feed it to flipStaleOnCanaryDrift.
+   */
+  allOk: boolean;
+  probes: Array<{ prompt: string; status: RunOutcome<unknown>['status'] }>;
 }
 
 /** The committed v1 normalization (OQ-06): NFC, trim, collapse whitespace. */
@@ -38,24 +68,56 @@ export function normalizeCanaryOutput(output: unknown): string {
 }
 
 /**
- * Runs the fixed probe set through the ordinary engine and returns the
- * fingerprint. Probes run sequentially in declaration order, one run
- * per probe, so recordings replay deterministically.
+ * Runs the fixed probe set through the ordinary engine. Probes run
+ * sequentially in declaration order, one run per probe, so recordings
+ * replay deterministically. Each probe run carries the optional
+ * immutable ceiling (options.budgetUsd) and authorizes it against the
+ * optional envelope before starting. A non-ok probe enters the
+ * fingerprint as `!status` and clears allOk: callers gate drift
+ * flipping on allOk, because a budget-starved or transiently failing
+ * probe fingerprints differently without the model having drifted.
  */
-export async function canaryFingerprint(engine: Engine, probes: CanaryProbeSet): Promise<string> {
+export async function runCanary(
+  engine: Engine,
+  probes: CanaryProbeSet,
+  options: CanaryRunOptions = {},
+): Promise<CanaryReport> {
   const outputs: string[] = [];
+  const probeReports: CanaryReport['probes'] = [];
   for (const [index, prompt] of probes.prompts.entries()) {
+    options.envelope?.authorize(options.budgetUsd, `canary probe ${String(index)}`);
     const workflow = defineWorkflow(
       { name: `kb-canary:${String(index)}` },
       async (ctx) => await ctx.agent(prompt, { agentType: probes.agentType }),
     );
-    const outcome = await engine.run(workflow, null).result;
+    const outcome = await engine.run(
+      workflow,
+      null,
+      options.budgetUsd === undefined ? {} : { budgetUsd: options.budgetUsd },
+    ).result;
+    probeReports.push({ prompt, status: outcome.status });
     outputs.push(
       outcome.status === 'ok' ? normalizeCanaryOutput(outcome.value) : `!${outcome.status}`,
     );
   }
   const body = JSON.stringify([probes.prompts.length, outputs]);
-  return createHash('sha256').update(body, 'utf8').digest('hex');
+  return {
+    fingerprint: createHash('sha256').update(body, 'utf8').digest('hex'),
+    allOk: probeReports.every((probe) => probe.status === 'ok'),
+    probes: probeReports,
+  };
+}
+
+/**
+ * The fingerprint alone (the pre-v1.16.2-review surface, kept
+ * compatible). Prefer runCanary: its allOk is the drift-flip gate.
+ */
+export async function canaryFingerprint(
+  engine: Engine,
+  probes: CanaryProbeSet,
+  options: CanaryRunOptions = {},
+): Promise<string> {
+  return (await runCanary(engine, probes, options)).fingerprint;
 }
 
 export interface CanaryDriftReport {
@@ -72,7 +134,13 @@ export interface CanaryDriftReport {
  * recorded canary fingerprint differs from the fresh one. Claims
  * without a recorded fingerprint have no baseline and
  * stay untouched (the documented no-probe posture); a second run is
- * an idempotent noop. CAS-rebased like every maintenance commit.
+ * an idempotent noop. CAS-rebased like every maintenance commit; the
+ * retries run no engine work and pay nothing.
+ *
+ * Only pass fingerprints from an allOk probe set (runCanary): a
+ * fingerprint containing a `!status` probe differs from any healthy
+ * baseline by construction, and flipping on it would blame the model
+ * for a budget ceiling or a transient provider failure.
  */
 export async function flipStaleOnCanaryDrift(
   store: ModelKnowledgeStore,

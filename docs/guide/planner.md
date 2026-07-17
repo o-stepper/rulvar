@@ -196,13 +196,16 @@ For CI pipelines that want the planner's view of raw ESLint output, `toJsonDiagn
 The `plan` role defaults to high reasoning effort, and adaptive thinking shares the output-token allowance with the visible script. A tight `maxOutputTokensPerTurn` can be consumed entirely by reasoning, leaving an empty completion:
 
 ```ts
-defaults: {
-  routing: {
-    plan: { model: 'anthropic:claude-fable-5', effort: 'max' },
+createEngine({
+  adapters: [anthropic()],
+  defaults: {
+    routing: {
+      plan: { model: 'anthropic:claude-fable-5', effort: 'max' },
+    },
+    // High-effort adaptive reasoning shares the output-token allowance.
+    limits: { maxOutputTokensPerTurn: 5_000 },
   },
-  // High-effort adaptive reasoning shares the output-token allowance.
-  limits: { maxOutputTokensPerTurn: 5_000 },
-}
+});
 ```
 
 `5_000` is a practical starting point, not a guarantee; tune it to prompt complexity and budget. Reducing `effort` is the cheaper alternative when the goal does not need deep planning. The same limit can also ride one goal instead of the whole engine: `plan(engine, goal, { run: { limits: { maxOutputTokensPerTurn: 5_000 } } })` applies it at the planning journal's genesis.

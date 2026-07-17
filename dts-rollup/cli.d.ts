@@ -16,7 +16,7 @@ interface CliIo {
 declare function processIo(): CliIo;
 //#endregion
 //#region src/cli-main.d.ts
-declare const HELP = "rulvar: durable multi-agent workflows (https://docs.rulvar.com)\n\n  rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N]\n  rulvar resume <runId>  [--store PATH]\n  rulvar runs ls         [--store PATH]\n  rulvar inspect <runId> [--store PATH]\n  rulvar plan \"<goal>\"   [--dry-run]\n  rulvar kb <list | inbox | gate | sweep>\n\nEngine assembly: adapters, defaults, and the workflow registry come from\nrulvar.config.mjs in the working directory (default export\n{ engineOptions?, workflows? }) or from the workflow module's named\nexports. --store selects the JsonlFileStore directory (default .rulvar).\nplan asks the planner model (role plan) to write a workflow script,\nlints and self-repairs it, then runs it in the worker sandbox; --dry-run\nprints the accepted script without running. Requires @rulvar/planner\ninstalled. kb list shows the per-project claim store\n(./rulvar.models.json) with full provenance. kb sweep runs the\nfalsification matrix from the kbSweep section of rulvar.config.mjs\n(fixed pool UNIONED with every model carrying an active negative claim\nplus the re-measure queue; optional canary probes flip drifted claims\nstale first; requires @rulvar/evals installed). kb inbox aggregates\nkb_propose proposals from finished runs (14 day TTL); kb gate turns one\ninbox proposal into a committed claim behind a human attestation\n(--approver and --ruled-out are mandatory). inbox and gate require\n@rulvar/plan installed.";
+declare const HELP: string;
 declare function runCli(argv: string[], options: {
   cwd: string;
   io: CliIo;
@@ -76,6 +76,30 @@ interface KbSweepCliConfig {
     model: `${string}:${string}`;
     effort?: string;
   }) => unknown;
+  /**
+  * Immutable per-run ceilings and the aggregate debit-only envelope
+  * (v1.16.2 review P1-2). A sweep multiplies paid runs: pool members
+  * times cases for targets, one judge run per judge-grader call, one
+  * canary run per probe per member, and the falsification union can
+  * grow the pool past the configured models. Per-run ceilings alone do
+  * not bound that product, so maxTotalUsd is the hard aggregate ceiling
+  * every target, judge, and canary run authorizes against BEFORE it
+  * starts. Required unless allowUnbounded is set: a sweep is never
+  * silently unbounded.
+  */
+  budgets?: {
+    /** Immutable ceiling B0 of every eval target run. */targetUsd: number; /** Immutable ceiling of every judge run. */
+    judgeUsd: number; /** Immutable ceiling of every canary probe run. */
+    canaryUsd: number; /** The debit-only envelope over the WHOLE sweep (targets, judges, canary). */
+    maxTotalUsd: number;
+  };
+  /**
+  * Explicitly waive the ceilings and run every target, judge, and
+  * canary run unbounded (the pre-v1.16.2 behavior). A sweep with
+  * neither budgets nor this flag set fails loudly: an unbounded paid
+  * matrix is never the silent default.
+  */
+  allowUnbounded?: boolean;
 }
 /** Loads `rulvar.config.mjs`/`.js` from cwd; absent config is fine. */
 declare function loadCliConfig(cwd: string): Promise<CliConfig>;

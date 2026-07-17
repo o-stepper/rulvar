@@ -7,14 +7,16 @@
 # Function: canaryFingerprint()
 
 ```ts
-function canaryFingerprint(engine, probes): Promise<string>;
+function canaryFingerprint(
+   engine, 
+   probes, 
+options?): Promise<string>;
 ```
 
-Defined in: [packages/evals/src/canary.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/canary.ts#L45)
+Defined in: [packages/evals/src/canary.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/canary.ts#L115)
 
-Runs the fixed probe set through the ordinary engine and returns the
-fingerprint. Probes run sequentially in declaration order, one run
-per probe, so recordings replay deterministically.
+The fingerprint alone (the pre-v1.16.2-review surface, kept
+compatible). Prefer runCanary: its allOk is the drift-flip gate.
 
 ## Parameters
 
@@ -22,6 +24,7 @@ per probe, so recordings replay deterministically.
 | ------ | ------ |
 | `engine` | [`Engine`](/api/@rulvar/rulvar/interfaces/Engine.md) |
 | `probes` | [`CanaryProbeSet`](/api/@rulvar/evals/interfaces/CanaryProbeSet.md) |
+| `options` | [`CanaryRunOptions`](/api/@rulvar/evals/interfaces/CanaryRunOptions.md) |
 
 ## Returns
 
