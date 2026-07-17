@@ -72,12 +72,12 @@ The Layer column in the table below uses the labels of the architecture's layer 
 | [`eslint-plugin-rulvar`](/api/eslint-plugin-rulvar/) | tooling | Determinism lint rules for workflow modules (ban bare Date.now, Math.random, new Date, fetch, and process.env; ban Promise.all over ctx calls), emitting structured JSON diagnostics for the planner's self-repair loop | default plugin export, `rules`, `workflowsConfig`, `toJsonDiagnostics` | `eslint` >= 9 (peer) |
 | [`@rulvar/testing`](/api/@rulvar/testing/) | L6 | The test harness: a fake adapter and test engine for fast typed unit tests, VCR cassettes with secret redaction, replay-strict runs, and matchers for Vitest and Jest | `createTestEngine`, `FakeAdapter`, `record`, `replay`, `replayRun` | `@rulvar/core` |
 | [`@rulvar/evals`](/api/@rulvar/evals/) | L6 | The eval framework: eval cases with golden outputs, rubric and judge graders running through the engine, matrix sweeps, and the canary fingerprint | `runEvalSuite`, `runEvalMatrix`, `goldenGrader`, `rubricGrader`, `judgeGrader`, `canaryFingerprint` | `@rulvar/core`, `@rulvar/testing` |
-| [`@rulvar/cli`](/api/@rulvar/cli/) | L6 | The ops shell: the `rulvar` binary (run, resume, runs, inspect, plan, kb), TUI progress, the embeddable HTTP server with SSE events and external-input resolution, the queue worker over a leasable store, and the OTel exporter | `runCli`, `createServer`, `createWorker`, `toOtel` | `@rulvar/core`; `@opentelemetry/api` (optional peer); `@rulvar/planner` (loaded dynamically by the plan command only) |
+| [`@rulvar/cli`](/api/@rulvar/cli/) | L6 | The ops shell: the `rulvar` binary (run, resume, runs, inspect, plan, kb), TUI progress, the embeddable HTTP server with SSE events and external-input resolution, the queue worker over a leasable store, and the OTel exporter | `runCli`, `createServer`, `createWorker`, `toOtel` | `@rulvar/core`; `@opentelemetry/api` (optional peer); three optional companions loaded dynamically per command: `@rulvar/planner` (`plan`), `@rulvar/plan` (`kb inbox`, `kb gate`), `@rulvar/evals` (`kb sweep`) |
 | `rulvar` (unscoped) | pointer | A minimal pointer on npm whose entry module re-exports `@rulvar/rulvar`, so a bare install still resolves to the real umbrella at a matching version | re-export of `@rulvar/rulvar` | `@rulvar/rulvar` |
 
 ## Dependency graph
 
-Solid arrows are declared runtime dependencies; the dotted arrow is a dynamic import performed only by the `rulvar plan` command. Internal dependencies are declared with the pnpm workspace protocol and resolve to the exact lockstep version at publish time.
+Solid arrows are declared runtime dependencies; the dotted arrows are the CLI's three optional companions, each dynamically imported by the specific command that needs it (`rulvar plan` uses `@rulvar/planner`, `rulvar kb inbox` and `rulvar kb gate` use `@rulvar/plan`, and `rulvar kb sweep` uses `@rulvar/evals`), so the CLI's declared dependency stays `@rulvar/core` only. Internal dependencies are declared with the pnpm workspace protocol and resolve to the exact lockstep version at publish time.
 
 ```mermaid
 graph TD
@@ -98,7 +98,9 @@ graph TD
   evals["@rulvar/evals"] --> testing
   evals --> core
   cli["@rulvar/cli"] --> core
-  cli -.->|"rulvar plan only"| planner
+  cli -.->|"rulvar plan"| planner
+  cli -.->|"rulvar kb inbox, kb gate"| plan
+  cli -.->|"rulvar kb sweep"| evals
 ```
 
 Four rules keep this graph honest, and they are enforced permanently, not just at major releases:
