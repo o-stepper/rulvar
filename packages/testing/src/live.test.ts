@@ -15,6 +15,7 @@ import {
   DEFAULT_LIVE_SMOKE_ATTEMPTS,
   liveTestEnabled,
   MAX_LIVE_SMOKE_ATTEMPTS,
+  MAX_LIVE_SMOKE_DELAY_MS,
   runLiveSmoke,
 } from './live.js';
 
@@ -195,6 +196,63 @@ describe('runLiveSmoke', () => {
         );
         expect(adapter.calls).toHaveLength(0);
       }
+    });
+
+    it('accepts the Node timer maximum itself and rejects one past it with zero streams', async () => {
+      // attempts: 1 never sleeps, so the boundary value is legal there.
+      const adapter = new FakeAdapter({ agents: { '*': 'ok.' } });
+      const outcome = await runLiveSmoke(adapter, helloReq(), {
+        attempts: 1,
+        baseDelayMs: MAX_LIVE_SMOKE_DELAY_MS,
+      });
+      expect(outcome.status).toBe('ok');
+
+      // 2^31 does not fit a signed 32-bit timer: Node would clamp the
+      // sleep to 1 ms with a TimeoutOverflowWarning. Rejected instead.
+      const overflow = new FakeAdapter({ agents: { '*': 'ok.' } });
+      await expect(
+        runLiveSmoke(overflow, helloReq(), {
+          attempts: 1,
+          baseDelayMs: MAX_LIVE_SMOKE_DELAY_MS + 1,
+        }),
+      ).rejects.toThrow(ConfigError);
+      expect(overflow.calls).toHaveLength(0);
+    });
+
+    it('rejects a legal baseDelayMs whose largest scheduled backoff overflows, zero streams', async () => {
+      // baseDelayMs itself is fine, but retry 2 would sleep
+      // baseDelayMs * 2 > the timer maximum.
+      const baseDelayMs = 1_200_000_000;
+      expect(baseDelayMs).toBeLessThanOrEqual(MAX_LIVE_SMOKE_DELAY_MS);
+      expect(baseDelayMs * 2).toBeGreaterThan(MAX_LIVE_SMOKE_DELAY_MS);
+      const adapter = new FakeAdapter({ agents: { '*': 'ok.' } });
+      await expect(runLiveSmoke(adapter, helloReq(), { attempts: 3, baseDelayMs })).rejects.toThrow(
+        ConfigError,
+      );
+      expect(adapter.calls).toHaveLength(0);
+
+      // The same delay is legal when only one backoff can ever be
+      // scheduled: largest = baseDelayMs * (attempts - 1) = baseDelayMs.
+      const single = new FakeAdapter({ agents: { '*': 'ok.' } });
+      const outcome = await runLiveSmoke(single, helloReq(), { attempts: 2, baseDelayMs });
+      expect(outcome.status).toBe('ok');
+      expect(single.calls).toHaveLength(1);
+    });
+
+    it('carries field, value, and max in the ConfigError data', async () => {
+      const adapter = new FakeAdapter({ agents: { '*': 'ok.' } });
+      const rejection = await runLiveSmoke(adapter, helloReq(), {
+        baseDelayMs: MAX_LIVE_SMOKE_DELAY_MS + 1,
+      }).then(
+        () => null,
+        (error: unknown) => error,
+      );
+      expect(rejection).toBeInstanceOf(ConfigError);
+      expect((rejection as ConfigError).data).toEqual({
+        field: 'baseDelayMs',
+        value: String(MAX_LIVE_SMOKE_DELAY_MS + 1),
+        max: MAX_LIVE_SMOKE_DELAY_MS,
+      });
     });
   });
 

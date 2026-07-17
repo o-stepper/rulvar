@@ -105,8 +105,26 @@ function resolveAnthropicClient(options: AnthropicAdapterOptions): AnthropicClie
       "anthropic(): 'baseURL' and 'sdkOptions.baseURL' are both set; pick one place",
     );
   }
+  // Structured auth wins over ambient env (v1.15 review P2-2): the SDK
+  // sends x-api-key whenever an apiKey is set, INCLUDING one it read
+  // from ANTHROPIC_API_KEY itself, and only falls back to a
+  // credentials/config/profile token provider when apiKey is null. So a
+  // stray key in the environment would silently bypass an explicitly
+  // configured provider and bill a different principal. When the caller
+  // chose structured auth and set no apiKey/authToken anywhere, pass
+  // explicit nulls to suppress the SDK's env reads. Callers that DO set
+  // an apiKey or authToken next to structured auth keep verbatim
+  // forwarding and the SDK's own precedence.
+  const structuredAuth =
+    sdkOptions.credentials != null || sdkOptions.config != null || sdkOptions.profile != null;
+  const suppressAmbientEnv =
+    structuredAuth &&
+    options.apiKey === undefined &&
+    sdkOptions.apiKey === undefined &&
+    sdkOptions.authToken === undefined;
   return new Anthropic({
     ...sdkOptions,
+    ...(suppressAmbientEnv ? { apiKey: null, authToken: null } : {}),
     ...(options.apiKey === undefined ? {} : { apiKey: options.apiKey }),
     ...(options.baseURL === undefined ? {} : { baseURL: options.baseURL }),
     // Last so nothing smuggled past the Omit at runtime re-enables it.
@@ -119,7 +137,13 @@ function resolveAnthropicClient(options: AnthropicAdapterOptions): AnthropicClie
  * autoretries are disabled (max_retries 0): the core owns retries and
  * wall-clock. With no auth option at all, the underlying SDK resolves
  * credentials itself: `ANTHROPIC_API_KEY`, then bearer
- * `ANTHROPIC_AUTH_TOKEN`, then its config-file credential chain.
+ * `ANTHROPIC_AUTH_TOKEN`, then its config-file credential chain. When
+ * `sdkOptions` carries structured auth (`credentials`, `config`, or
+ * `profile`) and no `apiKey`/`authToken` is set anywhere, ambient
+ * environment credentials are suppressed (explicit `apiKey: null,
+ * authToken: null` are passed to the SDK), so the configured provider
+ * is the one that authenticates; the SDK itself would otherwise let an
+ * environment `ANTHROPIC_API_KEY` win over the provider.
  */
 export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapter {
   const client = resolveAnthropicClient(options);

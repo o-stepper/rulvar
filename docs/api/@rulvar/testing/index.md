@@ -71,6 +71,7 @@ pnpm add -D @rulvar/testing
 | [FAKE\_MODEL](/api/@rulvar/testing/variables/FAKE_MODEL.md) | @rulvar/testing tier 1 (M1-T14): FakeAdapter and createTestEngine for fast, fully typed, zero-network unit tests through the real engine. Matchers live at '@rulvar/testing/matchers'. VCR cassettes and replay-strict arrive with M5/M2. |
 | [FAKE\_MODEL\_REF](/api/@rulvar/testing/variables/FAKE_MODEL_REF.md) | @rulvar/testing tier 1 (M1-T14): FakeAdapter and createTestEngine for fast, fully typed, zero-network unit tests through the real engine. Matchers live at '@rulvar/testing/matchers'. VCR cassettes and replay-strict arrive with M5/M2. |
 | [MAX\_LIVE\_SMOKE\_ATTEMPTS](/api/@rulvar/testing/variables/MAX_LIVE_SMOKE_ATTEMPTS.md) | Hard ceiling on `runLiveSmoke` attempts. The helper's whole contract is a bounded spend, so it refuses configurations that are not. |
+| [MAX\_LIVE\_SMOKE\_DELAY\_MS](/api/@rulvar/testing/variables/MAX_LIVE_SMOKE_DELAY_MS.md) | Hard ceiling on every scheduled backoff: Node's maximum timer delay (2^31 - 1 ms). Anything above it would not sleep longer, it would be clamped to 1 ms with a TimeoutOverflowWarning, so both `baseDelayMs` and the largest scheduled delay, `baseDelayMs * (attempts - 1)`, are validated against this bound before any stream opens. |
 
 ## Functions
 
