@@ -10,7 +10,7 @@
 function liveTestEnabled(...requiredEnvKeys): boolean;
 ```
 
-Defined in: [packages/testing/src/live.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/live.ts#L27)
+Defined in: [packages/testing/src/live.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/live.ts#L32)
 
 True only when `RULVAR_LIVE_TESTS` is exactly `'1'` AND every named
 environment key is set to a non-empty value. Gate live tests as

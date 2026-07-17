@@ -2,13 +2,21 @@
  * The live-test opt-in gate and the bounded live smoke: a provider key
  * alone must never run a paid call, retryable errors retry up to the
  * bound and never hang, non-retryable errors fail immediately with the
- * typed diagnostics intact.
+ * typed diagnostics intact, invalid options reject before any stream
+ * opens, and a malformed stream (zero, multiple, or non-final
+ * terminals) is never converted into a pass and never retried.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { ConfigError } from '@rulvar/core';
 import type { ChatEvent, ChatRequest, WireError } from '@rulvar/core';
 import { FakeAdapter, fakeWireError } from './fake-adapter.js';
-import { liveTestEnabled, runLiveSmoke } from './live.js';
+import {
+  DEFAULT_LIVE_SMOKE_ATTEMPTS,
+  liveTestEnabled,
+  MAX_LIVE_SMOKE_ATTEMPTS,
+  runLiveSmoke,
+} from './live.js';
 
 const helloReq = (): ChatRequest => ({
   model: 'fake-model',
@@ -148,6 +156,148 @@ describe('runLiveSmoke', () => {
       }),
     };
     await expect(runLiveSmoke(adapter, helloReq(), { baseDelayMs: 0 })).rejects.toThrow('boom');
+  });
+
+  describe('option validation (rejects before any stream opens)', () => {
+    it('rejects non-integral, out-of-range, and non-finite attempts with zero streams', async () => {
+      const invalid = [
+        0,
+        -1,
+        2.5,
+        Number.NaN,
+        Number.POSITIVE_INFINITY,
+        Number.NEGATIVE_INFINITY,
+        MAX_LIVE_SMOKE_ATTEMPTS + 1,
+      ];
+      for (const attempts of invalid) {
+        const adapter = new FakeAdapter({ agents: { '*': 'ok.' } });
+        await expect(runLiveSmoke(adapter, helloReq(), { attempts })).rejects.toThrow(ConfigError);
+        expect(adapter.calls).toHaveLength(0);
+      }
+    });
+
+    it('accepts undefined, 1, the default, and the maximum', async () => {
+      for (const attempts of [undefined, 1, DEFAULT_LIVE_SMOKE_ATTEMPTS, MAX_LIVE_SMOKE_ATTEMPTS]) {
+        const adapter = new FakeAdapter({ agents: { '*': 'ok.' } });
+        const outcome = await runLiveSmoke(adapter, helloReq(), { attempts, baseDelayMs: 0 });
+        expect(outcome.status).toBe('ok');
+        expect(outcome.attempts).toBe(1);
+        expect(adapter.calls).toHaveLength(1);
+      }
+    });
+
+    it('rejects negative, fractional, and non-finite baseDelayMs with zero streams', async () => {
+      const invalid = [-1, 0.5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
+      for (const baseDelayMs of invalid) {
+        const adapter = new FakeAdapter({ agents: { '*': 'ok.' } });
+        await expect(runLiveSmoke(adapter, helloReq(), { baseDelayMs })).rejects.toThrow(
+          ConfigError,
+        );
+        expect(adapter.calls).toHaveLength(0);
+      }
+    });
+  });
+
+  describe('malformed streams (SPI: exactly one terminal, as the final event)', () => {
+    const FINISH: ChatEvent = {
+      type: 'finish',
+      finish: { reason: 'stop' },
+      usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    };
+
+    const scripted = (events: ChatEvent[], counter: { opened: number }) => ({
+      // eslint-disable-next-line @typescript-eslint/require-await
+      stream: async function* (): AsyncIterable<ChatEvent> {
+        counter.opened += 1;
+        yield* events;
+      },
+    });
+
+    it('classifies a retryable error followed by a finish as a violation, not ok', async () => {
+      const counter = { opened: 0 };
+      const adapter = scripted([{ type: 'error', error: OVERLOADED }, FINISH], counter);
+      const outcome = await runLiveSmoke(adapter, helloReq(), { baseDelayMs: 0 });
+      expect(outcome.status).toBe('contract-violation');
+      if (outcome.status !== 'contract-violation') {
+        throw new Error('unreachable');
+      }
+      expect(outcome.reason).toBe('multiple-terminals');
+      expect(outcome.attempts).toBe(1);
+      expect(counter.opened).toBe(1);
+      expect(outcome.events).toHaveLength(2);
+    });
+
+    it('classifies a finish followed by an error as a violation', async () => {
+      const counter = { opened: 0 };
+      const adapter = scripted([FINISH, { type: 'error', error: OVERLOADED }], counter);
+      const outcome = await runLiveSmoke(adapter, helloReq(), { baseDelayMs: 0 });
+      expect(outcome.status).toBe('contract-violation');
+      if (outcome.status !== 'contract-violation') {
+        throw new Error('unreachable');
+      }
+      expect(outcome.reason).toBe('multiple-terminals');
+      expect(counter.opened).toBe(1);
+    });
+
+    it('classifies two finishes as a violation', async () => {
+      const counter = { opened: 0 };
+      const adapter = scripted([FINISH, FINISH], counter);
+      const outcome = await runLiveSmoke(adapter, helloReq(), { baseDelayMs: 0 });
+      expect(outcome.status).toBe('contract-violation');
+      if (outcome.status !== 'contract-violation') {
+        throw new Error('unreachable');
+      }
+      expect(outcome.reason).toBe('multiple-terminals');
+      expect(counter.opened).toBe(1);
+    });
+
+    it('classifies two retryable errors in one stream as a violation, never a retry', async () => {
+      const counter = { opened: 0 };
+      const adapter = scripted(
+        [
+          { type: 'error', error: OVERLOADED },
+          { type: 'error', error: OVERLOADED },
+        ],
+        counter,
+      );
+      const outcome = await runLiveSmoke(adapter, helloReq(), { baseDelayMs: 0 });
+      expect(outcome.status).toBe('contract-violation');
+      if (outcome.status !== 'contract-violation') {
+        throw new Error('unreachable');
+      }
+      expect(outcome.reason).toBe('multiple-terminals');
+      expect(counter.opened).toBe(1);
+    });
+
+    it('classifies data after the terminal finish as a violation', async () => {
+      const counter = { opened: 0 };
+      const adapter = scripted([FINISH, { type: 'text-delta', text: 'late' }], counter);
+      const outcome = await runLiveSmoke(adapter, helloReq(), { baseDelayMs: 0 });
+      expect(outcome.status).toBe('contract-violation');
+      if (outcome.status !== 'contract-violation') {
+        throw new Error('unreachable');
+      }
+      expect(outcome.reason).toBe('terminal-not-final');
+      expect(counter.opened).toBe(1);
+    });
+
+    it('classifies data after a terminal error as a violation, never a retry', async () => {
+      const counter = { opened: 0 };
+      const adapter = scripted(
+        [
+          { type: 'error', error: OVERLOADED },
+          { type: 'text-delta', text: 'late' },
+        ],
+        counter,
+      );
+      const outcome = await runLiveSmoke(adapter, helloReq(), { baseDelayMs: 0 });
+      expect(outcome.status).toBe('contract-violation');
+      if (outcome.status !== 'contract-violation') {
+        throw new Error('unreachable');
+      }
+      expect(outcome.reason).toBe('terminal-not-final');
+      expect(counter.opened).toBe(1);
+    });
   });
 
   it('sleeps the linear backoff between retryable attempts', async () => {

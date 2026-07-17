@@ -41,6 +41,10 @@
         "collapsed": true,
         "items": [
           {
+            "text": "AnthropicSdkOptions",
+            "link": "/api/@rulvar/anthropic/type-aliases/AnthropicSdkOptions.md"
+          },
+          {
             "text": "AnthropicStreamEvent",
             "link": "/api/@rulvar/anthropic/type-aliases/AnthropicStreamEvent.md"
           }
@@ -2868,6 +2872,10 @@
         "text": "Type Aliases",
         "collapsed": true,
         "items": [
+          {
+            "text": "OpenAiSdkOptions",
+            "link": "/api/@rulvar/openai/type-aliases/OpenAiSdkOptions.md"
+          },
           {
             "text": "ResponsesStreamEvent",
             "link": "/api/@rulvar/openai/type-aliases/ResponsesStreamEvent.md"
@@ -6285,12 +6293,20 @@
         "collapsed": true,
         "items": [
           {
+            "text": "DEFAULT_LIVE_SMOKE_ATTEMPTS",
+            "link": "/api/@rulvar/testing/variables/DEFAULT_LIVE_SMOKE_ATTEMPTS.md"
+          },
+          {
             "text": "FAKE_MODEL",
             "link": "/api/@rulvar/testing/variables/FAKE_MODEL.md"
           },
           {
             "text": "FAKE_MODEL_REF",
             "link": "/api/@rulvar/testing/variables/FAKE_MODEL_REF.md"
+          },
+          {
+            "text": "MAX_LIVE_SMOKE_ATTEMPTS",
+            "link": "/api/@rulvar/testing/variables/MAX_LIVE_SMOKE_ATTEMPTS.md"
           }
         ]
       },

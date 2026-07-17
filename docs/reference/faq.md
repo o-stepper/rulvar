@@ -81,6 +81,10 @@ const ollama = openaiCompatible({
 
 Models on that adapter are addressed as `'ollama:qwen3:8b'` and route like any other. For providers with their own SDKs, `bridgeAiSdk` in `@rulvar/bridge-ai-sdk` wraps a Vercel AI SDK `LanguageModelV4` as an adapter (other spec versions are rejected with a typed error). Local models usually have no price table entry; their usage is reported in `CostReport.unpriced` rather than counted as a silent zero. See [Providers](/guide/providers).
 
+## Can I run Rulvar on my Claude or ChatGPT subscription?
+
+No. Consumer app plans authenticate a consumer application, not an API account, and their tokens are not accepted by the API endpoints the adapters call; do not paste browser, session, or app OAuth tokens into `apiKey` or `authToken`. Rulvar workflows bill provider API accounts, through any of the supported credential modes: API keys, bearer tokens, token providers, and workload identity federation, all documented in the [Authentication](/guide/providers#authentication) matrix. The one subscription-backed programmatic product Anthropic ships is the Claude Agent SDK (`claude -p`), which is a different harness; Rulvar does not currently ship an Agent SDK adapter. Local and keyless endpoints through `openaiCompatible` bill nobody.
+
 ## Why are handoffs rejected?
 
 Because they destroy the two properties everything else stands on. The single cross-agent primitive is agent-as-tool: invoke a specialist, get its result back. Handoffs that transfer control, chat rooms, and blackboard coordination make budget attribution ambiguous (whose sub-account pays the next turn?) and break scope identity (a call's structural position in the run, which is how the journal knows what to replay). This is a design principle, not a missing feature; there is no flag to turn it on.

@@ -14,7 +14,9 @@ Defined in: `packages/anthropic/dist/index.d.ts`
 
 Creates the first-class Anthropic adapter (id 'anthropic'). SDK
 autoretries are disabled (max_retries 0): the core owns retries and
-wall-clock.
+wall-clock. With no auth option at all, the underlying SDK resolves
+credentials itself: `ANTHROPIC_API_KEY`, then bearer
+`ANTHROPIC_AUTH_TOKEN`, then its config-file credential chain.
 
 ## Parameters
 

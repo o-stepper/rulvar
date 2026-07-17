@@ -1,3 +1,4 @@
+import Anthropic, { ClientOptions } from "@anthropic-ai/sdk";
 import { CanonicalId, ChatEvent, ChatRequest, FinishInfo, ModelCaps, PriceTable, ProviderAdapter, Usage, WireError } from "@rulvar/core";
 
 //#region src/caps.d.ts
@@ -59,16 +60,38 @@ interface AnthropicClientLike {
     }>;
   };
 }
+/**
+* Official SDK construction options forwarded verbatim to
+* `new Anthropic(...)`, minus `maxRetries`: Rulvar owns retries and
+* wall-clock, so SDK autoretries stay disabled no matter what is passed
+* here. This is the production surface for every credential mode the
+* SDK supports beyond a plain API key: bearer `authToken`, an
+* `AccessTokenProvider` via `credentials`, an `AnthropicConfig` via
+* `config` (OIDC/workload-identity federation included), a named
+* `profile`, plus `fetch`, `timeout`, and `defaultHeaders`.
+*/
+type AnthropicSdkOptions = Omit<ClientOptions, "maxRetries">;
 interface AnthropicAdapterOptions {
+  /** Shorthand for `sdkOptions.apiKey`; setting both is a ConfigError. */
   apiKey?: string;
+  /** Shorthand for `sdkOptions.baseURL`; setting both is a ConfigError. */
   baseURL?: string;
-  /** Test seam: a preconstructed client; production uses @anthropic-ai/sdk. */
-  client?: AnthropicClientLike;
+  /** Official SDK construction options; see `AnthropicSdkOptions`. */
+  sdkOptions?: AnthropicSdkOptions;
+  /**
+  * A preconstructed client instead of the construction options above
+  * (combining them is a ConfigError): the official `Anthropic` instance
+  * (production; it must be constructed with `maxRetries: 0`) or a
+  * structural `AnthropicClientLike` mock (tests).
+  */
+  client?: Anthropic | AnthropicClientLike;
 }
 /**
 * Creates the first-class Anthropic adapter (id 'anthropic'). SDK
 * autoretries are disabled (max_retries 0): the core owns retries and
-* wall-clock.
+* wall-clock. With no auth option at all, the underlying SDK resolves
+* credentials itself: `ANTHROPIC_API_KEY`, then bearer
+* `ANTHROPIC_AUTH_TOKEN`, then its config-file credential chain.
 */
 declare function anthropic(options?: AnthropicAdapterOptions): ProviderAdapter;
 //#endregion
@@ -147,4 +170,4 @@ declare function mapAnthropicStream(stream: AsyncIterable<AnthropicStreamEvent>,
 */
 declare function anthropicErrorToWire(error: unknown): WireError;
 //#endregion
-export { ANTHROPIC_MODELS, ANTHROPIC_PRICING, type AnthropicAdapterOptions, type AnthropicClientLike, type AnthropicModelInfo, type AnthropicStreamEvent, DEFAULT_PAUSE_TURN_MAX_CONTINUATIONS, IdMap, type TurnMapping, anthropic, anthropicErrorToWire, anthropicModelInfo, buildAnthropicParams, mapAnthropicStream, mapStopReason, normalizeAnthropicUsage };
+export { ANTHROPIC_MODELS, ANTHROPIC_PRICING, type AnthropicAdapterOptions, type AnthropicClientLike, type AnthropicModelInfo, type AnthropicSdkOptions, type AnthropicStreamEvent, DEFAULT_PAUSE_TURN_MAX_CONTINUATIONS, IdMap, type TurnMapping, anthropic, anthropicErrorToWire, anthropicModelInfo, buildAnthropicParams, mapAnthropicStream, mapStopReason, normalizeAnthropicUsage };

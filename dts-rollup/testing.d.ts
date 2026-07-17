@@ -36,12 +36,25 @@ declare function replayRun<A, R>(wf: Workflow<A, R>, args: A, options: ReplayRun
 * an ordinary test run.
 */
 declare function liveTestEnabled(...requiredEnvKeys: string[]): boolean;
+/** Default total `runLiveSmoke` attempts including the first. */
+declare const DEFAULT_LIVE_SMOKE_ATTEMPTS = 3;
+/**
+* Hard ceiling on `runLiveSmoke` attempts. The helper's whole contract
+* is a bounded spend, so it refuses configurations that are not.
+*/
+declare const MAX_LIVE_SMOKE_ATTEMPTS = 10;
 interface RunLiveSmokeOptions {
-  /** Total attempts including the first (default 3, minimum 1). */
+  /**
+  * Total attempts including the first: an integer from 1 to
+  * {@link MAX_LIVE_SMOKE_ATTEMPTS} (default 3). Anything else, NaN and
+  * Infinity included, rejects with ConfigError before any stream opens.
+  */
   attempts?: number;
   /**
-  * Backoff before retry n (1-based) is `baseDelayMs * n` (default
-  * 2000). Pass 0 to retry without sleeping (unit tests).
+  * Backoff before retry n (1-based) is `baseDelayMs * n`: a
+  * non-negative integer (default 2000). Pass 0 to retry without
+  * sleeping (unit tests). Anything else rejects with ConfigError
+  * before any stream opens.
   */
   baseDelayMs?: number;
 }
@@ -67,13 +80,18 @@ type LiveSmokeOutcome = {
   status: "no-terminal";
   attempts: number;
   events: ChatEvent[];
+} | {
+  status: "contract-violation";
+  attempts: number;
+  reason: "multiple-terminals" | "terminal-not-final";
+  events: ChatEvent[];
 };
 /**
 * Drains `adapter.stream(req)` with a bounded retry policy and classifies
 * the outcome instead of throwing:
 *
-* - `'ok'`: a `finish` event arrived (the events of the successful
-*   attempt are included for further assertions).
+* - `'ok'`: the stream ended on a single terminal `finish` (the events of
+*   the successful attempt are included for further assertions).
 * - `'failed'`: a terminal error with `retryable: false`; never retried,
 *   diagnostics preserved.
 * - `'exhausted'`: every attempt ended in a `retryable: true` error; the
@@ -81,10 +99,18 @@ type LiveSmokeOutcome = {
 * - `'no-terminal'`: the stream ended with neither `finish` nor `error`,
 *   which violates the provider SPI; never retried (spending again on a
 *   misbehaving adapter is wrong).
+* - `'contract-violation'`: the stream carried more than one terminal
+*   event (`'multiple-terminals'`, e.g. an error followed by a finish) or
+*   its single terminal was not the final event
+*   (`'terminal-not-final'`). Equally an SPI violation, equally never
+*   retried, and never reported as a pass.
 *
-* Retries only ever follow typed retryable errors, so a live smoke never
-* converts a real adapter failure into a pass and never spends more than
-* `attempts` calls.
+* Retries only ever follow a well-formed stream whose single final
+* terminal is a typed retryable error, so a live smoke never converts a
+* real adapter failure or a malformed stream into a pass and never
+* spends more than `attempts` calls. Options are validated first:
+* invalid `attempts` or `baseDelayMs` reject with ConfigError before any
+* adapter call.
 */
 declare function runLiveSmoke(adapter: Pick<ProviderAdapter, "stream">, req: ChatRequest, options?: RunLiveSmokeOptions): Promise<LiveSmokeOutcome>;
 //#endregion
@@ -213,4 +239,4 @@ declare function replay(options: {
   adapters?: ProviderAdapter[];
 }): ProviderAdapter[];
 //#endregion
-export { type CassetteFixture, type CreateTestEngineOptions, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type FakeToolCallsValue, type FakeWireErrorValue, type LiveSmokeOutcome, M6_ORCH_GOAL, M6_ORCH_PROFILES, M6_ORCH_RUN_ID, RedactFn, type ReplayRunOptions, type RunLiveSmokeOptions, type TestEngine, type TestRunHandle, VcrCassette, VcrMissError, VcrRow, buildFrozenV1JournalRaw, buildM2CassetteFixtures, buildV2GoldenIdentity, createTestEngine, defaultRedact, fakeToolCalls, fakeWireError, handlesInRequest, liveTestEnabled, normalizeM6Entries, readCassette, record, recordLiveCassettes, recordOrchestratorCrash, replay, replayRun, requestHash, runLiveSmoke };
+export { type CassetteFixture, type CreateTestEngineOptions, DEFAULT_LIVE_SMOKE_ATTEMPTS, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type FakeToolCallsValue, type FakeWireErrorValue, type LiveSmokeOutcome, M6_ORCH_GOAL, M6_ORCH_PROFILES, M6_ORCH_RUN_ID, MAX_LIVE_SMOKE_ATTEMPTS, RedactFn, type ReplayRunOptions, type RunLiveSmokeOptions, type TestEngine, type TestRunHandle, VcrCassette, VcrMissError, VcrRow, buildFrozenV1JournalRaw, buildM2CassetteFixtures, buildV2GoldenIdentity, createTestEngine, defaultRedact, fakeToolCalls, fakeWireError, handlesInRequest, liveTestEnabled, normalizeM6Entries, readCassette, record, recordLiveCassettes, recordOrchestratorCrash, replay, replayRun, requestHash, runLiveSmoke };

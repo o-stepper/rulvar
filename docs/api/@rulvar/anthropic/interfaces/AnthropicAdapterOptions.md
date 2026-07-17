@@ -6,12 +6,13 @@
 
 # Interface: AnthropicAdapterOptions
 
-Defined in: [packages/anthropic/src/adapter.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L44)
+Defined in: [packages/anthropic/src/adapter.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L57)
 
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-apikey"></a> `apiKey?` | `string` | - | [packages/anthropic/src/adapter.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L45) |
-| <a id="property-baseurl"></a> `baseURL?` | `string` | - | [packages/anthropic/src/adapter.ts:46](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L46) |
-| <a id="property-client"></a> `client?` | [`AnthropicClientLike`](/api/@rulvar/anthropic/interfaces/AnthropicClientLike.md) | Test seam: a preconstructed client; production uses @anthropic-ai/sdk. | [packages/anthropic/src/adapter.ts:48](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L48) |
+| <a id="property-apikey"></a> `apiKey?` | `string` | Shorthand for `sdkOptions.apiKey`; setting both is a ConfigError. | [packages/anthropic/src/adapter.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L59) |
+| <a id="property-baseurl"></a> `baseURL?` | `string` | Shorthand for `sdkOptions.baseURL`; setting both is a ConfigError. | [packages/anthropic/src/adapter.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L61) |
+| <a id="property-client"></a> `client?` | \| `Anthropic` \| [`AnthropicClientLike`](/api/@rulvar/anthropic/interfaces/AnthropicClientLike.md) | A preconstructed client instead of the construction options above (combining them is a ConfigError): the official `Anthropic` instance (production; it must be constructed with `maxRetries: 0`) or a structural `AnthropicClientLike` mock (tests). | [packages/anthropic/src/adapter.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L70) |
+| <a id="property-sdkoptions"></a> `sdkOptions?` | [`AnthropicSdkOptions`](/api/@rulvar/anthropic/type-aliases/AnthropicSdkOptions.md) | Official SDK construction options; see `AnthropicSdkOptions`. | [packages/anthropic/src/adapter.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/adapter.ts#L63) |

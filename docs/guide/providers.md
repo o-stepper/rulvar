@@ -1,6 +1,6 @@
 ---
 title: Providers
-description: The ProviderAdapter SPI and the shipped adapters, including @rulvar/anthropic, @rulvar/openai with the openaiCompatible factory, and @rulvar/bridge-ai-sdk for any Vercel AI SDK model.
+description: The ProviderAdapter SPI and the shipped adapters, including @rulvar/anthropic, @rulvar/openai with the openaiCompatible factory, and @rulvar/bridge-ai-sdk for any Vercel AI SDK model, plus every supported credential mode from API keys to workload identity federation.
 ---
 
 # Providers
@@ -50,16 +50,16 @@ Three rules worth knowing up front:
 
 - **`ModelRef` is strictly `adapterId:model`.** The left segment selects the adapter from the registry; the right segment is the wire model id the adapter sends. No query parameters, no aliases.
 - **Duplicate adapter ids are a typed `ConfigError`** at `createEngine`. Several OpenAI compatible endpoints coexist by giving each a distinct `id`.
-- **Keys and base URLs are fixed at adapter construction.** An adapter instance is bound to one endpoint and one credential for its lifetime; run a second instance under a different id for a second endpoint.
+- **Credentials and base URLs are fixed at adapter construction.** An adapter instance is bound to one endpoint and one credential for its lifetime; run a second instance under a different id for a second endpoint.
 
 `concurrency.perProvider` caps in flight requests per adapter id; ids without a configured cap run unlimited. Where model calls are routed, and how effort, fallbacks, and quality floors resolve, is the subject of [Model routing](/guide/model-routing).
 
-## API keys
+## Authentication
 
-| Adapter | Option | When `apiKey` is omitted |
+| Adapter | Options | When no auth option is set |
 |---|---|---|
-| `anthropic()` | `apiKey`, `baseURL` | The underlying `@anthropic-ai/sdk` reads `ANTHROPIC_API_KEY`. |
-| `openai()` | `apiKey`, `baseURL` | The underlying `openai` SDK reads `OPENAI_API_KEY`. |
+| `anthropic()` | `apiKey`, `baseURL`, `sdkOptions`, `client` | The underlying `@anthropic-ai/sdk` resolves credentials itself: `ANTHROPIC_API_KEY`, then bearer `ANTHROPIC_AUTH_TOKEN`, then its config-file credential chain. |
+| `openai()` | `apiKey`, `baseURL`, `sdkOptions`, `client` | The underlying `openai` SDK reads `OPENAI_API_KEY`. |
 | `openaiCompatible()` | `apiKey` (optional), `baseURL` (required) | A placeholder key is sent, so keyless local endpoints like Ollama and vLLM work without configuration. |
 | `bridgeAiSdk()` | none | Credentials belong to the wrapped AI SDK model; configure them on the provider package you bring. |
 
@@ -74,7 +74,55 @@ export OPENAI_API_KEY="your-api-key"    # openai()
 
 Reserve the explicit `apiKey` option for hosts that already own secret distribution (a vault client, per-tenant credentials). Either way, treat keys as secrets end to end: keep them out of source control and out of workflow code. Rulvar masks key-shaped strings at the telemetry boundary ([Redaction](/guide/observability#redaction)), but that is a last line of defense, not a reason to inline keys.
 
-All shipped adapters construct their SDK client with autoretries disabled (`maxRetries: 0`). This is deliberate: the engine owns retries, backoff, and wall clock, because SDK internal retries would be invisible to the journal, the budget ledger, and your timeouts. Adapters surface rate limit and overload responses as typed retryable errors instead, and the engine's `RetryPolicy` honors any provider supplied retry delay.
+### Supported credential modes
+
+An API key is one credential mode among several, and the modes differ in how the credential is minted, not in who pays. The support matrix:
+
+| Mode | Bills | `anthropic()` | `openai()` |
+|---|---|---|---|
+| API key | The provider API account | `apiKey` option or `ANTHROPIC_API_KEY` | `apiKey` option or `OPENAI_API_KEY` |
+| Static bearer token | The provider API account | `sdkOptions.authToken` or `ANTHROPIC_AUTH_TOKEN` | Not offered by the SDK |
+| Token provider / workload identity federation | The provider API account: federation changes credential distribution (short-lived tokens minted from your identity provider), never billing | `sdkOptions.credentials` (an `AccessTokenProvider`), `sdkOptions.config` (OIDC federation), or `sdkOptions.profile` | `sdkOptions.workloadIdentity`; mutually exclusive with any API key, the environment variable included |
+| Implicit SDK credential chain | Whatever the resolved credential bills | Construct with no auth option: the SDK resolves the key, then the bearer variable, then its config files | `OPENAI_API_KEY` only |
+| Consumer subscription (Claude or ChatGPT app plans) | Not applicable | Not a credential mode | Not a credential mode |
+| Local or keyless endpoint | Nobody | Not applicable | Via `openaiCompatible({ baseURL })` |
+
+Two boundaries worth stating explicitly:
+
+- **A consumer subscription is not an API credential.** Claude and ChatGPT app plans authenticate a consumer application, not an API account. Do not paste browser or session tokens, app OAuth tokens, or anything extracted from a logged-in client into `apiKey` or `authToken`: those endpoints do not accept them, and the attempt violates the providers' terms. The one subscription-backed programmatic path Anthropic ships is the Claude Agent SDK (`claude -p`), a separate product with its own harness and terms; Rulvar does not currently ship an Agent SDK adapter, so a Rulvar workflow always bills a provider API account.
+- **Every supported mode above is first-class API auth.** Short-lived bearer and federation modes land usage on the same provider project as an API key; pick them for credential hygiene, not for billing reasons.
+
+### sdkOptions and preconstructed clients
+
+`sdkOptions` forwards official SDK construction options verbatim with one exception: `maxRetries` is excluded from the type and forced to `0` at construction, because the engine owns retries (below). Every SDK credential mode in the matrix rides through it, as do `fetch`, `timeout`, and `defaultHeaders`:
+
+```ts
+import { anthropic } from "@rulvar/anthropic";
+import { openai } from "@rulvar/openai";
+
+// A token provider minting short-lived bearers (Anthropic).
+const viaProvider = anthropic({
+  sdkOptions: {
+    credentials: async () => ({ token: await mintFromVault(), expiresAt: null }),
+  },
+});
+
+// Workload identity federation (OpenAI). Leave OPENAI_API_KEY unset:
+// the SDK rejects a key plus workloadIdentity as conflicting auth.
+const viaFederation = openai({
+  sdkOptions: {
+    workloadIdentity: {
+      identityProviderId: "idp_...",
+      serviceAccountId: "sa_...",
+      provider: { tokenType: "jwt", getToken: () => mintSubjectJwt() },
+    },
+  },
+});
+```
+
+A preconstructed client is equally first-class: `client` accepts the official `Anthropic` or `OpenAI` instance directly, no casts, or a structural `AnthropicClientLike`/`OpenAiClientLike` mock in tests. The constraints are all typed `ConfigError` raised before any network I/O: `client` is mutually exclusive with the construction options; an injected official client must have been constructed with `maxRetries: 0`; the same field set both top-level and inside `sdkOptions` is rejected; `apiKey` conflicts with `sdkOptions.workloadIdentity`. Rulvar never reads, logs, journals, or stringifies credential contents on any of these paths; credentials go to the official SDK and nowhere else.
+
+All shipped adapters construct their SDK client with autoretries disabled (`maxRetries: 0`), and refuse an injected client that has them enabled. This is deliberate: the engine owns retries, backoff, and wall clock, because SDK internal retries would be invisible to the journal, the budget ledger, and your timeouts. Adapters surface rate limit and overload responses as typed retryable errors instead, and the engine's `RetryPolicy` honors any provider supplied retry delay.
 
 ## The ProviderAdapter SPI
 

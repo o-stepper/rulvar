@@ -28,10 +28,16 @@ type LiveSmokeOutcome =
   attempts: number;
   events: ChatEvent[];
   status: "no-terminal";
+}
+  | {
+  attempts: number;
+  events: ChatEvent[];
+  reason: "multiple-terminals" | "terminal-not-final";
+  status: "contract-violation";
 };
 ```
 
-Defined in: [packages/testing/src/live.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/live.ts#L52)
+Defined in: [packages/testing/src/live.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/live.ts#L72)
 
 The classified result of a bounded live smoke. `attempts` is how many
 streams were actually opened; only `'exhausted'` reaches the
