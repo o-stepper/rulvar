@@ -60,7 +60,11 @@ let globalsPatched = false;
  * transport behind fetch, timers, stream internals), whose frames carry
  * `node:` specifiers and inherit the run's async context. The guard
  * exists for workflow code, which imports from both but lives in
- * neither.
+ * neither. Rulvar's own internals never reach this check at all: every
+ * internal real-time read binds the module-load clock (l0/real-clock.ts
+ * and the ULID factory default), never the live global, so frames from
+ * workspace dists or this repo's sources cannot false-warn (v1.18.0
+ * review P2-6).
  */
 function libraryCaller(): boolean {
   const caller = new Error().stack?.split('\n')[3];

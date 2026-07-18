@@ -18,6 +18,7 @@ import {
   type WireError,
 } from '../l0/errors.js';
 import type { Json } from '../l0/json.js';
+import { realNow } from '../l0/real-clock.js';
 import type {
   ChatRequest,
   FinishInfo,
@@ -741,7 +742,7 @@ async function executeToolCall(options: {
 export async function runAgent<S extends SchemaSpec>(
   options: RunAgentOptions<S>,
 ): Promise<AgentResult<Out<S>>> {
-  const now = options.now ?? Date.now;
+  const now = options.now ?? realNow;
   const startedAt = now();
   const limits = options.limits;
   const maxSchemaAttempts = (options.schemaRetryAttempts ?? 2) + 1;

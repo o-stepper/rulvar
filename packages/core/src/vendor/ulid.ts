@@ -84,14 +84,20 @@ function assertValidTime(time: number): void {
  * backwards; in both cases the previous timestamp is reused and the random
  * component is incremented.
  *
- * `now` and `random` are injectable for tests; defaults are `Date.now` and
- * `globalThis.crypto.getRandomValues`.
+ * `now` and `random` are injectable for tests; defaults are the real
+ * wall clock and `globalThis.crypto.getRandomValues`. The clock default
+ * is BOUND AT MODULE LOAD, never read from the global at mint time: a
+ * live read inside a run's async context goes through the dev-mode
+ * bare-Date.now patch and false-warns on the factory's own frames when
+ * they live outside node_modules (v1.18.0 review P2-6).
  */
+const REAL_NOW: () => number = Date.now.bind(globalThis);
+
 export function monotonicUlidFactory(options?: {
   now?: () => number;
   random?: (byteLength: number) => Uint8Array;
 }): UlidFactory {
-  const now = options?.now ?? Date.now;
+  const now = options?.now ?? REAL_NOW;
   const random = options?.random ?? defaultRandom;
   let lastTime = -1;
   let lastRandom: Uint8Array | null = null;
