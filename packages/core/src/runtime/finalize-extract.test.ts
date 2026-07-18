@@ -12,7 +12,7 @@ import type { ToolDef } from '../l0/spi/toolsource.js';
 import type { ResolvedInvocation } from '../model/router.js';
 import { tool, toolContract } from '../tools/tool.js';
 import { recordingSink, scriptedAdapter, testCaps } from '../engine/test-harness.js';
-import { runAgent, type ToolRuntime } from './agent-loop.js';
+import { FINALIZE_SYNTHESIS_INSTRUCTION, runAgent, type ToolRuntime } from './agent-loop.js';
 import { EMIT_RESULT_TOOL } from './structured-output.js';
 import { mergeUsageLimits } from './usage-limits.js';
 
@@ -92,15 +92,19 @@ describe('finalize synthesis (M4-T01)', () => {
     // The tool-bearing transcript carries the contracts.
     expect(synthesisReq?.tools?.map((t) => t.name)).toEqual(['lookup']);
     // The full transcript rode along: prompt, tool turn, tool results,
-    // final loop turn. (The harness records the live array, so the
-    // synthesis itself appears appended after the fact; assert the
-    // prefix, not the length.)
+    // final loop turn.
     expect(synthesisReq?.messages.slice(0, 4).map((m) => m.role)).toEqual([
       'user',
       'assistant',
       'tool',
       'assistant',
     ]);
+    // The request never ends at the assistant message: the deterministic
+    // synthesis instruction closes it (v1.18.0 review P1-1), and the
+    // durable transcript stays raw (the instruction is request-only).
+    const lastMsg = synthesisReq?.messages.at(-1);
+    expect(lastMsg?.role).toBe('user');
+    expect(lastMsg?.parts).toEqual([{ type: 'text', text: FINALIZE_SYNTHESIS_INSTRUCTION }]);
     const starts = events.ofType('agent:start');
     expect(starts.map((e) => e.role)).toEqual(['loop', 'finalize']);
     expect(starts[1]?.model).toBe('strong:big');
@@ -148,6 +152,66 @@ describe('finalize synthesis (M4-T01)', () => {
     for (const req of [...loopAdapter.calls, ...finalizeAdapter.calls]) {
       expect(req.schema).toBeUndefined();
     }
+  });
+
+  it('a model that opens a fresh conversation on an assistant-ended history cannot replace the answer', async () => {
+    // The v1.18.0 review P1-1 live scenario as a deterministic fake: the
+    // synthesis model answers correctly ONLY when the request carries the
+    // explicit instruction; a request that ends at the assistant message
+    // reads as a new conversation and gets a greeting.
+    const loopAdapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? { toolCall: { name: 'lookup', args: { topic: 'sum' } } }
+        : { text: 'The sum is 42.' },
+    );
+    const finalizeAdapter = scriptedAdapter(
+      (req) => {
+        const last = req.messages.at(-1);
+        const text = (last?.parts ?? [])
+          .filter((p) => p.type === 'text')
+          .map((p) => p.text)
+          .join('');
+        return last?.role === 'user' && text === FINALIZE_SYNTHESIS_INSTRUCTION
+          ? { text: '42' }
+          : { text: 'How can I help?' };
+      },
+      { id: 'strong' },
+    );
+    const result = await runAgent({
+      prompt: 'compute 31 + 11 with the tool, then state the sum',
+      adapter: loopAdapter,
+      resolved: loopResolved,
+      limits: mergeUsageLimits(),
+      tools: runtimeOf([lookup]),
+      finalize: { adapter: finalizeAdapter, resolved: otherResolved('strong:big') },
+    });
+    expect(result.status).toBe('ok');
+    expect(result.output).toBe('42');
+    expect(finalizeAdapter.calls).toHaveLength(1);
+    // Exactly one synthesis call: two loop turns plus finalize, all paid once.
+    expect(result.turns).toBe(3);
+  });
+
+  it('a non-truncated empty synthesis falls back to the loop turn text', async () => {
+    const loopAdapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? { toolCall: { name: 'lookup', args: { topic: 'weather' } } }
+        : { text: 'raw notes' },
+    );
+    const finalizeAdapter = scriptedAdapter(() => ({ text: '' }), { id: 'strong' });
+    const result = await runAgent({
+      prompt: 'research the weather',
+      adapter: loopAdapter,
+      resolved: loopResolved,
+      limits: mergeUsageLimits(),
+      tools: runtimeOf([lookup]),
+      finalize: { adapter: finalizeAdapter, resolved: otherResolved('strong:big') },
+    });
+    expect(result.status).toBe('ok');
+    // The synthesis call happened (and was paid), but its empty text
+    // never erases the loop's answer.
+    expect(finalizeAdapter.calls).toHaveLength(1);
+    expect(result.output).toBe('raw notes');
   });
 
   it('a synthesis wire error is terminal: no extract call follows', async () => {

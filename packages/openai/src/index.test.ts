@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   ConfigError,
   createCanonicalIdMinter,
+  createEngine,
+  defineWorkflow,
+  InMemoryStore,
   priceUsdOf,
+  tool,
   type ChatEvent,
   type Part,
 } from '@rulvar/core';
@@ -578,6 +582,48 @@ describe('adapter surface (M1-T13)', () => {
       }
     },
     180_000,
+  );
+
+  it.skipIf(!liveTestEnabled('OPENAI_API_KEY'))(
+    'live smoke: routed finalize on Luna synthesizes the tool answer, never a greeting (opt-in, spends budget)',
+    async () => {
+      // The v1.18.0 review P1-1 live scenario: without the deterministic
+      // synthesis instruction a real model treated the assistant-ended
+      // transcript as a fresh conversation and replaced the correct
+      // answer with a greeting. This smoke pins the fixed contract on a
+      // real provider under a hard run ceiling.
+      const sumNumbers = tool({
+        name: 'sum_numbers',
+        description: 'Adds two numbers and returns the sum.',
+        parameters: {
+          type: 'object',
+          properties: { a: { type: 'number' }, b: { type: 'number' } },
+          required: ['a', 'b'],
+          additionalProperties: false,
+        },
+        execute: (input) => {
+          const { a, b } = input as { a: number; b: number };
+          return Promise.resolve({ sum: a + b });
+        },
+      });
+      const engine = createEngine({
+        adapters: [openai({})],
+        stores: { journal: new InMemoryStore({ quiet: true }) },
+      });
+      const wf = defineWorkflow({ name: 'live-finalize' }, async (ctx) =>
+        ctx.agent('Use the sum_numbers tool to compute 31 + 11, then state the sum.', {
+          tools: [sumNumbers],
+          routing: { loop: 'openai:gpt-5.6-luna', finalize: 'openai:gpt-5.6-luna' },
+        }),
+      );
+      const outcome = await engine.run(wf, undefined, { budgetUsd: 0.25 }).result;
+      if (outcome.status !== 'ok') {
+        throw new Error(`finalize live smoke did not finish ok: ${JSON.stringify(outcome)}`);
+      }
+      expect(String(outcome.value)).toContain('42');
+      expect(String(outcome.value)).not.toMatch(/how can i (help|assist)/iu);
+    },
+    240_000,
   );
 });
 
