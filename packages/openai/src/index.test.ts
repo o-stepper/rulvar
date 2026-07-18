@@ -888,9 +888,7 @@ describe('adapter surface (M1-T13)', () => {
       // counts. The double-add defect inflated the write call's
       // inputTokens by the write count and broke this equality.
       expect(second.inputTokens).toBe(first.inputTokens);
-      expect(first.cacheReadTokens + first.cacheWriteTokens).toBeLessThanOrEqual(
-        first.inputTokens,
-      );
+      expect(first.cacheReadTokens + first.cacheWriteTokens).toBeLessThanOrEqual(first.inputTokens);
       expect(second.cacheReadTokens + second.cacheWriteTokens).toBeLessThanOrEqual(
         second.inputTokens,
       );

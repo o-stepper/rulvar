@@ -258,7 +258,10 @@ function clampCacheSubsets(
   rawWrite: number,
 ): { cacheReadTokens: number; cacheWriteTokens: number } {
   const cacheReadTokens = Math.min(Math.max(0, rawRead), Math.max(0, inputTokens));
-  const cacheWriteTokens = Math.min(Math.max(0, rawWrite), Math.max(0, inputTokens) - cacheReadTokens);
+  const cacheWriteTokens = Math.min(
+    Math.max(0, rawWrite),
+    Math.max(0, inputTokens) - cacheReadTokens,
+  );
   return { cacheReadTokens, cacheWriteTokens };
 }
 
