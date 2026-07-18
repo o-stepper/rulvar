@@ -17,16 +17,27 @@
  * invocation and is never persisted.
  *
  * Accounting is integer micro-USD and conservative at the
- * representation boundary (v1.17.0 review P1-4, hardened by the v1.18.0
- * review P1-4): the cap converts DOWN (floor), every debit converts UP
- * (ceil), only ULP-scale representation noise may snap to the
- * neighboring integer, amounts outside the safe integer micro-USD
- * domain are rejected, and a cap below one micro-USD is rejected
- * outright, so for any admitted sequence the sum of the ORIGINAL
- * ceilings can never exceed maxTotalUsd and no positive ceiling ever
- * debits zero. Amounts that are integer micro-USD up to float noise
- * stay exact, so 0.1 + 0.2 against a 0.3 envelope is a fit, not a
- * float rejection.
+ * representation boundary (v1.17.0 review P1-4, hardened by the
+ * v1.18.0 review P1-4 and the v1.19.0 review P1-3): the cap converts
+ * DOWN (floor), every debit converts UP (ceil), only ULP-scale
+ * representation noise may snap to the neighboring integer, amounts at
+ * or above 2^49 micro-USD (about $563M, where the noise window would
+ * reach half a micro and the nearest integer would stop being unique)
+ * are rejected, and a cap below one micro-USD is rejected outright.
+ *
+ * The exact input interpretation: every USD amount is a JavaScript
+ * double, and the envelope interprets a double within SNAP_ULPS ULPs
+ * of an integer micro value AS that integer; anything farther rounds
+ * in the conservative direction. Under that interpretation the sum of
+ * admitted ceilings can never exceed maxTotalUsd, and no positive
+ * ceiling ever debits zero. The honest raw-double bound: each admitted
+ * amount's double may sit below its interpreted integer by at most the
+ * noise window (4 ULPs, always under half a micro in-domain), so the
+ * sum of raw doubles can exceed the cap by at most half a micro-USD
+ * per admitted amount; distinguishing finer than that is impossible in
+ * double precision at the top of the domain. Amounts that are integer
+ * micro-USD up to float noise stay exact, so 0.1 + 0.2 against a 0.3
+ * envelope is a fit, not a float rejection.
  */
 import { ConfigError } from '@rulvar/core';
 
@@ -55,19 +66,27 @@ function microOf(usd: number, direction: 'floor' | 'ceil'): number {
 }
 
 /**
- * The accounting domain is integer micro-USD within Number's safe
- * integer range (up to about $9.007e9). Outside it (Number.MAX_VALUE
- * caps overflow to Infinity, huge finite amounts lose integer
- * precision) the envelope arithmetic silently degrades: Infinity plus
- * anything compares false against Infinity and every authorization
- * would be admitted with remainingUsd NaN (v1.18.0 review P1-4), so
- * out-of-domain amounts are rejected up front.
+ * The accounting domain is integer micro-USD strictly below 2^49
+ * (at most $562,949,953.421311). Two limits meet there. Outside the
+ * safe integer range the arithmetic silently degrades: a
+ * Number.MAX_VALUE cap overflowed to Infinity and admitted EVERYTHING
+ * with remainingUsd NaN (v1.18.0 review P1-4). Well before that, from
+ * 2^49 micro upward, the SNAP_ULPS window reaches half a micro-USD:
+ * the nearest integer stops being unique and the snap absorbs genuine
+ * sub-micro remainders, so a ceil debit could round DOWN and admit an
+ * aggregate whose raw doubles sum above the cap by more than the
+ * documented noise bound (v1.19.0 review P1-3). Below 2^49 the window
+ * stays strictly under half a micro, the snap target is unique, and
+ * only representation noise is absorbed. Out-of-domain amounts are
+ * rejected up front.
  */
-function requireSafeMicro(micro: number, what: string, usd: number): number {
-  if (!Number.isSafeInteger(micro)) {
+const MAX_MICRO_EXCLUSIVE = 2 ** 49;
+
+function requireDomainMicro(micro: number, what: string, usd: number): number {
+  if (!Number.isSafeInteger(micro) || micro >= MAX_MICRO_EXCLUSIVE) {
     throw new ConfigError(
-      `${what} ${String(usd)} USD is outside the safe integer micro-USD accounting domain ` +
-        '(at most $9007199254.740991)',
+      `${what} ${String(usd)} USD is outside the micro-USD accounting domain ` +
+        '(at most $562949953.421311)',
     );
   }
   return micro;
@@ -114,7 +133,7 @@ export class SpendEnvelope {
     }
     this.maxTotalUsd = maxTotalUsd;
     // The cap converts DOWN: representation error may only tighten it.
-    this.maxMicroUsd = requireSafeMicro(
+    this.maxMicroUsd = requireDomainMicro(
       microOf(maxTotalUsd, 'floor'),
       'SpendEnvelope maxTotalUsd',
       maxTotalUsd,
@@ -153,7 +172,7 @@ export class SpendEnvelope {
     // Every debit converts UP: a positive ceiling always debits at
     // least one micro-USD, so zero-debit authorizations cannot exist
     // and the admitted ORIGINAL ceilings always sum within the cap.
-    const micro = requireSafeMicro(
+    const micro = requireDomainMicro(
       Math.max(1, microOf(ceilingUsd, 'ceil')),
       `per-run ceiling for ${runLabel}`,
       ceilingUsd,
