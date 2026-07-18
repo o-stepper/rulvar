@@ -137,7 +137,12 @@ describe('toolset resolution and hashing (M3-T01)', () => {
     ).rejects.toThrow(ConfigError);
   });
 
-  it('registered toolset names are rejected in ToolsOption with a typed ConfigError', async () => {
+  it('a toolset name with no registry to resolve against is a typed ConfigError', async () => {
+    // Names themselves are legal ToolsOption entries since v1.18 (they
+    // resolve through defaults.toolsets); without a registry in scope
+    // every name is unknown, which is the same preflight rejection an
+    // unregistered name gets (v1.18.0 review P2-1: the old test name
+    // claimed a general string ban that no longer exists).
     await expect(resolveToolset(['by-name'], SESSION)).rejects.toThrow(ConfigError);
   });
 

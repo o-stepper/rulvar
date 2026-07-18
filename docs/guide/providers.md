@@ -48,7 +48,7 @@ const engine = createEngine({
 
 Three rules worth knowing up front:
 
-- **`ModelRef` is strictly `adapterId:model`.** The left segment selects the adapter from the registry; the right segment is the wire model id the adapter sends. No query parameters, no aliases.
+- **`ModelRef` is strictly `adapterId:model`.** The left segment selects the adapter from the registry; the right segment is the wire model id the adapter sends. No query parameters, no aliases at the `ModelRef` grammar level: rulvar never resolves one ref into another. A wire model id may itself be a provider-side alias (`gpt-5.6` is OpenAI's published alias for Sol); that resolution happens on the provider's side and rulvar just prices the row it seeded for that id.
 - **Duplicate adapter ids are a typed `ConfigError`** at `createEngine`. Several OpenAI compatible endpoints coexist by giving each a distinct `id`.
 - **Credentials and base URLs are fixed at adapter construction.** An adapter instance is bound to one endpoint and one credential for its lifetime; run a second instance under a different id for a second endpoint.
 

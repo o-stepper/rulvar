@@ -302,6 +302,7 @@ Its typed spawn tools are the whole cross-agent surface of mode (c):
 | `parallel_agents` | Spawn several children at once. |
 | `await_any` / `await_all` | Block on in-flight handles; deliver per-child digests. |
 | `cancel_agent` | Cancel an in-flight child. |
+| `wait_for_events` | Sleep until a coalesced wake digest: quiescence (always armed), child terminal, escalation, or a budget threshold; a trigger set that can never fire is a typed error. |
 | `finish` | Terminal: deliver the final result. |
 
 The `spawn_agent` vocabulary is the profile card: the orchestrator picks a registered `agentType`, never a raw model name. When a profile declares a model ladder, the orchestrator may pass `model_hint.startTier`, clamped to the declared ladder; naming models stays a host decision.
