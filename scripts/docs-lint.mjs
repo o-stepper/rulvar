@@ -13,7 +13,7 @@
 //   4. Install commands never reference the bare package name `rulvar`
 //      (npm install / pnpm add / yarn add / npx).
 //
-// Plus three cross-file checks:
+// Plus four cross-file checks:
 //   5. Every member of the InvocationRole union in core has a canonical
 //      table row on docs/guide/agents.md, so a new role cannot ship
 //      undocumented.
@@ -25,6 +25,12 @@
 //   7. Every dated pricingVersion literal in the hand-written docs equals
 //      the current adapter export, so a price-table revision cannot leave
 //      a stale snapshot stamp behind.
+//   8. Every TypeScript/JavaScript fence calling the public orchestrate
+//      or orchestratePlanned helpers either passes RunOptions with
+//      `budgetUsd` or carries an explicit `root-uncapped` marker, so a
+//      canonical example cannot quietly demonstrate an unbounded tree
+//      (the nested ctx.orchestrate form runs under its parent's
+//      admission and is exempt).
 //
 // Scope: every hand-written .md under docs/, recursively. Generated or
 // mirrored trees are excluded: docs/api (TypeDoc output), docs/node_modules,
@@ -284,6 +290,53 @@ for (const file of collectFiles()) {
           );
         }
       }
+    });
+  }
+}
+
+// Check 8: root-ceiling discipline in orchestration examples (v1.19.0
+// review P2). The public helpers accept the run's RunOptions as the
+// fourth argument; an example that omits it starts an UNCAPPED tree
+// while nearby prose routinely talks about the run ceiling. Every
+// ts/js fence that calls orchestrate(...) or orchestratePlanned(...)
+// must either contain `budgetUsd` (the root ceiling) or the literal
+// marker `root-uncapped` stating the omission is deliberate. The
+// nested `ctx.orchestrate(...)` form is exempt: it runs under the
+// parent workflow's admission, not its own RunOptions.
+{
+  const HELPER_CALL = /(?<![.\w])orchestrate(?:Planned)?\s*\(/u;
+  const FENCE_LANG = /^\s*(?:```|~~~)\s*([A-Za-z]*)/u;
+  for (const file of collectFiles()) {
+    const lines = readFileSync(file, 'utf8').split('\n');
+    /** @type {{lang: string, start: number, body: string[]} | null} */
+    let fence = null;
+    lines.forEach((line, index) => {
+      const opener = line.match(FENCE_LANG);
+      if (opener !== null) {
+        if (fence === null) {
+          fence = { lang: opener[1].toLowerCase(), start: index + 1, body: [] };
+          return;
+        }
+        const { lang, start, body } = fence;
+        fence = null;
+        if (!['ts', 'typescript', 'js', 'javascript'].includes(lang)) {
+          return;
+        }
+        const code = body.join('\n');
+        if (!HELPER_CALL.test(code)) {
+          return;
+        }
+        if (!code.includes('budgetUsd') && !code.includes('root-uncapped')) {
+          fail(
+            file,
+            start,
+            'orchestrate/orchestratePlanned example has no root ceiling: pass RunOptions with ' +
+              'budgetUsd as the fourth argument, or mark the fence with a `root-uncapped` comment',
+          );
+        }
+        return;
+      }
+      fence?.body.push(line);
     });
   }
 }

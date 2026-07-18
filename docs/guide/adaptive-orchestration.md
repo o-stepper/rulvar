@@ -39,14 +39,21 @@ const engine = createEngine({
   },
 });
 
-const handle = orchestrate(engine, 'Migrate all 40 packages to the new config format', {
-  budget: { capUsd: 2, finalizeTurns: 2 },
-  extension: planRunner({
-    maxRevisionsPerRun: 32,
-    limits: { maxTotalSpawns: 64, maxDepth: 1 },
-    guards: { fallback: 'finish-with-partial' },
-  }),
-});
+const handle = orchestrate(
+  engine,
+  'Migrate all 40 packages to the new config format',
+  {
+    budget: { capUsd: 2, finalizeTurns: 2 },
+    extension: planRunner({
+      maxRevisionsPerRun: 32,
+      limits: { maxTotalSpawns: 64, maxDepth: 1 },
+      guards: { fallback: 'finish-with-partial' },
+    }),
+  },
+  // The root hard ceiling over the whole tree; capUsd above is only the
+  // orchestrator's own sub-account within it.
+  { budgetUsd: 10 },
+);
 
 const outcome = await handle.result;
 ```
