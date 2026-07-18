@@ -1,5 +1,13 @@
 # @rulvar/openai
 
+## 1.20.0
+
+### Patch Changes
+
+- 9367030: Cache detail tokens are subsets of the full input, never additions. On the OpenAI wire `input_tokens`/`prompt_tokens` is already the complete prompt count; `cached_tokens` and `cache_write_tokens` classify parts of it. The v1.19.0 normalizer added cache writes on top of the full count, double-billing every written token at the base rate plus the 1.25x premium (a 73.6 percent overreport on the review's live cache scenario) and inflating budget debits, which could prematurely exhaust run, agent, and child ceilings. Both the Responses and the Chat Completions paths now pass the provider's full count through untouched and clamp impossible telemetry conservatively (nonnegative, reads keep priority, reads plus writes never exceed the input) instead of rejecting paid evidence. Verified against the live wire: identical prompts report the same `input_tokens` whether the details show a write or a read, and `total_tokens` equals input plus output; a new opt-in live contract test pins exactly that.
+- Updated dependencies [9367030]
+  - @rulvar/core@1.20.0
+
 ## 1.19.0
 
 ### Patch Changes
