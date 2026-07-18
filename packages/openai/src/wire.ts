@@ -392,27 +392,32 @@ export async function* mapResponsesStream(
       }
       case 'response.failed': {
         const response = event.response as Item | undefined;
+        // A failed generation can still have consumed paid tokens: the
+        // failed response object retains usage, and dropping it
+        // understated cost and weakened the budget guard (v1.18.0 review
+        // P1-3). Emit it BEFORE the error termination so the debit lands
+        // exactly once; a retried attempt debits its own usage again.
+        const rawUsage = response?.usage as Record<string, unknown> | undefined;
+        if (rawUsage !== undefined) {
+          yield { type: 'usage', usage: normalizeOpenAiUsage(rawUsage) };
+        }
         const error = response?.error as Item | undefined;
         yield {
           type: 'error',
-          error: {
-            code: 'agent',
-            message: (error?.message as string | undefined) ?? 'response.failed',
-            retryable: false,
-            data: { kind: 'transport' },
-          },
+          error: failedResponseError(
+            typeof error?.code === 'string' ? error.code : undefined,
+            (error?.message as string | undefined) ?? 'response.failed',
+          ),
         };
         return;
       }
       case 'error': {
         yield {
           type: 'error',
-          error: {
-            code: 'agent',
-            message: (event.message as string | undefined) ?? 'stream error',
-            retryable: false,
-            data: { kind: 'transport' },
-          },
+          error: failedResponseError(
+            typeof event.code === 'string' ? event.code : undefined,
+            (event.message as string | undefined) ?? 'stream error',
+          ),
         };
         return;
       }
@@ -422,6 +427,34 @@ export async function* mapResponsesStream(
         break;
     }
   }
+}
+
+/**
+ * Classifies a terminal stream failure (`response.failed` /
+ * SSE `error`) into the retryable WireError vocabulary by the
+ * documented `response.error.code` enum (Responses API reference):
+ * `rate_limit_exceeded` retries as a rate limit, `server_error` and
+ * timeout-class codes retry as transport faults, and everything else
+ * (validation such as `invalid_prompt`, policy, auth) stays
+ * non-retryable. Unknown codes fail closed as non-retryable: retrying a
+ * permanent failure would loop-bill it (v1.18.0 review P1-3).
+ */
+function failedResponseError(code: string | undefined, message: string): WireError {
+  if (code === 'rate_limit_exceeded') {
+    return {
+      code: 'agent',
+      message,
+      retryable: true,
+      data: { kind: 'rate-limit', providerCode: code },
+    };
+  }
+  const retryable = code === 'server_error' || (code !== undefined && code.endsWith('_timeout'));
+  return {
+    code: 'agent',
+    message,
+    retryable,
+    data: { kind: 'transport', ...(code === undefined ? {} : { providerCode: code }) },
+  };
 }
 
 /** Projects SDK/API errors into the retryable WireError vocabulary. */

@@ -516,6 +516,87 @@ describe('cache write usage normalization (v1.18.0 review P1-2)', () => {
   });
 });
 
+describe('response.failed usage and retry classification (v1.18.0 review P1-3)', () => {
+  function failedStream(
+    error: Record<string, unknown>,
+    usage?: Record<string, unknown>,
+  ): AsyncIterable<ResponsesStreamEvent> {
+    async function* events(): AsyncIterable<ResponsesStreamEvent> {
+      yield await Promise.resolve({ type: 'response.output_text.delta', delta: 'partial' });
+      yield {
+        type: 'response.failed',
+        response: { id: 'resp_fail', error, ...(usage === undefined ? {} : { usage }) },
+      };
+    }
+    return events();
+  }
+
+  it('a paid failure emits its usage exactly once before the error termination', async () => {
+    const mapped = await collect(
+      mapResponsesStream(
+        failedStream(
+          { code: 'server_error', message: 'The server had an error.' },
+          { input_tokens: 500, output_tokens: 120 },
+        ),
+        ids(),
+      ),
+    );
+    expect(mapped.map((e) => e.type)).toEqual(['text-delta', 'usage', 'error']);
+    const usage = mapped[1] as Extract<ChatEvent, { type: 'usage' }>;
+    expect(usage.usage).toEqual({
+      inputTokens: 500,
+      outputTokens: 120,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+    const error = mapped[2] as Extract<ChatEvent, { type: 'error' }>;
+    expect(error.error.retryable).toBe(true);
+    expect(error.error.data).toMatchObject({ kind: 'transport', providerCode: 'server_error' });
+  });
+
+  it('rate_limit_exceeded classifies as a retryable rate limit', async () => {
+    const mapped = await collect(
+      mapResponsesStream(
+        failedStream({ code: 'rate_limit_exceeded', message: 'Rate limit reached.' }),
+        ids(),
+      ),
+    );
+    const error = mapped.at(-1) as Extract<ChatEvent, { type: 'error' }>;
+    expect(error.error.retryable).toBe(true);
+    expect(error.error.data).toMatchObject({
+      kind: 'rate-limit',
+      providerCode: 'rate_limit_exceeded',
+    });
+    // No usage on the wire means no usage event, never a zero debit.
+    expect(mapped.some((e) => e.type === 'usage')).toBe(false);
+  });
+
+  it('validation and unknown codes stay non-retryable (fail closed)', async () => {
+    for (const code of ['invalid_prompt', 'brand_new_code']) {
+      const mapped = await collect(
+        mapResponsesStream(failedStream({ code, message: 'nope' }), ids()),
+      );
+      const error = mapped.at(-1) as Extract<ChatEvent, { type: 'error' }>;
+      expect(error.error.retryable, code).toBe(false);
+      expect(error.error.data).toMatchObject({ kind: 'transport', providerCode: code });
+    }
+  });
+
+  it('the top-level SSE error event classifies by the same table', async () => {
+    async function* events(): AsyncIterable<ResponsesStreamEvent> {
+      yield await Promise.resolve({
+        type: 'error',
+        code: 'server_error',
+        message: 'stream broke',
+      });
+    }
+    const mapped = await collect(mapResponsesStream(events(), ids()));
+    const error = mapped.at(-1) as Extract<ChatEvent, { type: 'error' }>;
+    expect(error.error.retryable).toBe(true);
+    expect(error.error.message).toBe('stream broke');
+  });
+});
+
 describe('adapter surface (M1-T13)', () => {
   it('streams through the Responses API with caps from the July 2026 family', async () => {
     const calls: Array<Record<string, unknown>> = [];
