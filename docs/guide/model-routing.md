@@ -46,9 +46,9 @@ Every adapter answers `caps(model)` with a `ModelCaps` record, the capability fa
 | `maxOutputTokens` | Caps the request's output allocation. |
 | `pricing` | Adapter-reported fallback pricing only; the versioned [price table](#the-versioned-price-table) always wins. |
 
-Adapters that implement `refreshCaps()` can refresh their capability table from the provider's live model list. Price updates are deliberately not a side effect of that: they are registry updates with a `pricingVersion` bump.
+`refreshCaps()` is an optional member of the adapter SPI. Of the first-party v1 adapters, only `@rulvar/anthropic` implements it (a live model-list refresh); `@rulvar/openai` ships a verified static seed table plus the versioned `OPENAI_PRICING` export and has no live refresh. Price updates are deliberately not a side effect of a caps refresh: they are registry updates with a `pricingVersion` bump.
 
-The first-party tables are verified static seeds, and nothing calls `refreshCaps()` for you: call it before `createEngine` when routing, compaction, and the output clamp should see the provider's current window and output figures instead of the seeded ones. See [Providers](/guide/providers#rulvar-anthropic) for the pattern.
+Nothing calls `refreshCaps()` for you. Where an adapter implements it, call it before `createEngine` when routing, compaction, and the output clamp should see the provider's current window and output figures instead of the seeded ones. See [Providers](/guide/providers#rulvar-anthropic) for the pattern.
 
 ## The resolution chain
 
@@ -176,7 +176,7 @@ Roles also carry **effort defaults** when no layer of the chain resolves an effo
 
 After resolution the router reads the target's `ModelCaps` and makes the request legal, visibly:
 
-- **Effort scrub.** Canonical effort is five levels: `low`, `medium`, `high`, `xhigh`, `max`. If the resolved effort is not in the model's `reasoningEfforts`, the request proceeds without it, a warning-level workflow event records the scrub, and the scrub is never silently translated into a token cap or any other parameter. Adapters map canonical effort to each wire; canonical `max` downmaps to `xhigh` on OpenAI, with the downmap recorded in provider metadata.
+- **Effort scrub.** Canonical effort is five levels: `low`, `medium`, `high`, `xhigh`, `max`. If the resolved effort is not in the model's `reasoningEfforts`, the request proceeds without it, a warning-level workflow event records the scrub, and the scrub is never silently translated into a token cap or any other parameter. Adapters map canonical effort to each wire; on OpenAI, canonical `max` passes through unchanged on GPT-5.6 Sol and downmaps to `xhigh` on every other model, with the downmap recorded in provider metadata.
 - **Sampling scrub.** Current reasoning models on both first-class providers reject temperature and friends with a hard 400, so removing them is a correctness requirement, not a courtesy. Sampling parameters only travel through an adapter's `providerOptions` namespace in the first place, and the router strips the ones the target rejects.
 - **Tier selection.** The router picks the structured-output tier from caps: native JSON schema where supported, a forced synthesized tool where not, a prompt-based tier as the floor. The `forced-tool` tier pins the tool choice and therefore cannot ride a turn on which the agent's tools must stay available; that is exactly when a separate `extract` invocation fires.
 

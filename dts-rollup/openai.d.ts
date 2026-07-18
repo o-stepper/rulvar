@@ -7,6 +7,14 @@ interface OpenAiModelInfo {
   api: "responses" | "chat";
   /** Reasoning models reject non-default sampling parameters. */
   reasoning: boolean;
+  /**
+  * The model accepts wire `reasoning.effort: "max"` (GPT-5.6 Sol per
+  * the official model docs). When false, canonical max downmaps to
+  * wire xhigh; the downmap is recorded in providerMetadata and the
+  * journal identity keeps max, so caps accept the full canonical set
+  * either way.
+  */
+  wireMaxEffort: boolean;
 }
 /** Static seed table of the current model set. */
 declare const OPENAI_MODELS: Record<string, OpenAiModelInfo>;
@@ -111,12 +119,15 @@ declare class OpenAiIdMap {
   wireFor(canonicalId: CanonicalId): string;
 }
 /**
-* Canonical-to-wire effort: low through
-* xhigh pass through; canonical max downmaps to xhigh (documented lossy;
-* recorded in providerMetadata); provider 'none' is reachable only via
-* providerOptions.openai.reasoningEffort.
+* Canonical-to-wire effort: low through xhigh pass through. Canonical
+* max passes through unchanged on models whose caps declare wire max
+* support (GPT-5.6 Sol); elsewhere it downmaps to xhigh (documented
+* lossy; recorded in providerMetadata). Provider 'none' is reachable
+* only via providerOptions.openai.reasoningEffort.
 */
-declare function mapOpenAiEffort(effort: Effort): {
+declare function mapOpenAiEffort(effort: Effort, options?: {
+  wireMaxEffort?: boolean;
+}): {
   wire: string;
   downmapped: boolean;
 };
@@ -127,7 +138,9 @@ declare function mapOpenAiEffort(effort: Effort): {
 * are REJECTED as a typed ConfigError. Role
 * 'system' messages project into top-level instructions on every request.
 */
-declare function buildResponsesParams(req: ChatRequest, ids: OpenAiIdMap): {
+declare function buildResponsesParams(req: ChatRequest, ids: OpenAiIdMap, options?: {
+  wireMaxEffort?: boolean;
+}): {
   params: Record<string, unknown>;
   effortDownmapped: boolean;
 };

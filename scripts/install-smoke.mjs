@@ -249,6 +249,90 @@ execFileSync(
 );
 console.log('auth type contract install smoke: ok');
 
+// Executable docs snippets (v1.17.0 review): the canonical examples
+// marked `<!-- docs-snippet: NAME -->` in docs/guide are extracted
+// VERBATIM, typechecked in this packed consumer against the tarballs
+// with the workspace compiler, and the hermetic ones run offline. Docs
+// that drift from the shipped types now fail here, not on a reader's
+// machine. `prelude` declares only what the doc prose legitimately
+// elides (helpers defined around the fence).
+const SNIPPETS = [
+  { name: 'quickstart-anthropic', mode: 'typecheck' },
+  { name: 'quickstart-openai-preset', mode: 'typecheck' },
+  {
+    name: 'tools-registered-names',
+    mode: 'typecheck',
+    prelude: [
+      "import { tool, type ToolSource } from '@rulvar/core';",
+      'const searchIssues = tool({',
+      "  name: 'search-issues',",
+      "  description: 'searches the tracker',",
+      "  parameters: { type: 'object', properties: {} },",
+      '  execute: () => Promise.resolve(null),',
+      '});',
+      "const deployService: ToolSource = { id: 'deploy', tools: () => Promise.resolve([]) };",
+    ],
+  },
+  { name: 'testing-fake-adapter', mode: 'run' },
+  {
+    name: 'resume-replay',
+    mode: 'typecheck',
+    prelude: ['declare function fetchDiff(pr: number): Promise<string>;'],
+  },
+];
+const guideDir = join(process.cwd(), 'docs', 'guide');
+const snippetSources = new Map();
+for (const file of readdirSync(guideDir).filter((name) => name.endsWith('.md'))) {
+  const text = readFileSync(join(guideDir, file), 'utf8');
+  for (const match of text.matchAll(
+    /<!-- docs-snippet: (?<name>[a-z0-9-]+) -->\r?\n```ts\r?\n(?<code>[\s\S]*?)```/gu,
+  )) {
+    const { name, code } = match.groups;
+    snippetSources.set(name, [...(snippetSources.get(name) ?? []), code]);
+  }
+}
+for (const snippet of SNIPPETS) {
+  const blocks = snippetSources.get(snippet.name);
+  if (blocks === undefined) {
+    console.error(`docs snippet '${snippet.name}' not found; check the markers in docs/guide`);
+    process.exit(1);
+  }
+  const source = [...(snippet.prelude ?? []), ...blocks].join('\n');
+  const fileName = `snippet-${snippet.name}.ts`;
+  writeFileSync(join(scratch, fileName), source);
+  const emit = snippet.mode === 'run' ? ['--outDir', join(scratch, 'snippet-dist')] : ['--noEmit'];
+  execFileSync(
+    pnpmBin,
+    [
+      ...pnpmPre,
+      'exec',
+      'tsc',
+      '--strict',
+      ...emit,
+      '--module',
+      'nodenext',
+      '--moduleResolution',
+      'nodenext',
+      '--target',
+      'es2023',
+      '--skipLibCheck',
+      join(scratch, fileName),
+    ],
+    { cwd: process.cwd(), stdio: 'inherit' },
+  );
+  if (snippet.mode === 'run') {
+    writeFileSync(
+      join(scratch, 'snippet-dist', 'package.json'),
+      JSON.stringify({ type: 'module' }, null, 2),
+    );
+    execFileSync('node', [join('snippet-dist', `snippet-${snippet.name}.js`)], {
+      cwd: scratch,
+      stdio: 'inherit',
+    });
+  }
+  console.log(`docs snippet ${snippet.name}: ${snippet.mode} ok`);
+}
+
 // The pointer must stay consumable from strict TypeScript: declarations
 // on disk and a `types` condition on the root export (a missing pair is
 // the TS7016 "implicitly has an any type" regression).

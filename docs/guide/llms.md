@@ -131,7 +131,7 @@ const replay = await resumed.preview; // replay accounting, resolves at settle
 console.log(replay.hits, replay.misses); // 6 hits, 0 misses: no new spend
 ```
 
-The OpenAI variant swaps `anthropic()` for `openai()` and the routing strings; see [the quickstart](/guide/quickstart#swap-in-openai). Local and gateway endpoints register through `openaiCompatible({ id, baseURL })` from `@rulvar/openai`; any Vercel AI SDK model wraps via `bridgeAiSdk` from `@rulvar/bridge-ai-sdk`. [Providers](/guide/providers)
+The OpenAI variant swaps `anthropic()` for `openai()` and the routing strings; see [the quickstart](/guide/quickstart#swap-in-openai). Local and gateway endpoints register through `openaiCompatible({ id, baseURL })` from `@rulvar/openai`; any Vercel AI SDK `LanguageModelV4` wraps via `bridgeAiSdk` from `@rulvar/bridge-ai-sdk` (other specification versions are rejected at runtime). [Providers](/guide/providers)
 
 ## Rules for generated code
 

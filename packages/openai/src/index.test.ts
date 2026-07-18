@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { ConfigError, createCanonicalIdMinter, type ChatEvent, type Part } from '@rulvar/core';
+import {
+  ConfigError,
+  createCanonicalIdMinter,
+  priceUsdOf,
+  type ChatEvent,
+  type Part,
+} from '@rulvar/core';
 import { liveTestEnabled, runLiveSmoke } from '@rulvar/testing';
 import type { OpenAiClientLike } from './adapter.js';
 import { openai } from './adapter.js';
-import { OPENAI_MODELS, openAiModelInfo } from './caps.js';
+import { OPENAI_MODELS, OPENAI_PRICING, openAiModelInfo } from './caps.js';
 import {
   buildChatCompletionsParams,
   buildResponsesParams,
@@ -155,6 +161,11 @@ describe('buildResponsesParams (M1-T13)', () => {
   it('maps effort with the documented lossy max downmap and none via the namespace', () => {
     expect(mapOpenAiEffort('xhigh')).toEqual({ wire: 'xhigh', downmapped: false });
     expect(mapOpenAiEffort('max')).toEqual({ wire: 'xhigh', downmapped: true });
+    // Models whose caps declare wire max support send it unchanged.
+    expect(mapOpenAiEffort('max', { wireMaxEffort: true })).toEqual({
+      wire: 'max',
+      downmapped: false,
+    });
 
     const maxed = buildResponsesParams(
       {
@@ -439,6 +450,58 @@ describe('adapter surface (M1-T13)', () => {
     expect(calls[0]?.reasoning).toEqual({ effort: 'high' });
   });
 
+  it('sends wire effort max for Sol and records the downmap elsewhere', async () => {
+    // Fake transport (v1.17.0 review): the request the SDK client sees
+    // must carry effort max unchanged for Sol; Terra and Luna keep the
+    // documented lossy downmap, visible in providerMetadata.
+    const calls: Array<Record<string, unknown>> = [];
+    const client: OpenAiClientLike = {
+      responses: {
+        create(params: Record<string, unknown>): Promise<unknown> {
+          calls.push(params);
+          return Promise.resolve(
+            (async function* stream(): AsyncIterable<ResponsesStreamEvent> {
+              yield await Promise.resolve({ type: 'response.output_text.delta', delta: 'ok' });
+              yield {
+                type: 'response.completed',
+                response: { id: 'r1', output: [], usage: { input_tokens: 3, output_tokens: 1 } },
+              };
+            })(),
+          );
+        },
+      },
+      chat: { completions: { create: () => Promise.reject(new Error('unused')) } },
+    };
+    const adapter = openai({ client });
+    const finishes: Array<Extract<ChatEvent, { type: 'finish' }>> = [];
+    for (const model of ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']) {
+      for await (const event of adapter.stream({
+        model,
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'go' }] }],
+        effort: 'max',
+      })) {
+        if (event.type === 'finish') {
+          finishes.push(event);
+        }
+      }
+    }
+    expect(calls.map((call) => call.model)).toEqual([
+      'gpt-5.6-sol',
+      'gpt-5.6-terra',
+      'gpt-5.6-luna',
+    ]);
+    expect(calls.map((call) => call.reasoning)).toEqual([
+      { effort: 'max' },
+      { effort: 'xhigh' },
+      { effort: 'xhigh' },
+    ]);
+    const metaOf = (finish: Extract<ChatEvent, { type: 'finish' }>) =>
+      (finish.providerMetadata?.openai as Record<string, unknown>).effortDownmapped;
+    expect(metaOf(finishes[0])).toBeUndefined();
+    expect(metaOf(finishes[1])).toBe('max->xhigh');
+    expect(metaOf(finishes[2])).toBe('max->xhigh');
+  });
+
   it('projects request errors into the retryable vocabulary', async () => {
     const client: OpenAiClientLike = {
       responses: {
@@ -483,45 +546,159 @@ describe('adapter surface (M1-T13)', () => {
     },
     90_000,
   );
+
+  it.skipIf(!liveTestEnabled('OPENAI_API_KEY'))(
+    'live smoke: Sol accepts wire effort max and Luna answers on its own row (opt-in, spends budget)',
+    async () => {
+      // The wire-max contract (v1.17.0 review): a real Sol request at
+      // effort max must succeed WITHOUT the lossy downmap. Bounded
+      // output keeps the spend small.
+      const sol = await runLiveSmoke(openai({}), {
+        model: 'gpt-5.6-sol',
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'Reply with the word ok.' }] }],
+        effort: 'max',
+        maxOutputTokens: 2048,
+      });
+      if (sol.status !== 'ok') {
+        throw new Error(`Sol max live smoke did not reach finish: ${JSON.stringify(sol)}`);
+      }
+      const finish = sol.events.find(
+        (event): event is Extract<ChatEvent, { type: 'finish' }> => event.type === 'finish',
+      );
+      const meta = finish?.providerMetadata?.openai as Record<string, unknown> | undefined;
+      expect(meta?.effortDownmapped).toBeUndefined();
+
+      const luna = await runLiveSmoke(openai({}), {
+        model: 'gpt-5.6-luna',
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'Reply with the word ok.' }] }],
+        maxOutputTokens: 32,
+      });
+      if (luna.status !== 'ok') {
+        throw new Error(`Luna live smoke did not reach finish: ${JSON.stringify(luna)}`);
+      }
+    },
+    180_000,
+  );
 });
 
-describe('the GPT-5.6 caps entries and unknown-model safety', () => {
-  it('seeds gpt-5.6-sol and its alias with the official caps and tiered pricing', () => {
-    for (const model of ['gpt-5.6-sol', 'gpt-5.6']) {
+describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1-1)', () => {
+  const GPT_56_EXPECTED = {
+    'gpt-5.6-sol': { input: 5, output: 30, cacheRead: 0.5, cacheWrite: 6.25, wireMax: true },
+    'gpt-5.6-terra': { input: 2.5, output: 15, cacheRead: 0.25, cacheWrite: 3.125, wireMax: false },
+    'gpt-5.6-luna': { input: 1, output: 6, cacheRead: 0.1, cacheWrite: 1.25, wireMax: false },
+  } as const;
+
+  it('seeds exact Sol, Terra, and Luna rows with the official rates', () => {
+    for (const [model, expected] of Object.entries(GPT_56_EXPECTED)) {
       const info = openAiModelInfo(model);
-      expect(info.api).toBe('responses');
-      expect(info.reasoning).toBe(true);
-      expect(info.caps.contextWindow).toBe(1_050_000);
-      expect(info.caps.maxOutputTokens).toBe(128_000);
-      expect(info.caps.reasoningEfforts).toContain('max');
-      expect(info.caps.pricing).toEqual({
-        inputUsdPerMTok: 5,
-        outputUsdPerMTok: 30,
-        cacheReadUsdPerMTok: 0.5,
-        cacheWriteUsdPerMTok: 6.25,
+      expect(info.api, model).toBe('responses');
+      expect(info.reasoning, model).toBe(true);
+      expect(info.wireMaxEffort, model).toBe(expected.wireMax);
+      expect(info.caps.contextWindow, model).toBe(1_050_000);
+      expect(info.caps.maxOutputTokens, model).toBe(128_000);
+      expect(info.caps.reasoningEfforts, model).toContain('max');
+      expect(info.caps.pricing, model).toEqual({
+        inputUsdPerMTok: expected.input,
+        outputUsdPerMTok: expected.output,
+        cacheReadUsdPerMTok: expected.cacheRead,
+        cacheWriteUsdPerMTok: expected.cacheWrite,
         tiers: [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
       });
     }
   });
 
-  it('passes the gpt-5.6-sol wire id through the Responses params unchanged', () => {
-    const { params } = buildResponsesParams(
-      {
-        model: 'gpt-5.6-sol',
-        messages: [{ role: 'user', parts: [{ type: 'text', text: 'go' }] }],
-        effort: 'high',
-      },
-      ids(),
-    );
-    expect(params.model).toBe('gpt-5.6-sol');
-    expect(params.reasoning).toEqual({ effort: 'high' });
+  it('the published gpt-5.6 alias equals Sol as an exact alias only', () => {
+    expect(openAiModelInfo('gpt-5.6')).toBe(OPENAI_MODELS['gpt-5.6-sol']);
   });
 
-  it('resolves dated snapshots by the longest matching prefix', () => {
-    // 'gpt-5.5-pro-...' must reach the pro entry, never the shorter
-    // 'gpt-5.5' sibling.
+  it('every gpt-5.6 family member has its own versioned OPENAI_PRICING row', () => {
+    expect(OPENAI_PRICING.pricingVersion).toBe('openai-2026-07-18');
+    for (const [model, expected] of Object.entries(GPT_56_EXPECTED)) {
+      expect(OPENAI_PRICING.models[`openai:${model}`]?.inputUsdPerMTok, model).toBe(expected.input);
+      expect(OPENAI_PRICING.models[`openai:${model}`]?.outputUsdPerMTok, model).toBe(
+        expected.output,
+      );
+    }
+    expect(OPENAI_PRICING.models['openai:gpt-5.6']).toEqual(
+      OPENAI_PRICING.models['openai:gpt-5.6-sol'],
+    );
+  });
+
+  it('sibling models never inherit another row; only dated snapshots inherit', () => {
+    // The defect: 'gpt-5.6-luna' prefix-matched the family alias and was
+    // priced as Sol. Siblings now resolve their own exact rows.
+    expect(openAiModelInfo('gpt-5.6-luna')).toBe(OPENAI_MODELS['gpt-5.6-luna']);
+    expect(openAiModelInfo('gpt-5.6-terra')).toBe(OPENAI_MODELS['gpt-5.6-terra']);
+    // Documented dated snapshots inherit their exact model's row.
+    expect(openAiModelInfo('gpt-5.6-sol-2026-08-01')).toBe(OPENAI_MODELS['gpt-5.6-sol']);
+    expect(openAiModelInfo('gpt-5.6-terra-2026-08-01')).toBe(OPENAI_MODELS['gpt-5.6-terra']);
+    expect(openAiModelInfo('gpt-5.6-luna-2026-08-01')).toBe(OPENAI_MODELS['gpt-5.6-luna']);
     expect(openAiModelInfo('gpt-5.5-pro-2026-07-01')).toBe(OPENAI_MODELS['gpt-5.5-pro']);
-    expect(openAiModelInfo('gpt-5.6-sol-2026-08-01').caps.contextWindow).toBe(1_050_000);
+    // An unknown sibling or preview suffix is NOT a snapshot: it gets
+    // conservative unpriced caps, never the nearest alias's price.
+    for (const unknown of ['gpt-5.6-unknownx', 'gpt-5.6-sol-preview', 'gpt-5.6-luna-mini']) {
+      const info = openAiModelInfo(unknown);
+      expect(info.caps.pricing, unknown).toBeUndefined();
+      expect(info.caps.contextWindow, unknown).toBe(272_000);
+    }
+  });
+
+  it('prices the long-context tier strictly above 272000 input tokens', () => {
+    const luna = openAiModelInfo('gpt-5.6-luna').caps.pricing;
+    expect(luna).toBeDefined();
+    const at = priceUsdOf(luna as NonNullable<typeof luna>, {
+      inputTokens: 272_000,
+      outputTokens: 1_000_000,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+    const above = priceUsdOf(luna as NonNullable<typeof luna>, {
+      inputTokens: 272_001,
+      outputTokens: 1_000_000,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+    // At the boundary: 0.272M input at $1 + 1M output at $6.
+    expect(at).toBeCloseTo(0.272 + 6, 10);
+    // One token above: the FULL request reprices at 2x input, 1.5x output.
+    expect(above).toBeCloseTo(0.272001 * 2 + 6 * 1.5, 10);
+  });
+
+  it('passes every gpt-5.6 wire id through the Responses params unchanged', () => {
+    for (const model of ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.6']) {
+      const { params } = buildResponsesParams(
+        {
+          model,
+          messages: [{ role: 'user', parts: [{ type: 'text', text: 'go' }] }],
+          effort: 'high',
+        },
+        ids(),
+      );
+      expect(params.model, model).toBe(model);
+      expect(params.reasoning, model).toEqual({ effort: 'high' });
+    }
+  });
+
+  it('sends wire max unchanged for Sol and downmaps it visibly elsewhere', () => {
+    const request = (model: string) => ({
+      model,
+      messages: [{ role: 'user' as const, parts: [{ type: 'text' as const, text: 'go' }] }],
+      effort: 'max' as const,
+    });
+    const sol = buildResponsesParams(request('gpt-5.6-sol'), ids(), {
+      wireMaxEffort: openAiModelInfo('gpt-5.6-sol').wireMaxEffort,
+    });
+    expect(sol.params.reasoning).toEqual({ effort: 'max' });
+    expect(sol.effortDownmapped).toBe(false);
+    for (const model of ['gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5']) {
+      const info = openAiModelInfo(model);
+      expect(info.wireMaxEffort, model).toBe(false);
+      const built = buildResponsesParams(request(model), ids(), {
+        wireMaxEffort: info.wireMaxEffort,
+      });
+      expect(built.params.reasoning, model).toEqual({ effort: 'xhigh' });
+      expect(built.effortDownmapped, model).toBe(true);
+    }
   });
 
   it('unknown models keep conservative transport caps but are never silently priced', () => {

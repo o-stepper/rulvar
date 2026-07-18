@@ -21,8 +21,11 @@ import { FakeAdapter, FAKE_MODEL_REF } from '@rulvar/testing';
 import { goldenGrader } from './graders/golden.js';
 import { judgeGrader } from './graders/judge.js';
 import { canaryFingerprint, runCanary } from './canary.js';
+import { runEvalSuite, type Grader } from './case.js';
 import { SpendEnvelope, SweepBudgetError } from './envelope.js';
 import { runSweepMatrix, type SweepPool } from './sweeps.js';
+
+const MICRO_PER_USD = 1_000_000;
 
 const ANSWER_SCHEMA = {
   type: 'object',
@@ -99,6 +102,62 @@ describe('SpendEnvelope (debit-only, micro-USD)', () => {
       expect(refusal.maxTotalUsd).toBe(1);
     }
   });
+
+  it('is conservative at the micro-USD boundary (v1.17.0 review P1-4)', () => {
+    // A cap below one micro-USD could only ever admit zero-debit runs.
+    expect(() => new SpendEnvelope(0.0000004)).toThrowError(/1 micro-USD/u);
+    // A sub-micro ceiling debits a FULL micro, never zero: the second
+    // authorization no longer fits a one-micro envelope, so the
+    // formerly unbounded stream of zero-debit authorizations is gone.
+    const oneMicro = new SpendEnvelope(0.000001);
+    oneMicro.authorize(0.0000004, 'tiny');
+    expect(oneMicro.authorizedUsd).toBe(0.000001);
+    expect(() => oneMicro.authorize(0.0000004, 'tiny-2')).toThrowError(SweepBudgetError);
+    // The cap floors: 1.4 micro admits exactly one micro of debits.
+    const floored = new SpendEnvelope(0.0000014);
+    floored.authorize(0.000001, 'a');
+    expect(() => floored.authorize(0.000001, 'b')).toThrowError(SweepBudgetError);
+    // Exact fits in the unit pass and one more unit is refused.
+    const exact = new SpendEnvelope(0.000003);
+    exact.authorize(0.000001, 'a');
+    exact.authorize(0.000001, 'b');
+    exact.authorize(0.000001, 'c');
+    expect(exact.remainingUsd).toBe(0);
+    expect(() => exact.authorize(0.000001, 'd')).toThrowError(SweepBudgetError);
+    // Float noise around an integer micro amount stays exact.
+    const noisy = new SpendEnvelope(0.3);
+    noisy.authorize(0.1 + 0.2 - 0.2, 'noise');
+    noisy.authorize(0.2, 'rest');
+    expect(noisy.remainingUsd).toBe(0);
+  });
+
+  it('property: the sum of admitted ORIGINAL ceilings never exceeds maxTotalUsd', () => {
+    // Deterministic LCG; mixes exact-micro amounts with sub-micro noise.
+    let seed = 42;
+    const next = (): number => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    for (let round = 0; round < 50; round += 1) {
+      const max = 0.000001 + next() * 0.01;
+      const envelope = new SpendEnvelope(max);
+      let admittedSum = 0;
+      for (let i = 0; i < 200; i += 1) {
+        const exactMicro = next() < 0.5;
+        const ceiling = exactMicro
+          ? Math.max(1, Math.round(next() * 2000)) / MICRO_PER_USD
+          : next() * 0.002 + 1e-9;
+        try {
+          envelope.authorize(ceiling, `run-${String(i)}`);
+          admittedSum += ceiling;
+        } catch (error) {
+          // Refusals debit nothing; later smaller ceilings may still fit.
+          expect(error).toBeInstanceOf(SweepBudgetError);
+        }
+      }
+      expect(admittedSum).toBeLessThanOrEqual(max + 1e-9);
+    }
+  });
 });
 
 describe('canary budgets and the allOk drift gate', () => {
@@ -134,11 +193,14 @@ describe('canary budgets and the allOk drift gate', () => {
     const fingerprint = await canaryFingerprint(engine, PROBES, { budgetUsd: 0.5, envelope });
     expect(fingerprint).toMatch(/^[0-9a-f]{64}$/);
     expect(envelope.authorizedUsd).toBe(1);
-    // The envelope requires a ceiling, and a refused probe never runs.
+    // The envelope requires a ceiling.
     await expect(runCanary(engine, PROBES, { envelope })).rejects.toThrowError(ConfigError);
-    await expect(runCanary(engine, PROBES, { budgetUsd: 0.5, envelope })).rejects.toThrowError(
-      SweepBudgetError,
-    );
+    // An exhausted envelope refuses the probes WITHOUT throwing away
+    // the report (v1.17.0 review P1-5): every refused probe is a row,
+    // nothing runs, and allOk gates any drift flip.
+    const refused = await runCanary(engine, PROBES, { budgetUsd: 0.5, envelope });
+    expect(refused.allOk).toBe(false);
+    expect(refused.probes.map((probe) => probe.status)).toEqual(['refused', 'refused']);
   });
 });
 
@@ -262,5 +324,176 @@ describe('sweep envelope and claim safety', () => {
     expect(report.claims).toEqual([]);
     expect(calls()).toBe(0);
     expect(envelope.authorizedUsd).toBe(0);
+  });
+});
+
+describe('monotone cells: paid evidence survives refusals (v1.17.0 review P1-5)', () => {
+  const sweepOptions = {
+    reportId: 'sweep-monotone-test',
+    committerId: 'ci-evals',
+    observedAt: '2026-07-18T00:00:00.000Z',
+  };
+
+  /** A grader that judges through the engine (one judge run per case). */
+  const judgeUser: Grader = {
+    name: 'judge-user',
+    grade: async (context) => {
+      await context.judge({
+        model: { model: FAKE_MODEL_REF },
+        prompt: 'judge it',
+        schema: ANSWER_SCHEMA,
+      });
+      return { grader: 'judge-user', passed: true };
+    },
+  };
+
+  it('a mid-cell target refusal keeps the completed case, its name, and its cost', async () => {
+    const { engine, calls } = fixture();
+    const report = await runSweepMatrix(
+      {
+        models: [{ model: FAKE_MODEL_REF }],
+        cases: [
+          { taskClass: 'math', case: { workflow: mathWorkflow, args: null, graders: [] } },
+          { taskClass: 'math', case: { workflow: mathWorkflow, args: null, graders: [] } },
+        ],
+      },
+      {
+        ...sweepOptions,
+        engineFor: () => engine,
+        suite: { budgetUsd: 1 },
+        envelope: new SpendEnvelope(1.5),
+      },
+    );
+    const cell = report.cells[0];
+    // Case 1 ran and paid; case 2 was refused. The cell reports BOTH
+    // facts instead of erasing the paid measurement.
+    expect(calls()).toBe(1);
+    expect(cell.n).toBe(1);
+    expect(cell.plannedN).toBe(2);
+    expect(cell.caseNames).toEqual(['sweep-math']);
+    expect(cell.envelopeExhausted).toBe(true);
+    expect(cell.incompleteReason).toBe('envelope-exhausted');
+    expect(cell.refusedRunLabel).toContain('sweep-math');
+    expect(report.claims).toEqual([]);
+  });
+
+  it('a judge hitting its own ceiling normalizes into the row, never an EvalJudgeError abort', async () => {
+    const { engine, calls } = fixture();
+    // 0.01 is below the flat $0.50 admission reserve: the judge run
+    // exhausts with zero provider calls while the paid target stays.
+    const report = await runSweepMatrix(
+      {
+        models: [{ model: FAKE_MODEL_REF }],
+        cases: [
+          { taskClass: 'math', case: { workflow: mathWorkflow, args: null, graders: [judgeUser] } },
+        ],
+      },
+      {
+        ...sweepOptions,
+        engineFor: () => engine,
+        suite: { budgetUsd: 1, judgeBudgetUsd: 0.01 },
+      },
+    );
+    const cell = report.cells[0];
+    expect(calls()).toBe(1);
+    expect(cell.n).toBe(1);
+    expect(cell.plannedN).toBe(1);
+    expect(cell.judgeIncompleteRuns).toBe(1);
+    expect(cell.incompleteReason).toBe('judge-exhausted');
+    expect(cell.caseNames).toEqual(['sweep-math']);
+    expect(cell.passRate).toBe(0);
+    expect(report.claims).toEqual([]);
+  });
+
+  it('an envelope refusing the judge keeps the paid successful target as evidence', async () => {
+    const { engine, calls } = fixture();
+    const report = await runSweepMatrix(
+      {
+        models: [{ model: FAKE_MODEL_REF }],
+        cases: [
+          { taskClass: 'math', case: { workflow: mathWorkflow, args: null, graders: [judgeUser] } },
+        ],
+      },
+      {
+        ...sweepOptions,
+        engineFor: () => engine,
+        suite: { budgetUsd: 1, judgeBudgetUsd: 1 },
+        envelope: new SpendEnvelope(1.5),
+      },
+    );
+    const cell = report.cells[0];
+    expect(calls()).toBe(1);
+    expect(cell.n).toBe(1);
+    expect(cell.plannedN).toBe(1);
+    expect(cell.envelopeExhausted).toBeUndefined();
+    expect(cell.judgeIncompleteRuns).toBe(1);
+    expect(cell.incompleteReason).toBe('judge-refused');
+    expect(report.claims).toEqual([]);
+    // The row's target status stays ok: evidence, not a passed case.
+    expect(cell.caseNames).toEqual(['sweep-math']);
+  });
+
+  it('a cell refused before any work stays n=0 with zero cost', async () => {
+    const { engine, calls } = fixture();
+    const envelope = new SpendEnvelope(1);
+    envelope.authorize(1, 'consumed elsewhere');
+    const report = await runSweepMatrix(
+      {
+        models: [{ model: FAKE_MODEL_REF }],
+        cases: [{ taskClass: 'math', case: { workflow: mathWorkflow, args: null, graders: [] } }],
+      },
+      { ...sweepOptions, engineFor: () => engine, suite: { budgetUsd: 0.5 }, envelope },
+    );
+    const cell = report.cells[0];
+    expect(calls()).toBe(0);
+    expect(cell.n).toBe(0);
+    expect(cell.plannedN).toBe(1);
+    expect(cell.totalCostUsd).toBe(0);
+    expect(cell.envelopeExhausted).toBe(true);
+    expect(report.claims).toEqual([]);
+  });
+
+  it('actual spend never exceeds the envelope on a priced engine', async () => {
+    // The v1.17.0 review P1-4 E2E arm: with pricing wired, whatever the
+    // suite actually spends stays at or below the aggregate cap,
+    // because every run's immutable ceiling was authorized upfront.
+    let calls = 0;
+    const fake = new FakeAdapter({
+      agents: {
+        '*': () => {
+          calls += 1;
+          return { answer: 42 };
+        },
+      },
+    });
+    const engine = createEngine({
+      adapters: [fake],
+      stores: { journal: new InMemoryStore() },
+      pricing: {
+        pricingVersion: 'test-1',
+        models: {
+          'fake:fake-model': { inputUsdPerMTok: 1, outputUsdPerMTok: 1 },
+        },
+      },
+      defaults: {
+        routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF },
+        profiles: { worker: {} },
+      },
+    });
+    const envelope = new SpendEnvelope(2);
+    const suite = await runEvalSuite(
+      engine,
+      [
+        { workflow: mathWorkflow, args: null, graders: [] },
+        { workflow: mathWorkflow, args: null, graders: [] },
+      ],
+      { budgetUsd: 1, envelope },
+    );
+    expect(calls).toBe(2);
+    expect(suite.completedN).toBe(2);
+    expect(suite.refusal).toBeUndefined();
+    expect(suite.totalCostUsd).toBeGreaterThan(0);
+    expect(suite.totalCostUsd).toBeLessThanOrEqual(envelope.maxTotalUsd);
+    expect(envelope.authorizedUsd).toBe(2);
   });
 });

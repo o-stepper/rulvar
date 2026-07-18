@@ -32,7 +32,7 @@ describe('profileCard (M6-T04)', () => {
       [
         'Agent profiles (agentType values):',
         '- reviewer: reviews code diffs for defects',
-        '  tools: grep, scout (profile toolset)',
+        '  tools: grep, scout (registered toolset)',
         '  taskClass: code-review',
         '  estCost: 0.40 USD',
         '  escalation: flavor A (opt-in)',
@@ -55,5 +55,22 @@ describe('profileCard (M6-T04)', () => {
       'Agent profiles: none registered. Calls take no agentType.',
     );
     expect(profileCard({})).toBe('Agent profiles: none registered. Calls take no agentType.');
+  });
+
+  it('lists registered toolset names only when the registry is non-empty', () => {
+    // v1.17.0 review P1-3: the card names the ONLY valid string entries
+    // of a tools option, so the planner never invents a registry name.
+    // An empty or absent registry renders nothing (cassette-pinned).
+    expect(profileCard({}, {})).toBe('Agent profiles: none registered. Calls take no agentType.');
+    expect(profileCard({}, { 'lookup-set': [], 'audit-set': [] })).toBe(
+      'Agent profiles: none registered. Calls take no agentType.\n' +
+        'Registered toolsets (valid string entries of a tools option): audit-set, lookup-set.',
+    );
+    const withProfiles = profileCard(PROFILES, { 'lookup-set': [] });
+    expect(
+      withProfiles.endsWith(
+        'Registered toolsets (valid string entries of a tools option): lookup-set.',
+      ),
+    ).toBe(true);
   });
 });

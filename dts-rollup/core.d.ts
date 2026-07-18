@@ -3112,11 +3112,14 @@ interface ResolvedToolset {
 /** The empty toolset (no tools declared anywhere). */
 declare function emptyToolset(): ResolvedToolset;
 /**
-* Expands sources, validates every tool name and duplicate names across
-* the whole toolset (ConfigError at spawn time), and computes the
-* toolsetHash over contracts sorted by name.
+* Expands registered names and sources, validates every tool name and
+* duplicate names across the whole toolset (ConfigError at spawn time),
+* and computes the toolsetHash over contracts sorted by name. The
+* `toolsets` registry is the engine's `defaults.toolsets` snapshot;
+* without one, string entries fail with the same unknown-name error as
+* a miss, so nothing outside the declared registry is ever reachable.
 */
-declare function resolveToolset(specs: ToolsOption | undefined, session: ToolSourceSession): Promise<ResolvedToolset>;
+declare function resolveToolset(specs: ToolsOption | undefined, session: ToolSourceSession, toolsets?: Record<string, ToolsOption>): Promise<ResolvedToolset>;
 //#endregion
 //#region src/journal/termination.d.ts
 /** The frozen limits vector written into termination.init. */
@@ -6081,9 +6084,12 @@ declare function tierWithinCaps(tier: StructuredOutputTier, caps: ModelCaps): bo
 /**
 * Renders the registry into the shared agent vocabulary card. Sorted,
 * deterministic, byte-stable; an empty registry renders explicitly so
-* the planner never guesses at unregistered agentTypes.
+* the planner never guesses at unregistered agentTypes. When the engine
+* registers toolsets, their names render as a closing line (v1.17.0
+* review P1-3): those are the ONLY values valid as string entries of a
+* tools option, so the planner never invents a registry name.
 */
-declare function profileCard(profiles: Record<string, AgentProfile> | undefined): string;
+declare function profileCard(profiles: Record<string, AgentProfile> | undefined, toolsets?: Record<string, ToolsOption>): string;
 //#endregion
 //#region src/model/projector.d.ts
 /** The provider family of an adapter: `provider` when set, else `id`. */

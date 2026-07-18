@@ -817,10 +817,16 @@ interface EvalsModule {
       taskClass: string;
       passRate: number;
       n: number;
+      /** Cases the cell was asked to measure; n < plannedN is incomplete. */
+      plannedN: number;
       /** Count of target runs that hit their own ceiling; the cell emits no claim. */
       exhaustedRuns?: number;
-      /** The envelope refused a run of this cell before it started; no claim. */
+      /** Count of rows whose judge could not finish for budget reasons; no claim. */
+      judgeIncompleteRuns?: number;
+      /** The envelope refused a TARGET run; what already ran stays reported. */
       envelopeExhausted?: true;
+      incompleteReason?: string;
+      refusedRunLabel?: string;
     }>;
     claims: Array<{ id: string; polarity: string; taskClass: string }>;
     committedVersion?: number;
@@ -1001,9 +1007,12 @@ async function kbSweepCommand(argv: string[], context: CommandContext): Promise<
         throw error;
       }
       if (!canary.allOk) {
+        const refused = canary.probes.filter((probe) => probe.status === 'refused').length;
         context.io.out(
           `canary ${member.model}: ${canary.fingerprint.slice(0, 12)}... incomplete ` +
-            '(a probe did not settle ok); NOT flipping claims',
+            (refused > 0
+              ? `(${String(refused)} probe(s) refused by the envelope); NOT flipping claims`
+              : '(a probe did not settle ok); NOT flipping claims'),
         );
         continue;
       }
@@ -1035,19 +1044,37 @@ async function kbSweepCommand(argv: string[], context: CommandContext): Promise<
     },
   );
   for (const cell of report.cells) {
-    if (cell.envelopeExhausted === true) {
+    // Monotone reporting (v1.17.0 review P1-5): incomplete cells keep
+    // whatever was measured and paid; only a cell refused before ANY
+    // work reads as not measured.
+    if (cell.envelopeExhausted === true && cell.n === 0) {
       context.io.out(
         `cell ${cell.model} :: ${cell.taskClass}: envelope exhausted, not measured (no claim)`,
       );
       continue;
     }
-    const exhausted =
-      cell.exhaustedRuns === undefined
-        ? ''
-        : ` (${String(cell.exhaustedRuns)} run(s) hit their own ceiling; no claim)`;
+    const notes: string[] = [];
+    if (cell.envelopeExhausted === true) {
+      notes.push(
+        `INCOMPLETE: envelope refused ${cell.refusedRunLabel ?? 'a run'} after ` +
+          `${String(cell.n)} of ${String(cell.plannedN)} case(s)`,
+      );
+    } else if (cell.n < cell.plannedN) {
+      notes.push(`INCOMPLETE: ${String(cell.n)} of ${String(cell.plannedN)} case(s) measured`);
+    }
+    if (cell.exhaustedRuns !== undefined) {
+      notes.push(`${String(cell.exhaustedRuns)} run(s) hit their own ceiling`);
+    }
+    if (cell.judgeIncompleteRuns !== undefined) {
+      notes.push(
+        `${String(cell.judgeIncompleteRuns)} case(s) kept as evidence with an unfinished judge ` +
+          `(${cell.incompleteReason ?? 'judge budget'})`,
+      );
+    }
+    const suffix = notes.length === 0 ? '' : ` (${notes.join('; ')}; no claim)`;
     context.io.out(
       `cell ${cell.model} :: ${cell.taskClass}: passRate ${cell.passRate.toFixed(2)} ` +
-        `over ${String(cell.n)} case${cell.n === 1 ? '' : 's'}${exhausted}`,
+        `over ${String(cell.n)} case${cell.n === 1 ? '' : 's'}${suffix}`,
     );
   }
   for (const claim of report.claims) {

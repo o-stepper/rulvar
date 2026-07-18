@@ -14,7 +14,7 @@ function flipStaleOnCanaryDrift(
 options?): Promise<CanaryDriftReport>;
 ```
 
-Defined in: [packages/evals/src/canary.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/canary.ts#L145)
+Defined in: [packages/evals/src/canary.ts:164](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/canary.ts#L164)
 
 Flips the model's ACTIVE eval-measured claims to stale when their
 recorded canary fingerprint differs from the fresh one. Claims

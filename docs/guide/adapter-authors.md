@@ -86,7 +86,7 @@ Canonical effort is exactly five levels: `low | medium | high | xhigh | max`. Ma
 | `medium` | `medium` | `medium` |
 | `high` | `high` | `high` |
 | `xhigh` | `xhigh` | `xhigh` |
-| `max` | `max` (passthrough) | `xhigh` (documented lossy downmap) |
+| `max` | `max` (passthrough) | `max` on GPT-5.6 Sol; `xhigh` elsewhere (documented lossy downmap) |
 
 Three rules travel with the table. A lossy downmap is recorded under your namespace in `providerMetadata`; journal identity always keeps the requested canonical effort, so replay is stable regardless of what the wire received. Efforts you cannot serve stay out of `caps.reasoningEfforts`, so the router scrubs them visibly (a warning event) instead of your adapter guessing. And a wire level that has no canonical equivalent is reachable only through your `providerOptions` namespace, never through the canonical `effort` field.
 

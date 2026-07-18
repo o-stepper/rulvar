@@ -37,7 +37,8 @@ files (or SQLite). And through crashes, edits, and redeploys, one invariant hold
   bills tokens it has already generated. Exhaustion is a typed outcome with a full cost report,
   never a bare null. [Budgets](https://docs.rulvar.com/guide/budgets)
 - **Any vendor, per role.** First-class Anthropic and OpenAI adapters, an `openaiCompatible`
-  factory for Ollama, vLLM, and gateways, and a bridge for any Vercel AI SDK model. Models are
+  factory for Ollama, vLLM, and gateways, and a bridge for any Vercel AI SDK `LanguageModelV4`
+  (other specification versions are rejected with a typed error at runtime). Models are
   `'adapterId:model'` strings, so one engine routes each role wherever it belongs.
   [Model routing](https://docs.rulvar.com/guide/model-routing)
 - **Three orchestration modes, one runtime.** Hand-written TypeScript over `ctx` primitives, an

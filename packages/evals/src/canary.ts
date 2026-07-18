@@ -25,7 +25,7 @@ import {
 } from '@rulvar/core';
 import { defineWorkflow } from '@rulvar/core';
 
-import type { SpendEnvelope } from './envelope.js';
+import { SweepBudgetError, type SpendEnvelope } from './envelope.js';
 
 export interface CanaryProbeSet {
   /** Registered agent profile the probes run under. */
@@ -54,11 +54,16 @@ export interface CanaryReport {
   /**
    * True only when every probe settled ok. A fingerprint containing a
    * non-ok probe status is a measurement artifact (budget exhaustion,
-   * transient provider failure), NOT evidence of model drift: never
-   * feed it to flipStaleOnCanaryDrift.
+   * an envelope refusal, transient provider failure), NOT evidence of
+   * model drift: never feed it to flipStaleOnCanaryDrift.
    */
   allOk: boolean;
-  probes: Array<{ prompt: string; status: RunOutcome<unknown>['status'] }>;
+  /**
+   * One row per probe; 'refused' means the aggregate envelope refused
+   * the probe before it started (v1.17.0 review P1-5): the loop keeps
+   * walking so completed probe evidence survives, and allOk is false.
+   */
+  probes: Array<{ prompt: string; status: RunOutcome<unknown>['status'] | 'refused' }>;
 }
 
 /** The committed v1 normalization (OQ-06): NFC, trim, collapse whitespace. */
@@ -72,10 +77,12 @@ export function normalizeCanaryOutput(output: unknown): string {
  * sequentially in declaration order, one run per probe, so recordings
  * replay deterministically. Each probe run carries the optional
  * immutable ceiling (options.budgetUsd) and authorizes it against the
- * optional envelope before starting. A non-ok probe enters the
- * fingerprint as `!status` and clears allOk: callers gate drift
- * flipping on allOk, because a budget-starved or transiently failing
- * probe fingerprints differently without the model having drifted.
+ * optional envelope before starting; an envelope refusal records the
+ * probe as 'refused' and keeps walking instead of throwing away the
+ * completed probes. A non-ok or refused probe enters the fingerprint
+ * as `!status` and clears allOk: callers gate drift flipping on allOk,
+ * because a budget-starved or transiently failing probe fingerprints
+ * differently without the model having drifted.
  */
 export async function runCanary(
   engine: Engine,
@@ -85,7 +92,19 @@ export async function runCanary(
   const outputs: string[] = [];
   const probeReports: CanaryReport['probes'] = [];
   for (const [index, prompt] of probes.prompts.entries()) {
-    options.envelope?.authorize(options.budgetUsd, `canary probe ${String(index)}`);
+    try {
+      options.envelope?.authorize(options.budgetUsd, `canary probe ${String(index)}`);
+    } catch (error) {
+      if (!(error instanceof SweepBudgetError)) {
+        throw error;
+      }
+      // A refused probe never runs and costs nothing; the report keeps
+      // walking so completed probe evidence survives, and the refusal
+      // clears allOk exactly like any other non-ok probe.
+      probeReports.push({ prompt, status: 'refused' });
+      outputs.push('!refused');
+      continue;
+    }
     const workflow = defineWorkflow(
       { name: `kb-canary:${String(index)}` },
       async (ctx) => await ctx.agent(prompt, { agentType: probes.agentType }),

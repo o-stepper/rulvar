@@ -1,0 +1,5 @@
+---
+'@rulvar/openai': minor
+---
+
+Exact GPT-5.6 Terra and Luna capability and pricing rows, and a safe snapshot grammar. The seed table previously carried only Sol and the `gpt-5.6` alias, and the general prefix matcher let the alias capture the sibling models: `gpt-5.6-luna` and `gpt-5.6-terra` were silently priced as Sol (5x on Luna), which is worse than no price at all. Terra ($2.5/$15 per MTok, cache read $0.25, cache write $3.125) and Luna ($1/$6, cache read $0.1, cache write $1.25) now have their own rows with the family's long-context tier (strictly above 272K input: 2x input, 1.5x output), both exported through `OPENAI_PRICING` under `pricingVersion` `openai-2026-07-18`. Prefix inheritance is restricted to the documented dated-snapshot grammar `<exact model>-YYYY-MM-DD`; any other unknown sibling or suffix now resolves to conservative unpriced caps so its usage lands in `CostReport.unpriced` instead of a fabricated total. Canonical reasoning effort `max` is now sent on the wire unchanged for Sol (`OpenAiModelInfo.wireMaxEffort`); other models keep the documented lossy downmap to `xhigh`, still recorded in `providerMetadata.openai.effortDownmapped`.

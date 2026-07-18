@@ -7,13 +7,16 @@
 # Function: buildResponsesParams()
 
 ```ts
-function buildResponsesParams(req, ids): {
+function buildResponsesParams(
+   req, 
+   ids, 
+   options?): {
   effortDownmapped: boolean;
   params: Record<string, unknown>;
 };
 ```
 
-Defined in: [packages/openai/src/wire.ts:79](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L79)
+Defined in: [packages/openai/src/wire.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L83)
 
 Builds Responses API params. Manual item replay ONLY: store: false plus
 include reasoning.encrypted_content; previous_response_id and the
@@ -27,6 +30,8 @@ are REJECTED as a typed ConfigError. Role
 | ------ | ------ |
 | `req` | [`ChatRequest`](/api/@rulvar/rulvar/interfaces/ChatRequest.md) |
 | `ids` | [`OpenAiIdMap`](/api/@rulvar/openai/classes/OpenAiIdMap.md) |
+| `options?` | \{ `wireMaxEffort?`: `boolean`; \} |
+| `options.wireMaxEffort?` | `boolean` |
 
 ## Returns
 
@@ -39,5 +44,5 @@ are REJECTED as a typed ConfigError. Role
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `effortDownmapped` | `boolean` | [packages/openai/src/wire.ts:82](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L82) |
-| `params` | `Record`\&lt;`string`, `unknown`\&gt; | [packages/openai/src/wire.ts:82](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L82) |
+| `effortDownmapped` | `boolean` | [packages/openai/src/wire.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L87) |
+| `params` | `Record`\&lt;`string`, `unknown`\&gt; | [packages/openai/src/wire.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L87) |

@@ -105,6 +105,20 @@ interface EvalCaseResult {
   /** The target run's normalized usage. */
   usage: Usage;
   error?: WireError;
+  /**
+  * Present when grading stopped for a BUDGET reason (v1.17.0 review
+  * P1-5): the judge run hit its own per-run ceiling
+  * ('judge-exhausted') or the aggregate envelope refused a judge run
+  * before it started ('judge-refused'). The paid target evidence and
+  * its cost stay on this row, but the case can never count as passed
+  * and its cell emits no claim. Unexpected grader errors still throw:
+  * a grader that cannot grade for non-budget reasons is a defect of
+  * the suite, not a budget event.
+  */
+  incomplete?: {
+    reason: "judge-exhausted" | "judge-refused";
+    detail: string;
+  };
 }
 interface RunEvalCaseOptions {
   /** Display-name override; defaults to the workflow name. */
@@ -125,7 +139,9 @@ interface RunEvalCaseOptions {
 declare class EvalJudgeError extends Error {
   readonly judgeRun: string;
   readonly status: RunOutcome<Json>["status"];
-  constructor(judgeRun: string, status: RunOutcome<Json>["status"], detail?: string);
+  /** What the failing judge run actually spent (honest cost accounting). */
+  readonly costUsd: number;
+  constructor(judgeRun: string, status: RunOutcome<Json>["status"], detail?: string, costUsd?: number);
 }
 /**
 * Runs one EvalCase on the given engine: the target workflow as its own
@@ -137,11 +153,27 @@ declare function runEvalCase(engine: Engine, evalCase: EvalCase, options?: RunEv
 /** Aggregate view of a suite run. */
 interface EvalSuiteResult {
   results: EvalCaseResult[];
-  /** Fraction of cases with passed true; 0 for an empty suite. */
+  /** Fraction of result rows with passed true; 0 for an empty suite. */
   passRate: number;
   totalCostUsd: number;
-  /** Arithmetic mean over cases; 0 for an empty suite. */
+  /** Arithmetic mean over result rows; 0 for an empty suite. */
   meanLatencyMs: number;
+  /** Cases the caller asked for. */
+  plannedN: number;
+  /** Result rows actually produced (equals results.length). */
+  completedN: number;
+  /**
+  * Present when the aggregate envelope refused a TARGET run before it
+  * started (v1.17.0 review P1-5). The suite stops there and returns
+  * everything already measured instead of throwing: completed rows,
+  * their costs, and their names survive. Judge refusals never appear
+  * here; they normalize into the owning row's `incomplete` marker.
+  */
+  refusal?: {
+    runLabel: string;
+    atCase: string;
+    detail: string;
+  };
 }
 interface RunEvalSuiteOptions {
   budgetUsd?: number;
@@ -294,13 +326,18 @@ interface CanaryReport {
   /**
   * True only when every probe settled ok. A fingerprint containing a
   * non-ok probe status is a measurement artifact (budget exhaustion,
-  * transient provider failure), NOT evidence of model drift: never
-  * feed it to flipStaleOnCanaryDrift.
+  * an envelope refusal, transient provider failure), NOT evidence of
+  * model drift: never feed it to flipStaleOnCanaryDrift.
   */
   allOk: boolean;
+  /**
+  * One row per probe; 'refused' means the aggregate envelope refused
+  * the probe before it started (v1.17.0 review P1-5): the loop keeps
+  * walking so completed probe evidence survives, and allOk is false.
+  */
   probes: Array<{
     prompt: string;
-    status: RunOutcome<unknown>["status"];
+    status: RunOutcome<unknown>["status"] | "refused";
   }>;
 }
 /** The committed v1 normalization (OQ-06): NFC, trim, collapse whitespace. */
@@ -310,10 +347,12 @@ declare function normalizeCanaryOutput(output: unknown): string;
 * sequentially in declaration order, one run per probe, so recordings
 * replay deterministically. Each probe run carries the optional
 * immutable ceiling (options.budgetUsd) and authorizes it against the
-* optional envelope before starting. A non-ok probe enters the
-* fingerprint as `!status` and clears allOk: callers gate drift
-* flipping on allOk, because a budget-starved or transiently failing
-* probe fingerprints differently without the model having drifted.
+* optional envelope before starting; an envelope refusal records the
+* probe as 'refused' and keeps walking instead of throwing away the
+* completed probes. A non-ok or refused probe enters the fingerprint
+* as `!status` and clears allOk: callers gate drift flipping on allOk,
+* because a budget-starved or transiently failing probe fingerprints
+* differently without the model having drifted.
 */
 declare function runCanary(engine: Engine, probes: CanaryProbeSet, options?: CanaryRunOptions): Promise<CanaryReport>;
 /**
@@ -390,9 +429,12 @@ interface RunSweepOptions {
   * ceiling before starting, so the pool times cases times judge-call
   * product cannot exceed it, falsification pool growth included. An
   * envelope requires suite.budgetUsd (and suite.judgeBudgetUsd once a
-  * grader judges); a cell refused by the envelope lands in the report
-  * as envelopeExhausted with NO claim. Share the instance with the
-  * canary loop so probes draw from the same remainder.
+  * grader judges). Refusals are monotone (v1.17.0 review P1-5): a
+  * refused target stops that cell's walk but everything already
+  * measured stays on the cell (n, costs, caseNames), judge refusals
+  * normalize into their row's incomplete marker, and an incomplete
+  * cell emits NO claim. Share the instance with the canary loop so
+  * probes draw from the same remainder.
   */
   envelope?: SpendEnvelope;
   /** When given, emitted claims commit through the committer identity. */
@@ -408,7 +450,14 @@ interface SweepCellReport {
   effort?: Effort;
   taskClass: TaskClass;
   passRate: number;
+  /** Result rows actually measured (completed count). */
   n: number;
+  /**
+  * Cases this cell was asked to measure (v1.17.0 review P1-5). A cell
+  * with n < plannedN is incomplete: what ran stays reported, and the
+  * cell emits no claim.
+  */
+  plannedN: number;
   totalCostUsd: number;
   caseNames: string[];
   /**
@@ -421,10 +470,21 @@ interface SweepCellReport {
   */
   exhaustedRuns?: number;
   /**
-  * The aggregate envelope refused a run of this cell before it
-  * started; stats cover nothing reliable and the cell emits no claim.
+  * Count of result rows whose grading stopped on a judge budget event
+  * (per-run judge ceiling or envelope refusal of a judge run). The
+  * paid target evidence stays on those rows; the cell emits no claim.
+  */
+  judgeIncompleteRuns?: number;
+  /**
+  * The aggregate envelope refused a TARGET run of this cell before it
+  * started; everything measured up to that point stays reported and
+  * the cell emits no claim.
   */
   envelopeExhausted?: true;
+  /** Why the cell is incomplete, when it is. */
+  incompleteReason?: "envelope-exhausted" | "judge-exhausted" | "judge-refused";
+  /** The refused run's label, when the envelope refused one. */
+  refusedRunLabel?: string;
 }
 interface SweepReport {
   reportId: string;

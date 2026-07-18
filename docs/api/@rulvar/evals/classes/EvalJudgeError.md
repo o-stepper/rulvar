@@ -6,7 +6,7 @@
 
 # Class: EvalJudgeError
 
-Defined in: [packages/evals/src/case.ts:121](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L121)
+Defined in: [packages/evals/src/case.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L135)
 
 Thrown when a judge run does not settle ok.
 
@@ -22,18 +22,20 @@ Thrown when a judge run does not settle ok.
 new EvalJudgeError(
    judgeRun, 
    status, 
-   detail?): EvalJudgeError;
+   detail?, 
+   costUsd?): EvalJudgeError;
 ```
 
-Defined in: [packages/evals/src/case.ts:124](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L124)
+Defined in: [packages/evals/src/case.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L140)
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `judgeRun` | `string` |
-| `status` | `"ok"` \| `"error"` \| `"cancelled"` \| `"exhausted"` \| `"suspended"` |
-| `detail?` | `string` |
+| Parameter | Type | Default value |
+| ------ | ------ | ------ |
+| `judgeRun` | `string` | `undefined` |
+| `status` | `"ok"` \| `"error"` \| `"cancelled"` \| `"exhausted"` \| `"suspended"` | `undefined` |
+| `detail?` | `string` | `undefined` |
+| `costUsd?` | `number` | `0` |
 
 #### Returns
 
@@ -47,7 +49,8 @@ Error.constructor
 
 ## Properties
 
-| Property | Modifier | Type | Defined in |
-| ------ | ------ | ------ | ------ |
-| <a id="property-judgerun"></a> `judgeRun` | `readonly` | `string` | [packages/evals/src/case.ts:122](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L122) |
-| <a id="property-status"></a> `status` | `readonly` | `"ok"` \| `"error"` \| `"cancelled"` \| `"exhausted"` \| `"suspended"` | [packages/evals/src/case.ts:123](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L123) |
+| Property | Modifier | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ | ------ |
+| <a id="property-costusd"></a> `costUsd` | `readonly` | `number` | What the failing judge run actually spent (honest cost accounting). | [packages/evals/src/case.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L139) |
+| <a id="property-judgerun"></a> `judgeRun` | `readonly` | `string` | - | [packages/evals/src/case.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L136) |
+| <a id="property-status"></a> `status` | `readonly` | `"ok"` \| `"error"` \| `"cancelled"` \| `"exhausted"` \| `"suspended"` | - | [packages/evals/src/case.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L137) |

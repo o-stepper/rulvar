@@ -42,6 +42,7 @@ The adapter hands it to the official SDK unchanged; [Authentication](/guide/prov
 
 Everything in Rulvar hangs off an `Engine`: adapters talk to providers, stores make runs durable, and routing decides which model serves which role.
 
+<!-- docs-snippet: quickstart-anthropic -->
 ```ts
 import {
   createEngine,
@@ -244,6 +245,7 @@ Pass `{ dryRun: true }` to `engine.resume` for a replay-strict preview that perf
 
 Adapters are symmetrical: swap the factory and the routing string.
 
+<!-- docs-snippet: quickstart-openai-preset -->
 ```ts
 import { createEngine, openai, JsonlFileStore, FileTranscriptStore } from '@rulvar/rulvar';
 
@@ -255,10 +257,14 @@ const engine = createEngine({
   },
   defaults: {
     routing: {
-      loop: 'openai:gpt-5.4',
+      // The GPT-5.6 family split: Terra for everyday agent loops,
+      // Luna for cheap extraction. Reserve Sol (openai:gpt-5.6-sol)
+      // for the control-plane roles (orchestrate, plan); it is on the
+      // recommendedDefaults strong-model floors.
+      loop: 'openai:gpt-5.6-terra',
       // Schema-bearing ctx.agent calls resolve the extract role, so
       // any engine that serves them must route it.
-      extract: { model: 'openai:gpt-5.4-mini', effort: 'low' },
+      extract: { model: 'openai:gpt-5.6-luna', effort: 'low' },
     },
   },
 });

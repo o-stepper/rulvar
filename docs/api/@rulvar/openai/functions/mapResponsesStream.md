@@ -13,7 +13,7 @@ function mapResponsesStream(
 options?): AsyncGenerator<ChatEvent, void>;
 ```
 
-Defined in: [packages/openai/src/wire.ts:268](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L268)
+Defined in: [packages/openai/src/wire.ts:273](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L273)
 
 Maps the typed Responses SSE stream to ChatEvents, yielding each
 canonical event AS the corresponding provider event is consumed: the

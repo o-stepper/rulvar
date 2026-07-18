@@ -27,6 +27,20 @@ LLM call is never paid for twice. Full documentation:
 pnpm add @rulvar/compat
 ```
 
+## Usage
+
+```ts
+import { createEngine } from '@rulvar/core';
+import { deriverV0Synthetic } from '@rulvar/compat';
+
+const engine = createEngine({
+  adapters: [/* ... */],
+  // Frozen profiles keep journals with out-of-window hashVersions
+  // resumable; the current engine alone resumes everything in-window.
+  extraDerivers: [deriverV0Synthetic],
+});
+```
+
 ## Documentation
 
 - [Journal compatibility](https://docs.rulvar.com/guide/journal-compatibility)

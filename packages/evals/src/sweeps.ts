@@ -20,7 +20,7 @@ import {
 
 import { runEvalSuite, type EvalCase, type RunEvalSuiteOptions } from './case.js';
 import { commitEvalMeasured, type MeasuredClaimInput } from './committer.js';
-import { SweepBudgetError, type SpendEnvelope } from './envelope.js';
+import type { SpendEnvelope } from './envelope.js';
 
 /** One fixed pool member; effort is part of the claim subject identity. */
 export interface SweepModel {
@@ -69,9 +69,12 @@ export interface RunSweepOptions {
    * ceiling before starting, so the pool times cases times judge-call
    * product cannot exceed it, falsification pool growth included. An
    * envelope requires suite.budgetUsd (and suite.judgeBudgetUsd once a
-   * grader judges); a cell refused by the envelope lands in the report
-   * as envelopeExhausted with NO claim. Share the instance with the
-   * canary loop so probes draw from the same remainder.
+   * grader judges). Refusals are monotone (v1.17.0 review P1-5): a
+   * refused target stops that cell's walk but everything already
+   * measured stays on the cell (n, costs, caseNames), judge refusals
+   * normalize into their row's incomplete marker, and an incomplete
+   * cell emits NO claim. Share the instance with the canary loop so
+   * probes draw from the same remainder.
    */
   envelope?: SpendEnvelope;
   /** When given, emitted claims commit through the committer identity. */
@@ -88,7 +91,14 @@ export interface SweepCellReport {
   effort?: Effort;
   taskClass: TaskClass;
   passRate: number;
+  /** Result rows actually measured (completed count). */
   n: number;
+  /**
+   * Cases this cell was asked to measure (v1.17.0 review P1-5). A cell
+   * with n < plannedN is incomplete: what ran stays reported, and the
+   * cell emits no claim.
+   */
+  plannedN: number;
   totalCostUsd: number;
   caseNames: string[];
   /**
@@ -101,10 +111,21 @@ export interface SweepCellReport {
    */
   exhaustedRuns?: number;
   /**
-   * The aggregate envelope refused a run of this cell before it
-   * started; stats cover nothing reliable and the cell emits no claim.
+   * Count of result rows whose grading stopped on a judge budget event
+   * (per-run judge ceiling or envelope refusal of a judge run). The
+   * paid target evidence stays on those rows; the cell emits no claim.
+   */
+  judgeIncompleteRuns?: number;
+  /**
+   * The aggregate envelope refused a TARGET run of this cell before it
+   * started; everything measured up to that point stays reported and
+   * the cell emits no claim.
    */
   envelopeExhausted?: true;
+  /** Why the cell is incomplete, when it is. */
+  incompleteReason?: 'envelope-exhausted' | 'judge-exhausted' | 'judge-refused';
+  /** The refused run's label, when the envelope refused one. */
+  refusedRunLabel?: string;
 }
 
 export interface SweepReport {
@@ -165,46 +186,41 @@ export async function runSweepMatrix(
   for (const member of pool.models) {
     const engine = await options.engineFor(member);
     for (const [taskClass, bucket] of byTaskClass) {
-      let suite;
-      try {
-        suite = await runEvalSuite(
-          engine,
-          bucket.map((entry) => entry.case),
-          {
-            ...(options.suite ?? {}),
-            ...(options.envelope === undefined ? {} : { envelope: options.envelope }),
-          },
-        );
-      } catch (error) {
-        if (!(error instanceof SweepBudgetError)) {
-          throw error;
-        }
-        // The envelope refused a run of this cell before it started:
-        // record the refusal honestly and keep walking the matrix (the
-        // remaining cells cost nothing to check and each gets its own
-        // honest envelopeExhausted row).
-        cells.push({
-          model: member.model,
-          ...(member.effort === undefined ? {} : { effort: member.effort }),
-          taskClass,
-          passRate: 0,
-          n: 0,
-          totalCostUsd: 0,
-          caseNames: [],
-          envelopeExhausted: true,
-        });
-        continue;
-      }
+      // runEvalSuite is monotone (v1.17.0 review P1-5): a refused
+      // target stops its walk and returns everything already measured;
+      // judge budget events normalize into their rows. Nothing here
+      // discards paid evidence; only non-budget errors still throw.
+      const suite = await runEvalSuite(
+        engine,
+        bucket.map((entry) => entry.case),
+        {
+          ...(options.suite ?? {}),
+          ...(options.envelope === undefined ? {} : { envelope: options.envelope }),
+        },
+      );
       const exhaustedRuns = suite.results.filter((result) => result.status === 'exhausted').length;
+      const judgeIncompleteRuns = suite.results.filter(
+        (result) => result.incomplete !== undefined,
+      ).length;
+      const incompleteReason: SweepCellReport['incompleteReason'] =
+        suite.refusal !== undefined
+          ? 'envelope-exhausted'
+          : suite.results.find((result) => result.incomplete !== undefined)?.incomplete?.reason;
       const cell: SweepCellReport = {
         model: member.model,
         ...(member.effort === undefined ? {} : { effort: member.effort }),
         taskClass,
         passRate: suite.passRate,
-        n: suite.results.length,
+        n: suite.completedN,
+        plannedN: suite.plannedN,
         totalCostUsd: suite.totalCostUsd,
         caseNames: suite.results.map((result) => result.name),
         ...(exhaustedRuns === 0 ? {} : { exhaustedRuns }),
+        ...(judgeIncompleteRuns === 0 ? {} : { judgeIncompleteRuns }),
+        ...(suite.refusal === undefined
+          ? {}
+          : { envelopeExhausted: true as const, refusedRunLabel: suite.refusal.runLabel }),
+        ...(incompleteReason === undefined ? {} : { incompleteReason }),
       };
       cells.push(cell);
       const polarity =
@@ -213,7 +229,12 @@ export async function runSweepMatrix(
           : cell.passRate <= thresholds.weakness
             ? ('weakness' as const)
             : undefined;
-      if (polarity !== undefined && cell.n > 0 && exhaustedRuns === 0) {
+      const complete =
+        cell.n === cell.plannedN &&
+        exhaustedRuns === 0 &&
+        judgeIncompleteRuns === 0 &&
+        suite.refusal === undefined;
+      if (polarity !== undefined && cell.n > 0 && complete) {
         const epoch = options.modelEpochFor?.(member);
         claims.push({
           id: claimIdOf(options.reportId, member, taskClass),

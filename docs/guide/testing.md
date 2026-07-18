@@ -44,6 +44,7 @@ The CI posture that falls out: the default test job performs **zero network I/O*
 
 `createTestEngine` builds a real engine wired to a `FakeAdapter` and an in-memory journal store. You declare responders per agent; the engine does everything else it would do in production.
 
+<!-- docs-snippet: testing-fake-adapter -->
 ```ts
 import { defineWorkflow } from '@rulvar/core';
 import { createTestEngine } from '@rulvar/testing';

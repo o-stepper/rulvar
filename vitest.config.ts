@@ -56,6 +56,21 @@ export default defineConfig({
       // fails to parse them and prints a Rolldown stack trace.
       include: ['packages/*/src/**/*.ts'],
       exclude: ['**/*.test.ts'],
+      // Ratchet floors (v1.17.0 review): seeded just below the measured
+      // baseline of 2026-07-18 (statements 86.19, branches 77.47,
+      // functions 87.00, lines 86.31); functions gets one point of
+      // headroom because it sat exactly on the integer. Raise these as
+      // coverage grows; never lower them to admit a regression. Known
+      // instrumentation gap, deliberate: code executing inside worker
+      // threads (packages/planner/src/sandbox-worker.ts) and child
+      // processes reports 0% here; its behavior is covered end to end
+      // through the host-side sandbox tests.
+      thresholds: {
+        statements: 86,
+        branches: 77,
+        functions: 86,
+        lines: 86,
+      },
     },
   },
 });

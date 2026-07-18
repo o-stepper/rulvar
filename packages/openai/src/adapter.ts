@@ -137,7 +137,9 @@ export function openai(options: OpenAiAdapterOptions = {}): ProviderAdapter {
       // slows the read and nothing buffers.
       try {
         if (info.api === 'responses') {
-          const { params, effortDownmapped } = buildResponsesParams(req, ids);
+          const { params, effortDownmapped } = buildResponsesParams(req, ids, {
+            wireMaxEffort: info.wireMaxEffort,
+          });
           const stream = (await client.responses.create(
             { ...params, stream: true },
             signal === undefined ? undefined : { signal },

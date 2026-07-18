@@ -13,7 +13,7 @@ function runEvalSuite(
 options?): Promise<EvalSuiteResult>;
 ```
 
-Defined in: [packages/evals/src/case.ts:256](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L256)
+Defined in: [packages/evals/src/case.ts:311](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/case.ts#L311)
 
 Runs cases sequentially (deterministic journal and cassette order) and
 aggregates. Duplicate workflow names get '#&lt;ordinal&gt;' suffixes so every
