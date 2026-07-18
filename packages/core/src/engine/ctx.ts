@@ -981,6 +981,10 @@ export function createCtx(
     const toolset = await resolveToolset(
       escalation === undefined ? declaredTools : [...declaredTools, escalateTool()],
       { runId: internals.runId },
+      // Registered toolset names resolve against the engine's registry
+      // snapshot (v1.17.0 review P1-3): one meaning for a string across
+      // direct calls, profiles, and the sandbox dialect.
+      internals.defaults.toolsets,
     );
 
     // Role trigger protocol (M4-T01; predicates in model/roles.ts):

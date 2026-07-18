@@ -171,3 +171,50 @@ describe('toolset resolution and hashing (M3-T01)', () => {
     await expect(resolveToolset([source], SESSION)).rejects.toThrow(/prefix/);
   });
 });
+
+describe('registered toolset names (v1.17.0 review P1-3)', () => {
+  it('a string resolves through the registry to the same snapshot as direct defs', async () => {
+    const def = greet(() => Promise.resolve('hi'));
+    const named = await resolveToolset(['greeting-set'], SESSION, { 'greeting-set': [def] });
+    const direct = await resolveToolset([def], SESSION);
+    expect(named.hash).toBe(direct.hash);
+    expect(named.tools).toEqual([def]);
+    expect(named.contracts).toEqual(direct.contracts);
+  });
+
+  it('an unknown name is a typed ConfigError naming the registration slot', async () => {
+    await expect(resolveToolset(['missing-set'], SESSION, {})).rejects.toThrow(
+      /unknown registered toolset 'missing-set'.*defaults\.toolsets/su,
+    );
+    // No registry at all fails the same way: nothing outside the
+    // declared registry is reachable by name.
+    await expect(resolveToolset(['missing-set'], SESSION)).rejects.toThrow(ConfigError);
+  });
+
+  it('registry values never nest other names, so no cycle can exist', async () => {
+    await expect(
+      resolveToolset(['outer'], SESSION, { outer: ['inner'], inner: [] }),
+    ).rejects.toThrow(/contains the name 'inner'/u);
+  });
+
+  it('collisions between a named set and direct defs fail after the union', async () => {
+    const def = greet(() => Promise.resolve('hi'));
+    await expect(
+      resolveToolset(['greeting-set', def], SESSION, { 'greeting-set': [def] }),
+    ).rejects.toThrow(/duplicate tool name 'greet'/u);
+  });
+
+  it('a named set expands ToolSource entries through the same session', async () => {
+    let seenRunId: string | undefined;
+    const source: ToolSource = {
+      id: 'src',
+      tools: (session) => {
+        seenRunId = session.runId;
+        return Promise.resolve([greet(() => Promise.resolve('hi'))]);
+      },
+    };
+    const resolved = await resolveToolset(['sourced'], SESSION, { sourced: [source] });
+    expect(resolved.tools.map((def) => def.name)).toEqual(['greet']);
+    expect(seenRunId).toBe('run-1');
+  });
+});

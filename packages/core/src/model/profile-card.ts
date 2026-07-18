@@ -9,14 +9,15 @@
  * estCost). Models are NEVER named on the card: the orchestrator's only
  * model influence is model_hint.startTier.
  */
+import type { ToolsOption } from '../tools/toolset-hash.js';
 import type { AgentProfile } from '../engine/ctx.js';
 
 function toolNamesOf(profile: AgentProfile): string[] {
   const tools = profile.tools ?? [];
   return tools.map((entry) => {
     if (typeof entry === 'string') {
-      // A registered profile name whose toolset is borrowed.
-      return `${entry} (profile toolset)`;
+      // A registered toolset name from defaults.toolsets.
+      return `${entry} (registered toolset)`;
     }
     if ('kind' in entry && entry.kind === 'tool') {
       return entry.name;
@@ -29,12 +30,24 @@ function toolNamesOf(profile: AgentProfile): string[] {
 /**
  * Renders the registry into the shared agent vocabulary card. Sorted,
  * deterministic, byte-stable; an empty registry renders explicitly so
- * the planner never guesses at unregistered agentTypes.
+ * the planner never guesses at unregistered agentTypes. When the engine
+ * registers toolsets, their names render as a closing line (v1.17.0
+ * review P1-3): those are the ONLY values valid as string entries of a
+ * tools option, so the planner never invents a registry name.
  */
-export function profileCard(profiles: Record<string, AgentProfile> | undefined): string {
+export function profileCard(
+  profiles: Record<string, AgentProfile> | undefined,
+  toolsets?: Record<string, ToolsOption>,
+): string {
+  const toolsetNames = Object.keys(toolsets ?? {}).sort();
+  const toolsetsLine =
+    toolsetNames.length === 0
+      ? undefined
+      : `Registered toolsets (valid string entries of a tools option): ${toolsetNames.join(', ')}.`;
   const names = Object.keys(profiles ?? {}).sort();
   if (profiles === undefined || names.length === 0) {
-    return 'Agent profiles: none registered. Calls take no agentType.';
+    const empty = 'Agent profiles: none registered. Calls take no agentType.';
+    return toolsetsLine === undefined ? empty : `${empty}\n${toolsetsLine}`;
   }
   const lines: string[] = ['Agent profiles (agentType values):'];
   for (const name of names) {
@@ -54,6 +67,9 @@ export function profileCard(profiles: Record<string, AgentProfile> | undefined):
     if (profile.escalation !== undefined) {
       lines.push(`  escalation: flavor ${profile.escalation.flavor ?? 'A'} (opt-in)`);
     }
+  }
+  if (toolsetsLine !== undefined) {
+    lines.push(toolsetsLine);
   }
   return lines.join('\n');
 }

@@ -2,9 +2,14 @@
  * Toolset resolution and hashing (M3-T01): expands the per-spawn tools
  * array (ToolDef | ToolSource | string) into the spawn's toolset snapshot,
  * validates names and collisions, and derives toolsetHash from the
- * contracts only. The snapshot is captured at spawn time and stays stable
- * for the agent's lifetime; provider-side drift of a source's tools
- * changes the content key of NEW spawns only.
+ * contracts only. A string entry names a registered toolset from
+ * `createEngine({ defaults: { toolsets } })` (v1.17.0 review P1-3): the
+ * registry snapshot belongs to the engine configuration, so the same
+ * name expands identically for direct calls, agent profiles, and the
+ * sandbox dialect, and an unknown name is a typed ConfigError at spawn
+ * time, before any provider call. The snapshot is captured at spawn
+ * time and stays stable for the agent's lifetime; provider-side drift
+ * of a source's tools changes the content key of NEW spawns only.
  *
  * Docs: https://docs.rulvar.com/guide/tools.
  */
@@ -34,32 +39,57 @@ function isToolDef(spec: ToolDef | ToolSource | string): spec is ToolDef {
 }
 
 /**
- * Expands sources, validates every tool name and duplicate names across
- * the whole toolset (ConfigError at spawn time), and computes the
- * toolsetHash over contracts sorted by name.
+ * Expands registered names and sources, validates every tool name and
+ * duplicate names across the whole toolset (ConfigError at spawn time),
+ * and computes the toolsetHash over contracts sorted by name. The
+ * `toolsets` registry is the engine's `defaults.toolsets` snapshot;
+ * without one, string entries fail with the same unknown-name error as
+ * a miss, so nothing outside the declared registry is ever reachable.
  */
 export async function resolveToolset(
   specs: ToolsOption | undefined,
   session: ToolSourceSession,
+  toolsets?: Record<string, ToolsOption>,
 ): Promise<ResolvedToolset> {
   if (specs === undefined || specs.length === 0) {
     return emptyToolset();
   }
   const tools: ToolDef[] = [];
+  // ToolDef entries push synchronously and only ToolSource expansion
+  // awaits: the await profile of a defs-only toolset is part of fresh-run
+  // byte determinism (cassette-pinned append interleavings).
   for (const spec of specs) {
     if (typeof spec === 'string') {
-      throw new ConfigError(
-        `tools by registered name ('${spec}') are not supported here: pass ToolDef or ` +
-          'ToolSource values. Registered toolset names exist only for the dynamic ' +
-          "orchestrator's spawn_agent toolsetRef (https://docs.rulvar.com/guide/tools)",
-      );
+      const named = toolsets?.[spec];
+      if (named === undefined) {
+        throw new ConfigError(
+          `unknown registered toolset '${spec}': register it under ` +
+            'defaults.toolsets (https://docs.rulvar.com/guide/tools)',
+        );
+      }
+      for (const entry of named) {
+        if (typeof entry === 'string') {
+          // No nesting: a registry value holds concrete ToolDef and
+          // ToolSource entries, never other registered names, so a
+          // registry can never cycle.
+          throw new ConfigError(
+            `registered toolset '${spec}' contains the name '${entry}': registry values ` +
+              'hold ToolDef or ToolSource entries, never other registered names',
+          );
+        }
+        if (isToolDef(entry)) {
+          tools.push(entry);
+          continue;
+        }
+        tools.push(...(await entry.tools(session)));
+      }
+      continue;
     }
     if (isToolDef(spec)) {
       tools.push(spec);
       continue;
     }
-    const imported = await spec.tools(session);
-    tools.push(...imported);
+    tools.push(...(await spec.tools(session)));
   }
   const seen = new Map<string, ToolDef>();
   for (const def of tools) {

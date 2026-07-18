@@ -972,7 +972,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
     profileCard: (names) => {
       const registered = defaults.profiles ?? {};
       if (names === undefined) {
-        return profileCard(registered);
+        return profileCard(registered, defaults.toolsets);
       }
       const filtered: Record<string, AgentProfile> = {};
       for (const name of names) {
@@ -980,7 +980,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
           filtered[name] = registered[name];
         }
       }
-      return profileCard(filtered);
+      return profileCard(filtered, defaults.toolsets);
     },
   };
 }
