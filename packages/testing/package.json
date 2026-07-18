@@ -1,6 +1,6 @@
 {
   "name": "@rulvar/testing",
-  "version": "1.19.0",
+  "version": "1.20.0",
   "description": "Rulvar test harness: createTestEngine, FakeAdapter, VCR cassettes, replay-strict runs, matchers.",
   "type": "module",
   "license": "Apache-2.0",

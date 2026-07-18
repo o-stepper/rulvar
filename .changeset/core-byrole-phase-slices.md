@@ -1,5 +1,0 @@
----
-'@rulvar/core': minor
----
-
-`CostReport.byRole` now attributes every paid invocation phase to its own bucket. Usage accumulates by (invocation role, serving model): `UsageSlice` gains an optional `role`, terminal entries and turn-boundary checkpoints persist the roled slices, and both the live buckets and the pure journal fold bump `byRole` per priced slice, so a routed finalize, a separate extract, or a mid-loop compaction summarize lands under `finalize`/`extract`/`summarize` even when one model serves several phases of one agent (previously the whole entry folded under its single primary role and those documented buckets could never be nonzero). Backward compatible end to end: slices without a role and entries without slices fold under the entry's primary `costAttribution.role` exactly as before, pre-split checkpoints restore under the primary pair, a single-phase single-model call still writes no slices (those journals stay byte-identical), and role buckets and model buckets both sum to the same total on live runs, same-engine replay, and fresh-engine replay.

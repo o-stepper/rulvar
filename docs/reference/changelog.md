@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.20.0
+
+#### Patch Changes
+
+- Updated dependencies [9367030]
+  - @rulvar/core@1.20.0
+
 ### 1.19.0
 
 #### Patch Changes
@@ -472,6 +479,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.20.0
+
+#### Patch Changes
+
+- Updated dependencies [9367030]
+  - @rulvar/core@1.20.0
+
 ### 1.19.0
 
 #### Patch Changes
@@ -813,6 +827,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.20.0
+
+#### Patch Changes
+
+- Updated dependencies [9367030]
+  - @rulvar/core@1.20.0
 
 ### 1.19.0
 
@@ -1312,6 +1333,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.20.0
+
+#### Minor Changes
+
+- 9367030: `CostReport.byRole` now attributes every paid invocation phase to its own bucket. Usage accumulates by (invocation role, serving model): `UsageSlice` gains an optional `role`, terminal entries and turn-boundary checkpoints persist the roled slices, and both the live buckets and the pure journal fold bump `byRole` per priced slice, so a routed finalize, a separate extract, or a mid-loop compaction summarize lands under `finalize`/`extract`/`summarize` even when one model serves several phases of one agent (previously the whole entry folded under its single primary role and those documented buckets could never be nonzero). Backward compatible end to end: slices without a role and entries without slices fold under the entry's primary `costAttribution.role` exactly as before, pre-split checkpoints restore under the primary pair, a single-phase single-model call still writes no slices (those journals stay byte-identical), and role buckets and model buckets both sum to the same total on live runs, same-engine replay, and fresh-engine replay.
 
 ### 1.19.0
 
@@ -2328,6 +2355,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.20.0
+
 ### 1.19.0
 
 ### 1.18.0
@@ -2434,6 +2463,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.20.0
+
+#### Patch Changes
+
+- 9367030: `SpendEnvelope` rejects amounts at or above 2^49 micro-USD (about $562,949,953.42). The 4-ULP representation-noise window grows with magnitude and reaches half a micro-USD at that boundary, where the nearest integer stops being unique: a ceil debit could snap DOWN and admit an aggregate whose raw requests sum above the ceiling (the v1.19.0 review reproduced a sub-micro overshoot at a $570M cap). Out-of-domain caps and ceilings now throw a typed `ConfigError` that debits nothing. The class documents the exact input interpretation (a double within the noise window of an integer micro value IS that integer) and the honest raw-double bound (at most half a micro per admitted amount, the finest distinction double precision carries at the top of the domain); boundary and adversarial ULP-neighbor properties pin both.
+- Updated dependencies [9367030]
+  - @rulvar/core@1.20.0
+  - @rulvar/testing@1.20.0
 
 ### 1.19.0
 
@@ -2860,6 +2898,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.20.0
+
+#### Patch Changes
+
+- 9367030: Cache detail tokens are subsets of the full input, never additions. On the OpenAI wire `input_tokens`/`prompt_tokens` is already the complete prompt count; `cached_tokens` and `cache_write_tokens` classify parts of it. The v1.19.0 normalizer added cache writes on top of the full count, double-billing every written token at the base rate plus the 1.25x premium (a 73.6 percent overreport on the review's live cache scenario) and inflating budget debits, which could prematurely exhaust run, agent, and child ceilings. Both the Responses and the Chat Completions paths now pass the provider's full count through untouched and clamp impossible telemetry conservatively (nonnegative, reads keep priority, reads plus writes never exceed the input) instead of rejecting paid evidence. Verified against the live wire: identical prompts report the same `input_tokens` whether the details show a write or a read, and `total_tokens` equals input plus output; a new opt-in live contract test pins exactly that.
+- Updated dependencies [9367030]
+  - @rulvar/core@1.20.0
 
 ### 1.19.0
 
@@ -3333,6 +3379,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.20.0
+
+#### Patch Changes
+
+- Updated dependencies [9367030]
+  - @rulvar/core@1.20.0
+
 ### 1.19.0
 
 #### Minor Changes
@@ -3780,6 +3833,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.20.0
+
+#### Patch Changes
+
+- Updated dependencies [9367030]
+  - @rulvar/core@1.20.0
+  - eslint-plugin-rulvar@1.20.0
+
 ### 1.19.0
 
 #### Patch Changes
@@ -4160,6 +4221,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.20.0
+
+#### Patch Changes
+
+- Updated dependencies [9367030]
+- Updated dependencies [9367030]
+  - @rulvar/core@1.20.0
+  - @rulvar/openai@1.20.0
+  - @rulvar/anthropic@1.20.0
 
 ### 1.19.0
 
@@ -4667,6 +4738,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.20.0
+
+#### Patch Changes
+
+- Updated dependencies [9367030]
+  - @rulvar/core@1.20.0
+
 ### 1.19.0
 
 #### Patch Changes
@@ -5068,6 +5146,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.20.0
+
+#### Patch Changes
+
+- Updated dependencies [9367030]
+  - @rulvar/core@1.20.0
+
 ### 1.19.0
 
 #### Patch Changes
@@ -5420,6 +5505,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.20.0
+
+#### Patch Changes
+
+- Updated dependencies [9367030]
+  - @rulvar/core@1.20.0
 
 ### 1.19.0
 
