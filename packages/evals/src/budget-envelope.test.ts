@@ -24,6 +24,8 @@ import { canaryFingerprint, runCanary } from './canary.js';
 import { SpendEnvelope, SweepBudgetError } from './envelope.js';
 import { runSweepMatrix, type SweepPool } from './sweeps.js';
 
+const MICRO_PER_USD = 1_000_000;
+
 const ANSWER_SCHEMA = {
   type: 'object',
   properties: { answer: { type: 'number' } },
@@ -97,6 +99,62 @@ describe('SpendEnvelope (debit-only, micro-USD)', () => {
       expect(refusal.ceilingUsd).toBe(0.5);
       expect(refusal.authorizedUsd).toBe(0.8);
       expect(refusal.maxTotalUsd).toBe(1);
+    }
+  });
+
+  it('is conservative at the micro-USD boundary (v1.17.0 review P1-4)', () => {
+    // A cap below one micro-USD could only ever admit zero-debit runs.
+    expect(() => new SpendEnvelope(0.0000004)).toThrowError(/1 micro-USD/u);
+    // A sub-micro ceiling debits a FULL micro, never zero: the second
+    // authorization no longer fits a one-micro envelope, so the
+    // formerly unbounded stream of zero-debit authorizations is gone.
+    const oneMicro = new SpendEnvelope(0.000001);
+    oneMicro.authorize(0.0000004, 'tiny');
+    expect(oneMicro.authorizedUsd).toBe(0.000001);
+    expect(() => oneMicro.authorize(0.0000004, 'tiny-2')).toThrowError(SweepBudgetError);
+    // The cap floors: 1.4 micro admits exactly one micro of debits.
+    const floored = new SpendEnvelope(0.0000014);
+    floored.authorize(0.000001, 'a');
+    expect(() => floored.authorize(0.000001, 'b')).toThrowError(SweepBudgetError);
+    // Exact fits in the unit pass and one more unit is refused.
+    const exact = new SpendEnvelope(0.000003);
+    exact.authorize(0.000001, 'a');
+    exact.authorize(0.000001, 'b');
+    exact.authorize(0.000001, 'c');
+    expect(exact.remainingUsd).toBe(0);
+    expect(() => exact.authorize(0.000001, 'd')).toThrowError(SweepBudgetError);
+    // Float noise around an integer micro amount stays exact.
+    const noisy = new SpendEnvelope(0.3);
+    noisy.authorize(0.1 + 0.2 - 0.2, 'noise');
+    noisy.authorize(0.2, 'rest');
+    expect(noisy.remainingUsd).toBe(0);
+  });
+
+  it('property: the sum of admitted ORIGINAL ceilings never exceeds maxTotalUsd', () => {
+    // Deterministic LCG; mixes exact-micro amounts with sub-micro noise.
+    let seed = 42;
+    const next = (): number => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    for (let round = 0; round < 50; round += 1) {
+      const max = 0.000001 + next() * 0.01;
+      const envelope = new SpendEnvelope(max);
+      let admittedSum = 0;
+      for (let i = 0; i < 200; i += 1) {
+        const exactMicro = next() < 0.5;
+        const ceiling = exactMicro
+          ? Math.max(1, Math.round(next() * 2000)) / MICRO_PER_USD
+          : next() * 0.002 + 1e-9;
+        try {
+          envelope.authorize(ceiling, `run-${String(i)}`);
+          admittedSum += ceiling;
+        } catch (error) {
+          // Refusals debit nothing; later smaller ceilings may still fit.
+          expect(error).toBeInstanceOf(SweepBudgetError);
+        }
+      }
+      expect(admittedSum).toBeLessThanOrEqual(max + 1e-9);
     }
   });
 });

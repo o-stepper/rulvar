@@ -16,12 +16,34 @@
  * accounting stays one-directional. The envelope lives for one
  * invocation and is never persisted.
  *
- * Accounting is integer micro-USD, so exact fits pass: 0.1 + 0.2
- * against a 0.3 envelope is a fit, not a float rejection.
+ * Accounting is integer micro-USD and conservative at the
+ * representation boundary (v1.17.0 review P1-4): the cap converts DOWN
+ * (floor), every debit converts UP (ceil), and a cap below one
+ * micro-USD is rejected outright, so for any admitted sequence the sum
+ * of the ORIGINAL ceilings can never exceed maxTotalUsd and no
+ * positive ceiling ever debits zero. Amounts that are integer
+ * micro-USD up to float noise stay exact, so 0.1 + 0.2 against a 0.3
+ * envelope is a fit, not a float rejection.
  */
 import { ConfigError } from '@rulvar/core';
 
 const MICRO = 1_000_000;
+
+/**
+ * Relative tolerance for float noise around an integer micro-USD
+ * amount: 0.3 * 1e6 is 299999.99999999994 and MUST count as 300000,
+ * while a genuinely sub-micro 0.4 must not.
+ */
+const MICRO_NOISE = 1e-6;
+
+function microOf(usd: number, direction: 'floor' | 'ceil'): number {
+  const raw = usd * MICRO;
+  const nearest = Math.round(raw);
+  if (Math.abs(raw - nearest) <= MICRO_NOISE * Math.max(1, Math.abs(nearest))) {
+    return nearest;
+  }
+  return direction === 'floor' ? Math.floor(raw) : Math.ceil(raw);
+}
 
 /** Thrown when authorizing a run's ceiling would exceed the envelope. */
 export class SweepBudgetError extends Error {
@@ -63,7 +85,14 @@ export class SpendEnvelope {
       );
     }
     this.maxTotalUsd = maxTotalUsd;
-    this.maxMicroUsd = Math.round(maxTotalUsd * MICRO);
+    // The cap converts DOWN: representation error may only tighten it.
+    this.maxMicroUsd = microOf(maxTotalUsd, 'floor');
+    if (this.maxMicroUsd < 1) {
+      throw new ConfigError(
+        `SpendEnvelope maxTotalUsd ${String(maxTotalUsd)} is below the 1 micro-USD ` +
+          'accounting granularity ($0.000001); such an envelope could never admit a run',
+      );
+    }
   }
 
   /** Total authorized so far (debit-only; never decreases). */
@@ -89,7 +118,10 @@ export class SpendEnvelope {
           'unaccountable)',
       );
     }
-    const micro = Math.round(ceilingUsd * MICRO);
+    // Every debit converts UP: a positive ceiling always debits at
+    // least one micro-USD, so zero-debit authorizations cannot exist
+    // and the admitted ORIGINAL ceilings always sum within the cap.
+    const micro = Math.max(1, microOf(ceilingUsd, 'ceil'));
     if (this.authorizedMicroUsd + micro > this.maxMicroUsd) {
       throw new SweepBudgetError(runLabel, ceilingUsd, this.authorizedUsd, this.maxTotalUsd);
     }
