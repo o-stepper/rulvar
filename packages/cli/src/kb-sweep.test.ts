@@ -64,7 +64,10 @@ const BOUNDED_BUDGETS =
  * budget clause is injected verbatim (bounded, tiny-envelope, or
  * allowUnbounded).
  */
-function writeSweepProject(budgetClause: string = BOUNDED_BUDGETS): {
+function writeSweepProject(
+  budgetClause: string = BOUNDED_BUDGETS,
+  extraCaseClause = '',
+): {
   cwd: string;
   journalDir: string;
 } {
@@ -109,6 +112,7 @@ export default {
     ${budgetClause}
     cases: [
       { taskClass: 'code-edit', case: { workflow: math, args: null, graders: [goldenGrader({ answer: 42 })] } },
+      ${extraCaseClause}
     ],
   },
 };
@@ -258,7 +262,9 @@ describe('rulvar kb sweep (M11-T05)', () => {
     const io = scriptedIo();
     expect(await runCli(['kb', 'sweep'], { cwd, io })).toBe(0);
     const text = io.outLines.join('\n');
-    expect(text).toContain('canary fake:model: envelope exhausted, skipped');
+    // The refused probe is an honest incomplete row now (v1.17.0
+    // review P1-5), never a discarded report; allOk gates the flip.
+    expect(text).toContain('probe(s) refused by the envelope); NOT flipping claims');
     expect(text).toContain('cell fake:model :: code-edit: envelope exhausted, not measured');
     expect(text).toContain('no claims crossed a threshold; nothing committed');
     // Zero provider work happened: no run reached the journal, and the
@@ -266,5 +272,28 @@ describe('rulvar kb sweep (M11-T05)', () => {
     expect(readMetas(journalDir)).toHaveLength(0);
     const snapshot = await store.current();
     expect(snapshot.claims.find((claim) => claim.id === 'seed-weakness')?.status).toBe('active');
+  });
+
+  it('renders a mid-cell refusal as an explicit incomplete row, keeping the paid case', async () => {
+    // Envelope fits the canary and the first target only: the second
+    // target is refused, and the renderer must show what ran instead
+    // of erasing it (v1.17.0 review P1-5).
+    const { cwd, journalDir } = writeSweepProject(
+      'budgets: { targetUsd: 1, judgeUsd: 1, canaryUsd: 1, maxTotalUsd: 2.1 },',
+      "{ taskClass: 'code-edit', case: { workflow: math, args: null, graders: [goldenGrader({ answer: 42 })] } },",
+    );
+    const store = new FileModelKnowledgeStore({ path: join(cwd, 'rulvar.models.json') });
+    await seedWeakness(store);
+    const io = scriptedIo();
+    expect(await runCli(['kb', 'sweep'], { cwd, io })).toBe(0);
+    const text = io.outLines.join('\n');
+    expect(text).toContain('INCOMPLETE: envelope refused');
+    expect(text).toContain('after 1 of 2 case(s)');
+    expect(text).toContain('no claim');
+    expect(text).not.toContain('not measured');
+    // The completed target really ran under its recorded ceiling.
+    const metas = readMetas(journalDir);
+    expect(metas.filter((meta) => meta.workflowName === 'sweep-math')).toHaveLength(1);
+    expect(metas.find((meta) => meta.workflowName === 'sweep-math')?.budgetUsd).toBe(1);
   });
 });

@@ -22,7 +22,7 @@ import {
   type Workflow,
 } from '@rulvar/core';
 
-import type { SpendEnvelope } from './envelope.js';
+import { SweepBudgetError, type SpendEnvelope } from './envelope.js';
 
 /**
  * One quality-measurement case. The shape is the
@@ -99,6 +99,20 @@ export interface EvalCaseResult {
   /** The target run's normalized usage. */
   usage: Usage;
   error?: WireError;
+  /**
+   * Present when grading stopped for a BUDGET reason (v1.17.0 review
+   * P1-5): the judge run hit its own per-run ceiling
+   * ('judge-exhausted') or the aggregate envelope refused a judge run
+   * before it started ('judge-refused'). The paid target evidence and
+   * its cost stay on this row, but the case can never count as passed
+   * and its cell emits no claim. Unexpected grader errors still throw:
+   * a grader that cannot grade for non-budget reasons is a defect of
+   * the suite, not a budget event.
+   */
+  incomplete?: {
+    reason: 'judge-exhausted' | 'judge-refused';
+    detail: string;
+  };
 }
 
 export interface RunEvalCaseOptions {
@@ -121,13 +135,21 @@ export interface RunEvalCaseOptions {
 export class EvalJudgeError extends Error {
   readonly judgeRun: string;
   readonly status: RunOutcome<Json>['status'];
-  constructor(judgeRun: string, status: RunOutcome<Json>['status'], detail?: string) {
+  /** What the failing judge run actually spent (honest cost accounting). */
+  readonly costUsd: number;
+  constructor(
+    judgeRun: string,
+    status: RunOutcome<Json>['status'],
+    detail?: string,
+    costUsd = 0,
+  ) {
     super(
       `eval judge run '${judgeRun}' settled '${status}'${detail === undefined ? '' : `: ${detail}`}`,
     );
     this.name = 'EvalJudgeError';
     this.judgeRun = judgeRun;
     this.status = status;
+    this.costUsd = costUsd;
   }
 }
 
@@ -181,8 +203,25 @@ export async function runEvalCase(
   };
 
   const verdicts: GraderVerdict[] = [];
+  let incomplete: EvalCaseResult['incomplete'];
   for (const grader of evalCase.graders) {
-    verdicts.push(await grader.grade(context));
+    try {
+      verdicts.push(await grader.grade(context));
+    } catch (error) {
+      // Budget events normalize into the result row so paid target
+      // evidence survives (v1.17.0 review P1-5); everything else is a
+      // suite defect and still throws.
+      if (error instanceof SweepBudgetError) {
+        incomplete = { reason: 'judge-refused', detail: error.message };
+        break;
+      }
+      if (error instanceof EvalJudgeError && error.status === 'exhausted') {
+        judgeCostUsd += error.costUsd;
+        incomplete = { reason: 'judge-exhausted', detail: error.message };
+        break;
+      }
+      throw error;
+    }
   }
 
   const latencyMs =
@@ -193,13 +232,17 @@ export async function runEvalCase(
   return {
     name,
     status: outcome.status,
-    passed: outcome.status === 'ok' && verdicts.every((verdict) => verdict.passed),
+    passed:
+      outcome.status === 'ok' &&
+      incomplete === undefined &&
+      verdicts.every((verdict) => verdict.passed),
     verdicts,
     costUsd: outcome.cost.totalUsd + judgeCostUsd,
     judgeCostUsd,
     latencyMs,
     usage: outcome.usage,
     ...(outcome.error === undefined ? {} : { error: outcome.error }),
+    ...(incomplete === undefined ? {} : { incomplete }),
   };
 }
 
@@ -226,7 +269,12 @@ async function runJudge(
   });
   const outcome = (await handle.result) as RunOutcome<Json>;
   if (outcome.status !== 'ok') {
-    throw new EvalJudgeError(workflowName, outcome.status, outcome.error?.message);
+    throw new EvalJudgeError(
+      workflowName,
+      outcome.status,
+      outcome.error?.message,
+      outcome.cost.totalUsd,
+    );
   }
   return { output: outcome.value ?? null, costUsd: outcome.cost.totalUsd };
 }
@@ -234,11 +282,23 @@ async function runJudge(
 /** Aggregate view of a suite run. */
 export interface EvalSuiteResult {
   results: EvalCaseResult[];
-  /** Fraction of cases with passed true; 0 for an empty suite. */
+  /** Fraction of result rows with passed true; 0 for an empty suite. */
   passRate: number;
   totalCostUsd: number;
-  /** Arithmetic mean over cases; 0 for an empty suite. */
+  /** Arithmetic mean over result rows; 0 for an empty suite. */
   meanLatencyMs: number;
+  /** Cases the caller asked for. */
+  plannedN: number;
+  /** Result rows actually produced (equals results.length). */
+  completedN: number;
+  /**
+   * Present when the aggregate envelope refused a TARGET run before it
+   * started (v1.17.0 review P1-5). The suite stops there and returns
+   * everything already measured instead of throwing: completed rows,
+   * their costs, and their names survive. Judge refusals never appear
+   * here; they normalize into the owning row's `incomplete` marker.
+   */
+  refusal?: { runLabel: string; atCase: string; detail: string };
 }
 
 export interface RunEvalSuiteOptions {
@@ -260,19 +320,34 @@ export async function runEvalSuite(
 ): Promise<EvalSuiteResult> {
   const seen = new Map<string, number>();
   const results: EvalCaseResult[] = [];
+  let refusal: EvalSuiteResult['refusal'];
   for (const evalCase of cases) {
     const base = evalCase.workflow.name;
     const ordinal = seen.get(base) ?? 0;
     seen.set(base, ordinal + 1);
     const name = ordinal === 0 ? base : `${base}#${ordinal}`;
-    results.push(
-      await runEvalCase(engine, evalCase, {
-        name,
-        ...(options.budgetUsd === undefined ? {} : { budgetUsd: options.budgetUsd }),
-        ...(options.judgeBudgetUsd === undefined ? {} : { judgeBudgetUsd: options.judgeBudgetUsd }),
-        ...(options.envelope === undefined ? {} : { envelope: options.envelope }),
-      }),
-    );
+    try {
+      results.push(
+        await runEvalCase(engine, evalCase, {
+          name,
+          ...(options.budgetUsd === undefined ? {} : { budgetUsd: options.budgetUsd }),
+          ...(options.judgeBudgetUsd === undefined
+            ? {}
+            : { judgeBudgetUsd: options.judgeBudgetUsd }),
+          ...(options.envelope === undefined ? {} : { envelope: options.envelope }),
+        }),
+      );
+    } catch (error) {
+      if (!(error instanceof SweepBudgetError)) {
+        throw error;
+      }
+      // A refused TARGET stops the walk (every later target carries
+      // the same ceiling) but MUST NOT erase what already ran: the
+      // completed rows, their costs, and their names are paid
+      // evidence (v1.17.0 review P1-5).
+      refusal = { runLabel: error.runLabel, atCase: name, detail: error.message };
+      break;
+    }
   }
   return {
     results,
@@ -280,5 +355,8 @@ export async function runEvalSuite(
     totalCostUsd: results.reduce((sum, r) => sum + r.costUsd, 0),
     meanLatencyMs:
       results.length === 0 ? 0 : results.reduce((sum, r) => sum + r.latencyMs, 0) / results.length,
+    plannedN: cases.length,
+    completedN: results.length,
+    ...(refusal === undefined ? {} : { refusal }),
   };
 }
