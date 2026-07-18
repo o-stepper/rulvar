@@ -455,7 +455,7 @@ describe('handle sources and lifecycle', () => {
     view.render();
     const lastFrame = sink.chunks[sink.chunks.length - 1] ?? '';
     const rendered = lastFrame
-       
+
       .replace(/\[[0-9;?]*[A-Za-z]/gu, '')
       .split('\n')
       .filter((l) => l !== '');
