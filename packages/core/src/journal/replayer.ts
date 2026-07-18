@@ -87,6 +87,8 @@ export interface TerminalPatch {
   usageByModel?: UsageSlice[];
   /** Attribution facts behind the CostReport breakdowns; see JournalEntry. */
   costAttribution?: CostAttributionFacts;
+  /** The serving adapter's usage-semantics version; see JournalEntry. */
+  usageSemantics?: string;
   transcriptRef?: string;
   checkpointRef?: string;
   /** Terminal agent entries: Artifact list. */
@@ -454,6 +456,9 @@ export class Replayer {
       }
       if (patch.costAttribution !== undefined) {
         entry.costAttribution = patch.costAttribution;
+      }
+      if (patch.usageSemantics !== undefined) {
+        entry.usageSemantics = patch.usageSemantics;
       }
       if (patch.transcriptRef !== undefined) {
         entry.transcriptRef = patch.transcriptRef;

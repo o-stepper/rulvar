@@ -14,11 +14,13 @@ export interface OpenAiModelInfo {
   /** Reasoning models reject non-default sampling parameters. */
   reasoning: boolean;
   /**
-   * The model accepts wire `reasoning.effort: "max"` (GPT-5.6 Sol per
-   * the official model docs). When false, canonical max downmaps to
-   * wire xhigh; the downmap is recorded in providerMetadata and the
-   * journal identity keeps max, so caps accept the full canonical set
-   * either way.
+   * The model accepts wire `reasoning.effort: "max"` (the whole GPT-5.6
+   * family per the official model guidance, each sibling verified live
+   * 2026-07-18). When false, canonical max downmaps to wire xhigh; the
+   * downmap is recorded in providerMetadata and the journal identity
+   * keeps max, so caps accept the full canonical set either way. Flip
+   * this to true ONLY on a per-model live verification, never from the
+   * family page alone.
    */
   wireMaxEffort: boolean;
 }
@@ -53,7 +55,13 @@ const GPT_56_TIERS = [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMul
  * .../gpt-5.6-terra, .../gpt-5.6-luna; rates verified 2026-07-18). All
  * three: prompts strictly above 272K input tokens price the FULL
  * request at 2x input and 1.5x output; cache writes bill at 1.25x
- * uncached input. Only Sol accepts wire reasoning effort `max`.
+ * uncached input. All three accept wire reasoning effort `max`
+ * (v1.20.0 review P2-3; verified live per sibling 2026-07-18: a
+ * Responses call with `reasoning.effort: "max"` returns HTTP 200 with
+ * the effort echoed on Terra and Luna alike, and the API's own 400
+ * validator for an invalid effort enumerates `max` among the supported
+ * values, so acceptance is enforcement, not silence). Earlier families
+ * keep the conservative downmap until verified the same way.
  */
 const GPT_56_SOL: OpenAiModelInfo = responses(
   1_050_000,
@@ -68,21 +76,31 @@ const GPT_56_SOL: OpenAiModelInfo = responses(
   { wireMaxEffort: true },
 );
 
-const GPT_56_TERRA: OpenAiModelInfo = responses(1_050_000, 128_000, {
-  inputUsdPerMTok: 2.5,
-  outputUsdPerMTok: 15,
-  cacheReadUsdPerMTok: 0.25,
-  cacheWriteUsdPerMTok: 3.125,
-  tiers: GPT_56_TIERS,
-});
+const GPT_56_TERRA: OpenAiModelInfo = responses(
+  1_050_000,
+  128_000,
+  {
+    inputUsdPerMTok: 2.5,
+    outputUsdPerMTok: 15,
+    cacheReadUsdPerMTok: 0.25,
+    cacheWriteUsdPerMTok: 3.125,
+    tiers: GPT_56_TIERS,
+  },
+  { wireMaxEffort: true },
+);
 
-const GPT_56_LUNA: OpenAiModelInfo = responses(1_050_000, 128_000, {
-  inputUsdPerMTok: 1,
-  outputUsdPerMTok: 6,
-  cacheReadUsdPerMTok: 0.1,
-  cacheWriteUsdPerMTok: 1.25,
-  tiers: GPT_56_TIERS,
-});
+const GPT_56_LUNA: OpenAiModelInfo = responses(
+  1_050_000,
+  128_000,
+  {
+    inputUsdPerMTok: 1,
+    outputUsdPerMTok: 6,
+    cacheReadUsdPerMTok: 0.1,
+    cacheWriteUsdPerMTok: 1.25,
+    tiers: GPT_56_TIERS,
+  },
+  { wireMaxEffort: true },
+);
 
 /** Static seed table of the current model set. */
 export const OPENAI_MODELS: Record<string, OpenAiModelInfo> = {

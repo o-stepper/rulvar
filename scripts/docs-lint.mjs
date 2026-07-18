@@ -25,12 +25,13 @@
 //   7. Every dated pricingVersion literal in the hand-written docs equals
 //      the current adapter export, so a price-table revision cannot leave
 //      a stale snapshot stamp behind.
-//   8. Every TypeScript/JavaScript fence calling the public orchestrate
-//      or orchestratePlanned helpers either passes RunOptions with
-//      `budgetUsd` or carries an explicit `root-uncapped` marker, so a
-//      canonical example cannot quietly demonstrate an unbounded tree
-//      (the nested ctx.orchestrate form runs under its parent's
-//      admission and is exempt).
+//   8. Every CALL of the public orchestrate or orchestratePlanned helper
+//      in a TypeScript/JavaScript fence either passes RunOptions with
+//      `budgetUsd` (fourth argument onward) or carries a `root-uncapped`
+//      marker bound to that specific call, so a canonical example cannot
+//      quietly demonstrate an unbounded tree (the nested ctx.orchestrate
+//      form runs under its parent's admission and is exempt). Enforced
+//      per call, not per fence, since the v1.20.0 review (P3-4).
 //
 // Scope: every hand-written .md under docs/, recursively. Generated or
 // mirrored trees are excluded: docs/api (TypeDoc output), docs/node_modules,
@@ -40,7 +41,9 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import process from 'node:process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+import ts from 'typescript';
 
 // fileURLToPath, not URL.pathname: pathname keeps percent-escapes (a
 // checkout under a path with a space reads "rulvar%20test") and is not a
@@ -107,242 +110,395 @@ function fail(file, line, message) {
   console.error(`${file.replace(ROOT, '')}:${line}: ${message}`);
 }
 
-for (const file of collectFiles()) {
-  const text = readFileSync(file, 'utf8');
-  const lines = text.split('\n');
-  let inFence = false;
-  let h1Count = 0;
+// Check 8 machinery: root-ceiling discipline in orchestration examples
+// (v1.19.0 review P2, rewritten per call after the v1.20.0 review P3-4).
+// The public helpers accept the run's RunOptions as the fourth argument;
+// an example that omits it starts an UNCAPPED tree while nearby prose
+// routinely talks about the run ceiling. The first version of this check
+// tested the whole fence for the `budgetUsd` substring or a
+// `root-uncapped` marker, which was blind per fence: one capped call
+// legitimized every uncapped neighbor in the same fence, and one marker
+// exempted every call rather than the one it annotated. This rewrite
+// parses each fence and applies the rule to EVERY bare
+// orchestrate(...) / orchestratePlanned(...) call individually. The
+// nested `ctx.orchestrate(...)` form is exempt: it runs under the parent
+// workflow's admission, not its own RunOptions.
 
-  // VitePress home layout pages carry their heading in frontmatter.
-  const frontmatterEnd = lines[0] === '---' ? lines.indexOf('---', 1) : -1;
-  const frontmatter = frontmatterEnd > 0 ? lines.slice(1, frontmatterEnd) : [];
-  const isHomeLayout = frontmatter.some((l) => /^layout:\s*home\s*$/.test(l));
+const HELPER_CALL = /(?<![.\w])orchestrate(?:Planned)?\s*\(/u;
+const FENCE_LANG = /^\s*(?:```|~~~)\s*([A-Za-z]*)/u;
+const FENCE_LANGS = ['ts', 'typescript', 'js', 'javascript'];
+const UNCAPPED_MARKER = 'root-uncapped';
+const CHECK8_MESSAGE =
+  'uncapped orchestrate/orchestratePlanned call: EACH call must pass RunOptions with budgetUsd ' +
+  'as the fourth argument, or carry its own `root-uncapped` marker bound to the call (on the ' +
+  "call's line, the line above, or inside the call); a ceiling or marker on a neighboring call " +
+  'does not cover this one';
 
-  lines.forEach((line, i) => {
-    const n = i + 1;
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
-      return;
-    }
-    const dash = line.match(FORBIDDEN_DASHES);
-    if (dash) {
-      const code = dash[0].codePointAt(0)?.toString(16).toUpperCase();
-      fail(file, n, `forbidden dash character U+${code}; use the ASCII hyphen`);
-    }
-    if (EMOJI.test(line)) {
-      fail(file, n, 'emoji characters are forbidden in the documentation set');
-    }
-    if (!inFence && VUE_INTERPOLATION.test(line)) {
-      fail(
-        file,
-        n,
-        'VitePress evaluates {{ ... }} as a Vue expression outside a fenced code block ' +
-          '(an inline code span is NOT enough, and the build error names a temp file, not this ' +
-          'line); move it into a fenced block',
-      );
-    }
-    if (!inFence && /^# /.test(line)) {
-      h1Count++;
-    }
-    const install = line.match(BARE_INSTALL);
-    if (install) {
-      // A quoted or backticked occurrence is a deliberate mention (for
-      // example a page quoting the squatted-name hazard), not an
-      // install instruction.
-      const before = line[install.index - 1];
-      if (before !== '"' && before !== '`' && before !== "'") {
-        fail(file, n, 'install commands must use @rulvar/<name>, never the bare name');
-      }
-    }
-  });
-
-  const expectedH1 = isHomeLayout ? 0 : 1;
-  if (h1Count !== expectedH1) {
-    fail(file, 1, `expected exactly ${expectedH1} H1(s), found ${h1Count}`);
+/**
+ * Analyzes one ts/js fence body for check 8 and returns the zero-based
+ * line offsets (within the fence body) of every offending call.
+ *
+ * Fences are EXAMPLES and may be snippets, so parsing is lenient
+ * (ts.createSourceFile never type-checks and tolerates errors). If the
+ * parse yields no AST at all (throws, or produces zero statements while
+ * the fence textually names a helper call), the check falls back to the
+ * original fence-level rule for that fence, reported at offset 0, so an
+ * odd fence can never crash the lint or silently escape it.
+ *
+ * A call passes when either:
+ *   a. it has a fourth argument or more and the source text of arguments
+ *      4..N contains `budgetUsd`, or the fourth argument is a bare
+ *      identifier whose declaration in the same fence mentions
+ *      `budgetUsd` (pragmatic heuristic: any VariableDeclaration in the
+ *      fence whose name matches and whose declaration text contains the
+ *      substring counts; no scope analysis and no cross-fence
+ *      resolution, fences are self-contained examples); or
+ *   b. a `root-uncapped` marker is BOUND to the call: the substring
+ *      appears on the call's own starting line, on the line immediately
+ *      above it, or anywhere inside the call's source span (arguments
+ *      included). A marker bound to one call exempts only that call.
+ *
+ * Property-access callees (ctx.orchestrate) are never CallExpressions
+ * with a bare identifier callee, so they stay exempt by construction,
+ * as do larger identifiers that merely embed the helper name.
+ *
+ * @param {string} code the fence body
+ * @returns {number[]} zero-based offending line offsets within the body
+ */
+export function checkOrchestrateFence(code) {
+  if (!HELPER_CALL.test(code)) {
+    return [];
   }
+  /** @type {import('typescript').SourceFile | undefined} */
+  let source;
+  try {
+    source = ts.createSourceFile('fence.ts', code, ts.ScriptTarget.Latest);
+  } catch {
+    source = undefined;
+  }
+  if (source === undefined || source.statements.length === 0) {
+    // No AST at all: fence-level fallback (the pre-rewrite rule).
+    return code.includes('budgetUsd') || code.includes(UNCAPPED_MARKER) ? [] : [0];
+  }
+  const sf = source;
+  const bodyLines = code.split('\n');
+
+  // First pass: every variable declaration whose initializer (or any
+  // part of the declaration text) mentions budgetUsd, for the
+  // fourth-argument-as-identifier heuristic described above.
+  /** @type {Set<string>} */
+  const cappedDecls = new Set();
+  /** @param {import('typescript').Node} node */
+  const collectDecls = (node) => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.getText(sf).includes('budgetUsd')
+    ) {
+      cappedDecls.add(node.name.text);
+    }
+    ts.forEachChild(node, collectDecls);
+  };
+  collectDecls(sf);
+
+  /** @param {import('typescript').CallExpression} call @returns {boolean} */
+  const hasRootCeiling = (call) => {
+    if (call.arguments.length < 4) {
+      return false;
+    }
+    const restText = call.arguments
+      .slice(3)
+      .map((arg) => arg.getText(sf))
+      .join(', ');
+    if (restText.includes('budgetUsd')) {
+      return true;
+    }
+    const fourth = call.arguments[3];
+    return ts.isIdentifier(fourth) && cappedDecls.has(fourth.text);
+  };
+
+  /** @param {import('typescript').CallExpression} call @returns {boolean} */
+  const hasBoundMarker = (call) => {
+    const start = call.getStart(sf);
+    if (code.slice(start, call.getEnd()).includes(UNCAPPED_MARKER)) {
+      return true;
+    }
+    const line = sf.getLineAndCharacterOfPosition(start).line;
+    if (bodyLines[line]?.includes(UNCAPPED_MARKER)) {
+      return true;
+    }
+    return line > 0 && bodyLines[line - 1].includes(UNCAPPED_MARKER);
+  };
+
+  // Second pass: every CallExpression at any depth whose callee is the
+  // BARE identifier orchestrate or orchestratePlanned.
+  /** @type {number[]} */
+  const offsets = [];
+  /** @param {import('typescript').Node} node */
+  const visit = (node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      (node.expression.text === 'orchestrate' || node.expression.text === 'orchestratePlanned') &&
+      !hasRootCeiling(node) &&
+      !hasBoundMarker(node)
+    ) {
+      offsets.push(sf.getLineAndCharacterOfPosition(node.getStart(sf)).line);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return offsets;
 }
 
-// Check 5: the InvocationRole union vs the canonical roles table. The
-// union is parsed from source, not imported, so the check needs no build
-// and cannot drift behind a stale dist.
-{
-  const rolesPath = join(ROOT, 'packages', 'core', 'src', 'l0', 'messages.ts');
-  const agentsPath = join(ROOT, 'docs', 'guide', 'agents.md');
-  const unionMatch = readFileSync(rolesPath, 'utf8').match(/export type InvocationRole =([^;]+);/u);
-  const roles =
-    unionMatch === null ? [] : [...unionMatch[1].matchAll(/'([a-z-]+)'/gu)].map((m) => m[1]);
-  if (roles.length === 0) {
-    fail(rolesPath, 1, 'InvocationRole union not found; update the docs-lint role check');
-  } else {
-    const agentsDoc = readFileSync(agentsPath, 'utf8');
-    for (const role of roles) {
-      if (!new RegExp(`^\\| \`${role}\` \\|`, 'mu').test(agentsDoc)) {
+/**
+ * Runs check 8 over one markdown document: extracts every ts/js fence
+ * (same fence and language handling the check has always used) and maps
+ * each offending call to its one-based markdown line number (fence
+ * opener line + 1 + offset within the fence body).
+ *
+ * @param {string} markdownText
+ * @returns {{line: number, message: string}[]}
+ */
+export function check8Violations(markdownText) {
+  const lines = markdownText.split('\n');
+  /** @type {{line: number, message: string}[]} */
+  const violations = [];
+  /** @type {{lang: string, start: number, body: string[]} | null} */
+  let fence = null;
+  lines.forEach((line, index) => {
+    const opener = line.match(FENCE_LANG);
+    if (opener !== null) {
+      if (fence === null) {
+        fence = { lang: opener[1].toLowerCase(), start: index + 1, body: [] };
+        return;
+      }
+      const { lang, start, body } = fence;
+      fence = null;
+      if (!FENCE_LANGS.includes(lang)) {
+        return;
+      }
+      for (const offset of checkOrchestrateFence(body.join('\n'))) {
+        violations.push({ line: start + 1 + offset, message: CHECK8_MESSAGE });
+      }
+      return;
+    }
+    fence?.body.push(line);
+  });
+  return violations;
+}
+
+function main() {
+  for (const file of collectFiles()) {
+    const text = readFileSync(file, 'utf8');
+    const lines = text.split('\n');
+    let inFence = false;
+    let h1Count = 0;
+
+    // VitePress home layout pages carry their heading in frontmatter.
+    const frontmatterEnd = lines[0] === '---' ? lines.indexOf('---', 1) : -1;
+    const frontmatter = frontmatterEnd > 0 ? lines.slice(1, frontmatterEnd) : [];
+    const isHomeLayout = frontmatter.some((l) => /^layout:\s*home\s*$/.test(l));
+
+    lines.forEach((line, i) => {
+      const n = i + 1;
+      if (/^\s*(```|~~~)/.test(line)) {
+        inFence = !inFence;
+        return;
+      }
+      const dash = line.match(FORBIDDEN_DASHES);
+      if (dash) {
+        const code = dash[0].codePointAt(0)?.toString(16).toUpperCase();
+        fail(file, n, `forbidden dash character U+${code}; use the ASCII hyphen`);
+      }
+      if (EMOJI.test(line)) {
+        fail(file, n, 'emoji characters are forbidden in the documentation set');
+      }
+      if (!inFence && VUE_INTERPOLATION.test(line)) {
         fail(
-          agentsPath,
-          1,
-          `invocation role '${role}' has no canonical table row; add it to the Invocation roles table`,
+          file,
+          n,
+          'VitePress evaluates {{ ... }} as a Vue expression outside a fenced code block ' +
+            '(an inline code span is NOT enough, and the build error names a temp file, not this ' +
+            'line); move it into a fenced block',
         );
       }
+      if (!inFence && /^# /.test(line)) {
+        h1Count++;
+      }
+      const install = line.match(BARE_INSTALL);
+      if (install) {
+        // A quoted or backticked occurrence is a deliberate mention (for
+        // example a page quoting the squatted-name hazard), not an
+        // install instruction.
+        const before = line[install.index - 1];
+        if (before !== '"' && before !== '`' && before !== "'") {
+          fail(file, n, 'install commands must use @rulvar/<name>, never the bare name');
+        }
+      }
+    });
+
+    const expectedH1 = isHomeLayout ? 0 : 1;
+    if (h1Count !== expectedH1) {
+      fail(file, 1, `expected exactly ${expectedH1} H1(s), found ${h1Count}`);
     }
-    // The reverse direction (v1.17.0 review P2): no documented role row
-    // without a union member, so the table cannot invent a seventh role.
-    const section = /^### Invocation roles\n(?<body>[\s\S]*?)(?=^##)/mu.exec(agentsDoc)?.groups
-      ?.body;
-    if (section === undefined) {
-      fail(agentsPath, 1, 'Invocation roles section not found; update the docs-lint role check');
+  }
+
+  // Check 5: the InvocationRole union vs the canonical roles table. The
+  // union is parsed from source, not imported, so the check needs no build
+  // and cannot drift behind a stale dist.
+  {
+    const rolesPath = join(ROOT, 'packages', 'core', 'src', 'l0', 'messages.ts');
+    const agentsPath = join(ROOT, 'docs', 'guide', 'agents.md');
+    const unionMatch = readFileSync(rolesPath, 'utf8').match(
+      /export type InvocationRole =([^;]+);/u,
+    );
+    const roles =
+      unionMatch === null ? [] : [...unionMatch[1].matchAll(/'([a-z-]+)'/gu)].map((m) => m[1]);
+    if (roles.length === 0) {
+      fail(rolesPath, 1, 'InvocationRole union not found; update the docs-lint role check');
     } else {
-      for (const row of section.matchAll(/^\| `(?<role>[a-z-]+)` \|/gmu)) {
-        if (!roles.includes(row.groups.role)) {
+      const agentsDoc = readFileSync(agentsPath, 'utf8');
+      for (const role of roles) {
+        if (!new RegExp(`^\\| \`${role}\` \\|`, 'mu').test(agentsDoc)) {
           fail(
             agentsPath,
             1,
-            `the Invocation roles table documents '${row.groups.role}', which is not a member ` +
-              'of the InvocationRole union',
+            `invocation role '${role}' has no canonical table row; add it to the Invocation roles table`,
           );
+        }
+      }
+      // The reverse direction (v1.17.0 review P2): no documented role row
+      // without a union member, so the table cannot invent a seventh role.
+      const section = /^### Invocation roles\n(?<body>[\s\S]*?)(?=^##)/mu.exec(agentsDoc)?.groups
+        ?.body;
+      if (section === undefined) {
+        fail(agentsPath, 1, 'Invocation roles section not found; update the docs-lint role check');
+      } else {
+        for (const row of section.matchAll(/^\| `(?<role>[a-z-]+)` \|/gmu)) {
+          if (!roles.includes(row.groups.role)) {
+            fail(
+              agentsPath,
+              1,
+              `the Invocation roles table documents '${row.groups.role}', which is not a member ` +
+                'of the InvocationRole union',
+            );
+          }
         }
       }
     }
   }
-}
 
-// Check 6: the CLI's dynamic companions vs the package reference
-// (v1.16.2 review P3-2). The literal import('@rulvar/x') specifiers in
-// commands.ts are the source of truth; the CLI package row and the
-// dependency graph must name every one and no more. Parsed from source,
-// so the check needs no build.
-{
-  const commandsPath = join(ROOT, 'packages', 'cli', 'src', 'commands.ts');
-  const packagesDocPath = join(ROOT, 'docs', 'reference', 'packages.md');
-  const commandsSrc = readFileSync(commandsPath, 'utf8');
-  // The `...` in the analyzability comment is not [a-z-]+, so the
-  // documentation placeholder import('@rulvar/...') never matches.
-  const companions = [
-    ...new Set([...commandsSrc.matchAll(/import\('@rulvar\/([a-z-]+)'\)/gu)].map((m) => m[1])),
-  ].sort();
-  if (companions.length === 0) {
-    fail(
-      commandsPath,
-      1,
-      'no dynamic companion imports found; update the docs-lint companion check',
-    );
-  } else {
-    const doc = readFileSync(packagesDocPath, 'utf8');
-    const cliRow = doc
-      .split('\n')
-      .find((line) => line.includes('`@rulvar/cli`') && line.includes('runCli'));
-    // The dotted edges out of cli in the mermaid graph; the node id is
-    // the companion name without the @rulvar/ scope.
-    const edgeTargets = new Set(
-      [...doc.matchAll(/cli -\.->\|[^|]*\| ([a-z-]+)/gu)].map((m) => m[1]),
-    );
-    for (const name of companions) {
-      if (cliRow === undefined || !cliRow.includes(`\`@rulvar/${name}\``)) {
-        fail(packagesDocPath, 1, `CLI package row omits the dynamic companion @rulvar/${name}`);
-      }
-      if (!edgeTargets.has(name)) {
-        fail(packagesDocPath, 1, `dependency graph has no dotted cli edge to @rulvar/${name}`);
-      }
-    }
-    for (const target of edgeTargets) {
-      if (!companions.includes(target)) {
-        fail(
-          packagesDocPath,
-          1,
-          `dependency graph dots cli to '${target}', which commands.ts never imports`,
-        );
-      }
-    }
-  }
-}
-
-// Check 7: pricing snapshot literals vs the adapter exports (v1.18.0
-// review P2-4). model-routing.md cited `openai-2026-07-16` two revisions
-// after the export moved on; any dated pricingVersion literal in the
-// hand-written docs must equal the CURRENT source export for its
-// provider. Parsed from source, so the check needs no build; the
-// aggregated changelog and TypeDoc trees are already excluded, so
-// historical mentions stay legal there.
-{
-  /** @type {Record<string, string>} */
-  const exported = {};
-  for (const provider of ['anthropic', 'openai']) {
-    const capsPath = join(ROOT, 'packages', provider, 'src', 'caps.ts');
-    const src = readFileSync(capsPath, 'utf8');
-    const m = src.match(/pricingVersion:\s*'([^']+)'/u);
-    if (m?.[1] === undefined) {
-      fail(capsPath, 1, `no pricingVersion literal found; update the docs-lint pricing check`);
+  // Check 6: the CLI's dynamic companions vs the package reference
+  // (v1.16.2 review P3-2). The literal import('@rulvar/x') specifiers in
+  // commands.ts are the source of truth; the CLI package row and the
+  // dependency graph must name every one and no more. Parsed from source,
+  // so the check needs no build.
+  {
+    const commandsPath = join(ROOT, 'packages', 'cli', 'src', 'commands.ts');
+    const packagesDocPath = join(ROOT, 'docs', 'reference', 'packages.md');
+    const commandsSrc = readFileSync(commandsPath, 'utf8');
+    // The `...` in the analyzability comment is not [a-z-]+, so the
+    // documentation placeholder import('@rulvar/...') never matches.
+    const companions = [
+      ...new Set([...commandsSrc.matchAll(/import\('@rulvar\/([a-z-]+)'\)/gu)].map((m) => m[1])),
+    ].sort();
+    if (companions.length === 0) {
+      fail(
+        commandsPath,
+        1,
+        'no dynamic companion imports found; update the docs-lint companion check',
+      );
     } else {
-      exported[provider] = m[1];
+      const doc = readFileSync(packagesDocPath, 'utf8');
+      const cliRow = doc
+        .split('\n')
+        .find((line) => line.includes('`@rulvar/cli`') && line.includes('runCli'));
+      // The dotted edges out of cli in the mermaid graph; the node id is
+      // the companion name without the @rulvar/ scope.
+      const edgeTargets = new Set(
+        [...doc.matchAll(/cli -\.->\|[^|]*\| ([a-z-]+)/gu)].map((m) => m[1]),
+      );
+      for (const name of companions) {
+        if (cliRow === undefined || !cliRow.includes(`\`@rulvar/${name}\``)) {
+          fail(packagesDocPath, 1, `CLI package row omits the dynamic companion @rulvar/${name}`);
+        }
+        if (!edgeTargets.has(name)) {
+          fail(packagesDocPath, 1, `dependency graph has no dotted cli edge to @rulvar/${name}`);
+        }
+      }
+      for (const target of edgeTargets) {
+        if (!companions.includes(target)) {
+          fail(
+            packagesDocPath,
+            1,
+            `dependency graph dots cli to '${target}', which commands.ts never imports`,
+          );
+        }
+      }
     }
   }
-  const VERSION_LITERAL = /\b(anthropic|openai)-\d{4}-\d{2}-\d{2}(?:-r\d+)?\b/gu;
-  for (const file of collectFiles()) {
-    const lines = readFileSync(file, 'utf8').split('\n');
-    lines.forEach((text, index) => {
-      for (const m of text.matchAll(VERSION_LITERAL)) {
-        const provider = /** @type {string} */ (m[1]);
-        const current = exported[provider];
-        if (current !== undefined && m[0] !== current) {
-          fail(
-            file,
-            index + 1,
-            `stale pricing snapshot '${m[0]}'; the ${provider} adapter exports '${current}'`,
-          );
-        }
+
+  // Check 7: pricing snapshot literals vs the adapter exports (v1.18.0
+  // review P2-4). model-routing.md cited `openai-2026-07-16` two revisions
+  // after the export moved on; any dated pricingVersion literal in the
+  // hand-written docs must equal the CURRENT source export for its
+  // provider. Parsed from source, so the check needs no build; the
+  // aggregated changelog and TypeDoc trees are already excluded, so
+  // historical mentions stay legal there.
+  {
+    /** @type {Record<string, string>} */
+    const exported = {};
+    for (const provider of ['anthropic', 'openai']) {
+      const capsPath = join(ROOT, 'packages', provider, 'src', 'caps.ts');
+      const src = readFileSync(capsPath, 'utf8');
+      const m = src.match(/pricingVersion:\s*'([^']+)'/u);
+      if (m?.[1] === undefined) {
+        fail(capsPath, 1, `no pricingVersion literal found; update the docs-lint pricing check`);
+      } else {
+        exported[provider] = m[1];
       }
-    });
+    }
+    const VERSION_LITERAL = /\b(anthropic|openai)-\d{4}-\d{2}-\d{2}(?:-r\d+)?\b/gu;
+    for (const file of collectFiles()) {
+      const lines = readFileSync(file, 'utf8').split('\n');
+      lines.forEach((text, index) => {
+        for (const m of text.matchAll(VERSION_LITERAL)) {
+          const provider = /** @type {string} */ (m[1]);
+          const current = exported[provider];
+          if (current !== undefined && m[0] !== current) {
+            fail(
+              file,
+              index + 1,
+              `stale pricing snapshot '${m[0]}'; the ${provider} adapter exports '${current}'`,
+            );
+          }
+        }
+      });
+    }
   }
+
+  // Check 8: per-call root-ceiling discipline in orchestration examples;
+  // the rule itself lives in checkOrchestrateFence / check8Violations
+  // above so the regression tests can import it without running the lint.
+  {
+    for (const file of collectFiles()) {
+      for (const violation of check8Violations(readFileSync(file, 'utf8'))) {
+        fail(file, violation.line, violation.message);
+      }
+    }
+  }
+
+  if (failures > 0) {
+    console.error(`\ndocs lint failed with ${failures} problem(s)`);
+    process.exit(1);
+  }
+  console.log('docs lint passed');
 }
 
-// Check 8: root-ceiling discipline in orchestration examples (v1.19.0
-// review P2). The public helpers accept the run's RunOptions as the
-// fourth argument; an example that omits it starts an UNCAPPED tree
-// while nearby prose routinely talks about the run ceiling. Every
-// ts/js fence that calls orchestrate(...) or orchestratePlanned(...)
-// must either contain `budgetUsd` (the root ceiling) or the literal
-// marker `root-uncapped` stating the omission is deliberate. The
-// nested `ctx.orchestrate(...)` form is exempt: it runs under the
-// parent workflow's admission, not its own RunOptions.
-{
-  const HELPER_CALL = /(?<![.\w])orchestrate(?:Planned)?\s*\(/u;
-  const FENCE_LANG = /^\s*(?:```|~~~)\s*([A-Za-z]*)/u;
-  for (const file of collectFiles()) {
-    const lines = readFileSync(file, 'utf8').split('\n');
-    /** @type {{lang: string, start: number, body: string[]} | null} */
-    let fence = null;
-    lines.forEach((line, index) => {
-      const opener = line.match(FENCE_LANG);
-      if (opener !== null) {
-        if (fence === null) {
-          fence = { lang: opener[1].toLowerCase(), start: index + 1, body: [] };
-          return;
-        }
-        const { lang, start, body } = fence;
-        fence = null;
-        if (!['ts', 'typescript', 'js', 'javascript'].includes(lang)) {
-          return;
-        }
-        const code = body.join('\n');
-        if (!HELPER_CALL.test(code)) {
-          return;
-        }
-        if (!code.includes('budgetUsd') && !code.includes('root-uncapped')) {
-          fail(
-            file,
-            start,
-            'orchestrate/orchestratePlanned example has no root ceiling: pass RunOptions with ' +
-              'budgetUsd as the fourth argument, or mark the fence with a `root-uncapped` comment',
-          );
-        }
-        return;
-      }
-      fence?.body.push(line);
-    });
-  }
+// Guard the CLI body: importing this module (the check 8 regression
+// tests import checkOrchestrateFence and check8Violations) must not run
+// the whole lint. Run only when executed directly as a script.
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
 }
-
-if (failures > 0) {
-  console.error(`\ndocs lint failed with ${failures} problem(s)`);
-  process.exit(1);
-}
-console.log('docs lint passed');

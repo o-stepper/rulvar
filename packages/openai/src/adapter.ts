@@ -124,6 +124,13 @@ export function openai(options: OpenAiAdapterOptions = {}): ProviderAdapter {
     id: 'openai',
     // Provider family for provider-raw matching and retention (M4-T02).
     provider: 'openai',
+    // v2 = the live-verified subset reading (v1.20.0): wire input_tokens
+    // is the FULL prompt, cached_tokens and cache_write_tokens are
+    // priced subsets passed through untouched. The never-stamped v1
+    // (rulvar v1.19.0 only) added writes ON TOP of the full count,
+    // double-billing them; an unstamped journal entry with cache writes
+    // may carry that inflated reading (v1.20.0 review P1/P2-2).
+    usageSemantics: 'openai-cache-subsets-v2',
 
     caps(model: string): ModelCaps {
       return openAiModelInfo(model).caps;

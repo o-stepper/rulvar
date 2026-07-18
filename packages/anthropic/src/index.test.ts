@@ -434,6 +434,12 @@ describe('stream mapping (M1-T12)', () => {
     expect(secondMessages.filter((m) => m.role === 'user')).toHaveLength(1);
   });
 
+  it('declares the additive usage semantics it has always normalized under', () => {
+    // Stamped onto usage-bearing journal entries by the engine (v1.20.0
+    // review P1/P2-2); the string is part of the audit surface.
+    expect(anthropic({ apiKey: 'k' }).usageSemantics).toBe('anthropic-cache-additive-v1');
+  });
+
   it('projects 429 and 529 into the retryable vocabulary', () => {
     const rateLimited = anthropicErrorToWire({
       status: 429,

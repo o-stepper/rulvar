@@ -329,6 +329,18 @@ refused**: a live table whose version differs from the journaled one emits
 stays byte-identical with zero repeated provider work. Decisions journaled
 before the field shipped resume quietly.
 
+Usage SEMANTICS drift is handled the same visible-never-silent way: every
+new usage-bearing entry is stamped with the serving adapter's declared
+`usageSemantics`, and resuming a journal whose unstamped OpenAI entries
+carry cache writes (the shape rulvar v1.19.0 recorded with inflated
+inputs) emits a one-time `RULVAR_LEGACY_CACHE_SEMANTICS` warning. The
+recorded debits stand as recorded: overstated legacy spend consumes MORE
+of every ceiling, the conservative direction, so a continuation can
+exhaust early but never overspend. Start a fresh run or raise the ceiling
+deliberately if that bites; the [audit
+helpers](./providers#openai-legacy-cache-journals) quantify the exact
+delta without touching the journal.
+
 Wakeups need no counter of their own: every orchestrator wake is a paid turn
 against the capped orchestrator sub-account, so the number of wakes is bounded
 by the usable cap (cap minus the finalize reserve) divided by the minimal cost

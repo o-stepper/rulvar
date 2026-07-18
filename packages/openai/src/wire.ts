@@ -57,9 +57,10 @@ export class OpenAiIdMap {
 /**
  * Canonical-to-wire effort: low through xhigh pass through. Canonical
  * max passes through unchanged on models whose caps declare wire max
- * support (GPT-5.6 Sol); elsewhere it downmaps to xhigh (documented
- * lossy; recorded in providerMetadata). Provider 'none' is reachable
- * only via providerOptions.openai.reasoningEffort.
+ * support (the whole GPT-5.6 family, each sibling verified live
+ * 2026-07-18; v1.20.0 review P2-3); elsewhere it downmaps to xhigh
+ * (documented lossy; recorded in providerMetadata). Provider 'none' is
+ * reachable only via providerOptions.openai.reasoningEffort.
  */
 export function mapOpenAiEffort(
   effort: Effort,
@@ -281,6 +282,15 @@ function clampCacheSubsets(
  * wire genuinely EXCLUDES both cache counts from `input_tokens`, so
  * that adapter adds them; the two wires differ, the canonical Usage
  * invariant does not.
+ *
+ * Numeric hygiene is deliberately NOT this function's job: any `number`
+ * the wire (or an injected client) reports passes through, and the core
+ * enforces the full telemetry invariant at the adapter boundary for
+ * every adapter uniformly, failing the call loud on non-finite,
+ * negative, or fractional counts while accounting only sanitized values
+ * (`usageViolations`/`sanitizeUsage` in @rulvar/core; v1.20.0 review
+ * P1-1). Real wires report whole nonnegative integers; a violation here
+ * means a broken transport, never plausible provider data.
  */
 export function normalizeOpenAiUsage(raw: Record<string, unknown> | undefined): Usage {
   const inputDetails = raw?.input_tokens_details as Record<string, unknown> | undefined;
