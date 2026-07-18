@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.18.0
+
+#### Patch Changes
+
+- Updated dependencies [943962d]
+  - @rulvar/core@1.18.0
+
 ### 1.17.0
 
 #### Patch Changes
@@ -456,6 +463,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.18.0
+
+#### Patch Changes
+
+- Updated dependencies [943962d]
+  - @rulvar/core@1.18.0
+
 ### 1.17.0
 
 #### Patch Changes
@@ -781,6 +795,21 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.18.0
+
+#### Minor Changes
+
+- 943962d: Sweep and suite reports are now monotone: paid evidence survives every budget refusal. Previously `runSweepMatrix` caught the envelope's `SweepBudgetError` around a whole cell and replaced it with an empty `envelopeExhausted` row, erasing already completed targets and their cost; a judge refused by the envelope erased the paid successful target the same way; and a judge run that hit its own per-run ceiling threw `EvalJudgeError` out of the entire matrix, losing every accumulated cell.
+
+  Now: `runEvalSuite` returns partial results with `plannedN`, `completedN`, and a typed `refusal` marker instead of throwing when the envelope refuses a target; a judge budget event (per-run ceiling exhaustion or envelope refusal) normalizes into the owning `EvalCaseResult` as `incomplete: { reason: 'judge-exhausted' | 'judge-refused' }` with the failing judge run's actual cost counted, while non-budget grader errors still throw; `SweepCellReport` gains `plannedN`, `judgeIncompleteRuns`, `incompleteReason`, and `refusedRunLabel`, and any incomplete cell (n < plannedN, exhausted targets, unfinished judges, or an envelope refusal) emits no claim; `runCanary` records an envelope-refused probe as `status: 'refused'` and keeps walking, so completed probe evidence survives and `allOk` stays the drift-flip gate; `EvalJudgeError` carries `costUsd`. The `kb sweep` human renderer prints incomplete cells explicitly (`INCOMPLETE: envelope refused ... after N of M case(s)`, unfinished-judge counts, refused-probe counts) instead of pretending nothing ran.
+
+  Migration: `runSweepMatrix` and `runEvalSuite` no longer throw `SweepBudgetError` for refused targets or judges; read `EvalSuiteResult.refusal`, `EvalCaseResult.incomplete`, and the new cell fields instead. Cells now always carry `plannedN`.
+
+#### Patch Changes
+
+- Updated dependencies [943962d]
+  - @rulvar/core@1.18.0
 
 ### 1.17.0
 
@@ -1256,6 +1285,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.18.0
+
+#### Minor Changes
+
+- 943962d: Registered toolset names now resolve everywhere a tools option is taken. A string entry of `AgentOpts.tools`, a profile's `tools`, or the sandbox dialect's `tools` names a toolset registered under `createEngine({ defaults: { toolsets } })`, expanded through the same canonical `resolveToolset` path as ToolDef and ToolSource values: unknown names are a typed `ConfigError` at spawn time before any provider call, duplicates and collisions are validated after the union, the resolved contracts land in `toolsetHash` and the journal identity exactly like directly passed definitions, and registry values may not nest other names, so no cycle can exist. This closes the v1.17.0 review P1-3: the planner API card and the docs taught `tools: ["name"]`, the sandbox bridge required strings, and the core rejected every string, so the documented construct could never run. `profileCard` now renders the registered toolset names as a closing line when the registry is non-empty (byte-identical output for engines without toolsets), so a planner can only name declared registries. Migration: strings previously always threw (`tools by registered name ... are not supported here`); they now resolve or fail with `unknown registered toolset '<name>'`. No behavior changes for ToolDef and ToolSource entries.
 
 ### 1.17.0
 
@@ -2255,6 +2290,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.18.0
+
 ### 1.17.0
 
 ### 1.16.2
@@ -2357,6 +2394,23 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.18.0
+
+#### Minor Changes
+
+- 943962d: `SpendEnvelope` is now provably conservative at the representation boundary. Nearest rounding on both the cap and the debits let any positive ceiling below $0.0000005 round to a zero debit, admitting an unbounded number of authorizations past `maxTotalUsd`. Accounting stays integer micro-USD, but the cap now converts down (floor), every debit converts up (ceil, minimum one micro-USD), and a `maxTotalUsd` below $0.000001 is rejected as a `ConfigError`, so for any admitted sequence the sum of the original ceilings can never exceed `maxTotalUsd` and no positive ceiling ever debits zero. Amounts that are integer micro-USD up to float noise stay exact (0.1 + 0.2 against 0.3 remains a fit). Migration: an envelope constructed with a sub-micro cap now throws instead of admitting everything, and sub-micro ceilings now consume a full micro-USD each.
+- 943962d: Sweep and suite reports are now monotone: paid evidence survives every budget refusal. Previously `runSweepMatrix` caught the envelope's `SweepBudgetError` around a whole cell and replaced it with an empty `envelopeExhausted` row, erasing already completed targets and their cost; a judge refused by the envelope erased the paid successful target the same way; and a judge run that hit its own per-run ceiling threw `EvalJudgeError` out of the entire matrix, losing every accumulated cell.
+
+  Now: `runEvalSuite` returns partial results with `plannedN`, `completedN`, and a typed `refusal` marker instead of throwing when the envelope refuses a target; a judge budget event (per-run ceiling exhaustion or envelope refusal) normalizes into the owning `EvalCaseResult` as `incomplete: { reason: 'judge-exhausted' | 'judge-refused' }` with the failing judge run's actual cost counted, while non-budget grader errors still throw; `SweepCellReport` gains `plannedN`, `judgeIncompleteRuns`, `incompleteReason`, and `refusedRunLabel`, and any incomplete cell (n < plannedN, exhausted targets, unfinished judges, or an envelope refusal) emits no claim; `runCanary` records an envelope-refused probe as `status: 'refused'` and keeps walking, so completed probe evidence survives and `allOk` stays the drift-flip gate; `EvalJudgeError` carries `costUsd`. The `kb sweep` human renderer prints incomplete cells explicitly (`INCOMPLETE: envelope refused ... after N of M case(s)`, unfinished-judge counts, refused-probe counts) instead of pretending nothing ran.
+
+  Migration: `runSweepMatrix` and `runEvalSuite` no longer throw `SweepBudgetError` for refused targets or judges; read `EvalSuiteResult.refusal`, `EvalCaseResult.incomplete`, and the new cell fields instead. Cells now always carry `plannedN`.
+
+#### Patch Changes
+
+- Updated dependencies [943962d]
+  - @rulvar/core@1.18.0
+  - @rulvar/testing@1.18.0
 
 ### 1.17.0
 
@@ -2755,6 +2809,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.18.0
+
+#### Minor Changes
+
+- 943962d: Exact GPT-5.6 Terra and Luna capability and pricing rows, and a safe snapshot grammar. The seed table previously carried only Sol and the `gpt-5.6` alias, and the general prefix matcher let the alias capture the sibling models: `gpt-5.6-luna` and `gpt-5.6-terra` were silently priced as Sol (5x on Luna), which is worse than no price at all. Terra ($2.5/$15 per MTok, cache read $0.25, cache write $3.125) and Luna ($1/$6, cache read $0.1, cache write $1.25) now have their own rows with the family's long-context tier (strictly above 272K input: 2x input, 1.5x output), both exported through `OPENAI_PRICING` under `pricingVersion` `openai-2026-07-18`. Prefix inheritance is restricted to the documented dated-snapshot grammar `<exact model>-YYYY-MM-DD`; any other unknown sibling or suffix now resolves to conservative unpriced caps so its usage lands in `CostReport.unpriced` instead of a fabricated total. Canonical reasoning effort `max` is now sent on the wire unchanged for Sol (`OpenAiModelInfo.wireMaxEffort`); other models keep the documented lossy downmap to `xhigh`, still recorded in `providerMetadata.openai.effortDownmapped`.
+
+#### Patch Changes
+
+- Updated dependencies [943962d]
+  - @rulvar/core@1.18.0
 
 ### 1.17.0
 
@@ -3207,6 +3272,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.18.0
+
+#### Patch Changes
+
+- Updated dependencies [943962d]
+  - @rulvar/core@1.18.0
+
 ### 1.17.0
 
 #### Patch Changes
@@ -3634,6 +3706,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.18.0
+
+#### Patch Changes
+
+- Updated dependencies [943962d]
+  - @rulvar/core@1.18.0
+  - eslint-plugin-rulvar@1.18.0
+
 ### 1.17.0
 
 #### Patch Changes
@@ -3996,6 +4076,20 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.18.0
+
+#### Minor Changes
+
+- 943962d: `recommendedDefaults.floors` now admits `openai:gpt-5.6-sol` and its published exact alias `openai:gpt-5.6` for the `orchestrate` and `plan` roles. The allowlists had fallen behind the product recommendation: the rulvar.com quickstart routes the orchestrator at Sol, but a configuration combining that recommendation with the recommended floors was rejected before any provider call with a quality-floor violation. The weaker family siblings Terra and Luna stay deliberately floored out of the control-plane roles; worker roles (`loop`, `extract`) remain unfloored.
+
+#### Patch Changes
+
+- Updated dependencies [943962d]
+- Updated dependencies [943962d]
+  - @rulvar/core@1.18.0
+  - @rulvar/openai@1.18.0
+  - @rulvar/anthropic@1.18.0
 
 ### 1.17.0
 
@@ -4477,6 +4571,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.18.0
+
+#### Patch Changes
+
+- Updated dependencies [943962d]
+  - @rulvar/core@1.18.0
+
 ### 1.17.0
 
 #### Patch Changes
@@ -4862,6 +4963,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.18.0
+
+#### Patch Changes
+
+- Updated dependencies [943962d]
+  - @rulvar/core@1.18.0
+
 ### 1.17.0
 
 #### Patch Changes
@@ -5197,6 +5305,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.18.0
+
+#### Patch Changes
+
+- Updated dependencies [943962d]
+  - @rulvar/core@1.18.0
 
 ### 1.17.0
 
