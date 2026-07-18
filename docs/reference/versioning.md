@@ -9,7 +9,7 @@ Rulvar follows semver with one deliberate simplification: every package releases
 
 | Line | Current version | Policy |
 |---|---|---|
-| The fixed group (thirteen packages) | <!-- version:lockstep -->1.18.0<!-- /version --> | Lockstep: identical versions, released together |
+| The fixed group (thirteen packages) | <!-- version:lockstep -->1.19.0<!-- /version --> | Lockstep: identical versions, released together |
 | `@rulvar/compat` | <!-- version:compat -->0.1.1<!-- /version --> | Independent: releases when a frozen profile moves in, or for rare packaging-only fixes |
 
 ## Lockstep semver across the fixed group
@@ -33,7 +33,7 @@ Bump every fixed-group package to the same version in one move. A partially upgr
 
 ## The sole exemption: @rulvar/compat
 
-[`@rulvar/compat`](/api/@rulvar/compat/) is the only package outside lockstep, and its version (<!-- version:compat -->0.1.1<!-- /version --> today, while the group is at <!-- version:lockstep -->1.18.0<!-- /version -->) is not a mistake.
+[`@rulvar/compat`](/api/@rulvar/compat/) is the only package outside lockstep, and its version (<!-- version:compat -->0.1.1<!-- /version --> today, while the group is at <!-- version:lockstep -->1.19.0<!-- /version -->) is not a mistake.
 
 The package holds frozen `KeyDeriver` profiles: the identity-derivation code and data for journal `hashVersion`s that have aged out of the engine's support window. A frozen profile's entire value is that it never changes. If lockstep force-bumped it on every release, an unchanged frozen profile would keep reappearing under new version numbers, which falsely suggests the one thing a frozen profile must never do. So `@rulvar/compat` releases only when a profile actually leaves the support window and moves into the package, with one narrow exception: a packaging-only fix (0.1.1 added the README the 0.1.0 artifact never shipped) may release with `dist` byte-identical to its predecessor.
 

@@ -1,5 +1,16 @@
 # @rulvar/core
 
+## 1.19.0
+
+### Minor Changes
+
+- 8cc9a9c: The finalize synthesis invocation now appends a deterministic synthesis instruction (`FINALIZE_SYNTHESIS_INSTRUCTION`, exported) to its request, and a non-truncated empty synthesis falls back to the loop turn's text instead of erasing it. Previously the routed finalize call sent the projected transcript ending at the assistant message with no instruction at all; a real model reads that as a fresh conversation opening, and its greeting unconditionally replaced the loop's correct answer as the schema-free output (reproduced live: a tool loop that had already answered `42` returned `How can I help?`). The instruction is request-only: the durable transcript keeps the raw history, so journal identity, extract input, and replay are untouched, and no recorded fixture moves. The truncated-empty synthesis case stays a bounded `output-truncated` failure. An opt-in live smoke (`RULVAR_LIVE_TESTS=1` plus `OPENAI_API_KEY`) pins the contract on a real provider.
+- 8cc9a9c: `orchestrate(engine, goal, opts?, runOptions?)` and `orchestratePlanned(engine, goal, opts?, runOptions?)` accept the created run's `RunOptions` as an optional fourth argument, threaded verbatim to `engine.run`. `runOptions.budgetUsd` is the ROOT hard ceiling over the whole tree (the orchestrator and every child), immutable after start and frozen into `RunMeta`, while `opts.budget` only shapes the orchestrator's own sub-account inside that ceiling; the two layers were previously conflatable, and the canonical shortcuts could not set a root ceiling (or signal, runId, limits, deadline) at all without dropping to `engine.run(makeOrchestratorWorkflow(goal, opts), undefined, runOptions)`. Purely additive; existing calls are unchanged, and a call without `runOptions` still starts an UNCAPPED run, which the docs now state explicitly.
+
+### Patch Changes
+
+- 8cc9a9c: Internal real-time reads bind the wall clock at module load, never the live global, eliminating false `RULVAR_BARE_DATE_NOW` warnings for consumers whose rulvar frames live outside `node_modules` (workspace dists, monorepo checkouts). Two composing defects: `createEngine` captured `Date.now` per call, so an engine created after a previous run had installed the dev-mode patch bound the PATCHED wrapper as its real clock (its `EventBus` then warned from the engine's own frames), and the ULID factory read the live global at every mint, so ids minted mid-run (the orchestrator extension IO, PlanRunner revisions, adapter id maps) routed through the patch too. The engine now uses a module-load `realNow` binding (module load always precedes the first patch install), the vendored ULID factory defaults to its own module-load clock, and `@rulvar/store-sqlite` follows the same convention. The dev-mode guard itself is untouched and stays exactly as sharp for workflow code, which keeps reading the live global.
+
 ## 1.18.0
 
 ### Minor Changes

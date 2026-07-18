@@ -18,6 +18,15 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.19.0
+
+#### Patch Changes
+
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+  - @rulvar/core@1.19.0
+
 ### 1.18.0
 
 #### Patch Changes
@@ -463,6 +472,15 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.19.0
+
+#### Patch Changes
+
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+  - @rulvar/core@1.19.0
+
 ### 1.18.0
 
 #### Patch Changes
@@ -795,6 +813,15 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.19.0
+
+#### Patch Changes
+
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+  - @rulvar/core@1.19.0
 
 ### 1.18.0
 
@@ -1285,6 +1312,17 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.19.0
+
+#### Minor Changes
+
+- 8cc9a9c: The finalize synthesis invocation now appends a deterministic synthesis instruction (`FINALIZE_SYNTHESIS_INSTRUCTION`, exported) to its request, and a non-truncated empty synthesis falls back to the loop turn's text instead of erasing it. Previously the routed finalize call sent the projected transcript ending at the assistant message with no instruction at all; a real model reads that as a fresh conversation opening, and its greeting unconditionally replaced the loop's correct answer as the schema-free output (reproduced live: a tool loop that had already answered `42` returned `How can I help?`). The instruction is request-only: the durable transcript keeps the raw history, so journal identity, extract input, and replay are untouched, and no recorded fixture moves. The truncated-empty synthesis case stays a bounded `output-truncated` failure. An opt-in live smoke (`RULVAR_LIVE_TESTS=1` plus `OPENAI_API_KEY`) pins the contract on a real provider.
+- 8cc9a9c: `orchestrate(engine, goal, opts?, runOptions?)` and `orchestratePlanned(engine, goal, opts?, runOptions?)` accept the created run's `RunOptions` as an optional fourth argument, threaded verbatim to `engine.run`. `runOptions.budgetUsd` is the ROOT hard ceiling over the whole tree (the orchestrator and every child), immutable after start and frozen into `RunMeta`, while `opts.budget` only shapes the orchestrator's own sub-account inside that ceiling; the two layers were previously conflatable, and the canonical shortcuts could not set a root ceiling (or signal, runId, limits, deadline) at all without dropping to `engine.run(makeOrchestratorWorkflow(goal, opts), undefined, runOptions)`. Purely additive; existing calls are unchanged, and a call without `runOptions` still starts an UNCAPPED run, which the docs now state explicitly.
+
+#### Patch Changes
+
+- 8cc9a9c: Internal real-time reads bind the wall clock at module load, never the live global, eliminating false `RULVAR_BARE_DATE_NOW` warnings for consumers whose rulvar frames live outside `node_modules` (workspace dists, monorepo checkouts). Two composing defects: `createEngine` captured `Date.now` per call, so an engine created after a previous run had installed the dev-mode patch bound the PATCHED wrapper as its real clock (its `EventBus` then warned from the engine's own frames), and the ULID factory read the live global at every mint, so ids minted mid-run (the orchestrator extension IO, PlanRunner revisions, adapter id maps) routed through the patch too. The engine now uses a module-load `realNow` binding (module load always precedes the first patch install), the vendored ULID factory defaults to its own module-load clock, and `@rulvar/store-sqlite` follows the same convention. The dev-mode guard itself is untouched and stays exactly as sharp for workflow code, which keeps reading the live global.
 
 ### 1.18.0
 
@@ -2290,6 +2328,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.19.0
+
 ### 1.18.0
 
 ### 1.17.0
@@ -2394,6 +2434,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.19.0
+
+#### Patch Changes
+
+- 8cc9a9c: `SpendEnvelope` directed rounding survives dollar magnitudes and rejects out-of-domain amounts. The previous conservative-rounding fix snapped to the nearest integer micro-USD within a RELATIVE 1e-6 tolerance, which already reaches half a micro at $0.50 and turns directed rounding into round-to-nearest: two $0.5000004 authorizations (true sum $1.0000008) both fit a $1 cap, a $0.5000006 cap admitted a $0.500001 debit, and a `Number.MAX_VALUE` cap overflowed to `Infinity` micro where every authorization is admitted and `remainingUsd` is `NaN`. The snap window now scales with the ULP of `usd * 1e6`, so only genuine IEEE-754 representation noise snaps (0.1 + 0.2 against a 0.3 envelope stays a fit) while real sub-micro fractions keep the conservative floor (caps) or ceil (debits), and after conversion both the cap and every ceiling must be safe integers in micro-USD (at most $9007199254.740991), rejected otherwise with a typed `ConfigError` that debits nothing. Property tests now cover dollar magnitudes and the domain edges.
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+  - @rulvar/core@1.19.0
+  - @rulvar/testing@1.19.0
 
 ### 1.18.0
 
@@ -2809,6 +2860,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.19.0
+
+#### Patch Changes
+
+- 8cc9a9c: Three cost-accounting corrections against the official OpenAI materials. Prompt cache writes are now accounted: GPT-5.6 and later report `input_tokens_details.cache_write_tokens` (Responses) and `prompt_tokens_details.cache_write_tokens` (Chat Completions) separately from the base prompt count, billed at 1.25x the uncached input rate; the adapter previously pinned `cacheWriteTokens` to 0, so the premium never entered cost or the budget guard. Writes now join `inputTokens` (the canonical Usage invariant: the full prompt), mirroring the Anthropic adapter's mapping, with one usage emission per response. `response.failed` now emits the failed response's paid usage before the error termination and classifies `response.error.code` canonically: `rate_limit_exceeded` retries as a rate limit, `server_error` and timeout-class codes retry as transport faults, validation/policy/auth and unknown codes stay non-retryable (fail closed); previously the branch dropped usage entirely and pinned `retryable: false`. The pre-5.6 price rows had gone stale after the provider's price cut and are corrected: `gpt-5.5` 5/30 (cached 0.5), `gpt-5.5-pro` 30/180 (no cached-input rate published; the row omits the field rather than fabricating a discount or a zero), `gpt-5.4` 2.5/15 (cached 0.25), `gpt-5.4-mini` 0.75/4.5 (cached 0.075). `OPENAI_PRICING.pricingVersion` bumps to `openai-2026-07-18-r2` so a resumed run that priced under the stale rows surfaces the drift instead of silently reinterpreting past spend.
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+  - @rulvar/core@1.19.0
 
 ### 1.18.0
 
@@ -3272,6 +3333,19 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.19.0
+
+#### Minor Changes
+
+- 8cc9a9c: `orchestrate(engine, goal, opts?, runOptions?)` and `orchestratePlanned(engine, goal, opts?, runOptions?)` accept the created run's `RunOptions` as an optional fourth argument, threaded verbatim to `engine.run`. `runOptions.budgetUsd` is the ROOT hard ceiling over the whole tree (the orchestrator and every child), immutable after start and frozen into `RunMeta`, while `opts.budget` only shapes the orchestrator's own sub-account inside that ceiling; the two layers were previously conflatable, and the canonical shortcuts could not set a root ceiling (or signal, runId, limits, deadline) at all without dropping to `engine.run(makeOrchestratorWorkflow(goal, opts), undefined, runOptions)`. Purely additive; existing calls are unchanged, and a call without `runOptions` still starts an UNCAPPED run, which the docs now state explicitly.
+
+#### Patch Changes
+
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+  - @rulvar/core@1.19.0
+
 ### 1.18.0
 
 #### Patch Changes
@@ -3706,6 +3780,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.19.0
+
+#### Patch Changes
+
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+  - @rulvar/core@1.19.0
+  - eslint-plugin-rulvar@1.19.0
+
 ### 1.18.0
 
 #### Patch Changes
@@ -4076,6 +4160,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.19.0
+
+#### Patch Changes
+
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+  - @rulvar/core@1.19.0
+  - @rulvar/openai@1.19.0
+  - @rulvar/anthropic@1.19.0
 
 ### 1.18.0
 
@@ -4571,6 +4667,15 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.19.0
+
+#### Patch Changes
+
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+  - @rulvar/core@1.19.0
+
 ### 1.18.0
 
 #### Patch Changes
@@ -4963,6 +5068,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.19.0
+
+#### Patch Changes
+
+- 8cc9a9c: Internal real-time reads bind the wall clock at module load, never the live global, eliminating false `RULVAR_BARE_DATE_NOW` warnings for consumers whose rulvar frames live outside `node_modules` (workspace dists, monorepo checkouts). Two composing defects: `createEngine` captured `Date.now` per call, so an engine created after a previous run had installed the dev-mode patch bound the PATCHED wrapper as its real clock (its `EventBus` then warned from the engine's own frames), and the ULID factory read the live global at every mint, so ids minted mid-run (the orchestrator extension IO, PlanRunner revisions, adapter id maps) routed through the patch too. The engine now uses a module-load `realNow` binding (module load always precedes the first patch install), the vendored ULID factory defaults to its own module-load clock, and `@rulvar/store-sqlite` follows the same convention. The dev-mode guard itself is untouched and stays exactly as sharp for workflow code, which keeps reading the live global.
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+  - @rulvar/core@1.19.0
+
 ### 1.18.0
 
 #### Patch Changes
@@ -5305,6 +5420,15 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.19.0
+
+#### Patch Changes
+
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+  - @rulvar/core@1.19.0
 
 ### 1.18.0
 

@@ -1,5 +1,0 @@
----
-'@rulvar/evals': patch
----
-
-`SpendEnvelope` directed rounding survives dollar magnitudes and rejects out-of-domain amounts. The previous conservative-rounding fix snapped to the nearest integer micro-USD within a RELATIVE 1e-6 tolerance, which already reaches half a micro at $0.50 and turns directed rounding into round-to-nearest: two $0.5000004 authorizations (true sum $1.0000008) both fit a $1 cap, a $0.5000006 cap admitted a $0.500001 debit, and a `Number.MAX_VALUE` cap overflowed to `Infinity` micro where every authorization is admitted and `remainingUsd` is `NaN`. The snap window now scales with the ULP of `usd * 1e6`, so only genuine IEEE-754 representation noise snaps (0.1 + 0.2 against a 0.3 envelope stays a fit) while real sub-micro fractions keep the conservative floor (caps) or ceil (debits), and after conversion both the cap and every ceiling must be safe integers in micro-USD (at most $9007199254.740991), rejected otherwise with a typed `ConfigError` that debits nothing. Property tests now cover dollar magnitudes and the domain edges.
