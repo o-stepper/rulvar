@@ -1,5 +1,15 @@
 # @rulvar/openai
 
+## 1.19.0
+
+### Patch Changes
+
+- 8cc9a9c: Three cost-accounting corrections against the official OpenAI materials. Prompt cache writes are now accounted: GPT-5.6 and later report `input_tokens_details.cache_write_tokens` (Responses) and `prompt_tokens_details.cache_write_tokens` (Chat Completions) separately from the base prompt count, billed at 1.25x the uncached input rate; the adapter previously pinned `cacheWriteTokens` to 0, so the premium never entered cost or the budget guard. Writes now join `inputTokens` (the canonical Usage invariant: the full prompt), mirroring the Anthropic adapter's mapping, with one usage emission per response. `response.failed` now emits the failed response's paid usage before the error termination and classifies `response.error.code` canonically: `rate_limit_exceeded` retries as a rate limit, `server_error` and timeout-class codes retry as transport faults, validation/policy/auth and unknown codes stay non-retryable (fail closed); previously the branch dropped usage entirely and pinned `retryable: false`. The pre-5.6 price rows had gone stale after the provider's price cut and are corrected: `gpt-5.5` 5/30 (cached 0.5), `gpt-5.5-pro` 30/180 (no cached-input rate published; the row omits the field rather than fabricating a discount or a zero), `gpt-5.4` 2.5/15 (cached 0.25), `gpt-5.4-mini` 0.75/4.5 (cached 0.075). `OPENAI_PRICING.pricingVersion` bumps to `openai-2026-07-18-r2` so a resumed run that priced under the stale rows surfaces the drift instead of silently reinterpreting past spend.
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+- Updated dependencies [8cc9a9c]
+  - @rulvar/core@1.19.0
+
 ## 1.18.0
 
 ### Minor Changes
