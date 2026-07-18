@@ -243,27 +243,56 @@ export function buildResponsesParams(
 export type ResponsesStreamEvent = Record<string, unknown> & { type: string };
 
 /**
+ * Clamps the cache detail counts into the subset domain the pricing
+ * fold relies on (`reads + writes <= input`, everything nonnegative).
+ * The provider contract already guarantees it; impossible telemetry is
+ * clamped rather than rejected because a rejection would discard PAID
+ * evidence, and clamping is the conservative direction for the budget:
+ * dropped detail tokens price at the FULL input rate instead of the
+ * cache-read discount. Reads keep priority over writes, so a violation
+ * shrinks the write premium, never the base charge.
+ */
+function clampCacheSubsets(
+  inputTokens: number,
+  rawRead: number,
+  rawWrite: number,
+): { cacheReadTokens: number; cacheWriteTokens: number } {
+  const cacheReadTokens = Math.min(Math.max(0, rawRead), Math.max(0, inputTokens));
+  const cacheWriteTokens = Math.min(Math.max(0, rawWrite), Math.max(0, inputTokens) - cacheReadTokens);
+  return { cacheReadTokens, cacheWriteTokens };
+}
+
+/**
  * Normalizes Responses usage into the canonical Usage invariant, where
- * `inputTokens` is the FULL prompt: wire `input_tokens` already includes
- * cached READS, while cache WRITE tokens arrive SEPARATELY in
- * `input_tokens_details.cache_write_tokens` (GPT-5.6 and later families;
- * they bill at the 1.25x write premium, and earlier families report no
- * field and pay no premium). Dropping the field lost the whole write
- * charge and weakened the budget guard (v1.18.0 review P1-2), so writes
- * are added into `inputTokens` and surfaced as `cacheWriteTokens` for
- * the premium rate, exactly mirroring the Anthropic adapter's mapping.
+ * `inputTokens` is the FULL prompt. On the OpenAI wire `input_tokens`
+ * is ALREADY that full count: `input_tokens_details.cached_tokens` and
+ * `input_tokens_details.cache_write_tokens` (GPT-5.6 and later
+ * families) are priced SUBSETS of it, never additional tokens, so both
+ * pass through untouched and nothing is added. Verified on the live
+ * wire 2026-07-18: two identical long prompts report the SAME
+ * `input_tokens` while the details flip from write to read, and
+ * `total_tokens` equals `input_tokens + output_tokens` on both calls.
+ * Adding writes on top (the v1.19.0 reading of the field) double-billed
+ * every written token at 1x + 1.25x and inflated budget debits
+ * (v1.19.0 review P1-1). Contrast with the Anthropic adapter, whose
+ * wire genuinely EXCLUDES both cache counts from `input_tokens`, so
+ * that adapter adds them; the two wires differ, the canonical Usage
+ * invariant does not.
  */
 export function normalizeOpenAiUsage(raw: Record<string, unknown> | undefined): Usage {
   const inputDetails = raw?.input_tokens_details as Record<string, unknown> | undefined;
   const outputDetails = raw?.output_tokens_details as Record<string, unknown> | undefined;
-  const cacheWrite =
-    typeof inputDetails?.cache_write_tokens === 'number' ? inputDetails.cache_write_tokens : 0;
+  const inputTokens = typeof raw?.input_tokens === 'number' ? raw.input_tokens : 0;
+  const clamped = clampCacheSubsets(
+    inputTokens,
+    typeof inputDetails?.cached_tokens === 'number' ? inputDetails.cached_tokens : 0,
+    typeof inputDetails?.cache_write_tokens === 'number' ? inputDetails.cache_write_tokens : 0,
+  );
   const usage: Usage = {
-    inputTokens: (typeof raw?.input_tokens === 'number' ? raw.input_tokens : 0) + cacheWrite,
+    inputTokens,
     outputTokens: typeof raw?.output_tokens === 'number' ? raw.output_tokens : 0,
-    cacheReadTokens:
-      typeof inputDetails?.cached_tokens === 'number' ? inputDetails.cached_tokens : 0,
-    cacheWriteTokens: cacheWrite,
+    cacheReadTokens: clamped.cacheReadTokens,
+    cacheWriteTokens: clamped.cacheWriteTokens,
   };
   const reasoning = outputDetails?.reasoning_tokens;
   if (typeof reasoning === 'number' && reasoning > 0) {
@@ -653,22 +682,24 @@ export async function* mapChatCompletionsStream(
     const chunkUsage = chunk.usage as Record<string, unknown> | undefined;
     if (chunkUsage !== undefined && chunkUsage !== null) {
       const promptDetails = chunkUsage.prompt_tokens_details as Record<string, unknown> | undefined;
-      // Same invariant as the Responses path: prompt_tokens includes
-      // cached reads, cache writes arrive separately and join the full
-      // prompt (v1.18.0 review P1-2).
-      const cacheWrite =
+      // Same contract as the Responses path: prompt_tokens is the FULL
+      // prompt, cached_tokens and cache_write_tokens are priced subsets
+      // of it and pass through untouched (v1.19.0 review P1-1).
+      const promptTokens =
+        typeof chunkUsage.prompt_tokens === 'number' ? chunkUsage.prompt_tokens : 0;
+      const clamped = clampCacheSubsets(
+        promptTokens,
+        typeof promptDetails?.cached_tokens === 'number' ? promptDetails.cached_tokens : 0,
         typeof promptDetails?.cache_write_tokens === 'number'
           ? promptDetails.cache_write_tokens
-          : 0;
+          : 0,
+      );
       usage = {
-        inputTokens:
-          (typeof chunkUsage.prompt_tokens === 'number' ? chunkUsage.prompt_tokens : 0) +
-          cacheWrite,
+        inputTokens: promptTokens,
         outputTokens:
           typeof chunkUsage.completion_tokens === 'number' ? chunkUsage.completion_tokens : 0,
-        cacheReadTokens:
-          typeof promptDetails?.cached_tokens === 'number' ? promptDetails.cached_tokens : 0,
-        cacheWriteTokens: cacheWrite,
+        cacheReadTokens: clamped.cacheReadTokens,
+        cacheWriteTokens: clamped.cacheWriteTokens,
       };
     }
   }
