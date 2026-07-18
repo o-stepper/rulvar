@@ -129,11 +129,18 @@ When the plan cannot be written up front, hand control flow to an orchestrator: 
 ```ts
 import { orchestrate } from "@rulvar/core";
 
-const audit = orchestrate(engine, "Audit the public API for breaking changes", {
-  profiles: ["researcher", "writer"],
-  maxSpawns: 24,
-  budget: { capFraction: 0.15, finalizeReserveUsd: 0.5 },
-});
+const audit = orchestrate(
+  engine,
+  "Audit the public API for breaking changes",
+  {
+    profiles: ["researcher", "writer"],
+    maxSpawns: 24,
+    budget: { capFraction: 0.15, finalizeReserveUsd: 0.5 },
+  },
+  // The run ceiling that binds everyone; the budget block above is only
+  // the orchestrator's own sub-account within it.
+  { budgetUsd: 10 },
+);
 
 const outcome = await audit.result;
 // outcome.status is 'ok' | 'error' | 'cancelled' | 'exhausted' | 'suspended';
@@ -152,17 +159,25 @@ By default the orchestrator's plan lives in its head. The opt-in PlanRunner exte
 import { orchestrate } from "@rulvar/core";
 import { orchestratePlanned, planRunner } from "@rulvar/plan";
 
-const run = orchestrate(engine, "Port the test suite to the new runner", {
-  extension: planRunner({
-    maxRevisionsPerRun: 16,
-    guards: { fallback: "finish-with-partial", droppedRevisionLimit: 3 },
-  }),
-});
+const run = orchestrate(
+  engine,
+  "Port the test suite to the new runner",
+  {
+    extension: planRunner({
+      maxRevisionsPerRun: 16,
+      guards: { fallback: "finish-with-partial", droppedRevisionLimit: 3 },
+    }),
+  },
+  { budgetUsd: 10 }, // the root ceiling over the whole tree
+);
 
 // The convenience surface, mode (c) plus the extension in one call:
-const same = orchestratePlanned(engine, "Port the test suite to the new runner", {
-  plan: { maxRevisionsPerRun: 16 },
-});
+const same = orchestratePlanned(
+  engine,
+  "Port the test suite to the new runner",
+  { plan: { maxRevisionsPerRun: 16 } },
+  { budgetUsd: 10 },
+);
 ```
 
 Everything PlanRunner adds obeys the same rule as the rest of the engine: nondeterminism is eliminated not by forbidding dynamism but by recording it. The full machinery, wake digests, escalation, admission, model ladders, and termination accounting, is covered in [Adaptive orchestration](/guide/adaptive-orchestration).

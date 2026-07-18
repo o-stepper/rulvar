@@ -10,7 +10,7 @@
 function buildChatCompletionsParams(req, ids): Record<string, unknown>;
 ```
 
-Defined in: [packages/openai/src/wire.ts:508](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L508)
+Defined in: [packages/openai/src/wire.ts:540](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L540)
 
 The Chat Completions degraded path: delta-patched
 chunk assembly instead of typed SSE, nested function tools with explicit

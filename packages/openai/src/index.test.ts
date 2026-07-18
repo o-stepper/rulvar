@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -412,11 +414,13 @@ describe('Chat Completions degraded path (M1-T13; docs/04 section 5.6)', () => {
   });
 });
 
-describe('cache write usage normalization (v1.18.0 review P1-2)', () => {
-  // GPT-5.6 and later report prompt tokens WRITTEN to cache separately
-  // from input_tokens/prompt_tokens, billed at 1.25x the uncached input
-  // rate. The canonical Usage invariant wants inputTokens as the FULL
-  // prompt, so writes join it and ride cacheWriteTokens for the premium.
+describe('cache subset usage normalization (v1.19.0 review P1-1)', () => {
+  // On the OpenAI wire input_tokens/prompt_tokens is the FULL prompt:
+  // cached_tokens and cache_write_tokens (GPT-5.6 and later) are priced
+  // SUBSETS of it, never additional tokens. Verified live 2026-07-18:
+  // two identical long prompts report the same input_tokens while the
+  // details flip from write to read. Adding writes on top (the v1.19.0
+  // reading) double-billed every written token at 1x + 1.25x.
   it('normalizes the documented detail fields: none, read only, write only, read plus write', () => {
     expect(normalizeOpenAiUsage({ input_tokens: 1000, output_tokens: 10 })).toEqual({
       inputTokens: 1000,
@@ -437,16 +441,45 @@ describe('cache write usage normalization (v1.18.0 review P1-2)', () => {
         input_tokens_details: { cache_write_tokens: 200 },
         output_tokens: 10,
       }),
-    ).toEqual({ inputTokens: 1200, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 200 });
-    // The review's reproduction: input_tokens 1200 including 100 cached
-    // reads, plus 200 separate write tokens.
+    ).toEqual({ inputTokens: 1000, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 200 });
+    // The review's shape: input_tokens 1200 of which 100 were cache
+    // reads and 200 were written to cache; 900 remain uncached and
+    // inputTokens stays the full 1200.
     expect(
       normalizeOpenAiUsage({
         input_tokens: 1200,
         input_tokens_details: { cached_tokens: 100, cache_write_tokens: 200 },
         output_tokens: 10,
       }),
-    ).toEqual({ inputTokens: 1400, outputTokens: 10, cacheReadTokens: 100, cacheWriteTokens: 200 });
+    ).toEqual({ inputTokens: 1200, outputTokens: 10, cacheReadTokens: 100, cacheWriteTokens: 200 });
+  });
+
+  it('clamps impossible telemetry into the subset domain instead of rejecting paid evidence', () => {
+    // Negative details are floored to zero.
+    expect(
+      normalizeOpenAiUsage({
+        input_tokens: 1000,
+        input_tokens_details: { cached_tokens: -5, cache_write_tokens: -7 },
+        output_tokens: 1,
+      }),
+    ).toEqual({ inputTokens: 1000, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 });
+    // Overlapping subsets: reads keep priority, writes take what remains,
+    // so reads + writes never exceed the full input.
+    expect(
+      normalizeOpenAiUsage({
+        input_tokens: 100,
+        input_tokens_details: { cached_tokens: 80, cache_write_tokens: 50 },
+        output_tokens: 1,
+      }),
+    ).toEqual({ inputTokens: 100, outputTokens: 1, cacheReadTokens: 80, cacheWriteTokens: 20 });
+    // A lone oversized write clamps to the full input.
+    expect(
+      normalizeOpenAiUsage({
+        input_tokens: 100,
+        input_tokens_details: { cache_write_tokens: 250 },
+        output_tokens: 1,
+      }),
+    ).toEqual({ inputTokens: 100, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 100 });
   });
 
   it('a Responses stream with cache writes emits usage exactly once and the premium prices', async () => {
@@ -475,19 +508,19 @@ describe('cache write usage normalization (v1.18.0 review P1-2)', () => {
     expect(usageEvents).toHaveLength(1);
     const finish = mapped.at(-1) as Extract<ChatEvent, { type: 'finish' }>;
     const expected = {
-      inputTokens: 1400,
+      inputTokens: 1200,
       outputTokens: 10,
       cacheReadTokens: 100,
       cacheWriteTokens: 200,
     };
     expect(usageEvents[0]?.usage).toEqual(expected);
     expect(finish.usage).toEqual(expected);
-    // Priced on the Sol row: 1100 uncached at $5 + 100 reads at $0.5 +
+    // Priced on the Sol row: 900 uncached at $5 + 100 reads at $0.5 +
     // 200 writes at $6.25 (the 1.25x premium) + 10 output at $30, per MTok.
     const sol = OPENAI_MODELS['gpt-5.6-sol']?.caps.pricing;
     expect(sol).toBeDefined();
     expect(priceUsdOf(sol as NonNullable<typeof sol>, finish.usage)).toBeCloseTo(
-      (1100 / 1e6) * 5 + (100 / 1e6) * 0.5 + (200 / 1e6) * 6.25 + (10 / 1e6) * 30,
+      (900 / 1e6) * 5 + (100 / 1e6) * 0.5 + (200 / 1e6) * 6.25 + (10 / 1e6) * 30,
       12,
     );
   });
@@ -508,7 +541,7 @@ describe('cache write usage normalization (v1.18.0 review P1-2)', () => {
     const mapped = await collect(mapChatCompletionsStream(chunks(), ids()));
     const finish = mapped.at(-1) as Extract<ChatEvent, { type: 'finish' }>;
     expect(finish.usage).toEqual({
-      inputTokens: 1400,
+      inputTokens: 1200,
       outputTokens: 4,
       cacheReadTokens: 100,
       cacheWriteTokens: 200,
@@ -812,6 +845,78 @@ describe('adapter surface (M1-T13)', () => {
       }
       expect(String(outcome.value)).toContain('42');
       expect(String(outcome.value)).not.toMatch(/how can i (help|assist)/iu);
+    },
+    240_000,
+  );
+
+  it.skipIf(!liveTestEnabled('OPENAI_API_KEY'))(
+    'live contract: cache write and read are subsets of an invariant full input (opt-in, spends budget)',
+    async () => {
+      // The v1.19.0 review P1-1 contract, pinned on the real wire: for
+      // identical long prompts input_tokens is the SAME full count on
+      // the write call and on the read call while the details flip from
+      // write to read; nothing may be added on top. A unique nonce
+      // forces a fresh cache key, so an earlier run within the provider
+      // cache TTL cannot turn the first call into a read.
+      const paragraph =
+        'The lighthouse keeper catalogued every storm in a ledger of salt-stained pages, ' +
+        'noting wind direction, barometric drift, and the exact minute the lamp wick was ' +
+        'trimmed. Decades of entries formed a private meteorology, unread by anyone. ';
+      const text =
+        `Session ${randomUUID()}. Read the archive notes below and reply with the single ` +
+        `word DONE.\n${paragraph.repeat(38)}`;
+      const request = {
+        model: 'gpt-5.6-terra',
+        messages: [{ role: 'user' as const, parts: [{ type: 'text' as const, text }] }],
+        maxOutputTokens: 16,
+      };
+      const usageOf = (outcome: Awaited<ReturnType<typeof runLiveSmoke>>) => {
+        if (outcome.status !== 'ok') {
+          throw new Error(`cache contract call did not finish ok: ${JSON.stringify(outcome)}`);
+        }
+        const finish = outcome.events.find(
+          (event): event is Extract<ChatEvent, { type: 'finish' }> => event.type === 'finish',
+        );
+        if (finish === undefined) {
+          throw new Error('cache contract call produced no finish event');
+        }
+        return finish.usage;
+      };
+      const first = usageOf(await runLiveSmoke(openai({}), request));
+      const second = usageOf(await runLiveSmoke(openai({}), request));
+      // The decisive invariant: identical prompts, identical FULL input
+      // counts. The double-add defect inflated the write call's
+      // inputTokens by the write count and broke this equality.
+      expect(second.inputTokens).toBe(first.inputTokens);
+      expect(first.cacheReadTokens + first.cacheWriteTokens).toBeLessThanOrEqual(first.inputTokens);
+      expect(second.cacheReadTokens + second.cacheWriteTokens).toBeLessThanOrEqual(
+        second.inputTokens,
+      );
+      // A legitimate hit after a write, or a documented no-hit (the
+      // provider may decline to cache); never a double count either way.
+      if (first.cacheWriteTokens > 0) {
+        expect(second.cacheReadTokens).toBeGreaterThan(0);
+      }
+
+      // Raw-wire leg of the contract: total_tokens covers exactly
+      // input + output (no extra bucket for writes), and the normalizer
+      // preserves the provider's full input count verbatim.
+      const key = process.env.OPENAI_API_KEY as string;
+      const res = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model: 'gpt-5.6-terra',
+          input: [{ role: 'user', content: [{ type: 'input_text', text }] }],
+          max_output_tokens: 16,
+        }),
+      });
+      expect(res.ok).toBe(true);
+      const raw = ((await res.json()) as { usage: Record<string, unknown> }).usage;
+      const rawInput = raw.input_tokens as number;
+      const rawOutput = raw.output_tokens as number;
+      expect(raw.total_tokens).toBe(rawInput + rawOutput);
+      expect(normalizeOpenAiUsage(raw).inputTokens).toBe(rawInput);
     },
     240_000,
   );

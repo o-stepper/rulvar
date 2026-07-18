@@ -142,7 +142,7 @@ describe('SpendEnvelope (debit-only, micro-USD)', () => {
     // micro and cannot admit a $0.500001 debit.
     const floored = new SpendEnvelope(0.5000006);
     expect(() => floored.authorize(0.500001, 'big')).toThrowError(SweepBudgetError);
-    // Amounts whose micro conversion leaves the safe integer domain are
+    // Amounts whose micro conversion leaves the accounting domain are
     // rejected up front instead of degrading into Infinity arithmetic
     // (a Number.MAX_VALUE cap admitted EVERYTHING with remainingUsd NaN).
     expect(() => new SpendEnvelope(Number.MAX_VALUE)).toThrowError(ConfigError);
@@ -153,10 +153,86 @@ describe('SpendEnvelope (debit-only, micro-USD)', () => {
     // The rejected out-of-domain authorizations debited nothing.
     expect(finite.remainingUsd).toBe(10);
     // A large in-domain cap still constructs and accounts exactly
-    // ($9e9 converts to 9e15 micro, inside the 2^53 domain).
-    const edge = new SpendEnvelope(9_000_000_000);
-    edge.authorize(9_000_000_000, 'all');
+    // ($500M converts to 5e14 micro, inside the 2^49 domain).
+    const edge = new SpendEnvelope(500_000_000);
+    edge.authorize(500_000_000, 'all');
     expect(edge.remainingUsd).toBe(0);
+  });
+
+  it('the domain ends strictly below 2^49 micro-USD, where the snap window would reach half a micro (v1.19.0 review P1-3)', () => {
+    // The review's reproduction: at $570M the 4-ULP window exceeded
+    // half a micro, a ceil debit snapped DOWN, and the raw request sum
+    // exceeded the ceiling. The cap is now outside the domain entirely
+    // and rejects at construction, debiting nothing.
+    expect(() => new SpendEnvelope(570_000_000)).toThrowError(ConfigError);
+    expect(() => new SpendEnvelope(570_000_000)).toThrowError(/562949953\.421311/u);
+    // The exact boundary: 2^49 - 1 micro is the largest admitted value,
+    // 2^49 micro is rejected, on caps and on debits alike.
+    const maxUsd = (2 ** 49 - 1) / 1_000_000;
+    const top = new SpendEnvelope(maxUsd);
+    top.authorize(maxUsd, 'everything');
+    expect(top.remainingUsd).toBe(0);
+    expect(() => new SpendEnvelope(2 ** 49 / 1_000_000)).toThrowError(ConfigError);
+    const room = new SpendEnvelope(100);
+    expect(() => room.authorize(2 ** 49 / 1_000_000, 'over')).toThrowError(ConfigError);
+    expect(room.remainingUsd).toBe(100);
+
+    // In-domain, near the top, the documented exact input
+    // interpretation holds: a double within the noise window of an
+    // integer micro value IS that integer, so this pair sums exactly to
+    // the cap under the interpretation, and the raw doubles exceed the
+    // cap only by the documented bound of half a micro per amount.
+    const interpreted = new SpendEnvelope(500_000_000);
+    interpreted.authorize(499_999_999.9999994, 'a');
+    interpreted.authorize(0.000001, 'b');
+    expect(interpreted.authorizedUsd).toBe(500_000_000);
+    expect(interpreted.remainingUsd).toBe(0);
+    const rawSum = 499_999_999.9999994 + 0.000001;
+    expect(rawSum - 500_000_000).toBeLessThanOrEqual(2 * 0.5e-6);
+    expect(() => interpreted.authorize(0.000001, 'c')).toThrowError(SweepBudgetError);
+  });
+
+  it('property: adversarial ULP neighbors at large magnitudes never exceed the cap beyond the documented noise bound', () => {
+    let seed = 7;
+    const next = (): number => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    // Doubles adjacent to integer micro values, built by ULP-scale
+    // displacement in both directions, mixed with genuine sub-micro
+    // remainders and micro-exact amounts, at magnitudes spanning the
+    // whole domain up to just under 2^49 micro.
+    for (let round = 0; round < 40; round += 1) {
+      const capUsd = 1 + next() * ((2 ** 49 - 2) / 1_000_000 - 1);
+      const envelope = new SpendEnvelope(capUsd);
+      let admitted = 0;
+      let rawSum = 0;
+      for (let i = 0; i < 60; i += 1) {
+        const baseMicro = Math.max(1, Math.round(next() * capUsd * 1_000_000));
+        const baseUsd = baseMicro / 1_000_000;
+        const pick = next();
+        const ulps = Math.floor(next() * 8) - 4;
+        const ceiling =
+          pick < 0.4
+            ? baseUsd * (1 + ulps * Number.EPSILON)
+            : pick < 0.7
+              ? baseUsd + (next() * 0.8 + 0.1) / 1_000_000
+              : baseUsd;
+        if (ceiling <= 0) {
+          continue;
+        }
+        try {
+          envelope.authorize(ceiling, `run-${String(i)}`);
+          admitted += 1;
+          rawSum += ceiling;
+        } catch (error) {
+          expect(error).toBeInstanceOf(SweepBudgetError);
+        }
+      }
+      // The honest bound: raw doubles may exceed the cap by at most
+      // half a micro per admitted amount, never more.
+      expect(rawSum).toBeLessThanOrEqual(capUsd + admitted * 0.5e-6);
+    }
   });
 
   it('property: the sum of admitted ORIGINAL ceilings never exceeds maxTotalUsd', () => {

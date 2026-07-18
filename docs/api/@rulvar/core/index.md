@@ -257,7 +257,7 @@ exactly the pieces you need, for example
 | [TranscriptSerializationHook](/api/@rulvar/core/interfaces/TranscriptSerializationHook.md) | - |
 | [TranscriptStore](/api/@rulvar/core/interfaces/TranscriptStore.md) | - |
 | [UsageLimits](/api/@rulvar/core/interfaces/UsageLimits.md) | UsageLimits (M1-T06): normative limit vocabulary and the per-spawn merge. |
-| [UsageSlice](/api/@rulvar/core/interfaces/UsageSlice.md) | One serving model's slice of a multi-model agent call's usage. |
+| [UsageSlice](/api/@rulvar/core/interfaces/UsageSlice.md) | One (invocation role, serving model) slice of an agent call's usage. `role` is the phase that PAID the slice (v1.19.0 review P1-2: the loop, extract, finalize, and summarize phases of one agent call must land in their own CostReport.byRole buckets even when a single model serves several of them). Absent on slices written before roles shipped: readers fall back to the entry's primary `costAttribution.role`, exactly like the other documented fallbacks. Policy, never identity. |
 | [VerifiedRecommendation](/api/@rulvar/core/interfaces/VerifiedRecommendation.md) | One compiled start-tier recommendation of the verified layer. |
 | [WakeBudgetBlock](/api/@rulvar/core/interfaces/WakeBudgetBlock.md) | Passive budget visibility in every digest (DEF-7). |
 | [WakeDigest](/api/@rulvar/core/interfaces/WakeDigest.md) | The FINAL normative WakeDigest: one coordinated schema change inside the hashVersion-2 profile (XF-12). The digest render enters the content key of orchestrator turns. In runs without the PlanRunner extension the termination, budget, and reuse blocks are all-zero and planHash is empty, mirroring the CostReport convention. |

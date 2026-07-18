@@ -163,9 +163,12 @@ The dynamic orchestrator rides the same engine:
 ```ts
 import { orchestrate } from "@rulvar/core";
 
-const run = orchestrate(engine, "Triage the open issues and draft fixes", {
-  maxSpawns: 8,
-});
+const run = orchestrate(
+  engine,
+  "Triage the open issues and draft fixes",
+  { maxSpawns: 8 },
+  { budgetUsd: 5 }, // the root ceiling that binds the whole tree
+);
 ```
 
 ## Package map

@@ -156,6 +156,68 @@ describe('turn-boundary checkpoints through ctx.agent (M3-T02)', () => {
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     });
+    // A pre-split aggregate checkpoint restores onto the primary (role,
+    // model) pair, so this single-pair call writes no slices at all.
+    expect(terminal?.usageByModel).toBeUndefined();
+  });
+
+  it('restores checkpointed (role, model) slices with their roles intact (v1.19.0 review P1-2)', async () => {
+    const transcripts = new InMemoryTranscriptStore();
+    const key = await spawnKey();
+    const seed = makeInternals({ adapters: [], transcripts });
+    const running = await seed.internals.replayer.appendRunning({
+      scope: '',
+      key,
+      kind: 'agent',
+      spanId: 's0',
+    });
+    // The crashed run had already paid a mid-loop compaction: its
+    // checkpoint carries a loop slice and a summarize slice.
+    const checkpoint = midFlightCheckpoint();
+    checkpoint.usageByModel = [
+      {
+        servedBy: 'fake:model',
+        usage: { inputTokens: 15, outputTokens: 8, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        role: 'loop',
+      },
+      {
+        servedBy: 'fake:model',
+        usage: { inputTokens: 5, outputTokens: 2, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        role: 'summarize',
+      },
+    ];
+    await transcripts.put(checkpointRefFor('test-run', running.seq), encodeCheckpoint(checkpoint));
+    const prior = await seed.store.load('test-run');
+
+    const adapter = scriptedAdapter(() => ({ text: 'sunny twice' }));
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model' },
+      priorEntries: prior,
+      transcripts,
+    });
+    const ctx = createCtx(internals);
+    const output = await ctx.agent(PROMPT, { tools: [lookup] });
+    expect(output).toBe('sunny twice');
+    expect(adapter.calls).toHaveLength(1);
+
+    await internals.replayer.flush();
+    const entries = internals.replayer.snapshot();
+    const terminal = entries.find((e) => e.kind === 'agent' && e.status === 'ok');
+    // The live turn (10 in, 5 out) merges into the restored loop slice;
+    // the summarize slice survives verbatim under its own role.
+    expect(terminal?.usageByModel).toEqual([
+      {
+        servedBy: 'fake:model',
+        usage: { inputTokens: 25, outputTokens: 13, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        role: 'loop',
+      },
+      {
+        servedBy: 'fake:model',
+        usage: { inputTokens: 5, outputTokens: 2, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        role: 'summarize',
+      },
+    ]);
   });
 
   it('an unreadable checkpoint falls back to a full redispatch (at-least-once floor)', async () => {
