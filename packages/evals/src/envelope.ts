@@ -17,32 +17,60 @@
  * invocation and is never persisted.
  *
  * Accounting is integer micro-USD and conservative at the
- * representation boundary (v1.17.0 review P1-4): the cap converts DOWN
- * (floor), every debit converts UP (ceil), and a cap below one
- * micro-USD is rejected outright, so for any admitted sequence the sum
- * of the ORIGINAL ceilings can never exceed maxTotalUsd and no
- * positive ceiling ever debits zero. Amounts that are integer
- * micro-USD up to float noise stay exact, so 0.1 + 0.2 against a 0.3
- * envelope is a fit, not a float rejection.
+ * representation boundary (v1.17.0 review P1-4, hardened by the v1.18.0
+ * review P1-4): the cap converts DOWN (floor), every debit converts UP
+ * (ceil), only ULP-scale representation noise may snap to the
+ * neighboring integer, amounts outside the safe integer micro-USD
+ * domain are rejected, and a cap below one micro-USD is rejected
+ * outright, so for any admitted sequence the sum of the ORIGINAL
+ * ceilings can never exceed maxTotalUsd and no positive ceiling ever
+ * debits zero. Amounts that are integer micro-USD up to float noise
+ * stay exact, so 0.1 + 0.2 against a 0.3 envelope is a fit, not a
+ * float rejection.
  */
 import { ConfigError } from '@rulvar/core';
 
 const MICRO = 1_000_000;
 
 /**
- * Relative tolerance for float noise around an integer micro-USD
- * amount: 0.3 * 1e6 is 299999.99999999994 and MUST count as 300000,
- * while a genuinely sub-micro 0.4 must not.
+ * Directed-rounding snap window, in ULPs of the product `usd * 1e6`:
+ * only genuine IEEE-754 representation noise may snap to the neighboring
+ * integer (0.3 * 1e6 is 299999.99999999994, about 6e-11 away, and MUST
+ * count as 300000), while a genuinely sub-micro fraction like 0.4 must
+ * round in the conservative direction. The window scales with the ULP,
+ * never with a relative fraction of the amount: the v1.17.0 fix used a
+ * 1e-6 RELATIVE tolerance, which already reaches half a micro-USD at
+ * $0.50 and turned directed rounding into round-to-nearest, admitting
+ * aggregates above the cap (v1.18.0 review P1-4).
  */
-const MICRO_NOISE = 1e-6;
+const SNAP_ULPS = 4;
 
 function microOf(usd: number, direction: 'floor' | 'ceil'): number {
   const raw = usd * MICRO;
   const nearest = Math.round(raw);
-  if (Math.abs(raw - nearest) <= MICRO_NOISE * Math.max(1, Math.abs(nearest))) {
+  if (Math.abs(raw - nearest) <= SNAP_ULPS * Math.abs(raw) * Number.EPSILON) {
     return nearest;
   }
   return direction === 'floor' ? Math.floor(raw) : Math.ceil(raw);
+}
+
+/**
+ * The accounting domain is integer micro-USD within Number's safe
+ * integer range (up to about $9.007e9). Outside it (Number.MAX_VALUE
+ * caps overflow to Infinity, huge finite amounts lose integer
+ * precision) the envelope arithmetic silently degrades: Infinity plus
+ * anything compares false against Infinity and every authorization
+ * would be admitted with remainingUsd NaN (v1.18.0 review P1-4), so
+ * out-of-domain amounts are rejected up front.
+ */
+function requireSafeMicro(micro: number, what: string, usd: number): number {
+  if (!Number.isSafeInteger(micro)) {
+    throw new ConfigError(
+      `${what} ${String(usd)} USD is outside the safe integer micro-USD accounting domain ` +
+        '(at most $9007199254.740991)',
+    );
+  }
+  return micro;
 }
 
 /** Thrown when authorizing a run's ceiling would exceed the envelope. */
@@ -86,7 +114,11 @@ export class SpendEnvelope {
     }
     this.maxTotalUsd = maxTotalUsd;
     // The cap converts DOWN: representation error may only tighten it.
-    this.maxMicroUsd = microOf(maxTotalUsd, 'floor');
+    this.maxMicroUsd = requireSafeMicro(
+      microOf(maxTotalUsd, 'floor'),
+      'SpendEnvelope maxTotalUsd',
+      maxTotalUsd,
+    );
     if (this.maxMicroUsd < 1) {
       throw new ConfigError(
         `SpendEnvelope maxTotalUsd ${String(maxTotalUsd)} is below the 1 micro-USD ` +
@@ -121,7 +153,11 @@ export class SpendEnvelope {
     // Every debit converts UP: a positive ceiling always debits at
     // least one micro-USD, so zero-debit authorizations cannot exist
     // and the admitted ORIGINAL ceilings always sum within the cap.
-    const micro = Math.max(1, microOf(ceilingUsd, 'ceil'));
+    const micro = requireSafeMicro(
+      Math.max(1, microOf(ceilingUsd, 'ceil')),
+      `per-run ceiling for ${runLabel}`,
+      ceilingUsd,
+    );
     if (this.authorizedMicroUsd + micro > this.maxMicroUsd) {
       throw new SweepBudgetError(runLabel, ceilingUsd, this.authorizedUsd, this.maxTotalUsd);
     }

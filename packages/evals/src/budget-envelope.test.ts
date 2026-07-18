@@ -131,6 +131,34 @@ describe('SpendEnvelope (debit-only, micro-USD)', () => {
     expect(noisy.remainingUsd).toBe(0);
   });
 
+  it('directed rounding survives dollar magnitudes and the domain is safe-integer bounded (v1.18.0 review P1-4)', () => {
+    // The relative-tolerance defect: at $0.5000004 the ceil snapped DOWN
+    // to 500000 micro, so two authorizations totalling $1.0000008 both
+    // fit a $1 cap. The ULP-scale window keeps the directed ceil.
+    const relative = new SpendEnvelope(1);
+    relative.authorize(0.5000004, 'a');
+    expect(() => relative.authorize(0.5000004, 'b')).toThrowError(SweepBudgetError);
+    // The cap floors at dollar scale too: $0.5000006 floors to 500000
+    // micro and cannot admit a $0.500001 debit.
+    const floored = new SpendEnvelope(0.5000006);
+    expect(() => floored.authorize(0.500001, 'big')).toThrowError(SweepBudgetError);
+    // Amounts whose micro conversion leaves the safe integer domain are
+    // rejected up front instead of degrading into Infinity arithmetic
+    // (a Number.MAX_VALUE cap admitted EVERYTHING with remainingUsd NaN).
+    expect(() => new SpendEnvelope(Number.MAX_VALUE)).toThrowError(ConfigError);
+    expect(() => new SpendEnvelope(1e16)).toThrowError(ConfigError);
+    const finite = new SpendEnvelope(10);
+    expect(() => finite.authorize(Number.MAX_VALUE, 'huge')).toThrowError(ConfigError);
+    expect(() => finite.authorize(1e16, 'huge')).toThrowError(ConfigError);
+    // The rejected out-of-domain authorizations debited nothing.
+    expect(finite.remainingUsd).toBe(10);
+    // A large in-domain cap still constructs and accounts exactly
+    // ($9e9 converts to 9e15 micro, inside the 2^53 domain).
+    const edge = new SpendEnvelope(9_000_000_000);
+    edge.authorize(9_000_000_000, 'all');
+    expect(edge.remainingUsd).toBe(0);
+  });
+
   it('property: the sum of admitted ORIGINAL ceilings never exceeds maxTotalUsd', () => {
     // Deterministic LCG; mixes exact-micro amounts with sub-micro noise.
     let seed = 42;
@@ -152,6 +180,30 @@ describe('SpendEnvelope (debit-only, micro-USD)', () => {
           admittedSum += ceiling;
         } catch (error) {
           // Refusals debit nothing; later smaller ceilings may still fit.
+          expect(error).toBeInstanceOf(SweepBudgetError);
+        }
+      }
+      expect(admittedSum).toBeLessThanOrEqual(max + 1e-9);
+    }
+    // Dollar magnitudes (v1.18.0 review P1-4): the ULP snap must keep
+    // directed rounding where the old relative tolerance collapsed it
+    // into round-to-nearest above roughly $0.50.
+    for (let round = 0; round < 30; round += 1) {
+      const max = 0.5 + next() * 200;
+      const envelope = new SpendEnvelope(max);
+      let admittedSum = 0;
+      for (let i = 0; i < 200; i += 1) {
+        const pick = next();
+        const ceiling =
+          pick < 0.34
+            ? Math.max(1, Math.round(next() * 5_000_000)) / MICRO_PER_USD
+            : pick < 0.67
+              ? (Math.max(1, Math.round(next() * 5_000_000)) + 0.4) / MICRO_PER_USD
+              : next() * 5 + 1e-9;
+        try {
+          envelope.authorize(ceiling, `run-${String(i)}`);
+          admittedSum += ceiling;
+        } catch (error) {
           expect(error).toBeInstanceOf(SweepBudgetError);
         }
       }
