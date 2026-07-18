@@ -67,8 +67,10 @@ describe('profileCard (M6-T04)', () => {
         'Registered toolsets (valid string entries of a tools option): audit-set, lookup-set.',
     );
     const withProfiles = profileCard(PROFILES, { 'lookup-set': [] });
-    expect(withProfiles.endsWith('Registered toolsets (valid string entries of a tools option): lookup-set.')).toBe(
-      true,
-    );
+    expect(
+      withProfiles.endsWith(
+        'Registered toolsets (valid string entries of a tools option): lookup-set.',
+      ),
+    ).toBe(true);
   });
 });

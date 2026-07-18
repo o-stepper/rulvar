@@ -137,12 +137,7 @@ export class EvalJudgeError extends Error {
   readonly status: RunOutcome<Json>['status'];
   /** What the failing judge run actually spent (honest cost accounting). */
   readonly costUsd: number;
-  constructor(
-    judgeRun: string,
-    status: RunOutcome<Json>['status'],
-    detail?: string,
-    costUsd = 0,
-  ) {
+  constructor(judgeRun: string, status: RunOutcome<Json>['status'], detail?: string, costUsd = 0) {
     super(
       `eval judge run '${judgeRun}' settled '${status}'${detail === undefined ? '' : `: ${detail}`}`,
     );

@@ -116,10 +116,7 @@ describe('recommendedDefaults floors (v1.17.0 review P1-2)', () => {
         roleFloors: recommendedDefaults.floors,
       },
     });
-    const wf = defineWorkflow(
-      { name: 'worker-roles' },
-      async (ctx) => await ctx.agent('do it'),
-    );
+    const wf = defineWorkflow({ name: 'worker-roles' }, async (ctx) => await ctx.agent('do it'));
     const outcome = await engine.run(wf, null, { name: 'worker-roles' }).result;
     expect(outcome.status).toBe('ok');
     expect(calls()).toBeGreaterThan(0);

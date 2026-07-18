@@ -9,13 +9,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import {
-  createEngine,
-  InMemoryStore,
-  tool,
-  type Engine,
-  type ToolDef,
-} from '@rulvar/core';
+import { createEngine, InMemoryStore, tool, type Engine, type ToolDef } from '@rulvar/core';
 import { FakeAdapter, FAKE_MODEL_REF, fakeToolCalls } from '@rulvar/testing';
 
 import { compileScript } from './compile.js';
@@ -35,11 +29,7 @@ interface Fixture {
   toolExecutions: () => number;
 }
 
-function fixture(options?: {
-  toolsets?: false;
-  denyTool?: boolean;
-  extraTool?: ToolDef;
-}): Fixture {
+function fixture(options?: { toolsets?: false; denyTool?: boolean; extraTool?: ToolDef }): Fixture {
   let providerCalls = 0;
   let toolExecutions = 0;
   const fake = new FakeAdapter({

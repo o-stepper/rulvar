@@ -300,8 +300,7 @@ for (const snippet of SNIPPETS) {
   const source = [...(snippet.prelude ?? []), ...blocks].join('\n');
   const fileName = `snippet-${snippet.name}.ts`;
   writeFileSync(join(scratch, fileName), source);
-  const emit =
-    snippet.mode === 'run' ? ['--outDir', join(scratch, 'snippet-dist')] : ['--noEmit'];
+  const emit = snippet.mode === 'run' ? ['--outDir', join(scratch, 'snippet-dist')] : ['--noEmit'];
   execFileSync(
     pnpmBin,
     [

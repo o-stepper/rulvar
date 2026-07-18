@@ -45,9 +45,7 @@ function responses(
   };
 }
 
-const GPT_56_TIERS = [
-  { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 },
-];
+const GPT_56_TIERS = [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }];
 
 /**
  * GPT-5.6 Sol, Terra, and Luna are three sibling models, not snapshots
