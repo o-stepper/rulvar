@@ -6,7 +6,7 @@
 
 # Class: EventBus
 
-Defined in: [packages/core/src/engine/events.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L43)
+Defined in: [packages/core/src/engine/events.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L44)
 
 The per-run event bus. seq is strictly increasing in emission order;
 `iterate()` yields events from subscription onward; `on()` is the
@@ -20,7 +20,7 @@ callback form over the same stream and the same seq values.
 new EventBus(options): EventBus;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L53)
+Defined in: [packages/core/src/engine/events.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L54)
 
 #### Parameters
 
@@ -47,7 +47,7 @@ emit(
    replayed?): WorkflowEvent;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L70)
+Defined in: [packages/core/src/engine/events.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L74)
 
 #### Parameters
 
@@ -69,7 +69,7 @@ Defined in: [packages/core/src/engine/events.ts:70](https://github.com/o-stepper
 end(): void;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:107](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L107)
+Defined in: [packages/core/src/engine/events.ts:111](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L111)
 
 Ends every open iterator once the run has settled.
 
@@ -85,7 +85,7 @@ Ends every open iterator once the run has settled.
 iterate(): AsyncIterable<WorkflowEvent>;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L115)
+Defined in: [packages/core/src/engine/events.ts:119](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L119)
 
 #### Returns
 
@@ -99,7 +99,7 @@ Defined in: [packages/core/src/engine/events.ts:115](https://github.com/o-steppe
 on<T>(type, cb): () => void;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:91](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L91)
+Defined in: [packages/core/src/engine/events.ts:95](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L95)
 
 #### Type Parameters
 

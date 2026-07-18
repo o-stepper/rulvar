@@ -6,7 +6,7 @@
 
 # Class: SpendEnvelope
 
-Defined in: [packages/evals/src/envelope.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/envelope.ts#L76)
+Defined in: [packages/evals/src/envelope.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/envelope.ts#L104)
 
 One envelope bounds one whole sweep invocation: share the instance
 across the canary loop and runSweepMatrix so canary, target, and
@@ -20,7 +20,7 @@ judge runs all draw from the same remainder.
 new SpendEnvelope(maxTotalUsd): SpendEnvelope;
 ```
 
-Defined in: [packages/evals/src/envelope.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/envelope.ts#L81)
+Defined in: [packages/evals/src/envelope.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/envelope.ts#L109)
 
 #### Parameters
 
@@ -36,7 +36,7 @@ Defined in: [packages/evals/src/envelope.ts:81](https://github.com/o-stepper/rul
 
 | Property | Modifier | Type | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-maxtotalusd"></a> `maxTotalUsd` | `readonly` | `number` | [packages/evals/src/envelope.ts:77](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/envelope.ts#L77) |
+| <a id="property-maxtotalusd"></a> `maxTotalUsd` | `readonly` | `number` | [packages/evals/src/envelope.ts:105](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/envelope.ts#L105) |
 
 ## Accessors
 
@@ -48,7 +48,7 @@ Defined in: [packages/evals/src/envelope.ts:81](https://github.com/o-stepper/rul
 get authorizedUsd(): number;
 ```
 
-Defined in: [packages/evals/src/envelope.ts:99](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/envelope.ts#L99)
+Defined in: [packages/evals/src/envelope.ts:131](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/envelope.ts#L131)
 
 Total authorized so far (debit-only; never decreases).
 
@@ -66,7 +66,7 @@ Total authorized so far (debit-only; never decreases).
 get remainingUsd(): number;
 ```
 
-Defined in: [packages/evals/src/envelope.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/envelope.ts#L103)
+Defined in: [packages/evals/src/envelope.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/envelope.ts#L135)
 
 ##### Returns
 
@@ -80,7 +80,7 @@ Defined in: [packages/evals/src/envelope.ts:103](https://github.com/o-stepper/ru
 authorize(ceilingUsd, runLabel): void;
 ```
 
-Defined in: [packages/evals/src/envelope.ts:113](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/envelope.ts#L113)
+Defined in: [packages/evals/src/envelope.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/envelope.ts#L145)
 
 Authorizes one run's immutable ceiling or throws SweepBudgetError.
 An unbounded run cannot be authorized: under an envelope every run

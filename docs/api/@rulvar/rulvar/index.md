@@ -433,6 +433,7 @@ const engine = createEngine({
 | [ESCALATE\_TOOL\_NAME](/api/@rulvar/rulvar/variables/ESCALATE_TOOL_NAME.md) | - |
 | [ESCALATION\_REPORT\_SCHEMA](/api/@rulvar/rulvar/variables/ESCALATION_REPORT_SCHEMA.md) | The full-report schema applied BEFORE append. |
 | [ESCALATION\_REQUEST\_SCHEMA](/api/@rulvar/rulvar/variables/ESCALATION_REQUEST_SCHEMA.md) | The escalate tool's exact request schema. costToDate and salvage MUST NOT appear here: additionalProperties false rejects model-authored values for them at argument validation. |
+| [FINALIZE\_SYNTHESIS\_INSTRUCTION](/api/@rulvar/rulvar/variables/FINALIZE_SYNTHESIS_INSTRUCTION.md) | The deterministic synthesis instruction appended (as a user message) to the finalize REQUEST only, never to the durable transcript. A transcript that simply ends at an assistant message reads to a real model as a fresh conversation opening, so an uninstructed synthesis call can replace the loop's correct answer with a greeting (v1.18.0 review P1-1); the extract arm has carried its own instruction since M4, and this is its finalize twin. The wording is part of the wire request: keep it stable. |
 | [FINISH\_SCHEMA](/api/@rulvar/rulvar/variables/FINISH_SCHEMA.md) | finish; result validates against the declared output schema. |
 | [FINISH\_TOOL\_NAME](/api/@rulvar/rulvar/variables/FINISH_TOOL_NAME.md) | - |
 | [INBOX\_PROPOSAL\_TTL\_DAYS](/api/@rulvar/rulvar/variables/INBOX_PROPOSAL_TTL_DAYS.md) | Inbox proposals expire after 14 days (reserved for M12 phase 3). |
@@ -563,7 +564,7 @@ const engine = createEngine({
 | [normalizeEntry](/api/@rulvar/rulvar/functions/normalizeEntry.md) | Round-1 normalization: hashVersion is taken from `hashVersion`, else from the legacy `v` field, else 1. Stores are never rewritten; normalization happens at read. |
 | [normalizeFallbacks](/api/@rulvar/rulvar/functions/normalizeFallbacks.md) | Normalizes the author-facing ModelChoice.fallbacks list. |
 | [openai](/api/@rulvar/rulvar/functions/openai.md) | Creates the first-class OpenAI adapter (id 'openai'); maxRetries 0. |
-| [orchestrate](/api/@rulvar/rulvar/functions/orchestrate.md) | Top-level surface: creates a run. |
+| [orchestrate](/api/@rulvar/rulvar/functions/orchestrate.md) | Top-level surface: creates a run. `runOptions` are the ordinary engine [RunOptions](/api/@rulvar/rulvar/interfaces/RunOptions.md) of the created run; in particular `runOptions.budgetUsd` is the ROOT hard ceiling over the WHOLE tree (the orchestrator and every child), immutable after start, while `opts.budget` only shapes the orchestrator's own sub-account inside that ceiling. The shortcut previously accepted no RunOptions at all, so the canonical entry point could not set a root ceiling without dropping to `engine.run(makeOrchestratorWorkflow(...))` (v1.18.0 review P1-5). |
 | [parallelScope](/api/@rulvar/rulvar/functions/parallelScope.md) | Branch `branch` of parallel site `site`: `par:<site>:<branch>`. |
 | [parseModelRef](/api/@rulvar/rulvar/functions/parseModelRef.md) | ModelRef is strictly 'adapterId:model', no query parameters. The wire model id may itself contain colons (for example ollama tags), so only the FIRST colon splits. |
 | [parseScopePath](/api/@rulvar/rulvar/functions/parseScopePath.md) | Parses a scope path against the frozen grammar (M2-T04): |

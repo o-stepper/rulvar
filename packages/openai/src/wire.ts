@@ -657,7 +657,9 @@ export async function* mapChatCompletionsStream(
       // cached reads, cache writes arrive separately and join the full
       // prompt (v1.18.0 review P1-2).
       const cacheWrite =
-        typeof promptDetails?.cache_write_tokens === 'number' ? promptDetails.cache_write_tokens : 0;
+        typeof promptDetails?.cache_write_tokens === 'number'
+          ? promptDetails.cache_write_tokens
+          : 0;
       usage = {
         inputTokens:
           (typeof chunkUsage.prompt_tokens === 'number' ? chunkUsage.prompt_tokens : 0) +

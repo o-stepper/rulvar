@@ -604,11 +604,9 @@ describe('orchestrate (M6-T07/T08)', () => {
 
   describe('the public helper carries RunOptions (v1.18.0 review P1-5)', () => {
     it('freezes the root budgetUsd in RunMeta and threads the runId', async () => {
-      const adapter = scriptedAdapter(
-        (): ScriptedTurn => ({
-          toolCalls: [{ name: 'finish', args: { result: { done: true } } }],
-        }),
-      );
+      const adapter = scriptedAdapter((): ScriptedTurn => ({
+        toolCalls: [{ name: 'finish', args: { result: { done: true } } }],
+      }));
       const store = new InMemoryStore();
       const engine = createEngine({
         adapters: [adapter],

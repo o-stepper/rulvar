@@ -419,20 +419,20 @@ describe('createEngine and engine.run (M1-T11)', () => {
       });
     try {
       const engine = createEngine({ adapters: [] });
-      const minting = defineWorkflow({ name: 'minting' }, async () => {
+      const minting = defineWorkflow({ name: 'minting' }, () => {
         // The ULID factory reads its module-load clock, never the live
         // global: the orchestrator extension and PlanRunner mint ids
         // mid-run through exactly this path (v1.18.0 review P2-6).
         const mint = createCanonicalIdMinter();
         mint();
-        return 1;
+        return Promise.resolve(1);
       });
       await engine.run(minting, undefined).result;
       expect(warnings.filter((code) => code.startsWith('RULVAR_BARE'))).toHaveLength(0);
       // The guard itself stays sharp for genuine workflow reads.
-      const bare = defineWorkflow({ name: 'bare' }, async () => {
+      const bare = defineWorkflow({ name: 'bare' }, () => {
         Date.now();
-        return 1;
+        return Promise.resolve(1);
       });
       await engine.run(bare, undefined).result;
       expect(warnings.filter((code) => code === 'RULVAR_BARE_DATE_NOW')).toHaveLength(1);

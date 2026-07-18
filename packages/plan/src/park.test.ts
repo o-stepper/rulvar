@@ -221,9 +221,9 @@ describe('park-unpark integration (round-2 cassette shape)', () => {
 
 describe('orchestratePlanned carries RunOptions (v1.18.0 review P1-5)', () => {
   it('freezes the root budgetUsd in RunMeta and threads the runId', async () => {
-    const adapter = scriptedAdapter(
-      (): ScriptedTurn => ({ toolCall: { name: 'finish', args: { result: 'done' } } }),
-    );
+    const adapter = scriptedAdapter((): ScriptedTurn => ({
+      toolCall: { name: 'finish', args: { result: 'done' } },
+    }));
     const store = new InMemoryStore();
     const engine = createEngine({
       adapters: [adapter],

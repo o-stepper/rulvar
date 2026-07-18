@@ -1861,6 +1861,10 @@
             "link": "/api/@rulvar/core/variables/ESCALATION_REQUEST_SCHEMA.md"
           },
           {
+            "text": "FINALIZE_SYNTHESIS_INSTRUCTION",
+            "link": "/api/@rulvar/core/variables/FINALIZE_SYNTHESIS_INSTRUCTION.md"
+          },
+          {
             "text": "FINISH_SCHEMA",
             "link": "/api/@rulvar/core/variables/FINISH_SCHEMA.md"
           },
@@ -5356,6 +5360,10 @@
           {
             "text": "ESCALATION_REQUEST_SCHEMA",
             "link": "/api/@rulvar/rulvar/variables/ESCALATION_REQUEST_SCHEMA.md"
+          },
+          {
+            "text": "FINALIZE_SYNTHESIS_INSTRUCTION",
+            "link": "/api/@rulvar/rulvar/variables/FINALIZE_SYNTHESIS_INSTRUCTION.md"
           },
           {
             "text": "FINISH_SCHEMA",

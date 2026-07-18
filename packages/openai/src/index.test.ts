@@ -480,7 +480,7 @@ describe('cache write usage normalization (v1.18.0 review P1-2)', () => {
       cacheReadTokens: 100,
       cacheWriteTokens: 200,
     };
-    expect((usageEvents[0] as Extract<ChatEvent, { type: 'usage' }>).usage).toEqual(expected);
+    expect(usageEvents[0]?.usage).toEqual(expected);
     expect(finish.usage).toEqual(expected);
     // Priced on the Sol row: 1100 uncached at $5 + 100 reads at $0.5 +
     // 200 writes at $6.25 (the 1.25x premium) + 10 output at $30, per MTok.
