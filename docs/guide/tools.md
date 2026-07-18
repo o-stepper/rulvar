@@ -109,6 +109,7 @@ The same contract discipline governs imported MCP tools: server-side drift of a 
 
 Toolsets attach per spawn through `AgentOpts.tools` (which wins over the profile default) or per profile through `AgentProfile.tools`. The option accepts `ToolDef` values, `ToolSource` values (what [`mcp()`](/guide/mcp) returns), and registered toolset names, in any mix. A string entry names a toolset registered under engine `defaults.toolsets` and means the same thing everywhere a tools option is taken (direct calls, profiles, and the sandbox dialect); it expands through the same canonical resolution as directly passed values, so the resolved contracts land in `toolsetHash` and the spawn identity identically. An unknown name is a typed `ConfigError` at spawn time, before any provider call; nothing outside the declared registry is reachable by name, and registry values themselves hold only `ToolDef` and `ToolSource` entries (never other names, so registries cannot cycle). The dynamic orchestrator's `toolsetRef` spawn parameter draws from the same registry (see [orchestration modes](/guide/orchestration-modes)):
 
+<!-- docs-snippet: tools-registered-names -->
 ```ts
 import { defineWorkflow } from '@rulvar/core';
 
@@ -117,7 +118,9 @@ const release = defineWorkflow(
   async (ctx, args: { service: string }) => {
     return ctx.agent(`Run the checks, then deploy ${args.service}.`, {
       agentType: 'operator',
-      tools: [searchIssues, deployService],
+      // Concrete definitions, a tool source, and a registered toolset
+      // name (a key of createEngine defaults.toolsets), in any mix.
+      tools: [searchIssues, deployService, 'release-checks'],
     });
   },
 );

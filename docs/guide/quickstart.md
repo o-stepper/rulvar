@@ -42,6 +42,7 @@ The adapter hands it to the official SDK unchanged; [Authentication](/guide/prov
 
 Everything in Rulvar hangs off an `Engine`: adapters talk to providers, stores make runs durable, and routing decides which model serves which role.
 
+<!-- docs-snippet: quickstart-anthropic -->
 ```ts
 import {
   createEngine,
@@ -244,6 +245,7 @@ Pass `{ dryRun: true }` to `engine.resume` for a replay-strict preview that perf
 
 Adapters are symmetrical: swap the factory and the routing string.
 
+<!-- docs-snippet: quickstart-openai-preset -->
 ```ts
 import { createEngine, openai, JsonlFileStore, FileTranscriptStore } from '@rulvar/rulvar';
 

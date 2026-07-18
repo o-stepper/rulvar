@@ -1,6 +1,6 @@
 {
   "name": "@rulvar/compat",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "rulvar frozen KeyDeriver profiles for hashVersions outside the support window (DEF-6); independently versioned.",
   "type": "module",
   "license": "Apache-2.0",

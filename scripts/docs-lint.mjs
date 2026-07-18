@@ -175,6 +175,24 @@ for (const file of collectFiles()) {
         );
       }
     }
+    // The reverse direction (v1.17.0 review P2): no documented role row
+    // without a union member, so the table cannot invent a seventh role.
+    const section = /^### Invocation roles\n(?<body>[\s\S]*?)(?=^##)/mu.exec(agentsDoc)?.groups
+      ?.body;
+    if (section === undefined) {
+      fail(agentsPath, 1, 'Invocation roles section not found; update the docs-lint role check');
+    } else {
+      for (const row of section.matchAll(/^\| `(?<role>[a-z-]+)` \|/gmu)) {
+        if (!roles.includes(row.groups.role)) {
+          fail(
+            agentsPath,
+            1,
+            `the Invocation roles table documents '${row.groups.role}', which is not a member ` +
+              'of the InvocationRole union',
+          );
+        }
+      }
+    }
   }
 }
 

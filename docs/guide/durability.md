@@ -13,6 +13,7 @@ There is no snapshotting, no state machine to persist, and no per-step re-entry 
 
 `engine.run` starts a fresh run: it mints a run id (or takes yours), records the run metadata, and executes the workflow body once from top to bottom. `engine.resume` rebinds an existing journal to a workflow definition and executes the body again, matching calls against the journal as it goes.
 
+<!-- docs-snippet: resume-replay -->
 ```ts
 import {
   createEngine,
@@ -45,6 +46,7 @@ await handle.result;
 
 If the process crashes, restarts, or is redeployed, resume against the same store:
 
+<!-- docs-snippet: resume-replay -->
 ```ts
 const resumed = engine.resume('review-pr-4242', review, { args: 4242 });
 console.log(await resumed.preview); // { hits, misses, skipped, reruns, orphaned, invalidResolutions }
