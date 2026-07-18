@@ -13,7 +13,7 @@ function canaryFingerprint(
 options?): Promise<string>;
 ```
 
-Defined in: [packages/evals/src/canary.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/canary.ts#L115)
+Defined in: [packages/evals/src/canary.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/canary.ts#L134)
 
 The fingerprint alone (the pre-v1.16.2-review surface, kept
 compatible). Prefer runCanary: its allOk is the drift-flip gate.

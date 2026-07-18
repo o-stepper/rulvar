@@ -1,6 +1,6 @@
 ---
 title: Providers
-description: The ProviderAdapter SPI and the shipped adapters, including @rulvar/anthropic, @rulvar/openai with the openaiCompatible factory, and @rulvar/bridge-ai-sdk for any Vercel AI SDK model, plus every supported credential mode from API keys to workload identity federation.
+description: The ProviderAdapter SPI and the shipped adapters, including @rulvar/anthropic, @rulvar/openai with the openaiCompatible factory, and @rulvar/bridge-ai-sdk for any Vercel AI SDK LanguageModelV4 model, plus every supported credential mode from API keys to workload identity federation.
 ---
 
 # Providers
@@ -58,7 +58,7 @@ Three rules worth knowing up front:
 
 | Adapter | Options | When no auth option is set |
 |---|---|---|
-| `anthropic()` | `apiKey`, `baseURL`, `sdkOptions`, `client` | The underlying `@anthropic-ai/sdk` resolves credentials itself: `ANTHROPIC_API_KEY`, then bearer `ANTHROPIC_AUTH_TOKEN`, then its config-file credential chain. |
+| `anthropic()` | `apiKey`, `baseURL`, `sdkOptions`, `client` | The underlying `@anthropic-ai/sdk` resolves credentials itself: it reads `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` as independent credentials (both headers when both are set), and falls back to its config-file chain only when neither is set; exact rules in [credential precedence](#anthropic-credential-precedence). |
 | `openai()` | `apiKey`, `baseURL`, `sdkOptions`, `client` | The underlying `openai` SDK reads `OPENAI_API_KEY`. |
 | `openaiCompatible()` | `apiKey` (optional), `baseURL` (required) | A placeholder key is sent, so keyless local endpoints like Ollama and vLLM work without configuration. |
 | `bridgeAiSdk()` | none | Credentials belong to the wrapped AI SDK model; configure them on the provider package you bring. |
@@ -83,7 +83,7 @@ An API key is one credential mode among several, and the modes differ in how the
 | API key | The provider API account | `apiKey` option or `ANTHROPIC_API_KEY` | `apiKey` option or `OPENAI_API_KEY` |
 | Static bearer token | The provider API account | `sdkOptions.authToken` or `ANTHROPIC_AUTH_TOKEN` | Not offered by the SDK |
 | Token provider / workload identity federation | The provider API account: federation changes credential distribution (short-lived tokens minted from your identity provider), never billing | `sdkOptions.credentials` (an `AccessTokenProvider`), `sdkOptions.config` (OIDC federation), or `sdkOptions.profile`; ambient env keys are suppressed ([precedence](#anthropic-credential-precedence)) | `sdkOptions.workloadIdentity`; mutually exclusive with any API key, the environment variable included |
-| Implicit SDK credential chain | Whatever the resolved credential bills | Construct with no auth option: the SDK resolves the key, then the bearer variable, then its config files | `OPENAI_API_KEY` only |
+| Implicit SDK credential chain | Whatever the resolved credential bills | Construct with no auth option: the SDK reads the key and bearer variables as independent credentials and falls back to its config files only when neither is set ([precedence](#anthropic-credential-precedence)) | `OPENAI_API_KEY` only |
 | Consumer subscription (Claude or ChatGPT app plans) | Not applicable | Not a credential mode | Not a credential mode |
 | Local or keyless endpoint | Nobody | Not applicable | Via `openaiCompatible({ baseURL })` |
 
@@ -131,6 +131,16 @@ The `@anthropic-ai/sdk` decides what authenticates a request in this order, and 
 1. **`apiKey` or `authToken` set to a string**, explicit or from `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` (the SDK skips both environment reads when a `profile` is named). If either is set, a configured `credentials`/`config`/`profile` token provider is **never consulted**, the SDK does not even build its token cache: requests carry `x-api-key` for the key, bearer `Authorization` for the token, and both headers when both are set.
 2. **Token providers**, only when `apiKey` and `authToken` are both null: `credentials`, else `config`, else `profile` (the SDK rejects passing more than one). Requests carry the provider's bearer `Authorization`.
 3. Otherwise the SDK's **default credential chain** (its config files) resolves lazily on first request.
+
+The whole rule set as one truth table (`apiKey`/`authToken` mean a **string** value, explicit or read from the environment; explicit `null` counts as absent). Every shorter formulation on this page, in the README, and in the TypeDoc defers to this table:
+
+| `apiKey` | `authToken` | Structured auth configured | What authenticates | Request headers |
+|---|---|---|---|---|
+| string | absent | ignored (never consulted) | the API key | `x-api-key` |
+| absent | string | ignored (never consulted) | the bearer token | `Authorization` |
+| string | string | ignored (never consulted) | both credentials are sent; the server decides | `x-api-key` and `Authorization` |
+| absent | absent | yes | the token provider (`credentials`, else `config`, else `profile`) | `Authorization` |
+| absent | absent | no | the SDK's config-file chain, lazily on first request | per the resolved credential |
 
 That first rule is a footgun for structured auth: a stray `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` exported in the shell or CI would silently bypass your vault provider or federation profile and bill whatever principal that credential belongs to. The adapter closes it: **when `sdkOptions` carries structured auth (`credentials`, `config`, or `profile`) and no `apiKey` or `authToken` is set to a string anywhere, the adapter passes explicit `apiKey: null, authToken: null` to the SDK**, so the configured provider is the one that authenticates, environment or not. An explicit `apiKey: null` or `authToken: null` of your own counts as absence for this rule, never as a chosen credential, so it does not disable the protection. Setting an `apiKey` or `authToken` **string** next to structured auth is respected verbatim, with the SDK precedence above (per rule 1 the provider is then not consulted). The same suppression applies to `profile` and `config`, which resolve through the same token-provider chain.
 
@@ -259,14 +269,14 @@ const adapter = openai({
 });
 ```
 
-The adapter id is `openai`; address models as `openai:gpt-5.6-sol`, `openai:gpt-5.5`, or `openai:gpt-5.4-mini` (`openai:gpt-5.6` is the published alias for Sol). `OPENAI_MODELS` exports the seeded capability table, long-context price tiers included, and `OPENAI_PRICING` exports the same pricing rows as a versioned `PriceTable` (`pricingVersion: "openai-2026-07-16"`) for `createEngine({ pricing })`. The primary surface is the Responses API; Chat Completions exists only as a documented degraded path.
+The adapter id is `openai`; address models as `openai:gpt-5.6-sol`, `openai:gpt-5.6-terra`, `openai:gpt-5.6-luna`, `openai:gpt-5.5`, or `openai:gpt-5.4-mini` (`openai:gpt-5.6` is the published alias for Sol, and an EXACT alias only: Terra and Luna are sibling models with their own rows, never snapshots of the alias). `OPENAI_MODELS` exports the seeded capability table, long-context price tiers included, and `OPENAI_PRICING` exports the same pricing rows as a versioned `PriceTable` (`pricingVersion: "openai-2026-07-18"`) for `createEngine({ pricing })`. Dated snapshots (`<model>-YYYY-MM-DD`) inherit their exact model's row; any other unknown name gets conservative unpriced caps and surfaces in `CostReport.unpriced` instead of a fabricated total. Canonical reasoning effort `max` goes to the wire unchanged on Sol; on every other model it downmaps to `xhigh`, recorded in `providerMetadata.openai.effortDownmapped`. The primary surface is the Responses API; Chat Completions exists only as a documented degraded path.
 
 Provider notes:
 
 - **Manual item replay only.** The adapter sends `store: false` with `include: ["reasoning.encrypted_content"]` and replays prior output items from the canonical history itself. `previous_response_id` and the Conversations API are rejected as a typed `ConfigError`, even through `providerOptions`: server side conversation state lives outside the journal and would break replay identity.
 - **Reasoning items.** Reasoning items are retained as `provider-raw` parts and echoed byte exact between function calls, `encrypted_content` included. OpenAI decrypts in memory and never persists, so reasoning quality and cache efficiency survive across tool calls without any state leaving your store.
 - **Strict `json_schema` output.** The native structured output tier sends `text.format = { type: "json_schema", ... }` with explicit `strict: true`, never relying on the API's silent best effort fallback for incompatible schemas. When a schema is not strict compatible, the router selects a lower tier loudly instead.
-- **Effort mapping.** `reasoning.effort` accepts low through xhigh. Canonical `max` has no wire equivalent and downmaps to `xhigh`; the downmap is recorded in provider metadata while journal identity keeps the requested `max`.
+- **Effort mapping.** `reasoning.effort` accepts low through xhigh everywhere, and wire `max` on GPT-5.6 Sol, where canonical `max` passes through unchanged. On models without wire `max` it downmaps to `xhigh`; the downmap is recorded in provider metadata while journal identity keeps the requested `max`.
 - **Degraded Chat Completions path.** Models unavailable on Responses are served through Chat Completions with documented degradations: delta patched chunk assembly, no reasoning item replay, `response_format` instead of `text.format`. Selection is a capability fact, visible in events, never silent.
 
 ### The openaiCompatible factory

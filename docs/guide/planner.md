@@ -130,7 +130,7 @@ The dialect closes every hole that would smuggle nondeterminism or unjournalable
 | Surface | In the sandbox dialect |
 |---|---|
 | `schema` | JSON Schema literal only; no schema-library values |
-| `tools` | Names of registered tool profiles only |
+| `tools` | Registered toolset names only (keys of engine `defaults.toolsets`, listed on the profile card); unknown names fail typed at spawn time |
 | `model` | A string |
 | `onError` | `'throw'` or `'null'` only |
 | Options | No functions anywhere in options; policies as declarative rule tables; ladders as JSON |
@@ -225,7 +225,7 @@ When a draft does come back truncated and empty (finish reason `max-tokens`, no 
 The host half of the protocol is `createSandboxBridge(ctx, { post })` from `@rulvar/core`: it serves every proxied primitive against the canonical run ctx, which is why the runner is built entirely from the public core API and why an alternative runner can implement the same `ScriptRunner` seam.
 
 ::: warning A determinism boundary, not a security boundary
-The sandbox exists to guarantee deterministic replay and to bound the blast radius of a generated script: no ambient time, no ambient randomness, no network, no host process access, JSON-only traffic. It is not a defense against hostile code. Containment of untrusted code belongs to tool executors (`subprocess`, `container`) and worktree isolation; see [Tools](/guide/tools).
+The sandbox exists to guarantee deterministic replay and to bound the blast radius of a generated script: no ambient time, no ambient randomness, no network, no host process access, JSON-only traffic. It is not a defense against hostile code, and nothing shipped today is: the current release enforces only the in-process tool executor (`subprocess` and `container` are declared capabilities that fail at registration), and a git worktree isolates file changes and the working directory, never processes or the network. Containing genuinely hostile tool code requires an executor you build and operate, with its own threat model; see [Tools](/guide/tools#executors).
 :::
 
 ## Workflow versus CompiledWorkflow

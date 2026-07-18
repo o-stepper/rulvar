@@ -12,7 +12,7 @@ type ResponsesStreamEvent = Record<string, unknown> & {
 };
 ```
 
-Defined in: [packages/openai/src/wire.ts:238](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L238)
+Defined in: [packages/openai/src/wire.ts:243](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L243)
 
 Raw Responses SSE events, structurally typed.
 
@@ -20,4 +20,4 @@ Raw Responses SSE events, structurally typed.
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `type` | `string` | [packages/openai/src/wire.ts:238](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L238) |
+| `type` | `string` | [packages/openai/src/wire.ts:243](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L243) |

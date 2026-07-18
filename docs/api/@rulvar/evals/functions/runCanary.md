@@ -13,16 +13,18 @@ function runCanary(
 options?): Promise<CanaryReport>;
 ```
 
-Defined in: [packages/evals/src/canary.ts:80](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/canary.ts#L80)
+Defined in: [packages/evals/src/canary.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/canary.ts#L87)
 
 Runs the fixed probe set through the ordinary engine. Probes run
 sequentially in declaration order, one run per probe, so recordings
 replay deterministically. Each probe run carries the optional
 immutable ceiling (options.budgetUsd) and authorizes it against the
-optional envelope before starting. A non-ok probe enters the
-fingerprint as `!status` and clears allOk: callers gate drift
-flipping on allOk, because a budget-starved or transiently failing
-probe fingerprints differently without the model having drifted.
+optional envelope before starting; an envelope refusal records the
+probe as 'refused' and keeps walking instead of throwing away the
+completed probes. A non-ok or refused probe enters the fingerprint
+as `!status` and clears allOk: callers gate drift flipping on allOk,
+because a budget-starved or transiently failing probe fingerprints
+differently without the model having drifted.
 
 ## Parameters
 

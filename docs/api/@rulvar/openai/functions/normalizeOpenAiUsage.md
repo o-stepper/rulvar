@@ -10,7 +10,7 @@
 function normalizeOpenAiUsage(raw): Usage;
 ```
 
-Defined in: [packages/openai/src/wire.ts:241](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L241)
+Defined in: [packages/openai/src/wire.ts:246](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L246)
 
 Normalizes Responses usage: input_tokens already includes cached reads.
 

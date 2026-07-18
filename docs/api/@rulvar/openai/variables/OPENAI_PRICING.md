@@ -10,7 +10,7 @@
 const OPENAI_PRICING: PriceTable;
 ```
 
-Defined in: [packages/openai/src/caps.ts:99](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/caps.ts#L99)
+Defined in: [packages/openai/src/caps.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/caps.ts#L139)
 
 The seed pricing rows as a versioned price table, keyed by full
 ModelRef under the adapter's fixed id 'openai' (long-context tiers

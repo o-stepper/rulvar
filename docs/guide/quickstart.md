@@ -255,10 +255,14 @@ const engine = createEngine({
   },
   defaults: {
     routing: {
-      loop: 'openai:gpt-5.4',
+      // The GPT-5.6 family split: Terra for everyday agent loops,
+      // Luna for cheap extraction. Reserve Sol (openai:gpt-5.6-sol)
+      // for the control-plane roles (orchestrate, plan); it is on the
+      // recommendedDefaults strong-model floors.
+      loop: 'openai:gpt-5.6-terra',
       // Schema-bearing ctx.agent calls resolve the extract role, so
       // any engine that serves them must route it.
-      extract: { model: 'openai:gpt-5.4-mini', effort: 'low' },
+      extract: { model: 'openai:gpt-5.6-luna', effort: 'low' },
     },
   },
 });
