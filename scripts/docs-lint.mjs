@@ -13,7 +13,7 @@
 //   4. Install commands never reference the bare package name `rulvar`
 //      (npm install / pnpm add / yarn add / npx).
 //
-// Plus two cross-file checks:
+// Plus three cross-file checks:
 //   5. Every member of the InvocationRole union in core has a canonical
 //      table row on docs/guide/agents.md, so a new role cannot ship
 //      undocumented.
@@ -22,6 +22,9 @@
 //      companions named in the @rulvar/cli package row and drawn as
 //      dotted edges in the dependency graph on docs/reference/packages.md
 //      (both directions, so a new or dropped companion cannot drift).
+//   7. Every dated pricingVersion literal in the hand-written docs equals
+//      the current adapter export, so a price-table revision cannot leave
+//      a stale snapshot stamp behind.
 //
 // Scope: every hand-written .md under docs/, recursively. Generated or
 // mirrored trees are excluded: docs/api (TypeDoc output), docs/node_modules,
@@ -243,6 +246,45 @@ for (const file of collectFiles()) {
         );
       }
     }
+  }
+}
+
+// Check 7: pricing snapshot literals vs the adapter exports (v1.18.0
+// review P2-4). model-routing.md cited `openai-2026-07-16` two revisions
+// after the export moved on; any dated pricingVersion literal in the
+// hand-written docs must equal the CURRENT source export for its
+// provider. Parsed from source, so the check needs no build; the
+// aggregated changelog and TypeDoc trees are already excluded, so
+// historical mentions stay legal there.
+{
+  /** @type {Record<string, string>} */
+  const exported = {};
+  for (const provider of ['anthropic', 'openai']) {
+    const capsPath = join(ROOT, 'packages', provider, 'src', 'caps.ts');
+    const src = readFileSync(capsPath, 'utf8');
+    const m = src.match(/pricingVersion:\s*'([^']+)'/u);
+    if (m?.[1] === undefined) {
+      fail(capsPath, 1, `no pricingVersion literal found; update the docs-lint pricing check`);
+    } else {
+      exported[provider] = m[1];
+    }
+  }
+  const VERSION_LITERAL = /\b(anthropic|openai)-\d{4}-\d{2}-\d{2}(?:-r\d+)?\b/gu;
+  for (const file of collectFiles()) {
+    const lines = readFileSync(file, 'utf8').split('\n');
+    lines.forEach((text, index) => {
+      for (const m of text.matchAll(VERSION_LITERAL)) {
+        const provider = /** @type {string} */ (m[1]);
+        const current = exported[provider];
+        if (current !== undefined && m[0] !== current) {
+          fail(
+            file,
+            index + 1,
+            `stale pricing snapshot '${m[0]}'; the ${provider} adapter exports '${current}'`,
+          );
+        }
+      }
+    });
   }
 }
 

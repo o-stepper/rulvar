@@ -6,7 +6,8 @@ import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { executeWorkflow } from '../engine/ctx.js';
 import { makeInternals, scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
 import type { AgentProfile } from '../engine/ctx.js';
-import { makeOrchestratorWorkflow } from './orchestrate.js';
+import { createEngine } from '../engine/engine.js';
+import { makeOrchestratorWorkflow, orchestrate } from './orchestrate.js';
 
 /** The telemetry namespace tells orchestrator requests from child ones. */
 function agentTypeOf(req: ChatRequest): string {
@@ -599,5 +600,61 @@ describe('orchestrate (M6-T07/T08)', () => {
     // The corrective re-prompt names the cut so the model can adapt.
     const rePrompt = JSON.stringify(adapter.calls[1]?.messages.at(-1)?.parts);
     expect(rePrompt).toContain('cut at the output token limit');
+  });
+
+  describe('the public helper carries RunOptions (v1.18.0 review P1-5)', () => {
+    it('freezes the root budgetUsd in RunMeta and threads the runId', async () => {
+      const adapter = scriptedAdapter((): ScriptedTurn => ({
+        toolCalls: [{ name: 'finish', args: { result: { done: true } } }],
+      }));
+      const store = new InMemoryStore();
+      const engine = createEngine({
+        adapters: [adapter],
+        stores: { journal: store },
+        defaults: {
+          routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+          profiles: PROFILES,
+        },
+      });
+      const handle = orchestrate(
+        engine,
+        'one and done',
+        { maxSpawns: 2 },
+        { budgetUsd: 2.5, runId: 'root-ceiling' },
+      );
+      const outcome = await handle.result;
+      expect(outcome.status).toBe('ok');
+      expect(handle.runId).toBe('root-ceiling');
+      const meta = (await store.listRuns()).find((m) => m.runId === 'root-ceiling');
+      expect(meta?.budgetUsd).toBe(2.5);
+    });
+
+    it('a root ceiling the projected reserve exceeds denies the whole tree before any provider call', async () => {
+      let calls = 0;
+      const adapter = scriptedAdapter((): ScriptedTurn => {
+        calls += 1;
+        return { text: 'never reached' };
+      });
+      const engine = createEngine({
+        adapters: [adapter],
+        stores: { journal: new InMemoryStore() },
+        defaults: {
+          routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+          profiles: PROFILES,
+        },
+        // Priced so projected admission can bound the model: the output
+        // allowance alone reserves far beyond the $0.30 root ceiling.
+        pricing: {
+          pricingVersion: 'test-1',
+          models: { 'fake:model': { inputUsdPerMTok: 1, outputUsdPerMTok: 1_000_000 } },
+        },
+      });
+      const handle = orchestrate(engine, 'too poor to start', undefined, { budgetUsd: 0.3 });
+      const outcome = await handle.result;
+      expect(outcome.status).not.toBe('ok');
+      // The root ceiling passed through the helper binds the entire
+      // tree: not even the orchestrator's own first turn dispatched.
+      expect(calls).toBe(0);
+    });
   });
 });

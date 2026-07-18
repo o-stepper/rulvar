@@ -84,7 +84,7 @@ interface ToolSource {
 }
 ```
 
-Anywhere the engine accepts tools (`ToolsOption`), you can mix plain `ToolDef` values and tool sources side by side; registered toolset names are rejected with a typed `ConfigError`, and they exist only for the `toolsetRef` parameter of the dynamic orchestrator's `spawn_agent` tool. At spawn time the engine expands every source, validates names and duplicates across the whole toolset, and freezes the snapshot:
+Anywhere the engine accepts tools (`ToolsOption`), you can mix plain `ToolDef` values, tool sources, and registered toolset names side by side: a string entry names a toolset registered under engine `defaults.toolsets` and means the same thing in direct calls, profiles, and the sandbox dialect, while an unknown name is a typed `ConfigError` before any provider call (see [Tools](/guide/tools#attaching-tools-to-agents)). The dynamic orchestrator's `toolsetRef` spawn parameter draws from the same registry. At spawn time the engine expands every source, validates names and duplicates across the whole toolset, and freezes the snapshot:
 
 ```ts
 import { createEngine, defineWorkflow } from '@rulvar/core';

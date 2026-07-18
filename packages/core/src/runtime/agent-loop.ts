@@ -18,6 +18,7 @@ import {
   type WireError,
 } from '../l0/errors.js';
 import type { Json } from '../l0/json.js';
+import { realNow } from '../l0/real-clock.js';
 import type {
   ChatRequest,
   FinishInfo,
@@ -276,8 +277,11 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * Finalize synthesis invocation (M4-T01), present only when the role
    * trigger protocol fires it: configured in routing AND the toolset is
    * non-empty. Runs after tools stop with toolChoice 'none' over the
-   * full transcript; its text becomes the output for schema-less calls,
-   * and a schema-bearing call always pairs it with a separate extract
+   * full transcript plus a deterministic synthesis instruction appended
+   * to the REQUEST only (the durable transcript keeps the raw history);
+   * its text becomes the output for schema-less calls, a non-truncated
+   * empty synthesis falls back to the loop turn's text, and a
+   * schema-bearing call always pairs it with a separate extract
    * (the ctx layer guarantees `extract` is present in that case). Like
    * extract, the finalize invocation is not checkpointed in v1.
    */
@@ -613,6 +617,21 @@ function applyOutputBudget(
  * the budget clamp above, or the adapter's own default, and the provider
  * can also cut at its model maximum with no request cap at all.
  */
+/**
+ * The deterministic synthesis instruction appended (as a user message)
+ * to the finalize REQUEST only, never to the durable transcript. A
+ * transcript that simply ends at an assistant message reads to a real
+ * model as a fresh conversation opening, so an uninstructed synthesis
+ * call can replace the loop's correct answer with a greeting (v1.18.0
+ * review P1-1); the extract arm has carried its own instruction since
+ * M4, and this is its finalize twin. The wording is part of the wire
+ * request: keep it stable.
+ */
+export const FINALIZE_SYNTHESIS_INSTRUCTION: string =
+  'Write the final answer to the original request, synthesized only from the conversation ' +
+  'and tool results above. Do not start a new conversation and do not add greetings; ' +
+  'respond with the final answer only.';
+
 function outputTruncatedMessage(invocation: 'turn' | 'finalize invocation'): string {
   return (
     `the ${invocation} ended at its output token allowance (finish reason 'max-tokens') ` +
@@ -723,7 +742,7 @@ async function executeToolCall(options: {
 export async function runAgent<S extends SchemaSpec>(
   options: RunAgentOptions<S>,
 ): Promise<AgentResult<Out<S>>> {
-  const now = options.now ?? Date.now;
+  const now = options.now ?? realNow;
   const startedAt = now();
   const limits = options.limits;
   const maxSchemaAttempts = (options.schemaRetryAttempts ?? 2) + 1;
@@ -1669,11 +1688,12 @@ export async function runAgent<S extends SchemaSpec>(
   }
 
   // Finalize synthesis invocation (role 'finalize', M4-T01): after tools
-  // stop, one invocation with toolChoice 'none' over the full transcript.
-  // Fires only when routed AND tools were available; the ctx layer
-  // decides via model/roles.ts and passes the option. Its text is the
-  // output for schema-less calls; with a schema the separate extract
-  // below runs over the transcript INCLUDING the synthesis.
+  // stop, one invocation with toolChoice 'none' over the full transcript
+  // plus the deterministic synthesis instruction (request-only). Fires
+  // only when routed AND tools were available; the ctx layer decides via
+  // model/roles.ts and passes the option. Its text is the output for
+  // schema-less calls; with a schema the separate extract below runs
+  // over the transcript INCLUDING the synthesis.
   if (status === 'ok' && !finishedViaTool && options.finalize !== undefined) {
     const finalizeResolved = options.finalize.resolved;
     events?.emit({
@@ -1693,6 +1713,16 @@ export async function runAgent<S extends SchemaSpec>(
     }
     if (proceed) {
       turns += 1;
+      // The request-only synthesis message list: the durable transcript
+      // (`messages`) keeps the raw history, so the extract phase and the
+      // journal never see the instruction.
+      const synthesisMessages: Msg[] = [
+        ...messages,
+        {
+          role: 'user',
+          parts: [{ type: 'text', text: FINALIZE_SYNTHESIS_INSTRUCTION }],
+        },
+      ];
       let finalizeDispatch: Awaited<ReturnType<typeof dispatchPhase>> | undefined;
       try {
         finalizeDispatch = await dispatchPhase({
@@ -1706,7 +1736,7 @@ export async function runAgent<S extends SchemaSpec>(
               {
                 ...buildRequest(
                   target.resolved,
-                  projectHistory(messages, providerOf(target.adapter)),
+                  projectHistory(synthesisMessages, providerOf(target.adapter)),
                   limits,
                   options.tools?.contracts,
                 ),
@@ -1789,7 +1819,14 @@ export async function runAgent<S extends SchemaSpec>(
         } else if (options.schema === undefined) {
           // The synthesis is the final answer for schema-less calls; a
           // schema-bearing call reads its output from the extract phase.
-          output = outcome.turn.text as Out<S>;
+          // A non-truncated EMPTY synthesis never erases the loop turn's
+          // text: the loop answer stands (v1.18.0 review P1-1; the
+          // truncated-empty case above stays a bounded failure because
+          // falling back would mask a too-small output cap).
+          const synthesis = outcome.turn.text;
+          if (synthesis.trim() !== '') {
+            output = synthesis as Out<S>;
+          }
         }
       }
     }

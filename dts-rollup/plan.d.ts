@@ -1,4 +1,4 @@
-import { AdmissionDecision, AdmitRejectReason, AgentResult, CanonicalLadderSpec, ChatRequest, Effort, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, JournalStore, Json, KbProposalTrigger, KeyDeriver, LadderSpec, LeasableStore, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, ProviderAdapter, ReuseConfig, RunHandle, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, TriggerClass, UsageLimits, WireError } from "@rulvar/core";
+import { AdmissionDecision, AdmitRejectReason, AgentResult, CanonicalLadderSpec, ChatRequest, Effort, Engine, EntryRef, EscalationDecision, EscalationOptions, HashVersion, IsolationSpec, JournalEntry, JournalStore, Json, KbProposalTrigger, KeyDeriver, LadderSpec, LeasableStore, LineageStats, LogicalTaskId, NodeId, OrchestrateOptions, OrchestratorExtension, ProviderAdapter, ReuseConfig, RunHandle, RunOptions, SchemaSpec, SpawnLineageOpt, TerminationAccountSnapshot, TerminationLimits, ToolDef, TriggerClass, UsageLimits, WireError } from "@rulvar/core";
 
 //#region src/plan-state.d.ts
 /**
@@ -982,10 +982,16 @@ interface PlanRunnerOptions {
 * the `orchestratePlanned` convenience surface.
 */
 declare function planRunner(options?: PlanRunnerOptions): OrchestratorExtension;
-/** The PlanRunner entry surface: mode (c) plus the extension in one call. */
+/**
+* The PlanRunner entry surface: mode (c) plus the extension in one call.
+* `runOptions` are the ordinary engine RunOptions of the created run:
+* `runOptions.budgetUsd` is the ROOT hard ceiling over the whole tree,
+* immutable after start, while `opts.budget` only shapes the
+* orchestrator's own sub-account inside it (v1.18.0 review P1-5).
+*/
 declare function orchestratePlanned(engine: Engine, goal: string, opts?: OrchestrateOptions & {
   plan?: PlanRunnerOptions;
-}): RunHandle<unknown>;
+}, runOptions?: RunOptions): RunHandle<unknown>;
 //#endregion
 //#region src/cassettes.d.ts
 /** One normalized-cassette fixture file (cassettes/<id>.json). */

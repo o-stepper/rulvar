@@ -10,12 +10,17 @@
 function orchestratePlanned(
    engine, 
    goal, 
-opts?): RunHandle<unknown>;
+   opts?, 
+runOptions?): RunHandle<unknown>;
 ```
 
-Defined in: [packages/plan/src/plan-runner.ts:2678](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-runner.ts#L2678)
+Defined in: [packages/plan/src/plan-runner.ts:2685](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/plan-runner.ts#L2685)
 
 The PlanRunner entry surface: mode (c) plus the extension in one call.
+`runOptions` are the ordinary engine RunOptions of the created run:
+`runOptions.budgetUsd` is the ROOT hard ceiling over the whole tree,
+immutable after start, while `opts.budget` only shapes the
+orchestrator's own sub-account inside it (v1.18.0 review P1-5).
 
 ## Parameters
 
@@ -24,6 +29,7 @@ The PlanRunner entry surface: mode (c) plus the extension in one call.
 | `engine` | [`Engine`](/api/@rulvar/rulvar/interfaces/Engine.md) |
 | `goal` | `string` |
 | `opts?` | [`OrchestrateOptions`](/api/@rulvar/rulvar/interfaces/OrchestrateOptions.md) & \{ `plan?`: [`PlanRunnerOptions`](/api/@rulvar/plan/interfaces/PlanRunnerOptions.md); \} |
+| `runOptions?` | [`RunOptions`](/api/@rulvar/rulvar/interfaces/RunOptions.md) |
 
 ## Returns
 

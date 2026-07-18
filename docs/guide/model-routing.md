@@ -138,7 +138,7 @@ Every invocation resolves with one of six roles attached, and each role can rout
 |---|---|
 | `loop` | Every turn while tools are available to the model. |
 | `extract` | Resolves on every schema-bearing call; the separate final structured-output invocation fires only when extract routes to a different model than the loop, when the schema's tier on the loop model is `forced-tool` while tools stay available (it cannot ride such a turn), or when finalize is routed (the schema never rides a loop or synthesis turn). Otherwise the schema rides the last loop turn with no extra call. |
-| `finalize` | Only if set in routing: after tools stop, one synthesis invocation with tool choice `'none'` over the full transcript. |
+| `finalize` | Only if set in routing: after tools stop, one synthesis invocation with tool choice `'none'` over the full transcript plus a deterministic synthesis instruction appended to the request only. A non-truncated empty synthesis falls back to the loop turn's text instead of erasing it. |
 | `summarize` | At the compaction threshold, and for `ctx.brief`. |
 | `plan` | The planner model in planned mode. |
 | `orchestrate` | The orchestrator agent in orchestrator mode, resolved through the same chain as everything else. |
@@ -232,7 +232,7 @@ const engine = createEngine({
 
 ## The versioned price table
 
-Cost accounting needs prices, and prices change. The engine takes a versioned price table whose entries win over any adapter-reported `caps.pricing` (that field is a fallback only). The first-party adapters export their seed rows as ready-made tables, `ANTHROPIC_PRICING` (`anthropic-2026-07-16`) and `OPENAI_PRICING` (`openai-2026-07-16`), each mirroring the provider's official price list as of its version date:
+Cost accounting needs prices, and prices change. The engine takes a versioned price table whose entries win over any adapter-reported `caps.pricing` (that field is a fallback only). The first-party adapters export their seed rows as ready-made tables, `ANTHROPIC_PRICING` (`anthropic-2026-07-16`) and `OPENAI_PRICING` (`openai-2026-07-18-r2`), each mirroring the provider's official price list as of its version date:
 
 ```ts
 import { createEngine, type PriceTable } from '@rulvar/core';

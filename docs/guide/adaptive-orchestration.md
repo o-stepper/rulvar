@@ -51,7 +51,7 @@ const handle = orchestrate(engine, 'Migrate all 40 packages to the new config fo
 const outcome = await handle.result;
 ```
 
-`orchestratePlanned(engine, goal, { plan })` from `@rulvar/plan` is the same thing as one call. Either way, the extension appends four tools to the base orchestrator toolset:
+`orchestratePlanned(engine, goal, { plan })` from `@rulvar/plan` is the same thing as one call. Both helpers accept the run's `RunOptions` as an optional fourth argument; `budgetUsd` there is the root hard ceiling over the whole tree, distinct from the orchestrator's own `budget.capUsd` sub-account (see [budgets](/guide/budgets)). Either way, the extension appends four tools to the base orchestrator toolset:
 
 | Tool | Purpose |
 |---|---|

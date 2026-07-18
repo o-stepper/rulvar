@@ -60,6 +60,7 @@ import {
   type OrchestratorExtensionIO,
   type ReuseConfig,
   type RunHandle,
+  type RunOptions,
   type TerminationDeniedValue,
   type TerminationLimits,
   type TriggerClass,
@@ -2674,15 +2675,27 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
   };
 }
 
-/** The PlanRunner entry surface: mode (c) plus the extension in one call. */
+/**
+ * The PlanRunner entry surface: mode (c) plus the extension in one call.
+ * `runOptions` are the ordinary engine RunOptions of the created run:
+ * `runOptions.budgetUsd` is the ROOT hard ceiling over the whole tree,
+ * immutable after start, while `opts.budget` only shapes the
+ * orchestrator's own sub-account inside it (v1.18.0 review P1-5).
+ */
 export function orchestratePlanned(
   engine: Engine,
   goal: string,
   opts?: OrchestrateOptions & { plan?: PlanRunnerOptions },
+  runOptions?: RunOptions,
 ): RunHandle<unknown> {
   const { plan, ...orchestrateOpts } = opts ?? {};
-  return orchestrate(engine, goal, {
-    ...orchestrateOpts,
-    extension: planRunner(plan),
-  });
+  return orchestrate(
+    engine,
+    goal,
+    {
+      ...orchestrateOpts,
+      extension: planRunner(plan),
+    },
+    runOptions,
+  );
 }

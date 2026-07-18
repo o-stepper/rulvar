@@ -7,6 +7,7 @@
  */
 import { createHash } from 'node:crypto';
 import { BudgetExhaustedError, ConfigError, RulvarError, type WireError } from '../l0/errors.js';
+import { realNow } from '../l0/real-clock.js';
 import type { WorkflowEventBody } from '../l0/events.js';
 import type { InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
 import type { IsolationProvider } from '../l0/spi/isolation.js';
@@ -330,9 +331,6 @@ export function createEngine(options: CreateEngineOptions): Engine {
     options.onEscalation === undefined ? undefined : { onEscalation: options.onEscalation },
   );
   const mintRunId = createCanonicalIdMinter();
-  // Captured before any dev-mode patch so engine internals never trip the
-  // bare-Date.now warning.
-  const realNow: () => number = Date.now.bind(globalThis);
 
   // The versioned price table wins; adapter-reported caps.pricing is
   // the fallback; undefined stays undefined so the CostReport surfaces

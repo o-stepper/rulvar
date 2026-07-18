@@ -6,6 +6,7 @@
  *
  * Full contract: https://docs.rulvar.com/guide/observability.
  */
+import { realNow } from '../l0/real-clock.js';
 import { maskSecretsDeep } from '../l0/serialization.js';
 import type { WorkflowEvent, WorkflowEventBody } from '../l0/events.js';
 
@@ -63,7 +64,10 @@ export class EventBus {
   }) {
     this.runId = options.runId;
     this.spans = options.spans;
-    this.now = options.now ?? Date.now;
+    // The default binds the module-load real clock, never the live
+    // global: a bus built after a run would capture the dev-mode patch
+    // and false-warn from its own frames (v1.18.0 review P2-6).
+    this.now = options.now ?? realNow;
     this.maskEvents = options.maskEvents ?? true;
   }
 

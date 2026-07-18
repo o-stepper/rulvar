@@ -9,6 +9,7 @@
  * overview: https://docs.rulvar.com/guide/architecture.
  */
 import { ConfigError, JournalMissError } from '../l0/errors.js';
+import { realNow } from '../l0/real-clock.js';
 import type { WireError } from '../l0/errors.js';
 import {
   CURRENT_HASH_VERSION,
@@ -151,7 +152,7 @@ export class Replayer {
     if (options.lease !== undefined) {
       this.lease = options.lease;
     }
-    this.now = options.now ?? Date.now;
+    this.now = options.now ?? realNow;
     if (options.priceUsd !== undefined) {
       this.priceUsd = options.priceUsd;
     }

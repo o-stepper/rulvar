@@ -283,12 +283,16 @@ The dynamic orchestrator is itself an ordinary agent, running under role `orches
 ```ts
 import { orchestrate } from '@rulvar/core';
 
-const handle = orchestrate(engine, 'Audit the billing module and summarize the risks', {
-  profiles: ['reviewer', 'researcher'],
-  maxSpawns: 24,
-});
+const handle = orchestrate(
+  engine,
+  'Audit the billing module and summarize the risks',
+  { profiles: ['reviewer', 'researcher'], maxSpawns: 24 },
+  { budgetUsd: 10 },
+);
 const outcome = await handle.result;
 ```
+
+The optional fourth argument is the run's ordinary `RunOptions`: `budgetUsd` there is the root hard ceiling over the whole tree (see [budgets](/guide/budgets)); without it the run starts uncapped.
 
 Its typed spawn tools are the whole cross-agent surface of mode (c):
 
@@ -298,6 +302,7 @@ Its typed spawn tools are the whole cross-agent surface of mode (c):
 | `parallel_agents` | Spawn several children at once. |
 | `await_any` / `await_all` | Block on in-flight handles; deliver per-child digests. |
 | `cancel_agent` | Cancel an in-flight child. |
+| `wait_for_events` | Sleep until a coalesced wake digest: quiescence (always armed), child terminal, escalation, or a budget threshold; a trigger set that can never fire is a typed error. |
 | `finish` | Terminal: deliver the final result. |
 
 The `spawn_agent` vocabulary is the profile card: the orchestrator picks a registered `agentType`, never a raw model name. When a profile declares a model ladder, the orchestrator may pass `model_hint.startTier`, clamped to the declared ladder; naming models stays a host decision.

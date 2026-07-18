@@ -49,6 +49,12 @@ interface LeaseRow {
   expires_at: number;
 }
 
+// Bound at module load, before any dev-mode bare-Date.now patch can
+// install: a store constructed after a run must not capture the patched
+// wrapper and false-warn from its own frames (v1.18.0 review P2-6; the
+// same convention as createEngine's real clock).
+const wallClock: () => number = Date.now.bind(globalThis);
+
 export class SqliteStore implements JournalStore, LeasableStore {
   private readonly db: DatabaseSync;
   private readonly ttlMs: number;
@@ -57,7 +63,7 @@ export class SqliteStore implements JournalStore, LeasableStore {
   constructor(options: SqliteStoreOptions) {
     this.db = new DatabaseSync(options.path);
     this.ttlMs = options.ttlMs ?? DEFAULT_LEASE_TTL_MS;
-    this.now = options.now ?? Date.now;
+    this.now = options.now ?? wallClock;
     // WAL keeps concurrent readers consistent with the single writer on
     // file-backed databases; a no-op for ':memory:'.
     this.db.exec(`

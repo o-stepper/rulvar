@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { WorkflowEvent } from '../l0/events.js';
 import { ConfigError } from '../l0/errors.js';
+import { createCanonicalIdMinter } from '../l0/messages.js';
 import { InMemoryStore } from '../stores/inmemory.js';
 import { createEngine } from './engine.js';
 import { defineWorkflow } from './ctx.js';
@@ -374,6 +375,67 @@ describe('createEngine and engine.run (M1-T11)', () => {
       Date.now();
       Math.random();
       expect(warnings.filter((code) => code.startsWith('RULVAR_BARE'))).toHaveLength(2);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('engine internals stay silent from a second engine created after a patched run (v1.18.0 review P2-6)', async () => {
+    const warnings: string[] = [];
+    const spy = vi
+      .spyOn(process, 'emitWarning')
+      .mockImplementation((warning: string | Error, opts?: { code?: string }) => {
+        warnings.push(typeof opts?.code === 'string' ? opts.code : String(warning));
+      });
+    try {
+      const wf = defineWorkflow({ name: 'clean' }, async (ctx) => ctx.agent('x'));
+      // The first run installs the dev patch.
+      const first = createEngine({
+        adapters: [scriptedAdapter(() => ({ text: 'a' }))],
+        defaults: { routing: { loop: 'fake:model' } },
+      });
+      await first.run(wf, undefined).result;
+      // An engine created AFTER the patch previously bound the patched
+      // wrapper as its real clock, and its EventBus then warned from the
+      // engine's own frames (which live outside node_modules here, the
+      // workspace-consumer shape).
+      const second = createEngine({
+        adapters: [scriptedAdapter(() => ({ text: 'b' }))],
+        defaults: { routing: { loop: 'fake:model' } },
+      });
+      await second.run(wf, undefined).result;
+      expect(warnings.filter((code) => code.startsWith('RULVAR_BARE'))).toHaveLength(0);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('library-style id minting inside a run never warns while workflow Date.now still does', async () => {
+    const warnings: string[] = [];
+    const spy = vi
+      .spyOn(process, 'emitWarning')
+      .mockImplementation((warning: string | Error, opts?: { code?: string }) => {
+        warnings.push(typeof opts?.code === 'string' ? opts.code : String(warning));
+      });
+    try {
+      const engine = createEngine({ adapters: [] });
+      const minting = defineWorkflow({ name: 'minting' }, () => {
+        // The ULID factory reads its module-load clock, never the live
+        // global: the orchestrator extension and PlanRunner mint ids
+        // mid-run through exactly this path (v1.18.0 review P2-6).
+        const mint = createCanonicalIdMinter();
+        mint();
+        return Promise.resolve(1);
+      });
+      await engine.run(minting, undefined).result;
+      expect(warnings.filter((code) => code.startsWith('RULVAR_BARE'))).toHaveLength(0);
+      // The guard itself stays sharp for genuine workflow reads.
+      const bare = defineWorkflow({ name: 'bare' }, () => {
+        Date.now();
+        return Promise.resolve(1);
+      });
+      await engine.run(bare, undefined).result;
+      expect(warnings.filter((code) => code === 'RULVAR_BARE_DATE_NOW')).toHaveLength(1);
     } finally {
       spy.mockRestore();
     }

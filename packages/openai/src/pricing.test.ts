@@ -10,7 +10,7 @@ import { OPENAI_MODELS, OPENAI_PRICING } from './index.js';
 
 describe('OPENAI_PRICING', () => {
   it('exports exactly the priced seed rows under a dated version', () => {
-    expect(OPENAI_PRICING.pricingVersion).toBe('openai-2026-07-18');
+    expect(OPENAI_PRICING.pricingVersion).toBe('openai-2026-07-18-r2');
     const priced = Object.entries(OPENAI_MODELS).filter(
       ([, info]) => info.caps.pricing !== undefined,
     );

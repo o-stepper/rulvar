@@ -354,14 +354,23 @@ Freeze the knobs per run through the plan options:
 ```ts
 import { orchestratePlanned } from "@rulvar/plan";
 
-const handle = orchestratePlanned(engine, "Migrate the API surface to v2", {
-  budget: { capUsd: 4, finalizeTurns: 2 },
-  plan: {
-    maxRevisionsPerRun: 16,
-    limits: { maxTotalSpawns: 64, maxEscalationsPerLogicalTask: 2 },
+const handle = orchestratePlanned(
+  engine,
+  "Migrate the API surface to v2",
+  {
+    budget: { capUsd: 4, finalizeTurns: 2 },
+    plan: {
+      maxRevisionsPerRun: 16,
+      limits: { maxTotalSpawns: 64, maxEscalationsPerLogicalTask: 2 },
+    },
   },
-});
+  // The ordinary engine RunOptions of the created run: budgetUsd is the
+  // ROOT hard ceiling over the whole tree, immutable after start.
+  { budgetUsd: 25 },
+);
 ```
+
+The fourth argument is the run's `RunOptions`, exactly what `engine.run` takes: `budgetUsd` there is the root hard ceiling over the orchestrator **and every child**, while `budget.capUsd` above only shapes the orchestrator's own sub-account inside it. `orchestrate` from `@rulvar/core` accepts the same fourth argument. Without it the created run has **no root ceiling**: the sub-account cap alone does not bound the children.
 
 Runs without the PlanRunner extension (modes a and b, and plain dynamic
 orchestration) write no termination entry and carry only the engine lifetime
