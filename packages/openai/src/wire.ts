@@ -55,13 +55,17 @@ export class OpenAiIdMap {
 }
 
 /**
- * Canonical-to-wire effort: low through
- * xhigh pass through; canonical max downmaps to xhigh (documented lossy;
- * recorded in providerMetadata); provider 'none' is reachable only via
- * providerOptions.openai.reasoningEffort.
+ * Canonical-to-wire effort: low through xhigh pass through. Canonical
+ * max passes through unchanged on models whose caps declare wire max
+ * support (GPT-5.6 Sol); elsewhere it downmaps to xhigh (documented
+ * lossy; recorded in providerMetadata). Provider 'none' is reachable
+ * only via providerOptions.openai.reasoningEffort.
  */
-export function mapOpenAiEffort(effort: Effort): { wire: string; downmapped: boolean } {
-  if (effort === 'max') {
+export function mapOpenAiEffort(
+  effort: Effort,
+  options?: { wireMaxEffort?: boolean },
+): { wire: string; downmapped: boolean } {
+  if (effort === 'max' && options?.wireMaxEffort !== true) {
     return { wire: 'xhigh', downmapped: true };
   }
   return { wire: effort, downmapped: false };
@@ -79,6 +83,7 @@ type Item = Record<string, unknown>;
 export function buildResponsesParams(
   req: ChatRequest,
   ids: OpenAiIdMap,
+  options?: { wireMaxEffort?: boolean },
 ): { params: Record<string, unknown>; effortDownmapped: boolean } {
   const openaiOptions = req.providerOptions?.openai ?? {};
   for (const forbidden of ['previous_response_id', 'previousResponseId', 'conversation']) {
@@ -220,7 +225,7 @@ export function buildResponsesParams(
     // reachable only through the namespace.
     params.reasoning = { effort: explicitEffort };
   } else if (req.effort !== undefined) {
-    const mapped = mapOpenAiEffort(req.effort);
+    const mapped = mapOpenAiEffort(req.effort, options);
     effortDownmapped = mapped.downmapped;
     params.reasoning = { effort: mapped.wire };
   }

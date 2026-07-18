@@ -13,20 +13,27 @@ export interface OpenAiModelInfo {
   api: 'responses' | 'chat';
   /** Reasoning models reject non-default sampling parameters. */
   reasoning: boolean;
+  /**
+   * The model accepts wire `reasoning.effort: "max"` (GPT-5.6 Sol per
+   * the official model docs). When false, canonical max downmaps to
+   * wire xhigh; the downmap is recorded in providerMetadata and the
+   * journal identity keeps max, so caps accept the full canonical set
+   * either way.
+   */
+  wireMaxEffort: boolean;
 }
 
 function responses(
   contextWindow: number,
   maxOutputTokens: number,
   pricing?: Pricing,
+  options?: { wireMaxEffort?: boolean },
 ): OpenAiModelInfo {
   return {
     caps: {
       structuredOutput: 'native',
       supportsTemperature: false,
       supportsParallelTools: true,
-      // Canonical max downmaps to wire xhigh; identity keeps max,
-      // so caps accept the full canonical set.
       reasoningEfforts: [...REASONING_EFFORTS, 'max'],
       contextWindow,
       maxOutputTokens,
@@ -34,26 +41,59 @@ function responses(
     },
     api: 'responses',
     reasoning: true,
+    wireMaxEffort: options?.wireMaxEffort === true,
   };
 }
 
+const GPT_56_TIERS = [
+  { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 },
+];
+
 /**
- * GPT-5.6 Sol (developers.openai.com/api/docs/models/gpt-5.6-sol):
- * prompts strictly above 272K input tokens price the FULL request at
- * 2x input and 1.5x output; cache writes bill at 1.25x uncached input.
+ * GPT-5.6 Sol, Terra, and Luna are three sibling models, not snapshots
+ * of one model (developers.openai.com/api/docs/models/gpt-5.6-sol,
+ * .../gpt-5.6-terra, .../gpt-5.6-luna; rates verified 2026-07-18). All
+ * three: prompts strictly above 272K input tokens price the FULL
+ * request at 2x input and 1.5x output; cache writes bill at 1.25x
+ * uncached input. Only Sol accepts wire reasoning effort `max`.
  */
-const GPT_56_SOL: OpenAiModelInfo = responses(1_050_000, 128_000, {
-  inputUsdPerMTok: 5,
-  outputUsdPerMTok: 30,
-  cacheReadUsdPerMTok: 0.5,
-  cacheWriteUsdPerMTok: 6.25,
-  tiers: [{ aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 }],
+const GPT_56_SOL: OpenAiModelInfo = responses(
+  1_050_000,
+  128_000,
+  {
+    inputUsdPerMTok: 5,
+    outputUsdPerMTok: 30,
+    cacheReadUsdPerMTok: 0.5,
+    cacheWriteUsdPerMTok: 6.25,
+    tiers: GPT_56_TIERS,
+  },
+  { wireMaxEffort: true },
+);
+
+const GPT_56_TERRA: OpenAiModelInfo = responses(1_050_000, 128_000, {
+  inputUsdPerMTok: 2.5,
+  outputUsdPerMTok: 15,
+  cacheReadUsdPerMTok: 0.25,
+  cacheWriteUsdPerMTok: 3.125,
+  tiers: GPT_56_TIERS,
+});
+
+const GPT_56_LUNA: OpenAiModelInfo = responses(1_050_000, 128_000, {
+  inputUsdPerMTok: 1,
+  outputUsdPerMTok: 6,
+  cacheReadUsdPerMTok: 0.1,
+  cacheWriteUsdPerMTok: 1.25,
+  tiers: GPT_56_TIERS,
 });
 
 /** Static seed table of the current model set. */
 export const OPENAI_MODELS: Record<string, OpenAiModelInfo> = {
   'gpt-5.6-sol': GPT_56_SOL,
-  // The published alias routes to Sol.
+  'gpt-5.6-terra': GPT_56_TERRA,
+  'gpt-5.6-luna': GPT_56_LUNA,
+  // The published alias routes to Sol. It is an exact alias ONLY: it is
+  // never a snapshot prefix, so a sibling like 'gpt-5.6-luna' can only
+  // ever match its own row (v1.17.0 review P1-1).
   'gpt-5.6': GPT_56_SOL,
   'gpt-5.5': responses(400_000, 128_000, {
     inputUsdPerMTok: 10,
@@ -97,7 +137,7 @@ export const OPENAI_MODELS: Record<string, OpenAiModelInfo> = {
  * silent reinterpretation.
  */
 export const OPENAI_PRICING: PriceTable = {
-  pricingVersion: 'openai-2026-07-16',
+  pricingVersion: 'openai-2026-07-18',
   models: ((): Record<ModelRef, Pricing> => {
     const models: Record<ModelRef, Pricing> = {};
     for (const [name, info] of Object.entries(OPENAI_MODELS)) {
@@ -109,21 +149,27 @@ export const OPENAI_PRICING: PriceTable = {
   })(),
 };
 
+/**
+ * The documented snapshot grammar: `<exact model>-YYYY-MM-DD`. Nothing
+ * else inherits a table row (v1.17.0 review P1-1): a general prefix
+ * matcher let the 'gpt-5.6' family alias capture the SIBLING models
+ * 'gpt-5.6-terra' and 'gpt-5.6-luna' and price them as Sol, which is
+ * worse than no price at all. An unknown sibling or preview suffix now
+ * falls through to conservative unpriced caps.
+ */
+const DATED_SNAPSHOT = /^(?<base>.+)-\d{4}-\d{2}-\d{2}$/u;
+
 export function openAiModelInfo(model: string): OpenAiModelInfo {
   const exact = OPENAI_MODELS[model];
   if (exact !== undefined) {
     return exact;
   }
-  // Longest matching prefix wins: a dated 'gpt-5.5-pro-...' snapshot must
-  // resolve to 'gpt-5.5-pro', never to the shorter 'gpt-5.5'.
-  let best: { name: string; info: OpenAiModelInfo } | undefined;
-  for (const [name, info] of Object.entries(OPENAI_MODELS)) {
-    if (model.startsWith(`${name}-`) && (best === undefined || name.length > best.name.length)) {
-      best = { name, info };
+  const snapshot = DATED_SNAPSHOT.exec(model)?.groups?.base;
+  if (snapshot !== undefined) {
+    const base = OPENAI_MODELS[snapshot];
+    if (base !== undefined) {
+      return base;
     }
-  }
-  if (best !== undefined) {
-    return best.info;
   }
   return responses(272_000, 100_000);
 }
