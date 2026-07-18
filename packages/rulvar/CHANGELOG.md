@@ -1,5 +1,19 @@
 # @rulvar/rulvar
 
+## 1.18.0
+
+### Minor Changes
+
+- 943962d: `recommendedDefaults.floors` now admits `openai:gpt-5.6-sol` and its published exact alias `openai:gpt-5.6` for the `orchestrate` and `plan` roles. The allowlists had fallen behind the product recommendation: the rulvar.com quickstart routes the orchestrator at Sol, but a configuration combining that recommendation with the recommended floors was rejected before any provider call with a quality-floor violation. The weaker family siblings Terra and Luna stay deliberately floored out of the control-plane roles; worker roles (`loop`, `extract`) remain unfloored.
+
+### Patch Changes
+
+- Updated dependencies [943962d]
+- Updated dependencies [943962d]
+  - @rulvar/core@1.18.0
+  - @rulvar/openai@1.18.0
+  - @rulvar/anthropic@1.18.0
+
 ## 1.17.0
 
 ### Patch Changes
