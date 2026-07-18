@@ -28,11 +28,17 @@ export const recommendedDefaults: {
   },
   floors: {
     byRole: {
+      // The strong set (v1.17.0 review P1-2): GPT-5.6 Sol is the
+      // recommended OpenAI orchestrator (rulvar.com quickstart), so the
+      // exact model and its published exact alias are admitted; the
+      // weaker family siblings Terra and Luna deliberately are NOT.
       orchestrate: {
         allow: [
           'anthropic:claude-fable-5',
           'anthropic:claude-opus-4-8',
           'anthropic:claude-opus-4-7',
+          'openai:gpt-5.6-sol',
+          'openai:gpt-5.6',
           'openai:gpt-5.5',
         ],
       },
@@ -41,6 +47,8 @@ export const recommendedDefaults: {
           'anthropic:claude-fable-5',
           'anthropic:claude-opus-4-8',
           'anthropic:claude-opus-4-7',
+          'openai:gpt-5.6-sol',
+          'openai:gpt-5.6',
           'openai:gpt-5.5',
         ],
       },
