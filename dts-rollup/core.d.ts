@@ -602,10 +602,20 @@ type AbandonPayload = {
   retainCheckpoint?: boolean; /** Default false; counts against the pin cap (DEF-5). */
   retainWorktree?: boolean;
 };
-/** One serving model's slice of a multi-model agent call's usage. */
+/**
+* One (invocation role, serving model) slice of an agent call's usage.
+* `role` is the phase that PAID the slice (v1.19.0 review P1-2: the
+* loop, extract, finalize, and summarize phases of one agent call must
+* land in their own CostReport.byRole buckets even when a single model
+* serves several of them). Absent on slices written before roles
+* shipped: readers fall back to the entry's primary
+* `costAttribution.role`, exactly like the other documented fallbacks.
+* Policy, never identity.
+*/
 interface UsageSlice {
   servedBy: ModelRef;
   usage: Usage;
+  role?: InvocationRole;
 }
 /**
 * Cost-attribution facts a live run knows at settlement and a pure
@@ -2760,11 +2770,13 @@ interface AgentResult<T> {
   */
   servedBy: ModelRef;
   /**
-  * Present only when the call spanned MORE THAN ONE serving model (the
-  * loop, extract, finalize, and summarize roles resolve independently):
-  * usage split per model, so `costUsd` and every cost bucket price each
-  * slice at its own rate. Absent for a single-model call, which
-  * (usage, servedBy) already describes exactly.
+  * Present only when the call spanned MORE THAN ONE (invocation role,
+  * serving model) pair (the loop, extract, finalize, and summarize
+  * roles resolve independently): usage split per (role, model), so
+  * `costUsd` and every cost bucket price each slice at its own rate
+  * and `CostReport.byRole` attributes each phase to its own bucket
+  * (v1.19.0 review P1-2). Absent for a single-phase single-model call,
+  * which (usage, servedBy) already describes exactly.
   */
   usageByModel?: UsageSlice[];
   transcriptRef: string;

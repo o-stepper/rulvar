@@ -150,14 +150,20 @@ type ResponsesStreamEvent = Record<string, unknown> & {
 };
 /**
 * Normalizes Responses usage into the canonical Usage invariant, where
-* `inputTokens` is the FULL prompt: wire `input_tokens` already includes
-* cached READS, while cache WRITE tokens arrive SEPARATELY in
-* `input_tokens_details.cache_write_tokens` (GPT-5.6 and later families;
-* they bill at the 1.25x write premium, and earlier families report no
-* field and pay no premium). Dropping the field lost the whole write
-* charge and weakened the budget guard (v1.18.0 review P1-2), so writes
-* are added into `inputTokens` and surfaced as `cacheWriteTokens` for
-* the premium rate, exactly mirroring the Anthropic adapter's mapping.
+* `inputTokens` is the FULL prompt. On the OpenAI wire `input_tokens`
+* is ALREADY that full count: `input_tokens_details.cached_tokens` and
+* `input_tokens_details.cache_write_tokens` (GPT-5.6 and later
+* families) are priced SUBSETS of it, never additional tokens, so both
+* pass through untouched and nothing is added. Verified on the live
+* wire 2026-07-18: two identical long prompts report the SAME
+* `input_tokens` while the details flip from write to read, and
+* `total_tokens` equals `input_tokens + output_tokens` on both calls.
+* Adding writes on top (the v1.19.0 reading of the field) double-billed
+* every written token at 1x + 1.25x and inflated budget debits
+* (v1.19.0 review P1-1). Contrast with the Anthropic adapter, whose
+* wire genuinely EXCLUDES both cache counts from `input_tokens`, so
+* that adapter adds them; the two wires differ, the canonical Usage
+* invariant does not.
 */
 declare function normalizeOpenAiUsage(raw: Record<string, unknown> | undefined): Usage;
 /**
