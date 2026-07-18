@@ -268,11 +268,15 @@ jobs:
       # The per-call root-ceiling check (check 8) parses fences with the
       # TypeScript compiler API. The job stays otherwise dependency-free:
       # exactly one package, pinned to the workspace catalog version read
-      # from pnpm-workspace.yaml, no lockfile, no scripts.
+      # from pnpm-workspace.yaml, installed in an ISOLATED prefix (npm at
+      # the repo root would try to resolve the pnpm-only catalog:
+      # protocol in package.json) and exposed via a node_modules symlink.
       - name: Install the pinned TypeScript compiler
         run: |
           pin="$(node -p "require('fs').readFileSync('pnpm-workspace.yaml','utf8').match(/^  typescript: (.+)$/m)[1]")"
-          npm install --no-save --ignore-scripts "typescript@$pin"
+          mkdir -p "$RUNNER_TEMP/docs-lint-deps"
+          (cd "$RUNNER_TEMP/docs-lint-deps" && npm install --no-save --ignore-scripts "typescript@$pin")
+          ln -s "$RUNNER_TEMP/docs-lint-deps/node_modules" node_modules
       - run: node scripts/docs-lint.mjs
       # Repo scripts must work from a checkout path containing a space and
       # non-ASCII characters (URL.pathname regressions leave %20 in paths).
