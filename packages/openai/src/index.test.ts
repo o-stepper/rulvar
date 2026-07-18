@@ -268,7 +268,8 @@ describe('Responses stream mapping (M1-T13; docs/04 section 5.4)', () => {
     ]);
     const finish = events.at(-1) as Extract<ChatEvent, { type: 'finish' }>;
     expect(finish.finish).toEqual({ reason: 'tool-calls' });
-    // input_tokens already includes cached reads; no write premium.
+    // input_tokens already includes cached reads; a usage object with no
+    // cache_write_tokens field reports zero writes.
     expect(finish.usage).toEqual({
       inputTokens: 90,
       outputTokens: 12,
@@ -408,6 +409,110 @@ describe('Chat Completions degraded path (M1-T13; docs/04 section 5.6)', () => {
     expect(finish.finish).toEqual({ reason: 'tool-calls' });
     expect(finish.usage.cacheReadTokens).toBe(8);
     expect((finish.providerMetadata?.openai as Record<string, unknown>).degradedPath).toBe('chat');
+  });
+});
+
+describe('cache write usage normalization (v1.18.0 review P1-2)', () => {
+  // GPT-5.6 and later report prompt tokens WRITTEN to cache separately
+  // from input_tokens/prompt_tokens, billed at 1.25x the uncached input
+  // rate. The canonical Usage invariant wants inputTokens as the FULL
+  // prompt, so writes join it and ride cacheWriteTokens for the premium.
+  it('normalizes the documented detail fields: none, read only, write only, read plus write', () => {
+    expect(normalizeOpenAiUsage({ input_tokens: 1000, output_tokens: 10 })).toEqual({
+      inputTokens: 1000,
+      outputTokens: 10,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+    expect(
+      normalizeOpenAiUsage({
+        input_tokens: 1000,
+        input_tokens_details: { cached_tokens: 400 },
+        output_tokens: 10,
+      }),
+    ).toEqual({ inputTokens: 1000, outputTokens: 10, cacheReadTokens: 400, cacheWriteTokens: 0 });
+    expect(
+      normalizeOpenAiUsage({
+        input_tokens: 1000,
+        input_tokens_details: { cache_write_tokens: 200 },
+        output_tokens: 10,
+      }),
+    ).toEqual({ inputTokens: 1200, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 200 });
+    // The review's reproduction: input_tokens 1200 including 100 cached
+    // reads, plus 200 separate write tokens.
+    expect(
+      normalizeOpenAiUsage({
+        input_tokens: 1200,
+        input_tokens_details: { cached_tokens: 100, cache_write_tokens: 200 },
+        output_tokens: 10,
+      }),
+    ).toEqual({ inputTokens: 1400, outputTokens: 10, cacheReadTokens: 100, cacheWriteTokens: 200 });
+  });
+
+  it('a Responses stream with cache writes emits usage exactly once and the premium prices', async () => {
+    async function* events(): AsyncIterable<ResponsesStreamEvent> {
+      yield await Promise.resolve({
+        type: 'response.output_item.added',
+        item: { type: 'message', id: 'msg_1' },
+      });
+      yield { type: 'response.output_text.delta', delta: 'ok' };
+      yield {
+        type: 'response.completed',
+        response: {
+          id: 'resp_cache',
+          output: [],
+          usage: {
+            input_tokens: 1200,
+            input_tokens_details: { cached_tokens: 100, cache_write_tokens: 200 },
+            output_tokens: 10,
+          },
+        },
+      };
+    }
+    const mapped = await collect(mapResponsesStream(events(), ids()));
+    const usageEvents = mapped.filter((e) => e.type === 'usage');
+    // Exactly one usage emission per response: the budget debits once.
+    expect(usageEvents).toHaveLength(1);
+    const finish = mapped.at(-1) as Extract<ChatEvent, { type: 'finish' }>;
+    const expected = {
+      inputTokens: 1400,
+      outputTokens: 10,
+      cacheReadTokens: 100,
+      cacheWriteTokens: 200,
+    };
+    expect((usageEvents[0] as Extract<ChatEvent, { type: 'usage' }>).usage).toEqual(expected);
+    expect(finish.usage).toEqual(expected);
+    // Priced on the Sol row: 1100 uncached at $5 + 100 reads at $0.5 +
+    // 200 writes at $6.25 (the 1.25x premium) + 10 output at $30, per MTok.
+    const sol = OPENAI_MODELS['gpt-5.6-sol']?.caps.pricing;
+    expect(sol).toBeDefined();
+    expect(priceUsdOf(sol as NonNullable<typeof sol>, finish.usage)).toBeCloseTo(
+      (1100 / 1e6) * 5 + (100 / 1e6) * 0.5 + (200 / 1e6) * 6.25 + (10 / 1e6) * 30,
+      12,
+    );
+  });
+
+  it('the Chat Completions degraded path maps the same write field', async () => {
+    async function* chunks(): AsyncIterable<Record<string, unknown>> {
+      yield await Promise.resolve({ choices: [{ delta: { content: 'ok' } }] });
+      yield { choices: [{ delta: {}, finish_reason: 'stop' }] };
+      yield {
+        choices: [],
+        usage: {
+          prompt_tokens: 1200,
+          completion_tokens: 4,
+          prompt_tokens_details: { cached_tokens: 100, cache_write_tokens: 200 },
+        },
+      };
+    }
+    const mapped = await collect(mapChatCompletionsStream(chunks(), ids()));
+    const finish = mapped.at(-1) as Extract<ChatEvent, { type: 'finish' }>;
+    expect(finish.usage).toEqual({
+      inputTokens: 1400,
+      outputTokens: 4,
+      cacheReadTokens: 100,
+      cacheWriteTokens: 200,
+    });
   });
 });
 
@@ -658,7 +763,7 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
   });
 
   it('every gpt-5.6 family member has its own versioned OPENAI_PRICING row', () => {
-    expect(OPENAI_PRICING.pricingVersion).toBe('openai-2026-07-18');
+    expect(OPENAI_PRICING.pricingVersion).toBe('openai-2026-07-18-r2');
     for (const [model, expected] of Object.entries(GPT_56_EXPECTED)) {
       expect(OPENAI_PRICING.models[`openai:${model}`]?.inputUsdPerMTok, model).toBe(expected.input);
       expect(OPENAI_PRICING.models[`openai:${model}`]?.outputUsdPerMTok, model).toBe(
@@ -687,6 +792,33 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
       expect(info.caps.pricing, unknown).toBeUndefined();
       expect(info.caps.contextWindow, unknown).toBe(272_000);
     }
+  });
+
+  it('carries the official pre-5.6 rows re-verified 2026-07-18, with no write premium', () => {
+    // The provider dropped the pre-5.6 prices when the 5.6 family
+    // shipped (v1.18.0 review P1-6); these are the official rates. None
+    // of these families reports cache_write_tokens or bills a write
+    // premium, and gpt-5.5-pro lists NO cached-input rate at all, so its
+    // row omits the field rather than fabricating a discount or a zero.
+    expect(OPENAI_MODELS['gpt-5.5']?.caps.pricing).toEqual({
+      inputUsdPerMTok: 5,
+      outputUsdPerMTok: 30,
+      cacheReadUsdPerMTok: 0.5,
+    });
+    expect(OPENAI_MODELS['gpt-5.5-pro']?.caps.pricing).toEqual({
+      inputUsdPerMTok: 30,
+      outputUsdPerMTok: 180,
+    });
+    expect(OPENAI_MODELS['gpt-5.4']?.caps.pricing).toEqual({
+      inputUsdPerMTok: 2.5,
+      outputUsdPerMTok: 15,
+      cacheReadUsdPerMTok: 0.25,
+    });
+    expect(OPENAI_MODELS['gpt-5.4-mini']?.caps.pricing).toEqual({
+      inputUsdPerMTok: 0.75,
+      outputUsdPerMTok: 4.5,
+      cacheReadUsdPerMTok: 0.075,
+    });
   });
 
   it('prices the long-context tier strictly above 272000 input tokens', () => {

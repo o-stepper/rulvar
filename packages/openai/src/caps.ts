@@ -93,25 +93,32 @@ export const OPENAI_MODELS: Record<string, OpenAiModelInfo> = {
   // never a snapshot prefix, so a sibling like 'gpt-5.6-luna' can only
   // ever match its own row (v1.17.0 review P1-1).
   'gpt-5.6': GPT_56_SOL,
+  // Pre-5.6 rows per the official table (rates re-verified 2026-07-18,
+  // v1.18.0 review P1-6: the provider dropped these prices when the 5.6
+  // family shipped). These families report no cache_write_tokens and
+  // bill no write premium, so the rows deliberately carry no
+  // cacheWriteUsdPerMTok. gpt-5.5-pro lists NO cached-input rate at all:
+  // the row omits it, and a cached read, should the API ever report one
+  // there, bills at the full input rate (conservative), never a
+  // fabricated discount.
   'gpt-5.5': responses(400_000, 128_000, {
-    inputUsdPerMTok: 10,
-    outputUsdPerMTok: 40,
-    cacheReadUsdPerMTok: 1,
+    inputUsdPerMTok: 5,
+    outputUsdPerMTok: 30,
+    cacheReadUsdPerMTok: 0.5,
   }),
   'gpt-5.5-pro': responses(400_000, 128_000, {
-    inputUsdPerMTok: 40,
-    outputUsdPerMTok: 160,
-    cacheReadUsdPerMTok: 4,
+    inputUsdPerMTok: 30,
+    outputUsdPerMTok: 180,
   }),
   'gpt-5.4': responses(272_000, 100_000, {
-    inputUsdPerMTok: 6,
-    outputUsdPerMTok: 24,
-    cacheReadUsdPerMTok: 0.6,
+    inputUsdPerMTok: 2.5,
+    outputUsdPerMTok: 15,
+    cacheReadUsdPerMTok: 0.25,
   }),
   'gpt-5.4-mini': responses(272_000, 100_000, {
-    inputUsdPerMTok: 1.2,
-    outputUsdPerMTok: 4.8,
-    cacheReadUsdPerMTok: 0.12,
+    inputUsdPerMTok: 0.75,
+    outputUsdPerMTok: 4.5,
+    cacheReadUsdPerMTok: 0.075,
   }),
 };
 
@@ -135,7 +142,12 @@ export const OPENAI_MODELS: Record<string, OpenAiModelInfo> = {
  * silent reinterpretation.
  */
 export const OPENAI_PRICING: PriceTable = {
-  pricingVersion: 'openai-2026-07-18',
+  // The -r2 suffix is a same-day revision: the 2026-07-18 snapshot
+  // shipped with stale pre-5.6 rows (v1.18.0 review P1-6), and the
+  // corrected table needs a DISTINCT version string so a resumed run
+  // that priced under the stale rows surfaces the drift instead of
+  // silently reinterpreting past spend.
+  pricingVersion: 'openai-2026-07-18-r2',
   models: ((): Record<ModelRef, Pricing> => {
     const models: Record<ModelRef, Pricing> = {};
     for (const [name, info] of Object.entries(OPENAI_MODELS)) {

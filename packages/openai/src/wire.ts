@@ -242,17 +242,28 @@ export function buildResponsesParams(
 /** Raw Responses SSE events, structurally typed. */
 export type ResponsesStreamEvent = Record<string, unknown> & { type: string };
 
-/** Normalizes Responses usage: input_tokens already includes cached reads. */
+/**
+ * Normalizes Responses usage into the canonical Usage invariant, where
+ * `inputTokens` is the FULL prompt: wire `input_tokens` already includes
+ * cached READS, while cache WRITE tokens arrive SEPARATELY in
+ * `input_tokens_details.cache_write_tokens` (GPT-5.6 and later families;
+ * they bill at the 1.25x write premium, and earlier families report no
+ * field and pay no premium). Dropping the field lost the whole write
+ * charge and weakened the budget guard (v1.18.0 review P1-2), so writes
+ * are added into `inputTokens` and surfaced as `cacheWriteTokens` for
+ * the premium rate, exactly mirroring the Anthropic adapter's mapping.
+ */
 export function normalizeOpenAiUsage(raw: Record<string, unknown> | undefined): Usage {
   const inputDetails = raw?.input_tokens_details as Record<string, unknown> | undefined;
   const outputDetails = raw?.output_tokens_details as Record<string, unknown> | undefined;
+  const cacheWrite =
+    typeof inputDetails?.cache_write_tokens === 'number' ? inputDetails.cache_write_tokens : 0;
   const usage: Usage = {
-    inputTokens: typeof raw?.input_tokens === 'number' ? raw.input_tokens : 0,
+    inputTokens: (typeof raw?.input_tokens === 'number' ? raw.input_tokens : 0) + cacheWrite,
     outputTokens: typeof raw?.output_tokens === 'number' ? raw.output_tokens : 0,
     cacheReadTokens:
       typeof inputDetails?.cached_tokens === 'number' ? inputDetails.cached_tokens : 0,
-    // Responses prompt caching is implicit prefix caching: no write premium.
-    cacheWriteTokens: 0,
+    cacheWriteTokens: cacheWrite,
   };
   const reasoning = outputDetails?.reasoning_tokens;
   if (typeof reasoning === 'number' && reasoning > 0) {
@@ -609,13 +620,20 @@ export async function* mapChatCompletionsStream(
     const chunkUsage = chunk.usage as Record<string, unknown> | undefined;
     if (chunkUsage !== undefined && chunkUsage !== null) {
       const promptDetails = chunkUsage.prompt_tokens_details as Record<string, unknown> | undefined;
+      // Same invariant as the Responses path: prompt_tokens includes
+      // cached reads, cache writes arrive separately and join the full
+      // prompt (v1.18.0 review P1-2).
+      const cacheWrite =
+        typeof promptDetails?.cache_write_tokens === 'number' ? promptDetails.cache_write_tokens : 0;
       usage = {
-        inputTokens: typeof chunkUsage.prompt_tokens === 'number' ? chunkUsage.prompt_tokens : 0,
+        inputTokens:
+          (typeof chunkUsage.prompt_tokens === 'number' ? chunkUsage.prompt_tokens : 0) +
+          cacheWrite,
         outputTokens:
           typeof chunkUsage.completion_tokens === 'number' ? chunkUsage.completion_tokens : 0,
         cacheReadTokens:
           typeof promptDetails?.cached_tokens === 'number' ? promptDetails.cached_tokens : 0,
-        cacheWriteTokens: 0,
+        cacheWriteTokens: cacheWrite,
       };
     }
   }
