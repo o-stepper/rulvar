@@ -22,6 +22,7 @@ import { realNow } from '../l0/real-clock.js';
 import type {
   ChatRequest,
   FinishInfo,
+  InvocationRole,
   JsonSchema,
   ModelRef,
   Msg,
@@ -108,11 +109,13 @@ export interface AgentResult<T> {
    */
   servedBy: ModelRef;
   /**
-   * Present only when the call spanned MORE THAN ONE serving model (the
-   * loop, extract, finalize, and summarize roles resolve independently):
-   * usage split per model, so `costUsd` and every cost bucket price each
-   * slice at its own rate. Absent for a single-model call, which
-   * (usage, servedBy) already describes exactly.
+   * Present only when the call spanned MORE THAN ONE (invocation role,
+   * serving model) pair (the loop, extract, finalize, and summarize
+   * roles resolve independently): usage split per (role, model), so
+   * `costUsd` and every cost bucket price each slice at its own rate
+   * and `CostReport.byRole` attributes each phase to its own bucket
+   * (v1.19.0 review P1-2). Absent for a single-phase single-model call,
+   * which (usage, servedBy) already describes exactly.
    */
   usageByModel?: UsageSlice[];
   transcriptRef: string;
@@ -751,14 +754,31 @@ export async function runAgent<S extends SchemaSpec>(
 
   const messages: Msg[] = [{ role: 'user', parts: [{ type: 'text', text: options.prompt }] }];
   let totalUsage: Usage = ZERO_USAGE;
-  // Usage split by the model that actually served it. The loop, extract,
+  // The primary role of the tool loop itself; extract, finalize, and
+  // summarize dispatches carry their own roles into the split below.
+  const primaryRole: InvocationRole = options.role ?? 'loop';
+  // Usage split by (invocation role, serving model). The loop, extract,
   // finalize, and summarize phases resolve independently, so one agent
   // call routinely spans models at different prices; pricing the whole
   // call at the loop's servedBy bills the cheap extract at the loop
-  // model's rate. The budget already debits per serving model (see
+  // model's rate, and folding it all into one role bucket erases the
+  // phase split the routed phases exist to expose (v1.19.0 review
+  // P1-2). The budget already debits per serving model (see
   // recordUsage); this is the same fact, kept for the cost report and
   // the journal.
-  const usageByModel = new Map<ModelRef, Usage>();
+  const usageByPhaseModel = new Map<
+    string,
+    { role: InvocationRole; servedBy: ModelRef; usage: Usage }
+  >();
+  const addPhaseUsage = (role: InvocationRole, ref: ModelRef, usage: Usage): void => {
+    const key = `${role} ${ref}`;
+    const prior = usageByPhaseModel.get(key);
+    usageByPhaseModel.set(key, {
+      role,
+      servedBy: ref,
+      usage: addUsage(prior?.usage ?? ZERO_USAGE, usage),
+    });
+  };
   let turns = 0;
   let schemaAttempts = 0;
   let output: Out<S> | null = null;
@@ -799,19 +819,22 @@ export async function runAgent<S extends SchemaSpec>(
     // resumed run never re-summarizes it (M4-T03).
     compactionPoints.push(...restored.compaction);
     // A checkpoint written before the split shipped carries only the
-    // aggregate: attribute it to the loop model, exactly as before.
+    // aggregate: attribute it to the loop model, exactly as before. A
+    // slice written before ROLES shipped falls back to the primary
+    // role, the same documented fallback the journal fold applies.
     const restoredSlices = restored.usageByModel ?? [{ servedBy, usage: restored.usage }];
     for (const slice of restoredSlices) {
-      usageByModel.set(
-        slice.servedBy,
-        addUsage(usageByModel.get(slice.servedBy) ?? ZERO_USAGE, slice.usage),
-      );
+      addPhaseUsage(slice.role ?? primaryRole, slice.servedBy, slice.usage);
       options.budget?.onUsage(slice.usage, slice.servedBy);
     }
   }
 
   const usageSlices = (): UsageSlice[] =>
-    [...usageByModel].map(([sliceServedBy, usage]) => ({ servedBy: sliceServedBy, usage }));
+    [...usageByPhaseModel.values()].map(({ role, servedBy: sliceServedBy, usage }) => ({
+      servedBy: sliceServedBy,
+      usage,
+      role,
+    }));
 
   /**
    * Every slice priced at ITS OWN model's rate. An unpriced model
@@ -824,8 +847,8 @@ export async function runAgent<S extends SchemaSpec>(
       return 0;
     }
     let usd = 0;
-    for (const [sliceServedBy, usage] of usageByModel) {
-      usd += price(sliceServedBy, usage) ?? 0;
+    for (const slice of usageByPhaseModel.values()) {
+      usd += price(slice.servedBy, slice.usage) ?? 0;
     }
     return usd;
   };
@@ -1102,20 +1125,26 @@ export async function runAgent<S extends SchemaSpec>(
     agentType,
     label: options.label,
     model: servedBy,
-    role: options.role ?? 'loop',
+    role: primaryRole,
   });
 
   // The runtime never throws past policy: an adapter violating the Usage
   // invariant becomes a typed transport-class terminal, not an escape.
   let invariantViolation: string | undefined;
-  const recordUsage = (usage: Usage, reported: Usage, adapterId: string, ref: ModelRef): void => {
+  const recordUsage = (
+    usage: Usage,
+    reported: Usage,
+    adapterId: string,
+    ref: ModelRef,
+    role: InvocationRole,
+  ): void => {
     try {
       assertUsageInvariant(usage, adapterId);
     } catch (thrown) {
       invariantViolation = thrown instanceof Error ? thrown.message : String(thrown);
     }
     totalUsage = addUsage(totalUsage, usage);
-    usageByModel.set(ref, addUsage(usageByModel.get(ref) ?? ZERO_USAGE, usage));
+    addPhaseUsage(role, ref, usage);
     // Mid-stream deltas already reached the budget through streamTurn's
     // onUsage; report only the remainder so nothing double-counts.
     const remainder: Usage = {
@@ -1157,6 +1186,8 @@ export async function runAgent<S extends SchemaSpec>(
   const retryRandom = options.retry?.random ?? Math.random;
 
   const dispatchPhase = async (site: {
+    /** The invocation phase this dispatch pays for (v1.19.0 review P1-2). */
+    role: InvocationRole;
     chain: Array<PhaseTarget & { on?: FailoverTrigger[] }>;
     cursor: { index: number };
     requestFor: (target: PhaseTarget) => ChatRequest;
@@ -1174,7 +1205,13 @@ export async function runAgent<S extends SchemaSpec>(
         const outcome = await (options.providerSlot === undefined
           ? dispatch()
           : options.providerSlot(target.adapter.id, dispatch));
-        recordUsage(outcome.usage, outcome.reported, target.adapter.id, target.resolved.ref);
+        recordUsage(
+          outcome.usage,
+          outcome.reported,
+          target.adapter.id,
+          target.resolved.ref,
+          site.role,
+        );
         tries += 1;
         const retryClass =
           outcome.aborted === 'idle'
@@ -1288,6 +1325,7 @@ export async function runAgent<S extends SchemaSpec>(
     let loopDispatch: Awaited<ReturnType<typeof dispatchPhase>>;
     try {
       loopDispatch = await dispatchPhase({
+        role: primaryRole,
         chain: loopChain,
         cursor: loopCursor,
         requestFor: (target) => {
@@ -1496,6 +1534,7 @@ export async function runAgent<S extends SchemaSpec>(
         let summaryDispatch: Awaited<ReturnType<typeof dispatchPhase>>;
         try {
           summaryDispatch = await dispatchPhase({
+            role: 'summarize',
             chain: [
               { adapter: options.summarize.adapter, resolved: options.summarize.resolved },
               ...(options.summarize.fallbacks ?? []),
@@ -1726,6 +1765,7 @@ export async function runAgent<S extends SchemaSpec>(
       let finalizeDispatch: Awaited<ReturnType<typeof dispatchPhase>> | undefined;
       try {
         finalizeDispatch = await dispatchPhase({
+          role: 'finalize',
           chain: [
             { adapter: options.finalize.adapter, resolved: options.finalize.resolved },
             ...(options.finalize.fallbacks ?? []),
@@ -1886,6 +1926,7 @@ export async function runAgent<S extends SchemaSpec>(
       let extractDispatch: Awaited<ReturnType<typeof dispatchPhase>>;
       try {
         extractDispatch = await dispatchPhase({
+          role: 'extract',
           chain: extractChain,
           cursor: extractCursor,
           requestFor: (target) => {
@@ -2000,10 +2041,11 @@ export async function runAgent<S extends SchemaSpec>(
     servedBy,
     transcriptRef,
   };
-  // Carried only when the call genuinely spanned models: a single-model
-  // call is already described exactly by (usage, servedBy), and keeping
-  // the field absent leaves those journals byte-identical to before.
-  if (usageByModel.size > 1) {
+  // Carried only when the call genuinely spanned (role, model) pairs: a
+  // single-phase single-model call is already described exactly by
+  // (usage, servedBy, costAttribution.role), and keeping the field
+  // absent leaves those journals byte-identical to before.
+  if (usageByPhaseModel.size > 1) {
     result.usageByModel = usageSlices();
   }
   if (agentError !== undefined) {

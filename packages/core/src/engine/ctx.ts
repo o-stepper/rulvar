@@ -53,7 +53,7 @@ import {
   workflowScope,
 } from '../journal/scope.js';
 import type { Replayer } from '../journal/replayer.js';
-import { priceEntryUsage, type JournalEntry } from '../l0/entries.js';
+import { priceEntryUsage, type JournalEntry, type UsageSlice } from '../l0/entries.js';
 import { selectStructuredOutputTier } from '../model/caps.js';
 import { fallbackTriggerOf, type FallbackField, type FallbackTrigger } from '../model/failover.js';
 import type { KeyedLimiter } from '../model/concurrency.js';
@@ -2017,23 +2017,28 @@ export function createCtx(
     }
 
     // Cost attribution buckets (CostReport). byModel is keyed by the
-    // SERVING model, the same key the journal fold uses, so a run's live
-    // breakdown and its replayed one cannot disagree; and a call that
-    // spanned models contributes one bucket per model at its own rate.
+    // SERVING model and byRole by each slice's invocation phase, the
+    // same keys the journal fold uses, so a run's live breakdown and
+    // its replayed one cannot disagree; a call that spanned (role,
+    // model) pairs contributes one bucket per model and per role at its
+    // own rate, and a roleless slice falls back to the primary role
+    // exactly like the fold (v1.19.0 review P1-2).
     const usd = result.costUsd;
-    for (const slice of result.usageByModel ?? [
+    const attributionSlices: UsageSlice[] = result.usageByModel ?? [
       { servedBy: result.servedBy, usage: result.usage },
-    ]) {
+    ];
+    for (const slice of attributionSlices) {
       const priced = internals.priceUsd(slice.servedBy, slice.usage);
       if (priced === undefined) {
         internals.cost.unpriced.push({ model: slice.servedBy, usage: slice.usage });
         continue;
       }
       bump(internals.cost.byModel, slice.servedBy, priced);
+      const sliceRole = slice.role ?? primaryRole;
+      internals.cost.byRole.set(sliceRole, (internals.cost.byRole.get(sliceRole) ?? 0) + priced);
     }
     bump(internals.cost.byPhase, state.phase ?? '', usd);
     bump(internals.cost.byAgentType, agentType, usd);
-    internals.cost.byRole.set(primaryRole, (internals.cost.byRole.get(primaryRole) ?? 0) + usd);
 
     // Uniform ceiling behavior: every ctx primitive throws
     // BudgetExhaustedError at the run ceiling. The message names the

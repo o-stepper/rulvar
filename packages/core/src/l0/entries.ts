@@ -86,10 +86,20 @@ export type AbandonPayload = {
   retainWorktree?: boolean;
 };
 
-/** One serving model's slice of a multi-model agent call's usage. */
+/**
+ * One (invocation role, serving model) slice of an agent call's usage.
+ * `role` is the phase that PAID the slice (v1.19.0 review P1-2: the
+ * loop, extract, finalize, and summarize phases of one agent call must
+ * land in their own CostReport.byRole buckets even when a single model
+ * serves several of them). Absent on slices written before roles
+ * shipped: readers fall back to the entry's primary
+ * `costAttribution.role`, exactly like the other documented fallbacks.
+ * Policy, never identity.
+ */
 export interface UsageSlice {
   servedBy: ModelRef;
   usage: Usage;
+  role?: InvocationRole;
 }
 
 /**

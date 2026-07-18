@@ -140,7 +140,14 @@ export function costReportFromJournal(
     byPhase[phase] = (byPhase[phase] ?? 0) + priced.usd;
     const agentType = facts?.agentType ?? 'unknown';
     byAgentType[agentType] = (byAgentType[agentType] ?? 0) + priced.usd;
-    byRole[facts?.role ?? 'loop'] += priced.usd;
+    // Each priced slice lands in ITS OWN phase bucket (v1.19.0 review
+    // P1-2): a slice without a role (written before roles shipped, or
+    // the whole-entry fallback slice) folds under the entry's primary
+    // role, the same documented fallback as the other facts.
+    const primaryRole = facts?.role ?? 'loop';
+    for (const slice of priced.priced) {
+      byRole[slice.role ?? primaryRole] += slice.usd;
+    }
     if (facts?.budgetAccount !== undefined && isOrchestratorAccount(facts.budgetAccount)) {
       orchestratorSpentUsd += priced.usd;
       if (facts.finalizeReserve === true) {
