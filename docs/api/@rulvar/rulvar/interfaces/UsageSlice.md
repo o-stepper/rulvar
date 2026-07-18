@@ -8,11 +8,19 @@
 
 Defined in: `packages/core/dist/index.d.ts`
 
-One serving model's slice of a multi-model agent call's usage.
+One (invocation role, serving model) slice of an agent call's usage.
+`role` is the phase that PAID the slice (v1.19.0 review P1-2: the
+loop, extract, finalize, and summarize phases of one agent call must
+land in their own CostReport.byRole buckets even when a single model
+serves several of them). Absent on slices written before roles
+shipped: readers fall back to the entry's primary
+`costAttribution.role`, exactly like the other documented fallbacks.
+Policy, never identity.
 
 ## Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
+| <a id="property-role"></a> `role?` | [`InvocationRole`](/api/@rulvar/rulvar/type-aliases/InvocationRole.md) | `packages/core/dist/index.d.ts` |
 | <a id="property-servedby"></a> `servedBy` | `` `${string}:${string}` `` | `packages/core/dist/index.d.ts` |
 | <a id="property-usage"></a> `usage` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | `packages/core/dist/index.d.ts` |
