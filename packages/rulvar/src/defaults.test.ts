@@ -14,6 +14,7 @@ import {
   InMemoryStore,
   orchestrate,
   type Engine,
+  type ModelRef,
   type ProviderAdapter,
 } from '@rulvar/core';
 import { FakeAdapter, fakeToolCalls } from '@rulvar/testing';
@@ -47,14 +48,14 @@ function fakeOpenAi(turn?: () => unknown): { adapter: ProviderAdapter; calls: ()
     adapter: {
       id: 'openai',
       provider: 'openai',
-      caps: (model) => fake.caps(model),
+      caps: () => fake.caps(),
       stream: (req, signal) => fake.stream(req, signal),
     },
     calls: () => calls,
   };
 }
 
-function engineWith(orchestrateModel: string): { engine: Engine; calls: () => number } {
+function engineWith(orchestrateModel: ModelRef): { engine: Engine; calls: () => number } {
   const { adapter, calls } = fakeOpenAi();
   const engine = createEngine({
     adapters: [adapter],
@@ -72,8 +73,8 @@ function engineWith(orchestrateModel: string): { engine: Engine; calls: () => nu
 
 describe('recommendedDefaults floors (v1.17.0 review P1-2)', () => {
   it('pins the documented strong set for orchestrate and plan', () => {
-    expect(recommendedDefaults.floors.byRole.orchestrate?.allow).toEqual(STRONG_SET);
-    expect(recommendedDefaults.floors.byRole.plan?.allow).toEqual(STRONG_SET);
+    expect(recommendedDefaults.floors.byRole?.orchestrate?.allow).toEqual(STRONG_SET);
+    expect(recommendedDefaults.floors.byRole?.plan?.allow).toEqual(STRONG_SET);
   });
 
   it('admits an explicit Sol orchestrator and calls the adapter exactly once', async () => {
@@ -92,7 +93,12 @@ describe('recommendedDefaults floors (v1.17.0 review P1-2)', () => {
   });
 
   it('still floors out weak or sibling orchestrator models with zero provider calls', async () => {
-    for (const weak of ['openai:gpt-5.4-mini', 'openai:gpt-5.6-luna', 'openai:gpt-5.6-terra']) {
+    const weakModels: ModelRef[] = [
+      'openai:gpt-5.4-mini',
+      'openai:gpt-5.6-luna',
+      'openai:gpt-5.6-terra',
+    ];
+    for (const weak of weakModels) {
       const { engine, calls } = engineWith(weak);
       const outcome = await orchestrate(engine, 'collect the facts').result;
       expect(outcome.status, weak).toBe('error');

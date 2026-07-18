@@ -817,10 +817,16 @@ interface EvalsModule {
       taskClass: string;
       passRate: number;
       n: number;
+      /** Cases the cell was asked to measure; n < plannedN is incomplete. */
+      plannedN: number;
       /** Count of target runs that hit their own ceiling; the cell emits no claim. */
       exhaustedRuns?: number;
-      /** The envelope refused a run of this cell before it started; no claim. */
+      /** Count of rows whose judge could not finish for budget reasons; no claim. */
+      judgeIncompleteRuns?: number;
+      /** The envelope refused a TARGET run; what already ran stays reported. */
       envelopeExhausted?: true;
+      incompleteReason?: string;
+      refusedRunLabel?: string;
     }>;
     claims: Array<{ id: string; polarity: string; taskClass: string }>;
     committedVersion?: number;
