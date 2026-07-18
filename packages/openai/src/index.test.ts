@@ -795,6 +795,10 @@ describe('adapter surface (M1-T13)', () => {
       const engine = createEngine({
         adapters: [openai({})],
         stores: { journal: new InMemoryStore({ quiet: true }) },
+        // The versioned table lets projected admission price the turns;
+        // without it the engine falls back to the flat per-spawn reserve
+        // and a small ceiling refuses before the first call.
+        pricing: OPENAI_PRICING,
       });
       const wf = defineWorkflow({ name: 'live-finalize' }, async (ctx) =>
         ctx.agent('Use the sum_numbers tool to compute 31 + 11, then state the sum.', {
@@ -802,7 +806,7 @@ describe('adapter surface (M1-T13)', () => {
           routing: { loop: 'openai:gpt-5.6-luna', finalize: 'openai:gpt-5.6-luna' },
         }),
       );
-      const outcome = await engine.run(wf, undefined, { budgetUsd: 0.25 }).result;
+      const outcome = await engine.run(wf, undefined, { budgetUsd: 0.5 }).result;
       if (outcome.status !== 'ok') {
         throw new Error(`finalize live smoke did not finish ok: ${JSON.stringify(outcome)}`);
       }
