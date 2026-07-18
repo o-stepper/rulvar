@@ -2471,6 +2471,18 @@
             "link": "/api/@rulvar/core/functions/runProfile.md"
           },
           {
+            "text": "sanitizeTokenCount",
+            "link": "/api/@rulvar/core/functions/sanitizeTokenCount.md"
+          },
+          {
+            "text": "sanitizeUsage",
+            "link": "/api/@rulvar/core/functions/sanitizeUsage.md"
+          },
+          {
+            "text": "sanitizeUsageDelta",
+            "link": "/api/@rulvar/core/functions/sanitizeUsageDelta.md"
+          },
+          {
             "text": "scanJournalCompatibility",
             "link": "/api/@rulvar/core/functions/scanJournalCompatibility.md"
           },
@@ -2489,6 +2501,10 @@
           {
             "text": "shouldCompact",
             "link": "/api/@rulvar/core/functions/shouldCompact.md"
+          },
+          {
+            "text": "snapshotUsage",
+            "link": "/api/@rulvar/core/functions/snapshotUsage.md"
           },
           {
             "text": "spawnDepthOf",
@@ -2533,6 +2549,10 @@
           {
             "text": "ttlState",
             "link": "/api/@rulvar/core/functions/ttlState.md"
+          },
+          {
+            "text": "usageViolations",
+            "link": "/api/@rulvar/core/functions/usageViolations.md"
           },
           {
             "text": "validateEditorialCommit",
@@ -2879,6 +2899,10 @@
           {
             "text": "OpenAiModelInfo",
             "link": "/api/@rulvar/openai/interfaces/OpenAiModelInfo.md"
+          },
+          {
+            "text": "V1190CacheAudit",
+            "link": "/api/@rulvar/openai/interfaces/V1190CacheAudit.md"
           }
         ]
       },
@@ -2919,6 +2943,10 @@
         "collapsed": true,
         "items": [
           {
+            "text": "auditV1190CacheJournal",
+            "link": "/api/@rulvar/openai/functions/auditV1190CacheJournal.md"
+          },
+          {
             "text": "buildChatCompletionsParams",
             "link": "/api/@rulvar/openai/functions/buildChatCompletionsParams.md"
           },
@@ -2957,6 +2985,10 @@
           {
             "text": "openAiModelInfo",
             "link": "/api/@rulvar/openai/functions/openAiModelInfo.md"
+          },
+          {
+            "text": "undoV1190CacheDoubleCount",
+            "link": "/api/@rulvar/openai/functions/undoV1190CacheDoubleCount.md"
           }
         ]
       }
@@ -4478,6 +4510,22 @@
             "link": "/api/@rulvar/rulvar/interfaces/PricingTier.md"
           },
           {
+            "text": "ProgressClock",
+            "link": "/api/@rulvar/rulvar/interfaces/ProgressClock.md"
+          },
+          {
+            "text": "ProgressHandle",
+            "link": "/api/@rulvar/rulvar/interfaces/ProgressHandle.md"
+          },
+          {
+            "text": "ProgressOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/ProgressOptions.md"
+          },
+          {
+            "text": "ProgressSink",
+            "link": "/api/@rulvar/rulvar/interfaces/ProgressSink.md"
+          },
+          {
             "text": "ProviderAdapter",
             "link": "/api/@rulvar/rulvar/interfaces/ProviderAdapter.md"
           },
@@ -5030,6 +5078,14 @@
           {
             "text": "PermissionVerdict",
             "link": "/api/@rulvar/rulvar/type-aliases/PermissionVerdict.md"
+          },
+          {
+            "text": "ProgressMode",
+            "link": "/api/@rulvar/rulvar/type-aliases/ProgressMode.md"
+          },
+          {
+            "text": "ProgressSource",
+            "link": "/api/@rulvar/rulvar/type-aliases/ProgressSource.md"
           },
           {
             "text": "RandPayload",
@@ -5916,6 +5972,10 @@
             "link": "/api/@rulvar/rulvar/functions/profileRegistrySnapshotHash.md"
           },
           {
+            "text": "progress",
+            "link": "/api/@rulvar/rulvar/functions/progress.md"
+          },
+          {
             "text": "projectHistory",
             "link": "/api/@rulvar/rulvar/functions/projectHistory.md"
           },
@@ -5992,6 +6052,18 @@
             "link": "/api/@rulvar/rulvar/functions/runProfile.md"
           },
           {
+            "text": "sanitizeTokenCount",
+            "link": "/api/@rulvar/rulvar/functions/sanitizeTokenCount.md"
+          },
+          {
+            "text": "sanitizeUsage",
+            "link": "/api/@rulvar/rulvar/functions/sanitizeUsage.md"
+          },
+          {
+            "text": "sanitizeUsageDelta",
+            "link": "/api/@rulvar/rulvar/functions/sanitizeUsageDelta.md"
+          },
+          {
             "text": "scanJournalCompatibility",
             "link": "/api/@rulvar/rulvar/functions/scanJournalCompatibility.md"
           },
@@ -6010,6 +6082,10 @@
           {
             "text": "shouldCompact",
             "link": "/api/@rulvar/rulvar/functions/shouldCompact.md"
+          },
+          {
+            "text": "snapshotUsage",
+            "link": "/api/@rulvar/rulvar/functions/snapshotUsage.md"
           },
           {
             "text": "spawnDepthOf",
@@ -6054,6 +6130,10 @@
           {
             "text": "ttlState",
             "link": "/api/@rulvar/rulvar/functions/ttlState.md"
+          },
+          {
+            "text": "usageViolations",
+            "link": "/api/@rulvar/rulvar/functions/usageViolations.md"
           },
           {
             "text": "validateEditorialCommit",

@@ -25,4 +25,5 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-usage"></a> `usage?` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-usageapprox"></a> `usageApprox?` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-usagebymodel"></a> `usageByModel?` | [`UsageSlice`](/api/@rulvar/rulvar/interfaces/UsageSlice.md)[] | Set only when the call spanned several serving models; see JournalEntry. | `packages/core/dist/index.d.ts` |
+| <a id="property-usagesemantics"></a> `usageSemantics?` | `string` | The serving adapter's usage-semantics version; see JournalEntry. | `packages/core/dist/index.d.ts` |
 | <a id="property-value"></a> `value?` | `unknown` | - | `packages/core/dist/index.d.ts` |

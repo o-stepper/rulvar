@@ -6,7 +6,7 @@
 
 # Interface: BudgetAccountView
 
-Defined in: [packages/core/src/engine/budget.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L87)
+Defined in: [packages/core/src/engine/budget.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L102)
 
 Read-only projection of one account.
 
@@ -14,9 +14,9 @@ Read-only projection of one account.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-ceilingusd"></a> `ceilingUsd?` | `number` | [packages/core/src/engine/budget.ts:89](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L89) |
-| <a id="property-committedreserveusd"></a> `committedReserveUsd` | `number` | [packages/core/src/engine/budget.ts:91](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L91) |
-| <a id="property-finalizereserveusd"></a> `finalizeReserveUsd` | `number` | [packages/core/src/engine/budget.ts:92](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L92) |
-| <a id="property-parentscope"></a> `parentScope?` | `string` | [packages/core/src/engine/budget.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L93) |
-| <a id="property-scope"></a> `scope` | `string` | [packages/core/src/engine/budget.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L88) |
-| <a id="property-spentusd"></a> `spentUsd` | `number` | [packages/core/src/engine/budget.ts:90](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L90) |
+| <a id="property-ceilingusd"></a> `ceilingUsd?` | `number` | [packages/core/src/engine/budget.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L104) |
+| <a id="property-committedreserveusd"></a> `committedReserveUsd` | `number` | [packages/core/src/engine/budget.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L106) |
+| <a id="property-finalizereserveusd"></a> `finalizeReserveUsd` | `number` | [packages/core/src/engine/budget.ts:107](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L107) |
+| <a id="property-parentscope"></a> `parentScope?` | `string` | [packages/core/src/engine/budget.ts:108](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L108) |
+| <a id="property-scope"></a> `scope` | `string` | [packages/core/src/engine/budget.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L103) |
+| <a id="property-spentusd"></a> `spentUsd` | `number` | [packages/core/src/engine/budget.ts:105](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L105) |

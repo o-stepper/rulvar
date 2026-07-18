@@ -16,7 +16,7 @@ function buildResponsesParams(
 };
 ```
 
-Defined in: [packages/openai/src/wire.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L83)
+Defined in: [packages/openai/src/wire.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L84)
 
 Builds Responses API params. Manual item replay ONLY: store: false plus
 include reasoning.encrypted_content; previous_response_id and the
@@ -44,5 +44,5 @@ are REJECTED as a typed ConfigError. Role
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `effortDownmapped` | `boolean` | [packages/openai/src/wire.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L87) |
-| `params` | `Record`\&lt;`string`, `unknown`\&gt; | [packages/openai/src/wire.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L87) |
+| `effortDownmapped` | `boolean` | [packages/openai/src/wire.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L88) |
+| `params` | `Record`\&lt;`string`, `unknown`\&gt; | [packages/openai/src/wire.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L88) |

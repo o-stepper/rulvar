@@ -14,6 +14,7 @@ Defined in: [packages/core/src/l0/spi/provider.ts:72](https://github.com/o-stepp
 | ------ | ------ | ------ | ------ |
 | <a id="property-id"></a> `id` | `string` | Stable adapter id; the left segment of ModelRef. | [packages/core/src/l0/spi/provider.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L74) |
 | <a id="property-provider"></a> `provider?` | `string` | Provider family for provider-raw matching and retention (committed during M4-T02). Two adapters of the same family share retained blocks and projections; default = id. | [packages/core/src/l0/spi/provider.ts:80](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L80) |
+| <a id="property-usagesemantics"></a> `usageSemantics?` | `string` | Declares WHICH reading of the provider's usage telemetry this adapter normalizes under; the engine stamps it on usage-bearing terminal entries so a journal records not only the numbers but the semantics they were produced under (v1.20.0 review P1/P2-2). Bump the string whenever the MEANING of a reported Usage field changes, even when no pricing rate moves; a rate change is a PriceTable pricingVersion bump instead. Entries persisted before this shipped carry no stamp, which is itself information: an unstamped OpenAI entry with cache writes may predate the v1.20.0 cache-subset correction. Optional; adapters that never changed semantics can omit it. | [packages/core/src/l0/spi/provider.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L94) |
 
 ## Methods
 
@@ -23,7 +24,7 @@ Defined in: [packages/core/src/l0/spi/provider.ts:72](https://github.com/o-stepp
 caps(model): ModelCaps;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L81)
+Defined in: [packages/core/src/l0/spi/provider.ts:95](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L95)
 
 #### Parameters
 
@@ -43,7 +44,7 @@ Defined in: [packages/core/src/l0/spi/provider.ts:81](https://github.com/o-stepp
 optional countTokens(req): Promise<number>;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:85](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L85)
+Defined in: [packages/core/src/l0/spi/provider.ts:99](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L99)
 
 #### Parameters
 
@@ -63,7 +64,7 @@ Defined in: [packages/core/src/l0/spi/provider.ts:85](https://github.com/o-stepp
 optional refreshCaps(): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L83)
+Defined in: [packages/core/src/l0/spi/provider.ts:97](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L97)
 
 Refresh the capability table from live model lists.
 
@@ -79,7 +80,7 @@ Refresh the capability table from live model lists.
 stream(req, signal?): AsyncIterable<ChatEvent>;
 ```
 
-Defined in: [packages/core/src/l0/spi/provider.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L84)
+Defined in: [packages/core/src/l0/spi/provider.ts:98](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/provider.ts#L98)
 
 #### Parameters
 

@@ -1,5 +1,5 @@
 import OpenAI, { ClientOptions } from "openai";
-import { CanonicalId, ChatEvent, ChatRequest, Effort, ModelCaps, PriceTable, ProviderAdapter, Usage, WireError } from "@rulvar/core";
+import { CanonicalId, ChatEvent, ChatRequest, Effort, JournalEntry, ModelCaps, ModelRef, PriceTable, ProviderAdapter, Usage, WireError } from "@rulvar/core";
 
 //#region src/caps.d.ts
 interface OpenAiModelInfo {
@@ -8,11 +8,13 @@ interface OpenAiModelInfo {
   /** Reasoning models reject non-default sampling parameters. */
   reasoning: boolean;
   /**
-  * The model accepts wire `reasoning.effort: "max"` (GPT-5.6 Sol per
-  * the official model docs). When false, canonical max downmaps to
-  * wire xhigh; the downmap is recorded in providerMetadata and the
-  * journal identity keeps max, so caps accept the full canonical set
-  * either way.
+  * The model accepts wire `reasoning.effort: "max"` (the whole GPT-5.6
+  * family per the official model guidance, each sibling verified live
+  * 2026-07-18). When false, canonical max downmaps to wire xhigh; the
+  * downmap is recorded in providerMetadata and the journal identity
+  * keeps max, so caps accept the full canonical set either way. Flip
+  * this to true ONLY on a per-model live verification, never from the
+  * family page alone.
   */
   wireMaxEffort: boolean;
 }
@@ -108,6 +110,41 @@ interface OpenAiCompatibleConfig {
 /** Creates a Chat Completions dialect adapter for a compatible endpoint. */
 declare function openaiCompatible(cfg: OpenAiCompatibleConfig): ProviderAdapter;
 //#endregion
+//#region src/audit.d.ts
+/**
+* The exact inverse of the v1.19.0 double count for one usage:
+* subtracts `cacheWriteTokens` back out of `inputTokens` and leaves
+* every other field untouched. A usage without cache writes is returned
+* unchanged (v1.19.0 recorded those correctly). Throws a typed
+* ConfigError when the arithmetic cannot be the v1.19.0 shape (the
+* recorded input has no room for the subtraction), which means the
+* usage was NOT recorded by the affected adapter; do not guess.
+*/
+declare function undoV1190CacheDoubleCount(usage: Usage): Usage;
+/** One journal's sidecar reconciliation; see auditV1190CacheJournal. */
+interface V1190CacheAudit {
+  /** Entries whose usage carried the affected shape and were inverted. */
+  affectedEntries: number;
+  /** The fold as recorded (what reports and budgets saw). */
+  recordedUsd: number;
+  /** The fold with every affected usage inverted to the true wire shape. */
+  correctedUsd: number;
+}
+/**
+* Folds a journal twice with the SAME price function: once as recorded
+* and once with every affected OpenAI usage passed through
+* `undoV1190CacheDoubleCount`, returning both totals and the affected
+* entry count. An entry (or per-model slice) counts as affected when it
+* was served by the `openai` adapter, carries cache writes, and has no
+* `usageSemantics` stamp; stamped entries are already correct and fold
+* identically in both totals. The journal itself is never touched.
+* `recordedUsd - correctedUsd` is the exact overcharge IF the journal
+* was recorded by v1.19.0; for a v1.20.0 journal the same shape folds
+* to a smaller `correctedUsd` that does NOT correspond to any real
+* charge, so version provenance stays the caller's responsibility.
+*/
+declare function auditV1190CacheJournal(entries: readonly JournalEntry[], priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined): V1190CacheAudit;
+//#endregion
 //#region src/wire.d.ts
 /** Bijective canonical-to-wire (call_*) id map. */
 declare class OpenAiIdMap {
@@ -121,9 +158,10 @@ declare class OpenAiIdMap {
 /**
 * Canonical-to-wire effort: low through xhigh pass through. Canonical
 * max passes through unchanged on models whose caps declare wire max
-* support (GPT-5.6 Sol); elsewhere it downmaps to xhigh (documented
-* lossy; recorded in providerMetadata). Provider 'none' is reachable
-* only via providerOptions.openai.reasoningEffort.
+* support (the whole GPT-5.6 family, each sibling verified live
+* 2026-07-18; v1.20.0 review P2-3); elsewhere it downmaps to xhigh
+* (documented lossy; recorded in providerMetadata). Provider 'none' is
+* reachable only via providerOptions.openai.reasoningEffort.
 */
 declare function mapOpenAiEffort(effort: Effort, options?: {
   wireMaxEffort?: boolean;
@@ -164,6 +202,15 @@ type ResponsesStreamEvent = Record<string, unknown> & {
 * wire genuinely EXCLUDES both cache counts from `input_tokens`, so
 * that adapter adds them; the two wires differ, the canonical Usage
 * invariant does not.
+*
+* Numeric hygiene is deliberately NOT this function's job: any `number`
+* the wire (or an injected client) reports passes through, and the core
+* enforces the full telemetry invariant at the adapter boundary for
+* every adapter uniformly, failing the call loud on non-finite,
+* negative, or fractional counts while accounting only sanitized values
+* (`usageViolations`/`sanitizeUsage` in @rulvar/core; v1.20.0 review
+* P1-1). Real wires report whole nonnegative integers; a violation here
+* means a broken transport, never plausible provider data.
 */
 declare function normalizeOpenAiUsage(raw: Record<string, unknown> | undefined): Usage;
 /**
@@ -195,4 +242,4 @@ declare function buildChatCompletionsParams(req: ChatRequest, ids: OpenAiIdMap):
 */
 declare function mapChatCompletionsStream(stream: AsyncIterable<Record<string, unknown>>, ids: OpenAiIdMap): AsyncGenerator<ChatEvent, void>;
 //#endregion
-export { CONSERVATIVE_COMPATIBLE_CAPS, OPENAI_MODELS, OPENAI_PRICING, type OpenAiAdapterOptions, type OpenAiClientLike, type OpenAiCompatibleConfig, OpenAiIdMap, type OpenAiModelInfo, type OpenAiSdkOptions, type ResponsesStreamEvent, buildChatCompletionsParams, buildResponsesParams, mapChatCompletionsStream, mapOpenAiEffort, mapResponsesStream, normalizeOpenAiUsage, openAiErrorToWire, openAiModelInfo, openai, openaiCompatible };
+export { CONSERVATIVE_COMPATIBLE_CAPS, OPENAI_MODELS, OPENAI_PRICING, type OpenAiAdapterOptions, type OpenAiClientLike, type OpenAiCompatibleConfig, OpenAiIdMap, type OpenAiModelInfo, type OpenAiSdkOptions, type ResponsesStreamEvent, type V1190CacheAudit, auditV1190CacheJournal, buildChatCompletionsParams, buildResponsesParams, mapChatCompletionsStream, mapOpenAiEffort, mapResponsesStream, normalizeOpenAiUsage, openAiErrorToWire, openAiModelInfo, openai, openaiCompatible, undoV1190CacheDoubleCount };
