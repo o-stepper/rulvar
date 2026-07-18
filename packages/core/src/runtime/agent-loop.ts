@@ -626,7 +626,7 @@ function applyOutputBudget(
  * M4, and this is its finalize twin. The wording is part of the wire
  * request: keep it stable.
  */
-export const FINALIZE_SYNTHESIS_INSTRUCTION =
+export const FINALIZE_SYNTHESIS_INSTRUCTION: string =
   'Write the final answer to the original request, synthesized only from the conversation ' +
   'and tool results above. Do not start a new conversation and do not add greetings; ' +
   'respond with the final answer only.';

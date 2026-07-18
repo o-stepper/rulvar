@@ -43,7 +43,7 @@ import { OrchestratorCapConfigError } from '../l0/errors.js';
 import { deriverV2 } from '../journal/keyderiver.js';
 import type { AgentOpts, AgentProfile, Workflow } from '../engine/ctx.js';
 import { defineWorkflow } from '../engine/ctx.js';
-import type { Engine } from '../engine/engine.js';
+import type { Engine, RunOptions } from '../engine/engine.js';
 import type { RunHandle } from '../engine/run-handle.js';
 import type { AdmissionDecision } from './admission.js';
 import {
@@ -1694,11 +1694,22 @@ export function makeOrchestratorWorkflow(
   });
 }
 
-/** Top-level surface: creates a run. */
+/**
+ * Top-level surface: creates a run. `runOptions` are the ordinary
+ * engine {@link RunOptions} of the created run; in particular
+ * `runOptions.budgetUsd` is the ROOT hard ceiling over the WHOLE tree
+ * (the orchestrator and every child), immutable after start, while
+ * `opts.budget` only shapes the orchestrator's own sub-account inside
+ * that ceiling. The shortcut previously accepted no RunOptions at all,
+ * so the canonical entry point could not set a root ceiling without
+ * dropping to `engine.run(makeOrchestratorWorkflow(...))` (v1.18.0
+ * review P1-5).
+ */
 export function orchestrate(
   engine: Engine,
   goal: string,
   opts?: OrchestrateOptions,
+  runOptions?: RunOptions,
 ): RunHandle<unknown> {
-  return engine.run(makeOrchestratorWorkflow(goal, opts), undefined);
+  return engine.run(makeOrchestratorWorkflow(goal, opts), undefined, runOptions);
 }

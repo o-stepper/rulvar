@@ -218,3 +218,34 @@ describe('park-unpark integration (round-2 cassette shape)', () => {
     expect(JSON.stringify(finalWorker.at(-1)?.value)).toContain('continued fine');
   });
 });
+
+describe('orchestratePlanned carries RunOptions (v1.18.0 review P1-5)', () => {
+  it('freezes the root budgetUsd in RunMeta and threads the runId', async () => {
+    const adapter = scriptedAdapter(
+      (): ScriptedTurn => ({ toolCall: { name: 'finish', args: { result: 'done' } } }),
+    );
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: {
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: { worker: { description: 'worker' } },
+      },
+    });
+    // opts.budget shapes the orchestrator's sub-account; runOptions is
+    // the ROOT hard ceiling over the whole tree (large enough here that
+    // the capFraction clamp does not shrink the sub-account).
+    const handle = orchestratePlanned(
+      engine,
+      'root ceiling',
+      { budget: { capUsd: 2 } },
+      { budgetUsd: 10, runId: 'planned-root' },
+    );
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    expect(handle.runId).toBe('planned-root');
+    const meta = (await store.listRuns()).find((m) => m.runId === 'planned-root');
+    expect(meta?.budgetUsd).toBe(10);
+  });
+});

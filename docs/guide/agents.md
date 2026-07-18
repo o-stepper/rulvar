@@ -283,12 +283,16 @@ The dynamic orchestrator is itself an ordinary agent, running under role `orches
 ```ts
 import { orchestrate } from '@rulvar/core';
 
-const handle = orchestrate(engine, 'Audit the billing module and summarize the risks', {
-  profiles: ['reviewer', 'researcher'],
-  maxSpawns: 24,
-});
+const handle = orchestrate(
+  engine,
+  'Audit the billing module and summarize the risks',
+  { profiles: ['reviewer', 'researcher'], maxSpawns: 24 },
+  { budgetUsd: 10 },
+);
 const outcome = await handle.result;
 ```
+
+The optional fourth argument is the run's ordinary `RunOptions`: `budgetUsd` there is the root hard ceiling over the whole tree (see [budgets](/guide/budgets)); without it the run starts uncapped.
 
 Its typed spawn tools are the whole cross-agent surface of mode (c):
 
