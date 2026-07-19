@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.24.0
+
+#### Patch Changes
+
+- Updated dependencies [2b033e8]
+  - @rulvar/core@1.24.0
+
 ### 1.23.0
 
 #### Patch Changes
@@ -502,6 +509,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.24.0
+
+#### Patch Changes
+
+- Updated dependencies [2b033e8]
+  - @rulvar/core@1.24.0
+
 ### 1.23.0
 
 #### Patch Changes
@@ -871,6 +885,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.24.0
+
+#### Minor Changes
+
+- 2b033e8: Make `rulvar resume` safe against forgotten or changed args and add a `--dry-run` preview (the v1.23.0 review: a resume without `--args` silently changed the logical run and paid again). The resume grammar gains `--dry-run` and `--allow-args-change`. Before the engine starts, the CLI verifies the supplied args against the genesis binding recorded in `RunMeta`: forgetting `--args` on a run started with them, adding them to a run started without them, or supplying a different value is a typed refusal naming `--allow-args-change` as the deliberate override; runs recorded before v1.24.0 carry no binding and demand explicit `--args` or the override. `--dry-run` passes the engine's replay-strict mode through and prints the resume preview (hits, misses, reruns, skipped, orphaned effect roots, invalid resolutions) plus what the run would settle as, with zero journal or meta writes and zero adapter calls; a preview that reaches work needing a live call reports the stopping point and exits 0. `rulvar inspect` now prints the args binding.
+
+#### Patch Changes
+
+- Updated dependencies [2b033e8]
+  - @rulvar/core@1.24.0
 
 ### 1.23.0
 
@@ -1406,6 +1431,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.24.0
+
+#### Minor Changes
+
+- 2b033e8: Record the genesis args binding in RunMeta and make the dry-run preview mutation-free (the v1.23.0 review). `RunMeta` gains `argsProvided` (whether the run started with defined args) and `argsHash` (sha256 over the JCS canonical serialization of the genesis args, never the raw value), written by the engine at genesis and preserved verbatim by every resume segment, so hosts can refuse a resume whose re-supplied args silently diverge from the original invocation; the new public `hashRunArgs()` derives the same hash host-side. Legacy metas never gain the marker retroactively, and unserializable args record presence without a hash. A `dryRun` resume now performs ZERO store mutations by invariant: `putMeta` is skipped entirely (no status flip, no `segments` bump), the compiled-source blob is not re-put, and the Replayer's single append site refuses any journal append under replay-strict with a typed `JournalMissError`. The store conformance kit checks the round-trip of both new fields.
 
 ### 1.23.0
 
@@ -2455,6 +2486,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.24.0
+
 ### 1.23.0
 
 ### 1.22.0
@@ -2569,6 +2602,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.24.0
+
+#### Patch Changes
+
+- Updated dependencies [2b033e8]
+- Updated dependencies [2b033e8]
+  - @rulvar/core@1.24.0
+  - @rulvar/testing@1.24.0
 
 ### 1.23.0
 
@@ -3036,6 +3078,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.24.0
+
+#### Patch Changes
+
+- Updated dependencies [2b033e8]
+  - @rulvar/core@1.24.0
 
 ### 1.23.0
 
@@ -3542,6 +3591,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.24.0
+
+#### Patch Changes
+
+- Updated dependencies [2b033e8]
+  - @rulvar/core@1.24.0
+
 ### 1.23.0
 
 #### Minor Changes
@@ -4025,6 +4081,20 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.24.0
+
+#### Minor Changes
+
+- 2b033e8: Fix the API card's semantic contract for `tools`, `model`, and `routing` (the v1.23.0 review P2-1 and P2-2). The card now teaches that string entries of `tools` are registered TOOLSET names (exactly the set the profile card prints), never agent profile names, matching the runtime resolver that rejects unknown names with a typed ConfigError before any provider call. The `model` and `routing` bullets now say to normally omit both: the host's profiles and routing decide models, the profile card never names any (model secrecy is a design invariant), and the escape hatch is explicitly conditioned on the goal text itself supplying allowed refs; the false phrase "a model ref from the profile card" is gone. A ConfigError now also stays typed (`code: 'config'`) across the sandbox worker boundary instead of degrading to a generic error, so a compiled script that misuses a profile name in `tools` settles with the typed pre-call outcome and zero provider calls.
+
+  The card text is an identity input of plan operations, so the frozen planner cassettes are re-recorded under the hashVersion-bump token ceremony (the derivation itself is unchanged; CURRENT_HASH_VERSION stays 2).
+
+#### Patch Changes
+
+- Updated dependencies [2b033e8]
+  - @rulvar/core@1.24.0
+  - eslint-plugin-rulvar@1.24.0
+
 ### 1.23.0
 
 #### Minor Changes
@@ -4443,6 +4513,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.24.0
+
+#### Patch Changes
+
+- Updated dependencies [2b033e8]
+  - @rulvar/core@1.24.0
+  - @rulvar/anthropic@1.24.0
+  - @rulvar/openai@1.24.0
 
 ### 1.23.0
 
@@ -5002,6 +5081,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.24.0
+
+#### Minor Changes
+
+- 2b033e8: Record the genesis args binding in RunMeta and make the dry-run preview mutation-free (the v1.23.0 review). `RunMeta` gains `argsProvided` (whether the run started with defined args) and `argsHash` (sha256 over the JCS canonical serialization of the genesis args, never the raw value), written by the engine at genesis and preserved verbatim by every resume segment, so hosts can refuse a resume whose re-supplied args silently diverge from the original invocation; the new public `hashRunArgs()` derives the same hash host-side. Legacy metas never gain the marker retroactively, and unserializable args record presence without a hash. A `dryRun` resume now performs ZERO store mutations by invariant: `putMeta` is skipped entirely (no status flip, no `segments` bump), the compiled-source blob is not re-put, and the Replayer's single append site refuses any journal append under replay-strict with a typed `JournalMissError`. The store conformance kit checks the round-trip of both new fields.
+
+#### Patch Changes
+
+- Updated dependencies [2b033e8]
+  - @rulvar/core@1.24.0
+
 ### 1.23.0
 
 #### Minor Changes
@@ -5439,6 +5529,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.24.0
+
+#### Patch Changes
+
+- Updated dependencies [2b033e8]
+  - @rulvar/core@1.24.0
+
 ### 1.23.0
 
 #### Patch Changes
@@ -5819,6 +5916,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.24.0
+
+#### Minor Changes
+
+- 2b033e8: Remove the repository-only cassette recording plumbing from the public root barrel (the v1.23.0 review): `buildFrozenV1JournalRaw`, `buildM2CassetteFixtures`, `buildV2GoldenIdentity`, `recordLiveCassettes`, and the M6 recording constants/helpers no longer appear in `dist/index.js` or `dist/index.d.ts`. They were `@internal` and absent from the API reference, yet importable and visible to every consumer's autocomplete, which read as public semver surface. They now live on an internal dist entry that the exports map never exposes; the monorepo's recorder scripts import it by file path. Per the documented versioning policy, `@internal` exports are outside the contract, so this rides a minor release. The supported tiers (FakeAdapter, createTestEngine, VCR, replay-strict, live smoke, matchers) are unchanged.
+
+#### Patch Changes
+
+- Updated dependencies [2b033e8]
+  - @rulvar/core@1.24.0
 
 ### 1.23.0
 

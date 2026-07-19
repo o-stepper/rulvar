@@ -1,5 +1,16 @@
 # @rulvar/cli
 
+## 1.24.0
+
+### Minor Changes
+
+- 2b033e8: Make `rulvar resume` safe against forgotten or changed args and add a `--dry-run` preview (the v1.23.0 review: a resume without `--args` silently changed the logical run and paid again). The resume grammar gains `--dry-run` and `--allow-args-change`. Before the engine starts, the CLI verifies the supplied args against the genesis binding recorded in `RunMeta`: forgetting `--args` on a run started with them, adding them to a run started without them, or supplying a different value is a typed refusal naming `--allow-args-change` as the deliberate override; runs recorded before v1.24.0 carry no binding and demand explicit `--args` or the override. `--dry-run` passes the engine's replay-strict mode through and prints the resume preview (hits, misses, reruns, skipped, orphaned effect roots, invalid resolutions) plus what the run would settle as, with zero journal or meta writes and zero adapter calls; a preview that reaches work needing a live call reports the stopping point and exits 0. `rulvar inspect` now prints the args binding.
+
+### Patch Changes
+
+- Updated dependencies [2b033e8]
+  - @rulvar/core@1.24.0
+
 ## 1.23.0
 
 ### Patch Changes
