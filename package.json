@@ -21,6 +21,7 @@
     "pack-check": "turbo pack-check",
     "docs:lint": "node scripts/docs-lint.mjs",
     "docs:fence-syntax": "node scripts/docs-fence-syntax.mjs",
+    "docs:metadata": "node scripts/docs-metadata.mjs",
     "docs:dev": "pnpm --filter @rulvar/docs dev",
     "docs:build": "pnpm --filter @rulvar/docs build:site",
     "check:fixed-group": "node scripts/check-fixed-group.mjs",
