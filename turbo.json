@@ -1,7 +1,7 @@
 {
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
-    "typecheck": { "dependsOn": ["^build"] },
+    "typecheck": { "dependsOn": ["^build", "build"] },
     "lint": { "dependsOn": ["^build"] },
     "pack-check": { "dependsOn": ["build"] }
   }

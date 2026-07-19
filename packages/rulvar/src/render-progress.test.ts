@@ -84,3 +84,60 @@ describe('renderProgress terminal safety', () => {
     expect(lines.at(-1)).toBe('run finished: ok (total 0.5000 USD)');
   });
 });
+
+describe('malformed external events (v1.22.0 review P2-3)', () => {
+  it('bare and wrong-typed events degrade their line, later events still render', async () => {
+    const lines: string[] = [];
+    const hostile = {
+      toString(): string {
+        throw new Error('never coerce me');
+      },
+    };
+    const events = [
+      { runId: 'R1', seq: 0, ts: 't', spanId: 's0', type: 'run:start' },
+      {
+        runId: 'R1',
+        seq: 1,
+        ts: 't',
+        spanId: 's1',
+        type: 'agent:end',
+        status: 7,
+        costUsd: 'free',
+        usage: 'no',
+      },
+      {
+        runId: 'R1',
+        seq: 2,
+        ts: 't',
+        spanId: 's1',
+        type: 'agent:error',
+        error: 'flat',
+        willRetry: 1,
+      },
+      { runId: 'R1', seq: 3, ts: 't', spanId: 's0', type: 'budget:update', spentUsd: hostile },
+      { runId: 'R1', seq: 4, ts: 't', spanId: 's0', type: 'log', level: 'error', msg: hostile },
+      {
+        runId: 'R1',
+        seq: 5,
+        ts: 't',
+        spanId: 's2',
+        type: 'agent:start',
+        agentType: 'VISIBLE',
+        model: 'm',
+        role: 'loop',
+      },
+      { runId: 'R1', seq: 6, ts: 't', spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0 },
+    ] as unknown as WorkflowEvent[];
+    await renderProgress(
+      (async function* stream(): AsyncGenerator<WorkflowEvent> {
+        for (const event of events) {
+          yield event;
+          await Promise.resolve();
+        }
+      })(),
+      { write: (line) => lines.push(line) },
+    );
+    expect(lines.join('\n')).toContain('VISIBLE');
+    expect(lines.join('\n')).toContain('run finished: ok');
+  });
+});

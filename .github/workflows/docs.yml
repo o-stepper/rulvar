@@ -57,6 +57,11 @@ jobs:
       # committed baseline, refreeze deliberately via --update.
       - name: Search index size budget
         run: node scripts/docs-search-budget.mjs
+      # The path-keyed API sidebar split cut the build an order of
+      # magnitude (v1.22.0 review P3-6); this budget keeps total raw,
+      # total gzip, p95 page, and max page from silently regressing.
+      - name: Docs output size budget
+        run: node scripts/docs-size-budget.mjs
       # Every authored ts/js fence must parse as a standalone module
       # (v1.16.2 review P4-1): a copy/paste example is never a
       # syntactically incomplete fragment. Needs the installed

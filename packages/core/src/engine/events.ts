@@ -11,12 +11,35 @@ import { maskSecretsDeep } from '../l0/serialization.js';
 import type { WorkflowEvent, WorkflowEventBody } from '../l0/events.js';
 
 /**
+ * The distance between the telemetry counter bases of two consecutive
+ * execution segments of one run: segment k of a run starts its event
+ * `seq` and span counter at `k * EVENT_SEGMENT_STRIDE`. A single
+ * segment would need over four billion events to reach the next base,
+ * so `seq` stays strictly increasing and `spanId` unique across
+ * suspend/resume and process recreation while remaining an ordinary
+ * safe-integer number (v1.22.0 review P1-2). Informational for
+ * consumers: treat `seq` as ordered and `spanId` as opaque, never
+ * parse segment structure out of either.
+ */
+export const EVENT_SEGMENT_STRIDE: number = 2 ** 32;
+
+/**
  * Spans form a tree per run; spanId values are engine-minted opaque
  * strings, unique per run, pure telemetry, never identity.
  */
 export class SpanRegistry {
   private readonly parents = new Map<string, string>();
-  private counter = 0;
+  private counter: number;
+
+  constructor(options?: {
+    /**
+     * First counter value (default 0): the resumed-segment base that
+     * keeps span ids unique per run across segments.
+     */
+    first?: number;
+  }) {
+    this.counter = options?.first ?? 0;
+  }
 
   mint(parentSpanId?: string): string {
     const spanId = `s${this.counter++}`;
@@ -48,7 +71,7 @@ export class EventBus {
   private readonly maskEvents: boolean;
   private readonly subscribers = new Set<Subscriber>();
   private readonly listeners = new Set<(event: WorkflowEvent) => void>();
-  private seq = 0;
+  private seq: number;
   private ended = false;
   private listenerErrorReported = false;
 
@@ -62,6 +85,12 @@ export class EventBus {
      * identity by construction, so masking cannot perturb replay.
      */
     maskEvents?: boolean;
+    /**
+     * First seq value (default 0): the resumed-segment base that keeps
+     * seq strictly increasing per run across segments (v1.22.0 review
+     * P1-2).
+     */
+    firstSeq?: number;
   }) {
     this.runId = options.runId;
     this.spans = options.spans;
@@ -70,6 +99,7 @@ export class EventBus {
     // and false-warn from its own frames (v1.18.0 review P2-6).
     this.now = options.now ?? realNow;
     this.maskEvents = options.maskEvents ?? true;
+    this.seq = options.firstSeq ?? 0;
   }
 
   emit(body: WorkflowEventBody, spanId: string, replayed?: boolean): WorkflowEvent {
@@ -86,18 +116,28 @@ export class EventBus {
     };
     // Telemetry never affects the run: a throwing on() subscriber (a
     // renderer, a metrics hook) is isolated so it cannot propagate out
-    // of emit and disrupt a paid run (v1.21.0 review follow-up). Its
-    // failure surfaces as a warn log on the SAME bus instead, once, so
-    // it is visible without a crash.
+    // of emit and disrupt a paid run (v1.21.0 review follow-up). The
+    // failure is only COLLECTED here; the warn is emitted strictly
+    // after this event has reached every listener and subscriber, so no
+    // observer ever sees the warn reordered ahead of the event that
+    // caused it (v1.22.0 review P2-1).
+    let listenerFailure: unknown;
+    let sawListenerFailure = false;
     for (const listener of this.listeners) {
       try {
         listener(event);
       } catch (thrown) {
-        this.reportListenerError(thrown, spanId);
+        if (!sawListenerFailure) {
+          sawListenerFailure = true;
+          listenerFailure = thrown;
+        }
       }
     }
     for (const subscriber of this.subscribers) {
       subscriber.push(event);
+    }
+    if (sawListenerFailure) {
+      this.reportListenerError(listenerFailure, spanId);
     }
     return event;
   }
@@ -105,38 +145,30 @@ export class EventBus {
   /**
    * A throwing on() listener is isolated (its work is best-effort
    * telemetry), and the failure surfaces ONCE as a warn log on this bus
-   * rather than propagating into the run. The guard is set before the
-   * warn is delivered, so a listener that also throws on the warn cannot
-   * re-arm the report or recurse.
+   * rather than propagating into the run. The warn goes through emit()
+   * itself, AFTER the triggering event's fan-out completed: it is
+   * masked exactly like every other event (a secret-shaped fragment of
+   * the listener's error message never reaches observers raw), its seq
+   * is stamped at delivery, and every surface sees [event, warn] in
+   * that order. The guard is set before the recursive emit, so a
+   * listener that also throws on the warn cannot re-arm the report or
+   * recurse (v1.22.0 review P2-1).
    */
   private reportListenerError(thrown: unknown, spanId: string): void {
     if (this.listenerErrorReported) {
       return;
     }
     this.listenerErrorReported = true;
-    const parentSpanId = this.spans.parentOf(spanId);
-    const warn: WorkflowEvent = {
-      runId: this.runId,
-      seq: this.seq++,
-      ts: new Date(this.now()).toISOString(),
+    this.emit(
+      {
+        type: 'log',
+        level: 'warn',
+        msg:
+          'an event listener threw and was isolated so the run is unaffected: ' +
+          (thrown instanceof Error ? thrown.message : String(thrown)),
+      },
       spanId,
-      ...(parentSpanId === undefined ? {} : { parentSpanId }),
-      type: 'log',
-      level: 'warn',
-      msg:
-        'an event listener threw and was isolated so the run is unaffected: ' +
-        (thrown instanceof Error ? thrown.message : String(thrown)),
-    };
-    for (const listener of this.listeners) {
-      try {
-        listener(warn);
-      } catch {
-        // Already reported; never recurse.
-      }
-    }
-    for (const subscriber of this.subscribers) {
-      subscriber.push(warn);
-    }
+    );
   }
 
   on<T extends WorkflowEvent['type']>(

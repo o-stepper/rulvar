@@ -1861,6 +1861,10 @@
             "link": "/api/@rulvar/core/variables/ESCALATION_REQUEST_SCHEMA.md"
           },
           {
+            "text": "EVENT_SEGMENT_STRIDE",
+            "link": "/api/@rulvar/core/variables/EVENT_SEGMENT_STRIDE.md"
+          },
+          {
             "text": "FINALIZE_SYNTHESIS_INSTRUCTION",
             "link": "/api/@rulvar/core/variables/FINALIZE_SYNTHESIS_INSTRUCTION.md"
           },
@@ -1931,6 +1935,10 @@
           {
             "text": "RUN_PROFILES",
             "link": "/api/@rulvar/core/variables/RUN_PROFILES.md"
+          },
+          {
+            "text": "SANDBOX_AGENT_OPT_KEYS",
+            "link": "/api/@rulvar/core/variables/SANDBOX_AGENT_OPT_KEYS.md"
           },
           {
             "text": "SPAWN_AGENT_SCHEMA",
@@ -2801,6 +2809,10 @@
         "text": "Functions",
         "collapsed": true,
         "items": [
+          {
+            "text": "agentTypeRuleHolds",
+            "link": "/api/@rulvar/evals/functions/agentTypeRuleHolds.md"
+          },
           {
             "text": "canaryFingerprint",
             "link": "/api/@rulvar/evals/functions/canaryFingerprint.md"
@@ -5422,6 +5434,10 @@
             "link": "/api/@rulvar/rulvar/variables/ESCALATION_REQUEST_SCHEMA.md"
           },
           {
+            "text": "EVENT_SEGMENT_STRIDE",
+            "link": "/api/@rulvar/rulvar/variables/EVENT_SEGMENT_STRIDE.md"
+          },
+          {
             "text": "FINALIZE_SYNTHESIS_INSTRUCTION",
             "link": "/api/@rulvar/rulvar/variables/FINALIZE_SYNTHESIS_INSTRUCTION.md"
           },
@@ -5500,6 +5516,10 @@
           {
             "text": "RUN_PROFILES",
             "link": "/api/@rulvar/rulvar/variables/RUN_PROFILES.md"
+          },
+          {
+            "text": "SANDBOX_AGENT_OPT_KEYS",
+            "link": "/api/@rulvar/rulvar/variables/SANDBOX_AGENT_OPT_KEYS.md"
           },
           {
             "text": "SPAWN_AGENT_SCHEMA",

@@ -10,7 +10,7 @@
 function progress(source, options?): ProgressHandle;
 ```
 
-Defined in: [packages/rulvar/src/live-progress.ts:727](https://github.com/o-stepper/rulvar/blob/main/packages/rulvar/src/live-progress.ts#L727)
+Defined in: [packages/rulvar/src/live-progress.ts:774](https://github.com/o-stepper/rulvar/blob/main/packages/rulvar/src/live-progress.ts#L774)
 
 Attaches a live progress view to a run and returns its handle. Accepts
 a RunHandle (subscribes through `on()`, leaving `handle.events` free

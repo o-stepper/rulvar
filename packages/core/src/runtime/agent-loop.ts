@@ -823,7 +823,7 @@ export async function runAgent<S extends SchemaSpec>(
     { role: InvocationRole; servedBy: ModelRef; usage: Usage }
   >();
   const addPhaseUsage = (role: InvocationRole, ref: ModelRef, usage: Usage): void => {
-    const key = `${role} ${ref}`;
+    const key = `${role}\u0000${ref}`;
     const prior = usageByPhaseModel.get(key);
     usageByPhaseModel.set(key, {
       role,

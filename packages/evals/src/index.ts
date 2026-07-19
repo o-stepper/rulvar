@@ -47,6 +47,7 @@ export {
 } from './canary.js';
 export { SpendEnvelope, SweepBudgetError } from './envelope.js';
 export {
+  agentTypeRuleHolds,
   renderCheckpointReport,
   rungRuleHolds,
   runValueCheckpoint,

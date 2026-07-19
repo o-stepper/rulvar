@@ -13,6 +13,7 @@ type RunMeta = {
   hashVersionLow?: number;
   name?: string;
   runId: string;
+  segments?: number;
   status: string;
   tags?: string[];
   updatedAt: string;
@@ -83,6 +84,26 @@ runId: string;
 ```
 
 Defined in: [packages/core/src/l0/spi/store.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L26)
+
+***
+
+### segments?
+
+```ts
+optional segments?: number;
+```
+
+Defined in: [packages/core/src/l0/spi/store.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L58)
+
+Count of execution segments this run has STARTED (a fresh start
+writes 1; every resume writes prior + 1, durably, BEFORE the
+segment emits its first event). The engine derives each segment's
+WorkflowEvent seq and span-id base from it, which is what keeps
+`seq` strictly increasing and `spanId` unique per run across
+suspend/resume and process recreation, even after a crash-killed
+segment (v1.22.0 review P1-2). Stores must round-trip the field
+(the conformance kit checks); a store that drops it degrades a
+resumed run's telemetry counters to per-segment, never the journal.
 
 ***
 

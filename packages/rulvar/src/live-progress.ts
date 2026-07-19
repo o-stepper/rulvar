@@ -25,7 +25,7 @@
  * parent span attaches at the root, and a mid-run attach synthesizes a
  * root instead of failing.
  */
-import { sanitizeTerminalText } from '@rulvar/core';
+import { maskSecrets, sanitizeTerminalText } from '@rulvar/core';
 import type { CostReport, RunHandle, WorkflowEvent } from '@rulvar/core';
 
 /** Raw output sink; chunks may contain ANSI and partial lines. */
@@ -88,9 +88,11 @@ export type ProgressSource =
 
 /**
  * Positive-integer option normalization (v1.21.0 review P3-2): a
- * non-finite or below-minimum caller value falls back rather than
- * poisoning the geometry (a NaN width breaks the clip, a NaN fps yields
- * a NaN interval). Fractions floor.
+ * non-finite caller value falls back to the default and a below-minimum
+ * value CLAMPS to the minimum (wording fixed in the v1.22.0 review
+ * P4-2; the behavior always clamped), so no caller value can poison the
+ * geometry (a NaN width breaks the clip, a NaN fps yields a NaN
+ * interval). Fractions floor.
  */
 function posIntOption(value: number | undefined, fallback: number, min: number): number {
   if (value === undefined || !Number.isFinite(value)) {
@@ -251,10 +253,48 @@ function nodeOf(state: State, event: WorkflowEvent, kind: Node['kind'], title: s
  */
 const scrub = sanitizeTerminalText;
 
+/**
+ * Defensive readers for recognized event types arriving from a RAW
+ * iterable: the engine's own bus always satisfies the types, but the
+ * documented raw-iterable source can hand the reducer any shape, and a
+ * missing or mistyped field must degrade the one row, never stop the
+ * view or reach a template literal as an object whose coercion could
+ * throw (v1.22.0 review P2-3).
+ */
+function str(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function num(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function numOpt(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+/**
+ * One safe form for every error a catch path surfaces: the message is
+ * secret-masked FIRST (the thrown value never went through the event
+ * masking boundary) and terminal-sanitized second, so a rejected
+ * source can neither leak a key-shaped fragment nor inject control
+ * sequences or forged lines into the sink (v1.22.0 review P2-2).
+ */
+function errorNotice(thrown: unknown): string {
+  let message: string;
+  try {
+    message = thrown instanceof Error ? thrown.message : String(thrown);
+  } catch {
+    message = 'unprintable thrown value';
+  }
+  return scrub(maskSecrets(`error: ${message}`));
+}
+
 function agentTitle(event: { agentType?: string; label?: string }): string {
-  const base =
-    event.agentType === undefined || event.agentType === '' ? 'agent' : scrub(event.agentType);
-  return event.label === undefined || event.label === '' ? base : `${base} (${scrub(event.label)})`;
+  const agentType = str(event.agentType);
+  const label = str(event.label);
+  const base = agentType === '' ? 'agent' : scrub(agentType);
+  return label === '' ? base : `${base} (${scrub(label)})`;
 }
 
 /** The tool event's span is the agent's own span or a child of it. */
@@ -272,12 +312,12 @@ function applyEvent(state: State, event: WorkflowEvent, now: number): void {
       state.runId = event.runId;
       state.resumed = event.resumed === true;
       state.startedAt ??= now;
-      state.title ??= scrub(event.workflow);
+      state.title ??= scrub(str(event.workflow));
       break;
     }
     case 'run:end': {
-      state.status = event.status;
-      state.totalUsd = event.totalUsd;
+      state.status = str(event.status) || 'interrupted';
+      state.totalUsd = numOpt(event.totalUsd);
       state.endedAt = now;
       for (const node of state.nodes.values()) {
         if (node.endedAt === undefined && node.kind !== 'phase') {
@@ -294,20 +334,22 @@ function applyEvent(state: State, event: WorkflowEvent, now: number): void {
       break;
     }
     case 'phase:start': {
-      const node = nodeOf(state, event, 'phase', scrub(event.phase));
+      const node = nodeOf(state, event, 'phase', scrub(str(event.phase)));
       node.startedAt = now;
       node.status = 'ok';
       break;
     }
     case 'budget:update': {
-      state.spentUsd = event.spentUsd;
+      state.spentUsd = num(event.spentUsd);
       state.ceilingUsd =
-        event.remainingUsd === null ? undefined : event.spentUsd + event.remainingUsd;
+        typeof event.remainingUsd === 'number' && Number.isFinite(event.remainingUsd)
+          ? num(event.spentUsd) + event.remainingUsd
+          : undefined;
       break;
     }
     case 'log': {
       if (event.level === 'warn' || event.level === 'error') {
-        state.notices.push(scrub(`${event.level}: ${event.msg}`));
+        state.notices.push(scrub(`${str(event.level)}: ${str(event.msg)}`));
         if (state.notices.length > 2) {
           state.notices.shift();
         }
@@ -315,22 +357,27 @@ function applyEvent(state: State, event: WorkflowEvent, now: number): void {
       break;
     }
     case 'external:waiting': {
-      state.banner = scrub(`waiting on external: ${event.key}`);
+      state.banner = scrub(`waiting on external: ${str(event.key)}`);
       break;
     }
     case 'approval:pending': {
-      state.banner = scrub(`approval pending: ${event.toolName}`);
+      state.banner = scrub(`approval pending: ${str(event.toolName)}`);
       break;
     }
     case 'child:start': {
-      const node = nodeOf(state, event, 'child', scrub(`${event.workflow} (${event.scope})`));
+      const node = nodeOf(
+        state,
+        event,
+        'child',
+        scrub(`${str(event.workflow)} (${str(event.scope)})`),
+      );
       node.startedAt = now;
       break;
     }
     case 'child:end': {
       const node = state.nodes.get(event.spanId);
       if (node !== undefined) {
-        node.status = event.status;
+        node.status = str(event.status) || 'interrupted';
         node.endedAt = now;
       }
       break;
@@ -348,7 +395,7 @@ function applyEvent(state: State, event: WorkflowEvent, now: number): void {
         node.startedAt = now;
       }
       node.status = 'running';
-      node.model = scrub(event.model);
+      node.model = scrub(str(event.model));
       if (event.replayed === true) {
         node.replayed = true;
       }
@@ -358,37 +405,37 @@ function applyEvent(state: State, event: WorkflowEvent, now: number): void {
         // (summarize, finalize, extract): the prior role freezes.
         open.endedAt = now;
       }
-      node.roles.push({ role: event.role, startedAt: now });
+      node.roles.push({ role: str(event.role), startedAt: now });
       break;
     }
     case 'agent:stream': {
       const node = state.nodes.get(event.spanId);
       if (node !== undefined) {
-        node.streamedChars += event.delta.length;
+        node.streamedChars += str(event.delta).length;
       }
       break;
     }
     case 'agent:error': {
       const node = state.nodes.get(event.spanId);
       if (node !== undefined) {
-        node.badge = event.willRetry ? 'retry' : scrub(`error: ${event.error?.message ?? ''}`);
+        node.badge = event.willRetry ? 'retry' : scrub(`error: ${str(event.error?.message)}`);
       }
       break;
     }
     case 'agent:schema-retry': {
       const node = state.nodes.get(event.spanId);
       if (node !== undefined) {
-        node.badge = `schema ${String(event.attempt)}/${String(event.maxAttempts)}`;
+        node.badge = `schema ${String(num(event.attempt))}/${String(num(event.maxAttempts))}`;
       }
       break;
     }
     case 'agent:end': {
       state.banner = undefined;
       const node = nodeOf(state, event, 'agent', agentTitle(event));
-      node.status = event.status;
+      node.status = str(event.status) || 'interrupted';
       node.endedAt = now;
-      node.usage = { input: event.usage?.inputTokens ?? 0, output: event.usage?.outputTokens ?? 0 };
-      node.costUsd = event.costUsd;
+      node.usage = { input: num(event.usage?.inputTokens), output: num(event.usage?.outputTokens) };
+      node.costUsd = numOpt(event.costUsd);
       if (event.replayed === true) {
         node.replayed = true;
       }
@@ -404,7 +451,7 @@ function applyEvent(state: State, event: WorkflowEvent, now: number): void {
     case 'tool:start': {
       const node = toolTarget(state, event);
       if (node !== undefined) {
-        node.toolActive = scrub(event.toolName);
+        node.toolActive = scrub(str(event.toolName));
       }
       break;
     }
@@ -414,7 +461,7 @@ function applyEvent(state: State, event: WorkflowEvent, now: number): void {
         node.toolActive = undefined;
         node.toolCount += 1;
         if (event.outcome === 'denied') {
-          node.badge = scrub(`tool ${event.toolName} denied`);
+          node.badge = scrub(`tool ${str(event.toolName)} denied`);
         }
       }
       break;
@@ -429,7 +476,7 @@ function applyEvent(state: State, event: WorkflowEvent, now: number): void {
     }
     case 'spawn:rejected': {
       state.rejected += 1;
-      state.notices.push(`spawn rejected: ${event.code}`);
+      state.notices.push(scrub(`spawn rejected: ${str(event.code)}`));
       if (state.notices.length > 2) {
         state.notices.shift();
       }
@@ -459,7 +506,7 @@ interface Style {
 }
 
 function paint(text: string, code: string, style: Style): string {
-  return style.color ? `[${code}m${text}[0m` : text;
+  return style.color ? `\u001B[${code}m${text}\u001B[0m` : text;
 }
 
 function nodeRow(node: Node, now: number, spinner: string, style: Style): string {
@@ -769,7 +816,7 @@ export function progress(source: ProgressSource, options?: ProgressOptions): Pro
         ? Math.max(3, Math.floor(rawRows) - 1)
         : undefined;
     const frame = composeFrame(state, clock.now(), tick, style, width, maxRows, maxHeight);
-    const erase = paintedLines > 0 ? `[${String(paintedLines)}A[0J` : '';
+    const erase = paintedLines > 0 ? `\u001B[${String(paintedLines)}A\u001B[0J` : '';
     sink.write(erase + frame.join('\n') + '\n');
     paintedLines = frame.length;
     state.dirty = false;
@@ -778,13 +825,13 @@ export function progress(source: ProgressSource, options?: ProgressOptions): Pro
   const lineFor = (event: WorkflowEvent, now: number): string | undefined => {
     switch (event.type) {
       case 'run:start':
-        return `run ${event.runId} started: ${event.workflow}${event.resumed ? ' (resumed)' : ''}`;
+        return `run ${str(event.runId)} started: ${str(event.workflow)}${event.resumed === true ? ' (resumed)' : ''}`;
       case 'phase:start':
-        return `phase: ${event.phase}`;
+        return `phase: ${str(event.phase)}`;
       case 'agent:start': {
         const node = state.nodes.get(event.spanId);
         const inner = node !== undefined && node.roles.length > 1;
-        return `agent ${agentTitle(event)} -> ${event.model} (${event.role})${inner ? ' [inner phase]' : ''}`;
+        return `agent ${agentTitle(event)} -> ${str(event.model)} (${str(event.role)})${inner ? ' [inner phase]' : ''}`;
       }
       case 'agent:end': {
         const node = state.nodes.get(event.spanId);
@@ -797,14 +844,14 @@ export function progress(source: ProgressSource, options?: ProgressOptions): Pro
             ? ` [${node.roles.map((slice) => slice.role).join(' > ')}]`
             : '';
         return (
-          `agent ${agentTitle(event)} ${event.status}${elapsed}: ` +
-          `in ${fmtTokens(event.usage?.inputTokens ?? 0)} out ${fmtTokens(event.usage?.outputTokens ?? 0)}, ` +
-          `${fmtUsd(event.costUsd)}${roles}${event.replayed === true ? ' (replay)' : ''}`
+          `agent ${agentTitle(event)} ${str(event.status)}${elapsed}: ` +
+          `in ${fmtTokens(num(event.usage?.inputTokens))} out ${fmtTokens(num(event.usage?.outputTokens))}, ` +
+          `${fmtUsd(num(event.costUsd))}${roles}${event.replayed === true ? ' (replay)' : ''}`
         );
       }
       case 'agent:error':
         return (
-          `agent ${agentTitle(event)} error: ${event.error?.message ?? ''}` +
+          `agent ${agentTitle(event)} error: ${str(event.error?.message)}` +
           (event.willRetry ? ' (will retry)' : '')
         );
       case 'budget:update': {
@@ -813,36 +860,66 @@ export function progress(source: ProgressSource, options?: ProgressOptions): Pro
         }
         lastLinesBudgetAt = now;
         return (
-          `budget: ${fmtUsd(event.spentUsd)}` +
-          (event.remainingUsd === null ? '' : ` of ${fmtUsd(event.spentUsd + event.remainingUsd)}`)
+          `budget: ${fmtUsd(num(event.spentUsd))}` +
+          (typeof event.remainingUsd === 'number' && Number.isFinite(event.remainingUsd)
+            ? ` of ${fmtUsd(num(event.spentUsd) + event.remainingUsd)}`
+            : '')
         );
       }
       case 'log':
         return event.level === 'warn' || event.level === 'error'
-          ? `[${event.level}] ${event.msg}`
+          ? `[${str(event.level)}] ${str(event.msg)}`
           : undefined;
       case 'external:waiting':
-        return `waiting on external: ${event.key}`;
+        return `waiting on external: ${str(event.key)}`;
       case 'approval:pending':
-        return `approval pending: ${event.toolName}`;
+        return `approval pending: ${str(event.toolName)}`;
       case 'run:end':
-        return `run finished: ${event.status} (total ${fmtUsd(event.totalUsd)})`;
+        return `run finished: ${str(event.status)} (total ${fmtUsd(num(event.totalUsd))})`;
       default:
         return undefined;
     }
   };
 
+  // Notices born OUTSIDE the event stream (a rejected source, the
+  // malformed-event diagnostic) enter the tty frame via state.notices
+  // and are written immediately as their own line in lines mode, which
+  // renders no notice block of its own. Callers pass text that is
+  // already masked and sanitized (v1.22.0 review P2-2).
+  const pushNotice = (notice: string): void => {
+    state.notices.push(notice);
+    if (state.notices.length > 2) {
+      state.notices.shift();
+    }
+    if (mode === 'lines') {
+      sink.write(scrub(notice) + '\n');
+    }
+  };
+
+  let malformedNoticed = false;
   const onEvent = (event: WorkflowEvent): void => {
     const now = clock.now();
-    applyEvent(state, event, now);
-    if (mode === 'lines') {
-      const line = lineFor(event, now);
-      if (line !== undefined) {
-        // lines mode carries no renderer-owned SGR, so sanitizing the
-        // whole composed line is the single choke point that keeps every
-        // field (and any future one) from injecting a control sequence
-        // or a second physical line (v1.21.0 review P2-1).
-        sink.write(scrub(line) + '\n');
+    try {
+      applyEvent(state, event, now);
+      if (mode === 'lines') {
+        const line = lineFor(event, now);
+        if (line !== undefined) {
+          // lines mode carries no renderer-owned SGR, so sanitizing the
+          // whole composed line is the single choke point that keeps every
+          // field (and any future one) from injecting a control sequence
+          // or a second physical line (v1.21.0 review P2-1).
+          sink.write(scrub(line) + '\n');
+        }
+      }
+    } catch {
+      // The per-field readers make this unreachable for known shapes;
+      // it is the backstop for future fields so a malformed external
+      // event can only ever cost its own row, never the stream. The
+      // diagnostic is bounded and carries no untrusted field data
+      // (v1.22.0 review P2-3).
+      if (!malformedNoticed) {
+        malformedNoticed = true;
+        pushNotice('progress: skipped malformed event(s); view may be incomplete');
       }
     }
   };
@@ -884,7 +961,7 @@ export function progress(source: ProgressSource, options?: ProgressOptions): Pro
         if (final) {
           paintFrame();
         }
-        sink.write('[?25h');
+        sink.write('\u001B[?25h');
       } else if (final) {
         finishLines();
       }
@@ -893,7 +970,7 @@ export function progress(source: ProgressSource, options?: ProgressOptions): Pro
   };
 
   if (mode === 'tty') {
-    sink.write('[?25l');
+    sink.write('\u001B[?25l');
     cancelTick = clock.every(Math.round(1000 / fps), () => {
       if (settled) {
         return;
@@ -922,7 +999,7 @@ export function progress(source: ProgressSource, options?: ProgressOptions): Pro
         state.endedAt ??= clock.now();
       })
       .catch((thrown: unknown) => {
-        state.notices.push(`error: ${thrown instanceof Error ? thrown.message : String(thrown)}`);
+        pushNotice(errorNotice(thrown));
         state.endedAt ??= clock.now();
       })
       .finally(() => {
@@ -938,7 +1015,7 @@ export function progress(source: ProgressSource, options?: ProgressOptions): Pro
         attachHandle(handle);
       })
       .catch((thrown: unknown) => {
-        state.notices.push(`error: ${thrown instanceof Error ? thrown.message : String(thrown)}`);
+        pushNotice(errorNotice(thrown));
         state.endedAt ??= clock.now();
         handleApi.stop(true);
       });
@@ -952,7 +1029,7 @@ export function progress(source: ProgressSource, options?: ProgressOptions): Pro
           onEvent(event);
         }
       } catch (thrown) {
-        state.notices.push(`error: ${thrown instanceof Error ? thrown.message : String(thrown)}`);
+        pushNotice(errorNotice(thrown));
       } finally {
         state.endedAt ??= clock.now();
         handleApi.stop(true);

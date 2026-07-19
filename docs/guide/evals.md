@@ -321,10 +321,62 @@ const version = await commitEvalMeasured(store, report.claims, {
 
 Every claim carries its evidence: sweep-born claims reference the sweep report and the exact case ids that produced the number, so `rulvar kb list` can always answer "why does the engine believe this?".
 
+## The measured-value checkpoint
+
+`runValueCheckpoint` answers one question with money on the table: does the knowledge card DEMONSTRABLY improve tier and agentType selection on eval cases? It was the M12 shipping gate for the proposal loop, and it stays the standing way to re-measure the card's value after material changes. Two A/B experiments run under identical fixed pools, and the checkpoint passes only when BOTH criteria hold.
+
+The vocabulary, bottom up:
+
+- **Rung**: one concrete model of a declared ladder (a `SweepModel`).
+- **Ladder** (`CheckpointLadder`): a named rung sequence with a `startTier`, the declared escalation order routing climbs.
+- **Cell**: one (ladder, task class) pair; criterion 1 is judged per cell and pooled.
+- **Pool** (`CheckpointPool`): the ladders plus `evalCases`, the MEASUREMENT half of the split. The claims snapshot you pass in must come from a seeding sweep over a DISJOINT case set, or the measurement is leakage.
+- **Arm** (`CheckpointArm`): one side of an A/B comparison, reduced to `{ passRate, totalCostUsd, n }`.
+
+**Criterion 1, rung selection (per cell, then pooled).** The baseline arm runs every case at the ladder's default start tier; the treatment arm starts at the tier `compileVerifiedLayer` recommends from the snapshot's active claims (default when no recommendation). A cell passes on the exported `rungRuleHolds` rule: the treatment matches or beats the baseline pass rate at no more than 90 percent of its cost, OR beats it by at least 5 points at no more than its cost. Criterion 1 holds when a majority of cells pass AND the pooled aggregate passes the same rule.
+
+**Criterion 2, agentType selection (pooled).** The same orchestrate-role cases run twice: with the knowledge store configured (the pinned card docks into the spawn tool description) and without it. The exported `agentTypeRuleHolds` rule (OQ-09 as amended 2026-07-12) passes the card-informed arm when it matches or beats the baseline pass rate at no more than 105 percent of its cost, OR beats it by at least 15 points at no more than 115 percent (the quality branch: when the baseline fails cheaply, the flat cost bar would punish the card exactly when it wins on quality). A **vacuous-pass guard** sits on top: two arms of total failures demonstrate nothing, so an informed arm with a zero pass rate fails criterion 2 outright.
+
+Cost discipline: every case runs through the ordinary engine, so each arm pays real (or cassette-recorded) model calls under the per-run ceilings of `suite`/`orchestratedSuite`; the orchestrated arms usually need the larger `budgetUsd` because the run ceiling must host the orchestrator cap math and the finalize reserve. Budget for roughly `cells x cases x 2` loop-role runs plus `2 x orchestratedCases` orchestrate-role runs.
+
+A minimal runnable shape:
+
+```ts
+import { renderCheckpointReport, runValueCheckpoint } from '@rulvar/evals';
+
+const report = await runValueCheckpoint(
+  {
+    ladders: [
+      {
+        name: 'triage',
+        startTier: 1,
+        rungs: [cheapModel, midModel, strongModel],
+      },
+    ],
+    // Each SweepCase carries its taskClass; disjoint from the seeding sweep.
+    evalCases: seededPool.evalCases,
+  },
+  {
+    snapshot: await store.snapshot(), // claims the seeding sweep committed
+    observedAt: '2026-07-19',
+    engineFor: (member) => engineFor(member),
+    orchestrateEngineFor: (withKnowledge) => orchestrateEngine(withKnowledge),
+    orchestratedCases,
+    suite: { budgetUsd: 0.5 },
+    orchestratedSuite: { budgetUsd: 2 },
+  },
+);
+
+console.log(renderCheckpointReport(report));
+console.log(report.passed ? 'the card earns its keep' : 'do not ship the card');
+```
+
+Reading the report: `criterion1` lists every cell verdict plus the pooled arms, `criterion2` shows both arms with the guard applied, and top-level `passed` is the AND of the two (criterion 2 counts as failed when unmeasured). `renderCheckpointReport` prints the same as a terminal table. The four building blocks (`runValueCheckpoint`, `renderCheckpointReport`, `rungRuleHolds`, `agentTypeRuleHolds`) are all exported from the package root, so a custom pipeline can reuse the rules on arms it computed itself.
+
 ## Next steps
 
 - [Testing](/guide/testing): FakeAdapter, VCR cassettes, and replay-strict runs, the layers eval CI stands on.
 - [Model knowledge](/guide/model-knowledge): the claim store, the pinned card, and the human-editorial class.
 - [Model routing](/guide/model-routing): ladders, role quality floors, and the resolution chain that claims may only advise.
 - [Budgets](/guide/budgets): the three-layer budget that bounds every eval run.
-- [API reference](/api/@rulvar/evals/): every exported symbol of `@rulvar/evals`.
+- [API reference](/api/@rulvar/evals/): every exported symbol of `@rulvar/evals`, the checkpoint API included.

@@ -26,7 +26,8 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | \{ `maskEvents?`: `boolean`; `now?`: () => `number`; `runId`: `string`; `spans`: [`SpanRegistry`](/api/@rulvar/rulvar/classes/SpanRegistry.md); \} | - |
+| `options` | \{ `firstSeq?`: `number`; `maskEvents?`: `boolean`; `now?`: () => `number`; `runId`: `string`; `spans`: [`SpanRegistry`](/api/@rulvar/rulvar/classes/SpanRegistry.md); \} | - |
+| `options.firstSeq?` | `number` | First seq value (default 0): the resumed-segment base that keeps seq strictly increasing per run across segments (v1.22.0 review P1-2). |
 | `options.maskEvents?` | `boolean` | Default true (M8-T04): key-shaped strings in every emitted body are masked. Telemetry only, never the journal: events are excluded from identity by construction, so masking cannot perturb replay. |
 | `options.now?` | () => `number` | - |
 | `options.runId` | `string` | - |

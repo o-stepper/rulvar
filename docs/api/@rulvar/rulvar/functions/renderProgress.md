@@ -10,7 +10,7 @@
 function renderProgress(events, options?): Promise<void>;
 ```
 
-Defined in: [packages/rulvar/src/render-progress.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/rulvar/src/render-progress.ts#L31)
+Defined in: [packages/rulvar/src/render-progress.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/rulvar/src/render-progress.ts#L52)
 
 Renders events until the stream ends (the run settled). Returns after
 the final run:end line.

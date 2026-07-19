@@ -50,7 +50,7 @@ import {
   type Workflow,
 } from './ctx.js';
 import { costReportFromJournal } from './cost-report.js';
-import { EventBus, SpanRegistry } from './events.js';
+import { EVENT_SEGMENT_STRIDE, EventBus, SpanRegistry } from './events.js';
 import { ExternalRegistry } from './external.js';
 import {
   type PendingExternal,
@@ -374,6 +374,13 @@ export function createEngine(options: CreateEngineOptions): Engine {
      * no field to override it.
      */
     budgetUsd?: number;
+    /**
+     * Execution segments started before this one (RunMeta.segments;
+     * 1 when the field predates v1.23 journals). Seeds this segment's
+     * event seq and span-id base so telemetry counters stay strictly
+     * increasing and unique per run (v1.22.0 review P1-2).
+     */
+    segmentsBefore: number;
     previewResolve: (preview: ResumePreview) => void;
   }
 
@@ -398,8 +405,16 @@ export function createEngine(options: CreateEngineOptions): Engine {
     }
     const runId = resumeCtx?.runId ?? opts?.runId ?? mintRunId();
     const registry = buildDeriverRegistry(options.extraDerivers);
-    const spans = new SpanRegistry();
-    const bus = new EventBus({ runId, spans, now: realNow, maskEvents });
+    // Segment k of a run starts its telemetry counters at
+    // k * EVENT_SEGMENT_STRIDE, so seq stays strictly increasing and
+    // spanId unique per run across resume segments and process
+    // recreation (v1.22.0 review P1-2). The durable bump of
+    // RunMeta.segments happens in putMeta('running') below, strictly
+    // BEFORE the segment's first emit.
+    const segmentsBefore = resumeCtx?.segmentsBefore ?? 0;
+    const telemetryBase = segmentsBefore * EVENT_SEGMENT_STRIDE;
+    const spans = new SpanRegistry({ first: telemetryBase });
+    const bus = new EventBus({ runId, spans, now: realNow, maskEvents, firstSeq: telemetryBase });
     const rootSpanId = spans.mint();
     let budgetSeed: { usd: number; usage: Usage; agentsSpawned: number } | undefined;
     // B0 is immutable across the run's whole life: a fresh run takes it
@@ -504,7 +519,14 @@ export function createEngine(options: CreateEngineOptions): Engine {
         : { flatReserveUsd: options.budgetDefaults.flatReserveUsd }),
       ...(defaults.roleFloors === undefined ? {} : { floors: defaults.roleFloors }),
       ...(knowledge === undefined ? {} : { knowledge }),
-      events: { emit: (body, spanId) => bus.emit(body as WorkflowEventBody, spanId ?? rootSpanId) },
+      // The sink forwards the replayed marker: dropping it here silently
+      // stripped `replayed: true` from every recovered/replayed emission
+      // (replayed agent and tool lifecycle events rendered as live since
+      // M2; found while unifying spawn events, v1.22.0 review P2-5).
+      events: {
+        emit: (body, spanId, replayed) =>
+          bus.emit(body as WorkflowEventBody, spanId ?? rootSpanId, replayed),
+      },
       spans,
       rootSpanId,
       transcripts,
@@ -546,6 +568,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
       journal.putMeta({
         runId,
         status,
+        // Every meta write of this segment carries the bumped count: the
+        // settle write must not clobber what the start write recorded.
+        segments: segmentsBefore + 1,
         updatedAt: new Date(realNow()).toISOString(),
         ...(opts?.name === undefined ? {} : { name: opts.name }),
         ...(opts?.tags === undefined ? {} : { tags: opts.tags }),
@@ -905,6 +930,11 @@ export function createEngine(options: CreateEngineOptions): Engine {
         // The recorded B0 travels back in: journals whose store dropped
         // the field (or predates it) resume uncapped, exactly as before.
         ...(typeof meta?.budgetUsd === 'number' ? { budgetUsd: meta.budgetUsd } : {}),
+        // Metas that predate the segments field (or a crash before the
+        // first putMeta) count as ONE prior segment: the new base still
+        // clears every realistic pre-upgrade seq (v1.22.0 review P1-2).
+        segmentsBefore:
+          typeof meta?.segments === 'number' && meta.segments > 0 ? Math.floor(meta.segments) : 1,
         previewResolve,
       });
     })();

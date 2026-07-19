@@ -10,7 +10,7 @@
 function apiCard(): string;
 ```
 
-Defined in: [packages/planner/src/api-card.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/api-card.ts#L52)
+Defined in: [packages/planner/src/api-card.ts:68](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/api-card.ts#L68)
 
 Renders the sandbox-dialect API card; pure and byte-stable.
 

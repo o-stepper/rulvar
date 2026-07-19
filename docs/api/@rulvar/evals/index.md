@@ -94,6 +94,7 @@ pnpm add -D @rulvar/evals
 
 | Function | Description |
 | ------ | ------ |
+| [agentTypeRuleHolds](/api/@rulvar/evals/functions/agentTypeRuleHolds.md) | The OQ-09 criterion 2 rule (as amended 2026-07-12): match-or-beat at 105 percent of baseline cost, OR at least 15 points better at 115 percent (the quality branch: the baseline fails cheaply, so the flat bar tightened exactly when the card won on quality). The vacuous-pass guard stays with the caller. |
 | [canaryFingerprint](/api/@rulvar/evals/functions/canaryFingerprint.md) | The fingerprint alone (the pre-v1.16.2-review surface, kept compatible). Prefer runCanary: its allOk is the drift-flip gate. |
 | [commitEvalMeasured](/api/@rulvar/evals/functions/commitEvalMeasured.md) | Commits measured claims through the eval-committer gate with the documented rebase recipe: on a CAS rejection, re-read current() and retry against the fresh version. Returns the committed version. |
 | [evalMeasuredClaim](/api/@rulvar/evals/functions/evalMeasuredClaim.md) | One measured claim; claimExpiry applies the TTL from the decay table. |

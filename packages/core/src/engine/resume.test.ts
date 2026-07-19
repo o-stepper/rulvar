@@ -233,3 +233,137 @@ describe('engine.resume (M2-T09; docs/06 section 10.2)', () => {
     expect(adapter.calls).toHaveLength(0);
   });
 });
+
+describe('identical siblings across resume (v1.22.0 review P1-1)', () => {
+  const siblingsWf = defineWorkflow({ name: 'identical-siblings' }, async (ctx) => {
+    const a = await ctx.agent('identical prompt');
+    await ctx.awaitExternal('gate');
+    const b = await ctx.agent('identical prompt');
+    const c = await ctx.agent('identical prompt');
+    return [a, b, c].join('|');
+  });
+
+  it('post-resume identical operations mint fresh ordinals and replay binds each sibling', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-siblings-'));
+    const store = new JsonlFileStore({ dir });
+
+    // Segment 1: agent (ordinal 0) runs live, the external suspends.
+    const first = createEngine({
+      adapters: [scriptedAdapter((_req, call) => ({ text: `v${String(call + 1)}` }))],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const firstOutcome = await first.run(siblingsWf, undefined, { runId: 'SIB1' }).result;
+    expect(firstOutcome.status).toBe('suspended');
+
+    // Offline resolution between processes.
+    const priorEntries = await store.load('SIB1');
+    const suspended = priorEntries.find((e) => e.kind === 'external');
+    const offline = new Replayer({ runId: 'SIB1', store, priorEntries });
+    await offline.resolveSuspended(suspended?.seq ?? -1, { by: 'external', value: { ok: true } });
+
+    // Segment 2 (fresh process): the first sibling replays, the two
+    // post-resume identical calls go live and continue the ordinal
+    // space instead of re-minting 0 (the v1.22.0 defect).
+    const secondAdapter = scriptedAdapter((_req, call) => ({ text: `w${String(call + 1)}` }));
+    const second = createEngine({
+      adapters: [secondAdapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const outcome = await second.resume('SIB1', siblingsWf).result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.value).toBe('v1|w1|w2');
+    expect(secondAdapter.calls).toHaveLength(2);
+
+    const entries = await store.load('SIB1');
+    const agentRunning = entries.filter((e) => e.kind === 'agent' && e.status === 'running');
+    expect(agentRunning.map((e) => e.ordinal).sort()).toEqual([0, 1, 2]);
+    const triples = entries
+      .filter((e) => e.ref === undefined && e.kind !== 'resolution' && e.kind !== 'abandon')
+      .map((e) => `${e.scope}|${e.key}|${e.ordinal}`);
+    expect(new Set(triples).size).toBe(triples.length);
+
+    // Segment 3: a full replay-strict pass binds every sibling to its
+    // own recorded result with zero live calls (the acceptance bar for
+    // sibling recovery by (key, ordinal)).
+    const thirdAdapter = scriptedAdapter(() => ({ text: 'MUST NOT RUN' }));
+    const third = createEngine({
+      adapters: [thirdAdapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const replayHandle = third.resume('SIB1', siblingsWf, { dryRun: true });
+    const replayOutcome = await replayHandle.result;
+    expect(replayOutcome.status).toBe('ok');
+    expect(replayOutcome.value).toBe('v1|w1|w2');
+    expect(thirdAdapter.calls).toHaveLength(0);
+    const preview = await replayHandle.preview;
+    expect(preview.misses).toBe(0);
+    expect(preview.orphaned).toEqual([]);
+  });
+});
+
+describe('telemetry counters across resume segments (v1.22.0 review P1-2)', () => {
+  it('seq stays strictly increasing and spanId unique per run over two resumes', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-seq-'));
+    const store = new JsonlFileStore({ dir });
+    type Seen = { seq: number; spanId: string; replayed: boolean };
+    const collect = async (
+      handle: import('./run-handle.js').RunHandle<unknown>,
+    ): Promise<Seen[]> => {
+      const seen: Seen[] = [];
+      for await (const event of handle.events) {
+        seen.push({ seq: event.seq, spanId: event.spanId, replayed: event.replayed === true });
+      }
+      return seen;
+    };
+
+    const seg1Engine = makeEngine(store);
+    const handle1 = seg1Engine.engine.run(approvalWf, undefined, { runId: 'SEQ1' });
+    const pump1 = collect(handle1);
+    expect((await handle1.result).status).toBe('suspended');
+    const seg1 = await pump1;
+
+    // Second segment: resume without resolving; it re-suspends.
+    const seg2Engine = makeEngine(store, 'MUST NOT RUN');
+    const handle2 = seg2Engine.engine.resume('SEQ1', approvalWf);
+    const pump2 = collect(handle2);
+    expect((await handle2.result).status).toBe('suspended');
+    const seg2 = await pump2;
+
+    // Offline resolution, then a third segment that completes.
+    const priorEntries = await store.load('SEQ1');
+    const suspended = priorEntries.find((e) => e.kind === 'external');
+    const offline = new Replayer({ runId: 'SEQ1', store, priorEntries });
+    await offline.resolveSuspended(suspended?.seq ?? -1, {
+      by: 'external',
+      value: { approved: true },
+    });
+    const seg3Engine = makeEngine(store, 'MUST NOT RUN');
+    const handle3 = seg3Engine.engine.resume('SEQ1', approvalWf);
+    const pump3 = collect(handle3);
+    expect((await handle3.result).status).toBe('ok');
+    const seg3 = await pump3;
+
+    // Every event observed, replayed ones included, in one flat list:
+    // the per-run cursor must be strictly increasing across segments.
+    const all = [...seg1, ...seg2, ...seg3];
+    expect(seg1.length).toBeGreaterThan(0);
+    expect(seg2.length).toBeGreaterThan(0);
+    expect(seg3.length).toBeGreaterThan(0);
+    for (let i = 1; i < all.length; i += 1) {
+      expect(all[i].seq).toBeGreaterThan(all[i - 1].seq);
+    }
+    // The resumed segments announce their replayed facts WITH the
+    // replayed marker (the engine sink dropped it before v1.23).
+    expect(seg3.some((e) => e.replayed)).toBe(true);
+    // Span ids never repeat across segments of one run.
+    const spanSets = [seg1, seg2, seg3].map((seen) => new Set(seen.map((e) => e.spanId)));
+    expect([...spanSets[0]].filter((id) => spanSets[1].has(id) || spanSets[2].has(id))).toEqual([]);
+    expect([...spanSets[1]].filter((id) => spanSets[2].has(id))).toEqual([]);
+    // The durable segment count survives settle-time meta writes.
+    const metaRecord = (await store.listRuns()).find((m) => m.runId === 'SEQ1');
+    expect(metaRecord?.segments).toBe(3);
+  });
+});

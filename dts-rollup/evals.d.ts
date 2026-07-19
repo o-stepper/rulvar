@@ -578,6 +578,14 @@ interface CheckpointReport {
   /** Both criteria (criterion 2 counts as failed when unmeasured). */
   passed: boolean;
 }
+/**
+* The OQ-09 criterion 2 rule (as amended 2026-07-12): match-or-beat at
+* 105 percent of baseline cost, OR at least 15 points better at 115
+* percent (the quality branch: the baseline fails cheaply, so the flat
+* bar tightened exactly when the card won on quality). The vacuous-pass
+* guard stays with the caller.
+*/
+declare function agentTypeRuleHolds(baseline: CheckpointArm, informed: CheckpointArm): boolean;
 /** The OQ-09 cell rule (shared by the per-cell and pooled verdicts). */
 declare function rungRuleHolds(baseline: CheckpointArm, treatment: CheckpointArm): boolean;
 /**
@@ -589,4 +597,4 @@ declare function runValueCheckpoint(checkpointPool: CheckpointPool, options: Run
 /** The deterministic render for the M12 gate docs amendment. */
 declare function renderCheckpointReport(report: CheckpointReport): string;
 //#endregion
-export { type CanaryDriftReport, type CanaryProbeSet, type CanaryReport, type CanaryRunOptions, type CheckpointArm, type CheckpointCell, type CheckpointLadder, type CheckpointPool, type CheckpointReport, type CriterionOneReport, type CriterionTwoReport, type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type OrchestratedCase, type RubricCriterion, type RubricGraderOptions, type RunCheckpointOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, SpendEnvelope, SweepBudgetError, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, canaryFingerprint, commitEvalMeasured, evalMeasuredClaim, flipStaleOnCanaryDrift, goldenGrader, judgeGrader, normalizeCanaryOutput, renderCheckpointReport, rubricGrader, runCanary, runEvalCase, runEvalMatrix, runEvalSuite, runSweepMatrix, runValueCheckpoint, rungRuleHolds };
+export { type CanaryDriftReport, type CanaryProbeSet, type CanaryReport, type CanaryRunOptions, type CheckpointArm, type CheckpointCell, type CheckpointLadder, type CheckpointPool, type CheckpointReport, type CriterionOneReport, type CriterionTwoReport, type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type OrchestratedCase, type RubricCriterion, type RubricGraderOptions, type RunCheckpointOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, SpendEnvelope, SweepBudgetError, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, agentTypeRuleHolds, canaryFingerprint, commitEvalMeasured, evalMeasuredClaim, flipStaleOnCanaryDrift, goldenGrader, judgeGrader, normalizeCanaryOutput, renderCheckpointReport, rubricGrader, runCanary, runEvalCase, runEvalMatrix, runEvalSuite, runSweepMatrix, runValueCheckpoint, rungRuleHolds };

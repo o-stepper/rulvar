@@ -228,3 +228,154 @@ describe('journal write path (M1-T04; docs/03 sections 5, 7.2, 13)', () => {
     });
   });
 });
+
+describe('resume ordinal continuation (v1.22.0 review P1-1)', () => {
+  const startedAt = new Date(1_700_000_000_000).toISOString();
+  const agentKey = 'a'.repeat(64);
+
+  function prior(
+    overrides: Partial<import('../l0/entries.js').JournalEntry>,
+  ): import('../l0/entries.js').JournalEntry {
+    const base: import('../l0/entries.js').JournalEntry = {
+      hashVersion: CURRENT_HASH_VERSION,
+      seq: 0,
+      scope: '',
+      key,
+      ordinal: 0,
+      kind: 'rand',
+      status: 'ok',
+      spanId: 's1',
+      startedAt,
+    };
+    return { ...base, ...overrides };
+  }
+
+  function resumed(priors: import('../l0/entries.js').JournalEntry[]): Replayer {
+    return new Replayer({
+      runId: 'run-1',
+      store: new InMemoryStore(),
+      now: () => 1_700_000_000_000,
+      priorEntries: priors,
+    });
+  }
+
+  it('an identical operation after resume continues at max prior ordinal plus one', async () => {
+    const replayer = resumed([prior({ seq: 0, ordinal: 0 })]);
+    const entry = await replayer.appendSinglePhase({
+      scope: '',
+      key,
+      kind: 'rand',
+      spanId: 's1',
+      status: 'ok',
+      value: { subtype: 'now', value: 9 },
+    });
+    expect(entry.ordinal).toBe(1);
+  });
+
+  it('continues at max plus one regardless of prior order', async () => {
+    const replayer = resumed([
+      prior({ seq: 2, ordinal: 2 }),
+      prior({ seq: 0, ordinal: 0 }),
+      prior({ seq: 1, ordinal: 1 }),
+    ]);
+    const entry = await replayer.appendSinglePhase({
+      scope: '',
+      key,
+      kind: 'rand',
+      spanId: 's1',
+      status: 'ok',
+      value: { subtype: 'now', value: 9 },
+    });
+    expect(entry.ordinal).toBe(3);
+  });
+
+  it('scopes and keys keep independent ordinal spaces across resume', async () => {
+    const otherKey = 'b'.repeat(64);
+    const replayer = resumed([
+      prior({ seq: 0, scope: '', key, ordinal: 0 }),
+      prior({ seq: 1, scope: 'par:0:0', key, ordinal: 4 }),
+      prior({ seq: 2, scope: '', key: otherKey, ordinal: 7 }),
+    ]);
+    const sameScope = await replayer.appendSinglePhase({
+      scope: '',
+      key,
+      kind: 'rand',
+      spanId: 's1',
+      status: 'ok',
+      value: { subtype: 'now', value: 1 },
+    });
+    const otherScope = await replayer.appendSinglePhase({
+      scope: 'par:0:0',
+      key,
+      kind: 'rand',
+      spanId: 's1',
+      status: 'ok',
+      value: { subtype: 'now', value: 1 },
+    });
+    const secondKey = await replayer.appendSinglePhase({
+      scope: '',
+      key: otherKey,
+      kind: 'rand',
+      spanId: 's1',
+      status: 'ok',
+      value: { subtype: 'now', value: 1 },
+    });
+    expect([sameScope.ordinal, otherScope.ordinal, secondKey.ordinal]).toEqual([1, 5, 8]);
+  });
+
+  it('old hash versions never seed the current ordinal space', async () => {
+    const replayer = resumed([
+      prior({ seq: 0, ordinal: 3, hashVersion: CURRENT_HASH_VERSION - 1 }),
+    ]);
+    const entry = await replayer.appendSinglePhase({
+      scope: '',
+      key,
+      kind: 'rand',
+      spanId: 's1',
+      status: 'ok',
+      value: { subtype: 'now', value: 1 },
+    });
+    expect(entry.ordinal).toBe(0);
+  });
+
+  it('terminal refs, resolutions, and abandons never advance the ordinal space', async () => {
+    const replayer = resumed([
+      prior({ seq: 0, key: agentKey, kind: 'agent', status: 'running' }),
+      prior({ seq: 1, key: agentKey, kind: 'agent', status: 'ok', ref: 0 }),
+      prior({ seq: 2, key: '', kind: 'resolution', ref: 0 }),
+      prior({ seq: 3, key: '', kind: 'abandon', ref: 0 }),
+    ]);
+    const entry = await replayer.appendRunning({
+      scope: '',
+      key: agentKey,
+      kind: 'agent',
+      spanId: 's2',
+    });
+    expect(entry.ordinal).toBe(1);
+  });
+
+  it('no supported append can duplicate a live identity triple after resume', async () => {
+    const replayer = resumed([
+      prior({ seq: 0, key: agentKey, kind: 'agent', status: 'running' }),
+      prior({ seq: 1, key: agentKey, kind: 'agent', status: 'ok', ref: 0 }),
+    ]);
+    const second = await replayer.appendRunning({
+      scope: '',
+      key: agentKey,
+      kind: 'agent',
+      spanId: 's2',
+    });
+    const third = await replayer.appendRunning({
+      scope: '',
+      key: agentKey,
+      kind: 'agent',
+      spanId: 's3',
+    });
+    const triples = replayer
+      .snapshot()
+      .filter((e) => e.ref === undefined && e.kind !== 'resolution' && e.kind !== 'abandon')
+      .map((e) => `${e.scope}|${e.key}|${e.ordinal}|${String(e.hashVersion)}`);
+    expect(new Set(triples).size).toBe(triples.length);
+    expect([second.ordinal, third.ordinal]).toEqual([1, 2]);
+  });
+});

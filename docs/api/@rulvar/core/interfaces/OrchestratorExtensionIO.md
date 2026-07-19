@@ -150,7 +150,7 @@ matching). Returns the journal-derived handle (the dispatch seq).
 ### emit()
 
 ```ts
-emit(event): void;
+emit(event, options?): void;
 ```
 
 Defined in: [packages/core/src/orchestrator/extension.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/extension.ts#L158)
@@ -159,9 +159,11 @@ Telemetry emission into the run event stream.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | \{ `type`: `string`; \} & `Record`\&lt;`string`, `unknown`\&gt; |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `event` | \{ `type`: `string`; \} & `Record`\&lt;`string`, `unknown`\&gt; | - |
+| `options?` | \{ `replayed?`: `boolean`; \} | - |
+| `options.replayed?` | `boolean` | Marks the event as the replay of a journal-recovered decision (the standard envelope flag), so extension surfaces can emit recovered admissions honestly (v1.22.0 review P2-5). |
 
 #### Returns
 

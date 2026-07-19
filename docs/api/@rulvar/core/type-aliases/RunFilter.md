@@ -14,7 +14,7 @@ type RunFilter = {
 };
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L49)
+Defined in: [packages/core/src/l0/spi/store.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L61)
 
 ## Properties
 
@@ -24,7 +24,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:49](https://github.com/o-stepper/
 optional name?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L52)
+Defined in: [packages/core/src/l0/spi/store.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L64)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:52](https://github.com/o-stepper/
 optional status?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L50)
+Defined in: [packages/core/src/l0/spi/store.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L62)
 
 ***
 
@@ -44,4 +44,4 @@ Defined in: [packages/core/src/l0/spi/store.ts:50](https://github.com/o-stepper/
 optional tags?: string[];
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:51](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L51)
+Defined in: [packages/core/src/l0/spi/store.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L63)
