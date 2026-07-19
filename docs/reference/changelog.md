@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.25.0
+
+#### Patch Changes
+
+- @rulvar/core@1.25.0
+
 ### 1.24.1
 
 #### Patch Changes
@@ -516,6 +522,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.25.0
+
+#### Patch Changes
+
+- @rulvar/core@1.25.0
+
 ### 1.24.1
 
 #### Patch Changes
@@ -899,6 +911,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.25.0
+
+#### Patch Changes
+
+- 74851ed: CLI diagnostics stop echoing `--args` values and sanitize every dynamic value they embed. The invalid-JSON and non-canonical-JSON refusals now name the failure class and the way out without repeating the supplied value (workflow args may carry private data, and stderr routinely lands in CI logs). Every typed CLI error prints through one site that strips terminal control sequences, and the plain-output run renderers (outcome reports, dry-run previews, suspension prompts, resume warnings, plan lint diagnostics) sanitize untrusted text the same way the live TUI already does, so a hostile runId, suspension key, provider error message, or model ref cannot recolor, retitle, or rewrite the terminal. Exit semantics are unchanged.
+  - @rulvar/core@1.25.0
 
 ### 1.24.1
 
@@ -1453,6 +1472,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.25.0
 
 ### 1.24.1
 
@@ -2514,6 +2535,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.25.0
+
 ### 1.24.1
 
 ### 1.24.0
@@ -2632,6 +2655,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.25.0
+
+#### Patch Changes
+
+- @rulvar/core@1.25.0
+- @rulvar/testing@1.25.0
 
 ### 1.24.1
 
@@ -3116,6 +3146,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.25.0
+
+#### Patch Changes
+
+- @rulvar/core@1.25.0
 
 ### 1.24.1
 
@@ -3636,6 +3672,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.25.0
+
+#### Patch Changes
+
+- @rulvar/core@1.25.0
+
 ### 1.24.1
 
 #### Patch Changes
@@ -4133,6 +4175,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.25.0
+
+#### Minor Changes
+
+- 74851ed: `WorkerSandboxRunner` now launches its worker with an explicit `execArgv` (default `[]`) instead of inheriting the host's `process.execArgv`. Host-only launch flags used to reach the file-entry worker and kill a correct compiled workflow before its first sandbox operation: `--input-type=module` (present whenever the host itself runs as ESM from stdin or `--eval`) is rejected for file entries, and an inherited `--eval` carried the host's whole source text into the worker's options. The same compiled workflow now behaves identically whether the host runs from a file, from stdin, or via `--eval`. Hosts that need loader, coverage, or instrumentation flags inside the worker opt in through the new `WorkerSandboxRunnerOptions.execArgv`, which is passed to the worker verbatim.
+
+#### Patch Changes
+
+- @rulvar/core@1.25.0
+- eslint-plugin-rulvar@1.25.0
+
 ### 1.24.1
 
 #### Patch Changes
@@ -4573,6 +4626,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.25.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.25.0
+- @rulvar/core@1.25.0
+- @rulvar/openai@1.25.0
 
 ### 1.24.1
 
@@ -5150,6 +5211,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.25.0
+
+#### Patch Changes
+
+- @rulvar/core@1.25.0
+
 ### 1.24.1
 
 #### Patch Changes
@@ -5605,6 +5672,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.25.0
+
+#### Patch Changes
+
+- @rulvar/core@1.25.0
+
 ### 1.24.1
 
 #### Patch Changes
@@ -5999,6 +6072,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.25.0
+
+#### Patch Changes
+
+- @rulvar/core@1.25.0
 
 ### 1.24.1
 
