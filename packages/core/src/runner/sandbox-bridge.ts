@@ -83,8 +83,14 @@ export interface SandboxBridge {
   close(): void;
 }
 
-/** The sanctioned JSON subset of AgentOpts a sandbox script may pass. */
-const SANDBOX_AGENT_OPT_KEYS = new Set([
+/**
+ * The sanctioned JSON subset of AgentOpts a sandbox script may pass:
+ * the planner-dialect allowlist. Exported as the single source both for
+ * the runtime validator below and for the planner API card, so the two
+ * can never drift (v1.22.0 review P2-4: the hand-maintained card had
+ * silently fallen three options behind).
+ */
+export const SANDBOX_AGENT_OPT_KEYS: readonly string[] = [
   'agentType',
   'model',
   'effort',
@@ -101,7 +107,9 @@ const SANDBOX_AGENT_OPT_KEYS = new Set([
   'escalation',
   'fallback',
   'replay',
-]);
+];
+
+const SANDBOX_AGENT_OPT_KEY_SET = new Set(SANDBOX_AGENT_OPT_KEYS);
 
 function asRecord(value: Json | undefined, what: string): Record<string, Json> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -194,7 +202,7 @@ export function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptio
           }
           const rawOpts = record.opts === undefined ? {} : asRecord(record.opts, 'agent options');
           for (const key of Object.keys(rawOpts)) {
-            if (!SANDBOX_AGENT_OPT_KEYS.has(key)) {
+            if (!SANDBOX_AGENT_OPT_KEY_SET.has(key)) {
               throw new ConfigError(
                 `sandbox agent option '${key}' is outside the sanctioned dialect; allowed: ` +
                   [...SANDBOX_AGENT_OPT_KEYS].sort().join(', '),

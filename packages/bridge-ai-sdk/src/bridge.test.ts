@@ -590,3 +590,21 @@ describe('aiSdkErrorToWire', () => {
     expect(error.error.data).toMatchObject({ kind: 'rate-limit', retryAfterMs: 2000 });
   });
 });
+
+describe('supported interface pin (v1.22.0 review P3-5)', () => {
+  it('bridgeAiSdk accepts exactly LanguageModelV4, never a wider or unknown shape', () => {
+    // Compile fixture: the parameter type must BE LanguageModelV4, so a
+    // future AI SDK major (LanguageModelV5 etc.) is never claimed as
+    // supported by accident; upgrading requires a deliberate signature
+    // change here and in the reference wording.
+    type Param = Parameters<typeof bridgeAiSdk>[0];
+    const accepts: [Param] extends [LanguageModelV4] ? true : false = true;
+    const exact: [LanguageModelV4] extends [Param] ? true : false = true;
+    expect(accepts).toBe(true);
+    expect(exact).toBe(true);
+    // The runtime companion: a wrong specificationVersion fails typed.
+    expect(() =>
+      bridgeAiSdk({ specificationVersion: 'v99' } as unknown as LanguageModelV4),
+    ).toThrow();
+  });
+});

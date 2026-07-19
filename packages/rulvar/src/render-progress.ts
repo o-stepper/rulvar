@@ -20,8 +20,29 @@ export interface RenderProgressOptions {
   logs?: boolean;
 }
 
-function usd(amount: number): string {
-  return `${amount.toFixed(4)} USD`;
+function usd(amount: unknown): string {
+  const value = typeof amount === 'number' && Number.isFinite(amount) ? amount : 0;
+  return `${value.toFixed(4)} USD`;
+}
+
+/**
+ * Defensive readers: the input is a raw iterable by contract, so a
+ * recognized event with a missing or mistyped field degrades its own
+ * line instead of throwing out of the render loop (v1.22.0 review
+ * P2-3; same discipline as the live progress reducer).
+ */
+function str(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function num(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function name(event: { agentType?: string; label?: string }): string {
+  const agentType = str(event.agentType) || 'anonymous';
+  const label = str(event.label);
+  return `${agentType}${label === '' ? '' : ` [${label}]`}`;
 }
 
 /**
@@ -43,52 +64,52 @@ export async function renderProgress(
   for await (const event of events) {
     switch (event.type) {
       case 'run:start':
-        write(`run ${event.runId} started: ${event.workflow}${event.resumed ? ' (resumed)' : ''}`);
+        write(
+          `run ${str(event.runId)} started: ${str(event.workflow)}${event.resumed === true ? ' (resumed)' : ''}`,
+        );
         break;
       case 'phase:start':
-        write(`phase: ${event.phase}`);
+        write(`phase: ${str(event.phase)}`);
         break;
       case 'agent:queued':
-        write(
-          `agent ${event.agentType || 'anonymous'}${event.label ? ` [${event.label}]` : ''} queued`,
-        );
+        write(`agent ${name(event)} queued`);
         break;
       case 'agent:start':
-        write(
-          `agent ${event.agentType || 'anonymous'}${event.label ? ` [${event.label}]` : ''} ` +
-            `-> ${event.model} (${event.role})`,
-        );
+        write(`agent ${name(event)} -> ${str(event.model)} (${str(event.role)})`);
         break;
       case 'agent:end':
         write(
-          `agent ${event.agentType || 'anonymous'}${event.label ? ` [${event.label}]` : ''} ` +
-            `${event.status} (${usd(event.costUsd)}, ${event.usage.outputTokens} out tokens)`,
+          `agent ${name(event)} ` +
+            `${str(event.status)} (${usd(event.costUsd)}, ${String(num(event.usage?.outputTokens))} out tokens)`,
         );
         break;
       case 'agent:error':
         write(
-          `agent ${event.agentType || 'anonymous'} error: ${event.error.message}` +
-            `${event.willRetry ? ' (will retry)' : ''}`,
+          `agent ${str(event.agentType) || 'anonymous'} error: ${str(event.error?.message)}` +
+            `${event.willRetry === true ? ' (will retry)' : ''}`,
         );
         break;
       case 'agent:schema-retry':
         write(
-          `agent ${event.agentType || 'anonymous'} schema retry ${event.attempt}/${event.maxAttempts}`,
+          `agent ${str(event.agentType) || 'anonymous'} schema retry ` +
+            `${String(num(event.attempt))}/${String(num(event.maxAttempts))}`,
         );
         break;
       case 'budget:update':
         write(
           `budget: spent ${usd(event.spentUsd)}` +
-            (event.remainingUsd === null ? '' : `, remaining ${usd(event.remainingUsd)}`),
+            (typeof event.remainingUsd === 'number'
+              ? `, remaining ${usd(event.remainingUsd)}`
+              : ''),
         );
         break;
       case 'log':
         if (logs && event.level !== 'debug') {
-          write(`[${event.level}] ${event.msg}`);
+          write(`[${str(event.level)}] ${str(event.msg)}`);
         }
         break;
       case 'run:end':
-        write(`run finished: ${event.status} (total ${usd(event.totalUsd)})`);
+        write(`run finished: ${str(event.status)} (total ${usd(event.totalUsd)})`);
         break;
       default:
         break;

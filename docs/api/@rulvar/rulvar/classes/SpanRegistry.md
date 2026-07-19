@@ -16,8 +16,17 @@ strings, unique per run, pure telemetry, never identity.
 ### Constructor
 
 ```ts
-new SpanRegistry(): SpanRegistry;
+new SpanRegistry(options?): SpanRegistry;
 ```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+#### Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `options?` | \{ `first?`: `number`; \} | - |
+| `options.first?` | `number` | First counter value (default 0): the resumed-segment base that keeps span ids unique per run across segments. |
 
 #### Returns
 

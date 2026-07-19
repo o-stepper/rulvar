@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createEngine,
   defineWorkflow,
+  EVENT_SEGMENT_STRIDE,
   normalizeEntry,
   tool,
   type Engine,
@@ -248,6 +249,31 @@ describe('createServer (M8-T01)', () => {
     const everything = parseFrames(await fromScratch.text());
     expect(everything[0].data).toMatchObject({ type: 'run:start', seq: 0 });
     expect(everything.length).toBeGreaterThan(replay.length);
+  });
+
+  it('seq stays strictly increasing across an in-server resume, so the SSE cursor is unambiguous (v1.22.0 review P1-2)', async () => {
+    const { server } = assemble();
+    const started = await post(server, '/runs', { workflow: 'gated', args: { item: 7 } });
+    const { runId } = (await bodyOf(started)) as { runId: string };
+    const live = await get(server, `/runs/${runId}/events`);
+    await readUntil(live, (frame) => frame.event === 'external:waiting');
+    await post(server, `/runs/${runId}/external/editor-approval`, { approved: true });
+    await untilStatus(server, runId, 'ok');
+
+    const everything = parseFrames(
+      await (await get(server, `/runs/${runId}/events`, { 'last-event-id': '-1' })).text(),
+    );
+    const seqs = everything.map((frame) => Number(frame.id));
+    expect(seqs.length).toBeGreaterThan(3);
+    for (let i = 1; i < seqs.length; i += 1) {
+      expect(seqs[i]).toBeGreaterThan(seqs[i - 1] ?? Number.NaN);
+    }
+    // The resumed segment's events sit at the next segment stride, so a
+    // cursor minted in segment 1 can never collide with segment 2.
+    const resumedStart = everything.find(
+      (frame) => frame.data?.type === 'run:start' && frame.data.resumed === true,
+    );
+    expect(Number(resumedStart?.id)).toBeGreaterThanOrEqual(EVENT_SEGMENT_STRIDE);
   });
 
   it('offline resolution: append under the lease, resume stays with the host or a worker', async () => {

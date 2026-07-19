@@ -40,6 +40,11 @@ jobs:
         run: node scripts/check-fixed-group.mjs
       - name: Frozen-fixture write protection (M2-T12)
         run: node scripts/check-frozen-fixtures.mjs
+      # An invisible literal NUL inside a template literal was the
+      # v1.22.0 resume-ordinal P1; control characters in source must be
+      # escape sequences, never bytes.
+      - name: Source control-byte gate
+        run: node scripts/source-control-bytes.mjs
 
   # The Version Packages PR is EXEMPT (its whole job is to consume the
   # changesets, so requiring one there is a contradiction), but the exempt

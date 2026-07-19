@@ -122,45 +122,89 @@ const contributingSidebar: DefaultTheme.SidebarItem[] = [
 ];
 
 /**
- * Reads the TypeDoc-generated sidebar (when present) and returns a
- * VitePress sidebar block. The file is emitted by `typedoc-vitepress-theme`
- * into `api/typedoc-sidebar.json` on every `pnpm build:typedoc` run.
+ * Builds the path-keyed API sidebars from the TypeDoc-generated
+ * `api/typedoc-sidebar.json` (emitted by `typedoc-vitepress-theme` on
+ * every `pnpm build:typedoc` run).
  *
- * Returns an empty list when the API has not been generated yet (e.g.
- * during `pnpm dev` before the first TypeDoc run).
+ * One monolithic `/api/` sidebar used to be served to every generated
+ * page, and VitePress renders the whole sidebar tree into each page's
+ * HTML: about 1 570 nodes, roughly 540 KB of markup, repeated across
+ * about 1 500 pages, which was 97 percent of an 851 MB build (v1.22.0
+ * review P3-6). The tree is now sliced by longest-prefix path keys, so
+ * a page embeds only what its context needs:
+ *
+ * - `/api/` (the landing page): the package list, one link each.
+ * - `/api/<package>/` (a package index): that package's full tree.
+ * - `/api/<package>/<category>/` (a symbol page): the package header
+ *   plus ONLY its own category's subtree.
+ *
+ * URLs are untouched; navigation across categories goes through the
+ * package index and breadcrumbs, exactly like navigation across
+ * packages always has.
  */
-function loadTypedocSidebar(): DefaultTheme.SidebarItem[] {
+function buildApiSidebars(): Record<string, DefaultTheme.SidebarItem[]> {
   const sidebarPath = resolve(here, '..', 'api', 'typedoc-sidebar.json');
   if (!existsSync(sidebarPath)) {
-    return [
-      {
-        text: 'API reference',
-        collapsed: false,
-        items: [
-          {
-            text: 'Run `pnpm build:typedoc` to generate',
-            link: '/api/',
-          },
-        ],
-      },
-    ];
+    return {
+      '/api/': [
+        {
+          text: 'API reference',
+          collapsed: false,
+          items: [{ text: 'Run `pnpm build:typedoc` to generate', link: '/api/' }],
+        },
+      ],
+    };
   }
   try {
     const raw = readFileSync(sidebarPath, 'utf8');
     const parsed = JSON.parse(raw) as DefaultTheme.SidebarItem[];
-    return [
-      {
-        text: 'API reference',
-        collapsed: false,
-        items: parsed,
-      },
-    ];
+    const map: Record<string, DefaultTheme.SidebarItem[]> = {
+      '/api/': [
+        {
+          text: 'API reference',
+          collapsed: false,
+          items: parsed.map((pkg) => ({
+            ...(pkg.text === undefined ? {} : { text: pkg.text }),
+            ...(pkg.link === undefined ? {} : { link: pkg.link }),
+          })),
+        },
+      ],
+    };
+    for (const pkg of parsed) {
+      if (typeof pkg.link !== 'string') {
+        continue;
+      }
+      const pkgKey = pkg.link.endsWith('/') ? pkg.link : `${pkg.link}/`;
+      map[pkgKey] = [{ ...pkg, collapsed: false }];
+      for (const category of pkg.items ?? []) {
+        const firstChildLink = category.items?.find(
+          (item) => typeof item.link === 'string',
+        )?.link;
+        if (typeof firstChildLink !== 'string') {
+          continue;
+        }
+        // '/api/@rulvar/core/classes/Replayer.md' -> '/api/@rulvar/core/classes/'
+        const categoryKey = firstChildLink.slice(0, firstChildLink.lastIndexOf('/') + 1);
+        if (!categoryKey.startsWith(pkgKey) || categoryKey === pkgKey) {
+          continue;
+        }
+        map[categoryKey] = [
+          {
+            ...(pkg.text === undefined ? {} : { text: pkg.text }),
+            link: pkg.link,
+            collapsed: false,
+            items: [{ ...category, collapsed: false }],
+          },
+        ];
+      }
+    }
+    return map;
   } catch (err) {
     console.warn(
       '[rulvar/docs] Failed to read typedoc-sidebar.json:',
       err instanceof Error ? err.message : err,
     );
-    return [];
+    return {};
   }
 }
 
@@ -168,5 +212,5 @@ export const sidebar: DefaultTheme.Sidebar = {
   '/guide/': guideSidebar,
   '/reference/': referenceSidebar,
   '/contributing/': contributingSidebar,
-  '/api/': loadTypedocSidebar(),
+  ...buildApiSidebars(),
 };

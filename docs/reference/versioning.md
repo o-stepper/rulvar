@@ -103,6 +103,7 @@ Within a release section you will find up to three special headings:
 Post-1.0, Rulvar keeps standard semver:
 
 - **Major releases** are the only place breaking changes ship: API removals, config renames, changed semantics, and dependency major bumps that surface in Rulvar's own types.
+- **`@internal` exports are outside the contract.** A handful of root exports carry the `@internal` TSDoc tag (today: the cassette-recording plumbing in `@rulvar/testing` that the repository's own recorder scripts import from the built dist). They are deliberately absent from the API reference, and any release may change or remove them without a breaking-change note. Everything in the [API reference](/api/) is the contract; an exported symbol you cannot find there is either `@internal` by declaration or a bug worth reporting.
 - **Minor releases** are additive: new features, new options, widened unions behind defaults, and `hashVersion` bumps (which are additive for anyone inside the window).
 - **Patch releases** are fixes only: no new features, no behavior changes, no schema or identity changes. A patch that changes any journaled byte is misclassified by definition.
 

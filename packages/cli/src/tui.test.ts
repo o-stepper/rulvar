@@ -63,3 +63,50 @@ describe('renderEventLine terminal safety', () => {
     expect(line).toBe('phase gather');
   });
 });
+
+describe('malformed external events (v1.22.0 review P2-3)', () => {
+  it('renderEventLine tolerates bare and wrong-typed recognized events', () => {
+    const hostile = {
+      toString(): string {
+        throw new Error('never coerce me');
+      },
+    };
+    const malformed = [
+      { runId: 'R1', seq: 0, ts: 't', spanId: 's0', type: 'run:start' },
+      {
+        runId: 'R1',
+        seq: 1,
+        ts: 't',
+        spanId: 's1',
+        type: 'agent:end',
+        status: 7,
+        costUsd: 'x',
+        usage: 'no',
+      },
+      { runId: 'R1', seq: 2, ts: 't', spanId: 's1', type: 'agent:error', error: 'flat' },
+      {
+        runId: 'R1',
+        seq: 3,
+        ts: 't',
+        spanId: 's1',
+        type: 'tool:end',
+        outcome: hostile,
+        durationMs: 'slow',
+      },
+      {
+        runId: 'R1',
+        seq: 4,
+        ts: 't',
+        spanId: 's1',
+        type: 'approval:pending',
+        toolName: hostile,
+        entryRef: 'x',
+      },
+      { runId: 'R1', seq: 5, ts: 't', spanId: 's0', type: 'log', level: 'error', msg: hostile },
+      { runId: 'R1', seq: 6, ts: 't', spanId: 's0', type: 'run:end' },
+    ] as unknown as WorkflowEvent[];
+    for (const event of malformed) {
+      expect(() => renderEventLine(event)).not.toThrow();
+    }
+  });
+});

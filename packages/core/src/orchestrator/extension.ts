@@ -155,7 +155,17 @@ export interface OrchestratorExtensionIO {
   /** The engine price fold (journal facts in, USD out). */
   priceUsd(servedBy: string | undefined, usage: Usage): number | undefined;
   /** Telemetry emission into the run event stream. */
-  emit(event: { type: string } & Record<string, unknown>): void;
+  emit(
+    event: { type: string } & Record<string, unknown>,
+    options?: {
+      /**
+       * Marks the event as the replay of a journal-recovered decision
+       * (the standard envelope flag), so extension surfaces can emit
+       * recovered admissions honestly (v1.22.0 review P2-5).
+       */
+      replayed?: boolean;
+    },
+  ): void;
 }
 
 /**

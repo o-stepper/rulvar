@@ -580,6 +580,78 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     };
   };
 
+  /** True until boot completes: entries folded then are replays. */
+  let absorbedAsReplay = true;
+
+  const specAgentTypeOf = (nodeId: string | undefined): string =>
+    (nodeId === undefined
+      ? undefined
+      : (fold.specs[nodeId] as { agentType?: string } | undefined)?.agentType) ?? 'unknown';
+
+  /**
+   * The one formatter for the spawn events of journal-embedded
+   * admission rows (v1.22.0 review P2-5): PlanRunner journals every
+   * admission INSIDE a carrying entry (a plan.revision, a ladder
+   * verdict, an escalation decision), and before v1.23 none of them
+   * emitted spawn:admitted / spawn:rejected at all. Recovered rows
+   * emit with the standard replayed marker.
+   */
+  const emitSpawnDecisionRows = (
+    entrySeq: number,
+    rows: readonly unknown[] | undefined,
+    agentTypeAt: (row: { nodeId?: string }, index: number) => string,
+    replayed?: boolean,
+  ): void => {
+    for (const [index, raw] of (rows ?? []).entries()) {
+      const row = raw as {
+        nodeId?: string;
+        decision?: {
+          verdict?: {
+            kind?: string;
+            lineage?: { logicalTaskId?: string };
+            spawnUnitsAfter?: number;
+            reason?: { code?: string };
+          };
+        };
+      };
+      const verdict = row.decision?.verdict;
+      if (verdict?.kind === undefined) {
+        continue;
+      }
+      const agentType = agentTypeAt(row, index);
+      const options = replayed === true ? { replayed: true } : undefined;
+      if (verdict.kind === 'reject') {
+        io.emit(
+          {
+            type: 'spawn:rejected',
+            entryRef: entrySeq,
+            code: verdict.reason?.code ?? 'unknown',
+            agentType,
+          },
+          options,
+        );
+      } else if (
+        verdict.kind === 'admit' ||
+        verdict.kind === 'reuse_full' ||
+        verdict.kind === 'admit_graft'
+      ) {
+        io.emit(
+          {
+            type: 'spawn:admitted',
+            entryRef: entrySeq,
+            verdict: verdict.kind,
+            agentType,
+            logicalTaskId: verdict.lineage?.logicalTaskId ?? 'unknown',
+            ...(verdict.spawnUnitsAfter === undefined
+              ? {}
+              : { spawnUnitsAfter: verdict.spawnUnitsAfter }),
+          },
+          options,
+        );
+      }
+    }
+  };
+
   const absorbPlan = (): void => {
     for (const entry of io.snapshot()) {
       if (entry.seq <= planCursor || entry.scope !== planScope) {
@@ -592,6 +664,16 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       planCursor = entry.seq;
       if (entry.kind === 'plan.revision') {
         feedGuards(entry);
+        // The revision's embedded admissions surface here, identically
+        // on the live path and on replay absorb; the fold has already
+        // landed the specs the rows point at (v1.22.0 review P2-5).
+        const value = entry.value as { admissions?: unknown[] } | undefined;
+        emitSpawnDecisionRows(
+          entry.seq,
+          value?.admissions,
+          (row) => specAgentTypeOf(row.nodeId),
+          absorbedAsReplay ? true : undefined,
+        );
       }
     }
   };
@@ -983,12 +1065,13 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
     ): Promise<
       { kind: 'raised' } | { kind: 'none' } | { kind: 'terminal'; to: PlanNodeStatus }
     > => {
-      await io.append({
+      const verdictEntry = await io.append({
         scope: planScope,
         key: verdictKey,
         kind: 'decision',
         value: value as unknown as Json,
       });
+      emitSpawnDecisionRows(verdictEntry.seq, value.admissions, () => spec.agentType);
       if (value.raisesRung && value.nextAttempt !== undefined) {
         io.emit({
           type: 'termination:debit',
@@ -1197,6 +1280,16 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       decision: input.decision.kind,
       by: input.resolvedBy,
       countsAgainstLimit: value.countsAgainstLimit,
+    });
+    // Decomposition rows align with decision.children by construction;
+    // other carriers resolve through the landed node specs.
+    const children =
+      input.decision.kind === 'decompose'
+        ? (input.decision.children as unknown as Array<{ agentType?: string }>)
+        : undefined;
+    emitSpawnDecisionRows(entry.seq, input.admissions, (row, index) => {
+      const fromChildren = children?.[index]?.agentType;
+      return fromChildren ?? specAgentTypeOf(row.nodeId ?? input.node.nodeId);
     });
     if (value.escalationUnitsAfter !== undefined) {
       io.emit({
@@ -2597,6 +2690,25 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       // Roll-forward: verdicts the fold fired whose appends were lost to
       // a crash land now, strictly before any effect.
       await drainGuardVerdicts();
+      // Recovered decision-kind carriers (ladder verdicts, escalation
+      // decisions) re-announce their embedded admissions with the
+      // replayed marker; plan.revision rows already re-announced inside
+      // the boot absorbPlan above (v1.22.0 review P2-5).
+      for (const entry of io.snapshot()) {
+        if (entry.kind !== 'decision' || entry.scope !== planScope) {
+          continue;
+        }
+        const value = entry.value as { admissions?: unknown[] } | undefined;
+        if (Array.isArray(value?.admissions)) {
+          emitSpawnDecisionRows(
+            entry.seq,
+            value.admissions,
+            (row) => specAgentTypeOf(row.nodeId),
+            true,
+          );
+        }
+      }
+      absorbedAsReplay = false;
       // The bootstrap snapshot: digestSeq 0 is the empty plan, so the
       // FIRST plan_revise has a recorded base before any wake exists.
       // Its hash is a constant of the empty fold, stable across resumes;

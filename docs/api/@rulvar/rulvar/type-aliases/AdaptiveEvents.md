@@ -71,7 +71,7 @@ type AdaptiveEvents =
   agentType: string;
   entryRef: number;
   logicalTaskId: string;
-  spawnUnitsAfter: number;
+  spawnUnitsAfter?: number;
   type: "spawn:admitted";
   verdict: "admit" | "reuse_full" | "admit_graft";
 }
@@ -295,11 +295,20 @@ one closed catalog with M7-T03; emitters arrive with their tasks.
   agentType: string;
   entryRef: number;
   logicalTaskId: string;
-  spawnUnitsAfter: number;
+  spawnUnitsAfter?: number;
   type: "spawn:admitted";
   verdict: "admit" | "reuse_full" | "admit_graft";
 }
 ```
+
+| Name | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| `agentType` | `string` | - | `packages/core/dist/index.d.ts` |
+| `entryRef` | `number` | - | `packages/core/dist/index.d.ts` |
+| `logicalTaskId` | `string` | - | `packages/core/dist/index.d.ts` |
+| `spawnUnitsAfter?` | `number` | Spawn-unit balance after the budget-layer debit. Present on budget-layer admissions (the orchestrator spawn tools and ctx.workflow children); absent on lineage-layer admissions (ctx.agent roots), whose spawn-unit debit rides the dispatch itself (v1.22.0 review P2-5). | `packages/core/dist/index.d.ts` |
+| `type` | `"spawn:admitted"` | - | `packages/core/dist/index.d.ts` |
+| `verdict` | `"admit"` \| `"reuse_full"` \| `"admit_graft"` | - | `packages/core/dist/index.d.ts` |
 
 ***
 

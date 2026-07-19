@@ -20,6 +20,8 @@ import {
 import { FAKE_MODEL_REF, FakeAdapter } from '@rulvar/testing';
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { ScriptRejected } from '@rulvar/core';
+
 import { compileScript } from './compile.js';
 import { WorkerSandboxRunner } from './sandbox-runner.js';
 
@@ -306,5 +308,20 @@ describe('WorkerSandboxRunner (M6-T02)', () => {
 
     const compiled: CompiledWorkflow = compileScript('return 1;');
     expect(compiled.kind).toBe('compiled-workflow');
+  });
+});
+
+describe('the allowImports contract end to end (v1.22.0 review P2-7)', () => {
+  it('an allowlisted literal dynamic import executes; the default rejects it at compile', async () => {
+    // Mirrors docs/guide/planner.md: allowImports is a host trust
+    // decision; the ONLY import shape it unlocks is a literal
+    // `await import('specifier')` with an allowlisted specifier.
+    const source = "const os = await import('node:os'); return typeof os.cpus;";
+    expect(() => compileScript(source)).toThrow(ScriptRejected);
+    const allowed = compileScript(source, { allowImports: ['node:os'] });
+    const { engine } = makeEngine();
+    const outcome = await engine.run(allowed, null, { runId: 'imports-e2e' }).result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.value).toBe('function');
   });
 });

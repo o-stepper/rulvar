@@ -10,7 +10,7 @@
 function createSandboxBridge(ctx, options): SandboxBridge;
 ```
 
-Defined in: [packages/core/src/runner/sandbox-bridge.ts:132](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/sandbox-bridge.ts#L132)
+Defined in: [packages/core/src/runner/sandbox-bridge.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/sandbox-bridge.ts#L140)
 
 ## Parameters
 

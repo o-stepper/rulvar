@@ -175,11 +175,30 @@ describe('PlanRunner (M7-T05): the engine schedules, the model revises', () => {
       budget: { capUsd: 5 },
       plan: { maxRevisionsPerRun: 8 },
     });
+    const admittedEvents: Array<{ entryRef: number; agentType: string; replayed?: boolean }> = [];
+    handle.on('spawn:admitted', (event) => {
+      admittedEvents.push({
+        entryRef: event.entryRef,
+        agentType: event.agentType,
+        ...(event.replayed === undefined ? {} : { replayed: event.replayed }),
+      });
+    });
     const outcome = await handle.result;
     expect(outcome.status).toBe('ok');
     expect(outcome.value).toEqual({ done: true });
 
     const entries = await store.load(handle.runId);
+    // PlanRunner admissions announce spawn:admitted (v1.22.0 review
+    // P2-5: this surface emitted zero before v1.23): one per admitted
+    // child, each pointing at the journaled carrying entry, none marked
+    // replayed on the live path.
+    const admittedChildren = admittedEvents.filter((event) => event.agentType === 'worker');
+    expect(admittedChildren.length).toBeGreaterThanOrEqual(3);
+    for (const event of admittedEvents) {
+      const carrier = entries.find((entry) => entry.seq === event.entryRef);
+      expect(carrier?.kind).toMatch(/plan\.revision|plan\.decision|decision/);
+      expect(event.replayed).toBeUndefined();
+    }
     // termination.init written strictly before the first plan entry
     // and before the orchestrator's first agent entry.
     const init = entries.find((entry) => entry.kind === 'termination.init');

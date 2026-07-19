@@ -151,7 +151,14 @@ export type AdaptiveEvents =
       verdict: 'admit' | 'reuse_full' | 'admit_graft';
       agentType: string;
       logicalTaskId: string;
-      spawnUnitsAfter: number;
+      /**
+       * Spawn-unit balance after the budget-layer debit. Present on
+       * budget-layer admissions (the orchestrator spawn tools and
+       * ctx.workflow children); absent on lineage-layer admissions
+       * (ctx.agent roots), whose spawn-unit debit rides the dispatch
+       * itself (v1.22.0 review P2-5).
+       */
+      spawnUnitsAfter?: number;
     }
   | {
       type: 'spawn:rejected';

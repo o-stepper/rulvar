@@ -45,7 +45,7 @@ function fakeSink(columns = 120): ProgressSink & { chunks: string[]; text(): str
       chunks
         .join('')
         // eslint-disable-next-line no-control-regex
-        .replace(/\[[0-9;?]*[A-Za-z]/gu, ''),
+        .replace(/\u001B\[[0-9;?]*[A-Za-z]/gu, ''),
   };
 }
 
@@ -185,8 +185,8 @@ describe('tty mode', () => {
     expect(finalFrame).toContain('finalize 0.9s');
     expect(finalFrame).toContain('ok  total $0.019');
     // The cursor is hidden during the run and restored at stop.
-    expect(sink.chunks.join('')).toContain('[?25l');
-    expect(sink.chunks.join('')).toContain('[?25h');
+    expect(sink.chunks.join('')).toContain('\u001B[?25l');
+    expect(sink.chunks.join('')).toContain('\u001B[?25h');
   });
 
   it('shows the budget header and marks replayed rows without timers', async () => {
@@ -303,7 +303,7 @@ describe('lines mode', () => {
     expect(text).toContain('agent worker ok in 2.0s: in 900 out 120, $0.0020 [loop > extract]');
     expect(text).toContain('run finished: ok (total $0.0020)');
     // No cursor control in pipes.
-    expect(sink.chunks.join('')).not.toContain('[');
+    expect(sink.chunks.join('')).not.toContain('\u001B[');
   });
 
   it('throttles budget lines to one per second', async () => {
@@ -763,5 +763,154 @@ describe('geometry and timing validation (v1.21.0 review P3-2)', () => {
     expect(sink.text()).not.toMatch(/-\d/u);
     queue.end();
     await view.done;
+  });
+});
+
+describe('catch path sanitization and masking (v1.22.0 review P2-2)', () => {
+  const ESC = String.fromCharCode(0x1b);
+  const CR = String.fromCharCode(0x0d);
+  const SECRET = 'sk-proj-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+  const evil = (): Error => new Error(`сбой ${ESC}[2J${CR}\nFORGED-LINE ${SECRET}`);
+  const assertClean = (raw: string): void => {
+    expect(raw).not.toContain(`${ESC}[2J`);
+    expect(raw).not.toContain(CR);
+    expect(raw).not.toContain(SECRET);
+    expect(raw).toContain('[masked-secret]');
+    // Readability: the visible part of the message survives.
+    expect(raw).toContain('сбой');
+  };
+
+  it('a rejected Promise<RunHandle> source cannot inject into the tty sink', async () => {
+    const sink = fakeSink();
+    const clock = fakeClock();
+    const view = progress(Promise.reject(evil()), { mode: 'tty', sink, clock });
+    await view.done;
+    assertClean(sink.chunks.join(''));
+  });
+
+  it('a RunHandle whose result rejects cannot inject into the tty sink', async () => {
+    const sink = fakeSink();
+    const clock = fakeClock();
+    const handle = {
+      on: () => () => undefined,
+      result: Promise.reject(evil()),
+    } as unknown as RunHandle<unknown>;
+    const view = progress(handle, { mode: 'tty', sink, clock });
+    await view.done;
+    assertClean(sink.chunks.join(''));
+  });
+
+  it('a throwing async iterable cannot inject, in tty and in lines mode', async () => {
+    for (const mode of ['tty', 'lines'] as const) {
+      const sink = fakeSink();
+      const clock = fakeClock();
+      const source = (async function* stream(): AsyncGenerator<WorkflowEvent> {
+        yield ev({ type: 'run:start', workflow: 'wf', resumed: false });
+        await Promise.resolve();
+        throw evil();
+      })();
+      const view = progress(source, { mode, sink, clock });
+      await view.done;
+      assertClean(sink.chunks.join(''));
+    }
+  });
+});
+
+describe('malformed external events (v1.22.0 review P2-3)', () => {
+  // Mirror of the reducer's consumed set: every recognized type is fed
+  // as a bare envelope with every presentation field missing.
+  const consumed = [
+    'run:start',
+    'run:end',
+    'phase:start',
+    'budget:update',
+    'log',
+    'external:waiting',
+    'approval:pending',
+    'child:start',
+    'child:end',
+    'agent:queued',
+    'agent:start',
+    'agent:stream',
+    'agent:error',
+    'agent:schema-retry',
+    'agent:end',
+    'tool:start',
+    'tool:end',
+    'orchestrator:woke',
+    'spawn:admitted',
+    'spawn:rejected',
+  ];
+
+  it('a bare envelope of every consumed type degrades its row, never the view', async () => {
+    const sink = fakeSink();
+    const clock = fakeClock();
+    const queue = queueSource();
+    const view = progress(queue.iterable, { mode: 'lines', sink, clock });
+    for (const type of consumed) {
+      queue.push({ runId: 'R1', seq: 0, ts: 't', spanId: 'sX', type } as unknown as WorkflowEvent);
+    }
+    queue.push(
+      ev({ type: 'agent:start', agentType: 'VISIBLE-AGENT', model: 'm', role: 'loop' }, 'sV'),
+    );
+    queue.push(ev({ type: 'run:end', status: 'ok', totalUsd: 0 }, 's1'));
+    await settle();
+    queue.end();
+    await view.done;
+    const text = sink.chunks.join('');
+    expect(text).toContain('VISIBLE-AGENT');
+    expect(text).toContain('run finished: ok');
+  });
+
+  it('wrong-typed fields (including a stream delta on a live node) are tolerated', async () => {
+    const sink = fakeSink();
+    const clock = fakeClock();
+    const queue = queueSource();
+    const view = progress(queue.iterable, { mode: 'lines', sink, clock });
+    queue.push(ev({ type: 'agent:start', agentType: 'first', model: 'm', role: 'loop' }, 'sA'));
+    const hostile = {
+      toString(): string {
+        throw new Error('never coerce me');
+      },
+    };
+    queue.push(ev({ type: 'agent:stream', delta: 42 }, 'sA'));
+    queue.push(ev({ type: 'phase:start', phase: hostile }, 'sP'));
+    queue.push(ev({ type: 'budget:update', spentUsd: 'x', remainingUsd: hostile }, 's1'));
+    queue.push(ev({ type: 'log', level: 'error', msg: hostile }, 's1'));
+    queue.push(ev({ type: 'agent:end', status: 7, usage: 'no', costUsd: 'free' }, 'sA'));
+    queue.push(
+      ev({ type: 'agent:start', agentType: 'VISIBLE-AGENT', model: 'm', role: 'loop' }, 'sV'),
+    );
+    queue.push(ev({ type: 'run:end', status: 'ok', totalUsd: 'later' }, 's1'));
+    await settle();
+    queue.end();
+    await view.done;
+    const text = sink.chunks.join('');
+    expect(text).toContain('VISIBLE-AGENT');
+    expect(text).toContain('run finished: ok');
+  });
+
+  it('tty mode paints frames after malformed events without throwing', async () => {
+    const sink = fakeSink();
+    const clock = fakeClock();
+    const queue = queueSource();
+    const view = progress(queue.iterable, { mode: 'tty', sink, clock });
+    queue.push({
+      runId: 'R1',
+      seq: 0,
+      ts: 't',
+      spanId: 's1',
+      type: 'run:start',
+    } as unknown as WorkflowEvent);
+    queue.push(
+      ev({ type: 'agent:start', agentType: 'VISIBLE-AGENT', model: 'm', role: 'loop' }, 'sV'),
+    );
+    await settle();
+    clock.fire();
+    queue.push(ev({ type: 'run:end', status: 'ok', totalUsd: 0 }, 's1'));
+    await settle();
+    queue.end();
+    await view.done;
+    expect(sink.text()).toContain('VISIBLE-AGENT');
   });
 });

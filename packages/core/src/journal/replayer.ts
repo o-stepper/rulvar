@@ -45,6 +45,21 @@ import type { IdentityInput } from './identity.js';
 
 export type ReplayMode = 'scoped' | 'cache' | 'never';
 
+/**
+ * The ordinal-space map key: one composite per (scope, hashVersion, key).
+ * `U+0000` separators built from escape sequences (never literal control
+ * bytes in source), because scopes and keys are free-form strings and a
+ * printable separator could alias two different pairs. Prior seeding and
+ * mint() MUST both go through this helper: v1.22.0 shipped with two
+ * hand-built variants whose separators differed (an invisible literal
+ * NUL against a space), so resume seeding filled a bucket mint() never
+ * read and every identical live operation after a resume re-minted
+ * ordinal 0, duplicating the identity triple (v1.22.0 review P1-1).
+ */
+function ordinalMapKey(scope: string, hashVersion: number, key: string): string {
+  return `${scope}\u0000${String(hashVersion)}\u0000${key}`;
+}
+
 /** Large-value soft warn threshold (committed for M2). */
 export const LARGE_VALUE_WARN_BYTES = 262_144;
 
@@ -190,9 +205,11 @@ export class Replayer {
         entry.kind !== 'abandon' &&
         entry.hashVersion === CURRENT_HASH_VERSION
       ) {
-        const ordinalKey = `${entry.scope} ${entry.hashVersion} ${entry.key}`;
-        const next = (this.ordinals.get(ordinalKey) ?? 0) + 1;
-        if (entry.ordinal + 1 > next - 1) {
+        const ordinalKey = ordinalMapKey(entry.scope, entry.hashVersion, entry.key);
+        // The stored value is the NEXT ordinal to mint: max over the
+        // priors of (ordinal + 1), independent of prior order.
+        const current = this.ordinals.get(ordinalKey) ?? 0;
+        if (entry.ordinal + 1 > current) {
           this.ordinals.set(ordinalKey, entry.ordinal + 1);
         }
       }
@@ -562,7 +579,7 @@ export class Replayer {
   }
 
   private mint(scope: string, key: string, kind: EntryKind, status: EntryStatus): JournalEntry {
-    const ordinalKey = `${scope} ${CURRENT_HASH_VERSION} ${key}`;
+    const ordinalKey = ordinalMapKey(scope, CURRENT_HASH_VERSION, key);
     const ordinal = this.ordinals.get(ordinalKey) ?? 0;
     this.ordinals.set(ordinalKey, ordinal + 1);
     const entry: JournalEntry = {

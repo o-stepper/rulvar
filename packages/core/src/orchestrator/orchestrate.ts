@@ -39,6 +39,7 @@ import {
   type InternalAgentHooks,
 } from '../engine/internal.js';
 import { ROOT_ACCOUNT } from '../engine/budget.js';
+import { emitSpawnAdmitted, emitSpawnRejected } from '../engine/spawn-events.js';
 import { OrchestratorCapConfigError } from '../l0/errors.js';
 import { deriverV2 } from '../journal/keyderiver.js';
 import type { AgentOpts, AgentProfile, Workflow } from '../engine/ctx.js';
@@ -451,7 +452,7 @@ export function makeOrchestratorWorkflow(
 
     const records = new Map<number, SpawnRecord>();
     const byOrdinal = new Map<number, SpawnRecord>();
-    const rejectedByOrdinal = new Map<number, AdmissionDecision>();
+    const rejectedByOrdinal = new Map<number, { decision: AdmissionDecision; entrySeq: number }>();
     /**
      * The journaled spec behind each recovered ordinal: the idempotent
      * re-execution guard compares it against the incoming call, because
@@ -680,7 +681,8 @@ export function makeOrchestratorWorkflow(
         servedBy === undefined
           ? undefined
           : internals.priceUsd(servedBy as `${string}:${string}`, usage),
-      emit: (event) => internals.events.emit(event, callingState.spanId),
+      emit: (event, options) =>
+        internals.events.emit(event, callingState.spanId, options?.replayed),
     };
 
     const cancelByHandle = async (
@@ -740,16 +742,34 @@ export function makeOrchestratorWorkflow(
             (value.origin === 'spawn_agent' || value.origin === 'parallel_agents')
           );
         })
-        .map((entry) => entry.value as unknown as SpawnAdmissionValue)
-        .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal);
-      for (const value of admissions) {
+        .map((entry) => ({
+          entrySeq: entry.seq,
+          value: entry.value as unknown as SpawnAdmissionValue,
+        }))
+        .sort((a, b) => a.value.spawnOrdinal - b.value.spawnOrdinal);
+      for (const { entrySeq, value } of admissions) {
         nextOrdinal = Math.max(nextOrdinal, value.spawnOrdinal + 1);
         const decision = value.decision as unknown as AdmissionDecision;
         recoveredSpecByOrdinal.set(value.spawnOrdinal, value.spec as unknown as SpawnAgentParams);
+        const recoveredAgentType =
+          (value.spec as { agentType?: string } | undefined)?.agentType ?? 'unknown';
         if (decision.verdict.kind !== 'admit') {
-          rejectedByOrdinal.set(value.spawnOrdinal, decision);
+          rejectedByOrdinal.set(value.spawnOrdinal, { decision, entrySeq });
           continue;
         }
+        // The recovered admission takes effect here (the child
+        // re-dispatches), so the event fires now, with the standard
+        // replayed marker, never as a fresh live admission (v1.22.0
+        // review P2-5).
+        emitSpawnAdmitted(internals.events, {
+          entryRef: entrySeq,
+          verdict: decision.verdict.kind,
+          agentType: recoveredAgentType,
+          logicalTaskId: decision.verdict.lineage.logicalTaskId,
+          spawnUnitsAfter: decision.verdict.spawnUnitsAfter,
+          spanId: callingState.spanId,
+          replayed: true,
+        });
         // Quota continuity: recovered children count against the node
         // key future admissions of THIS attempt will use.
         admission.recoverChild(currentScope);
@@ -1017,9 +1037,17 @@ export function makeOrchestratorWorkflow(
         }
         const recoveredRejection = rejectedByOrdinal.get(spawnOrdinal);
         if (recoveredRejection !== undefined && specMatches) {
+          const reason = recoveredRejection.decision.verdict as { reason?: { code?: string } };
+          emitSpawnRejected(internals.events, {
+            entryRef: recoveredRejection.entrySeq,
+            code: reason.reason?.code ?? 'unknown',
+            agentType: params.agentType,
+            spanId: callingState.spanId,
+            replayed: true,
+          });
           throw new AdmissionRejectedError(
             `admission rejected spawn ordinal ${String(spawnOrdinal)} (recovered verdict)`,
-            { data: { decision: recoveredRejection as unknown as Json } },
+            { data: { decision: recoveredRejection.decision as unknown as Json } },
           );
         }
         if (opts?.maxSpawns !== undefined && spawnOrdinal >= opts.maxSpawns) {
@@ -1109,16 +1137,13 @@ export function makeOrchestratorWorkflow(
           value: admissionValue,
         });
         if (decision.verdict.kind === 'reject') {
-          rejectedByOrdinal.set(spawnOrdinal, decision);
-          internals.events.emit(
-            {
-              type: 'spawn:rejected',
-              entryRef: decisionEntry.seq,
-              code: decision.verdict.reason.code,
-              agentType: params.agentType,
-            },
-            callingState.spanId,
-          );
+          rejectedByOrdinal.set(spawnOrdinal, { decision, entrySeq: decisionEntry.seq });
+          emitSpawnRejected(internals.events, {
+            entryRef: decisionEntry.seq,
+            code: decision.verdict.reason.code,
+            agentType: params.agentType,
+            spanId: callingState.spanId,
+          });
           throw new AdmissionRejectedError(
             `admission rejected spawn_agent '${params.agentType}' ` +
               `(${decision.verdict.reason.code})`,
@@ -1130,17 +1155,14 @@ export function makeOrchestratorWorkflow(
             `admission verdict '${decision.verdict.kind}' has no producer before M7 (DEF-5)`,
           );
         }
-        internals.events.emit(
-          {
-            type: 'spawn:admitted',
-            entryRef: decisionEntry.seq,
-            verdict: decision.verdict.kind,
-            agentType: params.agentType,
-            logicalTaskId: decision.verdict.lineage.logicalTaskId,
-            spawnUnitsAfter: decision.verdict.spawnUnitsAfter,
-          },
-          callingState.spanId,
-        );
+        emitSpawnAdmitted(internals.events, {
+          entryRef: decisionEntry.seq,
+          verdict: decision.verdict.kind,
+          agentType: params.agentType,
+          logicalTaskId: decision.verdict.lineage.logicalTaskId,
+          spawnUnitsAfter: decision.verdict.spawnUnitsAfter,
+          spanId: callingState.spanId,
+        });
         const record = await dispatchChild(params, spawnOrdinal, {
           nodeId: decision.nodeId ?? 'unknown',
           logicalTaskId: decision.verdict.lineage.logicalTaskId,

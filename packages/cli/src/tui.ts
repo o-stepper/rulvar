@@ -26,29 +26,33 @@ export function renderEventLine(event: WorkflowEvent): string | undefined {
 
 function rawEventLine(event: WorkflowEvent): string | undefined {
   const replayMark = event.replayed === true ? 'replay ' : '';
+  const str = (value: unknown): string => (typeof value === 'string' ? value : '');
+  const num = (value: unknown): number =>
+    typeof value === 'number' && Number.isFinite(value) ? value : 0;
+  const who = str((event as { agentType?: unknown }).agentType) || '(anon)';
   switch (event.type) {
     case 'run:start':
-      return `run ${event.runId} ${event.resumed ? 'resumed' : 'started'} (workflow ${event.workflow})`;
+      return `run ${str(event.runId)} ${event.resumed === true ? 'resumed' : 'started'} (workflow ${str(event.workflow)})`;
     case 'phase:start':
-      return `phase ${event.phase}`;
+      return `phase ${str(event.phase)}`;
     case 'agent:start':
-      return `${replayMark}agent ${event.agentType || '(anon)'}${event.label === undefined ? '' : ` [${event.label}]`} ${event.role} on ${event.model}`;
+      return `${replayMark}agent ${who}${str(event.label) === '' ? '' : ` [${str(event.label)}]`} ${str(event.role)} on ${str(event.model)}`;
     case 'agent:end':
-      return `${replayMark}agent ${event.agentType || '(anon)'} ${event.status} (${money(event.costUsd)}, ${event.usage.inputTokens + event.usage.outputTokens} tok)`;
+      return `${replayMark}agent ${who} ${str(event.status)} (${money(num(event.costUsd))}, ${String(num(event.usage?.inputTokens) + num(event.usage?.outputTokens))} tok)`;
     case 'agent:error':
-      return `agent ${event.agentType || '(anon)'} error: ${event.error.message}${event.willRetry ? ' (will retry)' : ''}`;
+      return `agent ${who} error: ${str(event.error?.message)}${event.willRetry === true ? ' (will retry)' : ''}`;
     case 'agent:queued':
-      return `agent ${event.agentType || '(anon)'} queued`;
+      return `agent ${who} queued`;
     case 'tool:start':
-      return `${replayMark}tool ${event.toolName}`;
+      return `${replayMark}tool ${str(event.toolName)}`;
     case 'tool:end':
-      return `${replayMark}tool ${event.toolName} ${event.outcome} (${event.durationMs}ms)`;
+      return `${replayMark}tool ${str(event.toolName)} ${str(event.outcome)} (${String(num(event.durationMs))}ms)`;
     case 'approval:pending':
-      return `approval pending: tool ${event.toolName} (entry ${event.entryRef})`;
+      return `approval pending: tool ${str(event.toolName)} (entry ${String(num(event.entryRef))})`;
     case 'log':
-      return event.level === 'debug' ? undefined : `${event.level}: ${event.msg}`;
+      return event.level === 'debug' ? undefined : `${str(event.level)}: ${str(event.msg)}`;
     case 'run:end':
-      return `run ${event.runId} ${event.status}`;
+      return `run ${str(event.runId)} ${str(event.status)}`;
     default:
       return undefined;
   }

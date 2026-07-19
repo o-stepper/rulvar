@@ -98,6 +98,7 @@ import { AdmissionController, type AdmitVerdict } from '../orchestrator/admissio
 import { makeOrchestratorWorkflow, type OrchestrateOptions } from '../orchestrator/orchestrate.js';
 import { toJournalValue } from '../journal/serializable.js';
 import { admissionReserveUsd, ROOT_ACCOUNT, type RunBudget, type Spend } from './budget.js';
+import { emitSpawnAdmitted, emitSpawnRejected } from './spawn-events.js';
 import {
   ctxRuntimes,
   kBootCheckpoint,
@@ -1375,23 +1376,31 @@ export function createCtx(
         claimed.add(prior.seq);
         const recorded = prior.value as {
           reject?: { code: string };
+          lineage?: { logicalTaskId?: string };
         };
         if (recorded.reject !== undefined) {
-          internals.events.emit(
-            {
-              type: 'spawn:rejected',
-              entryRef: prior.seq,
-              code: recorded.reject.code,
-              agentType,
-            },
-            state.spanId,
-            true,
-          );
+          emitSpawnRejected(internals.events, {
+            entryRef: prior.seq,
+            code: recorded.reject.code,
+            agentType,
+            spanId: state.spanId,
+            replayed: true,
+          });
           throw new AdmissionRejectedError(
             `lineage admission rejected agent spawn (${recorded.reject.code}; recorded verdict)`,
             { data: { reason: recorded.reject as unknown as Json } },
           );
         }
+        // The recovered lineage admission takes effect here, replayed,
+        // never as a fresh live admission (v1.22.0 review P2-5).
+        emitSpawnAdmitted(internals.events, {
+          entryRef: prior.seq,
+          verdict: 'admit',
+          agentType,
+          logicalTaskId: recorded.lineage?.logicalTaskId ?? 'unknown',
+          spanId: state.spanId,
+          replayed: true,
+        });
       } else {
         const evaluated = admission.evaluateLineage({
           name: agentType,
@@ -1437,21 +1446,27 @@ export function createCtx(
           value: decisionValue,
         });
         if (evaluated.decision.kind === 'reject') {
-          internals.events.emit(
-            {
-              type: 'spawn:rejected',
-              entryRef: decisionEntry.seq,
-              code: evaluated.decision.reason.code,
-              agentType,
-            },
-            state.spanId,
-          );
+          emitSpawnRejected(internals.events, {
+            entryRef: decisionEntry.seq,
+            code: evaluated.decision.reason.code,
+            agentType,
+            spanId: state.spanId,
+          });
           throw new AdmissionRejectedError(
             `lineage admission rejected agent spawn (${evaluated.decision.reason.code})`,
             { data: { reason: evaluated.decision.reason as unknown as Json } },
           );
         }
         admission.registerLineageAdmit(evaluated.decision.lineage.logicalTaskId);
+        // Lineage-layer admission: no spawnUnitsAfter (the budget debit
+        // rides the dispatch itself; v1.22.0 review P2-5).
+        emitSpawnAdmitted(internals.events, {
+          entryRef: decisionEntry.seq,
+          verdict: 'admit',
+          agentType,
+          logicalTaskId: evaluated.decision.lineage.logicalTaskId,
+          spanId: state.spanId,
+        });
       }
     }
 
@@ -2378,7 +2393,7 @@ export function createCtx(
    */
   const workflowOrdinals = new Map<string, number>();
   const nextWorkflowOrdinal = (scope: string, name: string): number => {
-    const counterKey = `${scope} ${name}`;
+    const counterKey = `${scope}\u0000${name}`;
     const ordinal = workflowOrdinals.get(counterKey) ?? 0;
     workflowOrdinals.set(counterKey, ordinal + 1);
     return ordinal;
@@ -2523,9 +2538,13 @@ export function createCtx(
       return value?.decisionType === 'spawn-admission' && value.childScope === childScope;
     });
     let verdict: AdmitVerdict;
+    let decisionEntrySeq: number;
+    let decisionReplayed = false;
     if (prior !== undefined) {
       const recorded = (prior.value as { decision: { verdict: AdmitVerdict } }).decision;
       verdict = recorded.verdict;
+      decisionEntrySeq = prior.seq;
+      decisionReplayed = true;
       if (verdict.kind !== 'reject') {
         admission.recoverInFlight(budgetAccount, verdict);
       }
@@ -2540,7 +2559,7 @@ export function createCtx(
         signature: { agentType: name, isolation: 'none' },
       });
       verdict = decision.verdict;
-      await internals.replayer.appendSinglePhase({
+      const decisionEntry = await internals.replayer.appendSinglePhase({
         scope: state.scope,
         key: '',
         kind: 'decision',
@@ -2555,8 +2574,19 @@ export function createCtx(
           decision: decision as unknown as Json,
         },
       });
+      decisionEntrySeq = decisionEntry.seq;
     }
+    // Child-workflow admissions emit the same spawn events as every
+    // other admission boundary; recovered decisions carry the replayed
+    // marker (v1.22.0 review P2-5; this path emitted nothing before).
     if (verdict.kind === 'reject') {
+      emitSpawnRejected(internals.events, {
+        entryRef: decisionEntrySeq,
+        code: verdict.reason.code,
+        agentType: name,
+        spanId,
+        replayed: decisionReplayed ? true : undefined,
+      });
       throw rejectionError(verdict.reason, name);
     }
     if (verdict.kind !== 'admit') {
@@ -2564,6 +2594,15 @@ export function createCtx(
         `admission verdict '${verdict.kind}' has no producer before M7 (DEF-5)`,
       );
     }
+    emitSpawnAdmitted(internals.events, {
+      entryRef: decisionEntrySeq,
+      verdict: verdict.kind,
+      agentType: name,
+      logicalTaskId: verdict.lineage.logicalTaskId,
+      spawnUnitsAfter: verdict.spawnUnitsAfter,
+      spanId,
+      replayed: decisionReplayed ? true : undefined,
+    });
     const reserve = verdict.reserve;
     const openOptions: Parameters<RunBudget['openAccount']>[1] = {
       parentScope: budgetAccount,
