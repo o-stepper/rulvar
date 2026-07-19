@@ -2239,6 +2239,10 @@
             "link": "/api/@rulvar/core/functions/formatScopePath.md"
           },
           {
+            "text": "hashRunArgs",
+            "link": "/api/@rulvar/core/functions/hashRunArgs.md"
+          },
+          {
             "text": "hashWorkflowBody",
             "link": "/api/@rulvar/core/functions/hashWorkflowBody.md"
           },
@@ -5822,6 +5826,10 @@
           {
             "text": "formatScopePath",
             "link": "/api/@rulvar/rulvar/functions/formatScopePath.md"
+          },
+          {
+            "text": "hashRunArgs",
+            "link": "/api/@rulvar/rulvar/functions/hashRunArgs.md"
           },
           {
             "text": "hashWorkflowBody",

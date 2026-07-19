@@ -66,7 +66,7 @@ export const GRAMMAR: {
   resume: {
     command: 'resume',
     positionals: ['<runId>'],
-    flags: [ARGS, STORE],
+    flags: [ARGS, STORE, { name: 'dry-run' }, { name: 'allow-args-change' }],
   },
   'runs ls': { command: 'runs ls', positionals: [], flags: [STORE], note: '(no aliases in v1)' },
   inspect: { command: 'inspect', positionals: ['<runId>'], flags: [STORE] },

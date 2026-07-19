@@ -5,7 +5,14 @@
  * one line per pending suspension; EOF leaves the run suspended with a
  * notice, never an error.
  */
-import type { Engine, PendingExternal, RunHandle, RunOutcome, Workflow } from '@rulvar/core';
+import type {
+  Engine,
+  PendingExternal,
+  ResumeHandle,
+  RunHandle,
+  RunOutcome,
+  Workflow,
+} from '@rulvar/core';
 
 import type { CliIo } from './io.js';
 import { attachProgress } from './tui.js';
@@ -108,6 +115,54 @@ export async function driveRun(options: {
       },
     );
   }
+}
+
+/**
+ * Renders the `resume --dry-run` preview (the v1.23.0 review): the
+ * replay accounting from `handle.preview`, then what a real resume
+ * would do. The engine's replay-strict mode guarantees zero journal or
+ * meta writes and zero adapter calls. A preview that stops at a
+ * would-be-live call is a SUCCESSFUL preview (the miss IS the answer),
+ * so the exit code is 0 either way; only structural failures (missing
+ * run, unregistered workflow, args refusal) exit nonzero via their
+ * typed errors.
+ */
+export async function reportDryRun(handle: ResumeHandle<unknown>, io: CliIo): Promise<number> {
+  const outcome = await handle.result;
+  const preview = await handle.preview;
+  io.err('dry-run preview (zero journal or meta writes, zero adapter calls):');
+  io.err(
+    `  hits: ${preview.hits}  misses: ${preview.misses}  reruns: ${preview.reruns}  ` +
+      `skipped: ${preview.skipped}`,
+  );
+  io.err(
+    preview.orphaned.length === 0
+      ? '  orphaned effect roots: none'
+      : `  orphaned effect roots (entryRefs): ${preview.orphaned.join(', ')}`,
+  );
+  if (preview.invalidResolutions.length === 0) {
+    io.err('  invalid resolutions: none');
+  } else {
+    for (const invalid of preview.invalidResolutions) {
+      io.err(`  invalid resolution at seq ${invalid.seq}: ${invalid.detail}`);
+    }
+  }
+  if (outcome.error?.code === 'journal_miss') {
+    io.err(`  stopped at the first would-be-live call: ${outcome.error.message}`);
+    io.err('  a real resume would perform new paid work from this point');
+    return 0;
+  }
+  io.err(`  would settle: ${outcome.status}`);
+  if (outcome.error !== undefined) {
+    io.err(`  error: ${outcome.error.message}`);
+  }
+  for (const pending of outcome.pending) {
+    io.err(`  pending: ${pending.key} (entry ${pending.entryRef})`);
+  }
+  if (outcome.value !== undefined) {
+    io.out(JSON.stringify(outcome.value, null, 2));
+  }
+  return 0;
 }
 
 /** Renders the settled outcome; returns the process exit code. */

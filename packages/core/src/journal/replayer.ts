@@ -598,6 +598,16 @@ export class Replayer {
   }
 
   private async persist(entry: JournalEntry): Promise<JournalEntry> {
+    if (this.strict) {
+      // Replay-strict is a preview: zero journal mutations by invariant.
+      // Guarding the single append site (not each caller) keeps every
+      // path honest, including extension seams and resolution refs.
+      throw new JournalMissError(
+        `replay-strict: refusing to append a '${entry.kind}' entry during a dry-run preview; ` +
+          'a preview performs zero journal mutations',
+        { data: { scope: entry.scope, kind: entry.kind, miss: 'append' } },
+      );
+    }
     const shapeIssues = validateEntryShape(entry);
     if (shapeIssues.length > 0) {
       throw new ConfigError(

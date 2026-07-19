@@ -16,6 +16,11 @@ const load = (pkg) => import(pathToFileURL(join(root, 'packages', pkg, 'dist/ind
 
 const planner = await load('planner');
 const testing = await load('testing');
+// The recording plumbing lives on the unexported internal entry
+// (v1.23.0 review): reachable by file path only, never by specifier.
+const internal = await import(
+  pathToFileURL(join(root, 'packages/testing/dist/internal/cassettes.js')).href
+);
 
 const workerUrl = pathToFileURL(join(root, 'packages/planner/dist/sandbox-worker.js'));
 const write = (id, fixture) => {
@@ -73,7 +78,7 @@ write('planner-self-repair', {
 });
 
 // 3. orchestrator-crash-resume: the pre-crash journal plus checkpoints.
-const crash = await testing.recordOrchestratorCrash();
+const crash = await internal.recordOrchestratorCrash();
 write('orchestrator-crash-resume', {
   id: 'orchestrator-crash-resume',
   note:

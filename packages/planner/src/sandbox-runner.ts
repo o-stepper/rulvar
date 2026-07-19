@@ -101,6 +101,14 @@ export class WorkerSandboxRunner implements ScriptRunner {
         }
         if (message.t === 'fail') {
           const wire = (message as Extract<SandboxLifecycleMessage, { t: 'fail' }>).error;
+          if (wire.code === 'config') {
+            // Rehydrate the typed class: a pre-call ConfigError (an
+            // unknown toolset name, a bad option shape) must stay a
+            // typed 'config' outcome across the worker boundary, not
+            // degrade to a generic error (v1.23.0 review P2-1).
+            settleErr(new ConfigError(wire.message));
+            return;
+          }
           const rebuilt = new Error(wire.message);
           rebuilt.name = wire.code;
           settleErr(rebuilt);

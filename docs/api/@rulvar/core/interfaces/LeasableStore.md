@@ -6,7 +6,7 @@
 
 # Interface: LeasableStore
 
-Defined in: [packages/core/src/l0/spi/store.ts:80](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L80)
+Defined in: [packages/core/src/l0/spi/store.ts:100](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L100)
 
 Lease capability: acquire on a held lease MUST reject with a typed
 LeaseHeldError; renew MUST run at an interval of at most ttl/3; an
@@ -24,7 +24,7 @@ append carrying a stale epoch MUST be rejected and never appear in load.
 acquire(runId, owner): Promise<Lease>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L81)
+Defined in: [packages/core/src/l0/spi/store.ts:101](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L101)
 
 #### Parameters
 
@@ -48,7 +48,7 @@ append(
 lease?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:68](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L68)
+Defined in: [packages/core/src/l0/spi/store.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L88)
 
 #### Parameters
 
@@ -74,7 +74,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:68](https://github.com/o-stepper/
 delete(runId): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L72)
+Defined in: [packages/core/src/l0/spi/store.ts:92](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L92)
 
 #### Parameters
 
@@ -98,7 +98,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:72](https://github.com/o-stepper/
 listRuns(f?): Promise<RunMeta[]>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:71](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L71)
+Defined in: [packages/core/src/l0/spi/store.ts:91](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L91)
 
 #### Parameters
 
@@ -122,7 +122,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:71](https://github.com/o-stepper/
 load(runId): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:69](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L69)
+Defined in: [packages/core/src/l0/spi/store.ts:89](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L89)
 
 #### Parameters
 
@@ -146,7 +146,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:69](https://github.com/o-stepper/
 putMeta(m): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L70)
+Defined in: [packages/core/src/l0/spi/store.ts:90](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L90)
 
 #### Parameters
 
@@ -170,7 +170,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:70](https://github.com/o-stepper/
 release(l): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L83)
+Defined in: [packages/core/src/l0/spi/store.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L103)
 
 #### Parameters
 
@@ -190,7 +190,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:83](https://github.com/o-stepper/
 renew(l): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:82](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L82)
+Defined in: [packages/core/src/l0/spi/store.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L102)
 
 #### Parameters
 

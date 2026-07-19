@@ -18,6 +18,7 @@ import {
   costReportFromJournal,
   createEngine,
   FileModelKnowledgeStore,
+  hashRunArgs,
   INBOX_PROPOSAL_TTL_DAYS,
   proposalStatement,
   remeasureQueue,
@@ -26,13 +27,14 @@ import {
   type GateRecord,
   type ModelClaim,
   type ModelRef,
+  type RunMeta,
   type RunOptions,
   type Workflow,
 } from '@rulvar/core';
 
 import { loadCliConfig, loadWorkflowModule, looksLikeFile } from './config.js';
 import { assembleEngine } from './engine-assembly.js';
-import { driveRun, reportOutcome } from './drive.js';
+import { driveRun, reportDryRun, reportOutcome } from './drive.js';
 import { GRAMMAR, KB_FAMILY_USAGE, parseBudgetValue, parseCommand, usageOf } from './grammar.js';
 import type { CliIo } from './io.js';
 
@@ -142,6 +144,89 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
   return reportOutcome(outcome, context.io);
 }
 
+/**
+ * The resume args safety gate (the v1.23.0 review): a run's logical
+ * identity includes its genesis args, so a resume that silently drops,
+ * adds, or changes them is refused BEFORE the engine starts (zero
+ * provider calls, zero journal writes). `--allow-args-change` is the
+ * explicit override for every divergence class; legacy runs recorded
+ * before the binding existed require it (or explicit `--args`) because
+ * nothing can be verified against them.
+ */
+function enforceArgsBinding(input: {
+  meta: RunMeta;
+  argsGiven: boolean;
+  args: unknown;
+  allowChange: boolean;
+  io: CliIo;
+}): void {
+  const { meta, argsGiven, args, allowChange, io } = input;
+  if (meta.argsProvided === undefined) {
+    // Legacy run: the marker predates it; nothing can be verified.
+    if (!argsGiven && !allowChange) {
+      throw new ConfigError(
+        `run '${meta.runId}' predates the args binding (rulvar < 1.24.0), so the CLI cannot ` +
+          'tell whether it was started with --args, and resuming without them silently ' +
+          'changes the logical run if any were used at start. Re-supply the original ' +
+          `--args, or acknowledge explicitly with --allow-args-change; ${usageOf(GRAMMAR.resume)}`,
+      );
+    }
+    if (argsGiven) {
+      io.err(
+        `warning: run '${meta.runId}' predates the args binding; the supplied --args cannot ` +
+          'be verified against the original invocation',
+      );
+    }
+    return;
+  }
+  if (meta.argsProvided) {
+    if (!argsGiven) {
+      if (!allowChange) {
+        throw new ConfigError(
+          `run '${meta.runId}' was started WITH args, but this resume supplies none; the ` +
+            'workflow would see undefined and every args-dependent call would become new ' +
+            'paid work instead of a replay. Re-supply the original --args, or force the ' +
+            `change with --allow-args-change; ${usageOf(GRAMMAR.resume)}`,
+        );
+      }
+      io.err(`warning: resuming '${meta.runId}' without its genesis args (--allow-args-change)`);
+      return;
+    }
+    if (meta.argsHash === undefined) {
+      io.err(
+        `warning: run '${meta.runId}' recorded args presence but no hash (the genesis args ` +
+          'were not JCS-serializable); the supplied --args cannot be verified',
+      );
+      return;
+    }
+    const supplied = hashRunArgs(args);
+    if (supplied !== meta.argsHash) {
+      if (!allowChange) {
+        throw new ConfigError(
+          `--args does not match the args run '${meta.runId}' was started with (recorded ` +
+            `hash ${meta.argsHash.slice(0, 12)}, supplied ${supplied?.slice(0, 12) ?? 'none'}); ` +
+            'changed args silently change the logical run and re-pay every args-dependent ' +
+            `call. Force deliberately with --allow-args-change; ${usageOf(GRAMMAR.resume)}`,
+        );
+      }
+      io.err(`warning: resuming '${meta.runId}' with changed args (--allow-args-change)`);
+    }
+    return;
+  }
+  // argsProvided false: the run genuinely started without args, so a
+  // bare resume stays the convenient, silent path.
+  if (argsGiven) {
+    if (!allowChange) {
+      throw new ConfigError(
+        `run '${meta.runId}' was started WITHOUT args, but this resume supplies some; added ` +
+          'args silently change the logical run. Drop --args, or force the change with ' +
+          `--allow-args-change; ${usageOf(GRAMMAR.resume)}`,
+      );
+    }
+    io.err(`warning: resuming no-args run '${meta.runId}' with args (--allow-args-change)`);
+  }
+}
+
 export async function resumeCommand(argv: string[], context: CommandContext): Promise<number> {
   // resume accepts EXACTLY the documented grammar (v1.16.2 review
   // P2-1): --budget-usd and --profile are rejected here at parse time,
@@ -151,10 +236,15 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
   // design), and a profile shapes engine assembly only at run start.
   const parsed = parseCommand(GRAMMAR.resume, argv);
   const runId = parsed.positionals[0];
-  // Original arguments are not journaled for in-process workflows in
-  // v1: the host re-supplies them on resume (the resume binding
-  // residuals stay an open question).
-  const args = parseArgsJson(parsed.values.args as string | undefined);
+  // Args are not journaled: the host re-supplies them on resume. The
+  // genesis binding recorded in RunMeta (argsProvided/argsHash) turns a
+  // forgotten or changed value into a typed refusal instead of a
+  // silently different logical run that pays again (v1.23.0 review).
+  const rawArgs = parsed.values.args as string | undefined;
+  const args = parseArgsJson(rawArgs);
+  const argsGiven = rawArgs !== undefined;
+  const dryRun = parsed.values['dry-run'] === true;
+  const allowChange = parsed.values['allow-args-change'] === true;
   const store = parsed.values.store as string | undefined;
   const config = await loadCliConfig(context.cwd);
   const assembled = assembleEngine({
@@ -167,6 +257,7 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
   if (meta === undefined) {
     throw new ConfigError(`run '${runId}' not found in the store`);
   }
+  enforceArgsBinding({ meta, argsGiven, args, allowChange, io: context.io });
   const name = meta.workflowName;
   const workflow =
     name === undefined
@@ -181,7 +272,11 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
   }
   const first = assembled.engine.resume(runId, workflow as unknown as Workflow<unknown, unknown>, {
     args,
+    ...(dryRun ? { dryRun: true } : {}),
   });
+  if (dryRun) {
+    return await reportDryRun(first, context.io);
+  }
   const outcome = await driveRun({
     engine: assembled.engine,
     workflow,
@@ -233,6 +328,15 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
   context.io.out(`run ${meta.runId}: ${meta.status} (updated ${meta.updatedAt})`);
   if (meta.workflowName !== undefined) {
     context.io.out(`workflow: ${meta.workflowName}`);
+  }
+  // The genesis args binding participates in inspect (v1.23.0 review):
+  // the full hash so external tooling can compare without re-deriving.
+  if (meta.argsProvided !== undefined) {
+    context.io.out(
+      meta.argsProvided
+        ? `args at genesis: provided${meta.argsHash === undefined ? ' (no hash: not JCS-serializable)' : ` (hash ${meta.argsHash})`}`
+        : 'args at genesis: none',
+    );
   }
   // Journal summary without payload parsing beyond the engine's own
   // entry shapes (M5-T01 acceptance): counts per kind, terminal

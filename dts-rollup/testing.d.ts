@@ -125,65 +125,6 @@ type LiveSmokeOutcome = {
 */
 declare function runLiveSmoke(adapter: Pick<ProviderAdapter, "stream">, req: ChatRequest, options?: RunLiveSmokeOptions): Promise<LiveSmokeOutcome>;
 //#endregion
-//#region src/cassettes/build-fixtures.d.ts
-/** One cassette fixture file: id, provenance note, and the journal. */
-/** @internal */
-interface CassetteFixture {
-  id: string;
-  note: string;
-  entries: JournalEntry[];
-}
-/** @internal */
-declare function buildM2CassetteFixtures(): CassetteFixture[];
-/**
-* The frozen v1 journal: a
-* round-1 JSONL file with kinds agent, step, rand, external, approval and
-* the legacy `v: 1` field (no hashVersion member). Returned as raw
-* JSON-ready objects, one per line.
-* @internal
-*/
-declare function buildFrozenV1JournalRaw(): Array<Record<string, unknown>>;
-/**
-* v2 golden identity fixtures: worked examples per spawn kind (M2-T12).
-* The keys freeze the hashVersion 2 profile; the v1 members freeze the
-* effort-insensitive projection and the incomparable domain.
-* @internal
-*/
-declare function buildV2GoldenIdentity(): Record<string, unknown>;
-//#endregion
-//#region src/cassettes/record-live.d.ts
-/** @internal */
-declare function recordLiveCassettes(): Promise<CassetteFixture[]>;
-//#endregion
-//#region src/cassettes/m6-orchestrator.d.ts
-/** @internal */
-declare const M6_ORCH_RUN_ID = "m6-orchestrator-crash";
-/** @internal */
-declare const M6_ORCH_GOAL = "m6 cassette: gather two facts";
-/** @internal */
-declare const M6_ORCH_PROFILES: {
-  worker: {
-    description: string;
-  };
-};
-/** Extracts spawn handles from the tool results the model saw. */
-/** @internal */
-declare function handlesInRequest(req: ChatRequest): number[];
-/** Fixes wall clock and spans; everything else is deterministic already. */
-/** @internal */
-declare function normalizeM6Entries(entries: readonly JournalEntry[]): JournalEntry[];
-/**
-* Phase 1: record the pre-crash journal. The transcripts store carries
-* the boundary checkpoint the resume restores from; the recorder keeps
-* it in memory because the cassette pins only journal bytes (checkpoint
-* blobs are engine-internal at-least-once state).
-* @internal
-*/
-declare function recordOrchestratorCrash(): Promise<{
-  entries: JournalEntry[]; /** Boundary checkpoint blobs by ref, base64: the resume restores from them. */
-  checkpoints: Record<string, string>;
-}>;
-//#endregion
 //#region src/vcr.d.ts
 /** One recorded exchange; a cassette is one JSON header line plus rows. */
 interface VcrRow {
@@ -250,4 +191,4 @@ declare function replay(options: {
   adapters?: ProviderAdapter[];
 }): ProviderAdapter[];
 //#endregion
-export { type CassetteFixture, type CreateTestEngineOptions, DEFAULT_LIVE_SMOKE_ATTEMPTS, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type FakeToolCallsValue, type FakeWireErrorValue, type LiveSmokeOutcome, M6_ORCH_GOAL, M6_ORCH_PROFILES, M6_ORCH_RUN_ID, MAX_LIVE_SMOKE_ATTEMPTS, MAX_LIVE_SMOKE_DELAY_MS, RedactFn, type ReplayRunOptions, type RunLiveSmokeOptions, type TestEngine, type TestRunHandle, VcrCassette, VcrMissError, VcrRow, buildFrozenV1JournalRaw, buildM2CassetteFixtures, buildV2GoldenIdentity, createTestEngine, defaultRedact, fakeToolCalls, fakeWireError, handlesInRequest, liveTestEnabled, normalizeM6Entries, readCassette, record, recordLiveCassettes, recordOrchestratorCrash, replay, replayRun, requestHash, runLiveSmoke };
+export { type CreateTestEngineOptions, DEFAULT_LIVE_SMOKE_ATTEMPTS, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type FakeToolCallsValue, type FakeWireErrorValue, type LiveSmokeOutcome, MAX_LIVE_SMOKE_ATTEMPTS, MAX_LIVE_SMOKE_DELAY_MS, RedactFn, type ReplayRunOptions, type RunLiveSmokeOptions, type TestEngine, type TestRunHandle, VcrCassette, VcrMissError, VcrRow, createTestEngine, defaultRedact, fakeToolCalls, fakeWireError, liveTestEnabled, readCassette, record, replay, replayRun, requestHash, runLiveSmoke };

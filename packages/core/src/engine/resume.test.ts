@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ConfigError } from '../l0/errors.js';
-import { createEngine } from './engine.js';
+import { createEngine, hashRunArgs } from './engine.js';
 import { defineWorkflow } from './ctx.js';
 import { scriptedAdapter } from './test-harness.js';
 import { JsonlFileStore } from '../stores/jsonl.js';
@@ -365,5 +365,130 @@ describe('telemetry counters across resume segments (v1.22.0 review P1-2)', () =
     // The durable segment count survives settle-time meta writes.
     const metaRecord = (await store.listRuns()).find((m) => m.runId === 'SEQ1');
     expect(metaRecord?.segments).toBe(3);
+  });
+});
+
+describe('args binding and the dry-run preview (v1.23.0 review)', () => {
+  const argsWf = defineWorkflow(
+    { name: 'argsy' },
+    async (ctx, args: { value?: string } | undefined) => {
+      return await ctx.agent(`echo ${args?.value ?? 'missing'}`);
+    },
+  );
+  const argsGateWf = defineWorkflow({ name: 'args-gate' }, async (ctx, args: { value: string }) => {
+    const analysis = await ctx.agent(`analyze ${args.value}`);
+    const approval = await ctx.awaitExternal<{ ok: boolean }>('gate');
+    return { analysis, ok: approval.ok };
+  });
+
+  it('genesis records argsProvided plus a canonical argsHash; no-args runs record false', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-argsbind-'));
+    const store = new JsonlFileStore({ dir });
+    const { engine } = makeEngine(store);
+    await engine.run(argsWf, { value: 'CHECK' }, { runId: 'A1' }).result;
+    await engine.run(argsWf, undefined, { runId: 'A2' }).result;
+    const metas = await store.listRuns();
+    const first = metas.find((m) => m.runId === 'A1');
+    const second = metas.find((m) => m.runId === 'A2');
+    expect(first?.argsProvided).toBe(true);
+    expect(first?.argsHash).toBe(hashRunArgs({ value: 'CHECK' }));
+    expect(second?.argsProvided).toBe(false);
+    expect(second?.argsHash).toBeUndefined();
+  });
+
+  it('hashRunArgs is canonical over key order, undefined for undefined, throws on cycles', () => {
+    expect(hashRunArgs(undefined)).toBeUndefined();
+    expect(hashRunArgs({ a: 1, b: 'x' })).toBe(hashRunArgs({ b: 'x', a: 1 }));
+    expect(hashRunArgs({ a: 1 })).not.toBe(hashRunArgs({ a: 2 }));
+    expect(hashRunArgs(null)).toBe(hashRunArgs(null));
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    expect(() => hashRunArgs(cyclic)).toThrow();
+  });
+
+  it('unserializable args record the marker without a hash', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-argsbind-'));
+    const store = new JsonlFileStore({ dir });
+    const { engine } = makeEngine(store);
+    const cyclic: Record<string, unknown> = { value: 'CHECK' };
+    cyclic.self = cyclic;
+    await engine.run(argsWf, cyclic, { runId: 'A3' }).result;
+    const meta = (await store.listRuns()).find((m) => m.runId === 'A3');
+    expect(meta?.argsProvided).toBe(true);
+    expect(meta?.argsHash).toBeUndefined();
+  });
+
+  it('a resume with different args preserves the genesis binding verbatim', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-argsbind-'));
+    const store = new JsonlFileStore({ dir });
+    const first = makeEngine(store);
+    await first.engine.run(argsWf, { value: 'CHECK' }, { runId: 'A4' }).result;
+    const genesisHash = hashRunArgs({ value: 'CHECK' });
+    const second = makeEngine(store, 'fresh call');
+    const outcome = await second.engine.resume('A4', argsWf, { args: { value: 'OTHER' } }).result;
+    expect(outcome.status).toBe('ok');
+    // The changed args made the first call a genuine live rerun.
+    expect(second.adapter.calls.length).toBeGreaterThan(0);
+    const meta = (await store.listRuns()).find((m) => m.runId === 'A4');
+    expect(meta?.argsProvided).toBe(true);
+    expect(meta?.argsHash).toBe(genesisHash);
+  });
+
+  it('a legacy meta never gains the marker retroactively', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-argsbind-'));
+    const store = new JsonlFileStore({ dir });
+    const first = makeEngine(store);
+    await first.engine.run(argsWf, { value: 'CHECK' }, { runId: 'A5' }).result;
+    // Simulate a run written before the fields existed.
+    const recorded = (await store.listRuns()).find((m) => m.runId === 'A5');
+    if (recorded === undefined) {
+      throw new Error('meta record missing');
+    }
+    const { argsProvided: _drop1, argsHash: _drop2, ...legacy } = recorded;
+    await store.putMeta(legacy);
+    const second = makeEngine(store);
+    await second.engine.resume('A5', argsWf, { args: { value: 'CHECK' } }).result;
+    const after = (await store.listRuns()).find((m) => m.runId === 'A5');
+    expect(after?.argsProvided).toBeUndefined();
+    expect(after?.argsHash).toBeUndefined();
+  });
+
+  it('dryRun performs zero store mutations and zero adapter calls', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-dryrun-'));
+    const store = new JsonlFileStore({ dir });
+    const first = makeEngine(store);
+    const started = await first.engine.run(argsGateWf, { value: 'X' }, { runId: 'D1' }).result;
+    expect(started.status).toBe('suspended');
+    const entriesBefore = JSON.stringify(await store.load('D1'));
+    const metaBefore = JSON.stringify((await store.listRuns()).find((m) => m.runId === 'D1'));
+    const second = makeEngine(store, 'MUST NOT RUN');
+    const handle = second.engine.resume('D1', argsGateWf, { args: { value: 'X' }, dryRun: true });
+    const outcome = await handle.result;
+    const preview = await handle.preview;
+    expect(outcome.status).toBe('suspended');
+    expect(preview.hits).toBeGreaterThan(0);
+    expect(preview.misses).toBe(0);
+    expect(second.adapter.calls).toHaveLength(0);
+    expect(JSON.stringify(await store.load('D1'))).toBe(entriesBefore);
+    expect(JSON.stringify((await store.listRuns()).find((m) => m.runId === 'D1'))).toBe(metaBefore);
+  });
+
+  it('dryRun of a run needing live work settles journal_miss with zero appends', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-dryrun-'));
+    const store = new JsonlFileStore({ dir });
+    const first = makeEngine(store);
+    await first.engine.run(argsWf, { value: 'CHECK' }, { runId: 'D2' }).result;
+    const entriesBefore = JSON.stringify(await store.load('D2'));
+    const metaBefore = JSON.stringify((await store.listRuns()).find((m) => m.runId === 'D2'));
+    const second = makeEngine(store, 'MUST NOT RUN');
+    const handle = second.engine.resume('D2', argsWf, { args: { value: 'OTHER' }, dryRun: true });
+    const outcome = await handle.result;
+    const preview = await handle.preview;
+    expect(outcome.status).toBe('error');
+    expect(outcome.error?.code).toBe('journal_miss');
+    expect(preview.misses).toBe(1);
+    expect(second.adapter.calls).toHaveLength(0);
+    expect(JSON.stringify(await store.load('D2'))).toBe(entriesBefore);
+    expect(JSON.stringify((await store.listRuns()).find((m) => m.runId === 'D2'))).toBe(metaBefore);
   });
 });

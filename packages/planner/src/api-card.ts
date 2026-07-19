@@ -11,6 +11,14 @@
  * P2-4: the hand-maintained list had silently fallen three options
  * behind, and the card claimed identical calls journal as one result,
  * which the ordinal semantics contradict).
+ *
+ * The tools and model semantics are pinned by the v1.23.0 review:
+ * string entries of `tools` are registered TOOLSET names (the profile
+ * card prints the valid set; profile names there are agentType values,
+ * and runtime resolution rejects them as unknown toolsets before any
+ * provider call), and `model`/`routing` are normally omitted because
+ * the profile card never names models, so the planner has no valid ref
+ * source unless the goal text itself supplies an allowlist.
  */
 import { SANDBOX_AGENT_OPT_KEYS } from '@rulvar/core';
 
@@ -22,11 +30,14 @@ const CARD: string = [
   '- agent(prompt, opts?) -> Promise<value>: one subagent call.',
   `  opts (JSON only): { ${SANDBOX_AGENT_OPT_KEYS.map((key) => `${key}?`).join(', ')} }`,
   '  - schema: a JSON Schema LITERAL (never a library value); the result is the validated object.',
-  '  - tools: an array of registered profile NAMES (strings only).',
+  '  - tools: an array of registered TOOLSET names, exactly the ones the profile card lists;',
+  '    never agent profile names (an unknown name is a typed error before any call).',
   "  - onError: 'throw' | 'null' (default 'null'; a failed call yields null and the loss is recorded).",
-  '  - model: a string; agentType: a registered profile name from the profile card.',
-  '  - routing: a JSON map of invocation role to a model ref from the profile card',
-  "    (e.g. { summarize: '<model ref>' }); wins over the profile's own routing.",
+  '  - agentType: a registered profile name from the profile card.',
+  '  - model and routing: normally OMIT BOTH; the host profiles and routing decide models,',
+  '    and the profile card never names any. Use them only when the goal text itself lists',
+  '    allowed model refs (then routing maps invocation role to one of them, e.g.',
+  "    { summarize: '<allowed ref>' }, and wins over the profile's own routing).",
   '  - memoizeOutcome: true journals this exact outcome for replay on resume EVEN when it failed (default: failures rerun).',
   "  - replay: 'cache' | 'never'; 'never' forces a fresh live call on every resume, 'cache' reuses any matching prior.",
   '- parallel(fns, opts?) -> Promise<values[]>: concurrent branches; fns is an array of async functions.',

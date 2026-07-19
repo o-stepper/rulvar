@@ -51,12 +51,16 @@ const review = defineWorkflow({ name: 'review' }, async (ctx, args) => {
   return { analysis, approved: approval.approved, item: args.item };
 });
 
+const echo = defineWorkflow({ name: 'echo' }, async (ctx, args) => {
+  return await ctx.agent('echo ' + String(args?.value ?? 'missing'));
+});
+
 export default {
   engineOptions: {
     adapters: [new FakeAdapter({ agents: { '*': 'analysis complete' } })],
     defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
   },
-  workflows: { review },
+  workflows: { review, echo },
 };
 `,
     'utf8',
@@ -244,7 +248,8 @@ export default {
     const runId = runIdOf(io);
     writeFileSync(join(cwd, 'rulvar.config.mjs'), 'export default { workflows: {} };\n', 'utf8');
     const resume = scriptedIo();
-    expect(await runCli(['resume', runId], { cwd, io: resume })).toBe(1);
+    // Correct args pass the args gate; the registration check then fires.
+    expect(await runCli(['resume', runId, '--args', '{"item":2}'], { cwd, io: resume })).toBe(1);
     expect(resume.errLines.join('\n')).toContain('register it under that name');
   });
 
@@ -266,5 +271,189 @@ export default defineWorkflow({ name: 'from-file' }, async (ctx) => ctx.agent('g
     const code = await runCli(['run', 'wf.mjs'], { cwd, io });
     expect(code).toBe(0);
     expect(io.outLines.join('\n')).toContain('from the file');
+  });
+});
+
+describe('resume args safety and the dry-run preview (v1.23.0 review)', () => {
+  const journalOf = (cwd: string, runId: string): string =>
+    readFileSync(join(cwd, '.rulvar', `${runId}.jsonl`), 'utf8');
+  const metaOf = (cwd: string, runId: string): string =>
+    readFileSync(join(cwd, '.rulvar', `${runId}.meta.json`), 'utf8');
+
+  async function completedEchoRun(cwd: string): Promise<string> {
+    const io = scriptedIo();
+    const code = await runCli(
+      ['run', 'echo', '--args', '{"value":"CHECK"}', '--store', '.rulvar'],
+      { cwd, io },
+    );
+    expect(code).toBe(0);
+    return runIdOf(io);
+  }
+
+  it('same-args resume is a pure replay: journal and meta stay byte-identical', async () => {
+    const cwd = writeFixtureProject();
+    const runId = await completedEchoRun(cwd);
+    const journalBefore = journalOf(cwd, runId);
+    const io = scriptedIo();
+    const code = await runCli(
+      ['resume', runId, '--args', '{"value":"CHECK"}', '--store', '.rulvar'],
+      { cwd, io },
+    );
+    expect(code).toBe(0);
+    // Byte-identical journal = zero live calls AND unchanged cost (the
+    // cost report folds from exactly these entries).
+    expect(journalOf(cwd, runId)).toBe(journalBefore);
+    expect(JSON.parse(io.outLines.join('\n'))).toBe('analysis complete');
+    expect(io.errLines.some((line) => line.includes('warning'))).toBe(false);
+  });
+
+  it('missing args on an args run refuse before the engine, mutating nothing', async () => {
+    const cwd = writeFixtureProject();
+    const runId = await completedEchoRun(cwd);
+    const journalBefore = journalOf(cwd, runId);
+    const metaBefore = metaOf(cwd, runId);
+    const io = scriptedIo();
+    const code = await runCli(['resume', runId, '--store', '.rulvar'], { cwd, io });
+    expect(code).toBe(1);
+    expect(io.errLines.join('\n')).toContain('was started WITH args');
+    expect(io.errLines.join('\n')).toContain('--allow-args-change');
+    expect(journalOf(cwd, runId)).toBe(journalBefore);
+    expect(metaOf(cwd, runId)).toBe(metaBefore);
+  });
+
+  it('mismatched args refuse without the flag and proceed loudly with it', async () => {
+    const cwd = writeFixtureProject();
+    const runId = await completedEchoRun(cwd);
+    const journalBefore = journalOf(cwd, runId);
+    const refused = scriptedIo();
+    expect(
+      await runCli(['resume', runId, '--args', '{"value":"OTHER"}', '--store', '.rulvar'], {
+        cwd,
+        io: refused,
+      }),
+    ).toBe(1);
+    expect(refused.errLines.join('\n')).toContain('does not match the args');
+    expect(journalOf(cwd, runId)).toBe(journalBefore);
+
+    const forced = scriptedIo();
+    expect(
+      await runCli(
+        [
+          'resume',
+          runId,
+          '--args',
+          '{"value":"OTHER"}',
+          '--allow-args-change',
+          '--store',
+          '.rulvar',
+        ],
+        { cwd, io: forced },
+      ),
+    ).toBe(0);
+    expect(forced.errLines.join('\n')).toContain('changed args');
+    // The changed args made the call a genuine new operation.
+    expect(journalOf(cwd, runId).trim().split('\n').length).toBeGreaterThan(
+      journalBefore.trim().split('\n').length,
+    );
+  });
+
+  it('a no-args run resumes bare silently; added args need the flag', async () => {
+    const cwd = writeFixtureProject();
+    const first = scriptedIo();
+    expect(await runCli(['run', 'echo', '--store', '.rulvar'], { cwd, io: first })).toBe(0);
+    const runId = runIdOf(first);
+    const journalBefore = journalOf(cwd, runId);
+
+    const bare = scriptedIo();
+    expect(await runCli(['resume', runId, '--store', '.rulvar'], { cwd, io: bare })).toBe(0);
+    expect(bare.errLines.some((line) => line.includes('warning'))).toBe(false);
+    expect(journalOf(cwd, runId)).toBe(journalBefore);
+
+    const added = scriptedIo();
+    expect(
+      await runCli(['resume', runId, '--args', '{"value":"NEW"}', '--store', '.rulvar'], {
+        cwd,
+        io: added,
+      }),
+    ).toBe(1);
+    expect(added.errLines.join('\n')).toContain('was started WITHOUT args');
+    expect(journalOf(cwd, runId)).toBe(journalBefore);
+  });
+
+  it('dry-run prints the preview and leaves journal and meta byte-identical', async () => {
+    const cwd = writeFixtureProject();
+    const runId = await completedEchoRun(cwd);
+    const journalBefore = journalOf(cwd, runId);
+    const metaBefore = metaOf(cwd, runId);
+
+    const clean = scriptedIo();
+    expect(
+      await runCli(
+        ['resume', runId, '--args', '{"value":"CHECK"}', '--dry-run', '--store', '.rulvar'],
+        { cwd, io: clean },
+      ),
+    ).toBe(0);
+    const cleanErr = clean.errLines.join('\n');
+    expect(cleanErr).toContain('dry-run preview');
+    expect(cleanErr).toMatch(/hits: [1-9]/u);
+    expect(cleanErr).toContain('misses: 0');
+    expect(cleanErr).toContain('would settle: ok');
+    expect(journalOf(cwd, runId)).toBe(journalBefore);
+    expect(metaOf(cwd, runId)).toBe(metaBefore);
+
+    // A preview with deliberately dropped args reports the miss instead
+    // of paying for it, and still mutates nothing.
+    const missing = scriptedIo();
+    expect(
+      await runCli(['resume', runId, '--dry-run', '--allow-args-change', '--store', '.rulvar'], {
+        cwd,
+        io: missing,
+      }),
+    ).toBe(0);
+    expect(missing.errLines.join('\n')).toContain('stopped at the first would-be-live call');
+    expect(journalOf(cwd, runId)).toBe(journalBefore);
+    expect(metaOf(cwd, runId)).toBe(metaBefore);
+
+    // The args gate runs before a preview too.
+    const gated = scriptedIo();
+    expect(
+      await runCli(['resume', runId, '--dry-run', '--store', '.rulvar'], { cwd, io: gated }),
+    ).toBe(1);
+    expect(gated.errLines.join('\n')).toContain('was started WITH args');
+  });
+
+  it('legacy metas without the binding demand explicit acknowledgment', async () => {
+    const cwd = writeFixtureProject();
+    const runId = await completedEchoRun(cwd);
+    // Simulate a run recorded before rulvar 1.24.0.
+    const metaPath = join(cwd, '.rulvar', `${runId}.meta.json`);
+    const legacy = JSON.parse(readFileSync(metaPath, 'utf8')) as Record<string, unknown>;
+    delete legacy.argsProvided;
+    delete legacy.argsHash;
+    writeFileSync(metaPath, JSON.stringify(legacy), 'utf8');
+    const journalBefore = journalOf(cwd, runId);
+
+    const refused = scriptedIo();
+    expect(await runCli(['resume', runId, '--store', '.rulvar'], { cwd, io: refused })).toBe(1);
+    expect(refused.errLines.join('\n')).toContain('predates the args binding');
+    expect(journalOf(cwd, runId)).toBe(journalBefore);
+
+    const withArgs = scriptedIo();
+    expect(
+      await runCli(['resume', runId, '--args', '{"value":"CHECK"}', '--store', '.rulvar'], {
+        cwd,
+        io: withArgs,
+      }),
+    ).toBe(0);
+    expect(withArgs.errLines.join('\n')).toContain('cannot be verified');
+    expect(journalOf(cwd, runId)).toBe(journalBefore);
+
+    const acknowledged = scriptedIo();
+    expect(
+      await runCli(['resume', runId, '--allow-args-change', '--store', '.rulvar'], {
+        cwd,
+        io: acknowledged,
+      }),
+    ).toBe(0);
   });
 });

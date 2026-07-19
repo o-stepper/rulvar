@@ -6,7 +6,7 @@
       "hashVersion": 2,
       "seq": 0,
       "scope": "",
-      "key": "e39ae4a12694d2caf13a0ede84bef6185036b97cd4d14dd8571a78cd37780677",
+      "key": "1780869b32bab42d3d7e7075f80880bcc4cb433c623c4427359671bd8d60befb",
       "ordinal": 0,
       "kind": "agent",
       "status": "running",
@@ -18,7 +18,7 @@
       "seq": 1,
       "ref": 0,
       "scope": "",
-      "key": "e39ae4a12694d2caf13a0ede84bef6185036b97cd4d14dd8571a78cd37780677",
+      "key": "1780869b32bab42d3d7e7075f80880bcc4cb433c623c4427359671bd8d60befb",
       "ordinal": 0,
       "kind": "agent",
       "status": "ok",
@@ -27,7 +27,7 @@
       "endedAt": "2026-02-01T00:00:00.000Z",
       "value": "```js\nconst startedAt = Date.now();\nconst summary = await agent('summarize the corpus');\nreturn { startedAt, summary };\n```",
       "usage": {
-        "inputTokens": 941,
+        "inputTokens": 1008,
         "outputTokens": 31,
         "cacheReadTokens": 0,
         "cacheWriteTokens": 0

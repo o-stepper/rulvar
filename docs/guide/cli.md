@@ -30,7 +30,7 @@ The canonical grammar, with no aliases:
 
 ```text
 rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N] [--profile NAME]
-rulvar resume <runId> [--args JSON] [--store PATH]
+rulvar resume <runId> [--args JSON] [--store PATH] [--dry-run] [--allow-args-change]
 rulvar runs ls [--store PATH]
 rulvar inspect <runId> [--store PATH]
 rulvar plan "<goal>" [--planning-budget-usd N] [--budget-usd N] [--allow-unbounded] [--dry-run]
@@ -49,7 +49,9 @@ rulvar kb <list | inbox | gate | sweep>
 Flag semantics are uniform:
 
 - `--store PATH` selects the `JsonlFileStore` directory (default `.rulvar`). Every command that opens a journal store selects it the same way. An explicit `stores` entry in your config's `engineOptions` wins over the flag.
-- `--args JSON` supplies workflow arguments. It appears on `resume` too because original run arguments are not journaled in this version: the host re-supplies them, and a fully replayed prefix never notices their absence.
+- `--args JSON` supplies workflow arguments. It appears on `resume` too because original run arguments are not journaled in this version: the host re-supplies them. What IS recorded at genesis is the binding (`RunMeta.argsProvided` plus a canonical `argsHash`, never the raw args), and `resume` verifies the re-supplied value against it before the engine starts: forgetting `--args` on a run started with them, adding them to a run started without them, or supplying a different value is a typed refusal, because a silently changed value changes the logical run and re-pays every args-dependent call. Runs recorded before v1.24.0 carry no binding, so a bare `resume` of one demands the explicit acknowledgment below.
+- `--allow-args-change` (`resume` only) is that acknowledgment: it overrides the args gate deliberately (resume without the genesis args, with new args, or of a legacy run whose journal predates the binding), always with a loud warning on stderr.
+- `--dry-run` (`resume` only) previews the resume without performing it: the engine replays in strict mode and the CLI prints the replay accounting (hits, misses, reruns, skipped, orphaned effect roots, invalid resolutions) plus what the run would settle as, with zero journal or meta writes and zero adapter calls. A preview that reaches work needing a live call reports the exact stopping point instead of paying for it.
 - `--budget-usd N` sets the run's dollar ceiling, immutable after start (see [Budgets](/guide/budgets)). On `plan` it caps the execution run of the generated workflow, consistent with `run`.
 - `--planning-budget-usd N` (`plan` only) caps the planning run: the planner conversation is its own paid run with its own journal, so its ceiling is separate from the execution ceiling by construction.
 - `--allow-unbounded` (`plan` only) waives the missing ceilings explicitly. `plan` never runs unbounded silently: without this flag, `--planning-budget-usd` is required, and full execution additionally requires `--budget-usd`.

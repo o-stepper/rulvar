@@ -155,7 +155,7 @@ describe('canonical CLI grammar (v1.16.2 review P2-1 + P3-1)', () => {
     expect(HELP).toMatch(/rulvar run .*--profile NAME/);
     expect(HELP).toMatch(/rulvar resume <runId>\s+\[--args JSON\]/);
     expect(usageOf(GRAMMAR.resume)).toBe(
-      'usage: rulvar resume <runId> [--args JSON] [--store PATH]',
+      'usage: rulvar resume <runId> [--args JSON] [--store PATH] [--dry-run] [--allow-args-change]',
     );
     expect(usageOf(GRAMMAR['runs ls'])).toBe(
       'usage: rulvar runs ls [--store PATH] (no aliases in v1)',
