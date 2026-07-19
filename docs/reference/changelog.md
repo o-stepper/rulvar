@@ -18,6 +18,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.21.0
+
+#### Patch Changes
+
+- 7ee42a0: Declare `usageSemantics: 'anthropic-cache-additive-v1'` on the adapter: the additive reading it has always normalized under (the Anthropic wire genuinely excludes cache reads and writes from `input_tokens`, so canonical `inputTokens` is the sum of all three) now rides usage-bearing journal entries as an auditable policy stamp (v1.20.0 review P1/P2-2).
+- Updated dependencies [7ee42a0]
+  - @rulvar/core@1.21.0
+
 ### 1.20.0
 
 #### Patch Changes
@@ -479,6 +487,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.21.0
+
+#### Patch Changes
+
+- Updated dependencies [7ee42a0]
+  - @rulvar/core@1.21.0
+
 ### 1.20.0
 
 #### Patch Changes
@@ -827,6 +842,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.21.0
+
+#### Patch Changes
+
+- Updated dependencies [7ee42a0]
+  - @rulvar/core@1.21.0
 
 ### 1.20.0
 
@@ -1333,6 +1355,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.21.0
+
+#### Minor Changes
+
+- 7ee42a0: Enforce the financial-telemetry invariant at the adapter boundary for every adapter, injected clients and mocks included (v1.20.0 review P1-1). Every canonical token count must be a finite nonnegative integer with the cache subsets inside the full input; a violation fails the call loud as a typed transport-class terminal while accounting sees only conservatively sanitized values (garbage floors to zero, fractions round up, so a repaired charge is never an undercharge and never a credit). Both inlets are guarded: finish usage and mid-stream usage deltas, which previously reached the budget with no clamp at all. New exports `usageViolations`, `sanitizeUsage`, `sanitizeUsageDelta`, `snapshotUsage`, and `sanitizeTokenCount` carry the shared rules; the accounting boundaries snapshot adapter-owned usage objects before validating them, mid-stream deltas are repaired per field without the whole-usage subset rule (partial increments legitimately carry cache counts alone), counts are bounded to the safe integer range, mid-stream reports the finish total does not confirm fail the call loud with over-reported cache reads re-debited conservatively at the input rate, a duplicate finish or a post-finish usage event is refused, checkpoint restores sanitize the persisted counts exactly like the resume seed, and every cost fold treats a NaN or negative priced amount as unpriced instead of poisoning the totals. RunBudget grows defense in depth behind the validator: hostile priced amounts clamp to zero with a one-time error event, `spentUsd` stays finite and monotone under fuzzed hostile usage, and NaN or negative ceilings and resume seeds reject up front as `ConfigError` instead of silently disarming every comparison. Journal entries also gain the optional policy field `usageSemantics` (adapter-declared, never identity), and resuming a journal whose unstamped OpenAI entries carry cache writes emits a one-time `RULVAR_LEGACY_CACHE_SEMANTICS` warning pointing at the audit procedure (v1.20.0 review P1/P2-2).
 
 ### 1.20.0
 
@@ -2355,6 +2383,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.21.0
+
 ### 1.20.0
 
 ### 1.19.0
@@ -2463,6 +2493,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.21.0
+
+#### Patch Changes
+
+- Updated dependencies [7ee42a0]
+  - @rulvar/core@1.21.0
+  - @rulvar/testing@1.21.0
 
 ### 1.20.0
 
@@ -2898,6 +2936,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.21.0
+
+#### Minor Changes
+
+- 7ee42a0: Canonical reasoning effort `max` now reaches the wire unchanged on every GPT-5.6 sibling: Terra and Luna join Sol with `wireMaxEffort: true`, each verified live (a max-effort Responses call returns 200 with the effort echoed, and the API's own 400 validator enumerates `max` among the supported values), closing the silent quality downgrade of the v1.20.0 review P2-3. Pre-5.6 families and unknown models keep the safe, visible downmap to `xhigh`. The adapter also declares `usageSemantics: 'openai-cache-subsets-v2'`, stamped onto usage-bearing journal entries so the cache-accounting semantics ride the journal alongside the numbers, and new exports `undoV1190CacheDoubleCount` and `auditV1190CacheJournal` provide the exact opt-in sidecar inversion for journals recorded by v1.19.0, whose adapter double-counted cache writes (v1.20.0 review P1/P2-2). Numeric hygiene stays with the core boundary validator by design; the normalizer maps wire shape only.
+
+#### Patch Changes
+
+- Updated dependencies [7ee42a0]
+  - @rulvar/core@1.21.0
 
 ### 1.20.0
 
@@ -3379,6 +3428,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.21.0
+
+#### Patch Changes
+
+- Updated dependencies [7ee42a0]
+  - @rulvar/core@1.21.0
+
 ### 1.20.0
 
 #### Patch Changes
@@ -3833,6 +3889,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.21.0
+
+#### Patch Changes
+
+- Updated dependencies [7ee42a0]
+  - @rulvar/core@1.21.0
+  - eslint-plugin-rulvar@1.21.0
+
 ### 1.20.0
 
 #### Patch Changes
@@ -4221,6 +4285,21 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.21.0
+
+#### Minor Changes
+
+- 7ee42a0: New live terminal progress view: `progress(source, options)` renders a claude-workflows-style tree over the WorkflowEvent stream with one row per agent (status glyph, running timer, token counts, USD), per-role sub-timings when one call spans several invocation phases, the run header with spend against the ceiling, banners for pending approvals and externals, and a final summary including the per-role dollar split from `RunOutcome.cost.byRole`. Accepts a `RunHandle` (subscribes via `on()`, leaving `handle.events` free), a promise of one, or a raw event iterable (the gapless resume path). TTY mode repaints in place at a bounded rate; pipes and CI degrade to append-only lines; `NO_COLOR`, injectable sink and clock, and stderr-only output keep it deterministic and clean. The minimal `renderProgress` is unchanged.
+
+#### Patch Changes
+
+- Updated dependencies [7ee42a0]
+- Updated dependencies [7ee42a0]
+- Updated dependencies [7ee42a0]
+  - @rulvar/anthropic@1.21.0
+  - @rulvar/core@1.21.0
+  - @rulvar/openai@1.21.0
 
 ### 1.20.0
 
@@ -4738,6 +4817,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.21.0
+
+#### Patch Changes
+
+- Updated dependencies [7ee42a0]
+  - @rulvar/core@1.21.0
+
 ### 1.20.0
 
 #### Patch Changes
@@ -5146,6 +5232,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.21.0
+
+#### Patch Changes
+
+- Updated dependencies [7ee42a0]
+  - @rulvar/core@1.21.0
+
 ### 1.20.0
 
 #### Patch Changes
@@ -5505,6 +5598,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.21.0
+
+#### Patch Changes
+
+- Updated dependencies [7ee42a0]
+  - @rulvar/core@1.21.0
 
 ### 1.20.0
 
