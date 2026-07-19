@@ -142,7 +142,13 @@ declare function driveRun(options: {
   io: CliIo; /** Original run arguments: not journaled in v1, the host re-supplies them. */
   args?: unknown;
 }): Promise<RunOutcome<unknown>>;
-/** Renders the settled outcome; returns the process exit code. */
+/**
+* Renders the settled outcome; returns the process exit code. Error
+* messages, suspension keys, model refs, and phase names originate from
+* providers, tools, and workflow authors, so each is sanitized before
+* it reaches a terminal line, matching the TUI renderer (v1.24.1 review
+* P2-1). Values print as JSON, which escapes control bytes on its own.
+*/
 declare function reportOutcome(outcome: RunOutcome<unknown>, io: CliIo): number;
 //#endregion
 //#region src/server.d.ts
