@@ -218,7 +218,7 @@ A few engine-level guarantees hold on every durable store:
 - Turn-boundary checkpoints require a durable `TranscriptStore`. With one configured, an agent interrupted mid-loop resumes from its last completed turn; without one, the run's journal still replays, but in-flight agent turns are repaid.
 
 ::: warning The journal is plaintext by default
-Journal payloads are stored as-is, because replay is the product: the engine re-reads entries byte-for-byte. Secret masking applies at the telemetry boundary (emitted events), never to stored entries. If your prompts or step values are sensitive at rest, use the serialization hook below or put the store on an encrypted volume.
+Journal payloads are stored as-is, because replay is the product: the engine re-reads entries byte-for-byte. Secret masking applies at the telemetry boundary (emitted events), never to stored entries. If your prompts or step values are sensitive at rest, use the serialization hook below or put the store on an encrypted volume. `RunMeta` is not hooked (the serialization hook covers journal entries only), and `RunMeta.argsHash` is a deterministic, unsalted SHA-256 of the genesis args: it reveals when two runs shared identical args and low-entropy args are recoverable by hashing candidate values, so treat meta and `rulvar inspect` output as sensitive alongside the journal and transcripts.
 :::
 
 ## Encrypting stored bytes

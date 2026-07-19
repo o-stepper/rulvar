@@ -64,6 +64,36 @@ const BARE_INSTALL = /\b(?:npm\s+(?:install|i|add)|pnpm\s+add|yarn\s+add|npx)\s+
  */
 const VUE_INTERPOLATION = /\{\{/u;
 
+/**
+ * The args-binding digest overclaim sentinel (v1.24.0 review P2-2).
+ * `RunMeta.argsHash` is a deterministic, UNSALTED SHA-256 over the JCS
+ * form of a run's genesis args: it reveals when two runs shared
+ * identical args, and low-entropy args (a boolean, an approval flag, a
+ * role, a short id) are recoverable by hashing candidate values. So no
+ * document, hand-written or generated from a TSDoc, may claim the meta
+ * carries nothing sensitive or that the digest is safe to expose. The
+ * fix regressed once as the shipped store.ts TSDoc "nothing sensitive
+ * lands in meta"; these patterns catch that phrasing and its close
+ * equivalents. Corrective negations do not match: they state the digest
+ * IS sensitive rather than that nothing is.
+ */
+const ARGSHASH_OVERCLAIM = [
+  /nothing sensitive lands in meta/iu,
+  /nothing sensitive[^.]{0,40}\bmeta\b/iu,
+  /\bmeta\b[^.]{0,40}nothing sensitive/iu,
+  /(?:hash|digest|argshash|args hash) is safe to expose/iu,
+];
+const ARGSHASH_OVERCLAIM_MESSAGE =
+  'args-binding digest overclaim (v1.24.0 review P2-2): RunMeta.argsHash is a deterministic, ' +
+  'unsalted SHA-256 that reveals args equality and is dictionary-recoverable for low-entropy ' +
+  'args. Do not claim meta carries nothing sensitive or that the hash is safe to expose; state ' +
+  'that it is sensitive-derived and must be access-controlled like the journal and transcripts';
+
+/** @param {string} text @returns {boolean} */
+export function hasArgsHashOverclaim(text) {
+  return ARGSHASH_OVERCLAIM.some((pattern) => pattern.test(text));
+}
+
 const EXCLUDED_DIRS = new Set(['api', 'node_modules', '.vitepress']);
 const EXCLUDED_FILES = new Set(
   ['contributing/index.md', 'reference/changelog.md'].map((p) => p.split('/').join(sep)),
@@ -323,6 +353,9 @@ function main() {
             'budgetUsd, segments, argsProvided/argsHash, and the workflow binding must round-trip',
         );
       }
+      if (hasArgsHashOverclaim(line)) {
+        fail(file, n, ARGSHASH_OVERCLAIM_MESSAGE);
+      }
       if (!inFence && VUE_INTERPOLATION.test(line)) {
         fail(
           file,
@@ -495,6 +528,40 @@ function main() {
       for (const violation of check8Violations(readFileSync(file, 'utf8'))) {
         fail(file, violation.line, violation.message);
       }
+    }
+  }
+
+  // Check 9: the args-binding digest overclaim, at its SOURCE (v1.24.0
+  // review P2-2). The per-line sentinel above covers hand-written docs,
+  // but the phrase's real origin is a TSDoc comment on RunMeta.argsHash /
+  // hashRunArgs, and the generated docs/api tree that mirrors it is
+  // excluded from the docs walk. So scan the public core source directly:
+  // no TSDoc (or any other source line) in @rulvar/core may reintroduce
+  // the claim, which is what regressed as the shipped v1.24.0 phrasing.
+  {
+    /** @param {string} dir @returns {string[]} */
+    const walkTs = (dir) => {
+      /** @type {string[]} */
+      const out = [];
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          out.push(...walkTs(full));
+        } else if (entry.isFile() && entry.name.endsWith('.ts')) {
+          out.push(full);
+        }
+      }
+      return out;
+    };
+    const coreSrc = join(ROOT, 'packages', 'core', 'src');
+    for (const file of walkTs(coreSrc)) {
+      readFileSync(file, 'utf8')
+        .split('\n')
+        .forEach((line, index) => {
+          if (hasArgsHashOverclaim(line)) {
+            fail(file, index + 1, ARGSHASH_OVERCLAIM_MESSAGE);
+          }
+        });
     }
   }
 

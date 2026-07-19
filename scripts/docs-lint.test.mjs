@@ -11,7 +11,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { check8Violations, checkOrchestrateFence } from './docs-lint.mjs';
+import { check8Violations, checkOrchestrateFence, hasArgsHashOverclaim } from './docs-lint.mjs';
 
 /** @param {string[]} lines @returns {string} */
 const fence = (lines) => lines.join('\n');
@@ -173,4 +173,35 @@ test('check8Violations passes a fully compliant document', () => {
     '```',
   ].join('\n');
   assert.deepEqual(check8Violations(markdown), []);
+});
+
+// Check 9 sentinel: the argsHash secrecy overclaim (v1.24.0 review
+// P2-2). The digest is an unsalted deterministic SHA-256, so no doc or
+// TSDoc may claim the meta carries nothing sensitive or that the hash is
+// safe to expose.
+test('the argsHash overclaim sentinel flags the shipped phrasing and its equivalents', () => {
+  assert.equal(
+    hasArgsHashOverclaim('presence). Never the raw args: nothing sensitive lands in meta.'),
+    true,
+  );
+  assert.equal(hasArgsHashOverclaim('The meta record holds nothing sensitive whatsoever.'), true);
+  assert.equal(hasArgsHashOverclaim('The argsHash is safe to expose in public dashboards.'), true);
+  assert.equal(hasArgsHashOverclaim('the digest is safe to expose'), true);
+});
+
+test('the argsHash overclaim sentinel passes the corrective wording and its negations', () => {
+  assert.equal(
+    hasArgsHashOverclaim(
+      'The digest is sensitive-derived metadata: it reveals args equality and is recoverable.',
+    ),
+    false,
+  );
+  assert.equal(
+    hasArgsHashOverclaim('The hash is NOT safe to expose; protect it like the journal.'),
+    false,
+  );
+  assert.equal(
+    hasArgsHashOverclaim('Never the raw args, but the digest confers no confidentiality.'),
+    false,
+  );
 });

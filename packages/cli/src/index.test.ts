@@ -3,7 +3,7 @@
  * the real command paths against FakeAdapter, engine assembly from the
  * host config convention, runs ls, and the inspect journal summary.
  */
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -455,5 +455,101 @@ describe('resume args safety and the dry-run preview (v1.23.0 review)', () => {
         io: acknowledged,
       }),
     ).toBe(0);
+  });
+});
+
+describe('resume args safety hardening (v1.24.0 review P2-1)', () => {
+  const journalOf = (cwd: string, runId: string): string =>
+    readFileSync(join(cwd, '.rulvar', `${runId}.jsonl`), 'utf8');
+  const metaPathOf = (cwd: string, runId: string): string =>
+    join(cwd, '.rulvar', `${runId}.meta.json`);
+
+  async function completedEchoRun(cwd: string): Promise<string> {
+    const io = scriptedIo();
+    expect(
+      await runCli(['run', 'echo', '--args', '{"value":"CHECK"}', '--store', '.rulvar'], {
+        cwd,
+        io,
+      }),
+    ).toBe(0);
+    return runIdOf(io);
+  }
+
+  // A JSON number that overflows JavaScript's finite range parses to
+  // Infinity, which cannot be canonicalized, so genesis would record the
+  // binding WITHOUT a hash and the resume gate would soften to a warning
+  // that lets changed args through. The CLI refuses such --args at parse
+  // time, before any config, store, or adapter loads.
+  it.each([
+    ['a positive overflow', ['run', 'echo', '--args', '1e400', '--store', '.rulvar']],
+    ['a negative overflow', ['run', 'echo', '--args=-1e400', '--store', '.rulvar']],
+    ['a nested overflow', ['run', 'echo', '--args', '{"limit":1e400}', '--store', '.rulvar']],
+  ])('%s in --args is refused at parse time, starting nothing', async (_label, argv) => {
+    const cwd = writeFixtureProject();
+    const io = scriptedIo();
+    expect(await runCli(argv, { cwd, io })).toBe(1);
+    expect(io.errLines.join('\n')).toContain('not representable as canonical JSON');
+    // Refused before config/store/adapter: no run started, no store dir.
+    expect(io.errLines.some((line) => line.startsWith('runId: '))).toBe(false);
+    expect(existsSync(join(cwd, '.rulvar'))).toBe(false);
+  });
+
+  it('a large but finite --args number is accepted and gets a hash', async () => {
+    const cwd = writeFixtureProject();
+    const io = scriptedIo();
+    // 1e308 is finite (1e309 would overflow to Infinity).
+    expect(
+      await runCli(['run', 'echo', '--args', '1e308', '--store', '.rulvar'], { cwd, io }),
+    ).toBe(0);
+    const runId = runIdOf(io);
+    const inspected = scriptedIo();
+    expect(await runCli(['inspect', runId, '--store', '.rulvar'], { cwd, io: inspected })).toBe(0);
+    const out = inspected.outLines.join('\n');
+    expect(out).toContain('args at genesis: provided (hash ');
+    expect(out).not.toContain('no hash');
+  });
+
+  it('an unverifiable no-hash binding refuses supplied args without the flag, allows with it', async () => {
+    // A run an in-process host recorded with non-JCS genesis args:
+    // argsProvided true, argsHash absent. The CLI cannot verify supplied
+    // --args against it, so a bare supplied resume is a typed refusal,
+    // not the soft warning the JSON-overflow bypass relied on.
+    const cwd = writeFixtureProject();
+    const runId = await completedEchoRun(cwd);
+    const metaPath = metaPathOf(cwd, runId);
+    const meta = JSON.parse(readFileSync(metaPath, 'utf8')) as Record<string, unknown>;
+    meta.argsProvided = true;
+    delete meta.argsHash;
+    writeFileSync(metaPath, JSON.stringify(meta), 'utf8');
+    const journalBefore = journalOf(cwd, runId);
+
+    const refused = scriptedIo();
+    expect(
+      await runCli(['resume', runId, '--args', '{"value":"CHECK"}', '--store', '.rulvar'], {
+        cwd,
+        io: refused,
+      }),
+    ).toBe(1);
+    expect(refused.errLines.join('\n')).toContain('no verifiable hash');
+    expect(journalOf(cwd, runId)).toBe(journalBefore);
+
+    const forced = scriptedIo();
+    expect(
+      await runCli(
+        [
+          'resume',
+          runId,
+          '--args',
+          '{"value":"CHECK"}',
+          '--allow-args-change',
+          '--store',
+          '.rulvar',
+        ],
+        { cwd, io: forced },
+      ),
+    ).toBe(0);
+    expect(forced.errLines.join('\n')).toContain('cannot be verified');
+    // Matching args with the flag is still a pure replay.
+    expect(journalOf(cwd, runId)).toBe(journalBefore);
   });
 });

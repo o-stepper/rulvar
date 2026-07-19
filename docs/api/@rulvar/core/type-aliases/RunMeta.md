@@ -39,13 +39,20 @@ are advisory only; the journal is authoritative.
 optional argsHash?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:78](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L78)
+Defined in: [packages/core/src/l0/spi/store.ts:85](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L85)
 
 sha256 hex over the JCS canonical serialization of the genesis args
 (`hashRunArgs`). Absent when the run started without args or when
 the args are not JCS-serializable (`argsProvided` still records
-presence). Never the raw args: nothing sensitive lands in meta.
-Stores must round-trip the field (the conformance kit checks).
+presence). The raw args are never journaled, but the digest is
+sensitive-derived metadata, not an opaque token: it is deterministic
+and unsalted, so it reveals when two runs (in this store or another)
+were started with identical args, and low-entropy args (a boolean,
+an approval flag, a role, a short id) are recoverable by hashing
+candidate values. Protect meta, `inspect` output, and run listings
+with the same access control as the journal and transcripts; the
+digest confers no confidentiality on the args it binds. Stores must
+round-trip the field (the conformance kit checks).
 
 ***
 
