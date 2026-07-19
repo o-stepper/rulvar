@@ -181,6 +181,44 @@ Built from [docs/](docs/README.md) and published at [docs.rulvar.com](https://do
   assistants, plus machine-readable exports at
   [llms.txt](https://docs.rulvar.com/llms.txt)
 
+## OpenAI Build Week: how this project used Codex and GPT-5.6
+
+Rulvar predates Build Week; everything from v1.4.0 through v1.22.0 shipped inside the
+submission window (July 13-21, 2026), and the collaboration below is the part of that
+work done with Codex.
+
+**Codex was the project's independent QA engineer.** Five times during the week, the
+freshly shipped release was handed to Codex (session
+`019f65d7-4599-7d93-97dc-9dd4a5dc66f9`). Each round, Codex ran the full offline matrix
+plus live end-to-end orchestrations against real GPT-5.6 (Sol orchestrating; Luna,
+later Terra, executing), hunted the billing and durability paths for defects, and
+wrote a fix specification with reproductions and acceptance criteria. The maintainer
+implemented each specification and shipped the next release, which went back to Codex
+for re-audit.
+
+The five rounds, verbatim in this repository's history:
+
+| Codex audited | Fix commit                                                                                  | Shipped as |
+| ------------- | ------------------------------------------------------------------------------------------- | ---------- |
+| v1.17.0       | 943962d (#202): priced siblings, executable toolset names, conservative envelope            | v1.18.0    |
+| v1.18.0       | 8cc9a9c (#205): instructed finalize, cache write accounting, corrected prices, ULP envelope | v1.19.0    |
+| v1.19.0       | 9367030 (#207): cache subset accounting, byRole phase attribution, envelope domain          | v1.20.0    |
+| v1.20.0       | 7ee42a0 (#209): usage-telemetry hardening plus the live terminal progress view              | v1.21.0    |
+| v1.21.0       | 77b554f (#211): terminal control-character sanitization, progress option validation         | v1.22.0    |
+
+Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
+matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
+cache scenario (the wording survives in the body of commit 9367030); a budget-ceiling
+bypass through hostile usage telemetry (negative, fractional, or NaN counts); and
+control-character injection into terminal renderers from untrusted provider output.
+
+**GPT-5.6 runs inside the product as well as behind Codex.** The OpenAI adapter
+carries first-class GPT-5.6 Sol, Terra, and Luna support: per-sibling pricing with
+long-context tiers, reasoning effort `max` passed to the wire unchanged, and
+cache-token semantics pinned by an opt-in live contract test. The demo video's
+workflow runs three GPT-5.6 Terra reviewers under a GPT-5.6 Sol judge with an
+immutable fifty-cent budget.
+
 ## Development
 
 Node.js 22.13.0 or newer for the workspace (the pinned pnpm 11 refuses to start below
