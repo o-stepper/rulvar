@@ -1,5 +1,11 @@
 # @rulvar/testing
 
+## 1.25.0
+
+### Patch Changes
+
+- @rulvar/core@1.25.0
+
 ## 1.24.1
 
 ### Patch Changes
