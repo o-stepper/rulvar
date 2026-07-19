@@ -315,6 +315,12 @@ export function workflowSourceRef(runId: string): string {
  * undefined args (a run started without args records none). Throws when
  * JCS cannot serialize the value (functions, cycles, non-finite
  * numbers); the engine then records `argsProvided` without a hash.
+ *
+ * The digest is deterministic and unsalted: it reveals args equality
+ * across runs and low-entropy args are recoverable by hashing
+ * candidates, so treat the recorded `RunMeta.argsHash` as
+ * sensitive-derived metadata, not a value safe to publish (see the
+ * `argsHash` field docs).
  */
 export function hashRunArgs(args: unknown): string | undefined {
   if (args === undefined) {

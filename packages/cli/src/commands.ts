@@ -86,16 +86,41 @@ export async function loadCompanion<T>(
   }
 }
 
-/** Parses --args JSON into workflow arguments; undefined when absent. */
+/**
+ * Parses --args JSON into workflow arguments; undefined when absent.
+ *
+ * CLI args must be representable in canonical JCS, i.e. finite JSON. A
+ * numeric literal that overflows JavaScript's finite range parses to
+ * Infinity, which `hashRunArgs` cannot canonicalize, so genesis would
+ * record `argsProvided` WITHOUT a hash and the resume gate would soften
+ * to an unverifiable warning that lets changed args through (v1.24.0
+ * review P2-1). A CLI value always arrives as JSON text, so it can
+ * always be canonicalized; reject the non-finite case here, before any
+ * config, store, or adapter loads, instead of letting it defeat the gate
+ * later. In-process hosts keep the wider engine contract (functions,
+ * BigInt, cycles record presence without a hash); the CLI does not need
+ * it.
+ */
 function parseArgsJson(raw: string | undefined): unknown {
   if (raw === undefined) {
     return undefined;
   }
+  let parsed: unknown;
   try {
-    return JSON.parse(raw);
+    parsed = JSON.parse(raw);
   } catch {
     throw new ConfigError(`--args is not valid JSON: ${raw}`);
   }
+  try {
+    hashRunArgs(parsed);
+  } catch {
+    throw new ConfigError(
+      `--args is not representable as canonical JSON: a numeric value overflows JavaScript's ` +
+        `finite range (e.g. 1e400 parses to Infinity). Supply finite JSON so the run's args ` +
+        `binding can be hashed and later verified on resume: ${raw}`,
+    );
+  }
+  return parsed;
 }
 
 export async function runCommand(argv: string[], context: CommandContext): Promise<number> {
@@ -193,13 +218,42 @@ function enforceArgsBinding(input: {
       return;
     }
     if (meta.argsHash === undefined) {
+      // The run recorded that it started WITH args but no verifiable
+      // hash: its genesis args were not JCS-serializable (an in-process
+      // host passing functions, a BigInt, a cycle, or a non-finite
+      // number; the CLI itself now rejects non-finite --args at parse
+      // time). Nothing can confirm the supplied --args match, so this is
+      // the same silent-divergence hazard as a mismatch, not a soft
+      // warning that lets any value through (v1.24.0 review P2-1).
+      if (!allowChange) {
+        throw new ConfigError(
+          `run '${meta.runId}' started WITH args but recorded no verifiable hash (the genesis ` +
+            'args were not JCS-serializable), so the CLI cannot confirm the supplied --args ' +
+            'match the original; resuming risks silently changing the logical run and re-paying ' +
+            `every args-dependent call. Force deliberately with --allow-args-change; ${usageOf(GRAMMAR.resume)}`,
+        );
+      }
       io.err(
-        `warning: run '${meta.runId}' recorded args presence but no hash (the genesis args ` +
-          'were not JCS-serializable); the supplied --args cannot be verified',
+        `warning: run '${meta.runId}' recorded args presence but no hash (genesis args not ` +
+          'JCS-serializable); the supplied --args cannot be verified (--allow-args-change)',
       );
       return;
     }
-    const supplied = hashRunArgs(args);
+    let supplied: string | undefined;
+    try {
+      supplied = hashRunArgs(args);
+    } catch {
+      // Defense in depth: parseArgsJson already rejects non-canonical
+      // CLI args before the gate, so this is unreachable from the CLI. A
+      // future caller reaching enforceArgsBinding with non-JCS args gets
+      // a typed refusal, never a raw serialization exception (v1.24.0
+      // review P2-1 item 3).
+      throw new ConfigError(
+        `--args cannot be canonicalized to compare against run '${meta.runId}' (a numeric value ` +
+          'overflows the finite range, or the value is otherwise not canonical JSON); supply ' +
+          `finite JSON, or force the resume with --allow-args-change; ${usageOf(GRAMMAR.resume)}`,
+      );
+    }
     if (supplied !== meta.argsHash) {
       if (!allowChange) {
         throw new ConfigError(

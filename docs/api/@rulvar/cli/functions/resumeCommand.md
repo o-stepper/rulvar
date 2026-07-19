@@ -10,7 +10,7 @@
 function resumeCommand(argv, context): Promise<number>;
 ```
 
-Defined in: [packages/cli/src/commands.ts:230](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L230)
+Defined in: [packages/cli/src/commands.ts:284](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L284)
 
 ## Parameters
 

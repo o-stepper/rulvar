@@ -827,8 +827,15 @@ type RunMeta = {
   * sha256 hex over the JCS canonical serialization of the genesis args
   * (`hashRunArgs`). Absent when the run started without args or when
   * the args are not JCS-serializable (`argsProvided` still records
-  * presence). Never the raw args: nothing sensitive lands in meta.
-  * Stores must round-trip the field (the conformance kit checks).
+  * presence). The raw args are never journaled, but the digest is
+  * sensitive-derived metadata, not an opaque token: it is deterministic
+  * and unsalted, so it reveals when two runs (in this store or another)
+  * were started with identical args, and low-entropy args (a boolean,
+  * an approval flag, a role, a short id) are recoverable by hashing
+  * candidate values. Protect meta, `inspect` output, and run listings
+  * with the same access control as the journal and transcripts; the
+  * digest confers no confidentiality on the args it binds. Stores must
+  * round-trip the field (the conformance kit checks).
   */
   argsHash?: string;
 };
@@ -4826,6 +4833,12 @@ declare function workflowSourceRef(runId: string): string;
 * undefined args (a run started without args records none). Throws when
 * JCS cannot serialize the value (functions, cycles, non-finite
 * numbers); the engine then records `argsProvided` without a hash.
+*
+* The digest is deterministic and unsalted: it reveals args equality
+* across runs and low-entropy args are recoverable by hashing
+* candidates, so treat the recorded `RunMeta.argsHash` as
+* sensitive-derived metadata, not a value safe to publish (see the
+* `argsHash` field docs).
 */
 declare function hashRunArgs(args: unknown): string | undefined;
 declare function createEngine(options: CreateEngineOptions): Engine;
