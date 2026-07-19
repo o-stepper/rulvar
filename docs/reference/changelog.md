@@ -18,6 +18,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.23.0
+
+#### Patch Changes
+
+- 1f9c272: The `anthropic()` TSDoc no longer describes the SDK's ambient credentials as a precedence chain (v1.22.0 review P3-2). `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` are independent credentials: requests carry `x-api-key` for the key, bearer `Authorization` for the token, and BOTH headers when both are set; the config-file token-provider chain is consulted only when apiKey and authToken are both null. The providers guide already said exactly this; the source doc (and the generated API page built from it) had drifted.
+- Updated dependencies [1f9c272]
+  - @rulvar/core@1.23.0
+
 ### 1.22.0
 
 #### Patch Changes
@@ -494,6 +502,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.23.0
+
+#### Patch Changes
+
+- Updated dependencies [1f9c272]
+  - @rulvar/core@1.23.0
+
 ### 1.22.0
 
 #### Patch Changes
@@ -856,6 +871,20 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.23.0
+
+#### Patch Changes
+
+- 1f9c272: The renderers' remaining unsanitized paths and the malformed-event gaps (v1.22.0 review P2-2, P2-3).
+
+  - `progress()`: the error text surfaced when the SOURCE fails (a rejected `RunHandle.result`, a rejected `Promise<RunHandle>`, a throwing iterable) went to the sink raw; a crafted rejection could inject ANSI, forge lines, and leak a key-shaped fragment. Every catch path now routes through one helper that secret-masks FIRST (the thrown value never crossed the event masking boundary) and terminal-sanitizes second; lines mode prints the notice as its own sanitized line instead of dropping it.
+  - Malformed recognized events from a raw iterable can no longer stop a view: every dynamic field in the `progress()` reducer, its lines formatter, `renderProgress`, and the CLI `renderEventLine` is read through typed guards (a hostile object with a throwing `toString` included), a backstop catch skips a bad event with a bounded diagnostic carrying no untrusted data, and the stream continues. The v1.22.0 claim of full defensive reads was narrower in reality (`agent:stream` without `delta` or `phase:start` without `phase` stopped the raw-iterable view); it is true now and pinned by a table-driven test over every consumed type.
+  - `posIntOption` wording: a below-minimum value CLAMPS to the minimum (only non-finite values fall back to the default); the JSDoc said "falls back" for both.
+  - `@rulvar/cli` build config migrates the deprecated tsdown `external` option to `deps.neverBundle`; the packed dist keeps the companion specifiers external, byte-for-same behavior.
+
+- Updated dependencies [1f9c272]
+  - @rulvar/core@1.23.0
 
 ### 1.22.0
 
@@ -1377,6 +1406,19 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.23.0
+
+#### Minor Changes
+
+- 1f9c272: Resume correctness and telemetry integrity, the v1.22.0 review's two P1 findings plus the event-layer P2s.
+
+  - **Resume ordinal continuation (P1-1).** Since M2, the ordinal map key minted for new operations and the key used to seed that map from prior entries on resume were built by two hand-written composites whose separators differed, and the minting one contained an INVISIBLE literal NUL byte in the source, so the seeding filled a bucket `mint()` never read. Every identical-identity live operation after any resume re-minted ordinal 0, duplicating the journal identity triple `(scope, key, ordinal)` and corrupting sibling binding on the next replay. Both sites now go through one `ordinalMapKey` helper (escaped `U+0000` separators, no printable-separator aliasing), the seeding computes an order-independent max, and the regression suite covers identical siblings across suspend, process recreation, and replay-strict re-resume. No `CURRENT_HASH_VERSION` change: ordinal bookkeeping never entered content-key derivation, and journals written by broken versions still load (their ordinals seed the map exactly as recorded).
+  - **Event `seq` and `spanId` durability across segments (P1-2).** Every resume segment restarted the telemetry counters at 0, so one `runId` repeated `seq: 0` and `spanId: 's0'` per segment, against the documented per-run contracts, and the CLI SSE `Last-Event-ID` cursor became ambiguous. `RunMeta` gains an optional `segments` count, bumped durably at every segment start strictly BEFORE the segment's first emission (crash-safe: a killed segment still advanced it), and each segment seeds `EventBus` and `SpanRegistry` at `segments * EVENT_SEGMENT_STRIDE` (exported, informational). `seq` stays a plain number, strictly increasing across the whole run and NOT contiguous across segments; span ids never repeat. Stores must round-trip the new field (the conformance kit now checks); a store that drops it degrades telemetry counters to per-segment, never the journal.
+  - **Listener-failure ordering and masking (P2-1).** The v1.22.0 subscriber-isolation warn was delivered mid-fan-out (observers saw it BEFORE the event that caused it, with descending seq) and was built outside the masking boundary (a key-shaped fragment of the listener's error reached observers raw). The warn now goes through the ordinary `emit()` after the triggering event's fan-out completes: masked like every event, seq stamped at delivery, `[event, warn]` order on every surface, still at most once per bus and recursion-proof.
+  - **Spawn admission events on every boundary (P2-5).** `spawn:admitted` only ever fired from the dynamic orchestrator's spawn tools; `ctx.agent` lineage admissions and `ctx.workflow` child admissions emitted nothing (`ctx.workflow` not even `spawn:rejected`). All admission boundaries now emit both events through one helper; journal-recovered decisions re-announce with `replayed: true` when they take effect, and a cleanly replayed dispatch does not re-announce. `spawn:admitted.spawnUnitsAfter` is now optional: absent on lineage-layer admissions, whose spawn-unit debit rides the dispatch itself.
+  - **The replayed flag actually reaches observers.** The engine's internal event sink dropped the third argument of `emit`, so every `replayed: true` marker (replayed agent and tool lifecycle events, recovered suspensions, recovered rejections) was silently stripped since M2 and rendered as live. The sink now forwards it; the documented replay re-emission table is true again.
+  - **`SANDBOX_AGENT_OPT_KEYS` exported.** The sanctioned sandbox agent-option allowlist is a documented public constant, the single source for the runtime validator and the planner API card.
 
 ### 1.22.0
 
@@ -2413,6 +2455,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.23.0
+
 ### 1.22.0
 
 ### 1.21.0
@@ -2525,6 +2569,22 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.23.0
+
+#### Minor Changes
+
+- 1f9c272: PlanRunner spawn telemetry, the missing evals export, and the conformance kit's new meta field (v1.22.0 review P2-5, P2-6, P1-2).
+
+  - `@rulvar/plan`: PlanRunner journals every admission INSIDE a carrying entry (decomposition rows in escalation decisions, ladder-verdict respawns, reuse and graft links, revision admissions) and emitted no `spawn:admitted`/`spawn:rejected` at all; a live PlanRunner run with admitted roots showed an event count of zero. Every embedded admission row now announces through one formatter, identically on the live path and on replay absorb, with `replayed: true` on recovered rows, `entryRef` on the journaled carrying entry, and `agentType` resolved from the landed specs.
+  - `@rulvar/evals`: `agentTypeRuleHolds` joins the package root next to `rungRuleHolds`, exactly as the v1.21.0 changelog had already announced; a public-API test now imports the checkpoint quartet from the root. The evals guide gains a full measured-value checkpoint section (ladder/pool/cell/arm vocabulary, both criteria, the vacuous-pass guard, cost discipline, a runnable example).
+  - `@rulvar/store-conformance`: the meta round-trip case now also pins the new optional `RunMeta.segments` field, which the engine bumps durably at every resume to keep event `seq`/`spanId` unique per run.
+
+#### Patch Changes
+
+- Updated dependencies [1f9c272]
+  - @rulvar/core@1.23.0
+  - @rulvar/testing@1.23.0
 
 ### 1.22.0
 
@@ -2976,6 +3036,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.23.0
+
+#### Patch Changes
+
+- Updated dependencies [1f9c272]
+  - @rulvar/core@1.23.0
 
 ### 1.22.0
 
@@ -3475,6 +3542,21 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.23.0
+
+#### Minor Changes
+
+- 1f9c272: PlanRunner spawn telemetry, the missing evals export, and the conformance kit's new meta field (v1.22.0 review P2-5, P2-6, P1-2).
+
+  - `@rulvar/plan`: PlanRunner journals every admission INSIDE a carrying entry (decomposition rows in escalation decisions, ladder-verdict respawns, reuse and graft links, revision admissions) and emitted no `spawn:admitted`/`spawn:rejected` at all; a live PlanRunner run with admitted roots showed an event count of zero. Every embedded admission row now announces through one formatter, identically on the live path and on replay absorb, with `replayed: true` on recovered rows, `entryRef` on the journaled carrying entry, and `agentType` resolved from the landed specs.
+  - `@rulvar/evals`: `agentTypeRuleHolds` joins the package root next to `rungRuleHolds`, exactly as the v1.21.0 changelog had already announced; a public-API test now imports the checkpoint quartet from the root. The evals guide gains a full measured-value checkpoint section (ladder/pool/cell/arm vocabulary, both criteria, the vacuous-pass guard, cost discipline, a runnable example).
+  - `@rulvar/store-conformance`: the meta round-trip case now also pins the new optional `RunMeta.segments` field, which the engine bumps durably at every resume to keep event `seq`/`spanId` unique per run.
+
+#### Patch Changes
+
+- Updated dependencies [1f9c272]
+  - @rulvar/core@1.23.0
+
 ### 1.22.0
 
 #### Patch Changes
@@ -3943,6 +4025,20 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.23.0
+
+#### Minor Changes
+
+- 1f9c272: The API card now tells the planner the truth about identical calls and the complete sanctioned option set (v1.22.0 review P2-4). The card claimed identical calls "journal as ONE result"; the ordinal semantics have always been the opposite: every call journals as its own operation, identical calls share a content key but take sequential ordinals, and repeats always run. The card now states exactly that, plus why a distinguishing `key` still matters (it binds each result to its call by identity instead of position across script edits). The agent opts line is now GENERATED from the runtime allowlist (`SANDBOX_AGENT_OPT_KEYS`, newly exported from `@rulvar/core`), which also surfaces the three options the hand-maintained list had silently dropped: `routing`, `memoizeOutcome`, and `replay`, each with a one-line explanation the model can act on. A parity test pins the card to the runtime allowlist in both directions.
+
+  Identity note (hashVersion-bump ceremony): the card text is an input of the planner operation's content key, so the frozen `planner-self-repair` cassette is re-recorded under the new prompt bytes. The key DERIVATION and `CURRENT_HASH_VERSION` are unchanged; committed journals recorded under the old card replay byte-exact, and only a fresh `plan()` call sees the new prompt identity.
+
+#### Patch Changes
+
+- Updated dependencies [1f9c272]
+  - @rulvar/core@1.23.0
+  - eslint-plugin-rulvar@1.23.0
+
 ### 1.22.0
 
 #### Patch Changes
@@ -4347,6 +4443,23 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.23.0
+
+#### Patch Changes
+
+- 1f9c272: The renderers' remaining unsanitized paths and the malformed-event gaps (v1.22.0 review P2-2, P2-3).
+
+  - `progress()`: the error text surfaced when the SOURCE fails (a rejected `RunHandle.result`, a rejected `Promise<RunHandle>`, a throwing iterable) went to the sink raw; a crafted rejection could inject ANSI, forge lines, and leak a key-shaped fragment. Every catch path now routes through one helper that secret-masks FIRST (the thrown value never crossed the event masking boundary) and terminal-sanitizes second; lines mode prints the notice as its own sanitized line instead of dropping it.
+  - Malformed recognized events from a raw iterable can no longer stop a view: every dynamic field in the `progress()` reducer, its lines formatter, `renderProgress`, and the CLI `renderEventLine` is read through typed guards (a hostile object with a throwing `toString` included), a backstop catch skips a bad event with a bounded diagnostic carrying no untrusted data, and the stream continues. The v1.22.0 claim of full defensive reads was narrower in reality (`agent:stream` without `delta` or `phase:start` without `phase` stopped the raw-iterable view); it is true now and pinned by a table-driven test over every consumed type.
+  - `posIntOption` wording: a below-minimum value CLAMPS to the minimum (only non-finite values fall back to the default); the JSDoc said "falls back" for both.
+  - `@rulvar/cli` build config migrates the deprecated tsdown `external` option to `deps.neverBundle`; the packed dist keeps the companion specifiers external, byte-for-same behavior.
+
+- Updated dependencies [1f9c272]
+- Updated dependencies [1f9c272]
+  - @rulvar/anthropic@1.23.0
+  - @rulvar/core@1.23.0
+  - @rulvar/openai@1.23.0
 
 ### 1.22.0
 
@@ -4889,6 +5002,21 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.23.0
+
+#### Minor Changes
+
+- 1f9c272: PlanRunner spawn telemetry, the missing evals export, and the conformance kit's new meta field (v1.22.0 review P2-5, P2-6, P1-2).
+
+  - `@rulvar/plan`: PlanRunner journals every admission INSIDE a carrying entry (decomposition rows in escalation decisions, ladder-verdict respawns, reuse and graft links, revision admissions) and emitted no `spawn:admitted`/`spawn:rejected` at all; a live PlanRunner run with admitted roots showed an event count of zero. Every embedded admission row now announces through one formatter, identically on the live path and on replay absorb, with `replayed: true` on recovered rows, `entryRef` on the journaled carrying entry, and `agentType` resolved from the landed specs.
+  - `@rulvar/evals`: `agentTypeRuleHolds` joins the package root next to `rungRuleHolds`, exactly as the v1.21.0 changelog had already announced; a public-API test now imports the checkpoint quartet from the root. The evals guide gains a full measured-value checkpoint section (ladder/pool/cell/arm vocabulary, both criteria, the vacuous-pass guard, cost discipline, a runnable example).
+  - `@rulvar/store-conformance`: the meta round-trip case now also pins the new optional `RunMeta.segments` field, which the engine bumps durably at every resume to keep event `seq`/`spanId` unique per run.
+
+#### Patch Changes
+
+- Updated dependencies [1f9c272]
+  - @rulvar/core@1.23.0
+
 ### 1.22.0
 
 #### Patch Changes
@@ -5311,6 +5439,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.23.0
+
+#### Patch Changes
+
+- Updated dependencies [1f9c272]
+  - @rulvar/core@1.23.0
+
 ### 1.22.0
 
 #### Patch Changes
@@ -5684,6 +5819,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.23.0
+
+#### Patch Changes
+
+- Updated dependencies [1f9c272]
+  - @rulvar/core@1.23.0
 
 ### 1.22.0
 
