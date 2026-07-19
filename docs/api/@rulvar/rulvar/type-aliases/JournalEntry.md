@@ -33,6 +33,7 @@ type JournalEntry = {
   usage?: Usage;
   usageApprox?: boolean;
   usageByModel?: UsageSlice[];
+  usageSemantics?: string;
   value?: Json;
 };
 ```
@@ -327,6 +328,29 @@ loop model's rate. Absent when one model served the whole call, and
 on entries written before the split shipped: readers fall back to
 pricing `usage` at `servedBy`, which is exactly correct for those.
 Policy, never identity: it does not enter the content key.
+
+***
+
+### usageSemantics?
+
+```ts
+optional usageSemantics?: string;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The serving adapters' declared usage-telemetry semantics at write
+time (ProviderAdapter.usageSemantics), stamped so cost numbers stay
+auditable across normalization corrections: an UNSTAMPED OpenAI
+entry with cacheWriteTokens > 0 may have been written by rulvar
+v1.19.0, whose adapter double-counted cache writes into inputTokens
+(v1.20.0 review P1/P2-2). The stamp unions every adapter that
+served a slice of the entry, distinct declarations joined with '+'
+in first-appearance order, so a mixed-adapter call whose primary
+declares nothing is still dated by its declaring slices. Absent
+only when NO serving adapter declares semantics, and on all entries
+written before this shipped. Policy, never identity, exactly like
+usageByModel.
 
 ***
 

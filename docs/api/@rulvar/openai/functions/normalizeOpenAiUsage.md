@@ -10,7 +10,7 @@
 function normalizeOpenAiUsage(raw): Usage;
 ```
 
-Defined in: [packages/openai/src/wire.ts:285](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L285)
+Defined in: [packages/openai/src/wire.ts:295](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L295)
 
 Normalizes Responses usage into the canonical Usage invariant, where
 `inputTokens` is the FULL prompt. On the OpenAI wire `input_tokens`
@@ -27,6 +27,15 @@ every written token at 1x + 1.25x and inflated budget debits
 wire genuinely EXCLUDES both cache counts from `input_tokens`, so
 that adapter adds them; the two wires differ, the canonical Usage
 invariant does not.
+
+Numeric hygiene is deliberately NOT this function's job: any `number`
+the wire (or an injected client) reports passes through, and the core
+enforces the full telemetry invariant at the adapter boundary for
+every adapter uniformly, failing the call loud on non-finite,
+negative, or fractional counts while accounting only sanitized values
+(`usageViolations`/`sanitizeUsage` in @rulvar/core; v1.20.0 review
+P1-1). Real wires report whole nonnegative integers; a violation here
+means a broken transport, never plausible provider data.
 
 ## Parameters
 

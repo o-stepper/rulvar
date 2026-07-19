@@ -171,6 +171,12 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
     id: 'anthropic',
     // Provider family for provider-raw matching and retention (M4-T02).
     provider: 'anthropic',
+    // v1 = the additive reading this adapter has normalized under since
+    // the beginning: the Anthropic wire genuinely EXCLUDES cache reads
+    // and writes from input_tokens, so canonical inputTokens is the sum
+    // of all three. Stamped so journals record the semantics alongside
+    // the numbers (v1.20.0 review P1/P2-2).
+    usageSemantics: 'anthropic-cache-additive-v1',
 
     caps(model: string): ModelCaps {
       return infoFor(model).caps;

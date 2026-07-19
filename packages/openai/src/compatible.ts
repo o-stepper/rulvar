@@ -78,6 +78,9 @@ export function openaiCompatible(cfg: OpenAiCompatibleConfig): ProviderAdapter {
     // gateways of the same dialect share projections; the chat dialect
     // itself never ships retainedParts.
     provider: 'openai',
+    // Same chat-dialect usage mapping as openai(), same declared
+    // semantics (v1.20.0 review P1/P2-2).
+    usageSemantics: 'openai-cache-subsets-v2',
 
     caps(model: string): ModelCaps {
       const overrides = cfg.caps?.(model);

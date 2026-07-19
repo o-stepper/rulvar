@@ -34,7 +34,7 @@ Every page of the site is included in `llms-full.txt` under its canonical URL, s
 - Current release: v<!-- version:lockstep -->1.20.0<!-- /version -->, Apache-2.0. All `@rulvar/*` packages version in lockstep; the exceptions are `@rulvar/compat` (independent) and the unscoped `rulvar`, a pointer package that only re-exports the umbrella. [Versioning](/reference/versioning)
 - Runtime: Node.js 22.12.0 or newer, ESM only, TypeScript-first. [Installation](/guide/installation)
 - Repository: <https://github.com/o-stepper/rulvar>. Documentation: <https://docs.rulvar.com>. Landing: <https://rulvar.com>.
-- Install: `pnpm add @rulvar/rulvar` (umbrella: core plus the Anthropic and OpenAI adapters, file stores, progress renderer, recommended routing defaults), or compose `pnpm add @rulvar/core @rulvar/anthropic` a la carte. Never depend on the bare npm name `rulvar`. [Packages](/reference/packages)
+- Install: `pnpm add @rulvar/rulvar` (umbrella: core plus the Anthropic and OpenAI adapters, file stores, the `progress` live view and `renderProgress` line printer, recommended routing defaults), or compose `pnpm add @rulvar/core @rulvar/anthropic` a la carte. Never depend on the bare npm name `rulvar`. [Packages](/reference/packages)
 
 ## The mental model
 
@@ -64,7 +64,7 @@ import {
   recommendedDefaults,
   JsonlFileStore,
   FileTranscriptStore,
-  renderProgress,
+  progress,
   type Ctx,
 } from '@rulvar/rulvar';
 
@@ -117,7 +117,10 @@ const panel = defineWorkflow(
 // 3. Run under an immutable dollar ceiling.
 const args = { question: 'Should a five-person startup adopt a monorepo?' };
 const handle = engine.run(panel, args, { runId: 'panel-1', budgetUsd: 2 });
-void renderProgress(handle.events); // live progress lines on stderr
+// Live per-agent terminal view (status, timer, tokens, USD) on stderr;
+// subscribes via on(), so handle.events stays free for host code.
+// renderProgress(handle.events) is the minimal line-printer alternative.
+progress(handle);
 
 const outcome = await handle.result;
 // status: 'ok' | 'error' | 'cancelled' | 'exhausted' | 'suspended'

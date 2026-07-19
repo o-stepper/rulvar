@@ -9,6 +9,8 @@ export type { OpenAiCompatibleConfig } from './compatible.js';
 export type { OpenAiAdapterOptions, OpenAiClientLike, OpenAiSdkOptions } from './adapter.js';
 export { openAiModelInfo, OPENAI_PRICING } from './caps.js';
 export type { OpenAiModelInfo } from './caps.js';
+export { auditV1190CacheJournal, undoV1190CacheDoubleCount } from './audit.js';
+export type { V1190CacheAudit } from './audit.js';
 export {
   buildChatCompletionsParams,
   buildResponsesParams,

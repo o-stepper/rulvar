@@ -150,7 +150,10 @@ export interface PricedUsage {
  * The single pricing fold over one terminal entry, shared by the kernel
  * ledger and the CostReport fold so a run's total and its per-model
  * breakdown can never disagree. Each slice is priced at ITS OWN model's
- * rate.
+ * rate. A price function returning NaN or a negative amount (a broken
+ * user-supplied rate) is treated exactly like a missing row: the slice
+ * folds as unpriced instead of poisoning or crediting the totals
+ * (v1.20.0 review follow-up).
  */
 export function priceEntryUsage(
   entry: JournalEntry,
@@ -159,7 +162,7 @@ export function priceEntryUsage(
   const result: PricedUsage = { usd: 0, priced: [], unpriced: [] };
   for (const slice of entryUsageSlices(entry)) {
     const usd = priceUsd(slice.servedBy, slice.usage);
-    if (usd === undefined) {
+    if (usd === undefined || !Number.isFinite(usd) || usd < 0) {
       result.unpriced.push(slice);
       continue;
     }
@@ -217,6 +220,21 @@ export type JournalEntry = {
    * like usageByModel.
    */
   costAttribution?: CostAttributionFacts;
+  /**
+   * The serving adapters' declared usage-telemetry semantics at write
+   * time (ProviderAdapter.usageSemantics), stamped so cost numbers stay
+   * auditable across normalization corrections: an UNSTAMPED OpenAI
+   * entry with cacheWriteTokens > 0 may have been written by rulvar
+   * v1.19.0, whose adapter double-counted cache writes into inputTokens
+   * (v1.20.0 review P1/P2-2). The stamp unions every adapter that
+   * served a slice of the entry, distinct declarations joined with '+'
+   * in first-appearance order, so a mixed-adapter call whose primary
+   * declares nothing is still dated by its declaring slices. Absent
+   * only when NO serving adapter declares semantics, and on all entries
+   * written before this shipped. Policy, never identity, exactly like
+   * usageByModel.
+   */
+  usageSemantics?: string;
   transcriptRef?: string;
   checkpointRef?: string;
   /**

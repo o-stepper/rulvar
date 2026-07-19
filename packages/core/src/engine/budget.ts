@@ -25,6 +25,7 @@
  */
 import { BudgetExhaustedError, ConfigError } from '../l0/errors.js';
 import type { ModelRef, Usage } from '../l0/messages.js';
+import { sanitizeUsage, sanitizeUsageDelta } from '../l0/usage.js';
 import type { ModelCaps, Pricing } from '../l0/spi/provider.js';
 import { affordableOutputTokens, priceUsdOf } from '../model/pricing.js';
 import { BUDGET_ABORT_REASON, type RuntimeEventSink } from '../runtime/agent-loop.js';
@@ -43,6 +44,20 @@ const ZERO_USAGE: Usage = {
   cacheReadTokens: 0,
   cacheWriteTokens: 0,
 };
+
+/**
+ * A ceiling that is NaN or negative silently disarms every layer (each
+ * comparison against it is false), which is indistinguishable from
+ * uncapped. That must be a loud configuration error, never a silent
+ * fail-open (v1.20.0 review P1-1).
+ */
+function requireValidCeiling(ceilingUsd: number, what: string): void {
+  if (!Number.isFinite(ceilingUsd) || ceilingUsd < 0) {
+    throw new ConfigError(
+      `${what} must be a finite nonnegative USD amount, got ${String(ceilingUsd)}`,
+    );
+  }
+}
 
 /**
  * The admission reserve for a spawn: opts.estCost, else profile.estCost,
@@ -148,6 +163,8 @@ export class RunBudget {
   private exhaustedInternal = false;
   /** Models already warned about; the warning fires once per model per run. */
   private readonly unpricedWarned = new Set<ModelRef>();
+  /** Models whose price function already returned an invalid USD once. */
+  private readonly invalidPriceWarned = new Set<ModelRef>();
 
   constructor(options: {
     ceilingUsd?: number;
@@ -164,6 +181,7 @@ export class RunBudget {
     seed?: { usd: number; usage: Usage; agentsSpawned: number };
   }) {
     if (options.ceilingUsd !== undefined) {
+      requireValidCeiling(options.ceilingUsd, 'budget ceiling');
       this.ceilingUsd = options.ceilingUsd;
     }
     this.lifetimeSpawnCap = options.lifetimeSpawnCap ?? 500;
@@ -188,8 +206,17 @@ export class RunBudget {
     }
     this.accounts.set(ROOT_ACCOUNT, root);
     if (options.seed !== undefined) {
+      // The resume seed comes from a ledger fold over a persisted
+      // journal; a journal poisoned before the telemetry invariant
+      // shipped must fail loud here rather than seed a NaN that every
+      // later ceiling comparison silently ignores (v1.20.0 review P1-1).
+      if (!Number.isFinite(options.seed.usd) || options.seed.usd < 0) {
+        throw new ConfigError(
+          `budget resume seed is not a finite nonnegative USD amount: ${String(options.seed.usd)}`,
+        );
+      }
       root.spentUsd = options.seed.usd;
-      this.usageInternal = { ...options.seed.usage };
+      this.usageInternal = sanitizeUsage(options.seed.usage);
       this.agentsSpawnedInternal = options.seed.agentsSpawned;
     }
   }
@@ -253,6 +280,7 @@ export class RunBudget {
       controller: new AbortController(),
     };
     if (options.ceilingUsd !== undefined) {
+      requireValidCeiling(options.ceilingUsd, `ceiling of budget account '${scope}'`);
       account.ceilingUsd = options.ceilingUsd;
     }
     if (options.kind !== undefined) {
@@ -585,13 +613,23 @@ export class RunBudget {
    * in-flight agent; providers bill severed streams).
    */
   onUsage(usage: Usage, servedBy: ModelRef, accountScope: string = ROOT_ACCOUNT): void {
+    // Defense in depth behind the agent-loop boundary validator: this
+    // inlet re-sanitizes so spentUsd stays finite and monotone even if a
+    // future caller bypasses the loop (v1.20.0 review P1-1). The
+    // per-FIELD delta repair applies here, never the whole-usage subset
+    // rule: onUsage legitimately receives partial increments (a
+    // mid-stream event carrying cache counts without restating the full
+    // input), and the subset clamp would silently drop that paid debit.
+    // The repair always detaches from the caller's object, so a hostile
+    // accessor cannot vary its answers between validation and use.
+    const safe = sanitizeUsageDelta(usage);
     this.usageInternal = {
-      inputTokens: this.usageInternal.inputTokens + usage.inputTokens,
-      outputTokens: this.usageInternal.outputTokens + usage.outputTokens,
-      cacheReadTokens: this.usageInternal.cacheReadTokens + usage.cacheReadTokens,
-      cacheWriteTokens: this.usageInternal.cacheWriteTokens + usage.cacheWriteTokens,
+      inputTokens: this.usageInternal.inputTokens + safe.inputTokens,
+      outputTokens: this.usageInternal.outputTokens + safe.outputTokens,
+      cacheReadTokens: this.usageInternal.cacheReadTokens + safe.cacheReadTokens,
+      cacheWriteTokens: this.usageInternal.cacheWriteTokens + safe.cacheWriteTokens,
     };
-    const reasoning = (this.usageInternal.reasoningTokens ?? 0) + (usage.reasoningTokens ?? 0);
+    const reasoning = (this.usageInternal.reasoningTokens ?? 0) + (safe.reasoningTokens ?? 0);
     if (reasoning > 0) {
       this.usageInternal.reasoningTokens = reasoning;
     }
@@ -600,7 +638,7 @@ export class RunBudget {
     // nothing) and a silent hole for a model whose price row is merely
     // missing, so the ceiling says so out loud, once per model. The
     // usage still surfaces through CostReport.unpriced either way.
-    const priced = this.priceUsd?.(servedBy, usage);
+    const priced = this.priceUsd?.(servedBy, safe);
     if (
       priced === undefined &&
       this.ceilingUsd !== undefined &&
@@ -616,7 +654,24 @@ export class RunBudget {
           'createEngine({ pricing }) to cap it; its usage is reported under CostReport.unpriced',
       });
     }
-    const usd = priced ?? 0;
+    let usd = priced ?? 0;
+    if (!Number.isFinite(usd) || usd < 0) {
+      // Backstop that should never fire behind sanitized usage: a price
+      // function returning NaN or a negative USD would otherwise poison
+      // spentUsd or credit the budget. Charge zero, but say so loudly.
+      if (!this.invalidPriceWarned.has(servedBy)) {
+        this.invalidPriceWarned.add(servedBy);
+        this.events?.emit({
+          type: 'log',
+          level: 'error',
+          msg:
+            `price function returned ${String(usd)} USD for '${servedBy}'; charging 0 for this ` +
+            'slice so the budget stays finite and monotone. Fix the pricing row: this usage is ' +
+            'NOT debited and any ceiling under-counts it',
+        });
+      }
+      usd = 0;
+    }
     for (const account of this.chainOf(accountScope)) {
       account.spentUsd += usd;
       if (

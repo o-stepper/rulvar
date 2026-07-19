@@ -5,7 +5,7 @@ description: One typed WorkflowEvent stream feeds host subscriptions, cost repor
 
 # Observability
 
-Rulvar has exactly one observability surface: a discriminated stream of typed `WorkflowEvent` values. Everything else on this page is a consumer of that stream: `RunHandle.events` and `on()` for host code, the terminal progress renderer in `@rulvar/cli`, and the OpenTelemetry exporter. There is no pluggable event-sink seam to configure; you subscribe on the handle and fold what you need.
+Rulvar has exactly one observability surface: a discriminated stream of typed `WorkflowEvent` values. Everything else on this page is a consumer of that stream: `RunHandle.events` and `on()` for host code, the two terminal progress renderers in the umbrella package (`renderProgress` lines and the live `progress` tree), the `@rulvar/cli` TUI, and the OpenTelemetry exporter. There is no pluggable event-sink seam to configure; you subscribe on the handle and fold what you need.
 
 Events are pure telemetry. No event, field, or ordering of events participates in journal identity: you can drop every event and no run outcome changes. That separation is what lets the engine mask secrets in telemetry, re-emit history on resume, and evolve the catalog without ever perturbing replay.
 
@@ -137,6 +137,34 @@ const outcome = await handle.result;
 ```
 
 Both forms are cheap to stack: a progress bar on `agent:start` and `agent:end`, a spend ticker on `budget:update`, an alert on `run:end` settling with a status other than `'ok'`. In tests, prefer the matchers from `@rulvar/testing`, which fold the same stream; see [Testing](/guide/testing).
+
+## The live terminal progress view
+
+The umbrella package ships two ready-made stream consumers. `renderProgress(handle.events)` is the minimal one: a plain line per lifecycle fact, readable in any pipe. `progress(...)` is the rich one: a live tree on stderr with one row per agent showing a status glyph, a running timer, token counts, and USD, plus per-role sub-timings when one call spans several invocation phases (loop, then summarize, finalize, or extract), the run header with spend against the ceiling from `budget:update`, and a final summary that includes the per-role dollar split from `RunOutcome.cost.byRole`.
+
+```ts
+import { createEngine, progress } from "@rulvar/rulvar";
+
+const handle = engine.run(panel, { question: "Monorepo or polyrepo?" }, { budgetUsd: 2 });
+const view = progress(handle);
+const outcome = await handle.result;
+await view.done;
+```
+
+While the run executes the terminal shows, repainted in place:
+
+```text
+/  panel  run r_8f3k2  1m 04s  $0.431 / $2.00  ###.........
+  [gather]
+  *  scout (web)  openai:gpt-5.6-terra  31s  in 18k out 2.1k  $0.086
+  -  scout (docs)  openai:gpt-5.6-terra  47s  ~3.1k out  tool: web_fetch
+  -  writer  openai:gpt-5.6-sol  > finalize  1m 02s
+       roles: loop 48s · finalize 14s..
+```
+
+`progress` accepts a `RunHandle` (it subscribes through `on()`, so `handle.events` stays free for your own consumer, and the final frame is enriched from the settled `CostReport`; the `orchestrate` and `orchestratePlanned` helpers return exactly such a handle, so `progress(orchestrate(engine, goal, opts, { budgetUsd: 10 }))` composes directly), a promise resolving to a handle (for wrappers that construct one asynchronously), or a raw `WorkflowEvent` iterable, which is the gapless path for resumes: `progress(resumed.events)` sees the replayed prefix a late `on()` could miss, at the price of consuming that one-shot iterable.
+
+Modes and honesty: on a TTY the view repaints at a bounded rate (`fps`, default 10); in pipes and CI it degrades to append-only lines, one per fact, with budget lines throttled; `mode: 'off'` disables it entirely. Exact token counts exist only at `agent:end`, so running rows show elapsed time and a tilde-marked estimate from `agent:stream` deltas; replayed rows render with a `replay` tag and never spin. The sink and clock are injectable (`sink`, `clock`) for deterministic tests, output defaults to stderr so application stdout stays clean, and colors honor `NO_COLOR` plus an explicit `color` option.
 
 ## Replay re-emission and the replayed flag
 

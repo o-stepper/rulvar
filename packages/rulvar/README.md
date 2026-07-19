@@ -2,10 +2,19 @@
 
 The batteries-included Rulvar install: re-exports the entire
 `@rulvar/core` surface plus both first-class adapters (`anthropic`,
-`openai`), the terminal progress renderer, and `recommendedDefaults`,
+`openai`), two terminal progress renderers, and `recommendedDefaults`,
 the only place the project names strong default models for the
 orchestrate and plan roles. Also installable through the unscoped alias
 package `rulvar`, which re-exports this one.
+
+The renderers are `progress()`, the live view (one row per agent with a
+status glyph, a running timer, token counts, and USD, per-role
+sub-timings when one call spans several invocation phases, the run
+header with spend against the ceiling, and a final per-role cost
+summary; repaints in place on a TTY and degrades to append-only lines in
+pipes and CI), and `renderProgress()`, the minimal one line per
+lifecycle fact. Both consume the public `WorkflowEvent` stream and
+nothing else.
 
 Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine
 for durable, budget-bounded multi-agent LLM workflows, where a completed

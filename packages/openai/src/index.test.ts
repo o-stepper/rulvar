@@ -9,7 +9,9 @@ import {
   defineWorkflow,
   InMemoryStore,
   priceUsdOf,
+  sanitizeUsage,
   tool,
+  usageViolations,
   type ChatEvent,
   type Part,
 } from '@rulvar/core';
@@ -547,6 +549,202 @@ describe('cache subset usage normalization (v1.19.0 review P1-1)', () => {
       cacheWriteTokens: 200,
     });
   });
+
+  it('numeric hygiene stays with the core boundary validator: garbage passes through and is flagged there (v1.20.0 review P1-1)', async () => {
+    // The adapter maps wire SHAPE only; the engine enforces the full
+    // telemetry invariant for every adapter uniformly and fails the
+    // call loud. This test pins the pair contract per hostile field on
+    // BOTH the Responses and the Chat path.
+    const negative = normalizeOpenAiUsage({ input_tokens: 100, output_tokens: -100 });
+    expect(negative.outputTokens).toBe(-100);
+    expect(usageViolations(negative).join()).toContain('outputTokens is negative (-100)');
+
+    const fractional = normalizeOpenAiUsage({
+      input_tokens: 10.5,
+      output_tokens: 2.25,
+      input_tokens_details: { cached_tokens: 1.5, cache_write_tokens: 2.5 },
+    });
+    expect(fractional).toEqual({
+      inputTokens: 10.5,
+      outputTokens: 2.25,
+      cacheReadTokens: 1.5,
+      cacheWriteTokens: 2.5,
+    });
+    expect(usageViolations(fractional)).toHaveLength(4);
+
+    const nan = normalizeOpenAiUsage({ input_tokens: 100, output_tokens: Number.NaN });
+    expect(Number.isNaN(nan.outputTokens)).toBe(true);
+    expect(usageViolations(nan).join()).toContain('outputTokens is NaN');
+
+    const infinite = normalizeOpenAiUsage({
+      input_tokens: Number.POSITIVE_INFINITY,
+      output_tokens: 1,
+    });
+    expect(usageViolations(infinite).join()).toContain('inputTokens is Infinity');
+
+    async function* chunks(): AsyncIterable<Record<string, unknown>> {
+      yield await Promise.resolve({ choices: [{ delta: { content: 'ok' } }] });
+      yield { choices: [{ delta: {}, finish_reason: 'stop' }] };
+      yield {
+        choices: [],
+        usage: { prompt_tokens: -3, completion_tokens: Number.NaN },
+      };
+    }
+    const mapped = await collect(mapChatCompletionsStream(chunks(), ids()));
+    const finish = mapped.at(-1) as Extract<ChatEvent, { type: 'finish' }>;
+    const violations = usageViolations(finish.usage).join();
+    expect(violations).toContain('inputTokens is negative (-3)');
+    expect(violations).toContain('outputTokens is NaN');
+    // And the conservative repair the engine accounts with never
+    // credits: sanitize of this shape is all zeros.
+    expect(sanitizeUsage(finish.usage)).toEqual({
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+  });
+
+  it('every field on both wire paths is flagged for every garbage class', async () => {
+    // The reviewer acceptance matrix: negative, fraction, NaN, Infinity
+    // in EVERY field, Responses and Chat alike. The adapter passes the
+    // number through; the shared validator names the exact field.
+    const GARBAGE: Array<[number, string]> = [
+      [-5, 'negative'],
+      [2.5, 'fractional'],
+      [Number.NaN, 'not a finite number'],
+      [Number.POSITIVE_INFINITY, 'not a finite number'],
+    ];
+    const RESPONSES_FIELDS: Array<[string, (v: number) => Record<string, unknown>]> = [
+      ['inputTokens', (v) => ({ input_tokens: v, output_tokens: 1 })],
+      ['outputTokens', (v) => ({ input_tokens: 10, output_tokens: v })],
+      [
+        'cacheReadTokens',
+        (v) => ({
+          input_tokens: 1e9,
+          output_tokens: 1,
+          input_tokens_details: { cached_tokens: v },
+        }),
+      ],
+      [
+        'cacheWriteTokens',
+        (v) => ({
+          input_tokens: 1e9,
+          output_tokens: 1,
+          input_tokens_details: { cache_write_tokens: v },
+        }),
+      ],
+      [
+        'reasoningTokens',
+        (v) => ({
+          input_tokens: 10,
+          output_tokens: 1,
+          output_tokens_details: { reasoning_tokens: v },
+        }),
+      ],
+    ];
+    for (const [field, shape] of RESPONSES_FIELDS) {
+      for (const [value, expected] of GARBAGE) {
+        const usage = normalizeOpenAiUsage(shape(value));
+        const violations = usageViolations(usage).join();
+        // The subset clamp repairs some garbage BEFORE the validator
+        // sees it, which is itself the documented conservative repair:
+        // negative cache details floor to zero and an Infinity detail
+        // clamps to the full input; reasoning_tokens that are not a
+        // positive number are dropped at the wire.
+        const clampedAway =
+          (field.startsWith('cache') && (value < 0 || value === Number.POSITIVE_INFINITY)) ||
+          (field === 'reasoningTokens' && !(value > 0));
+        if (clampedAway) {
+          expect(usageViolations(usage)).toEqual([]);
+        } else {
+          expect(violations, `${field} ${String(value)}`).toContain(field);
+          expect(violations, `${field} ${String(value)}`).toContain(expected);
+        }
+      }
+    }
+    const CHAT_FIELDS: Array<[string, (v: number) => Record<string, unknown>]> = [
+      ['inputTokens', (v) => ({ prompt_tokens: v, completion_tokens: 1 })],
+      ['outputTokens', (v) => ({ prompt_tokens: 10, completion_tokens: v })],
+      [
+        'cacheReadTokens',
+        (v) => ({
+          prompt_tokens: 1e9,
+          completion_tokens: 1,
+          prompt_tokens_details: { cached_tokens: v },
+        }),
+      ],
+      [
+        'cacheWriteTokens',
+        (v) => ({
+          prompt_tokens: 1e9,
+          completion_tokens: 1,
+          prompt_tokens_details: { cache_write_tokens: v },
+        }),
+      ],
+    ];
+    for (const [field, shape] of CHAT_FIELDS) {
+      for (const [value, expected] of GARBAGE) {
+        async function* chatChunks(): AsyncIterable<Record<string, unknown>> {
+          yield await Promise.resolve({ choices: [{ delta: { content: 'x' } }] });
+          yield { choices: [{ delta: {}, finish_reason: 'stop' }] };
+          yield { choices: [], usage: shape(value) };
+        }
+        const mappedChat = await collect(mapChatCompletionsStream(chatChunks(), ids()));
+        const chatFinish = mappedChat.at(-1) as Extract<ChatEvent, { type: 'finish' }>;
+        const violations = usageViolations(chatFinish.usage).join();
+        if (field.startsWith('cache') && (value < 0 || value === Number.POSITIVE_INFINITY)) {
+          expect(usageViolations(chatFinish.usage)).toEqual([]);
+        } else {
+          expect(violations, `chat ${field} ${String(value)}`).toContain(field);
+          expect(violations, `chat ${field} ${String(value)}`).toContain(expected);
+        }
+      }
+    }
+  });
+
+  it('an injected client reporting garbage fails the call loud through the FULL engine path', async () => {
+    const client: OpenAiClientLike = {
+      responses: {
+        create(): Promise<unknown> {
+          return Promise.resolve(
+            (async function* stream(): AsyncIterable<ResponsesStreamEvent> {
+              yield await Promise.resolve({ type: 'response.output_text.delta', delta: 'ok' });
+              yield {
+                type: 'response.completed',
+                response: {
+                  id: 'r1',
+                  output: [],
+                  usage: { input_tokens: 100, output_tokens: -100 },
+                },
+              };
+            })(),
+          );
+        },
+      },
+      chat: { completions: { create: () => Promise.reject(new Error('unused')) } },
+    };
+    const engine = createEngine({
+      adapters: [openai({ client })],
+      stores: { journal: new InMemoryStore({ quiet: true }) },
+      defaults: { routing: { loop: 'openai:gpt-5.6-terra' } },
+      pricing: OPENAI_PRICING,
+    });
+    const wf = defineWorkflow({ name: 'hostile-injected' }, (ctx) => ctx.agent('go'));
+    const outcome = await engine.run(wf, undefined).result;
+    expect(outcome.status).toBe('error');
+    expect(outcome.error?.message).toContain('violated the Usage invariant');
+    expect(outcome.cost.totalUsd).toBeGreaterThanOrEqual(0);
+    expect(Number.isFinite(outcome.cost.totalUsd)).toBe(true);
+  });
+
+  it('both factories declare the subset usage semantics', () => {
+    const stub: OpenAiClientLike = {
+      responses: { create: () => Promise.reject(new Error('unused')) },
+      chat: { completions: { create: () => Promise.reject(new Error('unused')) } },
+    };
+    expect(openai({ client: stub }).usageSemantics).toBe('openai-cache-subsets-v2');
+  });
 });
 
 describe('response.failed usage and retry classification (v1.18.0 review P1-3)', () => {
@@ -673,10 +871,11 @@ describe('adapter surface (M1-T13)', () => {
     expect(calls[0]?.reasoning).toEqual({ effort: 'high' });
   });
 
-  it('sends wire effort max for Sol and records the downmap elsewhere', async () => {
+  it('sends wire effort max unchanged for every GPT-5.6 sibling', async () => {
     // Fake transport (v1.17.0 review): the request the SDK client sees
-    // must carry effort max unchanged for Sol; Terra and Luna keep the
-    // documented lossy downmap, visible in providerMetadata.
+    // must carry effort max unchanged for Sol, Terra, AND Luna (v1.20.0
+    // review P2-3, each sibling verified live 2026-07-18); no downmap
+    // metadata may appear for any of them.
     const calls: Array<Record<string, unknown>> = [];
     const client: OpenAiClientLike = {
       responses: {
@@ -715,14 +914,14 @@ describe('adapter surface (M1-T13)', () => {
     ]);
     expect(calls.map((call) => call.reasoning)).toEqual([
       { effort: 'max' },
-      { effort: 'xhigh' },
-      { effort: 'xhigh' },
+      { effort: 'max' },
+      { effort: 'max' },
     ]);
     const metaOf = (finish: Extract<ChatEvent, { type: 'finish' }>) =>
-      (finish.providerMetadata?.openai as Record<string, unknown>).effortDownmapped;
+      (finish.providerMetadata?.openai as Record<string, unknown> | undefined)?.effortDownmapped;
     expect(metaOf(finishes[0])).toBeUndefined();
-    expect(metaOf(finishes[1])).toBe('max->xhigh');
-    expect(metaOf(finishes[2])).toBe('max->xhigh');
+    expect(metaOf(finishes[1])).toBeUndefined();
+    expect(metaOf(finishes[2])).toBeUndefined();
   });
 
   it('projects request errors into the retryable vocabulary', async () => {
@@ -771,36 +970,34 @@ describe('adapter surface (M1-T13)', () => {
   );
 
   it.skipIf(!liveTestEnabled('OPENAI_API_KEY'))(
-    'live smoke: Sol accepts wire effort max and Luna answers on its own row (opt-in, spends budget)',
+    'live contract: every GPT-5.6 sibling accepts wire effort max without a downmap (opt-in, spends budget)',
     async () => {
-      // The wire-max contract (v1.17.0 review): a real Sol request at
-      // effort max must succeed WITHOUT the lossy downmap. Bounded
-      // output keeps the spend small.
-      const sol = await runLiveSmoke(openai({}), {
-        model: 'gpt-5.6-sol',
-        messages: [{ role: 'user', parts: [{ type: 'text', text: 'Reply with the word ok.' }] }],
-        effort: 'max',
-        maxOutputTokens: 2048,
-      });
-      if (sol.status !== 'ok') {
-        throw new Error(`Sol max live smoke did not reach finish: ${JSON.stringify(sol)}`);
-      }
-      const finish = sol.events.find(
-        (event): event is Extract<ChatEvent, { type: 'finish' }> => event.type === 'finish',
-      );
-      const meta = finish?.providerMetadata?.openai as Record<string, unknown> | undefined;
-      expect(meta?.effortDownmapped).toBeUndefined();
-
-      const luna = await runLiveSmoke(openai({}), {
-        model: 'gpt-5.6-luna',
-        messages: [{ role: 'user', parts: [{ type: 'text', text: 'Reply with the word ok.' }] }],
-        maxOutputTokens: 32,
-      });
-      if (luna.status !== 'ok') {
-        throw new Error(`Luna live smoke did not reach finish: ${JSON.stringify(luna)}`);
+      // The wire-max contract (v1.17.0 review, family-wide per the
+      // v1.20.0 review P2-3): a real request at canonical effort max
+      // must reach the wire as max and succeed. The API 400s an invalid
+      // effort with an enumeration of the supported values, so a finish
+      // here IS acceptance, and the absent downmap metadata proves the
+      // adapter sent max verbatim. Bounded output keeps the spend small.
+      for (const model of ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']) {
+        const outcome = await runLiveSmoke(openai({}), {
+          model,
+          messages: [{ role: 'user', parts: [{ type: 'text', text: 'Reply with the word ok.' }] }],
+          effort: 'max',
+          maxOutputTokens: 2048,
+        });
+        if (outcome.status !== 'ok') {
+          throw new Error(
+            `${model} max live smoke did not reach finish: ${JSON.stringify(outcome)}`,
+          );
+        }
+        const finish = outcome.events.find(
+          (event): event is Extract<ChatEvent, { type: 'finish' }> => event.type === 'finish',
+        );
+        const meta = finish?.providerMetadata?.openai as Record<string, unknown> | undefined;
+        expect(meta?.effortDownmapped, model).toBeUndefined();
       }
     },
-    180_000,
+    360_000,
   );
 
   it.skipIf(!liveTestEnabled('OPENAI_API_KEY'))(
@@ -923,10 +1120,13 @@ describe('adapter surface (M1-T13)', () => {
 });
 
 describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1-1)', () => {
+  // wireMax true for the whole family (v1.20.0 review P2-3): each
+  // sibling verified live 2026-07-18 with a max-effort Responses call
+  // returning 200 and the effort echoed.
   const GPT_56_EXPECTED = {
     'gpt-5.6-sol': { input: 5, output: 30, cacheRead: 0.5, cacheWrite: 6.25, wireMax: true },
-    'gpt-5.6-terra': { input: 2.5, output: 15, cacheRead: 0.25, cacheWrite: 3.125, wireMax: false },
-    'gpt-5.6-luna': { input: 1, output: 6, cacheRead: 0.1, cacheWrite: 1.25, wireMax: false },
+    'gpt-5.6-terra': { input: 2.5, output: 15, cacheRead: 0.25, cacheWrite: 3.125, wireMax: true },
+    'gpt-5.6-luna': { input: 1, output: 6, cacheRead: 0.1, cacheWrite: 1.25, wireMax: true },
   } as const;
 
   it('seeds exact Sol, Terra, and Luna rows with the official rates', () => {
@@ -1047,18 +1247,24 @@ describe('the GPT-5.6 family entries and unknown-model safety (v1.17.0 review P1
     }
   });
 
-  it('sends wire max unchanged for Sol and downmaps it visibly elsewhere', () => {
+  it('sends wire max unchanged across the GPT-5.6 family and downmaps it visibly elsewhere', () => {
     const request = (model: string) => ({
       model,
       messages: [{ role: 'user' as const, parts: [{ type: 'text' as const, text: 'go' }] }],
       effort: 'max' as const,
     });
-    const sol = buildResponsesParams(request('gpt-5.6-sol'), ids(), {
-      wireMaxEffort: openAiModelInfo('gpt-5.6-sol').wireMaxEffort,
-    });
-    expect(sol.params.reasoning).toEqual({ effort: 'max' });
-    expect(sol.effortDownmapped).toBe(false);
-    for (const model of ['gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5']) {
+    // The whole family passes max through (v1.20.0 review P2-3).
+    for (const model of ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']) {
+      const info = openAiModelInfo(model);
+      expect(info.wireMaxEffort, model).toBe(true);
+      const built = buildResponsesParams(request(model), ids(), {
+        wireMaxEffort: info.wireMaxEffort,
+      });
+      expect(built.params.reasoning, model).toEqual({ effort: 'max' });
+      expect(built.effortDownmapped, model).toBe(false);
+    }
+    // Unverified and legacy families keep the safe, visible downmap.
+    for (const model of ['gpt-5.5', 'gpt-5.5-pro', 'gpt-5.4-mini', 'gpt-7-hyperion']) {
       const info = openAiModelInfo(model);
       expect(info.wireMaxEffort, model).toBe(false);
       const built = buildResponsesParams(request(model), ids(), {

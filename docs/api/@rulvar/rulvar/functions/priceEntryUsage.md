@@ -15,7 +15,10 @@ Defined in: `packages/core/dist/index.d.ts`
 The single pricing fold over one terminal entry, shared by the kernel
 ledger and the CostReport fold so a run's total and its per-model
 breakdown can never disagree. Each slice is priced at ITS OWN model's
-rate.
+rate. A price function returning NaN or a negative amount (a broken
+user-supplied rate) is treated exactly like a missing row: the slice
+folds as unpriced instead of poisoning or crediting the totals
+(v1.20.0 review follow-up).
 
 ## Parameters
 

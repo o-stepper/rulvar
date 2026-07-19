@@ -870,6 +870,32 @@ export function createEngine(options: CreateEngineOptions): Engine {
       const priorEntries = raw.map((entry) => normalizeEntry(entry));
       // One scan, strictly before any live call, append, or reserve.
       scanJournalCompatibility(runId, priorEntries, buildDeriverRegistry(options.extraDerivers));
+      // Legacy cache-semantics advisory (v1.20.0 review P1/P2-2): an
+      // UNSTAMPED OpenAI entry carrying cache writes may have been
+      // written by rulvar v1.19.0, whose adapter double-counted writes
+      // into inputTokens; its recorded debits are then overstated and
+      // this resume keeps them (the conservative direction for every
+      // ceiling). Once per resume, never a failure.
+      const legacyCacheShape = priorEntries.some(
+        (entry) =>
+          entry.usageSemantics === undefined &&
+          ((entry.servedBy?.startsWith('openai:') === true &&
+            (entry.usage?.cacheWriteTokens ?? 0) > 0) ||
+            (entry.usageByModel?.some(
+              (slice) => slice.servedBy.startsWith('openai:') && slice.usage.cacheWriteTokens > 0,
+            ) ??
+              false)),
+      );
+      if (legacyCacheShape) {
+        process.emitWarning(
+          `resume: run '${runId}' contains OpenAI cache-write usage recorded without a ` +
+            'usage-semantics stamp. Entries written by rulvar v1.19.0 double-counted cache ' +
+            'writes into inputTokens, so their recorded cost and budget debits are OVERSTATED; ' +
+            'unstamped entries from v1.20.0 are correct. Resuming keeps the recorded debits. ' +
+            'Audit procedure: https://docs.rulvar.com/guide/providers#openai-legacy-cache-journals',
+          { code: 'RULVAR_LEGACY_CACHE_SEMANTICS', type: 'RulvarWarning' },
+        );
+      }
       return run(bound, resumeOptions?.args, undefined, {
         runId,
         priorEntries,

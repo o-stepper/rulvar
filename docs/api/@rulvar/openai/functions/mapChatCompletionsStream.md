@@ -10,7 +10,7 @@
 function mapChatCompletionsStream(stream, ids): AsyncGenerator<ChatEvent, void>;
 ```
 
-Defined in: [packages/openai/src/wire.ts:639](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L639)
+Defined in: [packages/openai/src/wire.ts:649](https://github.com/o-stepper/rulvar/blob/main/packages/openai/src/wire.ts#L649)
 
 Delta-patched chunk assembly for the degraded path; yields each
 canonical event as its chunk is consumed (same live-streaming contract

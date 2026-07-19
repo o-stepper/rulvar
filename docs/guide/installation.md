@@ -42,7 +42,8 @@ One import path then covers the common surface:
 | Everything from `@rulvar/core` | `createEngine`, `defineWorkflow`, the journal kernel, the agent runtime, the model router, the tool system, the orchestrator, `InMemoryStore` and `JsonlFileStore` |
 | `anthropic()`, `ANTHROPIC_MODELS` | The Anthropic adapter and its model catalog |
 | `openai()`, `OPENAI_MODELS` | The OpenAI adapter and its model catalog |
-| `renderProgress()` | Terminal progress renderer over a run's event stream |
+| `progress()` | Live terminal view over a run: one row per agent with its status, running timer, token counts, and USD, per-role sub-timings, and spend against the ceiling; plain lines in pipes and CI |
+| `renderProgress()` | Minimal terminal renderer: one plain line per lifecycle fact |
 | `recommendedDefaults` | Routing defaults and quality floors that pin orchestrate and plan work to strong models |
 
 `recommendedDefaults` is data, not engine semantics, and it lives here on purpose: `@rulvar/core` never names a concrete model. Drop it into `createEngine` and override freely; see [Model routing](/guide/model-routing).

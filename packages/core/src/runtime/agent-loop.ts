@@ -30,6 +30,7 @@ import type {
   ToolContract,
   Usage,
 } from '../l0/messages.js';
+import { sanitizeTokenCount, sanitizeUsage, snapshotUsage, usageViolations } from '../l0/usage.js';
 import type { ProviderAdapter } from '../l0/spi/provider.js';
 import type { ToolContext, ToolDef } from '../l0/spi/toolsource.js';
 import type { Out, SchemaSpec } from '../l0/schema.js';
@@ -369,14 +370,19 @@ function addUsage(total: Usage, turn: Usage): Usage {
  * The Usage invariant is verified at the adapter boundary: inputTokens is
  * the FULL prompt including cache reads and writes.
  */
-function assertUsageInvariant(usage: Usage, adapterId: string): void {
-  if (usage.inputTokens < usage.cacheReadTokens + usage.cacheWriteTokens) {
-    throw new Error(
-      `adapter '${adapterId}' violated the Usage invariant: inputTokens ` +
-        `(${usage.inputTokens}) < cacheReadTokens + cacheWriteTokens ` +
-        `(${usage.cacheReadTokens} + ${usage.cacheWriteTokens})`,
-    );
+/**
+ * The full canonical invariant at the adapter boundary (v1.20.0 review
+ * P1-1): every count finite, integral, and nonnegative, and the cache
+ * subsets inside the input. One violation message covers every adapter,
+ * injected clients and mocks included; the financial invariant never
+ * depends on the good faith of an external transport.
+ */
+function usageInvariantViolation(usage: Usage, adapterId: string): string | undefined {
+  const violations = usageViolations(usage);
+  if (violations.length === 0) {
+    return undefined;
   }
+  return `adapter '${adapterId}' violated the Usage invariant: ${violations.join('; ')}`;
 }
 
 interface TurnOutcome {
@@ -385,6 +391,8 @@ interface TurnOutcome {
   usage: Usage;
   /** The portion already reported through onUsage mid-stream. */
   reported: Usage;
+  /** Set when a mid-stream usage event violated the telemetry invariant. */
+  usageViolation?: string;
   usageApprox: boolean;
   wireError?: WireError;
   aborted?: 'budget' | 'external' | 'idle';
@@ -415,6 +423,7 @@ async function streamTurn(
   const pendingArgs = new Map<string, { name: string; argsText: string }>();
   let usage: Usage = ZERO_USAGE;
   let reported: Usage = ZERO_USAGE;
+  let usageViolation: string | undefined;
   let sawFinish = false;
   let finish: FinishInfo | undefined;
   let providerMetadata: Record<string, unknown> | undefined;
@@ -456,21 +465,58 @@ async function streamTurn(
           break;
         }
         case 'usage': {
-          usage = { ...usage, ...event.usage };
+          // Mid-stream deltas reach the budget directly, so this inlet
+          // enforces the same telemetry invariant as the finish path
+          // (v1.20.0 review P1-1): a non-finite, negative, or fractional
+          // delta is repaired conservatively BEFORE it can debit or
+          // credit anything, and the violation fails the call loud. A
+          // delta AFTER the finish event could revise the authoritative
+          // bill downward, so it is refused outright.
+          if (sawFinish) {
+            usageViolation ??= 'a usage event arrived after the finish event';
+            break;
+          }
+          const cleaned: Partial<Usage> = {};
+          for (const field of [
+            'inputTokens',
+            'outputTokens',
+            'cacheReadTokens',
+            'cacheWriteTokens',
+            'reasoningTokens',
+          ] as const) {
+            const value = event.usage[field];
+            if (value === undefined) {
+              continue;
+            }
+            if (Number.isInteger(value) && value >= 0) {
+              cleaned[field] = value;
+            } else {
+              usageViolation ??= `mid-stream usage event carried invalid ${field} (${String(value)})`;
+              cleaned[field] = sanitizeTokenCount(value);
+            }
+          }
+          usage = { ...usage, ...cleaned };
           const delta: Usage = {
-            inputTokens: event.usage.inputTokens ?? 0,
-            outputTokens: event.usage.outputTokens ?? 0,
-            cacheReadTokens: event.usage.cacheReadTokens ?? 0,
-            cacheWriteTokens: event.usage.cacheWriteTokens ?? 0,
+            inputTokens: cleaned.inputTokens ?? 0,
+            outputTokens: cleaned.outputTokens ?? 0,
+            cacheReadTokens: cleaned.cacheReadTokens ?? 0,
+            cacheWriteTokens: cleaned.cacheWriteTokens ?? 0,
           };
-          if (event.usage.reasoningTokens !== undefined) {
-            delta.reasoningTokens = event.usage.reasoningTokens;
+          if (cleaned.reasoningTokens !== undefined) {
+            delta.reasoningTokens = cleaned.reasoningTokens;
           }
           reported = addUsage(reported, delta);
           options.onUsage?.(delta);
           break;
         }
         case 'finish':
+          // Exactly one terminal event per stream is the adapter
+          // contract; a second finish could replace the authoritative
+          // usage with smaller numbers and zero the bill.
+          if (sawFinish) {
+            usageViolation ??= 'a second finish event arrived on one stream';
+            break;
+          }
           sawFinish = true;
           finish = event.finish;
           usage = event.usage;
@@ -506,11 +552,17 @@ async function streamTurn(
     if (finish !== undefined) {
       outcome.finish = finish;
     }
+    if (usageViolation !== undefined) {
+      outcome.usageViolation = usageViolation;
+    }
     return outcome;
   }
   const outcome: TurnOutcome = { turn, usage, reported, usageApprox: !sawFinish };
   if (finish !== undefined) {
     outcome.finish = finish;
+  }
+  if (usageViolation !== undefined) {
+    outcome.usageViolation = usageViolation;
   }
   if (providerMetadata !== undefined) {
     outcome.providerMetadata = providerMetadata;
@@ -812,7 +864,14 @@ export async function runAgent<S extends SchemaSpec>(
     messages.length = 0;
     messages.push(...restored.messages);
     turns = restored.turns;
-    totalUsage = restored.usage;
+    // The restored counts are a persisted inlet exactly like the resume
+    // seed (v1.20.0 review P1-1): a checkpoint written before the
+    // telemetry invariant shipped (or by a hostile loader) can carry
+    // invalid numbers that would otherwise flow raw into the terminal
+    // entry and every cost fold. Sanitize on the way in, mirroring the
+    // seed guard in RunBudget.
+    totalUsage =
+      usageViolations(restored.usage).length === 0 ? restored.usage : sanitizeUsage(restored.usage);
     toolCallsUsed = restored.toolCallsUsed;
     schemaAttempts = restored.schemaAttempts;
     // Points restore verbatim: the history is already compact, so a
@@ -822,10 +881,12 @@ export async function runAgent<S extends SchemaSpec>(
     // aggregate: attribute it to the loop model, exactly as before. A
     // slice written before ROLES shipped falls back to the primary
     // role, the same documented fallback the journal fold applies.
-    const restoredSlices = restored.usageByModel ?? [{ servedBy, usage: restored.usage }];
+    const restoredSlices = restored.usageByModel ?? [{ servedBy, usage: totalUsage }];
     for (const slice of restoredSlices) {
-      addPhaseUsage(slice.role ?? primaryRole, slice.servedBy, slice.usage);
-      options.budget?.onUsage(slice.usage, slice.servedBy);
+      const sliceUsage =
+        usageViolations(slice.usage).length === 0 ? slice.usage : sanitizeUsage(slice.usage);
+      addPhaseUsage(slice.role ?? primaryRole, slice.servedBy, sliceUsage);
+      options.budget?.onUsage(sliceUsage, slice.servedBy);
     }
   }
 
@@ -848,7 +909,12 @@ export async function runAgent<S extends SchemaSpec>(
     }
     let usd = 0;
     for (const slice of usageByPhaseModel.values()) {
-      usd += price(slice.servedBy, slice.usage) ?? 0;
+      const sliceUsd = price(slice.servedBy, slice.usage) ?? 0;
+      // A broken price row (NaN or negative) contributes zero here and
+      // surfaces through the unpriced fold, never a poisoned costUsd.
+      if (Number.isFinite(sliceUsd) && sliceUsd > 0) {
+        usd += sliceUsd;
+      }
     }
     return usd;
   };
@@ -1130,6 +1196,10 @@ export async function runAgent<S extends SchemaSpec>(
 
   // The runtime never throws past policy: an adapter violating the Usage
   // invariant becomes a typed transport-class terminal, not an escape.
+  // Accounting still happens for the violating turn, but only through
+  // sanitizeUsage, so the journal, the phase slices, and the budget never
+  // carry a non-finite, negative, or fractional count (v1.20.0 review
+  // P1-1).
   let invariantViolation: string | undefined;
   const recordUsage = (
     usage: Usage,
@@ -1137,25 +1207,61 @@ export async function runAgent<S extends SchemaSpec>(
     adapterId: string,
     ref: ModelRef,
     role: InvocationRole,
+    streamViolation?: string,
   ): void => {
-    try {
-      assertUsageInvariant(usage, adapterId);
-    } catch (thrown) {
-      invariantViolation = thrown instanceof Error ? thrown.message : String(thrown);
+    if (streamViolation !== undefined) {
+      invariantViolation ??= `adapter '${adapterId}' violated the Usage invariant: ${streamViolation}`;
     }
-    totalUsage = addUsage(totalUsage, usage);
-    addPhaseUsage(role, ref, usage);
+    // Detach from the adapter-owned object before validating: the
+    // snapshot is what gets validated AND consumed, so an accessor that
+    // answers the validator with valid counts cannot feed the
+    // accumulators something else afterward.
+    const snapshot = snapshotUsage(usage);
+    const violation = usageInvariantViolation(snapshot, adapterId);
+    if (violation !== undefined) {
+      invariantViolation ??= violation;
+    }
+    const safe = violation === undefined ? snapshot : sanitizeUsage(snapshot);
+    totalUsage = addUsage(totalUsage, safe);
+    addPhaseUsage(role, ref, safe);
     // Mid-stream deltas already reached the budget through streamTurn's
-    // onUsage; report only the remainder so nothing double-counts.
+    // onUsage (sanitized at that inlet); report only the remainder so
+    // nothing double-counts.
     const remainder: Usage = {
-      inputTokens: Math.max(0, usage.inputTokens - reported.inputTokens),
-      outputTokens: Math.max(0, usage.outputTokens - reported.outputTokens),
-      cacheReadTokens: Math.max(0, usage.cacheReadTokens - reported.cacheReadTokens),
-      cacheWriteTokens: Math.max(0, usage.cacheWriteTokens - reported.cacheWriteTokens),
+      inputTokens: Math.max(0, safe.inputTokens - reported.inputTokens),
+      outputTokens: Math.max(0, safe.outputTokens - reported.outputTokens),
+      cacheReadTokens: Math.max(0, safe.cacheReadTokens - reported.cacheReadTokens),
+      cacheWriteTokens: Math.max(0, safe.cacheWriteTokens - reported.cacheWriteTokens),
     };
+    // Mid-stream reports the finish total does not confirm are a
+    // contract anomaly (finish IS the total), and over-reported cache
+    // READS are the one shape that UNDERBILLS: the excess was debited
+    // at the read discount but the authoritative finish says those
+    // tokens were not reads. Re-debit the excess as plain input (the
+    // discount already paid keeps the correction conservative, never a
+    // credit) and fail the call loud like every other violation.
+    for (const field of [
+      'inputTokens',
+      'outputTokens',
+      'cacheReadTokens',
+      'cacheWriteTokens',
+    ] as const) {
+      if (reported[field] > safe[field]) {
+        invariantViolation ??=
+          `adapter '${adapterId}' violated the Usage invariant: mid-stream ${field} ` +
+          `(${String(reported[field])}) exceeded the finish total (${String(safe[field])})`;
+      }
+    }
+    const overReportedReads = Math.max(0, reported.cacheReadTokens - safe.cacheReadTokens);
+    if (overReportedReads > 0) {
+      remainder.inputTokens = Math.min(
+        Number.MAX_SAFE_INTEGER,
+        remainder.inputTokens + overReportedReads,
+      );
+    }
     const reasoningRemainder = Math.max(
       0,
-      (usage.reasoningTokens ?? 0) - (reported.reasoningTokens ?? 0),
+      (safe.reasoningTokens ?? 0) - (reported.reasoningTokens ?? 0),
     );
     if (reasoningRemainder > 0) {
       remainder.reasoningTokens = reasoningRemainder;
@@ -1211,6 +1317,7 @@ export async function runAgent<S extends SchemaSpec>(
           target.adapter.id,
           target.resolved.ref,
           site.role,
+          outcome.usageViolation,
         );
         tries += 1;
         const retryClass =

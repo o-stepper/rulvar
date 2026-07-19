@@ -1905,12 +1905,36 @@ export function createCtx(
       delete result.escalationRequest;
     }
 
+    // The serving adapters' declared usage-telemetry semantics ride the
+    // entry (policy, never identity) so the numbers stay auditable
+    // across normalization corrections (v1.20.0 review P1/P2-2). The
+    // stamp unions EVERY adapter that served a slice, not just the
+    // primary: a mixed-adapter entry whose primary declares nothing but
+    // whose extract slice was served by openai must still be stamped, so
+    // the legacy-cache detector never mistakes a corrected openai slice
+    // for an unstamped v1.19.0 one. Distinct declarations join with '+'
+    // in first-appearance order; a single-adapter call stamps one string
+    // exactly as before, and an all-silent call stamps nothing.
+    const adapterOfRef = (ref: ModelRef): string => ref.slice(0, ref.indexOf(':'));
+    const declaredSemantics: string[] = [];
+    for (const ref of [
+      result.servedBy,
+      ...(result.usageByModel ?? []).map((slice) => slice.servedBy),
+    ]) {
+      const declared = internals.adapters.get(adapterOfRef(ref))?.usageSemantics;
+      if (declared !== undefined && !declaredSemantics.includes(declared)) {
+        declaredSemantics.push(declared);
+      }
+    }
+    const servedSemantics =
+      declaredSemantics.length === 0 ? undefined : declaredSemantics.join('+');
     const terminalPatch: Parameters<Replayer['appendTerminal']>[1] = {
       status: result.status === 'skipped' ? 'error' : result.status,
       usage: result.usage,
       // Under transport failover only servedBy changes, never the
       // content key (M4-T04).
       servedBy: result.servedBy,
+      ...(servedSemantics === undefined ? {} : { usageSemantics: servedSemantics }),
       // Present only when the call genuinely spanned models; every cost
       // fold then prices each slice at its own rate instead of billing
       // the whole call at the loop model's.
@@ -2029,7 +2053,11 @@ export function createCtx(
     ];
     for (const slice of attributionSlices) {
       const priced = internals.priceUsd(slice.servedBy, slice.usage);
-      if (priced === undefined) {
+      // A price function returning NaN or a negative amount (a broken
+      // user-supplied rate) is treated exactly like a missing row: the
+      // slice surfaces in CostReport.unpriced instead of poisoning or
+      // crediting the buckets (v1.20.0 review follow-up).
+      if (priced === undefined || !Number.isFinite(priced) || priced < 0) {
         internals.cost.unpriced.push({ model: slice.servedBy, usage: slice.usage });
         continue;
       }

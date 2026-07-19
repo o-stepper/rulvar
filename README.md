@@ -67,7 +67,7 @@ import {
   recommendedDefaults,
   JsonlFileStore,
   FileTranscriptStore,
-  renderProgress,
+  progress,
   type Ctx,
 } from '@rulvar/rulvar';
 
@@ -110,7 +110,10 @@ const panel = defineWorkflow(
 const question = 'Should a five-person startup adopt a monorepo?';
 
 const handle = engine.run(panel, { question }, { runId: 'panel-1', budgetUsd: 2 }); // immutable run ceiling
-void renderProgress(handle.events); // live progress lines on stderr
+// Live terminal view on stderr: one row per agent with its status,
+// running timer, token counts, and USD, plus spend against the ceiling;
+// plain lines in pipes and CI.
+progress(handle);
 
 const outcome = await handle.result;
 console.log(outcome.status, outcome.value, outcome.cost.totalUsd);
@@ -133,7 +136,8 @@ The full walk-through, with the OpenAI variant and the crash and edit-and-rerun 
 ## Packages
 
 `@rulvar/rulvar` is the batteries-included umbrella: the core engine, both first-class adapters,
-recommended model defaults, and the progress renderer. Fifteen packages ship in total, thirteen in
+recommended model defaults, and two terminal progress renderers (the live per-agent tree and the
+minimal line printer). Fifteen packages ship in total, thirteen in
 lockstep at a single version. Full map and dependency graph:
 [reference/packages](https://docs.rulvar.com/reference/packages).
 
@@ -142,7 +146,7 @@ lockstep at a single version. Full map and dependency graph:
 
 | Package                     | What it is                                                                     |
 | --------------------------- | ------------------------------------------------------------------------------ |
-| `@rulvar/rulvar`            | Umbrella: core, both adapters, recommended defaults, progress renderer         |
+| `@rulvar/rulvar`            | Umbrella: core, both adapters, recommended defaults, progress renderers        |
 | `rulvar`                    | Unscoped alias of the umbrella, so the bare name resolves to the real thing    |
 | `@rulvar/core`              | The engine: journal kernel, `ctx` primitives, router, tools, stores, events    |
 | `@rulvar/anthropic`         | First-class adapter over `@anthropic-ai/sdk`                                   |

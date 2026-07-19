@@ -78,6 +78,20 @@ export interface ProviderAdapter {
    * family share retained blocks and projections; default = id.
    */
   provider?: string;
+  /**
+   * Declares WHICH reading of the provider's usage telemetry this
+   * adapter normalizes under; the engine stamps it on usage-bearing
+   * terminal entries so a journal records not only the numbers but the
+   * semantics they were produced under (v1.20.0 review P1/P2-2). Bump
+   * the string whenever the MEANING of a reported Usage field changes,
+   * even when no pricing rate moves; a rate change is a PriceTable
+   * pricingVersion bump instead. Entries persisted before this shipped
+   * carry no stamp, which is itself information: an unstamped OpenAI
+   * entry with cache writes may predate the v1.20.0 cache-subset
+   * correction. Optional; adapters that never changed semantics can
+   * omit it.
+   */
+  usageSemantics?: string;
   caps(model: string): ModelCaps;
   /** Refresh the capability table from live model lists. */
   refreshCaps?(): Promise<void>;

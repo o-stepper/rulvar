@@ -10,12 +10,15 @@
 function priceEntryUsage(entry, priceUsd): PricedUsage;
 ```
 
-Defined in: [packages/core/src/l0/entries.ts:155](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L155)
+Defined in: [packages/core/src/l0/entries.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/entries.ts#L158)
 
 The single pricing fold over one terminal entry, shared by the kernel
 ledger and the CostReport fold so a run's total and its per-model
 breakdown can never disagree. Each slice is priced at ITS OWN model's
-rate.
+rate. A price function returning NaN or a negative amount (a broken
+user-supplied rate) is treated exactly like a missing row: the slice
+folds as unpriced instead of poisoning or crediting the totals
+(v1.20.0 review follow-up).
 
 ## Parameters
 
