@@ -28,7 +28,7 @@ The quickstart file below uses top-level `await`, so your project must be ESM: y
 npm pkg set type=module
 ```
 
-`@rulvar/rulvar` is the umbrella package: it re-exports all of `@rulvar/core` plus the first-class `anthropic` and `openai` adapters, the recommended model defaults, and a terminal progress renderer. If you prefer granular dependencies, `pnpm add @rulvar/core @rulvar/anthropic` gives you the same engine, stores, and workflow primitives, but `recommendedDefaults` and `renderProgress` ship only in the umbrella package: on the granular path you write your routing by hand and render events yourself. See [Installation](/guide/installation) for the full package map.
+`@rulvar/rulvar` is the umbrella package: it re-exports all of `@rulvar/core` plus the first-class `anthropic` and `openai` adapters, the recommended model defaults, and a terminal progress renderer. If you prefer granular dependencies, `pnpm add @rulvar/core @rulvar/anthropic` gives you the same engine, stores, and workflow primitives, but `recommendedDefaults` and the two progress renderers (`progress`, the live per-agent view, and `renderProgress`, the plain line printer) ship only in the umbrella package: on the granular path you write your routing by hand and render events yourself. See [Installation](/guide/installation) for the full package map.
 
 You need Node.js 22.12.0 or newer, ESM only, and an `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY`; the [OpenAI variant](#swap-in-openai) is at the bottom of this page). Keys are created in the [Claude Console](https://platform.claude.com/settings/keys) or on the [OpenAI API keys page](https://platform.openai.com/api-keys); export yours in the shell that will run the script:
 
@@ -148,7 +148,7 @@ Both compose freely with plain TypeScript: loops, conditionals, `ctx.pipeline` f
 ## Run it under a ceiling
 
 ```ts
-import { renderProgress } from '@rulvar/rulvar';
+import { progress } from '@rulvar/rulvar';
 
 const args = { question: 'Should a five-person startup adopt a monorepo?' };
 
@@ -157,7 +157,13 @@ const handle = engine.run(panel, args, {
   budgetUsd: 2,                // the run ceiling; immutable after start
 });
 
-void renderProgress(handle.events); // live progress lines on stderr
+// The live terminal view on stderr: one row per agent showing its
+// status glyph, a running timer, token counts, and USD, with the run
+// header tracking spend against the $2 ceiling. On a TTY it repaints in
+// place; in a pipe or CI it prints one line per fact instead. The
+// minimal `renderProgress(handle.events)` line printer is still there
+// if you want raw material for your own logging.
+progress(handle);
 
 const outcome = await handle.result;
 
@@ -200,7 +206,10 @@ Every completed effect of the run above was appended to the journal: a content-a
 ```ts
 const resumed = engine.resume('quickstart-panel-1', panel, { args });
 
-void renderProgress(resumed.events);
+// The iterable source is the gapless path on resume: it sees the
+// replayed prefix (dim rows tagged `replay`) that a late subscription
+// could miss.
+progress(resumed.events);
 
 const outcome = await resumed.result;
 const replay = await resumed.preview; // replay accounting, resolves at settle

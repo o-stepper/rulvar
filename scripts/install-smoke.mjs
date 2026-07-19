@@ -87,8 +87,8 @@ process.env.npm_config_offline = 'true';
 writeFileSync(
   join(scratch, 'smoke.mjs'),
   [
-    "import { createEngine, defineWorkflow, anthropic, openai, renderProgress, recommendedDefaults } from '@rulvar/rulvar';",
-    'for (const [name, value] of Object.entries({ createEngine, defineWorkflow, anthropic, openai, renderProgress })) {',
+    "import { createEngine, defineWorkflow, anthropic, openai, progress, renderProgress, recommendedDefaults } from '@rulvar/rulvar';",
+    'for (const [name, value] of Object.entries({ createEngine, defineWorkflow, anthropic, openai, progress, renderProgress })) {',
     "  if (typeof value !== 'function') { console.error(`umbrella export ${name} missing`); process.exit(1); }",
     '}',
     "if (recommendedDefaults.routing.orchestrate === undefined) { console.error('recommendedDefaults missing'); process.exit(1); }",
