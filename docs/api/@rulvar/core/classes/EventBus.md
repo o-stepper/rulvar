@@ -20,7 +20,7 @@ callback form over the same stream and the same seq values.
 new EventBus(options): EventBus;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L54)
+Defined in: [packages/core/src/engine/events.ts:55](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L55)
 
 #### Parameters
 
@@ -47,7 +47,7 @@ emit(
    replayed?): WorkflowEvent;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L74)
+Defined in: [packages/core/src/engine/events.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L75)
 
 #### Parameters
 
@@ -69,7 +69,7 @@ Defined in: [packages/core/src/engine/events.ts:74](https://github.com/o-stepper
 end(): void;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:111](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L111)
+Defined in: [packages/core/src/engine/events.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L158)
 
 Ends every open iterator once the run has settled.
 
@@ -85,7 +85,7 @@ Ends every open iterator once the run has settled.
 iterate(): AsyncIterable<WorkflowEvent>;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:119](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L119)
+Defined in: [packages/core/src/engine/events.ts:166](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L166)
 
 #### Returns
 
@@ -99,7 +99,7 @@ Defined in: [packages/core/src/engine/events.ts:119](https://github.com/o-steppe
 on<T>(type, cb): () => void;
 ```
 
-Defined in: [packages/core/src/engine/events.ts:95](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L95)
+Defined in: [packages/core/src/engine/events.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/events.ts#L142)
 
 #### Type Parameters
 

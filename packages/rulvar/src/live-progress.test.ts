@@ -540,4 +540,228 @@ describe('handle sources and lifecycle', () => {
     queue.end();
     await view.done;
   });
+
+  it('degrades a recognized event missing a required field instead of stopping the view', async () => {
+    const clock = fakeClock();
+    const sink = fakeSink();
+    const queue = queueSource();
+    const view = progress(queue.iterable, { mode: 'lines', clock, sink });
+    // agent:error with no .error, agent:end with no .usage: both would
+    // throw on unguarded nested access and stop the raw-iterable consumer.
+    queue.push(ev({ type: 'run:start', workflow: 'w', resumed: false }, 'root'));
+    queue.push(ev({ type: 'agent:error', agentType: 'x', willRetry: false }, 'a1'));
+    queue.push(ev({ type: 'agent:end', agentType: 'x', status: 'ok', costUsd: 0.001 }, 'a1'));
+    queue.push(ev({ type: 'run:end', status: 'ok', totalUsd: 0.001 }, 'root'));
+    queue.end();
+    await view.done;
+    const text = sink.text();
+    // The view survived to the end and still printed later facts.
+    expect(text).toContain('run finished: ok');
+    expect(text).toContain('agent x ok');
+  });
+});
+
+const ESC = String.fromCharCode(0x1b);
+const CR = String.fromCharCode(0x0d);
+const badByteInLine = (line: string): boolean =>
+  [...line].some((c) => {
+    const n = c.charCodeAt(0);
+    return (n <= 0x1f && n !== 0x0a) || (n >= 0x7f && n <= 0x9f);
+  });
+
+describe('terminal safety (v1.21.0 review P2-1)', () => {
+  const EVIL = `ERR${CR}\n${ESC}[2J${ESC}[31mINJECT`;
+
+  it('lines mode neutralizes control characters in every dynamic field', async () => {
+    const clock = fakeClock();
+    const sink = fakeSink();
+    const queue = queueSource();
+    const view = progress(queue.iterable, { mode: 'lines', clock, sink, title: `T${EVIL}` });
+    queue.push(ev({ type: 'run:start', workflow: `wf${EVIL}`, resumed: false }, 'root'));
+    queue.push(ev({ type: 'phase:start', phase: `p${EVIL}` }, 'root'));
+    queue.push(
+      ev({ type: 'agent:start', agentType: `w${EVIL}`, model: `m${EVIL}`, role: 'loop' }, 'a1'),
+    );
+    queue.push(
+      ev(
+        {
+          type: 'agent:error',
+          agentType: 'w',
+          error: { message: EVIL, code: 'agent', retryable: false },
+          willRetry: false,
+        },
+        'a1',
+      ),
+    );
+    queue.push(ev({ type: 'log', level: 'error', msg: EVIL }, 'root'));
+    queue.push(ev({ type: 'external:waiting', key: EVIL, entryRef: 1 }, 'root'));
+    queue.push(ev({ type: 'approval:pending', toolName: EVIL, entryRef: 1 }, 'root'));
+    queue.push(ev({ type: 'run:end', status: 'ok', totalUsd: 0 }, 'root'));
+    queue.end();
+    await view.done;
+    const raw = sink.chunks.join('');
+    expect(raw).not.toContain(ESC);
+    for (const line of raw.split('\n')) {
+      expect(badByteInLine(line), JSON.stringify(line)).toBe(false);
+    }
+    // Visible text survives; each of the 8 fact-producing events yields
+    // exactly one physical line (no injected newline inflation).
+    expect(raw).toContain('ERR');
+    expect(raw).toContain('INJECT');
+    const factLines = raw.split('\n').filter((l) => l.length > 0);
+    expect(factLines).toHaveLength(8);
+  });
+
+  it('tty mode scrubs the title and event fields but keeps its own SGR', async () => {
+    const clock = fakeClock();
+    const sink = fakeSink(200);
+    const queue = queueSource();
+    const view = progress(queue.iterable, {
+      mode: 'tty',
+      clock,
+      sink,
+      color: true,
+      title: `T${EVIL}`,
+      width: 200,
+    });
+    queue.push(ev({ type: 'run:start', workflow: 'wf', resumed: false }, 'root'));
+    queue.push(
+      ev({ type: 'agent:start', agentType: `w${EVIL}`, model: `m${EVIL}`, role: 'loop' }, 'a1'),
+    );
+    await settle();
+    view.render();
+    const raw = sink.chunks.join('');
+    // Renderer color codes are present (color: true), but the injected
+    // clear-screen and the raw CR/LF from the fields are gone.
+    expect(raw).toContain(`${ESC}[`);
+    expect(raw).not.toContain(`${ESC}[2J`);
+    // After stripping the renderer's OWN CSI, no control byte remains
+    // besides the structural row-separator newlines.
+    // eslint-disable-next-line no-control-regex
+    const rendererStripped = raw.replace(new RegExp('\\u001B\\[[0-9;?]*[A-Za-z]', 'gu'), '');
+    for (const line of rendererStripped.split('\n')) {
+      expect(badByteInLine(line)).toBe(false);
+    }
+    queue.end();
+    await view.done;
+  });
+});
+
+describe('geometry and timing validation (v1.21.0 review P3-2)', () => {
+  it.each([0, 1, 2, 3, 4, 5, 80, Number.NaN, Number.POSITIVE_INFINITY, -1])(
+    'holds every rendered line strictly under width for width=%s',
+    async (width) => {
+      const clock = fakeClock();
+      const sink = fakeSink();
+      const queue = queueSource();
+      const view = progress(queue.iterable, { mode: 'tty', clock, sink, color: false, width });
+      queue.push(
+        ev(
+          {
+            type: 'run:start',
+            workflow: 'a-very-long-workflow-title-that-overflows',
+            resumed: false,
+          },
+          'root',
+        ),
+      );
+      queue.push(
+        ev(
+          {
+            type: 'agent:start',
+            agentType: 'worker-with-a-long-name',
+            model: 'openai:gpt-5.6-terra',
+            role: 'loop',
+          },
+          'a1',
+        ),
+      );
+      await settle();
+      view.render();
+      const rendered = sink.chunks[sink.chunks.length - 1] ?? '';
+      // eslint-disable-next-line no-control-regex
+      const plain = rendered.replace(new RegExp('\\u001B\\[[0-9;?]*[A-Za-z]', 'gu'), '');
+      const effectiveWidth = Number.isFinite(width) && width >= 1 ? Math.floor(width) : 80;
+      for (const line of plain.split('\n').filter((l) => l.length > 0)) {
+        expect(
+          line.length,
+          `width=${String(width)} line=${JSON.stringify(line)}`,
+        ).toBeLessThanOrEqual(Math.max(0, effectiveWidth - 1));
+      }
+      queue.end();
+      await view.done;
+    },
+  );
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, -1, 0, 31])(
+    'never creates a non-finite repaint interval for fps=%s',
+    async (fps) => {
+      let scheduledMs: number | undefined;
+      const clock: ProgressClock = {
+        now: () => 0,
+        every: (ms) => {
+          scheduledMs = ms;
+          return () => undefined;
+        },
+      };
+      const sink = fakeSink();
+      const queue = queueSource();
+      const view = progress(queue.iterable, { mode: 'tty', clock, sink, color: false, fps });
+      await settle();
+      expect(scheduledMs).toBeDefined();
+      expect(Number.isFinite(scheduledMs)).toBe(true);
+      expect(scheduledMs).toBeGreaterThanOrEqual(Math.round(1000 / 30));
+      expect(scheduledMs).toBeLessThanOrEqual(1000);
+      queue.end();
+      await view.done;
+    },
+  );
+
+  it('a NaN maxRows still collapses an overflowing body', async () => {
+    const clock = fakeClock();
+    const sink = fakeSink();
+    const queue = queueSource();
+    const view = progress(queue.iterable, {
+      mode: 'tty',
+      clock,
+      sink,
+      color: false,
+      maxRows: Number.NaN,
+    });
+    queue.push(ev({ type: 'run:start', workflow: 'w', resumed: false }, 'root'));
+    for (let i = 0; i < 60; i += 1) {
+      queue.push(
+        ev(
+          { type: 'agent:start', agentType: `a${String(i)}`, model: 'm', role: 'loop' },
+          `s${String(i)}`,
+        ),
+      );
+    }
+    await settle();
+    view.render();
+    expect(sink.text()).toContain('earlier rows hidden');
+    queue.end();
+    await view.done;
+  });
+
+  it('a NaN or backward clock renders a zero timer, never NaN', async () => {
+    let t = 1000;
+    const clock: ProgressClock = { now: () => t, every: () => () => undefined };
+    const sink = fakeSink();
+    const queue = queueSource();
+    const view = progress(queue.iterable, { mode: 'tty', clock, sink, color: false });
+    queue.push(ev({ type: 'run:start', workflow: 'w', resumed: false }, 'root'));
+    queue.push(ev({ type: 'agent:start', agentType: 'x', model: 'm', role: 'loop' }, 'a1'));
+    await settle();
+    t = Number.NaN;
+    view.render();
+    expect(sink.text()).not.toContain('NaN');
+    t = 500; // backward
+    view.render();
+    // A negative duration would render a minus before a digit; the
+    // spinner's own '-' glyph never precedes a digit.
+    expect(sink.text()).not.toMatch(/-\d/u);
+    queue.end();
+    await view.done;
+  });
 });

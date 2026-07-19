@@ -1,0 +1,5 @@
+---
+'@rulvar/rulvar': patch
+---
+
+Harden the terminal progress renderers (v1.21.0 review). Both `progress` (its lines mode and the tty state, plus the `title` option) and the minimal `renderProgress` now pass every untrusted field through the shared `sanitizeTerminalText` sanitizer, so control characters and ANSI escape sequences in provider/tool/log strings can no longer clear the screen, recolor to forge text, or inject extra lines (P2-1). `progress` geometry and timing options are normalized to finite positive integers: a non-finite or below-minimum `fps`, `width`, `maxRows`, `sink.columns`, or `sink.rows` falls back instead of breaking the clip or creating a NaN-interval timer, the width clip now holds every rendered line strictly under the terminal width for every width (including 1 to 3), and a NaN or backward clock reading renders a zero timer rather than `NaN` (P3-2). The clock JSDoc is corrected to `performance.now`, and every dynamic field is read defensively so a recognized event missing a required field degrades a row instead of stopping the view.

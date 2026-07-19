@@ -33,7 +33,7 @@ type ProgressMode = "auto" | "tty" | "lines" | "off";
 interface ProgressOptions {
   /** Defaults to process.stderr so application stdout stays clean. */
   sink?: ProgressSink;
-  /** Defaults to Date.now plus setInterval. */
+  /** Defaults to a monotonic clock (performance.now) plus setInterval. */
   clock?: ProgressClock;
   /**
   * 'auto' (default) picks 'tty' when the sink reports a TTY and the

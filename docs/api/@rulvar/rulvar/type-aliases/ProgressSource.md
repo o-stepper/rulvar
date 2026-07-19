@@ -13,4 +13,4 @@ type ProgressSource =
 | AsyncIterable<WorkflowEvent>;
 ```
 
-Defined in: [packages/rulvar/src/live-progress.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/rulvar/src/live-progress.ts#L81)
+Defined in: [packages/rulvar/src/live-progress.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/rulvar/src/live-progress.ts#L84)

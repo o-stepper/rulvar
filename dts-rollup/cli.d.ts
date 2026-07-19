@@ -227,7 +227,12 @@ interface Worker {
 declare function createWorker(engine: Engine, options: CreateWorkerOptions): Worker;
 //#endregion
 //#region src/tui.d.ts
-/** Renders one event to a line, or undefined for silent event types. */
+/**
+* Renders one event to a line, or undefined for silent event types. The
+* composed line is sanitized so an untrusted provider/tool/log string
+* cannot inject a control sequence or a second physical line (v1.21.0
+* review P2-1).
+*/
 declare function renderEventLine(event: WorkflowEvent): string | undefined;
 /** Attaches the renderer to a handle's event stream; returns a detach. */
 declare function attachProgress(handle: RunHandle<unknown>, io: CliIo): () => void;

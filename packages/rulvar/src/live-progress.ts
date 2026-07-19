@@ -18,11 +18,14 @@
  * totals: the authoritative money numbers are `budget:update.spentUsd`
  * and `run:end.totalUsd`, which are immune to replay double counting.
  *
- * The reducer is defensive by contract: unknown event types and missing
- * fields are tolerated silently (consumers MUST tolerate them), an
- * unknown parent span attaches at the root, and a mid-run attach
- * synthesizes a root instead of failing.
+ * The reducer is defensive by contract: unknown event types are ignored
+ * and every dynamic field, including the required ones, is read
+ * defensively (optional chaining with fallbacks), so a malformed event
+ * degrades a row rather than throwing and stopping the view; an unknown
+ * parent span attaches at the root, and a mid-run attach synthesizes a
+ * root instead of failing.
  */
+import { sanitizeTerminalText } from '@rulvar/core';
 import type { CostReport, RunHandle, WorkflowEvent } from '@rulvar/core';
 
 /** Raw output sink; chunks may contain ANSI and partial lines. */
@@ -44,7 +47,7 @@ export type ProgressMode = 'auto' | 'tty' | 'lines' | 'off';
 export interface ProgressOptions {
   /** Defaults to process.stderr so application stdout stays clean. */
   sink?: ProgressSink;
-  /** Defaults to Date.now plus setInterval. */
+  /** Defaults to a monotonic clock (performance.now) plus setInterval. */
   clock?: ProgressClock;
   /**
    * 'auto' (default) picks 'tty' when the sink reports a TTY and the
@@ -83,7 +86,26 @@ export type ProgressSource =
 
 /* ------------------------------ formatting ------------------------------ */
 
+/**
+ * Positive-integer option normalization (v1.21.0 review P3-2): a
+ * non-finite or below-minimum caller value falls back rather than
+ * poisoning the geometry (a NaN width breaks the clip, a NaN fps yields
+ * a NaN interval). Fractions floor.
+ */
+function posIntOption(value: number | undefined, fallback: number, min: number): number {
+  if (value === undefined || !Number.isFinite(value)) {
+    return fallback;
+  }
+  return Math.max(min, Math.floor(value));
+}
+
 function fmtDuration(ms: number): string {
+  // The injected clock only ever feeds DIFFERENCES here; a non-finite or
+  // backward reading clamps to zero so a timer never renders 'NaNs' or a
+  // negative span (v1.21.0 review P3-2).
+  if (!Number.isFinite(ms) || ms < 0) {
+    ms = 0;
+  }
   const s = ms / 1000;
   if (s < 10) return `${s.toFixed(1)}s`;
   if (s < 60) return `${String(Math.floor(s))}s`;
@@ -114,6 +136,11 @@ function bar(spent: number, ceiling: number, cells: number): string {
 }
 
 const SPINNER = ['|', '/', '-', '\\'] as const;
+
+// Strips the renderer's OWN SGR styling so the width clip measures
+// visible length. Built from an escaped codepoint (no literal ESC byte).
+// eslint-disable-next-line no-control-regex
+const SGR_STRIP = new RegExp('\\u001B\\[[0-9;]*m', 'gu');
 
 /* -------------------------------- state --------------------------------- */
 
@@ -214,17 +241,15 @@ function nodeOf(state: State, event: WorkflowEvent, kind: Node['kind'], title: s
 }
 
 /**
- * Untrusted wire strings (model ids, tool names, error messages) may
- * carry control characters; a raw newline or escape sequence in a frame
- * would break the repaint arithmetic or leak terminal control. One
- * space per control run, SGR added only by paint() afterwards.
+ * Untrusted wire strings (model ids, tool names, error messages, log
+ * text, workflow and label metadata) may carry control characters and
+ * escape sequences that break the repaint arithmetic or leak terminal
+ * control. The shared core sanitizer strips C0, DEL, C1, and whole
+ * ESC-initiated CSI/OSC/DCS sequences before interpolation; the
+ * renderer's own SGR is added by paint() afterward (v1.21.0 review
+ * P2-1).
  */
-// eslint-disable-next-line no-control-regex
-const CONTROL_CHARS = /[\u0000-\u001f\u007f]+/gu;
-
-function scrub(text: string): string {
-  return text.replace(CONTROL_CHARS, ' ');
-}
+const scrub = sanitizeTerminalText;
 
 function agentTitle(event: { agentType?: string; label?: string }): string {
   const base =
@@ -346,7 +371,7 @@ function applyEvent(state: State, event: WorkflowEvent, now: number): void {
     case 'agent:error': {
       const node = state.nodes.get(event.spanId);
       if (node !== undefined) {
-        node.badge = event.willRetry ? 'retry' : scrub(`error: ${event.error.message}`);
+        node.badge = event.willRetry ? 'retry' : scrub(`error: ${event.error?.message ?? ''}`);
       }
       break;
     }
@@ -362,7 +387,7 @@ function applyEvent(state: State, event: WorkflowEvent, now: number): void {
       const node = nodeOf(state, event, 'agent', agentTitle(event));
       node.status = event.status;
       node.endedAt = now;
-      node.usage = { input: event.usage.inputTokens, output: event.usage.outputTokens };
+      node.usage = { input: event.usage?.inputTokens ?? 0, output: event.usage?.outputTokens ?? 0 };
       node.costUsd = event.costUsd;
       if (event.replayed === true) {
         node.replayed = true;
@@ -608,16 +633,19 @@ function composeFrame(
     ];
   }
 
-  // Hard width clip; styled lines fall back to their plain form when long.
+  // Hard width clip; styled lines fall back to their plain form when
+  // long. The visible length is held strictly under the terminal width
+  // (<= width - 1) for EVERY width, so a row can never hard-wrap and
+  // break the cursor-up repaint. The ellipsis is only appended when the
+  // budget can hold it plus at least one visible character; below that
+  // the line is truncated flush (v1.21.0 review P3-2).
+  const limit = Math.max(0, width - 1);
   return clamped.map((line) => {
-    // eslint-disable-next-line no-control-regex
-    const plain = line.replace(/\[[0-9;]*m/gu, '');
-    if (plain.length <= width - 1) {
+    const plain = line.replace(SGR_STRIP, '');
+    if (plain.length <= limit) {
       return line;
     }
-    // Clipped total stays strictly under the terminal width so a row
-    // can never hard-wrap and break the cursor-up repaint arithmetic.
-    return plain.slice(0, Math.max(0, width - 4)) + '...';
+    return limit >= 4 ? plain.slice(0, limit - 3) + '...' : plain.slice(0, limit);
   });
 }
 
@@ -703,10 +731,15 @@ export function progress(source: ProgressSource, options?: ProgressOptions): Pro
   const style: Style = {
     color: options?.color ?? (mode === 'tty' && process.env.NO_COLOR === undefined),
   };
-  const width = options?.width ?? sink.columns ?? 80;
-  const maxRows = options?.maxRows ?? Math.max(6, Math.min(24, (sink.rows ?? 32) - 8));
-  const fps = Math.min(30, Math.max(1, options?.fps ?? 10));
-  const state = newState(options?.title);
+  // Every geometry and timing option is normalized to a finite positive
+  // integer so no caller value can break the clip, disable collapse, or
+  // create a NaN-interval busy timer (v1.21.0 review P3-2).
+  const columns = posIntOption(sink.columns, 80, 1);
+  const rows = posIntOption(sink.rows, 32, 3);
+  const width = posIntOption(options?.width, columns, 1);
+  const maxRows = posIntOption(options?.maxRows, Math.max(6, Math.min(24, rows - 8)), 1);
+  const fps = Math.min(30, posIntOption(options?.fps, 10, 1));
+  const state = newState(options?.title === undefined ? undefined : scrub(options.title));
 
   let settled = false;
   let resolveDone = (): void => undefined;
@@ -730,7 +763,11 @@ export function progress(source: ProgressSource, options?: ProgressOptions): Pro
   const paintFrame = (): void => {
     // Re-read the height each paint so a resize between frames is
     // honored; leave one line for the cursor.
-    const maxHeight = sink.rows === undefined ? undefined : Math.max(3, sink.rows - 1);
+    const rawRows = sink.rows;
+    const maxHeight =
+      typeof rawRows === 'number' && Number.isFinite(rawRows)
+        ? Math.max(3, Math.floor(rawRows) - 1)
+        : undefined;
     const frame = composeFrame(state, clock.now(), tick, style, width, maxRows, maxHeight);
     const erase = paintedLines > 0 ? `[${String(paintedLines)}A[0J` : '';
     sink.write(erase + frame.join('\n') + '\n');
@@ -761,13 +798,13 @@ export function progress(source: ProgressSource, options?: ProgressOptions): Pro
             : '';
         return (
           `agent ${agentTitle(event)} ${event.status}${elapsed}: ` +
-          `in ${fmtTokens(event.usage.inputTokens)} out ${fmtTokens(event.usage.outputTokens)}, ` +
+          `in ${fmtTokens(event.usage?.inputTokens ?? 0)} out ${fmtTokens(event.usage?.outputTokens ?? 0)}, ` +
           `${fmtUsd(event.costUsd)}${roles}${event.replayed === true ? ' (replay)' : ''}`
         );
       }
       case 'agent:error':
         return (
-          `agent ${agentTitle(event)} error: ${event.error.message}` +
+          `agent ${agentTitle(event)} error: ${event.error?.message ?? ''}` +
           (event.willRetry ? ' (will retry)' : '')
         );
       case 'budget:update': {
@@ -801,7 +838,11 @@ export function progress(source: ProgressSource, options?: ProgressOptions): Pro
     if (mode === 'lines') {
       const line = lineFor(event, now);
       if (line !== undefined) {
-        sink.write(line + '\n');
+        // lines mode carries no renderer-owned SGR, so sanitizing the
+        // whole composed line is the single choke point that keeps every
+        // field (and any future one) from injecting a control sequence
+        // or a second physical line (v1.21.0 review P2-1).
+        sink.write(scrub(line) + '\n');
       }
     }
   };

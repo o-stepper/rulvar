@@ -50,6 +50,7 @@ export class EventBus {
   private readonly listeners = new Set<(event: WorkflowEvent) => void>();
   private seq = 0;
   private ended = false;
+  private listenerErrorReported = false;
 
   constructor(options: {
     runId: string;
@@ -83,13 +84,59 @@ export class EventBus {
       ...(replayed === true ? { replayed: true } : {}),
       ...safeBody,
     };
+    // Telemetry never affects the run: a throwing on() subscriber (a
+    // renderer, a metrics hook) is isolated so it cannot propagate out
+    // of emit and disrupt a paid run (v1.21.0 review follow-up). Its
+    // failure surfaces as a warn log on the SAME bus instead, once, so
+    // it is visible without a crash.
     for (const listener of this.listeners) {
-      listener(event);
+      try {
+        listener(event);
+      } catch (thrown) {
+        this.reportListenerError(thrown, spanId);
+      }
     }
     for (const subscriber of this.subscribers) {
       subscriber.push(event);
     }
     return event;
+  }
+
+  /**
+   * A throwing on() listener is isolated (its work is best-effort
+   * telemetry), and the failure surfaces ONCE as a warn log on this bus
+   * rather than propagating into the run. The guard is set before the
+   * warn is delivered, so a listener that also throws on the warn cannot
+   * re-arm the report or recurse.
+   */
+  private reportListenerError(thrown: unknown, spanId: string): void {
+    if (this.listenerErrorReported) {
+      return;
+    }
+    this.listenerErrorReported = true;
+    const parentSpanId = this.spans.parentOf(spanId);
+    const warn: WorkflowEvent = {
+      runId: this.runId,
+      seq: this.seq++,
+      ts: new Date(this.now()).toISOString(),
+      spanId,
+      ...(parentSpanId === undefined ? {} : { parentSpanId }),
+      type: 'log',
+      level: 'warn',
+      msg:
+        'an event listener threw and was isolated so the run is unaffected: ' +
+        (thrown instanceof Error ? thrown.message : String(thrown)),
+    };
+    for (const listener of this.listeners) {
+      try {
+        listener(warn);
+      } catch {
+        // Already reported; never recurse.
+      }
+    }
+    for (const subscriber of this.subscribers) {
+      subscriber.push(warn);
+    }
   }
 
   on<T extends WorkflowEvent['type']>(

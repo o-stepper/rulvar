@@ -72,7 +72,7 @@ pnpm exec rulvar --help
 | [loadWorkflowModule](/api/@rulvar/cli/functions/loadWorkflowModule.md) | Imports a workflow module given on the command line. |
 | [looksLikeFile](/api/@rulvar/cli/functions/looksLikeFile.md) | True when the `run` target names a file rather than a registry entry. |
 | [processIo](/api/@rulvar/cli/functions/processIo.md) | The process-backed io the bin entry uses. |
-| [renderEventLine](/api/@rulvar/cli/functions/renderEventLine.md) | Renders one event to a line, or undefined for silent event types. |
+| [renderEventLine](/api/@rulvar/cli/functions/renderEventLine.md) | Renders one event to a line, or undefined for silent event types. The composed line is sanitized so an untrusted provider/tool/log string cannot inject a control sequence or a second physical line (v1.21.0 review P2-1). |
 | [reportOutcome](/api/@rulvar/cli/functions/reportOutcome.md) | Renders the settled outcome; returns the process exit code. |
 | [resumeCommand](/api/@rulvar/cli/functions/resumeCommand.md) | - |
 | [runCli](/api/@rulvar/cli/functions/runCli.md) | @rulvar/cli: the Rulvar shell (https://docs.rulvar.com/guide/cli). M5 surface: run/resume/runs ls/inspect over the canonical grammar, TUI progress on the event stream, interactive resolution of suspended approvals and externals. plan/kb commands land M6+/M10; createServer/createWorker land M8; the OTel exporter lands M5-T08. |

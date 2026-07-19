@@ -5,8 +5,13 @@
  *
  * Event stream contract: https://docs.rulvar.com/guide/observability
  * (the terminal progress renderer is one of the four stream consumers).
+ *
+ * Every emitted line passes through the shared terminal sanitizer before
+ * it reaches the sink, so an untrusted provider/tool/log string can never
+ * inject a control sequence or a second physical line (v1.21.0 review
+ * P2-1).
  */
-import type { WorkflowEvent } from '@rulvar/core';
+import { sanitizeTerminalText, type WorkflowEvent } from '@rulvar/core';
 
 export interface RenderProgressOptions {
   /** Line sink; defaults to process.stderr. */
@@ -27,11 +32,13 @@ export async function renderProgress(
   events: AsyncIterable<WorkflowEvent>,
   options?: RenderProgressOptions,
 ): Promise<void> {
-  const write =
+  const sink =
     options?.write ??
     ((line: string) => {
       process.stderr.write(`${line}\n`);
     });
+  // One choke point: every line is sanitized before it reaches the sink.
+  const write = (line: string): void => sink(sanitizeTerminalText(line));
   const logs = options?.logs ?? true;
   for await (const event of events) {
     switch (event.type) {
