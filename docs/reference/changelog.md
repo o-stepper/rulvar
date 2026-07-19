@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.22.0
+
+#### Patch Changes
+
+- Updated dependencies [77b554f]
+  - @rulvar/core@1.22.0
+
 ### 1.21.0
 
 #### Patch Changes
@@ -487,6 +494,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.22.0
+
+#### Patch Changes
+
+- Updated dependencies [77b554f]
+  - @rulvar/core@1.22.0
+
 ### 1.21.0
 
 #### Patch Changes
@@ -842,6 +856,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.22.0
+
+#### Patch Changes
+
+- 77b554f: Sanitize the CLI event line renderer (`renderEventLine`, used by `attachProgress`): every composed line passes through the shared `sanitizeTerminalText` before it reaches the terminal, so an untrusted provider/tool/log string in an event can no longer inject a control sequence or a second physical line into CLI output (v1.21.0 review P2-1). Clean lines stay byte-identical.
+- Updated dependencies [77b554f]
+  - @rulvar/core@1.22.0
 
 ### 1.21.0
 
@@ -1355,6 +1377,14 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.22.0
+
+#### Minor Changes
+
+- 77b554f: Add `sanitizeTerminalText`, the rendering-boundary counterpart to `maskSecrets`: it neutralizes terminal control sequences and control characters in one untrusted string so a provider error message, tool name, model id, or log line can never inject a control sequence or a second physical line into a rendered terminal line (v1.21.0 review P2-1). After sanitization the result carries no C0 control, no `DEL`, no C1 byte (including every 8-bit escape-sequence introducer), and no ESC-initiated CSI/OSC/DCS sequence; control runs collapse to a single space and visible text is preserved. The bundled renderers use it internally, and it is exported for host terminal sinks.
+
+  Also isolate event-bus subscribers: a throwing `on()` listener (a renderer, a metrics hook) is best-effort telemetry and can no longer propagate out of `emit` to disrupt a paid run; the failure surfaces once as a warn log on the same bus instead (v1.21.0 review follow-up).
 
 ### 1.21.0
 
@@ -2383,6 +2413,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.22.0
+
 ### 1.21.0
 
 ### 1.20.0
@@ -2493,6 +2525,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.22.0
+
+#### Patch Changes
+
+- Updated dependencies [77b554f]
+  - @rulvar/core@1.22.0
+  - @rulvar/testing@1.22.0
 
 ### 1.21.0
 
@@ -2936,6 +2976,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.22.0
+
+#### Patch Changes
+
+- Updated dependencies [77b554f]
+  - @rulvar/core@1.22.0
 
 ### 1.21.0
 
@@ -3428,6 +3475,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.22.0
+
+#### Patch Changes
+
+- Updated dependencies [77b554f]
+  - @rulvar/core@1.22.0
+
 ### 1.21.0
 
 #### Patch Changes
@@ -3889,6 +3943,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.22.0
+
+#### Patch Changes
+
+- Updated dependencies [77b554f]
+  - @rulvar/core@1.22.0
+  - eslint-plugin-rulvar@1.22.0
+
 ### 1.21.0
 
 #### Patch Changes
@@ -4285,6 +4347,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.22.0
+
+#### Patch Changes
+
+- 77b554f: Harden the terminal progress renderers (v1.21.0 review). Both `progress` (its lines mode and the tty state, plus the `title` option) and the minimal `renderProgress` now pass every untrusted field through the shared `sanitizeTerminalText` sanitizer, so control characters and ANSI escape sequences in provider/tool/log strings can no longer clear the screen, recolor to forge text, or inject extra lines (P2-1). `progress` geometry and timing options are normalized to finite positive integers: a non-finite or below-minimum `fps`, `width`, `maxRows`, `sink.columns`, or `sink.rows` falls back instead of breaking the clip or creating a NaN-interval timer, the width clip now holds every rendered line strictly under the terminal width for every width (including 1 to 3), and a NaN or backward clock reading renders a zero timer rather than `NaN` (P3-2). The clock JSDoc is corrected to `performance.now`, and every dynamic field is read defensively so a recognized event missing a required field degrades a row instead of stopping the view.
+- Updated dependencies [77b554f]
+  - @rulvar/core@1.22.0
+  - @rulvar/anthropic@1.22.0
+  - @rulvar/openai@1.22.0
 
 ### 1.21.0
 
@@ -4817,6 +4889,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.22.0
+
+#### Patch Changes
+
+- Updated dependencies [77b554f]
+  - @rulvar/core@1.22.0
+
 ### 1.21.0
 
 #### Patch Changes
@@ -5232,6 +5311,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.22.0
+
+#### Patch Changes
+
+- Updated dependencies [77b554f]
+  - @rulvar/core@1.22.0
+
 ### 1.21.0
 
 #### Patch Changes
@@ -5598,6 +5684,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.22.0
+
+#### Patch Changes
+
+- Updated dependencies [77b554f]
+  - @rulvar/core@1.22.0
 
 ### 1.21.0
 

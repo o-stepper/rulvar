@@ -1,5 +1,13 @@
 # @rulvar/cli
 
+## 1.22.0
+
+### Patch Changes
+
+- 77b554f: Sanitize the CLI event line renderer (`renderEventLine`, used by `attachProgress`): every composed line passes through the shared `sanitizeTerminalText` before it reaches the terminal, so an untrusted provider/tool/log string in an event can no longer inject a control sequence or a second physical line into CLI output (v1.21.0 review P2-1). Clean lines stay byte-identical.
+- Updated dependencies [77b554f]
+  - @rulvar/core@1.22.0
+
 ## 1.21.0
 
 ### Patch Changes
