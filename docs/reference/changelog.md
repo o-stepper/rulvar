@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.24.1
+
+#### Patch Changes
+
+- Updated dependencies [0bb14db]
+  - @rulvar/core@1.24.1
+
 ### 1.24.0
 
 #### Patch Changes
@@ -509,6 +516,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.24.1
+
+#### Patch Changes
+
+- Updated dependencies [0bb14db]
+  - @rulvar/core@1.24.1
+
 ### 1.24.0
 
 #### Patch Changes
@@ -885,6 +899,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.24.1
+
+#### Patch Changes
+
+- 0bb14db: Close a resume args-gate bypass through JSON numeric overflow (v1.24.0 review P2-1). A `--args` value that overflowed JavaScript's finite range (`1e400` parses to `Infinity`) could not be canonicalized, so genesis recorded the args binding with `argsProvided` but no hash, and a later `resume` supplying entirely different args slipped past the gate with only a warning, silently changing the logical run and re-paying every args-dependent call. `rulvar run` and `rulvar resume` now reject non-finite (non-JCS) `--args` at parse time, before any config, store, or adapter loads. Independently, when a run recorded `argsProvided` without a verifiable hash (an in-process host that started it with genuinely non-JCS args), a `resume` supplying args is now a typed refusal unless you pass `--allow-args-change`, instead of the previous soft warning. Core engine policy is unchanged: in-process hosts may still pass non-JCS args and record presence without a hash.
+- Updated dependencies [0bb14db]
+  - @rulvar/core@1.24.1
 
 ### 1.24.0
 
@@ -1431,6 +1453,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.24.1
+
+#### Patch Changes
+
+- 0bb14db: Correct the `RunMeta.argsHash` documentation (v1.24.0 review P2-2). The digest is a deterministic, unsalted SHA-256 over the JCS form of a run's genesis args, so it reveals when two runs shared identical args and low-entropy args (a boolean, an approval flag, a role, a short id) are recoverable by hashing candidate values. The TSDoc on `RunMeta.argsHash` and `hashRunArgs` no longer claims that nothing sensitive lands in meta; it now states the digest is sensitive-derived metadata that confers no confidentiality and must be access-controlled like the journal and transcripts. The raw args are still never journaled, and no runtime behavior changes.
 
 ### 1.24.0
 
@@ -2486,6 +2514,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.24.1
+
 ### 1.24.0
 
 ### 1.23.0
@@ -2602,6 +2632,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.24.1
+
+#### Patch Changes
+
+- Updated dependencies [0bb14db]
+  - @rulvar/core@1.24.1
+  - @rulvar/testing@1.24.1
 
 ### 1.24.0
 
@@ -3078,6 +3116,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.24.1
+
+#### Patch Changes
+
+- Updated dependencies [0bb14db]
+  - @rulvar/core@1.24.1
 
 ### 1.24.0
 
@@ -3591,6 +3636,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.24.1
+
+#### Patch Changes
+
+- Updated dependencies [0bb14db]
+  - @rulvar/core@1.24.1
+
 ### 1.24.0
 
 #### Patch Changes
@@ -4081,6 +4133,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.24.1
+
+#### Patch Changes
+
+- Updated dependencies [0bb14db]
+  - @rulvar/core@1.24.1
+  - eslint-plugin-rulvar@1.24.1
+
 ### 1.24.0
 
 #### Minor Changes
@@ -4513,6 +4573,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.24.1
+
+#### Patch Changes
+
+- Updated dependencies [0bb14db]
+  - @rulvar/core@1.24.1
+  - @rulvar/anthropic@1.24.1
+  - @rulvar/openai@1.24.1
 
 ### 1.24.0
 
@@ -5081,6 +5150,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.24.1
+
+#### Patch Changes
+
+- Updated dependencies [0bb14db]
+  - @rulvar/core@1.24.1
+
 ### 1.24.0
 
 #### Minor Changes
@@ -5529,6 +5605,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.24.1
+
+#### Patch Changes
+
+- Updated dependencies [0bb14db]
+  - @rulvar/core@1.24.1
+
 ### 1.24.0
 
 #### Patch Changes
@@ -5916,6 +5999,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.24.1
+
+#### Patch Changes
+
+- Updated dependencies [0bb14db]
+  - @rulvar/core@1.24.1
 
 ### 1.24.0
 
