@@ -6,7 +6,7 @@
 
 # Interface: ProgressClock
 
-Defined in: [packages/rulvar/src/live-progress.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/rulvar/src/live-progress.ts#L37)
+Defined in: [packages/rulvar/src/live-progress.ts:40](https://github.com/o-stepper/rulvar/blob/main/packages/rulvar/src/live-progress.ts#L40)
 
 Injectable time source; every() returns a cancel function.
 
@@ -18,7 +18,7 @@ Injectable time source; every() returns a cancel function.
 every(ms, fn): () => void;
 ```
 
-Defined in: [packages/rulvar/src/live-progress.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/rulvar/src/live-progress.ts#L39)
+Defined in: [packages/rulvar/src/live-progress.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/rulvar/src/live-progress.ts#L42)
 
 #### Parameters
 
@@ -39,7 +39,7 @@ Defined in: [packages/rulvar/src/live-progress.ts:39](https://github.com/o-stepp
 now(): number;
 ```
 
-Defined in: [packages/rulvar/src/live-progress.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/rulvar/src/live-progress.ts#L38)
+Defined in: [packages/rulvar/src/live-progress.ts:41](https://github.com/o-stepper/rulvar/blob/main/packages/rulvar/src/live-progress.ts#L41)
 
 #### Returns
 

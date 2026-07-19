@@ -2471,6 +2471,10 @@
             "link": "/api/@rulvar/core/functions/runProfile.md"
           },
           {
+            "text": "sanitizeTerminalText",
+            "link": "/api/@rulvar/core/functions/sanitizeTerminalText.md"
+          },
+          {
             "text": "sanitizeTokenCount",
             "link": "/api/@rulvar/core/functions/sanitizeTokenCount.md"
           },
@@ -6050,6 +6054,10 @@
           {
             "text": "runProfile",
             "link": "/api/@rulvar/rulvar/functions/runProfile.md"
+          },
+          {
+            "text": "sanitizeTerminalText",
+            "link": "/api/@rulvar/rulvar/functions/sanitizeTerminalText.md"
           },
           {
             "text": "sanitizeTokenCount",

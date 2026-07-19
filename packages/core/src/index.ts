@@ -12,6 +12,7 @@ export * from './l0/errors.js';
 export * from './l0/serialization.js';
 export * from './l0/messages.js';
 export * from './l0/usage.js';
+export * from './l0/terminal.js';
 export * from './l0/schema.js';
 export * from './l0/entries.js';
 export type * from './l0/spi/provider.js';

@@ -5,7 +5,7 @@
  * v1 beyond being the default sink; piped output stays byte-stable for
  * tests and logs.
  */
-import type { RunHandle, WorkflowEvent } from '@rulvar/core';
+import { sanitizeTerminalText, type RunHandle, type WorkflowEvent } from '@rulvar/core';
 
 import type { CliIo } from './io.js';
 
@@ -13,8 +13,18 @@ function money(usd: number): string {
   return `$${usd.toFixed(4)}`;
 }
 
-/** Renders one event to a line, or undefined for silent event types. */
+/**
+ * Renders one event to a line, or undefined for silent event types. The
+ * composed line is sanitized so an untrusted provider/tool/log string
+ * cannot inject a control sequence or a second physical line (v1.21.0
+ * review P2-1).
+ */
 export function renderEventLine(event: WorkflowEvent): string | undefined {
+  const line = rawEventLine(event);
+  return line === undefined ? undefined : sanitizeTerminalText(line);
+}
+
+function rawEventLine(event: WorkflowEvent): string | undefined {
   const replayMark = event.replayed === true ? 'replay ' : '';
   switch (event.type) {
     case 'run:start':
