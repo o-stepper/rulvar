@@ -45,6 +45,10 @@ jobs:
       # escape sequences, never bytes.
       - name: Source control-byte gate
         run: node scripts/source-control-bytes.mjs
+      # The framework is English-only everywhere, fixtures included;
+      # unicode-hostile fixtures use non-Cyrillic text (diacritics, CJK).
+      - name: Source Cyrillic gate
+        run: node scripts/source-cyrillic.mjs
 
   # The Version Packages PR is EXEMPT (its whole job is to consume the
   # changesets, so requiring one there is a contradiction), but the exempt

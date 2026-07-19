@@ -3,9 +3,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type {
+  AgentProfile,
   CompiledWorkflow,
   Engine,
   JournalEntry,
+  ToolsOption,
   TranscriptStore,
   Workflow,
 } from '@rulvar/core';
@@ -16,6 +18,7 @@ import {
   FileTranscriptStore,
   InMemoryStore,
   JsonlFileStore,
+  tool,
 } from '@rulvar/core';
 import { FAKE_MODEL_REF, FakeAdapter } from '@rulvar/testing';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -41,6 +44,8 @@ function makeEngine(options?: {
   store?: InMemoryStore | JsonlFileStore;
   transcripts?: TranscriptStore;
   workflows?: Record<string, Workflow<never, unknown>>;
+  profiles?: Record<string, AgentProfile>;
+  toolsets?: Record<string, ToolsOption>;
   timeoutMs?: number;
 }): { engine: Engine; store: InMemoryStore | JsonlFileStore; adapter: FakeAdapter } {
   const adapter = new FakeAdapter({
@@ -58,6 +63,8 @@ function makeEngine(options?: {
     defaults: {
       routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF },
       ...(options?.workflows === undefined ? {} : { workflows: options.workflows }),
+      ...(options?.profiles === undefined ? {} : { profiles: options.profiles }),
+      ...(options?.toolsets === undefined ? {} : { toolsets: options.toolsets }),
     },
     runners: {
       sandbox: new WorkerSandboxRunner({
@@ -323,5 +330,45 @@ describe('the allowImports contract end to end (v1.22.0 review P2-7)', () => {
     const outcome = await engine.run(allowed, null, { runId: 'imports-e2e' }).result;
     expect(outcome.status).toBe('ok');
     expect(outcome.value).toBe('function');
+  });
+});
+
+describe('tools strings resolve as registered toolsets in the dialect (v1.23.0 review P2-1)', () => {
+  const lookup = tool({
+    name: 'lookup_web',
+    description: 'test lookup tool',
+    parameters: { type: 'object' },
+    execute: () => Promise.resolve('looked-up'),
+  });
+  const profiles = { analyst: { description: 'analyzes things', tools: ['lookup'] } };
+  const toolsets = { lookup: [lookup] };
+
+  it('a registered toolset name with an agentType profile succeeds end to end', async () => {
+    const { engine, adapter } = makeEngine({
+      agents: { '*': 'used the toolset' },
+      profiles,
+      toolsets,
+    });
+    const wf = compileScript(
+      "return agent('use the registered toolset', { agentType: 'analyst', tools: ['lookup'] });",
+    );
+    const outcome = await engine.run(wf, null).result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.value).toBe('used the toolset');
+    expect(adapter.calls.length).toBeGreaterThan(0);
+  });
+
+  it('a profile name in tools is a typed pre-call ConfigError with zero provider calls', async () => {
+    const { engine, adapter } = makeEngine({
+      agents: { '*': 'MUST NOT BE CALLED' },
+      profiles,
+      toolsets,
+    });
+    const wf = compileScript("return agent('misuse the profile name', { tools: ['analyst'] });");
+    const outcome = await engine.run(wf, null).result;
+    expect(outcome.status).toBe('error');
+    expect(outcome.error?.code).toBe('config');
+    expect(outcome.error?.message).toContain("unknown registered toolset 'analyst'");
+    expect(adapter.calls).toHaveLength(0);
   });
 });

@@ -56,6 +56,26 @@ export type RunMeta = {
    * resumed run's telemetry counters to per-segment, never the journal.
    */
   segments?: number;
+  /**
+   * Whether the run started with defined args. Engine-recorded at
+   * genesis and preserved verbatim by every later segment (a resume
+   * never rewrites it from its own re-supplied args). Args themselves
+   * are not journaled; the host re-supplies them on resume, and this
+   * marker plus `argsHash` let a host refuse a resume whose args
+   * silently diverge from the original invocation (the v1.23.0 review:
+   * a CLI resume that forgot `--args` silently changed the logical run
+   * and paid again). Absent on runs started before v1.24.0. Stores must
+   * round-trip the field (the conformance kit checks).
+   */
+  argsProvided?: boolean;
+  /**
+   * sha256 hex over the JCS canonical serialization of the genesis args
+   * (`hashRunArgs`). Absent when the run started without args or when
+   * the args are not JCS-serializable (`argsProvided` still records
+   * presence). Never the raw args: nothing sensitive lands in meta.
+   * Stores must round-trip the field (the conformance kit checks).
+   */
+  argsHash?: string;
 };
 
 export type RunFilter = {

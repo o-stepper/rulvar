@@ -314,6 +314,15 @@ function main() {
       if (EMOJI.test(line)) {
         fail(file, n, 'emoji characters are forbidden in the documentation set');
       }
+      if (/\b(?:RunMeta|meta) is advisory\b/iu.test(line)) {
+        fail(
+          file,
+          n,
+          'RunMeta is NOT advisory as a whole: only the hash-version summary fields are ' +
+            '(the store SPI contract; v1.23.0 review). Name the advisory fields precisely; ' +
+            'budgetUsd, segments, argsProvided/argsHash, and the workflow binding must round-trip',
+        );
+      }
       if (!inFence && VUE_INTERPOLATION.test(line)) {
         fail(
           file,

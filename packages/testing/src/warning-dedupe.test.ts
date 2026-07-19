@@ -172,7 +172,7 @@ describe('vitest warning dedupe (v1.16.1 review P3)', () => {
 
   it('hashes hostile codes so no memo file lands outside the dir', () => {
     const dir = mkdtempSync(join(tmpdir(), 'rulvar-dedupe-hash-'));
-    const hostile = ['../../escape', 'nested/inside', '..', 'код☂', 'a\\b'];
+    const hostile = ['../../escape', 'nested/inside', '..', 'ünï名前', 'a\\b'];
     withSpy((_emitted, install) => {
       install({ memoDir: dir });
       for (const code of hostile) {

@@ -55,14 +55,15 @@ const outcome = await resumed.result;
 
 `engine.resume` returns a `ResumeHandle`, which is a `RunHandle` plus a `preview` promise that settles with the replay accounting. A few contract points:
 
-- **Arguments are re-supplied.** Original run arguments are not journaled for in-process workflows in v1; the host passes them again via `ResumeOptions.args`. (Structure and identity come from the journal either way; the args feed your code, not the matcher.)
+- **Arguments are re-supplied, and the binding is recorded.** Original run arguments are not journaled for in-process workflows in v1; the host passes them again via `ResumeOptions.args`. (Structure and identity come from the journal either way; the args feed your code, not the matcher.) What genesis DOES record is the binding: `RunMeta.argsProvided` and `RunMeta.argsHash` (sha256 over the JCS canonical form via `hashRunArgs`, never the raw args), preserved verbatim by every later segment. The engine does not enforce them (hosts may transform args legitimately); a host that wants the guarantee compares `hashRunArgs(args)` against the recorded hash before resuming, exactly what the CLI does: silently dropped or changed args change the logical run and re-pay every args-dependent call.
 - **Run-to-definition binding is checked.** `engine.run` records the workflow name and a content hash of the body in the run metadata. Resuming with a workflow whose name differs is a typed `ConfigError`; a body-hash mismatch produces a loud warning and proceeds, because the journal itself decides replay versus live per content key. You can also omit `wf` entirely: the engine resolves the recorded name against the `defaults.workflows` registry.
 - **Compiled workflows resume without code.** For a planner-generated `CompiledWorkflow` the engine persisted the source in the transcript store at run start, pinned by its hash, so `engine.resume(runId)` rehydrates it byte-identically. This is why cross-process resume of compiled runs needs a durable transcript store such as `FileTranscriptStore`.
 
-The same operation is available from the [CLI](/guide/cli):
+The same operation is available from the [CLI](/guide/cli), which enforces the args binding (a missing, added, or changed `--args` is a typed refusal unless you pass `--allow-args-change`) and exposes the preview as `--dry-run`:
 
 ```bash
 rulvar resume review-pr-4242 --args '4242' --store ./runs
+rulvar resume review-pr-4242 --args '4242' --store ./runs --dry-run
 ```
 
 ::: warning The default journal store is in-memory
@@ -138,14 +139,14 @@ The dollar ceiling set at `engine.run(...)` time is recorded in the run's store 
 
 ## Previewing a resume before paying
 
-`dryRun: true` runs the same matching in replay-strict mode: the first call that would go live throws a typed `JournalMissError` and the run settles with that error, with zero live calls performed.
+`dryRun: true` runs the same matching in replay-strict mode: the first call that would go live throws a typed `JournalMissError` and the run settles with that error, with zero live calls performed. A preview also performs zero store mutations by invariant: no meta write (no status flip, no `segments` bump), no transcript blob writes, and the journal's single append site refuses any append under replay-strict, so previewing repeatedly is always free and always safe.
 
 ```ts
 const dry = engine.resume('review-pr-4242', review, { args: 4242, dryRun: true });
 const report = await dry.preview; // honest hit/miss/orphan accounting, nothing paid
 ```
 
-Use it to check what an edited workflow would cost before resuming for real. The inverse knob is `invalidate: [seq, ...]`: it unpins specific entries (typically failures memoized with `memoizeOutcome`) so this resume reruns them, for the case where an external system has recovered and you want a fresh attempt.
+Use it to check what an edited workflow would cost before resuming for real (`rulvar resume <runId> --dry-run` prints the same accounting from the CLI). The inverse knob is `invalidate: [seq, ...]`: it unpins specific entries (typically failures memoized with `memoizeOutcome`) so this resume reruns them, for the case where an external system has recovered and you want a fresh attempt.
 
 ## Suspended runs and how they resolve
 

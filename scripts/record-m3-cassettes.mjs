@@ -16,9 +16,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // Root scripts resolve workspace packages through their built dist (the
-// root package.json declares no workspace dependencies by design).
+// root package.json declares no workspace dependencies by design). The
+// recording plumbing lives on the unexported internal entry (v1.23.0
+// review): reachable by file path only, never by published specifier.
 const { recordLiveCassettes } = await import(
-  pathToFileURL(join(root, 'packages', 'testing', 'dist', 'index.js')).href
+  pathToFileURL(join(root, 'packages', 'testing', 'dist', 'internal', 'cassettes.js')).href
 );
 
 const cassettesDir = join(root, 'cassettes');

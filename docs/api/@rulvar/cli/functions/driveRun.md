@@ -10,7 +10,7 @@
 function driveRun(options): Promise<RunOutcome<unknown>>;
 ```
 
-Defined in: [packages/cli/src/drive.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/drive.ts#L83)
+Defined in: [packages/cli/src/drive.ts:90](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/drive.ts#L90)
 
 Drives a handle to a terminal outcome, resolving suspensions
 interactively and resuming until the run settles or input runs dry.

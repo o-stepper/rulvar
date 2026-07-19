@@ -24,7 +24,7 @@ describe('apiCard (M6-T04)', () => {
   it('teaches the sanctioned dialect rules', () => {
     const card = apiCard();
     expect(card).toContain('JSON Schema LITERAL');
-    expect(card).toContain('registered profile NAMES');
+    expect(card).toContain('registered TOOLSET names');
     expect(card).toContain("'throw' | 'null'");
     expect(card).toContain('await budget.spent()');
     expect(card).toContain('No import, require, or export');
@@ -34,6 +34,52 @@ describe('apiCard (M6-T04)', () => {
 
   it('never names concrete models', () => {
     expect(apiCard()).not.toMatch(/claude|gpt-\d|anthropic:|openai:/);
+  });
+});
+
+describe('tools and model semantics (v1.23.0 review P2-1 and P2-2)', () => {
+  const profiles = { analyst: { description: 'analyzes things', tools: ['lookup'] } };
+  const toolsets = { lookup: [] as never[] };
+
+  it('tools strings are toolset names, never profile names', () => {
+    const card = apiCard();
+    // The runtime contract verbatim: strings resolve against
+    // defaults.toolsets; a profile name there is a pre-call ConfigError.
+    expect(card).toContain('registered TOOLSET names');
+    expect(card).toContain('never agent profile names');
+    expect(card).not.toMatch(/tools: an array of registered profile/u);
+    // agentType keeps its own, separate teaching line.
+    expect(card).toContain('agentType: a registered profile name from the profile card');
+  });
+
+  it('the composite prompt names the valid toolset strings and never offers a profile for tools', async () => {
+    const { profileCard } = await import('@rulvar/core');
+    const composite = `${apiCard()}\n${profileCard(profiles, toolsets)}`;
+    // 'lookup' is named as a valid tools string by the profile card line.
+    expect(composite).toContain(
+      'Registered toolsets (valid string entries of a tools option): lookup.',
+    );
+    // 'analyst' appears ONLY as an agentType value, never beside tools.
+    const analystLines = composite.split('\n').filter((line) => line.includes('analyst'));
+    expect(analystLines.length).toBeGreaterThan(0);
+    for (const line of analystLines) {
+      expect(line).not.toContain('tools:');
+    }
+  });
+
+  it('model and routing are host-owned: no promised ref source, omission is the norm', () => {
+    const card = apiCard();
+    expect(card).not.toContain('model ref from the profile card');
+    expect(card).toContain('normally OMIT BOTH');
+    expect(card).toContain('the profile card never names any');
+    // The escape hatch is explicitly conditioned on the goal text.
+    expect(card).toContain('goal text itself lists');
+  });
+
+  it('the standard profile card still never names concrete models', async () => {
+    const { profileCard } = await import('@rulvar/core');
+    const rendered = profileCard(profiles, toolsets);
+    expect(rendered).not.toMatch(/claude|gpt-\d|anthropic:|openai:|fake:/u);
   });
 });
 

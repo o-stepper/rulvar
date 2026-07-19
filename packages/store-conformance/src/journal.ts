@@ -393,10 +393,13 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
         );
         // Optional RunMeta fields must round-trip byte-faithfully: the
         // engine restores the run's budget ceiling from budgetUsd on
-        // resume (a store that drops it silently uncaps resumed runs)
-        // and derives each resume segment's event seq / span-id base
+        // resume (a store that drops it silently uncaps resumed runs),
+        // derives each resume segment's event seq / span-id base
         // from segments (a store that drops it degrades resumed-run
-        // telemetry counters to per-segment; v1.22.0 review P1-2).
+        // telemetry counters to per-segment; v1.22.0 review P1-2), and
+        // hosts verify re-supplied resume args against the genesis
+        // argsProvided/argsHash binding (v1.23.0 review: a store that
+        // drops them disables the args-divergence refusal).
         await store.putMeta(
           meta(RUN, {
             status: 'suspended',
@@ -404,6 +407,8 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
             tags: ['team:core'],
             budgetUsd: 12.5,
             segments: 3,
+            argsProvided: true,
+            argsHash: 'a'.repeat(64),
           }),
         );
         const roundTripped = (await store.listRuns()).find((candidate) => candidate.runId === RUN);
@@ -416,6 +421,11 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
           roundTripped?.segments === 3,
           'meta-separation',
           'putMeta/listRuns must round-trip optional RunMeta fields (segments)',
+        );
+        ensure(
+          roundTripped?.argsProvided === true && roundTripped.argsHash === 'a'.repeat(64),
+          'meta-separation',
+          'putMeta/listRuns must round-trip optional RunMeta fields (argsProvided, argsHash)',
         );
         await store.delete(RUN);
         ensure(

@@ -770,14 +770,14 @@ describe('catch path sanitization and masking (v1.22.0 review P2-2)', () => {
   const ESC = String.fromCharCode(0x1b);
   const CR = String.fromCharCode(0x0d);
   const SECRET = 'sk-proj-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
-  const evil = (): Error => new Error(`сбой ${ESC}[2J${CR}\nFORGED-LINE ${SECRET}`);
+  const evil = (): Error => new Error(`故障 ${ESC}[2J${CR}\nFORGED-LINE ${SECRET}`);
   const assertClean = (raw: string): void => {
     expect(raw).not.toContain(`${ESC}[2J`);
     expect(raw).not.toContain(CR);
     expect(raw).not.toContain(SECRET);
     expect(raw).toContain('[masked-secret]');
     // Readability: the visible part of the message survives.
-    expect(raw).toContain('сбой');
+    expect(raw).toContain('故障');
   };
 
   it('a rejected Promise<RunHandle> source cannot inject into the tty sink', async () => {

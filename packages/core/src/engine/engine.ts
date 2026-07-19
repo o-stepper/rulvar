@@ -21,6 +21,7 @@ import {
 } from '../l0/serialization.js';
 import { createCanonicalIdMinter } from '../l0/messages.js';
 import { validateSchemaSpec, type SchemaSpec } from '../l0/schema.js';
+import { jcsSerialize } from '../l0/jcs.js';
 import type { ToolsOption } from '../tools/toolset-hash.js';
 import { normalizeEntry, type JournalEntry } from '../l0/entries.js';
 import { Replayer } from '../journal/replayer.js';
@@ -305,6 +306,23 @@ export function workflowSourceRef(runId: string): string {
   return `${runId}/workflow-source`;
 }
 
+/**
+ * sha256 hex over the JCS canonical serialization of a run's args: the
+ * value the engine records as `RunMeta.argsHash` at genesis, exposed so
+ * hosts can verify re-supplied resume args against the recorded hash
+ * (the v1.23.0 review: a resume that silently drops or changes args
+ * changes the logical run and pays again). Returns undefined for
+ * undefined args (a run started without args records none). Throws when
+ * JCS cannot serialize the value (functions, cycles, non-finite
+ * numbers); the engine then records `argsProvided` without a hash.
+ */
+export function hashRunArgs(args: unknown): string | undefined {
+  if (args === undefined) {
+    return undefined;
+  }
+  return createHash('sha256').update(jcsSerialize(args), 'utf8').digest('hex');
+}
+
 export function createEngine(options: CreateEngineOptions): Engine {
   const adapters = buildAdapterRegistry(options.adapters);
   const rawJournal = options.stores?.journal ?? new InMemoryStore();
@@ -381,6 +399,14 @@ export function createEngine(options: CreateEngineOptions): Engine {
      * increasing and unique per run (v1.22.0 review P1-2).
      */
     segmentsBefore: number;
+    /**
+     * The genesis args binding (RunMeta.argsProvided/argsHash) carried
+     * through verbatim: a resume segment writes back the RECORDED
+     * values, never ones derived from its own re-supplied args, and
+     * absence stays absent (a legacy run must not gain a false marker).
+     */
+    argsProvided?: boolean;
+    argsHash?: string;
     previewResolve: (preview: ResumePreview) => void;
   }
 
@@ -564,24 +590,58 @@ export function createEngine(options: CreateEngineOptions): Engine {
       now: realNow,
     };
 
+    // The genesis args binding is immutable like B0: a fresh run records
+    // presence and a canonical hash, every resume segment writes back
+    // the RECORDED values verbatim (never ones derived from re-supplied
+    // args), and absence stays absent so a legacy run never gains a
+    // false marker (the v1.23.0 review: CLI resume args safety).
+    const argsBinding: { argsProvided?: boolean; argsHash?: string } = {};
+    if (resumeCtx === undefined) {
+      argsBinding.argsProvided = args !== undefined;
+      try {
+        const argsHash = hashRunArgs(args);
+        if (argsHash !== undefined) {
+          argsBinding.argsHash = argsHash;
+        }
+      } catch {
+        // Args JCS cannot serialize: the marker records presence, no hash.
+      }
+    } else {
+      if (resumeCtx.argsProvided !== undefined) {
+        argsBinding.argsProvided = resumeCtx.argsProvided;
+      }
+      if (resumeCtx.argsHash !== undefined) {
+        argsBinding.argsHash = resumeCtx.argsHash;
+      }
+    }
+
     const putMeta = (status: RunStatus): Promise<void> =>
-      journal.putMeta({
-        runId,
-        status,
-        // Every meta write of this segment carries the bumped count: the
-        // settle write must not clobber what the start write recorded.
-        segments: segmentsBefore + 1,
-        updatedAt: new Date(realNow()).toISOString(),
-        ...(opts?.name === undefined ? {} : { name: opts.name }),
-        ...(opts?.tags === undefined ? {} : { tags: opts.tags }),
-        ...(ceilingUsd === undefined ? {} : { budgetUsd: ceilingUsd }),
-        workflowName: wf.name,
-        workflowHash:
-          compiled === undefined
-            ? hashWorkflowBody(wf as unknown as Workflow<unknown, unknown>)
-            : hashWorkflowSource(compiled.source),
-        ...(compiled === undefined ? {} : { workflowSourceRef: workflowSourceRef(runId) }),
-      });
+      resumeCtx?.strict === true
+        ? // A dry-run preview leaves the store untouched: no status flip,
+          // no segments bump, no meta rewrite of any kind (the journal
+          // side is enforced at the Replayer's single append site).
+          Promise.resolve()
+        : journal.putMeta({
+            runId,
+            status,
+            // Every meta write of this segment carries the bumped count: the
+            // settle write must not clobber what the start write recorded.
+            segments: segmentsBefore + 1,
+            updatedAt: new Date(realNow()).toISOString(),
+            ...(opts?.name === undefined ? {} : { name: opts.name }),
+            ...(opts?.tags === undefined ? {} : { tags: opts.tags }),
+            ...(ceilingUsd === undefined ? {} : { budgetUsd: ceilingUsd }),
+            ...(argsBinding.argsProvided === undefined
+              ? {}
+              : { argsProvided: argsBinding.argsProvided }),
+            ...(argsBinding.argsHash === undefined ? {} : { argsHash: argsBinding.argsHash }),
+            workflowName: wf.name,
+            workflowHash:
+              compiled === undefined
+                ? hashWorkflowBody(wf as unknown as Workflow<unknown, unknown>)
+                : hashWorkflowSource(compiled.source),
+            ...(compiled === undefined ? {} : { workflowSourceRef: workflowSourceRef(runId) }),
+          });
 
     if (activeSegments.has(runId)) {
       throw new ConfigError(
@@ -597,10 +657,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
       let value: R | undefined;
       let wireError: WireError | undefined;
       let pending: PendingExternal[] = [];
-      if (compiled !== undefined) {
+      if (compiled !== undefined && resumeCtx?.strict !== true) {
         // The binding contract: the compiled source and
         // its content hash persist AT START so planned runs are
         // resumable by construction; resume rehydrates from this blob.
+        // A dry-run preview skips the (byte-identical) re-put: a preview
+        // performs zero store mutations.
         await transcripts.put(workflowSourceRef(runId), new TextEncoder().encode(compiled.source));
       }
       await putMeta('running');
@@ -935,6 +997,10 @@ export function createEngine(options: CreateEngineOptions): Engine {
         // clears every realistic pre-upgrade seq (v1.22.0 review P1-2).
         segmentsBefore:
           typeof meta?.segments === 'number' && meta.segments > 0 ? Math.floor(meta.segments) : 1,
+        // The genesis args binding travels back in verbatim; absence
+        // stays absent (legacy runs never gain a marker retroactively).
+        ...(typeof meta?.argsProvided === 'boolean' ? { argsProvided: meta.argsProvided } : {}),
+        ...(typeof meta?.argsHash === 'string' ? { argsHash: meta.argsHash } : {}),
         previewResolve,
       });
     })();
