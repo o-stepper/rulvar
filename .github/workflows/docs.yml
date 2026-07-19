@@ -70,6 +70,9 @@ jobs:
       - name: Docs fence syntax gate
         run: node scripts/docs-fence-syntax.mjs
 
+      - name: Per-page canonical and Open Graph URL
+        run: pnpm docs:metadata
+
       # docs/api (the TypeDoc output), the aggregated changelog, the
       # synced contributing page, and the version prose stamped from the
       # package manifests (stamp-versions.mjs) are COMMITTED for GitHub

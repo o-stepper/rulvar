@@ -42,6 +42,21 @@ const baseConfig = defineConfig({
   outDir: '.vitepress/dist',
   cacheDir: '.vitepress/cache',
 
+  transformPageData(pageData) {
+    if (pageData.isNotFound) return;
+
+    const route = pageData.relativePath
+      .replace(/(^|\/)index\.md$/u, '$1')
+      .replace(/\.md$/u, '');
+    const canonicalUrl = new URL(route, `${SITE_URL}/`).href;
+
+    pageData.frontmatter.head ??= [];
+    pageData.frontmatter.head.push(
+      ['link', { rel: 'canonical', href: canonicalUrl }],
+      ['meta', { property: 'og:url', content: canonicalUrl }],
+    );
+  },
+
   head: [
     ['link', { rel: 'icon', href: '/logo.svg', type: 'image/svg+xml' }],
     ['meta', { name: 'author', content: 'Oleksiy Stepurenko' }],
@@ -49,7 +64,6 @@ const baseConfig = defineConfig({
     ['meta', { name: 'color-scheme', content: 'light dark' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'Rulvar' }],
-    ['meta', { property: 'og:url', content: SITE_URL }],
     ['meta', { property: 'og:title', content: 'Rulvar documentation' }],
     [
       'meta',

@@ -15,7 +15,7 @@
 [![CI](https://github.com/o-stepper/rulvar/actions/workflows/ci.yml/badge.svg)](https://github.com/o-stepper/rulvar/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
-[rulvar.com](https://rulvar.com) · [Documentation](https://docs.rulvar.com) · [Quickstart](https://docs.rulvar.com/guide/quickstart)
+[rulvar.com](https://rulvar.com) · [Documentation](https://docs.rulvar.com) · [Quickstart](https://docs.rulvar.com/guide/quickstart) · [Landing source](https://github.com/o-stepper/rulvar-landing)
 
 </div>
 
