@@ -5,13 +5,14 @@
  * one line per pending suspension; EOF leaves the run suspended with a
  * notice, never an error.
  */
-import type {
-  Engine,
-  PendingExternal,
-  ResumeHandle,
-  RunHandle,
-  RunOutcome,
-  Workflow,
+import {
+  sanitizeTerminalText,
+  type Engine,
+  type PendingExternal,
+  type ResumeHandle,
+  type RunHandle,
+  type RunOutcome,
+  type Workflow,
 } from '@rulvar/core';
 
 import type { CliIo } from './io.js';
@@ -43,26 +44,35 @@ async function resolvePending(
 ): Promise<number> {
   let applied = 0;
   for (const item of pending) {
+    // Suspension keys and prompts are workflow-authored (for planner
+    // runs, model-authored), so every rendered copy is sanitized; the
+    // raw key still addresses the resolution (v1.24.1 review P2-1).
+    const keyRef = sanitizeTerminalText(item.key);
     if (item.key.startsWith(APPROVAL_PREFIX)) {
-      const answer = await io.prompt(`approve '${item.prompt ?? item.key}'? [allow/deny]`);
+      const answer = await io.prompt(
+        `approve '${sanitizeTerminalText(item.prompt ?? item.key)}'? [allow/deny]`,
+      );
       if (answer === undefined) {
         return applied;
       }
       const decision = approvalDecision(answer);
       if (decision === undefined) {
-        io.err(`unrecognized answer '${answer.trim()}'; leaving ${item.key} suspended`);
+        io.err(
+          `unrecognized answer '${sanitizeTerminalText(answer.trim())}'; leaving ${keyRef} suspended`,
+        );
         continue;
       }
       const outcome = await handle.resolveExternal(item.key, decision);
       io.err(
-        `approval ${item.key}: ${decision.decision} (${outcome.applied ? 'applied' : outcome.reason})`,
+        `approval ${keyRef}: ${decision.decision} (${outcome.applied ? 'applied' : sanitizeTerminalText(outcome.reason)})`,
       );
       if (outcome.applied) {
         applied += 1;
       }
       continue;
     }
-    const label = item.prompt === undefined ? item.key : `${item.key} (${item.prompt})`;
+    const label =
+      item.prompt === undefined ? keyRef : `${keyRef} (${sanitizeTerminalText(item.prompt)})`;
     const answer = await io.prompt(`value for external '${label}' as JSON:`);
     if (answer === undefined) {
       return applied;
@@ -71,11 +81,13 @@ async function resolvePending(
     try {
       value = JSON.parse(answer);
     } catch {
-      io.err(`not valid JSON; leaving '${item.key}' suspended`);
+      io.err(`not valid JSON; leaving '${keyRef}' suspended`);
       continue;
     }
     const outcome = await handle.resolveExternal(item.key, value as never);
-    io.err(`external '${item.key}': ${outcome.applied ? 'applied' : outcome.reason}`);
+    io.err(
+      `external '${keyRef}': ${outcome.applied ? 'applied' : sanitizeTerminalText(outcome.reason)}`,
+    );
     if (outcome.applied) {
       applied += 1;
     }
@@ -144,20 +156,22 @@ export async function reportDryRun(handle: ResumeHandle<unknown>, io: CliIo): Pr
     io.err('  invalid resolutions: none');
   } else {
     for (const invalid of preview.invalidResolutions) {
-      io.err(`  invalid resolution at seq ${invalid.seq}: ${invalid.detail}`);
+      io.err(`  invalid resolution at seq ${invalid.seq}: ${sanitizeTerminalText(invalid.detail)}`);
     }
   }
   if (outcome.error?.code === 'journal_miss') {
-    io.err(`  stopped at the first would-be-live call: ${outcome.error.message}`);
+    io.err(
+      `  stopped at the first would-be-live call: ${sanitizeTerminalText(outcome.error.message)}`,
+    );
     io.err('  a real resume would perform new paid work from this point');
     return 0;
   }
   io.err(`  would settle: ${outcome.status}`);
   if (outcome.error !== undefined) {
-    io.err(`  error: ${outcome.error.message}`);
+    io.err(`  error: ${sanitizeTerminalText(outcome.error.message)}`);
   }
   for (const pending of outcome.pending) {
-    io.err(`  pending: ${pending.key} (entry ${pending.entryRef})`);
+    io.err(`  pending: ${sanitizeTerminalText(pending.key)} (entry ${pending.entryRef})`);
   }
   if (outcome.value !== undefined) {
     io.out(JSON.stringify(outcome.value, null, 2));
@@ -165,32 +179,40 @@ export async function reportDryRun(handle: ResumeHandle<unknown>, io: CliIo): Pr
   return 0;
 }
 
-/** Renders the settled outcome; returns the process exit code. */
+/**
+ * Renders the settled outcome; returns the process exit code. Error
+ * messages, suspension keys, model refs, and phase names originate from
+ * providers, tools, and workflow authors, so each is sanitized before
+ * it reaches a terminal line, matching the TUI renderer (v1.24.1 review
+ * P2-1). Values print as JSON, which escapes control bytes on its own.
+ */
 export function reportOutcome(outcome: RunOutcome<unknown>, io: CliIo): number {
   io.err(`status: ${outcome.status}`);
   if (outcome.value !== undefined) {
     io.out(JSON.stringify(outcome.value, null, 2));
   }
   if (outcome.error !== undefined) {
-    io.err(`error: ${outcome.error.message}`);
+    io.err(`error: ${sanitizeTerminalText(outcome.error.message)}`);
   }
   if (outcome.dropped.length > 0) {
     io.err(`dropped: ${outcome.dropped.length} item(s)`);
   }
   for (const pending of outcome.pending) {
-    io.err(`pending: ${pending.key} (entry ${pending.entryRef})`);
+    io.err(`pending: ${sanitizeTerminalText(pending.key)} (entry ${pending.entryRef})`);
   }
   io.err(`cost: $${outcome.cost.totalUsd.toFixed(4)}`);
   for (const [model, usd] of Object.entries(outcome.cost.byModel)) {
-    io.err(`  by model ${model}: $${usd.toFixed(4)}`);
+    io.err(`  by model ${sanitizeTerminalText(model)}: $${usd.toFixed(4)}`);
   }
   for (const [phase, usd] of Object.entries(outcome.cost.byPhase)) {
     if (phase !== '') {
-      io.err(`  by phase ${phase}: $${usd.toFixed(4)}`);
+      io.err(`  by phase ${sanitizeTerminalText(phase)}: $${usd.toFixed(4)}`);
     }
   }
   if (outcome.cost.unpriced.length > 0) {
-    io.err(`unpriced models: ${outcome.cost.unpriced.map((u) => u.model).join(', ')}`);
+    io.err(
+      `unpriced models: ${outcome.cost.unpriced.map((u) => sanitizeTerminalText(u.model)).join(', ')}`,
+    );
   }
   switch (outcome.status) {
     case 'ok':

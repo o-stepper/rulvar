@@ -3,7 +3,7 @@
  * the real command paths against FakeAdapter, engine assembly from the
  * host config convention, runs ls, and the inspect journal summary.
  */
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { CliIo } from './io.js';
 import { runCli } from './cli-main.js';
+import { reportDryRun, reportOutcome } from './drive.js';
 
 interface ScriptedIo extends CliIo {
   outLines: string[];
@@ -551,5 +552,110 @@ describe('resume args safety hardening (v1.24.0 review P2-1)', () => {
     expect(forced.errLines.join('\n')).toContain('cannot be verified');
     // Matching args with the flag is still a pure replay.
     expect(journalOf(cwd, runId)).toBe(journalBefore);
+  });
+});
+
+describe('CLI diagnostics withhold --args and sanitize terminal text (v1.24.1 review P2-1)', () => {
+  // Harmless stand-in for a private value that must never reach stderr.
+  const SENTINEL = 'SENTINEL_PRIVATE_VALUE_7Q4';
+  // Built from codepoints so no control byte lives in this source file.
+  const ESC = String.fromCharCode(0x1b);
+  const BEL = String.fromCharCode(0x07);
+  const cleanLines = (lines: string[]): boolean =>
+    lines.every((line) => !line.includes(ESC) && !line.includes(BEL) && !line.includes('\n'));
+
+  it.each([
+    ['invalid JSON', `{"apiKey":"${SENTINEL}","broken":`, 'not valid JSON'],
+    ['overflow JSON', `{"token":"${SENTINEL}","n":1e400}`, 'not representable as canonical JSON'],
+  ])('%s --args is refused without echoing the value', async (_label, args, reason) => {
+    const cwd = writeFixtureProject();
+    const io = scriptedIo();
+    expect(await runCli(['run', 'echo', '--args', args, '--store', '.rulvar'], { cwd, io })).toBe(
+      1,
+    );
+    const err = io.errLines.join('\n');
+    expect(err).toContain(reason);
+    expect(err).not.toContain(SENTINEL);
+    expect(io.outLines.join('\n')).not.toContain(SENTINEL);
+    // Still refused before config/store/adapter loads.
+    expect(existsSync(join(cwd, '.rulvar'))).toBe(false);
+  });
+
+  it('control bytes in --args never reach stderr', async () => {
+    const cwd = writeFixtureProject();
+    const io = scriptedIo();
+    const hostile = `${ESC}]0;pwned${BEL}{`;
+    expect(
+      await runCli(['run', 'echo', '--args', hostile, '--store', '.rulvar'], { cwd, io }),
+    ).toBe(1);
+    expect(io.errLines.join('\n')).toContain('not valid JSON');
+    expect(io.errLines.join('\n')).not.toContain('pwned');
+    expect(cleanLines(io.errLines)).toBe(true);
+  });
+
+  it('a hostile resume runId renders sanitized in the error line', async () => {
+    const cwd = writeFixtureProject();
+    mkdirSync(join(cwd, '.rulvar'));
+    const io = scriptedIo();
+    expect(await runCli(['resume', `bad${ESC}[31mid`, '--store', '.rulvar'], { cwd, io })).toBe(1);
+    // The CSI sequence is stripped, the visible text survives.
+    expect(io.errLines.join('\n')).toContain("run 'badid' not found");
+    expect(cleanLines(io.errLines)).toBe(true);
+  });
+
+  it('an unknown command with control bytes is reported without them', async () => {
+    const io = scriptedIo();
+    expect(await runCli([`${ESC}[31mfake`], { cwd: writeFixtureProject(), io })).toBe(1);
+    expect(io.errLines.join('\n')).toContain("unknown command 'fake'");
+    expect(cleanLines(io.errLines)).toBe(true);
+  });
+
+  it('reportOutcome sanitizes provider and workflow authored text, keeping exit semantics', () => {
+    const io = scriptedIo();
+    const hostile = {
+      status: 'error',
+      value: undefined,
+      error: { code: 'error', message: `boom${ESC}]0;own${BEL} and${ESC}[2Jmore` },
+      dropped: [],
+      pending: [{ key: `external:${ESC}[31mred`, entryRef: 3 }],
+      cost: {
+        totalUsd: 0.5,
+        byModel: { [`fake:${ESC}[7mmodel`]: 0.5 },
+        byPhase: { [`phase${ESC}[0m`]: 0.5 },
+        unpriced: [{ model: `mystery${ESC}[8m` }],
+      },
+    };
+    expect(reportOutcome(hostile as unknown as Parameters<typeof reportOutcome>[0], io)).toBe(1);
+    const err = io.errLines.join('\n');
+    expect(err).toContain('error: boom and');
+    expect(err).toContain('pending: external:red (entry 3)');
+    expect(err).toContain('by model fake:model');
+    expect(err).toContain('unpriced models: mystery');
+    expect(cleanLines(io.errLines)).toBe(true);
+  });
+
+  it('reportDryRun sanitizes preview details and stop messages', async () => {
+    const io = scriptedIo();
+    const outcome = {
+      status: 'error',
+      error: { code: 'journal_miss', message: `live call${ESC}]2;t${BEL} here` },
+      pending: [],
+      dropped: [],
+      cost: { totalUsd: 0, byModel: {}, byPhase: {}, unpriced: [] },
+    };
+    const preview = {
+      hits: 1,
+      misses: 1,
+      reruns: 0,
+      skipped: 0,
+      orphaned: [],
+      invalidResolutions: [{ seq: 2, detail: `bad${ESC}[31m shape` }],
+    };
+    const handle = { result: Promise.resolve(outcome), preview: Promise.resolve(preview) };
+    expect(await reportDryRun(handle as unknown as Parameters<typeof reportDryRun>[0], io)).toBe(0);
+    const err = io.errLines.join('\n');
+    expect(err).toContain('invalid resolution at seq 2: bad shape');
+    expect(err).toContain('stopped at the first would-be-live call: live call here');
+    expect(cleanLines(io.errLines)).toBe(true);
   });
 });

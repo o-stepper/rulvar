@@ -22,6 +22,7 @@ import {
   INBOX_PROPOSAL_TTL_DAYS,
   proposalStatement,
   remeasureQueue,
+  sanitizeTerminalText,
   type CreateEngineOptions,
   type EvidenceRef,
   type GateRecord,
@@ -100,6 +101,10 @@ export async function loadCompanion<T>(
  * later. In-process hosts keep the wider engine contract (functions,
  * BigInt, cycles record presence without a hash); the CLI does not need
  * it.
+ *
+ * Diagnostics name the failure class and the way out but never echo the
+ * value: workflow args may carry private data, and stderr routinely
+ * lands in CI logs (v1.24.1 review P2-1).
  */
 function parseArgsJson(raw: string | undefined): unknown {
   if (raw === undefined) {
@@ -109,7 +114,10 @@ function parseArgsJson(raw: string | undefined): unknown {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new ConfigError(`--args is not valid JSON: ${raw}`);
+    throw new ConfigError(
+      '--args is not valid JSON; check the JSON syntax and shell quoting (the value is ' +
+        'withheld from diagnostics: workflow args may carry private data)',
+    );
   }
   try {
     hashRunArgs(parsed);
@@ -117,7 +125,8 @@ function parseArgsJson(raw: string | undefined): unknown {
     throw new ConfigError(
       `--args is not representable as canonical JSON: a numeric value overflows JavaScript's ` +
         `finite range (e.g. 1e400 parses to Infinity). Supply finite JSON so the run's args ` +
-        `binding can be hashed and later verified on resume: ${raw}`,
+        'binding can be hashed and later verified on resume (the value is withheld from ' +
+        'diagnostics: workflow args may carry private data)',
     );
   }
   return parsed;
@@ -186,6 +195,11 @@ function enforceArgsBinding(input: {
   io: CliIo;
 }): void {
   const { meta, argsGiven, args, allowChange, io } = input;
+  // Warnings print directly (no runCli catch in between), and the runId
+  // here comes from the store meta file, so it is sanitized before it
+  // reaches a terminal line (v1.24.1 review P2-1). Thrown ConfigError
+  // messages are sanitized once at the runCli print site instead.
+  const runRef = sanitizeTerminalText(meta.runId);
   if (meta.argsProvided === undefined) {
     // Legacy run: the marker predates it; nothing can be verified.
     if (!argsGiven && !allowChange) {
@@ -198,7 +212,7 @@ function enforceArgsBinding(input: {
     }
     if (argsGiven) {
       io.err(
-        `warning: run '${meta.runId}' predates the args binding; the supplied --args cannot ` +
+        `warning: run '${runRef}' predates the args binding; the supplied --args cannot ` +
           'be verified against the original invocation',
       );
     }
@@ -214,7 +228,7 @@ function enforceArgsBinding(input: {
             `change with --allow-args-change; ${usageOf(GRAMMAR.resume)}`,
         );
       }
-      io.err(`warning: resuming '${meta.runId}' without its genesis args (--allow-args-change)`);
+      io.err(`warning: resuming '${runRef}' without its genesis args (--allow-args-change)`);
       return;
     }
     if (meta.argsHash === undefined) {
@@ -234,7 +248,7 @@ function enforceArgsBinding(input: {
         );
       }
       io.err(
-        `warning: run '${meta.runId}' recorded args presence but no hash (genesis args not ` +
+        `warning: run '${runRef}' recorded args presence but no hash (genesis args not ` +
           'JCS-serializable); the supplied --args cannot be verified (--allow-args-change)',
       );
       return;
@@ -263,7 +277,7 @@ function enforceArgsBinding(input: {
             `call. Force deliberately with --allow-args-change; ${usageOf(GRAMMAR.resume)}`,
         );
       }
-      io.err(`warning: resuming '${meta.runId}' with changed args (--allow-args-change)`);
+      io.err(`warning: resuming '${runRef}' with changed args (--allow-args-change)`);
     }
     return;
   }
@@ -277,7 +291,7 @@ function enforceArgsBinding(input: {
           `--allow-args-change; ${usageOf(GRAMMAR.resume)}`,
       );
     }
-    io.err(`warning: resuming no-args run '${meta.runId}' with args (--allow-args-change)`);
+    io.err(`warning: resuming no-args run '${runRef}' with args (--allow-args-change)`);
   }
 }
 
@@ -509,7 +523,10 @@ export async function planCommand(argv: string[], context: CommandContext): Prom
   );
   context.io.err(`plan: accepted with ${String(planned.lint.length)} advisory diagnostic(s)`);
   for (const diagnostic of planned.lint) {
-    context.io.err(`  ${diagnostic.ruleId}: ${diagnostic.message}`);
+    // Lint diagnostics can quote the model-written script; sanitize the
+    // untrusted part before it reaches a terminal line (v1.24.1 review
+    // P2-1).
+    context.io.err(`  ${diagnostic.ruleId}: ${sanitizeTerminalText(diagnostic.message)}`);
   }
   if (dryRun) {
     context.io.out(planned.source);

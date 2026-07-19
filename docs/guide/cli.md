@@ -59,6 +59,8 @@ Flag semantics are uniform:
 
 The CLI renders progress from the run's event stream: live TUI rendering on a TTY, plain line output otherwise. When a run suspends, the CLI resolves interactively: approvals prompt for allow or deny, `awaitExternal` suspensions prompt for a value. If input runs dry (EOF), the run is left suspended in the store, ready for a later `rulvar resume`, the HTTP server, or a queue worker.
 
+Diagnostic output follows two rules. An error about a supplied `--args` value never echoes the value: the message names the failure class (invalid JSON, or a numeric overflow that defeats canonicalization) and the way out, because workflow args may carry private data and stderr routinely lands in CI logs. And every dynamic value a diagnostic line embeds (a runId, a suspension key, a provider error message, a model ref) is stripped of terminal control sequences before printing, exactly like the live progress renderer, so untrusted text cannot recolor, retitle, or rewrite the terminal it lands on.
+
 ## Configuration file discovery
 
 Commands assemble their engine from `rulvar.config.mjs` (or `rulvar.config.js`) in the working directory. The default export has three optional fields: `engineOptions` (anything `createEngine` accepts), `workflows` (the registry for by-name runs), and `kbSweep` (the `rulvar kb sweep` matrix). An absent config is fine; a workflow module passed to `rulvar run` may also carry `workflow`, `engineOptions`, and `workflows` as named exports.
