@@ -1,6 +1,8 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import type {
   AgentProfile,
@@ -47,6 +49,7 @@ function makeEngine(options?: {
   profiles?: Record<string, AgentProfile>;
   toolsets?: Record<string, ToolsOption>;
   timeoutMs?: number;
+  runner?: WorkerSandboxRunner;
 }): { engine: Engine; store: InMemoryStore | JsonlFileStore; adapter: FakeAdapter } {
   const adapter = new FakeAdapter({
     agents: (options?.agents ?? { '*': 'fake answer' }) as ConstructorParameters<
@@ -67,10 +70,12 @@ function makeEngine(options?: {
       ...(options?.toolsets === undefined ? {} : { toolsets: options.toolsets }),
     },
     runners: {
-      sandbox: new WorkerSandboxRunner({
-        workerUrl: WORKER_URL,
-        ...(options?.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
-      }),
+      sandbox:
+        options?.runner ??
+        new WorkerSandboxRunner({
+          workerUrl: WORKER_URL,
+          ...(options?.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
+        }),
     },
   });
   return { engine, store, adapter };
@@ -370,5 +375,109 @@ describe('tools strings resolve as registered toolsets in the dialect (v1.23.0 r
     expect(outcome.error?.code).toBe('config');
     expect(outcome.error?.message).toContain("unknown registered toolset 'analyst'");
     expect(adapter.calls).toHaveLength(0);
+  });
+});
+
+describe('worker execArgv isolation (v1.24.1 review P2-2)', () => {
+  // A worker that speaks the runner's init protocol and reports its own
+  // execArgv as the run value: the test observes exactly what the
+  // worker booted with.
+  function echoArgvRunner(execArgv?: readonly string[]): WorkerSandboxRunner {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-execargv-'));
+    tempDirs.push(dir);
+    const workerPath = join(dir, 'echo-execargv-worker.mjs');
+    writeFileSync(
+      workerPath,
+      "import { parentPort } from 'node:worker_threads';\n" +
+        "parentPort.on('message', (message) => {\n" +
+        "  if (message.t === 'init') {\n" +
+        "    message.port.postMessage({ t: 'done', value: process.execArgv });\n" +
+        '  }\n' +
+        '});\n',
+    );
+    return new WorkerSandboxRunner({
+      workerUrl: pathToFileURL(workerPath),
+      ...(execArgv === undefined ? {} : { execArgv }),
+    });
+  }
+
+  it('the worker boots with an empty execArgv by default, never the host list', async () => {
+    const { engine } = makeEngine({ runner: echoArgvRunner() });
+    const outcome = await engine.run(compileScript('return 0;'), null).result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.value).toEqual([]);
+  });
+
+  it('an opt-in execArgv list reaches the worker verbatim', async () => {
+    const { engine } = makeEngine({ runner: echoArgvRunner(['--no-warnings']) });
+    const outcome = await engine.run(compileScript('return 0;'), null).result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.value).toEqual(['--no-warnings']);
+  });
+
+  // The real launch modes the inherited execArgv killed: the same host
+  // code runs the same compiled workflow from a file, from ESM stdin,
+  // and via ESM --eval. Before the isolation the last two failed at
+  // worker boot ("--input-type can only be used with string input")
+  // ahead of the first sandbox operation.
+  const HOST_SOURCE = [
+    `const core = await import(${JSON.stringify(new URL('../../core/dist/index.js', import.meta.url).href)});`,
+    `const testing = await import(${JSON.stringify(new URL('../../testing/dist/index.js', import.meta.url).href)});`,
+    `const planner = await import(${JSON.stringify(new URL('../dist/index.js', import.meta.url).href)});`,
+    "const adapter = new testing.FakeAdapter({ agents: { '*': 'x' } });",
+    'const engine = core.createEngine({',
+    '  adapters: [adapter],',
+    '  defaults: { routing: { loop: testing.FAKE_MODEL_REF, extract: testing.FAKE_MODEL_REF } },',
+    `  runners: { sandbox: new planner.WorkerSandboxRunner({ workerUrl: new URL(${JSON.stringify(WORKER_URL.href)}) }) },`,
+    '});',
+    'const outcome = await engine.run(planner.compileScript("return \'sandbox-ran\';"), null).result;',
+    'console.log(JSON.stringify({ status: outcome.status, value: outcome.value ?? null, message: outcome.error ? outcome.error.message : null }));',
+  ].join('\n');
+
+  interface HostReport {
+    status: string;
+    value: unknown;
+    message: string | null;
+  }
+
+  function launch(argv: string[], input?: string): HostReport {
+    const env = { ...process.env };
+    delete env.ANTHROPIC_API_KEY;
+    delete env.OPENAI_API_KEY;
+    const child = spawnSync(process.execPath, argv, {
+      encoding: 'utf8',
+      env,
+      ...(input === undefined ? {} : { input }),
+    });
+    // On failure the object diff surfaces the child's stderr.
+    expect({ status: child.status, stderr: child.status === 0 ? '' : child.stderr }).toEqual({
+      status: 0,
+      stderr: '',
+    });
+    return JSON.parse(child.stdout.trim().split('\n').at(-1) as string) as HostReport;
+  }
+
+  it('the compiled workflow succeeds when the host runs from a file', { timeout: 20_000 }, () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-host-'));
+    tempDirs.push(dir);
+    const hostPath = join(dir, 'host.mjs');
+    writeFileSync(hostPath, HOST_SOURCE);
+    expect(launch([hostPath])).toEqual({ status: 'ok', value: 'sandbox-ran', message: null });
+  });
+
+  it('the same host succeeds via ESM stdin (--input-type=module)', { timeout: 20_000 }, () => {
+    expect(launch(['--input-type=module'], HOST_SOURCE)).toEqual({
+      status: 'ok',
+      value: 'sandbox-ran',
+      message: null,
+    });
+  });
+
+  it('the same host succeeds via ESM --eval', { timeout: 20_000 }, () => {
+    expect(launch(['--input-type=module', '--eval', HOST_SOURCE])).toEqual({
+      status: 'ok',
+      value: 'sandbox-ran',
+      message: null,
+    });
   });
 });

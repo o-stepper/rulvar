@@ -2,7 +2,7 @@
  * Command dispatch for the canonical grammar (https://docs.rulvar.com/guide/cli):
  * no aliases in v1; unknown commands and flags fail loudly with usage.
  */
-import { ConfigError } from '@rulvar/core';
+import { ConfigError, sanitizeTerminalText } from '@rulvar/core';
 
 import {
   inspectCommand,
@@ -80,7 +80,11 @@ export async function runCli(argv: string[], options: { cwd: string; io: CliIo }
     }
   } catch (thrown) {
     if (thrown instanceof ConfigError) {
-      options.io.err(`error: ${thrown.message}`);
+      // The one print site for every typed CLI error: messages can embed
+      // user-controlled text (a runId, a target, a command name), so the
+      // whole line is sanitized here, matching what the TUI already does
+      // to event text (v1.24.1 review P2-1). Exit semantics unchanged.
+      options.io.err(`error: ${sanitizeTerminalText(thrown.message)}`);
       return 1;
     }
     throw thrown;

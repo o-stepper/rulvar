@@ -32,6 +32,18 @@ export interface WorkerSandboxRunnerOptions {
    * to this module. Tests running from source point at the built dist.
    */
   workerUrl?: URL;
+  /**
+   * Node CLI options for the worker thread; default `[]` (an isolated
+   * list). Without an explicit value Node would hand the worker
+   * `process.execArgv`, and host-only launch flags break a file-entry
+   * worker before the first sandbox operation: `--input-type=module`
+   * (any ESM stdin or `--eval` host) is rejected for file entries, and
+   * an inherited `--eval` carries the host's whole source text (v1.24.1
+   * review P2-2). Hosts that need loader, coverage, or instrumentation
+   * flags inside the worker opt in explicitly; the list is passed to the
+   * worker verbatim.
+   */
+  execArgv?: readonly string[];
 }
 
 /** Accepts CompiledWorkflow ONLY: feeding a closure is a type error. */
@@ -39,11 +51,13 @@ export class WorkerSandboxRunner implements ScriptRunner {
   private readonly timeoutMs: number;
   private readonly memoryMb: number;
   private readonly workerUrl: URL;
+  private readonly execArgv: readonly string[];
 
   constructor(options?: WorkerSandboxRunnerOptions) {
     this.timeoutMs = options?.timeoutMs ?? DEFAULT_SANDBOX_TIMEOUT_MS;
     this.memoryMb = options?.memoryMb ?? DEFAULT_SANDBOX_MEMORY_MB;
     this.workerUrl = options?.workerUrl ?? new URL('./sandbox-worker.js', import.meta.url);
+    this.execArgv = [...(options?.execArgv ?? [])];
   }
 
   async execute<A, R>(wf: CompiledWorkflow, ctx: Ctx<never>, args: A): Promise<R> {
@@ -55,7 +69,12 @@ export class WorkerSandboxRunner implements ScriptRunner {
     }
     const argsJson = toJournalValue(args ?? null, 'sandbox workflow args');
     const channel = new MessageChannel();
+    // execArgv is always explicit: inheriting process.execArgv would let
+    // host-only launch flags (--input-type, --eval and its source) kill
+    // a file-entry worker before the first sandbox operation (v1.24.1
+    // review P2-2).
     const worker = new Worker(this.workerUrl, {
+      execArgv: [...this.execArgv],
       resourceLimits: { maxOldGenerationSizeMb: this.memoryMb },
     });
     const bridge = createSandboxBridge(ctx, {

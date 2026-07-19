@@ -10,9 +10,13 @@
 function reportOutcome(outcome, io): number;
 ```
 
-Defined in: [packages/cli/src/drive.ts:169](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/drive.ts#L169)
+Defined in: [packages/cli/src/drive.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/drive.ts#L189)
 
-Renders the settled outcome; returns the process exit code.
+Renders the settled outcome; returns the process exit code. Error
+messages, suspension keys, model refs, and phase names originate from
+providers, tools, and workflow authors, so each is sanitized before
+it reaches a terminal line, matching the TUI renderer (v1.24.1 review
+P2-1). Values print as JSON, which escapes control bytes on its own.
 
 ## Parameters
 
