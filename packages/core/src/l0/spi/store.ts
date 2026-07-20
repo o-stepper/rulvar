@@ -83,10 +83,31 @@ export type RunMeta = {
    * round-trip the field (the conformance kit checks).
    */
   argsHash?: string;
+  /**
+   * Unique token minted at the run's fresh start (genesis) and preserved
+   * verbatim by every later segment, so two runs that reuse the same
+   * explicit runId after a `deleteRun` are distinguishable: journal
+   * length and workflow identity can coincide, this token cannot (the
+   * v1.25.0 scale review: the queue worker's skip cache mistook a
+   * recreated run for the old unchanged one and never resumed it).
+   * Absent on runs started before the field shipped; readers treat
+   * absence as "cannot prove same generation" and act accordingly.
+   * Stores must round-trip the field (the conformance kit checks).
+   */
+  genesis?: string;
 };
 
 export type RunFilter = {
   status?: string;
+  /**
+   * Match any of these statuses (the resumable candidate sweep asks for
+   * `['running', 'suspended']` in one query). Advisory optimization, not
+   * a correctness gate: a store written before this field ignores it and
+   * returns a superset, so callers re-check status on what comes back.
+   * When both `status` and `statuses` are present, a meta matches if it
+   * satisfies either.
+   */
+  statuses?: string[];
   tags?: string[];
   name?: string;
 };
@@ -97,6 +118,19 @@ export interface JournalStore {
   putMeta(m: RunMeta): Promise<void>;
   listRuns(f?: RunFilter): Promise<RunMeta[]>;
   delete(runId: string): Promise<void>;
+}
+
+/**
+ * Exact lookup capability: fetch one run's meta without materializing
+ * the whole catalog (the v1.25.0 scale review: `resume`, HTTP status,
+ * and CLI point lookups were O(all runs) through `listRuns`). Optional
+ * exactly like the lease capability: engines and shells detect it with
+ * `hasMetaLookup` and fall back to `listRuns` + find, so a conformant
+ * store written before this capability keeps working unoptimized. A
+ * missing run resolves `undefined`, never a rejection.
+ */
+export interface MetaLookupStore extends JournalStore {
+  getMeta(runId: string): Promise<RunMeta | undefined>;
 }
 
 /**

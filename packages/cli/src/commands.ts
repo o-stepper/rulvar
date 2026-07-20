@@ -21,6 +21,7 @@ import {
   hashRunArgs,
   INBOX_PROPOSAL_TTL_DAYS,
   proposalStatement,
+  readRunMeta,
   remeasureQueue,
   sanitizeTerminalText,
   type CreateEngineOptions,
@@ -320,8 +321,7 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
     ...(store === undefined ? {} : { storePath: store }),
     cwd: context.cwd,
   });
-  const metas = await assembled.store.listRuns();
-  const meta = metas.find((m) => m.runId === runId);
+  const meta = await readRunMeta(assembled.store, runId);
   if (meta === undefined) {
     throw new ConfigError(`run '${runId}' not found in the store`);
   }
@@ -387,8 +387,7 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
     ...(store === undefined ? {} : { storePath: store }),
     cwd: context.cwd,
   });
-  const metas = await assembled.store.listRuns();
-  const meta = metas.find((m) => m.runId === runId);
+  const meta = await readRunMeta(assembled.store, runId);
   if (meta === undefined) {
     throw new ConfigError(`run '${runId}' not found in the store`);
   }
@@ -869,8 +868,7 @@ async function kbGateCommand(argv: string[], context: CommandContext): Promise<n
     ...(values.store === undefined ? {} : { storePath: values.store }),
     cwd: context.cwd,
   });
-  const metas = await assembled.store.listRuns();
-  const meta = metas.find((candidate) => candidate.runId === runId);
+  const meta = await readRunMeta(assembled.store, runId);
   if (meta === undefined) {
     throw new ConfigError(`run '${runId}' not found in the store`);
   }

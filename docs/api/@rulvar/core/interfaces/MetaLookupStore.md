@@ -2,16 +2,23 @@
 
 ***
 
-[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / JournalStore
+[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / MetaLookupStore
 
-# Interface: JournalStore
+# Interface: MetaLookupStore
 
-Defined in: [packages/core/src/l0/spi/store.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L115)
+Defined in: [packages/core/src/l0/spi/store.ts:132](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L132)
 
-## Extended by
+Exact lookup capability: fetch one run's meta without materializing
+the whole catalog (the v1.25.0 scale review: `resume`, HTTP status,
+and CLI point lookups were O(all runs) through `listRuns`). Optional
+exactly like the lease capability: engines and shells detect it with
+`hasMetaLookup` and fall back to `listRuns` + find, so a conformant
+store written before this capability keeps working unoptimized. A
+missing run resolves `undefined`, never a rejection.
 
-- [`MetaLookupStore`](/api/@rulvar/core/interfaces/MetaLookupStore.md)
-- [`LeasableStore`](/api/@rulvar/core/interfaces/LeasableStore.md)
+## Extends
+
+- [`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md)
 
 ## Methods
 
@@ -38,6 +45,10 @@ Defined in: [packages/core/src/l0/spi/store.ts:116](https://github.com/o-stepper
 
 `Promise`\&lt;`void`\&gt;
 
+#### Inherited from
+
+[`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md).[`append`](/api/@rulvar/core/interfaces/JournalStore.md#append)
+
 ***
 
 ### delete()
@@ -57,6 +68,30 @@ Defined in: [packages/core/src/l0/spi/store.ts:120](https://github.com/o-stepper
 #### Returns
 
 `Promise`\&lt;`void`\&gt;
+
+#### Inherited from
+
+[`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md).[`delete`](/api/@rulvar/core/interfaces/JournalStore.md#delete)
+
+***
+
+### getMeta()
+
+```ts
+getMeta(runId): Promise<RunMeta | undefined>;
+```
+
+Defined in: [packages/core/src/l0/spi/store.ts:133](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L133)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `runId` | `string` |
+
+#### Returns
+
+`Promise`\&lt;[`RunMeta`](/api/@rulvar/core/type-aliases/RunMeta.md) \| `undefined`\&gt;
 
 ***
 
@@ -78,6 +113,10 @@ Defined in: [packages/core/src/l0/spi/store.ts:119](https://github.com/o-stepper
 
 `Promise`\&lt;[`RunMeta`](/api/@rulvar/core/type-aliases/RunMeta.md)[]\&gt;
 
+#### Inherited from
+
+[`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md).[`listRuns`](/api/@rulvar/core/interfaces/JournalStore.md#listruns)
+
 ***
 
 ### load()
@@ -98,6 +137,10 @@ Defined in: [packages/core/src/l0/spi/store.ts:117](https://github.com/o-stepper
 
 `Promise`\&lt;[`JournalEntry`](/api/@rulvar/core/type-aliases/JournalEntry.md)[]\&gt;
 
+#### Inherited from
+
+[`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md).[`load`](/api/@rulvar/core/interfaces/JournalStore.md#load)
+
 ***
 
 ### putMeta()
@@ -117,3 +160,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:118](https://github.com/o-stepper
 #### Returns
 
 `Promise`\&lt;`void`\&gt;
+
+#### Inherited from
+
+[`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md).[`putMeta`](/api/@rulvar/core/interfaces/JournalStore.md#putmeta)

@@ -31,8 +31,9 @@ import { dirname, join } from 'node:path';
 import { JournalOrderViolation } from '../l0/errors.js';
 import type { JournalEntry } from '../l0/entries.js';
 import type { Bytes } from '../l0/json.js';
-import type { JournalStore, RunFilter, RunMeta } from '../l0/spi/store.js';
+import type { MetaLookupStore, RunFilter, RunMeta } from '../l0/spi/store.js';
 import type { TranscriptStore } from '../l0/spi/transcript.js';
+import { metaMatchesFilter } from './meta-lookup.js';
 
 const JOURNAL_SUFFIX = '.jsonl';
 const META_SUFFIX = '.meta.json';
@@ -46,7 +47,7 @@ function safeName(runId: string): string {
   return runId;
 }
 
-export class JsonlFileStore implements JournalStore {
+export class JsonlFileStore implements MetaLookupStore {
   private readonly dir: string;
   /**
    * The stored tail seq per run, lazily initialized from the file on the
@@ -157,6 +158,18 @@ export class JsonlFileStore implements JournalStore {
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
+  async getMeta(runId: string): Promise<RunMeta | undefined> {
+    // One file read by name, never a directory scan.
+    try {
+      return JSON.parse(readFileSync(this.metaPath(runId), 'utf8')) as RunMeta;
+    } catch {
+      // ENOENT means not in the store; a torn meta replace is repaired
+      // on the next putMeta, so both resolve undefined.
+      return undefined;
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
   async listRuns(f?: RunFilter): Promise<RunMeta[]> {
     const metas: RunMeta[] = [];
     for (const file of readdirSync(this.dir)) {
@@ -169,19 +182,7 @@ export class JsonlFileStore implements JournalStore {
         // A torn meta replace is repaired on the next putMeta; skip it.
       }
     }
-    const filtered = metas.filter((meta) => {
-      if (f?.status !== undefined && meta.status !== f.status) {
-        return false;
-      }
-      if (f?.name !== undefined && meta.name !== f.name) {
-        return false;
-      }
-      if (f?.tags !== undefined && !f.tags.every((tag) => meta.tags?.includes(tag))) {
-        return false;
-      }
-      return true;
-    });
-    return filtered;
+    return metas.filter((meta) => metaMatchesFilter(meta, f));
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

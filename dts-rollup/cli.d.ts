@@ -164,12 +164,43 @@ interface CreateServerOptions {
   */
   priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
   /**
-  * Opt-in retention (OQ-20 executed at M8-T04): evaluated
+  * Opt-in DURABLE retention (OQ-20 executed at M8-T04): evaluated
   * when a tracked run settles terminally; a true verdict applies
   * engine.deleteRun (transcript cascade, then the journal) and
-  * untracks the run. Absent means everything persists indefinitely.
+  * untracks the run. This deletes the durable record; to release only
+  * process memory, use `memoryRetention` or `maxTrackedRuns`. Absent
+  * means nothing is deleted.
   */
   retention?: (meta: RunMeta) => boolean;
+  /**
+  * Opt-in retention of PROCESS MEMORY, decoupled from the durable kind
+  * (v1.25.0 scale review P1-2): evaluated when a tracked run settles
+  * terminally, after `retention`; a true verdict releases the tracked
+  * state (args, outcome, handle, SSE buffer) while the journal and
+  * transcripts stay untouched, after which GET status/cost serve from
+  * the store exactly as for a run another process owns, and GET events
+  * answers with the documented empty stream for a run not live here.
+  */
+  memoryRetention?: (meta: RunMeta) => boolean;
+  /**
+  * Cap on SETTLED tracked runs kept in process memory: when a run
+  * settles terminally and neither retention released it, the oldest
+  * settled tracked runs beyond the cap are released exactly like a
+  * `memoryRetention` verdict (durable state untouched). Live runs are
+  * never evicted and do not count toward the cap. Absent means no cap.
+  */
+  maxTrackedRuns?: number;
+  /**
+  * Upper bound on buffered SSE replay events per tracked run: past the
+  * bound the OLDEST buffered events are dropped in chunks (so the
+  * retained replay window stays at least seven eighths of the bound)
+  * and counted. A replay that no longer reaches back to a client's
+  * cursor carries `x-rulvar-events-dropped: <count>` and a leading SSE
+  * comment naming the first retained seq; the journal remains the
+  * durable record of the run itself. Absent means unbounded (the
+  * historical behavior).
+  */
+  maxBufferedEventsPerRun?: number;
 }
 interface RulvarServer {
   fetch(req: Request): Promise<Response>;

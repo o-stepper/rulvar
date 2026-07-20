@@ -12,7 +12,9 @@ function wrapJournalStore(inner, hook): JournalStore;
 
 Defined in: `packages/core/dist/index.d.ts`
 
-Wraps a journal store with the hook; lease capability is preserved.
+Wraps a journal store with the hook; the lease and meta lookup
+capabilities are preserved (meta is never hooked, exactly like
+putMeta/listRuns pass through).
 
 ## Parameters
 

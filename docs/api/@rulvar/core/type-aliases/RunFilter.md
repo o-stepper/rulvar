@@ -10,11 +10,12 @@
 type RunFilter = {
   name?: string;
   status?: string;
+  statuses?: string[];
   tags?: string[];
 };
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L88)
+Defined in: [packages/core/src/l0/spi/store.ts:100](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L100)
 
 ## Properties
 
@@ -24,7 +25,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:88](https://github.com/o-stepper/
 optional name?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:91](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L91)
+Defined in: [packages/core/src/l0/spi/store.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L112)
 
 ***
 
@@ -34,7 +35,24 @@ Defined in: [packages/core/src/l0/spi/store.ts:91](https://github.com/o-stepper/
 optional status?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:89](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L89)
+Defined in: [packages/core/src/l0/spi/store.ts:101](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L101)
+
+***
+
+### statuses?
+
+```ts
+optional statuses?: string[];
+```
+
+Defined in: [packages/core/src/l0/spi/store.ts:110](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L110)
+
+Match any of these statuses (the resumable candidate sweep asks for
+`['running', 'suspended']` in one query). Advisory optimization, not
+a correctness gate: a store written before this field ignores it and
+returns a superset, so callers re-check status on what comes back.
+When both `status` and `statuses` are present, a meta matches if it
+satisfies either.
 
 ***
 
@@ -44,4 +62,4 @@ Defined in: [packages/core/src/l0/spi/store.ts:89](https://github.com/o-stepper/
 optional tags?: string[];
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:90](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L90)
+Defined in: [packages/core/src/l0/spi/store.ts:111](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L111)

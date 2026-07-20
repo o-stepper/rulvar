@@ -23,10 +23,11 @@ import { DatabaseSync } from 'node:sqlite';
 import {
   JournalOrderViolation,
   LeaseHeldError,
+  metaMatchesFilter,
   type JournalEntry,
-  type JournalStore,
   type LeasableStore,
   type Lease,
+  type MetaLookupStore,
   type RunFilter,
   type RunMeta,
 } from '@rulvar/core';
@@ -55,7 +56,7 @@ interface LeaseRow {
 // same convention as createEngine's real clock).
 const wallClock: () => number = Date.now.bind(globalThis);
 
-export class SqliteStore implements JournalStore, LeasableStore {
+export class SqliteStore implements MetaLookupStore, LeasableStore {
   private readonly db: DatabaseSync;
   private readonly ttlMs: number;
   private readonly now: () => number;
@@ -80,6 +81,10 @@ export class SqliteStore implements JournalStore, LeasableStore {
         run_id TEXT PRIMARY KEY,
         payload TEXT NOT NULL
       );
+      CREATE INDEX IF NOT EXISTS meta_by_status
+        ON meta (json_extract(payload, '$.status'));
+      CREATE INDEX IF NOT EXISTS meta_by_name
+        ON meta (json_extract(payload, '$.name'));
       CREATE TABLE IF NOT EXISTS leases (
         run_id TEXT PRIMARY KEY,
         owner TEXT NOT NULL,
@@ -171,23 +176,46 @@ export class SqliteStore implements JournalStore, LeasableStore {
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
+  async getMeta(runId: string): Promise<RunMeta | undefined> {
+    // Exact lookup on the primary key, never a decode of the whole meta table
+    // (v1.25.0 scale review: point lookups were O(all runs)).
+    const row = this.db.prepare('SELECT payload FROM meta WHERE run_id = ?').get(runId) as
+      { payload: string } | undefined;
+    return row === undefined ? undefined : (JSON.parse(row.payload) as RunMeta);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
   async listRuns(f?: RunFilter): Promise<RunMeta[]> {
-    const rows = this.db.prepare('SELECT payload FROM meta ORDER BY run_id').all() as Array<{
-      payload: string;
-    }>;
-    const metas = rows.map((row) => JSON.parse(row.payload) as RunMeta);
-    return metas.filter((meta) => {
-      if (f?.status !== undefined && meta.status !== f.status) {
-        return false;
+    // status/statuses/name narrow in SQL over the JSON payload (the
+    // expression indexes above serve them), so a
+    // selective filter decodes only the matching rows instead of the
+    // whole catalog (v1.25.0 scale review); the tags containment check
+    // stays in JS over that reduced set. metaMatchesFilter re-applies
+    // the full predicate, keeping SQL and JS semantics identical.
+    const where: string[] = [];
+    const params: string[] = [];
+    if (f?.status !== undefined || f?.statuses !== undefined) {
+      const wanted = [...(f.status === undefined ? [] : [f.status]), ...(f.statuses ?? [])];
+      if (wanted.length === 0) {
+        // statuses: [] matches nothing, in SQL as in metaMatchesFilter.
+        where.push('1 = 0');
+      } else {
+        where.push(`json_extract(payload, '$.status') IN (${wanted.map(() => '?').join(', ')})`);
+        params.push(...wanted);
       }
-      if (f?.name !== undefined && meta.name !== f.name) {
-        return false;
-      }
-      if (f?.tags !== undefined && !f.tags.every((tag) => meta.tags?.includes(tag) === true)) {
-        return false;
-      }
-      return true;
-    });
+    }
+    if (f?.name !== undefined) {
+      where.push("json_extract(payload, '$.name') = ?");
+      params.push(f.name);
+    }
+    const sql =
+      'SELECT payload FROM meta' +
+      (where.length === 0 ? '' : ` WHERE ${where.join(' AND ')}`) +
+      ' ORDER BY run_id';
+    const rows = this.db.prepare(sql).all(...params) as Array<{ payload: string }>;
+    return rows
+      .map((row) => JSON.parse(row.payload) as RunMeta)
+      .filter((meta) => metaMatchesFilter(meta, f));
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

@@ -69,6 +69,22 @@ The fencing epoch is what makes multiple workers safe. Pass the lease to `engine
 
 One more check rides the lease path: the [hashVersion compatibility scan](/guide/journal-compatibility) is repeated at acquire, so a worker running an older library cannot write into a journal that already contains newer entries.
 
+## The meta lookup capability
+
+Point operations (`engine.resume`, the HTTP status endpoint, CLI `resume` and `inspect`, the deterministic planner lookup) need ONE run's metadata, and forcing them through `listRuns` makes each of them scan the whole catalog. A store can add the exact lookup capability, optional exactly like the lease capability:
+
+```ts
+interface MetaLookupStore extends JournalStore {
+  getMeta(runId: string): Promise<RunMeta | undefined>;
+}
+```
+
+A missing run resolves `undefined`, never a rejection. Callers detect the capability with `hasMetaLookup(store)` or just go through `readRunMeta(store, runId)`, which uses `getMeta` when present and falls back to the `listRuns` scan for stores written before the capability; both are exported from `@rulvar/core`. All three shipped stores implement it (`SqliteStore` as a primary key query, `JsonlFileStore` as a single file read, `InMemoryStore` as a map hit), and the serialization hook wrapper preserves it, meta being unhooked either way.
+
+Alongside it, `RunFilter` carries an advisory `statuses` array (match any; combines with the singular `status` so a meta matches when either does). The queue worker asks for `{ statuses: ['running', 'suspended'] }` so its poll cost tracks the resumable backlog, not the whole history. Advisory means a store may ignore the field and return a superset, and callers re-check status on what comes back; a conformant store must never DROP a matching meta (the conformance kit checks exactly that, plus `getMeta` agreement when the capability is present).
+
+`RunMeta` also records `genesis`: a token minted at the run's fresh start and preserved verbatim by every resume segment. It is the generation identity that tells a `deleteRun`-then-recreate of the same explicit runId apart from the original run, which journal length and workflow hash cannot. Stores must round-trip it like every optional meta field.
+
 ## TranscriptStore: big bytes out of the journal
 
 Agent transcripts, turn-boundary checkpoints, and worktree patches are large. Putting them in journal entries would bloat the run's source of truth, so they live in a sibling blob store and journal entries carry only references (`transcriptRef`, `checkpointRef`):
@@ -134,6 +150,10 @@ const engine = createEngine({
 Because entries are appended as JSON lines in append order, the journal doubles as a human-readable event log: `tail -f` a live run, `git diff` two runs, grep for an entry kind. A crash in the middle of an append leaves at most a torn final line, which the store detects and repairs at load, so atomicity holds. `FileTranscriptStore` keeps blobs as one file per ref beside the journal; pair the two whenever you pair them at all, since a durable journal with in-memory transcripts loses agent checkpoints on crash and cannot resume compiled runs across processes.
 
 `JsonlFileStore` has no lease capability. It is single-writer by contract: one writing process per store directory.
+
+::: warning Synchronous I/O behind async signatures
+Both shipped durable stores use synchronous Node primitives under their async signatures: `JsonlFileStore` reads and writes with `node:fs` sync calls, and `SqliteStore` runs on the synchronous `node:sqlite` driver. Every call blocks the event loop for its duration, which is negligible for point operations (`getMeta`, an append) and noticeable for large scans (`listRuns` over tens of thousands of runs, `load` of a huge journal) inside a server process that must stay responsive. Pass filters so scans stay narrow, keep the catalog pruned with retention, or put a worker process between the store and the request path when the catalog grows large.
+:::
 
 ### `@rulvar/store-sqlite`
 

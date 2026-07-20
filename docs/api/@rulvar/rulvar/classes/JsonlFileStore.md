@@ -8,9 +8,17 @@
 
 Defined in: `packages/core/dist/index.d.ts`
 
+Exact lookup capability: fetch one run's meta without materializing
+the whole catalog (the v1.25.0 scale review: `resume`, HTTP status,
+and CLI point lookups were O(all runs) through `listRuns`). Optional
+exactly like the lease capability: engines and shells detect it with
+`hasMetaLookup` and fall back to `listRuns` + find, so a conformant
+store written before this capability keeps working unoptimized. A
+missing run resolves `undefined`, never a rejection.
+
 ## Implements
 
-- [`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md)
+- [`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md)
 
 ## Constructors
 
@@ -56,7 +64,7 @@ Defined in: `packages/core/dist/index.d.ts`
 
 #### Implementation of
 
-[`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md).[`append`](/api/@rulvar/rulvar/interfaces/JournalStore.md#append)
+[`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md).[`append`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md#append)
 
 ***
 
@@ -80,7 +88,31 @@ Defined in: `packages/core/dist/index.d.ts`
 
 #### Implementation of
 
-[`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md).[`delete`](/api/@rulvar/rulvar/interfaces/JournalStore.md#delete)
+[`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md).[`delete`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md#delete)
+
+***
+
+### getMeta()
+
+```ts
+getMeta(runId): Promise<RunMeta | undefined>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `runId` | `string` |
+
+#### Returns
+
+`Promise`\&lt;[`RunMeta`](/api/@rulvar/rulvar/type-aliases/RunMeta.md) \| `undefined`\&gt;
+
+#### Implementation of
+
+[`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md).[`getMeta`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md#getmeta)
 
 ***
 
@@ -104,7 +136,7 @@ Defined in: `packages/core/dist/index.d.ts`
 
 #### Implementation of
 
-[`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md).[`listRuns`](/api/@rulvar/rulvar/interfaces/JournalStore.md#listruns)
+[`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md).[`listRuns`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md#listruns)
 
 ***
 
@@ -128,7 +160,7 @@ Defined in: `packages/core/dist/index.d.ts`
 
 #### Implementation of
 
-[`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md).[`load`](/api/@rulvar/rulvar/interfaces/JournalStore.md#load)
+[`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md).[`load`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md#load)
 
 ***
 
@@ -152,4 +184,4 @@ Defined in: `packages/core/dist/index.d.ts`
 
 #### Implementation of
 
-[`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md).[`putMeta`](/api/@rulvar/rulvar/interfaces/JournalStore.md#putmeta)
+[`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md).[`putMeta`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md#putmeta)

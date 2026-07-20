@@ -11,6 +11,7 @@ type RunMeta = {
   argsHash?: string;
   argsProvided?: boolean;
   budgetUsd?: number;
+  genesis?: string;
   hashVersionHigh?: number;
   hashVersionLow?: number;
   name?: string;
@@ -89,6 +90,26 @@ resume restores the original invocation's bound. Absent when the
 run started without a ceiling. Stores must round-trip the field
 (the conformance kit checks); a store that drops it degrades a
 resumed run to uncapped.
+
+***
+
+### genesis?
+
+```ts
+optional genesis?: string;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Unique token minted at the run's fresh start (genesis) and preserved
+verbatim by every later segment, so two runs that reuse the same
+explicit runId after a `deleteRun` are distinguishable: journal
+length and workflow identity can coincide, this token cannot (the
+v1.25.0 scale review: the queue worker's skip cache mistook a
+recreated run for the old unchanged one and never resumed it).
+Absent on runs started before the field shipped; readers treat
+absence as "cannot prove same generation" and act accordingly.
+Stores must round-trip the field (the conformance kit checks).
 
 ***
 

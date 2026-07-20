@@ -1,4 +1,4 @@
-import { JournalEntry, JournalStore, LeasableStore, Lease, RunFilter, RunMeta } from "@rulvar/core";
+import { JournalEntry, LeasableStore, Lease, MetaLookupStore, RunFilter, RunMeta } from "@rulvar/core";
 
 //#region src/store.d.ts
 /** Appendix A interim reference for the sqlite store. */
@@ -11,7 +11,7 @@ interface SqliteStoreOptions {
   /** Injectable clock for lease-expiry tests. */
   now?: () => number;
 }
-declare class SqliteStore implements JournalStore, LeasableStore {
+declare class SqliteStore implements MetaLookupStore, LeasableStore {
   private readonly db;
   private readonly ttlMs;
   private readonly now;
@@ -23,6 +23,7 @@ declare class SqliteStore implements JournalStore, LeasableStore {
   append(runId: string, e: JournalEntry, lease?: Lease): Promise<void>;
   load(runId: string): Promise<JournalEntry[]>;
   putMeta(m: RunMeta): Promise<void>;
+  getMeta(runId: string): Promise<RunMeta | undefined>;
   listRuns(f?: RunFilter): Promise<RunMeta[]>;
   delete(runId: string): Promise<void>;
   acquire(runId: string, owner: string): Promise<Lease>;

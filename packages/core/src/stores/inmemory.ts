@@ -9,14 +9,15 @@
 import { JournalOrderViolation } from '../l0/errors.js';
 import type { Bytes } from '../l0/json.js';
 import type { JournalEntry } from '../l0/entries.js';
-import type { JournalStore, RunFilter, RunMeta } from '../l0/spi/store.js';
+import type { MetaLookupStore, RunFilter, RunMeta } from '../l0/spi/store.js';
 import type { TranscriptStore } from '../l0/spi/transcript.js';
+import { metaMatchesFilter } from './meta-lookup.js';
 
 function deepCopy<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-export class InMemoryStore implements JournalStore {
+export class InMemoryStore implements MetaLookupStore {
   private readonly runs = new Map<string, JournalEntry[]>();
   private readonly metas = new Map<string, RunMeta>();
   private warned: boolean;
@@ -63,20 +64,15 @@ export class InMemoryStore implements JournalStore {
     return Promise.resolve();
   }
 
+  getMeta(runId: string): Promise<RunMeta | undefined> {
+    const meta = this.metas.get(runId);
+    return Promise.resolve(meta === undefined ? undefined : deepCopy(meta));
+  }
+
   listRuns(f?: RunFilter): Promise<RunMeta[]> {
-    const all = [...this.metas.values()].map(deepCopy);
-    const filtered = all.filter((meta) => {
-      if (f?.status !== undefined && meta.status !== f.status) {
-        return false;
-      }
-      if (f?.name !== undefined && meta.name !== f.name) {
-        return false;
-      }
-      if (f?.tags !== undefined && !f.tags.every((tag) => meta.tags?.includes(tag))) {
-        return false;
-      }
-      return true;
-    });
+    const filtered = [...this.metas.values()]
+      .filter((meta) => metaMatchesFilter(meta, f))
+      .map(deepCopy);
     return Promise.resolve(filtered);
   }
 

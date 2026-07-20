@@ -173,3 +173,90 @@ describe('M8-T04 retention and redaction', () => {
     expect(JSON.stringify(unmasked.events)).toContain(SECRET);
   });
 });
+
+describe('pruneRun exact reference scan (v1.25.0 scale review P1-3)', () => {
+  /** Minimal ok-terminal agent entry for SPI-built journals. */
+  const terminal = (seq: number, over: Partial<JournalEntry>): JournalEntry => ({
+    hashVersion: 2,
+    seq,
+    ref: 0,
+    scope: 'root',
+    key: `agent ${seq}`,
+    ordinal: 0,
+    kind: 'agent',
+    status: 'ok',
+    spanId: `s${seq}`,
+    startedAt: '2026-07-20T00:00:00.000Z',
+    ...over,
+  });
+
+  it('a real chain of 12 tool agents prunes EVERY completed checkpoint (prefix collision regression)', async () => {
+    const { engine, transcripts } = assemble();
+    const chain = defineWorkflow({ name: 'chain12' }, async (ctx) => {
+      for (let i = 0; i < 12; i += 1) {
+        await ctx.agent(`step ${i}`, { tools: [lookup] });
+      }
+      return 'done';
+    });
+    const outcome = await engine.run(chain, undefined, { runId: 'prune-real' }).result;
+    expect(outcome.status).toBe('ok');
+    const before = (await transcripts.list('prune-real')).filter((ref) => ref.includes('/ckpt/'));
+    expect(before).toHaveLength(12);
+    // The seqs span one and two digits (0, 2, ..., 20, 22), so the old
+    // substring scan kept ckpt/2 because ckpt/20 and ckpt/22 contain it.
+    const pruned = await engine.pruneRun('prune-real');
+    expect(pruned).toBe(12);
+    const after = (await transcripts.list('prune-real')).filter((ref) => ref.includes('/ckpt/'));
+    expect(after).toEqual([]);
+    // The pruned checkpoints are never needed again: replay-strict
+    // resume completes with zero live calls.
+    const resumed = await engine.resume('prune-real', chain, { dryRun: true }).result;
+    expect(resumed.status).toBe('ok');
+    expect(resumed.value).toBe('done');
+  });
+
+  it('refs that collide by prefix are pruned; exact nested and key references keep', async () => {
+    const { engine, journal, transcripts } = assemble();
+    const runId = 'prune-exact';
+    const refs = {
+      collides: `${runId}/ckpt/2`,
+      collider: `${runId}/ckpt/20`,
+      nestedKept: `${runId}/ckpt/21`,
+      keyKept: `${runId}/ckpt/22`,
+      substringOnly: `${runId}/ckpt/23`,
+    };
+    for (const ref of Object.values(refs)) {
+      await transcripts.put(ref, new Uint8Array([1]));
+    }
+    await journal.append(runId, terminal(1, { checkpointRef: refs.collides }));
+    await journal.append(runId, terminal(2, { checkpointRef: refs.collider }));
+    await journal.append(runId, terminal(3, { checkpointRef: refs.nestedKept }));
+    await journal.append(runId, terminal(4, { checkpointRef: refs.keyKept }));
+    await journal.append(runId, terminal(5, { checkpointRef: refs.substringOnly }));
+    // An unrelated entry referencing nestedKept EXACTLY inside a nested
+    // value, keyKept as an object KEY, and substringOnly only as a
+    // fragment of a longer prose string (not a reference).
+    await journal.append(
+      runId,
+      terminal(6, {
+        kind: 'step',
+        status: 'ok',
+        checkpointRef: undefined,
+        value: {
+          anchors: [{ boot: refs.nestedKept }],
+          index: { [refs.keyKept]: true },
+          note: `see ${refs.substringOnly} for detail`,
+        },
+      }),
+    );
+    const pruned = await engine.pruneRun(runId);
+    const left = await transcripts.list(runId);
+    // collides and collider both go (the old substring scan kept
+    // collides because collider contains it); nestedKept and keyKept
+    // stay (exact whole string references elsewhere); substringOnly
+    // goes: a ref mentioned INSIDE a longer prose string is not a
+    // structural reference, nothing boots from it.
+    expect(pruned).toBe(3);
+    expect(left.sort()).toEqual([refs.keyKept, refs.nestedKept].sort());
+  });
+});

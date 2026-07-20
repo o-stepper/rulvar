@@ -2,9 +2,9 @@
 
 ***
 
-[Rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / InMemoryStore
+[Rulvar API reference](/api/index.md) / [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) / MetaLookupStore
 
-# Class: InMemoryStore
+# Interface: MetaLookupStore
 
 Defined in: `packages/core/dist/index.d.ts`
 
@@ -16,37 +16,19 @@ exactly like the lease capability: engines and shells detect it with
 store written before this capability keeps working unoptimized. A
 missing run resolves `undefined`, never a rejection.
 
-## Implements
+## Extends
 
-- [`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md)
-
-## Constructors
-
-### Constructor
-
-```ts
-new InMemoryStore(options?): InMemoryStore;
-```
-
-Defined in: `packages/core/dist/index.d.ts`
-
-#### Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `options?` | \{ `quiet?`: `boolean`; \} |
-| `options.quiet?` | `boolean` |
-
-#### Returns
-
-`InMemoryStore`
+- [`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md)
 
 ## Methods
 
 ### append()
 
 ```ts
-append(runId, e): Promise<void>;
+append(
+   runId, 
+   e, 
+lease?): Promise<void>;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -57,14 +39,15 @@ Defined in: `packages/core/dist/index.d.ts`
 | ------ | ------ |
 | `runId` | `string` |
 | `e` | [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md) |
+| `lease?` | [`Lease`](/api/@rulvar/rulvar/type-aliases/Lease.md) |
 
 #### Returns
 
 `Promise`\&lt;`void`\&gt;
 
-#### Implementation of
+#### Inherited from
 
-[`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md).[`append`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md#append)
+[`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md).[`append`](/api/@rulvar/rulvar/interfaces/JournalStore.md#append)
 
 ***
 
@@ -86,9 +69,9 @@ Defined in: `packages/core/dist/index.d.ts`
 
 `Promise`\&lt;`void`\&gt;
 
-#### Implementation of
+#### Inherited from
 
-[`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md).[`delete`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md#delete)
+[`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md).[`delete`](/api/@rulvar/rulvar/interfaces/JournalStore.md#delete)
 
 ***
 
@@ -110,10 +93,6 @@ Defined in: `packages/core/dist/index.d.ts`
 
 `Promise`\&lt;[`RunMeta`](/api/@rulvar/rulvar/type-aliases/RunMeta.md) \| `undefined`\&gt;
 
-#### Implementation of
-
-[`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md).[`getMeta`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md#getmeta)
-
 ***
 
 ### listRuns()
@@ -134,9 +113,9 @@ Defined in: `packages/core/dist/index.d.ts`
 
 `Promise`\&lt;[`RunMeta`](/api/@rulvar/rulvar/type-aliases/RunMeta.md)[]\&gt;
 
-#### Implementation of
+#### Inherited from
 
-[`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md).[`listRuns`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md#listruns)
+[`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md).[`listRuns`](/api/@rulvar/rulvar/interfaces/JournalStore.md#listruns)
 
 ***
 
@@ -158,9 +137,9 @@ Defined in: `packages/core/dist/index.d.ts`
 
 `Promise`\&lt;[`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md)[]\&gt;
 
-#### Implementation of
+#### Inherited from
 
-[`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md).[`load`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md#load)
+[`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md).[`load`](/api/@rulvar/rulvar/interfaces/JournalStore.md#load)
 
 ***
 
@@ -182,6 +161,6 @@ Defined in: `packages/core/dist/index.d.ts`
 
 `Promise`\&lt;`void`\&gt;
 
-#### Implementation of
+#### Inherited from
 
-[`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md).[`putMeta`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md#putmeta)
+[`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md).[`putMeta`](/api/@rulvar/rulvar/interfaces/JournalStore.md#putmeta)

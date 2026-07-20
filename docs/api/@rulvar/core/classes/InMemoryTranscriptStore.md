@@ -6,7 +6,7 @@
 
 # Class: InMemoryTranscriptStore
 
-Defined in: [packages/core/src/stores/inmemory.ts:107](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L107)
+Defined in: [packages/core/src/stores/inmemory.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L103)
 
 In-memory TranscriptStore. Refs follow the `<runId>/<name>` convention
 so list(runId) can filter without a side index.
@@ -35,7 +35,7 @@ new InMemoryTranscriptStore(): InMemoryTranscriptStore;
 delete(ref): Promise<void>;
 ```
 
-Defined in: [packages/core/src/stores/inmemory.ts:125](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L125)
+Defined in: [packages/core/src/stores/inmemory.ts:121](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L121)
 
 Deletes one blob; a missing ref is a no-op, never an error (M8-T04
 amendment, OQ-20: retention is impossible without blob deletion).
@@ -64,7 +64,7 @@ never a store obligation.
 get(ref): Promise<Bytes | null>;
 ```
 
-Defined in: [packages/core/src/stores/inmemory.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L115)
+Defined in: [packages/core/src/stores/inmemory.ts:111](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L111)
 
 #### Parameters
 
@@ -88,7 +88,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:115](https://github.com/o-step
 list(runId): Promise<string[]>;
 ```
 
-Defined in: [packages/core/src/stores/inmemory.ts:120](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L120)
+Defined in: [packages/core/src/stores/inmemory.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L116)
 
 #### Parameters
 
@@ -112,7 +112,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:120](https://github.com/o-step
 put(ref, blob): Promise<void>;
 ```
 
-Defined in: [packages/core/src/stores/inmemory.ts:110](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L110)
+Defined in: [packages/core/src/stores/inmemory.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L106)
 
 #### Parameters
 

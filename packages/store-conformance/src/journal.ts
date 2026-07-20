@@ -409,6 +409,7 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
             segments: 3,
             argsProvided: true,
             argsHash: 'a'.repeat(64),
+            genesis: 'g'.repeat(26),
           }),
         );
         const roundTripped = (await store.listRuns()).find((candidate) => candidate.runId === RUN);
@@ -427,6 +428,42 @@ export function journalStoreConformance(mk: StoreFactory<JournalStore>): Conform
           'meta-separation',
           'putMeta/listRuns must round-trip optional RunMeta fields (argsProvided, argsHash)',
         );
+        // The generation token: without the round-trip a queue worker
+        // cannot tell a deleteRun-then-recreate of the same runId from
+        // the old run continuing (v1.25.0 scale review).
+        ensure(
+          roundTripped?.genesis === 'g'.repeat(26),
+          'meta-separation',
+          'putMeta/listRuns must round-trip optional RunMeta fields (genesis)',
+        );
+        // The statuses filter is an advisory optimization: a store may
+        // ignore it and return a superset, but it must never DROP a
+        // meta whose status matches.
+        const byStatuses = await store.listRuns({ statuses: ['suspended', 'running'] });
+        ensure(
+          byStatuses.some((candidate) => candidate.runId === RUN),
+          'meta-separation',
+          'listRuns({ statuses }) must include every meta whose status matches ' +
+            '(supersets are allowed, drops are not)',
+        );
+        // Optional exact lookup capability: when the store exposes
+        // getMeta it must agree with listRuns and resolve undefined
+        // (never reject) for a missing run.
+        const lookup = (store as { getMeta?: (runId: string) => Promise<RunMeta | undefined> })
+          .getMeta;
+        if (typeof lookup === 'function') {
+          const fetched = await lookup.call(store, RUN);
+          ensure(
+            fetched?.runId === RUN && fetched.genesis === 'g'.repeat(26),
+            'meta-separation',
+            'getMeta must return the stored meta for an existing run',
+          );
+          ensure(
+            (await lookup.call(store, 'conformance-missing-run')) === undefined,
+            'meta-separation',
+            'getMeta must resolve undefined for a missing run, never reject',
+          );
+        }
         await store.delete(RUN);
         ensure(
           (await store.load(RUN)).length === 0 &&

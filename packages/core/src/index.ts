@@ -48,6 +48,7 @@ export * from './journal/disposition.js';
 export * from './journal/resolution.js';
 export * from './engine/external.js';
 export * from './stores/inmemory.js';
+export * from './stores/meta-lookup.js';
 export * from './stores/jsonl.js';
 export * from './engine/cost-report.js';
 export * from './engine/run-profiles.js';

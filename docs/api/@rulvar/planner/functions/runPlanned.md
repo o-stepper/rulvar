@@ -14,7 +14,7 @@ function runPlanned(
 options?): Promise<RunHandle<unknown>>;
 ```
 
-Defined in: [packages/planner/src/plan.ts:280](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/plan.ts#L280)
+Defined in: [packages/planner/src/plan.ts:282](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/plan.ts#L282)
 
 plan-then-run in one call (amended during M6-T05:
 the composition is async because planning itself is a run).

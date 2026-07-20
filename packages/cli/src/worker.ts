@@ -158,14 +158,28 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
   }
 
   const active = new Map<string, ActiveRun>();
-  /** Runs this worker must not retry (DEF-6 violations, binding errors). */
-  const poisoned = new Set<string>();
   /**
-   * Journal length at our last release of a still-suspended run: nothing
-   * new to consume until it grows (an offline resolution appends).
+   * Runs this worker must not retry (DEF-6 violations, binding errors),
+   * keyed to the run's generation (RunMeta.genesis) at poison time: a
+   * deleteRun and recreate of the same runId is a NEW run and must not
+   * inherit the poison. Entries for runIds that leave the candidate set
+   * are dropped each sweep, so an external delete cannot pin
+   * process-local state forever (v1.25.0 scale review).
    */
-  const suspendedAt = new Map<string, number>();
+  const poisoned = new Map<string, string | undefined>();
+  /**
+   * Journal length AND generation at our last release of a
+   * still-suspended run: nothing new to consume until the journal grows
+   * (an offline resolution appends) or the generation changes (the same
+   * runId was deleted and recreated; length alone cannot tell the new
+   * run from the old unchanged one, the v1.25.0 scale review). Runs
+   * whose meta predates the genesis field compare as equal when both
+   * sides are undefined, the historical behavior of length alone.
+   */
+  const suspendedAt = new Map<string, { length: number; genesis?: string }>();
   let pollTimer: ReturnType<typeof setInterval> | undefined;
+  /** An interval tick never overlaps a sweep that is still running. */
+  let sweeping = false;
   let stopping = false;
 
   function reportError(runId: string, error: unknown): void {
@@ -208,19 +222,23 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
     const settled = handle.result
       .then(async (outcome) => {
         if (outcome.status === 'suspended') {
-          // Remember the journal length: this run is not worth
-          // re-leasing until something (an offline resolution) grows it.
+          // Remember the journal length and the generation: this run is
+          // not worth re-leasing until something (an offline resolution)
+          // grows the journal, or the runId is reborn as a NEW run. The
+          // generation never changes across segments, so the meta
+          // captured at sweep time is exact here.
           const entries = await store.load(runId);
-          suspendedAt.set(runId, entries.length);
+          suspendedAt.set(runId, { length: entries.length, genesis: meta.genesis });
         } else {
           suspendedAt.delete(runId);
         }
       })
       .catch((thrown: unknown) => {
         // Binding and compatibility errors need the host, not a retry
-        // loop: poison the run for this worker (a restart clears it).
+        // loop: poison the run for this worker (a restart clears it, and
+        // so does a new generation of the same runId).
         if (thrown instanceof ConfigError || thrown instanceof JournalCompatibilityError) {
-          poisoned.add(runId);
+          poisoned.set(runId, meta.genesis);
         }
         reportError(runId, thrown);
       })
@@ -266,60 +284,106 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
   }
 
   async function sweep(): Promise<number> {
-    if (stopping) {
+    if (stopping || sweeping) {
+      // Sweeps never overlap: a tick that fires mid scan reports zero
+      // picks instead of racing the sweep already scanning the store.
       return 0;
     }
-    let picked = 0;
-    const metas = await store.listRuns();
-    for (const meta of metas) {
-      if (active.size >= concurrency) {
-        break;
-      }
-      if (!CANDIDATE_STATUSES.has(meta.status)) {
-        // Terminal meta: never resumed, only retention applies here.
-        if (options.retention !== undefined && !active.has(meta.runId)) {
-          await applyRetention(meta).catch((thrown: unknown) => {
-            reportError(meta.runId, thrown);
-          });
+    sweeping = true;
+    try {
+      let picked = 0;
+      // The query narrows to candidates unless durable retention needs
+      // the terminal metas too. The `statuses` filter is advisory (a
+      // store written before the field returns a superset), so candidacy
+      // is re-checked on every meta below either way.
+      const metas =
+        options.retention === undefined
+          ? await store.listRuns({ statuses: [...CANDIDATE_STATUSES] })
+          : await store.listRuns();
+      // Drop process-local state for runIds that left the candidate set:
+      // a settled run's skip entry is dead weight, and an externally
+      // deleted run must not pin skip or poison state until restart.
+      const candidateIds = new Set(
+        metas.filter((meta) => CANDIDATE_STATUSES.has(meta.status)).map((meta) => meta.runId),
+      );
+      for (const runId of [...suspendedAt.keys()]) {
+        if (!candidateIds.has(runId)) {
+          suspendedAt.delete(runId);
         }
-        continue;
       }
-      if (active.has(meta.runId) || poisoned.has(meta.runId)) {
-        continue;
+      for (const runId of [...poisoned.keys()]) {
+        if (!candidateIds.has(runId)) {
+          poisoned.delete(runId);
+        }
       }
-      let lease: Lease;
-      try {
-        lease = await store.acquire(meta.runId, owner);
-      } catch (thrown) {
-        if (thrown instanceof LeaseHeldError) {
-          // Another worker owns it; at-least-once makes skipping safe.
+      for (const meta of metas) {
+        if (active.size >= concurrency) {
+          break;
+        }
+        if (!CANDIDATE_STATUSES.has(meta.status)) {
+          // Terminal meta: never resumed, only retention applies here.
+          if (options.retention !== undefined && !active.has(meta.runId)) {
+            await applyRetention(meta).catch((thrown: unknown) => {
+              reportError(meta.runId, thrown);
+            });
+          }
           continue;
         }
-        throw thrown;
-      }
-      try {
-        const entries = (await store.load(meta.runId)).map((raw) => normalizeEntry(raw));
-        // DEF-6, repeated at acquire: an older library cannot write into
-        // a newer journal.
-        scanJournalCompatibility(meta.runId, entries, registry);
-        if (meta.status === 'suspended' && suspendedAt.get(meta.runId) === entries.length) {
-          // Unchanged since our last suspended settle: nothing to do.
+        if (active.has(meta.runId)) {
+          continue;
+        }
+        if (poisoned.has(meta.runId)) {
+          if (poisoned.get(meta.runId) === meta.genesis) {
+            continue;
+          }
+          // Same runId, different generation: the poison belonged to a
+          // deleted run, and this NEW run gets its chance.
+          poisoned.delete(meta.runId);
+        }
+        let lease: Lease;
+        try {
+          lease = await store.acquire(meta.runId, owner);
+        } catch (thrown) {
+          if (thrown instanceof LeaseHeldError) {
+            // Another worker owns it; at-least-once makes skipping safe.
+            continue;
+          }
+          throw thrown;
+        }
+        try {
+          const entries = (await store.load(meta.runId)).map((raw) => normalizeEntry(raw));
+          // DEF-6, repeated at acquire: an older library cannot write into
+          // a newer journal.
+          scanJournalCompatibility(meta.runId, entries, registry);
+          const cached = suspendedAt.get(meta.runId);
+          if (
+            meta.status === 'suspended' &&
+            cached !== undefined &&
+            cached.length === entries.length &&
+            cached.genesis === meta.genesis
+          ) {
+            // Unchanged since our last suspended settle: nothing to do.
+            // Both length AND generation must match; a recreated run of
+            // the same runId and length is new work.
+            await releaseQuietly(lease);
+            continue;
+          }
+          picked += 1;
+          void drive(meta.runId, meta, lease);
+        } catch (thrown) {
           await releaseQuietly(lease);
-          continue;
-        }
-        picked += 1;
-        void drive(meta.runId, meta, lease);
-      } catch (thrown) {
-        await releaseQuietly(lease);
-        if (thrown instanceof JournalCompatibilityError || thrown instanceof ConfigError) {
-          poisoned.add(meta.runId);
+          if (thrown instanceof JournalCompatibilityError || thrown instanceof ConfigError) {
+            poisoned.set(meta.runId, meta.genesis);
+            reportError(meta.runId, thrown);
+            continue;
+          }
           reportError(meta.runId, thrown);
-          continue;
         }
-        reportError(meta.runId, thrown);
       }
+      return picked;
+    } finally {
+      sweeping = false;
     }
-    return picked;
   }
 
   return {

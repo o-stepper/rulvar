@@ -492,3 +492,40 @@ describe('args binding and the dry-run preview (v1.23.0 review)', () => {
     expect(JSON.stringify((await store.listRuns()).find((m) => m.runId === 'D2'))).toBe(metaBefore);
   });
 });
+
+describe('RunMeta.genesis generation identity (v1.25.0 scale review)', () => {
+  it('minted at the fresh start, preserved across resume, reborn after delete and recreate', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-genesis-'));
+    const store = new JsonlFileStore({ dir });
+    const first = makeEngine(store);
+    const firstOutcome = await first.engine.run(approvalWf, undefined, { runId: 'GEN1' }).result;
+    expect(firstOutcome.status).toBe('suspended');
+    const meta1 = await store.getMeta('GEN1');
+    expect(typeof meta1?.genesis).toBe('string');
+
+    // Offline resolve, then resume in a second process: the token
+    // travels back in verbatim, never re-minted.
+    const prior = await store.load('GEN1');
+    const suspended = prior.find((e) => e.kind === 'external');
+    const offline = new Replayer({ runId: 'GEN1', store, priorEntries: prior });
+    await offline.resolveSuspended(suspended?.seq ?? -1, {
+      by: 'external',
+      value: { approved: true },
+    });
+    const second = makeEngine(store);
+    expect((await second.engine.resume('GEN1', approvalWf).result).status).toBe('ok');
+    const meta2 = await store.getMeta('GEN1');
+    expect(meta2?.genesis).toBe(meta1?.genesis);
+
+    // Delete then recreate the same explicit runId: same id and journal
+    // shape, but a NEW generation a worker's skip cache can tell apart.
+    await second.engine.deleteRun('GEN1');
+    const third = makeEngine(store);
+    expect((await third.engine.run(approvalWf, undefined, { runId: 'GEN1' }).result).status).toBe(
+      'suspended',
+    );
+    const meta3 = await store.getMeta('GEN1');
+    expect(typeof meta3?.genesis).toBe('string');
+    expect(meta3?.genesis).not.toBe(meta1?.genesis);
+  });
+});

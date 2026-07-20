@@ -180,7 +180,7 @@ The server is a single-process shell: it tracks the runs it started (or resumed)
 
 ### Server-sent events
 
-Each SSE frame carries `id:` (the event's per-run telemetry `seq`), `event:` (the `WorkflowEvent` type), and `data:` (the full event JSON). Reconnect with the standard `Last-Event-ID` header and the server replays from its buffer strictly after that seq when it can find it, or the whole buffer otherwise: delivery is at-least-once, so deduplicate on the id. Events are process-local telemetry, never run truth; a run known to the store but not live in this process answers with an empty stream that closes immediately. See [Observability](/guide/observability) for the event catalog.
+Each SSE frame carries `id:` (the event's per-run telemetry `seq`), `event:` (the `WorkflowEvent` type), and `data:` (the full event JSON). Reconnect with the standard `Last-Event-ID` header and the server replays strictly AFTER that seq (the buffer is seq-ordered, so the resume point is a binary search, and a cursor seq the buffer does not hold simply replays everything after it): delivery is at-least-once, so deduplicate on the id. Events are process-local telemetry, never run truth; a run known to the store but not live in this process answers with an empty stream that closes immediately. When `maxBufferedEventsPerRun` has dropped buffered events, the response carries an `x-rulvar-events-dropped` header with the count, and a client whose cursor lies before the retained window additionally gets a leading SSE comment naming the first retained seq; the journal remains the durable record. See [Observability](/guide/observability) for the event catalog.
 
 ```bash
 curl -N -H 'Last-Event-ID: 42' http://localhost:8787/runs/$RUN_ID/events
@@ -208,7 +208,12 @@ A resolution against an already-closed suspension is never an error that damages
 
 Typed engine errors map onto status codes with a `{ error: WireError }` body: configuration and invalid-resolution errors answer `400`, a held lease or a journal outside the compatibility window answers `409`, anything else `500`.
 
-Retention is opt-in: pass `retention: (meta) => boolean` and the server evaluates it when a tracked run settles terminally, applying `engine.deleteRun` (transcripts first, then the journal) on a true verdict. Absent the option, everything persists indefinitely.
+Retention comes in two decoupled kinds, both opt-in and both evaluated when a tracked run settles terminally:
+
+- `retention: (meta) => boolean` is DURABLE retention: a true verdict applies `engine.deleteRun` (transcripts first, then the journal) and untracks the run. This deletes the record itself.
+- `memoryRetention: (meta) => boolean` releases only the tracked state (arguments, outcome, handle, SSE buffer); the journal and transcripts stay. After it, `GET /runs/:id` and `/cost` serve from the store exactly as for a run another process owns, and `/events` answers with the empty not-live stream.
+
+Two bounds keep the memory of a server with long uptime finite without any predicate: `maxTrackedRuns` caps how many SETTLED runs stay tracked (oldest released first, live runs never counted or evicted), and `maxBufferedEventsPerRun` caps each run's SSE replay buffer (oldest events dropped in chunks and counted; see the SSE section for how a replay marks the gap). Absent all four options, everything persists in process memory for the server's lifetime, and the tracked handles keep their full event history alive.
 
 ## The queue worker
 
@@ -243,14 +248,14 @@ process.on('SIGTERM', () => {
 
 ### Leases and the fencing epoch
 
-Every sweep lists run metadata and considers runs whose status is `running` (a crashed or currently owned run) or `suspended`. For each candidate the worker acquires a lease; a `LeaseHeldError` means another worker owns it, and at-least-once semantics make skipping safe. The resume itself passes the lease through `ResumeOptions.lease`, so **every** journal append of the resumed run carries the fencing epoch: a stale worker's writes are rejected by the store and never become visible, whether or not that worker noticed it lost the lease. Split-brain is excluded by construction, not by timing.
+Every sweep asks the store for candidate metadata only, `listRuns({ statuses: ['running', 'suspended'] })`, so the poll cost tracks the resumable backlog rather than the whole historical catalog (with the `retention` option the sweep lists everything, because terminal metas are what retention judges; the `statuses` filter is advisory, and candidacy is re-checked on what comes back). Sweeps never overlap: a poll tick that fires while the previous sweep is still scanning reports zero picks instead of overlapping it. For each candidate the worker acquires a lease; a `LeaseHeldError` means another worker owns it, and at-least-once semantics make skipping safe. The resume itself passes the lease through `ResumeOptions.lease`, so **every** journal append of the resumed run carries the fencing epoch: a stale worker's writes are rejected by the store and never become visible, whether or not that worker noticed it lost the lease. Split-brain is excluded by construction, not by timing.
 
 The lease is renewed at a third of its ttl (default ttl 60000 ms, exposed as `DEFAULT_WORKER_TTL_MS`; `ttlMs` must match the store's configured ttl). A failed renew cancels the run promptly instead of burning live calls whose appends would be rejected anyway.
 
 Two more checks keep the loop honest:
 
 - At acquire, the journal's hashVersion is checked against the engine's compatibility window, strictly before any append: an older library never writes into a newer journal. Runs failing this (or workflow binding) are poisoned for this worker and reported through `onError`; they need the host, not a retry loop. See [Journal compatibility](/guide/journal-compatibility).
-- A run that settles `suspended` is remembered with its journal length and is not re-leased until the journal grows, which is exactly what an offline resolution (from the server's external endpoint, for example) does.
+- A run that settles `suspended` is remembered with its journal length AND its generation token (`RunMeta.genesis`, minted at the run's fresh start and preserved across resumes), and is not re-leased until the journal grows, which is exactly what an offline resolution (from the server's external endpoint, for example) does. The generation is what tells a `deleteRun` and recreate of the same runId apart from the old run standing still: length can coincide, the token cannot. The same rule releases a poisoned runId when its run is deleted and recreated, and every sweep drops skip and poison entries for runIds that left the candidate set, so externally deleted runs never pin process-local state until restart.
 
 Queue semantics are honestly at-least-once, with deduplication provided by the journal's two-phase entries: re-leasing a settled or unchanged run replays to the same outcome with zero live calls, which is the never-pay-twice invariant doing its job. Workflows resolve through the engine's `defaults.workflows` registry plus persisted compiled-workflow sources, never through a worker parameter; original run arguments are re-supplied per run through the optional `argsFor(meta)` callback.
 

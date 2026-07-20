@@ -33,6 +33,7 @@ import {
   Replayer,
   costReportFromJournal,
   normalizeEntry,
+  readRunMeta,
   validateSchemaSpec,
   type CostReport,
   type Engine,
@@ -66,12 +67,43 @@ export interface CreateServerOptions {
    */
   priceUsd?: (servedBy: ModelRef, usage: Usage) => number | undefined;
   /**
-   * Opt-in retention (OQ-20 executed at M8-T04): evaluated
+   * Opt-in DURABLE retention (OQ-20 executed at M8-T04): evaluated
    * when a tracked run settles terminally; a true verdict applies
    * engine.deleteRun (transcript cascade, then the journal) and
-   * untracks the run. Absent means everything persists indefinitely.
+   * untracks the run. This deletes the durable record; to release only
+   * process memory, use `memoryRetention` or `maxTrackedRuns`. Absent
+   * means nothing is deleted.
    */
   retention?: (meta: RunMeta) => boolean;
+  /**
+   * Opt-in retention of PROCESS MEMORY, decoupled from the durable kind
+   * (v1.25.0 scale review P1-2): evaluated when a tracked run settles
+   * terminally, after `retention`; a true verdict releases the tracked
+   * state (args, outcome, handle, SSE buffer) while the journal and
+   * transcripts stay untouched, after which GET status/cost serve from
+   * the store exactly as for a run another process owns, and GET events
+   * answers with the documented empty stream for a run not live here.
+   */
+  memoryRetention?: (meta: RunMeta) => boolean;
+  /**
+   * Cap on SETTLED tracked runs kept in process memory: when a run
+   * settles terminally and neither retention released it, the oldest
+   * settled tracked runs beyond the cap are released exactly like a
+   * `memoryRetention` verdict (durable state untouched). Live runs are
+   * never evicted and do not count toward the cap. Absent means no cap.
+   */
+  maxTrackedRuns?: number;
+  /**
+   * Upper bound on buffered SSE replay events per tracked run: past the
+   * bound the OLDEST buffered events are dropped in chunks (so the
+   * retained replay window stays at least seven eighths of the bound)
+   * and counted. A replay that no longer reaches back to a client's
+   * cursor carries `x-rulvar-events-dropped: <count>` and a leading SSE
+   * comment naming the first retained seq; the journal remains the
+   * durable record of the run itself. Absent means unbounded (the
+   * historical behavior).
+   */
+  maxBufferedEventsPerRun?: number;
 }
 
 export interface RulvarServer {
@@ -96,8 +128,13 @@ interface TrackedRun {
   runId: string;
   workflowName: string;
   args: unknown;
-  /** Every event observed across resume segments, in arrival order. */
+  /**
+   * Events observed across resume segments, in arrival (= seq) order;
+   * bounded by maxBufferedEventsPerRun when configured.
+   */
   buffer: WorkflowEvent[];
+  /** Oldest events dropped from the buffer by the configured bound. */
+  dropped: number;
   /** Live SSE feeds; fed `null` exactly once at the terminal settle. */
   feeds: Set<(event: WorkflowEvent | null) => void>;
   handle: RunHandle<unknown>;
@@ -176,13 +213,45 @@ export function createServer(options: CreateServerOptions): RulvarServer {
   const journal = engine.stores.journal;
   const runs = new Map<string, TrackedRun>();
 
+  /**
+   * Buffers one event under the configured bound. Overflow drops the
+   * oldest chunk (an eighth of the bound) in one splice, so the
+   * amortized cost per event stays O(1) and the retained window never
+   * falls below seven eighths of the bound.
+   */
+  function pushBuffered(run: TrackedRun, event: WorkflowEvent): void {
+    run.buffer.push(event);
+    const max = options.maxBufferedEventsPerRun;
+    if (max !== undefined && run.buffer.length > max) {
+      const chunk = Math.max(1, Math.floor(max / 8));
+      run.buffer.splice(0, chunk);
+      run.dropped += chunk;
+    }
+  }
+
+  /**
+   * Releases settled tracked runs beyond maxTrackedRuns, oldest first
+   * (Map insertion order), durable state untouched. Live runs never
+   * count and are never evicted.
+   */
+  function enforceTrackedCap(): void {
+    const cap = options.maxTrackedRuns;
+    if (cap === undefined) {
+      return;
+    }
+    const settled = [...runs.values()].filter((run) => run.done);
+    for (const run of settled.slice(0, Math.max(0, settled.length - cap))) {
+      runs.delete(run.runId);
+    }
+  }
+
   /** Pumps one resume segment's events into the buffer and the feeds. */
   function attach(run: TrackedRun, handle: RunHandle<unknown>): void {
     run.handle = handle;
     run.outcome = undefined;
     void (async () => {
       for await (const event of handle.events) {
-        run.buffer.push(event);
+        pushBuffered(run, event);
         for (const feed of [...run.feeds]) {
           feed(event);
         }
@@ -197,16 +266,25 @@ export function createServer(options: CreateServerOptions): RulvarServer {
             feed(null);
           }
           run.feeds.clear();
-          if (options.retention !== undefined) {
-            // Opt-in retention at the terminal settle.
-            void (async () => {
-              const meta = await metaOf(run.runId);
-              if (meta !== undefined && options.retention?.(meta) === true) {
-                await engine.deleteRun(run.runId);
-                runs.delete(run.runId);
-              }
-            })().catch(() => undefined);
-          }
+          // The retention cascade at the terminal settle: durable
+          // retention first (deletes the record AND untracks), then
+          // memory retention (untracks only), then the settled cap.
+          void (async () => {
+            const meta =
+              options.retention === undefined && options.memoryRetention === undefined
+                ? undefined
+                : await metaOf(run.runId);
+            if (meta !== undefined && options.retention?.(meta) === true) {
+              await engine.deleteRun(run.runId);
+              runs.delete(run.runId);
+              return;
+            }
+            if (meta !== undefined && options.memoryRetention?.(meta) === true) {
+              runs.delete(run.runId);
+              return;
+            }
+            enforceTrackedCap();
+          })().catch(() => undefined);
         }
       })
       .catch(() => undefined);
@@ -223,6 +301,7 @@ export function createServer(options: CreateServerOptions): RulvarServer {
       workflowName,
       args,
       buffer: [],
+      dropped: 0,
       feeds: new Set(),
       handle,
       done: false,
@@ -234,8 +313,9 @@ export function createServer(options: CreateServerOptions): RulvarServer {
   }
 
   async function metaOf(runId: string): Promise<RunMeta | undefined> {
-    const metas = await journal.listRuns();
-    return metas.find((meta) => meta.runId === runId);
+    // Exact lookup through the optional store capability; stores
+    // without it fall back to the historical full listRuns scan.
+    return readRunMeta(journal, runId);
   }
 
   async function startRun(req: Request): Promise<Response> {
@@ -340,26 +420,58 @@ export function createServer(options: CreateServerOptions): RulvarServer {
     const lastEventId = req.headers.get('last-event-id');
     const encoder = new TextEncoder();
     let feed: ((event: WorkflowEvent | null) => void) | undefined;
+    // Replay strictly AFTER the client's cursor. The buffer is
+    // ascending by seq, so the resume point is a binary search, and the
+    // replay walks the buffer by index (never a slice copy). A cursor
+    // seq the buffer no longer holds replays everything after it, which
+    // preserves at-least-once: events at or before the cursor were
+    // already delivered (consumers deduplicate replayed events).
+    let cursor: number | undefined;
+    if (lastEventId !== null) {
+      const parsed = Number(lastEventId);
+      if (Number.isFinite(parsed)) {
+        cursor = parsed;
+      }
+    }
+    let startIndex = 0;
+    if (cursor !== undefined) {
+      let lo = 0;
+      let hi = run.buffer.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (run.buffer[mid].seq <= cursor) {
+          lo = mid + 1;
+        } else {
+          hi = mid;
+        }
+      }
+      startIndex = lo;
+    }
+    // The bound dropped buffered events AND this client's cursor does
+    // not prove it saw them: mark the gap (the journal is the durable
+    // record; only in-process SSE replay is windowed).
+    const firstRetained = run.buffer.length > 0 ? run.buffer[0].seq : undefined;
+    const gap =
+      run.dropped > 0 &&
+      (cursor === undefined || firstRetained === undefined || cursor < firstRetained);
+    const headers: Record<string, string> = {
+      'content-type': 'text/event-stream',
+      'cache-control': 'no-cache',
+      ...(run.dropped > 0 ? { 'x-rulvar-events-dropped': String(run.dropped) } : {}),
+    };
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
-        // Replay strictly AFTER the last delivered seq when it is found in
-        // the buffer; otherwise replay the whole buffer (at-least-once;
-        // consumers deduplicate replayed events).
-        let startIndex = 0;
-        if (lastEventId !== null) {
-          const cursor = Number(lastEventId);
-          if (Number.isFinite(cursor)) {
-            for (let i = run.buffer.length - 1; i >= 0; i -= 1) {
-              const buffered = run.buffer[i];
-              if (buffered.seq === cursor) {
-                startIndex = i + 1;
-                break;
-              }
-            }
-          }
+        if (gap) {
+          controller.enqueue(
+            encoder.encode(
+              `: replay window starts at seq ${String(firstRetained ?? 'none')}; ` +
+                `${run.dropped} earlier events were dropped from the in-memory buffer ` +
+                '(the journal is the durable record)\n\n',
+            ),
+          );
         }
-        for (const event of run.buffer.slice(startIndex)) {
-          controller.enqueue(encoder.encode(sseFrame(event)));
+        for (let i = startIndex; i < run.buffer.length; i += 1) {
+          controller.enqueue(encoder.encode(sseFrame(run.buffer[i])));
         }
         if (run.done) {
           controller.close();
@@ -388,10 +500,7 @@ export function createServer(options: CreateServerOptions): RulvarServer {
         }
       },
     });
-    return new Response(stream, {
-      status: 200,
-      headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' },
-    });
+    return new Response(stream, { status: 200, headers });
   }
 
   /** The tracked path: live (or settled-suspended) in this process. */

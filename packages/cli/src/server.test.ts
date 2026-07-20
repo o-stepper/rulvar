@@ -30,7 +30,12 @@ interface GatedValue {
   item: number;
 }
 
-function assemble(options?: { retention?: (meta: { status: string }) => boolean }): {
+function assemble(options?: {
+  retention?: (meta: { status: string }) => boolean;
+  memoryRetention?: (meta: { status: string }) => boolean;
+  maxTrackedRuns?: number;
+  maxBufferedEventsPerRun?: number;
+}): {
   engine: Engine;
   server: RulvarServer;
   workflows: WorkflowRegistry;
@@ -53,11 +58,22 @@ function assemble(options?: { retention?: (meta: { status: string }) => boolean 
     stores: { journal: new SqliteStore({ path: ':memory:' }) },
     defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
   });
-  const workflows: WorkflowRegistry = { gated };
+  const burst = defineWorkflow({ name: 'burst' }, async (ctx, args: { events: number }) => {
+    for (let i = 0; i < args.events; i += 1) {
+      ctx.log('info', `burst event ${i}`);
+    }
+    return ctx.agent('summarize the burst');
+  }) as unknown as Workflow<never, unknown>;
+  const workflows: WorkflowRegistry = { gated, burst };
   const server = createServer({
     engine,
     workflows,
     ...(options?.retention === undefined ? {} : { retention: options.retention }),
+    ...(options?.memoryRetention === undefined ? {} : { memoryRetention: options.memoryRetention }),
+    ...(options?.maxTrackedRuns === undefined ? {} : { maxTrackedRuns: options.maxTrackedRuns }),
+    ...(options?.maxBufferedEventsPerRun === undefined
+      ? {}
+      : { maxBufferedEventsPerRun: options.maxBufferedEventsPerRun }),
   });
   return { engine, server, workflows, gated };
 }
@@ -244,11 +260,19 @@ describe('createServer (M8-T01)', () => {
     expect(last.event).toBe('run:end');
     expect(last.data).toMatchObject({ status: 'ok' });
 
-    // An unknown cursor replays the whole buffer (at-least-once).
-    const fromScratch = await get(server, `/runs/${runId}/events`, { 'last-event-id': '9999999' });
-    const everything = parseFrames(await fromScratch.text());
-    expect(everything[0].data).toMatchObject({ type: 'run:start', seq: 0 });
-    expect(everything.length).toBeGreaterThan(replay.length);
+    // A cursor seq the buffer does not hold replays everything strictly
+    // AFTER it (at-least-once without the historical whole buffer
+    // replay): this client claimed seq 9999999, so segment 1 (below
+    // the stride) is skipped and the resumed segment replays in full.
+    const between = await get(server, `/runs/${runId}/events`, { 'last-event-id': '9999999' });
+    const afterCursor = parseFrames(await between.text());
+    expect(afterCursor[0].data).toMatchObject({ type: 'run:start', resumed: true });
+    expect(afterCursor.every((frame) => Number(frame.id) > 9_999_999)).toBe(true);
+    // A cursor past the final seq replays nothing and closes.
+    const beyond = await get(server, `/runs/${runId}/events`, {
+      'last-event-id': String(Number.MAX_SAFE_INTEGER),
+    });
+    expect(parseFrames(await beyond.text())).toHaveLength(0);
   });
 
   it('seq stays strictly increasing across an in-server resume, so the SSE cursor is unambiguous (v1.22.0 review P1-2)', async () => {
@@ -506,5 +530,103 @@ describe('tracked approval after the suspended settle (split-brain regression)',
     const entries = (await engine.stores.journal.load(runId)).map((e) => normalizeEntry(e));
     const seqs = entries.map((e) => e.seq);
     expect(new Set(seqs).size).toBe(seqs.length);
+  });
+});
+
+describe('memory retention and bounded SSE buffer (v1.25.0 scale review P1-2)', () => {
+  it('memoryRetention releases tracked state, durable journal and meta stay', async () => {
+    const { engine, server } = assemble({ memoryRetention: (meta) => meta.status === 'ok' });
+    const started = await post(server, '/runs', { workflow: 'gated', args: { item: 3 } });
+    const { runId } = (await bodyOf(started)) as { runId: string };
+    await untilStatus(server, runId, 'suspended');
+    await post(server, `/runs/${runId}/external/editor-approval`, { approved: true });
+    // The run settles ok, then the tracked state is released: status is
+    // served from the store (live: false) while the record survives.
+    for (let attempt = 0; attempt < 500; attempt += 1) {
+      const body = await bodyOf(await get(server, `/runs/${runId}`));
+      if (body.status === 'ok' && body.live === false) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    const after = await bodyOf(await get(server, `/runs/${runId}`));
+    expect(after.status).toBe('ok');
+    expect(after.live).toBe(false);
+    expect((await engine.stores.journal.load(runId)).length).toBeGreaterThan(0);
+    const meta = await engine.stores.journal.listRuns();
+    expect(meta.some((m) => m.runId === runId && m.status === 'ok')).toBe(true);
+  });
+
+  it('maxTrackedRuns evicts the oldest settled run, never the live state of newer ones', async () => {
+    const { engine, server } = assemble({ maxTrackedRuns: 1 });
+    const first = await post(server, '/runs', { workflow: 'burst', args: { events: 1 } });
+    const firstId = ((await bodyOf(first)) as { runId: string }).runId;
+    await untilStatus(server, firstId, 'ok');
+    const second = await post(server, '/runs', { workflow: 'burst', args: { events: 1 } });
+    const secondId = ((await bodyOf(second)) as { runId: string }).runId;
+    await untilStatus(server, secondId, 'ok');
+    for (let attempt = 0; attempt < 500; attempt += 1) {
+      const body = await bodyOf(await get(server, `/runs/${firstId}`));
+      if (body.live === false) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect((await bodyOf(await get(server, `/runs/${firstId}`))).live).toBe(false);
+    expect((await bodyOf(await get(server, `/runs/${secondId}`))).live).toBe(true);
+    // Eviction released memory, not the durable record.
+    expect((await engine.stores.journal.load(firstId)).length).toBeGreaterThan(0);
+  });
+
+  it('maxBufferedEventsPerRun windows the replay, marks the gap, and keeps the journal whole', async () => {
+    const { engine, server } = assemble({ maxBufferedEventsPerRun: 40 });
+    const started = await post(server, '/runs', { workflow: 'burst', args: { events: 100 } });
+    const { runId } = (await bodyOf(started)) as { runId: string };
+    await untilStatus(server, runId, 'ok');
+    const replay = await get(server, `/runs/${runId}/events`);
+    expect(replay.headers.get('x-rulvar-events-dropped')).not.toBeNull();
+    const text = await replay.text();
+    // The gap marker leads the stream for a client with no cursor.
+    expect(text.startsWith(': replay window starts at seq ')).toBe(true);
+    const frames = parseFrames(text);
+    expect(frames.length).toBeLessThanOrEqual(40);
+    expect(frames.length).toBeGreaterThanOrEqual(35);
+    expect(Number(replay.headers.get('x-rulvar-events-dropped'))).toBeGreaterThan(50);
+    expect(frames[frames.length - 1]?.event).toBe('run:end');
+    const ids = frames.map((frame) => Number(frame.id));
+    for (let i = 1; i < ids.length; i += 1) {
+      expect(ids[i]).toBeGreaterThan(ids[i - 1]);
+    }
+    // A cursor INSIDE the retained window replays with no gap marker.
+    const inside = await get(server, `/runs/${runId}/events`, {
+      'last-event-id': String(ids[0]),
+    });
+    const insideText = await inside.text();
+    expect(insideText.startsWith(': replay window')).toBe(false);
+    const insideFrames = parseFrames(insideText);
+    expect(insideFrames).toHaveLength(frames.length - 1);
+    expect(Number(insideFrames[0]?.id)).toBeGreaterThan(ids[0]);
+    // The journal is the durable record: untouched by the window.
+    expect((await engine.stores.journal.load(runId)).length).toBeGreaterThan(0);
+  });
+
+  it('the Last-Event-ID cursor resumes strictly after the seq without drops configured', async () => {
+    const { server } = assemble();
+    const started = await post(server, '/runs', { workflow: 'burst', args: { events: 20 } });
+    const { runId } = (await bodyOf(started)) as { runId: string };
+    await untilStatus(server, runId, 'ok');
+    const full = parseFrames(await (await get(server, `/runs/${runId}/events`)).text());
+    const mid = full[Math.floor(full.length / 2)];
+    const resumed = await get(server, `/runs/${runId}/events`, {
+      'last-event-id': String(mid?.id),
+    });
+    expect(resumed.headers.get('x-rulvar-events-dropped')).toBeNull();
+    const tail = parseFrames(await resumed.text());
+    expect(tail.length).toBeGreaterThan(0);
+    expect(Number(tail[0]?.id)).toBeGreaterThan(Number(mid?.id));
+    expect(tail[tail.length - 1]?.event).toBe('run:end');
+    expect(tail.map((frame) => frame.id)).toEqual(
+      full.slice(full.length - tail.length).map((frame) => frame.id),
+    );
   });
 });
