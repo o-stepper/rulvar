@@ -10,7 +10,7 @@
 function replay(options): ProviderAdapter[];
 ```
 
-Defined in: [packages/testing/src/vcr.ts:359](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L359)
+Defined in: [packages/testing/src/vcr.ts:621](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L621)
 
 Builds replay adapters from a cassette. `onMiss: 'throw'` is the
 hermetic CI mode; `'passthrough'` forwards unrecorded requests to the
@@ -32,6 +32,16 @@ exactly one terminal event (finish or error), and all caps
 snapshots for one `(adapterId, model)` agree, since the replay
 adapter can only report one caps truth per model. Violations throw
 a typed ConfigError naming the cassette and row.
+
+The rebuilt adapter restores the recorded provider and
+usageSemantics declarations (v1.30.0 review P2), so the fresh
+journal of a replayed run carries the same provenance stamp the
+recorded run got instead of silently reading like an entry from
+before the stamp existed. All rows of one adapter must agree on
+both declarations; a conflict refuses with a typed ConfigError
+before anything is served. A cassette recorded before v1.31.0
+stores no usageSemantics, so its replays stamp nothing (documented
+historical laxity).
 
 ## Parameters
 

@@ -130,6 +130,16 @@ declare function runLiveSmoke(adapter: Pick<ProviderAdapter, "stream">, req: Cha
 interface VcrRow {
   adapterId: string;
   provider?: string;
+  /**
+  * The recording adapter's declared usageSemantics snapshot (v1.30.0
+  * review P2): replay restores it on the rebuilt adapter, so the
+  * fresh journal of a replayed run carries the same provenance stamp
+  * the recorded run got. Absent when the recording adapter declared
+  * none, and in every cassette recorded before v1.31.0, whose
+  * replays therefore stamp nothing (documented historical laxity; an
+  * unstamped entry reads as recorded before the stamp existed).
+  */
+  usageSemantics?: string;
   requestHash: string;
   /** Redacted canonical request, for humans and drift review. */
   request: unknown;
@@ -199,14 +209,22 @@ interface VcrCassette {
 * checked by replay) only gates request identity and never
 * substitutes for it, so a future incompatible format refuses loudly
 * instead of being read as v1. Every documented header field (kind,
-* v, an integer hashVersion, a date-string recordedAt) and row field
+* v, an integer hashVersion, a date string recordedAt) and row field
 * (adapterId, model, requestHash, request, caps, events, an optional
-* string provider) is shape-checked here; unknown extra fields are
-* tolerated for forward compatibility. Event stream SEMANTICS (one
-* trailing terminal per row) are deliberately not checked at read
-* time; `replay` enforces them before serving anything (v1.29.0
-* review P3). Parse and shape failures throw a typed ConfigError
-* naming the cassette path and line (v1.28.0 review P3).
+* string provider, an optional nonempty usageSemantics) is checked
+* here, and the nested structures are validated in depth (v1.30.0
+* review P3): the request must be a plain object, every event must
+* be a member of the canonical ChatEvent vocabulary with its
+* required payload and Usage numeric invariants, and caps must carry
+* every ModelCaps field (with the optional pricing table checked
+* when present). Unknown extra FIELDS are tolerated for forward
+* compatibility. Event stream SEMANTICS (one trailing terminal per
+* row) and adapter consistency across rows (provider,
+* usageSemantics, caps agreement) are deliberately not checked at
+* read time; `replay` enforces them before serving anything (v1.29.0
+* review P3), so reading never blocks inspecting a well formed file.
+* Parse and shape failures throw a typed ConfigError naming the
+* cassette path and line (v1.28.0 review P3).
 */
 declare function readCassette(path: string): VcrCassette;
 /**
@@ -230,6 +248,16 @@ declare function readCassette(path: string): VcrCassette;
 * snapshots for one `(adapterId, model)` agree, since the replay
 * adapter can only report one caps truth per model. Violations throw
 * a typed ConfigError naming the cassette and row.
+*
+* The rebuilt adapter restores the recorded provider and
+* usageSemantics declarations (v1.30.0 review P2), so the fresh
+* journal of a replayed run carries the same provenance stamp the
+* recorded run got instead of silently reading like an entry from
+* before the stamp existed. All rows of one adapter must agree on
+* both declarations; a conflict refuses with a typed ConfigError
+* before anything is served. A cassette recorded before v1.31.0
+* stores no usageSemantics, so its replays stamp nothing (documented
+* historical laxity).
 */
 declare function replay(options: {
   cassette: string;
