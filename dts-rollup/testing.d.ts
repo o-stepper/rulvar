@@ -150,7 +150,11 @@ interface VcrRow {
   * it when every row of the group carries one; absent in cassettes
   * recorded before v1.32.0, whose same hash rows keep file order.
   * An aborted or failed call claims a number but appends no row, so
-  * gaps in the numbering are valid.
+  * gaps in the numbering are valid. An appending `record()` session
+  * seeds its counters past the numbers already on disk, so the
+  * numbering continues across sequential sessions; a duplicate
+  * number inside a fully numbered group refuses replay as ambiguous
+  * (v1.32.0 review P2).
   */
   occurrence?: number;
   requestHash: string;
@@ -195,8 +199,19 @@ declare function requestHash(req: ChatRequest): string;
 * the `stream()` call itself and persists it on the completed row,
 * so replay can restore the caller to response association even when
 * concurrent identical calls completed out of order (v1.31.0 review
-* P2). The wrapped adapters are drop-in: same ids, providers, caps,
-* and event streams.
+* P2). A later `record()` call on the same cassette file is an
+* appending session: the existing file is read and validated first
+* (a target that was never a cassette, a header whose hashVersion is
+* not the one this build records under, and a file whose occurrence
+* numbering is already ambiguous all refuse with a typed
+* ConfigError), and every hash counter is seeded past the numbers
+* already on disk, so the numbering continues where the file left
+* off instead of restarting at zero (v1.32.0 review P2). One
+* recorder session may be active on a cassette at a time: two
+* concurrently constructed recorders seed identically and claim
+* colliding numbers, which replay refuses as ambiguous instead of
+* silently serving either order. The wrapped adapters are drop-in:
+* same ids, providers, caps, and event streams.
 */
 declare function record(options: {
   adapters: ProviderAdapter[];
@@ -262,7 +277,11 @@ declare function readCassette(path: string): VcrCassette;
 * identical calls whose live completions were appended out of order
 * still replay to the callers that made them (v1.31.0 review P2); a
 * group with any unnumbered row (recorded before v1.32.0) keeps file
-* order.
+* order. A duplicate occurrence inside a fully numbered group
+* refuses the whole cassette with a typed ConfigError naming the
+* adapter and hash: it means two recorder sessions wrote the file
+* concurrently, and serving either order would hand a caller the
+* wrong exchange (v1.32.0 review P2).
 * A call after the last occurrence is a miss: under `onMiss: 'throw'`
 * it raises a VcrMissError whose `recordedOccurrences` says the hash
 * WAS recorded but is exhausted, and under `'passthrough'` it

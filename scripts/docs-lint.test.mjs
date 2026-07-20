@@ -11,7 +11,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { check8Violations, checkOrchestrateFence, hasArgsHashOverclaim } from './docs-lint.mjs';
+import {
+  check8Violations,
+  checkOrchestrateFence,
+  hasArgsHashOverclaim,
+  hasReplayOrderOverclaim,
+} from './docs-lint.mjs';
 
 /** @param {string[]} lines @returns {string} */
 const fence = (lines) => lines.join('\n');
@@ -204,4 +209,50 @@ test('the argsHash overclaim sentinel passes the corrective wording and its nega
     hasArgsHashOverclaim('Never the raw args, but the digest confers no confidentiality.'),
     false,
   );
+});
+
+// Check 10 sentinel: the replay order overclaim (v1.32.0 review P3).
+// Same hash rows replay in recorded call order since v1.32.0; a bare
+// "file order" ordering claim describes the retired semantics unless
+// its own sentence scopes it to legacy groups.
+test('the replay order overclaim sentinel flags the shipped Evals guide phrasing', () => {
+  assert.equal(
+    hasReplayOrderOverclaim(
+      'rows sharing one canonical request hash replay one per call, in file order, so a ' +
+        'recorded retry or a repeated case replays exactly as it ran.',
+    ),
+    true,
+  );
+  // A qualifier in a NEIGHBORING sentence does not legitimize the claim.
+  assert.equal(
+    hasReplayOrderOverclaim(
+      'Identical requests replay in file order. Rows carry occurrence numbers since v1.32.0.',
+    ),
+    true,
+  );
+});
+
+test('the replay order overclaim sentinel passes scoped mentions', () => {
+  assert.equal(
+    hasReplayOrderOverclaim(
+      'every stream() call consumes exactly one occurrence, in recorded call order (file order ' +
+        'for groups recorded before v1.32.0, whose rows carry no occurrence numbers).',
+    ),
+    false,
+  );
+  assert.equal(
+    hasReplayOrderOverclaim('Legacy cassettes keep file order; nothing is renumbered.'),
+    false,
+  );
+  // A version number dot does not end a sentence, so the qualifier
+  // after "v1.32.0," still counts as the same sentence.
+  assert.equal(
+    hasReplayOrderOverclaim(
+      'replay one per call, in recorded call order (file order only for groups recorded ' +
+        'before v1.32.0, whose rows carry no occurrence numbers), so a recorded retry replays ' +
+        'exactly as it ran.',
+    ),
+    false,
+  );
+  assert.equal(hasReplayOrderOverclaim('A page not mentioning ordering at all.'), false);
 });

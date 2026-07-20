@@ -400,7 +400,7 @@ describe('repeated hashes replay as ordered occurrences (v1.29.0 review P2 and P
     expect(repOutcome.value).toBe('second try');
   });
 
-  it('three identical sequential requests consume three rows in file order', async () => {
+  it('three identical sequential requests consume three rows in recorded order', async () => {
     const cassette = cassettePath();
     const [recorded] = record({ adapters: [sequencedAdapter(['r1', 'r2', 'r3'])], cassette });
     for (let i = 0; i < 3; i += 1) {
@@ -1209,5 +1209,202 @@ describe('passthrough provenance, caller order occurrences, and deep finish shap
     );
     expect(readCassette(path).rows).toHaveLength(1);
     expect(() => replay({ cassette: path, onMiss: 'throw' })).not.toThrow();
+  });
+});
+
+describe('appending record sessions and occurrence integrity (v1.32.0 review P2)', () => {
+  const caps = new FakeAdapter({ agents: { '*': 'x' } }).caps();
+  const finishWith = (inputTokens: number, outputTokens: number): ChatEvent => ({
+    type: 'finish',
+    finish: { reason: 'stop' },
+    usage: { inputTokens, outputTokens, cacheReadTokens: 0, cacheWriteTokens: 0 },
+  });
+  /** An adapter answering the queued texts one call at a time. */
+  const sequenced = (texts: string[], id = 'fake'): ProviderAdapter => {
+    const queue = [...texts];
+    return {
+      id,
+      caps: () => caps,
+      // eslint-disable-next-line @typescript-eslint/require-await
+      async *stream(): AsyncIterable<ChatEvent> {
+        yield { type: 'text-delta', text: queue.shift() ?? 'EXHAUSTED' };
+        yield finishWith(2, 1);
+      },
+    };
+  };
+  /** Runs `count` sequential identical agent calls; resolves their answers. */
+  const run = async (adapters: ProviderAdapter[], count: number): Promise<unknown> => {
+    const workflow = defineWorkflow({ name: 'same-prompt' }, async (ctx) => {
+      const answers: unknown[] = [];
+      for (let call = 0; call < count; call += 1) {
+        answers.push(await ctx.agent('same prompt'));
+      }
+      return answers;
+    });
+    const engine = createEngine({
+      adapters,
+      stores: { journal: new InMemoryStore() },
+      defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+    });
+    const outcome = await engine.run(workflow, undefined).result;
+    expect(outcome.status).toBe('ok');
+    return outcome.value;
+  };
+  const cassetteLines = (cassette: string): string[] =>
+    readFileSync(cassette, 'utf8')
+      .split('\n')
+      .filter((line) => line !== '');
+  const rowTexts = (cassette: string): string[] =>
+    readCassette(cassette).rows.map((row) =>
+      row.events.map((event) => (event.type === 'text-delta' ? event.text : '')).join(''),
+    );
+  const rowOccurrences = (cassette: string): (number | undefined)[] =>
+    readCassette(cassette).rows.map((row) => row.occurrence);
+
+  it('a second record session continues the numbering and replay serves the call order across sessions', async () => {
+    const cassette = cassettePath();
+    expect(await run(record({ adapters: [sequenced(['A', 'B'])], cassette }), 2)).toEqual([
+      'A',
+      'B',
+    ]);
+    expect(await run(record({ adapters: [sequenced(['C'])], cassette }), 1)).toEqual(['C']);
+
+    expect(rowTexts(cassette)).toEqual(['A', 'B', 'C']);
+    expect(rowOccurrences(cassette)).toEqual([0, 1, 2]);
+    // Exactly one header line: an appending session never writes a second.
+    const lines = cassetteLines(cassette);
+    expect(lines).toHaveLength(4);
+    expect(lines.filter((line) => line.includes('"rulvar-vcr"'))).toHaveLength(1);
+
+    expect(await run(replay({ cassette, onMiss: 'throw' }), 3)).toEqual(['A', 'B', 'C']);
+  });
+
+  it('seeding skips past a gap instead of filling it', async () => {
+    const cassette = cassettePath();
+    await run(record({ adapters: [sequenced(['A', 'B'])], cassette }), 2);
+    // An aborted call between A and B would have claimed 1 and appended
+    // nothing; simulate that history by renumbering the B row to 2.
+    const lines = cassetteLines(cassette);
+    const moved = { ...(JSON.parse(lines[2] ?? '') as Record<string, unknown>), occurrence: 2 };
+    writeFileSync(cassette, `${[lines[0], lines[1], JSON.stringify(moved)].join('\n')}\n`, 'utf8');
+
+    await run(record({ adapters: [sequenced(['C'])], cassette }), 1);
+    expect(rowOccurrences(cassette)).toEqual([0, 2, 3]);
+    expect(await run(replay({ cassette, onMiss: 'throw' }), 3)).toEqual(['A', 'B', 'C']);
+  });
+
+  it('appending to a group recorded before v1.32.0 keeps the documented file order mode', async () => {
+    const cassette = cassettePath();
+    await run(record({ adapters: [sequenced(['A'])], cassette }), 1);
+    const lines = cassetteLines(cassette);
+    const legacy = JSON.parse(lines[1] ?? '') as Record<string, unknown>;
+    delete legacy.occurrence;
+    writeFileSync(cassette, `${[lines[0], JSON.stringify(legacy)].join('\n')}\n`, 'utf8');
+
+    await run(record({ adapters: [sequenced(['B'])], cassette }), 1);
+    expect(rowOccurrences(cassette)).toEqual([undefined, 0]);
+    // The mixed group is served in file order, never sorted by the
+    // numbers only some rows carry.
+    expect(await run(replay({ cassette, onMiss: 'throw' }), 2)).toEqual(['A', 'B']);
+  });
+
+  it('a duplicate occurrence refuses replay and appending record as ambiguous', async () => {
+    const cassette = cassettePath();
+    await run(record({ adapters: [sequenced(['D1'])], cassette }), 1);
+    const lines = cassetteLines(cassette);
+    writeFileSync(cassette, `${[...lines, lines[1]].join('\n')}\n`, 'utf8');
+
+    expect(() => replay({ cassette, onMiss: 'throw' })).toThrow(
+      /records occurrence 0 twice for adapter 'fake' hash \S+ two recorder sessions/,
+    );
+    expect(() => record({ adapters: [sequenced(['D2'])], cassette })).toThrow(
+      /records occurrence 0 twice/,
+    );
+  });
+
+  it('two concurrently constructed recorders collide and replay refuses instead of guessing', async () => {
+    const cassette = cassettePath();
+    const first = record({ adapters: [sequenced(['A'])], cassette });
+    const second = record({ adapters: [sequenced(['B'])], cassette });
+    expect(await run(first, 1)).toEqual(['A']);
+    expect(await run(second, 1)).toEqual(['B']);
+
+    expect(rowOccurrences(cassette)).toEqual([0, 0]);
+    expect(() => replay({ cassette, onMiss: 'throw' })).toThrow(/records occurrence 0 twice/);
+  });
+
+  it('record refuses a target file that was never a cassette, and an empty one', () => {
+    const garbage = cassettePath();
+    writeFileSync(garbage, 'this file was never a cassette\n', 'utf8');
+    expect(() => record({ adapters: [sequenced(['A'])], cassette: garbage })).toThrow(
+      /is not valid JSON; the cassette is corrupt or truncated/,
+    );
+
+    const wrongKind = cassettePath();
+    writeFileSync(wrongKind, '{"kind":"something-else"}\n', 'utf8');
+    expect(() => record({ adapters: [sequenced(['A'])], cassette: wrongKind })).toThrow(
+      /is not a rulvar VCR cassette/,
+    );
+
+    const empty = cassettePath();
+    writeFileSync(empty, '', 'utf8');
+    expect(() => record({ adapters: [sequenced(['A'])], cassette: empty })).toThrow(
+      /is not a rulvar VCR cassette/,
+    );
+  });
+
+  it('record refuses appending under a different hashVersion', async () => {
+    const cassette = cassettePath();
+    await run(record({ adapters: [sequenced(['A'])], cassette }), 1);
+    const lines = cassetteLines(cassette);
+    const header = {
+      ...(JSON.parse(lines[0] ?? '') as Record<string, unknown>),
+      hashVersion: CURRENT_HASH_VERSION - 1,
+    };
+    writeFileSync(cassette, `${[JSON.stringify(header), lines[1]].join('\n')}\n`, 'utf8');
+
+    expect(() => record({ adapters: [sequenced(['B'])], cassette })).toThrow(
+      /appending would mix two identity profiles under one header/,
+    );
+  });
+
+  it('occurrence seeding is scoped per adapter id', async () => {
+    const cassette = cassettePath();
+    const req: ChatRequest = {
+      model: FAKE_MODEL,
+      messages: [{ role: 'user', parts: [{ type: 'text', text: 'same' }] }],
+    };
+    const only = (adapters: ProviderAdapter[]): ProviderAdapter => {
+      const [head] = adapters;
+      if (head === undefined) {
+        throw new Error('expected one wrapped adapter');
+      }
+      return head;
+    };
+    const drain = async (adapter: ProviderAdapter): Promise<string> => {
+      let text = '';
+      for await (const event of adapter.stream(req)) {
+        if (event.type === 'text-delta') {
+          text += event.text;
+        }
+      }
+      return text;
+    };
+    const fake = only(record({ adapters: [sequenced(['A', 'B'])], cassette }));
+    expect(await drain(fake)).toBe('A');
+    expect(await drain(fake)).toBe('B');
+    // A different adapter id starts its own numbering at zero even for
+    // the same request hash; the same id seeds past its own rows.
+    expect(await drain(only(record({ adapters: [sequenced(['C'], 'other')], cassette })))).toBe(
+      'C',
+    );
+    expect(await drain(only(record({ adapters: [sequenced(['D'])], cassette })))).toBe('D');
+
+    expect(readCassette(cassette).rows.map((row) => [row.adapterId, row.occurrence])).toEqual([
+      ['fake', 0],
+      ['fake', 1],
+      ['other', 0],
+      ['fake', 2],
+    ]);
   });
 });

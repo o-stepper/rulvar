@@ -197,7 +197,7 @@ const ci = createEngine({
 });
 ```
 
-Suite, matrix, and sweep runners all execute sequentially in declaration order precisely so that cassette consumption is deterministic, and that determinism extends to identical requests: rows sharing one canonical request hash replay one per call, in file order, so a recorded retry or a repeated case replays exactly as it ran. `onMiss: 'throw'` raises a typed `VcrMissError` on any unrecorded request (or one whose recorded occurrences are exhausted), so a changed prompt or a new case fails CI loudly instead of quietly going live.
+Suite, matrix, and sweep runners all execute sequentially in declaration order precisely so that cassette consumption is deterministic, and that determinism extends to identical requests: rows sharing one canonical request hash replay one per call, in recorded call order (file order only for groups recorded before v1.32.0, whose rows carry no occurrence numbers), so a recorded retry or a repeated case replays exactly as it ran. `onMiss: 'throw'` raises a typed `VcrMissError` on any unrecorded request (or one whose recorded occurrences are exhausted), so a changed prompt or a new case fails CI loudly instead of quietly going live.
 
 ## Matrix sweeps across models
 

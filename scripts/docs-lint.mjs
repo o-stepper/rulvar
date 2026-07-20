@@ -94,6 +94,36 @@ export function hasArgsHashOverclaim(text) {
   return ARGSHASH_OVERCLAIM.some((pattern) => pattern.test(text));
 }
 
+/**
+ * The replay order overclaim sentinel (v1.32.0 review P3). Since
+ * v1.32.0 same hash cassette rows replay in recorded call order; file
+ * order survives only for groups recorded before v1.32.0 (rows
+ * without occurrence numbers) and groups with mixed numbering. The
+ * Evals guide shipped one release stating the retired semantics
+ * ("replay one per call, in file order") while the Testing guide
+ * stated the current one: two contracts for one public function. So
+ * every "file order" mention must sit in a sentence that also scopes
+ * it (occurrence, legacy, or before v1.32). Sentence boundaries are a
+ * dot followed by whitespace, so a version number like v1.32.0 does
+ * not end one, and the qualifier must share the sentence rather than
+ * merely appear later on the page (a neighboring sentence about
+ * occurrences must not legitimize an unscoped ordering claim).
+ */
+const FILE_ORDER = /\bfile order\b/iu;
+const FILE_ORDER_QUALIFIER = /occurrence|legacy|before v1\.32/iu;
+const REPLAY_ORDER_MESSAGE =
+  'replay order overclaim (v1.32.0 review P3): same hash cassette rows replay in recorded call ' +
+  'order since v1.32.0; file order survives only for groups recorded before v1.32.0 (no ' +
+  'occurrence numbers). Scope the file order mention in its own sentence (occurrence, legacy, ' +
+  'or before v1.32) instead of stating it as the ordering rule';
+
+/** @param {string} text @returns {boolean} */
+export function hasReplayOrderOverclaim(text) {
+  return text
+    .split(/(?<=\.)\s+/u)
+    .some((sentence) => FILE_ORDER.test(sentence) && !FILE_ORDER_QUALIFIER.test(sentence));
+}
+
 const EXCLUDED_DIRS = new Set(['api', 'node_modules', '.vitepress']);
 const EXCLUDED_FILES = new Set(
   ['contributing/index.md', 'reference/changelog.md'].map((p) => p.split('/').join(sep)),
@@ -355,6 +385,9 @@ function main() {
       }
       if (hasArgsHashOverclaim(line)) {
         fail(file, n, ARGSHASH_OVERCLAIM_MESSAGE);
+      }
+      if (hasReplayOrderOverclaim(line)) {
+        fail(file, n, REPLAY_ORDER_MESSAGE);
       }
       if (!inFence && VUE_INTERPOLATION.test(line)) {
         fail(
