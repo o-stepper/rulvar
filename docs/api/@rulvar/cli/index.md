@@ -44,6 +44,9 @@ pnpm exec rulvar --help
 | [CommandContext](/api/@rulvar/cli/interfaces/CommandContext.md) | - |
 | [CreateServerOptions](/api/@rulvar/cli/interfaces/CreateServerOptions.md) | - |
 | [CreateWorkerOptions](/api/@rulvar/cli/interfaces/CreateWorkerOptions.md) | - |
+| [KbSweepCliConfig](/api/@rulvar/cli/interfaces/KbSweepCliConfig.md) | The kb sweep config: a FIXED pool (sweep volume is never authorized by proposal volume) plus the cases per taskClass. Structural sweep shapes only: the CLI's static dependency stays @rulvar/core and @rulvar/evals loads dynamically at command time (the plan-command precedent), so graders and cases are typed by the config module. |
+| [LoadedWorkflowModule](/api/@rulvar/cli/interfaces/LoadedWorkflowModule.md) | - |
+| [OtelContextApi](/api/@rulvar/cli/interfaces/OtelContextApi.md) | Minimal OTel context surface (setSpan/with) for parentage. |
 | [RulvarServer](/api/@rulvar/cli/interfaces/RulvarServer.md) | - |
 | [SpanLike](/api/@rulvar/cli/interfaces/SpanLike.md) | The tiny subset of the OTel Tracer/Span API the exporter uses. |
 | [ToOtelOptions](/api/@rulvar/cli/interfaces/ToOtelOptions.md) | - |
@@ -54,6 +57,7 @@ pnpm exec rulvar --help
 
 | Variable | Description |
 | ------ | ------ |
+| [DEFAULT\_MAX\_PENDING\_EVENTS\_PER\_CLIENT](/api/@rulvar/cli/variables/DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT.md) | The default per-connection pending-frame bound: generous enough that a reading consumer never notices (a normal reader keeps the queue near empty), small enough that a consumer that stopped reading cannot grow process memory past a few megabytes per connection. |
 | [DEFAULT\_STORE\_DIR](/api/@rulvar/cli/variables/DEFAULT_STORE_DIR.md) | - |
 | [DEFAULT\_WORKER\_TTL\_MS](/api/@rulvar/cli/variables/DEFAULT_WORKER_TTL_MS.md) | Appendix A: the committed reference lease ttl. |
 | [HELP](/api/@rulvar/cli/variables/HELP.md) | @rulvar/cli: the Rulvar shell (https://docs.rulvar.com/guide/cli). M5 surface: run/resume/runs ls/inspect over the canonical grammar, TUI progress on the event stream, interactive resolution of suspended approvals and externals. plan/kb commands land M6+/M10; createServer/createWorker land M8; the OTel exporter lands M5-T08. |

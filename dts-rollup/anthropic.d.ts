@@ -121,13 +121,8 @@ declare class IdMap {
   canonicalFor(wireId: string): CanonicalId;
   wireFor(canonicalId: CanonicalId): string;
 }
+/** A raw Messages API content block, structurally typed. */
 type Block = Record<string, unknown>;
-/**
-* Returns a deep copy of the schema with the unsupported keywords
-* removed at SCHEMA positions only: a property literally named
-* "minimum" (a key inside `properties`) survives. The input is never
-* mutated; unrecognized keywords are copied through untouched.
-*/
 /**
 * Builds Messages API params from a ChatRequest. cacheHint compiles into
 * cache_control breakpoints; beyond the provider cap of 4 the DEEPEST
@@ -186,4 +181,4 @@ declare function mapAnthropicStream(stream: AsyncIterable<AnthropicStreamEvent>,
 */
 declare function anthropicErrorToWire(error: unknown): WireError;
 //#endregion
-export { ANTHROPIC_MODELS, ANTHROPIC_PRICING, type AnthropicAdapterOptions, type AnthropicClientLike, type AnthropicModelInfo, type AnthropicSdkOptions, type AnthropicStreamEvent, DEFAULT_PAUSE_TURN_MAX_CONTINUATIONS, IdMap, type TurnMapping, anthropic, anthropicErrorToWire, anthropicModelInfo, buildAnthropicParams, mapAnthropicStream, mapStopReason, normalizeAnthropicUsage };
+export { ANTHROPIC_MODELS, ANTHROPIC_PRICING, type AnthropicAdapterOptions, type AnthropicClientLike, type AnthropicModelInfo, type AnthropicSdkOptions, type AnthropicStreamEvent, type Block, DEFAULT_PAUSE_TURN_MAX_CONTINUATIONS, IdMap, type MappedStop, type TurnMapping, anthropic, anthropicErrorToWire, anthropicModelInfo, buildAnthropicParams, mapAnthropicStream, mapStopReason, normalizeAnthropicUsage };

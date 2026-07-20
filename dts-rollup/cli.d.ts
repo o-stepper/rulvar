@@ -188,6 +188,8 @@ interface CreateServerOptions {
   * settled tracked runs beyond the cap are released exactly like a
   * `memoryRetention` verdict (durable state untouched). Live runs are
   * never evicted and do not count toward the cap. Absent means no cap.
+  * Validated at construction: a non-negative safe integer (zero keeps
+  * no settled runs), anything else is a typed ConfigError.
   */
   maxTrackedRuns?: number;
   /**
@@ -198,10 +200,33 @@ interface CreateServerOptions {
   * cursor carries `x-rulvar-events-dropped: <count>` and a leading SSE
   * comment naming the first retained seq; the journal remains the
   * durable record of the run itself. Absent means unbounded (the
-  * historical behavior).
+  * historical behavior). Validated at construction: a positive safe
+  * integer, anything else is a typed ConfigError.
   */
   maxBufferedEventsPerRun?: number;
+  /**
+  * Upper bound on SSE frames PENDING in one client connection's
+  * response queue, replay and live feed alike (v1.26.0 deep E2E
+  * review P1-2: the replay buffer bound does not bound what a
+  * connected consumer that stopped reading accumulates). When a
+  * connection's pending queue reaches the bound, the server unhooks
+  * the feed, appends an SSE comment naming the bound, and CLOSES that
+  * connection; queued frames stay readable, and the standard
+  * Last-Event-ID reconnect resumes strictly after the last frame the
+  * client consumed. A replay longer than the bound is likewise
+  * delivered in bounded chunks across reconnects, so pending memory
+  * per connection is O(bound), never O(events). Validated at
+  * construction: a positive safe integer. Defaults to 10000.
+  */
+  maxPendingEventsPerClient?: number;
 }
+/**
+* The default per-connection pending-frame bound: generous enough that
+* a reading consumer never notices (a normal reader keeps the queue
+* near empty), small enough that a consumer that stopped reading
+* cannot grow process memory past a few megabytes per connection.
+*/
+declare const DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT = 1e4;
 interface RulvarServer {
   fetch(req: Request): Promise<Response>;
 }
@@ -315,4 +340,4 @@ declare function toOtel(run: {
   result: Promise<RunOutcome<unknown>>;
 }, tracer: TracerLike, options?: ToOtelOptions): Promise<number>;
 //#endregion
-export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type RulvarServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, assembleEngine, attachProgress, createServer, createWorker, driveRun, inspectCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, toOtel };
+export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type KbSweepCliConfig, type LoadedWorkflowModule, type OtelContextApi, type RulvarServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, assembleEngine, attachProgress, createServer, createWorker, driveRun, inspectCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, toOtel };

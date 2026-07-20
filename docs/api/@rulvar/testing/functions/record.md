@@ -10,7 +10,7 @@
 function record(options): ProviderAdapter[];
 ```
 
-Defined in: [packages/testing/src/vcr.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L136)
+Defined in: [packages/testing/src/vcr.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L137)
 
 Wraps live adapters for recording: every completed stream appends one
 redacted row to the cassette JSONL. The wrapped adapters are drop-in:

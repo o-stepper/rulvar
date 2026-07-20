@@ -43,7 +43,8 @@ export interface VcrRow {
   model: string;
 }
 
-interface VcrHeader {
+/** The first line of every cassette file: format and hash provenance. */
+export interface VcrHeader {
   v: 1;
   kind: 'rulvar-vcr';
   hashVersion: number;

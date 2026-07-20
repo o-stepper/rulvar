@@ -118,6 +118,7 @@ exactly the pieces you need, for example
 | [ApprovalDecision](/api/@rulvar/core/interfaces/ApprovalDecision.md) | The resolution value shape of a tool-approval suspension (M3-T03). |
 | [ApprovalIdentityInput](/api/@rulvar/core/interfaces/ApprovalIdentityInput.md) | Tool-approval suspensions (kind 'approval'). |
 | [Artifact](/api/@rulvar/core/interfaces/Artifact.md) | Artifact: the normative shape of AgentResult.artifacts entries. |
+| [BaseAppend](/api/@rulvar/core/interfaces/BaseAppend.md) | Fields common to every append through the kernel. |
 | [BriefOpts](/api/@rulvar/core/interfaces/BriefOpts.md) | Options of ctx.brief (concrete shape fixed in M6-T10): the content to distill plus an optional instruction; the invocation resolves role 'summarize', so it needs defaults.routing.summarize, a profile, or the explicit model. |
 | [BudgetAccountView](/api/@rulvar/core/interfaces/BudgetAccountView.md) | Read-only projection of one account. |
 | [BudgetDefaults](/api/@rulvar/core/interfaces/BudgetDefaults.md) | - |
@@ -229,7 +230,7 @@ exactly the pieces you need, for example
 | [SerializationHook](/api/@rulvar/core/interfaces/SerializationHook.md) | createEngine({ serialization }): absent means identity, no wrapping. |
 | [ShellPatternRules](/api/@rulvar/core/interfaces/ShellPatternRules.md) | - |
 | [ShellSegment](/api/@rulvar/core/interfaces/ShellSegment.md) | Argv-parsing shell matcher (M5-T06): shell allow/ask/deny is matched through a real argv parser, never a string prefix. The composition rule is the entire point: for a compound command the verdict is the strictest across segments, and any unmatched segment yields ask, never a silent allow: `npm test; rm -rf /` MUST yield ask (or deny when rm patterns are denied) even when `npm test` is allow-listed. |
-| [SinglePhaseAppend](/api/@rulvar/core/interfaces/SinglePhaseAppend.md) | - |
+| [SinglePhaseAppend](/api/@rulvar/core/interfaces/SinglePhaseAppend.md) | Fields common to every append through the kernel. |
 | [SpanMinter](/api/@rulvar/core/interfaces/SpanMinter.md) | Mints span ids in the run > phase > agent > tool > child hierarchy. |
 | [SpawnAdmissionValue](/api/@rulvar/core/interfaces/SpawnAdmissionValue.md) | The journaled spawn-admission payload the runtime writes and recovers. |
 | [SpawnAgentParams](/api/@rulvar/core/interfaces/SpawnAgentParams.md) | The spawn parameters as validated JSON (a TaskSpec subset). |
@@ -239,7 +240,7 @@ exactly the pieces you need, for example
 | [StandardJSONSchemaV1](/api/@rulvar/core/interfaces/StandardJSONSchemaV1.md) | The Standard JSON Schema interface. |
 | [StandardSchemaV1](/api/@rulvar/core/interfaces/StandardSchemaV1.md) | The Standard Schema interface. |
 | [StepIdentityInput](/api/@rulvar/core/interfaces/StepIdentityInput.md) | Journaled effectful steps: ctx.step (kind 'step'). |
-| [SuspendedAppend](/api/@rulvar/core/interfaces/SuspendedAppend.md) | - |
+| [SuspendedAppend](/api/@rulvar/core/interfaces/SuspendedAppend.md) | Fields common to every append through the kernel. |
 | [TaskDigest](/api/@rulvar/core/interfaces/TaskDigest.md) | The per-child digest handed to the orchestrator. |
 | [TerminalPatch](/api/@rulvar/core/interfaces/TerminalPatch.md) | - |
 | [TerminationAccountSnapshot](/api/@rulvar/core/interfaces/TerminationAccountSnapshot.md) | - |

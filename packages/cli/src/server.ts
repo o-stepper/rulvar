@@ -17,7 +17,12 @@
  * maps Last-Event-ID to the event seq (the per-run telemetry counter);
  * replay is at-least-once by design, matching the
  * journal-backed re-emission contract (consumers
- * deduplicate on `replayed`).
+ * deduplicate on `replayed`). A terminal settle closes connected
+ * streams only AFTER the segment's event pump has delivered the full
+ * tail (run:end included), and every connection's pending queue is
+ * bounded by maxPendingEventsPerClient: a consumer that stops reading
+ * is closed at the bound and resumes through the standard
+ * Last-Event-ID replay window (v1.26.0 deep E2E review P1-1/P1-2).
  *
  * The server is a single-process shell: it tracks the runs it started
  * (or resumed) in memory and serves everything else from the engine's
@@ -28,6 +33,7 @@
  * because original run arguments are not journaled in v1 (OQ-21).
  */
 import {
+  ConfigError,
   InvalidResolutionError,
   RulvarError,
   Replayer,
@@ -91,6 +97,8 @@ export interface CreateServerOptions {
    * settled tracked runs beyond the cap are released exactly like a
    * `memoryRetention` verdict (durable state untouched). Live runs are
    * never evicted and do not count toward the cap. Absent means no cap.
+   * Validated at construction: a non-negative safe integer (zero keeps
+   * no settled runs), anything else is a typed ConfigError.
    */
   maxTrackedRuns?: number;
   /**
@@ -101,10 +109,34 @@ export interface CreateServerOptions {
    * cursor carries `x-rulvar-events-dropped: <count>` and a leading SSE
    * comment naming the first retained seq; the journal remains the
    * durable record of the run itself. Absent means unbounded (the
-   * historical behavior).
+   * historical behavior). Validated at construction: a positive safe
+   * integer, anything else is a typed ConfigError.
    */
   maxBufferedEventsPerRun?: number;
+  /**
+   * Upper bound on SSE frames PENDING in one client connection's
+   * response queue, replay and live feed alike (v1.26.0 deep E2E
+   * review P1-2: the replay buffer bound does not bound what a
+   * connected consumer that stopped reading accumulates). When a
+   * connection's pending queue reaches the bound, the server unhooks
+   * the feed, appends an SSE comment naming the bound, and CLOSES that
+   * connection; queued frames stay readable, and the standard
+   * Last-Event-ID reconnect resumes strictly after the last frame the
+   * client consumed. A replay longer than the bound is likewise
+   * delivered in bounded chunks across reconnects, so pending memory
+   * per connection is O(bound), never O(events). Validated at
+   * construction: a positive safe integer. Defaults to 10000.
+   */
+  maxPendingEventsPerClient?: number;
 }
+
+/**
+ * The default per-connection pending-frame bound: generous enough that
+ * a reading consumer never notices (a normal reader keeps the queue
+ * near empty), small enough that a consumer that stopped reading
+ * cannot grow process memory past a few megabytes per connection.
+ */
+export const DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT = 10_000;
 
 export interface RulvarServer {
   fetch(req: Request): Promise<Response>;
@@ -135,8 +167,12 @@ interface TrackedRun {
   buffer: WorkflowEvent[];
   /** Oldest events dropped from the buffer by the configured bound. */
   dropped: number;
-  /** Live SSE feeds; fed `null` exactly once at the terminal settle. */
-  feeds: Set<(event: WorkflowEvent | null) => void>;
+  /**
+   * Live SSE feeds; fed `null` exactly once at the terminal settle,
+   * AFTER the segment's event pump drained (an optional note becomes a
+   * closing SSE comment when delivery could not be proven complete).
+   */
+  feeds: Set<(event: WorkflowEvent | null, note?: string) => void>;
   handle: RunHandle<unknown>;
   /** The latest settled outcome; undefined while a segment is in flight. */
   outcome?: RunOutcome<unknown>;
@@ -208,8 +244,30 @@ function suspensionKeyOf(entry: JournalEntry): string | undefined {
   return undefined;
 }
 
+/**
+ * Rejects a numeric cap outside its documented domain with a typed
+ * ConfigError at construction (v1.26.0 deep E2E review P2-1: NaN
+ * silently meant unbounded, Infinity looked like a cap without capping,
+ * negatives and fractions produced policies nobody asked for).
+ */
+function requireCap(name: string, value: number | undefined, minimum: 0 | 1): void {
+  if (value === undefined) {
+    return;
+  }
+  if (!Number.isSafeInteger(value) || value < minimum) {
+    throw new ConfigError(
+      `createServer ${name} must be a ${minimum === 0 ? 'non-negative' : 'positive'} ` +
+        `safe integer, got ${String(value)}`,
+    );
+  }
+}
+
 export function createServer(options: CreateServerOptions): RulvarServer {
   const { engine, workflows } = options;
+  requireCap('maxTrackedRuns', options.maxTrackedRuns, 0);
+  requireCap('maxBufferedEventsPerRun', options.maxBufferedEventsPerRun, 1);
+  requireCap('maxPendingEventsPerClient', options.maxPendingEventsPerClient, 1);
+  const pendingCap = options.maxPendingEventsPerClient ?? DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT;
   const journal = engine.stores.journal;
   const runs = new Map<string, TrackedRun>();
 
@@ -249,43 +307,66 @@ export function createServer(options: CreateServerOptions): RulvarServer {
   function attach(run: TrackedRun, handle: RunHandle<unknown>): void {
     run.handle = handle;
     run.outcome = undefined;
-    void (async () => {
+    let pumpFailed = false;
+    // THIS segment's pump; the terminal routine below awaits exactly it
+    // (a later resume segment installs its own pump and its own await).
+    const pump = (async () => {
       for await (const event of handle.events) {
         pushBuffered(run, event);
         for (const feed of [...run.feeds]) {
           feed(event);
         }
       }
-    })().catch(() => undefined);
+    })().catch(() => {
+      pumpFailed = true;
+    });
     void handle.result
-      .then((outcome) => {
+      .then(async (outcome) => {
+        // The outcome is authoritative immediately (GET /runs/:id and
+        // the resolve guards read it); only the EVENT-side terminal
+        // moves after the drain below.
         run.outcome = outcome;
-        if (outcome.status !== 'suspended') {
-          run.done = true;
-          for (const feed of [...run.feeds]) {
-            feed(null);
-          }
-          run.feeds.clear();
-          // The retention cascade at the terminal settle: durable
-          // retention first (deletes the record AND untracks), then
-          // memory retention (untracks only), then the settled cap.
-          void (async () => {
-            const meta =
-              options.retention === undefined && options.memoryRetention === undefined
-                ? undefined
-                : await metaOf(run.runId);
-            if (meta !== undefined && options.retention?.(meta) === true) {
-              await engine.deleteRun(run.runId);
-              runs.delete(run.runId);
-              return;
-            }
-            if (meta !== undefined && options.memoryRetention?.(meta) === true) {
-              runs.delete(run.runId);
-              return;
-            }
-            enforceTrackedCap();
-          })().catch(() => undefined);
+        if (outcome.status === 'suspended') {
+          return;
         }
+        // Deliver the terminal tail before closing: handle.events
+        // completes at the settle, so awaiting the pump proves every
+        // event the run emitted (run:end included) reached the buffer
+        // and the connected feeds. Closing on the result alone raced
+        // the pump and silently swallowed the backlog (v1.26.0 deep
+        // E2E review P1-1).
+        await pump;
+        run.done = true;
+        for (const feed of [...run.feeds]) {
+          feed(
+            null,
+            pumpFailed
+              ? 'event pump failed; the stream may be incomplete, ' +
+                  'reconnect with Last-Event-ID to replay'
+              : undefined,
+          );
+        }
+        run.feeds.clear();
+        // The retention cascade at the terminal settle: durable
+        // retention first (deletes the record AND untracks), then
+        // memory retention (untracks only), then the settled cap. It
+        // runs after the drain so the released buffer is the full one.
+        void (async () => {
+          const meta =
+            options.retention === undefined && options.memoryRetention === undefined
+              ? undefined
+              : await metaOf(run.runId);
+          if (meta !== undefined && options.retention?.(meta) === true) {
+            await engine.deleteRun(run.runId);
+            runs.delete(run.runId);
+            return;
+          }
+          if (meta !== undefined && options.memoryRetention?.(meta) === true) {
+            runs.delete(run.runId);
+            return;
+          }
+          enforceTrackedCap();
+        })().catch(() => undefined);
       })
       .catch(() => undefined);
   }
@@ -419,7 +500,18 @@ export function createServer(options: CreateServerOptions): RulvarServer {
     }
     const lastEventId = req.headers.get('last-event-id');
     const encoder = new TextEncoder();
-    let feed: ((event: WorkflowEvent | null) => void) | undefined;
+    let feed: ((event: WorkflowEvent | null, note?: string) => void) | undefined;
+    // Pending frames in THIS connection's queue: the stream uses the
+    // default count queuing strategy (highWaterMark 1), so desiredSize
+    // is 1 minus the queued chunk count; null means the stream errored
+    // or was cancelled and nothing should be enqueued.
+    const pendingOf = (controller: ReadableStreamDefaultController<Uint8Array>): number | null => {
+      const desired = controller.desiredSize;
+      return desired === null ? null : 1 - desired;
+    };
+    const slowConsumerComment =
+      `: pending frames reached maxPendingEventsPerClient (${pendingCap}); ` +
+      'reconnect with Last-Event-ID to continue\n\n';
     // Replay strictly AFTER the client's cursor. The buffer is
     // ascending by seq, so the resume point is a binary search, and the
     // replay walks the buffer by index (never a slice copy). A cursor
@@ -470,19 +562,52 @@ export function createServer(options: CreateServerOptions): RulvarServer {
             ),
           );
         }
+        // The replay obeys the per-connection pending bound too: a
+        // backlog longer than the bound is delivered in bounded chunks,
+        // each reconnect resuming from the client's Last-Event-ID.
         for (let i = startIndex; i < run.buffer.length; i += 1) {
+          const pending = pendingOf(controller);
+          if (pending === null) {
+            return;
+          }
+          if (pending >= pendingCap) {
+            controller.enqueue(encoder.encode(slowConsumerComment));
+            controller.close();
+            return;
+          }
           controller.enqueue(encoder.encode(sseFrame(run.buffer[i])));
         }
         if (run.done) {
           controller.close();
           return;
         }
-        feed = (event) => {
+        feed = (event, note) => {
           if (event === null) {
             try {
+              if (note !== undefined) {
+                controller.enqueue(encoder.encode(`: ${note}\n\n`));
+              }
               controller.close();
             } catch {
               // The consumer may have cancelled concurrently.
+            }
+            return;
+          }
+          const pending = pendingOf(controller);
+          if (pending !== null && pending >= pendingCap) {
+            // This connection stopped consuming: unhook and close so
+            // the standard Last-Event-ID reconnect lands on the replay
+            // window instead of growing an unbounded per-connection
+            // queue (v1.26.0 deep E2E review P1-2). close() keeps the
+            // already queued frames readable.
+            if (feed !== undefined) {
+              run.feeds.delete(feed);
+            }
+            try {
+              controller.enqueue(encoder.encode(slowConsumerComment));
+              controller.close();
+            } catch {
+              // The consumer cancelled concurrently.
             }
             return;
           }
@@ -506,7 +631,11 @@ export function createServer(options: CreateServerOptions): RulvarServer {
   /** The tracked path: live (or settled-suspended) in this process. */
   async function resolveTracked(run: TrackedRun, key: string, value: Json): Promise<Response> {
     const section = run.queue.then(async (): Promise<Response> => {
-      if (run.done) {
+      // run.done flips only after the terminal event drain; the settled
+      // outcome itself is the authority for refusing a resolution.
+      const settledTerminal =
+        run.done || (run.outcome !== undefined && run.outcome.status !== 'suspended');
+      if (settledTerminal) {
         return json(409, {
           error: {
             code: 'config',

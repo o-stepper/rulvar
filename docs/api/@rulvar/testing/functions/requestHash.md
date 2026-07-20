@@ -10,7 +10,7 @@
 function requestHash(req): string;
 ```
 
-Defined in: [packages/testing/src/vcr.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L109)
+Defined in: [packages/testing/src/vcr.ts:110](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L110)
 
 The cassette key: a hash of the canonical wire-contract request. The
 engine-populated telemetry namespace is excluded (never identity);

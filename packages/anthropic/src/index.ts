@@ -18,4 +18,4 @@ export {
   mapStopReason,
   normalizeAnthropicUsage,
 } from './wire.js';
-export type { AnthropicStreamEvent, TurnMapping } from './wire.js';
+export type { AnthropicStreamEvent, Block, MappedStop, TurnMapping } from './wire.js';

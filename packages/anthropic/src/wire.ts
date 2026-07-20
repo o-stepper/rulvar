@@ -54,7 +54,8 @@ export class IdMap {
   }
 }
 
-type Block = Record<string, unknown>;
+/** A raw Messages API content block, structurally typed. */
+export type Block = Record<string, unknown>;
 
 /**
  * Keywords the constrained-decoding schema validator rejects with a

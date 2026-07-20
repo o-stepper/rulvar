@@ -144,7 +144,7 @@ never enter identity.
 
 | Parameter | Type |
 | ------ | ------ |
-| `input` | `BaseAppend` & \{ `memoizeOutcome?`: `boolean`; `value?`: `unknown`; \} |
+| `input` | [`BaseAppend`](/api/@rulvar/core/interfaces/BaseAppend.md) & \{ `memoizeOutcome?`: `boolean`; `value?`: `unknown`; \} |
 
 #### Returns
 

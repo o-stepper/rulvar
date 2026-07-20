@@ -16,10 +16,10 @@ Defined in: [packages/cli/src/engine-assembly.ts:43](https://github.com/o-steppe
 
 | Parameter | Type |
 | ------ | ------ |
-| `options` | \{ `config`: [`CliConfig`](/api/@rulvar/cli/interfaces/CliConfig.md); `cwd`: `string`; `module?`: `LoadedWorkflowModule`; `profile?`: `string`; `storePath?`: `string`; \} |
+| `options` | \{ `config`: [`CliConfig`](/api/@rulvar/cli/interfaces/CliConfig.md); `cwd`: `string`; `module?`: [`LoadedWorkflowModule`](/api/@rulvar/cli/interfaces/LoadedWorkflowModule.md); `profile?`: `string`; `storePath?`: `string`; \} |
 | `options.config` | [`CliConfig`](/api/@rulvar/cli/interfaces/CliConfig.md) |
 | `options.cwd` | `string` |
-| `options.module?` | `LoadedWorkflowModule` |
+| `options.module?` | [`LoadedWorkflowModule`](/api/@rulvar/cli/interfaces/LoadedWorkflowModule.md) |
 | `options.profile?` | `string` |
 | `options.storePath?` | `string` |
 

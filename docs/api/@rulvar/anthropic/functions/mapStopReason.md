@@ -10,7 +10,7 @@
 function mapStopReason(stopReason, stopDetails): MappedStop;
 ```
 
-Defined in: [packages/anthropic/src/wire.ts:348](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L348)
+Defined in: [packages/anthropic/src/wire.ts:349](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L349)
 
 The stop-reason table. pause_turn never surfaces as
 a canonical finish: the adapter continues internally.
@@ -24,4 +24,4 @@ a canonical finish: the adapter continues internally.
 
 ## Returns
 
-`MappedStop`
+[`MappedStop`](/api/@rulvar/anthropic/interfaces/MappedStop.md)

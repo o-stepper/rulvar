@@ -10,7 +10,7 @@
 function anthropicErrorToWire(error): WireError;
 ```
 
-Defined in: [packages/anthropic/src/wire.ts:595](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L595)
+Defined in: [packages/anthropic/src/wire.ts:596](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L596)
 
 Projects an SDK/API error into the retryable WireError vocabulary:
 429 rate limits surface retryAfterMs and the x-ratelimit-* buckets; 529
