@@ -469,13 +469,7 @@ async function streamTurn(
           // enforces the same telemetry invariant as the finish path
           // (v1.20.0 review P1-1): a non-finite, negative, or fractional
           // delta is repaired conservatively BEFORE it can debit or
-          // credit anything, and the violation fails the call loud. A
-          // delta AFTER the finish event could revise the authoritative
-          // bill downward, so it is refused outright.
-          if (sawFinish) {
-            usageViolation ??= 'a usage event arrived after the finish event';
-            break;
-          }
+          // credit anything, and the violation fails the call loud.
           const cleaned: Partial<Usage> = {};
           for (const field of [
             'inputTokens',
@@ -510,13 +504,6 @@ async function streamTurn(
           break;
         }
         case 'finish':
-          // Exactly one terminal event per stream is the adapter
-          // contract; a second finish could replace the authoritative
-          // usage with smaller numbers and zero the bill.
-          if (sawFinish) {
-            usageViolation ??= 'a second finish event arrived on one stream';
-            break;
-          }
           sawFinish = true;
           finish = event.finish;
           usage = event.usage;
@@ -526,7 +513,13 @@ async function streamTurn(
           wireError = event.error;
           break;
       }
-      if (wireError !== undefined) {
+      // A finish or error event is terminal by contract: consumption
+      // stops at the first one (the break closes the adapter iterator),
+      // so events after the terminal can never mutate the turn, revise
+      // the authoritative bill, or trigger tool execution, and a
+      // provider that keeps streaming past its terminal cannot stall
+      // the loop (v1.27.0 review P2).
+      if (sawFinish || wireError !== undefined) {
         break;
       }
     }
@@ -556,6 +549,23 @@ async function streamTurn(
       outcome.usageViolation = usageViolation;
     }
     return outcome;
+  }
+  // Fail closed on truncation (v1.27.0 review P1): a stream that
+  // drained naturally without any terminal event is a provider fault
+  // per the adapter contract (exactly one finish or error per stream);
+  // accepting the partial turn as success would journal a truncated
+  // response as durable truth. The requested abort above is the one
+  // documented exception.
+  if (!sawFinish && wireError === undefined) {
+    wireError = {
+      code: 'agent',
+      message:
+        `adapter '${adapter.id}' stream ended without a terminal finish or error event; ` +
+        'the adapter contract requires exactly one per stream, so the partial turn is ' +
+        'discarded as a retryable transport fault',
+      retryable: true,
+      data: { kind: 'transport' },
+    };
   }
   const outcome: TurnOutcome = { turn, usage, reported, usageApprox: !sawFinish };
   if (finish !== undefined) {

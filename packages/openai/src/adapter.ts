@@ -151,7 +151,10 @@ export function openai(options: OpenAiAdapterOptions = {}): ProviderAdapter {
             { ...params, stream: true },
             signal === undefined ? undefined : { signal },
           )) as AsyncIterable<ResponsesStreamEvent>;
-          yield* mapResponsesStream(stream, ids, { effortDownmapped });
+          yield* mapResponsesStream(stream, ids, {
+            effortDownmapped,
+            ...(signal === undefined ? {} : { signal }),
+          });
         } else {
           // Degraded-path selection is a caps fact, visible in events,
           // never silent: the finish event carries
@@ -161,7 +164,11 @@ export function openai(options: OpenAiAdapterOptions = {}): ProviderAdapter {
             { ...params, stream: true, stream_options: { include_usage: true } },
             signal === undefined ? undefined : { signal },
           )) as AsyncIterable<Record<string, unknown>>;
-          yield* mapChatCompletionsStream(stream, ids);
+          yield* mapChatCompletionsStream(
+            stream,
+            ids,
+            signal === undefined ? undefined : { signal },
+          );
         }
       } catch (thrown) {
         if (signal?.aborted !== true) {

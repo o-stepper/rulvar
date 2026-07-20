@@ -328,6 +328,35 @@ describe('Responses stream mapping (M1-T13; docs/04 section 5.4)', () => {
       }),
     ).toEqual({ inputTokens: 100, outputTokens: 10, cacheReadTokens: 30, cacheWriteTokens: 0 });
   });
+
+  it('fails closed on a drained stream without a response terminal (v1.27.0 review P1)', async () => {
+    const events = await collect(
+      mapResponsesStream(
+        fixture([{ type: 'response.output_text.delta', delta: 'PARTIAL_ONLY' }]),
+        ids(),
+      ),
+    );
+    expect(events.map((e) => e.type)).toEqual(['text-delta', 'error']);
+    const error = events.at(-1) as Extract<ChatEvent, { type: 'error' }>;
+    expect(error.error.retryable).toBe(true);
+    expect((error.error.data as { kind?: string }).kind).toBe('transport');
+    expect(error.error.message).toContain('without a response terminal event');
+  });
+
+  it('a requested abort ends the drained stream with no terminal event', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const events = await collect(
+      mapResponsesStream(
+        fixture([{ type: 'response.output_text.delta', delta: 'partial' }]),
+        ids(),
+        {
+          signal: controller.signal,
+        },
+      ),
+    );
+    expect(events.map((e) => e.type)).toEqual(['text-delta']);
+  });
 });
 
 describe('Chat Completions degraded path (M1-T13; docs/04 section 5.6)', () => {
@@ -413,6 +442,60 @@ describe('Chat Completions degraded path (M1-T13; docs/04 section 5.6)', () => {
     expect(finish.finish).toEqual({ reason: 'tool-calls' });
     expect(finish.usage.cacheReadTokens).toBe(8);
     expect((finish.providerMetadata?.openai as Record<string, unknown>).degradedPath).toBe('chat');
+  });
+
+  it('fails closed when the stream drains without a finish_reason (v1.27.0 review P1)', async () => {
+    async function* cut(): AsyncIterable<Record<string, unknown>> {
+      yield await Promise.resolve({ choices: [{ delta: { content: 'PARTIAL_ONLY' } }] });
+    }
+    const events = await collect(mapChatCompletionsStream(cut(), ids()));
+    expect(events.map((e) => e.type)).toEqual(['text-delta', 'error']);
+    const error = events.at(-1) as Extract<ChatEvent, { type: 'error' }>;
+    expect(error.error.retryable).toBe(true);
+    expect((error.error.data as { kind?: string }).kind).toBe('transport');
+    expect(error.error.message).toContain('without a finish_reason');
+  });
+
+  it('a cut stream still forwards usage the provider reported, but never synthesizes finish', async () => {
+    async function* cut(): AsyncIterable<Record<string, unknown>> {
+      yield await Promise.resolve({ choices: [{ delta: { content: 'partial' } }] });
+      yield { choices: [], usage: { prompt_tokens: 20, completion_tokens: 4 } };
+    }
+    const events = await collect(mapChatCompletionsStream(cut(), ids()));
+    expect(events.map((e) => e.type)).toEqual(['text-delta', 'usage', 'error']);
+    const usage = events[1] as Extract<ChatEvent, { type: 'usage' }>;
+    expect(usage.usage.inputTokens).toBe(20);
+    expect(usage.usage.outputTokens).toBe(4);
+  });
+
+  it('half assembled tool calls are not flushed on a cut stream', async () => {
+    async function* cut(): AsyncIterable<Record<string, unknown>> {
+      yield await Promise.resolve({
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                { index: 0, id: 'call_1', function: { name: 'search', arguments: '{"q":' } },
+              ],
+            },
+          },
+        ],
+      });
+    }
+    const events = await collect(mapChatCompletionsStream(cut(), ids()));
+    expect(events.map((e) => e.type)).toEqual(['tool-call-start', 'tool-call-delta', 'error']);
+  });
+
+  it('a requested abort ends the cut stream with no terminal event', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    async function* cut(): AsyncIterable<Record<string, unknown>> {
+      yield await Promise.resolve({ choices: [{ delta: { content: 'partial' } }] });
+    }
+    const events = await collect(
+      mapChatCompletionsStream(cut(), ids(), { signal: controller.signal }),
+    );
+    expect(events.map((e) => e.type)).toEqual(['text-delta']);
   });
 });
 

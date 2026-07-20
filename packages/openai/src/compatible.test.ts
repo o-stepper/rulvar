@@ -123,6 +123,49 @@ describe('openaiCompatible factory (M3-T06)', () => {
     expect(request?.body.stream).toBe(true);
   });
 
+  it('a cut SSE stream surfaces one retryable error, never a synthetic finish (v1.27.0 review P1)', async () => {
+    // The wire scenario from the review: one content chunk, then the
+    // connection ends with no finish_reason chunk and no [DONE].
+    const cut = createServer((req: IncomingMessage, res: ServerResponse) => {
+      req.on('data', () => undefined);
+      req.on('end', () => {
+        res.writeHead(200, {
+          'content-type': 'text/event-stream',
+          'cache-control': 'no-cache',
+        });
+        res.write(
+          `data: ${JSON.stringify({
+            id: 'c2',
+            object: 'chat.completion.chunk',
+            choices: [{ index: 0, delta: { role: 'assistant', content: 'PARTIAL_ONLY' } }],
+          })}\n\n`,
+        );
+        res.end();
+      });
+    });
+    const baseURL = await new Promise<string>((resolve) => {
+      cut.listen(0, '127.0.0.1', () => {
+        resolve(`http://127.0.0.1:${(cut.address() as AddressInfo).port}/v1`);
+      });
+    });
+    try {
+      const adapter = openaiCompatible({ id: 'cut', baseURL });
+      const events: ChatEvent[] = [];
+      for await (const event of adapter.stream({
+        model: 'stub-model',
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }],
+      })) {
+        events.push(event);
+      }
+      expect(events.map((event) => event.type)).toEqual(['text-delta', 'error']);
+      const error = events.at(-1) as Extract<ChatEvent, { type: 'error' }>;
+      expect(error.error.retryable).toBe(true);
+      expect(error.error.message).toContain('without a finish_reason');
+    } finally {
+      cut.close();
+    }
+  });
+
   it('surfaces endpoint failures as typed retryable wire errors, never throws', async () => {
     const adapter = openaiCompatible({
       id: 'down',

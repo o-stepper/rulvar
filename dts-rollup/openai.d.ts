@@ -221,9 +221,17 @@ declare function normalizeOpenAiUsage(raw: Record<string, unknown> | undefined):
 * output array, never the output_text aggregate. Raw output items ride
 * finish.providerMetadata.openai.outputItems so the runtime can retain
 * reasoning items as provider-raw parts.
+*
+* A stream that drains without any response terminal event
+* (`response.completed`, `response.incomplete`, `response.failed`, or
+* `error`) is a truncated wire read: the mapper fails closed with one
+* retryable transport error instead of ending silently, unless
+* `options.signal` shows the caller requested the abort (the documented
+* exception that ends a stream without a terminal event).
 */
 declare function mapResponsesStream(stream: AsyncIterable<ResponsesStreamEvent>, ids: OpenAiIdMap, options?: {
   effortDownmapped?: boolean;
+  signal?: AbortSignal;
 }): AsyncGenerator<ChatEvent, void>;
 /** Projects SDK/API errors into the retryable WireError vocabulary. */
 declare function openAiErrorToWire(error: unknown): WireError;
@@ -239,7 +247,17 @@ declare function buildChatCompletionsParams(req: ChatRequest, ids: OpenAiIdMap):
 * Delta-patched chunk assembly for the degraded path; yields each
 * canonical event as its chunk is consumed (same live-streaming contract
 * as mapResponsesStream).
+*
+* The chat dialect has no explicit terminal frame at this layer: the
+* only completion signal is a `finish_reason` on the last choice chunk.
+* A stream that drains without one is a truncated wire read, so the
+* mapper fails closed with one retryable transport error (after
+* forwarding any usage the provider did report, which was still paid
+* for) instead of synthesizing a `stop` finish, unless `options.signal`
+* shows the caller requested the abort.
 */
-declare function mapChatCompletionsStream(stream: AsyncIterable<Record<string, unknown>>, ids: OpenAiIdMap): AsyncGenerator<ChatEvent, void>;
+declare function mapChatCompletionsStream(stream: AsyncIterable<Record<string, unknown>>, ids: OpenAiIdMap, options?: {
+  signal?: AbortSignal;
+}): AsyncGenerator<ChatEvent, void>;
 //#endregion
 export { CONSERVATIVE_COMPATIBLE_CAPS, OPENAI_MODELS, OPENAI_PRICING, type OpenAiAdapterOptions, type OpenAiClientLike, type OpenAiCompatibleConfig, OpenAiIdMap, type OpenAiModelInfo, type OpenAiSdkOptions, type ResponsesStreamEvent, type V1190CacheAudit, auditV1190CacheJournal, buildChatCompletionsParams, buildResponsesParams, mapChatCompletionsStream, mapOpenAiEffort, mapResponsesStream, normalizeOpenAiUsage, openAiErrorToWire, openAiModelInfo, openai, openaiCompatible, undoV1190CacheDoubleCount };
