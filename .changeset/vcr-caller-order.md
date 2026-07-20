@@ -1,5 +1,0 @@
----
-'@rulvar/testing': minor
----
-
-Concurrent identical calls replay to the callers that made them (v1.31.0 review P2). `record` appends rows when each stream completes, so two identical live requests that finished out of order were stored in completion order, and `replay`, which hands occurrences out in caller order, served each caller the other one's response; a parallel workflow could branch differently on replay even though every hash and every row was valid. Every recorded `stream()` call now claims a zero based per `(adapterId, requestHash)` occurrence number synchronously in the call itself and persists it on the completed row, and `replay` serves same hash rows sorted by that number when every row of the group carries one. An aborted or failed call claims a number but appends no row, and such gaps are valid. The cassette format stays v1: readers before this release tolerate the new optional field and keep file order, and groups recorded before this release (no numbers) keep file order too. `readCassette` checks the field is a nonnegative safe integer when present.

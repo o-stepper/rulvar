@@ -1,5 +1,0 @@
----
-'@rulvar/testing': minor
----
-
-VCR passthrough now preserves truthful adapter provenance (v1.31.0 review P2). The engine journals every response served through a replay wrapper under the wrapper's own `provider` and `usageSemantics` declarations, and under `onMiss: 'passthrough'` that includes live served misses: before this release a miss served by the live adapter was journaled under the declarations of the recorded rows (a stale stamp asserting a semantics the serving adapter did not use), and a live adapter with no recorded rows lost both declarations entirely, so its journals went unstamped. `replay` now refuses at construction with a typed `ConfigError` when the cassette rows and the live passthrough adapter disagree on either declaration, absent versus present included, and an adapter with no recorded rows keeps the live adapter's own declarations, so wrapping stays metadata preserving. Under `onMiss: 'throw'` the live adapter only backs caps lookups and never serves, so no agreement is demanded there.
