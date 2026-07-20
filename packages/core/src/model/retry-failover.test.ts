@@ -79,6 +79,29 @@ describe('retryDelayMs', () => {
     expect(retryDelayMs(DEFAULT_RETRY_POLICY, 5, 42, () => 0.99)).toBe(42);
   });
 
+  it('an invalid provider retryAfterMs is ignored as adapter noise (v1.28.0 review P2)', () => {
+    // NaN, Infinity, and a negative all fall back to the policy
+    // backoff instead of arming an instant or overflowing timer.
+    expect(retryDelayMs(noJitter, 0, Number.NaN)).toBe(500);
+    expect(retryDelayMs(noJitter, 1, Number.POSITIVE_INFINITY)).toBe(1000);
+    expect(retryDelayMs(noJitter, 0, -1)).toBe(500);
+  });
+
+  it('a huge finite retryAfterMs is clamped to the Node timer maximum', () => {
+    expect(retryDelayMs(noJitter, 0, 3_000_000_000)).toBe(2_147_483_647);
+  });
+
+  it('every returned delay is a finite nonnegative integer', () => {
+    expect(retryDelayMs(noJitter, 0, 1234.6)).toBe(1235);
+    const jittered = {
+      ...noJitter,
+      backoff: { initialMs: 333, factor: 2, maxMs: 8000, jitter: true },
+    };
+    const delay = retryDelayMs(jittered, 0, undefined, () => 0.5);
+    expect(Number.isInteger(delay)).toBe(true);
+    expect(delay).toBeGreaterThanOrEqual(0);
+  });
+
   it('equal jitter keeps the delay within [base/2, base]', () => {
     const policy = { ...noJitter, backoff: { ...noJitter.backoff, jitter: true } };
     expect(retryDelayMs(policy, 0, undefined, () => 0)).toBe(250);

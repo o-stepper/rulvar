@@ -161,9 +161,14 @@ declare function defaultRedact(value: string): string;
 */
 declare function requestHash(req: ChatRequest): string;
 /**
-* Wraps live adapters for recording: every completed stream appends one
-* redacted row to the cassette JSONL. The wrapped adapters are drop-in:
-* same ids, providers, caps, and event streams.
+* Wraps live adapters for recording: every stream that completes with
+* exactly one terminal event (finish or error) appends one redacted
+* row to the cassette JSONL. A stream that ends without a terminal
+* (a requested abort or a truncated read), throws, or violates the
+* adapter contract (a second terminal, data after the terminal)
+* appends nothing, so a cassette row is always the record of one
+* completed exchange (v1.28.0 review P2). The wrapped adapters are
+* drop-in: same ids, providers, caps, and event streams.
 */
 declare function record(options: {
   adapters: ProviderAdapter[];
@@ -179,7 +184,15 @@ interface VcrCassette {
   header: VcrHeader;
   rows: VcrRow[];
 }
-/** Parses a cassette file (one header line plus one JSON row per line). */
+/**
+* Parses a cassette file (one header line plus one JSON row per line).
+* The header must declare cassette format `v: 1`: the format version
+* gates parsing itself, while hashVersion (checked by replay) only
+* gates request identity and never substitutes for it, so a future
+* incompatible format refuses loudly instead of being read as v1.
+* Parse and shape failures throw a typed ConfigError naming the
+* cassette path and line (v1.28.0 review P3).
+*/
 declare function readCassette(path: string): VcrCassette;
 /**
 * Builds replay adapters from a cassette. `onMiss: 'throw'` is the

@@ -523,6 +523,28 @@ function failedResponseError(code: string | undefined, message: string): WireErr
   };
 }
 
+/**
+ * Largest delay a Node timer represents exactly; a bigger value would
+ * overflow into an almost immediate (storm inducing) retry.
+ */
+const MAX_RETRY_AFTER_MS = 2_147_483_647;
+
+/**
+ * Parses a Retry-After header into milliseconds. Only the delta
+ * seconds form is honored: the HTTP date form and any other
+ * unparsable value return undefined so the engine falls back to its
+ * computed policy backoff instead of receiving NaN, and a huge but
+ * finite value is clamped to the Node timer maximum (v1.28.0 review
+ * P2).
+ */
+function retryAfterMsFrom(header: string): number | undefined {
+  const seconds = Number(header);
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return undefined;
+  }
+  return Math.min(Math.round(seconds * 1000), MAX_RETRY_AFTER_MS);
+}
+
 /** Projects SDK/API errors into the retryable WireError vocabulary. */
 export function openAiErrorToWire(error: unknown): WireError {
   const record = error as {
@@ -541,7 +563,7 @@ export function openAiErrorToWire(error: unknown): WireError {
           ? ((headers as Headers).get('retry-after') ?? undefined)
           : (headers as Record<string, string>)['retry-after'];
       if (value !== undefined) {
-        retryAfterMs = Number(value) * 1000;
+        retryAfterMs = retryAfterMsFrom(value);
       }
     }
     return {

@@ -222,3 +222,156 @@ describe('transport failover (M4-T04)', () => {
     expect(result.servedBy).toBe('backup:model-b');
   });
 });
+
+describe('backoff abort short circuit (v1.28.0 review P1)', () => {
+  it('host cancellation during backoff wakes the sleep and forbids the next dispatch', async () => {
+    const adapter = scriptedAdapter(() => ({ error: transient('blip') }));
+    const controller = new AbortController();
+    const slept: number[] = [];
+    const result = await runAgent({
+      prompt: 'x',
+      adapter,
+      resolved: resolvedOf('fake:model'),
+      limits: mergeUsageLimits(),
+      signal: controller.signal,
+      retry: {
+        sleep: (ms) => {
+          slept.push(ms);
+          // The hook never resolves on its own: only the abort race
+          // can wake the loop.
+          queueMicrotask(() => controller.abort('cancel during backoff'));
+          return new Promise<void>(() => undefined);
+        },
+        random: () => 1,
+      },
+    });
+    expect(result.status).toBe('cancelled');
+    expect(adapter.calls).toHaveLength(1);
+    expect(slept).toEqual([500]);
+  });
+
+  it('a budget ceiling abort during backoff settles without another dispatch', async () => {
+    const adapter = scriptedAdapter(() => ({ error: transient('blip') }));
+    const controller = new AbortController();
+    const result = await runAgent({
+      prompt: 'x',
+      adapter,
+      resolved: resolvedOf('fake:model'),
+      limits: mergeUsageLimits(),
+      budget: {
+        beforeTurn: () => undefined,
+        onUsage: () => undefined,
+        signal: controller.signal,
+      },
+      retry: {
+        sleep: () => {
+          queueMicrotask(() => controller.abort('rulvar:budget-ceiling'));
+          return new Promise<void>(() => undefined);
+        },
+      },
+    });
+    expect(result.status).toBe('cancelled');
+    expect(result.error?.kind).toBe('budget');
+    expect(adapter.calls).toHaveLength(1);
+  });
+
+  it('an abort the sleep hook ignores still stops the retry after the wake', async () => {
+    const adapter = scriptedAdapter(() => ({ error: transient('blip') }));
+    const controller = new AbortController();
+    const result = await runAgent({
+      prompt: 'x',
+      adapter,
+      resolved: resolvedOf('fake:model'),
+      limits: mergeUsageLimits(),
+      signal: controller.signal,
+      retry: {
+        sleep: () => {
+          // The hook aborts and then resolves normally anyway; the
+          // post sleep check must still stop the retry.
+          controller.abort('cancel');
+          return Promise.resolve();
+        },
+      },
+    });
+    expect(result.status).toBe('cancelled');
+    expect(adapter.calls).toHaveLength(1);
+  });
+
+  it('an abort that landed before the retryable error skips the willRetry promise entirely', async () => {
+    const controller = new AbortController();
+    const adapter = scriptedAdapter(() => {
+      controller.abort('cancelled mid stream');
+      return { error: transient('blip') };
+    });
+    const events = recordingSink();
+    const slept: number[] = [];
+    const result = await runAgent({
+      prompt: 'x',
+      adapter,
+      resolved: resolvedOf('fake:model'),
+      limits: mergeUsageLimits(),
+      signal: controller.signal,
+      events,
+      retry: {
+        sleep: (ms) => {
+          slept.push(ms);
+          return Promise.resolve();
+        },
+      },
+    });
+    expect(result.status).toBe('cancelled');
+    expect(adapter.calls).toHaveLength(1);
+    expect(slept).toEqual([]);
+    expect(events.ofType('agent:error').filter((e) => e.willRetry === true)).toHaveLength(0);
+  });
+
+  it('a rejection from an abandoned sleep hook never becomes an unhandled rejection', async () => {
+    const adapter = scriptedAdapter(() => ({ error: transient('blip') }));
+    const controller = new AbortController();
+    let rejectSleep: ((reason: Error) => void) | undefined;
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      unhandled.push(reason);
+    };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      const result = await runAgent({
+        prompt: 'x',
+        adapter,
+        resolved: resolvedOf('fake:model'),
+        limits: mergeUsageLimits(),
+        signal: controller.signal,
+        retry: {
+          sleep: () => {
+            queueMicrotask(() => controller.abort('cancel'));
+            return new Promise<void>((_resolve, reject) => {
+              rejectSleep = reject;
+            });
+          },
+        },
+      });
+      expect(result.status).toBe('cancelled');
+      rejectSleep?.(new Error('late sleep failure'));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.removeListener('unhandledRejection', onUnhandled);
+    }
+  });
+
+  it('a sleep hook rejection with no abort in flight still propagates', async () => {
+    const adapter = scriptedAdapter(() => ({ error: transient('blip') }));
+    const controller = new AbortController();
+    await expect(
+      runAgent({
+        prompt: 'x',
+        adapter,
+        resolved: resolvedOf('fake:model'),
+        limits: mergeUsageLimits(),
+        signal: controller.signal,
+        retry: { sleep: () => Promise.reject(new Error('sleep infra broke')) },
+      }),
+    ).rejects.toThrow('sleep infra broke');
+  });
+});
