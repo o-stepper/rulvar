@@ -11,7 +11,13 @@ import {
   nextFailover,
   normalizeFallbacks,
 } from './failover.js';
-import { DEFAULT_RETRY_POLICY, retryClassOf, retryDelayMs } from './retry.js';
+import {
+  DEFAULT_RETRY_POLICY,
+  retryClassOf,
+  retryDelayMs,
+  validateRetryPolicy,
+  type RetryPolicy,
+} from './retry.js';
 
 describe('retryClassOf', () => {
   it('task-class failures never retry by construction', () => {
@@ -154,5 +160,77 @@ describe('degenerate fallback trigger (docs/04, 11.3)', () => {
     expect(fallbackTriggerOf({ status: 'cancelled' })).toBeUndefined();
     expect(fallbackTriggerOf({ status: 'escalated' })).toBeUndefined();
     expect(fallbackTriggerOf({ status: 'ok' })).toBeUndefined();
+  });
+});
+
+describe('validateRetryPolicy (v1.29.0 review P2)', () => {
+  const backoff = { initialMs: 500, factor: 2, maxMs: 8000 };
+
+  it('accepts the Appendix A defaults and every documented legal shape', () => {
+    expect(() => validateRetryPolicy(DEFAULT_RETRY_POLICY)).not.toThrow();
+    expect(() =>
+      validateRetryPolicy({ attempts: 1, backoff: { initialMs: 0, factor: 0.5, maxMs: 0 } }),
+    ).not.toThrow();
+    expect(() => validateRetryPolicy({ attempts: 2, backoff, retryOn: [] })).not.toThrow();
+    expect(() =>
+      validateRetryPolicy({ attempts: 2, backoff: { initialMs: 10, factor: 2, maxMs: 1 } }),
+    ).not.toThrow();
+    expect(() =>
+      validateRetryPolicy({
+        attempts: 2,
+        backoff: { ...backoff, jitter: true },
+        retryOn: ['rate-limit', 'overloaded'],
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects every invalid attempts value naming the field and source', () => {
+    for (const attempts of [0, -1, 1.5, NaN, Infinity, 2 ** 53]) {
+      expect(() => validateRetryPolicy({ attempts, backoff }, 'engine defaults.retry')).toThrow(
+        /engine defaults\.retry: attempts must be a positive safe integer/,
+      );
+    }
+  });
+
+  it('rejects out of range, fractional, and non finite backoff numbers', () => {
+    const bad: Array<[Partial<RetryPolicy['backoff']>, RegExp]> = [
+      [{ initialMs: -1 }, /backoff\.initialMs must be an integer between 0 and 2147483647/],
+      [{ initialMs: NaN }, /backoff\.initialMs/],
+      [{ initialMs: 0.5 }, /backoff\.initialMs/],
+      [{ initialMs: 2_147_483_648 }, /backoff\.initialMs/],
+      [{ maxMs: -1 }, /backoff\.maxMs must be an integer between 0 and 2147483647/],
+      [{ maxMs: Infinity }, /backoff\.maxMs/],
+      [{ factor: 0 }, /backoff\.factor must be a finite number above zero/],
+      [{ factor: -2 }, /backoff\.factor/],
+      [{ factor: NaN }, /backoff\.factor/],
+      [{ factor: Infinity }, /backoff\.factor/],
+    ];
+    for (const [patch, message] of bad) {
+      expect(() => validateRetryPolicy({ attempts: 2, backoff: { ...backoff, ...patch } })).toThrow(
+        message,
+      );
+    }
+  });
+
+  it('rejects a non boolean jitter and a malformed retryOn', () => {
+    expect(() =>
+      validateRetryPolicy({ attempts: 2, backoff: { ...backoff, jitter: 1 as never } }),
+    ).toThrow(/backoff\.jitter must be a boolean when given/);
+    expect(() =>
+      validateRetryPolicy({ attempts: 2, backoff, retryOn: 'transport' as never }),
+    ).toThrow(/retryOn must be an array of retry classes/);
+    expect(() =>
+      validateRetryPolicy({ attempts: 2, backoff, retryOn: ['network' as never] }),
+    ).toThrow(/retryOn must contain only 'transport', 'rate-limit', or 'overloaded'/);
+    expect(() =>
+      validateRetryPolicy({ attempts: 2, backoff, retryOn: ['transport', 'transport'] }),
+    ).toThrow(/retryOn must not repeat a retry class/);
+  });
+
+  it('rejects a missing or non object backoff and a non object policy', () => {
+    expect(() => validateRetryPolicy({ attempts: 2 } as never)).toThrow(
+      /backoff must be an object with initialMs, factor, and maxMs/,
+    );
+    expect(() => validateRetryPolicy(null as never)).toThrow(/a RetryPolicy must be an object/);
   });
 });

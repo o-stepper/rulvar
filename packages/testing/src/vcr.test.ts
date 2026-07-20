@@ -304,3 +304,243 @@ describe('a cassette row is the record of one completed exchange (v1.28.0 review
     expect(() => readCassette(cassette)).toThrow(/session\.jsonl:2 is not a VCR row/);
   });
 });
+
+describe('repeated hashes replay as ordered occurrences (v1.29.0 review P2 and P3)', () => {
+  const caps = new FakeAdapter({ agents: { '*': 'x' } }).caps();
+  const req: ChatRequest = {
+    model: FAKE_MODEL,
+    messages: [{ role: 'user', parts: [{ type: 'text', text: 'q' }] }],
+  };
+  const finishWith = (inputTokens: number, outputTokens: number): ChatEvent => ({
+    type: 'finish',
+    finish: { reason: 'stop' },
+    usage: { inputTokens, outputTokens, cacheReadTokens: 0, cacheWriteTokens: 0 },
+  });
+  const rateLimited: ChatEvent = {
+    type: 'error',
+    error: {
+      code: 'agent',
+      message: 'rate limited',
+      retryable: true,
+      data: { kind: 'rate-limit', retryAfterMs: 1 },
+    },
+  };
+  /** An adapter answering call N of the same request with texts[N-1]. */
+  const sequencedAdapter = (texts: string[]): ProviderAdapter => {
+    let call = 0;
+    return {
+      id: 'fake',
+      caps: () => caps,
+      // eslint-disable-next-line @typescript-eslint/require-await
+      async *stream(): AsyncIterable<ChatEvent> {
+        const text = texts[call] ?? 'over';
+        call += 1;
+        yield { type: 'text-delta', text };
+        yield finishWith(1, 1);
+      },
+    };
+  };
+  const textOf = async (stream: AsyncIterable<ChatEvent>): Promise<string> => {
+    let text = '';
+    for await (const event of stream) {
+      if (event.type === 'text-delta') {
+        text += event.text;
+      }
+    }
+    return text;
+  };
+  const engineFor = (adapters: ProviderAdapter[]) =>
+    createEngine({
+      adapters,
+      stores: { journal: new InMemoryStore() },
+      defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+    });
+  const retryWf = defineWorkflow({ name: 'vcr-retry' }, (ctx) =>
+    ctx.agent('go', { retry: { attempts: 2, backoff: { initialMs: 1, factor: 1, maxMs: 1 } } }),
+  );
+
+  it('a recorded retry (error then success under one hash) replays both attempts in order', async () => {
+    const cassette = cassettePath();
+    let call = 0;
+    const flaky: ProviderAdapter = {
+      id: 'fake',
+      caps: () => caps,
+      // eslint-disable-next-line @typescript-eslint/require-await
+      async *stream(): AsyncIterable<ChatEvent> {
+        call += 1;
+        if (call === 1) {
+          yield { type: 'usage', usage: { inputTokens: 100 } };
+          yield rateLimited;
+          return;
+        }
+        yield { type: 'text-delta', text: 'second try' };
+        yield finishWith(10, 5);
+      },
+    };
+    const recorded = record({ adapters: [flaky], cassette });
+    const recOutcome = await engineFor(recorded).run(retryWf, undefined).result;
+    expect(recOutcome.status).toBe('ok');
+    expect(call).toBe(2);
+    expect(recOutcome.usage.inputTokens).toBe(110);
+
+    const { rows } = readCassette(cassette);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.requestHash).toBe(rows[1]?.requestHash);
+
+    // Before v1.30.0 the replay map collapsed the pair: the first call
+    // was served the LATER success row (usage 10, no retry branch).
+    const repOutcome = await engineFor(replay({ cassette, onMiss: 'throw' })).run(
+      retryWf,
+      undefined,
+    ).result;
+    expect(repOutcome.status).toBe('ok');
+    expect(repOutcome.usage.inputTokens).toBe(110);
+    expect(repOutcome.usage.outputTokens).toBe(5);
+    expect(repOutcome.value).toBe('second try');
+  });
+
+  it('three identical sequential requests consume three rows in file order', async () => {
+    const cassette = cassettePath();
+    const [recorded] = record({ adapters: [sequencedAdapter(['r1', 'r2', 'r3'])], cassette });
+    for (let i = 0; i < 3; i += 1) {
+      await textOf(recorded.stream(req));
+    }
+    expect(readCassette(cassette).rows).toHaveLength(3);
+
+    const [replayed] = replay({ cassette, onMiss: 'throw' });
+    expect(await textOf(replayed.stream(req))).toBe('r1');
+    expect(await textOf(replayed.stream(req))).toBe('r2');
+    expect(await textOf(replayed.stream(req))).toBe('r3');
+  });
+
+  it('two concurrent identical requests claim occurrences at stream() call time', async () => {
+    const cassette = cassettePath();
+    const [recorded] = record({ adapters: [sequencedAdapter(['r1', 'r2'])], cassette });
+    await textOf(recorded.stream(req));
+    await textOf(recorded.stream(req));
+
+    const [replayed] = replay({ cassette, onMiss: 'throw' });
+    // Allocation is synchronous in the stream() call itself, so the
+    // FIRST call owns row 1 even when it is drained second.
+    const first = replayed.stream(req);
+    const second = replayed.stream(req);
+    expect(await textOf(second)).toBe('r2');
+    expect(await textOf(first)).toBe('r1');
+  });
+
+  it('a call past the last occurrence is a typed exhausted miss', async () => {
+    const cassette = cassettePath();
+    const [recorded] = record({ adapters: [sequencedAdapter(['r1', 'r2', 'r3'])], cassette });
+    for (let i = 0; i < 3; i += 1) {
+      await textOf(recorded.stream(req));
+    }
+    const [replayed] = replay({ cassette, onMiss: 'throw' });
+    for (let i = 0; i < 3; i += 1) {
+      await textOf(replayed.stream(req));
+    }
+    let caught: unknown;
+    try {
+      await textOf(replayed.stream(req));
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(VcrMissError);
+    expect((caught as VcrMissError).recordedOccurrences).toBe(3);
+    expect((caught as VcrMissError).message).toMatch(/exhausted the 3 recorded occurrences/);
+    // A never-recorded request still reads as a plain miss.
+    const other: ChatRequest = {
+      model: FAKE_MODEL,
+      messages: [{ role: 'user', parts: [{ type: 'text', text: 'unrecorded' }] }],
+    };
+    await expect(textOf(replayed.stream(other))).rejects.toThrow(/no recorded row/);
+  });
+
+  it('onMiss passthrough forwards an exhausted hash to the live adapter', async () => {
+    const cassette = cassettePath();
+    const [recorded] = record({ adapters: [sequencedAdapter(['r1'])], cassette });
+    await textOf(recorded.stream(req));
+
+    const live = new FakeAdapter({ agents: { '*': 'live answer' } });
+    const [replayed] = replay({ cassette, onMiss: 'passthrough', adapters: [live] });
+    expect(await textOf(replayed.stream(req))).toBe('r1');
+    expect(await textOf(replayed.stream(req))).toBe('live answer');
+  });
+
+  it('conflicting caps snapshots for one model refuse at replay build time', async () => {
+    const cassette = cassettePath();
+    const [recorded] = record({ adapters: [sequencedAdapter(['r1'])], cassette });
+    await textOf(recorded.stream(req));
+    const [headerLine, rowLine] = readFileSync(cassette, 'utf8').split('\n');
+    const conflicting = JSON.parse(String(rowLine)) as {
+      requestHash: string;
+      caps: { contextWindow: number };
+    };
+    conflicting.requestHash = 'other-hash';
+    conflicting.caps = { ...conflicting.caps, contextWindow: conflicting.caps.contextWindow + 1 };
+    writeFileSync(
+      cassette,
+      `${String(headerLine)}\n${String(rowLine)}\n${JSON.stringify(conflicting)}\n`,
+    );
+    expect(() => replay({ cassette, onMiss: 'throw' })).toThrow(/conflicting caps snapshots/);
+  });
+
+  it('replay refuses a row that does not record one completed exchange', async () => {
+    const cassette = cassettePath();
+    const [recorded] = record({ adapters: [sequencedAdapter(['r1'])], cassette });
+    await textOf(recorded.stream(req));
+    const [headerLine, rowLine] = readFileSync(cassette, 'utf8').split('\n');
+    const template = JSON.parse(String(rowLine)) as { events: ChatEvent[] };
+    const badEvents: ChatEvent[][] = [
+      [{ type: 'text-delta', text: 'no terminal' }],
+      [finishWith(1, 1), finishWith(1, 1)],
+      [finishWith(1, 1), { type: 'text-delta', text: 'after terminal' }],
+    ];
+    for (const events of badEvents) {
+      writeFileSync(
+        cassette,
+        `${String(headerLine)}\n${JSON.stringify({ ...template, events })}\n`,
+      );
+      expect(() => replay({ cassette, onMiss: 'throw' })).toThrow(
+        /row 1 .* does not record one completed exchange/,
+      );
+    }
+  });
+
+  it('readCassette validates the full documented header and row shape', async () => {
+    const cassette = cassettePath();
+    const [recorded] = record({ adapters: [sequencedAdapter(['r1'])], cassette });
+    await textOf(recorded.stream(req));
+    const [headerLine, rowLine] = readFileSync(cassette, 'utf8').split('\n');
+    const header = JSON.parse(String(headerLine)) as Record<string, unknown>;
+    const row = JSON.parse(String(rowLine)) as Record<string, unknown>;
+    const writtenWith = (h: Record<string, unknown>, r: Record<string, unknown>): void => {
+      writeFileSync(cassette, `${JSON.stringify(h)}\n${JSON.stringify(r)}\n`);
+    };
+
+    const dropped = (source: Record<string, unknown>, key: string): Record<string, unknown> => {
+      const { [key]: _omitted, ...rest } = source;
+      return rest;
+    };
+    writtenWith(dropped(header, 'hashVersion'), row);
+    expect(() => readCassette(cassette)).toThrow(/header hashVersion must be an integer/);
+    writtenWith({ ...header, hashVersion: 1.5 }, row);
+    expect(() => readCassette(cassette)).toThrow(/header hashVersion must be an integer/);
+    writtenWith(dropped(header, 'recordedAt'), row);
+    expect(() => readCassette(cassette)).toThrow(/header recordedAt must be a date string/);
+    writtenWith({ ...header, recordedAt: 'not a date' }, row);
+    expect(() => readCassette(cassette)).toThrow(/header recordedAt must be a date string/);
+
+    writtenWith(header, dropped(row, 'model'));
+    expect(() => readCassette(cassette)).toThrow(/model must be a nonempty string/);
+    writtenWith(header, dropped(row, 'caps'));
+    expect(() => readCassette(cassette)).toThrow(/caps must be an object/);
+    writtenWith(header, dropped(row, 'request'));
+    expect(() => readCassette(cassette)).toThrow(/request must be an object/);
+    writtenWith(header, { ...row, provider: 7 });
+    expect(() => readCassette(cassette)).toThrow(/provider, when present, must be a string/);
+
+    // Unknown extra fields stay tolerated for forward compatibility.
+    writtenWith({ ...header, future: 'x' }, { ...row, extra: 1 });
+    expect(readCassette(cassette).rows).toHaveLength(1);
+  });
+});

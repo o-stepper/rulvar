@@ -58,7 +58,7 @@ import { selectStructuredOutputTier } from '../model/caps.js';
 import { fallbackTriggerOf, type FallbackField, type FallbackTrigger } from '../model/failover.js';
 import type { KeyedLimiter } from '../model/concurrency.js';
 import type { QualityFloors } from '../model/floors.js';
-import type { RetryPolicy } from '../model/retry.js';
+import { validateRetryPolicy, type RetryPolicy } from '../model/retry.js';
 import { finalizeFires, needsSeparateExtract, roleConfiguredInRouting } from '../model/roles.js';
 import {
   resolveModelInvocation,
@@ -1122,7 +1122,20 @@ export function createCtx(
 
     // Transport RetryPolicy merge: call over profile over engine; the
     // loop applies the Appendix A default when nothing is configured.
+    // The merged policy is validated here, before identity, admission,
+    // or any journal append for this call, so an invalid policy can
+    // never dispatch an adapter or record a partial agent execution
+    // (v1.29.0 review P2).
     const retryPolicy = opts.retry ?? profile?.retry ?? internals.defaults.retry;
+    if (retryPolicy !== undefined) {
+      const retrySource =
+        opts.retry !== undefined
+          ? 'the agent retry option'
+          : profile?.retry !== undefined
+            ? `the retry of profile '${String(opts.agentType)}'`
+            : 'engine defaults.retry';
+      validateRetryPolicy(retryPolicy, retrySource);
+    }
 
     const identityInput = {
       kind: 'agent',

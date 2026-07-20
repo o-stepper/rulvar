@@ -10,11 +10,28 @@
 function replay(options): ProviderAdapter[];
 ```
 
-Defined in: [packages/testing/src/vcr.ts:282](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L282)
+Defined in: [packages/testing/src/vcr.ts:359](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L359)
 
 Builds replay adapters from a cassette. `onMiss: 'throw'` is the
 hermetic CI mode; `'passthrough'` forwards unrecorded requests to the
 matching live adapter in `adapters` (a development convenience only).
+
+Repeated hashes replay in file order (v1.29.0 review P2): rows
+sharing a `(adapterId, requestHash)` key form an ordered occurrence
+list, and every `stream()` call consumes exactly one occurrence,
+allocated synchronously inside the call itself, so two concurrent
+identical requests can never be served the same recorded exchange.
+A call after the last occurrence is a miss: under `onMiss: 'throw'`
+it raises a VcrMissError whose `recordedOccurrences` says the hash
+WAS recorded but is exhausted, and under `'passthrough'` it
+forwards to the live adapter exactly like a never-recorded request.
+
+Before serving anything, replay also enforces what `record` has
+guaranteed since v1.29.0: every row's event stream ends with
+exactly one terminal event (finish or error), and all caps
+snapshots for one `(adapterId, model)` agree, since the replay
+adapter can only report one caps truth per model. Violations throw
+a typed ConfigError naming the cassette and row.
 
 ## Parameters
 

@@ -175,10 +175,18 @@ declare function record(options: {
   cassette: string;
   redact?: RedactFn;
 }): ProviderAdapter[];
-/** Typed hermetic-miss error; onMiss: 'throw' raises it on any unrecorded request. */
+/**
+* Typed hermetic-miss error; onMiss: 'throw' raises it on any request
+* without a servable row. `recordedOccurrences` above zero means the
+* hash WAS recorded but every occurrence is already consumed (replay
+* serves each recorded exchange once, in file order); absent or zero
+* means the request was never recorded at all (v1.29.0 review P2).
+*/
 declare class VcrMissError extends Error {
   readonly requestHash: string;
-  constructor(adapterId: string, hash: string);
+  /** Rows recorded for this hash; absent or 0 = never recorded. */
+  readonly recordedOccurrences?: number;
+  constructor(adapterId: string, hash: string, recordedOccurrences?: number);
 }
 interface VcrCassette {
   header: VcrHeader;
@@ -187,17 +195,41 @@ interface VcrCassette {
 /**
 * Parses a cassette file (one header line plus one JSON row per line).
 * The header must declare cassette format `v: 1`: the format version
-* gates parsing itself, while hashVersion (checked by replay) only
-* gates request identity and never substitutes for it, so a future
-* incompatible format refuses loudly instead of being read as v1.
-* Parse and shape failures throw a typed ConfigError naming the
-* cassette path and line (v1.28.0 review P3).
+* gates parsing itself, while hashVersion (whose support window is
+* checked by replay) only gates request identity and never
+* substitutes for it, so a future incompatible format refuses loudly
+* instead of being read as v1. Every documented header field (kind,
+* v, an integer hashVersion, a date-string recordedAt) and row field
+* (adapterId, model, requestHash, request, caps, events, an optional
+* string provider) is shape-checked here; unknown extra fields are
+* tolerated for forward compatibility. Event stream SEMANTICS (one
+* trailing terminal per row) are deliberately not checked at read
+* time; `replay` enforces them before serving anything (v1.29.0
+* review P3). Parse and shape failures throw a typed ConfigError
+* naming the cassette path and line (v1.28.0 review P3).
 */
 declare function readCassette(path: string): VcrCassette;
 /**
 * Builds replay adapters from a cassette. `onMiss: 'throw'` is the
 * hermetic CI mode; `'passthrough'` forwards unrecorded requests to the
 * matching live adapter in `adapters` (a development convenience only).
+*
+* Repeated hashes replay in file order (v1.29.0 review P2): rows
+* sharing a `(adapterId, requestHash)` key form an ordered occurrence
+* list, and every `stream()` call consumes exactly one occurrence,
+* allocated synchronously inside the call itself, so two concurrent
+* identical requests can never be served the same recorded exchange.
+* A call after the last occurrence is a miss: under `onMiss: 'throw'`
+* it raises a VcrMissError whose `recordedOccurrences` says the hash
+* WAS recorded but is exhausted, and under `'passthrough'` it
+* forwards to the live adapter exactly like a never-recorded request.
+*
+* Before serving anything, replay also enforces what `record` has
+* guaranteed since v1.29.0: every row's event stream ends with
+* exactly one terminal event (finish or error), and all caps
+* snapshots for one `(adapterId, model)` agree, since the replay
+* adapter can only report one caps truth per model. Violations throw
+* a typed ConfigError naming the cassette and row.
 */
 declare function replay(options: {
   cassette: string;

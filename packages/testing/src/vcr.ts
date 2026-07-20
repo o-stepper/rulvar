@@ -120,6 +120,11 @@ export function requestHash(req: ChatRequest): string {
   return createHash('sha256').update(canonicalJson(withoutTelemetry), 'utf8').digest('hex');
 }
 
+/** The terminal vocabulary of the adapter contract: finish or error. */
+function isTerminalEvent(event: ChatEvent): boolean {
+  return event.type === 'finish' || event.type === 'error';
+}
+
 function headerLine(): string {
   return JSON.stringify({
     v: 1,
@@ -176,7 +181,7 @@ export function record(options: {
           if (terminals > 0) {
             postTerminal = true;
           }
-          if (event.type === 'finish' || event.type === 'error') {
+          if (isTerminalEvent(event)) {
             terminals += 1;
           }
           events.push(event);
@@ -203,16 +208,32 @@ export function record(options: {
   }));
 }
 
-/** Typed hermetic-miss error; onMiss: 'throw' raises it on any unrecorded request. */
+/**
+ * Typed hermetic-miss error; onMiss: 'throw' raises it on any request
+ * without a servable row. `recordedOccurrences` above zero means the
+ * hash WAS recorded but every occurrence is already consumed (replay
+ * serves each recorded exchange once, in file order); absent or zero
+ * means the request was never recorded at all (v1.29.0 review P2).
+ */
 export class VcrMissError extends Error {
   readonly requestHash: string;
-  constructor(adapterId: string, hash: string) {
+  /** Rows recorded for this hash; absent or 0 = never recorded. */
+  readonly recordedOccurrences?: number;
+  constructor(adapterId: string, hash: string, recordedOccurrences?: number) {
     super(
-      `VCR miss: adapter '${adapterId}' received a request with no recorded row ` +
-        `(hash ${hash.slice(0, 12)}); onMiss: 'throw' keeps cassette tests hermetic`,
+      recordedOccurrences !== undefined && recordedOccurrences > 0
+        ? `VCR miss: adapter '${adapterId}' exhausted the ` +
+            `${String(recordedOccurrences)} recorded occurrence` +
+            `${recordedOccurrences === 1 ? '' : 's'} of request hash ${hash.slice(0, 12)}; ` +
+            'a replay serves each recorded exchange once, in file order'
+        : `VCR miss: adapter '${adapterId}' received a request with no recorded row ` +
+            `(hash ${hash.slice(0, 12)}); onMiss: 'throw' keeps cassette tests hermetic`,
     );
     this.name = 'VcrMissError';
     this.requestHash = hash;
+    if (recordedOccurrences !== undefined) {
+      this.recordedOccurrences = recordedOccurrences;
+    }
   }
 }
 
@@ -224,11 +245,18 @@ export interface VcrCassette {
 /**
  * Parses a cassette file (one header line plus one JSON row per line).
  * The header must declare cassette format `v: 1`: the format version
- * gates parsing itself, while hashVersion (checked by replay) only
- * gates request identity and never substitutes for it, so a future
- * incompatible format refuses loudly instead of being read as v1.
- * Parse and shape failures throw a typed ConfigError naming the
- * cassette path and line (v1.28.0 review P3).
+ * gates parsing itself, while hashVersion (whose support window is
+ * checked by replay) only gates request identity and never
+ * substitutes for it, so a future incompatible format refuses loudly
+ * instead of being read as v1. Every documented header field (kind,
+ * v, an integer hashVersion, a date-string recordedAt) and row field
+ * (adapterId, model, requestHash, request, caps, events, an optional
+ * string provider) is shape-checked here; unknown extra fields are
+ * tolerated for forward compatibility. Event stream SEMANTICS (one
+ * trailing terminal per row) are deliberately not checked at read
+ * time; `replay` enforces them before serving anything (v1.29.0
+ * review P3). Parse and shape failures throw a typed ConfigError
+ * naming the cassette path and line (v1.28.0 review P3).
  */
 export function readCassette(path: string): VcrCassette {
   const numbered = readFileSync(path, 'utf8')
@@ -245,7 +273,12 @@ export function readCassette(path: string): VcrCassette {
     }
   };
   const first = numbered[0];
-  const headerRaw = (first === undefined ? {} : parse(first)) as { v?: unknown; kind?: unknown };
+  const headerRaw = (first === undefined ? {} : parse(first)) as {
+    v?: unknown;
+    kind?: unknown;
+    hashVersion?: unknown;
+    recordedAt?: unknown;
+  };
   if (headerRaw.kind !== 'rulvar-vcr') {
     throw new ConfigError(`${path} is not a rulvar VCR cassette`);
   }
@@ -255,19 +288,46 @@ export function readCassette(path: string): VcrCassette {
         'format v 1 only, so record the cassette again on a matching engine',
     );
   }
+  if (typeof headerRaw.hashVersion !== 'number' || !Number.isSafeInteger(headerRaw.hashVersion)) {
+    throw new ConfigError(
+      `${path} header hashVersion must be an integer (the identity profile version every ` +
+        `recorded cassette carries); got ${String(headerRaw.hashVersion)}`,
+    );
+  }
+  if (typeof headerRaw.recordedAt !== 'string' || Number.isNaN(Date.parse(headerRaw.recordedAt))) {
+    throw new ConfigError(
+      `${path} header recordedAt must be a date string; got ${String(headerRaw.recordedAt)}`,
+    );
+  }
   const rows = numbered.slice(1).map((line) => {
-    const row = parse(line) as VcrRow;
-    if (
-      typeof row !== 'object' ||
-      row === null ||
-      typeof row.adapterId !== 'string' ||
-      typeof row.requestHash !== 'string' ||
-      !Array.isArray(row.events)
-    ) {
-      throw new ConfigError(
-        `${path}:${String(line.lineNo)} is not a VCR row ` +
-          '(adapterId, requestHash, and events are required)',
-      );
+    const parsed = parse(line);
+    const reject = (what: string): never => {
+      throw new ConfigError(`${path}:${String(line.lineNo)} is not a VCR row: ${what}`);
+    };
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      reject('each row is a JSON object');
+    }
+    const row = parsed as VcrRow;
+    if (typeof row.adapterId !== 'string' || row.adapterId === '') {
+      reject('adapterId must be a nonempty string');
+    }
+    if (typeof row.requestHash !== 'string' || row.requestHash === '') {
+      reject('requestHash must be a nonempty string');
+    }
+    if (typeof row.model !== 'string' || row.model === '') {
+      reject('model must be a nonempty string');
+    }
+    if (row.provider !== undefined && typeof row.provider !== 'string') {
+      reject('provider, when present, must be a string');
+    }
+    if (typeof row.request !== 'object' || row.request === null) {
+      reject('request must be an object (the redacted canonical request)');
+    }
+    if (typeof row.caps !== 'object' || row.caps === null || Array.isArray(row.caps)) {
+      reject('caps must be an object (the model caps snapshot at record time)');
+    }
+    if (!Array.isArray(row.events)) {
+      reject('events must be an array');
     }
     return row;
   });
@@ -278,6 +338,23 @@ export function readCassette(path: string): VcrCassette {
  * Builds replay adapters from a cassette. `onMiss: 'throw'` is the
  * hermetic CI mode; `'passthrough'` forwards unrecorded requests to the
  * matching live adapter in `adapters` (a development convenience only).
+ *
+ * Repeated hashes replay in file order (v1.29.0 review P2): rows
+ * sharing a `(adapterId, requestHash)` key form an ordered occurrence
+ * list, and every `stream()` call consumes exactly one occurrence,
+ * allocated synchronously inside the call itself, so two concurrent
+ * identical requests can never be served the same recorded exchange.
+ * A call after the last occurrence is a miss: under `onMiss: 'throw'`
+ * it raises a VcrMissError whose `recordedOccurrences` says the hash
+ * WAS recorded but is exhausted, and under `'passthrough'` it
+ * forwards to the live adapter exactly like a never-recorded request.
+ *
+ * Before serving anything, replay also enforces what `record` has
+ * guaranteed since v1.29.0: every row's event stream ends with
+ * exactly one terminal event (finish or error), and all caps
+ * snapshots for one `(adapterId, model)` agree, since the replay
+ * adapter can only report one caps truth per model. Violations throw
+ * a typed ConfigError naming the cassette and row.
  */
 export function replay(options: {
   cassette: string;
@@ -290,38 +367,62 @@ export function replay(options: {
   // is stale by construction (journals of the same vintage cannot resume
   // either), so replay refuses loudly instead of silently drifting.
   const oldestSupported = CURRENT_HASH_VERSION - 1;
-  if (
-    typeof header.hashVersion !== 'number' ||
-    header.hashVersion < oldestSupported ||
-    header.hashVersion > CURRENT_HASH_VERSION
-  ) {
+  if (header.hashVersion < oldestSupported || header.hashVersion > CURRENT_HASH_VERSION) {
     throw new ConfigError(
       `${options.cassette} was recorded under hashVersion ${String(header.hashVersion)}, ` +
         `outside the supported window [${oldestSupported}, ${CURRENT_HASH_VERSION}]; ` +
         'record the cassette again on a current engine',
     );
   }
-  const byAdapter = new Map<string, Map<string, VcrRow>>();
+  rows.forEach((row, index) => {
+    const terminals = row.events.filter((event) => isTerminalEvent(event)).length;
+    const last = row.events[row.events.length - 1];
+    if (terminals !== 1 || last === undefined || !isTerminalEvent(last)) {
+      throw new ConfigError(
+        `${options.cassette} row ${String(index + 1)} (adapter '${row.adapterId}', hash ` +
+          `${row.requestHash.slice(0, 12)}) does not record one completed exchange: expected ` +
+          `exactly one trailing terminal event (finish or error), found ${String(terminals)}; ` +
+          'record the cassette again on a current engine',
+      );
+    }
+  });
+  const byAdapter = new Map<string, Map<string, VcrRow[]>>();
   for (const row of rows) {
-    const forAdapter = byAdapter.get(row.adapterId) ?? new Map<string, VcrRow>();
-    forAdapter.set(row.requestHash, row);
+    const forAdapter = byAdapter.get(row.adapterId) ?? new Map<string, VcrRow[]>();
+    const occurrences = forAdapter.get(row.requestHash) ?? [];
+    occurrences.push(row);
+    forAdapter.set(row.requestHash, occurrences);
     byAdapter.set(row.adapterId, forAdapter);
   }
   const live = new Map((options.adapters ?? []).map((adapter) => [adapter.id, adapter]));
   const adapterIds = new Set<string>([...byAdapter.keys(), ...live.keys()]);
   return [...adapterIds].map((adapterId) => {
-    const recorded = byAdapter.get(adapterId) ?? new Map<string, VcrRow>();
-    const passthrough = live.get(adapterId);
-    const someRow = [...recorded.values()][0];
-    const capsByModel = new Map<string, ModelCaps>();
-    for (const row of recorded.values()) {
-      capsByModel.set(row.model, row.caps);
+    const recorded = byAdapter.get(adapterId) ?? new Map<string, VcrRow[]>();
+    const recordedRows = [...recorded.values()].flat();
+    const someRow = recordedRows[0];
+    const capsByModel = new Map<string, { caps: ModelCaps; canonical: string }>();
+    for (const row of recordedRows) {
+      const canonical = canonicalJson(row.caps);
+      const existing = capsByModel.get(row.model);
+      if (existing === undefined) {
+        capsByModel.set(row.model, { caps: row.caps, canonical });
+      } else if (existing.canonical !== canonical) {
+        throw new ConfigError(
+          `${options.cassette} carries conflicting caps snapshots for adapter ` +
+            `'${adapterId}' model '${row.model}'; a replay adapter reports one caps truth ` +
+            'per model, so record the cassette again in one session',
+        );
+      }
     }
+    const passthrough = live.get(adapterId);
+    // One cursor per hash, shared by every run on this adapter set:
+    // occurrences are consumed once each, in file order.
+    const cursors = new Map<string, number>();
     return {
       id: adapterId,
       ...(someRow?.provider === undefined ? {} : { provider: someRow.provider }),
       caps: (model: string): ModelCaps => {
-        const snapshot = capsByModel.get(model) ?? passthrough?.caps(model);
+        const snapshot = capsByModel.get(model)?.caps ?? passthrough?.caps(model);
         if (snapshot === undefined) {
           throw new ConfigError(
             `VCR replay adapter '${adapterId}' has no caps snapshot for model '${model}'`,
@@ -329,20 +430,36 @@ export function replay(options: {
         }
         return snapshot;
       },
-      async *stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent> {
+      stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent> {
+        // The occurrence is allocated HERE, synchronously in the
+        // stream() call, not at first pull: concurrent identical
+        // requests each claim their own row before any of them yields.
         const hash = requestHash(req);
-        const row = recorded.get(hash);
-        if (row !== undefined) {
-          for (const event of row.events) {
-            yield event;
+        const occurrences = recorded.get(hash);
+        let row: VcrRow | undefined;
+        if (occurrences !== undefined) {
+          const cursor = cursors.get(hash) ?? 0;
+          if (cursor < occurrences.length) {
+            cursors.set(hash, cursor + 1);
+            row = occurrences[cursor];
           }
-          return;
         }
-        if (options.onMiss === 'passthrough' && passthrough !== undefined) {
-          yield* passthrough.stream(req, signal);
-          return;
-        }
-        throw new VcrMissError(adapterId, hash);
+        const recordedCount = occurrences?.length;
+        // The miss still surfaces lazily (at first pull), matching how
+        // a live adapter fails inside its stream.
+        return (async function* (): AsyncIterable<ChatEvent> {
+          if (row !== undefined) {
+            for (const event of row.events) {
+              yield event;
+            }
+            return;
+          }
+          if (options.onMiss === 'passthrough' && passthrough !== undefined) {
+            yield* passthrough.stream(req, signal);
+            return;
+          }
+          throw new VcrMissError(adapterId, hash, recordedCount);
+        })();
       },
     };
   });

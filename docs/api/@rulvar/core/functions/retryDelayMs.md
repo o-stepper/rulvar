@@ -14,7 +14,7 @@ function retryDelayMs(
    random?): number;
 ```
 
-Defined in: [packages/core/src/model/retry.ts:86](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L86)
+Defined in: [packages/core/src/model/retry.ts:207](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L207)
 
 The delay before retry number `retryIndex` (zero based: the delay
 after the first failed attempt has index 0). A VALID provider

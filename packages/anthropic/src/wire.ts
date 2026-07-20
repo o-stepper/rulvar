@@ -600,19 +600,20 @@ export async function* mapAnthropicStream(
 const MAX_RETRY_AFTER_MS = 2_147_483_647;
 
 /**
- * Parses a Retry-After header into milliseconds. Only the delta
- * seconds form is honored: the HTTP date form and any other
- * unparsable value return undefined so the engine falls back to its
- * computed policy backoff instead of receiving NaN, and a huge but
- * finite value is clamped to the Node timer maximum (v1.28.0 review
- * P2).
+ * Parses a Retry-After header into milliseconds. Only the RFC delta
+ * seconds grammar is honored: after trimming optional whitespace the
+ * value must be a nonempty run of decimal digits, so the HTTP date
+ * form, signs, decimals, hex, exponents, and empty values all return
+ * undefined and the engine falls back to its computed policy backoff
+ * (v1.29.0 review P3; `Number()` alone accepted every one of those).
+ * A huge digit run is clamped to the Node timer maximum.
  */
 function retryAfterMsFrom(header: string): number | undefined {
-  const seconds = Number(header);
-  if (!Number.isFinite(seconds) || seconds < 0) {
+  const trimmed = header.trim();
+  if (!/^[0-9]+$/.test(trimmed)) {
     return undefined;
   }
-  return Math.min(Math.round(seconds * 1000), MAX_RETRY_AFTER_MS);
+  return Math.min(Number(trimmed) * 1000, MAX_RETRY_AFTER_MS);
 }
 
 /**

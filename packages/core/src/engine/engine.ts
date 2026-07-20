@@ -62,7 +62,7 @@ import {
 } from './run-handle.js';
 import { DEFAULT_PER_RUN_CONCURRENCY, Semaphore } from './scheduler.js';
 import { InProcessRunner, type CompiledWorkflow, type ScriptRunner } from '../runner/inprocess.js';
-import type { RetryPolicy } from '../model/retry.js';
+import { validateRetryPolicy, type RetryPolicy } from '../model/retry.js';
 import { KeyedLimiter } from '../model/concurrency.js';
 import { resolvePricing, priceUsdOf, type PriceTable } from '../model/pricing.js';
 import type { QualityFloors } from '../model/floors.js';
@@ -347,6 +347,18 @@ export function createEngine(options: CreateEngineOptions): Engine {
       : wrapTranscriptStore(rawTranscripts, options.serialization.transcripts);
   const maskEvents = options.redaction?.maskEvents ?? true;
   const defaults = options.defaults ?? {};
+  // Retry policies are validated at construction: an invalid engine
+  // default or profile retry fails here, before any run can merge it
+  // and reach a provider under it (v1.29.0 review P2). The per-call
+  // merge in ctx.agent validates again, covering call options.
+  if (defaults.retry !== undefined) {
+    validateRetryPolicy(defaults.retry, 'createEngine defaults.retry');
+  }
+  for (const [name, profile] of Object.entries(defaults.profiles ?? {})) {
+    if (profile.retry !== undefined) {
+      validateRetryPolicy(profile.retry, `createEngine defaults.profiles['${name}'].retry`);
+    }
+  }
   // The runtime side holds the current()-only handle, never the store:
   // commit is unreachable from inside a run by the shape of the API.
   const knowledgeStore = options.stores?.modelKnowledge;
