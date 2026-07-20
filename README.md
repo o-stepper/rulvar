@@ -183,11 +183,11 @@ Built from [docs/](docs/README.md) and published at [docs.rulvar.com](https://do
 
 ## OpenAI Build Week: how this project used Codex and GPT-5.6
 
-Rulvar predates Build Week; everything from v1.4.0 through v1.25.0 shipped inside the
+Rulvar predates Build Week; everything from v1.4.0 through v1.26.0 shipped inside the
 submission window (July 13-21, 2026), and the collaboration below is the part of that
 work done with Codex.
 
-**Codex was the project's independent QA engineer.** Nine times during the week, the
+**Codex was the project's independent QA engineer.** Ten times during the week, the
 freshly shipped release was handed to Codex (session
 `019f65d7-4599-7d93-97dc-9dd4a5dc66f9`). Each round, Codex ran the full offline matrix
 plus live end-to-end orchestrations against real GPT-5.6 (Sol orchestrating; Luna,
@@ -196,7 +196,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The nine rounds, verbatim in this repository's history:
+The ten rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                      | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------- | ---------- |
@@ -209,6 +209,7 @@ The nine rounds, verbatim in this repository's history:
 | v1.23.0       | 2b033e8 (#216): card toolset semantics, resume args binding, RunMeta docs truth, testing barrel | v1.24.0    |
 | v1.24.0       | 0bb14db (#219): resume args gate overflow bypass, argsHash secrecy honesty                      | v1.24.1    |
 | v1.24.1       | 74851ed (#222): CLI diagnostics value withholding and sanitation, worker execArgv isolation     | v1.25.0    |
+| v1.25.0       | a4fc757 (#226): linear event drain, exact reference checkpoint pruning, scale safe stores       | v1.26.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
@@ -216,9 +217,12 @@ cache scenario (the wording survives in the body of commit 9367030); a budget-ce
 bypass through hostile usage telemetry (negative, fractional, or NaN counts); control-character injection into terminal renderers from untrusted provider output; resumes
 re-minting duplicate journal identities for identical operations (ordinal 0), corrupting
 sibling binding on later replays; a resume args gate a JSON numeric overflow could
-slip past, silently re-paying every args-dependent call; and a sandbox worker
+slip past, silently re-paying every args-dependent call; a sandbox worker
 inheriting launch flags from its host process, so a correct compiled workflow died at
-worker boot whenever the embedding host ran as ESM from stdin or `--eval`.
+worker boot whenever the embedding host ran as ESM from stdin or `--eval`; and a scale
+audit that found the run event stream buffering quadratically on a late reader,
+checkpoint pruning stranding blobs whenever one checkpoint ref was a prefix of another,
+and every point lookup scanning the whole run catalog.
 
 **GPT-5.6 runs inside the product as well as behind Codex.** The OpenAI adapter
 carries first-class GPT-5.6 Sol, Terra, and Luna support: per-sibling pricing with
