@@ -18,6 +18,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.30.0
+
+#### Patch Changes
+
+- 87ce985: Parse `Retry-After` under the exact RFC delta seconds grammar (v1.29.0 review P3). Published 1.29.0 used `Number(header)`, which accepted far more than the documented delta seconds form: an empty or whitespace header became a 0 ms delay (an instant retry instead of the policy backoff), and hex (`0x10`), exponent (`1e3`), decimal (`1.5`), and signed (`+3`) forms were honored as delays. The value must now be a nonempty run of decimal digits after optional whitespace; every other form (the HTTP date included) omits `retryAfterMs` so the engine's computed backoff applies, and a huge digit run still clamps to the Node timer maximum.
+- Updated dependencies [87ce985]
+  - @rulvar/core@1.30.0
+
 ### 1.29.0
 
 #### Minor Changes
@@ -568,6 +576,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.30.0
+
+#### Patch Changes
+
+- Updated dependencies [87ce985]
+  - @rulvar/core@1.30.0
+
 ### 1.29.0
 
 #### Patch Changes
@@ -985,6 +1000,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.30.0
+
+#### Patch Changes
+
+- Updated dependencies [87ce985]
+  - @rulvar/core@1.30.0
 
 ### 1.29.0
 
@@ -1586,6 +1608,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.30.0
+
+#### Minor Changes
+
+- 87ce985: Validate every RetryPolicy before anything runs under it (v1.29.0 review P2). Published 1.29.0 accepted `attempts: 0`, fractional and NaN attempts, negative backoff numbers, and a NaN factor, then dispatched the adapter under them: the invalid values silently reshaped retry semantics (zero or NaN attempts behaved as no retries; a negative initialMs or NaN factor collapsed the delay to zero, removing backoff entirely). The new exported `validateRetryPolicy` enforces the documented contract, a positive safe integer `attempts` (the engine always makes the first try, so zero attempts has no meaning), timer safe integer `initialMs` and `maxMs` (`maxMs` below `initialMs` stays legal as a `Math.min` ceiling), a finite positive `factor` (below 1 is a legal decaying backoff), a boolean `jitter`, and unique known `retryOn` classes, and throws a typed `ConfigError` naming the offending field and its config source. `createEngine` validates `defaults.retry` and every profile retry at construction; the per call merge in `ctx.agent` validates the winning policy before identity, admission, or any journal append, so an invalid policy can never reach a provider or record a partial agent execution.
 
 ### 1.29.0
 
@@ -2679,6 +2707,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.30.0
+
 ### 1.29.0
 
 ### 1.28.0
@@ -2807,6 +2837,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.30.0
+
+#### Patch Changes
+
+- Updated dependencies [87ce985]
+- Updated dependencies [87ce985]
+  - @rulvar/core@1.30.0
+  - @rulvar/testing@1.30.0
 
 ### 1.29.0
 
@@ -3337,6 +3376,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.30.0
+
+#### Patch Changes
+
+- 87ce985: Parse `Retry-After` under the exact RFC delta seconds grammar (v1.29.0 review P3). Published 1.29.0 used `Number(header)`, which accepted far more than the documented delta seconds form: an empty or whitespace header became a 0 ms delay (an instant retry instead of the policy backoff), and hex (`0x10`), exponent (`1e3`), decimal (`1.5`), and signed (`+3`) forms were honored as delays. The value must now be a nonempty run of decimal digits after optional whitespace; every other form (the HTTP date included) omits `retryAfterMs` so the engine's computed backoff applies, and a huge digit run still clamps to the Node timer maximum.
+- Updated dependencies [87ce985]
+  - @rulvar/core@1.30.0
 
 ### 1.29.0
 
@@ -3905,6 +3952,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.30.0
+
+#### Patch Changes
+
+- Updated dependencies [87ce985]
+  - @rulvar/core@1.30.0
+
 ### 1.29.0
 
 #### Patch Changes
@@ -4436,6 +4490,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.30.0
+
+#### Patch Changes
+
+- Updated dependencies [87ce985]
+  - @rulvar/core@1.30.0
+  - eslint-plugin-rulvar@1.30.0
+
 ### 1.29.0
 
 #### Patch Changes
@@ -4920,6 +4982,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.30.0
+
+#### Patch Changes
+
+- Updated dependencies [87ce985]
+- Updated dependencies [87ce985]
+  - @rulvar/openai@1.30.0
+  - @rulvar/anthropic@1.30.0
+  - @rulvar/core@1.30.0
 
 ### 1.29.0
 
@@ -5541,6 +5613,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.30.0
+
+#### Patch Changes
+
+- Updated dependencies [87ce985]
+  - @rulvar/core@1.30.0
+
 ### 1.29.0
 
 #### Patch Changes
@@ -6034,6 +6113,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.30.0
+
+#### Patch Changes
+
+- Updated dependencies [87ce985]
+  - @rulvar/core@1.30.0
+
 ### 1.29.0
 
 #### Patch Changes
@@ -6466,6 +6552,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.30.0
+
+#### Minor Changes
+
+- 87ce985: Replay repeated request hashes as ordered occurrences and validate the full cassette shape (v1.29.0 review P2 and P3). Published 1.29.0 built replay on a `Map<requestHash, row>`, so a cassette holding two exchanges under one hash (a recorded retry: error then success) served only the later row, on the first call and forever: the recorded error branch never replayed, usage and cost silently shrank, and no occurrence was ever exhausted. Rows sharing one `(adapterId, requestHash)` key now form an ordered occurrence list; every `stream()` call consumes exactly one occurrence in file order, claimed synchronously inside the call itself so concurrent identical requests each get their own exchange. A call past the last occurrence is a typed miss: `VcrMissError` gains a `recordedOccurrences` field saying the hash was recorded but is exhausted, and `onMiss: 'passthrough'` forwards exhausted hashes to the live adapter. `replay` also refuses a cassette whose row does not end with exactly one terminal event or whose caps snapshots conflict for one `(adapterId, model)`, and `readCassette` now validates the full documented header and row shape (integer `hashVersion`, date string `recordedAt`, nonempty `model`, a `request` object, a `caps` object, a string `provider` when present) with errors naming the cassette path and line; unknown extra fields stay tolerated for forward compatibility. Hand written cassettes missing documented fields, previously accepted and failed late with misleading errors, are now refused at read time; cassettes written by `record` always carried the full shape.
+
+#### Patch Changes
+
+- Updated dependencies [87ce985]
+  - @rulvar/core@1.30.0
 
 ### 1.29.0
 
