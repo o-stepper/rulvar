@@ -741,8 +741,37 @@
     {
       "hashVersion": 2,
       "seq": 21,
-      "scope": "plan/ULID-0005--------------------/agent:18",
+      "scope": "plan",
       "key": "hash-0030-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "plan.decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "origin": "child-result",
+        "ops": [
+          {
+            "kind": "set_node_status",
+            "nodeId": "ULID-0004--------------------",
+            "from": "running",
+            "to": "done",
+            "cause": "child-result",
+            "causeRef": 19
+          }
+        ],
+        "causeRef": 19,
+        "planHashBefore": "hash-0029-------------------------------------------------------",
+        "planHashAfter": "hash-0031-------------------------------------------------------",
+        "hashVersion": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 22,
+      "scope": "plan/ULID-0005--------------------/agent:18",
+      "key": "hash-0032-------------------------------------------------------",
       "ordinal": 0,
       "kind": "approval",
       "status": "suspended",
@@ -763,35 +792,6 @@
     },
     {
       "hashVersion": 2,
-      "seq": 22,
-      "scope": "plan",
-      "key": "hash-0031-------------------------------------------------------",
-      "ordinal": 0,
-      "kind": "plan.decision",
-      "status": "ok",
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:00.000Z",
-      "value": {
-        "origin": "child-result",
-        "ops": [
-          {
-            "kind": "set_node_status",
-            "nodeId": "ULID-0004--------------------",
-            "from": "running",
-            "to": "done",
-            "cause": "child-result",
-            "causeRef": 19
-          }
-        ],
-        "causeRef": 19,
-        "planHashBefore": "hash-0029-------------------------------------------------------",
-        "planHashAfter": "hash-0032-------------------------------------------------------",
-        "hashVersion": 2
-      },
-      "endedAt": "2026-02-01T00:00:00.000Z"
-    },
-    {
-      "hashVersion": 2,
       "seq": 23,
       "scope": "agent:2",
       "key": "hash-0033-------------------------------------------------------",
@@ -807,7 +807,7 @@
     {
       "hashVersion": 2,
       "seq": 24,
-      "ref": 21,
+      "ref": 22,
       "scope": "plan/ULID-0005--------------------/agent:18",
       "key": "",
       "ordinal": 0,
@@ -816,7 +816,7 @@
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:00.000Z",
       "resolution": {
-        "target": 21,
+        "target": 22,
         "by": "timeout",
         "value": {
           "kind": "accept"
@@ -910,7 +910,7 @@
           }
         ],
         "causeRef": 25,
-        "planHashBefore": "hash-0032-------------------------------------------------------",
+        "planHashBefore": "hash-0031-------------------------------------------------------",
         "planHashAfter": "hash-0035-------------------------------------------------------",
         "hashVersion": 2
       },
@@ -933,7 +933,7 @@
         "decision": {
           "kind": "accept"
         },
-        "reportRef": 21,
+        "reportRef": 22,
         "countsAgainstLimit": true,
         "resolvedBy": "default",
         "escalationUnitsAfter": 0
@@ -960,7 +960,7 @@
               "kind": "accept"
             },
             "resolvedBy": "default",
-            "escalationRef": 21
+            "escalationRef": 22
           }
         ],
         "causeRef": 28,
@@ -1295,7 +1295,7 @@
       "hashVersion": 2,
       "seq": 35,
       "scope": "plan/ULID-0011--------------------/agent:33",
-      "key": "hash-0030-------------------------------------------------------",
+      "key": "hash-0032-------------------------------------------------------",
       "ordinal": 0,
       "kind": "approval",
       "status": "suspended",

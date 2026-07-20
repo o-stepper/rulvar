@@ -242,6 +242,13 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
             signal === undefined ? undefined : { signal },
           )) as AsyncIterable<AnthropicStreamEvent>;
         } catch (thrown) {
+          // A rejection caused by the caller's own abort ends the stream
+          // with no terminal event, exactly like the consumption catch
+          // below: a requested cancellation is never a provider error
+          // (v1.27.0 review P2).
+          if (signal?.aborted === true) {
+            return;
+          }
           yield { type: 'error', error: anthropicErrorToWire(thrown) };
           return;
         }
@@ -268,7 +275,27 @@ export function anthropic(options: AnthropicAdapterOptions = {}): ProviderAdapte
           yield { type: 'error', error: anthropicErrorToWire(thrown) };
           return;
         }
+        if (mapping.finished) {
+          return;
+        }
         if (!mapping.pauseTurn) {
+          // Neither finished nor paused: the wire stream drained before
+          // message_stop, so the turn was truncated. Fail closed with
+          // one retryable transport error instead of ending silently;
+          // a requested abort is the documented exception (v1.27.0
+          // review P1).
+          if (signal?.aborted === true) {
+            return;
+          }
+          yield {
+            type: 'error',
+            error: {
+              code: 'agent',
+              message: 'Messages stream ended before message_stop; the read was truncated',
+              retryable: true,
+              data: { kind: 'transport' },
+            },
+          };
           return;
         }
         carryRetained.push(

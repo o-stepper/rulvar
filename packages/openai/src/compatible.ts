@@ -98,7 +98,7 @@ export function openaiCompatible(cfg: OpenAiCompatibleConfig): ProviderAdapter {
           { ...params, stream: true, stream_options: { include_usage: true } },
           signal === undefined ? undefined : { signal },
         )) as AsyncIterable<Record<string, unknown>>;
-        yield* mapChatCompletionsStream(stream, ids);
+        yield* mapChatCompletionsStream(stream, ids, signal === undefined ? undefined : { signal });
       } catch (thrown) {
         if (signal?.aborted !== true) {
           yield { type: 'error', error: openAiErrorToWire(thrown) };

@@ -240,36 +240,45 @@ describe('hostile mid-stream usage events', () => {
     expect(outcome.cost.totalUsd).toBeGreaterThanOrEqual(10);
   });
 
-  it('a usage event after finish is refused, so a hostile adapter cannot zero its bill', async () => {
+  it('a usage event after finish is never read, so a hostile adapter cannot zero its bill', async () => {
+    // Stop consumption at the terminal (v1.27.0 review P2): the runtime
+    // closes the adapter iterator at the first finish, so the revision
+    // attempt is never even pulled and the authoritative bill stands.
+    let pulledPastFinish = false;
     const engine = engineWith({
       id: 'fake',
       caps: () => roomyCaps,
       // eslint-disable-next-line @typescript-eslint/require-await
       async *stream(): AsyncIterable<ChatEvent> {
         yield { type: 'finish', finish: { reason: 'stop' }, usage: U(1_000_000, 500) };
+        pulledPastFinish = true;
         yield { type: 'usage', usage: { inputTokens: 0, outputTokens: 0 } };
       },
     });
     const outcome = await engine.run(oneAgent, undefined).result;
-    expect(outcome.status).toBe('error');
-    expect(outcome.error?.message).toContain('after the finish event');
+    expect(outcome.status).toBe('ok');
+    expect(pulledPastFinish).toBe(false);
     // The authoritative finish usage stands: 1M input priced, not zeroed.
+    expect(outcome.usage.inputTokens).toBe(1_000_000);
     expect(outcome.cost.totalUsd).toBeGreaterThan(0);
   });
 
-  it('a second finish event is refused', async () => {
+  it('a second finish event is never read: the first terminal is authoritative', async () => {
+    let pulledPastFinish = false;
     const engine = engineWith({
       id: 'fake',
       caps: () => roomyCaps,
       // eslint-disable-next-line @typescript-eslint/require-await
       async *stream(): AsyncIterable<ChatEvent> {
         yield { type: 'finish', finish: { reason: 'stop' }, usage: U(1_000_000, 500) };
+        pulledPastFinish = true;
         yield { type: 'finish', finish: { reason: 'stop' }, usage: U(1, 1) };
       },
     });
     const outcome = await engine.run(oneAgent, undefined).result;
-    expect(outcome.status).toBe('error');
-    expect(outcome.error?.message).toContain('second finish event');
+    expect(outcome.status).toBe('ok');
+    expect(pulledPastFinish).toBe(false);
+    expect(outcome.usage.inputTokens).toBe(1_000_000);
   });
 
   it('an accessor-based usage object cannot vary its answers between validation and use', async () => {

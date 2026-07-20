@@ -147,6 +147,46 @@ describe('canonical CLI grammar (v1.16.2 review P2-1 + P3-1)', () => {
     }
   });
 
+  it('folds spaced negatives for numeric flags onto the canonical diagnostic (v1.27.0 review P3)', () => {
+    // The documented spaced syntax now reaches parseBudgetValue instead
+    // of dying on the generic parseArgs ambiguity error.
+    const parsed = parseCommand(GRAMMAR.run, ['wf', '--budget-usd', '-1']);
+    expect(parsed.values['budget-usd']).toBe('-1');
+    expect(() =>
+      parseBudgetValue('budget-usd', parsed.values['budget-usd'] as string),
+    ).toThrowError(/--budget-usd must be a positive number, got '-1'/);
+    // Exotic numeric spellings fold too.
+    expect(parseCommand(GRAMMAR.run, ['wf', '--budget-usd', '-1e400']).values['budget-usd']).toBe(
+      '-1e400',
+    );
+    expect(parseCommand(GRAMMAR.run, ['wf', '--budget-usd', '-.5']).values['budget-usd']).toBe(
+      '-.5',
+    );
+    expect(
+      parseCommand(GRAMMAR.plan, ['goal', '--planning-budget-usd', '-2']).values[
+        'planning-budget-usd'
+      ],
+    ).toBe('-2');
+    // Non numeric flags never fold: a JSON negative still needs the
+    // equals form, exactly as documented.
+    expect(() => parseCommand(GRAMMAR.run, ['wf', '--args', '-1'])).toThrowError(
+      /argument is ambiguous/,
+    );
+    // A real flag after a numeric flag stays the missing value
+    // diagnostic, never a folded value.
+    expect(() => parseCommand(GRAMMAR.run, ['wf', '--budget-usd', '--profile'])).toThrowError(
+      /argument is ambiguous/,
+    );
+    // Unknown options are untouched by the fold.
+    expect(() => parseCommand(GRAMMAR.run, ['wf', '--nope', '-1'])).toThrowError(
+      /Unknown option '--nope'/,
+    );
+    // The folded form still counts toward the duplicate guard.
+    expect(() =>
+      parseCommand(GRAMMAR.run, ['wf', '--budget-usd', '-1', '--budget-usd=-2']),
+    ).toThrowError(/--budget-usd may appear at most once/);
+  });
+
   it('renders help, usage lines, and the kb gate grammar from one structure', () => {
     for (const line of helpCommandLines()) {
       expect(HELP).toContain(line);
@@ -188,7 +228,17 @@ describe('canonical CLI grammar (v1.16.2 review P2-1 + P3-1)', () => {
       [['run'], 'usage: rulvar run <file|name>'],
       [['run', 'wf', 'extra'], "unexpected extra argument 'extra'"],
       [['run', 'wf', '--budget-usd', '0'], '--budget-usd must be a positive number'],
+      [['run', 'wf', '--budget-usd', '-1'], '--budget-usd must be a positive number'],
+      [['run', 'wf', '--budget-usd=-1'], '--budget-usd must be a positive number'],
+      [['run', 'wf', '--budget-usd', '-1e400'], '--budget-usd must be a positive number'],
+      [['run', 'wf', '--budget-usd', 'NaN'], '--budget-usd must be a positive number'],
+      [['run', 'wf', '--budget-usd', 'Infinity'], '--budget-usd must be a positive number'],
+      [['run', 'wf', '--budget-usd', '--profile'], 'argument is ambiguous'],
+      [['run', 'wf', '--nope', '-1'], "Unknown option '--nope'"],
       [['run', 'wf', '--budget-usd', '1', '--budget-usd', '2'], 'may appear at most once'],
+      [['run', 'wf', '--budget-usd', '-1', '--budget-usd=-2'], 'may appear at most once'],
+      [['plan', 'goal', '--planning-budget-usd', '-1'], 'must be a positive number'],
+      [['plan', 'goal', '--planning-budget-usd=-1'], 'must be a positive number'],
       [['run', 'wf', '--nope'], "Unknown option '--nope'"],
       [['resume'], 'usage: rulvar resume <runId>'],
       [['resume', 'r1', '--budget-usd', '0.01'], "Unknown option '--budget-usd'"],

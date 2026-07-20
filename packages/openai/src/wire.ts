@@ -322,11 +322,18 @@ export function normalizeOpenAiUsage(raw: Record<string, unknown> | undefined): 
  * output array, never the output_text aggregate. Raw output items ride
  * finish.providerMetadata.openai.outputItems so the runtime can retain
  * reasoning items as provider-raw parts.
+ *
+ * A stream that drains without any response terminal event
+ * (`response.completed`, `response.incomplete`, `response.failed`, or
+ * `error`) is a truncated wire read: the mapper fails closed with one
+ * retryable transport error instead of ending silently, unless
+ * `options.signal` shows the caller requested the abort (the documented
+ * exception that ends a stream without a terminal event).
  */
 export async function* mapResponsesStream(
   stream: AsyncIterable<ResponsesStreamEvent>,
   ids: OpenAiIdMap,
-  options?: { effortDownmapped?: boolean },
+  options?: { effortDownmapped?: boolean; signal?: AbortSignal },
 ): AsyncGenerator<ChatEvent, void> {
   const callIdByItemId = new Map<string, string>();
 
@@ -469,6 +476,23 @@ export async function* mapResponsesStream(
         break;
     }
   }
+  // Every terminal case above returns, so reaching this point means the
+  // wire stream drained with no terminal event (v1.27.0 review P1).
+  if (options?.signal?.aborted === true) {
+    return;
+  }
+  yield {
+    type: 'error',
+    error: {
+      code: 'agent',
+      message:
+        'Responses stream ended without a response terminal event ' +
+        '(response.completed, response.incomplete, response.failed, or error); ' +
+        'the read was truncated',
+      retryable: true,
+      data: { kind: 'transport' },
+    },
+  };
 }
 
 /**
@@ -645,13 +669,23 @@ export function buildChatCompletionsParams(
  * Delta-patched chunk assembly for the degraded path; yields each
  * canonical event as its chunk is consumed (same live-streaming contract
  * as mapResponsesStream).
+ *
+ * The chat dialect has no explicit terminal frame at this layer: the
+ * only completion signal is a `finish_reason` on the last choice chunk.
+ * A stream that drains without one is a truncated wire read, so the
+ * mapper fails closed with one retryable transport error (after
+ * forwarding any usage the provider did report, which was still paid
+ * for) instead of synthesizing a `stop` finish, unless `options.signal`
+ * shows the caller requested the abort.
  */
 export async function* mapChatCompletionsStream(
   stream: AsyncIterable<Record<string, unknown>>,
   ids: OpenAiIdMap,
+  options?: { signal?: AbortSignal },
 ): AsyncGenerator<ChatEvent, void> {
   const pendingCalls = new Map<number, { id: string; name: string; args: string }>();
   let finishReason: string | undefined;
+  let sawUsageChunk = false;
   let usage: Usage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
 
   for await (const chunk of stream) {
@@ -694,6 +728,7 @@ export async function* mapChatCompletionsStream(
     }
     const chunkUsage = chunk.usage as Record<string, unknown> | undefined;
     if (chunkUsage !== undefined && chunkUsage !== null) {
+      sawUsageChunk = true;
       const promptDetails = chunkUsage.prompt_tokens_details as Record<string, unknown> | undefined;
       // Same contract as the Responses path: prompt_tokens is the FULL
       // prompt, cached_tokens and cache_write_tokens are priced subsets
@@ -717,6 +752,29 @@ export async function* mapChatCompletionsStream(
     }
   }
 
+  if (finishReason === undefined) {
+    // No finish_reason ever arrived: the read was cut short (v1.27.0
+    // review P1). Half assembled tool calls stay unflushed (they must
+    // not surface as complete calls), received usage is still billed,
+    // and the terminal is one retryable transport error, not a
+    // synthesized stop. A requested abort is the documented exception.
+    if (options?.signal?.aborted === true) {
+      return;
+    }
+    if (sawUsageChunk) {
+      yield { type: 'usage', usage };
+    }
+    yield {
+      type: 'error',
+      error: {
+        code: 'agent',
+        message: 'chat completions stream ended without a finish_reason; the read was truncated',
+        retryable: true,
+        data: { kind: 'transport' },
+      },
+    };
+    return;
+  }
   for (const [, pending] of pendingCalls) {
     let args: unknown = {};
     try {

@@ -519,6 +519,124 @@ describe('adapter surface (M1-T12)', () => {
   );
 });
 
+describe('terminal stream contract (v1.27.0 review P1 and P2)', () => {
+  /** Raw wire events for a turn cut before message_stop. */
+  const cutTurn: AnthropicStreamEvent[] = [
+    { type: 'message_start', message: { id: 'msg_1', usage: { input_tokens: 9 } } },
+    { type: 'content_block_start', index: 0, content_block: { type: 'text' } },
+    { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'PARTIAL_ONLY' } },
+    { type: 'content_block_stop', index: 0 },
+    { type: 'message_delta', delta: {}, usage: { output_tokens: 4 } },
+  ];
+
+  async function* fixture(events: AnthropicStreamEvent[]): AsyncIterable<AnthropicStreamEvent> {
+    for (const event of events) {
+      yield await Promise.resolve(event);
+    }
+  }
+
+  function clientOf(create: AnthropicClientLike['messages']['create']): AnthropicClientLike {
+    return {
+      messages: { create, countTokens: () => Promise.resolve({ input_tokens: 1 }) },
+      models: { list: () => Promise.resolve({ data: [] }) },
+    };
+  }
+
+  const req: ChatRequest = {
+    model: 'claude-sonnet-5',
+    messages: [{ role: 'user', parts: [{ type: 'text', text: 'hi' }] }],
+    maxOutputTokens: 16,
+  };
+
+  async function streamOf(
+    adapter: ReturnType<typeof anthropic>,
+    signal?: AbortSignal,
+  ): Promise<ChatEvent[]> {
+    const events: ChatEvent[] = [];
+    for await (const event of adapter.stream(req, signal)) {
+      events.push(event);
+    }
+    return events;
+  }
+
+  it('the adapter fails closed when the wire stream drains before message_stop', async () => {
+    const adapter = anthropic({ client: clientOf(() => Promise.resolve(fixture(cutTurn))) });
+    const events = await streamOf(adapter);
+    expect(events.map((e) => e.type)).toEqual(['usage', 'text-delta', 'error']);
+    const error = events.at(-1) as Extract<ChatEvent, { type: 'error' }>;
+    expect(error.error.retryable).toBe(true);
+    expect((error.error.data as { kind?: string }).kind).toBe('transport');
+    expect(error.error.message).toContain('before message_stop');
+  });
+
+  it('the mapper itself keeps reporting the truncation honestly: finished stays false', async () => {
+    const { events, mapping } = await drain(mapAnthropicStream(fixture(cutTurn), ids()));
+    expect(mapping.finished).toBe(false);
+    expect(mapping.pauseTurn).toBe(false);
+    expect(events.some((e) => e.type === 'finish' || e.type === 'error')).toBe(false);
+  });
+
+  it('an abort that rejects messages.create ends the stream with no terminal event', async () => {
+    const controller = new AbortController();
+    const adapter = anthropic({
+      client: clientOf(
+        (_params, opts) =>
+          new Promise((_resolve, reject) => {
+            const fail = (): void => {
+              reject(Object.assign(new Error('request aborted'), { name: 'AbortError' }));
+            };
+            if (opts?.signal?.aborted === true) {
+              fail();
+            } else {
+              opts?.signal?.addEventListener('abort', fail, { once: true });
+            }
+          }),
+      ),
+    });
+    setTimeout(() => controller.abort(), 10);
+    const events = await streamOf(adapter, controller.signal);
+    expect(events).toEqual([]);
+  });
+
+  it('an abort during iteration ends the stream with no terminal event', async () => {
+    const controller = new AbortController();
+    const adapter = anthropic({
+      client: clientOf((_params, opts) =>
+        Promise.resolve({
+          [Symbol.asyncIterator]() {
+            return {
+              next: () =>
+                new Promise<IteratorResult<AnthropicStreamEvent>>((_resolve, reject) => {
+                  const fail = (): void => {
+                    reject(Object.assign(new Error('read aborted'), { name: 'AbortError' }));
+                  };
+                  if (opts?.signal?.aborted === true) {
+                    fail();
+                  } else {
+                    opts?.signal?.addEventListener('abort', fail, { once: true });
+                  }
+                }),
+            };
+          },
+        }),
+      ),
+    });
+    setTimeout(() => controller.abort(), 10);
+    const events = await streamOf(adapter, controller.signal);
+    expect(events).toEqual([]);
+  });
+
+  it('a create rejection without an abort still surfaces exactly one typed error', async () => {
+    const adapter = anthropic({
+      client: clientOf(() => Promise.reject(Object.assign(new Error('boom'), { status: 500 }))),
+    });
+    const events = await streamOf(adapter);
+    expect(events.map((e) => e.type)).toEqual(['error']);
+    const error = events[0] as Extract<ChatEvent, { type: 'error' }>;
+    expect(error.error.retryable).toBe(true);
+  });
+});
+
 describe('the Haiku 4.5 caps entry (found by the M12 checkpoint)', () => {
   it('resolves the dated id to the enabled-budget form with haiku pricing', () => {
     for (const id of ['claude-haiku-4-5', 'claude-haiku-4-5-20251001']) {

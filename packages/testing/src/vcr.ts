@@ -152,20 +152,35 @@ export function record(options: {
     caps: (model) => adapter.caps(model),
     async *stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent> {
       const events: ChatEvent[] = [];
-      for await (const event of adapter.stream(req, signal)) {
-        events.push(event);
-        yield event;
+      // The engine stops consuming at the first terminal event (the
+      // adapter contract makes everything after it unreadable), which
+      // closes this generator through return() the moment the terminal
+      // is delivered. The append therefore lives in a finally block so
+      // a consumer that stops at the terminal still commits the row; a
+      // thrown wire failure keeps the previous no row semantics.
+      let thrown = false;
+      try {
+        for await (const event of adapter.stream(req, signal)) {
+          events.push(event);
+          yield event;
+        }
+      } catch (error) {
+        thrown = true;
+        throw error;
+      } finally {
+        if (!thrown) {
+          const row: VcrRow = {
+            adapterId: adapter.id,
+            ...(adapter.provider === undefined ? {} : { provider: adapter.provider }),
+            requestHash: requestHash(req),
+            request: walkStrings(JSON.parse(JSON.stringify(req)), redact),
+            events: walkStrings(JSON.parse(JSON.stringify(events)), redact) as ChatEvent[],
+            caps: adapter.caps(req.model),
+            model: req.model,
+          };
+          appendFileSync(options.cassette, `${JSON.stringify(row)}\n`, 'utf8');
+        }
       }
-      const row: VcrRow = {
-        adapterId: adapter.id,
-        ...(adapter.provider === undefined ? {} : { provider: adapter.provider }),
-        requestHash: requestHash(req),
-        request: walkStrings(JSON.parse(JSON.stringify(req)), redact),
-        events: walkStrings(JSON.parse(JSON.stringify(events)), redact) as ChatEvent[],
-        caps: adapter.caps(req.model),
-        model: req.model,
-      };
-      appendFileSync(options.cassette, `${JSON.stringify(row)}\n`, 'utf8');
     },
   }));
 }

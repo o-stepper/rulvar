@@ -198,11 +198,27 @@ function isParseArgsError(error: unknown): error is Error {
 }
 
 /**
+ * A strictly numeric negative token, e.g. -1, -0.5, -.5, or -1e400.
+ * Anything else that starts with a dash (another flag, -Infinity, -NaN)
+ * stays option shaped for parseArgs, so unknown option and missing
+ * value diagnostics are unchanged.
+ */
+const NEGATIVE_NUMBER = /^-(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?$/;
+
+/**
  * Parses argv against one grammar entry. Everything the grammar does
  * not name is an error: unknown options (raised by parseArgs), value
  * flags given twice, both members of an exclusive group, and any
  * positional beyond the exact arity. Every rejection names the
  * canonical usage and happens before configs, stores, or adapters load.
+ *
+ * For numeric flags (placeholder 'N'), a spaced negative value such as
+ * `--budget-usd -1` is folded to the equals form before parseArgs, which
+ * would otherwise classify the bare `-1` as an option like token and
+ * raise its generic ambiguity error. The fold keeps the documented
+ * spaced syntax on the canonical parseBudgetValue diagnostic
+ * (v1.27.0 review P3); it applies only when the next token is a strictly
+ * numeric negative, so every other rejection is untouched.
  */
 export function parseCommand(grammar: CommandGrammar, argv: string[]): ParsedCommand {
   const options: Record<string, { type: 'string' | 'boolean'; multiple: true }> = {};
@@ -212,9 +228,23 @@ export function parseCommand(grammar: CommandGrammar, argv: string[]): ParsedCom
       multiple: true,
     };
   }
+  const numericFlags = new Set(
+    grammar.flags.filter((flag) => flag.placeholder === 'N').map((flag) => `--${flag.name}`),
+  );
+  const args: string[] = [];
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+    const next = argv[index + 1];
+    if (numericFlags.has(token) && next !== undefined && NEGATIVE_NUMBER.test(next)) {
+      args.push(`${token}=${next}`);
+      index += 1;
+      continue;
+    }
+    args.push(token);
+  }
   let raw;
   try {
-    raw = parseArgs({ args: argv, allowPositionals: true, options });
+    raw = parseArgs({ args, allowPositionals: true, options });
   } catch (error) {
     if (isParseArgsError(error)) {
       // The first sentence carries the option name; the rest is

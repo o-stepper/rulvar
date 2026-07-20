@@ -6,7 +6,7 @@
 
 # Class: VcrMissError
 
-Defined in: [packages/testing/src/vcr.ts:174](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L174)
+Defined in: [packages/testing/src/vcr.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L189)
 
 Typed hermetic-miss error; onMiss: 'throw' raises it on any unrecorded request.
 
@@ -22,7 +22,7 @@ Typed hermetic-miss error; onMiss: 'throw' raises it on any unrecorded request.
 new VcrMissError(adapterId, hash): VcrMissError;
 ```
 
-Defined in: [packages/testing/src/vcr.ts:176](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L176)
+Defined in: [packages/testing/src/vcr.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L191)
 
 #### Parameters
 
@@ -45,4 +45,4 @@ Error.constructor
 
 | Property | Modifier | Type | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-requesthash"></a> `requestHash` | `readonly` | `string` | [packages/testing/src/vcr.ts:175](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L175) |
+| <a id="property-requesthash"></a> `requestHash` | `readonly` | `string` | [packages/testing/src/vcr.ts:190](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L190) |

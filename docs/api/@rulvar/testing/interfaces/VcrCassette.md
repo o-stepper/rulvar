@@ -6,11 +6,11 @@
 
 # Interface: VcrCassette
 
-Defined in: [packages/testing/src/vcr.ts:186](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L186)
+Defined in: [packages/testing/src/vcr.ts:201](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L201)
 
 ## Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-header"></a> `header` | [`VcrHeader`](/api/@rulvar/testing/interfaces/VcrHeader.md) | [packages/testing/src/vcr.ts:187](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L187) |
-| <a id="property-rows"></a> `rows` | [`VcrRow`](/api/@rulvar/testing/interfaces/VcrRow.md)[] | [packages/testing/src/vcr.ts:188](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L188) |
+| <a id="property-header"></a> `header` | [`VcrHeader`](/api/@rulvar/testing/interfaces/VcrHeader.md) | [packages/testing/src/vcr.ts:202](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L202) |
+| <a id="property-rows"></a> `rows` | [`VcrRow`](/api/@rulvar/testing/interfaces/VcrRow.md)[] | [packages/testing/src/vcr.ts:203](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L203) |
