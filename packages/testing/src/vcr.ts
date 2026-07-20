@@ -23,16 +23,30 @@ import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs
 import {
   ConfigError,
   CURRENT_HASH_VERSION,
+  usageViolations,
   type ChatEvent,
   type ChatRequest,
+  type Effort,
+  type FinishInfo,
   type ModelCaps,
   type ProviderAdapter,
+  type Usage,
 } from '@rulvar/core';
 
 /** One recorded exchange; a cassette is one JSON header line plus rows. */
 export interface VcrRow {
   adapterId: string;
   provider?: string;
+  /**
+   * The recording adapter's declared usageSemantics snapshot (v1.30.0
+   * review P2): replay restores it on the rebuilt adapter, so the
+   * fresh journal of a replayed run carries the same provenance stamp
+   * the recorded run got. Absent when the recording adapter declared
+   * none, and in every cassette recorded before v1.31.0, whose
+   * replays therefore stamp nothing (documented historical laxity; an
+   * unstamped entry reads as recorded before the stamp existed).
+   */
+  usageSemantics?: string;
   requestHash: string;
   /** Redacted canonical request, for humans and drift review. */
   request: unknown;
@@ -195,6 +209,9 @@ export function record(options: {
           const row: VcrRow = {
             adapterId: adapter.id,
             ...(adapter.provider === undefined ? {} : { provider: adapter.provider }),
+            ...(adapter.usageSemantics === undefined
+              ? {}
+              : { usageSemantics: adapter.usageSemantics }),
             requestHash: requestHash(req),
             request: walkStrings(JSON.parse(JSON.stringify(req)), redact),
             events: walkStrings(JSON.parse(JSON.stringify(events)), redact) as ChatEvent[],
@@ -242,6 +259,216 @@ export interface VcrCassette {
   rows: VcrRow[];
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+const EFFORTS: readonly string[] = [
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+] satisfies readonly Effort[];
+const FINISH_REASONS: readonly string[] = [
+  'stop',
+  'tool-calls',
+  'max-tokens',
+  'context-window-exceeded',
+  'refusal',
+] satisfies readonly FinishInfo['reason'][];
+const USAGE_COUNT_FIELDS = [
+  'inputTokens',
+  'outputTokens',
+  'cacheReadTokens',
+  'cacheWriteTokens',
+  'reasoningTokens',
+] as const;
+
+/**
+ * First shape violation of a recorded caps snapshot, or undefined. The
+ * checks mirror what ModelCaps declares (v1.30.0 review P3): before
+ * this shipped an empty object passed as a snapshot and the failure
+ * surfaced later as an unrelated router or pricing defect.
+ */
+function capsShapeIssue(caps: Record<string, unknown>): string | undefined {
+  if (
+    caps.structuredOutput !== 'native' &&
+    caps.structuredOutput !== 'forced-tool' &&
+    caps.structuredOutput !== 'prompt'
+  ) {
+    return "caps.structuredOutput must be 'native', 'forced-tool', or 'prompt'";
+  }
+  for (const field of ['supportsTemperature', 'supportsParallelTools'] as const) {
+    if (typeof caps[field] !== 'boolean') {
+      return `caps.${field} must be a boolean`;
+    }
+  }
+  const efforts: unknown = caps.reasoningEfforts;
+  if (
+    !Array.isArray(efforts) ||
+    efforts.some((entry) => typeof entry !== 'string' || !EFFORTS.includes(entry))
+  ) {
+    return 'caps.reasoningEfforts must be an array of canonical efforts';
+  }
+  for (const field of ['contextWindow', 'maxOutputTokens'] as const) {
+    const value = caps[field];
+    if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
+      return `caps.${field} must be a positive safe integer`;
+    }
+  }
+  if (caps.pricing !== undefined) {
+    const pricing: unknown = caps.pricing;
+    if (!isPlainObject(pricing)) {
+      return 'caps.pricing must be an object when present';
+    }
+    for (const field of ['inputUsdPerMTok', 'outputUsdPerMTok'] as const) {
+      const value = pricing[field];
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+        return `caps.pricing.${field} must be a nonnegative finite number`;
+      }
+    }
+    for (const field of [
+      'cacheReadUsdPerMTok',
+      'cacheWriteUsdPerMTok',
+      'cacheWrite1hUsdPerMTok',
+    ] as const) {
+      const value = pricing[field];
+      if (
+        value !== undefined &&
+        (typeof value !== 'number' || !Number.isFinite(value) || value < 0)
+      ) {
+        return `caps.pricing.${field} must be a nonnegative finite number when present`;
+      }
+    }
+    const tiers: unknown = pricing.tiers;
+    if (tiers !== undefined) {
+      if (!Array.isArray(tiers)) {
+        return 'caps.pricing.tiers must be an array when present';
+      }
+      for (const [index, tier] of (tiers as unknown[]).entries()) {
+        const path = `caps.pricing.tiers[${String(index)}]`;
+        if (!isPlainObject(tier)) {
+          return `${path} must be an object`;
+        }
+        const above = tier.aboveInputTokens;
+        if (typeof above !== 'number' || !Number.isSafeInteger(above) || above < 0) {
+          return `${path}.aboveInputTokens must be a nonnegative safe integer`;
+        }
+        for (const field of ['inputMultiplier', 'outputMultiplier'] as const) {
+          const value = tier[field];
+          if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+            return `${path}.${field} must be a positive finite number`;
+          }
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * First shape violation of one recorded event, or undefined. Every
+ * element must be a member of the canonical ChatEvent vocabulary with
+ * its required payload (v1.30.0 review P3): before this shipped a
+ * null element crashed replay with a raw TypeError and a bare
+ * `{ type: 'finish' }` reached the engine, which then died on the
+ * missing usage instead of refusing the cassette at its boundary.
+ * Unknown extra FIELDS on a known event stay tolerated; an unknown
+ * event TYPE is refused, because replay would feed it to an engine
+ * whose vocabulary provably does not include it (the cassette format
+ * version, not leniency here, is the growth path).
+ */
+function eventShapeIssue(event: unknown, index: number): string | undefined {
+  const at = `events[${String(index)}]`;
+  if (!isPlainObject(event)) {
+    return `${at} must be an object (a canonical ChatEvent)`;
+  }
+  const type: unknown = event.type;
+  switch (type) {
+    case 'text-delta':
+    case 'reasoning-delta':
+      return typeof event.text === 'string' ? undefined : `${at}.text must be a string`;
+    case 'tool-call-start':
+      if (typeof event.id !== 'string' || event.id === '') {
+        return `${at}.id must be a nonempty string`;
+      }
+      return typeof event.name === 'string' && event.name !== ''
+        ? undefined
+        : `${at}.name must be a nonempty string`;
+    case 'tool-call-delta':
+      if (typeof event.id !== 'string' || event.id === '') {
+        return `${at}.id must be a nonempty string`;
+      }
+      return typeof event.argsTextDelta === 'string'
+        ? undefined
+        : `${at}.argsTextDelta must be a string`;
+    case 'tool-call-end':
+      return typeof event.id === 'string' && event.id !== ''
+        ? undefined
+        : `${at}.id must be a nonempty string`;
+    case 'usage': {
+      const usage: unknown = event.usage;
+      if (!isPlainObject(usage)) {
+        return `${at}.usage must be an object`;
+      }
+      for (const field of USAGE_COUNT_FIELDS) {
+        const value = usage[field];
+        if (
+          value !== undefined &&
+          (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0)
+        ) {
+          return `${at}.usage.${field} must be a nonnegative safe integer when present`;
+        }
+      }
+      return undefined;
+    }
+    case 'finish': {
+      const finish: unknown = event.finish;
+      if (!isPlainObject(finish)) {
+        return `${at}.finish must be an object (a typed FinishInfo)`;
+      }
+      const reason: unknown = finish.reason;
+      if (typeof reason !== 'string' || !FINISH_REASONS.includes(reason)) {
+        return `${at}.finish.reason must be a canonical finish reason`;
+      }
+      if (reason === 'refusal') {
+        const refusal: unknown = finish.refusal;
+        if (!isPlainObject(refusal) || typeof refusal.provider !== 'string') {
+          return `${at}.finish.refusal must be an object naming the provider`;
+        }
+      }
+      const usage: unknown = event.usage;
+      if (!isPlainObject(usage)) {
+        return `${at}.usage must be an object (the full Usage of the exchange)`;
+      }
+      const violations = usageViolations(usage as Usage);
+      return violations.length === 0
+        ? undefined
+        : `${at}.usage violates the Usage invariant: ${violations.join('; ')}`;
+    }
+    case 'error': {
+      const error: unknown = event.error;
+      if (!isPlainObject(error)) {
+        return `${at}.error must be an object (a WireError)`;
+      }
+      if (typeof error.code !== 'string' || error.code === '') {
+        return `${at}.error.code must be a nonempty string`;
+      }
+      if (typeof error.message !== 'string') {
+        return `${at}.error.message must be a string`;
+      }
+      return typeof error.retryable === 'boolean'
+        ? undefined
+        : `${at}.error.retryable must be a boolean`;
+    }
+    default:
+      return `${at}.type must be a canonical ChatEvent type; got ${
+        typeof type === 'string' ? `'${type}'` : String(type)
+      }`;
+  }
+}
+
 /**
  * Parses a cassette file (one header line plus one JSON row per line).
  * The header must declare cassette format `v: 1`: the format version
@@ -249,14 +476,22 @@ export interface VcrCassette {
  * checked by replay) only gates request identity and never
  * substitutes for it, so a future incompatible format refuses loudly
  * instead of being read as v1. Every documented header field (kind,
- * v, an integer hashVersion, a date-string recordedAt) and row field
+ * v, an integer hashVersion, a date string recordedAt) and row field
  * (adapterId, model, requestHash, request, caps, events, an optional
- * string provider) is shape-checked here; unknown extra fields are
- * tolerated for forward compatibility. Event stream SEMANTICS (one
- * trailing terminal per row) are deliberately not checked at read
- * time; `replay` enforces them before serving anything (v1.29.0
- * review P3). Parse and shape failures throw a typed ConfigError
- * naming the cassette path and line (v1.28.0 review P3).
+ * string provider, an optional nonempty usageSemantics) is checked
+ * here, and the nested structures are validated in depth (v1.30.0
+ * review P3): the request must be a plain object, every event must
+ * be a member of the canonical ChatEvent vocabulary with its
+ * required payload and Usage numeric invariants, and caps must carry
+ * every ModelCaps field (with the optional pricing table checked
+ * when present). Unknown extra FIELDS are tolerated for forward
+ * compatibility. Event stream SEMANTICS (one trailing terminal per
+ * row) and adapter consistency across rows (provider,
+ * usageSemantics, caps agreement) are deliberately not checked at
+ * read time; `replay` enforces them before serving anything (v1.29.0
+ * review P3), so reading never blocks inspecting a well formed file.
+ * Parse and shape failures throw a typed ConfigError naming the
+ * cassette path and line (v1.28.0 review P3).
  */
 export function readCassette(path: string): VcrCassette {
   const numbered = readFileSync(path, 'utf8')
@@ -320,14 +555,31 @@ export function readCassette(path: string): VcrCassette {
     if (row.provider !== undefined && typeof row.provider !== 'string') {
       reject('provider, when present, must be a string');
     }
-    if (typeof row.request !== 'object' || row.request === null) {
+    if (
+      row.usageSemantics !== undefined &&
+      (typeof row.usageSemantics !== 'string' || row.usageSemantics === '')
+    ) {
+      reject('usageSemantics, when present, must be a nonempty string');
+    }
+    if (typeof row.request !== 'object' || row.request === null || Array.isArray(row.request)) {
       reject('request must be an object (the redacted canonical request)');
     }
     if (typeof row.caps !== 'object' || row.caps === null || Array.isArray(row.caps)) {
       reject('caps must be an object (the model caps snapshot at record time)');
     }
+    const capsIssue = capsShapeIssue(row.caps);
+    if (capsIssue !== undefined) {
+      reject(capsIssue);
+    }
     if (!Array.isArray(row.events)) {
       reject('events must be an array');
+    }
+    const events: readonly unknown[] = row.events;
+    for (const [index, event] of events.entries()) {
+      const eventIssue = eventShapeIssue(event, index);
+      if (eventIssue !== undefined) {
+        reject(eventIssue);
+      }
     }
     return row;
   });
@@ -355,6 +607,16 @@ export function readCassette(path: string): VcrCassette {
  * snapshots for one `(adapterId, model)` agree, since the replay
  * adapter can only report one caps truth per model. Violations throw
  * a typed ConfigError naming the cassette and row.
+ *
+ * The rebuilt adapter restores the recorded provider and
+ * usageSemantics declarations (v1.30.0 review P2), so the fresh
+ * journal of a replayed run carries the same provenance stamp the
+ * recorded run got instead of silently reading like an entry from
+ * before the stamp existed. All rows of one adapter must agree on
+ * both declarations; a conflict refuses with a typed ConfigError
+ * before anything is served. A cassette recorded before v1.31.0
+ * stores no usageSemantics, so its replays stamp nothing (documented
+ * historical laxity).
  */
 export function replay(options: {
   cassette: string;
@@ -414,6 +676,18 @@ export function replay(options: {
         );
       }
     }
+    for (const field of ['provider', 'usageSemantics'] as const) {
+      const values = [...new Set(recordedRows.map((row) => row[field]))];
+      if (values.length > 1) {
+        throw new ConfigError(
+          `${options.cassette} carries conflicting ${field} values for adapter '${adapterId}' ` +
+            `(${values
+              .map((value) => (value === undefined ? 'absent' : `'${value}'`))
+              .join(', ')}); a replay adapter reports one declaration per adapter, so record ` +
+            'the cassette again in one session',
+        );
+      }
+    }
     const passthrough = live.get(adapterId);
     // One cursor per hash, shared by every run on this adapter set:
     // occurrences are consumed once each, in file order.
@@ -421,6 +695,7 @@ export function replay(options: {
     return {
       id: adapterId,
       ...(someRow?.provider === undefined ? {} : { provider: someRow.provider }),
+      ...(someRow?.usageSemantics === undefined ? {} : { usageSemantics: someRow.usageSemantics }),
       caps: (model: string): ModelCaps => {
         const snapshot = capsByModel.get(model)?.caps ?? passthrough?.caps(model);
         if (snapshot === undefined) {

@@ -1104,6 +1104,28 @@ describe('adapter surface (M1-T13)', () => {
     expect(msOf('99999999999999999999999')).toBe(2_147_483_647);
   });
 
+  it('Retry-After padding is HTTP OWS only, not ECMAScript whitespace (v1.30.0 review P3)', () => {
+    const msOf = (value: string): number | undefined =>
+      (
+        openAiErrorToWire({
+          status: 429,
+          message: 'rate limited',
+          headers: { 'retry-after': value },
+        }).data as { retryAfterMs?: number }
+      ).retryAfterMs;
+
+    // trim() also stripped newline, carriage return, vertical tab,
+    // form feed, NBSP, and the rest of Unicode whitespace, padding no
+    // real HTTP field value carries but an injected client or mock
+    // can; OWS is space and horizontal tab, nothing else.
+    for (const padded of ['\n3', '\r3', '\v3', '\f3', '\u00a03\u00a0', '\u20283', ' \n3 ', '3\n']) {
+      expect(msOf(padded)).toBeUndefined();
+    }
+    expect(msOf(' 3 ')).toBe(3000);
+    expect(msOf('\t3\t')).toBe(3000);
+    expect(msOf(' \t3\t ')).toBe(3000);
+  });
+
   it.skipIf(!liveTestEnabled('OPENAI_API_KEY'))(
     'live smoke: one small call (opt-in via RULVAR_LIVE_TESTS=1, spends budget)',
     async () => {

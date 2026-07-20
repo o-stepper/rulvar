@@ -601,19 +601,22 @@ const MAX_RETRY_AFTER_MS = 2_147_483_647;
 
 /**
  * Parses a Retry-After header into milliseconds. Only the RFC delta
- * seconds grammar is honored: after trimming optional whitespace the
- * value must be a nonempty run of decimal digits, so the HTTP date
- * form, signs, decimals, hex, exponents, and empty values all return
- * undefined and the engine falls back to its computed policy backoff
- * (v1.29.0 review P3; `Number()` alone accepted every one of those).
- * A huge digit run is clamped to the Node timer maximum.
+ * seconds grammar is honored: a nonempty run of decimal digits padded
+ * by HTTP optional whitespace at most (OWS is space and horizontal
+ * tab, nothing else), so the HTTP date form, signs, decimals, hex,
+ * exponents, and empty values all return undefined and the engine
+ * falls back to its computed policy backoff (v1.29.0 review P3;
+ * `Number()` alone accepted every one of those). ECMAScript trim()
+ * was wider than OWS and let newline, carriage return, vertical tab,
+ * form feed, and NBSP padded values through (v1.30.0 review P3). A
+ * huge digit run is clamped to the Node timer maximum.
  */
 function retryAfterMsFrom(header: string): number | undefined {
-  const trimmed = header.trim();
-  if (!/^[0-9]+$/.test(trimmed)) {
+  const match = /^[\t ]*([0-9]+)[\t ]*$/.exec(header);
+  if (match === null) {
     return undefined;
   }
-  return Math.min(Number(trimmed) * 1000, MAX_RETRY_AFTER_MS);
+  return Math.min(Number(match[1]) * 1000, MAX_RETRY_AFTER_MS);
 }
 
 /**

@@ -6,7 +6,7 @@
 
 # Class: VcrMissError
 
-Defined in: [packages/testing/src/vcr.ts:218](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L218)
+Defined in: [packages/testing/src/vcr.ts:235](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L235)
 
 Typed hermetic-miss error; onMiss: 'throw' raises it on any request
 without a servable row. `recordedOccurrences` above zero means the
@@ -29,7 +29,7 @@ new VcrMissError(
    recordedOccurrences?): VcrMissError;
 ```
 
-Defined in: [packages/testing/src/vcr.ts:222](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L222)
+Defined in: [packages/testing/src/vcr.ts:239](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L239)
 
 #### Parameters
 
@@ -53,5 +53,5 @@ Error.constructor
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-recordedoccurrences"></a> `recordedOccurrences?` | `readonly` | `number` | Rows recorded for this hash; absent or 0 = never recorded. | [packages/testing/src/vcr.ts:221](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L221) |
-| <a id="property-requesthash"></a> `requestHash` | `readonly` | `string` | - | [packages/testing/src/vcr.ts:219](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L219) |
+| <a id="property-recordedoccurrences"></a> `recordedOccurrences?` | `readonly` | `number` | Rows recorded for this hash; absent or 0 = never recorded. | [packages/testing/src/vcr.ts:238](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L238) |
+| <a id="property-requesthash"></a> `requestHash` | `readonly` | `string` | - | [packages/testing/src/vcr.ts:236](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L236) |

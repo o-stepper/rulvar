@@ -6,7 +6,7 @@
 
 # Interface: VcrRow
 
-Defined in: [packages/testing/src/vcr.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L33)
+Defined in: [packages/testing/src/vcr.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L37)
 
 One recorded exchange; a cassette is one JSON header line plus rows.
 
@@ -14,10 +14,11 @@ One recorded exchange; a cassette is one JSON header line plus rows.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-adapterid"></a> `adapterId` | `string` | - | [packages/testing/src/vcr.ts:34](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L34) |
-| <a id="property-caps"></a> `caps` | [`ModelCaps`](/api/@rulvar/rulvar/type-aliases/ModelCaps.md) | Caps snapshot for the request's model at record time. | [packages/testing/src/vcr.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L42) |
-| <a id="property-events"></a> `events` | [`ChatEvent`](/api/@rulvar/rulvar/type-aliases/ChatEvent.md)[] | Redacted event stream, replayed verbatim. | [packages/testing/src/vcr.ts:40](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L40) |
-| <a id="property-model"></a> `model` | `string` | - | [packages/testing/src/vcr.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L43) |
-| <a id="property-provider"></a> `provider?` | `string` | - | [packages/testing/src/vcr.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L35) |
-| <a id="property-request"></a> `request` | `unknown` | Redacted canonical request, for humans and drift review. | [packages/testing/src/vcr.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L38) |
-| <a id="property-requesthash"></a> `requestHash` | `string` | - | [packages/testing/src/vcr.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L36) |
+| <a id="property-adapterid"></a> `adapterId` | `string` | - | [packages/testing/src/vcr.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L38) |
+| <a id="property-caps"></a> `caps` | [`ModelCaps`](/api/@rulvar/rulvar/type-aliases/ModelCaps.md) | Caps snapshot for the request's model at record time. | [packages/testing/src/vcr.ts:56](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L56) |
+| <a id="property-events"></a> `events` | [`ChatEvent`](/api/@rulvar/rulvar/type-aliases/ChatEvent.md)[] | Redacted event stream, replayed verbatim. | [packages/testing/src/vcr.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L54) |
+| <a id="property-model"></a> `model` | `string` | - | [packages/testing/src/vcr.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L57) |
+| <a id="property-provider"></a> `provider?` | `string` | - | [packages/testing/src/vcr.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L39) |
+| <a id="property-request"></a> `request` | `unknown` | Redacted canonical request, for humans and drift review. | [packages/testing/src/vcr.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L52) |
+| <a id="property-requesthash"></a> `requestHash` | `string` | - | [packages/testing/src/vcr.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L50) |
+| <a id="property-usagesemantics"></a> `usageSemantics?` | `string` | The recording adapter's declared usageSemantics snapshot (v1.30.0 review P2): replay restores it on the rebuilt adapter, so the fresh journal of a replayed run carries the same provenance stamp the recorded run got. Absent when the recording adapter declared none, and in every cassette recorded before v1.31.0, whose replays therefore stamp nothing (documented historical laxity; an unstamped entry reads as recorded before the stamp existed). | [packages/testing/src/vcr.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L49) |
