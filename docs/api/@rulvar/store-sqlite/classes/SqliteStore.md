@@ -47,7 +47,7 @@ Defined in: [packages/store-sqlite/src/store.ts:64](https://github.com/o-stepper
 acquire(runId, owner): Promise<Lease>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:232](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L232)
+Defined in: [packages/store-sqlite/src/store.ts:237](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L237)
 
 #### Parameters
 
@@ -75,7 +75,7 @@ append(
 lease?): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:124](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L124)
+Defined in: [packages/store-sqlite/src/store.ts:128](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L128)
 
 #### Parameters
 
@@ -101,7 +101,7 @@ Defined in: [packages/store-sqlite/src/store.ts:124](https://github.com/o-steppe
 close(): void;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:97](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L97)
+Defined in: [packages/store-sqlite/src/store.ts:101](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L101)
 
 #### Returns
 
@@ -115,7 +115,7 @@ Defined in: [packages/store-sqlite/src/store.ts:97](https://github.com/o-stepper
 delete(runId): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:217](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L217)
+Defined in: [packages/store-sqlite/src/store.ts:222](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L222)
 
 #### Parameters
 
@@ -139,7 +139,7 @@ Defined in: [packages/store-sqlite/src/store.ts:217](https://github.com/o-steppe
 getMeta(runId): Promise<RunMeta | undefined>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:175](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L175)
+Defined in: [packages/store-sqlite/src/store.ts:179](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L179)
 
 #### Parameters
 
@@ -163,7 +163,7 @@ Defined in: [packages/store-sqlite/src/store.ts:175](https://github.com/o-steppe
 listRuns(f?): Promise<RunMeta[]>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:184](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L184)
+Defined in: [packages/store-sqlite/src/store.ts:188](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L188)
 
 #### Parameters
 
@@ -187,7 +187,7 @@ Defined in: [packages/store-sqlite/src/store.ts:184](https://github.com/o-steppe
 load(runId): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L157)
+Defined in: [packages/store-sqlite/src/store.ts:161](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L161)
 
 #### Parameters
 
@@ -211,7 +211,7 @@ Defined in: [packages/store-sqlite/src/store.ts:157](https://github.com/o-steppe
 putMeta(m): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:165](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L165)
+Defined in: [packages/store-sqlite/src/store.ts:169](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L169)
 
 #### Parameters
 
@@ -235,7 +235,7 @@ Defined in: [packages/store-sqlite/src/store.ts:165](https://github.com/o-steppe
 release(l): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:277](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L277)
+Defined in: [packages/store-sqlite/src/store.ts:282](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L282)
 
 #### Parameters
 
@@ -259,7 +259,7 @@ Defined in: [packages/store-sqlite/src/store.ts:277](https://github.com/o-steppe
 renew(l): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:269](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L269)
+Defined in: [packages/store-sqlite/src/store.ts:274](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L274)
 
 #### Parameters
 
