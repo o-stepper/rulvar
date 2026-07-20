@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.31.0
+
+#### Patch Changes
+
+- df6b8f8: `Retry-After` accepts HTTP optional whitespace padding only. ECMAScript `trim()` removed far more than the OWS production (space and horizontal tab), so values padded with newline, carriage return, vertical tab, form feed, or NBSP were honored as delays despite the documented exact delta seconds grammar; a real HTTP transport rejects most of those octets, but an injected SDK client or a mock does not. Both first party adapters now match `/^[\t ]*([0-9]+)[\t ]*$/` and fall back to the computed policy backoff for every other form.
+  - @rulvar/core@1.31.0
+
 ### 1.30.0
 
 #### Patch Changes
@@ -576,6 +583,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.31.0
+
+#### Patch Changes
+
+- @rulvar/core@1.31.0
+
 ### 1.30.0
 
 #### Patch Changes
@@ -1000,6 +1013,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.31.0
+
+#### Patch Changes
+
+- @rulvar/core@1.31.0
 
 ### 1.30.0
 
@@ -1608,6 +1627,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.31.0
 
 ### 1.30.0
 
@@ -2707,6 +2728,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.31.0
+
 ### 1.30.0
 
 ### 1.29.0
@@ -2837,6 +2860,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.31.0
+
+#### Patch Changes
+
+- Updated dependencies [df6b8f8]
+- Updated dependencies [df6b8f8]
+  - @rulvar/testing@1.31.0
+  - @rulvar/core@1.31.0
 
 ### 1.30.0
 
@@ -3376,6 +3408,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.31.0
+
+#### Patch Changes
+
+- df6b8f8: `Retry-After` accepts HTTP optional whitespace padding only. ECMAScript `trim()` removed far more than the OWS production (space and horizontal tab), so values padded with newline, carriage return, vertical tab, form feed, or NBSP were honored as delays despite the documented exact delta seconds grammar; a real HTTP transport rejects most of those octets, but an injected SDK client or a mock does not. Both first party adapters now match `/^[\t ]*([0-9]+)[\t ]*$/` and fall back to the computed policy backoff for every other form.
+  - @rulvar/core@1.31.0
 
 ### 1.30.0
 
@@ -3952,6 +3991,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.31.0
+
+#### Patch Changes
+
+- @rulvar/core@1.31.0
+
 ### 1.30.0
 
 #### Patch Changes
@@ -4490,6 +4535,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.31.0
+
+#### Patch Changes
+
+- @rulvar/core@1.31.0
+- eslint-plugin-rulvar@1.31.0
+
 ### 1.30.0
 
 #### Patch Changes
@@ -4982,6 +5034,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.31.0
+
+#### Patch Changes
+
+- Updated dependencies [df6b8f8]
+  - @rulvar/openai@1.31.0
+  - @rulvar/anthropic@1.31.0
+  - @rulvar/core@1.31.0
 
 ### 1.30.0
 
@@ -5613,6 +5674,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.31.0
+
+#### Patch Changes
+
+- @rulvar/core@1.31.0
+
 ### 1.30.0
 
 #### Patch Changes
@@ -6113,6 +6180,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.31.0
+
+#### Patch Changes
+
+- @rulvar/core@1.31.0
+
 ### 1.30.0
 
 #### Patch Changes
@@ -6552,6 +6625,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.31.0
+
+#### Minor Changes
+
+- df6b8f8: `readCassette` now validates the nested structures of every row, not only field presence: the request must be a plain object (an array was accepted), every event must be a member of the canonical `ChatEvent` vocabulary with its required payload and the numeric Usage invariants (a null element used to crash replay with a raw `TypeError`, and a bare `{ type: 'finish' }` reached the engine and died there on the missing usage), and caps must carry every `ModelCaps` field, with the optional pricing table checked when present (an empty object passed as a snapshot). Failures throw a typed `ConfigError` naming the cassette path, the JSONL line, and the field path. Unknown extra fields stay tolerated for forward compatibility; an unknown event type is refused. Event stream semantics (exactly one trailing terminal per row) and adapter consistency across rows stay `replay` build concerns, so reading never blocks inspecting a well formed file.
+- df6b8f8: VCR cassettes now carry the recording adapter's declared `usageSemantics`, and replay restores it. `record` snapshots the field into every row, `readCassette` requires a nonempty string when the field is present, and the adapter that `replay` rebuilds declares the recorded value, so the fresh journal of a replayed run gets the same provenance stamp the recorded run got. Before this, a replayed run's usage bearing entries were unstamped, which reads exactly like an entry recorded before the stamp existed; for an OpenAI journal with cache writes that unstamped shape is what the v1.19 cache audit treats as affected, so an honest replayed total could be "corrected" into a wrong number. All rows of one adapter must agree on `provider` and on `usageSemantics`; a conflict refuses with a typed `ConfigError` before anything is served. Cassettes recorded before this release store no `usageSemantics` and keep replaying, with nothing stamped (the documented legacy reading).
+
+#### Patch Changes
+
+- @rulvar/core@1.31.0
 
 ### 1.30.0
 

@@ -1,5 +1,0 @@
----
-'@rulvar/testing': minor
----
-
-VCR cassettes now carry the recording adapter's declared `usageSemantics`, and replay restores it. `record` snapshots the field into every row, `readCassette` requires a nonempty string when the field is present, and the adapter that `replay` rebuilds declares the recorded value, so the fresh journal of a replayed run gets the same provenance stamp the recorded run got. Before this, a replayed run's usage bearing entries were unstamped, which reads exactly like an entry recorded before the stamp existed; for an OpenAI journal with cache writes that unstamped shape is what the v1.19 cache audit treats as affected, so an honest replayed total could be "corrected" into a wrong number. All rows of one adapter must agree on `provider` and on `usageSemantics`; a conflict refuses with a typed `ConfigError` before anything is served. Cassettes recorded before this release store no `usageSemantics` and keep replaying, with nothing stamped (the documented legacy reading).
