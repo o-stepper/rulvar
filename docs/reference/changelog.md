@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.33.0
+
+#### Patch Changes
+
+- @rulvar/core@1.33.0
+
 ### 1.32.0
 
 #### Patch Changes
@@ -589,6 +595,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.33.0
+
+#### Patch Changes
+
+- @rulvar/core@1.33.0
+
 ### 1.32.0
 
 #### Patch Changes
@@ -1025,6 +1037,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.33.0
+
+#### Patch Changes
+
+- @rulvar/core@1.33.0
 
 ### 1.32.0
 
@@ -1645,6 +1663,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.33.0
 
 ### 1.32.0
 
@@ -2748,6 +2768,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.33.0
+
 ### 1.32.0
 
 ### 1.31.0
@@ -2882,6 +2904,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.33.0
+
+#### Patch Changes
+
+- Updated dependencies [3f0f5e8]
+  - @rulvar/testing@1.33.0
+  - @rulvar/core@1.33.0
 
 ### 1.32.0
 
@@ -3440,6 +3470,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.33.0
+
+#### Patch Changes
+
+- @rulvar/core@1.33.0
 
 ### 1.32.0
 
@@ -4029,6 +4065,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.33.0
+
+#### Patch Changes
+
+- @rulvar/core@1.33.0
+
 ### 1.32.0
 
 #### Patch Changes
@@ -4579,6 +4621,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.33.0
+
+#### Patch Changes
+
+- @rulvar/core@1.33.0
+- eslint-plugin-rulvar@1.33.0
+
 ### 1.32.0
 
 #### Patch Changes
@@ -5085,6 +5134,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.33.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.33.0
+- @rulvar/openai@1.33.0
+- @rulvar/core@1.33.0
 
 ### 1.32.0
 
@@ -5733,6 +5790,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.33.0
+
+#### Patch Changes
+
+- @rulvar/core@1.33.0
+
 ### 1.32.0
 
 #### Patch Changes
@@ -6245,6 +6308,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.33.0
+
+#### Patch Changes
+
+- @rulvar/core@1.33.0
+
 ### 1.32.0
 
 #### Patch Changes
@@ -6696,6 +6765,16 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.33.0
+
+#### Minor Changes
+
+- 3f0f5e8: Appending record sessions continue the occurrence numbering, and ambiguous numbering refuses (v1.32.0 review P2). Each `record()` call created a fresh occurrence counter, so a second session appending to an existing cassette restarted the numbering at zero for hashes the file already held: the file order stayed honest, but `replay`, which sorts a fully numbered group by its occurrence numbers, served the appended exchange before earlier ones (rows numbered 0, 1, 0 replayed as first, third, second). The error was silent, the cassette validated, and `onMiss: 'passthrough'` exists precisely to complete a cassette across sessions. `record()` now reads and validates an existing target before wrapping anything and seeds every `(adapterId, requestHash)` counter one past the highest number already on disk, so sequential sessions continue the numbering; a gap left by an aborted call stays a gap rather than being filled. Groups recorded before v1.32.0 keep their documented file order mode, including rows a later session appends to them. A duplicate occurrence inside a fully numbered group now refuses with a typed `ConfigError` naming the cassette, adapter, and hash, in `replay` and in an appending `record()` alike, because a duplicate means two recorder sessions wrote the file concurrently and either order would hand a caller the wrong exchange; the documented contract is one active recorder per cassette at a time, and a violation is now caught instead of silently misordering. Reading the target up front also closes two adjacent holes: `record()` no longer appends rows to a file that was never a cassette (or is empty), and it refuses a header recorded under a different `hashVersion`, which would have mixed two identity profiles under one header. The cassette format stays v1 and existing valid cassettes replay unchanged.
+
+#### Patch Changes
+
+- @rulvar/core@1.33.0
 
 ### 1.32.0
 

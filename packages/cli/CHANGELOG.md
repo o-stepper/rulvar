@@ -1,5 +1,11 @@
 # @rulvar/cli
 
+## 1.33.0
+
+### Patch Changes
+
+- @rulvar/core@1.33.0
+
 ## 1.32.0
 
 ### Patch Changes
