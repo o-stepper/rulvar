@@ -11,6 +11,7 @@ Defined in: `packages/core/dist/index.d.ts`
 ## Extended by
 
 - [`LeasableStore`](/api/@rulvar/rulvar/interfaces/LeasableStore.md)
+- [`MetaLookupStore`](/api/@rulvar/rulvar/interfaces/MetaLookupStore.md)
 
 ## Methods
 

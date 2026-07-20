@@ -22,7 +22,7 @@
 import { ConfigError } from './errors.js';
 import type { Json, Bytes } from './json.js';
 import type { JournalEntry } from './entries.js';
-import type { JournalStore, LeasableStore, Lease } from './spi/store.js';
+import type { JournalStore, LeasableStore, Lease, MetaLookupStore } from './spi/store.js';
 import type { TranscriptStore } from './spi/transcript.js';
 
 export interface JournalSerializationHook {
@@ -72,12 +72,16 @@ function assertPinnedFields(before: JournalEntry, after: JournalEntry, site: str
   }
 }
 
-/** Wraps a journal store with the hook; lease capability is preserved. */
+/**
+ * Wraps a journal store with the hook; the lease and meta lookup
+ * capabilities are preserved (meta is never hooked, exactly like
+ * putMeta/listRuns pass through).
+ */
 export function wrapJournalStore(
   inner: JournalStore,
   hook: JournalSerializationHook,
 ): JournalStore {
-  const wrapped: JournalStore & Partial<LeasableStore> = {
+  const wrapped: JournalStore & Partial<LeasableStore> & Partial<MetaLookupStore> = {
     append: async (runId: string, e: JournalEntry, lease?: Lease) => {
       const stored = hook.toStored(e);
       assertPinnedFields(e, stored, 'journal.toStored');
@@ -102,6 +106,9 @@ export function wrapJournalStore(
     wrapped.acquire = (runId, owner) => (inner as LeasableStore).acquire(runId, owner);
     wrapped.renew = (l) => (inner as LeasableStore).renew(l);
     wrapped.release = (l) => (inner as LeasableStore).release(l);
+  }
+  if (typeof (inner as Partial<MetaLookupStore>).getMeta === 'function') {
+    wrapped.getMeta = (runId) => (inner as MetaLookupStore).getMeta(runId);
   }
   return wrapped;
 }

@@ -111,7 +111,12 @@ These fire only in runs where the corresponding machinery is active (see [Adapti
 
 ## Subscribing from the host
 
-`engine.run` returns a `RunHandle` immediately; subscribe before you await `result` so nothing is missed (both forms observe the stream from subscription onward).
+`engine.run` returns a `RunHandle` immediately. The two subscription forms differ in where their stream begins:
+
+- `handle.events` is **gapless from handle creation**: the engine buffers every event from the moment the handle exists, so a consumer that starts iterating late (even after `await result`) still receives the complete stream, in `seq` order. Draining a large backlog is linear in its size.
+- `handle.on(type, cb)` observes **from registration onward**: events emitted before the callback was registered are not re-delivered. Register before awaiting `result` if you need the early events on this form.
+
+The gapless buffer is also the memory contract: the engine holds the run's undelivered events as long as the handle is reachable and the stream has not been consumed. Consume `handle.events` (or drop every reference to the handle) to release them; a host that keeps thousands of settled handles alive without reading their streams keeps every buffered event alive too. For a server shell that stays up, bound the per run history with the HTTP server's [`maxBufferedEventsPerRun` and memory retention options](/guide/cli#the-http-server) instead of retaining raw handles.
 
 ```ts
 // engine and the panel workflow as in the quickstart.

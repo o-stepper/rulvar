@@ -10,6 +10,7 @@
 type RunFilter = {
   name?: string;
   status?: string;
+  statuses?: string[];
   tags?: string[];
 };
 ```
@@ -35,6 +36,23 @@ optional status?: string;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
+
+***
+
+### statuses?
+
+```ts
+optional statuses?: string[];
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Match any of these statuses (the resumable candidate sweep asks for
+`['running', 'suspended']` in one query). Advisory optimization, not
+a correctness gate: a store written before this field ignores it and
+returns a superset, so callers re-check status on what comes back.
+When both `status` and `statuses` are present, a meta matches if it
+satisfies either.
 
 ***
 

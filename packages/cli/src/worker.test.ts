@@ -367,3 +367,170 @@ describe('createWorker (M8-T02)', () => {
     await worker.stop();
   });
 });
+
+describe('generation identity and sweep hygiene (v1.25.0 scale review)', () => {
+  async function untilIdle(worker: { active(): string[] }): Promise<void> {
+    for (let attempt = 0; attempt < 500 && worker.active().length > 0; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    // The settle chain caches the skip entry right before the slot
+    // frees; one more tick lets the release land.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
+  it('a deleteRun and recreate of the same runId is picked, never skipped as unchanged', async () => {
+    const store = new SqliteStore({ path: dbPath(), now: wallClock });
+    const gated = gatedWorkflow();
+    const engine = makeEngine(store, { gated });
+    const runId = 'reused-run-id';
+    const first = await engine.run(
+      gated as unknown as Workflow<unknown, unknown>,
+      { item: 1 },
+      { runId },
+    ).result;
+    expect(first.status).toBe('suspended');
+    const lengthBefore = (await store.load(runId)).length;
+
+    const worker = createWorker(engine, { store, argsFor: () => ({ item: 1 }) });
+    // First sweep observes the suspended run, replays, re-suspends, and
+    // caches the skip entry; the second sweep skips it as unchanged.
+    expect(await worker.sweep()).toBe(1);
+    await untilIdle(worker);
+    expect(await worker.sweep()).toBe(0);
+
+    // External delete, then a NEW run under the same explicit runId with
+    // an identical journal length: length alone cannot tell them apart.
+    await engine.deleteRun(runId);
+    const second = await engine.run(
+      gated as unknown as Workflow<unknown, unknown>,
+      { item: 1 },
+      { runId },
+    ).result;
+    expect(second.status).toBe('suspended');
+    expect((await store.load(runId)).length).toBe(lengthBefore);
+
+    // The generation differs, so the sweep MUST pick the new run.
+    expect(await worker.sweep()).toBe(1);
+    await untilIdle(worker);
+    await worker.stop();
+  });
+
+  it('the sweep queries candidate statuses only; retention widens it to the full catalog', async () => {
+    const path = dbPath();
+    const inner = new SqliteStore({ path, now: wallClock });
+    const recorded: unknown[] = [];
+    const spy = {
+      append: (runId: string, e: never, lease?: never) => inner.append(runId, e, lease),
+      load: (runId: string) => inner.load(runId),
+      putMeta: (m: never) => inner.putMeta(m),
+      listRuns: (f?: never) => {
+        recorded.push(f);
+        return inner.listRuns(f);
+      },
+      getMeta: (runId: string) => inner.getMeta(runId),
+      delete: (runId: string) => inner.delete(runId),
+      acquire: (runId: string, owner: string) => inner.acquire(runId, owner),
+      renew: (l: never) => inner.renew(l),
+      release: (l: never) => inner.release(l),
+    };
+    const engine = createEngine({
+      adapters: [new FakeAdapter({ agents: { '*': 'queued analysis' } })],
+      stores: { journal: spy },
+      defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+    });
+    const worker = createWorker(engine, { store: spy });
+    expect(await worker.sweep()).toBe(0);
+    expect(recorded).toEqual([{ statuses: ['running', 'suspended'] }]);
+    await worker.stop();
+
+    const retentive = createWorker(engine, { store: spy, retention: () => false });
+    expect(await retentive.sweep()).toBe(0);
+    expect(recorded[1]).toBeUndefined();
+    expect(recorded).toHaveLength(2);
+    await retentive.stop();
+  });
+
+  it('sweeps never overlap: a second call returns 0 while the first scans', async () => {
+    const inner = new SqliteStore({ path: dbPath(), now: wallClock });
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const blocking = {
+      append: (runId: string, e: never, lease?: never) => inner.append(runId, e, lease),
+      load: (runId: string) => inner.load(runId),
+      putMeta: (m: never) => inner.putMeta(m),
+      listRuns: async (f?: never) => {
+        await gate;
+        return inner.listRuns(f);
+      },
+      getMeta: (runId: string) => inner.getMeta(runId),
+      delete: (runId: string) => inner.delete(runId),
+      acquire: (runId: string, owner: string) => inner.acquire(runId, owner),
+      renew: (l: never) => inner.renew(l),
+      release: (l: never) => inner.release(l),
+    };
+    const engine = createEngine({
+      adapters: [new FakeAdapter({ agents: { '*': 'queued analysis' } })],
+      stores: { journal: blocking },
+      defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+    });
+    const worker = createWorker(engine, { store: blocking });
+    const inFlight = worker.sweep();
+    expect(await worker.sweep()).toBe(0);
+    release();
+    expect(await inFlight).toBe(0);
+    await worker.stop();
+  });
+
+  it('a poisoned runId gets a fresh chance when the run is deleted and recreated', async () => {
+    const path = dbPath();
+    const hostStore = new SqliteStore({ path, now: wallClock });
+    const gated = gatedWorkflow();
+    const hostEngine = makeEngine(hostStore, { gated });
+    const runId = 'poison-reborn';
+    const first = hostEngine.run(
+      gated as unknown as Workflow<unknown, unknown>,
+      { item: 1 },
+      { runId },
+    );
+    expect((await first.result).status).toBe('suspended');
+    await offlineResolve(hostStore, runId, { approved: true });
+
+    // The worker's engine has an EMPTY registry: bare resume cannot
+    // bind, and the run poisons for this worker.
+    const workerStore = new SqliteStore({ path, now: wallClock });
+    const workerEngine = makeEngine(workerStore, {});
+    const errors: unknown[] = [];
+    const worker = createWorker(workerEngine, {
+      store: workerStore,
+      onError: (_runId, error) => {
+        errors.push(error);
+      },
+    });
+    expect(await worker.sweep()).toBe(1);
+    for (let attempt = 0; attempt < 500 && worker.active().length > 0; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(errors).toHaveLength(1);
+    expect(await worker.sweep()).toBe(0);
+    expect(errors).toHaveLength(1);
+
+    // Delete and recreate under the same runId: a NEW generation must
+    // not inherit the old poison, so the worker attempts it again.
+    await hostEngine.deleteRun(runId);
+    const second = hostEngine.run(
+      gated as unknown as Workflow<unknown, unknown>,
+      { item: 1 },
+      { runId },
+    );
+    expect((await second.result).status).toBe('suspended');
+    await offlineResolve(hostStore, runId, { approved: true });
+    expect(await worker.sweep()).toBe(1);
+    for (let attempt = 0; attempt < 500 && worker.active().length > 0; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(errors).toHaveLength(2);
+    await worker.stop();
+  });
+});

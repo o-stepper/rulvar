@@ -109,3 +109,39 @@ describe('SqliteStore cross-instance concurrency (one database file)', () => {
     store.close();
   });
 });
+
+describe('exact meta lookup and filters computed in SQL (v1.25.0 scale review)', () => {
+  const meta = (runId: string, status: string, over?: Record<string, unknown>) =>
+    ({ runId, status, updatedAt: '2026-07-20T00:00:00.000Z', ...over }) as never;
+
+  it('getMeta hits by primary key and resolves undefined on a miss', async () => {
+    const store = memoryStore();
+    await store.putMeta(meta('a', 'ok', { genesis: 'gen-a' }));
+    await store.putMeta(meta('b', 'suspended'));
+    expect((await store.getMeta('a'))?.genesis).toBe('gen-a');
+    expect((await store.getMeta('b'))?.status).toBe('suspended');
+    expect(await store.getMeta('missing')).toBeUndefined();
+    store.close();
+  });
+
+  it('status, statuses, and name narrow in SQL with the shared filter semantics', async () => {
+    const store = memoryStore();
+    await store.putMeta(meta('a', 'ok', { name: 'wf-a', tags: ['team:core'] }));
+    await store.putMeta(meta('b', 'suspended', { name: 'wf-b' }));
+    await store.putMeta(meta('c', 'running', { name: 'wf-a' }));
+    await store.putMeta(meta('d', 'error'));
+    const ids = async (f?: never) => (await store.listRuns(f)).map((m) => m.runId);
+    expect(await ids({ status: 'suspended' } as never)).toEqual(['b']);
+    expect(await ids({ statuses: ['running', 'suspended'] } as never)).toEqual(['b', 'c']);
+    // status and statuses combine as either-matches.
+    expect(await ids({ status: 'error', statuses: ['running'] } as never)).toEqual(['c', 'd']);
+    // An empty statuses list matches nothing, in SQL as in JS.
+    expect(await ids({ statuses: [] } as never)).toEqual([]);
+    expect(await ids({ name: 'wf-a' } as never)).toEqual(['a', 'c']);
+    expect(await ids({ name: 'wf-a', statuses: ['ok'] } as never)).toEqual(['a']);
+    // tags stay a JS containment check over the SQL-reduced set.
+    expect(await ids({ statuses: ['ok'], tags: ['team:core'] } as never)).toEqual(['a']);
+    expect(await ids({ statuses: ['ok'], tags: ['team:web'] } as never)).toEqual([]);
+    store.close();
+  });
+});

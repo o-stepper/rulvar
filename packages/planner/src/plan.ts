@@ -21,7 +21,7 @@ import type {
   RunHandle,
   RunOptions,
 } from '@rulvar/core';
-import { defineWorkflow, ScriptRejected } from '@rulvar/core';
+import { defineWorkflow, readRunMeta, ScriptRejected } from '@rulvar/core';
 import { Linter } from 'eslint';
 import { toJsonDiagnostics, workflowsConfig } from 'eslint-plugin-rulvar';
 
@@ -235,7 +235,9 @@ export async function plan(engine: Engine, goal: string, o?: PlanOptions): Promi
   // freezes as the run's immutable B0), a prior planning journal
   // replays its unchanged prefix under its RECORDED ceiling.
   const runId = planRunIdOf(goal);
-  const recorded = (await engine.stores.journal.listRuns()).find((meta) => meta.runId === runId);
+  // Exact lookup through the optional store capability; stores without
+  // it fall back to the historical full-list scan.
+  const recorded = await readRunMeta(engine.stores.journal, runId);
   const existing = recorded !== undefined || (await engine.stores.journal.load(runId)).length > 0;
   const requested = o?.run?.budgetUsd;
   if (existing && requested !== undefined && recorded?.budgetUsd !== requested) {

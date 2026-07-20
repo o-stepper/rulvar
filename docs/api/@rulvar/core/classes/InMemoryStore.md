@@ -6,11 +6,19 @@
 
 # Class: InMemoryStore
 
-Defined in: [packages/core/src/stores/inmemory.ts:19](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L19)
+Defined in: [packages/core/src/stores/inmemory.ts:20](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L20)
+
+Exact lookup capability: fetch one run's meta without materializing
+the whole catalog (the v1.25.0 scale review: `resume`, HTTP status,
+and CLI point lookups were O(all runs) through `listRuns`). Optional
+exactly like the lease capability: engines and shells detect it with
+`hasMetaLookup` and fall back to `listRuns` + find, so a conformant
+store written before this capability keeps working unoptimized. A
+missing run resolves `undefined`, never a rejection.
 
 ## Implements
 
-- [`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md)
+- [`MetaLookupStore`](/api/@rulvar/core/interfaces/MetaLookupStore.md)
 
 ## Constructors
 
@@ -20,7 +28,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:19](https://github.com/o-stepp
 new InMemoryStore(options?): InMemoryStore;
 ```
 
-Defined in: [packages/core/src/stores/inmemory.ts:24](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L24)
+Defined in: [packages/core/src/stores/inmemory.ts:25](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L25)
 
 #### Parameters
 
@@ -41,7 +49,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:24](https://github.com/o-stepp
 append(runId, e): Promise<void>;
 ```
 
-Defined in: [packages/core/src/stores/inmemory.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L30)
+Defined in: [packages/core/src/stores/inmemory.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L31)
 
 #### Parameters
 
@@ -56,7 +64,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:30](https://github.com/o-stepp
 
 #### Implementation of
 
-[`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md).[`append`](/api/@rulvar/core/interfaces/JournalStore.md#append)
+[`MetaLookupStore`](/api/@rulvar/core/interfaces/MetaLookupStore.md).[`append`](/api/@rulvar/core/interfaces/MetaLookupStore.md#append)
 
 ***
 
@@ -66,7 +74,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:30](https://github.com/o-stepp
 delete(runId): Promise<void>;
 ```
 
-Defined in: [packages/core/src/stores/inmemory.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L83)
+Defined in: [packages/core/src/stores/inmemory.ts:79](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L79)
 
 #### Parameters
 
@@ -80,7 +88,31 @@ Defined in: [packages/core/src/stores/inmemory.ts:83](https://github.com/o-stepp
 
 #### Implementation of
 
-[`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md).[`delete`](/api/@rulvar/core/interfaces/JournalStore.md#delete)
+[`MetaLookupStore`](/api/@rulvar/core/interfaces/MetaLookupStore.md).[`delete`](/api/@rulvar/core/interfaces/MetaLookupStore.md#delete)
+
+***
+
+### getMeta()
+
+```ts
+getMeta(runId): Promise<RunMeta | undefined>;
+```
+
+Defined in: [packages/core/src/stores/inmemory.ts:67](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L67)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `runId` | `string` |
+
+#### Returns
+
+`Promise`\&lt;[`RunMeta`](/api/@rulvar/core/type-aliases/RunMeta.md) \| `undefined`\&gt;
+
+#### Implementation of
+
+[`MetaLookupStore`](/api/@rulvar/core/interfaces/MetaLookupStore.md).[`getMeta`](/api/@rulvar/core/interfaces/MetaLookupStore.md#getmeta)
 
 ***
 
@@ -90,7 +122,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:83](https://github.com/o-stepp
 listRuns(f?): Promise<RunMeta[]>;
 ```
 
-Defined in: [packages/core/src/stores/inmemory.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L66)
+Defined in: [packages/core/src/stores/inmemory.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L72)
 
 #### Parameters
 
@@ -104,7 +136,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:66](https://github.com/o-stepp
 
 #### Implementation of
 
-[`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md).[`listRuns`](/api/@rulvar/core/interfaces/JournalStore.md#listruns)
+[`MetaLookupStore`](/api/@rulvar/core/interfaces/MetaLookupStore.md).[`listRuns`](/api/@rulvar/core/interfaces/MetaLookupStore.md#listruns)
 
 ***
 
@@ -114,7 +146,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:66](https://github.com/o-stepp
 load(runId): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/core/src/stores/inmemory.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L57)
+Defined in: [packages/core/src/stores/inmemory.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L58)
 
 #### Parameters
 
@@ -128,7 +160,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:57](https://github.com/o-stepp
 
 #### Implementation of
 
-[`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md).[`load`](/api/@rulvar/core/interfaces/JournalStore.md#load)
+[`MetaLookupStore`](/api/@rulvar/core/interfaces/MetaLookupStore.md).[`load`](/api/@rulvar/core/interfaces/MetaLookupStore.md#load)
 
 ***
 
@@ -138,7 +170,7 @@ Defined in: [packages/core/src/stores/inmemory.ts:57](https://github.com/o-stepp
 putMeta(m): Promise<void>;
 ```
 
-Defined in: [packages/core/src/stores/inmemory.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L61)
+Defined in: [packages/core/src/stores/inmemory.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/inmemory.ts#L62)
 
 #### Parameters
 
@@ -152,4 +184,4 @@ Defined in: [packages/core/src/stores/inmemory.ts:61](https://github.com/o-stepp
 
 #### Implementation of
 
-[`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md).[`putMeta`](/api/@rulvar/core/interfaces/JournalStore.md#putmeta)
+[`MetaLookupStore`](/api/@rulvar/core/interfaces/MetaLookupStore.md).[`putMeta`](/api/@rulvar/core/interfaces/MetaLookupStore.md#putmeta)

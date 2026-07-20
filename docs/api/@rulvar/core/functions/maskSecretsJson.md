@@ -10,7 +10,7 @@
 function maskSecretsJson(value): Json;
 ```
 
-Defined in: [packages/core/src/l0/serialization.ts:197](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L197)
+Defined in: [packages/core/src/l0/serialization.ts:204](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L204)
 
 Convenience for hosts: masks a Json value (alias of the deep walk).
 

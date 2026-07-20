@@ -34,6 +34,7 @@ import { dispositionHook } from '../journal/disposition.js';
 import type { EscalationLimits } from '../journal/lineage.js';
 import type { ResumeReport } from '../journal/matching.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
+import { readRunMeta } from '../stores/meta-lookup.js';
 import { buildAdapterRegistry, parseModelRef } from '../model/router.js';
 import type { EscalationDecision } from '../runtime/escalation.js';
 import type { EscalatedResult, MechanicalGateProfile } from '../runtime/agent-loop.js';
@@ -413,6 +414,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
      */
     argsProvided?: boolean;
     argsHash?: string;
+    /**
+     * The RunMeta-recorded genesis token carried through verbatim, so a
+     * resume segment never re-mints it; absence stays absent (a legacy
+     * run must not gain a generation marker retroactively).
+     */
+    genesis?: string;
     previewResolve: (preview: ResumePreview) => void;
   }
 
@@ -621,6 +628,13 @@ export function createEngine(options: CreateEngineOptions): Engine {
       }
     }
 
+    // The generation token (RunMeta.genesis): minted once at the fresh
+    // start, carried verbatim by every resume segment. Distinguishes a
+    // deleteRun and recreate of the same explicit runId from the same
+    // run continuing, which journal length alone cannot (v1.25.0 scale
+    // review: the queue worker's skip cache).
+    const genesis = resumeCtx === undefined ? mintRunId() : resumeCtx.genesis;
+
     const putMeta = (status: RunStatus): Promise<void> =>
       resumeCtx?.strict === true
         ? // A dry-run preview leaves the store untouched: no status flip,
@@ -641,6 +655,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
               ? {}
               : { argsProvided: argsBinding.argsProvided }),
             ...(argsBinding.argsHash === undefined ? {} : { argsHash: argsBinding.argsHash }),
+            ...(genesis === undefined ? {} : { genesis }),
             workflowName: wf.name,
             workflowHash:
               compiled === undefined
@@ -874,8 +889,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
       previewResolve = resolve;
     });
     const handlePromise = (async () => {
-      const metas = await journal.listRuns();
-      const meta = metas.find((candidate) => candidate.runId === runId);
+      // Exact lookup through the optional store capability; stores
+      // without it fall back to the historical full listRuns scan.
+      const meta = await readRunMeta(journal, runId);
       // Bare resume of an in-process run resolves by the recorded name
       // from defaults.workflows (M8 entry amendment: the
       // queue worker resolves workflows through the engine's registry,
@@ -1007,6 +1023,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
         // stays absent (legacy runs never gain a marker retroactively).
         ...(typeof meta?.argsProvided === 'boolean' ? { argsProvided: meta.argsProvided } : {}),
         ...(typeof meta?.argsHash === 'string' ? { argsHash: meta.argsHash } : {}),
+        // The generation token travels back in verbatim; absence stays
+        // absent (a legacy run never gains one retroactively).
+        ...(typeof meta?.genesis === 'string' ? { genesis: meta.genesis } : {}),
         previewResolve,
       });
     })();
@@ -1059,28 +1078,74 @@ export function createEngine(options: CreateEngineOptions): Engine {
    * replay from the journal and never boot their checkpoint again;
    * everything else (parked, cancelled, escalated, hanging) keeps its
    * blob for park/unpark, DEF-5 retention, and dangling redispatch.
+   *
+   * References are exact whole string matches collected in ONE recursive
+   * pass over every journal value and key (the v1.25.0 scale review: the
+   * previous per-terminal substring scan was O(entries squared) and a
+   * prefix collision such as `ckpt/2` inside `ckpt/20` kept blobs the
+   * docs promise to delete). The conservative direction is unchanged:
+   * any exact mention outside the owning terminal's own checkpointRef
+   * field (park anchors, boot reuse, links, nested payload values)
+   * keeps the blob.
    */
   async function pruneRun(runId: string): Promise<number> {
     const entries = (await journal.load(runId)).map((entry) => normalizeEntry(entry));
     const existing = new Set(await transcripts.list(runId));
-    let pruned = 0;
+    // Candidates: ok-terminal agent checkpoints whose blob still exists,
+    // keyed by ref with the owning terminal's seq.
+    const ownerOf = new Map<string, number>();
     for (const terminal of entries) {
       if (
-        terminal.kind !== 'agent' ||
-        terminal.status !== 'ok' ||
-        terminal.ref === undefined ||
-        terminal.checkpointRef === undefined ||
-        !existing.has(terminal.checkpointRef)
+        terminal.kind === 'agent' &&
+        terminal.status === 'ok' &&
+        terminal.ref !== undefined &&
+        terminal.checkpointRef !== undefined &&
+        existing.has(terminal.checkpointRef)
       ) {
-        continue;
+        ownerOf.set(terminal.checkpointRef, terminal.seq);
       }
-      const ref = terminal.checkpointRef;
-      // Conservative reference scan: ANY other entry mentioning the ref
-      // (park anchors, boot reuse, links) keeps the blob.
-      const referencedElsewhere = entries.some(
-        (entry) => entry.seq !== terminal.seq && JSON.stringify(entry).includes(ref),
-      );
-      if (referencedElsewhere) {
+    }
+    if (ownerOf.size === 0) {
+      return 0;
+    }
+    const keep = new Set<string>();
+    const visit = (value: unknown): void => {
+      if (typeof value === 'string') {
+        if (ownerOf.has(value)) {
+          keep.add(value);
+        }
+        return;
+      }
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          visit(item);
+        }
+        return;
+      }
+      if (value !== null && typeof value === 'object') {
+        for (const [key, inner] of Object.entries(value)) {
+          // A ref used as an object KEY is a reference too (the old
+          // stringify of the whole entry caught these; stay as conservative).
+          if (ownerOf.has(key)) {
+            keep.add(key);
+          }
+          visit(inner);
+        }
+      }
+    };
+    for (const entry of entries) {
+      const { checkpointRef, ...rest } = entry;
+      // The owning terminal's own checkpointRef field is the one mention
+      // that does not keep the blob; a DIFFERENT entry carrying the ref
+      // in its checkpointRef field does.
+      if (checkpointRef !== undefined && ownerOf.get(checkpointRef) !== entry.seq) {
+        keep.add(checkpointRef);
+      }
+      visit(rest);
+    }
+    let pruned = 0;
+    for (const ref of ownerOf.keys()) {
+      if (keep.has(ref)) {
         continue;
       }
       await transcripts.delete(ref);

@@ -181,3 +181,80 @@ describe('segment-seeded telemetry counters (v1.22.0 review P1-2)', () => {
     expect(eb.emit({ type: 'log', level: 'info', msg: 'a' }, 's0').seq).toBe(0);
   });
 });
+
+describe('iterate() buffered delivery (v1.25.0 scale review P1-1)', () => {
+  it('a consumer that arrives after the run ended still receives everything, in order', async () => {
+    const { bus: eb, span } = bus();
+    // Subscribed at creation, exactly like RunHandle.events.
+    const stream = eb.iterate();
+    const n = 5000;
+    for (let i = 0; i < n; i += 1) {
+      eb.emit({ type: 'log', level: 'info', msg: `m${i}` }, span);
+    }
+    eb.end();
+    const seqs: number[] = [];
+    for await (const event of stream) {
+      seqs.push(event.seq);
+    }
+    expect(seqs).toHaveLength(n);
+    for (let i = 1; i < seqs.length; i += 1) {
+      expect(seqs[i]).toBeGreaterThan(seqs[i - 1]);
+    }
+  });
+
+  it('interleaved emit and consume crosses compaction without loss or reorder', async () => {
+    const { bus: eb, span } = bus();
+    const stream = eb.iterate();
+    const iterator = stream[Symbol.asyncIterator]();
+    const chunk = 3000;
+    const collected: string[] = [];
+    for (let round = 0; round < 3; round += 1) {
+      for (let i = 0; i < chunk; i += 1) {
+        eb.emit({ type: 'log', level: 'info', msg: `r${round}:${i}` }, span);
+      }
+      // Consume half of what was just emitted; the read prefix passes
+      // the compaction threshold repeatedly across rounds.
+      for (let i = 0; i < chunk / 2; i += 1) {
+        const step = await iterator.next();
+        const event = step.value as Extract<WorkflowEvent, { type: 'log' }>;
+        collected.push(event.msg);
+      }
+    }
+    eb.end();
+    let step = await iterator.next();
+    while (step.done !== true) {
+      collected.push((step.value as Extract<WorkflowEvent, { type: 'log' }>).msg);
+      step = await iterator.next();
+    }
+    expect(collected).toHaveLength(3 * chunk);
+    const expected: string[] = [];
+    for (let round = 0; round < 3; round += 1) {
+      for (let i = 0; i < chunk; i += 1) {
+        expected.push(`r${round}:${i}`);
+      }
+    }
+    expect(collected).toEqual(expected);
+  });
+
+  it('draining a backlog of 100k events is linear, never quadratic (scale gate)', async () => {
+    const { bus: eb, span } = bus();
+    const stream = eb.iterate();
+    const n = 100_000;
+    for (let i = 0; i < n; i += 1) {
+      eb.emit({ type: 'log', level: 'info', msg: `event ${i}` }, span);
+    }
+    eb.end();
+    const start = performance.now();
+    let count = 0;
+    for await (const event of stream) {
+      count += 1;
+      void event;
+    }
+    const elapsedMs = performance.now() - start;
+    expect(count).toBe(n);
+    // The Array.shift() drain took multiple SECONDS at this size; the
+    // queue with a head index takes tens of milliseconds. The bound is wide so
+    // slow CI never flakes while a quadratic regression still fails.
+    expect(elapsedMs).toBeLessThan(1000);
+  });
+});

@@ -60,6 +60,13 @@ type Subscriber = {
 };
 
 /**
+ * Minimum delivered prefix before an iterate() queue compacts in place.
+ * Below it the array keeps at most this many cleared slots, which is
+ * bounded and holds no references either way.
+ */
+const ITERATE_COMPACT_MIN = 1024;
+
+/**
  * The per-run event bus. seq is strictly increasing in emission order;
  * `iterate()` yields events from subscription onward; `on()` is the
  * callback form over the same stream and the same seq values.
@@ -201,7 +208,16 @@ export class EventBus {
         // Stream already closed: yields nothing.
       })();
     }
-    const queue: WorkflowEvent[] = [];
+    // A queue with a head index, never Array.shift(): a late or bursty consumer
+    // drains N buffered events in O(N) total, where shift() re-shifted
+    // the whole tail per event and made a late read of 100k buffered events quadratic
+    // (v1.25.0 scale review P1-1). Delivered slots are cleared eagerly
+    // and the array is compacted in place once the read prefix dominates,
+    // so a paused consumer never retains already delivered events. The
+    // gapless contract is unchanged: the subscription starts here, at
+    // handle creation, and buffers until the consumer arrives.
+    const queue: Array<WorkflowEvent | undefined> = [];
+    let head = 0;
     let notify: (() => void) | undefined;
     let done = false;
     const subscriber: Subscriber = {
@@ -219,8 +235,19 @@ export class EventBus {
     return (async function* stream() {
       try {
         while (true) {
-          while (queue.length > 0) {
-            yield queue.shift() as WorkflowEvent;
+          while (head < queue.length) {
+            const event = queue[head] as WorkflowEvent;
+            queue[head] = undefined;
+            head += 1;
+            if (head >= ITERATE_COMPACT_MIN && head * 2 >= queue.length) {
+              // Compaction in place with no allocation; amortized O(1)
+              // per delivered event because head must regrow past the
+              // threshold before the next compaction.
+              queue.copyWithin(0, head);
+              queue.length -= head;
+              head = 0;
+            }
+            yield event;
           }
           if (done) {
             return;

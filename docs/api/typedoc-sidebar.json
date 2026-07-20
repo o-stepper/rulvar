@@ -901,6 +901,10 @@
             "link": "/api/@rulvar/core/interfaces/MechanicalGateVerdict.md"
           },
           {
+            "text": "MetaLookupStore",
+            "link": "/api/@rulvar/core/interfaces/MetaLookupStore.md"
+          },
+          {
             "text": "ModelChoice",
             "link": "/api/@rulvar/core/interfaces/ModelChoice.md"
           },
@@ -2251,6 +2255,10 @@
             "link": "/api/@rulvar/core/functions/hashWorkflowSource.md"
           },
           {
+            "text": "hasMetaLookup",
+            "link": "/api/@rulvar/core/functions/hasMetaLookup.md"
+          },
+          {
             "text": "identityJcs",
             "link": "/api/@rulvar/core/functions/identityJcs.md"
           },
@@ -2329,6 +2337,10 @@
           {
             "text": "mergeUsageLimits",
             "link": "/api/@rulvar/core/functions/mergeUsageLimits.md"
+          },
+          {
+            "text": "metaMatchesFilter",
+            "link": "/api/@rulvar/core/functions/metaMatchesFilter.md"
           },
           {
             "text": "modelEpochOf",
@@ -2429,6 +2441,10 @@
           {
             "text": "providerOf",
             "link": "/api/@rulvar/core/functions/providerOf.md"
+          },
+          {
+            "text": "readRunMeta",
+            "link": "/api/@rulvar/core/functions/readRunMeta.md"
           },
           {
             "text": "readTerminationInit",
@@ -4442,6 +4458,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/MechanicalGateVerdict.md"
           },
           {
+            "text": "MetaLookupStore",
+            "link": "/api/@rulvar/rulvar/interfaces/MetaLookupStore.md"
+          },
+          {
             "text": "ModelChoice",
             "link": "/api/@rulvar/rulvar/interfaces/ModelChoice.md"
           },
@@ -5840,6 +5860,10 @@
             "link": "/api/@rulvar/rulvar/functions/hashWorkflowSource.md"
           },
           {
+            "text": "hasMetaLookup",
+            "link": "/api/@rulvar/rulvar/functions/hasMetaLookup.md"
+          },
+          {
             "text": "identityJcs",
             "link": "/api/@rulvar/rulvar/functions/identityJcs.md"
           },
@@ -5918,6 +5942,10 @@
           {
             "text": "mergeUsageLimits",
             "link": "/api/@rulvar/rulvar/functions/mergeUsageLimits.md"
+          },
+          {
+            "text": "metaMatchesFilter",
+            "link": "/api/@rulvar/rulvar/functions/metaMatchesFilter.md"
           },
           {
             "text": "modelEpochOf",
@@ -6026,6 +6054,10 @@
           {
             "text": "providerOf",
             "link": "/api/@rulvar/rulvar/functions/providerOf.md"
+          },
+          {
+            "text": "readRunMeta",
+            "link": "/api/@rulvar/rulvar/functions/readRunMeta.md"
           },
           {
             "text": "readTerminationInit",
