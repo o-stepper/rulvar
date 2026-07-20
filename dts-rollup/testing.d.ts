@@ -140,6 +140,19 @@ interface VcrRow {
   * unstamped entry reads as recorded before the stamp existed).
   */
   usageSemantics?: string;
+  /**
+  * Zero based per `(adapterId, requestHash)` call counter, claimed
+  * synchronously when the recorded `stream()` call was made
+  * (v1.31.0 review P2): rows are appended in COMPLETION order, so
+  * without this number two concurrent identical live calls that
+  * finish out of order would swap callers at replay, which hands
+  * occurrences out in caller order. Replay sorts same hash rows by
+  * it when every row of the group carries one; absent in cassettes
+  * recorded before v1.32.0, whose same hash rows keep file order.
+  * An aborted or failed call claims a number but appends no row, so
+  * gaps in the numbering are valid.
+  */
+  occurrence?: number;
   requestHash: string;
   /** Redacted canonical request, for humans and drift review. */
   request: unknown;
@@ -177,8 +190,13 @@ declare function requestHash(req: ChatRequest): string;
 * (a requested abort or a truncated read), throws, or violates the
 * adapter contract (a second terminal, data after the terminal)
 * appends nothing, so a cassette row is always the record of one
-* completed exchange (v1.28.0 review P2). The wrapped adapters are
-* drop-in: same ids, providers, caps, and event streams.
+* completed exchange (v1.28.0 review P2). Every call also claims a
+* per `(adapterId, requestHash)` occurrence number synchronously in
+* the `stream()` call itself and persists it on the completed row,
+* so replay can restore the caller to response association even when
+* concurrent identical calls completed out of order (v1.31.0 review
+* P2). The wrapped adapters are drop-in: same ids, providers, caps,
+* and event streams.
 */
 declare function record(options: {
   adapters: ProviderAdapter[];
@@ -189,8 +207,9 @@ declare function record(options: {
 * Typed hermetic-miss error; onMiss: 'throw' raises it on any request
 * without a servable row. `recordedOccurrences` above zero means the
 * hash WAS recorded but every occurrence is already consumed (replay
-* serves each recorded exchange once, in file order); absent or zero
-* means the request was never recorded at all (v1.29.0 review P2).
+* serves each recorded exchange once, in recorded order); absent or
+* zero means the request was never recorded at all (v1.29.0 review
+* P2).
 */
 declare class VcrMissError extends Error {
   readonly requestHash: string;
@@ -211,7 +230,8 @@ interface VcrCassette {
 * instead of being read as v1. Every documented header field (kind,
 * v, an integer hashVersion, a date string recordedAt) and row field
 * (adapterId, model, requestHash, request, caps, events, an optional
-* string provider, an optional nonempty usageSemantics) is checked
+* string provider, an optional nonempty usageSemantics, an optional
+* nonnegative integer occurrence) is checked
 * here, and the nested structures are validated in depth (v1.30.0
 * review P3): the request must be a plain object, every event must
 * be a member of the canonical ChatEvent vocabulary with its
@@ -232,11 +252,17 @@ declare function readCassette(path: string): VcrCassette;
 * hermetic CI mode; `'passthrough'` forwards unrecorded requests to the
 * matching live adapter in `adapters` (a development convenience only).
 *
-* Repeated hashes replay in file order (v1.29.0 review P2): rows
-* sharing a `(adapterId, requestHash)` key form an ordered occurrence
-* list, and every `stream()` call consumes exactly one occurrence,
-* allocated synchronously inside the call itself, so two concurrent
-* identical requests can never be served the same recorded exchange.
+* Repeated hashes replay as ordered occurrences (v1.29.0 review P2):
+* rows sharing a `(adapterId, requestHash)` key form an ordered
+* occurrence list, and every `stream()` call consumes exactly one
+* occurrence, allocated synchronously inside the call itself, so two
+* concurrent identical requests can never be served the same
+* recorded exchange. The list is sorted by the recorded `occurrence`
+* numbers when every row of the group carries one, so concurrent
+* identical calls whose live completions were appended out of order
+* still replay to the callers that made them (v1.31.0 review P2); a
+* group with any unnumbered row (recorded before v1.32.0) keeps file
+* order.
 * A call after the last occurrence is a miss: under `onMiss: 'throw'`
 * it raises a VcrMissError whose `recordedOccurrences` says the hash
 * WAS recorded but is exhausted, and under `'passthrough'` it
@@ -257,7 +283,13 @@ declare function readCassette(path: string): VcrCassette;
 * both declarations; a conflict refuses with a typed ConfigError
 * before anything is served. A cassette recorded before v1.31.0
 * stores no usageSemantics, so its replays stamp nothing (documented
-* historical laxity).
+* historical laxity). Under `onMiss: 'passthrough'` the recorded
+* declarations must also match the live adapter's, absent versus
+* present included, because a live served miss is journaled under
+* the wrapper's declarations; a mismatch refuses at construction
+* (v1.31.0 review P2). An adapter with no recorded rows keeps the
+* live adapter's own declarations, so the wrapper stays a metadata
+* preserving drop in.
 */
 declare function replay(options: {
   cassette: string;

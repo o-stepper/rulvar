@@ -10,7 +10,7 @@
 function readCassette(path): VcrCassette;
 ```
 
-Defined in: [packages/testing/src/vcr.ts:496](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L496)
+Defined in: [packages/testing/src/vcr.ts:558](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L558)
 
 Parses a cassette file (one header line plus one JSON row per line).
 The header must declare cassette format `v: 1`: the format version
@@ -20,7 +20,8 @@ substitutes for it, so a future incompatible format refuses loudly
 instead of being read as v1. Every documented header field (kind,
 v, an integer hashVersion, a date string recordedAt) and row field
 (adapterId, model, requestHash, request, caps, events, an optional
-string provider, an optional nonempty usageSemantics) is checked
+string provider, an optional nonempty usageSemantics, an optional
+nonnegative integer occurrence) is checked
 here, and the nested structures are validated in depth (v1.30.0
 review P3): the request must be a plain object, every event must
 be a member of the canonical ChatEvent vocabulary with its

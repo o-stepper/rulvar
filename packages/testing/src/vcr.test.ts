@@ -777,3 +777,437 @@ describe('cassette provenance and deep shape validation (v1.30.0 review P2 and P
     expect(rows.length).toBeGreaterThan(0);
   });
 });
+
+describe('passthrough provenance, caller order occurrences, and deep finish shapes (v1.31.0 review P2 and P3)', () => {
+  const caps = new FakeAdapter({ agents: { '*': 'x' } }).caps();
+  const finishWith = (inputTokens: number, outputTokens: number): ChatEvent => ({
+    type: 'finish',
+    finish: { reason: 'stop' },
+    usage: { inputTokens, outputTokens, cacheReadTokens: 0, cacheWriteTokens: 0 },
+  });
+  const req: ChatRequest = {
+    model: FAKE_MODEL,
+    messages: [{ role: 'user', parts: [{ type: 'text', text: 'same' }] }],
+  };
+  /** A one answer adapter with optional semantics/provider claims. */
+  const answering = (text: string, semantics?: string, provider?: string): ProviderAdapter => ({
+    id: 'fake',
+    ...(provider === undefined ? {} : { provider }),
+    ...(semantics === undefined ? {} : { usageSemantics: semantics }),
+    caps: () => caps,
+    // eslint-disable-next-line @typescript-eslint/require-await
+    async *stream(): AsyncIterable<ChatEvent> {
+      yield { type: 'text-delta', text };
+      yield finishWith(20, 2);
+    },
+  });
+  const engineWith = (adapters: ProviderAdapter[]) => {
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters,
+      stores: { journal: store },
+      defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+    });
+    return { engine, store };
+  };
+  const stampsOf = async (store: InMemoryStore, runId: string): Promise<string[]> => {
+    const entries = (await store.load(runId)) as unknown as { usageSemantics?: string }[];
+    return entries
+      .map((entry) => entry.usageSemantics)
+      .filter((stamp): stamp is string => stamp !== undefined);
+  };
+  const textOf = async (stream: AsyncIterable<ChatEvent>): Promise<string> => {
+    let text = '';
+    for await (const event of stream) {
+      if (event.type === 'text-delta') {
+        text += event.text;
+      }
+    }
+    return text;
+  };
+  /** An adapter whose FIRST call finishes only after `release()`. */
+  const gatedPair = (): { adapter: ProviderAdapter; release: () => void } => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let calls = 0;
+    return {
+      adapter: {
+        id: 'fake',
+        caps: () => caps,
+        async *stream(): AsyncIterable<ChatEvent> {
+          calls += 1;
+          if (calls === 1) {
+            yield { type: 'text-delta', text: 'FIRST_CALL' };
+            await gate;
+            yield finishWith(1, 1);
+          } else {
+            yield { type: 'text-delta', text: 'SECOND_CALL' };
+            yield finishWith(1, 1);
+          }
+        },
+      },
+      release: () => {
+        release();
+      },
+    };
+  };
+
+  it('a passthrough declaration mismatch refuses at replay construction, absent versus present included', async () => {
+    const cassette = cassettePath();
+    const rec = engineWith(
+      record({ adapters: [answering('recorded', 'recorded-semantics-v1', 'family-a')], cassette }),
+    );
+    expect((await rec.engine.run(wf('seed'), undefined).result).status).toBe('ok');
+
+    expect(() =>
+      replay({
+        cassette,
+        onMiss: 'passthrough',
+        adapters: [answering('live', 'live-semantics-v2', 'family-a')],
+      }),
+    ).toThrow(
+      /records usageSemantics 'recorded-semantics-v1' for adapter 'fake' but the live passthrough adapter declares 'live-semantics-v2'/,
+    );
+    expect(() =>
+      replay({
+        cassette,
+        onMiss: 'passthrough',
+        adapters: [answering('live', 'recorded-semantics-v1', 'family-b')],
+      }),
+    ).toThrow(/records provider 'family-a' .* declares 'family-b'/);
+    expect(() =>
+      replay({
+        cassette,
+        onMiss: 'passthrough',
+        adapters: [answering('live', undefined, 'family-a')],
+      }),
+    ).toThrow(/records usageSemantics 'recorded-semantics-v1' .* declares absent/);
+
+    // The reverse absence: unstamped legacy rows, a stamped live one.
+    const legacy = cassettePath();
+    const legacyRec = engineWith(record({ adapters: [answering('recorded')], cassette: legacy }));
+    expect((await legacyRec.engine.run(wf('seed'), undefined).result).status).toBe('ok');
+    expect(() =>
+      replay({
+        cassette: legacy,
+        onMiss: 'passthrough',
+        adapters: [answering('live', 'live-semantics-v2')],
+      }),
+    ).toThrow(/records usageSemantics absent .* declares 'live-semantics-v2'/);
+  });
+
+  it('matching declarations serve a live miss under the shared truthful stamp', async () => {
+    const cassette = cassettePath();
+    const rec = engineWith(
+      record({ adapters: [answering('recorded answer', 'shared-semantics', 'family')], cassette }),
+    );
+    expect((await rec.engine.run(wf('the recorded one'), undefined).result).status).toBe('ok');
+
+    const wrappers = replay({
+      cassette,
+      onMiss: 'passthrough',
+      adapters: [answering('live answer', 'shared-semantics', 'family')],
+    });
+    expect(wrappers[0]?.usageSemantics).toBe('shared-semantics');
+    expect(wrappers[0]?.provider).toBe('family');
+    const rep = engineWith(wrappers);
+    const handle = rep.engine.run(wf('never recorded'), undefined);
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.value).toBe('live answer');
+    const stamps = await stampsOf(rep.store, handle.runId);
+    expect(stamps.length).toBeGreaterThan(0);
+    expect(new Set(stamps)).toEqual(new Set(['shared-semantics']));
+  });
+
+  it('a live only passthrough adapter keeps its declarations and stamps its journal', async () => {
+    const cassette = cassettePath();
+    record({ adapters: [], cassette });
+    const wrappers = replay({
+      cassette,
+      onMiss: 'passthrough',
+      adapters: [answering('live answer', 'live-semantics-v2', 'live-provider')],
+    });
+    expect(wrappers[0]?.provider).toBe('live-provider');
+    expect(wrappers[0]?.usageSemantics).toBe('live-semantics-v2');
+    const rep = engineWith(wrappers);
+    const handle = rep.engine.run(wf('anything'), undefined);
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.value).toBe('live answer');
+    const stamps = await stampsOf(rep.store, handle.runId);
+    expect(stamps.length).toBeGreaterThan(0);
+    expect(new Set(stamps)).toEqual(new Set(['live-semantics-v2']));
+  });
+
+  it('onMiss throw keeps recorded declarations unchecked against a caps only live adapter', async () => {
+    const cassette = cassettePath();
+    const rec = engineWith(
+      record({ adapters: [answering('recorded', 'recorded-semantics-v1')], cassette }),
+    );
+    expect((await rec.engine.run(wf('seed'), undefined).result).status).toBe('ok');
+    const wrappers = replay({
+      cassette,
+      onMiss: 'throw',
+      adapters: [answering('live', 'live-semantics-v2')],
+    });
+    expect(wrappers[0]?.usageSemantics).toBe('recorded-semantics-v1');
+  });
+
+  it('concurrent identical calls that complete out of order replay to the callers that made them', async () => {
+    const cassette = cassettePath();
+    const { adapter, release } = gatedPair();
+    const [recorded] = record({ adapters: [adapter], cassette });
+    const firstP = textOf(recorded.stream(req));
+    await Promise.resolve();
+    const secondP = textOf(recorded.stream(req));
+    expect(await secondP).toBe('SECOND_CALL');
+    release();
+    expect(await firstP).toBe('FIRST_CALL');
+
+    // The file holds COMPLETION order; the occurrence numbers hold
+    // the call order.
+    const { rows } = readCassette(cassette);
+    expect(rows.map((row) => row.occurrence)).toEqual([1, 0]);
+
+    const [replayed] = replay({ cassette, onMiss: 'throw' });
+    expect(await textOf(replayed.stream(req))).toBe('FIRST_CALL');
+    expect(await textOf(replayed.stream(req))).toBe('SECOND_CALL');
+  });
+
+  it('an aborted call leaves a numbering gap that replay serves through', async () => {
+    const cassette = cassettePath();
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let calls = 0;
+    const flaky: ProviderAdapter = {
+      id: 'fake',
+      caps: () => caps,
+      async *stream(): AsyncIterable<ChatEvent> {
+        calls += 1;
+        if (calls === 1) {
+          yield { type: 'text-delta', text: 'OCC0' };
+          await gate;
+          yield finishWith(1, 1);
+        } else if (calls === 2) {
+          throw new Error('wire failure');
+        } else {
+          yield { type: 'text-delta', text: 'OCC2' };
+          yield finishWith(1, 1);
+        }
+      },
+    };
+    const [recorded] = record({ adapters: [flaky], cassette });
+    const firstP = textOf(recorded.stream(req));
+    await Promise.resolve();
+    await expect(textOf(recorded.stream(req))).rejects.toThrow('wire failure');
+    expect(await textOf(recorded.stream(req))).toBe('OCC2');
+    release();
+    expect(await firstP).toBe('OCC0');
+
+    const { rows } = readCassette(cassette);
+    expect(rows.map((row) => row.occurrence)).toEqual([2, 0]);
+
+    const [replayed] = replay({ cassette, onMiss: 'throw' });
+    expect(await textOf(replayed.stream(req))).toBe('OCC0');
+    expect(await textOf(replayed.stream(req))).toBe('OCC2');
+  });
+
+  it('groups without complete occurrence numbers keep file order', async () => {
+    const cassette = cassettePath();
+    let call = 0;
+    const sequenced: ProviderAdapter = {
+      id: 'fake',
+      caps: () => caps,
+      // eslint-disable-next-line @typescript-eslint/require-await
+      async *stream(): AsyncIterable<ChatEvent> {
+        const text = ['r1', 'r2'][call] ?? 'over';
+        call += 1;
+        yield { type: 'text-delta', text };
+        yield finishWith(1, 1);
+      },
+    };
+    const [recorded] = record({ adapters: [sequenced], cassette });
+    await textOf(recorded.stream(req));
+    await textOf(recorded.stream(req));
+    const [headerLine, first, second] = readFileSync(cassette, 'utf8').trim().split('\n');
+    const withoutOccurrence = (line: string | undefined): string => {
+      const { occurrence, ...rest } = JSON.parse(String(line)) as Record<string, unknown>;
+      void occurrence;
+      return JSON.stringify(rest);
+    };
+
+    // Both rows unnumbered and swapped on disk: file order wins.
+    writeFileSync(
+      cassette,
+      `${String(headerLine)}\n${withoutOccurrence(second)}\n${withoutOccurrence(first)}\n`,
+    );
+    const [legacy] = replay({ cassette, onMiss: 'throw' });
+    expect(await textOf(legacy.stream(req))).toBe('r2');
+    expect(await textOf(legacy.stream(req))).toBe('r1');
+
+    // A mixed group (one numbered row, one legacy) keeps file order
+    // too: sorting applies only when every row carries the number.
+    writeFileSync(
+      cassette,
+      `${String(headerLine)}\n${String(second)}\n${withoutOccurrence(first)}\n`,
+    );
+    const [mixed] = replay({ cassette, onMiss: 'throw' });
+    expect(await textOf(mixed.stream(req))).toBe('r2');
+    expect(await textOf(mixed.stream(req))).toBe('r1');
+  });
+
+  it('a parallel workflow replays each agent the response its call received live', async () => {
+    const cassette = cassettePath();
+    const { adapter, release } = gatedPair();
+    const pair = defineWorkflow({ name: 'pair' }, async (ctx) => {
+      const firstP = ctx.agent('same prompt');
+      const secondP = ctx.agent('same prompt');
+      const second = await secondP;
+      release();
+      const first = await firstP;
+      return [first, second];
+    });
+    const rec = engineWith(record({ adapters: [adapter], cassette }));
+    const recOutcome = await rec.engine.run(pair, undefined).result;
+    expect(recOutcome.status).toBe('ok');
+    expect(recOutcome.value).toEqual(['FIRST_CALL', 'SECOND_CALL']);
+
+    // Before the fix the replay callers swapped responses:
+    // ['SECOND_CALL', 'FIRST_CALL'].
+    const repOutcome = await engineWith(replay({ cassette, onMiss: 'throw' })).engine.run(
+      pair,
+      undefined,
+    ).result;
+    expect(repOutcome.status).toBe('ok');
+    expect(repOutcome.value).toEqual(['FIRST_CALL', 'SECOND_CALL']);
+  });
+
+  const headerText = JSON.stringify({
+    v: 1,
+    kind: 'rulvar-vcr',
+    hashVersion: CURRENT_HASH_VERSION,
+    recordedAt: '2026-07-20T00:00:00.000Z',
+  });
+  const fullUsage = { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 };
+  const rowWith = (over: Record<string, unknown>): Record<string, unknown> => ({
+    adapterId: 'fake',
+    requestHash: 'a'.repeat(64),
+    request: {},
+    events: [{ type: 'text-delta', text: 'x' }, finishWith(1, 1)],
+    caps,
+    model: FAKE_MODEL,
+    ...over,
+  });
+  const cassetteWith = (...rows: Record<string, unknown>[]): string => {
+    const path = cassettePath();
+    writeFileSync(
+      path,
+      `${[headerText, ...rows.map((row) => JSON.stringify(row))].join('\n')}\n`,
+      'utf8',
+    );
+    return path;
+  };
+
+  it.each([
+    {
+      name: 'a tool call end without args',
+      over: { events: [{ type: 'tool-call-end', id: 'call-1' }, finishWith(1, 1)] },
+      pattern: /events\[0\]\.args must be present/,
+    },
+    {
+      name: 'a refusal stopDetails that is not an object',
+      over: {
+        events: [
+          {
+            type: 'finish',
+            finish: {
+              reason: 'refusal',
+              refusal: { provider: 'openai', stopDetails: 'not-an-object' },
+            },
+            usage: fullUsage,
+          },
+        ],
+      },
+      pattern: /events\[0\]\.finish\.refusal\.stopDetails must be an object when present/,
+    },
+    {
+      name: 'a refusal stopDetails field that is not a string',
+      over: {
+        events: [
+          {
+            type: 'finish',
+            finish: {
+              reason: 'refusal',
+              refusal: { provider: 'openai', stopDetails: { category: 7 } },
+            },
+            usage: fullUsage,
+          },
+        ],
+      },
+      pattern: /events\[0\]\.finish\.refusal\.stopDetails\.category must be a string when present/,
+    },
+    {
+      name: 'a finish providerMetadata that is an array',
+      over: {
+        events: [
+          { type: 'finish', finish: { reason: 'stop' }, usage: fullUsage, providerMetadata: [] },
+        ],
+      },
+      pattern: /events\[0\]\.providerMetadata must be a plain object when present/,
+    },
+    {
+      name: 'a null finish providerMetadata',
+      over: {
+        events: [
+          { type: 'finish', finish: { reason: 'stop' }, usage: fullUsage, providerMetadata: null },
+        ],
+      },
+      pattern: /events\[0\]\.providerMetadata must be a plain object when present/,
+    },
+    {
+      name: 'a fractional occurrence',
+      over: { occurrence: 1.5 },
+      pattern: /occurrence, when present, must be a nonnegative safe integer/,
+    },
+    {
+      name: 'a negative occurrence',
+      over: { occurrence: -1 },
+      pattern: /occurrence, when present, must be a nonnegative safe integer/,
+    },
+  ])('readCassette refuses $name at the cassette line', ({ over, pattern }) => {
+    const path = cassetteWith(rowWith(over));
+    expect(() => readCassette(path)).toThrow(pattern);
+    expect(() => readCassette(path)).toThrow(/:2 is not a VCR row/);
+  });
+
+  it('null args, full refusal details, object provider metadata, and occurrence numbers stay accepted', () => {
+    const path = cassetteWith(
+      rowWith({
+        occurrence: 0,
+        events: [
+          { type: 'tool-call-start', id: 'call-1', name: 'lookup' },
+          { type: 'tool-call-end', id: 'call-1', args: null },
+          {
+            type: 'finish',
+            finish: {
+              reason: 'refusal',
+              refusal: {
+                provider: 'openai',
+                stopDetails: { type: 'policy', category: 'safety', explanation: 'why' },
+              },
+            },
+            usage: fullUsage,
+            providerMetadata: { requestId: 'req-1' },
+          },
+        ],
+      }),
+    );
+    expect(readCassette(path).rows).toHaveLength(1);
+    expect(() => replay({ cassette: path, onMiss: 'throw' })).not.toThrow();
+  });
+});
