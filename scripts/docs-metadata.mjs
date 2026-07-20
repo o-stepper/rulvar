@@ -35,6 +35,18 @@ function expectedUrl(filePath) {
   return `${siteUrl}/${outputPath.slice(0, -'.html'.length)}`;
 }
 
+// Attribute values and <title> text escape entities differently
+// (&quot; appears only in attributes), so equality checks compare the
+// decoded forms.
+function decodeEntities(value) {
+  return value
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#39;', "'")
+    .replaceAll('&amp;', '&');
+}
+
 const files = (await htmlFiles(root)).filter((file) => !file.endsWith(`${sep}404.html`));
 assert(files.length > 0, 'No built documentation pages found');
 
@@ -45,6 +57,36 @@ for (const file of files) {
   const openGraphUrl = attribute(html, 'meta', 'property', 'og:url', 'content');
   assert.equal(canonical, expected, `Canonical mismatch in ${file}`);
   assert.equal(openGraphUrl, expected, `og:url mismatch in ${file}`);
+
+  // The social card must carry the page's own title and description,
+  // matching the browser tab and the search snippet exactly.
+  // `attribute` also asserts each tag appears exactly once, so a
+  // site-wide og:title sneaking back into the global head fails here
+  // as a duplicate.
+  const title = html.match(/<title>([^<]*)<\/title>/u)?.[1];
+  assert(title, `Missing <title> in ${file}`);
+  const description = attribute(html, 'meta', 'name', 'description', 'content');
+  assert(description, `Missing meta description in ${file}`);
+  for (const [label, actual] of [
+    ['og:title', attribute(html, 'meta', 'property', 'og:title', 'content')],
+    ['twitter:title', attribute(html, 'meta', 'name', 'twitter:title', 'content')],
+  ]) {
+    assert.equal(
+      decodeEntities(actual ?? ''),
+      decodeEntities(title),
+      `${label} mismatch in ${file}`,
+    );
+  }
+  for (const [label, actual] of [
+    ['og:description', attribute(html, 'meta', 'property', 'og:description', 'content')],
+    ['twitter:description', attribute(html, 'meta', 'name', 'twitter:description', 'content')],
+  ]) {
+    assert.equal(
+      decodeEntities(actual ?? ''),
+      decodeEntities(description),
+      `${label} mismatch in ${file}`,
+    );
+  }
 }
 
 console.log(`Documentation metadata passed for ${files.length} pages.`);

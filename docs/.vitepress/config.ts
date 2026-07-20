@@ -22,12 +22,43 @@ const SITE_URL = 'https://docs.rulvar.com';
 const REPO_URL = 'https://github.com/o-stepper/rulvar';
 const HOME_URL = 'https://rulvar.com';
 
+const SITE_TITLE = 'Rulvar';
+const SITE_TITLE_TEMPLATE = ':title - Rulvar';
+const SITE_DESCRIPTION =
+  'An embeddable TypeScript engine for multi-agent LLM workflows - durable (a completed LLM call is never paid for twice), budget-bounded, vendor-neutral, observable, and testable. No server, no database, no control plane.';
+
+/**
+ * Mirrors VitePress's own `<title>` computation (`createTitle` in
+ * `shared.ts`) so the per-page social-card title always matches the
+ * browser-tab title. `scripts/docs-metadata.mjs` asserts the two stay
+ * equal on every built page, which pins this port to upstream.
+ */
+function resolvePageTitle(pageData: {
+  title?: string;
+  titleTemplate?: string | boolean;
+}): string {
+  const title = pageData.title || SITE_TITLE;
+  const template = pageData.titleTemplate ?? SITE_TITLE_TEMPLATE;
+  if (typeof template === 'string' && template.includes(':title')) {
+    return template.replace(/:title/u, title);
+  }
+  const suffix =
+    template === false
+      ? ''
+      : template === true
+        ? ` | ${SITE_TITLE}`
+        : template === SITE_TITLE
+          ? ''
+          : ` | ${template}`;
+  if (title === suffix.slice(3)) return title;
+  return `${title}${suffix}`;
+}
+
 const baseConfig = defineConfig({
   lang: 'en-US',
-  title: 'Rulvar',
-  titleTemplate: ':title - Rulvar',
-  description:
-    'An embeddable TypeScript engine for multi-agent LLM workflows - durable (a completed LLM call is never paid for twice), budget-bounded, vendor-neutral, observable, and testable. No server, no database, no control plane.',
+  title: SITE_TITLE,
+  titleTemplate: SITE_TITLE_TEMPLATE,
+  description: SITE_DESCRIPTION,
   cleanUrls: true,
   lastUpdated: true,
   // The TypeDoc-generated tree links to per-package README anchors and
@@ -50,43 +81,47 @@ const baseConfig = defineConfig({
       .replace(/\.md$/u, '');
     const canonicalUrl = new URL(route, `${SITE_URL}/`).href;
 
+    // Social cards carry the page's own title and description, not a
+    // site-wide constant; the global `head` below contributes only the
+    // page-independent tags (og:type, og:site_name, og:image, card).
+    const pageTitle = resolvePageTitle(pageData);
+    const pageDescription = pageData.description || SITE_DESCRIPTION;
+
     pageData.frontmatter.head ??= [];
     pageData.frontmatter.head.push(
       ['link', { rel: 'canonical', href: canonicalUrl }],
       ['meta', { property: 'og:url', content: canonicalUrl }],
+      ['meta', { property: 'og:title', content: pageTitle }],
+      ['meta', { property: 'og:description', content: pageDescription }],
+      ['meta', { name: 'twitter:title', content: pageTitle }],
+      ['meta', { name: 'twitter:description', content: pageDescription }],
     );
   },
 
   head: [
     ['link', { rel: 'icon', href: '/logo.svg', type: 'image/svg+xml' }],
     ['meta', { name: 'author', content: 'Oleksiy Stepurenko' }],
-    ['meta', { name: 'theme-color', content: '#f3f1eb' }],
-    ['meta', { name: 'color-scheme', content: 'light dark' }],
-    ['meta', { property: 'og:type', content: 'website' }],
-    ['meta', { property: 'og:site_name', content: 'Rulvar' }],
-    ['meta', { property: 'og:title', content: 'Rulvar documentation' }],
+    // Both scheme variants, matching --vp-c-bg in theme/style.css, so
+    // the browser chrome follows the reader's colour scheme.
     [
       'meta',
-      {
-        property: 'og:description',
-        content:
-          'An embeddable TypeScript engine for durable, budget-bounded, testable multi-agent LLM workflows.',
-      },
+      { name: 'theme-color', media: '(prefers-color-scheme: light)', content: '#f3f1eb' },
     ],
+    [
+      'meta',
+      { name: 'theme-color', media: '(prefers-color-scheme: dark)', content: '#0b1018' },
+    ],
+    ['meta', { name: 'color-scheme', content: 'light dark' }],
+    // og:title, og:description, twitter:title, and twitter:description
+    // are per-page tags, pushed in transformPageData above; only the
+    // page-independent Open Graph surface lives here.
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:site_name', content: 'Rulvar' }],
     ['meta', { property: 'og:image', content: `${HOME_URL}/public/og.png` }],
     ['meta', { property: 'og:image:width', content: '1200' }],
     ['meta', { property: 'og:image:height', content: '630' }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:image', content: `${HOME_URL}/public/og.png` }],
-    ['meta', { name: 'twitter:title', content: 'Rulvar documentation' }],
-    [
-      'meta',
-      {
-        name: 'twitter:description',
-        content:
-          'An embeddable TypeScript engine for durable, budget-bounded, testable multi-agent LLM workflows. Apache-2.0. © 2026 Oleksiy Stepurenko.',
-      },
-    ],
   ],
 
   sitemap: {

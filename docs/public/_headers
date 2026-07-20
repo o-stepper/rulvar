@@ -1,0 +1,14 @@
+# Cloudflare Pages custom headers for docs.rulvar.com.
+# https://developers.cloudflare.com/pages/configuration/headers/
+#
+# Hashed build assets are immutable: the filename embeds a content
+# hash, so a year-long client cache can never serve a stale byte.
+# HTML keeps the platform default (max-age=0, must-revalidate), which
+# is what makes instant post-deploy freshness work.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Pin the host to HTTPS for a year. The apex (rulvar.com) ships the
+# same header from its own _headers file in the landing repository.
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
