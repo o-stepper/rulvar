@@ -1,5 +1,16 @@
 # @rulvar/cli
 
+## 1.27.0
+
+### Minor Changes
+
+- c08885d: The HTTP shell decouples process memory from durable retention (v1.25.0 scale review): new `memoryRetention` predicate and `maxTrackedRuns` cap release a settled run's tracked state (args, outcome, handle, SSE buffer) while the journal and transcripts stay, and new `maxBufferedEventsPerRun` bounds each run's SSE replay buffer (oldest events dropped in chunks and counted; a replay that lost events carries an `x-rulvar-events-dropped` header, and a client whose cursor predates the retained window gets a leading SSE comment naming the first retained seq). The `Last-Event-ID` cursor is now a binary search over the seq ordered buffer and the replay streams by index (no buffer copy); a cursor seq the buffer does not hold replays everything strictly after it instead of re-flooding the whole buffer, which remains at least once. The queue worker sweeps candidates only (`listRuns({ statuses: ['running', 'suspended'] })`, widened to the full catalog only when durable `retention` needs terminal metas), never overlaps sweeps, keys its suspended skip cache and its poison set to the run's generation (`RunMeta.genesis`) so a `deleteRun` and recreate of the same runId is picked instead of skipped, and drops skip and poison entries for runIds that left the candidate set. Point lookups in `resume`, `inspect`, the kb gate, and the server status path go through the store's exact lookup capability when present.
+
+### Patch Changes
+
+- Updated dependencies [c08885d]
+  - @rulvar/core@1.27.0
+
 ## 1.26.0
 
 ### Minor Changes

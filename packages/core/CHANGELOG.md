@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.27.0
+
+### Minor Changes
+
+- c08885d: Scale fixes from the v1.25.0 review. `RunHandle.events` keeps its gapless contract (buffered from handle creation) but drains linearly: the iterator queue uses a head index with in place compaction instead of `Array.shift()`, so a late read of a 100k event backlog takes milliseconds instead of seconds, and delivered events are released eagerly. `engine.pruneRun` now collects exact whole string references in one recursive pass over the journal (values and object keys) instead of a per terminal substring scan: a checkpoint ref that is a prefix of another (`ckpt/2` inside `ckpt/20`) no longer survives pruning, matching what the stores and durability guides always promised, and the scan is linear in journal size instead of quadratic in entries. New optional store capability `MetaLookupStore.getMeta(runId)` with the `hasMetaLookup` guard and the `readRunMeta` helper: `engine.resume` and every shell point lookup use it when present and fall back to the historical `listRuns` scan otherwise; all three shipped stores implement it and the serialization wrapper preserves it. `RunFilter` gains an advisory `statuses` array (match any, combining with `status` as either matches; the shared predicate ships as `metaMatchesFilter`). `RunMeta` gains `genesis`, a generation token minted at the fresh start and preserved verbatim across resume segments, so a `deleteRun` and recreate of the same explicit runId is distinguishable from the original run.
+
 ## 1.26.0
 
 ### Minor Changes

@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.27.0
+
+#### Patch Changes
+
+- Updated dependencies [c08885d]
+  - @rulvar/core@1.27.0
+
 ### 1.26.0
 
 #### Patch Changes
@@ -529,6 +536,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.27.0
+
+#### Patch Changes
+
+- Updated dependencies [c08885d]
+  - @rulvar/core@1.27.0
+
 ### 1.26.0
 
 #### Patch Changes
@@ -925,6 +939,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.27.0
+
+#### Minor Changes
+
+- c08885d: The HTTP shell decouples process memory from durable retention (v1.25.0 scale review): new `memoryRetention` predicate and `maxTrackedRuns` cap release a settled run's tracked state (args, outcome, handle, SSE buffer) while the journal and transcripts stay, and new `maxBufferedEventsPerRun` bounds each run's SSE replay buffer (oldest events dropped in chunks and counted; a replay that lost events carries an `x-rulvar-events-dropped` header, and a client whose cursor predates the retained window gets a leading SSE comment naming the first retained seq). The `Last-Event-ID` cursor is now a binary search over the seq ordered buffer and the replay streams by index (no buffer copy); a cursor seq the buffer does not hold replays everything strictly after it instead of re-flooding the whole buffer, which remains at least once. The queue worker sweeps candidates only (`listRuns({ statuses: ['running', 'suspended'] })`, widened to the full catalog only when durable `retention` needs terminal metas), never overlaps sweeps, keys its suspended skip cache and its poison set to the run's generation (`RunMeta.genesis`) so a `deleteRun` and recreate of the same runId is picked instead of skipped, and drops skip and poison entries for runIds that left the candidate set. Point lookups in `resume`, `inspect`, the kb gate, and the server status path go through the store's exact lookup capability when present.
+
+#### Patch Changes
+
+- Updated dependencies [c08885d]
+  - @rulvar/core@1.27.0
 
 ### 1.26.0
 
@@ -1497,6 +1522,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.27.0
+
+#### Minor Changes
+
+- c08885d: Scale fixes from the v1.25.0 review. `RunHandle.events` keeps its gapless contract (buffered from handle creation) but drains linearly: the iterator queue uses a head index with in place compaction instead of `Array.shift()`, so a late read of a 100k event backlog takes milliseconds instead of seconds, and delivered events are released eagerly. `engine.pruneRun` now collects exact whole string references in one recursive pass over the journal (values and object keys) instead of a per terminal substring scan: a checkpoint ref that is a prefix of another (`ckpt/2` inside `ckpt/20`) no longer survives pruning, matching what the stores and durability guides always promised, and the scan is linear in journal size instead of quadratic in entries. New optional store capability `MetaLookupStore.getMeta(runId)` with the `hasMetaLookup` guard and the `readRunMeta` helper: `engine.resume` and every shell point lookup use it when present and fall back to the historical `listRuns` scan otherwise; all three shipped stores implement it and the serialization wrapper preserves it. `RunFilter` gains an advisory `statuses` array (match any, combining with `status` as either matches; the shared predicate ships as `metaMatchesFilter`). `RunMeta` gains `genesis`, a generation token minted at the fresh start and preserved verbatim across resume segments, so a `deleteRun` and recreate of the same explicit runId is distinguishable from the original run.
 
 ### 1.26.0
 
@@ -2566,6 +2597,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.27.0
+
 ### 1.26.0
 
 ### 1.25.0
@@ -2688,6 +2721,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.27.0
+
+#### Patch Changes
+
+- Updated dependencies [c08885d]
+  - @rulvar/core@1.27.0
+  - @rulvar/testing@1.27.0
 
 ### 1.26.0
 
@@ -3187,6 +3228,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.27.0
+
+#### Patch Changes
+
+- Updated dependencies [c08885d]
+  - @rulvar/core@1.27.0
 
 ### 1.26.0
 
@@ -3720,6 +3768,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.27.0
+
+#### Patch Changes
+
+- Updated dependencies [c08885d]
+  - @rulvar/core@1.27.0
+
 ### 1.26.0
 
 #### Patch Changes
@@ -4230,6 +4285,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.27.0
+
+#### Patch Changes
+
+- c08885d: `SqliteStore` implements the exact lookup capability (`getMeta` as a primary key query) and narrows `status`, `statuses`, and `name` in SQL over the JSON payload behind new expression indexes (created idempotently, so existing database files gain them on the next open), so a selective `listRuns` reads only the matching rows instead of decoding the whole catalog; the tags containment check stays in JS over the reduced set with unchanged semantics. The conformance kit checks the `genesis` round trip, that a `statuses` filter never drops a matching meta (supersets stay allowed), and that a store exposing `getMeta` agrees with `listRuns` and resolves `undefined` for a missing run. The planner's deterministic plan lookup reads one meta through the capability instead of scanning the catalog.
+- Updated dependencies [c08885d]
+  - @rulvar/core@1.27.0
+  - eslint-plugin-rulvar@1.27.0
+
 ### 1.26.0
 
 #### Patch Changes
@@ -4690,6 +4754,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.27.0
+
+#### Patch Changes
+
+- Updated dependencies [c08885d]
+  - @rulvar/core@1.27.0
+  - @rulvar/anthropic@1.27.0
+  - @rulvar/openai@1.27.0
 
 ### 1.26.0
 
@@ -5284,6 +5357,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.27.0
+
+#### Minor Changes
+
+- c08885d: `SqliteStore` implements the exact lookup capability (`getMeta` as a primary key query) and narrows `status`, `statuses`, and `name` in SQL over the JSON payload behind new expression indexes (created idempotently, so existing database files gain them on the next open), so a selective `listRuns` reads only the matching rows instead of decoding the whole catalog; the tags containment check stays in JS over the reduced set with unchanged semantics. The conformance kit checks the `genesis` round trip, that a `statuses` filter never drops a matching meta (supersets stay allowed), and that a store exposing `getMeta` agrees with `listRuns` and resolves `undefined` for a missing run. The planner's deterministic plan lookup reads one meta through the capability instead of scanning the catalog.
+
+#### Patch Changes
+
+- Updated dependencies [c08885d]
+  - @rulvar/core@1.27.0
+
 ### 1.26.0
 
 #### Minor Changes
@@ -5756,6 +5840,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.27.0
+
+#### Minor Changes
+
+- c08885d: `SqliteStore` implements the exact lookup capability (`getMeta` as a primary key query) and narrows `status`, `statuses`, and `name` in SQL over the JSON payload behind new expression indexes (created idempotently, so existing database files gain them on the next open), so a selective `listRuns` reads only the matching rows instead of decoding the whole catalog; the tags containment check stays in JS over the reduced set with unchanged semantics. The conformance kit checks the `genesis` round trip, that a `statuses` filter never drops a matching meta (supersets stay allowed), and that a store exposing `getMeta` agrees with `listRuns` and resolves `undefined` for a missing run. The planner's deterministic plan lookup reads one meta through the capability instead of scanning the catalog.
+
+#### Patch Changes
+
+- Updated dependencies [c08885d]
+  - @rulvar/core@1.27.0
+
 ### 1.26.0
 
 #### Minor Changes
@@ -6167,6 +6262,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.27.0
+
+#### Patch Changes
+
+- Updated dependencies [c08885d]
+  - @rulvar/core@1.27.0
 
 ### 1.26.0
 
