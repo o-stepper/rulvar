@@ -57,7 +57,11 @@ export interface VcrRow {
    * it when every row of the group carries one; absent in cassettes
    * recorded before v1.32.0, whose same hash rows keep file order.
    * An aborted or failed call claims a number but appends no row, so
-   * gaps in the numbering are valid.
+   * gaps in the numbering are valid. An appending `record()` session
+   * seeds its counters past the numbers already on disk, so the
+   * numbering continues across sequential sessions; a duplicate
+   * number inside a fully numbered group refuses replay as ambiguous
+   * (v1.32.0 review P2).
    */
   occurrence?: number;
   requestHash: string;
@@ -162,6 +166,55 @@ function headerLine(): string {
 }
 
 /**
+ * Groups rows by `(adapterId, requestHash)` and orders every fully
+ * numbered group by its recorded occurrence numbers. Same hash rows
+ * sit in the file in COMPLETION order; when every row of a group
+ * carries the occurrence number claimed at stream call time, the
+ * group is served in that order instead, so concurrent identical
+ * calls that finished out of order still replay to the callers that
+ * made them (v1.31.0 review P2). A group with any unnumbered row
+ * (recorded before v1.32.0) keeps file order, and gaps in the
+ * numbering (an aborted or failed call claims a number but appends
+ * no row) are valid. A DUPLICATE number inside a fully numbered
+ * group refuses the whole cassette: it means two recorder sessions
+ * wrote the file concurrently (the documented contract is one active
+ * recorder per cassette), and serving either order would silently
+ * hand a caller the wrong exchange (v1.32.0 review P2). Both replay
+ * and an appending record session group through here, so the refusal
+ * fires before anything is served or appended.
+ */
+function groupRows(rows: VcrRow[], cassette: string): Map<string, Map<string, VcrRow[]>> {
+  const byAdapter = new Map<string, Map<string, VcrRow[]>>();
+  for (const row of rows) {
+    const forAdapter = byAdapter.get(row.adapterId) ?? new Map<string, VcrRow[]>();
+    const occurrences = forAdapter.get(row.requestHash) ?? [];
+    occurrences.push(row);
+    forAdapter.set(row.requestHash, occurrences);
+    byAdapter.set(row.adapterId, forAdapter);
+  }
+  for (const [adapterId, forAdapter] of byAdapter) {
+    for (const [hash, occurrences] of forAdapter) {
+      if (!occurrences.every((row) => row.occurrence !== undefined)) {
+        continue;
+      }
+      occurrences.sort((a, b) => (a.occurrence ?? 0) - (b.occurrence ?? 0));
+      for (let index = 1; index < occurrences.length; index += 1) {
+        const number = occurrences[index]?.occurrence;
+        if (number !== undefined && number === occurrences[index - 1]?.occurrence) {
+          throw new ConfigError(
+            `${cassette} records occurrence ${String(number)} twice for adapter ` +
+              `'${adapterId}' hash ${hash.slice(0, 12)}; two recorder sessions likely wrote ` +
+              'this cassette concurrently, so the replay order would be ambiguous; record ' +
+              'the cassette again',
+          );
+        }
+      }
+    }
+  }
+  return byAdapter;
+}
+
+/**
  * Wraps live adapters for recording: every stream that completes with
  * exactly one terminal event (finish or error) appends one redacted
  * row to the cassette JSONL. A stream that ends without a terminal
@@ -173,8 +226,19 @@ function headerLine(): string {
  * the `stream()` call itself and persists it on the completed row,
  * so replay can restore the caller to response association even when
  * concurrent identical calls completed out of order (v1.31.0 review
- * P2). The wrapped adapters are drop-in: same ids, providers, caps,
- * and event streams.
+ * P2). A later `record()` call on the same cassette file is an
+ * appending session: the existing file is read and validated first
+ * (a target that was never a cassette, a header whose hashVersion is
+ * not the one this build records under, and a file whose occurrence
+ * numbering is already ambiguous all refuse with a typed
+ * ConfigError), and every hash counter is seeded past the numbers
+ * already on disk, so the numbering continues where the file left
+ * off instead of restarting at zero (v1.32.0 review P2). One
+ * recorder session may be active on a cassette at a time: two
+ * concurrently constructed recorders seed identically and claim
+ * colliding numbers, which replay refuses as ambiguous instead of
+ * silently serving either order. The wrapped adapters are drop-in:
+ * same ids, providers, caps, and event streams.
  */
 export function record(options: {
   adapters: ProviderAdapter[];
@@ -184,13 +248,44 @@ export function record(options: {
   const redact: RedactFn = options.redact
     ? (value) => defaultRedact(options.redact ? options.redact(value) : value)
     : defaultRedact;
-  if (!existsSync(options.cassette)) {
+  // An existing cassette is an appending session (v1.32.0 review P2):
+  // read and validate it up front, refuse a target that was never a
+  // cassette or whose header was recorded under a different
+  // hashVersion (appending would mix two identity profiles under one
+  // header), and seed every hash counter past the numbers already on
+  // disk, so the numbering continues instead of restarting at zero.
+  // groupRows also refuses a file whose numbering is already
+  // ambiguous, because appending to it could only compound the
+  // damage.
+  const seeds = new Map<string, Map<string, number>>();
+  if (existsSync(options.cassette)) {
+    const existing = readCassette(options.cassette);
+    if (existing.header.hashVersion !== CURRENT_HASH_VERSION) {
+      throw new ConfigError(
+        `${options.cassette} was recorded under hashVersion ` +
+          `${String(existing.header.hashVersion)} and this build records under ` +
+          `${String(CURRENT_HASH_VERSION)}; appending would mix two identity profiles ` +
+          'under one header, so record the cassette again from scratch',
+      );
+    }
+    for (const [adapterId, forAdapter] of groupRows(existing.rows, options.cassette)) {
+      const forSeeds = new Map<string, number>();
+      for (const [hash, rows] of forAdapter) {
+        const numbered = rows
+          .map((row) => row.occurrence)
+          .filter((value): value is number => value !== undefined);
+        forSeeds.set(hash, numbered.length === 0 ? 0 : Math.max(...numbered) + 1);
+      }
+      seeds.set(adapterId, forSeeds);
+    }
+  } else {
     writeFileSync(options.cassette, `${headerLine()}\n`, 'utf8');
   }
   return options.adapters.map((adapter) => {
     // One call counter per request hash, shared by every stream()
-    // call on this wrapped adapter.
-    const occurrences = new Map<string, number>();
+    // call on this wrapped adapter and seeded past the numbers an
+    // existing cassette already holds (v1.32.0 review P2).
+    const occurrences = new Map<string, number>(seeds.get(adapter.id) ?? []);
     return {
       ...adapter,
       id: adapter.id,
@@ -671,7 +766,11 @@ export function readCassette(path: string): VcrCassette {
  * identical calls whose live completions were appended out of order
  * still replay to the callers that made them (v1.31.0 review P2); a
  * group with any unnumbered row (recorded before v1.32.0) keeps file
- * order.
+ * order. A duplicate occurrence inside a fully numbered group
+ * refuses the whole cassette with a typed ConfigError naming the
+ * adapter and hash: it means two recorder sessions wrote the file
+ * concurrently, and serving either order would hand a caller the
+ * wrong exchange (v1.32.0 review P2).
  * A call after the last occurrence is a miss: under `onMiss: 'throw'`
  * it raises a VcrMissError whose `recordedOccurrences` says the hash
  * WAS recorded but is exhausted, and under `'passthrough'` it
@@ -730,29 +829,10 @@ export function replay(options: {
       );
     }
   });
-  const byAdapter = new Map<string, Map<string, VcrRow[]>>();
-  for (const row of rows) {
-    const forAdapter = byAdapter.get(row.adapterId) ?? new Map<string, VcrRow[]>();
-    const occurrences = forAdapter.get(row.requestHash) ?? [];
-    occurrences.push(row);
-    forAdapter.set(row.requestHash, occurrences);
-    byAdapter.set(row.adapterId, forAdapter);
-  }
-  // Same hash rows sit in the file in COMPLETION order; when every
-  // row of a group carries the occurrence number claimed at stream
-  // call time, the group is served in that order instead, so
-  // concurrent identical calls that finished out of order still
-  // replay to the callers that made them (v1.31.0 review P2). A
-  // group with any unnumbered row (recorded before v1.32.0) keeps
-  // file order, and gaps in the numbering (an aborted or failed call
-  // claims a number but appends no row) are valid.
-  for (const forAdapter of byAdapter.values()) {
-    for (const occurrences of forAdapter.values()) {
-      if (occurrences.every((row) => row.occurrence !== undefined)) {
-        occurrences.sort((a, b) => (a.occurrence ?? 0) - (b.occurrence ?? 0));
-      }
-    }
-  }
+  // Grouping and ordering live in groupRows (shared with an appending
+  // record session), which also refuses a duplicate occurrence inside
+  // a fully numbered group as ambiguous (v1.32.0 review P2).
+  const byAdapter = groupRows(rows, options.cassette);
   const live = new Map((options.adapters ?? []).map((adapter) => [adapter.id, adapter]));
   const adapterIds = new Set<string>([...byAdapter.keys(), ...live.keys()]);
   return [...adapterIds].map((adapterId) => {

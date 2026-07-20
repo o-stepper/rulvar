@@ -10,7 +10,7 @@
 function replay(options): ProviderAdapter[];
 ```
 
-Defined in: [packages/testing/src/vcr.ts:703](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L703)
+Defined in: [packages/testing/src/vcr.ts:802](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L802)
 
 Builds replay adapters from a cassette. `onMiss: 'throw'` is the
 hermetic CI mode; `'passthrough'` forwards unrecorded requests to the
@@ -26,7 +26,11 @@ numbers when every row of the group carries one, so concurrent
 identical calls whose live completions were appended out of order
 still replay to the callers that made them (v1.31.0 review P2); a
 group with any unnumbered row (recorded before v1.32.0) keeps file
-order.
+order. A duplicate occurrence inside a fully numbered group
+refuses the whole cassette with a typed ConfigError naming the
+adapter and hash: it means two recorder sessions wrote the file
+concurrently, and serving either order would hand a caller the
+wrong exchange (v1.32.0 review P2).
 A call after the last occurrence is a miss: under `onMiss: 'throw'`
 it raises a VcrMissError whose `recordedOccurrences` says the hash
 WAS recorded but is exhausted, and under `'passthrough'` it
