@@ -18,6 +18,23 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.29.0
+
+#### Minor Changes
+
+- 621d566: Make the retry and failover backoff interruptible and validate every provider supplied retry delay (v1.28.0 review P1 and P2).
+
+  The retry engine now races its backoff wait against the host cancel signal (which the run deadline also drives) and the budget ceiling signal: an abort wakes the wait immediately, settles through the canonical aborted outcome (`cancelled` or `exhausted`, with every already recorded usage kept), and forbids every further dispatch, including the one behind a keyed limiter queue, so an adapter that ignores its signal can no longer be re entered after an abort. Previously a provider supplied `retryAfterMs` armed an uninterruptible sleep: a cancel, a crossed deadline, and a crossed budget ceiling all waited out the full backoff and the adapter was dispatched again. The injected `retry.sleep(ms)` test hook keeps its signature; a hook that loses the race is abandoned without an unhandled rejection, and the native timer path clears its timer so an abandoned long backoff never pins the event loop.
+
+  `retryDelayMs` is now the defensive boundary the docs promise: only a finite nonnegative provider `retryAfterMs` replaces the computed delay, anything else (NaN, Infinity, a negative) is ignored as adapter noise, and every returned delay is a finite nonnegative integer clamped to the Node timer maximum, so a malformed or huge value can never arm an instant or overflowing timer. Both first party adapters stop emitting unvalidated `Retry-After` parses: an unparsable header (the HTTP date form included) omits `retryAfterMs` entirely instead of producing NaN (which also broke the `WireError.data` Json invariant by serializing to null), and a huge but finite value is clamped. The `mapAnthropicStream` TSDoc now states precisely how a truncated stream is reported (the `finished` flag on the return value, with the adapter synthesizing the terminal error).
+
+  Four frozen fixture cassettes are refrozen for this release (the hashVersion-bump refreeze ceremony applies; hashVersion itself is unchanged and existing journals replay identically): in three cap freeze scenarios the main orchestrator entry now honestly settles cancelled at the cap instead of paying one more ordinary turn whose result the forced finish machinery discarded anyway, and one scenario loses a post abort wait suspension that can no longer be dispatched. Entry identities, keys, and every other row are byte identical.
+
+#### Patch Changes
+
+- Updated dependencies [621d566]
+  - @rulvar/core@1.29.0
+
 ### 1.28.0
 
 #### Minor Changes
@@ -551,6 +568,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.29.0
+
+#### Patch Changes
+
+- Updated dependencies [621d566]
+  - @rulvar/core@1.29.0
+
 ### 1.28.0
 
 #### Patch Changes
@@ -961,6 +985,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.29.0
+
+#### Patch Changes
+
+- Updated dependencies [621d566]
+  - @rulvar/core@1.29.0
 
 ### 1.28.0
 
@@ -1555,6 +1586,18 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.29.0
+
+#### Minor Changes
+
+- 621d566: Make the retry and failover backoff interruptible and validate every provider supplied retry delay (v1.28.0 review P1 and P2).
+
+  The retry engine now races its backoff wait against the host cancel signal (which the run deadline also drives) and the budget ceiling signal: an abort wakes the wait immediately, settles through the canonical aborted outcome (`cancelled` or `exhausted`, with every already recorded usage kept), and forbids every further dispatch, including the one behind a keyed limiter queue, so an adapter that ignores its signal can no longer be re entered after an abort. Previously a provider supplied `retryAfterMs` armed an uninterruptible sleep: a cancel, a crossed deadline, and a crossed budget ceiling all waited out the full backoff and the adapter was dispatched again. The injected `retry.sleep(ms)` test hook keeps its signature; a hook that loses the race is abandoned without an unhandled rejection, and the native timer path clears its timer so an abandoned long backoff never pins the event loop.
+
+  `retryDelayMs` is now the defensive boundary the docs promise: only a finite nonnegative provider `retryAfterMs` replaces the computed delay, anything else (NaN, Infinity, a negative) is ignored as adapter noise, and every returned delay is a finite nonnegative integer clamped to the Node timer maximum, so a malformed or huge value can never arm an instant or overflowing timer. Both first party adapters stop emitting unvalidated `Retry-After` parses: an unparsable header (the HTTP date form included) omits `retryAfterMs` entirely instead of producing NaN (which also broke the `WireError.data` Json invariant by serializing to null), and a huge but finite value is clamped. The `mapAnthropicStream` TSDoc now states precisely how a truncated stream is reported (the `finished` flag on the return value, with the adapter synthesizing the terminal error).
+
+  Four frozen fixture cassettes are refrozen for this release (the hashVersion-bump refreeze ceremony applies; hashVersion itself is unchanged and existing journals replay identically): in three cap freeze scenarios the main orchestrator entry now honestly settles cancelled at the cap instead of paying one more ordinary turn whose result the forced finish machinery discarded anyway, and one scenario loses a post abort wait suspension that can no longer be dispatched. Entry identities, keys, and every other row are byte identical.
 
 ### 1.28.0
 
@@ -2636,6 +2679,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.29.0
+
 ### 1.28.0
 
 ### 1.27.0
@@ -2762,6 +2807,21 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.29.0
+
+#### Minor Changes
+
+- 621d566: Validate eval thresholds before they can classify anything (v1.28.0 review P2).
+
+  `rubricGrader` now throws a typed `ConfigError` at construction when `passThreshold` is not a finite fraction in [0, 1]; previously a negative threshold made every zero score verdict pass. `runSweepMatrix` validates its effective thresholds before `engineFor`, envelope reservation, or any provider and store activity: both bands must be finite fractions in [0, 1] with `weakness` strictly below `strength`, so the bands stay ordered and the uninformative mid band exists. Previously a reversed or out of range configuration turned a failing cell (pass rate 0) into a committed strength claim, which a connected ModelKnowledge store would then feed into routing as false knowledge.
+
+#### Patch Changes
+
+- Updated dependencies [621d566]
+- Updated dependencies [621d566]
+  - @rulvar/core@1.29.0
+  - @rulvar/testing@1.29.0
 
 ### 1.28.0
 
@@ -3277,6 +3337,23 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.29.0
+
+#### Minor Changes
+
+- 621d566: Make the retry and failover backoff interruptible and validate every provider supplied retry delay (v1.28.0 review P1 and P2).
+
+  The retry engine now races its backoff wait against the host cancel signal (which the run deadline also drives) and the budget ceiling signal: an abort wakes the wait immediately, settles through the canonical aborted outcome (`cancelled` or `exhausted`, with every already recorded usage kept), and forbids every further dispatch, including the one behind a keyed limiter queue, so an adapter that ignores its signal can no longer be re entered after an abort. Previously a provider supplied `retryAfterMs` armed an uninterruptible sleep: a cancel, a crossed deadline, and a crossed budget ceiling all waited out the full backoff and the adapter was dispatched again. The injected `retry.sleep(ms)` test hook keeps its signature; a hook that loses the race is abandoned without an unhandled rejection, and the native timer path clears its timer so an abandoned long backoff never pins the event loop.
+
+  `retryDelayMs` is now the defensive boundary the docs promise: only a finite nonnegative provider `retryAfterMs` replaces the computed delay, anything else (NaN, Infinity, a negative) is ignored as adapter noise, and every returned delay is a finite nonnegative integer clamped to the Node timer maximum, so a malformed or huge value can never arm an instant or overflowing timer. Both first party adapters stop emitting unvalidated `Retry-After` parses: an unparsable header (the HTTP date form included) omits `retryAfterMs` entirely instead of producing NaN (which also broke the `WireError.data` Json invariant by serializing to null), and a huge but finite value is clamped. The `mapAnthropicStream` TSDoc now states precisely how a truncated stream is reported (the `finished` flag on the return value, with the adapter synthesizing the terminal error).
+
+  Four frozen fixture cassettes are refrozen for this release (the hashVersion-bump refreeze ceremony applies; hashVersion itself is unchanged and existing journals replay identically): in three cap freeze scenarios the main orchestrator entry now honestly settles cancelled at the cap instead of paying one more ordinary turn whose result the forced finish machinery discarded anyway, and one scenario loses a post abort wait suspension that can no longer be dispatched. Entry identities, keys, and every other row are byte identical.
+
+#### Patch Changes
+
+- Updated dependencies [621d566]
+  - @rulvar/core@1.29.0
 
 ### 1.28.0
 
@@ -3828,6 +3905,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.29.0
+
+#### Patch Changes
+
+- Updated dependencies [621d566]
+  - @rulvar/core@1.29.0
+
 ### 1.28.0
 
 #### Patch Changes
@@ -4352,6 +4436,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.29.0
+
+#### Patch Changes
+
+- Updated dependencies [621d566]
+  - @rulvar/core@1.29.0
+  - eslint-plugin-rulvar@1.29.0
+
 ### 1.28.0
 
 #### Patch Changes
@@ -4828,6 +4920,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.29.0
+
+#### Patch Changes
+
+- Updated dependencies [621d566]
+  - @rulvar/core@1.29.0
+  - @rulvar/openai@1.29.0
+  - @rulvar/anthropic@1.29.0
 
 ### 1.28.0
 
@@ -5440,6 +5541,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.29.0
+
+#### Patch Changes
+
+- Updated dependencies [621d566]
+  - @rulvar/core@1.29.0
+
 ### 1.28.0
 
 #### Patch Changes
@@ -5926,6 +6034,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.29.0
+
+#### Patch Changes
+
+- Updated dependencies [621d566]
+  - @rulvar/core@1.29.0
+
 ### 1.28.0
 
 #### Patch Changes
@@ -6351,6 +6466,21 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.29.0
+
+#### Minor Changes
+
+- 621d566: A VCR cassette row is now always the record of one completed exchange, and `readCassette` validates the cassette format version (v1.28.0 review P2 and P3).
+
+  `record` appends a row only when the wrapped stream delivered exactly one terminal event: a requested abort and a naturally truncated stream (no terminal), a thrown wire failure, and a contract violating stream (a second terminal or data after the terminal) append nothing. The v1.28.0 behavior that made the append unconditional on a clean generator exit could commit a partial, finish less exchange, which the fail closed core would then replay as a transport error; the intent of that fix is preserved, because a consumer that stops consuming right after the terminal (the engine shape) still commits its row.
+
+  `readCassette` now refuses a cassette whose header does not declare format `v: 1` with a typed `ConfigError`, instead of silently interpreting an unknown future format as v1 (`hashVersion`, checked by replay, gates request identity and never substitutes for the format version). Corrupt JSON lines and rows missing their required fields also throw a typed `ConfigError` naming the cassette path and line, so a torn cassette fails loudly before any partial replay.
+
+#### Patch Changes
+
+- Updated dependencies [621d566]
+  - @rulvar/core@1.29.0
 
 ### 1.28.0
 
