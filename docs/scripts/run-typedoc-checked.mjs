@@ -55,13 +55,6 @@ const NOT_INCLUDED_BASELINE = new Set([
   'StandardTypedV1.InferOutput (@rulvar/core/src/vendor/standard-schema.d.ts)',
   'StandardTypedV1.Types (@rulvar/core/src/vendor/standard-schema.d.ts)',
   'StandardTypedV1 (@rulvar/core/src/vendor/standard-schema.d.ts)',
-  'BaseAppend (@rulvar/core/src/journal/replayer.ts)',
-  'Block (@rulvar/anthropic/src/wire.ts)',
-  'MappedStop (@rulvar/anthropic/src/wire.ts)',
-  'VcrHeader (@rulvar/testing/src/vcr.ts)',
-  'KbSweepCliConfig (@rulvar/cli/src/config.ts)',
-  'OtelContextApi (@rulvar/cli/src/otel.ts)',
-  'LoadedWorkflowModule (@rulvar/cli/src/config.ts)',
 ]);
 
 const result = spawnSync('npx', ['typedoc', '--options', './typedoc.json'], {

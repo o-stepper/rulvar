@@ -53,6 +53,7 @@ pnpm add -D @rulvar/testing
 | [TestEngine](/api/@rulvar/testing/interfaces/TestEngine.md) | - |
 | [TestRunHandle](/api/@rulvar/testing/interfaces/TestRunHandle.md) | A RunHandle that records its own event stream for the matchers. |
 | [VcrCassette](/api/@rulvar/testing/interfaces/VcrCassette.md) | - |
+| [VcrHeader](/api/@rulvar/testing/interfaces/VcrHeader.md) | The first line of every cassette file: format and hash provenance. |
 | [VcrRow](/api/@rulvar/testing/interfaces/VcrRow.md) | One recorded exchange; a cassette is one JSON header line plus rows. |
 
 ## Type Aliases

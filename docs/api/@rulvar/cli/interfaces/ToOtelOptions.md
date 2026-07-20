@@ -12,5 +12,5 @@ Defined in: [packages/cli/src/otel.ts:41](https://github.com/o-stepper/rulvar/bl
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-contextapi"></a> `contextApi?` | `OtelContextApi` | OTel context API for parentage; when absent, spans are flat but attributed. | [packages/cli/src/otel.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L43) |
+| <a id="property-contextapi"></a> `contextApi?` | [`OtelContextApi`](/api/@rulvar/cli/interfaces/OtelContextApi.md) | OTel context API for parentage; when absent, spans are flat but attributed. | [packages/cli/src/otel.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L43) |
 | <a id="property-setspan"></a> `setSpan?` | (`context`, `span`) => `unknown` | trace.setSpan(context, span) equivalent; required with contextApi. | [packages/cli/src/otel.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L45) |

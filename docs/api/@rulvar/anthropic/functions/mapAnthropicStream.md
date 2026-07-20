@@ -13,7 +13,7 @@ function mapAnthropicStream(
 options?): AsyncGenerator<ChatEvent, TurnMapping>;
 ```
 
-Defined in: [packages/anthropic/src/wire.ts:430](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L430)
+Defined in: [packages/anthropic/src/wire.ts:431](https://github.com/o-stepper/rulvar/blob/main/packages/anthropic/src/wire.ts#L431)
 
 Maps one Messages API stream into ChatEvents, yielding each canonical
 event AS the corresponding provider event is consumed: the consumer's
@@ -32,8 +32,8 @@ finish ships the whole turn's retention payload (M4-T02).
 | ------ | ------ |
 | `stream` | `AsyncIterable`\&lt;[`AnthropicStreamEvent`](/api/@rulvar/anthropic/type-aliases/AnthropicStreamEvent.md)\&gt; |
 | `ids` | [`IdMap`](/api/@rulvar/anthropic/classes/IdMap.md) |
-| `options?` | \{ `carryRetained?`: `Block`[]; \} |
-| `options.carryRetained?` | `Block`[] |
+| `options?` | \{ `carryRetained?`: [`Block`](/api/@rulvar/anthropic/type-aliases/Block.md)[]; \} |
+| `options.carryRetained?` | [`Block`](/api/@rulvar/anthropic/type-aliases/Block.md)[] |
 
 ## Returns
 

@@ -31,6 +31,10 @@
             "link": "/api/@rulvar/anthropic/interfaces/AnthropicModelInfo.md"
           },
           {
+            "text": "MappedStop",
+            "link": "/api/@rulvar/anthropic/interfaces/MappedStop.md"
+          },
+          {
             "text": "TurnMapping",
             "link": "/api/@rulvar/anthropic/interfaces/TurnMapping.md"
           }
@@ -47,6 +51,10 @@
           {
             "text": "AnthropicStreamEvent",
             "link": "/api/@rulvar/anthropic/type-aliases/AnthropicStreamEvent.md"
+          },
+          {
+            "text": "Block",
+            "link": "/api/@rulvar/anthropic/type-aliases/Block.md"
           }
         ]
       },
@@ -169,6 +177,18 @@
             "link": "/api/@rulvar/cli/interfaces/CreateWorkerOptions.md"
           },
           {
+            "text": "KbSweepCliConfig",
+            "link": "/api/@rulvar/cli/interfaces/KbSweepCliConfig.md"
+          },
+          {
+            "text": "LoadedWorkflowModule",
+            "link": "/api/@rulvar/cli/interfaces/LoadedWorkflowModule.md"
+          },
+          {
+            "text": "OtelContextApi",
+            "link": "/api/@rulvar/cli/interfaces/OtelContextApi.md"
+          },
+          {
             "text": "RulvarServer",
             "link": "/api/@rulvar/cli/interfaces/RulvarServer.md"
           },
@@ -194,6 +214,10 @@
         "text": "Variables",
         "collapsed": true,
         "items": [
+          {
+            "text": "DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT",
+            "link": "/api/@rulvar/cli/variables/DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT.md"
+          },
           {
             "text": "DEFAULT_STORE_DIR",
             "link": "/api/@rulvar/cli/variables/DEFAULT_STORE_DIR.md"
@@ -655,6 +679,10 @@
           {
             "text": "Artifact",
             "link": "/api/@rulvar/core/interfaces/Artifact.md"
+          },
+          {
+            "text": "BaseAppend",
+            "link": "/api/@rulvar/core/interfaces/BaseAppend.md"
           },
           {
             "text": "BriefOpts",
@@ -4214,6 +4242,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/Artifact.md"
           },
           {
+            "text": "BaseAppend",
+            "link": "/api/@rulvar/rulvar/interfaces/BaseAppend.md"
+          },
+          {
             "text": "BriefOpts",
             "link": "/api/@rulvar/rulvar/interfaces/BriefOpts.md"
           },
@@ -6429,6 +6461,10 @@
           {
             "text": "VcrCassette",
             "link": "/api/@rulvar/testing/interfaces/VcrCassette.md"
+          },
+          {
+            "text": "VcrHeader",
+            "link": "/api/@rulvar/testing/interfaces/VcrHeader.md"
           },
           {
             "text": "VcrRow",

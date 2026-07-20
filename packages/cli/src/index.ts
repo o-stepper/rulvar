@@ -17,10 +17,22 @@ export {
   inspectCommand,
   type CommandContext,
 } from './commands.js';
-export { loadCliConfig, loadWorkflowModule, looksLikeFile, type CliConfig } from './config.js';
+export {
+  loadCliConfig,
+  loadWorkflowModule,
+  looksLikeFile,
+  type CliConfig,
+  type KbSweepCliConfig,
+  type LoadedWorkflowModule,
+} from './config.js';
 export { assembleEngine, DEFAULT_STORE_DIR, type AssembledCli } from './engine-assembly.js';
 export { driveRun, reportOutcome } from './drive.js';
-export { createServer, type CreateServerOptions, type RulvarServer } from './server.js';
+export {
+  createServer,
+  DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT,
+  type CreateServerOptions,
+  type RulvarServer,
+} from './server.js';
 export {
   createWorker,
   DEFAULT_WORKER_TTL_MS,
@@ -29,4 +41,10 @@ export {
 } from './worker.js';
 export { attachProgress, renderEventLine } from './tui.js';
 export { processIo, type CliIo } from './io.js';
-export { toOtel, type TracerLike, type SpanLike, type ToOtelOptions } from './otel.js';
+export {
+  toOtel,
+  type OtelContextApi,
+  type TracerLike,
+  type SpanLike,
+  type ToOtelOptions,
+} from './otel.js';

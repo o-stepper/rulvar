@@ -10,7 +10,7 @@
 type RedactFn = (value) => string;
 ```
 
-Defined in: [packages/testing/src/vcr.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L53)
+Defined in: [packages/testing/src/vcr.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L54)
 
 ## Parameters
 

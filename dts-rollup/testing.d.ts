@@ -139,6 +139,7 @@ interface VcrRow {
   caps: ModelCaps;
   model: string;
 }
+/** The first line of every cassette file: format and hash provenance. */
 interface VcrHeader {
   v: 1;
   kind: "rulvar-vcr";
@@ -191,4 +192,4 @@ declare function replay(options: {
   adapters?: ProviderAdapter[];
 }): ProviderAdapter[];
 //#endregion
-export { type CreateTestEngineOptions, DEFAULT_LIVE_SMOKE_ATTEMPTS, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type FakeToolCallsValue, type FakeWireErrorValue, type LiveSmokeOutcome, MAX_LIVE_SMOKE_ATTEMPTS, MAX_LIVE_SMOKE_DELAY_MS, RedactFn, type ReplayRunOptions, type RunLiveSmokeOptions, type TestEngine, type TestRunHandle, VcrCassette, VcrMissError, VcrRow, createTestEngine, defaultRedact, fakeToolCalls, fakeWireError, liveTestEnabled, readCassette, record, replay, replayRun, requestHash, runLiveSmoke };
+export { type CreateTestEngineOptions, DEFAULT_LIVE_SMOKE_ATTEMPTS, FAKE_MODEL, FAKE_MODEL_REF, FakeAdapter, type FakeAdapterOptions, type FakeCall, type FakeResponder, type FakeToolCallsValue, type FakeWireErrorValue, type LiveSmokeOutcome, MAX_LIVE_SMOKE_ATTEMPTS, MAX_LIVE_SMOKE_DELAY_MS, RedactFn, type ReplayRunOptions, type RunLiveSmokeOptions, type TestEngine, type TestRunHandle, VcrCassette, VcrHeader, VcrMissError, VcrRow, createTestEngine, defaultRedact, fakeToolCalls, fakeWireError, liveTestEnabled, readCassette, record, replay, replayRun, requestHash, runLiveSmoke };

@@ -70,7 +70,7 @@ export interface Ledger {
 }
 
 /** Fields common to every append through the kernel. */
-interface BaseAppend {
+export interface BaseAppend {
   scope: string;
   key: string;
   kind: EntryKind;

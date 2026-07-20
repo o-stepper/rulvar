@@ -23,4 +23,4 @@ Imports a workflow module given on the command line.
 
 ## Returns
 
-`Promise`\&lt;`LoadedWorkflowModule`\&gt;
+`Promise`\&lt;[`LoadedWorkflowModule`](/api/@rulvar/cli/interfaces/LoadedWorkflowModule.md)\&gt;
