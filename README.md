@@ -183,11 +183,11 @@ Built from [docs/](docs/README.md) and published at [docs.rulvar.com](https://do
 
 ## OpenAI Build Week: how this project used Codex and GPT-5.6
 
-Rulvar predates Build Week; everything from v1.4.0 through v1.32.0 shipped inside the
+Rulvar predates Build Week; everything from v1.4.0 through v1.33.0 shipped inside the
 submission window (July 13-21, 2026), and the collaboration below is the part of that
 work done with Codex.
 
-**Codex was the project's independent QA engineer.** Sixteen times during the week, the
+**Codex was the project's independent QA engineer.** Seventeen times during the week, the
 freshly shipped release was handed to Codex (session
 `019f65d7-4599-7d93-97dc-9dd4a5dc66f9`). Each round, Codex ran the full offline matrix
 plus live end-to-end orchestrations against real GPT-5.6 (Sol orchestrating; Luna,
@@ -196,26 +196,27 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The sixteen rounds, verbatim in this repository's history:
+The seventeen rounds, verbatim in this repository's history:
 
-| Codex audited | Fix commit                                                                                      | Shipped as |
-| ------------- | ----------------------------------------------------------------------------------------------- | ---------- |
-| v1.17.0       | 943962d (#202): priced siblings, executable toolset names, conservative envelope                | v1.18.0    |
-| v1.18.0       | 8cc9a9c (#205): instructed finalize, cache write accounting, corrected prices, ULP envelope     | v1.19.0    |
-| v1.19.0       | 9367030 (#207): cache subset accounting, byRole phase attribution, envelope domain              | v1.20.0    |
-| v1.20.0       | 7ee42a0 (#209): usage-telemetry hardening plus the live terminal progress view                  | v1.21.0    |
-| v1.21.0       | 77b554f (#211): terminal control-character sanitization, progress option validation             | v1.22.0    |
-| v1.22.0       | 1f9c272 (#214): resume ordinal identity, segment-durable telemetry counters, event parity       | v1.23.0    |
-| v1.23.0       | 2b033e8 (#216): card toolset semantics, resume args binding, RunMeta docs truth, testing barrel | v1.24.0    |
-| v1.24.0       | 0bb14db (#219): resume args gate overflow bypass, argsHash secrecy honesty                      | v1.24.1    |
-| v1.24.1       | 74851ed (#222): CLI diagnostics value withholding and sanitation, worker execArgv isolation     | v1.25.0    |
-| v1.25.0       | a4fc757 (#226): linear event drain, exact reference checkpoint pruning, scale safe stores       | v1.26.0    |
-| v1.26.0       | 884a433 (#231): drained SSE terminal close, per client pending bound, validated caps            | v1.27.0    |
-| v1.27.0       | d98eb0b (#235): fail closed truncated streams, terminal stop consumption, abort and CLI guards  | v1.28.0    |
-| v1.28.0       | 621d566 (#238): interruptible retry backoff, validated retry delays, VCR row and band guards    | v1.29.0    |
-| v1.29.0       | 87ce985 (#241): ordered VCR occurrences, retry policy validation, strict retry delay grammar    | v1.30.0    |
-| v1.30.0       | df6b8f8 (#244): replayed provenance stamps, deep cassette validation, OWS retry delay padding   | v1.31.0    |
-| v1.31.0       | e366d64 (#247): passthrough provenance agreement, caller order occurrences, deep event shapes   | v1.32.0    |
+| Codex audited | Fix commit                                                                                        | Shipped as |
+| ------------- | ------------------------------------------------------------------------------------------------- | ---------- |
+| v1.17.0       | 943962d (#202): priced siblings, executable toolset names, conservative envelope                  | v1.18.0    |
+| v1.18.0       | 8cc9a9c (#205): instructed finalize, cache write accounting, corrected prices, ULP envelope       | v1.19.0    |
+| v1.19.0       | 9367030 (#207): cache subset accounting, byRole phase attribution, envelope domain                | v1.20.0    |
+| v1.20.0       | 7ee42a0 (#209): usage-telemetry hardening plus the live terminal progress view                    | v1.21.0    |
+| v1.21.0       | 77b554f (#211): terminal control-character sanitization, progress option validation               | v1.22.0    |
+| v1.22.0       | 1f9c272 (#214): resume ordinal identity, segment-durable telemetry counters, event parity         | v1.23.0    |
+| v1.23.0       | 2b033e8 (#216): card toolset semantics, resume args binding, RunMeta docs truth, testing barrel   | v1.24.0    |
+| v1.24.0       | 0bb14db (#219): resume args gate overflow bypass, argsHash secrecy honesty                        | v1.24.1    |
+| v1.24.1       | 74851ed (#222): CLI diagnostics value withholding and sanitation, worker execArgv isolation       | v1.25.0    |
+| v1.25.0       | a4fc757 (#226): linear event drain, exact reference checkpoint pruning, scale safe stores         | v1.26.0    |
+| v1.26.0       | 884a433 (#231): drained SSE terminal close, per client pending bound, validated caps              | v1.27.0    |
+| v1.27.0       | d98eb0b (#235): fail closed truncated streams, terminal stop consumption, abort and CLI guards    | v1.28.0    |
+| v1.28.0       | 621d566 (#238): interruptible retry backoff, validated retry delays, VCR row and band guards      | v1.29.0    |
+| v1.29.0       | 87ce985 (#241): ordered VCR occurrences, retry policy validation, strict retry delay grammar      | v1.30.0    |
+| v1.30.0       | df6b8f8 (#244): replayed provenance stamps, deep cassette validation, OWS retry delay padding     | v1.31.0    |
+| v1.31.0       | e366d64 (#247): passthrough provenance agreement, caller order occurrences, deep event shapes     | v1.32.0    |
+| v1.32.0       | 3f0f5e8 (#250): seeded appending record sessions, duplicate occurrence refusal, replay order gate | v1.33.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
@@ -241,7 +242,7 @@ threshold able to commit a failing cell as recorded model strength; and a deep r
 audit that caught the VCR cassette layer collapsing repeated identical requests into
 their last recorded exchange (a recorded retry replayed as an instant success, hiding
 the error branch from cassette based regression suites), retry policies reaching a
-paid dispatch unvalidated, and empty rate limit headers turning into instant retries; and a provenance audit that found VCR replay dropping the usage semantics stamp from replayed journals (an honest replayed total could be flagged and miscorrected as a legacy record by the cache write audit), cassette reading trusting nested structures it never validated, and retry delay parsing padded by whitespace no HTTP field value carries; and a replay fidelity audit that caught passthrough replay journaling live responses under stale recorded provenance declarations (dropped entirely for live only adapters), concurrent identical calls receiving each other's recorded responses on replay because rows persist in completion order while replay serves caller order, and three constrained nested event fields the documented deep validation never checked.
+paid dispatch unvalidated, and empty rate limit headers turning into instant retries; and a provenance audit that found VCR replay dropping the usage semantics stamp from replayed journals (an honest replayed total could be flagged and miscorrected as a legacy record by the cache write audit), cassette reading trusting nested structures it never validated, and retry delay parsing padded by whitespace no HTTP field value carries; and a replay fidelity audit that caught passthrough replay journaling live responses under stale recorded provenance declarations (dropped entirely for live only adapters), concurrent identical calls receiving each other's recorded responses on replay because rows persist in completion order while replay serves caller order, and three constrained nested event fields the documented deep validation never checked; and an appending session audit that caught a second record() session on an existing cassette restarting the occurrence numbering at zero, so replay silently served the appended exchange before earlier ones, duplicate occurrence numbers accepted without complaint, and two guides stating two different replay orders for one public function.
 
 **GPT-5.6 runs inside the product as well as behind Codex.** The OpenAI adapter
 carries first-class GPT-5.6 Sol, Terra, and Luna support: per-sibling pricing with
