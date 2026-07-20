@@ -2631,6 +2631,10 @@
             "link": "/api/@rulvar/core/functions/validateEscalationReport.md"
           },
           {
+            "text": "validateRetryPolicy",
+            "link": "/api/@rulvar/core/functions/validateRetryPolicy.md"
+          },
+          {
             "text": "validateSchemaSpec",
             "link": "/api/@rulvar/core/functions/validateSchemaSpec.md"
           },
@@ -6250,6 +6254,10 @@
           {
             "text": "validateEscalationReport",
             "link": "/api/@rulvar/rulvar/functions/validateEscalationReport.md"
+          },
+          {
+            "text": "validateRetryPolicy",
+            "link": "/api/@rulvar/rulvar/functions/validateRetryPolicy.md"
           },
           {
             "text": "validateSchemaSpec",

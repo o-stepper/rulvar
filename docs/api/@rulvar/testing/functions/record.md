@@ -10,7 +10,7 @@
 function record(options): ProviderAdapter[];
 ```
 
-Defined in: [packages/testing/src/vcr.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L142)
+Defined in: [packages/testing/src/vcr.ts:147](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L147)
 
 Wraps live adapters for recording: every stream that completes with
 exactly one terminal event (finish or error) appends one redacted

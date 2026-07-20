@@ -26,6 +26,7 @@ import {
   mapOpenAiEffort,
   mapResponsesStream,
   normalizeOpenAiUsage,
+  openAiErrorToWire,
   OpenAiIdMap,
   type ResponsesStreamEvent,
 } from './wire.js';
@@ -1070,6 +1071,37 @@ describe('adapter surface (M1-T13)', () => {
     // instead of overflowing into an almost immediate retry.
     const huge = await errorFor('3000000');
     expect((huge.data as { retryAfterMs?: number }).retryAfterMs).toBe(2_147_483_647);
+  });
+
+  it('Retry-After honors only the RFC delta-seconds grammar (v1.29.0 review P3)', () => {
+    const msOf = (value: string): number | undefined =>
+      (
+        openAiErrorToWire({
+          status: 429,
+          message: 'rate limited',
+          headers: { 'retry-after': value },
+        }).data as { retryAfterMs?: number }
+      ).retryAfterMs;
+
+    // Number() alone accepted every one of these; the grammar is a
+    // nonempty digit run after optional whitespace, nothing else.
+    for (const malformed of [
+      '',
+      ' ',
+      '0x10',
+      '1e3',
+      '1.5',
+      '+3',
+      '-5',
+      'Wed, 21 Oct 2026 07:28:00 GMT',
+    ]) {
+      expect(msOf(malformed)).toBeUndefined();
+    }
+    expect(msOf('3')).toBe(3000);
+    expect(msOf(' 3 ')).toBe(3000);
+    expect(msOf('0')).toBe(0);
+    expect(msOf('007')).toBe(7000);
+    expect(msOf('99999999999999999999999')).toBe(2_147_483_647);
   });
 
   it.skipIf(!liveTestEnabled('OPENAI_API_KEY'))(

@@ -249,7 +249,7 @@ Some behavior only exists on the real wire: exact event streams, provider refusa
 
 ### Recording
 
-`record` wraps live adapters; the wrapped adapters are drop-in (same ids, providers, caps, and event streams), and every stream that completes with exactly one terminal event appends one redacted row. An aborted or truncated stream (no terminal event) and a stream violating the terminal contract append nothing: a cassette row is always the record of one completed exchange.
+`record` wraps live adapters; the wrapped adapters are drop-in (same ids, providers, caps, and event streams), and every stream that completes with exactly one terminal event appends one redacted row. An aborted or truncated stream (no terminal event) and a stream violating the terminal contract append nothing: a cassette row is always the record of one completed exchange. Identical requests append one row each: a recorded retry (the same request failing, then succeeding) or a repeated case produces multiple rows under one request hash, in the order they happened, and replay preserves that order.
 
 ```ts
 import { createEngine, JsonlFileStore } from '@rulvar/core';
@@ -281,9 +281,13 @@ const adapters = replay({
 });
 ```
 
-Hand the replay adapters to `createEngine` exactly as you would live ones. With `onMiss: 'throw'`, any request without a recorded row raises a typed `VcrMissError` carrying the request hash: that is the hermetic mode, and the only mode CI should run. `onMiss: 'passthrough'` forwards unrecorded requests to a matching live adapter passed alongside; it exists for local development while a cassette is being built and has no place in CI.
+Hand the replay adapters to `createEngine` exactly as you would live ones. With `onMiss: 'throw'`, any request without a servable row raises a typed `VcrMissError` carrying the request hash: that is the hermetic mode, and the only mode CI should run. `onMiss: 'passthrough'` forwards unrecorded requests to a matching live adapter passed alongside; it exists for local development while a cassette is being built and has no place in CI.
+
+Rows sharing one `(adapterId, requestHash)` key form an ordered occurrence list, and every `stream()` call consumes exactly one occurrence, in file order: a recorded retry replays as the same error-then-success sequence it was, never collapsed into its last exchange. The occurrence is claimed synchronously inside the `stream()` call itself (not at first read), so concurrent identical requests each get their own recorded exchange. A call after the last occurrence is a miss like any other: under `onMiss: 'throw'` the `VcrMissError` carries `recordedOccurrences` saying the hash was recorded but is exhausted, and under `'passthrough'` the call forwards to the live adapter. Cursors live on the replay adapter set, so one `replay()` call serves a cassette's rows once across every run that shares its adapters; build a fresh set to start over.
 
 Because cassettes record the `hashVersion` they were produced under, `replay` validates the header against the engine's support window, the same `[CURRENT-1, CURRENT]` window that governs journal resume: a cassette recorded outside it is refused with a typed `ConfigError` instead of silently drifting, while an in-window cassette recorded one profile back replays normally.
+
+The file shape is validated in two layers. `readCassette` checks the full documented form and refuses violations with a `ConfigError` naming the cassette path and line: the header must carry `kind`, format `v: 1`, an integer `hashVersion`, and a date string `recordedAt`; every row must carry a nonempty `adapterId`, `model`, and `requestHash`, a `request` object, a `caps` object, an `events` array, and (when present) a string `provider`. Unknown extra fields are tolerated for forward compatibility. Event stream semantics are deliberately not a read time concern; `replay` enforces them before serving anything: every row must end with exactly one terminal event (what `record` has guaranteed since v1.29.0), and all caps snapshots for one `(adapterId, model)` must agree, because a replay adapter reports one caps truth per model. Either violation refuses the whole cassette, since a partially trusted fixture is worse than none.
 
 ### Cassette hygiene
 
