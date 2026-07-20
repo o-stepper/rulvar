@@ -227,7 +227,10 @@ interface RubricGraderOptions {
   name?: string;
   /**
   * Minimum fraction of criteria that must pass; default 1 (all).
-  * The fraction is also reported as the verdict score.
+  * The fraction is also reported as the verdict score. Must be a
+  * finite fraction in [0, 1]: anything else throws a ConfigError at
+  * construction, because an out of range threshold silently passes
+  * or fails every verdict (v1.28.0 review P2).
   */
   passThreshold?: number;
 }
@@ -400,6 +403,13 @@ interface SweepPool {
   models: SweepModel[];
   cases: SweepCase[];
 }
+/**
+* The claim bands. Both effective values must be finite fractions in
+* [0, 1] with weakness strictly below strength (so the bands are
+* ordered and an uninformative mid band exists); runSweepMatrix
+* rejects anything else with a ConfigError before any engine, store,
+* or envelope activity.
+*/
 interface SweepThresholds {
   /** passRate at or above emits a strength claim; default 0.9. */
   strength: number;

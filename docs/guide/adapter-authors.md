@@ -104,7 +104,7 @@ The taxonomy split you must get right is transport versus task:
 - **Task class failures are never retryable by construction.** Mark them `retryable: false`: an invalid request, a schema the provider rejects, an authentication failure. Retrying them burns money on a deterministic failure.
 - **Model level outcomes are not errors at all.** Refusals, `max-tokens` stops, and context window exhaustion are typed `finish` outcomes; the agent runtime, ladders, and fallbacks react to them semantically.
 
-Retries themselves belong to the core. Disable your SDK's autoretries (`max_retries: 0` or the equivalent client option), never sleep inside the adapter, and let the engine's `RetryPolicy` schedule backoff; a provider supplied `retryAfterMs` replaces the computed delay. SDK internal retries are forbidden because they are invisible to the journal, the budget ledger, and timeouts. See [Model routing](/guide/model-routing) for how retries and failover compose above your adapter.
+Retries themselves belong to the core. Disable your SDK's autoretries (`max_retries: 0` or the equivalent client option), never sleep inside the adapter, and let the engine's `RetryPolicy` schedule backoff; a valid provider supplied `retryAfterMs` (finite and nonnegative) replaces the computed delay, while anything else is ignored and the policy backoff applies, with huge values clamped to a timer safe bound, so surface only a delay you actually parsed and never `NaN`. SDK internal retries are forbidden because they are invisible to the journal, the budget ledger, and timeouts. See [Model routing](/guide/model-routing) for how retries and failover compose above your adapter.
 
 ## The usage invariant
 
@@ -223,7 +223,7 @@ export function exampleAdapter(options: ExampleAdapterOptions): ProviderAdapter 
 
 ## Contract tests with cassettes
 
-The cassette tooling in `@rulvar/testing` makes your adapter testable forever with one paid run. `record` wraps live adapters so that every completed stream appends one redacted row to a cassette JSONL file (authorization material never reaches cassette bytes; pass a custom `redact` for provider specific secret shapes). You commit the cassette, and CI replays it hermetically: `replay` with `onMiss: "throw"` turns any drift into a loud typed failure with zero live calls.
+The cassette tooling in `@rulvar/testing` makes your adapter testable forever with one paid run. `record` wraps live adapters so that every stream completing with exactly one terminal event appends one redacted row to a cassette JSONL file; an aborted or truncated stream appends nothing, so a row is always the record of one completed exchange (authorization material never reaches cassette bytes; pass a custom `redact` for provider specific secret shapes). You commit the cassette, and CI replays it hermetically: `replay` with `onMiss: "throw"` turns any drift into a loud typed failure with zero live calls.
 
 ```bash
 pnpm add -D @rulvar/testing

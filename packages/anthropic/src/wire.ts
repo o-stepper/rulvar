@@ -423,8 +423,14 @@ export interface TurnMapping {
  * detached work). The generator's RETURN value carries the accumulated
  * turn state the adapter needs for pause_turn continuation. Yields an
  * early usage event from message_start (the input side is known
- * immediately) and exactly one terminal finish unless the turn paused
- * (pause_turn) or errored. `carryRetained` holds thinking blocks from
+ * immediately) and exactly one terminal finish when the stream reaches
+ * message_stop. A stream that pauses (pause_turn) or ends before
+ * message_stop yields NO terminal event of its own: the return value's
+ * pauseTurn and finished flags report which case happened, and the
+ * `anthropic()` adapter turns a truncated read (finished false without
+ * a pause) into the retryable transport error the contract requires,
+ * so a direct mapper consumer must check the flags rather than wait
+ * for an error event. `carryRetained` holds thinking blocks from
  * earlier pause_turn continuations of the same turn so the terminal
  * finish ships the whole turn's retention payload (M4-T02).
  */
@@ -588,6 +594,28 @@ export async function* mapAnthropicStream(
 }
 
 /**
+ * Largest delay a Node timer represents exactly; a bigger value would
+ * overflow into an almost immediate (storm inducing) retry.
+ */
+const MAX_RETRY_AFTER_MS = 2_147_483_647;
+
+/**
+ * Parses a Retry-After header into milliseconds. Only the delta
+ * seconds form is honored: the HTTP date form and any other
+ * unparsable value return undefined so the engine falls back to its
+ * computed policy backoff instead of receiving NaN, and a huge but
+ * finite value is clamped to the Node timer maximum (v1.28.0 review
+ * P2).
+ */
+function retryAfterMsFrom(header: string): number | undefined {
+  const seconds = Number(header);
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return undefined;
+  }
+  return Math.min(Math.round(seconds * 1000), MAX_RETRY_AFTER_MS);
+}
+
+/**
  * Projects an SDK/API error into the retryable WireError vocabulary:
  * 429 rate limits surface retryAfterMs and the x-ratelimit-* buckets; 529
  * overloaded and 5xx are retryable transport; everything else is terminal
@@ -613,7 +641,9 @@ export function anthropicErrorToWire(error: unknown): WireError {
   };
 
   if (status === 429) {
-    const retryAfter = headerGet('retry-after');
+    const retryAfterHeader = headerGet('retry-after');
+    const retryAfterMs =
+      retryAfterHeader === undefined ? undefined : retryAfterMsFrom(retryAfterHeader);
     const buckets: Record<string, string> = {};
     for (const name of [
       'x-ratelimit-limit-requests',
@@ -634,7 +664,7 @@ export function anthropicErrorToWire(error: unknown): WireError {
       retryable: true,
       data: {
         kind: 'rate-limit',
-        ...(retryAfter === undefined ? {} : { retryAfterMs: Number(retryAfter) * 1000 }),
+        ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
         ...(Object.keys(buckets).length > 0 ? { buckets } : {}),
         status: 429,
       },

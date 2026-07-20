@@ -39,6 +39,13 @@ export interface SweepPool {
   cases: SweepCase[];
 }
 
+/**
+ * The claim bands. Both effective values must be finite fractions in
+ * [0, 1] with weakness strictly below strength (so the bands are
+ * ordered and an uninformative mid band exists); runSweepMatrix
+ * rejects anything else with a ConfigError before any engine, store,
+ * or envelope activity.
+ */
 export interface SweepThresholds {
   /** passRate at or above emits a strength claim; default 0.9. */
   strength: number;
@@ -169,6 +176,29 @@ export async function runSweepMatrix(
     ...SWEEP_THRESHOLD_DEFAULTS,
     ...options.thresholds,
   };
+  // Effective thresholds are validated BEFORE engineFor, envelope
+  // reservation, or any provider and store activity: an out of range
+  // or reversed band would classify a failing cell as a strength and
+  // commit that false knowledge through the eval committer (v1.28.0
+  // review P2).
+  for (const [field, value] of [
+    ['strength', thresholds.strength],
+    ['weakness', thresholds.weakness],
+  ] as const) {
+    if (!Number.isFinite(value) || value < 0 || value > 1) {
+      throw new ConfigError(
+        `runSweepMatrix: thresholds.${field} must be a finite fraction between 0 and 1 ` +
+          `inclusive; got ${String(value)}`,
+      );
+    }
+  }
+  if (!(thresholds.weakness < thresholds.strength)) {
+    throw new ConfigError(
+      `runSweepMatrix: thresholds.weakness (${String(thresholds.weakness)}) must be strictly ` +
+        `below thresholds.strength (${String(thresholds.strength)}) so the bands are ordered ` +
+        'and an uninformative mid band exists',
+    );
+  }
   if (options.envelope !== undefined && options.suite?.budgetUsd === undefined) {
     throw new ConfigError(
       'runSweepMatrix: an aggregate envelope requires suite.budgetUsd (the per-target ' +

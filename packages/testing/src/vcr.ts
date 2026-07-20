@@ -130,9 +130,14 @@ function headerLine(): string {
 }
 
 /**
- * Wraps live adapters for recording: every completed stream appends one
- * redacted row to the cassette JSONL. The wrapped adapters are drop-in:
- * same ids, providers, caps, and event streams.
+ * Wraps live adapters for recording: every stream that completes with
+ * exactly one terminal event (finish or error) appends one redacted
+ * row to the cassette JSONL. A stream that ends without a terminal
+ * (a requested abort or a truncated read), throws, or violates the
+ * adapter contract (a second terminal, data after the terminal)
+ * appends nothing, so a cassette row is always the record of one
+ * completed exchange (v1.28.0 review P2). The wrapped adapters are
+ * drop-in: same ids, providers, caps, and event streams.
  */
 export function record(options: {
   adapters: ProviderAdapter[];
@@ -155,12 +160,25 @@ export function record(options: {
       // The engine stops consuming at the first terminal event (the
       // adapter contract makes everything after it unreadable), which
       // closes this generator through return() the moment the terminal
-      // is delivered. The append therefore lives in a finally block so
-      // a consumer that stops at the terminal still commits the row; a
-      // thrown wire failure keeps the previous no row semantics.
+      // is delivered. The append therefore lives in a finally block,
+      // gated on the terminal count taken BEFORE the yield: a consumer
+      // that stops at the terminal still commits the row, while an
+      // aborted or truncated stream (no terminal), a thrown wire
+      // failure, and a contract violating stream (a second terminal or
+      // data after the terminal) append nothing, because a cassette
+      // must never replay an exchange that was not observed complete
+      // (v1.28.0 review P2).
       let thrown = false;
+      let terminals = 0;
+      let postTerminal = false;
       try {
         for await (const event of adapter.stream(req, signal)) {
+          if (terminals > 0) {
+            postTerminal = true;
+          }
+          if (event.type === 'finish' || event.type === 'error') {
+            terminals += 1;
+          }
           events.push(event);
           yield event;
         }
@@ -168,7 +186,7 @@ export function record(options: {
         thrown = true;
         throw error;
       } finally {
-        if (!thrown) {
+        if (!thrown && terminals === 1 && !postTerminal) {
           const row: VcrRow = {
             adapterId: adapter.id,
             ...(adapter.provider === undefined ? {} : { provider: adapter.provider }),
@@ -203,17 +221,57 @@ export interface VcrCassette {
   rows: VcrRow[];
 }
 
-/** Parses a cassette file (one header line plus one JSON row per line). */
+/**
+ * Parses a cassette file (one header line plus one JSON row per line).
+ * The header must declare cassette format `v: 1`: the format version
+ * gates parsing itself, while hashVersion (checked by replay) only
+ * gates request identity and never substitutes for it, so a future
+ * incompatible format refuses loudly instead of being read as v1.
+ * Parse and shape failures throw a typed ConfigError naming the
+ * cassette path and line (v1.28.0 review P3).
+ */
 export function readCassette(path: string): VcrCassette {
-  const lines = readFileSync(path, 'utf8')
+  const numbered = readFileSync(path, 'utf8')
     .split('\n')
-    .filter((line) => line.trim() !== '');
-  const header = JSON.parse(lines[0] ?? '{}') as VcrHeader;
-  if (header.kind !== 'rulvar-vcr') {
+    .map((text, index) => ({ text, lineNo: index + 1 }))
+    .filter(({ text }) => text.trim() !== '');
+  const parse = (line: { text: string; lineNo: number }): unknown => {
+    try {
+      return JSON.parse(line.text);
+    } catch {
+      throw new ConfigError(
+        `${path}:${String(line.lineNo)} is not valid JSON; the cassette is corrupt or truncated`,
+      );
+    }
+  };
+  const first = numbered[0];
+  const headerRaw = (first === undefined ? {} : parse(first)) as { v?: unknown; kind?: unknown };
+  if (headerRaw.kind !== 'rulvar-vcr') {
     throw new ConfigError(`${path} is not a rulvar VCR cassette`);
   }
-  const rows = lines.slice(1).map((line) => JSON.parse(line) as VcrRow);
-  return { header, rows };
+  if (headerRaw.v !== 1) {
+    throw new ConfigError(
+      `${path} declares cassette format v ${String(headerRaw.v)}; this build reads ` +
+        'format v 1 only, so record the cassette again on a matching engine',
+    );
+  }
+  const rows = numbered.slice(1).map((line) => {
+    const row = parse(line) as VcrRow;
+    if (
+      typeof row !== 'object' ||
+      row === null ||
+      typeof row.adapterId !== 'string' ||
+      typeof row.requestHash !== 'string' ||
+      !Array.isArray(row.events)
+    ) {
+      throw new ConfigError(
+        `${path}:${String(line.lineNo)} is not a VCR row ` +
+          '(adapterId, requestHash, and events are required)',
+      );
+    }
+    return row;
+  });
+  return { header: headerRaw as VcrHeader, rows };
 }
 
 /**

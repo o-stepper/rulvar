@@ -15,10 +15,12 @@ import {
   CURRENT_HASH_VERSION,
   defineWorkflow,
   InMemoryStore,
+  type ChatEvent,
   type ChatRequest,
+  type ProviderAdapter,
 } from '@rulvar/core';
 
-import { FakeAdapter, FAKE_MODEL_REF } from './fake-adapter.js';
+import { FAKE_MODEL, FakeAdapter, FAKE_MODEL_REF } from './fake-adapter.js';
 import { defaultRedact, readCassette, record, replay, requestHash, VcrMissError } from './vcr.js';
 
 const SECRET = 'sk-live-abcdef1234567890';
@@ -156,5 +158,149 @@ describe('VCR record/replay (M5-T04)', () => {
     // The FakeAdapter caps snapshot rode the cassette row.
     expect(replayed?.caps('fake-model').contextWindow).toBe(1_000_000);
     expect(new VcrMissError('fake', 'deadbeef'.repeat(8)).name).toBe('VcrMissError');
+  });
+});
+
+describe('a cassette row is the record of one completed exchange (v1.28.0 review P2 and P3)', () => {
+  const req: ChatRequest = {
+    model: FAKE_MODEL,
+    messages: [{ role: 'user', parts: [{ type: 'text', text: 'q' }] }],
+  };
+  const caps = new FakeAdapter({ agents: { '*': 'x' } }).caps();
+  const adapterOf = (events: ChatEvent[], options?: { throwAfter?: boolean }): ProviderAdapter => ({
+    id: 'fake',
+    caps: () => caps,
+    // eslint-disable-next-line @typescript-eslint/require-await
+    async *stream(): AsyncIterable<ChatEvent> {
+      for (const event of events) {
+        yield event;
+      }
+      if (options?.throwAfter === true) {
+        throw new Error('wire failure');
+      }
+    },
+  });
+  const drain = async (adapter: ProviderAdapter): Promise<void> => {
+    for await (const event of adapter.stream(req)) {
+      void event;
+    }
+  };
+  const delta: ChatEvent = { type: 'text-delta', text: 'partial' };
+  const finish: ChatEvent = {
+    type: 'finish',
+    finish: { reason: 'stop' },
+    usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 },
+  };
+  const wireError: ChatEvent = {
+    type: 'error',
+    error: { code: 'agent', message: 'boom', retryable: true, data: { kind: 'transport' } },
+  };
+
+  it('a stream that drains without a terminal event appends nothing', async () => {
+    const cassette = cassettePath();
+    const [recorded] = record({ adapters: [adapterOf([delta])], cassette });
+    await drain(recorded);
+    expect(readCassette(cassette).rows).toHaveLength(0);
+  });
+
+  it('a consumer return before any terminal (the abort shape) appends nothing', async () => {
+    const cassette = cassettePath();
+    const [recorded] = record({ adapters: [adapterOf([delta, finish])], cassette });
+    const iterator = recorded.stream(req)[Symbol.asyncIterator]();
+    await iterator.next();
+    await iterator.return?.();
+    expect(readCassette(cassette).rows).toHaveLength(0);
+  });
+
+  it('a consumer return right after the terminal (the engine shape) still commits the row', async () => {
+    const cassette = cassettePath();
+    const [recorded] = record({ adapters: [adapterOf([delta, finish])], cassette });
+    const iterator = recorded.stream(req)[Symbol.asyncIterator]();
+    await iterator.next();
+    await iterator.next();
+    await iterator.return?.();
+    const { rows } = readCassette(cassette);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.events.map((event) => event.type)).toEqual(['text-delta', 'finish']);
+  });
+
+  it('a second terminal or data after the terminal appends nothing (contract violation)', async () => {
+    const doubled = cassettePath();
+    const [twoFinishes] = record({
+      adapters: [adapterOf([delta, finish, finish])],
+      cassette: doubled,
+    });
+    await drain(twoFinishes);
+    expect(readCassette(doubled).rows).toHaveLength(0);
+
+    const trailing = cassettePath();
+    const [postTerminal] = record({
+      adapters: [adapterOf([delta, finish, delta])],
+      cassette: trailing,
+    });
+    await drain(postTerminal);
+    expect(readCassette(trailing).rows).toHaveLength(0);
+  });
+
+  it('a thrown wire failure keeps the no row semantics', async () => {
+    const cassette = cassettePath();
+    const [recorded] = record({ adapters: [adapterOf([delta], { throwAfter: true })], cassette });
+    await expect(drain(recorded)).rejects.toThrow('wire failure');
+    expect(readCassette(cassette).rows).toHaveLength(0);
+  });
+
+  it('a terminal error stream appends exactly one row and replays exactly', async () => {
+    const cassette = cassettePath();
+    const [recorded] = record({ adapters: [adapterOf([delta, wireError])], cassette });
+    await drain(recorded);
+    const { rows } = readCassette(cassette);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.events.map((event) => event.type)).toEqual(['text-delta', 'error']);
+
+    const [replayed] = replay({ cassette, onMiss: 'throw' });
+    const seen: string[] = [];
+    for await (const event of replayed.stream(req)) {
+      seen.push(event.type);
+    }
+    expect(seen).toEqual(['text-delta', 'error']);
+  });
+
+  it('readCassette refuses an unknown cassette format version (v1.28.0 review P3)', async () => {
+    const cassette = cassettePath();
+    const [recorded] = record({ adapters: [adapterOf([delta, finish])], cassette });
+    await drain(recorded);
+    const [headerLine, ...rest] = readFileSync(cassette, 'utf8').split('\n');
+    const header = JSON.parse(headerLine ?? '{}') as Record<string, unknown>;
+
+    writeFileSync(cassette, [JSON.stringify({ ...header, v: 2 }), ...rest].join('\n'));
+    expect(() => readCassette(cassette)).toThrow(/cassette format v 2/);
+    expect(() => replay({ cassette, onMiss: 'throw' })).toThrow(/cassette format v 2/);
+
+    const { v, ...withoutV } = header;
+    void v;
+    writeFileSync(cassette, [JSON.stringify(withoutV), ...rest].join('\n'));
+    expect(() => readCassette(cassette)).toThrow(/cassette format v undefined/);
+
+    // hashVersion gates request identity, never the format: a current
+    // hashVersion does not rescue an unknown format version.
+    writeFileSync(
+      cassette,
+      [JSON.stringify({ ...header, v: 2, hashVersion: CURRENT_HASH_VERSION }), ...rest].join('\n'),
+    );
+    expect(() => readCassette(cassette)).toThrow(/cassette format v 2/);
+  });
+
+  it('a corrupt line or a malformed row reports the cassette path and line', async () => {
+    const cassette = cassettePath();
+    const [recorded] = record({ adapters: [adapterOf([delta, finish])], cassette });
+    await drain(recorded);
+
+    const valid = readFileSync(cassette, 'utf8');
+    writeFileSync(cassette, `${valid}{{{ not json\n`);
+    expect(() => readCassette(cassette)).toThrow(/session\.jsonl:3 is not valid JSON/);
+
+    const [headerLine] = valid.split('\n');
+    writeFileSync(cassette, `${String(headerLine)}\n{"foo":1}\n`);
+    expect(() => readCassette(cassette)).toThrow(/session\.jsonl:2 is not a VCR row/);
   });
 });

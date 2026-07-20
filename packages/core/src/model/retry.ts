@@ -56,11 +56,32 @@ export function retryClassOf(error: WireError): RetryClass | undefined {
 }
 
 /**
- * The delay before retry number `retryIndex` (0-based: the delay after
- * the first failed attempt has index 0). A provider-supplied
- * retryAfterMs REPLACES the computed delay (Appendix A). Jitter is
- * equal-jitter: half the backoff is deterministic, half random, so a
- * jittered delay never collapses to zero.
+ * The largest delay a Node timer represents exactly (2^31 above that
+ * a timer overflows and fires almost immediately); every returned
+ * delay is clamped to it so a huge provider value can never turn
+ * into an instant retry storm.
+ */
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
+
+/** Bounds a delay to a finite nonnegative integer a Node timer can honor. */
+function timerSafe(ms: number): number {
+  if (!Number.isFinite(ms) || ms <= 0) {
+    return 0;
+  }
+  return Math.min(Math.round(ms), MAX_TIMER_DELAY_MS);
+}
+
+/**
+ * The delay before retry number `retryIndex` (zero based: the delay
+ * after the first failed attempt has index 0). A VALID provider
+ * supplied retryAfterMs (finite and nonnegative) REPLACES the
+ * computed delay (Appendix A); anything else (NaN, Infinity, a
+ * negative) is ignored as adapter noise and the policy backoff
+ * applies, so this boundary stays defensive against custom adapters
+ * (v1.28.0 review P2). Jitter is equal jitter: half the backoff is
+ * deterministic, half random, so a jittered delay never collapses to
+ * zero. The result is always a finite nonnegative integer clamped to
+ * the Node timer maximum (2147483647 ms).
  */
 export function retryDelayMs(
   policy: RetryPolicy,
@@ -68,13 +89,13 @@ export function retryDelayMs(
   retryAfterMs?: number,
   random: () => number = nativeRandom,
 ): number {
-  if (retryAfterMs !== undefined) {
-    return retryAfterMs;
+  if (retryAfterMs !== undefined && Number.isFinite(retryAfterMs) && retryAfterMs >= 0) {
+    return timerSafe(retryAfterMs);
   }
   const { initialMs, factor, maxMs, jitter } = policy.backoff;
   const base = Math.min(maxMs, initialMs * factor ** retryIndex);
   if (jitter !== true) {
-    return base;
+    return timerSafe(base);
   }
-  return base / 2 + random() * (base / 2);
+  return timerSafe(base / 2 + random() * (base / 2));
 }

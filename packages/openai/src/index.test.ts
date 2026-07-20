@@ -1034,6 +1034,44 @@ describe('adapter surface (M1-T13)', () => {
     expect(error.error.data).toMatchObject({ kind: 'rate-limit', retryAfterMs: 3000 });
   });
 
+  it('an unparsable or huge Retry-After never emits NaN or an overflowing delay (v1.28.0 review P2)', async () => {
+    const errorFor = async (retryAfter: string) => {
+      const client: OpenAiClientLike = {
+        responses: {
+          create: () =>
+            Promise.reject(
+              Object.assign(new Error('rate limited'), {
+                status: 429,
+                headers: { 'retry-after': retryAfter },
+              }),
+            ),
+        },
+        chat: { completions: { create: () => Promise.reject(new Error('unused')) } },
+      };
+      const events: ChatEvent[] = [];
+      for await (const event of openai({ client }).stream({
+        model: 'gpt-5.5',
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'go' }] }],
+      })) {
+        events.push(event);
+      }
+      return (events[0] as Extract<ChatEvent, { type: 'error' }>).error;
+    };
+
+    // The HTTP date form and garbage both fall back to policy backoff:
+    // the field is absent, never NaN (which would also serialize to
+    // null and break the WireError.data Json invariant).
+    for (const malformed of ['not-a-delay', 'Fri, 31 Dec 2027 23:59:59 GMT', '-5']) {
+      const error = await errorFor(malformed);
+      expect(error.data).toMatchObject({ kind: 'rate-limit', status: 429 });
+      expect((error.data as { retryAfterMs?: number }).retryAfterMs).toBeUndefined();
+    }
+    // A huge but finite value clamps to the Node timer maximum
+    // instead of overflowing into an almost immediate retry.
+    const huge = await errorFor('3000000');
+    expect((huge.data as { retryAfterMs?: number }).retryAfterMs).toBe(2_147_483_647);
+  });
+
   it.skipIf(!liveTestEnabled('OPENAI_API_KEY'))(
     'live smoke: one small call (opt-in via RULVAR_LIVE_TESTS=1, spends budget)',
     async () => {

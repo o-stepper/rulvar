@@ -1189,17 +1189,17 @@
       "key": "hash-0004-------------------------------------------------------",
       "ordinal": 0,
       "kind": "agent",
-      "status": "ok",
+      "status": "cancelled",
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:00.000Z",
       "endedAt": "2026-02-01T00:00:00.000Z",
-      "value": "no storm",
       "usage": {
-        "inputTokens": 50,
-        "outputTokens": 25,
+        "inputTokens": 40,
+        "outputTokens": 20,
         "cacheReadTokens": 0,
         "cacheWriteTokens": 0
       },
+      "usageApprox": true,
       "servedBy": "fake:model",
       "costAttribution": {
         "agentType": "",

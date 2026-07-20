@@ -11,6 +11,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  ConfigError,
   createEngine,
   defineWorkflow,
   FileModelKnowledgeStore,
@@ -21,7 +22,12 @@ import {
 import { FakeAdapter, FAKE_MODEL_REF, record, replay } from '@rulvar/testing';
 
 import { goldenGrader } from './graders/golden.js';
-import { runSweepMatrix, type SweepPool, type SweepReport } from './sweeps.js';
+import {
+  runSweepMatrix,
+  type SweepPool,
+  type SweepReport,
+  type SweepThresholds,
+} from './sweeps.js';
 
 const ANSWER_SCHEMA = {
   type: 'object',
@@ -168,5 +174,60 @@ describe('matrix sweeps under VCR (M11-T02)', () => {
       thresholds: { weakness: 0.3 },
     });
     expect(tightened.claims).toHaveLength(0);
+  });
+});
+
+describe('sweep threshold validation (v1.28.0 review P2)', () => {
+  const failingPool: SweepPool = {
+    models: [{ model: FAKE_MODEL_REF }],
+    cases: [
+      {
+        taskClass: 'extraction',
+        case: { workflow: mathWorkflow, args: null, graders: [goldenGrader({ answer: 41 })] },
+      },
+    ],
+  };
+  const optionsWith = (thresholds: Partial<SweepThresholds>, engineForCalls: number[]) => ({
+    reportId: 'sweep-validate',
+    committerId: 'ci-evals',
+    observedAt: '2026-07-10T00:00:00.000Z',
+    engineFor: () => {
+      engineForCalls.push(1);
+      return engineOver([new FakeAdapter({ agents: { worker: { answer: 42 } } })]);
+    },
+    thresholds,
+  });
+
+  it('rejects out of range, non finite, and unordered thresholds before any engine activity', async () => {
+    const invalid: Array<Partial<SweepThresholds>> = [
+      // The review repro: strength -1 would turn a passRate 0 cell
+      // into a committed strength claim.
+      { strength: -1 },
+      { strength: Number.NaN },
+      { weakness: Number.POSITIVE_INFINITY },
+      { strength: 1.2 },
+      { weakness: -0.1 },
+      { strength: 0.4, weakness: 0.5 },
+      { strength: 0.5, weakness: 0.5 },
+    ];
+    for (const thresholds of invalid) {
+      const calls: number[] = [];
+      await expect(runSweepMatrix(failingPool, optionsWith(thresholds, calls))).rejects.toThrow(
+        ConfigError,
+      );
+      expect(calls).toHaveLength(0);
+    }
+  });
+
+  it('boundary fractions stay valid: strength 1 with weakness 0 still bands the extremes', async () => {
+    const calls: number[] = [];
+    const report = await runSweepMatrix(
+      failingPool,
+      optionsWith({ strength: 1, weakness: 0 }, calls),
+    );
+    expect(calls).toHaveLength(1);
+    expect(report.cells[0]?.passRate).toBe(0);
+    // passRate 0 sits AT weakness 0: at or below emits a weakness claim.
+    expect(report.claims.map((claim) => claim.polarity)).toEqual(['weakness']);
   });
 });

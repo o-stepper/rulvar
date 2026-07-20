@@ -10,7 +10,7 @@
 function rubricGrader(criteria, options?): Grader;
 ```
 
-Defined in: [packages/evals/src/graders/rubric.ts:23](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/graders/rubric.ts#L23)
+Defined in: [packages/evals/src/graders/rubric.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/graders/rubric.ts#L27)
 
 ## Parameters
 

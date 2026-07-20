@@ -383,81 +383,22 @@
     {
       "hashVersion": 2,
       "seq": 10,
-      "scope": "agent:2",
-      "key": "hash-0015-------------------------------------------------------",
-      "ordinal": 0,
-      "kind": "external",
-      "status": "suspended",
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:00.000Z",
-      "value": {
-        "key": "wake:2:1"
-      }
-    },
-    {
-      "hashVersion": 2,
-      "seq": 11,
-      "ref": 10,
-      "scope": "agent:2",
-      "key": "",
-      "ordinal": 0,
-      "kind": "resolution",
-      "status": "ok",
-      "spanId": "fixture-span",
-      "startedAt": "2026-02-01T00:00:00.000Z",
-      "resolution": {
-        "target": 10,
-        "by": "quiescence",
-        "value": {
-          "digestSeq": 2,
-          "planHash": "hash-0011-------------------------------------------------------",
-          "termination": {
-            "revisionUnitsRemaining": 29,
-            "spawnUnitsRemaining": 128,
-            "perLineage": {},
-            "phi": 413
-          },
-          "budget": {
-            "runSpentUsd": 0.00036,
-            "runCeilingUsd": 0.00095,
-            "orchestratorSpentUsd": 0.00036,
-            "orchestratorCapUsd": 0.00095,
-            "finalizeReserveUsd": 0.0005,
-            "orchestratorShare": 0.036000000000000004,
-            "softWarning": true
-          },
-          "reuse": {
-            "abandonedUsd": 0,
-            "reclaimedUsd": 0,
-            "netLostUsd": 0,
-            "byKey": {}
-          },
-          "coversToOrdinal": -1,
-          "completedDigests": [],
-          "escalations": [],
-          "planSeq": 5
-        }
-      }
-    },
-    {
-      "hashVersion": 2,
-      "seq": 12,
       "ref": 2,
       "scope": "",
       "key": "hash-0004-------------------------------------------------------",
       "ordinal": 0,
       "kind": "agent",
-      "status": "ok",
+      "status": "cancelled",
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:00.000Z",
       "endedAt": "2026-02-01T00:00:00.000Z",
-      "value": "never reached",
       "usage": {
-        "inputTokens": 70,
-        "outputTokens": 35,
+        "inputTokens": 50,
+        "outputTokens": 25,
         "cacheReadTokens": 0,
         "cacheWriteTokens": 0
       },
+      "usageApprox": true,
       "servedBy": "fake:model",
       "costAttribution": {
         "agentType": "",
@@ -469,9 +410,9 @@
     },
     {
       "hashVersion": 2,
-      "seq": 13,
+      "seq": 11,
       "scope": "",
-      "key": "hash-0016-------------------------------------------------------",
+      "key": "hash-0015-------------------------------------------------------",
       "ordinal": 0,
       "kind": "agent",
       "status": "running",
@@ -480,10 +421,10 @@
     },
     {
       "hashVersion": 2,
-      "seq": 14,
-      "ref": 13,
+      "seq": 12,
+      "ref": 11,
       "scope": "",
-      "key": "hash-0016-------------------------------------------------------",
+      "key": "hash-0015-------------------------------------------------------",
       "ordinal": 0,
       "kind": "agent",
       "status": "ok",

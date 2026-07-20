@@ -249,7 +249,7 @@ Some behavior only exists on the real wire: exact event streams, provider refusa
 
 ### Recording
 
-`record` wraps live adapters; the wrapped adapters are drop-in (same ids, providers, caps, and event streams), and every completed stream appends one redacted row.
+`record` wraps live adapters; the wrapped adapters are drop-in (same ids, providers, caps, and event streams), and every stream that completes with exactly one terminal event appends one redacted row. An aborted or truncated stream (no terminal event) and a stream violating the terminal contract append nothing: a cassette row is always the record of one completed exchange.
 
 ```ts
 import { createEngine, JsonlFileStore } from '@rulvar/core';

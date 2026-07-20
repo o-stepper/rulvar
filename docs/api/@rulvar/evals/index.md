@@ -81,7 +81,7 @@ pnpm add -D @rulvar/evals
 | [SweepModel](/api/@rulvar/evals/interfaces/SweepModel.md) | One fixed pool member; effort is part of the claim subject identity. |
 | [SweepPool](/api/@rulvar/evals/interfaces/SweepPool.md) | - |
 | [SweepReport](/api/@rulvar/evals/interfaces/SweepReport.md) | - |
-| [SweepThresholds](/api/@rulvar/evals/interfaces/SweepThresholds.md) | - |
+| [SweepThresholds](/api/@rulvar/evals/interfaces/SweepThresholds.md) | The claim bands. Both effective values must be finite fractions in [0, 1] with weakness strictly below strength (so the bands are ordered and an uninformative mid band exists); runSweepMatrix rejects anything else with a ConfigError before any engine, store, or envelope activity. |
 
 ## Variables
 

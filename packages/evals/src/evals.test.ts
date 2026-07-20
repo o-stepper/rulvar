@@ -3,7 +3,7 @@
  * the three grader families, judge-through-the-engine, suite aggregation
  * with duplicate-name disambiguation, and the config-matrix comparison.
  */
-import { defineWorkflow, type Json } from '@rulvar/core';
+import { ConfigError, defineWorkflow, type Json } from '@rulvar/core';
 import { createTestEngine, FAKE_MODEL_REF } from '@rulvar/testing';
 import { describe, expect, it } from 'vitest';
 
@@ -188,5 +188,36 @@ describe('runEvalMatrix', () => {
     ]);
     expect(report.cells[0]?.results[0]?.verdicts[0]?.passed).toBe(false);
     expect(report.cells[1]?.results[0]?.verdicts[0]?.passed).toBe(true);
+  });
+});
+
+describe('rubricGrader threshold validation (v1.28.0 review P2)', () => {
+  type GradeContext = Parameters<ReturnType<typeof rubricGrader>['grade']>[0];
+  const context = {
+    value: null,
+    outcome: { status: 'ok' },
+    judge: () => Promise.resolve(null),
+  } as unknown as GradeContext;
+
+  it('rejects an out of range or non finite passThreshold at construction', () => {
+    for (const bad of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      expect(() =>
+        rubricGrader([{ name: 'x', check: () => false }], { passThreshold: bad }),
+      ).toThrow(ConfigError);
+      expect(() =>
+        rubricGrader([{ name: 'x', check: () => false }], { passThreshold: bad }),
+      ).toThrow(/passThreshold must be a finite fraction/);
+    }
+  });
+
+  it('boundary fractions stay valid and behave as documented', () => {
+    const zero = rubricGrader([{ name: 'always-false', check: () => false }], {
+      passThreshold: 0,
+    });
+    expect(zero.grade(context)).toMatchObject({ passed: true, score: 0 });
+    const all = rubricGrader([{ name: 'always-false', check: () => false }], {
+      passThreshold: 1,
+    });
+    expect(all.grade(context)).toMatchObject({ passed: false, score: 0 });
   });
 });

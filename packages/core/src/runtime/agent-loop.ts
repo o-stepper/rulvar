@@ -1296,10 +1296,86 @@ export async function runAgent<S extends SchemaSpec>(
   // transport-class.
   const retryPolicy = options.retry?.policy ?? DEFAULT_RETRY_POLICY;
   const retryOn = retryPolicy.retryOn ?? DEFAULT_RETRY_POLICY.retryOn ?? [];
-  const retrySleep =
-    options.retry?.sleep ??
-    ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const injectedSleep = options.retry?.sleep;
   const retryRandom = options.retry?.random ?? Math.random;
+
+  // Abort short circuit for the retry and failover engine (v1.28.0
+  // review P1): a requested cancel (the host signal, which the run
+  // deadline also drives) or a crossed budget ceiling interrupts a
+  // pending backoff and forbids every further dispatch, because the
+  // engine owns retries and wall clock and a backoff sleep must not
+  // delay settlement or re enter the adapter after an abort. The
+  // synthetic outcome mirrors streamTurn's aborted shape with an
+  // empty turn and zero usage: each failed attempt's usage is
+  // already recorded, so nothing is lost or double billed.
+  const abortKind = (): 'budget' | 'external' | undefined =>
+    options.budget?.signal?.aborted === true
+      ? 'budget'
+      : options.signal?.aborted === true
+        ? 'external'
+        : undefined;
+  const abortedOutcome = (aborted: 'budget' | 'external'): TurnOutcome => ({
+    turn: { text: '', toolCalls: [] },
+    usage: ZERO_USAGE,
+    reported: ZERO_USAGE,
+    usageApprox: true,
+    aborted,
+  });
+  // The backoff wait is interruptible: the host and budget signals
+  // race the delay, so an abort wakes it immediately. An injected
+  // retry.sleep(ms) hook keeps its signature; when it loses the race
+  // its eventual rejection is swallowed (never an unhandled
+  // rejection), while a rejection on the winning path propagates
+  // unchanged. The native path clears its timer on abort so an
+  // abandoned long backoff never pins the event loop.
+  const backoffWait = async (ms: number): Promise<void> => {
+    const signals: AbortSignal[] = [];
+    if (options.signal !== undefined) {
+      signals.push(options.signal);
+    }
+    if (options.budget?.signal !== undefined) {
+      signals.push(options.budget.signal);
+    }
+    const combined = signals.length === 0 ? undefined : AbortSignal.any(signals);
+    if (combined?.aborted === true) {
+      return;
+    }
+    if (injectedSleep === undefined) {
+      await new Promise<void>((resolve) => {
+        let unhook = (): void => {};
+        const timer = setTimeout(() => {
+          unhook();
+          resolve();
+        }, ms);
+        if (combined !== undefined) {
+          const onAbort = (): void => {
+            clearTimeout(timer);
+            resolve();
+          };
+          combined.addEventListener('abort', onAbort, { once: true });
+          unhook = () => combined.removeEventListener('abort', onAbort);
+        }
+      });
+      return;
+    }
+    const sleep = Promise.resolve(injectedSleep(ms));
+    if (combined === undefined) {
+      await sleep;
+      return;
+    }
+    let unhook: (() => void) | undefined;
+    const wake = new Promise<void>((resolve) => {
+      const onAbort = (): void => resolve();
+      combined.addEventListener('abort', onAbort, { once: true });
+      unhook = () => combined.removeEventListener('abort', onAbort);
+    });
+    try {
+      await Promise.race([sleep, wake]);
+    } finally {
+      unhook?.();
+      void sleep.catch(() => undefined);
+    }
+  };
 
   const dispatchPhase = async (site: {
     /** The invocation phase this dispatch pays for (v1.19.0 review P1-2). */
@@ -1313,8 +1389,14 @@ export async function runAgent<S extends SchemaSpec>(
       const target = site.chain[site.cursor.index] ?? site.chain[0];
       let tries = 0;
       inner: for (;;) {
-        const dispatch = (): Promise<TurnOutcome> =>
-          streamTurn(target.adapter, site.requestFor(target), site.streamOptionsFor(target));
+        const dispatch = (): Promise<TurnOutcome> => {
+          // Checked inside the thunk so a keyed limiter queue wait
+          // cannot outlive an abort into a fresh provider call.
+          const aborted = abortKind();
+          return aborted === undefined
+            ? streamTurn(target.adapter, site.requestFor(target), site.streamOptionsFor(target))
+            : Promise.resolve(abortedOutcome(aborted));
+        };
         // The keyed limiter gates the wire call itself; retries and
         // failover each re-acquire, so a stalled provider never holds
         // its slot through a backoff sleep (M4-T07).
@@ -1341,6 +1423,13 @@ export async function runAgent<S extends SchemaSpec>(
         }
         usageApprox = usageApprox || outcome.usageApprox;
         if (retryOn.includes(retryClass) && tries < retryPolicy.attempts) {
+          // An abort that already landed makes the retry moot: return
+          // the aborted outcome without emitting a willRetry promise
+          // the loop is not going to keep.
+          const abortedBefore = abortKind();
+          if (abortedBefore !== undefined) {
+            return { outcome: abortedOutcome(abortedBefore), target };
+          }
           const retryAfter = (outcome.wireError?.data as { retryAfterMs?: unknown } | undefined)
             ?.retryAfterMs;
           if (outcome.wireError !== undefined) {
@@ -1352,7 +1441,7 @@ export async function runAgent<S extends SchemaSpec>(
               willRetry: true,
             });
           }
-          await retrySleep(
+          await backoffWait(
             retryDelayMs(
               retryPolicy,
               tries - 1,
@@ -1360,6 +1449,10 @@ export async function runAgent<S extends SchemaSpec>(
               retryRandom,
             ),
           );
+          const abortedAfter = abortKind();
+          if (abortedAfter !== undefined) {
+            return { outcome: abortedOutcome(abortedAfter), target };
+          }
           continue inner;
         }
         const trigger = failoverTriggerOf(retryClass);

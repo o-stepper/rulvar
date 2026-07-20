@@ -80,7 +80,7 @@ A grader receives a `GraderContext`: `value` (the run's structured output), `out
 | Family | Factory | Verdict | Model calls |
 |---|---|---|---|
 | Golden | `goldenGrader(expected)` | Comparison against a committed expected output; the evidence lands in `details`. | None |
-| Rubric | `rubricGrader(criteria, options?)` | Fraction of named criteria met, reported as `score`; passes at `passThreshold` (default 1, all criteria). | None |
+| Rubric | `rubricGrader(criteria, options?)` | Fraction of named criteria met, reported as `score`; passes at `passThreshold` (default 1, all criteria; must be a finite fraction in `[0, 1]`, anything else is a `ConfigError` at construction). | None |
 | Judge | `judgeGrader(options)` | The judge model's structured verdict. | One journaled, budgeted judge run through the engine |
 
 ### Golden graders
@@ -232,7 +232,7 @@ console.log(report.cells.length, report.claims.length, report.committedVersion);
 The moving parts:
 
 - **The pool is fixed and caller-declared.** `engineFor` builds a fresh engine routed at each pool member; you own the adapters, budgets, and VCR posture, so a sweep records and replays like any engine run. `effort` on a `SweepModel` is part of the claim subject's identity.
-- **Thresholds gate claim emission.** A cell's pass rate at or above `thresholds.strength` (default 0.9) emits a strength claim; at or below `thresholds.weakness` (default 0.5) a weakness claim; the mid-band emits nothing, because a 0.7 pass rate is uninformative. The defaults ship as `SWEEP_THRESHOLD_DEFAULTS`.
+- **Thresholds gate claim emission.** A cell's pass rate at or above `thresholds.strength` (default 0.9) emits a strength claim; at or below `thresholds.weakness` (default 0.5) a weakness claim; the mid-band emits nothing, because a 0.7 pass rate is uninformative. The defaults ship as `SWEEP_THRESHOLD_DEFAULTS`. Effective thresholds are validated before any engine, store, or envelope activity: both must be finite fractions in `[0, 1]` with `weakness` strictly below `strength`, and anything else is a `ConfigError`, because an out of range or reversed band would let a failing cell commit a false strength claim.
 - **The sweep is the deconfounder.** The matrix is independent of your current routing, so it measures models where routing would never send them, which is what breaks self-fulfilling routing bias.
 - **`observedAt` is explicit.** The sweep reads no wall clock; claim TTLs apply from the date you pass, which keeps recorded sweeps replayable.
 - **Budgets compose from per-run ceilings and one envelope.** `suite: { budgetUsd, judgeBudgetUsd }` gives every target and judge run its own immutable ceiling, and `envelope: new SpendEnvelope(maxTotalUsd)` bounds the whole matrix: each run authorizes its ceiling against the envelope BEFORE starting (debit-only; completions, replays, and CAS retries return nothing), so pool times cases times judge-call growth cannot exceed `maxTotalUsd` even when falsification widens the pool. Refusals never erase paid evidence: a cell keeps every completed case (its `n`, `caseNames`, and costs) next to `plannedN`, flags an envelope-refused target as `envelopeExhausted` with `refusedRunLabel`, counts targets that hit their own ceiling in `exhaustedRuns` and unfinished judges in `judgeIncompleteRuns`, and names the cause in `incompleteReason`. Any incomplete cell emits no claim, because a budget-starved measurement must never become a belief about the model.

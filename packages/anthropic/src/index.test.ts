@@ -458,6 +458,29 @@ describe('stream mapping (M1-T12)', () => {
     expect(anthropicErrorToWire({ status: 529, message: 'overloaded' }).retryable).toBe(true);
     expect(anthropicErrorToWire({ status: 400, message: 'bad' }).retryable).toBe(false);
   });
+
+  it('an unparsable or huge Retry-After never emits NaN or an overflowing delay (v1.28.0 review P2)', () => {
+    // The HTTP date form and garbage both fall back to policy
+    // backoff: the field is absent, never NaN (which would also
+    // serialize to null and break the WireError.data Json invariant).
+    for (const malformed of ['soon', 'Fri, 31 Dec 2027 23:59:59 GMT', '-5']) {
+      const error = anthropicErrorToWire({
+        status: 429,
+        message: 'rate limited',
+        headers: { 'retry-after': malformed },
+      });
+      expect(error.data).toMatchObject({ kind: 'rate-limit', status: 429 });
+      expect((error.data as { retryAfterMs?: number }).retryAfterMs).toBeUndefined();
+    }
+    // A huge but finite value clamps to the Node timer maximum
+    // instead of overflowing into an almost immediate retry.
+    const huge = anthropicErrorToWire({
+      status: 429,
+      message: 'rate limited',
+      headers: { 'retry-after': '3000000' },
+    });
+    expect((huge.data as { retryAfterMs?: number }).retryAfterMs).toBe(2_147_483_647);
+  });
 });
 
 describe('adapter surface (M1-T12)', () => {
