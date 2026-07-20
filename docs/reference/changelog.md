@@ -18,6 +18,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.27.0
+
+#### Minor Changes
+
+- 884a433: Types referenced by public signatures are now exported from their package barrels, so the API docs resolve them instead of carrying known incomplete references (v1.26.0 deep E2E review): `BaseAppend` from `@rulvar/core` (the fields common to every `Replayer` append), `Block` and `MappedStop` from `@rulvar/anthropic` (the wire level content block alias and the stop reason mapping), and `VcrHeader` from `@rulvar/testing` (the first line of every cassette file). The frozen TypeDoc baseline shrinks from eleven entries to the four vendored Standard Schema notices.
+
+#### Patch Changes
+
+- Updated dependencies [884a433]
+  - @rulvar/core@1.27.0
+
 ### 1.26.0
 
 #### Patch Changes
@@ -529,6 +540,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.27.0
+
+#### Patch Changes
+
+- Updated dependencies [884a433]
+  - @rulvar/core@1.27.0
+
 ### 1.26.0
 
 #### Patch Changes
@@ -925,6 +943,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.27.0
+
+#### Minor Changes
+
+- 884a433: The HTTP shell's SSE delivery is now complete and bounded per connection (v1.26.0 deep E2E review). A terminal settle closes connected streams only AFTER the segment's event pump has drained, so a client that keeps reading receives the full tail including the terminal `run:end` instead of a clean close that silently swallowed the backlog; when the pump itself failed, the close is preceded by an SSE comment saying the stream may be incomplete. New `maxPendingEventsPerClient` option (default 10000) bounds what any single SSE connection can accumulate unread, independently of the replay buffer: a consumer that stopped reading is unhooked at the bound and closed with an SSE comment naming it, the frames already queued stay readable, and the standard `Last-Event-ID` reconnect resumes strictly after the last frame the client consumed; a replay longer than the bound is delivered the same way, in bounded chunks across reconnects, so pending memory per connection is O(bound) while delivery stays at least once. `createServer` now validates its numeric caps at construction with a typed `ConfigError` (`maxTrackedRuns` accepts non negative safe integers, `maxBufferedEventsPerRun` and `maxPendingEventsPerClient` accept positive safe integers): `NaN` used to silently mean unbounded, `Infinity` looked like a cap without capping, and negative or fractional values produced policies nobody asked for. The barrel additionally exports `DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT` and the referenced types `KbSweepCliConfig`, `LoadedWorkflowModule`, and `OtelContextApi`, so every public signature resolves in the API docs.
+
+#### Patch Changes
+
+- Updated dependencies [884a433]
+  - @rulvar/core@1.27.0
 
 ### 1.26.0
 
@@ -1497,6 +1526,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.27.0
+
+#### Minor Changes
+
+- 884a433: Types referenced by public signatures are now exported from their package barrels, so the API docs resolve them instead of carrying known incomplete references (v1.26.0 deep E2E review): `BaseAppend` from `@rulvar/core` (the fields common to every `Replayer` append), `Block` and `MappedStop` from `@rulvar/anthropic` (the wire level content block alias and the stop reason mapping), and `VcrHeader` from `@rulvar/testing` (the first line of every cassette file). The frozen TypeDoc baseline shrinks from eleven entries to the four vendored Standard Schema notices.
 
 ### 1.26.0
 
@@ -2566,6 +2601,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.27.0
+
 ### 1.26.0
 
 ### 1.25.0
@@ -2688,6 +2725,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.27.0
+
+#### Patch Changes
+
+- Updated dependencies [884a433]
+  - @rulvar/core@1.27.0
+  - @rulvar/testing@1.27.0
 
 ### 1.26.0
 
@@ -3187,6 +3232,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.27.0
+
+#### Patch Changes
+
+- Updated dependencies [884a433]
+  - @rulvar/core@1.27.0
 
 ### 1.26.0
 
@@ -3720,6 +3772,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.27.0
+
+#### Patch Changes
+
+- Updated dependencies [884a433]
+  - @rulvar/core@1.27.0
+
 ### 1.26.0
 
 #### Patch Changes
@@ -4230,6 +4289,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.27.0
+
+#### Patch Changes
+
+- Updated dependencies [884a433]
+  - @rulvar/core@1.27.0
+  - eslint-plugin-rulvar@1.27.0
+
 ### 1.26.0
 
 #### Patch Changes
@@ -4690,6 +4757,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.27.0
+
+#### Patch Changes
+
+- Updated dependencies [884a433]
+  - @rulvar/core@1.27.0
+  - @rulvar/anthropic@1.27.0
+  - @rulvar/openai@1.27.0
 
 ### 1.26.0
 
@@ -5284,6 +5360,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.27.0
+
+#### Patch Changes
+
+- Updated dependencies [884a433]
+  - @rulvar/core@1.27.0
+
 ### 1.26.0
 
 #### Minor Changes
@@ -5756,6 +5839,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.27.0
+
+#### Patch Changes
+
+- Updated dependencies [884a433]
+  - @rulvar/core@1.27.0
+
 ### 1.26.0
 
 #### Minor Changes
@@ -6167,6 +6257,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.27.0
+
+#### Minor Changes
+
+- 884a433: Types referenced by public signatures are now exported from their package barrels, so the API docs resolve them instead of carrying known incomplete references (v1.26.0 deep E2E review): `BaseAppend` from `@rulvar/core` (the fields common to every `Replayer` append), `Block` and `MappedStop` from `@rulvar/anthropic` (the wire level content block alias and the stop reason mapping), and `VcrHeader` from `@rulvar/testing` (the first line of every cassette file). The frozen TypeDoc baseline shrinks from eleven entries to the four vendored Standard Schema notices.
+
+#### Patch Changes
+
+- Updated dependencies [884a433]
+  - @rulvar/core@1.27.0
 
 ### 1.26.0
 
