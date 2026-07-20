@@ -146,7 +146,7 @@ Yes: TypeScript on Node.js, ESM only, Node 22.12.0 or newer. The floor is exactl
 
 ## What is the license and release status?
 
-Apache-2.0, with contributions accepted under the DCO. The current release line is v<!-- version:lockstep -->1.31.0<!-- /version -->; the core SPI seams froze at 1.0 and the packages follow semver from there, with journal compatibility governed by an explicit hashVersion support window. See [Versioning](/reference/versioning), the [Changelog](/reference/changelog), and the [Contributing guide](/contributing/).
+Apache-2.0, with contributions accepted under the DCO. The current release line is v<!-- version:lockstep -->1.32.0<!-- /version -->; the core SPI seams froze at 1.0 and the packages follow semver from there, with journal compatibility governed by an explicit hashVersion support window. See [Versioning](/reference/versioning), the [Changelog](/reference/changelog), and the [Contributing guide](/contributing/).
 
 ## Can I point an AI assistant at these docs?
 

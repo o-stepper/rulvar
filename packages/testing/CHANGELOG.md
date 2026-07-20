@@ -1,5 +1,17 @@
 # @rulvar/testing
 
+## 1.32.0
+
+### Minor Changes
+
+- e366d64: Concurrent identical calls replay to the callers that made them (v1.31.0 review P2). `record` appends rows when each stream completes, so two identical live requests that finished out of order were stored in completion order, and `replay`, which hands occurrences out in caller order, served each caller the other one's response; a parallel workflow could branch differently on replay even though every hash and every row was valid. Every recorded `stream()` call now claims a zero based per `(adapterId, requestHash)` occurrence number synchronously in the call itself and persists it on the completed row, and `replay` serves same hash rows sorted by that number when every row of the group carries one. An aborted or failed call claims a number but appends no row, and such gaps are valid. The cassette format stays v1: readers before this release tolerate the new optional field and keep file order, and groups recorded before this release (no numbers) keep file order too. `readCassette` checks the field is a nonnegative safe integer when present.
+- e366d64: Cassette event validation now covers every constrained nested field of the canonical vocabulary (v1.31.0 review P3). Three shapes the documentation already promised to refuse were accepted by `readCassette` and `replay`: a `tool-call-end` without its `args` (required payload; any JSON value including `null` is valid, absence is not, because the replayed event would differ from what the live adapter emitted), a refusal `stopDetails` that is not a plain object or whose present `type`, `category`, or `explanation` is not a string, and a finish `providerMetadata` that is not a plain object. All three now refuse with a typed `ConfigError` naming the JSONL line and the exact field path.
+- e366d64: VCR passthrough now preserves truthful adapter provenance (v1.31.0 review P2). The engine journals every response served through a replay wrapper under the wrapper's own `provider` and `usageSemantics` declarations, and under `onMiss: 'passthrough'` that includes live served misses: before this release a miss served by the live adapter was journaled under the declarations of the recorded rows (a stale stamp asserting a semantics the serving adapter did not use), and a live adapter with no recorded rows lost both declarations entirely, so its journals went unstamped. `replay` now refuses at construction with a typed `ConfigError` when the cassette rows and the live passthrough adapter disagree on either declaration, absent versus present included, and an adapter with no recorded rows keeps the live adapter's own declarations, so wrapping stays metadata preserving. Under `onMiss: 'throw'` the live adapter only backs caps lookups and never serves, so no agreement is demanded there.
+
+### Patch Changes
+
+- @rulvar/core@1.32.0
+
 ## 1.31.0
 
 ### Minor Changes
