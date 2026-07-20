@@ -47,6 +47,19 @@ export interface VcrRow {
    * unstamped entry reads as recorded before the stamp existed).
    */
   usageSemantics?: string;
+  /**
+   * Zero based per `(adapterId, requestHash)` call counter, claimed
+   * synchronously when the recorded `stream()` call was made
+   * (v1.31.0 review P2): rows are appended in COMPLETION order, so
+   * without this number two concurrent identical live calls that
+   * finish out of order would swap callers at replay, which hands
+   * occurrences out in caller order. Replay sorts same hash rows by
+   * it when every row of the group carries one; absent in cassettes
+   * recorded before v1.32.0, whose same hash rows keep file order.
+   * An aborted or failed call claims a number but appends no row, so
+   * gaps in the numbering are valid.
+   */
+  occurrence?: number;
   requestHash: string;
   /** Redacted canonical request, for humans and drift review. */
   request: unknown;
@@ -155,8 +168,13 @@ function headerLine(): string {
  * (a requested abort or a truncated read), throws, or violates the
  * adapter contract (a second terminal, data after the terminal)
  * appends nothing, so a cassette row is always the record of one
- * completed exchange (v1.28.0 review P2). The wrapped adapters are
- * drop-in: same ids, providers, caps, and event streams.
+ * completed exchange (v1.28.0 review P2). Every call also claims a
+ * per `(adapterId, requestHash)` occurrence number synchronously in
+ * the `stream()` call itself and persists it on the completed row,
+ * so replay can restore the caller to response association even when
+ * concurrent identical calls completed out of order (v1.31.0 review
+ * P2). The wrapped adapters are drop-in: same ids, providers, caps,
+ * and event streams.
  */
 export function record(options: {
   adapters: ProviderAdapter[];
@@ -169,68 +187,88 @@ export function record(options: {
   if (!existsSync(options.cassette)) {
     writeFileSync(options.cassette, `${headerLine()}\n`, 'utf8');
   }
-  return options.adapters.map((adapter) => ({
-    ...adapter,
-    id: adapter.id,
-    ...(adapter.provider === undefined ? {} : { provider: adapter.provider }),
-    caps: (model) => adapter.caps(model),
-    async *stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent> {
-      const events: ChatEvent[] = [];
-      // The engine stops consuming at the first terminal event (the
-      // adapter contract makes everything after it unreadable), which
-      // closes this generator through return() the moment the terminal
-      // is delivered. The append therefore lives in a finally block,
-      // gated on the terminal count taken BEFORE the yield: a consumer
-      // that stops at the terminal still commits the row, while an
-      // aborted or truncated stream (no terminal), a thrown wire
-      // failure, and a contract violating stream (a second terminal or
-      // data after the terminal) append nothing, because a cassette
-      // must never replay an exchange that was not observed complete
-      // (v1.28.0 review P2).
-      let thrown = false;
-      let terminals = 0;
-      let postTerminal = false;
-      try {
-        for await (const event of adapter.stream(req, signal)) {
-          if (terminals > 0) {
-            postTerminal = true;
+  return options.adapters.map((adapter) => {
+    // One call counter per request hash, shared by every stream()
+    // call on this wrapped adapter.
+    const occurrences = new Map<string, number>();
+    return {
+      ...adapter,
+      id: adapter.id,
+      ...(adapter.provider === undefined ? {} : { provider: adapter.provider }),
+      caps: (model) => adapter.caps(model),
+      stream(req: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatEvent> {
+        // The occurrence number is claimed HERE, synchronously in the
+        // stream() call itself, never at completion: rows are appended
+        // in completion order, so two concurrent identical live calls
+        // that finish out of order would otherwise swap callers at
+        // replay, which hands occurrences out in caller order
+        // (v1.31.0 review P2). A generator method would defer this
+        // block to the first pull, hence the inner generator shape.
+        const hash = requestHash(req);
+        const occurrence = occurrences.get(hash) ?? 0;
+        occurrences.set(hash, occurrence + 1);
+        return (async function* (): AsyncIterable<ChatEvent> {
+          const events: ChatEvent[] = [];
+          // The engine stops consuming at the first terminal event (the
+          // adapter contract makes everything after it unreadable), which
+          // closes this generator through return() the moment the terminal
+          // is delivered. The append therefore lives in a finally block,
+          // gated on the terminal count taken BEFORE the yield: a consumer
+          // that stops at the terminal still commits the row, while an
+          // aborted or truncated stream (no terminal), a thrown wire
+          // failure, and a contract violating stream (a second terminal or
+          // data after the terminal) append nothing, because a cassette
+          // must never replay an exchange that was not observed complete
+          // (v1.28.0 review P2). A skipped append leaves a gap in the
+          // occurrence numbering, which replay treats as valid.
+          let thrown = false;
+          let terminals = 0;
+          let postTerminal = false;
+          try {
+            for await (const event of adapter.stream(req, signal)) {
+              if (terminals > 0) {
+                postTerminal = true;
+              }
+              if (isTerminalEvent(event)) {
+                terminals += 1;
+              }
+              events.push(event);
+              yield event;
+            }
+          } catch (error) {
+            thrown = true;
+            throw error;
+          } finally {
+            if (!thrown && terminals === 1 && !postTerminal) {
+              const row: VcrRow = {
+                adapterId: adapter.id,
+                ...(adapter.provider === undefined ? {} : { provider: adapter.provider }),
+                ...(adapter.usageSemantics === undefined
+                  ? {}
+                  : { usageSemantics: adapter.usageSemantics }),
+                occurrence,
+                requestHash: hash,
+                request: walkStrings(JSON.parse(JSON.stringify(req)), redact),
+                events: walkStrings(JSON.parse(JSON.stringify(events)), redact) as ChatEvent[],
+                caps: adapter.caps(req.model),
+                model: req.model,
+              };
+              appendFileSync(options.cassette, `${JSON.stringify(row)}\n`, 'utf8');
+            }
           }
-          if (isTerminalEvent(event)) {
-            terminals += 1;
-          }
-          events.push(event);
-          yield event;
-        }
-      } catch (error) {
-        thrown = true;
-        throw error;
-      } finally {
-        if (!thrown && terminals === 1 && !postTerminal) {
-          const row: VcrRow = {
-            adapterId: adapter.id,
-            ...(adapter.provider === undefined ? {} : { provider: adapter.provider }),
-            ...(adapter.usageSemantics === undefined
-              ? {}
-              : { usageSemantics: adapter.usageSemantics }),
-            requestHash: requestHash(req),
-            request: walkStrings(JSON.parse(JSON.stringify(req)), redact),
-            events: walkStrings(JSON.parse(JSON.stringify(events)), redact) as ChatEvent[],
-            caps: adapter.caps(req.model),
-            model: req.model,
-          };
-          appendFileSync(options.cassette, `${JSON.stringify(row)}\n`, 'utf8');
-        }
-      }
-    },
-  }));
+        })();
+      },
+    };
+  });
 }
 
 /**
  * Typed hermetic-miss error; onMiss: 'throw' raises it on any request
  * without a servable row. `recordedOccurrences` above zero means the
  * hash WAS recorded but every occurrence is already consumed (replay
- * serves each recorded exchange once, in file order); absent or zero
- * means the request was never recorded at all (v1.29.0 review P2).
+ * serves each recorded exchange once, in recorded order); absent or
+ * zero means the request was never recorded at all (v1.29.0 review
+ * P2).
  */
 export class VcrMissError extends Error {
   readonly requestHash: string;
@@ -242,7 +280,7 @@ export class VcrMissError extends Error {
         ? `VCR miss: adapter '${adapterId}' exhausted the ` +
             `${String(recordedOccurrences)} recorded occurrence` +
             `${recordedOccurrences === 1 ? '' : 's'} of request hash ${hash.slice(0, 12)}; ` +
-            'a replay serves each recorded exchange once, in file order'
+            'a replay serves each recorded exchange once, in recorded order'
         : `VCR miss: adapter '${adapterId}' received a request with no recorded row ` +
             `(hash ${hash.slice(0, 12)}); onMiss: 'throw' keeps cassette tests hermetic`,
     );
@@ -404,9 +442,17 @@ function eventShapeIssue(event: unknown, index: number): string | undefined {
         ? undefined
         : `${at}.argsTextDelta must be a string`;
     case 'tool-call-end':
-      return typeof event.id === 'string' && event.id !== ''
+      if (typeof event.id !== 'string' || event.id === '') {
+        return `${at}.id must be a nonempty string`;
+      }
+      // Any JSON value is a valid args payload, null included; only
+      // ABSENCE is refused (v1.31.0 review P3). A live adapter that
+      // yielded no serializable args cannot round trip through the
+      // cassette, so replaying the row would serve an event that
+      // differs from what the adapter emitted.
+      return Object.hasOwn(event, 'args')
         ? undefined
-        : `${at}.id must be a nonempty string`;
+        : `${at}.args must be present (the arguments the call ended with)`;
     case 'usage': {
       const usage: unknown = event.usage;
       if (!isPlainObject(usage)) {
@@ -437,6 +483,21 @@ function eventShapeIssue(event: unknown, index: number): string | undefined {
         if (!isPlainObject(refusal) || typeof refusal.provider !== 'string') {
           return `${at}.finish.refusal must be an object naming the provider`;
         }
+        const stopDetails: unknown = refusal.stopDetails;
+        if (stopDetails !== undefined) {
+          if (!isPlainObject(stopDetails)) {
+            return `${at}.finish.refusal.stopDetails must be an object when present`;
+          }
+          for (const field of ['type', 'category', 'explanation'] as const) {
+            const value = stopDetails[field];
+            if (value !== undefined && typeof value !== 'string') {
+              return `${at}.finish.refusal.stopDetails.${field} must be a string when present`;
+            }
+          }
+        }
+      }
+      if (event.providerMetadata !== undefined && !isPlainObject(event.providerMetadata)) {
+        return `${at}.providerMetadata must be a plain object when present`;
       }
       const usage: unknown = event.usage;
       if (!isPlainObject(usage)) {
@@ -478,7 +539,8 @@ function eventShapeIssue(event: unknown, index: number): string | undefined {
  * instead of being read as v1. Every documented header field (kind,
  * v, an integer hashVersion, a date string recordedAt) and row field
  * (adapterId, model, requestHash, request, caps, events, an optional
- * string provider, an optional nonempty usageSemantics) is checked
+ * string provider, an optional nonempty usageSemantics, an optional
+ * nonnegative integer occurrence) is checked
  * here, and the nested structures are validated in depth (v1.30.0
  * review P3): the request must be a plain object, every event must
  * be a member of the canonical ChatEvent vocabulary with its
@@ -561,6 +623,14 @@ export function readCassette(path: string): VcrCassette {
     ) {
       reject('usageSemantics, when present, must be a nonempty string');
     }
+    if (
+      row.occurrence !== undefined &&
+      (typeof row.occurrence !== 'number' ||
+        !Number.isSafeInteger(row.occurrence) ||
+        row.occurrence < 0)
+    ) {
+      reject('occurrence, when present, must be a nonnegative safe integer');
+    }
     if (typeof row.request !== 'object' || row.request === null || Array.isArray(row.request)) {
       reject('request must be an object (the redacted canonical request)');
     }
@@ -591,11 +661,17 @@ export function readCassette(path: string): VcrCassette {
  * hermetic CI mode; `'passthrough'` forwards unrecorded requests to the
  * matching live adapter in `adapters` (a development convenience only).
  *
- * Repeated hashes replay in file order (v1.29.0 review P2): rows
- * sharing a `(adapterId, requestHash)` key form an ordered occurrence
- * list, and every `stream()` call consumes exactly one occurrence,
- * allocated synchronously inside the call itself, so two concurrent
- * identical requests can never be served the same recorded exchange.
+ * Repeated hashes replay as ordered occurrences (v1.29.0 review P2):
+ * rows sharing a `(adapterId, requestHash)` key form an ordered
+ * occurrence list, and every `stream()` call consumes exactly one
+ * occurrence, allocated synchronously inside the call itself, so two
+ * concurrent identical requests can never be served the same
+ * recorded exchange. The list is sorted by the recorded `occurrence`
+ * numbers when every row of the group carries one, so concurrent
+ * identical calls whose live completions were appended out of order
+ * still replay to the callers that made them (v1.31.0 review P2); a
+ * group with any unnumbered row (recorded before v1.32.0) keeps file
+ * order.
  * A call after the last occurrence is a miss: under `onMiss: 'throw'`
  * it raises a VcrMissError whose `recordedOccurrences` says the hash
  * WAS recorded but is exhausted, and under `'passthrough'` it
@@ -616,7 +692,13 @@ export function readCassette(path: string): VcrCassette {
  * both declarations; a conflict refuses with a typed ConfigError
  * before anything is served. A cassette recorded before v1.31.0
  * stores no usageSemantics, so its replays stamp nothing (documented
- * historical laxity).
+ * historical laxity). Under `onMiss: 'passthrough'` the recorded
+ * declarations must also match the live adapter's, absent versus
+ * present included, because a live served miss is journaled under
+ * the wrapper's declarations; a mismatch refuses at construction
+ * (v1.31.0 review P2). An adapter with no recorded rows keeps the
+ * live adapter's own declarations, so the wrapper stays a metadata
+ * preserving drop in.
  */
 export function replay(options: {
   cassette: string;
@@ -656,6 +738,21 @@ export function replay(options: {
     forAdapter.set(row.requestHash, occurrences);
     byAdapter.set(row.adapterId, forAdapter);
   }
+  // Same hash rows sit in the file in COMPLETION order; when every
+  // row of a group carries the occurrence number claimed at stream
+  // call time, the group is served in that order instead, so
+  // concurrent identical calls that finished out of order still
+  // replay to the callers that made them (v1.31.0 review P2). A
+  // group with any unnumbered row (recorded before v1.32.0) keeps
+  // file order, and gaps in the numbering (an aborted or failed call
+  // claims a number but appends no row) are valid.
+  for (const forAdapter of byAdapter.values()) {
+    for (const occurrences of forAdapter.values()) {
+      if (occurrences.every((row) => row.occurrence !== undefined)) {
+        occurrences.sort((a, b) => (a.occurrence ?? 0) - (b.occurrence ?? 0));
+      }
+    }
+  }
   const live = new Map((options.adapters ?? []).map((adapter) => [adapter.id, adapter]));
   const adapterIds = new Set<string>([...byAdapter.keys(), ...live.keys()]);
   return [...adapterIds].map((adapterId) => {
@@ -689,13 +786,41 @@ export function replay(options: {
       }
     }
     const passthrough = live.get(adapterId);
+    // The engine journals every response served through this wrapper
+    // under the wrapper's own declarations, and under onMiss:
+    // 'passthrough' that includes live served misses. The recorded
+    // rows and the live adapter must therefore agree on provider and
+    // usageSemantics, absent versus present included, or a live
+    // response would carry a stale recorded stamp (v1.31.0 review
+    // P2). Under onMiss: 'throw' the live adapter only backs caps
+    // lookups and never serves, so no agreement is demanded there.
+    if (someRow !== undefined && passthrough !== undefined && options.onMiss === 'passthrough') {
+      for (const field of ['provider', 'usageSemantics'] as const) {
+        if (someRow[field] !== passthrough[field]) {
+          const describe = (value: string | undefined): string =>
+            value === undefined ? 'absent' : `'${value}'`;
+          throw new ConfigError(
+            `${options.cassette} records ${field} ${describe(someRow[field])} for adapter ` +
+              `'${adapterId}' but the live passthrough adapter declares ` +
+              `${describe(passthrough[field])}; the engine journals live served misses under ` +
+              'the replay adapter declaration, so replay with a matching adapter or record ' +
+              'the cassette again',
+          );
+        }
+      }
+    }
+    // An adapter with no recorded rows keeps the live adapter's own
+    // declarations, so wrapping stays metadata preserving.
+    const declared = someRow ?? passthrough;
     // One cursor per hash, shared by every run on this adapter set:
-    // occurrences are consumed once each, in file order.
+    // occurrences are consumed once each, in recorded order.
     const cursors = new Map<string, number>();
     return {
       id: adapterId,
-      ...(someRow?.provider === undefined ? {} : { provider: someRow.provider }),
-      ...(someRow?.usageSemantics === undefined ? {} : { usageSemantics: someRow.usageSemantics }),
+      ...(declared?.provider === undefined ? {} : { provider: declared.provider }),
+      ...(declared?.usageSemantics === undefined
+        ? {}
+        : { usageSemantics: declared.usageSemantics }),
       caps: (model: string): ModelCaps => {
         const snapshot = capsByModel.get(model)?.caps ?? passthrough?.caps(model);
         if (snapshot === undefined) {

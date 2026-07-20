@@ -6,13 +6,14 @@
 
 # Class: VcrMissError
 
-Defined in: [packages/testing/src/vcr.ts:235](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L235)
+Defined in: [packages/testing/src/vcr.ts:273](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L273)
 
 Typed hermetic-miss error; onMiss: 'throw' raises it on any request
 without a servable row. `recordedOccurrences` above zero means the
 hash WAS recorded but every occurrence is already consumed (replay
-serves each recorded exchange once, in file order); absent or zero
-means the request was never recorded at all (v1.29.0 review P2).
+serves each recorded exchange once, in recorded order); absent or
+zero means the request was never recorded at all (v1.29.0 review
+P2).
 
 ## Extends
 
@@ -29,7 +30,7 @@ new VcrMissError(
    recordedOccurrences?): VcrMissError;
 ```
 
-Defined in: [packages/testing/src/vcr.ts:239](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L239)
+Defined in: [packages/testing/src/vcr.ts:277](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L277)
 
 #### Parameters
 
@@ -53,5 +54,5 @@ Error.constructor
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-recordedoccurrences"></a> `recordedOccurrences?` | `readonly` | `number` | Rows recorded for this hash; absent or 0 = never recorded. | [packages/testing/src/vcr.ts:238](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L238) |
-| <a id="property-requesthash"></a> `requestHash` | `readonly` | `string` | - | [packages/testing/src/vcr.ts:236](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L236) |
+| <a id="property-recordedoccurrences"></a> `recordedOccurrences?` | `readonly` | `number` | Rows recorded for this hash; absent or 0 = never recorded. | [packages/testing/src/vcr.ts:276](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L276) |
+| <a id="property-requesthash"></a> `requestHash` | `readonly` | `string` | - | [packages/testing/src/vcr.ts:274](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L274) |

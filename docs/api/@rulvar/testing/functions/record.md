@@ -10,7 +10,7 @@
 function record(options): ProviderAdapter[];
 ```
 
-Defined in: [packages/testing/src/vcr.ts:161](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L161)
+Defined in: [packages/testing/src/vcr.ts:179](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L179)
 
 Wraps live adapters for recording: every stream that completes with
 exactly one terminal event (finish or error) appends one redacted
@@ -18,8 +18,13 @@ row to the cassette JSONL. A stream that ends without a terminal
 (a requested abort or a truncated read), throws, or violates the
 adapter contract (a second terminal, data after the terminal)
 appends nothing, so a cassette row is always the record of one
-completed exchange (v1.28.0 review P2). The wrapped adapters are
-drop-in: same ids, providers, caps, and event streams.
+completed exchange (v1.28.0 review P2). Every call also claims a
+per `(adapterId, requestHash)` occurrence number synchronously in
+the `stream()` call itself and persists it on the completed row,
+so replay can restore the caller to response association even when
+concurrent identical calls completed out of order (v1.31.0 review
+P2). The wrapped adapters are drop-in: same ids, providers, caps,
+and event streams.
 
 ## Parameters
 
