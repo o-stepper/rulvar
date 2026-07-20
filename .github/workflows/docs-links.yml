@@ -1,0 +1,52 @@
+name: Docs external links
+
+# The per-commit Docs workflow checks links OFFLINE (lychee file mode,
+# internal anchors and routes only), so an external page that starts
+# 404ing or a domain that vanishes is invisible to CI. This weekly
+# online sweep covers exactly that gap: it fetches every absolute
+# http(s) link in the authored markdown and fails loudly.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  external-links:
+    name: External link check (online)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # --scheme restricts the run to absolute http(s) URLs, which
+      # skips every internal relative link (those are the per-commit
+      # offline job's responsibility). Placeholder hosts from config
+      # examples (localhost, example.com, *.example) are excluded, and
+      # 429 is accepted so a rate-limiting host is not a false alarm
+      # on top of --max-retries backoff.
+      - name: Check external links
+        uses: lycheeverse/lychee-action@v2
+        env:
+          # Authenticated GitHub requests avoid rate-limit noise on
+          # the many github.com links.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: >-
+            --no-progress
+            --scheme https
+            --scheme http
+            --max-retries 3
+            --accept 200..=299,429
+            --exclude 'localhost'
+            --exclude '127\.0\.0\.1'
+            --exclude 'example\.com'
+            --exclude 'exampleprov'
+            ./docs/guide/**/*.md
+            ./docs/reference/**/*.md
+            ./docs/contributing/**/*.md
+            ./docs/index.md
+            ./README.md
+          fail: true
