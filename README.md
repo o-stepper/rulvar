@@ -183,11 +183,11 @@ Built from [docs/](docs/README.md) and published at [docs.rulvar.com](https://do
 
 ## OpenAI Build Week: how this project used Codex and GPT-5.6
 
-Rulvar predates Build Week; everything from v1.4.0 through v1.35.0 shipped inside the
+Rulvar predates Build Week; everything from v1.4.0 through v1.36.0 shipped inside the
 submission window (July 13-21, 2026), and the collaboration below is the part of that
 work done with Codex.
 
-**Codex was the project's independent QA engineer.** Nineteen times during the week, the
+**Codex was the project's independent QA engineer.** Twenty times during the week, the
 freshly shipped release was handed to Codex (session
 `019f65d7-4599-7d93-97dc-9dd4a5dc66f9`). Each round, Codex ran the full offline matrix
 plus live end-to-end orchestrations against real GPT-5.6 (Sol orchestrating; Luna,
@@ -196,7 +196,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The nineteen rounds, verbatim in this repository's history:
+The twenty rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                        | Shipped as |
 | ------------- | ------------------------------------------------------------------------------------------------- | ---------- |
@@ -219,6 +219,7 @@ The nineteen rounds, verbatim in this repository's history:
 | v1.32.0       | 3f0f5e8 (#250): seeded appending record sessions, duplicate occurrence refusal, replay order gate | v1.33.0    |
 | v1.33.0       | f1505ec (#253): MCP source close lifecycle, VCR occurrence ceiling, auth retry docs gate          | v1.34.0    |
 | v1.34.0       | d4ac3bf (#256): numeric intake validation, abort aware scheduler, sliced deadline timers          | v1.35.0    |
+| v1.35.0       | 101795b (#259): abort aware escalation waits, executable fail run policies, option intake gates   | v1.36.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
@@ -244,7 +245,7 @@ threshold able to commit a failing cell as recorded model strength; and a deep r
 audit that caught the VCR cassette layer collapsing repeated identical requests into
 their last recorded exchange (a recorded retry replayed as an instant success, hiding
 the error branch from cassette based regression suites), retry policies reaching a
-paid dispatch unvalidated, and empty rate limit headers turning into instant retries; and a provenance audit that found VCR replay dropping the usage semantics stamp from replayed journals (an honest replayed total could be flagged and miscorrected as a legacy record by the cache write audit), cassette reading trusting nested structures it never validated, and retry delay parsing padded by whitespace no HTTP field value carries; and a replay fidelity audit that caught passthrough replay journaling live responses under stale recorded provenance declarations (dropped entirely for live only adapters), concurrent identical calls receiving each other's recorded responses on replay because rows persist in completion order while replay serves caller order, and three constrained nested event fields the documented deep validation never checked; and an appending session audit that caught a second record() session on an existing cassette restarting the occurrence numbering at zero, so replay silently served the appended exchange before earlier ones, duplicate occurrence numbers accepted without complaint, and two guides stating two different replay orders for one public function; and a lifecycle audit that caught the stdio MCP child outliving its finished workflow (a one shot host settled ok and then never exited, with no public API to release the child), the recorder's own numbering able to reach the float ceiling and corrupt a valid cassette after paying the provider, and the troubleshooting guide promising a retry backoff the engine never performs on authentication failures; and a boundary audit that caught a NaN concurrency cap parking a run in the scheduler queue beyond the reach of cancel(), a negative cost hint shrinking the committed reserve total so a sibling passed a budget ceiling it did not fit, run deadlines and suspensions beyond the 24.8 day Node timer maximum firing immediately instead of waiting, and a malformed deadline string cancelling the run only after the first paid provider call.
+paid dispatch unvalidated, and empty rate limit headers turning into instant retries; and a provenance audit that found VCR replay dropping the usage semantics stamp from replayed journals (an honest replayed total could be flagged and miscorrected as a legacy record by the cache write audit), cassette reading trusting nested structures it never validated, and retry delay parsing padded by whitespace no HTTP field value carries; and a replay fidelity audit that caught passthrough replay journaling live responses under stale recorded provenance declarations (dropped entirely for live only adapters), concurrent identical calls receiving each other's recorded responses on replay because rows persist in completion order while replay serves caller order, and three constrained nested event fields the documented deep validation never checked; and an appending session audit that caught a second record() session on an existing cassette restarting the occurrence numbering at zero, so replay silently served the appended exchange before earlier ones, duplicate occurrence numbers accepted without complaint, and two guides stating two different replay orders for one public function; and a lifecycle audit that caught the stdio MCP child outliving its finished workflow (a one shot host settled ok and then never exited, with no public API to release the child), the recorder's own numbering able to reach the float ceiling and corrupt a valid cassette after paying the provider, and the troubleshooting guide promising a retry backoff the engine never performs on authentication failures; and a boundary audit that caught a NaN concurrency cap parking a run in the scheduler queue beyond the reach of cancel(), a negative cost hint shrinking the committed reserve total so a sibling passed a budget ceiling it did not fit, run deadlines and suspensions beyond the 24.8 day Node timer maximum firing immediately instead of waiting, and a malformed deadline string cancelling the run only after the first paid provider call; and a cancellation audit that caught a parked flavor B escalation ignoring every cancellation channel until its own deadline (cancel, host abort, run deadline, and failed sibling aborts all hung for days under a far valid deadline), both declared fail run policies journaling their label and then finishing with the partial anyway, and a sweep of the remaining public numeric options where a NaN spawn cap admitted every spawn, a negative finalize reserve widened the budget boundary, a zero lease ttl let a second worker seize a held lease immediately, and an infinite repair round count turned the planner limiter into an unbounded paid loop.
 
 **GPT-5.6 runs inside the product as well as behind Codex.** The OpenAI adapter
 carries first-class GPT-5.6 Sol, Terra, and Luna support: per-sibling pricing with
