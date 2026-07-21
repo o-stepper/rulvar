@@ -10,7 +10,7 @@
 function replay(options): ProviderAdapter[];
 ```
 
-Defined in: [packages/testing/src/vcr.ts:802](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L802)
+Defined in: [packages/testing/src/vcr.ts:843](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L843)
 
 Builds replay adapters from a cassette. `onMiss: 'throw'` is the
 hermetic CI mode; `'passthrough'` forwards unrecorded requests to the

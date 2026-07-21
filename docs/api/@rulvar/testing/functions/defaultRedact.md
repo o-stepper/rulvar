@@ -10,7 +10,7 @@
 function defaultRedact(value): string;
 ```
 
-Defined in: [packages/testing/src/vcr.ts:92](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L92)
+Defined in: [packages/testing/src/vcr.ts:95](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L95)
 
 Built-in redaction: authorization material never reaches cassette
 bytes. Deliberately aggressive; compose a

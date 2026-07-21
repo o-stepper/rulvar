@@ -124,6 +124,81 @@ export function hasReplayOrderOverclaim(text) {
     .some((sentence) => FILE_ORDER.test(sentence) && !FILE_ORDER_QUALIFIER.test(sentence));
 }
 
+/**
+ * The authentication retry overclaim sentinel (v1.33.0 review P3).
+ * The Anthropic and OpenAI adapters both mark an authentication
+ * failure retryable: false, and retryClassOf returns no retry class
+ * for such a wire error, so it is never retried and no RetryPolicy
+ * backoff is walked. The Troubleshooting guide shipped stating the
+ * opposite while the Testing and adapter author guides stated the
+ * runtime truth: an operational forecast built on a retry that never
+ * happens. So no sentence may assert that an authentication or
+ * credential failure is retried, in the passive form ("is retried
+ * like a transport failure") or the active one ("the engine retries
+ * an authentication failure"); negated forms ("is never retried",
+ * "never retries an authentication failure") pass. The sentence
+ * boundary rule matches the replay order sentinel above.
+ */
+const AUTH_FAILURE = /\bauthenticat|\bcredential/iu;
+const AUTH_RETRY_PASSIVE =
+  /\b(?:is|are|was|were|get|gets|being)\s+(?:currently\s+|always\s+)?retr(?:ied|ies)\b/iu;
+const AUTH_RETRY_ACTIVE = /\bretr(?:y|ies)\s+(?:an?\s+|the\s+)?(?:authentication|credential)/iu;
+const AUTH_RETRY_NEGATION = /\b(?:never|not|no longer)\s+retr/iu;
+const AUTH_RETRY_MESSAGE =
+  'authentication retry overclaim (v1.33.0 review P3): both first class adapters mark an ' +
+  'authentication failure retryable: false and retryClassOf returns no retry class for it, so ' +
+  'it is never retried and no RetryPolicy backoff is walked. State the immediate terminal ' +
+  'stop instead of a retry';
+
+/** @param {string} text @returns {boolean} */
+export function hasAuthRetryOverclaim(text) {
+  return text
+    .split(/(?<=\.)\s+/u)
+    .some(
+      (sentence) =>
+        AUTH_FAILURE.test(sentence) &&
+        (AUTH_RETRY_PASSIVE.test(sentence) || AUTH_RETRY_ACTIVE.test(sentence)) &&
+        !AUTH_RETRY_NEGATION.test(sentence),
+    );
+}
+
+/**
+ * The sentence sentinels applied across a whole file (v1.33.0 review
+ * P3): markdown hard wraps prose, so a claim and its qualifier, or
+ * the two halves of a claim, can sit on different lines of ONE
+ * sentence. A per line window (the original check 10 wiring) either
+ * misses that conjunction or flags a sentence its own qualifier
+ * legitimizes; the shipped Troubleshooting overclaim wrapped exactly
+ * that way and sailed through a per line scan. Sentences split on a
+ * dot followed by whitespace, which includes the newline, so the
+ * split reassembles wrapped sentences by construction; a hit reports
+ * the line the sentence starts on.
+ * @param {string} content
+ * @returns {Array<{ line: number, message: string }>}
+ */
+export function overclaimSentences(content) {
+  /** @type {Array<{ line: number, message: string }>} */
+  const hits = [];
+  /** @param {string} sentence @param {number} at */
+  const judge = (sentence, at) => {
+    const line = content.slice(0, at).split('\n').length;
+    if (hasReplayOrderOverclaim(sentence)) {
+      hits.push({ line, message: REPLAY_ORDER_MESSAGE });
+    }
+    if (hasAuthRetryOverclaim(sentence)) {
+      hits.push({ line, message: AUTH_RETRY_MESSAGE });
+    }
+  };
+  let start = 0;
+  for (const match of content.matchAll(/(?<=\.)\s+/gu)) {
+    const at = match.index ?? 0;
+    judge(content.slice(start, at), start);
+    start = at + match[0].length;
+  }
+  judge(content.slice(start), start);
+  return hits;
+}
+
 const EXCLUDED_DIRS = new Set(['api', 'node_modules', '.vitepress']);
 const EXCLUDED_FILES = new Set(
   ['contributing/index.md', 'reference/changelog.md'].map((p) => p.split('/').join(sep)),
@@ -355,6 +430,13 @@ function main() {
     let inFence = false;
     let h1Count = 0;
 
+    // Checks 10 and 11 judge whole sentences, not lines: markdown
+    // wraps a sentence across lines, and the conjunction the
+    // predicates test for must not be split by the wrap.
+    for (const hit of overclaimSentences(text)) {
+      fail(file, hit.line, hit.message);
+    }
+
     // VitePress home layout pages carry their heading in frontmatter.
     const frontmatterEnd = lines[0] === '---' ? lines.indexOf('---', 1) : -1;
     const frontmatter = frontmatterEnd > 0 ? lines.slice(1, frontmatterEnd) : [];
@@ -385,9 +467,6 @@ function main() {
       }
       if (hasArgsHashOverclaim(line)) {
         fail(file, n, ARGSHASH_OVERCLAIM_MESSAGE);
-      }
-      if (hasReplayOrderOverclaim(line)) {
-        fail(file, n, REPLAY_ORDER_MESSAGE);
       }
       if (!inFence && VUE_INTERPOLATION.test(line)) {
         fail(

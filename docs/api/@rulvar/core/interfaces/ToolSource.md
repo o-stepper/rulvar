@@ -13,6 +13,10 @@ toolset snapshot for a given agent spawn is captured at spawn time and
 hashed into the spawn's identity via toolsetHash; a mid-run change MUST
 NOT mutate an in-flight agent's toolset.
 
+## Extended by
+
+- [`McpToolSource`](/api/@rulvar/core/interfaces/McpToolSource.md)
+
 ## Properties
 
 | Property | Type | Defined in |

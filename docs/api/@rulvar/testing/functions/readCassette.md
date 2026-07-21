@@ -10,7 +10,7 @@
 function readCassette(path): VcrCassette;
 ```
 
-Defined in: [packages/testing/src/vcr.ts:653](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L653)
+Defined in: [packages/testing/src/vcr.ts:694](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/vcr.ts#L694)
 
 Parses a cassette file (one header line plus one JSON row per line).
 The header must declare cassette format `v: 1`: the format version

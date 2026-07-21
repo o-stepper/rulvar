@@ -1,5 +1,14 @@
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { createRequire } from 'node:module';
+import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
@@ -202,5 +211,159 @@ describe('mcp ToolSource (M3-T04)', () => {
     }));
     const source = mcp({ transport: 'inprocess', server, prefix: 'p' });
     await expect(resolveToolset([source], SESSION)).rejects.toThrow(ConfigError);
+  });
+});
+
+describe('mcp lifecycle (v1.33.0 review P2)', () => {
+  // The stdio fixture is a runnable script, so bare specifiers would
+  // not resolve from its temp directory; it imports the SDK's ESM
+  // build by absolute file URL instead, derived from the CJS path the
+  // test process can resolve.
+  const sdkCjsEntry = createRequire(import.meta.url).resolve(
+    '@modelcontextprotocol/sdk/server/stdio.js',
+  );
+  const sdkEsmDir = join(
+    sdkCjsEntry.slice(0, sdkCjsEntry.lastIndexOf(join('dist', 'cjs'))),
+    'dist',
+    'esm',
+  );
+  const moduleUrl = (rel: string): string => pathToFileURL(join(sdkEsmDir, rel)).href;
+  let fixturePath: string | undefined;
+  const stdioFixture = (): string => {
+    if (fixturePath !== undefined) {
+      return fixturePath;
+    }
+    const path = join(mkdtempSync(join(tmpdir(), 'rulvar-mcp-')), 'stdio-server.mjs');
+    writeFileSync(
+      path,
+      [
+        `import { Server } from '${moduleUrl('server/index.js')}';`,
+        `import { StdioServerTransport } from '${moduleUrl('server/stdio.js')}';`,
+        `import { CallToolRequestSchema, ListToolsRequestSchema } from '${moduleUrl('types.js')}';`,
+        '',
+        "const server = new Server({ name: 'fixture', version: '1.0.0' }, {",
+        '  capabilities: { tools: {} },',
+        '});',
+        'server.setRequestHandler(ListToolsRequestSchema, () => ({',
+        '  tools: [',
+        "    { name: 'double', description: 'doubles a number', inputSchema: {",
+        "      type: 'object', properties: { n: { type: 'number' } }, required: ['n'] } },",
+        "    { name: 'pid', description: 'reports the child pid', inputSchema: { type: 'object' } },",
+        '  ],',
+        '}));',
+        'server.setRequestHandler(CallToolRequestSchema, (request) => {',
+        "  if (request.params.name === 'pid') {",
+        "    return { content: [{ type: 'text', text: String(process.pid) }] };",
+        '  }',
+        "  return { content: [{ type: 'text', text: String(Number(request.params.arguments?.n ?? 0) * 2) }] };",
+        '});',
+        'await server.connect(new StdioServerTransport());',
+      ].join('\n'),
+      'utf8',
+    );
+    fixturePath = path;
+    return path;
+  };
+  const stdioSource = () =>
+    mcp({ transport: 'stdio', command: process.execPath, args: [stdioFixture()] });
+  const childPidOf = async (source: ReturnType<typeof mcp>): Promise<number> => {
+    const defs = await source.tools(SESSION);
+    const pid = Number(await defs.find((def) => def.name === 'pid')?.execute({}, toolContext()));
+    expect(Number.isInteger(pid) && pid > 0).toBe(true);
+    return pid;
+  };
+  /** Polls until the OS process is gone; false after three seconds. */
+  const gone = async (pid: number): Promise<boolean> => {
+    const deadline = Date.now() + 3000;
+    for (;;) {
+      try {
+        process.kill(pid, 0);
+      } catch {
+        return true;
+      }
+      if (Date.now() > deadline) {
+        return false;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+  };
+
+  it('stdio: a real child serves tools and close() releases it', async () => {
+    const source = stdioSource();
+    const defs = await source.tools(SESSION);
+    expect(defs.map((def) => def.name).sort()).toEqual(['double', 'pid']);
+    const double = defs.find((def) => def.name === 'double');
+    await expect(double?.execute({ n: 42 }, toolContext())).resolves.toBe('84');
+    const pid = await childPidOf(source);
+    await source.close();
+    expect(await gone(pid)).toBe(true);
+    // Repeated close is a noop, never an error.
+    await expect(source.close()).resolves.toBeUndefined();
+  }, 15000);
+
+  it('stdio: close() resets the source, so a later tools() spawns a fresh child', async () => {
+    const source = stdioSource();
+    const first = await childPidOf(source);
+    await source.close();
+    const second = await childPidOf(source);
+    expect(second).not.toBe(first);
+    await source.close();
+    expect(await gone(second)).toBe(true);
+  }, 15000);
+
+  it('close() before first use resolves without ever connecting', async () => {
+    const source = stdioSource();
+    await expect(source.close()).resolves.toBeUndefined();
+  });
+
+  it('close() after a failed connect resolves, and the failure does not stick', async () => {
+    const source = mcp({
+      transport: 'stdio',
+      command: process.execPath,
+      args: ['-e', 'process.exit(7)'],
+    });
+    await expect(source.tools(SESSION)).rejects.toThrow();
+    await expect(source.close()).resolves.toBeUndefined();
+    // A fresh attempt after close, not a cached rejection.
+    await expect(source.tools(SESSION)).rejects.toThrow();
+    await expect(source.close()).resolves.toBeUndefined();
+  }, 15000);
+
+  it('streamable-http: a loopback server serves tools and close() resolves', async () => {
+    const httpServer = createServer((request, response) => {
+      // Stateless mode: one fresh server and transport per request.
+      const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+      void fixtureServer()
+        .connect(transport)
+        .then(() => transport.handleRequest(request, response))
+        .catch(() => {
+          response.writeHead(500).end();
+        });
+    });
+    await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', resolve));
+    const { port } = httpServer.address() as AddressInfo;
+    const source = mcp({
+      transport: 'streamable-http',
+      url: `http://127.0.0.1:${String(port)}/mcp`,
+    });
+    try {
+      const defs = await source.tools(SESSION);
+      const echo = defs.find((def) => def.name === 'echo');
+      await expect(echo?.execute({ message: 'hi' }, toolContext())).resolves.toBe('echo: hi');
+      await source.close();
+      await expect(source.close()).resolves.toBeUndefined();
+    } finally {
+      httpServer.closeAllConnections();
+      await new Promise((resolve) => httpServer.close(resolve));
+    }
+  }, 15000);
+
+  it('inprocess: close() releases the pair and a later tools() reconnects', async () => {
+    const server = fixtureServer();
+    const source = mcp({ transport: 'inprocess', server });
+    expect((await source.tools(SESSION)).length).toBeGreaterThan(0);
+    await source.close();
+    expect((await source.tools(SESSION)).length).toBeGreaterThan(0);
+    await source.close();
   });
 });
