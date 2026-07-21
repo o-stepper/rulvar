@@ -1,5 +1,17 @@
 # @rulvar/planner
 
+## 1.36.0
+
+### Minor Changes
+
+- 101795b: Validate `PlanOptions.repairRounds` as a nonnegative integer before the runId derivation, the store lookup, and any provider dispatch (v1.35.0 review P2). Unvalidated, NaN produced zero drafts with an `after NaN drafts` rejection, a fraction over ran by a draft, and `Infinity` turned the self repair limiter into an unbounded paid loop.
+
+### Patch Changes
+
+- Updated dependencies [101795b]
+  - @rulvar/core@1.36.0
+  - eslint-plugin-rulvar@1.36.0
+
 ## 1.35.0
 
 ### Minor Changes
