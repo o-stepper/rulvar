@@ -18,6 +18,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.37.0
+
+#### Patch Changes
+
+- Updated dependencies [e6b1481]
+- Updated dependencies [e6b1481]
+  - @rulvar/core@1.37.0
+
 ### 1.36.0
 
 #### Patch Changes
@@ -616,6 +624,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.37.0
+
+#### Patch Changes
+
+- Updated dependencies [e6b1481]
+- Updated dependencies [e6b1481]
+  - @rulvar/core@1.37.0
+
 ### 1.36.0
 
 #### Patch Changes
@@ -1079,6 +1095,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.37.0
+
+#### Patch Changes
+
+- Updated dependencies [e6b1481]
+- Updated dependencies [e6b1481]
+  - @rulvar/core@1.37.0
 
 ### 1.36.0
 
@@ -1730,6 +1754,13 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.37.0
+
+#### Minor Changes
+
+- e6b1481: Validate the persisted `KnowledgeSnapshot` on every `FileModelKnowledgeStore` read (v1.36.0 review P2-6). The old read checked only that `version` was a number, `hash` a string, and `claims` an array, so a hand edited or torn `rulvar.models.json` could forge a negative or fractional `version` and a mismatched `hash`, and a `null` or partial claim flowed on to crash the card render with an untyped `TypeError`. The read now requires a nonnegative integer `version`, a lowercase sha256 `hash` that MATCHES `knowledgeHash(claims)`, and structurally sound claims (a persisted snapshot may hold non active statuses), refusing any inconsistency as a typed `ConfigError` that names the offending path. `commit` reads first, so it refuses to append onto a corrupt base.
+- e6b1481: Contain `FileTranscriptStore` refs under their configured root (v1.36.0 review SEC-P1). The per-segment check accepted `.` and `..` (dots are in its alphabet), so `join` let a `..` segment escape: a caller passing an untrusted ref to `put`, `get`, `list`, or `delete`, or an untrusted `runId` (which prefixes the checkpoint and workflow source refs), could read, write, or delete `.bin` files outside the directory. Every segment now must be a nonempty safe token that is neither `.` nor `..`, and the resolved path must stay under the resolved root. The engine also refuses an unsafe `runId` with a typed `ConfigError` before its first store write, so a compiled run cannot persist its source outside the transcript root.
 
 ### 1.36.0
 
@@ -2853,6 +2884,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.37.0
+
 ### 1.36.0
 
 ### 1.35.0
@@ -2995,6 +3028,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.37.0
+
+#### Patch Changes
+
+- Updated dependencies [e6b1481]
+- Updated dependencies [e6b1481]
+  - @rulvar/core@1.37.0
+  - @rulvar/testing@1.37.0
 
 ### 1.36.0
 
@@ -3590,6 +3632,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.37.0
+
+#### Patch Changes
+
+- Updated dependencies [e6b1481]
+- Updated dependencies [e6b1481]
+  - @rulvar/core@1.37.0
 
 ### 1.36.0
 
@@ -4206,6 +4256,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.37.0
+
+#### Patch Changes
+
+- Updated dependencies [e6b1481]
+- Updated dependencies [e6b1481]
+  - @rulvar/core@1.37.0
+
 ### 1.36.0
 
 #### Minor Changes
@@ -4791,6 +4849,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.37.0
+
+#### Patch Changes
+
+- Updated dependencies [e6b1481]
+- Updated dependencies [e6b1481]
+  - @rulvar/core@1.37.0
+  - eslint-plugin-rulvar@1.37.0
+
 ### 1.36.0
 
 #### Minor Changes
@@ -5336,6 +5403,16 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.37.0
+
+#### Patch Changes
+
+- Updated dependencies [e6b1481]
+- Updated dependencies [e6b1481]
+  - @rulvar/core@1.37.0
+  - @rulvar/anthropic@1.37.0
+  - @rulvar/openai@1.37.0
 
 ### 1.36.0
 
@@ -6019,6 +6096,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.37.0
+
+#### Patch Changes
+
+- Updated dependencies [e6b1481]
+- Updated dependencies [e6b1481]
+  - @rulvar/core@1.37.0
+
 ### 1.36.0
 
 #### Patch Changes
@@ -6558,6 +6643,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.37.0
+
+#### Patch Changes
+
+- Updated dependencies [e6b1481]
+- Updated dependencies [e6b1481]
+  - @rulvar/core@1.37.0
+
 ### 1.36.0
 
 #### Minor Changes
@@ -7040,6 +7133,14 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.37.0
+
+#### Patch Changes
+
+- Updated dependencies [e6b1481]
+- Updated dependencies [e6b1481]
+  - @rulvar/core@1.37.0
 
 ### 1.36.0
 
