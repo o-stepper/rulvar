@@ -1,5 +1,14 @@
 # @rulvar/rulvar
 
+## 1.35.0
+
+### Patch Changes
+
+- Updated dependencies [d4ac3bf]
+  - @rulvar/core@1.35.0
+  - @rulvar/anthropic@1.35.0
+  - @rulvar/openai@1.35.0
+
 ## 1.34.0
 
 ### Patch Changes
