@@ -1,5 +1,0 @@
----
-'@rulvar/testing': minor
----
-
-The VCR occurrence numbering is now bounded and the appending seed scales (v1.33.0 review P3). An appending `record()` session seeds each hash counter in one pass instead of spreading the whole group into `Math.max`, which overflowed the call stack with an untyped RangeError once a group held enough rows (150000 in the review's reproducer). A group that already numbers `Number.MAX_SAFE_INTEGER` refuses the appending session at construction, and a session whose counter would pass the ceiling refuses that call, both with a typed `ConfigError` naming the cassette, adapter, and hash, before dispatching the provider and before touching the file. Previously the recorder paid the provider, appended an unsafe number that a later `readCassette` refuses, and the stalled float counter then duplicated that same unsafe number on every following append, so the library itself turned a valid cassette invalid. The cassette format stays v1 with no new fields, `hashVersion` is untouched, and existing valid cassettes replay unchanged.
