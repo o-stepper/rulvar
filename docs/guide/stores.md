@@ -172,7 +172,7 @@ const store = new SqliteStore({
 });
 ```
 
-The options are `path` (a database file, or `':memory:'`), `ttlMs` (lease ttl, default `DEFAULT_LEASE_TTL_MS`, 60000 ms), and an injectable `now` clock so lease expiry is testable without wall-clock sleeps. Call `close()` when you are done with the handle.
+The options are `path` (a database file, or `':memory:'`), `ttlMs` (lease ttl, default `DEFAULT_LEASE_TTL_MS`, 60000 ms), and an injectable `now` clock so lease expiry is testable without wall-clock sleeps. `ttlMs` must be an integer between 1 and 2147483647 ms, refused as a `ConfigError` before the database opens: zero or a negative would make every lease born expired (an immediate takeover by a second owner), NaN failed the first acquire with a raw sqlite error, and Infinity never expired. The configured value is exposed as the readonly `leaseTtlMs`, the optional `LeasableStore` capability `createWorker` verifies its own ttl against. Call `close()` when you are done with the handle.
 
 A queue worker acquires the lease, resumes with it, renews on a timer, and releases when the run settles:
 

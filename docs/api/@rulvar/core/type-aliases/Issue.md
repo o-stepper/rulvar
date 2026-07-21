@@ -17,7 +17,7 @@ type Issue = {
 };
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:314](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L314)
+Defined in: [packages/core/src/l0/errors.ts:333](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L333)
 
 The vendored Standard Schema issue shape: validation issues carried
 on AgentError and surfaced to the
@@ -31,7 +31,7 @@ model during bounded schema re-prompts.
 message: string;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:315](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L315)
+Defined in: [packages/core/src/l0/errors.ts:334](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L334)
 
 ***
 
@@ -45,4 +45,4 @@ optional path?: ReadonlyArray<
 }>;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:316](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L316)
+Defined in: [packages/core/src/l0/errors.ts:335](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L335)

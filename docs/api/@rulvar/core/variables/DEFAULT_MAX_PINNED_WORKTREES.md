@@ -10,6 +10,6 @@
 const DEFAULT_MAX_PINNED_WORKTREES: 4 = 4;
 ```
 
-Defined in: [packages/core/src/tools/isolation.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/isolation.ts#L29)
+Defined in: [packages/core/src/tools/isolation.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/isolation.ts#L30)
 
 Appendix A: the shared pin cap (park/unpark and retainWorktree).

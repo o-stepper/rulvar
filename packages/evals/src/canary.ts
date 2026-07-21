@@ -25,6 +25,8 @@ import {
 } from '@rulvar/core';
 import { defineWorkflow } from '@rulvar/core';
 
+import { requireCasAttempts } from './committer.js';
+
 import { SweepBudgetError, type SpendEnvelope } from './envelope.js';
 
 export interface CanaryProbeSet {
@@ -168,6 +170,10 @@ export async function flipStaleOnCanaryDrift(
   options?: { attempts?: number },
 ): Promise<CanaryDriftReport> {
   const attempts = options?.attempts ?? 3;
+  // A positive integer, refused before the first store read (v1.35.0
+  // review P2-5): the unvalidated loop skipped entirely on NaN or zero
+  // and surfaced the generic 'unreachable' Error.
+  requireCasAttempts(attempts, 'flipStaleOnCanaryDrift attempts');
   let lastCas: KnowledgeCasError | undefined;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const snapshot = await store.current();

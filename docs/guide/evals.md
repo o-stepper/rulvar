@@ -308,7 +308,7 @@ The contract, in full:
 - **Claims decay.** Eval strength claims expire after 90 days, eval weakness claims after 30 (a stale negative belief is costlier, through lock-in); expiry is re-applied on every knowledge pin and every resume re-pin, so a multi-day suspension never resumes under dead beliefs.
 - **Standing claims get falsified.** `rulvar kb sweep` (in `@rulvar/cli`, see [CLI](/guide/cli)) re-tests claims through the ordinary engine, journaled, recordable, and budgeted (immutable per-run ceilings plus the `maxTotalUsd` envelope from `kbSweep.budgets`), and always includes models with active negative claims, so a model that improved gets a chance to clear its name.
 
-`runSweepMatrix` with a `store` does the committing for you. For custom pipelines, the same two primitives are exported directly: `evalMeasuredClaim` builds one claim with the TTL applied per the decay table, and `commitEvalMeasured` commits a batch with the CAS-rebase recipe (on rejection, re-read and retry against the fresh version; default 3 attempts):
+`runSweepMatrix` with a `store` does the committing for you. For custom pipelines, the same two primitives are exported directly: `evalMeasuredClaim` builds one claim with the TTL applied per the decay table, and `commitEvalMeasured` commits a batch with the CAS rebase recipe (on rejection, read the fresh version again and retry; default 3 attempts). The `attempts` option here and on `flipStaleOnCanaryDrift` is a positive integer, refused as a `ConfigError` before the first store read: an unvalidated NaN or zero skipped the CAS loop entirely and surfaced a generic internal error instead of a typed refusal:
 
 ```ts
 import { commitEvalMeasured } from '@rulvar/evals';

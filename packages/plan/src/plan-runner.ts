@@ -24,6 +24,7 @@ import {
   DedupIndex,
   deriverV2,
   evaluateReuse,
+  FailRunError,
   foldTermination,
   kMaxOf,
   ladderLengthOf,
@@ -225,6 +226,47 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         : { approachSigCoarse: verdict.approachSigCoarse }),
     });
 
+  /**
+   * The engaged 'fail-run' fallback closes the run as a typed failure
+   * (v1.35.0 review P2-1: the verdict used to journal the fallback and
+   * then behave exactly like finish-with-partial). The journaled verdict
+   * is the decision; terminate() aborts the loop and the orchestrate
+   * settle boundary rethrows the failure, so a crash after the verdict
+   * rolls the SAME outcome forward from the journal on resume, with no
+   * second decision and no model call.
+   */
+  let failRunSignalled = false;
+  const enforceEngagedFailRun = (): void => {
+    if (failRunSignalled || guards.state.engaged !== 'fail-run') {
+      return;
+    }
+    failRunSignalled = true;
+    const verdictEntry = io
+      .snapshot()
+      .find(
+        (entry) =>
+          entry.scope === planScope &&
+          entry.kind === 'decision' &&
+          (entry.value as Partial<GuardVerdictValue> | undefined)?.decisionType ===
+            'guard-verdict' &&
+          (entry.value as { fallback?: string }).fallback === 'fail-run',
+      );
+    const guardName = (verdictEntry?.value as { guard?: string } | undefined)?.guard;
+    io.terminate?.(
+      new FailRunError(
+        `revision guards engaged (${guardName ?? 'guard'}) with fallback 'fail-run': the plan ` +
+          'is closed for adaptation and the run fails instead of finishing with the partial ' +
+          'result',
+        {
+          data: {
+            source: 'plan_guards',
+            ...(verdictEntry === undefined ? {} : { verdictRef: verdictEntry.seq }),
+          },
+        },
+      ),
+    );
+  };
+
   /** Guard verdict state is a pure fold of journaled verdicts (M7-T06). */
   const absorbGuardVerdicts = (): void => {
     for (const entry of io.snapshot()) {
@@ -238,6 +280,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
       }
       guardCursor = entry.seq;
     }
+    enforceEngagedFailRun();
   };
 
   /**
@@ -268,6 +311,7 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         });
       }
     }
+    enforceEngagedFailRun();
   };
 
   /** The coarse approach signature of a spec (mirrors admission's inputs). */
@@ -2094,6 +2138,17 @@ export function planRunner(options?: PlanRunnerOptions): OrchestratorExtension {
         absorbPlan();
         absorbGuardVerdicts();
         if (guards.revisionsRejected) {
+          if (guards.state.engaged === 'fail-run') {
+            // The declared fail-run fallback: the loop is already
+            // aborting through terminate(); this typed surface covers
+            // the racing revision still in flight, never a model hint.
+            enforceEngagedFailRun();
+            throw new FailRunError(
+              "revision guards engaged with fallback 'fail-run': the plan is closed and the " +
+                'run fails instead of finishing with the partial result',
+              { data: { source: 'plan_guards' } },
+            );
+          }
           // The engaged terminating fallback: further
           // revisions are rejected; finish with the partial result.
           throw new ConfigError(

@@ -248,11 +248,23 @@ interface CreateWorkerOptions {
   owner?: string;
   /**
   * The store's lease ttl; the worker renews at ttl/3 (the normative
-  * bound). Default: the Appendix A reference 60000 ms.
-  * MUST match the store's configured ttl.
+  * bound). An integer between 1 and 2147483647 ms, refused as a
+  * ConfigError at construction. MUST match the store's configured ttl:
+  * when the store exposes the optional `leaseTtlMs` capability
+  * (SqliteStore does), the match is VERIFIED at construction and a
+  * mismatch is a ConfigError; a store without the capability is
+  * trusted. Omitted, the worker ADOPTS the store's exposed ttl, falling
+  * back to the Appendix A reference 60000 ms.
   */
   ttlMs?: number;
-  /** Idle sweep cadence for start(); default 1000 ms. */
+  /**
+  * Idle sweep cadence for start(); default 1000 ms. An integer between
+  * 1 and 2147483647 ms, refused as a ConfigError at construction (an
+  * overflow or a value that is not finite would collapse to the 1 ms floor
+  * and storm the store; v1.35.0 review P2-4). Zero is not a manual
+  * mode: drive sweeps directly with worker.sweep() instead of
+  * start().
+  */
   pollMs?: number;
   /**
   * The OQ-21 interim channel: original in-process run arguments are not

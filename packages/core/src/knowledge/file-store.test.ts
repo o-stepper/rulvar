@@ -159,3 +159,25 @@ describe('FileModelKnowledgeStore (M10-T01; docs/05, section "Commit discipline"
     }>().not.toMatchTypeOf<ClaimOp>();
   });
 });
+
+describe('activeClaimsCap intake (v1.35.0 review P2-5)', () => {
+  it.each([[Number.NaN], [Number.POSITIVE_INFINITY], [-1], [0.5]])(
+    'refuses activeClaimsCap %s at construction',
+    (activeClaimsCap) => {
+      // The enforcement compares `count > cap`: NaN and Infinity
+      // silently disabled the cap, a negative refused only at commit.
+      const dir = mkdtempSync(join(tmpdir(), 'rulvar-kb-cap-'));
+      const path = join(dir, 'rulvar.models.json');
+      expect(() => new FileModelKnowledgeStore({ path, activeClaimsCap })).toThrow(ConfigError);
+      expect(() => new FileModelKnowledgeStore({ path, activeClaimsCap })).toThrow(
+        /activeClaimsCap must be a nonnegative integer/,
+      );
+    },
+  );
+
+  it('zero stays valid: a cap that admits no active claims', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-kb-cap-'));
+    const path = join(dir, 'rulvar.models.json');
+    expect(() => new FileModelKnowledgeStore({ path, activeClaimsCap: 0 })).not.toThrow();
+  });
+});

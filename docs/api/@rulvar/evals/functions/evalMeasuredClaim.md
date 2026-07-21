@@ -10,7 +10,7 @@
 function evalMeasuredClaim(input, committerId): ModelClaim;
 ```
 
-Defined in: [packages/evals/src/committer.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/committer.ts#L52)
+Defined in: [packages/evals/src/committer.ts:69](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/committer.ts#L69)
 
 One measured claim; claimExpiry applies the TTL from the decay table.
 

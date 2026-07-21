@@ -21,6 +21,7 @@
 import { DatabaseSync } from 'node:sqlite';
 
 import {
+  ConfigError,
   JournalOrderViolation,
   LeaseHeldError,
   metaMatchesFilter,
@@ -38,7 +39,14 @@ export const DEFAULT_LEASE_TTL_MS = 60_000;
 export interface SqliteStoreOptions {
   /** Database file path, or ':memory:' for an in-process store. */
   path: string;
-  /** Lease ttl; default the Appendix A interim reference (60000 ms). */
+  /**
+   * Lease ttl; default the Appendix A interim reference (60000 ms). An
+   * integer between 1 and 2147483647 ms (workers renew on Node timers at
+   * ttl/3), refused as a ConfigError BEFORE the database opens: zero or
+   * a negative made every lease born expired (a second owner could take
+   * over immediately), NaN failed the first acquire with a raw sqlite
+   * NOT NULL error, and Infinity never expired (v1.35.0 review P2-4).
+   */
   ttlMs?: number;
   /** Injectable clock for lease-expiry tests. */
   now?: () => number;
@@ -62,8 +70,17 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
   private readonly now: () => number;
 
   constructor(options: SqliteStoreOptions) {
+    const ttlMs = options.ttlMs ?? DEFAULT_LEASE_TTL_MS;
+    // Refused before the database opens: no file, no schema, no lease
+    // row ever exists under a malformed ttl (v1.35.0 review P2-4).
+    if (!Number.isInteger(ttlMs) || ttlMs < 1 || ttlMs > 2_147_483_647) {
+      throw new ConfigError(
+        'SqliteStoreOptions.ttlMs must be an integer between 1 and 2147483647 ms ' +
+          `(workers renew on Node timers at ttl/3); got ${String(ttlMs)}`,
+      );
+    }
     this.db = new DatabaseSync(options.path);
-    this.ttlMs = options.ttlMs ?? DEFAULT_LEASE_TTL_MS;
+    this.ttlMs = ttlMs;
     this.now = options.now ?? wallClock;
     // WAL keeps concurrent readers consistent with the single writer on
     // file-backed databases; a no-op for ':memory:'.
@@ -231,6 +248,15 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
       this.db.exec('ROLLBACK');
       throw thrown;
     }
+  }
+
+  /**
+   * TTL introspection (the LeasableStore optional capability): lets
+   * createWorker verify at construction that its renew cadence matches
+   * this store's expiry instead of trusting two config sources to agree.
+   */
+  get leaseTtlMs(): number {
+    return this.ttlMs;
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

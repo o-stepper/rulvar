@@ -20,6 +20,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 
 import { ConfigError } from '../l0/errors.js';
+import { requireNonNegativeInteger } from '../l0/validate-numbers.js';
 import type { Bytes } from '../l0/json.js';
 import type { IsolationProvider } from '../l0/spi/isolation.js';
 
@@ -36,7 +37,14 @@ export interface GitWorktreeProviderOptions {
    * requests keep on dispose. Default false.
    */
   keepOnError?: boolean;
-  /** Pin cap shared by park/unpark and retainWorktree (default 4). */
+  /**
+   * Pin cap shared by park/unpark and retainWorktree (default 4). A
+   * nonnegative integer (zero retains nothing), validated at
+   * construction: the retention compares `pinned.size < cap`, and every
+   * comparison with NaN is false, so an unvalidated NaN performed the
+   * acquire effects and then dropped every tree as "cap reached"
+   * (v1.35.0 review P2-5).
+   */
   maxPinnedWorktrees?: number;
   /** Warning sink (cap overflow); defaults to process.emitWarning. */
   onWarn?: (msg: string) => void;
@@ -63,6 +71,12 @@ export class GitWorktreeProvider implements IsolationProvider {
   constructor(options?: GitWorktreeProviderOptions) {
     this.repoRoot = options?.repoRoot ?? process.cwd();
     this.keepOnError = options?.keepOnError ?? false;
+    if (options?.maxPinnedWorktrees !== undefined) {
+      requireNonNegativeInteger(
+        options.maxPinnedWorktrees,
+        'GitWorktreeProvider maxPinnedWorktrees',
+      );
+    }
     this.maxPinned = options?.maxPinnedWorktrees ?? DEFAULT_MAX_PINNED_WORKTREES;
     this.onWarn =
       options?.onWarn ??

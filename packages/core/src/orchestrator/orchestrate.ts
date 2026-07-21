@@ -16,7 +16,14 @@
  * cap, maxDepth, and the budget layers apply; no termination.init is
  * written; escalated children simply settle into their digests.
  */
-import { AdmissionRejectedError, ConfigError } from '../l0/errors.js';
+import { AdmissionRejectedError, ConfigError, FailRunError } from '../l0/errors.js';
+import {
+  requireFraction,
+  requireNonNegativeInteger,
+  requireNonNegativeNumber,
+  requirePositiveInteger,
+} from '../l0/validate-numbers.js';
+import { truncateToBudget } from '../l0/truncate.js';
 import type { Json } from '../l0/json.js';
 import { createCanonicalIdMinter, type ModelSpec } from '../l0/messages.js';
 import { canonicalIsolationTag, type SpawnLineageOpt } from '../journal/lineage.js';
@@ -70,17 +77,43 @@ import type { EscalationDigest, WakeDigest, WakeTrigger } from './wake.js';
  */
 export interface OrchestratorBudgetSpec {
   /**
-   * Absolute bound in USD. It never REPLACES the fraction bound:
+   * Absolute bound in USD: a finite number >= 0, validated before any
+   * journal entry or dispatch (a malformed value is a ConfigError). It
+   * never REPLACES the fraction bound:
    * effectiveCap = min(capUsd, (capFraction ?? 0.2) * ceiling), so an
    * explicit capUsd larger than the default fraction of the run ceiling
    * is still cut to that fraction (and a warn log says so). Pass
    * capFraction: 1.0 to make capUsd the sole bound.
    */
   capUsd?: number;
-  /** default 0.2; effectiveCap = min of the given bounds */
+  /**
+   * A fraction in (0, 1], default 0.2; effectiveCap = min of the given
+   * bounds. Zero does not lift the cap (it would make every turn
+   * unpayable): anything outside (0, 1] is a ConfigError before any
+   * journal entry or dispatch.
+   */
   capFraction?: number;
+  /**
+   * A finite number >= 0, validated before any journal entry or
+   * dispatch. The reserve is SUBTRACTED from the soft boundary, so a
+   * negative value would widen the cap instead of reserving.
+   */
   finalizeReserveUsd?: number;
+  /**
+   * A positive integer, validated before any journal entry or dispatch:
+   * the turn limit of the reserved final wake.
+   */
   finalizeTurns?: number;
+  /**
+   * The policy at the cap, validated as exactly one of the two literals
+   * even at a plain JS/JSON boundary. 'finish-with-partial' (default)
+   * runs the reserved finalizer and returns its partial result with run
+   * outcome 'ok'. 'fail-run' skips the finalizer entirely: the run
+   * fails with outcome 'error' carrying FailRunError (code 'fail_run',
+   * data.source 'orchestrator_budget_cap', data.capDecisionRef); resume
+   * rolls the same failure forward from the journaled cap decision
+   * without another model call.
+   */
   atCap?: 'finish-with-partial' | 'fail-run';
 }
 
@@ -89,13 +122,19 @@ export interface OrchestrateOptions {
   model?: ModelSpec;
   /** Registered profile names to advertise; default: every profile. */
   profiles?: string[];
-  /** Per-orchestrate spawn cap; the engine lifetime cap applies regardless. */
+  /**
+   * Per-orchestrate spawn cap: a nonnegative integer (zero admits no
+   * spawns), validated before any journal entry or dispatch. The engine
+   * lifetime cap applies regardless.
+   */
   maxSpawns?: number;
   /** The orchestrator's own budget sub-account (cap enforcement layers only in M6). */
   budget?: OrchestratorBudgetSpec;
   /**
-   * Deterministic digest render bound: each
-   * TaskDigest outputSummary is clamped to this many CHARACTERS (the
+   * Deterministic digest render bound: a nonnegative integer, validated
+   * before any journal entry or dispatch. Each TaskDigest outputSummary
+   * is truncated to AT MOST this many CHARACTERS, the truncation marker
+   * included (a budget below 3 keeps the bound with a bare slice; the
    * model-independent measure; OQ-04 closed at M10 entry). Default
    * WAKE_SUMMARY_RENDER_BUDGET_CHARS.
    */
@@ -113,6 +152,55 @@ export interface OrchestrateOptions {
 }
 
 export const ORCHESTRATE_WORKFLOW_NAME = 'rulvar-orchestrate';
+
+/**
+ * The orchestrate intake gate (v1.35.0 review P2-2): every numeric
+ * option and the atCap literal validate SYNCHRONOUSLY at workflow
+ * construction, shared by both surfaces (the top level orchestrate() throws
+ * before a run exists; ctx.orchestrate throws before any journal entry,
+ * provider call, or child dispatch). A NaN here previously disabled the
+ * spawn cap (`spawnOrdinal >= NaN` is false forever) and the digest
+ * render bound, and a negative finalize reserve WIDENED the soft cap
+ * boundary instead of reserving from it.
+ */
+function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void {
+  if (opts === undefined) {
+    return;
+  }
+  if (opts.maxSpawns !== undefined) {
+    requireNonNegativeInteger(opts.maxSpawns, 'orchestrate maxSpawns');
+  }
+  if (opts.renderBudgetChars !== undefined) {
+    requireNonNegativeInteger(opts.renderBudgetChars, 'orchestrate renderBudgetChars');
+  }
+  const spec = opts.budget;
+  if (spec === undefined) {
+    return;
+  }
+  if (spec.capUsd !== undefined) {
+    requireNonNegativeNumber(spec.capUsd, 'orchestrate budget.capUsd');
+  }
+  if (spec.capFraction !== undefined) {
+    requireFraction(spec.capFraction, 'orchestrate budget.capFraction');
+  }
+  if (spec.finalizeReserveUsd !== undefined) {
+    requireNonNegativeNumber(spec.finalizeReserveUsd, 'orchestrate budget.finalizeReserveUsd');
+  }
+  if (spec.finalizeTurns !== undefined) {
+    requirePositiveInteger(spec.finalizeTurns, 'orchestrate budget.finalizeTurns');
+  }
+  if (
+    spec.atCap !== undefined &&
+    spec.atCap !== 'finish-with-partial' &&
+    spec.atCap !== 'fail-run'
+  ) {
+    // The runtime JS/JSON boundary: the type system cannot hold it.
+    throw new ConfigError(
+      "orchestrate budget.atCap must be 'finish-with-partial' or 'fail-run'; got " +
+        `${String(spec.atCap)}`,
+    );
+  }
+}
 
 function orchestratorPrompt(
   goal: string,
@@ -226,6 +314,7 @@ export function makeOrchestratorWorkflow(
   goal: string,
   opts?: OrchestrateOptions,
 ): Workflow<undefined, unknown> {
+  validateOrchestrateOptions(opts);
   return defineWorkflow({ name: ORCHESTRATE_WORKFLOW_NAME }, async (ctx): Promise<unknown> => {
     const runtime = runtimeOf(ctx);
     const { internals } = runtime;
@@ -288,13 +377,9 @@ export function makeOrchestratorWorkflow(
         callingState.budgetScope ?? ROOT_ACCOUNT,
       )?.ceilingUsd;
       const spec = opts?.budget;
+      // The (0, 1] bound already held at the intake gate
+      // (validateOrchestrateOptions); only the default remains here.
       const fraction = spec?.capFraction ?? 0.2;
-      if (fraction > 1) {
-        throw new OrchestratorCapConfigError(
-          `capFraction ${String(fraction)} exceeds 1.0 (opting out of the cap ` +
-            'is explicit only, up to 1.0 inclusive)',
-        );
-      }
       const fromFraction = runCeiling === undefined ? undefined : fraction * runCeiling;
       const bounds = [spec?.capUsd, fromFraction].filter(
         (bound): bound is number => bound !== undefined,
@@ -621,6 +706,16 @@ export function makeOrchestratorWorkflow(
       return record;
     };
 
+    /**
+     * The declared fail-run terminal (v1.35.0 review P2-1): the first
+     * extension terminate() call stores its failure and aborts the
+     * orchestrator loop; the settle boundary rethrows it deterministically
+     * (boot terminates again from the journaled verdict on resume, so the
+     * same failure rolls forward without a model call).
+     */
+    let extensionTermination: Error | undefined;
+    const forcedFinishController = new AbortController();
+
     // The public extension IO (M7-T05): every capability maps to a
     // contract requirement; see orchestrator/extension.ts.
     const io: OrchestratorExtensionIO = {
@@ -683,6 +778,13 @@ export function makeOrchestratorWorkflow(
           : internals.priceUsd(servedBy as `${string}:${string}`, usage),
       emit: (event, options) =>
         internals.events.emit(event, callingState.spanId, options?.replayed),
+      terminate: (error) => {
+        if (extensionTermination !== undefined) {
+          return;
+        }
+        extensionTermination = error;
+        forcedFinishController.abort('rulvar:extension-terminate');
+      },
     };
 
     const cancelByHandle = async (
@@ -848,7 +950,6 @@ export function makeOrchestratorWorkflow(
           (entry.value as { decisionType?: string } | undefined)?.decisionType ===
             'orchestrator_budget_cap',
       )?.seq;
-    const forcedFinishController = new AbortController();
     let capInFlight = false;
 
     /**
@@ -976,12 +1077,11 @@ export function makeOrchestratorWorkflow(
         completedDigests: undelivered.map((record) => {
           const row = digestOf(record, record.settled as AgentResult<unknown>);
           const budgetChars = opts?.renderBudgetChars ?? WAKE_SUMMARY_RENDER_BUDGET_CHARS;
-          if (row.outputSummary.length > budgetChars) {
-            // The deterministic character measure:
-            // identical live and on replay, no tokenizer dependence.
-            return { ...row, outputSummary: `${row.outputSummary.slice(0, budgetChars)}...` };
-          }
-          return row;
+          // The deterministic character measure: identical live and on
+          // replay, no tokenizer dependence; the budget bounds the WHOLE
+          // rendered row, marker included (v1.35.0 review P2-2).
+          const outputSummary = truncateToBudget(row.outputSummary, budgetChars);
+          return outputSummary === row.outputSummary ? row : { ...row, outputSummary };
         }),
         escalations,
       };
@@ -1679,11 +1779,48 @@ export function makeOrchestratorWorkflow(
       };
     };
 
+    /**
+     * The settle at the cap: the JOURNALED cap decision drives the policy
+     * branch (its `fallback` field froze budget.atCap when the cap
+     * tripped), so a crash between the decision and its effect rolls the
+     * SAME outcome forward on resume, immune to drift of the live options.
+     * 'finish-with-partial' runs the reserved finalizer;
+     * 'fail-run' skips it and fails the run typed (v1.35.0 review P2-1:
+     * the policy used to be journaled and then ignored).
+     */
+    const settleCapOutcome = async (): Promise<unknown> => {
+      const capEntry = internals.replayer.snapshot().find((entry) => entry.seq === capDecisionRef);
+      const capValue = capEntry?.value as
+        { fallback?: string; spentUsd?: number; capUsd?: number } | undefined;
+      if (capValue?.fallback === 'fail-run') {
+        throw new FailRunError(
+          `the orchestrator budget cap was reached (decision entry ` +
+            `${String(capDecisionRef ?? -1)}) and budget.atCap is 'fail-run': the reserved ` +
+            'finalizer is skipped and the run fails instead of returning a partial result',
+          {
+            data: {
+              source: 'orchestrator_budget_cap',
+              capDecisionRef: capDecisionRef ?? -1,
+              spentUsd: capValue.spentUsd ?? 0,
+              capUsd: capValue.capUsd ?? 0,
+            },
+          },
+        );
+      }
+      return await runForcedFinish();
+    };
+
+    const bootTermination = extensionTermination;
+    if (bootTermination !== undefined) {
+      // A terminate at boot (the journaled guards verdict folded again on
+      // resume): the failure rolls forward before any model call.
+      throw bootTermination;
+    }
     if (capDecisionRef !== undefined) {
       // Resume roll-forward (crash between the cap decision and its
       // effects): the frozen state re-derives from the entry; the main
       // loop is not re-entered.
-      return await runForcedFinish();
+      return await settleCapOutcome();
     }
     const result = await runtime.runInScope(orchestratorState, () =>
       (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
@@ -1691,10 +1828,15 @@ export function makeOrchestratorWorkflow(
         agentOpts,
       ),
     );
+    const liveTermination = extensionTermination;
+    if (liveTermination !== undefined) {
+      // The declared fail-run policy engaged during the run and aborted the loop.
+      throw liveTermination;
+    }
     if (capDecisionRef !== undefined) {
       // The cap fired while the loop was suspended in a wake; the
       // forced-finish abort ended it.
-      return await runForcedFinish();
+      return await settleCapOutcome();
     }
     if (orchestratorAccount !== undefined) {
       internals.cost.orchestrator.spentUsd =

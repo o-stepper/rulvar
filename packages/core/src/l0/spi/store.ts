@@ -142,4 +142,12 @@ export interface LeasableStore extends JournalStore {
   acquire(runId: string, owner: string): Promise<Lease>;
   renew(l: Lease): Promise<void>;
   release(l: Lease): Promise<void>;
+  /**
+   * Optional TTL introspection (v1.35.0 review P2-4): the configured
+   * lease ttl in milliseconds. A store exposing it lets createWorker
+   * VERIFY at construction that the worker's renew cadence matches the
+   * store's expiry instead of trusting two config sources to agree;
+   * stores without it are accepted with the worker's own ttl.
+   */
+  readonly leaseTtlMs?: number;
 }

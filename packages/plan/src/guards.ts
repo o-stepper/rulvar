@@ -55,7 +55,16 @@ function requireGuardFraction(value: number, site: string): void {
 
 /** RevisionGuards configuration. */
 export interface RevisionGuardsOptions {
-  /** Default 'finish-with-partial'; the chain is non-HITL and terminating. */
+  /**
+   * Default 'finish-with-partial'; the chain is non-HITL and
+   * terminating. 'reject-revision' and 'finish-with-partial' freeze the
+   * plan and steer the orchestrator to finish with the partial result
+   * (run outcome 'ok'). 'fail-run' closes the run as a FAILURE: after
+   * the journaled guard verdict the PlanRunner terminates the
+   * orchestration with FailRunError (code 'fail_run', data.source
+   * 'plan_guards', data.verdictRef), no further model turn is consulted,
+   * and resume rolls the same failure forward from the verdict entry.
+   */
   fallback?: 'reject-revision' | 'finish-with-partial' | 'fail-run';
   /** Default 3 consecutive fully-dropped revisions. */
   droppedRevisionLimit?: number;

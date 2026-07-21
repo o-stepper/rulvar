@@ -35,6 +35,26 @@ interface Waiter {
   resolve: (value: Json) => void;
 }
 
+/**
+ * The rejection carrier of an aborted flavor B decision wait (v1.35.0
+ * review P1): the parked `awaitDecision` observes the branch/run
+ * AbortSignal, releases its held activity, removes its waiter, and
+ * rejects with this class so cancel, host abort, the run deadline, and
+ * failed sibling aborts all settle the run in bounded time.
+ * Deliberately not a RulvarError: the abort is cancellation intent, not
+ * a registry failure class; the suspension entry stays OPEN, so a later
+ * resume parks the decision again and the durable deadline still applies.
+ */
+export class EscalationDecisionAbortedError extends Error {
+  readonly entryRef: number;
+
+  constructor(message: string, entryRef: number) {
+    super(message);
+    this.name = 'EscalationDecisionAbortedError';
+    this.entryRef = entryRef;
+  }
+}
+
 /** The resolution value shape of a tool-approval suspension (M3-T03). */
 export interface ApprovalDecision {
   decision: 'allow' | 'deny';
@@ -360,6 +380,13 @@ export class ExternalRegistry {
     toolName: string;
     input: Json;
     deadlineAt: string;
+    /**
+     * The branch/run signal: an abort while parked releases the held
+     * activity, removes the waiter, and rejects with
+     * EscalationDecisionAbortedError (v1.35.0 review P1). The suspension
+     * entry stays open for resume.
+     */
+    signal?: AbortSignal;
     onPending?: (entry: JournalEntry, replayed: boolean) => void;
   }): Promise<{ value: Json; entryRef: number }> {
     const identity = {
@@ -391,12 +418,55 @@ export class ExternalRegistry {
         deadlineAt: options.deadlineAt,
       });
     }
-    return new Promise<{ value: Json; entryRef: number }>((resolve) => {
+    return new Promise<{ value: Json; entryRef: number }>((resolve, reject) => {
+      const signal = options.signal;
+      const abortError = (): EscalationDecisionAbortedError => {
+        const reason = signal?.reason as unknown;
+        const detail =
+          reason instanceof Error
+            ? reason.message
+            : typeof reason === 'string'
+              ? reason
+              : 'aborted';
+        return new EscalationDecisionAbortedError(
+          `flavor B escalation decision wait aborted (entry ${String(entry.seq)}): ${detail}`,
+          entry.seq,
+        );
+      };
+      if (signal?.aborted === true) {
+        // Pre-aborted: never park. The suspension entry stays open, so
+        // a resume parks the decision again under its journaled deadline.
+        reject(abortError());
+        return;
+      }
       // A flavor B park HOLDS activity: the armed deadline timer makes
       // the run self-resolving, so it must not settle 'suspended' under
       // the decision (long-deadline wake semantics are the PlanRunner's,
       // M7). Approvals differ: they park with activity released.
       const exitActivity = this.enter();
+      let settled = false;
+      let detachAbort: (() => void) | undefined;
+      /** Exactly one terminal: activity exits once, the listener detaches once. */
+      const settle = (): boolean => {
+        if (settled) {
+          return false;
+        }
+        settled = true;
+        exitActivity();
+        detachAbort?.();
+        return true;
+      };
+      const onAbort = (): void => {
+        if (!settle()) {
+          return;
+        }
+        this.waiters.delete(entry.seq);
+        // A closed registry suppresses the wake exactly like a late
+        // resolution: the closed segment must never execute again.
+        if (!this.closedFlag) {
+          reject(abortError());
+        }
+      };
       const waiter: Waiter = {
         kind: 'decision',
         key: ExternalRegistry.approvalKey(entry.seq),
@@ -404,11 +474,19 @@ export class ExternalRegistry {
         entryRef: entry.seq,
         prompt: `decide escalation of '${options.toolName}'`,
         resolve: (value) => {
-          exitActivity();
+          if (!settle()) {
+            return;
+          }
           resolve({ value, entryRef: entry.seq });
         },
       };
       this.waiters.set(entry.seq, waiter);
+      if (signal !== undefined) {
+        signal.addEventListener('abort', onAbort, { once: true });
+        detachAbort = (): void => {
+          signal.removeEventListener('abort', onAbort);
+        };
+      }
       options.onPending?.(entry, replayed);
     });
   }

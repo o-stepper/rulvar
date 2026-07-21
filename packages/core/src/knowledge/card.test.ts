@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { ConfigError } from '../l0/errors.js';
 import type { ModelClaim } from '../l0/spi/knowledge.js';
 import type { AgentProfile } from '../engine/ctx.js';
 import {
@@ -217,5 +218,29 @@ describe('the knowledge card (M10-T03; docs/05, sections 4.1 and 4.3)', () => {
     const text = modelKnowledgeCard(many, [LADDER]);
     expect(text.length).toBeLessThanOrEqual(KB_CARD_RENDER_BUDGET_CHARS);
     expect(text).toMatch(/\(\d+ older notes withheld by the render budget\)/);
+  });
+});
+
+describe('budgetChars intake and the hard bound (v1.35.0 review P2-5)', () => {
+  it.each([[Number.NaN], [-1], [32.5], [Number.POSITIVE_INFINITY]])(
+    'refuses budgetChars %s typed',
+    (budgetChars) => {
+      expect(() => modelKnowledgeCard([], [], { budgetChars })).toThrow(ConfigError);
+      expect(() => modelKnowledgeCard([], [], { budgetChars })).toThrow(
+        /budgetChars must be a nonnegative integer/,
+      );
+    },
+  );
+
+  it('the budget is a hard upper bound even below the mandatory sections', () => {
+    // The old render only withheld editorial notes: a budget of 32
+    // returned the full 136-char header form.
+    const bounded = modelKnowledgeCard([], [], { budgetChars: 32 });
+    expect(bounded.length).toBeLessThanOrEqual(32);
+    expect(bounded.endsWith('...')).toBe(true);
+    expect(modelKnowledgeCard([], [], { budgetChars: 0 })).toBe('');
+    // A generous budget keeps the untruncated render byte identical.
+    const full = modelKnowledgeCard([], []);
+    expect(modelKnowledgeCard([], [], { budgetChars: 4096 })).toBe(full);
   });
 });

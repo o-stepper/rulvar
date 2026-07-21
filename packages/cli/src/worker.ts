@@ -66,11 +66,23 @@ export interface CreateWorkerOptions {
   owner?: string;
   /**
    * The store's lease ttl; the worker renews at ttl/3 (the normative
-   * bound). Default: the Appendix A reference 60000 ms.
-   * MUST match the store's configured ttl.
+   * bound). An integer between 1 and 2147483647 ms, refused as a
+   * ConfigError at construction. MUST match the store's configured ttl:
+   * when the store exposes the optional `leaseTtlMs` capability
+   * (SqliteStore does), the match is VERIFIED at construction and a
+   * mismatch is a ConfigError; a store without the capability is
+   * trusted. Omitted, the worker ADOPTS the store's exposed ttl, falling
+   * back to the Appendix A reference 60000 ms.
    */
   ttlMs?: number;
-  /** Idle sweep cadence for start(); default 1000 ms. */
+  /**
+   * Idle sweep cadence for start(); default 1000 ms. An integer between
+   * 1 and 2147483647 ms, refused as a ConfigError at construction (an
+   * overflow or a value that is not finite would collapse to the 1 ms floor
+   * and storm the store; v1.35.0 review P2-4). Zero is not a manual
+   * mode: drive sweeps directly with worker.sweep() instead of
+   * start().
+   */
   pollMs?: number;
   /**
    * The OQ-21 interim channel: original in-process run arguments are not
@@ -145,9 +157,40 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
     );
   }
   const owner = options.owner ?? workerIdentity();
-  const ttlMs = options.ttlMs ?? DEFAULT_WORKER_TTL_MS;
+  // Both cadences land in setInterval as-is, so both are refused outside
+  // the Node timer range (v1.35.0 review P2-4): an overflow, NaN, zero,
+  // a negative, or a fraction would collapse to the 1 ms floor and storm
+  // the store with renew/poll writes.
+  const requireTimerMs = (value: number, site: string): void => {
+    if (!Number.isInteger(value) || value < 1 || value > 2_147_483_647) {
+      throw new ConfigError(
+        `${site} must be an integer between 1 and 2147483647 ms; got ${String(value)}`,
+      );
+    }
+  };
+  const storeTtlMs = (store as Partial<LeasableStore>).leaseTtlMs;
+  if (storeTtlMs !== undefined && !Number.isInteger(storeTtlMs)) {
+    throw new ConfigError(
+      `the store's leaseTtlMs capability must report an integer; got ${String(storeTtlMs)}`,
+    );
+  }
+  // Omitted ttl ADOPTS the store's exposed one, so a single config
+  // source drives both sides of the lease protocol by default.
+  const ttlMs = options.ttlMs ?? storeTtlMs ?? DEFAULT_WORKER_TTL_MS;
+  requireTimerMs(ttlMs, 'createWorker ttlMs');
+  if (storeTtlMs !== undefined && ttlMs !== storeTtlMs) {
+    // The TSDoc "MUST match" is executable now (v1.35.0 review P2-4): a
+    // worker renewing on a cadence derived from the WRONG ttl either
+    // hammers the store or lets the lease expire while the run is live.
+    throw new ConfigError(
+      `createWorker ttlMs ${String(ttlMs)} does not match the store's configured lease ttl ` +
+        `${String(storeTtlMs)} (the store exposes leaseTtlMs; omit createWorker ttlMs to ` +
+        'adopt it)',
+    );
+  }
   const renewMs = Math.max(1, Math.floor(ttlMs / 3));
   const pollMs = options.pollMs ?? 1000;
+  requireTimerMs(pollMs, 'createWorker pollMs');
   const registry = buildDeriverRegistry(options.extraDerivers);
 
   interface ActiveRun {

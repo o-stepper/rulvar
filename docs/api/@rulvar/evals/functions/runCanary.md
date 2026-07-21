@@ -13,7 +13,7 @@ function runCanary(
 options?): Promise<CanaryReport>;
 ```
 
-Defined in: [packages/evals/src/canary.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/canary.ts#L87)
+Defined in: [packages/evals/src/canary.ts:89](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/canary.ts#L89)
 
 Runs the fixed probe set through the ordinary engine. Probes run
 sequentially in declaration order, one run per probe, so recordings

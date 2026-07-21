@@ -38,6 +38,7 @@ export type ErrorCode =
   | 'orchestrator_cap_config'
   | 'journal_miss'
   | 'budget_exhausted'
+  | 'fail_run'
   | 'admission_rejected'
   | 'sandbox_limit'
   | 'lease_held'
@@ -243,6 +244,24 @@ export class JournalMissError extends RulvarError {
  */
 export class BudgetExhaustedError extends RulvarError {
   readonly code = 'budget_exhausted' as const;
+
+  constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
+    super(message, { retryable: false, ...opts });
+  }
+}
+
+/**
+ * A declared fail-run policy engaged and closed the run as a failure
+ * (v1.35.0 review P2-1): `budget.atCap: 'fail-run'` after the journaled
+ * orchestrator cap decision, or `guards.fallback: 'fail-run'` after the
+ * journaled guard verdict. The run outcome is 'error' with this code;
+ * `data.source` names the policy ('orchestrator_budget_cap' or
+ * 'plan_guards') and `data` carries the decision entry reference, so the
+ * outcome is a pure roll forward of the journal on resume: no second
+ * decision, no model call, no spend.
+ */
+export class FailRunError extends RulvarError {
+  readonly code = 'fail_run' as const;
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
     super(message, { retryable: false, ...opts });

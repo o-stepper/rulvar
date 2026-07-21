@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { ChatEvent, ChatRequest, Engine, ModelCaps, ProviderAdapter } from '@rulvar/core';
-import { createEngine, JsonlFileStore, ScriptRejected } from '@rulvar/core';
+import { ConfigError, createEngine, JsonlFileStore, ScriptRejected } from '@rulvar/core';
 import { FAKE_MODEL_REF, FakeAdapter, type FakeResponder } from '@rulvar/testing';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
@@ -183,6 +183,29 @@ describe('plan (M6-T05)', () => {
     const value = outcome.value as { startedAt: number; result: string };
     expect(value.result).toBe('worked');
     expect(typeof value.startedAt).toBe('number');
+  });
+});
+
+describe('repairRounds intake (v1.35.0 review P2-3)', () => {
+  it.each([
+    [Number.NaN, /repairRounds must be a nonnegative integer; got NaN/],
+    [-1, /repairRounds must be a nonnegative integer; got -1/],
+    [1.5, /repairRounds must be a nonnegative integer; got 1\.5/],
+    [Number.POSITIVE_INFINITY, /repairRounds must be a nonnegative integer; got Infinity/],
+  ])('refuses %s before any provider call', async (repairRounds, message) => {
+    const { engine, adapter } = makeEngine({ planner: () => BAD_SCRIPT });
+    // The unvalidated loop turned NaN into zero drafts with an
+    // 'after NaN drafts' rejection, a fraction into an extra draft, and
+    // Infinity into an unbounded paid loop (v1.35.0 review P2-3).
+    await expect(plan(engine, 'malformed rounds', { repairRounds })).rejects.toThrow(ConfigError);
+    await expect(plan(engine, 'malformed rounds', { repairRounds })).rejects.toThrow(message);
+    expect(adapter.calls).toHaveLength(0);
+  });
+
+  it('zero stays valid: exactly one draft, then the typed rejection', async () => {
+    const { engine, adapter } = makeEngine({ planner: () => BAD_SCRIPT });
+    await expect(plan(engine, 'single draft', { repairRounds: 0 })).rejects.toThrow(ScriptRejected);
+    expect(adapter.calls.filter((c) => c.prompt.includes('GOAL:'))).toHaveLength(1);
   });
 });
 

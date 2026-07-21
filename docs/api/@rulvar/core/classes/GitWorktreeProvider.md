@@ -6,7 +6,7 @@
 
 # Class: GitWorktreeProvider
 
-Defined in: [packages/core/src/tools/isolation.ts:56](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/isolation.ts#L56)
+Defined in: [packages/core/src/tools/isolation.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/isolation.ts#L64)
 
 The shipped git worktree lifecycle. A non-git host is a typed
 ConfigError at acquire.
@@ -23,7 +23,7 @@ ConfigError at acquire.
 new GitWorktreeProvider(options?): GitWorktreeProvider;
 ```
 
-Defined in: [packages/core/src/tools/isolation.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/isolation.ts#L63)
+Defined in: [packages/core/src/tools/isolation.ts:71](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/isolation.ts#L71)
 
 #### Parameters
 
@@ -45,7 +45,7 @@ Defined in: [packages/core/src/tools/isolation.ts:63](https://github.com/o-stepp
 get pinnedWorktrees(): ReadonlySet<string>;
 ```
 
-Defined in: [packages/core/src/tools/isolation.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/isolation.ts#L73)
+Defined in: [packages/core/src/tools/isolation.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/isolation.ts#L87)
 
 Trees currently retained under the pin cap.
 
@@ -68,7 +68,7 @@ acquire(spawn): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/src/tools/isolation.ts:77](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/isolation.ts#L77)
+Defined in: [packages/core/src/tools/isolation.ts:91](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/isolation.ts#L91)
 
 #### Parameters
 

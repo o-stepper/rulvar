@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { LeaseHeldError, type JournalEntry } from '@rulvar/core';
+import { ConfigError, LeaseHeldError, type JournalEntry } from '@rulvar/core';
 import {
   journalStoreConformance,
   leasableStoreConformance,
@@ -49,6 +49,29 @@ function entry(seq: number): JournalEntry {
     startedAt: new Date(1_700_000_000_000 + seq).toISOString(),
   };
 }
+
+describe('lease ttl intake (v1.35.0 review P2-4)', () => {
+  it.each([[0], [-1], [Number.NaN], [Number.POSITIVE_INFINITY], [1.5], [2_147_483_648]])(
+    'refuses ttlMs %s before the database opens',
+    (ttlMs) => {
+      // Zero and negatives made every lease born expired (an immediate
+      // takeover by a second owner), NaN failed the first acquire with a raw
+      // sqlite NOT NULL error, Infinity never expired.
+      expect(() => new SqliteStore({ path: ':memory:', ttlMs })).toThrow(ConfigError);
+      expect(() => new SqliteStore({ path: ':memory:', ttlMs })).toThrow(
+        /ttlMs must be an integer between 1 and 2147483647 ms/,
+      );
+    },
+  );
+
+  it('a valid ttl still leases, still fences, and exposes leaseTtlMs', async () => {
+    const store = new SqliteStore({ path: ':memory:', ttlMs: 1000 });
+    expect(store.leaseTtlMs).toBe(1000);
+    const lease = await store.acquire('run-ttl', 'owner-a');
+    expect(lease.epoch).toBe(1);
+    await expect(store.acquire('run-ttl', 'owner-b')).rejects.toThrow(LeaseHeldError);
+  });
+});
 
 describe('SqliteStore cross-instance concurrency (one database file)', () => {
   it('fences a stale writer from another store instance', async () => {

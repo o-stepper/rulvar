@@ -16,6 +16,12 @@ append carrying a stale epoch MUST be rejected and never appear in load.
 
 - [`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md)
 
+## Properties
+
+| Property | Modifier | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ | ------ |
+| <a id="property-leasettlms"></a> `leaseTtlMs?` | `readonly` | `number` | Optional TTL introspection (v1.35.0 review P2-4): the configured lease ttl in milliseconds. A store exposing it lets createWorker VERIFY at construction that the worker's renew cadence matches the store's expiry instead of trusting two config sources to agree; stores without it are accepted with the worker's own ttl. | [packages/core/src/l0/spi/store.ts:152](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L152) |
+
 ## Methods
 
 ### acquire()

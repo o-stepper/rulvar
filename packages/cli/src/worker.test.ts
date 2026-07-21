@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  ConfigError,
   createEngine,
   defineWorkflow,
   InMemoryStore,
@@ -124,6 +125,62 @@ describe('createWorker (M8-T02)', () => {
     const storeB = new SqliteStore({ path, now: wallClock });
     const engine = makeEngine(storeA, {});
     expect(() => createWorker(engine, { store: storeB })).toThrowError(/SAME journal store/);
+  });
+
+  it.each([
+    ['ttlMs', { ttlMs: Number.NaN }],
+    ['ttlMs', { ttlMs: 0 }],
+    ['ttlMs', { ttlMs: -1 }],
+    ['ttlMs', { ttlMs: 1.5 }],
+    ['ttlMs', { ttlMs: Number.POSITIVE_INFINITY }],
+    ['pollMs', { pollMs: Number.NaN }],
+    ['pollMs', { pollMs: 0 }],
+    ['pollMs', { pollMs: -5 }],
+    ['pollMs', { pollMs: 2_147_483_648 }],
+    ['pollMs', { pollMs: Number.POSITIVE_INFINITY }],
+  ])(
+    'a malformed %s is a typed ConfigError at construction (v1.35.0 review P2-4)',
+    (field, overrides) => {
+      // Overflow, non finite, zero, negative, and fractional cadences
+      // all collapse to Node's 1 ms interval floor: a renew/poll storm
+      // against the store instead of a loud refusal.
+      const store = new SqliteStore({ path: dbPath(), now: wallClock });
+      const engine = makeEngine(store, {});
+      expect(() => createWorker(engine, { store, ...overrides })).toThrowError(ConfigError);
+      expect(() => createWorker(engine, { store, ...overrides })).toThrowError(
+        new RegExp(`${field} must be an integer between 1 and 2147483647 ms`),
+      );
+    },
+  );
+
+  it('the TTL match promise is executable: a mismatch against leaseTtlMs refuses loudly', () => {
+    const store = new SqliteStore({ path: dbPath(), ttlMs: 45_000, now: wallClock });
+    const engine = makeEngine(store, {});
+    expect(() => createWorker(engine, { store, ttlMs: 60_000 })).toThrowError(
+      /does not match the store's configured lease ttl 45000/,
+    );
+    // Omitted, the worker ADOPTS the store's exposed ttl.
+    expect(() => createWorker(engine, { store })).not.toThrow();
+    // The exact match stays accepted.
+    expect(() => createWorker(engine, { store, ttlMs: 45_000 })).not.toThrow();
+  });
+
+  it('a leasable store without the leaseTtlMs capability is trusted with the worker ttl', () => {
+    const store = new InMemoryStore() as InMemoryStore & {
+      acquire?: unknown;
+      renew?: unknown;
+      release?: unknown;
+    };
+    store.acquire = () => Promise.resolve({ runId: 'r', owner: 'o', epoch: 1 });
+    store.renew = () => Promise.resolve(undefined);
+    store.release = () => Promise.resolve(undefined);
+    const engine = createEngine({
+      adapters: [new FakeAdapter({ agents: { '*': 'x' } })],
+      stores: { journal: store },
+    });
+    expect(() =>
+      createWorker(engine, { store: store as unknown as SqliteStore, ttlMs: 30_000 }),
+    ).not.toThrow();
   });
 
   it('queue round-trip: a suspended run resumes through the registry after an offline resolution', async () => {

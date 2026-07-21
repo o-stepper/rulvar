@@ -8,6 +8,8 @@
  * explicitly marked unverified and are never compiled into a tier.
  */
 import type { Effort, LadderSpec, ModelRef } from '../l0/messages.js';
+import { truncateToBudget } from '../l0/truncate.js';
+import { requireNonNegativeInteger } from '../l0/validate-numbers.js';
 import type { ModelClaim, TaskClass } from '../l0/spi/knowledge.js';
 import type { AgentProfile } from '../engine/ctx.js';
 import type { QualityFloors } from '../model/floors.js';
@@ -174,14 +176,21 @@ export function compileVerifiedLayer(
 /**
  * The deterministic card render. Pure: same filtered
  * claims and ladders give byte-identical text. The render budget is
- * 4096 chars; over it, the OLDEST-observed notes
- * withhold first behind an explicit marker.
+ * 4096 chars by default; over it, the OLDEST-observed notes withhold
+ * first behind an explicit marker, and the budget is a HARD upper bound
+ * of the returned string: a card whose mandatory sections alone exceed
+ * it is truncated with the shared marker (v1.35.0 review P2-5: a budget
+ * of 32 used to return the full 136-char header form). budgetChars is a
+ * nonnegative integer, validated as a ConfigError.
  */
 export function modelKnowledgeCard(
   claims: readonly ModelClaim[],
   ladders: readonly DeclaredLadder[],
   options?: { budgetChars?: number; profiles?: Record<string, AgentProfile> },
 ): string {
+  if (options?.budgetChars !== undefined) {
+    requireNonNegativeInteger(options.budgetChars, 'modelKnowledgeCard budgetChars');
+  }
   const budget = options?.budgetChars ?? KB_CARD_RENDER_BUDGET_CHARS;
   const lines: string[] = [
     'Model knowledge card (tier-relative; advisory within declared ladders and hard floors).',
@@ -292,5 +301,8 @@ export function modelKnowledgeCard(
     shown -= 1;
     text = render(shown);
   }
-  return text;
+  // The budget is a hard bound of the WHOLE card: when the mandatory
+  // sections alone exceed it, the deterministic marker truncation keeps
+  // the contract instead of overflowing (v1.35.0 review P2-5).
+  return truncateToBudget(text, budget);
 }

@@ -80,6 +80,14 @@ That last rule is the entire point. During a leased resume the engine carries th
 
 The store below is the smallest correct `LeasableStore`: in-memory maps, a JSON round-trip for payload isolation, per-run epoch counters that survive release, and an injectable clock. It passes the full conformance kit, and Rulvar's own test suite exercises the same store (the listing differs only in comments and formatting), so it cannot rot unnoticed.
 
+`LeasableStore` also declares an OPTIONAL readonly `leaseTtlMs` capability: a
+store exposing its configured ttl lets `createWorker` verify at construction
+that the worker's renew cadence matches the store's expiry (and lets an
+omitted worker `ttlMs` adopt the store's value). Stores without the member
+are still conformant; the worker then trusts its own configured ttl. If your
+store takes a ttl option, validate it as a positive integer within the Node
+timer range and expose it here.
+
 ```ts
 import {
   JournalOrderViolation,

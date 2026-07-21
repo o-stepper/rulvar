@@ -471,12 +471,20 @@
             "link": "/api/@rulvar/core/classes/DedupIndex.md"
           },
           {
+            "text": "EscalationDecisionAbortedError",
+            "link": "/api/@rulvar/core/classes/EscalationDecisionAbortedError.md"
+          },
+          {
             "text": "EventBus",
             "link": "/api/@rulvar/core/classes/EventBus.md"
           },
           {
             "text": "ExternalRegistry",
             "link": "/api/@rulvar/core/classes/ExternalRegistry.md"
+          },
+          {
+            "text": "FailRunError",
+            "link": "/api/@rulvar/core/classes/FailRunError.md"
           },
           {
             "text": "FileModelKnowledgeStore",
@@ -4040,12 +4048,20 @@
             "link": "/api/@rulvar/rulvar/classes/DedupIndex.md"
           },
           {
+            "text": "EscalationDecisionAbortedError",
+            "link": "/api/@rulvar/rulvar/classes/EscalationDecisionAbortedError.md"
+          },
+          {
             "text": "EventBus",
             "link": "/api/@rulvar/rulvar/classes/EventBus.md"
           },
           {
             "text": "ExternalRegistry",
             "link": "/api/@rulvar/rulvar/classes/ExternalRegistry.md"
+          },
+          {
+            "text": "FailRunError",
+            "link": "/api/@rulvar/rulvar/classes/FailRunError.md"
           },
           {
             "text": "FileModelKnowledgeStore",

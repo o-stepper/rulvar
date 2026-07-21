@@ -6,7 +6,7 @@
 
 # Interface: SpanMinter
 
-Defined in: [packages/core/src/engine/ctx.ts:587](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L587)
+Defined in: [packages/core/src/engine/ctx.ts:589](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L589)
 
 Mints span ids in the run > phase > agent > tool > child hierarchy.
 
@@ -18,7 +18,7 @@ Mints span ids in the run > phase > agent > tool > child hierarchy.
 mint(parentSpanId?): string;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:588](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L588)
+Defined in: [packages/core/src/engine/ctx.ts:590](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L590)
 
 #### Parameters
 
