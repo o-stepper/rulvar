@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.34.0
+
+#### Patch Changes
+
+- Updated dependencies [f1505ec]
+  - @rulvar/core@1.34.0
+
 ### 1.33.0
 
 #### Patch Changes
@@ -595,6 +602,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.34.0
+
+#### Patch Changes
+
+- Updated dependencies [f1505ec]
+  - @rulvar/core@1.34.0
+
 ### 1.33.0
 
 #### Patch Changes
@@ -1037,6 +1051,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.34.0
+
+#### Patch Changes
+
+- Updated dependencies [f1505ec]
+  - @rulvar/core@1.34.0
 
 ### 1.33.0
 
@@ -1663,6 +1684,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.34.0
+
+#### Minor Changes
+
+- f1505ec: `mcp()` now returns a `McpToolSource`: the frozen `ToolSource` seam plus an idempotent `close()` that releases everything the source created on first use, the SDK client, its transport, and, for stdio, the spawned child process. Without it a one shot host that ran a workflow over a stdio MCP server could never exit naturally, because the child and its pipes kept the event loop alive (v1.33.0 review P2). `close()` resolves even when the connection never succeeded, and it resets the source, so a later `tools()` call connects afresh; a failed connect now also releases its transport and child on the way out instead of leaking them behind the error it rethrows. The engine still never closes a source, because one source may serve many runs: the host owns the lifecycle, and the MCP guide documents the `try/finally` pattern for one shot scripts. Real stdio and streamable http integration tests now cover both external transports, including child process release, reconnect after close, and cleanup after a failed connect.
 
 ### 1.33.0
 
@@ -2768,6 +2795,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.34.0
+
 ### 1.33.0
 
 ### 1.32.0
@@ -2904,6 +2933,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.34.0
+
+#### Patch Changes
+
+- Updated dependencies [f1505ec]
+- Updated dependencies [f1505ec]
+  - @rulvar/core@1.34.0
+  - @rulvar/testing@1.34.0
 
 ### 1.33.0
 
@@ -3470,6 +3508,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.34.0
+
+#### Patch Changes
+
+- Updated dependencies [f1505ec]
+  - @rulvar/core@1.34.0
 
 ### 1.33.0
 
@@ -4065,6 +4110,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.34.0
+
+#### Patch Changes
+
+- Updated dependencies [f1505ec]
+  - @rulvar/core@1.34.0
+
 ### 1.33.0
 
 #### Patch Changes
@@ -4621,6 +4673,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.34.0
+
+#### Patch Changes
+
+- Updated dependencies [f1505ec]
+  - @rulvar/core@1.34.0
+  - eslint-plugin-rulvar@1.34.0
+
 ### 1.33.0
 
 #### Patch Changes
@@ -5134,6 +5194,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.34.0
+
+#### Patch Changes
+
+- Updated dependencies [f1505ec]
+  - @rulvar/core@1.34.0
+  - @rulvar/anthropic@1.34.0
+  - @rulvar/openai@1.34.0
 
 ### 1.33.0
 
@@ -5790,6 +5859,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.34.0
+
+#### Patch Changes
+
+- Updated dependencies [f1505ec]
+  - @rulvar/core@1.34.0
+
 ### 1.33.0
 
 #### Patch Changes
@@ -6308,6 +6384,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.34.0
+
+#### Patch Changes
+
+- Updated dependencies [f1505ec]
+  - @rulvar/core@1.34.0
+
 ### 1.33.0
 
 #### Patch Changes
@@ -6765,6 +6848,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.34.0
+
+#### Minor Changes
+
+- f1505ec: The VCR occurrence numbering is now bounded and the appending seed scales (v1.33.0 review P3). An appending `record()` session seeds each hash counter in one pass instead of spreading the whole group into `Math.max`, which overflowed the call stack with an untyped RangeError once a group held enough rows (150000 in the review's reproducer). A group that already numbers `Number.MAX_SAFE_INTEGER` refuses the appending session at construction, and a session whose counter would pass the ceiling refuses that call, both with a typed `ConfigError` naming the cassette, adapter, and hash, before dispatching the provider and before touching the file. Previously the recorder paid the provider, appended an unsafe number that a later `readCassette` refuses, and the stalled float counter then duplicated that same unsafe number on every following append, so the library itself turned a valid cassette invalid. The cassette format stays v1 with no new fields, `hashVersion` is untouched, and existing valid cassettes replay unchanged.
+
+#### Patch Changes
+
+- Updated dependencies [f1505ec]
+  - @rulvar/core@1.34.0
 
 ### 1.33.0
 

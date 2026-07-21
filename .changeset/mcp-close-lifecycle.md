@@ -1,5 +1,0 @@
----
-'@rulvar/core': minor
----
-
-`mcp()` now returns a `McpToolSource`: the frozen `ToolSource` seam plus an idempotent `close()` that releases everything the source created on first use, the SDK client, its transport, and, for stdio, the spawned child process. Without it a one shot host that ran a workflow over a stdio MCP server could never exit naturally, because the child and its pipes kept the event loop alive (v1.33.0 review P2). `close()` resolves even when the connection never succeeded, and it resets the source, so a later `tools()` call connects afresh; a failed connect now also releases its transport and child on the way out instead of leaking them behind the error it rethrows. The engine still never closes a source, because one source may serve many runs: the host owns the lifecycle, and the MCP guide documents the `try/finally` pattern for one shot scripts. Real stdio and streamable http integration tests now cover both external transports, including child process release, reconnect after close, and cleanup after a failed connect.
