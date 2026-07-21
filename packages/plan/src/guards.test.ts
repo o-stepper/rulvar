@@ -1,11 +1,56 @@
 import { describe, expect, it } from 'vitest';
-import { createEngine, InMemoryStore } from '@rulvar/core';
+import { ConfigError, createEngine, InMemoryStore } from '@rulvar/core';
 
 import { planHash } from './plan-hash.js';
 import { emptyPlan } from './plan-state.js';
 import { orchestratePlanned } from './plan-runner.js';
 import { RevisionGuards, type GuardVerdictValue } from './guards.js';
 import { agentTypeOf, lastToolError, scriptedAdapter, type ScriptedTurn } from './test-harness.js';
+
+describe('RevisionGuards constructor validation (v1.34.0 review P2-3)', () => {
+  it.each([Number.NaN, 0, -1, 1.5])('refuses droppedRevisionLimit %s', (limit) => {
+    // Unvalidated, a NaN limit made `streak < limit` permanently false
+    // and the dropped guard tripped on the FIRST landed revision.
+    expect(() => new RevisionGuards({ droppedRevisionLimit: limit })).toThrow(ConfigError);
+    expect(() => new RevisionGuards({ droppedRevisionLimit: limit })).toThrow(
+      /droppedRevisionLimit must be a positive integer/,
+    );
+  });
+
+  it.each([Number.NaN, 0, 1.5])('refuses maxOscillationsPerKey %s', (limit) => {
+    expect(() => new RevisionGuards({ maxOscillationsPerKey: limit })).toThrow(
+      /maxOscillationsPerKey must be a positive integer/,
+    );
+  });
+
+  it.each([Number.NaN, -1, 1.5])('refuses stallReplanCap %s', (cap) => {
+    // Unvalidated, a NaN cap made `stallReplans !== cap + 1` permanently
+    // true and the stall guard never fired at all.
+    expect(() => new RevisionGuards({ stallReplanCap: cap })).toThrow(
+      /stallReplanCap must be a nonnegative integer/,
+    );
+  });
+
+  it.each([Number.NaN, 0, 1.2])('refuses maxAbandonedNetUsdFraction %s', (fraction) => {
+    expect(() => new RevisionGuards({ maxAbandonedNetUsdFraction: fraction })).toThrow(
+      /maxAbandonedNetUsdFraction must be a fraction in \(0, 1\]/,
+    );
+  });
+
+  it('accepts the documented boundaries (stallReplanCap 0 means no stall replans)', () => {
+    expect(
+      () =>
+        new RevisionGuards({
+          droppedRevisionLimit: 1,
+          maxOscillationsPerKey: 1,
+          stallReplanCap: 0,
+          maxAbandonedNetUsdFraction: 1,
+        }),
+    ).not.toThrow();
+    const guards = new RevisionGuards({ stallReplanCap: 0 });
+    expect(guards.onStallReplan()).toMatchObject({ guard: 'stall-replan-cap' });
+  });
+});
 
 describe('RevisionGuards unit (docs/07, 3.8)', () => {
   it('fires the streak fallback exactly once at the limit', () => {

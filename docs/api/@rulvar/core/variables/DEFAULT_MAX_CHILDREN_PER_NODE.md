@@ -10,4 +10,4 @@
 const DEFAULT_MAX_CHILDREN_PER_NODE: 16 = 16;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:216](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L216)
+Defined in: [packages/core/src/orchestrator/admission.ts:221](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L221)

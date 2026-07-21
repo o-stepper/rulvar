@@ -10,7 +10,7 @@
 function validateRetryPolicy(policy, source?): void;
 ```
 
-Defined in: [packages/core/src/model/retry.ts:123](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L123)
+Defined in: [packages/core/src/model/retry.ts:122](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L122)
 
 Validates a RetryPolicy and throws a typed ConfigError naming the
 offending field before any provider, journal, or store side effect

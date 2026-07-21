@@ -89,6 +89,8 @@ handle.on('agent:end', (e) => console.log('agent settled', e));
 const outcome = await handle.result;
 ```
 
+Run options are validated synchronously: `budgetUsd` must be a finite nonnegative number, every `limits` field must be in its documented range, and `deadlineAt` must be an ISO 8601 date-time with an explicit UTC designator or numeric offset (`2026-08-01T09:00:00Z` or `2026-08-01T11:00:00+02:00`; an offset-less string would mean a different instant on every host, and an impossible calendar day is refused rather than silently rolled into the next month). A malformed value is a typed `ConfigError` thrown by `engine.run` itself, before any journal entry or provider dispatch. A deadline already in the past is valid and cancels the run immediately; a deadline beyond the Node timer maximum (about 24.8 days out) is honored through sliced timers rather than firing early.
+
 The handle carries `runId`, the `result` promise, an `events` async iterable (plus the `on` subscription form) for live telemetry, `cancel(reason?)` for cooperative cancellation, and `resolveExternal(key, value)` for answering suspensions. The settled `RunOutcome` has one of five statuses:
 
 | Status | Meaning |

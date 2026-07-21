@@ -37,7 +37,7 @@ type AdmitVerdict =
 };
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:68](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L68)
+Defined in: [packages/core/src/orchestrator/admission.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L73)
 
 The unified admission verdict (XF-11). One union,
 closed now; every debit is atomic with its carrying decision entry and

@@ -426,6 +426,27 @@ describe('createServer (M8-T01)', () => {
 
     const noBody = await post(server, '/runs', {});
     expect(noBody.status).toBe(400);
+
+    // Malformed run options are refused as 400 config errors before any
+    // run exists (v1.34.0 review P2-1/P2-3): engine.run throws the typed
+    // ConfigError synchronously and the handler maps it.
+    const badDeadline = await post(server, '/runs', {
+      workflow: 'gated',
+      args: { item: 1 },
+      options: { deadlineAt: 'not-an-iso-date' },
+    });
+    expect(badDeadline.status).toBe(400);
+    expect(JSON.stringify(await bodyOf(badDeadline))).toContain('ISO 8601');
+
+    // NaN does not survive JSON.stringify (it arrives as null); the
+    // typeof gate at the engine boundary refuses that too.
+    const badBudget = await post(server, '/runs', {
+      workflow: 'gated',
+      args: { item: 1 },
+      options: { budgetUsd: Number.NaN },
+    });
+    expect(badBudget.status).toBe(400);
+    expect(JSON.stringify(await bodyOf(badBudget))).toContain('budgetUsd');
   });
 
   it('opt-in retention deletes settled runs: cascade leaves no journal, no meta, no track', async () => {

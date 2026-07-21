@@ -17,6 +17,6 @@ type SpawnOrigin =
   | "reuse-link";
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L126)
+Defined in: [packages/core/src/orchestrator/admission.ts:131](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L131)
 
 Every spawn origin routed through the single admission point.

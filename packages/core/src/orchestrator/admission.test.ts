@@ -152,6 +152,41 @@ describe('AdmissionController', () => {
     expect(() => new AdmissionController({ budget, maxDepth: 0 })).toThrow(ConfigError);
   });
 
+  it('refuses malformed numeric options at construction (v1.34.0 review P2-3)', () => {
+    const { budget } = makeController();
+    // NaN slid through the rejecting-polarity range check (every
+    // comparison with NaN is false) and then disabled the depth ceiling
+    // entirely; the gate now requires an integer in range.
+    expect(() => new AdmissionController({ budget, maxDepth: Number.NaN })).toThrow(ConfigError);
+    expect(() => new AdmissionController({ budget, maxDepth: 2.5 })).toThrow(ConfigError);
+    expect(() => new AdmissionController({ budget, maxChildrenPerNode: Number.NaN })).toThrow(
+      /maxChildrenPerNode must be a positive integer/,
+    );
+    expect(() => new AdmissionController({ budget, childBudgetFraction: Number.NaN })).toThrow(
+      /childBudgetFraction must be a fraction in \(0, 1\]/,
+    );
+    expect(() => new AdmissionController({ budget, childBudgetFraction: 1.2 })).toThrow(
+      ConfigError,
+    );
+    expect(() => new AdmissionController({ budget, flatReserveUsd: -1 })).toThrow(
+      /flatReserveUsd must be a finite nonnegative number/,
+    );
+    expect(() => new AdmissionController({ budget, maxTotalSpawns: 0 })).toThrow(
+      /maxTotalSpawns must be a positive integer/,
+    );
+    expect(
+      () =>
+        new AdmissionController({
+          budget,
+          maxDepth: 4,
+          maxChildrenPerNode: 1,
+          childBudgetFraction: 1,
+          flatReserveUsd: 0,
+          maxTotalSpawns: 1,
+        }),
+    ).not.toThrow();
+  });
+
   it('rejects the seventeenth child of one node with quota', () => {
     const { admission } = makeController();
     for (let i = 0; i < DEFAULT_MAX_CHILDREN_PER_NODE; i += 1) {

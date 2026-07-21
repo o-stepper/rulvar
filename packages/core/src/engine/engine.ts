@@ -7,7 +7,14 @@
  */
 import { createHash } from 'node:crypto';
 import { BudgetExhaustedError, ConfigError, RulvarError, type WireError } from '../l0/errors.js';
+import { setLongTimeout, type LongTimer } from '../l0/long-timer.js';
 import { realNow } from '../l0/real-clock.js';
+import {
+  requireFraction,
+  requireNonNegativeInteger,
+  requireNonNegativeNumber,
+  requirePositiveInteger,
+} from '../l0/validate-numbers.js';
 import type { WorkflowEventBody } from '../l0/events.js';
 import type { InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
 import type { IsolationProvider } from '../l0/spi/isolation.js';
@@ -39,9 +46,9 @@ import { buildAdapterRegistry, parseModelRef } from '../model/router.js';
 import type { EscalationDecision } from '../runtime/escalation.js';
 import type { EscalatedResult, MechanicalGateProfile } from '../runtime/agent-loop.js';
 import type { PermissionConfig } from '../runtime/permission-chain.js';
-import type { UsageLimits } from '../runtime/usage-limits.js';
+import { validateUsageLimits, type UsageLimits } from '../runtime/usage-limits.js';
 import { profileCard } from '../model/profile-card.js';
-import { AdmissionController } from '../orchestrator/admission.js';
+import { AdmissionController, MAX_DEPTH_CEILING } from '../orchestrator/admission.js';
 import { RunBudget } from './budget.js';
 import {
   AgentCallError,
@@ -198,12 +205,65 @@ export interface RunOptions {
   budgetUsd?: number;
   /** Run-level defaults merged over engine defaults. */
   limits?: UsageLimits;
-  /** Run-level deadline (ISO 8601); crossing cancels the run. */
+  /**
+   * Run-level deadline: an ISO 8601 date-time with an explicit UTC
+   * designator or offset (e.g. `2026-07-21T10:00:00Z` or
+   * `2026-07-21T12:00:00+02:00`); crossing it cancels the run. Any
+   * other string is a typed ConfigError thrown synchronously by
+   * engine.run, before any journal entry or provider dispatch (v1.34.0
+   * review P2-1). A deadline already in the past cancels immediately:
+   * a crossed deadline is a valid deadline. Deadlines beyond the Node
+   * timer maximum are honored through sliced timers, never truncated
+   * (v1.34.0 review P2-2).
+   */
   deadlineAt?: string;
   name?: string;
   tags?: string[];
   /** Host-initiated cancellation. */
   signal?: AbortSignal;
+}
+
+/**
+ * The accepted RunOptions.deadlineAt grammar: an ISO 8601 calendar
+ * date-time with minute precision at least, optional seconds and
+ * fractional seconds, and a MANDATORY UTC designator or numeric offset.
+ * Date.parse would accept far more (and would read an offset-less
+ * date-time in the host's local zone, so the same string would mean a
+ * different instant on different hosts); the grammar pins one meaning.
+ */
+const DEADLINE_AT_GRAMMAR =
+  /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+/**
+ * Typed refusal of a malformed deadlineAt (v1.34.0 review P2-1). The
+ * calendar day is range-checked explicitly: V8's Date.parse silently
+ * ROLLS an impossible ISO day into the next month (2026-02-30 parses as
+ * 2026-03-02), so the finite check alone would accept a date the host
+ * never wrote and cancel the run at a different instant.
+ */
+function parseDeadlineAt(value: string): number {
+  const parsed = Date.parse(value);
+  const match = DEADLINE_AT_GRAMMAR.exec(value);
+  const refuse = (): never => {
+    throw new ConfigError(
+      'RunOptions.deadlineAt must be an ISO 8601 date-time with an explicit UTC designator ' +
+        `or offset (e.g. 2026-07-21T10:00:00Z or 2026-07-21T12:00:00+02:00); got '${value}'`,
+    );
+  };
+  if (match === null || !Number.isFinite(parsed)) {
+    refuse();
+  }
+  const year = Number(match?.[1]);
+  const month = Number(match?.[2]);
+  const day = Number(match?.[3]);
+  // Date.UTC(year, month, 0) with a 1-based month is the last day OF
+  // that month, so this bounds the day without a lookup table (and
+  // handles leap years through the platform calendar).
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  if (month < 1 || month > 12 || day < 1 || day > daysInMonth) {
+    refuse();
+  }
+  return parsed;
 }
 
 /** Resume-time hit/miss/orphan accounting. */
@@ -354,9 +414,74 @@ export function createEngine(options: CreateEngineOptions): Engine {
   if (defaults.retry !== undefined) {
     validateRetryPolicy(defaults.retry, 'createEngine defaults.retry');
   }
+  // Every numeric engine option is validated with the shared helpers at
+  // construction (v1.34.0 review P2-3/P2-4): NaN and friends fail as a
+  // typed ConfigError here, before any run, journal entry, worker, or
+  // provider dispatch could observe the malformed value. NaN needs the
+  // dedicated gates because every comparison with it is false: it slid
+  // through the rejecting-polarity depth check, disabled the lifetime
+  // spawn cap, and deadlocked the per-run semaphore.
+  if (options.concurrency?.perRun !== undefined) {
+    requirePositiveInteger(options.concurrency.perRun, 'createEngine concurrency.perRun');
+  }
+  for (const [adapterId, cap] of Object.entries(options.concurrency?.perProvider ?? {})) {
+    requirePositiveInteger(cap, `createEngine concurrency.perProvider['${adapterId}']`);
+  }
+  const budgetDefaults = options.budgetDefaults;
+  if (budgetDefaults?.flatReserveUsd !== undefined) {
+    requireNonNegativeNumber(
+      budgetDefaults.flatReserveUsd,
+      'createEngine budgetDefaults.flatReserveUsd',
+    );
+  }
+  if (budgetDefaults?.lifetimeSpawnCap !== undefined) {
+    requireNonNegativeInteger(
+      budgetDefaults.lifetimeSpawnCap,
+      'createEngine budgetDefaults.lifetimeSpawnCap',
+    );
+  }
+  if (budgetDefaults?.childBudgetFraction !== undefined) {
+    requireFraction(
+      budgetDefaults.childBudgetFraction,
+      'createEngine budgetDefaults.childBudgetFraction',
+    );
+  }
+  if (budgetDefaults?.maxDepth !== undefined) {
+    requirePositiveInteger(budgetDefaults.maxDepth, 'createEngine budgetDefaults.maxDepth');
+    if (budgetDefaults.maxDepth > MAX_DEPTH_CEILING) {
+      throw new ConfigError(
+        `createEngine budgetDefaults.maxDepth ${String(budgetDefaults.maxDepth)} is outside ` +
+          `[1, ${String(MAX_DEPTH_CEILING)}] (default 1, hard ceiling ${String(MAX_DEPTH_CEILING)})`,
+      );
+    }
+  }
+  if (defaults.limits !== undefined) {
+    validateUsageLimits(defaults.limits, 'createEngine defaults.limits');
+  }
   for (const [name, profile] of Object.entries(defaults.profiles ?? {})) {
     if (profile.retry !== undefined) {
       validateRetryPolicy(profile.retry, `createEngine defaults.profiles['${name}'].retry`);
+    }
+    if (profile.limits !== undefined) {
+      validateUsageLimits(profile.limits, `createEngine defaults.profiles['${name}'].limits`);
+    }
+    if (profile.estCost !== undefined) {
+      requireNonNegativeNumber(
+        profile.estCost,
+        `createEngine defaults.profiles['${name}'].estCost`,
+      );
+    }
+    if (profile.escalation?.deadlineMs !== undefined) {
+      requirePositiveInteger(
+        profile.escalation.deadlineMs,
+        `createEngine defaults.profiles['${name}'].escalation.deadlineMs`,
+      );
+    }
+    if (profile.compaction?.threshold !== undefined) {
+      requireFraction(
+        profile.compaction.threshold,
+        `createEngine defaults.profiles['${name}'].compaction.threshold`,
+      );
     }
   }
   // The runtime side holds the current()-only handle, never the store:
@@ -446,6 +571,18 @@ export function createEngine(options: CreateEngineOptions): Engine {
         'engine.run accepts in-process Workflow values or compileScript CompiledWorkflow values',
       );
     }
+    // Run options are validated synchronously, before the journal or a
+    // provider could observe them (v1.34.0 review P2-1/P2-3): a
+    // malformed deadlineAt used to parse to NaN, arm a 1 ms timer, and
+    // cancel the run only after the first provider dispatch.
+    if (opts?.budgetUsd !== undefined) {
+      requireNonNegativeNumber(opts.budgetUsd, 'RunOptions.budgetUsd');
+    }
+    if (opts?.limits !== undefined) {
+      validateUsageLimits(opts.limits, 'RunOptions.limits');
+    }
+    const deadlineAtMs =
+      opts?.deadlineAt === undefined ? undefined : parseDeadlineAt(opts.deadlineAt);
     const compiled = wf.kind === 'compiled-workflow' ? wf : undefined;
     if (compiled !== undefined && options.runners?.sandbox === undefined) {
       throw new ConfigError(
@@ -525,12 +662,16 @@ export function createEngine(options: CreateEngineOptions): Engine {
         });
       }
     }
-    let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
-    if (opts?.deadlineAt !== undefined) {
-      const delay = Date.parse(opts.deadlineAt) - realNow();
-      deadlineTimer = setTimeout(
-        () => requestCancel(`run deadline ${opts.deadlineAt} crossed`),
-        Math.max(0, delay),
+    let deadlineTimer: LongTimer | undefined;
+    if (deadlineAtMs !== undefined) {
+      // Sliced against the Node timer ceiling: a deadline weeks out used
+      // to overflow setTimeout and cancel the run immediately (v1.34.0
+      // review P2-2). The callback re-checks the wall clock, so firing a
+      // slice is never taken as the deadline itself.
+      deadlineTimer = setLongTimeout(
+        () => requestCancel(`run deadline ${opts?.deadlineAt ?? ''} crossed`),
+        deadlineAtMs,
+        realNow,
       );
     }
 
@@ -827,7 +968,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         }
       } finally {
         if (deadlineTimer !== undefined) {
-          clearTimeout(deadlineTimer);
+          deadlineTimer.cancel();
         }
         // Every settle closes the segment (idempotent): waiters a body
         // raced away from must never wake after the outcome is out.

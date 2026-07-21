@@ -10,4 +10,4 @@
 const DEFAULT_CHILD_BUDGET_FRACTION: 0.3 = 0.3;
 ```
 
-Defined in: [packages/core/src/orchestrator/admission.ts:217](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L217)
+Defined in: [packages/core/src/orchestrator/admission.ts:222](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/admission.ts#L222)

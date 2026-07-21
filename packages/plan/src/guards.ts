@@ -29,7 +29,29 @@
  * nearly-finished child is never killed mid-turn, and park/unpark churn
  * feeds the oscillation counter.
  */
+import { ConfigError } from '@rulvar/core';
 import type { Json } from '@rulvar/core';
+
+/**
+ * Local mirror of the core numeric-intake idiom (v1.34.0 review P2-3):
+ * guard limits are compared with `<` and `!==`, and every comparison
+ * with NaN is false, so an unvalidated NaN limit made the dropped and
+ * oscillation guards trip immediately and the stall cap never trip.
+ */
+function requireCount(value: number, site: string, min: 0 | 1): void {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < min) {
+    throw new ConfigError(
+      `${site} must be ${min === 1 ? 'a positive integer' : 'a nonnegative integer'}; ` +
+        `got ${String(value)}`,
+    );
+  }
+}
+
+function requireGuardFraction(value: number, site: string): void {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0 || value > 1) {
+    throw new ConfigError(`${site} must be a fraction in (0, 1]; got ${String(value)}`);
+  }
+}
 
 /** RevisionGuards configuration. */
 export interface RevisionGuardsOptions {
@@ -94,6 +116,25 @@ export class RevisionGuards {
   constructor(
     options?: RevisionGuardsOptions & { maxOscillationsPerKey?: number; stallReplanCap?: number },
   ) {
+    // Malformed limits fail typed at construction, before any revision
+    // could be judged under them (v1.34.0 review P2-3). The stall cap
+    // may be 0 (no stall replans allowed); the streak and oscillation
+    // limits start at 1.
+    if (options?.droppedRevisionLimit !== undefined) {
+      requireCount(options.droppedRevisionLimit, 'RevisionGuards droppedRevisionLimit', 1);
+    }
+    if (options?.maxOscillationsPerKey !== undefined) {
+      requireCount(options.maxOscillationsPerKey, 'RevisionGuards maxOscillationsPerKey', 1);
+    }
+    if (options?.stallReplanCap !== undefined) {
+      requireCount(options.stallReplanCap, 'RevisionGuards stallReplanCap', 0);
+    }
+    if (options?.maxAbandonedNetUsdFraction !== undefined) {
+      requireGuardFraction(
+        options.maxAbandonedNetUsdFraction,
+        'RevisionGuards maxAbandonedNetUsdFraction',
+      );
+    }
     this.fallback = options?.fallback ?? 'finish-with-partial';
     this.droppedRevisionLimit = options?.droppedRevisionLimit ?? DEFAULT_DROPPED_REVISION_LIMIT;
     this.maxOscillationsPerKey = options?.maxOscillationsPerKey ?? DEFAULT_MAX_OSCILLATIONS_PER_KEY;

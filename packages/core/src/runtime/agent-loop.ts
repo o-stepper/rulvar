@@ -264,8 +264,10 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
   /**
    * Per-provider keyed limiter hook (M4-T07): wraps every wire dispatch
    * under the serving adapter's key; absent = unlimited (Appendix A).
+   * `signal` is the agent-level abort: an aborted caller leaves the
+   * key's queue without a slot (v1.34.0 review P2-4).
    */
-  providerSlot?: <T>(key: string, fn: () => Promise<T>) => Promise<T>;
+  providerSlot?: <T>(key: string, fn: () => Promise<T>, signal?: AbortSignal) => Promise<T>;
   /** The resolved toolset; absent = no tools declared. */
   tools?: ToolRuntime;
   /**
@@ -1399,10 +1401,12 @@ export async function runAgent<S extends SchemaSpec>(
         };
         // The keyed limiter gates the wire call itself; retries and
         // failover each re-acquire, so a stalled provider never holds
-        // its slot through a backoff sleep (M4-T07).
+        // its slot through a backoff sleep (M4-T07). The agent signal
+        // rides along so an aborted caller leaves the queue (v1.34.0
+        // review P2-4).
         const outcome = await (options.providerSlot === undefined
           ? dispatch()
-          : options.providerSlot(target.adapter.id, dispatch));
+          : options.providerSlot(target.adapter.id, dispatch, options.signal));
         recordUsage(
           outcome.usage,
           outcome.reported,

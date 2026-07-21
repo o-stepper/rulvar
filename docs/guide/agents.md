@@ -150,6 +150,8 @@ Four boundaries keep this taxonomy honest. `agentType` is the name of a register
 
 Turns are bounded by `UsageLimits`, merged per spawn (call over profile over engine): `maxTurns` (default 32), `maxToolCalls`, `maxOutputTokensPerTurn`, `timeoutMs`, and the no-progress detector (default 3 consecutive turns without tool calls or artifact deltas). Expiry of any of these lands the terminal status `limit`, with the paid partial work kept. `streamIdleTimeoutMs` (default 120000) is different: a stalled stream is severed and surfaces as a retryable transport error under the retry policy, not as `limit`.
 
+Every layer is validated at its intake (`createEngine`, the profile registry, `engine.run`, the call options) with a typed `ConfigError`, so a malformed field never reaches a merge or a provider: counts are positive integers (`maxToolCalls` may be 0, a spawn that must not call tools), `timeoutMs` is a positive integer with no upper bound (a wall-clock comparison, not a timer), and `streamIdleTimeoutMs` must be an integer between 1 and 2147483647 ms, the Node timer maximum, mirroring the retry policy bound. `validateUsageLimits(limits, site)` is exported for hosts that want the same check at their own intake, for example an HTTP boundary.
+
 Tools can also ask the model to try again: throwing `ModelRetry` from a tool's `execute` converts into an error-flagged tool result the model sees and can self-correct from, bounded to 2 attempts per call chain by default. See the [tools guide](/guide/tools).
 
 ## Output truncation

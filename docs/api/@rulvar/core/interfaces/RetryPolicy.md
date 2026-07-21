@@ -6,16 +6,16 @@
 
 # Interface: RetryPolicy
 
-Defined in: [packages/core/src/model/retry.ts:23](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L23)
+Defined in: [packages/core/src/model/retry.ts:24](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L24)
 
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-attempts"></a> `attempts` | `number` | Total tries per serving model, the initial attempt included. | [packages/core/src/model/retry.ts:25](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L25) |
-| <a id="property-backoff"></a> `backoff` | \{ `factor`: `number`; `initialMs`: `number`; `jitter?`: `boolean`; `maxMs`: `number`; \} | - | [packages/core/src/model/retry.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L26) |
-| `backoff.factor` | `number` | - | [packages/core/src/model/retry.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L26) |
-| `backoff.initialMs` | `number` | - | [packages/core/src/model/retry.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L26) |
-| `backoff.jitter?` | `boolean` | - | [packages/core/src/model/retry.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L26) |
-| `backoff.maxMs` | `number` | - | [packages/core/src/model/retry.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L26) |
-| <a id="property-retryon"></a> `retryOn?` | [`RetryClass`](/api/@rulvar/core/type-aliases/RetryClass.md)[] | Classes that retry; absent = the Appendix A default set. | [packages/core/src/model/retry.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L28) |
+| <a id="property-attempts"></a> `attempts` | `number` | Total tries per serving model, the initial attempt included. | [packages/core/src/model/retry.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L26) |
+| <a id="property-backoff"></a> `backoff` | \{ `factor`: `number`; `initialMs`: `number`; `jitter?`: `boolean`; `maxMs`: `number`; \} | - | [packages/core/src/model/retry.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L27) |
+| `backoff.factor` | `number` | - | [packages/core/src/model/retry.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L27) |
+| `backoff.initialMs` | `number` | - | [packages/core/src/model/retry.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L27) |
+| `backoff.jitter?` | `boolean` | - | [packages/core/src/model/retry.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L27) |
+| `backoff.maxMs` | `number` | - | [packages/core/src/model/retry.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L27) |
+| <a id="property-retryon"></a> `retryOn?` | [`RetryClass`](/api/@rulvar/core/type-aliases/RetryClass.md)[] | Classes that retry; absent = the Appendix A default set. | [packages/core/src/model/retry.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L29) |

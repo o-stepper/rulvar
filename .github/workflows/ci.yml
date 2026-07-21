@@ -287,6 +287,11 @@ jobs:
           (cd "$RUNNER_TEMP/docs-lint-deps" && npm install --no-save --ignore-scripts "typescript@$pin")
           ln -s "$RUNNER_TEMP/docs-lint-deps/node_modules" node_modules
       - run: node scripts/docs-lint.mjs
+      # The linter's own regression tests (sentence sentinels, negation
+      # handling). The glob is expanded by the Node test runner itself,
+      # so every scripts/**/*.test.mjs joins CI by construction instead
+      # of needing its own wiring (v1.34.0 review P3).
+      - run: node --test "scripts/**/*.test.mjs"
       # Repo scripts must work from a checkout path containing a space and
       # non-ASCII characters (URL.pathname regressions leave %20 in paths).
       # Runs the dependency-free read-only scripts from such a copy.

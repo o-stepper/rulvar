@@ -12,7 +12,7 @@ function retryClassOf(error):
   | undefined;
 ```
 
-Defined in: [packages/core/src/model/retry.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L44)
+Defined in: [packages/core/src/model/retry.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L45)
 
 Classifies a WireError for the retry engine. Task-class failures are
 never retryable by construction: adapters mark them retryable: false

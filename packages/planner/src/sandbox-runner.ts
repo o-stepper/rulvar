@@ -54,6 +54,33 @@ export class WorkerSandboxRunner implements ScriptRunner {
   private readonly execArgv: readonly string[];
 
   constructor(options?: WorkerSandboxRunnerOptions) {
+    // timeoutMs is handed to setTimeout as-is, so it is bounded by the
+    // Node timer maximum: above 2147483647 ms Node clamps the delay to
+    // 1 ms and a trivial worker would be killed immediately with
+    // sandbox_limit (v1.34.0 review P2-2). NaN and friends fail typed
+    // here too, before any worker exists (v1.34.0 review P2-3).
+    if (options?.timeoutMs !== undefined) {
+      const timeoutMs = options.timeoutMs;
+      if (
+        typeof timeoutMs !== 'number' ||
+        !Number.isInteger(timeoutMs) ||
+        timeoutMs < 1 ||
+        timeoutMs > 2_147_483_647
+      ) {
+        throw new ConfigError(
+          'WorkerSandboxRunner timeoutMs must be an integer between 1 and 2147483647 ms ' +
+            `(the Node timer maximum); got ${String(timeoutMs)}`,
+        );
+      }
+    }
+    if (options?.memoryMb !== undefined) {
+      const memoryMb = options.memoryMb;
+      if (typeof memoryMb !== 'number' || !Number.isInteger(memoryMb) || memoryMb < 1) {
+        throw new ConfigError(
+          `WorkerSandboxRunner memoryMb must be a positive integer; got ${String(memoryMb)}`,
+        );
+      }
+    }
     this.timeoutMs = options?.timeoutMs ?? DEFAULT_SANDBOX_TIMEOUT_MS;
     this.memoryMb = options?.memoryMb ?? DEFAULT_SANDBOX_MEMORY_MB;
     this.workerUrl = options?.workerUrl ?? new URL('./sandbox-worker.js', import.meta.url);

@@ -10,6 +10,6 @@
 const DEFAULT_STALL_REPLAN_CAP: 4 = 4;
 ```
 
-Defined in: [packages/plan/src/guards.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L64)
+Defined in: [packages/plan/src/guards.ts:86](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L86)
 
 The hard per-run stall replan bound.

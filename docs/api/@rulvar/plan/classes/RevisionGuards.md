@@ -6,7 +6,7 @@
 
 # Class: RevisionGuards
 
-Defined in: [packages/plan/src/guards.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L81)
+Defined in: [packages/plan/src/guards.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L103)
 
 The guard state machine. All counting inputs arrive from pure folds
 (the caller feeds landed revisions, severs, and re-adds in journal
@@ -21,7 +21,7 @@ journals each verdict BEFORE applying its effects.
 new RevisionGuards(options?): RevisionGuards;
 ```
 
-Defined in: [packages/plan/src/guards.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L94)
+Defined in: [packages/plan/src/guards.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L116)
 
 #### Parameters
 
@@ -43,7 +43,7 @@ Defined in: [packages/plan/src/guards.ts:94](https://github.com/o-stepper/rulvar
 get planFrozen(): boolean;
 ```
 
-Defined in: [packages/plan/src/guards.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L112)
+Defined in: [packages/plan/src/guards.ts:153](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L153)
 
 True once a terminating fallback engaged: the plan is frozen for adaptation.
 
@@ -61,7 +61,7 @@ True once a terminating fallback engaged: the plan is frozen for adaptation.
 get revisionsRejected(): boolean;
 ```
 
-Defined in: [packages/plan/src/guards.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L117)
+Defined in: [packages/plan/src/guards.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L158)
 
 True when further plan_revise calls are rejected outright.
 
@@ -79,7 +79,7 @@ True when further plan_revise calls are rejected outright.
 get stallReplanExhausted(): boolean;
 ```
 
-Defined in: [packages/plan/src/guards.ts:197](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L197)
+Defined in: [packages/plan/src/guards.ts:238](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L238)
 
 ##### Returns
 
@@ -95,7 +95,7 @@ Defined in: [packages/plan/src/guards.ts:197](https://github.com/o-stepper/rulva
 get state(): GuardsState;
 ```
 
-Defined in: [packages/plan/src/guards.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L103)
+Defined in: [packages/plan/src/guards.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L144)
 
 ##### Returns
 
@@ -109,7 +109,7 @@ Defined in: [packages/plan/src/guards.ts:103](https://github.com/o-stepper/rulva
 absorbVerdict(value): void;
 ```
 
-Defined in: [packages/plan/src/guards.ts:202](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L202)
+Defined in: [packages/plan/src/guards.ts:243](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L243)
 
 Rebuilds guard state from a journaled verdict (replay path).
 
@@ -131,7 +131,7 @@ Rebuilds guard state from a journaled verdict (replay path).
 isFrozenSignature(approachSigCoarse): boolean;
 ```
 
-Defined in: [packages/plan/src/guards.ts:172](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L172)
+Defined in: [packages/plan/src/guards.ts:213](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L213)
 
 True when further re-adds of this coarse signature are frozen.
 
@@ -155,7 +155,7 @@ onReAdd(approachSigCoarse):
   | undefined;
 ```
 
-Defined in: [packages/plan/src/guards.ts:151](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L151)
+Defined in: [packages/plan/src/guards.ts:192](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L192)
 
 Feeds one admitted add of this coarse signature; a re-add after a
 sever counts one oscillation ACROSS LTID boundaries. Returns the
@@ -182,7 +182,7 @@ onRevisionLanded(effectiveDroppedStreak):
   | undefined;
 ```
 
-Defined in: [packages/plan/src/guards.ts:125](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L125)
+Defined in: [packages/plan/src/guards.ts:166](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L166)
 
 Feeds one landed revision's effective streak; returns the verdict to
 journal when the limit is reached (single-shot).
@@ -206,7 +206,7 @@ journal when the limit is reached (single-shot).
 onSevered(approachSigCoarse): void;
 ```
 
-Defined in: [packages/plan/src/guards.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L139)
+Defined in: [packages/plan/src/guards.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L180)
 
 Feeds a severing cancel/abandon of a node with this coarse signature.
 
@@ -230,7 +230,7 @@ onStallReplan():
   | undefined;
 ```
 
-Defined in: [packages/plan/src/guards.ts:184](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L184)
+Defined in: [packages/plan/src/guards.ts:225](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L225)
 
 Consumes one stall-triggered replan slot; returns the cap verdict
 when the hard per-run bound is exhausted (single-shot per call site).
@@ -248,7 +248,7 @@ when the hard per-run bound is exhausted (single-shot per call site).
 oscillationCountOf(approachSigCoarse): number;
 ```
 
-Defined in: [packages/plan/src/guards.ts:176](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L176)
+Defined in: [packages/plan/src/guards.ts:217](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L217)
 
 #### Parameters
 
@@ -268,7 +268,7 @@ Defined in: [packages/plan/src/guards.ts:176](https://github.com/o-stepper/rulva
 static verdictJson(value): Json;
 ```
 
-Defined in: [packages/plan/src/guards.ts:218](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L218)
+Defined in: [packages/plan/src/guards.ts:259](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L259)
 
 Serializes a verdict for the journal append.
 
