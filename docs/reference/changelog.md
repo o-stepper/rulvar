@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.35.0
+
+#### Patch Changes
+
+- Updated dependencies [d4ac3bf]
+  - @rulvar/core@1.35.0
+
 ### 1.34.0
 
 #### Patch Changes
@@ -602,6 +609,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.35.0
+
+#### Patch Changes
+
+- Updated dependencies [d4ac3bf]
+  - @rulvar/core@1.35.0
+
 ### 1.34.0
 
 #### Patch Changes
@@ -1051,6 +1065,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.35.0
+
+#### Patch Changes
+
+- Updated dependencies [d4ac3bf]
+  - @rulvar/core@1.35.0
 
 ### 1.34.0
 
@@ -1684,6 +1705,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.35.0
+
+#### Minor Changes
+
+- d4ac3bf: Validate every numeric engine option at its intake and survive far future deadlines (v1.34.0 review P2-1, P2-2, P2-3, P2-4). `createEngine` now refuses malformed `concurrency.perRun` and `concurrency.perProvider` caps, `budgetDefaults` fields, engine and profile `limits`, profile `estCost`, escalation `deadlineMs`, and compaction thresholds with a typed `ConfigError`; `engine.run` validates `budgetUsd` and `limits` synchronously and requires `deadlineAt` to be an ISO 8601 date-time with an explicit UTC designator or offset (an impossible calendar day is refused rather than silently rolled into the next month, and a malformed string no longer cancels the run after the first provider dispatch). `ctx.agent` validates `estCost` and `limits` per call, so a negative reserve can no longer shrink the committed total and admit a sibling past its ceiling, and the admission gate refuses a non finite reserve as a backstop. The per run semaphore requires a positive integer limit (a NaN cap used to park the first request forever with `cancel()` unable to settle the run) and queue waits are abort aware, so a cancelled run always drains its queued calls in FIFO order. Absolute deadlines (`RunOptions.deadlineAt` and the journaled escalation deadline) are honored through sliced timers beyond the Node timer maximum instead of firing immediately, while `streamIdleTimeoutMs` is bounded by that maximum like retry policy delays. `validateUsageLimits` is exported for hosts that want the same check at their own boundary.
 
 ### 1.34.0
 
@@ -2795,6 +2822,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.35.0
+
 ### 1.34.0
 
 ### 1.33.0
@@ -2933,6 +2962,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.35.0
+
+#### Patch Changes
+
+- Updated dependencies [d4ac3bf]
+  - @rulvar/core@1.35.0
+  - @rulvar/testing@1.35.0
 
 ### 1.34.0
 
@@ -3508,6 +3545,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.35.0
+
+#### Patch Changes
+
+- Updated dependencies [d4ac3bf]
+  - @rulvar/core@1.35.0
 
 ### 1.34.0
 
@@ -4110,6 +4154,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.35.0
+
+#### Minor Changes
+
+- d4ac3bf: Validate `RevisionGuards` limits at construction (v1.34.0 review P2-3). The streak and oscillation limits must be positive integers, the stall replan cap a nonnegative integer, and `maxAbandonedNetUsdFraction` a fraction in (0, 1]; anything else, NaN included, is a typed `ConfigError` before any revision is judged. Unvalidated, a NaN limit inverted the machinery: the dropped and oscillation guards tripped immediately while the stall cap never tripped at all.
+
+#### Patch Changes
+
+- Updated dependencies [d4ac3bf]
+  - @rulvar/core@1.35.0
+
 ### 1.34.0
 
 #### Patch Changes
@@ -4673,6 +4728,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.35.0
+
+#### Minor Changes
+
+- d4ac3bf: Validate `WorkerSandboxRunner` resource ceilings at construction (v1.34.0 review P2-2, P2-3). `timeoutMs` must be an integer between 1 and 2147483647 ms, the Node timer maximum: a larger value used to clamp to a 1 ms timer and kill a trivial worker immediately with `sandbox_limit`. `memoryMb` must be a positive integer. Anything else, NaN included, is a typed `ConfigError` before any worker exists.
+
+#### Patch Changes
+
+- Updated dependencies [d4ac3bf]
+  - @rulvar/core@1.35.0
+  - eslint-plugin-rulvar@1.35.0
+
 ### 1.34.0
 
 #### Patch Changes
@@ -5194,6 +5261,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.35.0
+
+#### Patch Changes
+
+- Updated dependencies [d4ac3bf]
+  - @rulvar/core@1.35.0
+  - @rulvar/anthropic@1.35.0
+  - @rulvar/openai@1.35.0
 
 ### 1.34.0
 
@@ -5859,6 +5935,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.35.0
+
+#### Patch Changes
+
+- Updated dependencies [d4ac3bf]
+  - @rulvar/core@1.35.0
+
 ### 1.34.0
 
 #### Patch Changes
@@ -6384,6 +6467,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.35.0
+
+#### Patch Changes
+
+- Updated dependencies [d4ac3bf]
+  - @rulvar/core@1.35.0
+
 ### 1.34.0
 
 #### Patch Changes
@@ -6848,6 +6938,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.35.0
+
+#### Patch Changes
+
+- Updated dependencies [d4ac3bf]
+  - @rulvar/core@1.35.0
 
 ### 1.34.0
 
