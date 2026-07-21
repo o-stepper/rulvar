@@ -1,4 +1,4 @@
-import { appendFileSync, mkdtempSync, readFileSync } from 'node:fs';
+import { appendFileSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { JournalOrderViolation } from '../l0/errors.js';
 import type { JournalEntry } from '../l0/entries.js';
 import { LARGE_VALUE_WARN_BYTES, Replayer } from '../journal/replayer.js';
-import { JsonlFileStore } from './jsonl.js';
+import { FileTranscriptStore, JsonlFileStore } from './jsonl.js';
 
 function entry(seq: number, extra?: Partial<JournalEntry>): JournalEntry {
   return {
@@ -141,5 +141,53 @@ describe('large-value soft warn threshold (M2 entry gate; docs/06 Appendix A)', 
     expect(warnings[0]).toContain('TranscriptStore');
     // The entry was still journaled: a warning, never an error.
     expect(await store.load('r')).toHaveLength(1);
+  });
+});
+
+describe('FileTranscriptStore path containment (v1.36.0 review SEC-P1)', () => {
+  const bytes = (s: string): Uint8Array => new TextEncoder().encode(s);
+  const makeTranscripts = (): { store: FileTranscriptStore; dir: string; root: string } => {
+    const root = mkdtempSync(join(tmpdir(), 'transcripts-sec-'));
+    const dir = join(root, 'base');
+    return { store: new FileTranscriptStore({ dir }), dir, root };
+  };
+
+  it('round-trips a valid nested ref inside the root', async () => {
+    const { store } = makeTranscripts();
+    await store.put('run/ckpt/1', bytes('checkpoint'));
+    const got = await store.get('run/ckpt/1');
+    expect(got).not.toBeNull();
+    expect(new TextDecoder().decode(got ?? undefined)).toBe('checkpoint');
+  });
+
+  it.each(['..', '.', '../escape', 'a/../b', './x', 'a//b', '../../x'])(
+    'refuses the traversal ref %j on put',
+    async (ref) => {
+      const { store, root } = makeTranscripts();
+      await expect(store.put(ref, bytes('pwned'))).rejects.toBeInstanceOf(JournalOrderViolation);
+      // Nothing escaped: the parent of the root holds only the root dir.
+      expect(readdirSync(root)).toEqual(['base']);
+    },
+  );
+
+  it('refuses a traversal ref on get and delete', async () => {
+    const { store } = makeTranscripts();
+    await expect(store.get('../secret')).rejects.toBeInstanceOf(JournalOrderViolation);
+    await expect(store.delete('../victim')).rejects.toBeInstanceOf(JournalOrderViolation);
+  });
+
+  it.each(['..', '.'])('refuses list(%j) so it cannot walk the parent directory', async (runId) => {
+    // A sibling blob one level above the root must never be enumerable.
+    const { store, root } = makeTranscripts();
+    writeFileSync(join(root, 'sibling.bin'), bytes('outside'));
+    await expect(store.list(runId)).rejects.toBeInstanceOf(JournalOrderViolation);
+  });
+
+  it('the containment backstop rejects a sibling-prefix escape', async () => {
+    // A root whose sibling shares its prefix: a naive startsWith(root)
+    // check would admit 'base-evil'. The separator boundary rejects it.
+    const root = mkdtempSync(join(tmpdir(), 'transcripts-prefix-'));
+    const store = new FileTranscriptStore({ dir: join(root, 'base') });
+    await expect(store.put('..', bytes('x'))).rejects.toBeInstanceOf(JournalOrderViolation);
   });
 });

@@ -6,13 +6,20 @@
 
 # Class: FileTranscriptStore
 
-Defined in: [packages/core/src/stores/jsonl.ts:205](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L205)
+Defined in: [packages/core/src/stores/jsonl.ts:212](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L212)
 
 File-backed TranscriptStore (M6-T02): blobs (transcripts, checkpoints,
 persisted CompiledWorkflow sources) as one file per ref under `dir`,
-so compiled runs resume across processes. Refs follow
-the `<runId>/<name>` convention; each path segment is checked
-filesystem-safe and nested segments become directories.
+so compiled runs resume across processes. Refs follow the
+`<runId>/<name>` convention; nested segments become directories.
+
+Every ref is contained under `dir` (v1.36.0 review SEC-P1): each
+segment must match `[A-Za-z0-9._-]` and be neither empty, '.', nor
+'..', and the resolved path must stay under the resolved root. A '..'
+segment used to pass the per-segment alphabet (dots are in it) and, via
+`join`, escape the root; a caller passing an untrusted ref (or an
+untrusted runId, which prefixes checkpoint and workflow-source refs)
+could read, write, or delete `.bin` files outside `dir`.
 
 ## Implements
 
@@ -26,7 +33,7 @@ filesystem-safe and nested segments become directories.
 new FileTranscriptStore(options): FileTranscriptStore;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:208](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L208)
+Defined in: [packages/core/src/stores/jsonl.ts:215](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L215)
 
 #### Parameters
 
@@ -47,7 +54,7 @@ Defined in: [packages/core/src/stores/jsonl.ts:208](https://github.com/o-stepper
 delete(ref): Promise<void>;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:272](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L272)
+Defined in: [packages/core/src/stores/jsonl.ts:303](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L303)
 
 Deletes one blob; a missing ref is a no-op, never an error (M8-T04
 amendment, OQ-20: retention is impossible without blob deletion).
@@ -76,7 +83,7 @@ never a store obligation.
 get(ref): Promise<Bytes | null>;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:236](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L236)
+Defined in: [packages/core/src/stores/jsonl.ts:259](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L259)
 
 #### Parameters
 
@@ -100,7 +107,7 @@ Defined in: [packages/core/src/stores/jsonl.ts:236](https://github.com/o-stepper
 list(runId): Promise<string[]>;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:248](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L248)
+Defined in: [packages/core/src/stores/jsonl.ts:271](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L271)
 
 #### Parameters
 
@@ -124,7 +131,7 @@ Defined in: [packages/core/src/stores/jsonl.ts:248](https://github.com/o-stepper
 put(ref, blob): Promise<void>;
 ```
 
-Defined in: [packages/core/src/stores/jsonl.ts:227](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L227)
+Defined in: [packages/core/src/stores/jsonl.ts:250](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/jsonl.ts#L250)
 
 #### Parameters
 
