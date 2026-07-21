@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.36.0
+
+#### Patch Changes
+
+- Updated dependencies [101795b]
+  - @rulvar/core@1.36.0
+
 ### 1.35.0
 
 #### Patch Changes
@@ -609,6 +616,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.36.0
+
+#### Patch Changes
+
+- Updated dependencies [101795b]
+  - @rulvar/core@1.36.0
+
 ### 1.35.0
 
 #### Patch Changes
@@ -1065,6 +1079,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.36.0
+
+#### Minor Changes
+
+- 101795b: Validate `createWorker` timers and make the TTL match promise executable (v1.35.0 review P2). `ttlMs` and `pollMs` must be integers between 1 and 2147483647 ms, refused typed at construction (an overflow or non finite cadence collapsed to the 1 ms interval floor and stormed the store). A store exposing the optional `leaseTtlMs` capability is verified against the worker ttl, a mismatch is a `ConfigError`, and an omitted `ttlMs` adopts the store's value.
+
+#### Patch Changes
+
+- Updated dependencies [101795b]
+  - @rulvar/core@1.36.0
 
 ### 1.35.0
 
@@ -1705,6 +1730,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.36.0
+
+#### Minor Changes
+
+- 101795b: Fix the v1.35.0 review P1 and the core P2 groups. The parked flavor B decision wait is abort aware: `handle.cancel()`, a `RunOptions.signal` abort, the run `deadlineAt`, and fail fast sibling aborts settle the run in bounded time instead of waiting out the escalation deadline; the suspension entry stays open so resume re parks it, worktree salvage still precedes destruction, and the wait rejects with the new `EscalationDecisionAbortedError`. `budget.atCap: 'fail-run'` is executable: the journaled cap decision drives the branch, the reserved finalizer is skipped, and the run fails with the new `FailRunError` (registry code `fail_run`), rolled forward deterministically on resume. `OrchestrateOptions` validate at construction (`maxSpawns`, `renderBudgetChars`, `budget.capUsd`, `budget.capFraction`, `budget.finalizeReserveUsd`, `budget.finalizeTurns`, and the `atCap` literal), and the digest render budget is a hard upper bound of the rendered row, marker included, at both distillation tiers. The extension seam gains an optional `terminate` capability so a journaled policy verdict can close the run typed. Knowledge and isolation intake validate too: `FileModelKnowledgeStore.activeClaimsCap`, `GitWorktreeProvider.maxPinnedWorktrees`, and `modelKnowledgeCard` `budgetChars` (now a hard bound of the whole card). The sweep also validated `escalation.minSpendUsd` (a NaN silently disabled the minimum spend gate) and gave `LeasableStore` the optional readonly `leaseTtlMs` capability.
 
 ### 1.35.0
 
@@ -2822,6 +2853,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.36.0
+
 ### 1.35.0
 
 ### 1.34.0
@@ -2962,6 +2995,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.36.0
+
+#### Minor Changes
+
+- 101795b: Validate the CAS rebase `attempts` of `commitEvalMeasured` and `flipStaleOnCanaryDrift` as positive integers before the first store read (v1.35.0 review P2). Unvalidated, NaN or a nonpositive count skipped the loop entirely and surfaced the generic `unreachable` Error instead of a typed refusal, while a fraction over ran by an attempt.
+
+#### Patch Changes
+
+- Updated dependencies [101795b]
+  - @rulvar/core@1.36.0
+  - @rulvar/testing@1.36.0
 
 ### 1.35.0
 
@@ -3545,6 +3590,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.36.0
+
+#### Patch Changes
+
+- Updated dependencies [101795b]
+  - @rulvar/core@1.36.0
 
 ### 1.35.0
 
@@ -4154,6 +4206,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.36.0
+
+#### Minor Changes
+
+- 101795b: Make the guards fallback `'fail-run'` a real failure policy (v1.35.0 review P2). After the journaled guard verdict the PlanRunner terminates the orchestration with `FailRunError` (`data.source: 'plan_guards'`, `data.verdictRef`) through the new extension terminate capability: no further model turn is consulted, the run ends with outcome `error`, and a resume re folds the verdict at boot and rolls the same failure forward with zero model calls. `reject-revision` and `finish-with-partial` keep their historical steer to finish behavior.
+
+#### Patch Changes
+
+- Updated dependencies [101795b]
+  - @rulvar/core@1.36.0
+
 ### 1.35.0
 
 #### Minor Changes
@@ -4728,6 +4791,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.36.0
+
+#### Minor Changes
+
+- 101795b: Validate `PlanOptions.repairRounds` as a nonnegative integer before the runId derivation, the store lookup, and any provider dispatch (v1.35.0 review P2). Unvalidated, NaN produced zero drafts with an `after NaN drafts` rejection, a fraction over ran by a draft, and `Infinity` turned the self repair limiter into an unbounded paid loop.
+
+#### Patch Changes
+
+- Updated dependencies [101795b]
+  - @rulvar/core@1.36.0
+  - eslint-plugin-rulvar@1.36.0
+
 ### 1.35.0
 
 #### Minor Changes
@@ -5261,6 +5336,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.36.0
+
+#### Patch Changes
+
+- Updated dependencies [101795b]
+  - @rulvar/core@1.36.0
+  - @rulvar/anthropic@1.36.0
+  - @rulvar/openai@1.36.0
 
 ### 1.35.0
 
@@ -5935,6 +6019,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.36.0
+
+#### Patch Changes
+
+- Updated dependencies [101795b]
+  - @rulvar/core@1.36.0
+
 ### 1.35.0
 
 #### Patch Changes
@@ -6467,6 +6558,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.36.0
+
+#### Minor Changes
+
+- 101795b: Validate `SqliteStoreOptions.ttlMs` as an integer between 1 and 2147483647 ms BEFORE the database opens, and expose the configured value as the readonly `leaseTtlMs` capability (v1.35.0 review P2). Unvalidated, zero or a negative made every lease born expired so a second owner could take over immediately, NaN failed the first acquire with a raw sqlite error, and Infinity never expired.
+
+#### Patch Changes
+
+- Updated dependencies [101795b]
+  - @rulvar/core@1.36.0
+
 ### 1.35.0
 
 #### Patch Changes
@@ -6938,6 +7040,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.36.0
+
+#### Patch Changes
+
+- Updated dependencies [101795b]
+  - @rulvar/core@1.36.0
 
 ### 1.35.0
 

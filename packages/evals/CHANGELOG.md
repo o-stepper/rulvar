@@ -1,5 +1,17 @@
 # @rulvar/evals
 
+## 1.36.0
+
+### Minor Changes
+
+- 101795b: Validate the CAS rebase `attempts` of `commitEvalMeasured` and `flipStaleOnCanaryDrift` as positive integers before the first store read (v1.35.0 review P2). Unvalidated, NaN or a nonpositive count skipped the loop entirely and surfaced the generic `unreachable` Error instead of a typed refusal, while a fraction over ran by an attempt.
+
+### Patch Changes
+
+- Updated dependencies [101795b]
+  - @rulvar/core@1.36.0
+  - @rulvar/testing@1.36.0
+
 ## 1.35.0
 
 ### Patch Changes
