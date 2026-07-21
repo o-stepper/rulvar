@@ -127,6 +127,8 @@ Every guard in the machinery terminates without a human. The fallback chain is `
 - The oscillation guard watches coarse approach signatures across logical-task boundaries: cancel and re-add churn of content-identical work is detected even under a fresh lineage, and the third re-add of one spawn key (`maxOscillationsPerKey` on the `reuse` option, default 2) is rejected outright.
 - An optional `maxAbandonedNetUsdFraction` on `guards` trips the same fallback when net lost spend crosses a fraction of the starting budget.
 
+Guard limits are validated at construction with a typed `ConfigError`: the streak and oscillation limits must be positive integers, the stall replan cap a nonnegative integer (0 means no stall replans at all), and `maxAbandonedNetUsdFraction` a fraction in (0, 1]. Unvalidated, a NaN limit inverted the machinery: the dropped and oscillation guards tripped immediately while the stall cap never tripped.
+
 ## Wake digests
 
 The orchestrator sleeps on `wait_for_events` and is woken exclusively by coalesced wake digests: summaries, never raw transcripts, so its context grows with the number of wakes rather than the number of children. All events since the previous wake coalesce into one digest, ordered by spawn ordinal, never by wall-clock completion order. The digest is part of the wake snapshot: a turn re-executed after a crash reads exactly the same bytes, and `plan_view` and `ledger_read` inside that turn are pinned to the same snapshot.

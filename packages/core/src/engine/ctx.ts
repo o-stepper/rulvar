@@ -21,6 +21,8 @@ import {
   type Issue,
   type WireError,
 } from '../l0/errors.js';
+import { setLongTimeout, type LongTimer } from '../l0/long-timer.js';
+import { requireNonNegativeNumber, requirePositiveInteger } from '../l0/validate-numbers.js';
 import type { Json } from '../l0/json.js';
 import type { Effort, InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
 import type { Pricing, ProviderAdapter } from '../l0/spi/provider.js';
@@ -91,7 +93,11 @@ import {
   type PermissionConfig,
   type PermissionRule,
 } from '../runtime/permission-chain.js';
-import { mergeUsageLimits, type UsageLimits } from '../runtime/usage-limits.js';
+import {
+  mergeUsageLimits,
+  validateUsageLimits,
+  type UsageLimits,
+} from '../runtime/usage-limits.js';
 import { buildToolContext } from '../tools/context.js';
 import { resolveToolset, type ToolsOption } from '../tools/toolset-hash.js';
 import { AdmissionController, type AdmitVerdict } from '../orchestrator/admission.js';
@@ -958,6 +964,14 @@ export function createCtx(
             'has no engine default',
         );
       }
+      if (escalation.deadlineMs !== undefined) {
+        // A malformed interval (NaN, a negative, a fraction) fails typed
+        // BEFORE any LLM call and before any journal entry (v1.34.0
+        // review P2-3). No upper bound: the journaled absolute deadline
+        // is honored through sliced timers, so a suspension may
+        // legitimately wait beyond the Node timer maximum.
+        requirePositiveInteger(escalation.deadlineMs, 'escalation.deadlineMs');
+      }
       if (opts.result !== 'full' && internals.onEscalation === undefined) {
         // No channel able to carry the report: fail BEFORE any LLM call
         // and before any journal entry.
@@ -1135,6 +1149,18 @@ export function createCtx(
             ? `the retry of profile '${String(opts.agentType)}'`
             : 'engine defaults.retry';
       validateRetryPolicy(retryPolicy, retrySource);
+    }
+    // Call-level numeric options are validated like the retry policy
+    // above: before identity, admission, and any journal append
+    // (v1.34.0 review P2-3). A negative estCost used to SHRINK the
+    // committed reserve total and let a sibling spawn through a ceiling
+    // it did not fit (the projected-admission promise); profile and
+    // engine layers were validated at createEngine.
+    if (opts.estCost !== undefined) {
+      requireNonNegativeNumber(opts.estCost, 'the agent estCost option');
+    }
+    if (opts.limits !== undefined) {
+      validateUsageLimits(opts.limits, 'the agent limits option');
     }
 
     const identityInput = {
@@ -1790,12 +1816,16 @@ export function createCtx(
     }
     if (internals.providerLimiter !== undefined) {
       const limiter = internals.providerLimiter;
-      runAgentOptions.providerSlot = (key, fn) =>
-        limiter.withSlot(key, fn, () =>
-          internals.events.emit(
-            { type: 'agent:queued', agentType, label: opts.label, providerKey: key },
-            spanId,
-          ),
+      runAgentOptions.providerSlot = (key, fn, signal) =>
+        limiter.withSlot(
+          key,
+          fn,
+          () =>
+            internals.events.emit(
+              { type: 'agent:queued', agentType, label: opts.label, providerKey: key },
+              spanId,
+            ),
+          signal,
         );
     }
     if (opts.stream !== undefined) {
@@ -1811,9 +1841,13 @@ export function createCtx(
     const exitActivity = internals.external?.enter();
     let result: Awaited<ReturnType<typeof runAgent<S>>>;
     try {
+      // The branch/run signal rides into the slot wait: a cancelled run
+      // frees its queued spawns instead of leaving them parked behind a
+      // held slot (v1.34.0 review P2-4).
       result = await internals.semaphore.withSlot(
         () => runAgent<S>(runAgentOptions),
         () => internals.events.emit({ type: 'agent:queued', agentType, label: opts.label }, spanId),
+        branchOrRunSignal,
       );
     } finally {
       exitActivity?.();
@@ -1844,7 +1878,7 @@ export function createCtx(
       const defaultDecision: EscalationDecision = escalation.defaultDecision ?? {
         kind: 'accept',
       };
-      let timer: ReturnType<typeof setTimeout> | undefined;
+      let timer: LongTimer | undefined;
       const decisionOutcome = await internals.external.awaitDecision({
         scope: agentScope(state.scope, running.seq),
         spanId: internals.spans.mint(spanId),
@@ -1858,16 +1892,20 @@ export function createCtx(
             replayed,
           );
           // The journaled deadlineAt survives resume: the timer re-arms
-          // from the ENTRY, not from config.
+          // from the ENTRY, not from config. Sliced against the Node
+          // timer ceiling, so a deadline weeks out stays suspended
+          // instead of resolving by timeout immediately (v1.34.0 review
+          // P2-2); the durability re-arm promise holds for any interval.
           const registry = internals.external;
           const dueAt = Date.parse(entry.deadlineAt ?? '') || internals.now();
-          timer = setTimeout(
+          timer = setLongTimeout(
             () => {
               void registry
                 ?.submitResolution(entry.seq, { by: 'timeout', value: defaultDecision })
                 .catch(() => undefined);
             },
-            Math.max(0, dueAt - internals.now()),
+            dueAt,
+            () => internals.now(),
           );
           // A live decision races the timer through the arbiter;
           // first-closing-wins, the loser journals as noop (DEF-4).
@@ -1889,7 +1927,7 @@ export function createCtx(
         },
       });
       if (timer !== undefined) {
-        clearTimeout(timer);
+        timer.cancel();
       }
       flavorBDecision = decisionOutcome.value as unknown as EscalationDecision;
     }

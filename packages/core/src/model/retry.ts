@@ -10,6 +10,7 @@
  * Appendix A defaults were committed at the M4 entry gate.
  */
 import { ConfigError, type WireError } from '../l0/errors.js';
+import { MAX_TIMER_DELAY_MS } from '../l0/validate-numbers.js';
 
 /**
  * Captured at module load, before the InProcessRunner's nondeterminism
@@ -55,13 +56,11 @@ export function retryClassOf(error: WireError): RetryClass | undefined {
   return 'transport';
 }
 
-/**
- * The largest delay a Node timer represents exactly (2^31 above that
- * a timer overflows and fires almost immediately); every returned
- * delay is clamped to it so a huge provider value can never turn
- * into an instant retry storm.
+/*
+ * The Node timer ceiling itself lives in l0/validate-numbers.ts and is
+ * shared with the option validators, so every timer-backed knob names
+ * the same bound.
  */
-const MAX_TIMER_DELAY_MS = 2_147_483_647;
 
 /** Bounds a delay to a finite nonnegative integer a Node timer can honor. */
 function timerSafe(ms: number): number {

@@ -52,7 +52,7 @@ Three rules worth knowing up front:
 - **Duplicate adapter ids are a typed `ConfigError`** at `createEngine`. Several OpenAI compatible endpoints coexist by giving each a distinct `id`.
 - **Credentials and base URLs are fixed at adapter construction.** An adapter instance is bound to one endpoint and one credential for its lifetime; run a second instance under a different id for a second endpoint.
 
-`concurrency.perProvider` caps in flight requests per adapter id; ids without a configured cap run unlimited. Where model calls are routed, and how effort, fallbacks, and quality floors resolve, is the subject of [Model routing](/guide/model-routing).
+`concurrency.perProvider` caps in flight requests per adapter id; ids without a configured cap run unlimited. Every cap (and `concurrency.perRun`) must be a positive integer: anything else, NaN included, is a typed `ConfigError` at `createEngine`. Unvalidated, a NaN cap parked the first request in the queue forever and the run could not settle, not even through `cancel()`; queue waits are also abort-aware now, so a cancelled run always drains its queued calls. Where model calls are routed, and how effort, fallbacks, and quality floors resolve, is the subject of [Model routing](/guide/model-routing).
 
 ## Authentication
 

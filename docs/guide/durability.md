@@ -211,7 +211,7 @@ Two more properties worth relying on:
 
 ## Deadlines survive resume
 
-In v1 only escalations carry journaled deadlines. The escalate tool's deadline is journaled as `deadlineAt` on the suspended entry itself, not held in a process timer. On resume the engine reads it back: if the deadline has not arrived, the timer is re-armed for the remainder; if it has already passed and no closing entry exists, a timeout resolution attempt is submitted immediately, applying the configured default decision.
+In v1 only escalations carry journaled deadlines. The escalate tool's deadline is journaled as `deadlineAt` on the suspended entry itself, not held in a process timer. On resume the engine reads it back: if the deadline has not arrived, the timer is re-armed for the remainder; if it has already passed and no closing entry exists, a timeout resolution attempt is submitted immediately, applying the configured default decision. The re-armed timer is sliced against the Node timer maximum (2147483647 ms), so a remainder beyond about 24.8 days stays suspended for its full interval instead of resolving by timeout immediately; `deadlineMs` itself must be a positive integer but has no upper bound.
 
 | Suspension | Deadline | On timeout |
 |---|---|---|

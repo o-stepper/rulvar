@@ -6,8 +6,10 @@
 // annotated. These tests pin the per-call rewrite to the reviewer's
 // acceptance list.
 //
-// Run with: node --test scripts/docs-lint.test.mjs
-// (scripts/ is outside the vitest project roots, so node:test it is.)
+// Run with: pnpm test:scripts (node --test "scripts/**/*.test.mjs");
+// the same glob runs in the CI docs-lint job, so these tests gate every
+// PR (v1.34.0 review P3). scripts/ is outside the vitest project
+// roots, so node:test it is.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

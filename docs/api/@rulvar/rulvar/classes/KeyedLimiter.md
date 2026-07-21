@@ -58,13 +58,16 @@ Queue depth for one key (0 for unlimited keys); telemetry only.
 withSlot<T>(
    key, 
    fn, 
-onQueued?): Promise<T>;
+   onQueued?, 
+signal?): Promise<T>;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
 
 Runs `fn` under the key's semaphore; keys without a configured cap
-run unlimited (no queueing, no overhead).
+run unlimited (no queueing, no overhead). An aborted `signal` frees
+a queued caller without a slot (the Semaphore contract), so run
+cancellation drains provider queues too (v1.34.0 review P2-4).
 
 #### Type Parameters
 
@@ -79,6 +82,7 @@ run unlimited (no queueing, no overhead).
 | `key` | `string` |
 | `fn` | () => `Promise`\&lt;`T`\&gt; |
 | `onQueued?` | () => `void` |
+| `signal?` | `AbortSignal` |
 
 #### Returns
 

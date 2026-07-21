@@ -10,6 +10,6 @@
 const DEFAULT_RETRY_POLICY: RetryPolicy;
 ```
 
-Defined in: [packages/core/src/model/retry.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L32)
+Defined in: [packages/core/src/model/retry.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/retry.ts#L33)
 
 Appendix A committed defaults (M4 entry gate, PR #26).

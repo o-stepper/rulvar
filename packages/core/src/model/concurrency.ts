@@ -29,13 +29,20 @@ export class KeyedLimiter {
 
   /**
    * Runs `fn` under the key's semaphore; keys without a configured cap
-   * run unlimited (no queueing, no overhead).
+   * run unlimited (no queueing, no overhead). An aborted `signal` frees
+   * a queued caller without a slot (the Semaphore contract), so run
+   * cancellation drains provider queues too (v1.34.0 review P2-4).
    */
-  async withSlot<T>(key: string, fn: () => Promise<T>, onQueued?: () => void): Promise<T> {
+  async withSlot<T>(
+    key: string,
+    fn: () => Promise<T>,
+    onQueued?: () => void,
+    signal?: AbortSignal,
+  ): Promise<T> {
     const semaphore = this.semaphores.get(key);
     if (semaphore === undefined) {
       return fn();
     }
-    return semaphore.withSlot(fn, onQueued);
+    return semaphore.withSlot(fn, onQueued, signal);
   }
 }

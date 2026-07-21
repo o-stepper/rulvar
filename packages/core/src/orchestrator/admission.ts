@@ -17,6 +17,11 @@
  * M7 with their reject codes already registered below.
  */
 import { ConfigError } from '../l0/errors.js';
+import {
+  requireFraction,
+  requireNonNegativeNumber,
+  requirePositiveInteger,
+} from '../l0/validate-numbers.js';
 import type { JournalEntry } from '../l0/entries.js';
 import { createCanonicalIdMinter } from '../l0/messages.js';
 import { parseScopePath } from '../journal/scope.js';
@@ -260,11 +265,27 @@ export class AdmissionController {
     };
   }) {
     const maxDepth = options.maxDepth ?? DEFAULT_MAX_DEPTH;
-    if (maxDepth < 1 || maxDepth > MAX_DEPTH_CEILING) {
+    // Accepting polarity, not rejecting: `maxDepth < 1 || maxDepth > 4`
+    // let NaN through because every comparison with NaN is false, and a
+    // NaN ceiling then disabled the depth check entirely (v1.34.0
+    // review P2-3).
+    if (!Number.isInteger(maxDepth) || maxDepth < 1 || maxDepth > MAX_DEPTH_CEILING) {
       throw new ConfigError(
         `maxDepth ${String(maxDepth)} is outside [1, ${String(MAX_DEPTH_CEILING)}] ` +
           '(default 1, hard ceiling 4)',
       );
+    }
+    if (options.maxChildrenPerNode !== undefined) {
+      requirePositiveInteger(options.maxChildrenPerNode, 'maxChildrenPerNode');
+    }
+    if (options.childBudgetFraction !== undefined) {
+      requireFraction(options.childBudgetFraction, 'childBudgetFraction');
+    }
+    if (options.flatReserveUsd !== undefined) {
+      requireNonNegativeNumber(options.flatReserveUsd, 'flatReserveUsd');
+    }
+    if (options.maxTotalSpawns !== undefined) {
+      requirePositiveInteger(options.maxTotalSpawns, 'maxTotalSpawns');
     }
     this.budget = options.budget;
     this.maxDepth = maxDepth;

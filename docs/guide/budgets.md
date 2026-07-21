@@ -141,6 +141,16 @@ const label = await ctx.agent("Classify: build failure on main after merge", {
 });
 ```
 
+Every number feeding admission is validated at its intake with a typed
+`ConfigError`: `estCost` and `flatReserveUsd` must be finite and nonnegative,
+`budgetUsd` likewise, `childBudgetFraction` must be a fraction in (0, 1],
+`lifetimeSpawnCap` a nonnegative integer, and `maxDepth` an integer within the
+hard ceiling. A negative or NaN hint used to SHRINK the committed reserve
+total and let a sibling spawn through a ceiling it did not fit; now the
+malformed value is refused before any journal entry or dispatch, and the
+admission gate itself refuses a non-finite reserve as a backstop even when the
+number came from an adapter's token estimate rather than a host option.
+
 ### Layer 2: the per-turn guard and the output bound
 
 Before every agent turn the runtime checks the agent's own sub-account. A turn

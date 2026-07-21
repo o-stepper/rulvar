@@ -81,6 +81,33 @@ function makeEngine(options?: {
   return { engine, store, adapter };
 }
 
+describe('WorkerSandboxRunner constructor validation (v1.34.0 review P2-2/P2-3)', () => {
+  it.each([Number.NaN, 0, -1, 1.5, 2_147_483_648])('refuses timeoutMs %s', (timeoutMs) => {
+    // Above the Node timer maximum setTimeout clamps to 1 ms, so a
+    // trivial worker was killed immediately with sandbox_limit; NaN and
+    // friends now fail typed before any worker exists.
+    expect(() => new WorkerSandboxRunner({ workerUrl: WORKER_URL, timeoutMs })).toThrow(
+      ConfigError,
+    );
+    expect(() => new WorkerSandboxRunner({ workerUrl: WORKER_URL, timeoutMs })).toThrow(
+      /timeoutMs must be an integer between 1 and 2147483647 ms/,
+    );
+  });
+
+  it.each([Number.NaN, 0, -1, 1.5])('refuses memoryMb %s', (memoryMb) => {
+    expect(() => new WorkerSandboxRunner({ workerUrl: WORKER_URL, memoryMb })).toThrow(
+      /memoryMb must be a positive integer/,
+    );
+  });
+
+  it('accepts the documented boundaries', () => {
+    expect(
+      () =>
+        new WorkerSandboxRunner({ workerUrl: WORKER_URL, timeoutMs: 2_147_483_647, memoryMb: 1 }),
+    ).not.toThrow();
+  });
+});
+
 describe('WorkerSandboxRunner (M6-T02)', () => {
   it('executes a compiled workflow end to end through the engine', async () => {
     const { engine, store } = makeEngine({ agents: { '*': 'the verdict' } });

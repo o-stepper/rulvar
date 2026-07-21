@@ -2647,6 +2647,10 @@
             "link": "/api/@rulvar/core/functions/validateTerminationLimits.md"
           },
           {
+            "text": "validateUsageLimits",
+            "link": "/api/@rulvar/core/functions/validateUsageLimits.md"
+          },
+          {
             "text": "workflowScope",
             "link": "/api/@rulvar/core/functions/workflowScope.md"
           },
@@ -6274,6 +6278,10 @@
           {
             "text": "validateTerminationLimits",
             "link": "/api/@rulvar/rulvar/functions/validateTerminationLimits.md"
+          },
+          {
+            "text": "validateUsageLimits",
+            "link": "/api/@rulvar/rulvar/functions/validateUsageLimits.md"
           },
           {
             "text": "workflowScope",

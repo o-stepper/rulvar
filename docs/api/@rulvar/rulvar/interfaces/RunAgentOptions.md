@@ -39,7 +39,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-now"></a> `now?` | () => `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-priceusd"></a> `priceUsd?` | (`servedBy`, `usage`) => `number` \| `undefined` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-prompt"></a> `prompt` | `string` | - | `packages/core/dist/index.d.ts` |
-| <a id="property-providerslot"></a> `providerSlot?` | \&lt;`T`\&gt;(`key`, `fn`) => `Promise`\&lt;`T`\&gt; | Per-provider keyed limiter hook (M4-T07): wraps every wire dispatch under the serving adapter's key; absent = unlimited (Appendix A). | `packages/core/dist/index.d.ts` |
+| <a id="property-providerslot"></a> `providerSlot?` | \&lt;`T`\&gt;(`key`, `fn`, `signal?`) => `Promise`\&lt;`T`\&gt; | Per-provider keyed limiter hook (M4-T07): wraps every wire dispatch under the serving adapter's key; absent = unlimited (Appendix A). `signal` is the agent-level abort: an aborted caller leaves the key's queue without a slot (v1.34.0 review P2-4). | `packages/core/dist/index.d.ts` |
 | <a id="property-resolved"></a> `resolved` | [`ResolvedInvocation`](/api/@rulvar/rulvar/interfaces/ResolvedInvocation.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-retry"></a> `retry?` | \{ `policy?`: [`RetryPolicy`](/api/@rulvar/rulvar/interfaces/RetryPolicy.md); `random?`: () => `number`; `sleep?`: (`ms`) => `Promise`\&lt;`void`\&gt;; \} | Transport RetryPolicy (M4-T05): lives UNDER the journal, wired around every adapter.stream dispatch. sleep and random are injectable for tests; the core owns wall-clock. | `packages/core/dist/index.d.ts` |
 | `retry.policy?` | [`RetryPolicy`](/api/@rulvar/rulvar/interfaces/RetryPolicy.md) | - | `packages/core/dist/index.d.ts` |

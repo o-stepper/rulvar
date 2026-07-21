@@ -8,14 +8,6 @@
 
 Defined in: `packages/core/dist/index.d.ts`
 
-UsageLimits (M1-T06): normative limit vocabulary and the per-spawn merge.
-
-Full contract: https://docs.rulvar.com/guide/agents. Expiry of maxTurns, maxToolCalls,
-or timeoutMs produces the terminal status 'limit' (paid partial work);
-streamIdleTimeoutMs expiry is a retryable transport-class AgentError,
-never 'limit'. The run-level deadline is RunOptions.deadlineAt, not a
-UsageLimits field.
-
 ## Properties
 
 | Property | Type | Description | Defined in |

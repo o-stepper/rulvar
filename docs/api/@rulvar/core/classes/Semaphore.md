@@ -6,7 +6,7 @@
 
 # Class: Semaphore
 
-Defined in: [packages/core/src/engine/scheduler.ts:12](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/scheduler.ts#L12)
+Defined in: [packages/core/src/engine/scheduler.ts:18](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/scheduler.ts#L18)
 
 ## Constructors
 
@@ -16,7 +16,14 @@ Defined in: [packages/core/src/engine/scheduler.ts:12](https://github.com/o-step
 new Semaphore(limit): Semaphore;
 ```
 
-Defined in: [packages/core/src/engine/scheduler.ts:17](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/scheduler.ts#L17)
+Defined in: [packages/core/src/engine/scheduler.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/scheduler.ts#L31)
+
+`limit` must be a positive integer: anything else (NaN included) is
+a typed ConfigError. Before this gate a NaN limit made
+`active < limit` permanently false, so the first acquire queued
+forever and the run could not settle, not even through cancel()
+(v1.34.0 review P2-4). Unlimited is expressed by not constructing a
+semaphore, never by a sentinel limit.
 
 #### Parameters
 
@@ -38,7 +45,7 @@ Defined in: [packages/core/src/engine/scheduler.ts:17](https://github.com/o-step
 get pending(): number;
 ```
 
-Defined in: [packages/core/src/engine/scheduler.ts:21](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/scheduler.ts#L21)
+Defined in: [packages/core/src/engine/scheduler.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/scheduler.ts#L36)
 
 ##### Returns
 
@@ -49,19 +56,26 @@ Defined in: [packages/core/src/engine/scheduler.ts:21](https://github.com/o-step
 ### acquire()
 
 ```ts
-acquire(onQueued?): Promise<() => void>;
+acquire(onQueued?, signal?): Promise<() => void>;
 ```
 
-Defined in: [packages/core/src/engine/scheduler.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/scheduler.ts#L29)
+Defined in: [packages/core/src/engine/scheduler.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/scheduler.ts#L50)
 
 Acquires a slot, resolving in FIFO order. `onQueued` fires only when
 the caller actually has to wait (feeds the agent:queued event).
+An aborted `signal` releases the caller from the queue without a
+slot: the returned release is a no-op, the remaining waiters keep
+their FIFO positions, and the caller proceeds to observe its own
+aborted signal (the model layers refuse dispatch under an aborted
+signal, so no provider call follows). Cancellation can therefore
+always drain a queued run (v1.34.0 review P2-4).
 
 #### Parameters
 
 | Parameter | Type |
 | ------ | ------ |
 | `onQueued?` | () => `void` |
+| `signal?` | `AbortSignal` |
 
 #### Returns
 
@@ -72,10 +86,13 @@ the caller actually has to wait (feeds the agent:queued event).
 ### withSlot()
 
 ```ts
-withSlot<T>(fn, onQueued?): Promise<T>;
+withSlot<T>(
+   fn, 
+   onQueued?, 
+signal?): Promise<T>;
 ```
 
-Defined in: [packages/core/src/engine/scheduler.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/scheduler.ts#L42)
+Defined in: [packages/core/src/engine/scheduler.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/scheduler.ts#L93)
 
 #### Type Parameters
 
@@ -89,6 +106,7 @@ Defined in: [packages/core/src/engine/scheduler.ts:42](https://github.com/o-step
 | ------ | ------ |
 | `fn` | () => `Promise`\&lt;`T`\&gt; |
 | `onQueued?` | () => `void` |
+| `signal?` | `AbortSignal` |
 
 #### Returns
 

@@ -10,7 +10,7 @@
 function hashRunArgs(args): string | undefined;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:326](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L326)
+Defined in: [packages/core/src/engine/engine.ts:386](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L386)
 
 sha256 hex over the JCS canonical serialization of a run's args: the
 value the engine records as `RunMeta.argsHash` at genesis, exposed so

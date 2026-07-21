@@ -45,7 +45,7 @@ execute<A, R>(
 args): Promise<R>;
 ```
 
-Defined in: [packages/planner/src/sandbox-runner.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/sandbox-runner.ts#L63)
+Defined in: [packages/planner/src/sandbox-runner.ts:90](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/sandbox-runner.ts#L90)
 
 #### Type Parameters
 

@@ -24,6 +24,7 @@
  * Full contract: https://docs.rulvar.com/guide/budgets
  */
 import { BudgetExhaustedError, ConfigError } from '../l0/errors.js';
+import { requireNonNegativeNumber } from '../l0/validate-numbers.js';
 import type { ModelRef, Usage } from '../l0/messages.js';
 import { sanitizeUsage, sanitizeUsageDelta } from '../l0/usage.js';
 import type { ModelCaps, Pricing } from '../l0/spi/provider.js';
@@ -452,6 +453,15 @@ export class RunBudget {
    * Also enforces the engine lifetime spawn cap.
    */
   admitSpawn(reserveUsd: number, accountScope: string = ROOT_ACCOUNT): void {
+    // Backstop for the reserve formula itself (v1.34.0 review P2-3):
+    // estCost and flatReserveUsd are validated at their intake, but a
+    // countTokens estimate is adapter-computed and could still produce
+    // NaN or a negative. A malformed reserve would SHRINK the committed
+    // total and admit siblings past the ceiling, so it refuses here,
+    // before any account mutates. admitRecovered stays permissive: it
+    // rolls forward reserves journaled by an OLDER engine, and refusing
+    // history would break resume.
+    requireNonNegativeNumber(reserveUsd, 'the admission reserve (estCost or its fallbacks)');
     if (this.agentsSpawnedInternal >= this.lifetimeSpawnCap) {
       this.exhaustedInternal = true;
       throw new BudgetExhaustedError(
