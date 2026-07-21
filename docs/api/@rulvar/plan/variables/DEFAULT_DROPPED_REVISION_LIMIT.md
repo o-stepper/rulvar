@@ -10,4 +10,4 @@
 const DEFAULT_DROPPED_REVISION_LIMIT: 3 = 3;
 ```
 
-Defined in: [packages/plan/src/guards.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L87)
+Defined in: [packages/plan/src/guards.ts:96](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L96)

@@ -10,7 +10,7 @@
 function filterClaimsForRun(claims, options): ModelClaim[];
 ```
 
-Defined in: [packages/core/src/knowledge/card.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/card.ts#L74)
+Defined in: [packages/core/src/knowledge/card.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/card.ts#L76)
 
 The admission filter: status active, unexpired at
 `now`, and the subject reachable through the run's declared ladders

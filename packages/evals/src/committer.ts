@@ -8,6 +8,7 @@
  */
 import {
   claimExpiry,
+  ConfigError,
   KnowledgeCasError,
   type ClaimOp,
   type EvidenceRef,
@@ -16,6 +17,19 @@ import {
   type TaskClass,
 } from '@rulvar/core';
 import type { Effort, ModelRef } from '@rulvar/core';
+
+/**
+ * Local mirror of the core numeric intake idiom (v1.35.0 review P2-5):
+ * the CAS loop bound is compared with `<`, and every comparison with NaN
+ * is false, so an unvalidated NaN or nonpositive count skipped the loop
+ * entirely and surfaced the generic 'unreachable' Error instead of a
+ * typed refusal, while a fraction over ran by an attempt.
+ */
+export function requireCasAttempts(value: number, site: string): void {
+  if (!Number.isInteger(value) || value < 1) {
+    throw new ConfigError(`${site} must be a positive integer; got ${String(value)}`);
+  }
+}
 
 export interface MeasuredClaimInput {
   /** ULID (or any unique id); the caller mints it deterministically. */
@@ -44,7 +58,10 @@ export interface EvalCommitterOptions {
   committerId: string;
   /** The emitting sweep report; every claim's gate references it. */
   reportId: string;
-  /** CAS-rebase attempts; default 3. */
+  /**
+   * CAS rebase attempts; default 3. A positive integer, refused as a
+   * ConfigError before the first store read.
+   */
   attempts?: number;
 }
 
@@ -89,6 +106,7 @@ export async function commitEvalMeasured(
     gate,
   }));
   const attempts = options.attempts ?? 3;
+  requireCasAttempts(attempts, 'EvalCommitterOptions.attempts');
   let lastCas: KnowledgeCasError | undefined;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const snapshot = await store.current();
@@ -102,5 +120,7 @@ export async function commitEvalMeasured(
       throw thrown;
     }
   }
+  // Reachable only through CAS exhaustion now that the attempt count is
+  // validated at intake.
   throw lastCas ?? new Error('commitEvalMeasured: unreachable');
 }

@@ -130,3 +130,21 @@ describe('IsolationSpec identity encoding (M3-T05)', () => {
     expect(new Set(keys).size).toBe(4);
   });
 });
+
+describe('maxPinnedWorktrees intake (v1.35.0 review P2-5)', () => {
+  it.each([[Number.NaN], [-1], [2.5], [Number.POSITIVE_INFINITY]])(
+    'refuses maxPinnedWorktrees %s at construction',
+    (maxPinnedWorktrees) => {
+      // The retention compares `pinned.size < cap`: NaN performed the
+      // acquire effects and then dropped every tree as "cap reached".
+      expect(() => new GitWorktreeProvider({ maxPinnedWorktrees })).toThrow(ConfigError);
+      expect(() => new GitWorktreeProvider({ maxPinnedWorktrees })).toThrow(
+        /maxPinnedWorktrees must be a nonnegative integer/,
+      );
+    },
+  );
+
+  it('zero stays valid: retention disabled without construction failure', () => {
+    expect(() => new GitWorktreeProvider({ maxPinnedWorktrees: 0 })).not.toThrow();
+  });
+});

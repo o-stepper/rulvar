@@ -463,7 +463,22 @@ Two details make the cap safe rather than merely present:
   `ok` with a `forcedFinish` mark in the cost report. If even that fails, the
   engine synthesizes a deterministic partial result from the journaled plan
   state with zero LLM calls, and the run ends `exhausted` with a non-null
-  value. The sole alternative is `atCap: 'fail-run'`.
+  value. The sole alternative is `atCap: 'fail-run'`: the reserved finalizer
+  is skipped entirely and the run fails with outcome `error` carrying
+  `FailRunError` (code `fail_run`, `data.source: 'orchestrator_budget_cap'`,
+  `data.capDecisionRef`). The journaled cap decision freezes the chosen
+  policy, so a crash between the decision and its effect rolls the SAME
+  outcome forward on resume with no second decision and no model call, even
+  when the live options disagree.
+
+Every numeric field of the budget spec validates before any journal entry,
+provider call, or child dispatch: `capUsd` and `finalizeReserveUsd` are finite
+numbers `>= 0`, `capFraction` is a fraction in `(0, 1]` (zero does not lift
+the cap; it would make every turn unpayable), `finalizeTurns` is a positive
+integer, and `atCap` must be exactly one of the two literals even at a plain
+JS/JSON boundary. A malformed value is a `ConfigError`; a NaN previously
+disabled the comparisons silently, and a negative `finalizeReserveUsd`
+WIDENED the soft boundary instead of reserving from it.
 
 The orchestrator is never woken up about its own spend (waking it would cost
 more of it); instead every wake digest carries a passive budget block with run

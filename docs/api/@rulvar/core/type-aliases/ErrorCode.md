@@ -20,6 +20,7 @@ type ErrorCode =
   | "orchestrator_cap_config"
   | "journal_miss"
   | "budget_exhausted"
+  | "fail_run"
   | "admission_rejected"
   | "sandbox_limit"
   | "lease_held"

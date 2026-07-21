@@ -58,7 +58,11 @@ export interface EscalationOptions {
   deadlineMs?: number;
   /** Applied by the timeout resolution (by: 'timeout'); default accept. */
   defaultDecision?: EscalationDecision;
-  /** In-run minimum spend before scope_bigger; default 0 (M3-T09). */
+  /**
+   * In-run minimum spend before scope_bigger; default 0 (M3-T09). A
+   * finite number >= 0, validated before any LLM call: the gate
+   * compares spend against it, and a NaN would silently disable it.
+   */
   minSpendUsd?: number;
 }
 

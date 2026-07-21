@@ -291,7 +291,10 @@ interface EvalCommitterOptions {
   committerId: string;
   /** The emitting sweep report; every claim's gate references it. */
   reportId: string;
-  /** CAS-rebase attempts; default 3. */
+  /**
+  * CAS rebase attempts; default 3. A positive integer, refused as a
+  * ConfigError before the first store read.
+  */
   attempts?: number;
 }
 /** One measured claim; claimExpiry applies the TTL from the decay table. */

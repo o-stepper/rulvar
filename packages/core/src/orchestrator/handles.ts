@@ -15,6 +15,7 @@
  * spawn decisions).
  */
 import type { Json } from '../l0/json.js';
+import { truncateToBudget } from '../l0/truncate.js';
 import type { AgentResult } from '../runtime/agent-loop.js';
 
 /** The per-child digest handed to the orchestrator. */
@@ -84,9 +85,9 @@ export function summarizeOutput(result: AgentResult<unknown>): string {
         ? result.output
         : JSON.stringify(result.output ?? null)
       : (result.errorMessage ?? `terminal status ${result.status}`);
-  return raw.length <= WAKE_SUMMARY_RENDER_BUDGET_CHARS
-    ? raw
-    : `${raw.slice(0, WAKE_SUMMARY_RENDER_BUDGET_CHARS)}...`;
+  // The budget bounds the WHOLE distilled row, marker included
+  // (v1.35.0 review P2-2): the old idiom returned up to budget + 3.
+  return truncateToBudget(raw, WAKE_SUMMARY_RENDER_BUDGET_CHARS);
 }
 
 /** Folds one settled child into its digest (spawn-ordinal ordering is the caller's). */

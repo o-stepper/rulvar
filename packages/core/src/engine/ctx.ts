@@ -114,6 +114,7 @@ import {
   type InternalAgentHooks,
 } from './internal.js';
 import { Semaphore } from './scheduler.js';
+import { EscalationDecisionAbortedError } from './external.js';
 import type { ExternalRegistry } from './external.js';
 
 export type ErrorPolicy = 'strict' | 'lenient';
@@ -144,7 +145,8 @@ export interface AgentProfile {
   /**
    * Per-profile compaction threshold; default 0.8 of the loop model's
    * contextWindow (M4-T03). Compaction is ON by
-   * default; history-processor plumbing stays engine-internal.
+   * default; history-processor plumbing stays engine-internal. The
+   * threshold is a fraction in (0, 1], validated at createEngine.
    */
   compaction?: { threshold?: number };
   /** Admission reserve hint in USD (budget layer 1). */
@@ -971,6 +973,12 @@ export function createCtx(
         // is honored through sliced timers, so a suspension may
         // legitimately wait beyond the Node timer maximum.
         requirePositiveInteger(escalation.deadlineMs, 'escalation.deadlineMs');
+      }
+      if (escalation.minSpendUsd !== undefined) {
+        // The gate compares spentSoFar < minSpendUsd, and every
+        // comparison with NaN is false: an unvalidated NaN silently
+        // disabled the configured minimum spend gate (v1.35.0 sweep).
+        requireNonNegativeNumber(escalation.minSpendUsd, 'escalation.minSpendUsd');
       }
       if (opts.result !== 'full' && internals.onEscalation === undefined) {
         // No channel able to carry the report: fail BEFORE any LLM call
@@ -1854,6 +1862,33 @@ export function createCtx(
     }
     internals.budget.releaseReserve(reserve, budgetAccount);
 
+    // collect() before dispose, shared by the settled tail and the
+    // aborted flavor B wait: the patch lands in TranscriptStore and its
+    // reference in AgentResult.artifacts; applying it stays with the
+    // caller.
+    const collectAndDisposeWorktree = async (): Promise<void> => {
+      if (acquired === undefined) {
+        return;
+      }
+      try {
+        const { files, patch } = await acquired.collect();
+        const patchRef = internals.mintTranscriptRef();
+        await internals.transcripts.put(patchRef, patch);
+        const artifact: Artifact = { id: 'worktree-patch', kind: 'patch', files, ref: patchRef };
+        result.artifacts = [...(result.artifacts ?? []), artifact];
+      } catch (thrown) {
+        internals.events.emit(
+          {
+            type: 'log',
+            level: 'warn',
+            msg: `worktree collect failed: ${thrown instanceof Error ? thrown.message : String(thrown)}`,
+          },
+          spanId,
+        );
+      }
+      await acquired.dispose(result.status !== 'ok' && result.status !== 'escalated');
+    };
+
     // Flavor B: the accepted escalate call suspends on the approval
     // machinery with a journaled
     // deadline; the decision resolution closes it FIRST, and dispose plus
@@ -1879,80 +1914,85 @@ export function createCtx(
         kind: 'accept',
       };
       let timer: LongTimer | undefined;
-      const decisionOutcome = await internals.external.awaitDecision({
-        scope: agentScope(state.scope, running.seq),
-        spanId: internals.spans.mint(spanId),
-        toolName: 'escalate',
-        input: request as unknown as Json,
-        deadlineAt: new Date(internals.now() + deadlineMs).toISOString(),
-        onPending: (entry, replayed) => {
-          internals.events.emit(
-            { type: 'approval:pending', toolName: 'escalate', entryRef: entry.seq },
-            spanId,
-            replayed,
-          );
-          // The journaled deadlineAt survives resume: the timer re-arms
-          // from the ENTRY, not from config. Sliced against the Node
-          // timer ceiling, so a deadline weeks out stays suspended
-          // instead of resolving by timeout immediately (v1.34.0 review
-          // P2-2); the durability re-arm promise holds for any interval.
-          const registry = internals.external;
-          const dueAt = Date.parse(entry.deadlineAt ?? '') || internals.now();
-          timer = setLongTimeout(
-            () => {
-              void registry
-                ?.submitResolution(entry.seq, { by: 'timeout', value: defaultDecision })
+      let decisionOutcome: { value: Json; entryRef: number };
+      try {
+        decisionOutcome = await internals.external.awaitDecision({
+          scope: agentScope(state.scope, running.seq),
+          spanId: internals.spans.mint(spanId),
+          toolName: 'escalate',
+          input: request as unknown as Json,
+          deadlineAt: new Date(internals.now() + deadlineMs).toISOString(),
+          // The branch/run signal reaches the PARKED wait: cancel, host
+          // abort, the run deadline, and failed sibling aborts settle
+          // the run instead of waiting out the escalation deadline
+          // (v1.35.0 review P1).
+          signal: branchOrRunSignal,
+          onPending: (entry, replayed) => {
+            internals.events.emit(
+              { type: 'approval:pending', toolName: 'escalate', entryRef: entry.seq },
+              spanId,
+              replayed,
+            );
+            // The journaled deadlineAt survives resume: the timer re-arms
+            // from the ENTRY, not from config. Sliced against the Node
+            // timer ceiling, so a deadline weeks out stays suspended
+            // instead of resolving by timeout immediately (v1.34.0 review
+            // P2-2); the durability re-arm promise holds for any interval.
+            const registry = internals.external;
+            const dueAt = Date.parse(entry.deadlineAt ?? '') || internals.now();
+            timer = setLongTimeout(
+              () => {
+                void registry
+                  ?.submitResolution(entry.seq, { by: 'timeout', value: defaultDecision })
+                  .catch(() => undefined);
+              },
+              dueAt,
+              () => internals.now(),
+            );
+            // A live decision races the timer through the arbiter;
+            // first-closing-wins, the loser journals as noop (DEF-4).
+            if (internals.onEscalation !== undefined) {
+              const preview = buildEscalationReport(request, result, undefined);
+              const previewResult = {
+                ...result,
+                escalation: preview,
+              } as EscalatedResult<unknown>;
+              void Promise.resolve(internals.onEscalation(previewResult))
+                .then((decision) =>
+                  registry?.submitResolution(entry.seq, {
+                    by: 'external',
+                    value: decision,
+                  }),
+                )
                 .catch(() => undefined);
-            },
-            dueAt,
-            () => internals.now(),
-          );
-          // A live decision races the timer through the arbiter;
-          // first-closing-wins, the loser journals as noop (DEF-4).
-          if (internals.onEscalation !== undefined) {
-            const preview = buildEscalationReport(request, result, undefined);
-            const previewResult = {
-              ...result,
-              escalation: preview,
-            } as EscalatedResult<unknown>;
-            void Promise.resolve(internals.onEscalation(previewResult))
-              .then((decision) =>
-                registry?.submitResolution(entry.seq, {
-                  by: 'external',
-                  value: decision,
-                }),
-              )
-              .catch(() => undefined);
-          }
-        },
-      });
-      if (timer !== undefined) {
-        timer.cancel();
+            }
+          },
+        });
+      } catch (thrown) {
+        if (thrown instanceof EscalationDecisionAbortedError) {
+          // The abort tears down the WAIT, not the suspension: the
+          // entry stays open and a later resume parks it again under the
+          // durable journaled deadline. Salvage still precedes
+          // destruction, then the typed cancellation surfaces (the
+          // engine folds a throw under an aborted signal as run status
+          // 'cancelled'; ctx.parallel folds it as the aborted branch).
+          await collectAndDisposeWorktree();
+          throw new AgentCallError(thrown.message, result, state.scope, running.seq);
+        }
+        throw thrown;
+      } finally {
+        if (timer !== undefined) {
+          timer.cancel();
+        }
       }
       flavorBDecision = decisionOutcome.value as unknown as EscalationDecision;
     }
 
-    // collect() before dispose: the patch lands in TranscriptStore and
-    // its reference in AgentResult.artifacts; applying it stays with the
-    // caller.
     if (acquired !== undefined) {
-      try {
-        const { files, patch } = await acquired.collect();
-        const patchRef = internals.mintTranscriptRef();
-        await internals.transcripts.put(patchRef, patch);
-        const artifact: Artifact = { id: 'worktree-patch', kind: 'patch', files, ref: patchRef };
-        result.artifacts = [...(result.artifacts ?? []), artifact];
-      } catch (thrown) {
-        internals.events.emit(
-          {
-            type: 'log',
-            level: 'warn',
-            msg: `worktree collect failed: ${thrown instanceof Error ? thrown.message : String(thrown)}`,
-          },
-          spanId,
-        );
-      }
-      await acquired.dispose(result.status !== 'ok' && result.status !== 'escalated');
+      // Guarded at the call site so the path without a worktree keeps its exact
+      // interleaving: an unconditional await would add a microtask tick
+      // and reorder concurrent branch settlements in fresh journals.
+      await collectAndDisposeWorktree();
     }
 
     // The full report: runtime fills costToDate and salvage, validated

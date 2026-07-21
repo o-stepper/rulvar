@@ -83,8 +83,9 @@ describe('WakeDigest final coordinated schema (M7-T13; docs/07, section 5)', () 
     expect(digest.budget.orchestratorShare).toBeGreaterThanOrEqual(0);
     // DEF-5: the reuse stats block.
     expect(digest.reuse).toMatchObject({ abandonedUsd: 0, reclaimedUsd: 0, netLostUsd: 0 });
-    // The deterministic render clamp (characters).
-    expect(digest.completedDigests[0]?.outputSummary).toBe('a worker output long eno...');
+    // The deterministic render clamp (characters): the budget bounds the
+    // WHOLE row, marker included (v1.35.0 review P2-2).
+    expect(digest.completedDigests[0]?.outputSummary).toBe('a worker output long ...');
   });
 
   it('clamps outputSummary at the committed 400-char default (docs/06, Appendix A)', async () => {
@@ -134,7 +135,10 @@ describe('WakeDigest final coordinated schema (M7-T13; docs/07, section 5)', () 
     const outcome = await handle.result;
     expect(outcome.status).toBe('ok');
     const summary = (delivered as WakeDigest).completedDigests[0]?.outputSummary ?? '';
-    expect(summary).toBe(`${'y'.repeat(WAKE_SUMMARY_RENDER_BUDGET_CHARS)}...`);
+    // The budget is a HARD bound of the row, marker included (v1.35.0
+    // review P2-2: the old render returned budget + 3).
+    expect(summary).toBe(`${'y'.repeat(WAKE_SUMMARY_RENDER_BUDGET_CHARS - 3)}...`);
+    expect(summary).toHaveLength(WAKE_SUMMARY_RENDER_BUDGET_CHARS);
     // The committed Appendix A value: one constant serves the
     // distillation cap and the render default.
     expect(WAKE_SUMMARY_RENDER_BUDGET_CHARS).toBe(400);

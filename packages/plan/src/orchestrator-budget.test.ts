@@ -189,6 +189,162 @@ describe('orchestrator cap and finalize reserve (M7-T12, DEF-7)', () => {
   });
 });
 
+describe("executable 'fail-run' policies (v1.35.0 review P2-1)", () => {
+  it('atCap fail-run skips the finalizer and fails the run typed', async () => {
+    let finalizePrompts = 0;
+    const base = planScript();
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (JSON.stringify(req.messages).includes('budget cap was reached')) {
+        finalizePrompts += 1;
+      }
+      return base(req);
+    });
+    const store = new InMemoryStore();
+    const handle = orchestratePlanned(engineWith(adapter, store), 'fail at cap', {
+      budget: { capUsd: 0.4, finalizeReserveUsd: 0.01, atCap: 'fail-run' },
+    });
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('error');
+    expect(outcome.error?.code).toBe('fail_run');
+    expect(outcome.error?.message).toMatch(/budget\.atCap is 'fail-run'/);
+    expect(outcome.error?.data).toMatchObject({ source: 'orchestrator_budget_cap' });
+    // The reserved finalizer NEVER dispatched (the old behavior ran it
+    // and returned ok exactly like finish-with-partial).
+    expect(finalizePrompts).toBe(0);
+
+    const entries = await store.load(handle.runId);
+    const caps = decisionsOf(entries, 'orchestrator_budget_cap');
+    expect(caps).toHaveLength(1);
+    expect(caps[0]?.fallback).toBe('fail-run');
+    expect(decisionsOf(entries, 'orchestrator_finalize_fallback')).toHaveLength(0);
+  });
+
+  it('resume rolls the journaled fail-run forward: no model call, no second decision, journal wins over live options', async () => {
+    const adapter = scriptedAdapter(planScript());
+    const store = new InMemoryStore();
+    const handle = orchestratePlanned(engineWith(adapter, store), 'cap crash fail-run', {
+      budget: { capUsd: 0.4, finalizeReserveUsd: 0.01, atCap: 'fail-run' },
+    });
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('error');
+
+    // Crash simulation: keep everything up to and including the cap
+    // decision, drop its effects.
+    const full = await store.load(handle.runId);
+    const capSeq = full.find(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+        'orchestrator_budget_cap',
+    )?.seq;
+    expect(capSeq).toBeDefined();
+    const crashStore = new InMemoryStore();
+    for (const meta of await store.listRuns()) {
+      if (meta.runId === handle.runId) {
+        await crashStore.putMeta(meta);
+      }
+    }
+    for (const entry of full) {
+      if (entry.seq <= (capSeq ?? 0)) {
+        await crashStore.append(handle.runId, entry);
+      }
+    }
+    const resumedAdapter = scriptedAdapter(planScript());
+    const engine2 = engineWith(resumedAdapter, crashStore);
+    // The LIVE options now say finish-with-partial: the journaled cap
+    // decision must win (DEF-2), or a resume could flip the policy.
+    const resumed = engine2.resume(
+      handle.runId,
+      makeOrchestratorWorkflow('cap crash fail-run', {
+        budget: { capUsd: 0.4, finalizeReserveUsd: 0.01, atCap: 'finish-with-partial' },
+        extension: planRunner({}),
+      }),
+    );
+    const resumedOutcome = await resumed.result;
+    expect(resumedOutcome.status).toBe('error');
+    expect(resumedOutcome.error?.code).toBe('fail_run');
+    expect(resumedAdapter.calls).toHaveLength(0);
+    const entries = await crashStore.load(handle.runId);
+    expect(decisionsOf(entries, 'orchestrator_budget_cap')).toHaveLength(1);
+  });
+
+  function badBaseScript(): (req: import('@rulvar/core').ChatRequest) => ScriptedTurn {
+    let phase = 0;
+    return (req) => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'worker done' };
+      }
+      phase += 1;
+      if (phase <= 3) {
+        return {
+          toolCall: {
+            name: 'plan_revise',
+            args: {
+              base: { digestSeq: 0, planHash: 'not-the-plan-hash' },
+              ops: [{ op: 'add_task', spec: { agentType: 'worker', prompt: 'doomed' } }],
+              rationale: `bad base attempt ${String(phase)}`,
+            },
+          },
+        };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'survived the drops' } } };
+    };
+  }
+
+  it('guards fallback fail-run closes the run as a failure without another model turn', async () => {
+    const adapter = scriptedAdapter(badBaseScript());
+    const store = new InMemoryStore();
+    const handle = orchestratePlanned(engineWith(adapter, store), 'guards fail-run', {
+      budget: { capUsd: 5, finalizeReserveUsd: 1 },
+      plan: { guards: { fallback: 'fail-run', droppedRevisionLimit: 3 } },
+    });
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('error');
+    expect(outcome.error?.code).toBe('fail_run');
+    expect(outcome.error?.message).toMatch(/fallback 'fail-run'/);
+    expect(outcome.error?.data).toMatchObject({ source: 'plan_guards' });
+    // Three dropped revisions tripped the guard; the fourth turn (the
+    // old 'call finish with the partial result' hint) never happened.
+    expect(adapter.calls).toHaveLength(3);
+
+    const entries = await store.load(handle.runId);
+    const verdicts = entries.filter(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType === 'guard-verdict',
+    );
+    expect(verdicts).toHaveLength(1);
+    expect(verdicts[0]?.value).toMatchObject({ fallback: 'fail-run' });
+
+    // Replay: the settled journal reproduces the SAME failure free.
+    const resumedAdapter = scriptedAdapter(badBaseScript());
+    const engine2 = engineWith(resumedAdapter, store);
+    const resumed = engine2.resume(
+      handle.runId,
+      makeOrchestratorWorkflow('guards fail-run', {
+        budget: { capUsd: 5, finalizeReserveUsd: 1 },
+        extension: planRunner({ guards: { fallback: 'fail-run', droppedRevisionLimit: 3 } }),
+      }),
+    );
+    const resumedOutcome = await resumed.result;
+    expect(resumedOutcome.status).toBe('error');
+    expect(resumedOutcome.error?.code).toBe('fail_run');
+    expect(resumedAdapter.calls).toHaveLength(0);
+  });
+
+  it('guards fallback finish-with-partial keeps the historical steer to finish behavior', async () => {
+    const adapter = scriptedAdapter(badBaseScript());
+    const store = new InMemoryStore();
+    const handle = orchestratePlanned(engineWith(adapter, store), 'guards partial control', {
+      budget: { capUsd: 5, finalizeReserveUsd: 1 },
+      plan: { guards: { fallback: 'finish-with-partial', droppedRevisionLimit: 3 } },
+    });
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.value).toBe('survived the drops');
+    // The engaged guard steered the model to finish: a fourth turn ran.
+    expect(adapter.calls.length).toBeGreaterThanOrEqual(4);
+  });
+});
+
 describe('the frozen budget vector in termination.init (v1.7.0 follow-up review)', () => {
   const limitsOf = (entries: readonly JournalEntry[]): Record<string, number> | undefined =>
     (

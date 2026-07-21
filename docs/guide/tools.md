@@ -333,6 +333,12 @@ const fixTest = defineWorkflow({ name: 'fix-test' }, async (ctx) => {
 });
 ```
 
+`maxPinnedWorktrees` (default 4) bounds retained trees across park/unpark and
+the retention of failed trees; it is a nonnegative integer (zero retains nothing),
+validated as a `ConfigError` at construction, because the retention compares
+the pinned count against it and an unvalidated NaN dropped every tree as
+"cap reached" after performing the acquire effects.
+
 The lifecycle has three phases. **Acquire** creates a worktree from `HEAD` (or the given `ref`) of the host repository; a non-git host is a typed `ConfigError`; the agent's tools receive `ctx.cwd` inside the tree. **Collect** snapshots the changed files and a patch; the engine stores the patch in the transcript store and returns its reference as a `kind: 'patch'` artifact on the `AgentResult`. **Dispose** cleans the tree up; `keepOnError: true` retains a failed agent's tree for inspection.
 
 Applying the patch is always your decision: the engine never auto-applies patches to the host tree. And an agent is never resumed into a destroyed environment: if a parked agent's worktree had to be dropped (retained trees count against a pin cap, default 4), resuming it restarts the agent rather than silently continuing against a fresh tree.

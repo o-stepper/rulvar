@@ -10,7 +10,7 @@
 function escalateTool(): ToolDef;
 ```
 
-Defined in: [packages/core/src/runtime/escalation.ts:155](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L155)
+Defined in: [packages/core/src/runtime/escalation.ts:159](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/escalation.ts#L159)
 
 The engine opt-in tool: registered through the
 same path as any tool under escalation opt-in of EITHER flavor (the

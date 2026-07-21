@@ -10,7 +10,7 @@
 function compileVerifiedLayer(claims, ladders): VerifiedRecommendation[];
 ```
 
-Defined in: [packages/core/src/knowledge/card.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/card.ts#L126)
+Defined in: [packages/core/src/knowledge/card.ts:128](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/card.ts#L128)
 
 The verified-layer compiler (M11-T06): start-tier recommendations
 per (ladder, taskClass) compiled EXCLUSIVELY from eval-measured

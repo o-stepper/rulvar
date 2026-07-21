@@ -13,6 +13,7 @@ import { dirname, resolve } from 'node:path';
 
 import { jcsSerialize } from '../l0/jcs.js';
 import { ConfigError, KnowledgeCasError } from '../l0/errors.js';
+import { requireNonNegativeInteger } from '../l0/validate-numbers.js';
 import type {
   ClaimOp,
   KnowledgeSnapshot,
@@ -95,7 +96,13 @@ export function applyClaimOps(
 export interface FileModelKnowledgeStoreOptions {
   /** Default './rulvar.models.json'. */
   path?: string;
-  /** Active claims per (model, taskClass); default 8. */
+  /**
+   * Active claims per (model, taskClass); default 8. A nonnegative
+   * integer (zero refuses every active claim), validated at
+   * construction: the enforcement compares `count > cap`, and every
+   * comparison with NaN is false, so an unvalidated NaN or Infinity
+   * silently disabled the cap (v1.35.0 review P2-5).
+   */
   activeClaimsCap?: number;
 }
 
@@ -107,6 +114,9 @@ export class FileModelKnowledgeStore implements ModelKnowledgeStore {
 
   constructor(options?: FileModelKnowledgeStoreOptions) {
     this.path = resolve(options?.path ?? './rulvar.models.json');
+    if (options?.activeClaimsCap !== undefined) {
+      requireNonNegativeInteger(options.activeClaimsCap, 'FileModelKnowledgeStore activeClaimsCap');
+    }
     this.activeClaimsCap = options?.activeClaimsCap;
   }
 

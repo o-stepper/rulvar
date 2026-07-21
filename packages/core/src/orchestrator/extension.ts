@@ -166,6 +166,18 @@ export interface OrchestratorExtensionIO {
       replayed?: boolean;
     },
   ): void;
+  /**
+   * A deterministic run failure declared by the extension (v1.35.0 review P2-1):
+   * the first call stores the error and aborts the orchestrator loop;
+   * the orchestrate settle boundary rethrows it, so the run fails with
+   * the given typed error instead of asking the model to finish. Later
+   * calls do nothing. The intended producer is a journaled
+   * policy verdict (the PlanRunner guards fallback 'fail-run'): boot
+   * terminates again from the journal on resume, so the failure rolls
+   * forward without another decision or model call. Optional so
+   * IO implementations built before v1.36 keep compiling.
+   */
+  terminate?(error: Error): void;
 }
 
 /**

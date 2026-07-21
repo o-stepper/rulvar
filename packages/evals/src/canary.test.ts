@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  ConfigError,
   createEngine,
   FileModelKnowledgeStore,
   InMemoryStore,
@@ -105,4 +106,18 @@ describe('the canary fingerprint (M11-T04; OQ-06)', () => {
     expect(again.flipped).toEqual([]);
     expect((await store.current()).version).toBe(2);
   });
+
+  it.each([[Number.NaN], [0], [-1], [1.5], [Number.POSITIVE_INFINITY]])(
+    'refuses attempts %s before the first store read (v1.35.0 review P2-5)',
+    async (attempts) => {
+      const dir = mkdtempSync(join(tmpdir(), 'rulvar-canary-attempts-'));
+      const store = new FileModelKnowledgeStore({ path: join(dir, 'rulvar.models.json') });
+      await expect(
+        flipStaleOnCanaryDrift(store, FAKE_MODEL_REF, 'fp', { attempts }),
+      ).rejects.toThrow(ConfigError);
+      await expect(
+        flipStaleOnCanaryDrift(store, FAKE_MODEL_REF, 'fp', { attempts }),
+      ).rejects.toThrow(/attempts must be a positive integer/);
+    },
+  );
 });

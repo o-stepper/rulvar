@@ -6,7 +6,7 @@
 
 # Interface: DroppedItem
 
-Defined in: [packages/core/src/engine/ctx.ts:225](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L225)
+Defined in: [packages/core/src/engine/ctx.ts:227](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L227)
 
 One dropped result: its source, scope, entry ref, and wire error.
 
@@ -14,8 +14,8 @@ One dropped result: its source, scope, entry ref, and wire error.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-entryref"></a> `entryRef?` | `number` | Seq of the terminal journal entry when one exists. | [packages/core/src/engine/ctx.ts:230](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L230) |
-| <a id="property-error"></a> `error` | [`WireError`](/api/@rulvar/core/type-aliases/WireError.md) | - | [packages/core/src/engine/ctx.ts:232](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L232) |
-| <a id="property-label"></a> `label?` | `string` | - | [packages/core/src/engine/ctx.ts:231](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L231) |
-| <a id="property-scope"></a> `scope` | `string` | Scope path of the failed call. | [packages/core/src/engine/ctx.ts:228](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L228) |
-| <a id="property-source"></a> `source` | `"pipeline"` \| `"agent-onerror-null"` \| `"parallel-settled"` | - | [packages/core/src/engine/ctx.ts:226](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L226) |
+| <a id="property-entryref"></a> `entryRef?` | `number` | Seq of the terminal journal entry when one exists. | [packages/core/src/engine/ctx.ts:232](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L232) |
+| <a id="property-error"></a> `error` | [`WireError`](/api/@rulvar/core/type-aliases/WireError.md) | - | [packages/core/src/engine/ctx.ts:234](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L234) |
+| <a id="property-label"></a> `label?` | `string` | - | [packages/core/src/engine/ctx.ts:233](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L233) |
+| <a id="property-scope"></a> `scope` | `string` | Scope path of the failed call. | [packages/core/src/engine/ctx.ts:230](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L230) |
+| <a id="property-source"></a> `source` | `"pipeline"` \| `"agent-onerror-null"` \| `"parallel-settled"` | - | [packages/core/src/engine/ctx.ts:228](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L228) |

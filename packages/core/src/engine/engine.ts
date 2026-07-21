@@ -477,6 +477,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
         `createEngine defaults.profiles['${name}'].escalation.deadlineMs`,
       );
     }
+    if (profile.escalation?.minSpendUsd !== undefined) {
+      requireNonNegativeNumber(
+        profile.escalation.minSpendUsd,
+        `createEngine defaults.profiles['${name}'].escalation.minSpendUsd`,
+      );
+    }
     if (profile.compaction?.threshold !== undefined) {
       requireFraction(
         profile.compaction.threshold,

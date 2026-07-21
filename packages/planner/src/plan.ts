@@ -21,7 +21,7 @@ import type {
   RunHandle,
   RunOptions,
 } from '@rulvar/core';
-import { defineWorkflow, readRunMeta, ScriptRejected } from '@rulvar/core';
+import { ConfigError, defineWorkflow, readRunMeta, ScriptRejected } from '@rulvar/core';
 import { Linter } from 'eslint';
 import { toJsonDiagnostics, workflowsConfig } from 'eslint-plugin-rulvar';
 
@@ -42,7 +42,12 @@ export interface PlanOptions {
   model?: ModelSpec;
   /** Registered profile names to advertise; default: every profile. */
   profiles?: string[];
-  /** Self-repair rounds from JSON diagnostics; default 3 (Appendix A). */
+  /**
+   * Self-repair rounds from JSON diagnostics; default 3 (Appendix A). A
+   * nonnegative integer (zero means a single draft, no repair), refused
+   * as a ConfigError before the runId derivation, store lookup, and any
+   * provider dispatch.
+   */
   repairRounds?: number;
   /**
    * Run options of the planning conversation itself, applied at GENESIS
@@ -223,6 +228,17 @@ const planWorkflow = defineWorkflow(
 
 export async function plan(engine: Engine, goal: string, o?: PlanOptions): Promise<PlanResult> {
   const repairRounds = o?.repairRounds ?? 3;
+  // The core numeric intake idiom (v1.35.0 review P2-3): the loop bound
+  // is compared with `<=`, and every comparison with NaN is false, so an
+  // unvalidated NaN produced zero drafts with an 'after NaN drafts'
+  // rejection, a fraction over ran by a draft, and Infinity turned the
+  // repair limiter into an unbounded paid loop. Refused before the
+  // deterministic runId, store lookup, and any provider dispatch.
+  if (!Number.isInteger(repairRounds) || repairRounds < 0) {
+    throw new ConfigError(
+      `PlanOptions.repairRounds must be a nonnegative integer; got ${String(repairRounds)}`,
+    );
+  }
   const cards = [apiCard(), '', engine.profileCard(o?.profiles)].join('\n');
   const args: PlanArgs = {
     goal,

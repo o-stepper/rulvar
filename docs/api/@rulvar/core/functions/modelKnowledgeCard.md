@@ -13,12 +13,16 @@ function modelKnowledgeCard(
    options?): string;
 ```
 
-Defined in: [packages/core/src/knowledge/card.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/card.ts#L180)
+Defined in: [packages/core/src/knowledge/card.ts:186](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/card.ts#L186)
 
 The deterministic card render. Pure: same filtered
 claims and ladders give byte-identical text. The render budget is
-4096 chars; over it, the OLDEST-observed notes
-withhold first behind an explicit marker.
+4096 chars by default; over it, the OLDEST-observed notes withhold
+first behind an explicit marker, and the budget is a HARD upper bound
+of the returned string: a card whose mandatory sections alone exceed
+it is truncated with the shared marker (v1.35.0 review P2-5: a budget
+of 32 used to return the full 136-char header form). budgetChars is a
+nonnegative integer, validated as a ConfigError.
 
 ## Parameters
 

@@ -6,7 +6,7 @@
 
 # Interface: OrchestratorRuntime
 
-Defined in: [packages/core/src/orchestrator/handles.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L45)
+Defined in: [packages/core/src/orchestrator/handles.ts:46](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L46)
 
 The engine seam the spawn tools close over (never on ToolContext).
 
@@ -18,7 +18,7 @@ The engine seam the spawn tools close over (never on ToolContext).
 awaitAll(handles): Promise<TaskDigest[]>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L58)
+Defined in: [packages/core/src/orchestrator/handles.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L59)
 
 #### Parameters
 
@@ -38,7 +38,7 @@ Defined in: [packages/core/src/orchestrator/handles.ts:58](https://github.com/o-
 awaitAny(handles): Promise<TaskDigest>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L57)
+Defined in: [packages/core/src/orchestrator/handles.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L58)
 
 #### Parameters
 
@@ -61,7 +61,7 @@ cancel(handle, reason?): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L59)
+Defined in: [packages/core/src/orchestrator/handles.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L60)
 
 #### Parameters
 
@@ -87,7 +87,7 @@ spawn(params): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:46](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L46)
+Defined in: [packages/core/src/orchestrator/handles.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L47)
 
 #### Parameters
 
@@ -122,7 +122,7 @@ Defined in: [packages/core/src/orchestrator/handles.ts:46](https://github.com/o-
 waitForEvents(triggers): Promise<unknown>;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L61)
+Defined in: [packages/core/src/orchestrator/handles.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L62)
 
 Sleep until a coalesced WakeDigest (M6-T09).
 

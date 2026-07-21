@@ -13,7 +13,7 @@ function commitEvalMeasured(
 options): Promise<number>;
 ```
 
-Defined in: [packages/evals/src/committer.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/committer.ts#L76)
+Defined in: [packages/evals/src/committer.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/committer.ts#L93)
 
 Commits measured claims through the eval-committer gate with the
 documented rebase recipe: on a CAS rejection, re-read current() and

@@ -6,7 +6,7 @@
 
 # Interface: Worker
 
-Defined in: [packages/cli/src/worker.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L94)
+Defined in: [packages/cli/src/worker.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L106)
 
 ## Methods
 
@@ -16,7 +16,7 @@ Defined in: [packages/cli/src/worker.ts:94](https://github.com/o-stepper/rulvar/
 active(): string[];
 ```
 
-Defined in: [packages/cli/src/worker.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L106)
+Defined in: [packages/cli/src/worker.ts:118](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L118)
 
 runIds currently held by this worker.
 
@@ -32,7 +32,7 @@ runIds currently held by this worker.
 start(): void;
 ```
 
-Defined in: [packages/cli/src/worker.ts:96](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L96)
+Defined in: [packages/cli/src/worker.ts:108](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L108)
 
 Begins sweeping on the poll cadence. Idempotent.
 
@@ -48,7 +48,7 @@ Begins sweeping on the poll cadence. Idempotent.
 stop(): Promise<void>;
 ```
 
-Defined in: [packages/cli/src/worker.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L104)
+Defined in: [packages/cli/src/worker.ts:116](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L116)
 
 Stops sweeping, cancels in-flight runs, releases held leases.
 
@@ -64,7 +64,7 @@ Stops sweeping, cancels in-flight runs, releases held leases.
 sweep(): Promise<number>;
 ```
 
-Defined in: [packages/cli/src/worker.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L102)
+Defined in: [packages/cli/src/worker.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/worker.ts#L114)
 
 One sweep: lease and resume eligible runs up to the concurrency
 cap. Returns the number of runs picked up. Exposed so hosts and

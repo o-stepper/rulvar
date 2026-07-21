@@ -6,7 +6,7 @@
 
 # Class: ExternalRegistry
 
-Defined in: [packages/core/src/engine/external.ts:63](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L63)
+Defined in: [packages/core/src/engine/external.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L83)
 
 Per-run registry of open external suspensions plus the run's activity
 counter: when every in-flight branch is blocked on suspensions
@@ -21,7 +21,7 @@ counter: when every in-flight branch is blocked on suspensions
 new ExternalRegistry(replayer, emitEvent?): ExternalRegistry;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L74)
+Defined in: [packages/core/src/engine/external.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L94)
 
 #### Parameters
 
@@ -44,7 +44,7 @@ Defined in: [packages/core/src/engine/external.ts:74](https://github.com/o-stepp
 get closed(): boolean;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:185](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L185)
+Defined in: [packages/core/src/engine/external.ts:205](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L205)
 
 ##### Returns
 
@@ -58,7 +58,7 @@ Defined in: [packages/core/src/engine/external.ts:185](https://github.com/o-step
 awaitApproval(options): Promise<ApprovalDecision>;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:280](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L280)
+Defined in: [packages/core/src/engine/external.ts:300](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L300)
 
 Tool-approval suspension (M3-T03): journals (or
 re-matches) the suspended approval entry keyed by (toolName, input)
@@ -94,7 +94,7 @@ awaitDecision(options): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:357](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L357)
+Defined in: [packages/core/src/engine/external.ts:377](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L377)
 
 Flavor B escalation suspension (M3-T07): the
 escalate tool suspends the agent on the SAME machinery as approvals
@@ -106,15 +106,16 @@ defaultDecision and a racing live decision never both apply.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options` | \{ `deadlineAt`: `string`; `input`: [`Json`](/api/@rulvar/core/type-aliases/Json.md); `onPending?`: (`entry`, `replayed`) => `void`; `scope`: `string`; `spanId`: `string`; `toolName`: `string`; \} |
-| `options.deadlineAt` | `string` |
-| `options.input` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) |
-| `options.onPending?` | (`entry`, `replayed`) => `void` |
-| `options.scope` | `string` |
-| `options.spanId` | `string` |
-| `options.toolName` | `string` |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `options` | \{ `deadlineAt`: `string`; `input`: [`Json`](/api/@rulvar/core/type-aliases/Json.md); `onPending?`: (`entry`, `replayed`) => `void`; `scope`: `string`; `signal?`: `AbortSignal`; `spanId`: `string`; `toolName`: `string`; \} | - |
+| `options.deadlineAt` | `string` | - |
+| `options.input` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - |
+| `options.onPending?` | (`entry`, `replayed`) => `void` | - |
+| `options.scope` | `string` | - |
+| `options.signal?` | `AbortSignal` | The branch/run signal: an abort while parked releases the held activity, removes the waiter, and rejects with EscalationDecisionAbortedError (v1.35.0 review P1). The suspension entry stays open for resume. |
+| `options.spanId` | `string` | - |
+| `options.toolName` | `string` | - |
 
 #### Returns
 
@@ -135,7 +136,7 @@ awaitExternal(
 options?): Promise<Json>;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:210](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L210)
+Defined in: [packages/core/src/engine/external.ts:230](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L230)
 
 ctx.awaitExternal: journal (or re-match) the suspended entry and park
 until a resolution wins the first-closing-wins fold.
@@ -163,7 +164,7 @@ until a resolution wins the first-closing-wins fold.
 close(): void;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L180)
+Defined in: [packages/core/src/engine/external.ts:200](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L200)
 
 Settling the run closes this execution segment permanently: every
 parked waiter is detached, so a resolution arriving after
@@ -183,7 +184,7 @@ Idempotent. (Suspension ownership rule; v1.10 deep E2E review.)
 enter(): () => void;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L106)
+Defined in: [packages/core/src/engine/external.ts:126](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L126)
 
 Wraps every non-suspension async operation (agents, steps).
 
@@ -199,7 +200,7 @@ Wraps every non-suspension async operation (agents, steps).
 onQuiesce(listener): void;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L135)
+Defined in: [packages/core/src/engine/external.ts:155](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L155)
 
 #### Parameters
 
@@ -219,7 +220,7 @@ Defined in: [packages/core/src/engine/external.ts:135](https://github.com/o-step
 pending(): PendingExternal[];
 ```
 
-Defined in: [packages/core/src/engine/external.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L139)
+Defined in: [packages/core/src/engine/external.ts:159](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L159)
 
 #### Returns
 
@@ -233,7 +234,7 @@ Defined in: [packages/core/src/engine/external.ts:139](https://github.com/o-step
 resolveExternal(key, value): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:452](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L452)
+Defined in: [packages/core/src/engine/external.ts:530](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L530)
 
 RunHandle.resolveExternal: the live path validates BEFORE append and
 throws InvalidResolutionError without journaling; a winning attempt
@@ -262,7 +263,7 @@ closed body (exactly one engine.resume owns the continuation).
 submitResolution(entryRef, attempt): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:422](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L422)
+Defined in: [packages/core/src/engine/external.ts:500](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L500)
 
 Submits a resolution attempt for a parked suspension and, when it
 wins the first-closing-wins fold, settles the in-process waiter with
@@ -288,7 +289,7 @@ resolutions ride resolveExternal).
 static approvalKey(entryRef): string;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:149](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L149)
+Defined in: [packages/core/src/engine/external.ts:169](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L169)
 
 The synthesized resolveExternal key of an approval suspension.
 
@@ -310,7 +311,7 @@ The synthesized resolveExternal key of an approval suspension.
 static suspensionKeyOf(entry): string | undefined;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:159](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L159)
+Defined in: [packages/core/src/engine/external.ts:179](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L179)
 
 The resolveExternal key a journaled suspension answers to: externals
 carry the workflow-chosen key in the payload; approvals and Flavor B

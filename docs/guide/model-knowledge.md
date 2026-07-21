@@ -92,7 +92,7 @@ const engine = createEngine({
 });
 ```
 
-`FileModelKnowledgeStoreOptions` accepts a custom `path` and an `activeClaimsCap` (default 8, the `KB_ACTIVE_CLAIMS_CAP` constant); the cap is enforced at commit time per (model, taskClass) pair.
+`FileModelKnowledgeStoreOptions` accepts a custom `path` and an `activeClaimsCap` (default 8, the `KB_ACTIVE_CLAIMS_CAP` constant); the cap is enforced at commit time per (model, taskClass) pair. The cap is a nonnegative integer (zero refuses every active claim), validated as a `ConfigError` at construction: the enforcement compares counts against it, and an unvalidated NaN or Infinity silently disabled the cap.
 
 ## Reads are journaled decisions
 
@@ -161,6 +161,12 @@ const claims = filterClaimsForRun(snapshot.claims, { ladders, now: new Date().to
 
 console.log(modelKnowledgeCard(claims, ladders, { profiles }));
 ```
+
+The render budget (`budgetChars`, default 4096) is a nonnegative integer,
+validated as a `ConfigError`, and a HARD upper bound of the returned card:
+oldest editorial notes withhold first behind an explicit marker, and a card
+whose mandatory sections alone exceed the budget is truncated with the shared
+`...` marker instead of overflowing.
 
 ## How the card steers spawns
 

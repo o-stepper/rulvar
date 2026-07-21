@@ -10,4 +10,4 @@
 type GuardFallback = NonNullable<RevisionGuardsOptions["fallback"]>;
 ```
 
-Defined in: [packages/plan/src/guards.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L66)
+Defined in: [packages/plan/src/guards.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L75)

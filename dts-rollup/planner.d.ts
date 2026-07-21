@@ -47,7 +47,12 @@ interface PlanOptions {
   model?: ModelSpec;
   /** Registered profile names to advertise; default: every profile. */
   profiles?: string[];
-  /** Self-repair rounds from JSON diagnostics; default 3 (Appendix A). */
+  /**
+  * Self-repair rounds from JSON diagnostics; default 3 (Appendix A). A
+  * nonnegative integer (zero means a single draft, no repair), refused
+  * as a ConfigError before the runId derivation, store lookup, and any
+  * provider dispatch.
+  */
   repairRounds?: number;
   /**
   * Run options of the planning conversation itself, applied at GENESIS

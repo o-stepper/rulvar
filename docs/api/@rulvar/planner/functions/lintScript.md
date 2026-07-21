@@ -14,7 +14,7 @@ function lintScript(source): {
 };
 ```
 
-Defined in: [packages/planner/src/plan.ts:101](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/plan.ts#L101)
+Defined in: [packages/planner/src/plan.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/plan.ts#L106)
 
 Lints a script BODY with the workflows preset plus compileScript.
 The body is wrapped in an async function for parsing (top-level
@@ -39,6 +39,6 @@ they index into the body source.
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `diagnostics` | [`PlanDiagnostic`](/api/@rulvar/planner/interfaces/PlanDiagnostic.md)[] | [packages/planner/src/plan.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/plan.ts#L102) |
-| `errors` | [`PlanDiagnostic`](/api/@rulvar/planner/interfaces/PlanDiagnostic.md)[] | [packages/planner/src/plan.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/plan.ts#L103) |
-| `workflow?` | [`CompiledWorkflow`](/api/@rulvar/rulvar/interfaces/CompiledWorkflow.md) | [packages/planner/src/plan.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/plan.ts#L104) |
+| `diagnostics` | [`PlanDiagnostic`](/api/@rulvar/planner/interfaces/PlanDiagnostic.md)[] | [packages/planner/src/plan.ts:107](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/plan.ts#L107) |
+| `errors` | [`PlanDiagnostic`](/api/@rulvar/planner/interfaces/PlanDiagnostic.md)[] | [packages/planner/src/plan.ts:108](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/plan.ts#L108) |
+| `workflow?` | [`CompiledWorkflow`](/api/@rulvar/rulvar/interfaces/CompiledWorkflow.md) | [packages/planner/src/plan.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/plan.ts#L109) |

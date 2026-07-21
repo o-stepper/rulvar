@@ -106,15 +106,16 @@ defaultDecision and a racing live decision never both apply.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options` | \{ `deadlineAt`: `string`; `input`: [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md); `onPending?`: (`entry`, `replayed`) => `void`; `scope`: `string`; `spanId`: `string`; `toolName`: `string`; \} |
-| `options.deadlineAt` | `string` |
-| `options.input` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) |
-| `options.onPending?` | (`entry`, `replayed`) => `void` |
-| `options.scope` | `string` |
-| `options.spanId` | `string` |
-| `options.toolName` | `string` |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `options` | \{ `deadlineAt`: `string`; `input`: [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md); `onPending?`: (`entry`, `replayed`) => `void`; `scope`: `string`; `signal?`: `AbortSignal`; `spanId`: `string`; `toolName`: `string`; \} | - |
+| `options.deadlineAt` | `string` | - |
+| `options.input` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | - |
+| `options.onPending?` | (`entry`, `replayed`) => `void` | - |
+| `options.scope` | `string` | - |
+| `options.signal?` | `AbortSignal` | The branch/run signal: an abort while parked releases the held activity, removes the waiter, and rejects with EscalationDecisionAbortedError (v1.35.0 review P1). The suspension entry stays open for resume. |
+| `options.spanId` | `string` | - |
+| `options.toolName` | `string` | - |
 
 #### Returns
 

@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  ConfigError,
   FileModelKnowledgeStore,
   KnowledgeCasError,
   type ClaimOp,
@@ -104,4 +105,33 @@ describe('the eval-committer pipeline (M11-T01)', () => {
       }),
     ).rejects.toBeInstanceOf(KnowledgeCasError);
   });
+});
+
+describe('attempts intake (v1.35.0 review P2-5)', () => {
+  it.each([[Number.NaN], [0], [-1], [1.5], [Number.POSITIVE_INFINITY]])(
+    'refuses attempts %s before the first store read',
+    async (attempts) => {
+      // The unvalidated CAS loop skipped entirely on NaN or nonpositive
+      // counts and surfaced the generic 'unreachable' Error instead of a
+      // typed refusal; a fraction over ran by an attempt.
+      const calls = { current: 0, commit: 0 };
+      const spy: ModelKnowledgeStore = {
+        current: () => {
+          calls.current += 1;
+          return Promise.resolve({ version: 0, hash: '', claims: [] });
+        },
+        commit: () => {
+          calls.commit += 1;
+          return Promise.resolve(1);
+        },
+      };
+      const options = { committerId: 'ci-evals', reportId: 'sweep-1', attempts };
+      await expect(commitEvalMeasured(spy, [input('a1')], options)).rejects.toThrow(ConfigError);
+      await expect(commitEvalMeasured(spy, [input('a1')], options)).rejects.toThrow(
+        /attempts must be a positive integer/,
+      );
+      expect(calls.current).toBe(0);
+      expect(calls.commit).toBe(0);
+    },
+  );
 });

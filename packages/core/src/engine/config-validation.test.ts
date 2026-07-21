@@ -337,3 +337,32 @@ describe('RunBudget.admitSpawn reserve backstop (v1.34.0 review P2-3)', () => {
     expect(() => budget.admitSpawn(0)).not.toThrow();
   });
 });
+
+describe('the v1.35.0 public option sweep tails', () => {
+  it.each([[Number.NaN], [-0.5], [Number.POSITIVE_INFINITY]])(
+    'refuses escalation.minSpendUsd %s before any call (the gate compares against it)',
+    async (minSpendUsd) => {
+      const { adapter, engine } = fakeEngine();
+      const wf = defineWorkflow({ name: 'min-spend' }, async (ctx) =>
+        ctx.agent('go', { escalation: { minSpendUsd }, result: 'full' }),
+      );
+      const outcome = await engine.run(wf, undefined).result;
+      expect(outcome.status).toBe('error');
+      expect(outcome.error?.message).toMatch(
+        /escalation\.minSpendUsd must be a finite nonnegative number/,
+      );
+      expect(adapter.calls).toHaveLength(0);
+    },
+  );
+
+  it('refuses a malformed profile minSpendUsd at createEngine', () => {
+    expect(() =>
+      fakeEngine({
+        defaults: {
+          routing: { loop: 'fake:model' },
+          profiles: { helper: { description: 'h', escalation: { minSpendUsd: Number.NaN } } },
+        },
+      }),
+    ).toThrow(/escalation\.minSpendUsd must be a finite nonnegative number/);
+  });
+});

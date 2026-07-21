@@ -6,7 +6,7 @@
 
 # Class: FileModelKnowledgeStore
 
-Defined in: [packages/core/src/knowledge/file-store.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L102)
+Defined in: [packages/core/src/knowledge/file-store.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L109)
 
 The SPI seam. commit performs CAS on
 the monotonic snapshot version, mirroring the fencing-epoch
@@ -26,7 +26,7 @@ runtime: runs hold ModelKnowledgeHandle.
 new FileModelKnowledgeStore(options?): FileModelKnowledgeStore;
 ```
 
-Defined in: [packages/core/src/knowledge/file-store.ts:108](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L108)
+Defined in: [packages/core/src/knowledge/file-store.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L115)
 
 #### Parameters
 
@@ -46,7 +46,7 @@ Defined in: [packages/core/src/knowledge/file-store.ts:108](https://github.com/o
 commit(ops, expectedVersion): Promise<number>;
 ```
 
-Defined in: [packages/core/src/knowledge/file-store.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L146)
+Defined in: [packages/core/src/knowledge/file-store.ts:156](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L156)
 
 #### Parameters
 
@@ -71,7 +71,7 @@ Defined in: [packages/core/src/knowledge/file-store.ts:146](https://github.com/o
 current(): Promise<KnowledgeSnapshot>;
 ```
 
-Defined in: [packages/core/src/knowledge/file-store.ts:142](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L142)
+Defined in: [packages/core/src/knowledge/file-store.ts:152](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L152)
 
 #### Returns
 

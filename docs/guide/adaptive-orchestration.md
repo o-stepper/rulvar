@@ -129,11 +129,21 @@ Every guard in the machinery terminates without a human. The fallback chain is `
 
 Guard limits are validated at construction with a typed `ConfigError`: the streak and oscillation limits must be positive integers, the stall replan cap a nonnegative integer (0 means no stall replans at all), and `maxAbandonedNetUsdFraction` a fraction in (0, 1]. Unvalidated, a NaN limit inverted the machinery: the dropped and oscillation guards tripped immediately while the stall cap never tripped.
 
+The fallbacks differ in what happens AFTER the journaled guard verdict.
+`reject-revision` and `finish-with-partial` freeze the plan and steer the
+orchestrator to `finish` with the partial result (run outcome `ok`).
+`fail-run` is a real failure policy: the PlanRunner terminates the
+orchestration deterministically with `FailRunError` (code `fail_run`,
+`data.source: 'plan_guards'`, `data.verdictRef`), no further model turn is
+consulted, and the run ends with outcome `error`. The journaled verdict is
+the decision: a resume folds it again at boot and rolls the same failure
+forward with zero model calls.
+
 ## Wake digests
 
 The orchestrator sleeps on `wait_for_events` and is woken exclusively by coalesced wake digests: summaries, never raw transcripts, so its context grows with the number of wakes rather than the number of children. All events since the previous wake coalesce into one digest, ordered by spawn ordinal, never by wall-clock completion order. The digest is part of the wake snapshot: a turn re-executed after a crash reads exactly the same bytes, and `plan_view` and `ledger_read` inside that turn are pinned to the same snapshot.
 
-Each digest carries the completed task digests (each `outputSummary` clamped to 400 characters by default; override with `renderBudgetChars`), pending and newly decided escalations, the termination balances, a passive budget block, and reuse statistics, including which results arrived by reference.
+Each digest carries the completed task digests (each `outputSummary` bounded to at most 400 characters by default, the truncation marker included; override with `renderBudgetChars`, a nonnegative integer validated before any dispatch), pending and newly decided escalations, the termination balances, a passive budget block, and reuse statistics, including which results arrived by reference. The render budget is a hard upper bound of the rendered row: a truncated summary of budget N is exactly N characters ending in `...` (budgets below 3 keep the bound with a bare slice).
 
 The trigger vocabulary is closed:
 
@@ -191,6 +201,8 @@ const migrator: AgentProfile = {
 ```
 
 Flavor A (the default) terminates the child with status `escalated` carrying the report; the entry replays as ok, because re-running it would re-pay all the exploration it already did. Flavor B gives the child an `escalate` tool that suspends it under a deadline; the orchestrator decides while the child waits, and on timeout the journaled `defaultDecision` applies. Decisions are a closed union: `retry` (optionally with an amended prompt or a higher start tier), `decompose` into proposed children, `cancel`, or `accept`. Exactly one decision per report wins; a racing timeout and live decision are never both applied.
+
+The parked wait is abort aware: `handle.cancel()`, a `RunOptions.signal` abort, the run `deadlineAt`, and the abort of a failed sibling in strict `ctx.parallel` all settle the run in bounded time instead of waiting out the escalation deadline. The abort tears down only the WAIT, never the suspension: the journaled entry stays open, so a later `engine.resume` parks the decision again under its durable deadline, and a live or timeout resolution that already won stays won.
 
 Caps are counted per logical task, not per node: `maxEscalationsPerLogicalTask` (default 2) follows the lineage chain across respawns, and only `scope_bigger` reports debit the counter. When the cap is exceeded, the child still terminates `escalated` with a `capExceeded` flag and the final report, because a bare limit status would discard exactly the signal the protocol exists for. For correlated storms, one class-level decision resolves a coherent set of reports in a single entry carrying per-lineage debits: a storm costs one expensive turn.
 

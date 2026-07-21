@@ -10,6 +10,6 @@
 const DEFAULT_MAX_OSCILLATIONS_PER_KEY: 2 = 2;
 ```
 
-Defined in: [packages/plan/src/guards.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L84)
+Defined in: [packages/plan/src/guards.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/guards.ts#L93)
 
 Appendix A: osc_guard reject threshold per key (shared default).
