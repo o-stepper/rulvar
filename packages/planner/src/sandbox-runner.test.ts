@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -127,6 +127,24 @@ describe('WorkerSandboxRunner (M6-T02)', () => {
     );
     expect(entries.some((e) => e.kind === 'agent' && e.status === 'ok')).toBe(true);
     expect(entries.some((e) => e.kind === 'step' && e.status === 'ok')).toBe(true);
+  });
+
+  it('refuses a traversal runId before persisting the compiled source (v1.36.0 review SEC-P1)', () => {
+    // A compiled run persists its source at
+    // transcripts.put(workflowSourceRef(runId)) as its FIRST store write,
+    // ahead of the journal name guard. A runId of '..' used to write
+    // '../workflow-source.bin' one level above the configured root. The
+    // engine boundary now refuses the runId synchronously, before any
+    // store side effect.
+    const root = mkdtempSync(join(tmpdir(), 'sandbox-sec-'));
+    tempDirs.push(root);
+    const { engine } = makeEngine({
+      store: new JsonlFileStore({ dir: join(root, 'journal') }),
+      transcripts: new FileTranscriptStore({ dir: join(root, 'transcripts', 'base') }),
+    });
+    const wf = compileScript('return "done";');
+    expect(() => engine.run(wf, null, { runId: '..' })).toThrow(ConfigError);
+    expect(existsSync(join(root, 'transcripts', 'workflow-source.bin'))).toBe(false);
   });
 
   it('exposes exactly the docs global set and nothing else', async () => {

@@ -6469,9 +6469,16 @@ declare class JsonlFileStore implements MetaLookupStore {
 /**
 * File-backed TranscriptStore (M6-T02): blobs (transcripts, checkpoints,
 * persisted CompiledWorkflow sources) as one file per ref under `dir`,
-* so compiled runs resume across processes. Refs follow
-* the `<runId>/<name>` convention; each path segment is checked
-* filesystem-safe and nested segments become directories.
+* so compiled runs resume across processes. Refs follow the
+* `<runId>/<name>` convention; nested segments become directories.
+*
+* Every ref is contained under `dir` (v1.36.0 review SEC-P1): each
+* segment must match `[A-Za-z0-9._-]` and be neither empty, '.', nor
+* '..', and the resolved path must stay under the resolved root. A '..'
+* segment used to pass the per-segment alphabet (dots are in it) and, via
+* `join`, escape the root; a caller passing an untrusted ref (or an
+* untrusted runId, which prefixes checkpoint and workflow-source refs)
+* could read, write, or delete `.bin` files outside `dir`.
 */
 declare class FileTranscriptStore implements TranscriptStore {
   private readonly dir;

@@ -182,7 +182,7 @@ The power hierarchy is unchanged by all of this. `ModelCaps` (mechanical facts) 
 
 ## Writes go through a gate, never through a run
 
-Committing an editorial claim is a small maintenance script (or a code-reviewed edit to `rulvar.models.json`; the two are equivalent, and in the file-store world the git review that merges the change is what authenticates the gate):
+Committing an editorial claim is a small maintenance script (or a reviewed edit to `rulvar.models.json`, provided that edit recomputes the snapshot `hash` and keeps every claim's full schema. The store validates each read and refuses, as a typed `ConfigError`, a file whose `version` is not a nonnegative integer, whose `hash` is not a lowercase sha256 digest of its claims, or whose claims are structurally malformed; the git review that merges a valid change is what authenticates the gate):
 
 ```ts
 import { FileModelKnowledgeStore, claimExpiry } from '@rulvar/core';

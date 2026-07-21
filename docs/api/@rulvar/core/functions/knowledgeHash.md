@@ -10,7 +10,7 @@
 function knowledgeHash(claims): string;
 ```
 
-Defined in: [packages/core/src/knowledge/file-store.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L26)
+Defined in: [packages/core/src/knowledge/file-store.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/knowledge/file-store.ts#L27)
 
 Deterministic content hash of the claims array (JCS + sha256).
 

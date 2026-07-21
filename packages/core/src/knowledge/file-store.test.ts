@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, expectTypeOf, it } from 'vitest';
@@ -179,5 +179,88 @@ describe('activeClaimsCap intake (v1.35.0 review P2-5)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'rulvar-kb-cap-'));
     const path = join(dir, 'rulvar.models.json');
     expect(() => new FileModelKnowledgeStore({ path, activeClaimsCap: 0 })).not.toThrow();
+  });
+});
+
+describe('snapshot integrity validation (v1.36.0 review P2-6)', () => {
+  const good = [claim('c1'), claim('c2', { polarity: 'weakness' })];
+  const goodHash = knowledgeHash(good);
+  const write = (contents: unknown): FileModelKnowledgeStore => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-kb-int-'));
+    const path = join(dir, 'rulvar.models.json');
+    writeFileSync(path, JSON.stringify(contents), 'utf8');
+    return new FileModelKnowledgeStore({ path });
+  };
+
+  it('accepts a valid snapshot with a matching hash (control)', async () => {
+    const snap = await write({ version: 3, hash: goodHash, claims: good }).current();
+    expect(snap.version).toBe(3);
+    expect(snap.claims).toHaveLength(2);
+  });
+
+  it('accepts persisted non-active statuses whose hash matches (the append-only chain)', async () => {
+    // A forged commit validator would reject these, but a persisted
+    // snapshot legitimately holds superseded, archived, and stale claims.
+    const persisted = [
+      claim('a', { status: 'superseded' }),
+      claim('b', { status: 'archived' }),
+      claim('c', { status: 'stale' }),
+    ];
+    const snap = await write({
+      version: 9,
+      hash: knowledgeHash(persisted),
+      claims: persisted,
+    }).current();
+    expect(snap.claims.map((c) => c.status)).toEqual(['superseded', 'archived', 'stale']);
+  });
+
+  it.each([
+    { label: 'negative version', patch: { version: -1 }, match: /nonnegative integer/ },
+    { label: 'fractional version', patch: { version: 1.5 }, match: /nonnegative integer/ },
+    { label: 'NaN version (serializes to null)', patch: { version: NaN }, match: /nonnegative/ },
+    {
+      label: 'non-digest hash',
+      patch: { hash: 'not-a-real-hash' },
+      match: /lowercase sha256 digest/,
+    },
+    {
+      label: 'uppercase hash',
+      patch: { hash: 'A'.repeat(64) },
+      match: /lowercase sha256 digest/,
+    },
+    {
+      label: 'mismatched hash',
+      patch: { hash: 'a'.repeat(64) },
+      match: /hash does not match its claims/,
+    },
+  ])('refuses a $label as a typed ConfigError', async ({ patch, match }) => {
+    const store = write({ version: 1, hash: goodHash, claims: good, ...patch });
+    await expect(store.current()).rejects.toBeInstanceOf(ConfigError);
+    await expect(store.current()).rejects.toThrow(match);
+  });
+
+  it.each([
+    { label: 'null claim', claims: [null] },
+    { label: 'empty-object claim', claims: [{}] },
+    { label: 'claim missing evidence', claims: [{ ...claim('x'), evidence: [] }] },
+    { label: 'claim with an unknown status', claims: [{ ...claim('x'), status: 'bogus' }] },
+    { label: 'claims not an array', claims: 'nope' },
+  ])('refuses a snapshot with a $label', async ({ claims }) => {
+    // The hash cannot match malformed claims, but the structural refusal
+    // fires first and names the offending path.
+    const store = write({ version: 1, hash: goodHash, claims });
+    await expect(store.current()).rejects.toBeInstanceOf(ConfigError);
+  });
+
+  it('makes commit refuse a corrupt prior snapshot instead of appending to it', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-kb-int-'));
+    const path = join(dir, 'rulvar.models.json');
+    // A hand-edited file that forged its hash: commit reads first and must
+    // refuse, never silently append a version onto a corrupt base.
+    writeFileSync(path, JSON.stringify({ version: 4, hash: 'a'.repeat(64), claims: good }), 'utf8');
+    const store = new FileModelKnowledgeStore({ path });
+    await expect(store.commit([{ op: 'add', claim: claim('new'), gate: GATE }], 4)).rejects.toThrow(
+      /hash does not match its claims/,
+    );
   });
 });

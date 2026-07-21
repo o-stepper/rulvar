@@ -366,3 +366,23 @@ describe('the v1.35.0 public option sweep tails', () => {
     ).toThrow(/escalation\.minSpendUsd must be a finite nonnegative number/);
   });
 });
+
+describe('run id containment (v1.36.0 review SEC-P1)', () => {
+  it.each(['..', '.', '', '../evil', 'a/b', 'a\\b', '..\\evil'])(
+    'refuses the unsafe runId %j synchronously before any side effect',
+    (runId) => {
+      const { adapter, engine } = fakeEngine();
+      expect(() => engine.run(singleAgentWf, undefined, { runId })).toThrow(ConfigError);
+      expect(() => engine.run(singleAgentWf, undefined, { runId })).toThrow(
+        /is not filesystem-safe/,
+      );
+      expect(adapter.calls).toHaveLength(0);
+    },
+  );
+
+  it('accepts a normal explicit runId', async () => {
+    const { engine } = fakeEngine();
+    const outcome = await engine.run(singleAgentWf, undefined, { runId: 'tenant-42.run_1' }).result;
+    expect(outcome.status).toBe('ok');
+  });
+});

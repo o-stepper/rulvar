@@ -16,6 +16,7 @@ import { ConfigError, KnowledgeCasError } from '../l0/errors.js';
 import { requireNonNegativeInteger } from '../l0/validate-numbers.js';
 import type {
   ClaimOp,
+  ClaimStatus,
   KnowledgeSnapshot,
   ModelClaim,
   ModelKnowledgeStore,
@@ -93,6 +94,125 @@ export function applyClaimOps(
   return next;
 }
 
+/** A lowercase sha256 digest: 64 hex characters. */
+const HASH_PATTERN = /^[0-9a-f]{64}$/;
+const CLAIM_STATUSES = new Set<ClaimStatus>(['active', 'stale', 'superseded', 'archived']);
+
+/**
+ * Structural issues of one PERSISTED claim (empty = sound). Distinct from
+ * the editorial commit validator (claims.ts): a persisted snapshot
+ * legitimately holds non-active statuses (stale, superseded, archived) and
+ * carries no gate, so only shape and vocabulary are checked here. This is
+ * the boundary that keeps a null or partial claim from reaching the card
+ * render, where `claim.status` would throw an untyped TypeError (v1.36.0
+ * review P2-6).
+ */
+function persistedClaimIssues(value: unknown, path: string): string[] {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return [`${path}: expected a claim object`];
+  }
+  const claim = value as Record<string, unknown>;
+  const issues: string[] = [];
+  if (typeof claim.id !== 'string' || claim.id.length === 0) {
+    issues.push(`${path}.id: expected a non-empty string`);
+  }
+  const subject = claim.subject as Record<string, unknown> | null | undefined;
+  if (subject === null || typeof subject !== 'object') {
+    issues.push(`${path}.subject: expected an object`);
+  } else if (typeof subject.model !== 'string' || !subject.model.includes(':')) {
+    issues.push(`${path}.subject.model: expected a 'provider:model' string`);
+  }
+  if (typeof claim.taskClass !== 'string' || claim.taskClass.length === 0) {
+    issues.push(`${path}.taskClass: expected a non-empty string`);
+  }
+  if (claim.polarity !== 'strength' && claim.polarity !== 'weakness') {
+    issues.push(`${path}.polarity: expected 'strength' or 'weakness'`);
+  }
+  if (typeof claim.statement !== 'string' || claim.statement.length === 0) {
+    issues.push(`${path}.statement: expected a non-empty string`);
+  }
+  if (claim.class !== 'eval-measured' && claim.class !== 'human-editorial') {
+    issues.push(`${path}.class: expected 'eval-measured' or 'human-editorial'`);
+  }
+  if (typeof claim.status !== 'string' || !CLAIM_STATUSES.has(claim.status as ClaimStatus)) {
+    issues.push(`${path}.status: expected active, stale, superseded, or archived`);
+  }
+  if (!Array.isArray(claim.evidence) || claim.evidence.length === 0) {
+    issues.push(`${path}.evidence: expected a non-empty array`);
+  }
+  if (claim.confidence !== 'high' && claim.confidence !== 'medium' && claim.confidence !== 'low') {
+    issues.push(`${path}.confidence: expected 'high', 'medium', or 'low'`);
+  }
+  if (typeof claim.observedAt !== 'string' || Number.isNaN(Date.parse(claim.observedAt))) {
+    issues.push(`${path}.observedAt: expected an ISO date`);
+  }
+  if (typeof claim.expiresAt !== 'string' || Number.isNaN(Date.parse(claim.expiresAt))) {
+    issues.push(`${path}.expiresAt: expected an ISO date`);
+  }
+  const author = claim.author as Record<string, unknown> | null | undefined;
+  if (author === null || typeof author !== 'object') {
+    issues.push(`${path}.author: expected an object`);
+  } else {
+    if (author.kind !== 'eval-pipeline' && author.kind !== 'human') {
+      issues.push(`${path}.author.kind: expected 'eval-pipeline' or 'human'`);
+    }
+    if (typeof author.id !== 'string' || author.id.length === 0) {
+      issues.push(`${path}.author.id: expected a non-empty string`);
+    }
+  }
+  return issues;
+}
+
+/**
+ * The single read boundary of the store (v1.36.0 review P2-6). A persisted
+ * snapshot must hold a nonnegative integer version, a lowercase sha256
+ * hash, structurally sound claims, and a hash that MATCHES its claims: the
+ * KnowledgeSnapshot contract promises the hash is the deterministic
+ * content hash of the claims, so a file edited without rehashing (a forged
+ * version or hash, a torn write) is refused with a typed ConfigError
+ * instead of flowing on to forge the audit trail or crash the render.
+ */
+function validateKnowledgeSnapshot(parsed: unknown, path: string): KnowledgeSnapshot {
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new ConfigError(`knowledge store file does not hold a KnowledgeSnapshot: ${path}`);
+  }
+  const snapshot = parsed as Record<string, unknown>;
+  const issues: string[] = [];
+  const version = snapshot.version;
+  if (typeof version !== 'number' || !Number.isInteger(version) || version < 0) {
+    issues.push(`version: expected a nonnegative integer; got ${String(version)}`);
+  }
+  const hash = snapshot.hash;
+  if (typeof hash !== 'string' || !HASH_PATTERN.test(hash)) {
+    issues.push('hash: expected a lowercase sha256 digest of 64 hex characters');
+  }
+  if (!Array.isArray(snapshot.claims)) {
+    issues.push('claims: expected an array');
+  } else {
+    snapshot.claims.forEach((claim, index) => {
+      issues.push(...persistedClaimIssues(claim, `claims[${String(index)}]`));
+    });
+  }
+  if (issues.length > 0) {
+    throw new ConfigError(
+      `knowledge store file is not a valid KnowledgeSnapshot (${path}):\n- ${issues.join('\n- ')}`,
+    );
+  }
+  // Structure is sound, so the claims serialize and the content hash can be
+  // recomputed: it must equal the stored hash (the integrity contract).
+  const claims = snapshot.claims as ModelClaim[];
+  const recomputed = knowledgeHash(claims);
+  if (hash !== recomputed) {
+    throw new ConfigError(
+      `knowledge store hash does not match its claims (${path}): ` +
+        `stored ${String(hash)}, computed ${recomputed}; the file was edited without rehashing`,
+    );
+  }
+  // hash narrowed to string by the equality guard above; version stays
+  // unknown until asserted (it was checked, not compared).
+  return { version: version as number, hash, claims };
+}
+
 export interface FileModelKnowledgeStoreOptions {
   /** Default './rulvar.models.json'. */
   path?: string;
@@ -136,16 +256,7 @@ export class FileModelKnowledgeStore implements ModelKnowledgeStore {
     } catch (cause) {
       throw new ConfigError(`knowledge store file is not valid JSON: ${this.path}`, { cause });
     }
-    const snapshot = parsed as Partial<KnowledgeSnapshot> | null;
-    if (
-      snapshot === null ||
-      typeof snapshot.version !== 'number' ||
-      typeof snapshot.hash !== 'string' ||
-      !Array.isArray(snapshot.claims)
-    ) {
-      throw new ConfigError(`knowledge store file does not hold a KnowledgeSnapshot: ${this.path}`);
-    }
-    return { version: snapshot.version, hash: snapshot.hash, claims: snapshot.claims };
+    return validateKnowledgeSnapshot(parsed, this.path);
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await -- async lifts sync read errors into rejections (the SPI contract is promise-shaped)

@@ -100,6 +100,8 @@ interface TranscriptStore {
 
 This keeps the journal small and diffable while agents still resume mid-loop: with a durable transcript store, the runtime writes a checkpoint of the canonical history at every turn boundary, so a crash or an approval wait continues the agent from the same turn without repaying turns or re-invoking tools. Blob contents are engine-internal; the seam carries opaque bytes, same discipline as the journal.
 
+Refs stay inside the store. Every segment of a ref (and every `runId`, which prefixes the checkpoint and workflow source refs) must be a safe filename token over `[A-Za-z0-9._-]`, and be neither empty, `.`, nor `..`; the resolved path must stay under the configured directory. `FileTranscriptStore` enforces this on `put`, `get`, `list`, and `delete`, and the engine refuses an unsafe `runId` with a typed `ConfigError` before its first write. An untrusted ref or run id therefore cannot read, write, or delete a blob outside the root.
+
 Retention is engine-side, never a store obligation. Stores delete single blobs; the engine owns the cascade:
 
 ```ts

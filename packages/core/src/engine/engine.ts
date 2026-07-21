@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import { BudgetExhaustedError, ConfigError, RulvarError, type WireError } from '../l0/errors.js';
 import { setLongTimeout, type LongTimer } from '../l0/long-timer.js';
 import { realNow } from '../l0/real-clock.js';
+import { assertSafeRunId } from '../l0/run-id.js';
 import {
   requireFraction,
   requireNonNegativeInteger,
@@ -598,6 +599,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
       );
     }
     const runId = resumeCtx?.runId ?? opts?.runId ?? mintRunId();
+    // Refuse an unsafe runId before the first store side effect (v1.36.0
+    // review SEC-P1): a compiled run persists its source at
+    // transcripts.put(workflowSourceRef(runId)) as its FIRST write, ahead
+    // of the journal's own name guard, so a runId of '..' would escape the
+    // transcript root there. Minted ids and prior-run ids pass unchanged.
+    assertSafeRunId(runId, 'engine.run');
     const registry = buildDeriverRegistry(options.extraDerivers);
     // Segment k of a run starts its telemetry counters at
     // k * EVENT_SEGMENT_STRIDE, so seq stays strictly increasing and
