@@ -206,6 +206,22 @@ Two consequences follow:
 Tool execution between a tool's side effect and the turn-boundary checkpoint write is at-least-once on crash and resume. Prefer MCP servers whose mutating tools are idempotent, and gate the rest with `approval`.
 :::
 
+### Closing a source
+
+`mcp()` returns a `McpToolSource`: the frozen `ToolSource` seam plus one lifecycle method. The source connects lazily on the first `tools()` call, and what it creates then (the SDK client, its transport, and for stdio the spawned child process) lives until you release it. The engine never closes a source, because one source may serve many runs; the host owns the lifecycle and calls `close()` once its runs have settled:
+
+```ts
+const github = mcp({ transport: 'stdio', command: 'github-mcp-server' });
+try {
+  const outcome = await engine.run(triage, { repo: 'o-stepper/rulvar' }).result;
+  // ...
+} finally {
+  await github.close(); // releases the client, the transport, and the stdio child
+}
+```
+
+For a one shot script the `finally` is not optional hygiene: a stdio child and its pipes keep the Node.js event loop alive, so a process that skips `close()` finishes its workflow and then never exits. `close()` is idempotent, resolves even when the connection never succeeded, and resets the source, so a later `tools()` call connects afresh. A long lived host keeps one source per server, reuses it across runs, and closes it at shutdown. Closing while a run is in flight fails that run's MCP tool calls, so close after the runs settle, not during them.
+
 ## Failure behavior
 
 Configuration problems fail early with a typed `ConfigError`; runtime problems become error tool results the model can react to. Nothing an MCP server does can throw past policy out of the agent loop.
@@ -219,6 +235,7 @@ Configuration problems fail early with a typed `ConfigError`; runtime problems b
 | Model arguments fail `inputSchema` validation | Error tool result naming the issues; the model retries within the turn budget. |
 | `structuredContent` fails `outputSchema` validation | Error tool result. |
 | Server returns `isError: true` | Error tool result carrying the server's content. |
+| Source closed while a run is in flight | Error tool results for that run's MCP calls; the turn continues. |
 | Permission chain says deny | Error tool result carrying the policy reason; the turn continues. |
 | Permission chain says ask | Journaled suspended approval entry; the run suspends durably. |
 

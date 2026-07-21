@@ -925,6 +925,10 @@
             "link": "/api/@rulvar/core/interfaces/McpConfig.md"
           },
           {
+            "text": "McpToolSource",
+            "link": "/api/@rulvar/core/interfaces/McpToolSource.md"
+          },
+          {
             "text": "MechanicalGateVerdict",
             "link": "/api/@rulvar/core/interfaces/MechanicalGateVerdict.md"
           },
@@ -4488,6 +4492,10 @@
           {
             "text": "McpConfig",
             "link": "/api/@rulvar/rulvar/interfaces/McpConfig.md"
+          },
+          {
+            "text": "McpToolSource",
+            "link": "/api/@rulvar/rulvar/interfaces/McpToolSource.md"
           },
           {
             "text": "MechanicalGateVerdict",

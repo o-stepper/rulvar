@@ -61,7 +61,10 @@ export interface VcrRow {
    * seeds its counters past the numbers already on disk, so the
    * numbering continues across sequential sessions; a duplicate
    * number inside a fully numbered group refuses replay as ambiguous
-   * (v1.32.0 review P2).
+   * (v1.32.0 review P2). The numbering ends at
+   * `Number.MAX_SAFE_INTEGER`: a session refuses with a typed
+   * ConfigError to claim a number past it, before dispatching the
+   * provider and before touching the file (v1.33.0 review P3).
    */
   occurrence?: number;
   requestHash: string;
@@ -237,7 +240,14 @@ function groupRows(rows: VcrRow[], cassette: string): Map<string, Map<string, Vc
  * recorder session may be active on a cassette at a time: two
  * concurrently constructed recorders seed identically and claim
  * colliding numbers, which replay refuses as ambiguous instead of
- * silently serving either order. The wrapped adapters are drop-in:
+ * silently serving either order. The numbering ends at
+ * `Number.MAX_SAFE_INTEGER`: a group that already numbers it refuses
+ * the appending session at construction, and a session whose counter
+ * would pass it refuses that call before dispatching the provider,
+ * both with a typed ConfigError and without touching the file,
+ * because the next float increment would stall at 2 ** 53 and
+ * silently duplicate one unsafe number on every following row
+ * (v1.33.0 review P3). The wrapped adapters are drop-in:
  * same ids, providers, caps, and event streams.
  */
 export function record(options: {
@@ -271,10 +281,27 @@ export function record(options: {
     for (const [adapterId, forAdapter] of groupRows(existing.rows, options.cassette)) {
       const forSeeds = new Map<string, number>();
       for (const [hash, rows] of forAdapter) {
-        const numbered = rows
-          .map((row) => row.occurrence)
-          .filter((value): value is number => value !== undefined);
-        forSeeds.set(hash, numbered.length === 0 ? 0 : Math.max(...numbered) + 1);
+        // One pass and no spread: `Math.max(...group)` overflows the
+        // call stack once a group holds enough rows for the argument
+        // list to exceed the runtime's stack budget (v1.33.0 review
+        // P3). A group with no numbered rows seeds 0 (highest stays
+        // at the -1 sentinel), same as before.
+        let highest = -1;
+        for (const row of rows) {
+          if (row.occurrence !== undefined && row.occurrence > highest) {
+            highest = row.occurrence;
+          }
+        }
+        if (highest >= Number.MAX_SAFE_INTEGER) {
+          throw new ConfigError(
+            `${options.cassette} already numbers occurrence ` +
+              `${String(Number.MAX_SAFE_INTEGER)} for adapter '${adapterId}' hash ` +
+              `${hash.slice(0, 12)}; the numbering has reached the safe integer ceiling, ` +
+              'so no further exchange for this request can be appended; record a fresh ' +
+              'cassette instead',
+          );
+        }
+        forSeeds.set(hash, highest + 1);
       }
       seeds.set(adapterId, forSeeds);
     }
@@ -301,6 +328,20 @@ export function record(options: {
         // block to the first pull, hence the inner generator shape.
         const hash = requestHash(req);
         const occurrence = occurrences.get(hash) ?? 0;
+        // The claim refuses past the safe range BEFORE the provider is
+        // dispatched and before anything is appended: the counter
+        // reaches 2 ** 53 after a call claims MAX_SAFE_INTEGER, and
+        // float addition would stall there, silently writing the same
+        // unsafe number on every following row and turning a valid
+        // cassette into one readCassette refuses (v1.33.0 review P3).
+        if (!Number.isSafeInteger(occurrence)) {
+          throw new ConfigError(
+            `${options.cassette} has no safe occurrence number left for adapter ` +
+              `'${adapter.id}' hash ${hash.slice(0, 12)}; an earlier call in this session ` +
+              `claimed ${String(Number.MAX_SAFE_INTEGER)}, so this exchange cannot be ` +
+              'numbered; record a fresh cassette instead',
+          );
+        }
         occurrences.set(hash, occurrence + 1);
         return (async function* (): AsyncIterable<ChatEvent> {
           const events: ChatEvent[] = [];

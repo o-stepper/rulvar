@@ -1408,3 +1408,119 @@ describe('appending record sessions and occurrence integrity (v1.32.0 review P2)
     ]);
   });
 });
+
+describe('occurrence numbering boundaries (v1.33.0 review P3)', () => {
+  const caps = new FakeAdapter({ agents: { '*': 'x' } }).caps();
+  const finishWith = (inputTokens: number, outputTokens: number): ChatEvent => ({
+    type: 'finish',
+    finish: { reason: 'stop' },
+    usage: { inputTokens, outputTokens, cacheReadTokens: 0, cacheWriteTokens: 0 },
+  });
+  /** An adapter that counts how often the provider was dispatched. */
+  const counted = (): { adapter: ProviderAdapter; calls: () => number } => {
+    let calls = 0;
+    return {
+      calls: () => calls,
+      adapter: {
+        id: 'fake',
+        caps: () => caps,
+        // eslint-disable-next-line @typescript-eslint/require-await
+        async *stream(): AsyncIterable<ChatEvent> {
+          calls += 1;
+          yield { type: 'text-delta', text: 'X' };
+          yield finishWith(2, 1);
+        },
+      },
+    };
+  };
+  const req: ChatRequest = {
+    model: FAKE_MODEL,
+    messages: [{ role: 'user', parts: [{ type: 'text', text: 'same' }] }],
+  };
+  const only = (adapters: ProviderAdapter[]): ProviderAdapter => {
+    const [head] = adapters;
+    if (head === undefined) {
+      throw new Error('expected one wrapped adapter');
+    }
+    return head;
+  };
+  const drain = async (adapter: ProviderAdapter): Promise<string> => {
+    let text = '';
+    for await (const event of adapter.stream(req)) {
+      if (event.type === 'text-delta') {
+        text += event.text;
+      }
+    }
+    return text;
+  };
+  const lines = (cassette: string): string[] =>
+    readFileSync(cassette, 'utf8')
+      .split('\n')
+      .filter((line) => line !== '');
+  const renumberLast = (cassette: string, occurrence: number): void => {
+    const all = lines(cassette);
+    const last = { ...(JSON.parse(all.at(-1) ?? '') as Record<string, unknown>), occurrence };
+    writeFileSync(cassette, `${[...all.slice(0, -1), JSON.stringify(last)].join('\n')}\n`, 'utf8');
+  };
+
+  it('a group that already numbers MAX_SAFE_INTEGER refuses the appending session at construction', async () => {
+    const cassette = cassettePath();
+    await drain(only(record({ adapters: [counted().adapter], cassette })));
+    renumberLast(cassette, Number.MAX_SAFE_INTEGER);
+    expect(readCassette(cassette).rows[0]?.occurrence).toBe(Number.MAX_SAFE_INTEGER);
+
+    const before = readFileSync(cassette, 'utf8');
+    const appender = counted();
+    const construct = (): ProviderAdapter[] => record({ adapters: [appender.adapter], cassette });
+    expect(construct).toThrow(/reached the safe integer ceiling/);
+    expect(construct).toThrow(/adapter 'fake' hash \S{12};/);
+    // The refusal is free and clean: no provider dispatch, no write.
+    expect(appender.calls()).toBe(0);
+    expect(readFileSync(cassette, 'utf8')).toBe(before);
+  });
+
+  it('a counter that would pass MAX_SAFE_INTEGER refuses that call before the provider', async () => {
+    const cassette = cassettePath();
+    await drain(only(record({ adapters: [counted().adapter], cassette })));
+    renumberLast(cassette, Number.MAX_SAFE_INTEGER - 1);
+
+    // The seed itself is MAX_SAFE_INTEGER, a valid occurrence: one
+    // more exchange fits, and the file stays fully readable after it.
+    const appender = counted();
+    const wrapped = only(record({ adapters: [appender.adapter], cassette }));
+    expect(await drain(wrapped)).toBe('X');
+    expect(readCassette(cassette).rows.map((row) => row.occurrence)).toEqual([
+      Number.MAX_SAFE_INTEGER - 1,
+      Number.MAX_SAFE_INTEGER,
+    ]);
+
+    // The next claim would land past the safe range, where float
+    // addition stalls and duplicates; it refuses synchronously, and
+    // the refusal repeats on every further attempt.
+    const before = readFileSync(cassette, 'utf8');
+    expect(() => wrapped.stream(req)).toThrow(/no safe occurrence number left/);
+    expect(() => wrapped.stream(req)).toThrow(/adapter 'fake' hash \S{12};/);
+    expect(appender.calls()).toBe(1);
+    expect(readFileSync(cassette, 'utf8')).toBe(before);
+  });
+
+  it('a large fully numbered group seeds in one pass and appends past it', async () => {
+    const cassette = cassettePath();
+    await drain(only(record({ adapters: [counted().adapter], cassette })));
+    const all = lines(cassette);
+    const template = JSON.parse(all[1] ?? '') as Record<string, unknown>;
+    const rows = [all[0] ?? ''];
+    for (let index = 0; index < 150000; index += 1) {
+      rows.push(JSON.stringify({ ...template, occurrence: index }));
+    }
+    writeFileSync(cassette, `${rows.join('\n')}\n`, 'utf8');
+
+    // Construction used to die here with an untyped RangeError from
+    // spreading the group into Math.max.
+    const appender = counted();
+    const wrapped = only(record({ adapters: [appender.adapter], cassette }));
+    expect(await drain(wrapped)).toBe('X');
+    const appended = JSON.parse(lines(cassette).at(-1) ?? '') as { occurrence?: number };
+    expect(appended.occurrence).toBe(150000);
+  }, 20000);
+});

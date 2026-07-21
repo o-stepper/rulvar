@@ -15,7 +15,9 @@ import {
   check8Violations,
   checkOrchestrateFence,
   hasArgsHashOverclaim,
+  hasAuthRetryOverclaim,
   hasReplayOrderOverclaim,
+  overclaimSentences,
 } from './docs-lint.mjs';
 
 /** @param {string[]} lines @returns {string} */
@@ -255,4 +257,79 @@ test('the replay order overclaim sentinel passes scoped mentions', () => {
     false,
   );
   assert.equal(hasReplayOrderOverclaim('A page not mentioning ordering at all.'), false);
+});
+
+// Check 11 sentinel: the authentication retry overclaim (v1.33.0
+// review P3). Both first class adapters mark an authentication
+// failure retryable: false and retryClassOf returns no retry class
+// for it, so a sentence asserting that such a failure is retried
+// states a retry that never happens.
+test('the authentication retry overclaim sentinel flags the shipped Troubleshooting phrasing', () => {
+  assert.equal(
+    hasAuthRetryOverclaim(
+      'An authentication failure from the provider is currently retried like a transport ' +
+        'failure, so the engine walks the resolved RetryPolicy backoff before the spawn ' +
+        'settles: the stall is backoff, not a hang.',
+    ),
+    true,
+  );
+  // The active form is an overclaim too.
+  assert.equal(
+    hasAuthRetryOverclaim('The engine retries an authentication failure with linear backoff.'),
+    true,
+  );
+  // A negation in a NEIGHBORING sentence does not legitimize the claim.
+  assert.equal(
+    hasAuthRetryOverclaim(
+      'A credential failure is retried. An authentication failure is never retried.',
+    ),
+    true,
+  );
+});
+
+test('the authentication retry overclaim sentinel passes negated and unrelated phrasings', () => {
+  assert.equal(
+    hasAuthRetryOverclaim(
+      'An authentication failure is never retried: the adapters mark it retryable: false, so ' +
+        'the spawn settles right after the single failed request.',
+    ),
+    false,
+  );
+  assert.equal(hasAuthRetryOverclaim('The engine never retries an authentication failure.'), false);
+  assert.equal(
+    hasAuthRetryOverclaim(
+      'a typed retryable error (429 rate limit, 529 overload) gets a bounded retry with ' +
+        'linear backoff, and a non-retryable error (authentication, invalid model) fails ' +
+        'immediately with the typed WireError intact.',
+    ),
+    false,
+  );
+  assert.equal(hasAuthRetryOverclaim('A page not mentioning credentials at all.'), false);
+});
+
+// The sentinels judge whole sentences across hard wrapped markdown
+// lines: the shipped Troubleshooting overclaim carried
+// "authentication" and "is currently retried" on DIFFERENT lines of
+// one sentence, which a per line window cannot conjoin.
+test('overclaimSentences reassembles a sentence wrapped across lines and reports its start line', () => {
+  const wrapped = [
+    'Some earlier sentence. An authentication failure from',
+    'the provider is currently retried like a transport failure, so the',
+    'engine walks the backoff.',
+  ].join('\n');
+  const hits = overclaimSentences(wrapped);
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].line, 1);
+  assert.match(hits[0].message, /authentication retry overclaim/);
+});
+
+test('overclaimSentences accepts a qualifier on the next line of the same sentence', () => {
+  // Per line, "in file order" would flag: its qualifier sits on the
+  // following line. As one sentence it is scoped and passes.
+  const scoped = [
+    'Rows replay in recorded call order (file order only for groups',
+    'recorded before v1.32.0, whose rows carry no occurrence numbers).',
+  ].join('\n');
+  assert.deepEqual(overclaimSentences(scoped), []);
+  assert.deepEqual(overclaimSentences('Nothing about ordering or credentials here.'), []);
 });

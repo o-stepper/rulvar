@@ -42,15 +42,17 @@ keep the whole `@rulvar` scope on one version when upgrading; see
 
 ## Missing or invalid API keys
 
-**Symptom.** Your first live run stalls for a while, then spawns settle with a
-typed `AgentError` whose message carries the provider's authentication error.
+**Symptom.** Your first live run settles quickly: spawns fail with a typed
+`AgentError` whose message carries the provider's authentication error.
 
 **Cause.** The adapter factories read `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`
 from the environment when no `apiKey` option is passed, and the key is used at
-request time, not validated at `createEngine`. An authentication failure from
-the provider is currently retried like a transport failure, so the engine
-walks the resolved `RetryPolicy` backoff before the spawn settles: the stall
-is backoff, not a hang.
+request time, not validated at `createEngine`. An authentication failure is
+never retried: the Anthropic and OpenAI adapters both mark it
+`retryable: false`, the engine treats every such wire error as terminal
+(`retryClassOf` returns no retry class for it), and no `RetryPolicy` backoff
+is consulted, so the spawn settles right after the single failed request.
+There is no stall to wait out.
 
 **Fix.** Export the key in the shell that runs your workflow, or pass `apiKey`
 to the factory, and rerun. Keys are created and rotated in the

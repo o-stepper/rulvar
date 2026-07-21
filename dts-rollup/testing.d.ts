@@ -154,7 +154,10 @@ interface VcrRow {
   * seeds its counters past the numbers already on disk, so the
   * numbering continues across sequential sessions; a duplicate
   * number inside a fully numbered group refuses replay as ambiguous
-  * (v1.32.0 review P2).
+  * (v1.32.0 review P2). The numbering ends at
+  * `Number.MAX_SAFE_INTEGER`: a session refuses with a typed
+  * ConfigError to claim a number past it, before dispatching the
+  * provider and before touching the file (v1.33.0 review P3).
   */
   occurrence?: number;
   requestHash: string;
@@ -210,7 +213,14 @@ declare function requestHash(req: ChatRequest): string;
 * recorder session may be active on a cassette at a time: two
 * concurrently constructed recorders seed identically and claim
 * colliding numbers, which replay refuses as ambiguous instead of
-* silently serving either order. The wrapped adapters are drop-in:
+* silently serving either order. The numbering ends at
+* `Number.MAX_SAFE_INTEGER`: a group that already numbers it refuses
+* the appending session at construction, and a session whose counter
+* would pass it refuses that call before dispatching the provider,
+* both with a typed ConfigError and without touching the file,
+* because the next float increment would stall at 2 ** 53 and
+* silently duplicate one unsafe number on every following row
+* (v1.33.0 review P3). The wrapped adapters are drop-in:
 * same ids, providers, caps, and event streams.
 */
 declare function record(options: {

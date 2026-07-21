@@ -54,6 +54,24 @@ interface CallToolResult {
   isError?: boolean;
 }
 
+/**
+ * The ToolSource returned by {@link mcp}: the frozen ToolSource seam
+ * plus the lifecycle the seam deliberately leaves to the host.
+ * `close()` releases everything the source created on first use: the
+ * SDK client, its transport, and, for stdio, the spawned child
+ * process, without which a one shot host process cannot exit
+ * naturally after a run, because the child and its pipes keep the
+ * event loop alive (v1.33.0 review P2). It is idempotent, resolves
+ * even when the connection never succeeded, and resets the source, so
+ * a later `tools()` call connects afresh. The engine never closes a
+ * source, because one source may serve many runs: the host owns the
+ * lifecycle and should close once its runs have settled (closing
+ * while a run is in flight fails that run's MCP tool calls).
+ */
+export interface McpToolSource extends ToolSource {
+  close(): Promise<void>;
+}
+
 function validateConfig(cfg: McpConfig): void {
   const forbid = (key: 'command' | 'args' | 'url' | 'server'): void => {
     if (cfg[key] !== undefined) {
@@ -126,33 +144,47 @@ function errorText(result: CallToolResult): string {
 }
 
 /**
- * Imports MCP tools as a ToolSource. The client connects lazily on the
- * first tools() call; tools/list is fetched with cursor pagination until
- * exhaustion and cached per session; a listChanged notification
- * invalidates the cache, affecting subsequently spawned agents only (a
- * spawn's toolset snapshot is immutable by construction).
+ * Imports MCP tools as a {@link McpToolSource}. The client connects
+ * lazily on the first tools() call; tools/list is fetched with cursor
+ * pagination until exhaustion and cached per session; a listChanged
+ * notification invalidates the cache, affecting subsequently spawned
+ * agents only (a spawn's toolset snapshot is immutable by
+ * construction). The host owns the source's lifecycle: `close()`
+ * releases the client, the transport, and the stdio child once the
+ * runs using the source have settled; a one shot host should close in
+ * a finally block, or its process never exits naturally (v1.33.0
+ * review P2).
  */
-export function mcp(cfg: McpConfig): ToolSource {
+export function mcp(cfg: McpConfig): McpToolSource {
   validateConfig(cfg);
   let clientPromise: Promise<Client> | undefined;
   let cache: ToolDef[] | undefined;
 
   const connect = async (): Promise<Client> => {
     const client = new Client({ name: 'rulvar', version: '1.0.0' });
-    if (cfg.transport === 'stdio') {
-      const transport = new StdioClientTransport({
-        command: cfg.command ?? '',
-        ...(cfg.args === undefined ? {} : { args: cfg.args }),
-      });
-      await client.connect(transport);
-    } else if (cfg.transport === 'streamable-http') {
-      const transport = new StreamableHTTPClientTransport(new URL(cfg.url ?? ''));
-      await client.connect(transport);
-    } else {
-      const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-      const server = cfg.server as { connect(transport: unknown): Promise<void> };
-      await server.connect(serverTransport);
-      await client.connect(clientTransport);
+    try {
+      if (cfg.transport === 'stdio') {
+        const transport = new StdioClientTransport({
+          command: cfg.command ?? '',
+          ...(cfg.args === undefined ? {} : { args: cfg.args }),
+        });
+        await client.connect(transport);
+      } else if (cfg.transport === 'streamable-http') {
+        const transport = new StreamableHTTPClientTransport(new URL(cfg.url ?? ''));
+        await client.connect(transport);
+      } else {
+        const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+        const server = cfg.server as { connect(transport: unknown): Promise<void> };
+        await server.connect(serverTransport);
+        await client.connect(clientTransport);
+      }
+    } catch (error) {
+      // The SDK wires the transport onto the client before the
+      // handshake, and for stdio that transport already owns a spawned
+      // child; a failed connect must release both, or the child would
+      // outlive the error the caller sees (v1.33.0 review P2).
+      await client.close().catch(() => undefined);
+      throw error;
     }
     client.setNotificationHandler(ToolListChangedNotificationSchema, () => {
       // Invalidates the session cache; in-flight agents keep their
@@ -246,6 +278,24 @@ export function mcp(cfg: McpConfig): ToolSource {
       );
       cache = admitted.map((wire) => toDef(client, wire));
       return cache;
+    },
+    close: async () => {
+      const pending = clientPromise;
+      clientPromise = undefined;
+      cache = undefined;
+      if (pending === undefined) {
+        return;
+      }
+      let client: Client;
+      try {
+        client = await pending;
+      } catch {
+        // A failed connect released its transport on the way out, so
+        // there is nothing left to close here, and close() is cleanup:
+        // the connection error already surfaced to the tools() caller.
+        return;
+      }
+      await client.close();
     },
   };
 }
