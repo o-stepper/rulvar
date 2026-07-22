@@ -1,5 +1,0 @@
----
-'@rulvar/core': minor
----
-
-Evidence preservation contract for the orchestrator finish (the improvement plan's RV-202 slice). The finish validation input now carries `children`: every spawned child at finish time, in spawn order, with its handle, nodeId, status, and full output text, a pure read of the durable state the orchestrator already tracks, so validators can hold the finish result against the evidence the children actually produced. The new `evidencePreservedValidator` enforces the plan's gate: at least `minShare` (default 0.95) of the distinct citations found in the outputs of children settled ok must appear literally in the result text, with the missing ones listed in the rejection so the bounded repair turn can restore them; `requireKnown: true` additionally rejects citations no child ever produced, closing the fabrication path that satisfied a plain count check. Purely textual and deterministic; verdicts journal exactly like every finish validation verdict, so replay and resume reproduce them without re-running validator code.
