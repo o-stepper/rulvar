@@ -163,7 +163,7 @@ Both shipped durable stores use synchronous Node primitives under their async si
 pnpm add @rulvar/store-sqlite
 ```
 
-`SqliteStore` implements both `JournalStore` and `LeasableStore` with fencing epochs, on the `node:sqlite` driver built into Node, so it adds no native build step. It is the reference implementation for community stores: when the [store authors guide](/guide/store-authors) needs a pattern shown against a real backend, this is the store it points at.
+`SqliteStore` implements both `JournalStore` and `LeasableStore` with fencing epochs, on the `node:sqlite` driver built into Node, so it adds no native build step. It is the reference implementation for community stores: when the [store authors guide](/guide/store-authors) needs a pattern shown against a real backend, this is the store it points at. The fence check and the mutation it guards (an append's insert, a renew's extension, a release's deletion) commit as one immediate transaction, so a takeover from another process cannot land between the check and the write; a store author porting the pattern to another backend must keep that atomicity (the [fenced run state RFC](/contributing/rfc-fenced-run-state) records what went wrong when the reference store itself checked in one statement and mutated in the next).
 
 ```ts
 import { SqliteStore } from '@rulvar/store-sqlite';

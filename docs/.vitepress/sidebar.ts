@@ -120,7 +120,10 @@ const contributingSidebar: DefaultTheme.SidebarItem[] = [
   {
     text: 'Contributing',
     collapsed: false,
-    items: [{ text: 'Contributing guide', link: '/contributing/' }],
+    items: [
+      { text: 'Contributing guide', link: '/contributing/' },
+      { text: 'RFC: fenced run state', link: '/contributing/rfc-fenced-run-state' },
+    ],
   },
 ];
 

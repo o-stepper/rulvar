@@ -11,7 +11,13 @@
  *   through untouched.
  * - Fencing: the epoch is monotonic per run for the store's lifetime;
  *   an append carrying a stale or released lease rejects with the typed
- *   LeaseHeldError and the entry never becomes visible.
+ *   LeaseHeldError and the entry never becomes visible. The fence check
+ *   and the guarded mutation (append's insert, renew's extension,
+ *   release's deletion) commit as ONE immediate transaction: checking in
+ *   one autocommit statement and mutating in the next left a
+ *   cross-process window where a takeover landing between them let the
+ *   superseded holder append a visible entry, extend the successor's
+ *   lease, or delete it outright (the fenced-run-state RFC, finding F3).
  * - acquire on a held, unexpired lease rejects with LeaseHeldError; the
  *   holder MUST renew at an interval of at most ttl/3; an unrenewed
  *   lease is reclaimable after ttl and reclaiming advances the epoch.
@@ -141,11 +147,28 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async append(runId: string, e: JournalEntry, lease?: Lease): Promise<void> {
-    if (lease !== undefined) {
+  /**
+   * Runs the fence check and the guarded mutation as ONE immediate
+   * transaction, the same shape acquire already uses: BEGIN IMMEDIATE
+   * takes the write lock BEFORE the check reads the lease row, so a
+   * competing takeover cannot land between the check and the mutation
+   * (it serializes behind the commit and the loser sees the final rows).
+   * As two autocommit statements, a takeover in that window let a
+   * superseded holder mutate live state (fenced-run-state RFC, F3).
+   */
+  private fenced(lease: Lease, mutate: () => void): void {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
       this.assertFencing(lease);
+      mutate();
+      this.db.exec('COMMIT');
+    } catch (thrown) {
+      this.db.exec('ROLLBACK');
+      throw thrown;
     }
+  }
+
+  private insertEntry(runId: string, e: JournalEntry): void {
     // A single INSERT is atomic (A1); rowid order IS the append order
     // (A2); the payload is opaque JSON (A4). Entries without a finite
     // seq (legacy or exotic shapes) skip the monotonicity guard.
@@ -172,6 +195,17 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
           'tail seq; a concurrent writer raced this journal from a stale tail',
       );
     }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async append(runId: string, e: JournalEntry, lease?: Lease): Promise<void> {
+    if (lease !== undefined) {
+      this.fenced(lease, () => {
+        this.insertEntry(runId, e);
+      });
+      return;
+    }
+    this.insertEntry(runId, e);
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -298,15 +332,21 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async renew(l: Lease): Promise<void> {
-    this.assertFencing(l);
-    this.db
-      .prepare('UPDATE leases SET expires_at = ? WHERE run_id = ?')
-      .run(this.now() + this.ttlMs, l.runId);
+    // owner and epoch ride the WHERE too: even if a check ever drifted,
+    // the mutation itself can only touch the row this lease still owns.
+    this.fenced(l, () => {
+      this.db
+        .prepare('UPDATE leases SET expires_at = ? WHERE run_id = ? AND owner = ? AND epoch = ?')
+        .run(this.now() + this.ttlMs, l.runId, l.owner, l.epoch);
+    });
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async release(l: Lease): Promise<void> {
-    this.assertFencing(l);
-    this.db.prepare('DELETE FROM leases WHERE run_id = ?').run(l.runId);
+    this.fenced(l, () => {
+      this.db
+        .prepare('DELETE FROM leases WHERE run_id = ? AND owner = ? AND epoch = ?')
+        .run(l.runId, l.owner, l.epoch);
+    });
   }
 }
