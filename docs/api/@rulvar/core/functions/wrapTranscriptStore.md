@@ -10,7 +10,7 @@
 function wrapTranscriptStore(inner, hook): TranscriptStore;
 ```
 
-Defined in: [packages/core/src/l0/serialization.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L117)
+Defined in: [packages/core/src/l0/serialization.ts:120](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L120)
 
 Wraps a transcript store with the hook.
 

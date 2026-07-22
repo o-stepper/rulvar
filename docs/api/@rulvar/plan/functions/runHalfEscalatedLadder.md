@@ -10,7 +10,7 @@
 function runHalfEscalatedLadder(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:550](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L550)
+Defined in: [packages/plan/src/cassettes.ts:556](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L556)
 
 half-escalated-ladder: some rungs terminal, the active rung dangling
 mid-attempt at the crash; resume continues the ladder without

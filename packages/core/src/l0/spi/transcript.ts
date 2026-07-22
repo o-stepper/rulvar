@@ -7,9 +7,10 @@
  * contents are engine-internal.
  */
 import type { Bytes } from '../json.js';
+import type { Lease } from './store.js';
 
 export interface TranscriptStore {
-  put(ref: string, blob: Bytes): Promise<void>;
+  put(ref: string, blob: Bytes, lease?: Lease): Promise<void>;
   get(ref: string): Promise<Bytes | null>;
   list(runId: string): Promise<string[]>;
   /**
@@ -18,5 +19,20 @@ export interface TranscriptStore {
    * The cascade over a run's blobs is ENGINE-side (Engine.deleteRun),
    * never a store obligation.
    */
-  delete(ref: string): Promise<void>;
+  delete(ref: string, lease?: Lease): Promise<void>;
+  /**
+   * Fenced writes capability (the fenced run state RFC, phase 2), the
+   * transcript-side twin of the JournalStore marker: a store declaring
+   * it verifies a lease-carrying `put` or `delete` against the CURRENT
+   * lease of the run the ref's leading path segment names, atomically
+   * with the mutation, and rejects stale holders with the typed
+   * LeaseHeldError leaving the prior blob intact. The engine threads
+   * the segment's lease into every blob write of a leased resume
+   * (checkpoints, compaction summaries, worktree patches, workflow
+   * sources). The shipped file and in-memory transcript stores do NOT
+   * declare it (they are single-writer by contract); a fenced
+   * implementation needs the blobs and the lease state in one
+   * transactional domain.
+   */
+  readonly fencedWrites?: true;
 }

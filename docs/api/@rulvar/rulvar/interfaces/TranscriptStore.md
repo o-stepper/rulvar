@@ -8,12 +8,18 @@
 
 Defined in: `packages/core/dist/index.d.ts`
 
+## Properties
+
+| Property | Modifier | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ | ------ |
+| <a id="property-fencedwrites"></a> `fencedWrites?` | `readonly` | `true` | Fenced writes capability (the fenced run state RFC, phase 2), the transcript-side twin of the JournalStore marker: a store declaring it verifies a lease-carrying `put` or `delete` against the CURRENT lease of the run the ref's leading path segment names, atomically with the mutation, and rejects stale holders with the typed LeaseHeldError leaving the prior blob intact. The engine threads the segment's lease into every blob write of a leased resume (checkpoints, compaction summaries, worktree patches, workflow sources). The shipped file and in-memory transcript stores do NOT declare it (they are single-writer by contract); a fenced implementation needs the blobs and the lease state in one transactional domain. | `packages/core/dist/index.d.ts` |
+
 ## Methods
 
 ### delete()
 
 ```ts
-delete(ref): Promise<void>;
+delete(ref, lease?): Promise<void>;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -28,6 +34,7 @@ never a store obligation.
 | Parameter | Type |
 | ------ | ------ |
 | `ref` | `string` |
+| `lease?` | [`Lease`](/api/@rulvar/rulvar/type-aliases/Lease.md) |
 
 #### Returns
 
@@ -78,7 +85,10 @@ Defined in: `packages/core/dist/index.d.ts`
 ### put()
 
 ```ts
-put(ref, blob): Promise<void>;
+put(
+   ref, 
+   blob, 
+lease?): Promise<void>;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -89,6 +99,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | ------ | ------ |
 | `ref` | `string` |
 | `blob` | [`Bytes`](/api/@rulvar/rulvar/type-aliases/Bytes.md) |
+| `lease?` | [`Lease`](/api/@rulvar/rulvar/type-aliases/Lease.md) |
 
 #### Returns
 

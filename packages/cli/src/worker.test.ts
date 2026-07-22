@@ -25,6 +25,7 @@ import {
   Replayer,
   type Engine,
   type JournalEntry,
+  type Lease,
   type Workflow,
   type WorkflowRegistry,
 } from '@rulvar/core';
@@ -266,15 +267,19 @@ describe('createWorker (M8-T02)', () => {
 
     // The stale writer resumes anyway (a paused process never notices).
     const before = (await storeB.load(first.runId)).length;
+    const beforeMeta = await storeA.getMeta(first.runId);
     const stale = engineA.resume(first.runId, undefined, {
       args: { item: 5 },
       lease: leaseA,
     });
-    const staleOutcome = await stale.result;
-    // Its first live append was rejected by the fencing epoch: the run
-    // fails loudly instead of split-braining the journal.
-    expect(staleOutcome.status).toBe('error');
+    // The fencedWrites store refuses the segment's very FIRST durable
+    // write (the running meta), so the stale segment dies typed before
+    // any paid call. Until phase 2 this boot write landed unfenced (it
+    // overwrote the successor's meta, RFC F1) and the stale segment
+    // paid a live call before its first append bounced.
+    await expect(stale.result).rejects.toThrowError(LeaseHeldError);
     expect((await storeB.load(first.runId)).length).toBe(before);
+    expect(await storeA.getMeta(first.runId)).toEqual(beforeMeta);
 
     // The rightful holder completes the run under its lease.
     const fresh = engineB.resume(first.runId, undefined, {
@@ -421,6 +426,42 @@ describe('createWorker (M8-T02)', () => {
     expect(await metaStatus(store, first.runId)).toBe('missing');
     expect(await store.load(first.runId)).toEqual([]);
     expect(await engine.stores.transcripts.list(first.runId)).toEqual([]);
+    await worker.stop();
+  });
+
+  it('retention passes its brief lease into the deleteRun cascade (RFC F4)', async () => {
+    const path = dbPath();
+    const store = new SqliteStore({ path, now: wallClock });
+    const gated = gatedWorkflow();
+    const engine = makeEngine(store, { gated });
+    const first = engine.run(gated as unknown as Workflow<unknown, unknown>, { item: 4 });
+    expect((await first.result).status).toBe('suspended');
+    await offlineResolve(store, first.runId, { approved: true });
+
+    // The spy proves the worker HANDS its brief lease to the cascade;
+    // the sqlite store underneath is a fencedWrites store, so the
+    // fenced delete succeeding end to end is part of the assertion.
+    const seen: Array<{ runId: string; lease?: Lease }> = [];
+    const spy: Engine = {
+      ...engine,
+      deleteRun: (runId, opts) => {
+        seen.push({ runId, ...(opts?.lease === undefined ? {} : { lease: opts.lease }) });
+        return engine.deleteRun(runId, opts);
+      },
+    };
+    const worker = createWorker(spy, {
+      store,
+      argsFor: () => ({ item: 4 }),
+      retention: (meta) => meta.status === 'ok',
+    });
+    expect(await worker.sweep()).toBe(1);
+    await untilMeta(store, first.runId, 'ok');
+    await worker.sweep();
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.runId).toBe(first.runId);
+    expect(seen[0]?.lease?.runId).toBe(first.runId);
+    expect(typeof seen[0]?.lease?.epoch).toBe('number');
+    expect(await metaStatus(store, first.runId)).toBe('missing');
     await worker.stop();
   });
 });

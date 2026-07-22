@@ -27,7 +27,7 @@ Defined in: [packages/testing/src/test-engine.ts:27](https://github.com/o-steppe
 ### deleteRun()
 
 ```ts
-deleteRun(runId): Promise<void>;
+deleteRun(runId, opts?): Promise<void>;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -35,12 +35,18 @@ Defined in: `packages/core/dist/index.d.ts`
 Retention (OQ-20 executed at M8-T04): deletes every
 blob transcripts.list(runId) returns, then the journal; no orphan
 blobs survive. The caller owns the decision that the run is done.
+A caller holding the run's lease passes it via `opts.lease` (the
+queue worker's retention path does), so a fencedWrites store
+refuses the cascade from a superseded holder; without a lease the
+deletes assert the single-writer precondition as before.
 
 #### Parameters
 
 | Parameter | Type |
 | ------ | ------ |
 | `runId` | `string` |
+| `opts?` | \{ `lease?`: [`Lease`](/api/@rulvar/rulvar/type-aliases/Lease.md); \} |
+| `opts.lease?` | [`Lease`](/api/@rulvar/rulvar/type-aliases/Lease.md) |
 
 #### Returns
 
@@ -83,7 +89,7 @@ private to the engine (M6-T05 amendment). Unknown names are ignored.
 ### pruneRun()
 
 ```ts
-pruneRun(runId): Promise<number>;
+pruneRun(runId, opts?): Promise<number>;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -92,13 +98,16 @@ Checkpoint pruning (OQ-20 executed at M8-T04):
 deletes checkpoint blobs of ok-terminal attempts that no other
 entry references; returns the count. Parked, cancelled, escalated,
 and hanging attempts keep theirs (park/unpark, DEF-5 retention, and
-dangling redispatch boot from them).
+dangling redispatch boot from them). `opts.lease` rides each blob
+delete exactly like the deleteRun cascade.
 
 #### Parameters
 
 | Parameter | Type |
 | ------ | ------ |
 | `runId` | `string` |
+| `opts?` | \{ `lease?`: [`Lease`](/api/@rulvar/rulvar/type-aliases/Lease.md); \} |
+| `opts.lease?` | [`Lease`](/api/@rulvar/rulvar/type-aliases/Lease.md) |
 
 #### Returns
 

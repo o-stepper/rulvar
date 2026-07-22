@@ -19,12 +19,27 @@ interface SqliteStoreOptions {
   now?: () => number;
 }
 declare class SqliteStore implements MetaLookupStore, LeasableStore {
+  /**
+  * The fenced writes promise (fenced run state RFC, phase 2): every
+  * lease-carrying mutation of this store (append, putMeta, delete)
+  * verifies the lease is the current holder FOR THE MUTATED RUN,
+  * atomically with the mutation, and rejects stale or mismatched
+  * holders with the typed LeaseHeldError leaving nothing changed.
+  */
+  readonly fencedWrites = true;
   private readonly db;
   private readonly ttlMs;
   private readonly now;
   constructor(options: SqliteStoreOptions);
   close(): void;
   private liveLease;
+  /**
+  * A lease fences exactly the run it names: guarding a mutation of a
+  * DIFFERENT run with it would pass the holder check while touching
+  * state the lease never protected, so the mismatch rejects typed
+  * before any check runs.
+  */
+  private requireRunMatch;
   /** Rejects unless `lease` is the CURRENT live lease for its run. */
   private assertFencing;
   /**
@@ -40,10 +55,12 @@ declare class SqliteStore implements MetaLookupStore, LeasableStore {
   private insertEntry;
   append(runId: string, e: JournalEntry, lease?: Lease): Promise<void>;
   load(runId: string): Promise<JournalEntry[]>;
-  putMeta(m: RunMeta): Promise<void>;
+  private upsertMeta;
+  putMeta(m: RunMeta, lease?: Lease): Promise<void>;
   getMeta(runId: string): Promise<RunMeta | undefined>;
   listRuns(f?: RunFilter): Promise<RunMeta[]>;
-  delete(runId: string): Promise<void>;
+  private deleteRows;
+  delete(runId: string, lease?: Lease): Promise<void>;
   /**
   * TTL introspection (the LeasableStore optional capability): lets
   * createWorker verify at construction that its renew cadence matches

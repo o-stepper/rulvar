@@ -10,7 +10,7 @@
 function runBudgetDeniedRung(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:605](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L605)
+Defined in: [packages/plan/src/cassettes.ts:611](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L611)
 
 budget-denied-rung: the budget guard denies the rung respawn; the
 denial journals as termination.denied strictly before the verdict and

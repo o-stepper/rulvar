@@ -5,7 +5,7 @@ description: 'Design proposal to fence every durable run mutation behind the lea
 
 # RFC: fenced run state
 
-Status: proposed. Phase 1 (the reference store fix and the documentation corrections) shipped together with this page; phases 2 and 3 are open for review before any SPI change lands.
+Status: phases 1 and 2 shipped. Phase 1 (the reference store fix and the documentation corrections) shipped together with this page in v1.44.1. Phase 2 shipped next: the SPI's optional lease parameters, the `fencedWrites` marker, engine threading of the lease into every meta and blob write, `SqliteStore` enforcement on `putMeta` and `delete` (closing F1 and the worker path of F4), the `fencedWritesConformance` suite, and the retention lease pass-through. Still open: a fenced transcript store (F2, the checkpoint surface) and phase 3 (reconcile and recover).
 
 ## Why
 
@@ -22,7 +22,7 @@ The durability guide used to describe that boundary as harmless: the meta row is
 
 ## Findings
 
-The audit ran against v1.44.0. F3 was demonstrated against the published `@rulvar/store-sqlite` 1.44.0 and is fixed in the release that carries this page; F1 and F2 are design gaps this RFC proposes to close.
+The audit ran against v1.44.0. F3 was demonstrated against the published `@rulvar/store-sqlite` 1.44.0 and is fixed in the release that carries this page. F1 was then demonstrated against the published 1.44.1 (the stale settle overwrote the successor's meta and the run vanished from sweep candidacy) and is closed by phase 2 over a `fencedWrites` journal store, as is the worker path of F4. F2 remains open pending a fenced transcript store.
 
 ### F1: a stale terminal `putMeta` can strand a run
 
@@ -54,34 +54,32 @@ The durability guide's boundary paragraph now states the true worst cases (F1 an
 
 Guiding constraint: the store SPI seams are frozen at 1.0. Every change below is additive and optional, following the precedent set by the `MetaLookupStore` capability and the `leaseTtlMs` introspection field: an existing store keeps compiling and keeps passing conformance untouched, and an engine over an existing store keeps today's behavior.
 
-### Phase 2: the fenced writes capability
+### Phase 2: the fenced writes capability (shipped)
 
-Widen the write methods with an optional trailing lease and add a declared marker:
+The write methods take an optional trailing lease and a store declares the marker (the shipped shape; both interfaces carry the optional readonly field directly):
 
 ```ts
 interface JournalStore {
   append(runId: string, e: JournalEntry, lease?: Lease): Promise<void>;
   putMeta(m: RunMeta, lease?: Lease): Promise<void>;
   delete(runId: string, lease?: Lease): Promise<void>;
+  readonly fencedWrites?: true;
 }
 
 interface TranscriptStore {
   put(ref: string, blob: Bytes, lease?: Lease): Promise<void>;
   delete(ref: string, lease?: Lease): Promise<void>;
-}
-
-interface FencedWrites {
-  readonly fencedWrites: true;
+  readonly fencedWrites?: true;
 }
 ```
 
-Optional trailing parameters are source compatible in both directions: an implementation written without them still satisfies the interface, and a caller passing nothing keeps the single-writer semantics. The marker is what makes the difference detectable, exactly like `leaseTtlMs`: the engine threads the segment's lease into every store mutation when it has one, and a host that requires full fencing asserts the marker at deployment time instead of trusting silence.
+Optional trailing parameters are source compatible in both directions: an implementation written without them still satisfies the interface, and a caller passing nothing keeps the single-writer semantics. The marker is what makes the difference detectable, exactly like `leaseTtlMs`: the engine threads the segment's lease into every store mutation when it has one, and a host that requires full fencing asserts the marker at deployment time instead of trusting silence (`hasFencedWrites` and `assertFencedWrites` ship in core).
 
-Enforcement contract for a store declaring `fencedWrites`: a mutation carrying a stale lease rejects with the typed `LeaseHeldError` and mutates nothing, and the fence check commits atomically with the mutation (the phase 1 rule). The transcript store fences per run: a blob ref's run prefix binds it to the run the lease names.
+Enforcement contract for a store declaring `fencedWrites` (the executable definition is `fencedWritesConformance`): a mutation carrying a stale lease rejects with the typed `LeaseHeldError` and mutates nothing; a live lease for a DIFFERENT run guards nothing and rejects the same way; the fence check commits atomically with the mutation (the phase 1 rule). The transcript store fences per run: a blob ref's run prefix binds it to the run the lease names.
 
-Engine changes are confined to threading: `putMeta` and checkpoint saves pass the lease when the segment has one. The terminal settle already swallows `putMeta` failures, so a fenced stale settle degrades to exactly the intended no-op (F1 closed). A rejected checkpoint save fails the stale segment's turn and unwinds it, which is the correct outcome for a segment that no longer owns the run (F2 closed). The worker's retention delete passes its brief lease through an optional argument on `engine.deleteRun` (F4 closed for the worker path; a bare host call without a lease stays a host-owned decision).
+Engine changes are confined to threading: every meta write, checkpoint save, compaction summary, worktree patch, and workflow source write of a leased resume carries the segment's lease. The terminal settle already swallows `putMeta` failures, so a fenced stale settle degrades to exactly the intended no-op (F1 closed over a declaring journal store). A refusal of the segment's very FIRST meta write fails the segment typed at boot with zero paid calls, strictly better than the pre-phase-2 behavior where the stale segment paid a live dispatch before its first append bounced. A rejected checkpoint save fails the stale segment's turn and unwinds it, which is the correct outcome for a segment that no longer owns the run; F2 stays OPEN until a transcript store that can enforce it ships (the file and in-memory transcript stores are single-writer by contract, and fencing a blob write atomically needs the blobs and the lease state in one transactional domain). The worker's retention delete passes its brief lease through the optional second argument of `engine.deleteRun` (F4 closed for the worker path; a bare host call without a lease stays a host-owned decision).
 
-Conformance grows a `fencedWritesConformance` suite, run when the factory declares the marker: a stale `putMeta` rejects and the successor's meta is intact; a stale transcript `put` rejects and the prior blob is intact; stale deletes reject; and an interleave probe (the shim technique the sqlite tests use) proves check and mutation are atomic where the backend allows a second connection.
+`SqliteStore` declares the marker and enforces all three journal-side surfaces, plus the run-match rule on `append` as defense in depth.
 
 ### Phase 3: reconcile and recover
 

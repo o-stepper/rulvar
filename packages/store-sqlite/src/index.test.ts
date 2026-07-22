@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ConfigError, LeaseHeldError, type JournalEntry, type Lease } from '@rulvar/core';
 import {
+  fencedWritesConformance,
   journalStoreConformance,
   leasableStoreConformance,
   registerConformance,
@@ -32,6 +33,11 @@ registerConformance(
   leasableStoreConformance(() => new SqliteStore({ path: ':memory:', ttlMs: 150 }), {
     ttlMs: 150,
   }),
+  { describe, it },
+);
+
+registerConformance(
+  fencedWritesConformance(() => memoryStore()),
   { describe, it },
 );
 
@@ -208,6 +214,28 @@ describe('SqliteStore cross-instance concurrency (one database file)', () => {
     await expect(a.acquire('RUN', 'worker-c')).rejects.toThrow(LeaseHeldError);
     await b.append('RUN', entry(0), reclaimed);
     expect((await b.load('RUN')).map((e) => e.seq)).toEqual([0]);
+    a.close();
+    b.close();
+  });
+
+  it('a stale terminal putMeta cannot strand the run (RFC F1)', async () => {
+    const { a, b, clock } = fencedPair();
+    const leaseA = await a.acquire('RUN', 'worker-a');
+    await a.putMeta({ runId: 'RUN', status: 'running', segments: 2, updatedAt: 'a' }, leaseA);
+    clock.t += 150; // worker-a stalls past its ttl
+    const leaseB = await b.acquire('RUN', 'worker-b');
+    await b.putMeta({ runId: 'RUN', status: 'running', segments: 3, updatedAt: 'b' }, leaseB);
+    // The superseded worker's late settle: on 1.44.1 this overwrote the
+    // successor (terminal status, segments regressed 3 -> 2) and the
+    // run vanished from every sweep's running/suspended candidacy.
+    await expect(
+      a.putMeta({ runId: 'RUN', status: 'cancelled', segments: 2, updatedAt: 'late' }, leaseA),
+    ).rejects.toThrow(LeaseHeldError);
+    const current = await b.getMeta('RUN');
+    expect(current?.status).toBe('running');
+    expect(current?.segments).toBe(3);
+    const candidates = await b.listRuns({ statuses: ['running', 'suspended'] });
+    expect(candidates.some((m) => m.runId === 'RUN')).toBe(true);
     a.close();
     b.close();
   });
