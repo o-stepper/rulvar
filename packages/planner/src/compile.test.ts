@@ -121,6 +121,82 @@ describe('compileScript', () => {
     expect(wf.kind).toBe('compiled-workflow');
   });
 
+  it('rejects eval as dynamic code generation', () => {
+    let caught: unknown;
+    try {
+      compileScript('const v = eval("1 + 1");\nreturn v;');
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ScriptRejected);
+    const diagnostics = scriptDiagnosticsOf(caught as ScriptRejected);
+    expect(diagnostics.map((d) => d.ruleId)).toContain('no-eval');
+  });
+
+  it('rejects the Function constructor in call and new form', () => {
+    for (const source of [
+      'const f = Function("return 42");\nreturn f();',
+      'const f = new Function("return 42");\nreturn f();',
+    ]) {
+      let caught: unknown;
+      try {
+        compileScript(source);
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBeInstanceOf(ScriptRejected);
+      expect(scriptDiagnosticsOf(caught as ScriptRejected).map((d) => d.ruleId)).toContain(
+        'no-function-constructor',
+      );
+    }
+  });
+
+  it('rejects .constructor access (the Function constructor vector)', () => {
+    let caught: unknown;
+    try {
+      compileScript('const F = (function () {}).constructor;\nreturn typeof F;');
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ScriptRejected);
+    expect(scriptDiagnosticsOf(caught as ScriptRejected).map((d) => d.ruleId)).toContain(
+      'no-constructor-access',
+    );
+  });
+
+  it('rejects the import allowlist bypass through a generated function', () => {
+    // The exact SEC-P2 shape: reach the Function constructor and compile a
+    // dynamic import the static import ban never sees as a literal token.
+    const source = [
+      'const spec = "node:" + "os";',
+      'const make = (function () {}).constructor;',
+      'const load = make("s", "return import(s);");',
+      'const os = await load(spec);',
+      'return os.platform();',
+    ].join('\n');
+    let caught: unknown;
+    try {
+      compileScript(source);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ScriptRejected);
+    const rules = scriptDiagnosticsOf(caught as ScriptRejected).map((d) => d.ruleId);
+    expect(rules).toContain('no-constructor-access');
+  });
+
+  it('does not flag identifiers or members that merely contain the banned words', () => {
+    const source = [
+      'const evaluation = 1;',
+      'const myFunction = () => 2;',
+      'const reconstructor = 3;',
+      "const s = 'eval and Function and .constructor live in this string';",
+      'return evaluation + myFunction() + reconstructor;',
+    ].join('\n');
+    const wf = compileScript(source);
+    expect(wf.kind).toBe('compiled-workflow');
+  });
+
   it('still catches an import hidden inside a template interpolation', () => {
     const source = "const a = `value: ${await import('node:os')}`;\nreturn a;";
     expect(() => compileScript(source)).toThrow(ScriptRejected);

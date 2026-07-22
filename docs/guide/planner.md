@@ -147,6 +147,7 @@ Machine scripts always run under the `lenient` error policy: `onError` defaults 
 - `allowImports` defaults to `[]`: no imports at all.
 - Static `import` syntax, `import.meta`, `require()`, `export` declarations, and dynamic imports with non-literal specifiers are always rejected.
 - A dynamic `import('specifier')` with a string literal passes only when the specifier is listed in `allowImports`.
+- Dynamic code generation, meaning `eval`, the `Function` constructor, and `.constructor` access, is always rejected. Without this the import ban would be hollow: `new Function("return import(x)")` compiles an import the literal scan never sees. The ban keeps `allowImports` meaningful and the dialect consistent; it is a bar raiser, not a wall against a hostile author (see the determinism boundary note below).
 
 Any violation throws a typed `ScriptRejected`; `scriptDiagnosticsOf(error)` returns the machine-readable findings:
 
@@ -165,7 +166,7 @@ try {
 }
 ```
 
-Diagnostic rule ids are `syntax`, `empty-source`, `no-import`, `no-require`, `no-export`, and `disallowed-import`. The deeper dialect rules (schema literals only, no functions in options, tools by profile name) are enforced where they actually bind: at the sandbox boundary at runtime, where only journal-compatible JSON crosses, and advisorily by the lint pass in the repair loop.
+Diagnostic rule ids are `syntax`, `empty-source`, `no-import`, `no-require`, `no-export`, `disallowed-import`, `no-eval`, `no-function-constructor`, and `no-constructor-access`. The deeper dialect rules (schema literals only, no functions in options, tools by profile name) are enforced where they actually bind: at the sandbox boundary at runtime, where only journal-compatible JSON crosses, and advisorily by the lint pass in the repair loop.
 
 ## The self-repair loop and eslint-plugin-rulvar
 
@@ -177,6 +178,7 @@ The repair loop's teeth come from `eslint-plugin-rulvar`, the determinism lint f
 | `rulvar/no-bare-random` | error | `Math.random` instead of the journaled `random()` |
 | `rulvar/no-fetch` | error | Ambient network I/O outside agent tools |
 | `rulvar/no-process-env` | error | Ambient host state via `process.env` |
+| `rulvar/no-code-generation` | error | `eval`, the `Function` constructor, and `.constructor` access; dynamic code generation reopens the import allowlist and ambient capability |
 | `rulvar/no-promise-all-over-ctx` | error | `Promise.all` over ctx calls; `parallel` journals, schedules, and settles |
 | `rulvar/duplicate-identical-call` | warning | Byte-identical `agent`/`workflow` calls; each repeat gets its own journal entry and forward matching consumes them in execution order, so an edit or reorder can rebind results to the wrong call site; a deliberate repeat needs a distinguishing `key` |
 
@@ -216,7 +218,7 @@ When a draft does come back truncated and empty (finish reason `max-tokens`, no 
 
 `WorkerSandboxRunner` executes the compiled script inside a `worker_threads` worker. Its contract:
 
-- **Curated scope.** The globals are exactly the sandbox set above. `fetch` and `process` are absent; `Date.now` and `Math.random` are replaced by the seeded shims. Import syntax is absent with ONE exception: a literal `await import('specifier')` whose specifier `compileScript` admitted through `allowImports` (default `[]`, so no imports at all). Allowlisting a Node module hands the script that module's full capability surface, so treat every `allowImports` entry as a host trust decision, exactly like registering a tool.
+- **Curated scope, enforced at compile.** The sandbox binds the curated globals above as bare names; `fetch` and `process` are unbound, and `Date.now` and `Math.random` are replaced by the seeded shims. The only import the dialect admits is a literal `await import('specifier')` whose specifier `compileScript` allowlisted (default `[]`, so none). That ban is not self sufficient, because JavaScript intrinsics can rebuild code at runtime, so `compileScript` also rejects `eval`, the `Function` constructor, and `.constructor` access, and the worker additionally unbinds `eval` and `Function`. Together these keep an honest script on the curated surface and bound its reach; they are not a wall against a hostile author, who can still derive intrinsics (see the boundary note below). Allowlisting a Node module hands the script that module's full capability surface, so treat every `allowImports` entry as a host trust decision, exactly like registering a tool.
 - **Seeded, journaled shims.** `now()`, `random()`, `uuid()`, and the platform replacements are one seeded stream derived from the `runId`. `now()` is a seeded logical clock, not wall clock: two fresh runs with the same `runId` produce byte-identical journals. Every generated value is mirrored to the host and journaled as an ordinary `rand` entry, so a resumed worker regenerates identical values and the mirrors forward-match instead of duplicating.
 - **JSON-only RPC.** Every primitive call travels as JSON-RPC over a dedicated `MessagePort` to the host engine, validated as journal-compatible JSON at the boundary. Worker and host never exchange non-journalable values. `parallel` branches, `pipeline` stages, `phase` bodies, and `step` bodies execute inside the worker; only their JSON results cross to the host for journaling.
 - **Resource ceilings.** Breaching `timeoutMs` (default 300000) or `memoryMb` (default 512) terminates the worker; the run completes with outcome `error` carrying a typed error code. Both are validated at construction: `timeoutMs` must be an integer between 1 and 2147483647 ms (the Node timer maximum; a larger value used to clamp to 1 ms and kill a trivial worker immediately) and `memoryMb` a positive integer, anything else being a typed `ConfigError` before any worker exists.
@@ -226,7 +228,7 @@ When a draft does come back truncated and empty (finish reason `max-tokens`, no 
 The host half of the protocol is `createSandboxBridge(ctx, { post })` from `@rulvar/core`: it serves every proxied primitive against the canonical run ctx, which is why the runner is built entirely from the public core API and why an alternative runner can implement the same `ScriptRunner` seam.
 
 ::: warning A determinism boundary, not a security boundary
-The sandbox exists to guarantee deterministic replay and to bound the blast radius of a generated script: no ambient time, no ambient randomness, no network, no host process access, JSON-only traffic. It is not a defense against hostile code, and nothing shipped today is: the current release enforces only the in-process tool executor (`subprocess` and `container` are declared capabilities that fail at registration), and a git worktree isolates file changes and the working directory, never processes or the network. Containing genuinely hostile tool code requires an executor you build and operate, with its own threat model; see [Tools](/guide/tools#executors).
+The sandbox exists to guarantee deterministic replay and to bound the blast radius of a generated script: no ambient time, no ambient randomness, no network, no host process access, JSON-only traffic. The compile time rejection of `eval`, the `Function` constructor, and `.constructor`, plus the worker unbinding `eval` and `Function`, raise the bar so an honest or an injection nudged script cannot casually rebuild an import or reach ambient capability. They are not a hermetic realm: JavaScript intrinsics can still reconstruct those constructors, so this is not a defense against hostile code, and nothing shipped today is. The current release enforces only the in-process tool executor (`subprocess` and `container` are declared capabilities that fail at registration), and a git worktree isolates file changes and the working directory, never processes or the network. Containing genuinely hostile tool code requires an executor you build and operate, with its own threat model; see [Tools](/guide/tools#executors).
 :::
 
 ## Workflow versus CompiledWorkflow

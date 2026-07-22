@@ -10,4 +10,4 @@
 const rules: Record<string, Rule.RuleModule>;
 ```
 
-Defined in: [packages/eslint-plugin-rulvar/src/index.ts:18](https://github.com/o-stepper/rulvar/blob/main/packages/eslint-plugin-rulvar/src/index.ts#L18)
+Defined in: [packages/eslint-plugin-rulvar/src/index.ts:19](https://github.com/o-stepper/rulvar/blob/main/packages/eslint-plugin-rulvar/src/index.ts#L19)
