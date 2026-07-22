@@ -215,7 +215,34 @@ Every schema valid `finish` call first passes the validators, in configuration o
 
 Every verdict (accepted, repair, rejected) journals as one decision entry keyed by the finish call id, so a resume rolls the same verdicts forward without re-running validator code and the whole exchange replays without new paid calls; a journaled final rejection even short circuits at boot, before any model call. The toolset never changes (the contract reaches the model through the orchestrator prompt), and zero configuration adds zero journal entries.
 
-The built in validators cover the plan's mechanical checks: `requiredSectionsValidator` (literal section markers in the result text), `requiredFieldsValidator` (object fields present and not empty strings), `minMatchesValidator` (at least N regex matches, the citation and source counts). Anything else is a custom `FinishValidator`: a `name` unique within the call and a synchronous, deterministic `validate(input)` over `{ result, text }`. A validator that throws is a host defect: the run fails as `ConfigError`, nothing journals, and no repair turn is spent on it.
+The built in validators cover the plan's mechanical checks: `requiredSectionsValidator` (literal section markers in the result text), `requiredFieldsValidator` (object fields present and not empty strings), `minMatchesValidator` (at least N regex matches, the citation and source counts). Anything else is a custom `FinishValidator`: a `name` unique within the call and a synchronous, deterministic `validate(input)`. A validator that throws is a host defect: the run fails as `ConfigError`, nothing journals, and no repair turn is spent on it.
+
+### Preserving the children's evidence
+
+Counting citations in the result is not the same as keeping the ones the specialists actually produced: a finish can drop three of four real `file:line` citations, fabricate three plausible ones, and still satisfy `minMatchesValidator`. The validation input therefore carries `children`: every spawned child at finish time, in spawn order, each with its `handle`, `nodeId`, terminal `status`, and full output `text` (a pure read of the state the orchestrator already tracks). `evidencePreservedValidator` builds the provenance contract on top of it.
+
+```ts
+import { evidencePreservedValidator, orchestrate } from "@rulvar/core";
+
+const audited = orchestrate(
+  engine,
+  "Audit the module and cite evidence",
+  {
+    profiles: ["reviewer"],
+    finishValidation: {
+      validators: [
+        // Default pattern: a path with an extension, a colon, a line
+        // number. Default minShare 0.95, the plan's preservation gate.
+        // requireKnown also rejects citations no child ever produced.
+        evidencePreservedValidator({ requireKnown: true }),
+      ],
+    },
+  },
+  { budgetUsd: 10 },
+);
+```
+
+Distinct pattern matches are collected across the outputs of children settled `ok`; at least `minShare` of them must appear literally in the result text, and the rejection lists exactly the missing ones (capped at 20) so the repair turn can restore them. Zero child citations pass vacuously. With `requireKnown: true` the contract also runs in reverse: a citation in the result that no child ever produced is rejected as unknown, which closes the fabrication path. The contract is purely textual and deterministic; verifying that cited targets exist on disk stays host territory (a custom validator). Custom validators get the same `children` input, so any provenance rule the goal demands (per child minimums, required sections per specialist) is a few lines of host code.
 
 Two honest bounds: validators are HOST code, so they check mechanical properties (structure, counts, markers), not truth; and repair turns spend from the orchestrator's ordinary limits and ceilings (`limits.maxTurns`, `budget`, the root `budgetUsd`), with `maxRepairs` as the explicit bound, so there is no separate repair budget reserve. The budget cap paths keep their posture: the reserved finalize dispatch after a cap is never validated, exactly as acceptance never judges it.
 

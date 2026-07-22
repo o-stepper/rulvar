@@ -1938,9 +1938,23 @@ export function makeOrchestratorWorkflow(
       let decision = known.find((candidate) => candidate.callId === call.id);
       if (decision === undefined) {
         const result = (call.result ?? null) as Json | null;
+        // The children snapshot (RV-202): spawn order, pure reads of the
+        // records the orchestrator already tracks, so validators can hold
+        // the finish result against the evidence the children produced.
+        // Only the JOURNALED verdict survives; on replay the snapshot is
+        // never rebuilt because the entry is read by call id above.
+        const children = [...records.values()]
+          .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal)
+          .map((record) => ({
+            handle: record.handle,
+            nodeId: record.nodeId,
+            status: record.settled?.status ?? 'running',
+            text: record.settled === undefined ? '' : serializeChildOutput(record.settled),
+          }));
         const input: FinishValidationInput = {
           result,
           text: typeof result === 'string' ? result : JSON.stringify(result),
+          children,
         };
         const failed: { name: string; reasons: string[] }[] = [];
         for (const validator of validationSpec.validators) {
