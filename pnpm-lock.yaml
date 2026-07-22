@@ -36,6 +36,9 @@ catalogs:
     '@vitest/coverage-v8':
       specifier: ^4.1.10
       version: 4.1.10
+    acorn:
+      specifier: ^8.17.0
+      version: 8.17.0
     arktype:
       specifier: ^2.2.2
       version: 2.2.2
@@ -397,6 +400,9 @@ importers:
       '@rulvar/core':
         specifier: workspace:*
         version: link:../core
+      acorn:
+        specifier: 'catalog:'
+        version: 8.17.0
       eslint:
         specifier: 'catalog:'
         version: 9.39.4

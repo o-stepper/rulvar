@@ -30,6 +30,7 @@
   "dependencies": {
     "@rulvar/core": "workspace:*",
     "eslint-plugin-rulvar": "workspace:*",
+    "acorn": "catalog:",
     "eslint": "catalog:"
   },
   "devDependencies": {

@@ -164,19 +164,49 @@ function main(port: NodeMessagePort, init: SandboxInitMessage): void {
   Math.random = shimRandom;
   Reflect.set(globalThis, 'fetch', undefined);
   Reflect.set(globalThis, 'process', undefined);
-  // Defense in depth against dynamic code generation (v1.37.0 review
-  // SEC-P2): eval and the Function constructor compile arbitrary text in a
-  // fresh scope where import() and host capability are back in reach.
-  // compileScript is the real gate (it rejects eval, Function, and
-  // .constructor before a source ever runs); unbinding the globals here
-  // only stops the bare `eval(...)`/`Function(...)` forms for a source that
-  // reached the worker without passing compileScript. It is NOT hermetic:
-  // (function(){}).constructor still derives Function from the prototype
-  // chain, which is exactly why the static ban, not this scrub, is the
-  // boundary. The AsyncFunction constructor used below is captured from a
-  // prototype, not from this global, so unbinding it here is safe.
+  // Defense in depth against dynamic code generation (v1.37.0 review SEC-P2):
+  // eval and the Function constructor compile arbitrary text in a fresh scope
+  // where import() and host capability are back in reach. Unbinding the
+  // globals stops the bare `eval(...)`/`Function(...)` forms for a source that
+  // reached the worker without passing compileScript.
   Reflect.set(globalThis, 'eval', undefined);
   Reflect.set(globalThis, 'Function', undefined);
+
+  // The AsyncFunction constructor the worker uses to compile the body, taken
+  // from a prototype BEFORE the reconstruction path is tamed below.
+  const asyncProto = Object.getPrototypeOf(shimAsyncMarker) as {
+    constructor: new (...ctorArgs: string[]) => (...fnArgs: unknown[]) => Promise<unknown>;
+  };
+  const AsyncFunctionCtor = asyncProto.constructor;
+
+  // Neutralize the .constructor reconstruction path (v1.38.0 review
+  // P2-CODEGEN-PARITY). compileScript rejects every statically visible codegen
+  // form, but a truly dynamic key like fn[keyFromAnAgent] or fn[parts.join('')]
+  // cannot be seen at compile time. Every function value still exposes its
+  // constructor through the prototype chain (a regular, async, generator, or
+  // async generator function each reaches its own Function family constructor),
+  // so we replace that slot on all four prototypes with a thrower. The
+  // AsyncFunction constructor the worker needs is already captured above, so
+  // building the body below is unaffected. This closes the runtime
+  // reconstruction path as far as one realm allows; it is NOT hostile code
+  // containment (other intrinsics remain), which is why the sandbox stays a
+  // determinism and blast radius boundary, not a security wall.
+  const denyCodegen = function constructor(): never {
+    throw new EvalError('dynamic code generation is not available in the sandbox dialect');
+  };
+  for (const proto of [
+    Object.getPrototypeOf(shimRegularMarker) as object,
+    asyncProto as object,
+    Object.getPrototypeOf(shimGeneratorMarker) as object,
+    Object.getPrototypeOf(shimAsyncGeneratorMarker) as object,
+  ]) {
+    Object.defineProperty(proto, 'constructor', {
+      value: denyCodegen,
+      writable: false,
+      enumerable: false,
+      configurable: false,
+    });
+  }
 
   const sandboxGlobals: Record<string, unknown> = {
     agent: (prompt: unknown, opts?: unknown) =>
@@ -317,12 +347,6 @@ function main(port: NodeMessagePort, init: SandboxInitMessage): void {
     }
   });
 
-  const AsyncFunctionCtor = (
-    Object.getPrototypeOf(shimAsyncMarker) as {
-      constructor: new (...ctorArgs: string[]) => (...fnArgs: unknown[]) => Promise<unknown>;
-    }
-  ).constructor;
-
   enterFrame();
   void (async () => {
     try {
@@ -337,9 +361,18 @@ function main(port: NodeMessagePort, init: SandboxInitMessage): void {
   })();
 }
 
-/** Marker reaching the AsyncFunction constructor; never invoked. */
+/** Markers reaching each Function family constructor prototype; never invoked. */
 // eslint-disable-next-line @typescript-eslint/require-await
 const shimAsyncMarker = async (): Promise<undefined> => undefined;
+const shimRegularMarker = (): undefined => undefined;
+// eslint-disable-next-line require-yield
+function* shimGeneratorMarker(): Generator<undefined> {
+  return undefined;
+}
+// eslint-disable-next-line require-yield, @typescript-eslint/require-await
+async function* shimAsyncGeneratorMarker(): AsyncGenerator<undefined> {
+  return undefined;
+}
 
 parentPort?.once('message', (init: SandboxInitMessage) => {
   main(init.port as NodeMessagePort, init);

@@ -346,6 +346,34 @@ describe('plan helpers', () => {
     expect(outcome.workflow).toBeUndefined();
   });
 
+  it('lintScript reaches one decision across gates for every static form (v1.38.0 review P2-CODEGEN-PARITY)', () => {
+    // Each statically visible reconstruction form must fail BOTH gates, so the
+    // linter and the structural compile check agree instead of disagreeing on
+    // bracket and computed keys the way the review found.
+    for (const body of [
+      'const F = (function () {})["constructor"];\nreturn 1;',
+      'const F = (function () {})["con" + "structor"];\nreturn 1;',
+      'const { constructor: C } = fn;\nreturn 1;',
+      'const F = Reflect.get(fn, "constructor");\nreturn 1;',
+    ]) {
+      const outcome = lintScript(body);
+      const ruleIds = outcome.errors.map((e) => e.ruleId);
+      expect(ruleIds, body).toContain('rulvar/no-code-generation');
+      expect(ruleIds, body).toContain('compile/no-constructor-access');
+      expect(outcome.workflow, body).toBeUndefined();
+    }
+  });
+
+  it('lintScript accepts a truly dynamic key at both gates (worker enforces it)', () => {
+    // A runtime-assembled key is undecidable statically, so neither gate flags
+    // it and a workflow is produced; the worker realm neutralizes it instead.
+    const outcome = lintScript('const key = parts.join("");\nreturn (function () {})[key];');
+    const ruleIds = outcome.errors.map((e) => e.ruleId);
+    expect(ruleIds).not.toContain('rulvar/no-code-generation');
+    expect(ruleIds).not.toContain('compile/no-constructor-access');
+    expect(outcome.workflow?.kind).toBe('compiled-workflow');
+  });
+
   it('lintScript accepts a clean body and returns the compiled workflow', () => {
     const outcome = lintScript("return step('x', () => 1);");
     expect(outcome.errors).toEqual([]);

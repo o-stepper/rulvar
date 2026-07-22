@@ -6,7 +6,7 @@
 
 # Interface: CompileScriptOptions
 
-Defined in: [packages/planner/src/compile.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L54)
+Defined in: [packages/planner/src/compile.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L62)
 
 @rulvar/planner: Rulvar flagship hybrid mode: plan agent, compileScript,
 WorkerSandboxRunner, self-repair loop
@@ -16,4 +16,4 @@ WorkerSandboxRunner, self-repair loop
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-allowimports"></a> `allowImports?` | `string`[] | Dynamic-import specifiers permitted in the source; default [] (none). | [packages/planner/src/compile.ts:56](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L56) |
+| <a id="property-allowimports"></a> `allowImports?` | `string`[] | Dynamic-import specifiers permitted in the source; default [] (none). | [packages/planner/src/compile.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L64) |
