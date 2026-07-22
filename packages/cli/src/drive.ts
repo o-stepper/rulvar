@@ -200,7 +200,13 @@ export function reportOutcome(outcome: RunOutcome<unknown>, io: CliIo): number {
   for (const pending of outcome.pending) {
     io.err(`pending: ${sanitizeTerminalText(pending.key)} (entry ${pending.entryRef})`);
   }
-  io.err(`cost: $${outcome.cost.totalUsd.toFixed(4)}`);
+  io.err(
+    `cost: $${outcome.cost.totalUsd.toFixed(4)}${
+      outcome.cost.usageApprox === true
+        ? ' (approximate: some usage was estimated, not reported by the provider)'
+        : ''
+    }`,
+  );
   for (const [model, usd] of Object.entries(outcome.cost.byModel)) {
     io.err(`  by model ${sanitizeTerminalText(model)}: $${usd.toFixed(4)}`);
   }

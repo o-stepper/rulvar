@@ -4303,6 +4303,14 @@ type CoreEvents = {
   type: "run:end";
   status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
   totalUsd: number;
+  /**
+  * Present and true when any priced usage folded into totalUsd is
+  * approximate (a transport cut, a stream the ceiling severed, or an
+  * abort left a turn's usage estimated rather than reported by the
+  * provider), so totalUsd is a lower bound estimate, never an exact
+  * charge. Absent means every contributing turn reported exact usage.
+  */
+  usageApprox?: boolean;
 } | {
   type: "phase:start";
   phase: string;
@@ -4356,6 +4364,14 @@ type AgentEvents = {
   usage: Usage;
   costUsd: number;
   entryRef: number;
+  /**
+  * Present and true when this agent's usage is approximate rather
+  * than reported by the provider (the turn was cut by a transport
+  * failure, a ceiling that severed the stream, or an abort). Absent
+  * means the provider reported the usage exactly. Mirrors the
+  * terminal journal entry's usageApprox.
+  */
+  usageApprox?: boolean;
 } | {
   type: "agent:error";
   agentType: string;
@@ -4612,6 +4628,16 @@ interface CostReport {
     model: string;
     usage: Usage;
   }>;
+  /**
+  * Present and true when any terminal entry folded into totalUsd carried
+  * approximate usage (a transport cut, a stream the ceiling severed, or
+  * an abort estimated the turn instead of the provider reporting it), so
+  * totalUsd is a lower bound estimate, never an exact charge. Absent
+  * means every contributing entry reported exact usage. The field the
+  * v1.39.0 review asked the report to raise so approximate cost is never
+  * shown as though it were the provider invoice.
+  */
+  usageApprox?: boolean;
 }
 type RunOutcome<R> = {
   status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";

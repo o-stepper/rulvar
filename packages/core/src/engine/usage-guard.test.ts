@@ -436,3 +436,64 @@ describe('RunBudget defensive backstops', () => {
     expect(seeded.spent().usd).toBe(0.25);
   });
 });
+
+describe('approximate usage surfacing (v1.39.0 review)', () => {
+  it('a ceiling severed turn raises usageApprox on the cost report, agent:end, and run:end', async () => {
+    // estCost fits under the 0.3 ceiling so the agent is ADMITTED; then the
+    // 400k input (0.4 USD at 1 USD/Mtok) reported mid turn crosses the
+    // ceiling and severs the turn before any finish, so its usage is
+    // estimated rather than reported by the provider (the ctx layer 3
+    // sever shape). The cancelled terminal carries usageApprox, which the
+    // report and both events raise.
+    const adapter = scriptedAdapter(
+      () => ({ text: 'partial', usage: U(400_000, 0), hangMs: 2_000 }),
+      { caps: roomyCaps },
+    );
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: new InMemoryStore({ quiet: true }) },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const severing = defineWorkflow({ name: 'severing' }, (ctx) =>
+      ctx.agent('go', { estCost: 0.01 }),
+    );
+    const handle = engine.run(severing, undefined, { budgetUsd: 0.3 });
+    let agentEndApprox: boolean | undefined;
+    let sawAgentEnd = false;
+    let runEndApprox: boolean | undefined;
+    handle.on('agent:end', (e) => {
+      sawAgentEnd = true;
+      agentEndApprox = e.usageApprox;
+    });
+    handle.on('run:end', (e) => {
+      runEndApprox = e.usageApprox;
+    });
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('exhausted');
+    expect(sawAgentEnd).toBe(true);
+    expect(outcome.cost.usageApprox).toBe(true);
+    expect(agentEndApprox).toBe(true);
+    expect(runEndApprox).toBe(true);
+  }, 10_000);
+
+  it('an exact turn the provider reported leaves usageApprox absent everywhere', async () => {
+    const { engine } = engineOf(() => ({ text: 'done', usage: U(1000, 10) }));
+    const handle = engine.run(oneAgent, undefined);
+    let agentEndApprox: boolean | undefined;
+    let sawAgentEnd = false;
+    let runEndApprox: boolean | undefined;
+    handle.on('agent:end', (e) => {
+      sawAgentEnd = true;
+      agentEndApprox = e.usageApprox;
+    });
+    handle.on('run:end', (e) => {
+      runEndApprox = e.usageApprox;
+    });
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    expect(sawAgentEnd).toBe(true);
+    expect(outcome.cost.usageApprox).toBeUndefined();
+    expect(agentEndApprox).toBeUndefined();
+    expect(runEndApprox).toBeUndefined();
+  });
+});

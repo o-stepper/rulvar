@@ -1011,7 +1011,15 @@ export function createEngine(options: CreateEngineOptions): Engine {
         outcome.error = wireError;
       }
       await putMeta(status).catch(() => undefined);
-      bus.emit({ type: 'run:end', status, totalUsd: ledger.usd }, rootSpanId);
+      bus.emit(
+        {
+          type: 'run:end',
+          status,
+          totalUsd: ledger.usd,
+          ...(outcome.cost.usageApprox === true ? { usageApprox: true } : {}),
+        },
+        rootSpanId,
+      );
       bus.end();
       resumeCtx?.previewResolve({
         ...replayer.resumeReport(),

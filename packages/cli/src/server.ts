@@ -705,6 +705,13 @@ export function createServer(options: CreateServerOptions): RulvarServer {
         store: journal,
         now: wallClock,
         priorEntries: entries,
+        // The resolution append carries the lease acquired above so the
+        // store fences it: if this process stalled past the lease ttl and
+        // a queue worker took the run over (epoch+1), the stale append is
+        // rejected with LeaseHeldError instead of racing the new owner. An
+        // absent lease (a journal with no lease support) keeps the single
+        // writer precondition, exactly as before.
+        ...(lease === undefined ? {} : { lease }),
       });
       const target = entries.find((entry) => suspensionKeyOf(entry) === key);
       if (target === undefined) {
