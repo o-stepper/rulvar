@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { CliIo } from './io.js';
 import { runCli } from './cli-main.js';
-import { reportDryRun, reportOutcome } from './drive.js';
+import { reportDryRun, reportOutcome, strictExitCode } from './drive.js';
 
 interface ScriptedIo extends CliIo {
   outLines: string[];
@@ -657,5 +657,67 @@ describe('CLI diagnostics withhold --args and sanitize terminal text (v1.24.1 re
     expect(err).toContain('invalid resolution at seq 2: bad shape');
     expect(err).toContain('stopped at the first would-be-live call: live call here');
     expect(cleanLines(io.errLines)).toBe(true);
+  });
+});
+
+describe('--strict refuses a partial acceptance envelope (v1.40.0 improvement plan)', () => {
+  // Built from codepoints so no control byte lives in this source file.
+  const ESC = String.fromCharCode(0x1b);
+  const BEL = String.fromCharCode(0x07);
+  const cleanLines = (lines: string[]): boolean =>
+    lines.every((line) => !line.includes(ESC) && !line.includes(BEL) && !line.includes('\n'));
+  const okOutcome = (value: unknown) =>
+    ({
+      status: 'ok',
+      value,
+      dropped: [],
+      pending: [],
+      cost: { totalUsd: 0, byModel: {}, byPhase: {}, unpriced: [] },
+    }) as unknown as Parameters<typeof strictExitCode>[0];
+
+  it('a complete envelope and a plain value both keep exit 0', () => {
+    const io = scriptedIo();
+    expect(
+      strictExitCode(
+        okOutcome({
+          result: 1,
+          completion: 'complete',
+          childStatusCounts: { ok: 2 },
+          degradedReasons: [],
+        }),
+        0,
+        io,
+      ),
+    ).toBe(0);
+    expect(strictExitCode(okOutcome({ answer: 42 }), 0, io)).toBe(0);
+    expect(strictExitCode(okOutcome('a plain string value'), 0, io)).toBe(0);
+    expect(io.errLines).toHaveLength(0);
+  });
+
+  it('a partial envelope exits 1 and prints the sanitized reasons', () => {
+    const io = scriptedIo();
+    const code = strictExitCode(
+      okOutcome({
+        result: 1,
+        completion: 'partial',
+        childStatusCounts: { ok: 1, error: 1 },
+        degradedReasons: [`child agent:9 settled 'error'${ESC}[31m`],
+      }),
+      0,
+      io,
+    );
+    expect(code).toBe(1);
+    const err = io.errLines.join('\n');
+    expect(err).toContain("strict: the orchestration acceptance reports completion 'partial'");
+    expect(err).toContain("child agent:9 settled 'error'");
+    expect(cleanLines(io.errLines)).toBe(true);
+  });
+
+  it('a nonzero base exit and an errored status pass through unchanged', () => {
+    const io = scriptedIo();
+    expect(
+      strictExitCode({ ...okOutcome({ completion: 'partial' }), status: 'error' }, 1, io),
+    ).toBe(1);
+    expect(io.errLines).toHaveLength(0);
   });
 });

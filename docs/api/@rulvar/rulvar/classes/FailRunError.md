@@ -10,8 +10,11 @@ Defined in: `packages/core/dist/index.d.ts`
 
 A declared fail-run policy engaged and closed the run as a failure
 (v1.35.0 review P2-1): `budget.atCap: 'fail-run'` after the journaled
-orchestrator cap decision, or `guards.fallback: 'fail-run'` after the
-journaled guard verdict. The run outcome is 'error' with this code;
+orchestrator cap decision, `guards.fallback: 'fail-run'` after the
+journaled guard verdict, or a violated orchestrate acceptance policy
+after the journaled acceptance decision (`data.source`
+'orchestrator_acceptance', with the child status counts and degraded
+reasons in `data`). The run outcome is 'error' with this code;
 `data.source` names the policy ('orchestrator_budget_cap' or
 'plan_guards') and `data` carries the decision entry reference, so the
 outcome is a pure roll forward of the journal on resume: no second

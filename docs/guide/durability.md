@@ -272,6 +272,10 @@ try {
 
 Leases carry a store-configured TTL (60 seconds by default for the SQLite store) and the holder renews at most every third of it; a worker that dies simply lets its lease expire, and the next worker acquires and resumes. Even beneath fencing, the resolution fold is order-deterministic: whatever total order a store persisted, every reader derives the same outcome.
 
+Know the exact fencing boundary. What the epoch fences is every JOURNAL append of a leased run: engine appends under `ResumeOptions.lease`, queue worker appends, and the CLI server's resolution appends (the offline path acquires a lease and carries it, so a process that stalled past its ttl is refused instead of racing the new owner). `RunMeta` writes (`putMeta`) and transcript blobs are advisory and unfenced by design: the journal is the source of truth and the meta row is a projection recoverable from it, so the worst a stale writer can do there is briefly stale catalog metadata, never a corrupted run. Plan multi-writer deployments around that boundary rather than assuming every byte is fenced.
+
+One more boundary that stays with the host: everything these stores persist (journal values, transcripts, artifacts, prompts inside checkpoints) is plaintext by default. Rulvar ships no encryption at rest, key management, redaction, or retention policy; a deployment handling sensitive data owns those at the store layer (encrypt the files or the database, redact before values reach `ctx`, delete with `engine.deleteRun` under its own retention rules).
+
 ## Next steps
 
 - [The journal](/guide/journal) explains entry identity: content keys, scope paths, ordinals, and why editing code costs only the calls you changed.

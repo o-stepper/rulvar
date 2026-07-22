@@ -1,8 +1,8 @@
 /**
  * The four M5 commands of the canonical CLI grammar (no aliases in v1):
  *
- *   rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N]
- *   rulvar resume <runId>  [--store PATH]
+ *   rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N] [--strict]
+ *   rulvar resume <runId>  [--store PATH] [--strict]
  *   rulvar runs ls         [--store PATH]
  *   rulvar inspect <runId> [--store PATH]
  *
@@ -36,7 +36,7 @@ import {
 
 import { loadCliConfig, loadWorkflowModule, looksLikeFile } from './config.js';
 import { assembleEngine } from './engine-assembly.js';
-import { driveRun, reportDryRun, reportOutcome } from './drive.js';
+import { driveRun, reportDryRun, reportOutcome, strictExitCode } from './drive.js';
 import { GRAMMAR, KB_FAMILY_USAGE, parseBudgetValue, parseCommand, usageOf } from './grammar.js';
 import type { CliIo } from './io.js';
 
@@ -176,7 +176,8 @@ export async function runCommand(argv: string[], context: CommandContext): Promi
     io: context.io,
     args,
   });
-  return reportOutcome(outcome, context.io);
+  const base = reportOutcome(outcome, context.io);
+  return parsed.values.strict === true ? strictExitCode(outcome, base, context.io) : base;
 }
 
 /**
@@ -352,7 +353,8 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
     io: context.io,
     args,
   });
-  return reportOutcome(outcome, context.io);
+  const base = reportOutcome(outcome, context.io);
+  return parsed.values.strict === true ? strictExitCode(outcome, base, context.io) : base;
 }
 
 export async function runsLsCommand(argv: string[], context: CommandContext): Promise<number> {

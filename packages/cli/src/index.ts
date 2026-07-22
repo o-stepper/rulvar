@@ -26,7 +26,7 @@ export {
   type LoadedWorkflowModule,
 } from './config.js';
 export { assembleEngine, DEFAULT_STORE_DIR, type AssembledCli } from './engine-assembly.js';
-export { driveRun, reportOutcome } from './drive.js';
+export { driveRun, reportOutcome, strictExitCode } from './drive.js';
 export {
   createServer,
   DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT,

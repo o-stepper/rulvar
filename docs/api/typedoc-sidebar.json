@@ -301,6 +301,10 @@
             "link": "/api/@rulvar/cli/functions/runsLsCommand.md"
           },
           {
+            "text": "strictExitCode",
+            "link": "/api/@rulvar/cli/functions/strictExitCode.md"
+          },
+          {
             "text": "toOtel",
             "link": "/api/@rulvar/cli/functions/toOtel.md"
           }
@@ -967,6 +971,10 @@
           {
             "text": "NodeLinkValue",
             "link": "/api/@rulvar/core/interfaces/NodeLinkValue.md"
+          },
+          {
+            "text": "OrchestrateAcceptance",
+            "link": "/api/@rulvar/core/interfaces/OrchestrateAcceptance.md"
           },
           {
             "text": "OrchestrateOptions",
@@ -4552,6 +4560,10 @@
           {
             "text": "OpenAiAdapterOptions",
             "link": "/api/@rulvar/rulvar/interfaces/OpenAiAdapterOptions.md"
+          },
+          {
+            "text": "OrchestrateAcceptance",
+            "link": "/api/@rulvar/rulvar/interfaces/OrchestrateAcceptance.md"
           },
           {
             "text": "OrchestrateOptions",

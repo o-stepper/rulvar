@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ChatRequest } from '../l0/messages.js';
 import type { JournalEntry } from '../l0/entries.js';
+import { FailRunError } from '../l0/errors.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { executeWorkflow } from '../engine/ctx.js';
 import { makeInternals, scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
@@ -656,5 +657,240 @@ describe('orchestrate (M6-T07/T08)', () => {
       // tree: not even the orchestrator's own first turn dispatched.
       expect(calls).toBe(0);
     });
+  });
+});
+
+describe('acceptance: the child completion policy (v1.40.0 improvement plan)', () => {
+  /** Scripts the standard flow with two children; worker turns come from workerTurn. */
+  function twoChildAdapter(workerTurn: (prompt: string) => ScriptedTurn) {
+    let orchTurn = 0;
+    return scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        const prompt = req.messages[0]?.parts.find((p) => p.type === 'text') as
+          { text: string } | undefined;
+        return workerTurn(prompt?.text ?? '');
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'task A' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'task B' } },
+          ],
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: { answer: 42 } } } };
+    });
+  }
+
+  const FAILING_B = (prompt: string): ScriptedTurn =>
+    prompt === 'task B'
+      ? { error: { code: 'agent', message: 'task B exploded', retryable: false } }
+      : { text: 'did it' };
+
+  it('all-ok with every child ok returns the complete envelope', async () => {
+    const adapter = twoChildAdapter(() => ({ text: 'did it' }));
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('collect', { acceptance: { childPolicy: 'all-ok' } });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toEqual({
+      result: { answer: 42 },
+      completion: 'complete',
+      childStatusCounts: { ok: 2 },
+      degradedReasons: [],
+    });
+    // ONE journaled acceptance decision carries the verdict.
+    const decisions = (await store.load('test-run')).filter(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string }).decisionType === 'orchestrator_acceptance',
+    );
+    expect(decisions).toHaveLength(1);
+    expect((decisions[0]?.value as { verdict?: string }).verdict).toBe('accepted');
+  });
+
+  it('all-ok with a failed child rejects the finish with the typed FailRunError', async () => {
+    const adapter = twoChildAdapter(FAILING_B);
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('collect', { acceptance: { childPolicy: 'all-ok' } });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as {
+      source?: string;
+      childStatusCounts?: Record<string, number>;
+      degradedReasons?: string[];
+    };
+    expect(data.source).toBe('orchestrator_acceptance');
+    expect(data.childStatusCounts).toEqual({ ok: 1, error: 1 });
+    expect(data.degradedReasons?.[0]).toContain("settled 'error'");
+    // The rejected verdict is journaled BEFORE the throw, so a resume
+    // rolls the same rejection forward.
+    const decisions = (await store.load('test-run')).filter(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string }).decisionType === 'orchestrator_acceptance',
+    );
+    expect(decisions).toHaveLength(1);
+    expect((decisions[0]?.value as { verdict?: string }).verdict).toBe('rejected');
+  });
+
+  it('minSuccessful accepts a partial and reports the degraded child', async () => {
+    const adapter = twoChildAdapter(FAILING_B);
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('collect', {
+      acceptance: { childPolicy: { minSuccessful: 1 } },
+    });
+    const outcome = (await executeWorkflow(internals, wf, undefined)) as {
+      result: unknown;
+      completion: string;
+      childStatusCounts: Record<string, number>;
+      degradedReasons: string[];
+    };
+    expect(outcome.result).toEqual({ answer: 42 });
+    expect(outcome.completion).toBe('partial');
+    expect(outcome.childStatusCounts).toEqual({ ok: 1, error: 1 });
+    expect(outcome.degradedReasons).toHaveLength(1);
+    expect(outcome.degradedReasons[0]).toContain("settled 'error'");
+  });
+
+  it('minSuccessful rejects when too few children succeeded', async () => {
+    const adapter = twoChildAdapter(() => ({
+      error: { code: 'agent', message: 'exploded', retryable: false },
+    }));
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('collect', {
+      acceptance: { childPolicy: { minSuccessful: 2 } },
+    });
+    await expect(executeWorkflow(internals, wf, undefined)).rejects.toThrow(
+      /requires at least 2 children ok/,
+    );
+  });
+
+  it('without acceptance the result value stays the raw finish payload', async () => {
+    const adapter = twoChildAdapter(FAILING_B);
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('collect', {});
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toEqual({ answer: 42 });
+    // And no acceptance decision is journaled: existing flows gain no
+    // new entries, so frozen cassettes stay byte for byte identical.
+    const decisions = (await store.load('test-run')).filter(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string }).decisionType === 'orchestrator_acceptance',
+    );
+    expect(decisions).toHaveLength(0);
+  });
+
+  it('a child still running when finish validates counts against all-ok', async () => {
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        // Parks until the scope teardown aborts it: still running at finish.
+        return { text: 'parked', hangMs: 5_000 };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'slow task' } },
+        };
+      }
+      // Finishes WITHOUT awaiting the child.
+      return { toolCall: { name: 'finish', args: { result: 'done early' } } };
+    });
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('rush', { acceptance: { childPolicy: 'all-ok' } });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as { degradedReasons?: string[] };
+    expect(data.degradedReasons?.[0]).toContain('still running when finish validated');
+  }, 10_000);
+
+  it('a resume rolls the journaled verdict forward, immune to drifted live options', async () => {
+    const store = new InMemoryStore();
+    const makeAdapter = () => twoChildAdapter(FAILING_B);
+    const engineA = createEngine({
+      adapters: [makeAdapter()],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model', orchestrate: 'fake:model' }, profiles: PROFILES },
+    });
+    const first = await engineA.run(
+      makeOrchestratorWorkflow('collect', { acceptance: { childPolicy: { minSuccessful: 1 } } }),
+      undefined,
+      { runId: 'ACC-DRIFT' },
+    ).result;
+    expect(first.status).toBe('ok');
+    const firstValue = first.value as { completion: string };
+    expect(firstValue.completion).toBe('partial');
+
+    // The resume host drifts the policy to all-ok, which would REJECT the
+    // same children if evaluated again; the journaled accepted verdict wins
+    // and the envelope reproduces byte for byte.
+    const engineB = createEngine({
+      adapters: [makeAdapter()],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model', orchestrate: 'fake:model' }, profiles: PROFILES },
+    });
+    const resumed = await engineB.resume(
+      'ACC-DRIFT',
+      makeOrchestratorWorkflow('collect', { acceptance: { childPolicy: 'all-ok' } }),
+    ).result;
+    expect(resumed.status).toBe('ok');
+    expect(JSON.stringify(resumed.value)).toBe(JSON.stringify(first.value));
+  });
+
+  it('rejects malformed acceptance policies synchronously at construction', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        acceptance: { childPolicy: 'most-ok' as unknown as 'all-ok' },
+      }),
+    ).toThrow(/childPolicy/);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        acceptance: { childPolicy: { minSuccessful: 0 } },
+      }),
+    ).toThrow(/minSuccessful/);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        acceptance: { childPolicy: { minSuccessful: Number.NaN } },
+      }),
+    ).toThrow(/minSuccessful/);
   });
 });

@@ -138,6 +138,16 @@ describe('canonical CLI grammar (v1.16.2 review P2-1 + P3-1)', () => {
     expect(parsed.positionals).toEqual(['goal']);
   });
 
+  it('run and resume accept --strict (v1.40.0 improvement plan)', () => {
+    expect(parseCommand(GRAMMAR.run, ['wf', '--strict']).values.strict).toBe(true);
+    expect(parseCommand(GRAMMAR.resume, ['r1', '--strict']).values.strict).toBe(true);
+    // Only run and resume settle an outcome; the other commands keep
+    // rejecting the flag.
+    expect(() => parseCommand(GRAMMAR.inspect, ['r1', '--strict'])).toThrowError(
+      /Unknown option '--strict'/,
+    );
+  });
+
   it('validates budget values at parse time (0, negatives, NaN, Infinity, text)', () => {
     expect(parseBudgetValue('budget-usd', '2.5')).toBe(2.5);
     for (const bad of ['0', '-1', 'NaN', 'Infinity', 'abc', '']) {
@@ -195,7 +205,8 @@ describe('canonical CLI grammar (v1.16.2 review P2-1 + P3-1)', () => {
     expect(HELP).toMatch(/rulvar run .*--profile NAME/);
     expect(HELP).toMatch(/rulvar resume <runId>\s+\[--args JSON\]/);
     expect(usageOf(GRAMMAR.resume)).toBe(
-      'usage: rulvar resume <runId> [--args JSON] [--store PATH] [--dry-run] [--allow-args-change]',
+      'usage: rulvar resume <runId> [--args JSON] [--store PATH] [--dry-run] ' +
+        '[--allow-args-change] [--strict]',
     );
     expect(usageOf(GRAMMAR['runs ls'])).toBe(
       'usage: rulvar runs ls [--store PATH] (no aliases in v1)',

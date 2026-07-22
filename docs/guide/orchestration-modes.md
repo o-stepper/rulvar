@@ -151,6 +151,38 @@ The orchestrator never sees or names concrete models; it picks agent profiles fr
 
 Rather than polling, the orchestrator sleeps on `wait_for_events` and is woken by a coalesced wake digest: summaries ordered by spawn ordinal, never raw transcripts, so its context grows with the number of wakes rather than the number of children. A quiescence trigger is always armed, and every guard in the machinery has a non-HITL terminating fallback: an embedded run with no operator present always terminates rather than hanging.
 
+Two contracts to hold in mind when you consume mode (c) results:
+
+- `await_any` and `await_all` return `TaskDigest` values, not full child reports: `status`, `costUsd`, the artifact id index, and an `outputSummary` deterministically truncated to the digest render budget (400 characters by default). The digest is a wake signal, not the result channel; a child whose full output matters should return compact structured output or write artifacts, and the host reads the run's journal for the durable full values.
+- Run status `ok` proves that `finish({ result })` validated, and nothing more. The model may call `finish` after any mix of child outcomes, so `ok` alone never proves the children succeeded. When that distinction matters, set the acceptance policy below; a budget cap partial is separately visible as run status `exhausted` (or a typed `fail_run` error under `budget.atCap: 'fail-run'`), never a plain `ok`.
+
+### Acceptance: the child completion policy
+
+`acceptance` turns "the model called finish" into a checked completion contract. When set, the policy is evaluated exactly when `finish` validates, the verdict is journaled as one decision entry (so a resume rolls the same verdict forward, immune to drift of the live options and to children whose settle raced the finish), and the workflow result becomes the acceptance envelope.
+
+```ts
+const audited = orchestrate(
+  engine,
+  "Audit the public API for breaking changes",
+  {
+    profiles: ["researcher", "writer"],
+    // 'all-ok' demands every spawned child settled 'ok' at finish;
+    // { minSuccessful: N } tolerates failures beyond the first N successes.
+    acceptance: { childPolicy: "all-ok" },
+  },
+  { budgetUsd: 10 },
+);
+
+const outcome = await audited.result;
+// With acceptance set, outcome.value is the envelope:
+//   { result, completion: 'complete' | 'partial',
+//     childStatusCounts: { ok: 4, ... }, degradedReasons: [...] }
+```
+
+A violated policy fails the run instead of settling `ok`: the outcome is `error` with the typed `FailRunError` (code `fail_run`, `data.source` `'orchestrator_acceptance'`), carrying the child status counts and the degraded reasons. Under `'all-ok'`, a child still running when `finish` validates counts against the policy, and so does a deliberately cancelled straggler; zero spawned children are vacuously complete. Under `{ minSuccessful: N }`, an accepted result with any non `ok` child reports `completion: 'partial'` and names every degraded child in `degradedReasons`. Without `acceptance`, the result value stays the raw finish payload and no new journal entry is written, exactly as before.
+
+The CLI pairs with the envelope: `rulvar run --strict` (and `resume --strict`) exits nonzero when a settled `ok` value carries `completion: 'partial'`, printing the degraded reasons, so scripts can demand complete orchestrations without parsing the value themselves.
+
 ### Extending mode (c) with PlanRunner
 
 By default the orchestrator's plan lives in its head. The opt-in PlanRunner extension from `@rulvar/plan` moves it into the engine as typed data: a dependency DAG of task nodes the engine schedules, with `plan_view` (a pure fold, pinned to the last wake digest) and `plan_revise` (typed diff operations passed through a journaled rebase with a closed conflict table). Revision guards, a frozen termination account, reuse-by-reference for abandoned work, and the run-scoped advisory ledger ride along.
