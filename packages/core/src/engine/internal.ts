@@ -40,7 +40,9 @@ export const kOnRunning: unique symbol = Symbol('rulvar.onRunning');
 /**
  * Internal AgentOpts channel (M6-T07): names the terminal tool whose
  * accepted call ends the loop with status ok (the orchestrator finish
- * tool). Never part of the public AgentOpts surface.
+ * tool), plus the optional host validation hook over the accepted call
+ * (the RV-204 finish validators). Never part of the public AgentOpts
+ * surface.
  */
 export const kTerminalTool: unique symbol = Symbol('rulvar.terminalTool');
 
@@ -61,7 +63,13 @@ export const kFinalizeReserve: unique symbol = Symbol('rulvar.finalizeReserve');
 
 export interface InternalAgentHooks {
   [kOnRunning]?: (seq: number) => void;
-  [kTerminalTool]?: { name: string };
+  [kTerminalTool]?: {
+    name: string;
+    validate?: (call: {
+      id: string;
+      result: unknown;
+    }) => Promise<{ ok: true } | { ok: false; feedback: Record<string, unknown> }>;
+  };
   [kBootCheckpoint]?: string;
   [kFinalizeReserve]?: boolean;
 }

@@ -873,6 +873,18 @@
             "link": "/api/@rulvar/core/interfaces/FileModelKnowledgeStoreOptions.md"
           },
           {
+            "text": "FinishValidationInput",
+            "link": "/api/@rulvar/core/interfaces/FinishValidationInput.md"
+          },
+          {
+            "text": "FinishValidationSpec",
+            "link": "/api/@rulvar/core/interfaces/FinishValidationSpec.md"
+          },
+          {
+            "text": "FinishValidator",
+            "link": "/api/@rulvar/core/interfaces/FinishValidator.md"
+          },
+          {
             "text": "GateAudit",
             "link": "/api/@rulvar/core/interfaces/GateAudit.md"
           },
@@ -1463,6 +1475,10 @@
             "link": "/api/@rulvar/core/type-aliases/FinishInfo.md"
           },
           {
+            "text": "FinishValidationVerdict",
+            "link": "/api/@rulvar/core/type-aliases/FinishValidationVerdict.md"
+          },
+          {
             "text": "Gate",
             "link": "/api/@rulvar/core/type-aliases/Gate.md"
           },
@@ -1839,6 +1855,10 @@
           {
             "text": "DEFAULT_ESCALATION_LIMITS",
             "link": "/api/@rulvar/core/variables/DEFAULT_ESCALATION_LIMITS.md"
+          },
+          {
+            "text": "DEFAULT_FINISH_MAX_REPAIRS",
+            "link": "/api/@rulvar/core/variables/DEFAULT_FINISH_MAX_REPAIRS.md"
           },
           {
             "text": "DEFAULT_FLAT_RESERVE_USD",
@@ -2423,6 +2443,10 @@
             "link": "/api/@rulvar/core/functions/metaMatchesFilter.md"
           },
           {
+            "text": "minMatchesValidator",
+            "link": "/api/@rulvar/core/functions/minMatchesValidator.md"
+          },
+          {
             "text": "modelEpochOf",
             "link": "/api/@rulvar/core/functions/modelEpochOf.md"
           },
@@ -2541,6 +2565,14 @@
           {
             "text": "replayDisposition",
             "link": "/api/@rulvar/core/functions/replayDisposition.md"
+          },
+          {
+            "text": "requiredFieldsValidator",
+            "link": "/api/@rulvar/core/functions/requiredFieldsValidator.md"
+          },
+          {
+            "text": "requiredSectionsValidator",
+            "link": "/api/@rulvar/core/functions/requiredSectionsValidator.md"
           },
           {
             "text": "resolveModelInvocation",
@@ -4490,6 +4522,18 @@
             "link": "/api/@rulvar/rulvar/interfaces/FileModelKnowledgeStoreOptions.md"
           },
           {
+            "text": "FinishValidationInput",
+            "link": "/api/@rulvar/rulvar/interfaces/FinishValidationInput.md"
+          },
+          {
+            "text": "FinishValidationSpec",
+            "link": "/api/@rulvar/rulvar/interfaces/FinishValidationSpec.md"
+          },
+          {
+            "text": "FinishValidator",
+            "link": "/api/@rulvar/rulvar/interfaces/FinishValidator.md"
+          },
+          {
             "text": "GateAudit",
             "link": "/api/@rulvar/rulvar/interfaces/GateAudit.md"
           },
@@ -5104,6 +5148,10 @@
             "link": "/api/@rulvar/rulvar/type-aliases/FinishInfo.md"
           },
           {
+            "text": "FinishValidationVerdict",
+            "link": "/api/@rulvar/rulvar/type-aliases/FinishValidationVerdict.md"
+          },
+          {
             "text": "Gate",
             "link": "/api/@rulvar/rulvar/type-aliases/Gate.md"
           },
@@ -5492,6 +5540,10 @@
           {
             "text": "DEFAULT_ESCALATION_LIMITS",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_ESCALATION_LIMITS.md"
+          },
+          {
+            "text": "DEFAULT_FINISH_MAX_REPAIRS",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_FINISH_MAX_REPAIRS.md"
           },
           {
             "text": "DEFAULT_FLAT_RESERVE_USD",
@@ -6088,6 +6140,10 @@
             "link": "/api/@rulvar/rulvar/functions/metaMatchesFilter.md"
           },
           {
+            "text": "minMatchesValidator",
+            "link": "/api/@rulvar/rulvar/functions/minMatchesValidator.md"
+          },
+          {
             "text": "modelEpochOf",
             "link": "/api/@rulvar/rulvar/functions/modelEpochOf.md"
           },
@@ -6218,6 +6274,14 @@
           {
             "text": "replayDisposition",
             "link": "/api/@rulvar/rulvar/functions/replayDisposition.md"
+          },
+          {
+            "text": "requiredFieldsValidator",
+            "link": "/api/@rulvar/rulvar/functions/requiredFieldsValidator.md"
+          },
+          {
+            "text": "requiredSectionsValidator",
+            "link": "/api/@rulvar/rulvar/functions/requiredSectionsValidator.md"
           },
           {
             "text": "resolveModelInvocation",
