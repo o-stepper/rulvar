@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.38.0
+
+#### Patch Changes
+
+- @rulvar/core@1.38.0
+
 ### 1.37.0
 
 #### Patch Changes
@@ -624,6 +630,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.38.0
+
+#### Patch Changes
+
+- @rulvar/core@1.38.0
+
 ### 1.37.0
 
 #### Patch Changes
@@ -1095,6 +1107,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.38.0
+
+#### Patch Changes
+
+- @rulvar/core@1.38.0
 
 ### 1.37.0
 
@@ -1754,6 +1772,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.38.0
 
 ### 1.37.0
 
@@ -2884,6 +2904,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.38.0
+
+#### Minor Changes
+
+- 3e2d591: Reject dynamic code generation in the planner sandbox dialect (v1.37.0 review SEC-P2). `compileScript` banned `import` but not `eval`, the `Function` constructor, or `.constructor` access, so a machine script could reach the Function constructor and compile a dynamic import the literal scan never saw, recovering the import allowlist and, through `node:child_process`, arbitrary host capability at run status `ok`. `compileScript` now rejects `eval`, `Function`, and `.constructor` (diagnostic ids `no-eval`, `no-function-constructor`, `no-constructor-access`); a new `rulvar/no-code-generation` ESLint rule carries the same ban into the `workflows` preset and the self repair loop; and the worker additionally unbinds `eval` and `Function` as defense in depth. This keeps the import allowlist meaningful and the dialect consistent. It is not a hostile code boundary, which the sandbox has never claimed to be: JavaScript intrinsics can still reconstruct the constructors, so the docs continue to call the sandbox a determinism and blast radius boundary, not a security one.
+
 ### 1.37.0
 
 ### 1.36.0
@@ -3028,6 +3054,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.38.0
+
+#### Patch Changes
+
+- @rulvar/core@1.38.0
+- @rulvar/testing@1.38.0
 
 ### 1.37.0
 
@@ -3632,6 +3665,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.38.0
+
+#### Patch Changes
+
+- @rulvar/core@1.38.0
 
 ### 1.37.0
 
@@ -4256,6 +4295,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.38.0
+
+#### Patch Changes
+
+- @rulvar/core@1.38.0
+
 ### 1.37.0
 
 #### Patch Changes
@@ -4849,6 +4894,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.38.0
+
+#### Minor Changes
+
+- 3e2d591: Reject dynamic code generation in the planner sandbox dialect (v1.37.0 review SEC-P2). `compileScript` banned `import` but not `eval`, the `Function` constructor, or `.constructor` access, so a machine script could reach the Function constructor and compile a dynamic import the literal scan never saw, recovering the import allowlist and, through `node:child_process`, arbitrary host capability at run status `ok`. `compileScript` now rejects `eval`, `Function`, and `.constructor` (diagnostic ids `no-eval`, `no-function-constructor`, `no-constructor-access`); a new `rulvar/no-code-generation` ESLint rule carries the same ban into the `workflows` preset and the self repair loop; and the worker additionally unbinds `eval` and `Function` as defense in depth. This keeps the import allowlist meaningful and the dialect consistent. It is not a hostile code boundary, which the sandbox has never claimed to be: JavaScript intrinsics can still reconstruct the constructors, so the docs continue to call the sandbox a determinism and blast radius boundary, not a security one.
+
+#### Patch Changes
+
+- Updated dependencies [3e2d591]
+  - eslint-plugin-rulvar@1.38.0
+  - @rulvar/core@1.38.0
+
 ### 1.37.0
 
 #### Patch Changes
@@ -5403,6 +5460,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.38.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.38.0
+- @rulvar/core@1.38.0
+- @rulvar/openai@1.38.0
 
 ### 1.37.0
 
@@ -6096,6 +6161,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.38.0
+
+#### Patch Changes
+
+- @rulvar/core@1.38.0
+
 ### 1.37.0
 
 #### Patch Changes
@@ -6643,6 +6714,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.38.0
+
+#### Patch Changes
+
+- @rulvar/core@1.38.0
+
 ### 1.37.0
 
 #### Patch Changes
@@ -7133,6 +7210,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.38.0
+
+#### Patch Changes
+
+- @rulvar/core@1.38.0
 
 ### 1.37.0
 

@@ -1,5 +1,11 @@
 # @rulvar/anthropic
 
+## 1.38.0
+
+### Patch Changes
+
+- @rulvar/core@1.38.0
+
 ## 1.37.0
 
 ### Patch Changes
