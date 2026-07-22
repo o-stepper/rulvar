@@ -873,6 +873,10 @@
             "link": "/api/@rulvar/core/interfaces/FileModelKnowledgeStoreOptions.md"
           },
           {
+            "text": "FinishValidationChild",
+            "link": "/api/@rulvar/core/interfaces/FinishValidationChild.md"
+          },
+          {
             "text": "FinishValidationInput",
             "link": "/api/@rulvar/core/interfaces/FinishValidationInput.md"
           },
@@ -1849,12 +1853,20 @@
             "link": "/api/@rulvar/core/variables/DEFAULT_CHILD_RESULT_PAGE_CHARS.md"
           },
           {
+            "text": "DEFAULT_CITATION_PATTERN",
+            "link": "/api/@rulvar/core/variables/DEFAULT_CITATION_PATTERN.md"
+          },
+          {
             "text": "DEFAULT_COMPACTION_THRESHOLD",
             "link": "/api/@rulvar/core/variables/DEFAULT_COMPACTION_THRESHOLD.md"
           },
           {
             "text": "DEFAULT_ESCALATION_LIMITS",
             "link": "/api/@rulvar/core/variables/DEFAULT_ESCALATION_LIMITS.md"
+          },
+          {
+            "text": "DEFAULT_EVIDENCE_MIN_SHARE",
+            "link": "/api/@rulvar/core/variables/DEFAULT_EVIDENCE_MIN_SHARE.md"
           },
           {
             "text": "DEFAULT_FINISH_MAX_REPAIRS",
@@ -2301,6 +2313,10 @@
           {
             "text": "evaluateReuse",
             "link": "/api/@rulvar/core/functions/evaluateReuse.md"
+          },
+          {
+            "text": "evidencePreservedValidator",
+            "link": "/api/@rulvar/core/functions/evidencePreservedValidator.md"
           },
           {
             "text": "executeWorkflow",
@@ -4522,6 +4538,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/FileModelKnowledgeStoreOptions.md"
           },
           {
+            "text": "FinishValidationChild",
+            "link": "/api/@rulvar/rulvar/interfaces/FinishValidationChild.md"
+          },
+          {
             "text": "FinishValidationInput",
             "link": "/api/@rulvar/rulvar/interfaces/FinishValidationInput.md"
           },
@@ -5534,12 +5554,20 @@
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_CHILD_RESULT_PAGE_CHARS.md"
           },
           {
+            "text": "DEFAULT_CITATION_PATTERN",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_CITATION_PATTERN.md"
+          },
+          {
             "text": "DEFAULT_COMPACTION_THRESHOLD",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_COMPACTION_THRESHOLD.md"
           },
           {
             "text": "DEFAULT_ESCALATION_LIMITS",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_ESCALATION_LIMITS.md"
+          },
+          {
+            "text": "DEFAULT_EVIDENCE_MIN_SHARE",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_EVIDENCE_MIN_SHARE.md"
           },
           {
             "text": "DEFAULT_FINISH_MAX_REPAIRS",
@@ -5998,6 +6026,10 @@
           {
             "text": "evaluateReuse",
             "link": "/api/@rulvar/rulvar/functions/evaluateReuse.md"
+          },
+          {
+            "text": "evidencePreservedValidator",
+            "link": "/api/@rulvar/rulvar/functions/evidencePreservedValidator.md"
           },
           {
             "text": "executeWorkflow",

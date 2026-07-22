@@ -15,7 +15,12 @@ import type { AgentProfile } from '../engine/ctx.js';
 import { createEngine } from '../engine/engine.js';
 import { GitWorktreeProvider } from '../tools/isolation.js';
 import { tool } from '../tools/tool.js';
-import { minMatchesValidator, requiredSectionsValidator } from './finish-validators.js';
+import {
+  evidencePreservedValidator,
+  minMatchesValidator,
+  requiredSectionsValidator,
+  type FinishValidationInput,
+} from './finish-validators.js';
 import { makeOrchestratorWorkflow, orchestrate } from './orchestrate.js';
 
 /** The telemetry namespace tells orchestrator requests from child ones. */
@@ -1099,6 +1104,78 @@ describe('finish validation: deterministic host validators with bounded repair (
     expect(outcome).toBe(GOOD);
     expect(validationEntries(await store.load('test-run'))).toHaveLength(0);
     expect(JSON.stringify(adapter.calls[0]?.messages[0]?.parts)).not.toContain('host validates');
+  });
+
+  const CHILD_EVIDENCE =
+    'FINDINGS: four issues. EVIDENCE: src/auth.ts:10 src/auth.ts:42 src/db.ts:7 src/api.ts:99.';
+  const FULL_RESULT =
+    'FINDINGS kept. EVIDENCE: src/auth.ts:10 src/auth.ts:42 src/db.ts:7 src/api.ts:99.';
+  const LOSSY_RESULT = 'all fine: src/auth.ts:10 src/fake.ts:3';
+
+  /** One worker child with real citations; the finish pays out first, then second. */
+  function evidenceAdapter(firstFinish: unknown, secondFinish: unknown) {
+    let orchTurn = 0;
+    return scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: CHILD_EVIDENCE };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return { toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'dig' } } };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return {
+        toolCall: { name: 'finish', args: { result: orchTurn === 3 ? firstFinish : secondFinish } },
+      };
+    });
+  }
+
+  it('the children snapshot reaches the validators in spawn order (RV-202)', async () => {
+    const seen: unknown[] = [];
+    const spy = {
+      name: 'spy',
+      validate: (input: FinishValidationInput) => {
+        seen.push(input.children);
+        return { ok: true } as const;
+      },
+    };
+    const adapter = evidenceAdapter(FULL_RESULT, FULL_RESULT);
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow(GOAL, { finishValidation: { validators: [spy] } });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(FULL_RESULT);
+    const children = seen[0] as { handle: number; nodeId: string; status: string; text: string }[];
+    expect(children).toHaveLength(1);
+    expect(children[0]?.handle).toBe(2);
+    expect(children[0]?.status).toBe('ok');
+    expect(children[0]?.text).toContain('src/db.ts:7');
+    expect(typeof children[0]?.nodeId).toBe('string');
+  });
+
+  it('lost and fabricated evidence is rejected; the repair restores preservation (RV-202)', async () => {
+    const adapter = evidenceAdapter(LOSSY_RESULT, FULL_RESULT);
+    const { internals, store } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow(GOAL, {
+      finishValidation: { validators: [evidencePreservedValidator({ requireKnown: true })] },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(FULL_RESULT);
+    // The rejection the model saw names BOTH defects: the lost citations
+    // and the fabricated one.
+    const feedback = JSON.stringify(
+      adapter.calls
+        .at(-1)
+        ?.messages.flatMap((m) => m.parts)
+        .find((p) => p.type === 'tool-result' && (p as { isError?: boolean }).isError === true),
+    );
+    expect(feedback).toContain('src/auth.ts:42');
+    expect(feedback).toContain('unknown citations not present in any child report: src/fake.ts:3');
+    const verdicts = validationEntries(await store.load('test-run')).map(
+      (e) => (e.value as { verdict?: string }).verdict,
+    );
+    expect(verdicts).toEqual(['repair', 'accepted']);
   });
 
   it('rejects malformed finishValidation synchronously at construction', () => {

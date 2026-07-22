@@ -17,6 +17,6 @@ type FinishValidationVerdict =
 };
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L28)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:56](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L56)
 
 The verdict of one validator over one finish attempt.

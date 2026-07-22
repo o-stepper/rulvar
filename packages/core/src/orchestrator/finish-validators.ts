@@ -12,6 +12,26 @@
 import { ConfigError } from '../l0/errors.js';
 import type { Json } from '../l0/json.js';
 
+/**
+ * One child as the finish validators see it (the RV-202 provenance
+ * contract): a pure read of the durable state the orchestrator already
+ * tracks, identical live and on replay.
+ */
+export interface FinishValidationChild {
+  /** The spawn handle (the journal seq, stable across resume). */
+  readonly handle: number;
+  /** The child's node identity, the same one acceptance reasons use. */
+  readonly nodeId: string;
+  /** The terminal status, or 'running' for a child unsettled at finish time. */
+  readonly status: string;
+  /**
+   * The child's full output serialized (a raw string verbatim, anything
+   * else JSON; a failed child's errorMessage), '' while unsettled. The
+   * same serialization the child result evidence tools page.
+   */
+  readonly text: string;
+}
+
 /** What a {@link FinishValidator} judges. */
 export interface FinishValidationInput {
   /** The finish call's `result` argument exactly as the model passed it. */
@@ -22,6 +42,14 @@ export interface FinishValidationInput {
    * use), so textual validators never re-implement serialization.
    */
   readonly text: string;
+  /**
+   * Every spawned child at finish time, in spawn order (the RV-202
+   * provenance contract). Optional in the TYPE only so hand built
+   * inputs stay source compatible; the orchestrator runtime always
+   * supplies it, so validators can hold the finish result against the
+   * evidence the children actually produced.
+   */
+  readonly children?: readonly FinishValidationChild[];
 }
 
 /** The verdict of one validator over one finish attempt. */
@@ -108,6 +136,102 @@ export function requiredFieldsValidator(options: {
           reasons.push(`required field '${field}' is missing`);
         } else if (typeof value === 'string' && value.trim().length === 0) {
           reasons.push(`required field '${field}' is empty`);
+        }
+      }
+      return reasons.length === 0 ? ok : { ok: false, reasons };
+    },
+  };
+}
+
+/** The default citation shape: a path with an extension, a colon, a line number. */
+export const DEFAULT_CITATION_PATTERN = '[\\w./-]+\\.\\w+:\\d+';
+/** The default preserved share, the improvement plan's RV-202 gate. */
+export const DEFAULT_EVIDENCE_MIN_SHARE = 0.95;
+const MAX_LISTED_CITATIONS = 20;
+
+function listCitations(values: string[]): string {
+  return values.length <= MAX_LISTED_CITATIONS
+    ? values.join(', ')
+    : `${values.slice(0, MAX_LISTED_CITATIONS).join(', ')} and ` +
+        `${String(values.length - MAX_LISTED_CITATIONS)} more`;
+}
+
+/**
+ * The RV-202 evidence preservation contract: the finish result must
+ * PRESERVE the citations the children actually produced. Distinct
+ * matches of `pattern` are collected across the outputs of children
+ * settled 'ok' (spawn order); at least `minShare` of them (default
+ * {@link DEFAULT_EVIDENCE_MIN_SHARE}, the plan's 95 percent gate,
+ * compared as a ceiling on the required count so an exact boundary like
+ * 19 of 20 passes) must appear literally in the result text. Zero child
+ * citations pass vacuously. With `requireKnown: true` the contract also
+ * runs in reverse: every citation in the RESULT must appear in some
+ * child's output, so a fabricated but pattern valid citation is
+ * rejected instead of silently counting as evidence. Rejection reasons
+ * list the missing (and unknown) citations, capped at 20, so the repair
+ * turn can restore them. Purely textual and deterministic; checking
+ * that cited targets EXIST on disk is host territory (a custom
+ * validator), not this contract. Default name 'evidence-preserved'.
+ */
+export function evidencePreservedValidator(options?: {
+  pattern?: string;
+  flags?: string;
+  minShare?: number;
+  requireKnown?: boolean;
+  name?: string;
+}): FinishValidator {
+  const pattern = options?.pattern ?? DEFAULT_CITATION_PATTERN;
+  const flags = options?.flags ?? '';
+  const globalFlags = flags.includes('g') ? flags : `${flags}g`;
+  try {
+    new RegExp(pattern, globalFlags);
+  } catch (thrown) {
+    throw new ConfigError(
+      `evidencePreservedValidator pattern does not compile: ${
+        thrown instanceof Error ? thrown.message : String(thrown)
+      }`,
+    );
+  }
+  const minShare = options?.minShare ?? DEFAULT_EVIDENCE_MIN_SHARE;
+  if (typeof minShare !== 'number' || !Number.isFinite(minShare) || minShare <= 0 || minShare > 1) {
+    throw new ConfigError(
+      `evidencePreservedValidator minShare must be a number in (0, 1]; got ${String(minShare)}`,
+    );
+  }
+  return {
+    name: options?.name ?? 'evidence-preserved',
+    validate: (input) => {
+      // Fresh RegExp per scan: the 'g' flag makes matching stateful.
+      const cited = new Set<string>();
+      for (const child of input.children ?? []) {
+        if (child.status !== 'ok') {
+          continue;
+        }
+        for (const match of child.text.match(new RegExp(pattern, globalFlags)) ?? []) {
+          cited.add(match);
+        }
+      }
+      const reasons: string[] = [];
+      if (cited.size > 0) {
+        const missing = [...cited].filter((citation) => !input.text.includes(citation));
+        const preserved = cited.size - missing.length;
+        const required = Math.ceil(minShare * cited.size - 1e-9);
+        if (preserved < required) {
+          reasons.push(
+            `evidence preservation ${String(preserved)} of ${String(cited.size)} child ` +
+              `citations is below the required share ${String(minShare)}; ` +
+              `missing: ${listCitations(missing)}`,
+          );
+        }
+      }
+      if (options?.requireKnown === true) {
+        const fabricated = [
+          ...new Set(input.text.match(new RegExp(pattern, globalFlags)) ?? []),
+        ].filter((citation) => !cited.has(citation));
+        if (fabricated.length > 0) {
+          reasons.push(
+            `unknown citations not present in any child report: ${listCitations(fabricated)}`,
+          );
         }
       }
       return reasons.length === 0 ? ok : { ok: false, reasons };
