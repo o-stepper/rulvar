@@ -1,6 +1,6 @@
 {
   "name": "@rulvar/rulvar",
-  "version": "1.44.0",
+  "version": "1.44.1",
   "description": "Rulvar umbrella package: re-exports @rulvar/core, both first-class adapters, the file store, and the terminal progress renderer. Also installable through the unscoped alias package rulvar, which re-exports this one.",
   "type": "module",
   "license": "Apache-2.0",
