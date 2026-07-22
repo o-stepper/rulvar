@@ -93,9 +93,12 @@ export function wrapJournalStore(
         assertPinnedFields(stored, loaded, 'journal.fromStored');
         return loaded;
       }),
-    putMeta: (m) => inner.putMeta(m),
+    putMeta: (m, lease?: Lease) => inner.putMeta(m, lease),
     listRuns: (f) => inner.listRuns(f),
-    delete: (runId) => inner.delete(runId),
+    delete: (runId, lease?: Lease) => inner.delete(runId, lease),
+    // The fenced writes marker is a promise the INNER store keeps; the
+    // wrapper forwards every lease untouched, so the promise survives.
+    ...(inner.fencedWrites === true ? { fencedWrites: true as const } : {}),
   };
   const leasable = inner as Partial<LeasableStore>;
   if (
@@ -119,13 +122,14 @@ export function wrapTranscriptStore(
   hook: TranscriptSerializationHook,
 ): TranscriptStore {
   return {
-    put: (ref, blob) => inner.put(ref, hook.toStored(ref, blob)),
+    put: (ref, blob, lease?: Lease) => inner.put(ref, hook.toStored(ref, blob), lease),
     get: async (ref) => {
       const blob = await inner.get(ref);
       return blob === null ? null : hook.fromStored(ref, blob);
     },
     list: (runId) => inner.list(runId),
-    delete: (ref) => inner.delete(ref),
+    delete: (ref, lease?: Lease) => inner.delete(ref, lease),
+    ...(inner.fencedWrites === true ? { fencedWrites: true as const } : {}),
   };
 }
 

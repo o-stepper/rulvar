@@ -10,7 +10,13 @@
  * committed cassette is the compatibility contract; the replay test
  * re-runs each scenario fresh and compares byte-for-byte.
  */
-import { createEngine, InMemoryStore, makeOrchestratorWorkflow, tool } from '@rulvar/core';
+import {
+  createEngine,
+  InMemoryStore,
+  LeaseHeldError,
+  makeOrchestratorWorkflow,
+  tool,
+} from '@rulvar/core';
 import type {
   ChatEvent,
   ChatRequest,
@@ -991,17 +997,31 @@ export async function runQueueFailoverDuringForcedFinish(
   const failoverWorkflow = (): ReturnType<typeof makeOrchestratorWorkflow> =>
     makeOrchestratorWorkflow('queue failover', { budget: TINY_CAP, extension: planRunner({}) });
 
-  // The stale writer resumes anyway (a paused process never notices):
-  // replay reaches the cap decision, the forced finish dispatches LIVE,
-  // and its first append is rejected by the fencing epoch. Rejected and
-  // invisible: the run dies loudly, the journal does not move.
+  // The stale writer resumes anyway (a paused process never notices).
+  // Since the fenced writes capability (the fenced run state RFC,
+  // phase 2) the store refuses the stale segment's very FIRST durable
+  // write, the running meta at boot, so the segment dies typed before
+  // any replay or paid dispatch; before phase 2 it replayed to the cap,
+  // paid the forced finish live, and died on that append instead.
+  // Either way: rejected and invisible, the journal does not move.
   const staleEngine = engineWith(cassetteAdapter(capScript(finishTurn)), store, {
     worker: { description: 'w' },
   });
   const stale = staleEngine.resume(handle.runId, failoverWorkflow(), { lease: leaseA });
-  const staleOutcome = await stale.result;
-  if (staleOutcome.status === 'ok') {
-    throw new Error('queue-failover: the stale writer was not fenced');
+  let staleFenced = false;
+  try {
+    const staleOutcome = await stale.result;
+    if (staleOutcome.status === 'ok') {
+      throw new Error('queue-failover: the stale writer was not fenced');
+    }
+  } catch (thrown) {
+    if (!(thrown instanceof LeaseHeldError)) {
+      throw thrown;
+    }
+    staleFenced = true;
+  }
+  if (!staleFenced) {
+    throw new Error('queue-failover: the stale boot meta write was not refused typed');
   }
   if ((await store.load(handle.runId)).length !== before) {
     throw new Error('queue-failover: stale appends became visible');

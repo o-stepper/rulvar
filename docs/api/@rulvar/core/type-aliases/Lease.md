@@ -14,7 +14,7 @@ type Lease = {
 };
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:18](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L18)
+Defined in: [packages/core/src/l0/spi/store.ts:22](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L22)
 
 Lease token for queue-mode ownership; epoch is the fencing token.
 
@@ -26,7 +26,7 @@ Lease token for queue-mode ownership; epoch is the fencing token.
 epoch: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:18](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L18)
+Defined in: [packages/core/src/l0/spi/store.ts:22](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L22)
 
 ***
 
@@ -36,7 +36,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:18](https://github.com/o-stepper/
 owner: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:18](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L18)
+Defined in: [packages/core/src/l0/spi/store.ts:22](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L22)
 
 ***
 
@@ -46,4 +46,4 @@ Defined in: [packages/core/src/l0/spi/store.ts:18](https://github.com/o-stepper/
 runId: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:18](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L18)
+Defined in: [packages/core/src/l0/spi/store.ts:22](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L22)

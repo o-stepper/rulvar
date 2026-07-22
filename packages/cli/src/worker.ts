@@ -318,7 +318,11 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
       throw thrown;
     }
     try {
-      await engine.deleteRun(meta.runId);
+      // The brief lease rides the cascade: over a fencedWrites store a
+      // retention sweep that lost this lease mid-delete is refused
+      // instead of deleting a run another worker took over (fenced run
+      // state RFC, F4).
+      await engine.deleteRun(meta.runId, { lease });
       suspendedAt.delete(meta.runId);
       poisoned.delete(meta.runId);
     } finally {

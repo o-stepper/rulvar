@@ -18,6 +18,12 @@
  *   cross-process window where a takeover landing between them let the
  *   superseded holder append a visible entry, extend the successor's
  *   lease, or delete it outright (the fenced-run-state RFC, finding F3).
+ * - Fenced writes (`fencedWrites: true`, the RFC's phase 2): putMeta
+ *   and delete accept the same optional lease under the same atomic
+ *   rule, and every lease-guarded mutation additionally requires the
+ *   lease's runId to BE the mutated run, so a superseded worker can
+ *   neither strand a run through a stale terminal meta write (F1) nor
+ *   delete live run state (F4).
  * - acquire on a held, unexpired lease rejects with LeaseHeldError; the
  *   holder MUST renew at an interval of at most ttl/3; an unrenewed
  *   lease is reclaimable after ttl and reclaiming advances the epoch.
@@ -71,6 +77,14 @@ interface LeaseRow {
 const wallClock: () => number = Date.now.bind(globalThis);
 
 export class SqliteStore implements MetaLookupStore, LeasableStore {
+  /**
+   * The fenced writes promise (fenced run state RFC, phase 2): every
+   * lease-carrying mutation of this store (append, putMeta, delete)
+   * verifies the lease is the current holder FOR THE MUTATED RUN,
+   * atomically with the mutation, and rejects stale or mismatched
+   * holders with the typed LeaseHeldError leaving nothing changed.
+   */
+  readonly fencedWrites = true as const;
   private readonly db: DatabaseSync;
   private readonly ttlMs: number;
   private readonly now: () => number;
@@ -133,6 +147,21 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
       return undefined;
     }
     return row;
+  }
+
+  /**
+   * A lease fences exactly the run it names: guarding a mutation of a
+   * DIFFERENT run with it would pass the holder check while touching
+   * state the lease never protected, so the mismatch rejects typed
+   * before any check runs.
+   */
+  private requireRunMatch(lease: Lease, runId: string, mutation: string): void {
+    if (lease.runId !== runId) {
+      throw new LeaseHeldError(
+        `lease for run '${lease.runId}' (owner ${lease.owner}, epoch ${lease.epoch}) cannot ` +
+          `guard a ${mutation} of run '${runId}'; the mutation is rejected and nothing changed`,
+      );
+    }
   }
 
   /** Rejects unless `lease` is the CURRENT live lease for its run. */
@@ -200,6 +229,7 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
   // eslint-disable-next-line @typescript-eslint/require-await
   async append(runId: string, e: JournalEntry, lease?: Lease): Promise<void> {
     if (lease !== undefined) {
+      this.requireRunMatch(lease, runId, 'journal append');
       this.fenced(lease, () => {
         this.insertEntry(runId, e);
       });
@@ -216,14 +246,29 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
     return rows.map((row) => JSON.parse(row.payload) as JournalEntry);
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async putMeta(m: RunMeta): Promise<void> {
+  private upsertMeta(m: RunMeta): void {
     this.db
       .prepare(
         'INSERT INTO meta (run_id, payload) VALUES (?, ?) ' +
           'ON CONFLICT(run_id) DO UPDATE SET payload = excluded.payload',
       )
       .run(m.runId, JSON.stringify(m));
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async putMeta(m: RunMeta, lease?: Lease): Promise<void> {
+    // Fenced when a lease rides along (the fencedWrites promise): a
+    // superseded segment's terminal settle can no longer overwrite the
+    // successor's status or regress its segments counter and strand the
+    // run from worker sweeps (fenced run state RFC, F1).
+    if (lease !== undefined) {
+      this.requireRunMatch(lease, m.runId, 'meta write');
+      this.fenced(lease, () => {
+        this.upsertMeta(m);
+      });
+      return;
+    }
+    this.upsertMeta(m);
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -269,14 +314,28 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
       .filter((meta) => metaMatchesFilter(meta, f));
   }
 
+  private deleteRows(runId: string): void {
+    this.db.prepare('DELETE FROM entries WHERE run_id = ?').run(runId);
+    this.db.prepare('DELETE FROM meta WHERE run_id = ?').run(runId);
+    this.db.prepare('DELETE FROM leases WHERE run_id = ?').run(runId);
+    this.db.prepare('DELETE FROM epochs WHERE run_id = ?').run(runId);
+  }
+
   // eslint-disable-next-line @typescript-eslint/require-await
-  async delete(runId: string): Promise<void> {
+  async delete(runId: string, lease?: Lease): Promise<void> {
+    // Fenced when a lease rides along (fenced run state RFC, F4): a
+    // retention sweep on a superseded worker cannot delete a run a live
+    // owner still drives. The holder's own lease row goes with the run.
+    if (lease !== undefined) {
+      this.requireRunMatch(lease, runId, 'run deletion');
+      this.fenced(lease, () => {
+        this.deleteRows(runId);
+      });
+      return;
+    }
     this.db.exec('BEGIN IMMEDIATE');
     try {
-      this.db.prepare('DELETE FROM entries WHERE run_id = ?').run(runId);
-      this.db.prepare('DELETE FROM meta WHERE run_id = ?').run(runId);
-      this.db.prepare('DELETE FROM leases WHERE run_id = ?').run(runId);
-      this.db.prepare('DELETE FROM epochs WHERE run_id = ?').run(runId);
+      this.deleteRows(runId);
       this.db.exec('COMMIT');
     } catch (thrown) {
       this.db.exec('ROLLBACK');

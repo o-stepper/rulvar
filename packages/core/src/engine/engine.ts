@@ -288,11 +288,14 @@ export interface ResumeOptions {
   invalidate?: number[];
   /**
    * Queue mode: the worker's lease. The engine carries it on EVERY
-   * journal append of this resume (the kernel's single append site), so
-   * a stale worker's writes are rejected by the fencing epoch and never
-   * become visible (M8 entry amendment; DEF-6; FR-703). putMeta and
-   * transcript blobs stay advisory and
-   * unfenced.
+   * durable mutation of this resume: every journal append (the kernel's
+   * single append site; M8 entry amendment; DEF-6; FR-703), every
+   * putMeta, and every transcript blob write (checkpoints, compaction
+   * summaries, worktree patches, workflow sources). Over a store
+   * declaring the fencedWrites capability a stale worker's writes are
+   * ALL rejected by the fencing epoch and never become visible; over a
+   * store without the marker the journal stays fenced as always and the
+   * meta/blob surfaces remain advisory (the fenced run state RFC).
    */
   lease?: Lease;
 }
@@ -339,16 +342,21 @@ export interface Engine {
    * Retention (OQ-20 executed at M8-T04): deletes every
    * blob transcripts.list(runId) returns, then the journal; no orphan
    * blobs survive. The caller owns the decision that the run is done.
+   * A caller holding the run's lease passes it via `opts.lease` (the
+   * queue worker's retention path does), so a fencedWrites store
+   * refuses the cascade from a superseded holder; without a lease the
+   * deletes assert the single-writer precondition as before.
    */
-  deleteRun(runId: string): Promise<void>;
+  deleteRun(runId: string, opts?: { lease?: Lease }): Promise<void>;
   /**
    * Checkpoint pruning (OQ-20 executed at M8-T04):
    * deletes checkpoint blobs of ok-terminal attempts that no other
    * entry references; returns the count. Parked, cancelled, escalated,
    * and hanging attempts keep theirs (park/unpark, DEF-5 retention, and
-   * dangling redispatch boot from them).
+   * dangling redispatch boot from them). `opts.lease` rides each blob
+   * delete exactly like the deleteRun cascade.
    */
-  pruneRun(runId: string): Promise<number>;
+  pruneRun(runId: string, opts?: { lease?: Lease }): Promise<number>;
 }
 
 /** Content hash of an in-process workflow body (run-to-definition binding). */
@@ -767,6 +775,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       external,
       mintTranscriptRef: () => `${runId}/t${transcriptCounter++}`,
       now: realNow,
+      ...(resumeCtx?.lease === undefined ? {} : { lease: resumeCtx.lease }),
     };
 
     // The genesis args binding is immutable like B0: a fresh run records
@@ -807,28 +816,37 @@ export function createEngine(options: CreateEngineOptions): Engine {
           // no segments bump, no meta rewrite of any kind (the journal
           // side is enforced at the Replayer's single append site).
           Promise.resolve()
-        : journal.putMeta({
-            runId,
-            status,
-            // Every meta write of this segment carries the bumped count: the
-            // settle write must not clobber what the start write recorded.
-            segments: segmentsBefore + 1,
-            updatedAt: new Date(realNow()).toISOString(),
-            ...(opts?.name === undefined ? {} : { name: opts.name }),
-            ...(opts?.tags === undefined ? {} : { tags: opts.tags }),
-            ...(ceilingUsd === undefined ? {} : { budgetUsd: ceilingUsd }),
-            ...(argsBinding.argsProvided === undefined
-              ? {}
-              : { argsProvided: argsBinding.argsProvided }),
-            ...(argsBinding.argsHash === undefined ? {} : { argsHash: argsBinding.argsHash }),
-            ...(genesis === undefined ? {} : { genesis }),
-            workflowName: wf.name,
-            workflowHash:
-              compiled === undefined
-                ? hashWorkflowBody(wf as unknown as Workflow<unknown, unknown>)
-                : hashWorkflowSource(compiled.source),
-            ...(compiled === undefined ? {} : { workflowSourceRef: workflowSourceRef(runId) }),
-          });
+        : journal.putMeta(
+            {
+              runId,
+              status,
+              // Every meta write of this segment carries the bumped count: the
+              // settle write must not clobber what the start write recorded.
+              segments: segmentsBefore + 1,
+              updatedAt: new Date(realNow()).toISOString(),
+              ...(opts?.name === undefined ? {} : { name: opts.name }),
+              ...(opts?.tags === undefined ? {} : { tags: opts.tags }),
+              ...(ceilingUsd === undefined ? {} : { budgetUsd: ceilingUsd }),
+              ...(argsBinding.argsProvided === undefined
+                ? {}
+                : { argsProvided: argsBinding.argsProvided }),
+              ...(argsBinding.argsHash === undefined ? {} : { argsHash: argsBinding.argsHash }),
+              ...(genesis === undefined ? {} : { genesis }),
+              workflowName: wf.name,
+              workflowHash:
+                compiled === undefined
+                  ? hashWorkflowBody(wf as unknown as Workflow<unknown, unknown>)
+                  : hashWorkflowSource(compiled.source),
+              ...(compiled === undefined ? {} : { workflowSourceRef: workflowSourceRef(runId) }),
+            },
+            // The segment's lease rides every meta write like every
+            // journal append, so a fencedWrites store refuses a
+            // superseded segment's terminal settle instead of letting
+            // it strand the run (fenced run state RFC, F1). The settle
+            // caller swallows that rejection: a fenced stale settle is
+            // exactly a no-op.
+            resumeCtx?.lease,
+          );
 
     if (activeSegments.has(runId)) {
       throw new ConfigError(
@@ -850,7 +868,11 @@ export function createEngine(options: CreateEngineOptions): Engine {
         // resumable by construction; resume rehydrates from this blob.
         // A dry-run preview skips the (byte-identical) re-put: a preview
         // performs zero store mutations.
-        await transcripts.put(workflowSourceRef(runId), new TextEncoder().encode(compiled.source));
+        await transcripts.put(
+          workflowSourceRef(runId),
+          new TextEncoder().encode(compiled.source),
+          resumeCtx?.lease,
+        );
       }
       await putMeta('running');
       bus.emit(
@@ -1239,12 +1261,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
   }
 
   /** Retention cascade (OQ-20 executed at M8-T04): blobs, then journal. */
-  async function deleteRun(runId: string): Promise<void> {
+  async function deleteRun(runId: string, opts?: { lease?: Lease }): Promise<void> {
     const refs = await transcripts.list(runId);
     for (const ref of refs) {
-      await transcripts.delete(ref);
+      await transcripts.delete(ref, opts?.lease);
     }
-    await journal.delete(runId);
+    await journal.delete(runId, opts?.lease);
   }
 
   /**
@@ -1262,7 +1284,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
    * field (park anchors, boot reuse, links, nested payload values)
    * keeps the blob.
    */
-  async function pruneRun(runId: string): Promise<number> {
+  async function pruneRun(runId: string, opts?: { lease?: Lease }): Promise<number> {
     const entries = (await journal.load(runId)).map((entry) => normalizeEntry(entry));
     const existing = new Set(await transcripts.list(runId));
     // Candidates: ok-terminal agent checkpoints whose blob still exists,
@@ -1322,7 +1344,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       if (keep.has(ref)) {
         continue;
       }
-      await transcripts.delete(ref);
+      await transcripts.delete(ref, opts?.lease);
       pruned += 1;
     }
     return pruned;

@@ -2127,6 +2127,10 @@
             "link": "/api/@rulvar/core/functions/archiveDeprecatedModelOps.md"
           },
           {
+            "text": "assertFencedWrites",
+            "link": "/api/@rulvar/core/functions/assertFencedWrites.md"
+          },
+          {
             "text": "atCompactionThreshold",
             "link": "/api/@rulvar/core/functions/atCompactionThreshold.md"
           },
@@ -2357,6 +2361,10 @@
           {
             "text": "formatScopePath",
             "link": "/api/@rulvar/core/functions/formatScopePath.md"
+          },
+          {
+            "text": "hasFencedWrites",
+            "link": "/api/@rulvar/core/functions/hasFencedWrites.md"
           },
           {
             "text": "hashRunArgs",
@@ -5840,6 +5848,10 @@
             "link": "/api/@rulvar/rulvar/functions/archiveDeprecatedModelOps.md"
           },
           {
+            "text": "assertFencedWrites",
+            "link": "/api/@rulvar/rulvar/functions/assertFencedWrites.md"
+          },
+          {
             "text": "atCompactionThreshold",
             "link": "/api/@rulvar/rulvar/functions/atCompactionThreshold.md"
           },
@@ -6070,6 +6082,10 @@
           {
             "text": "formatScopePath",
             "link": "/api/@rulvar/rulvar/functions/formatScopePath.md"
+          },
+          {
+            "text": "hasFencedWrites",
+            "link": "/api/@rulvar/rulvar/functions/hasFencedWrites.md"
           },
           {
             "text": "hashRunArgs",
@@ -6542,6 +6558,10 @@
         "text": "Functions",
         "collapsed": true,
         "items": [
+          {
+            "text": "fencedWritesConformance",
+            "link": "/api/@rulvar/store-conformance/functions/fencedWritesConformance.md"
+          },
           {
             "text": "foldStateSha256",
             "link": "/api/@rulvar/store-conformance/functions/foldStateSha256.md"

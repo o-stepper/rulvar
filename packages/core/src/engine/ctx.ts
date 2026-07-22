@@ -26,6 +26,7 @@ import { requireNonNegativeNumber, requirePositiveInteger } from '../l0/validate
 import type { Json } from '../l0/json.js';
 import type { Effort, InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
 import type { Pricing, ProviderAdapter } from '../l0/spi/provider.js';
+import type { Lease } from '../l0/spi/store.js';
 import type { TranscriptStore } from '../l0/spi/transcript.js';
 import type { IsolationProvider, IsolationSpec } from '../l0/spi/isolation.js';
 import type { ModelKnowledgeHandle } from '../l0/spi/knowledge.js';
@@ -614,6 +615,14 @@ export interface RunInternals {
   /** The run root span; every top-level span parents on it. */
   rootSpanId: string;
   transcripts: TranscriptStore;
+  /**
+   * Queue mode: the segment's lease, threaded into EVERY transcript
+   * blob write of the segment (checkpoints, compaction summaries,
+   * worktree patches) exactly as the Replayer threads it into every
+   * journal append, so a store declaring fencedWrites refuses a
+   * superseded segment's blob overwrites (fenced run state RFC, F2).
+   */
+  lease?: Lease;
   adapters: ReadonlyMap<string, ProviderAdapter>;
   defaults: {
     routing?: Partial<Record<InvocationRole, ModelSpec>>;
@@ -1647,7 +1656,11 @@ export function createCtx(
         return blob === null ? undefined : decodeCheckpoint(blob);
       },
       save: async (checkpointState) => {
-        await internals.transcripts.put(ckptRef, encodeCheckpoint(checkpointState));
+        await internals.transcripts.put(
+          ckptRef,
+          encodeCheckpoint(checkpointState),
+          internals.lease,
+        );
         checkpointWritten = true;
       },
     };
@@ -1767,7 +1780,7 @@ export function createCtx(
       events: agentSink,
       transcript: {
         mintRef: internals.mintTranscriptRef,
-        put: (ref, blob) => internals.transcripts.put(ref, blob),
+        put: (ref, blob) => internals.transcripts.put(ref, blob, internals.lease),
       },
       budget: {
         beforeTurn: () => internals.budget.beforeTurn(budgetAccount),
@@ -1874,7 +1887,7 @@ export function createCtx(
       try {
         const { files, patch } = await acquired.collect();
         const patchRef = internals.mintTranscriptRef();
-        await internals.transcripts.put(patchRef, patch);
+        await internals.transcripts.put(patchRef, patch, internals.lease);
         const artifact: Artifact = { id: 'worktree-patch', kind: 'patch', files, ref: patchRef };
         result.artifacts = [...(result.artifacts ?? []), artifact];
       } catch (thrown) {

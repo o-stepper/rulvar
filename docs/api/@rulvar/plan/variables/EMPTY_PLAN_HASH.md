@@ -10,4 +10,4 @@
 const EMPTY_PLAN_HASH: string;
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L157)
+Defined in: [packages/plan/src/cassettes.ts:163](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L163)

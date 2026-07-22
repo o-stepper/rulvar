@@ -10,7 +10,7 @@
 type Stage<I, O> = (item) => Promise<O>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:249](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L249)
+Defined in: [packages/core/src/engine/ctx.ts:250](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L250)
 
 ## Type Parameters
 

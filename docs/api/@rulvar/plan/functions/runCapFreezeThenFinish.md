@@ -10,7 +10,7 @@
 function runCapFreezeThenFinish(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:659](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L659)
+Defined in: [packages/plan/src/cassettes.ts:665](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L665)
 
 cap-freeze-then-finish (DEF-7): the soft boundary crossed with live
 children; the cap decision precedes its effects; admitted nodes run to

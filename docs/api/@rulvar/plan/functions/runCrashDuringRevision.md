@@ -10,7 +10,7 @@
 function runCrashDuringRevision(): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:288](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L288)
+Defined in: [packages/plan/src/cassettes.ts:294](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L294)
 
 crash-during-revision: process death INSIDE the revision window, at
 the pre-append kill point: life 1 is truncated

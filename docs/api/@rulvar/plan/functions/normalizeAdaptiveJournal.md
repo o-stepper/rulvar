@@ -10,7 +10,7 @@
 function normalizeAdaptiveJournal(entries): JournalEntry[];
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L49)
+Defined in: [packages/plan/src/cassettes.ts:55](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L55)
 
 Normalizes one journal for cassette comparison: ULIDs and sha256
 strings map to first-appearance placeholders; wall clock, spans, and

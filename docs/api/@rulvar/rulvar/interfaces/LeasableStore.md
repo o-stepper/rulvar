@@ -18,9 +18,10 @@ append carrying a stale epoch MUST be rejected and never appear in load.
 
 ## Properties
 
-| Property | Modifier | Type | Description | Defined in |
-| ------ | ------ | ------ | ------ | ------ |
-| <a id="property-leasettlms"></a> `leaseTtlMs?` | `readonly` | `number` | Optional TTL introspection (v1.35.0 review P2-4): the configured lease ttl in milliseconds. A store exposing it lets createWorker VERIFY at construction that the worker's renew cadence matches the store's expiry instead of trusting two config sources to agree; stores without it are accepted with the worker's own ttl. | `packages/core/dist/index.d.ts` |
+| Property | Modifier | Type | Description | Inherited from | Defined in |
+| ------ | ------ | ------ | ------ | ------ | ------ |
+| <a id="property-fencedwrites"></a> `fencedWrites?` | `readonly` | `true` | Fenced writes capability (the fenced run state RFC, phase 2), optional exactly like `getMeta` and `leaseTtlMs`: a store declaring `fencedWrites: true` PROMISES that every mutation carrying a lease (`append`, `putMeta`, `delete`) verifies it is the CURRENT holder for the run the mutation targets, atomically with the mutation itself, and rejects with the typed LeaseHeldError leaving nothing mutated when it is not (stale epoch, foreign owner, expired, or a lease whose runId is not the mutation's run). The engine threads the segment's lease into every one of these writes on a leased resume, so over a declaring store a superseded worker cannot overwrite run meta or delete run state, exactly as it already cannot append. A mutation carrying NO lease keeps the single-writer semantics unchanged. Stores written before this capability are unaffected: without the marker the extra argument is ignored and hosts know the surface is advisory. | [`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md).[`fencedWrites`](/api/@rulvar/rulvar/interfaces/JournalStore.md#property-fencedwrites) | `packages/core/dist/index.d.ts` |
+| <a id="property-leasettlms"></a> `leaseTtlMs?` | `readonly` | `number` | Optional TTL introspection (v1.35.0 review P2-4): the configured lease ttl in milliseconds. A store exposing it lets createWorker VERIFY at construction that the worker's renew cadence matches the store's expiry instead of trusting two config sources to agree; stores without it are accepted with the worker's own ttl. | - | `packages/core/dist/index.d.ts` |
 
 ## Methods
 
@@ -77,7 +78,7 @@ Defined in: `packages/core/dist/index.d.ts`
 ### delete()
 
 ```ts
-delete(runId): Promise<void>;
+delete(runId, lease?): Promise<void>;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -87,6 +88,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | Parameter | Type |
 | ------ | ------ |
 | `runId` | `string` |
+| `lease?` | [`Lease`](/api/@rulvar/rulvar/type-aliases/Lease.md) |
 
 #### Returns
 
@@ -149,7 +151,7 @@ Defined in: `packages/core/dist/index.d.ts`
 ### putMeta()
 
 ```ts
-putMeta(m): Promise<void>;
+putMeta(m, lease?): Promise<void>;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -159,6 +161,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | Parameter | Type |
 | ------ | ------ |
 | `m` | [`RunMeta`](/api/@rulvar/rulvar/type-aliases/RunMeta.md) |
+| `lease?` | [`Lease`](/api/@rulvar/rulvar/type-aliases/Lease.md) |
 
 #### Returns
 

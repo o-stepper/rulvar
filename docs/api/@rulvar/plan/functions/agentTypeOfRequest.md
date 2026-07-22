@@ -10,7 +10,7 @@
 function agentTypeOfRequest(req): string;
 ```
 
-Defined in: [packages/plan/src/cassettes.ts:152](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L152)
+Defined in: [packages/plan/src/cassettes.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/plan/src/cassettes.ts#L158)
 
 ## Parameters
 

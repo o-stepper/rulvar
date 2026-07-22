@@ -26,7 +26,7 @@ type RunMeta = {
 };
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:25](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L25)
+Defined in: [packages/core/src/l0/spi/store.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L29)
 
 Run-level metadata written by the ENGINE via putMeta as a separate
 record, so listRuns never parses payloads. The hashVersion range fields
@@ -40,7 +40,7 @@ are advisory only; the journal is authoritative.
 optional argsHash?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:85](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L85)
+Defined in: [packages/core/src/l0/spi/store.ts:89](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L89)
 
 sha256 hex over the JCS canonical serialization of the genesis args
 (`hashRunArgs`). Absent when the run started without args or when
@@ -63,7 +63,7 @@ round-trip the field (the conformance kit checks).
 optional argsProvided?: boolean;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L70)
+Defined in: [packages/core/src/l0/spi/store.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L74)
 
 Whether the run started with defined args. Engine-recorded at
 genesis and preserved verbatim by every later segment (a resume
@@ -83,7 +83,7 @@ round-trip the field (the conformance kit checks).
 optional budgetUsd?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:46](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L46)
+Defined in: [packages/core/src/l0/spi/store.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L50)
 
 The run's immutable USD ceiling (RunOptions.budgetUsd), recorded so
 resume restores the original invocation's bound. Absent when the
@@ -99,7 +99,7 @@ resumed run to uncapped.
 optional genesis?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:97](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L97)
+Defined in: [packages/core/src/l0/spi/store.ts:101](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L101)
 
 Unique token minted at the run's fresh start (genesis) and preserved
 verbatim by every later segment, so two runs that reuse the same
@@ -119,7 +119,7 @@ Stores must round-trip the field (the conformance kit checks).
 optional hashVersionHigh?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L32)
+Defined in: [packages/core/src/l0/spi/store.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L36)
 
 ***
 
@@ -129,7 +129,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:32](https://github.com/o-stepper/
 optional hashVersionLow?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L31)
+Defined in: [packages/core/src/l0/spi/store.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L35)
 
 ***
 
@@ -139,7 +139,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:31](https://github.com/o-stepper/
 optional name?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L28)
+Defined in: [packages/core/src/l0/spi/store.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L32)
 
 ***
 
@@ -149,7 +149,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:28](https://github.com/o-stepper/
 runId: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L26)
+Defined in: [packages/core/src/l0/spi/store.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L30)
 
 ***
 
@@ -159,7 +159,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:26](https://github.com/o-stepper/
 optional segments?: number;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L58)
+Defined in: [packages/core/src/l0/spi/store.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L62)
 
 Count of execution segments this run has STARTED (a fresh start
 writes 1; every resume writes prior + 1, durably, BEFORE the
@@ -179,7 +179,7 @@ resumed run's telemetry counters to per-segment, never the journal.
 status: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L27)
+Defined in: [packages/core/src/l0/spi/store.ts:31](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L31)
 
 ***
 
@@ -189,7 +189,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:27](https://github.com/o-stepper/
 optional tags?: string[];
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L29)
+Defined in: [packages/core/src/l0/spi/store.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L33)
 
 ***
 
@@ -199,7 +199,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:29](https://github.com/o-stepper/
 updatedAt: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L30)
+Defined in: [packages/core/src/l0/spi/store.ts:34](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L34)
 
 ***
 
@@ -209,7 +209,7 @@ Defined in: [packages/core/src/l0/spi/store.ts:30](https://github.com/o-stepper/
 optional workflowHash?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L36)
+Defined in: [packages/core/src/l0/spi/store.ts:40](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L40)
 
 Content hash of the body or of the compiled source.
 
@@ -221,7 +221,7 @@ Content hash of the body or of the compiled source.
 optional workflowName?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:34](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L34)
+Defined in: [packages/core/src/l0/spi/store.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L38)
 
 Registered workflow name (in-process Workflow).
 
@@ -233,6 +233,6 @@ Registered workflow name (in-process Workflow).
 optional workflowSourceRef?: string;
 ```
 
-Defined in: [packages/core/src/l0/spi/store.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L38)
+Defined in: [packages/core/src/l0/spi/store.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/store.ts#L42)
 
 TranscriptStore ref of the persisted CompiledWorkflow source.

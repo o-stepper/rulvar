@@ -6,17 +6,23 @@
 
 # Interface: TranscriptStore
 
-Defined in: [packages/core/src/l0/spi/transcript.ts:11](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/transcript.ts#L11)
+Defined in: [packages/core/src/l0/spi/transcript.ts:12](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/transcript.ts#L12)
+
+## Properties
+
+| Property | Modifier | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ | ------ |
+| <a id="property-fencedwrites"></a> `fencedWrites?` | `readonly` | `true` | Fenced writes capability (the fenced run state RFC, phase 2), the transcript-side twin of the JournalStore marker: a store declaring it verifies a lease-carrying `put` or `delete` against the CURRENT lease of the run the ref's leading path segment names, atomically with the mutation, and rejects stale holders with the typed LeaseHeldError leaving the prior blob intact. The engine threads the segment's lease into every blob write of a leased resume (checkpoints, compaction summaries, worktree patches, workflow sources). The shipped file and in-memory transcript stores do NOT declare it (they are single-writer by contract); a fenced implementation needs the blobs and the lease state in one transactional domain. | [packages/core/src/l0/spi/transcript.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/transcript.ts#L37) |
 
 ## Methods
 
 ### delete()
 
 ```ts
-delete(ref): Promise<void>;
+delete(ref, lease?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/transcript.ts:21](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/transcript.ts#L21)
+Defined in: [packages/core/src/l0/spi/transcript.ts:22](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/transcript.ts#L22)
 
 Deletes one blob; a missing ref is a no-op, never an error (M8-T04
 amendment, OQ-20: retention is impossible without blob deletion).
@@ -28,6 +34,7 @@ never a store obligation.
 | Parameter | Type |
 | ------ | ------ |
 | `ref` | `string` |
+| `lease?` | [`Lease`](/api/@rulvar/core/type-aliases/Lease.md) |
 
 #### Returns
 
@@ -41,7 +48,7 @@ never a store obligation.
 get(ref): Promise<Bytes | null>;
 ```
 
-Defined in: [packages/core/src/l0/spi/transcript.ts:13](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/transcript.ts#L13)
+Defined in: [packages/core/src/l0/spi/transcript.ts:14](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/transcript.ts#L14)
 
 #### Parameters
 
@@ -61,7 +68,7 @@ Defined in: [packages/core/src/l0/spi/transcript.ts:13](https://github.com/o-ste
 list(runId): Promise<string[]>;
 ```
 
-Defined in: [packages/core/src/l0/spi/transcript.ts:14](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/transcript.ts#L14)
+Defined in: [packages/core/src/l0/spi/transcript.ts:15](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/transcript.ts#L15)
 
 #### Parameters
 
@@ -78,10 +85,13 @@ Defined in: [packages/core/src/l0/spi/transcript.ts:14](https://github.com/o-ste
 ### put()
 
 ```ts
-put(ref, blob): Promise<void>;
+put(
+   ref, 
+   blob, 
+lease?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/l0/spi/transcript.ts:12](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/transcript.ts#L12)
+Defined in: [packages/core/src/l0/spi/transcript.ts:13](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/transcript.ts#L13)
 
 #### Parameters
 
@@ -89,6 +99,7 @@ Defined in: [packages/core/src/l0/spi/transcript.ts:12](https://github.com/o-ste
 | ------ | ------ |
 | `ref` | `string` |
 | `blob` | [`Bytes`](/api/@rulvar/core/type-aliases/Bytes.md) |
+| `lease?` | [`Lease`](/api/@rulvar/core/type-aliases/Lease.md) |
 
 #### Returns
 
