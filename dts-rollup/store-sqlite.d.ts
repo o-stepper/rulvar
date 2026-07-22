@@ -27,6 +27,17 @@ declare class SqliteStore implements MetaLookupStore, LeasableStore {
   private liveLease;
   /** Rejects unless `lease` is the CURRENT live lease for its run. */
   private assertFencing;
+  /**
+  * Runs the fence check and the guarded mutation as ONE immediate
+  * transaction, the same shape acquire already uses: BEGIN IMMEDIATE
+  * takes the write lock BEFORE the check reads the lease row, so a
+  * competing takeover cannot land between the check and the mutation
+  * (it serializes behind the commit and the loser sees the final rows).
+  * As two autocommit statements, a takeover in that window let a
+  * superseded holder mutate live state (fenced-run-state RFC, F3).
+  */
+  private fenced;
+  private insertEntry;
   append(runId: string, e: JournalEntry, lease?: Lease): Promise<void>;
   load(runId: string): Promise<JournalEntry[]>;
   putMeta(m: RunMeta): Promise<void>;

@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { ConfigError, LeaseHeldError, type JournalEntry } from '@rulvar/core';
+import { ConfigError, LeaseHeldError, type JournalEntry, type Lease } from '@rulvar/core';
 import {
   journalStoreConformance,
   leasableStoreConformance,
@@ -115,6 +115,117 @@ describe('SqliteStore cross-instance concurrency (one database file)', () => {
     const second = await b.load('ORDER');
     expect(first.map((e) => e.seq)).toEqual([...Array(20).keys()]);
     expect(second.map((e) => e.seq)).toEqual(first.map((e) => e.seq));
+    a.close();
+    b.close();
+  });
+
+  // The fence check and its guarded mutation must commit as ONE
+  // immediate transaction (fenced-run-state RFC, finding F3). The shim
+  // shadows the instance's private assertFencing so that right after the
+  // real check passes, a competing takeover is ATTEMPTED from a second
+  // connection; with the transaction in place the takeover cannot land
+  // mid-call (the write lock is already held, so its BEGIN IMMEDIATE
+  // throws SQLITE_BUSY), and once it lands after the call, every stale
+  // operation rejects. As two autocommit statements (the pre-fix shape),
+  // the takeover landed inside the window and the stale mutation won.
+  function armInterleave(victim: SqliteStore, takeover: () => void): void {
+    const target = victim as unknown as { assertFencing: (l: Lease) => void };
+    const original = target.assertFencing.bind(victim);
+    let armed = true;
+    target.assertFencing = (lease) => {
+      original(lease);
+      if (armed) {
+        armed = false;
+        takeover();
+      }
+    };
+  }
+
+  function fencedPair(): { a: SqliteStore; b: SqliteStore; clock: { t: number } } {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-sqlite-'));
+    const path = join(dir, 'journal.db');
+    const clock = { t: 1_000_000 };
+    const now = () => clock.t;
+    return {
+      a: new SqliteStore({ path, ttlMs: 100, now }),
+      b: new SqliteStore({ path, ttlMs: 100, now }),
+      clock,
+    };
+  }
+
+  it('a takeover cannot land between an append fence check and its insert', async () => {
+    const { a, b, clock } = fencedPair();
+    const leaseA = await a.acquire('RUN', 'worker-a');
+    await a.append('RUN', entry(0), leaseA);
+    let leaseB: Lease | undefined;
+    let blockedMidCall = false;
+    armInterleave(a, () => {
+      clock.t += 150; // worker-a's lease expires unrenewed
+      b.acquire('RUN', 'worker-b').then(
+        (lease) => {
+          leaseB = lease;
+        },
+        () => {
+          blockedMidCall = true;
+        },
+      );
+    });
+    // The check saw a live lease inside the same transaction, so this
+    // append legitimately serializes BEFORE the takeover.
+    await a.append('RUN', entry(1), leaseA);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(blockedMidCall).toBe(true);
+    expect(leaseB).toBeUndefined();
+    // After the call the reclaim lands, and the old holder is fenced.
+    const reclaimed = await b.acquire('RUN', 'worker-b');
+    expect(reclaimed.epoch).toBeGreaterThan(leaseA.epoch);
+    await b.append('RUN', entry(2), reclaimed);
+    await expect(a.append('RUN', entry(3), leaseA)).rejects.toThrow(LeaseHeldError);
+    expect((await a.load('RUN')).map((e) => e.seq)).toEqual([0, 1, 2]);
+    a.close();
+    b.close();
+  });
+
+  it('a stale release cannot delete the lease a successor holds', async () => {
+    const { a, b, clock } = fencedPair();
+    const leaseA = await a.acquire('RUN', 'worker-a');
+    let blockedMidCall = false;
+    armInterleave(a, () => {
+      clock.t += 150;
+      b.acquire('RUN', 'worker-b').then(undefined, () => {
+        blockedMidCall = true;
+      });
+    });
+    // Serializes before the takeover: a legitimate release of a lease
+    // that was live at check time, atomically with that check.
+    await a.release(leaseA);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(blockedMidCall).toBe(true);
+    const reclaimed = await b.acquire('RUN', 'worker-b');
+    // The successor's lease survives the old holder's stale release, so
+    // no third owner can slip in while it is unexpired.
+    await expect(a.release(leaseA)).rejects.toThrow(LeaseHeldError);
+    await expect(a.acquire('RUN', 'worker-c')).rejects.toThrow(LeaseHeldError);
+    await b.append('RUN', entry(0), reclaimed);
+    expect((await b.load('RUN')).map((e) => e.seq)).toEqual([0]);
+    a.close();
+    b.close();
+  });
+
+  it('a stale renew cannot extend the lease a successor holds', async () => {
+    const { a, b, clock } = fencedPair();
+    const leaseA = await a.acquire('RUN', 'worker-a');
+    clock.t += 150; // expired unrenewed
+    const reclaimed = await b.acquire('RUN', 'worker-b'); // expires at +250
+    await expect(a.renew(leaseA)).rejects.toThrow(LeaseHeldError);
+    // The stale renew touched nothing: the successor expires on ITS
+    // schedule, neither extended by the stale holder's clock nor
+    // shortened, and reclaim works exactly at that boundary.
+    clock.t += 90; // +240: still held
+    await expect(a.acquire('RUN', 'worker-c')).rejects.toThrow(LeaseHeldError);
+    clock.t += 20; // +260: past the successor's genuine expiry
+    const third = await a.acquire('RUN', 'worker-c');
+    expect(third.epoch).toBeGreaterThan(reclaimed.epoch);
     a.close();
     b.close();
   });
