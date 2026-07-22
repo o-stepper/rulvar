@@ -1,5 +1,12 @@
 # @rulvar/plan
 
+## 1.40.0
+
+### Patch Changes
+
+- Updated dependencies [cf33550]
+  - @rulvar/core@1.40.0
+
 ## 1.39.0
 
 ### Patch Changes

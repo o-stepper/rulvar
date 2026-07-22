@@ -135,7 +135,7 @@ Look elsewhere when:
 
 ## Status
 
-Rulvar is released at **v<!-- version:lockstep -->1.39.0<!-- /version -->** under the **Apache-2.0** license. It requires **Node.js 22.12.0 or newer** and is **ESM only**. All `@rulvar/*` packages version in lockstep, with one exception: `@rulvar/compat`, which carries frozen key-derivation profiles for old journals and is versioned independently. See [Versioning](/reference/versioning) and the [Changelog](/reference/changelog).
+Rulvar is released at **v<!-- version:lockstep -->1.40.0<!-- /version -->** under the **Apache-2.0** license. It requires **Node.js 22.12.0 or newer** and is **ESM only**. All `@rulvar/*` packages version in lockstep, with one exception: `@rulvar/compat`, which carries frozen key-derivation profiles for old journals and is versioned independently. See [Versioning](/reference/versioning) and the [Changelog](/reference/changelog).
 
 ## Where to go next
 
