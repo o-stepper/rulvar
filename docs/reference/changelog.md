@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.44.0
+
+#### Patch Changes
+
+- Updated dependencies [299f7d2]
+  - @rulvar/core@1.44.0
+
 ### 1.43.0
 
 #### Patch Changes
@@ -664,6 +671,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.44.0
+
+#### Patch Changes
+
+- Updated dependencies [299f7d2]
+  - @rulvar/core@1.44.0
+
 ### 1.43.0
 
 #### Patch Changes
@@ -1175,6 +1189,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.44.0
+
+#### Patch Changes
+
+- Updated dependencies [299f7d2]
+  - @rulvar/core@1.44.0
 
 ### 1.43.0
 
@@ -1919,6 +1940,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.44.0
+
+#### Minor Changes
+
+- 299f7d2: Evidence preservation contract for the orchestrator finish (the improvement plan's RV-202 slice). The finish validation input now carries `children`: every spawned child at finish time, in spawn order, with its handle, nodeId, status, and full output text, a pure read of the durable state the orchestrator already tracks, so validators can hold the finish result against the evidence the children actually produced. The new `evidencePreservedValidator` enforces the plan's gate: at least `minShare` (default 0.95) of the distinct citations found in the outputs of children settled ok must appear literally in the result text, with the missing ones listed in the rejection so the bounded repair turn can restore them; `requireKnown: true` additionally rejects citations no child ever produced, closing the fabrication path that satisfied a plain count check. Purely textual and deterministic; verdicts journal exactly like every finish validation verdict, so replay and resume reproduce them without re-running validator code.
 
 ### 1.43.0
 
@@ -3132,6 +3159,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.44.0
+
 ### 1.43.0
 
 ### 1.42.0
@@ -3302,6 +3331,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.44.0
+
+#### Patch Changes
+
+- Updated dependencies [299f7d2]
+  - @rulvar/core@1.44.0
+  - @rulvar/testing@1.44.0
 
 ### 1.43.0
 
@@ -3952,6 +3989,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.44.0
+
+#### Patch Changes
+
+- Updated dependencies [299f7d2]
+  - @rulvar/core@1.44.0
 
 ### 1.43.0
 
@@ -4616,6 +4660,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.44.0
+
+#### Patch Changes
+
+- Updated dependencies [299f7d2]
+  - @rulvar/core@1.44.0
+
 ### 1.43.0
 
 #### Patch Changes
@@ -5249,6 +5300,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.44.0
+
+#### Patch Changes
+
+- Updated dependencies [299f7d2]
+  - @rulvar/core@1.44.0
+  - eslint-plugin-rulvar@1.44.0
+
 ### 1.43.0
 
 #### Patch Changes
@@ -5865,6 +5924,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.44.0
+
+#### Patch Changes
+
+- Updated dependencies [299f7d2]
+  - @rulvar/core@1.44.0
+  - @rulvar/anthropic@1.44.0
+  - @rulvar/openai@1.44.0
 
 ### 1.43.0
 
@@ -6610,6 +6678,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.44.0
+
+#### Patch Changes
+
+- Updated dependencies [299f7d2]
+  - @rulvar/core@1.44.0
+
 ### 1.43.0
 
 #### Patch Changes
@@ -7197,6 +7272,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.44.0
+
+#### Patch Changes
+
+- Updated dependencies [299f7d2]
+  - @rulvar/core@1.44.0
+
 ### 1.43.0
 
 #### Patch Changes
@@ -7727,6 +7809,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.44.0
+
+#### Patch Changes
+
+- Updated dependencies [299f7d2]
+  - @rulvar/core@1.44.0
 
 ### 1.43.0
 
