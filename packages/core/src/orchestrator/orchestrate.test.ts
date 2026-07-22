@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ChatRequest } from '../l0/messages.js';
 import type { JournalEntry } from '../l0/entries.js';
-import { FailRunError } from '../l0/errors.js';
+import { ConfigError, FailRunError } from '../l0/errors.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { executeWorkflow } from '../engine/ctx.js';
 import { makeInternals, scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
@@ -15,6 +15,7 @@ import type { AgentProfile } from '../engine/ctx.js';
 import { createEngine } from '../engine/engine.js';
 import { GitWorktreeProvider } from '../tools/isolation.js';
 import { tool } from '../tools/tool.js';
+import { minMatchesValidator, requiredSectionsValidator } from './finish-validators.js';
 import { makeOrchestratorWorkflow, orchestrate } from './orchestrate.js';
 
 /** The telemetry namespace tells orchestrator requests from child ones. */
@@ -899,6 +900,236 @@ describe('acceptance: the child completion policy (v1.40.0 improvement plan)', (
         acceptance: { childPolicy: { minSuccessful: Number.NaN } },
       }),
     ).toThrow(/minSuccessful/);
+  });
+});
+
+describe('finish validation: deterministic host validators with bounded repair (RV-204)', () => {
+  const GOAL = 'audit the module and cite evidence';
+  const GOOD = 'FINDINGS: two bugs. EVIDENCE: src/a.ts:10 src/b.ts:22 src/c.ts:31.';
+  const HUSK = { report: 'all good, trust me' };
+  const VALIDATORS = () => [
+    requiredSectionsValidator({ sections: ['FINDINGS', 'EVIDENCE'] }),
+    minMatchesValidator({ pattern: 'src/[a-z]+\\.ts:\\d+', min: 3, name: 'citations' }),
+  ];
+  const DEFAULTS = {
+    routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+    profiles: PROFILES,
+  } as const;
+
+  /** Finishes with `first` on the first attempt and `second` after a rejection. */
+  function finishTwiceAdapter(first: unknown, second: unknown) {
+    let orchTurn = 0;
+    return scriptedAdapter((): ScriptedTurn => {
+      orchTurn += 1;
+      return {
+        toolCall: { name: 'finish', args: { result: orchTurn === 1 ? first : second } },
+      };
+    });
+  }
+
+  const validationEntries = (entries: readonly JournalEntry[]): JournalEntry[] =>
+    entries.filter(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_finish_validation',
+    );
+
+  it('a valid finish is accepted first try: one journaled verdict, result unchanged', async () => {
+    const adapter = finishTwiceAdapter(GOOD, GOOD);
+    const { internals, store } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow(GOAL, { finishValidation: { validators: VALIDATORS() } });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(GOOD);
+    const verdicts = validationEntries(await store.load('test-run'));
+    expect(verdicts).toHaveLength(1);
+    expect((verdicts[0]?.value as { verdict?: string }).verdict).toBe('accepted');
+    // The contract rides the PROMPT (the toolset never changes): the
+    // validator names and the repair bound reach the model up front.
+    const prompt = JSON.stringify(adapter.calls[0]?.messages[0]?.parts);
+    expect(prompt).toContain('required-sections, citations');
+    expect(prompt).toContain('At most one repair attempt');
+  });
+
+  it('a rejected finish returns the reasons and the model repairs within the bound', async () => {
+    const adapter = finishTwiceAdapter(HUSK, GOOD);
+    const { internals, store } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow(GOAL, { finishValidation: { validators: VALIDATORS() } });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(GOOD);
+    // The model saw the rejection as the finish call's error tool result,
+    // reasons and the remaining repair budget included.
+    const feedback = JSON.stringify(
+      adapter.calls
+        .at(-1)
+        ?.messages.flatMap((m) => m.parts)
+        .find((p) => p.type === 'tool-result' && (p as { isError?: boolean }).isError === true),
+    );
+    expect(feedback).toContain("required section 'FINDINGS' is missing");
+    expect(feedback).toContain('expected at least 3 matches');
+    expect(feedback).toContain('"repairsRemaining":0');
+    // Verdicts journal in order: the granted repair, then the acceptance.
+    const verdicts = validationEntries(await store.load('test-run')).map(
+      (e) => (e.value as { verdict?: string }).verdict,
+    );
+    expect(verdicts).toEqual(['repair', 'accepted']);
+  });
+
+  it('exhausting the bound fails the run typed, journaled BEFORE acceptance ever judges', async () => {
+    const adapter = finishTwiceAdapter(HUSK, HUSK);
+    const { internals, store } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow(GOAL, {
+      acceptance: { childPolicy: 'all-ok' },
+      finishValidation: { validators: VALIDATORS(), maxRepairs: 1 },
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as {
+      source?: string;
+      repairsUsed?: number;
+      maxRepairs?: number;
+    };
+    expect(data.source).toBe('orchestrator_finish_validation');
+    expect(data.repairsUsed).toBe(1);
+    expect(data.maxRepairs).toBe(1);
+    const entries = await store.load('test-run');
+    const verdicts = validationEntries(entries).map(
+      (e) => (e.value as { verdict?: string }).verdict,
+    );
+    expect(verdicts).toEqual(['repair', 'rejected']);
+    // The plan's ordering contract: an invalid finish is rejected before
+    // acceptance, so no acceptance verdict exists.
+    expect(
+      entries.some(
+        (e) =>
+          e.kind === 'decision' &&
+          (e.value as { decisionType?: string }).decisionType === 'orchestrator_acceptance',
+      ),
+    ).toBe(false);
+  });
+
+  it('maxRepairs 0 fails on the first invalid finish without a repair turn', async () => {
+    const adapter = finishTwiceAdapter(HUSK, GOOD);
+    const { internals, store } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow(GOAL, {
+      finishValidation: { validators: VALIDATORS(), maxRepairs: 0 },
+    });
+    await expect(executeWorkflow(internals, wf, undefined)).rejects.toThrow(
+      /failed host validation/,
+    );
+    // No second model turn: the would be repair never dispatched.
+    expect(adapter.calls).toHaveLength(1);
+    const verdicts = validationEntries(await store.load('test-run')).map(
+      (e) => (e.value as { verdict?: string }).verdict,
+    );
+    expect(verdicts).toEqual(['rejected']);
+  });
+
+  it('a resume rolls the journaled rejection forward before any model call', async () => {
+    const store = new InMemoryStore();
+    const engineA = createEngine({
+      adapters: [finishTwiceAdapter(HUSK, HUSK)],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    const first = await engineA.run(
+      makeOrchestratorWorkflow(GOAL, { finishValidation: { validators: VALIDATORS() } }),
+      undefined,
+      { runId: 'FV-RESUME' },
+    ).result;
+    expect(first.status).toBe('error');
+    expect(first.error?.message).toContain('failed host validation');
+    // The resume host drops the failing validators entirely; the
+    // journaled rejected verdict still wins, and not one model call runs.
+    const adapterB = finishTwiceAdapter(GOOD, GOOD);
+    const engineB = createEngine({
+      adapters: [adapterB],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    const resumed = await engineB.resume(
+      'FV-RESUME',
+      makeOrchestratorWorkflow(GOAL, {
+        finishValidation: {
+          validators: [requiredSectionsValidator({ sections: ['FINDINGS'] })],
+        },
+      }),
+    ).result;
+    expect(resumed.status).toBe('error');
+    expect(resumed.error?.message).toContain('failed host validation');
+    expect(adapterB.calls).toHaveLength(0);
+  });
+
+  it('a throwing validator is a host defect: ConfigError, nothing journaled', async () => {
+    const adapter = finishTwiceAdapter(GOOD, GOOD);
+    const { internals, store } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow(GOAL, {
+      finishValidation: {
+        validators: [
+          {
+            name: 'defective',
+            validate: () => {
+              throw new Error('kaput');
+            },
+          },
+        ],
+      },
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(ConfigError);
+    expect((thrown as Error).message).toContain("finish validator 'defective' threw");
+    expect((thrown as Error).message).toContain('kaput');
+    expect(validationEntries(await store.load('test-run'))).toHaveLength(0);
+  });
+
+  it('without finishValidation nothing journals and the prompt stays clean', async () => {
+    const adapter = finishTwiceAdapter(GOOD, GOOD);
+    const { internals, store } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const outcome = await executeWorkflow(internals, makeOrchestratorWorkflow(GOAL, {}), undefined);
+    expect(outcome).toBe(GOOD);
+    expect(validationEntries(await store.load('test-run'))).toHaveLength(0);
+    expect(JSON.stringify(adapter.calls[0]?.messages[0]?.parts)).not.toContain('host validates');
+  });
+
+  it('rejects malformed finishValidation synchronously at construction', () => {
+    expect(() => makeOrchestratorWorkflow('g', { finishValidation: { validators: [] } })).toThrow(
+      /non empty array/,
+    );
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        finishValidation: { validators: [{ name: '', validate: () => ({ ok: true }) as const }] },
+      }),
+    ).toThrow(/non empty string name/);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        finishValidation: { validators: [{ name: 'x' } as never] },
+      }),
+    ).toThrow(/no validate function/);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        finishValidation: {
+          validators: [
+            requiredSectionsValidator({ sections: ['A'] }),
+            requiredSectionsValidator({ sections: ['B'] }),
+          ],
+        },
+      }),
+    ).toThrow(/must be unique/);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        finishValidation: { validators: VALIDATORS(), maxRepairs: Number.NaN },
+      }),
+    ).toThrow(/maxRepairs/);
   });
 });
 

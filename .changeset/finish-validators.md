@@ -1,0 +1,5 @@
+---
+'@rulvar/core': minor
+---
+
+Deterministic finish validators with bounded repair for the dynamic orchestrator (the improvement plan's RV-204 slice). `OrchestrateOptions.finishValidation` runs host validators over every schema valid `finish({ result })` call: a rejection returns the failure reasons to the model as the call's error tool result and grants a bounded repair turn (`maxRepairs`, default one); a rejection past the bound fails the run with the typed `FailRunError` (code `fail_run`, `data.source` `'orchestrator_finish_validation'`) BEFORE the acceptance settle, so acceptance never judges a rejected finish. Every verdict journals as a decision entry keyed by the finish call id, so a resume rolls the same verdicts forward without re-running validator code, and a journaled final rejection short circuits at boot without a model call. The toolset never changes and zero configuration adds zero journal entries, so existing runs and frozen cassettes replay byte for byte. Ships `requiredSectionsValidator`, `requiredFieldsValidator`, and `minMatchesValidator`, plus the `FinishValidator` contract for custom checks.

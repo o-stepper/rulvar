@@ -72,6 +72,11 @@ import {
   type SpawnAgentParams,
 } from './spawn-tools.js';
 import type {
+  FinishValidationInput,
+  FinishValidationVerdict,
+  FinishValidator,
+} from './finish-validators.js';
+import type {
   ExtensionDispatchSpec,
   OrchestratorExtension,
   OrchestratorExtensionIO,
@@ -153,6 +158,49 @@ export interface OrchestrateAcceptance {
   childPolicy: 'all-ok' | { minSuccessful: number };
 }
 
+/** How many rejected finishes are repaired by default: the plan's repair once. */
+export const DEFAULT_FINISH_MAX_REPAIRS = 1;
+
+/**
+ * The opt in deterministic validation of the orchestrator finish result
+ * (the v1.40.0 improvement plan's RV-204 slice). Every SCHEMA valid
+ * finish({ result }) call first passes the configured host validators;
+ * a rejection returns the failure reasons to the model as the call's
+ * error tool result and the turn continues (a repair turn: the model
+ * fixes the result and calls finish again), bounded by maxRepairs. A
+ * rejection past the bound fails the run with the typed FailRunError
+ * (code 'fail_run', data.source 'orchestrator_finish_validation'),
+ * BEFORE the acceptance settle, so acceptance never judges a finish the
+ * validators rejected. Every verdict journals as ONE decision entry
+ * keyed by the finish call id (decisionType
+ * 'orchestrator_finish_validation'), so a resume rolls the SAME
+ * verdicts forward without re-running validator code, and the whole
+ * exchange replays without new paid calls. The toolset never changes
+ * (the contract rides the orchestrator prompt), zero configuration adds
+ * zero journal entries, and the budget cap paths keep their posture:
+ * the reserved finalize dispatch is never validated, exactly as
+ * acceptance never judges it. Repair turns spend from the
+ * orchestrator's ordinary limits and ceilings (maxTurns, budget caps,
+ * the root budgetUsd); maxRepairs is the explicit bound, and a
+ * dedicated repair budget reserve is deliberately out of scope here.
+ */
+export interface FinishValidationSpec {
+  /**
+   * Run in configuration order on every schema valid finish call; names
+   * must be unique (pass `name` to a factory to run several instances).
+   * A validator that THROWS is a host defect: the run fails as
+   * ConfigError, nothing journals, and no repair turn is granted.
+   */
+  validators: FinishValidator[];
+  /**
+   * How many rejected finishes are returned to the model for repair
+   * before the run fails; a nonnegative integer, default
+   * {@link DEFAULT_FINISH_MAX_REPAIRS}. Zero means the first rejected
+   * finish fails the run.
+   */
+  maxRepairs?: number;
+}
+
 export interface OrchestrateOptions {
   model?: ModelSpec;
   /** Registered profile names to advertise; default: every profile. */
@@ -186,6 +234,11 @@ export interface OrchestrateOptions {
   extension?: OrchestratorExtension;
   /** The opt in child completion policy; see {@link OrchestrateAcceptance}. */
   acceptance?: OrchestrateAcceptance;
+  /**
+   * The opt in deterministic host validation of the finish result, with
+   * bounded repair; see {@link FinishValidationSpec}.
+   */
+  finishValidation?: FinishValidationSpec;
   /**
    * Opt in to the evidence tools `get_child_result` and
    * `read_child_artifact` (the v1.40.0 improvement plan's narrow RV-201
@@ -272,6 +325,39 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
       );
     }
   }
+  if (opts.finishValidation !== undefined) {
+    // The runtime JS/JSON boundary: the type system cannot hold it.
+    const fv = opts.finishValidation as { validators?: unknown; maxRepairs?: unknown };
+    if (!Array.isArray(fv.validators) || fv.validators.length === 0) {
+      throw new ConfigError(
+        'orchestrate finishValidation.validators must be a non empty array of validators',
+      );
+    }
+    const seen = new Set<string>();
+    for (const candidate of fv.validators) {
+      const validator = candidate as { name?: unknown; validate?: unknown };
+      if (typeof validator.name !== 'string' || validator.name.length === 0) {
+        throw new ConfigError(
+          'every orchestrate finish validator must carry a non empty string name',
+        );
+      }
+      if (typeof validator.validate !== 'function') {
+        throw new ConfigError(
+          `orchestrate finish validator '${validator.name}' has no validate function`,
+        );
+      }
+      if (seen.has(validator.name)) {
+        throw new ConfigError(
+          `orchestrate finishValidation.validators names must be unique; '${validator.name}' ` +
+            'repeats (pass name to the factory to run several instances)',
+        );
+      }
+      seen.add(validator.name);
+    }
+    if (fv.maxRepairs !== undefined) {
+      requireNonNegativeInteger(fv.maxRepairs as number, 'orchestrate finishValidation.maxRepairs');
+    }
+  }
   const spec = opts.budget;
   if (spec === undefined) {
     return;
@@ -318,6 +404,30 @@ function orchestratorPrompt(
       : `You may spawn at most ${String(maxSpawns)} children.`,
     ...(extensionLines ?? []),
   ].join('\n');
+}
+
+/**
+ * The finish validation contract rides the PROMPT, never the toolset:
+ * the finish tool definition stays byte identical in every
+ * configuration, so the orchestrator toolset hash never moves (stricter
+ * than the evidence tools opt in, which changes it by design).
+ */
+function finishValidationPromptLines(spec: FinishValidationSpec | undefined): string[] {
+  if (spec === undefined) {
+    return [];
+  }
+  const names = spec.validators.map((validator) => validator.name).join(', ');
+  const repairs = spec.maxRepairs ?? DEFAULT_FINISH_MAX_REPAIRS;
+  return [
+    `The host validates every finish({ result }) with deterministic validators: ${names}.`,
+    'A rejected finish returns the failure reasons as the tool error result; repair the ' +
+      'result and call finish again. ' +
+      (repairs === 0
+        ? 'No repair attempt is granted: the first rejected finish fails the run.'
+        : repairs === 1
+          ? 'At most one repair attempt is granted before the run fails.'
+          : `At most ${String(repairs)} repair attempts are granted before the run fails.`),
+  ];
 }
 
 /**
@@ -1758,6 +1868,148 @@ export function makeOrchestratorWorkflow(
       }),
       ...(extension?.tools(io) ?? []),
     ];
+
+    /**
+     * The RV-204 finish validation hook, installed on the terminal tool
+     * channel only when validators are configured (zero configuration =
+     * zero new journal entries and byte identical loop behavior; the
+     * toolset never changes either way). Verdicts are decision entries
+     * keyed by the finish call id: a replayed call returns the JOURNALED
+     * verdict without re-running validator code, so the accepted result,
+     * every repair exchange, and the final rejection reproduce on resume
+     * even when the live validators drifted (the acceptance precedent).
+     * The final rejection journals verdict 'rejected', arms the typed
+     * FailRunError, and aborts the loop; the settle path throws it
+     * BEFORE the acceptance settle (and the boot scan covers the crash
+     * window between the entry and the run terminal), so acceptance
+     * never judges a finish the validators rejected. A THROWING
+     * validator is a host defect: the run fails as ConfigError, nothing
+     * journals, and no repair turn is granted, so a fixed validator
+     * re-runs live on the next resume.
+     */
+    const validationSpec = opts?.finishValidation;
+    const validationAbort = new AbortController();
+    let validationTermination: Error | undefined;
+    interface FinishValidationDecision {
+      decisionType: 'orchestrator_finish_validation';
+      callId: string;
+      verdict: 'accepted' | 'repair' | 'rejected';
+      failed: { name: string; reasons: string[] }[];
+      repairsUsed: number;
+      maxRepairs: number;
+    }
+    const finishValidationError = (decision: FinishValidationDecision): FailRunError =>
+      new FailRunError(
+        'the orchestrator finish failed host validation with all ' +
+          `${String(decision.maxRepairs)} repair attempts spent: ` +
+          decision.failed
+            .map((f) => `validator '${f.name}' rejected: ${f.reasons.join('; ')}`)
+            .join('; '),
+        {
+          data: {
+            source: 'orchestrator_finish_validation',
+            callId: decision.callId,
+            failed: decision.failed as unknown as Json,
+            repairsUsed: decision.repairsUsed,
+            maxRepairs: decision.maxRepairs,
+          },
+        },
+      );
+    const validationDecisions = (): FinishValidationDecision[] =>
+      internals.replayer
+        .snapshot()
+        .filter(
+          (entry) =>
+            entry.kind === 'decision' &&
+            entry.scope === callingState.scope &&
+            (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+              'orchestrator_finish_validation',
+        )
+        .map((entry) => entry.value as unknown as FinishValidationDecision);
+    const validateFinish = async (call: {
+      id: string;
+      result: unknown;
+    }): Promise<{ ok: true } | { ok: false; feedback: Record<string, unknown> }> => {
+      if (validationSpec === undefined) {
+        return { ok: true };
+      }
+      const maxRepairs = validationSpec.maxRepairs ?? DEFAULT_FINISH_MAX_REPAIRS;
+      const known = validationDecisions();
+      let decision = known.find((candidate) => candidate.callId === call.id);
+      if (decision === undefined) {
+        const result = (call.result ?? null) as Json | null;
+        const input: FinishValidationInput = {
+          result,
+          text: typeof result === 'string' ? result : JSON.stringify(result),
+        };
+        const failed: { name: string; reasons: string[] }[] = [];
+        for (const validator of validationSpec.validators) {
+          let verdict: FinishValidationVerdict;
+          try {
+            verdict = validator.validate(input);
+          } catch (thrown) {
+            validationTermination = new ConfigError(
+              `finish validator '${validator.name}' threw instead of returning a verdict: ` +
+                (thrown instanceof Error ? thrown.message : String(thrown)),
+            );
+            validationAbort.abort('rulvar:finish-validation');
+            return {
+              ok: false,
+              feedback: {
+                error: `finish validator '${validator.name}' is defective; the run fails`,
+              },
+            };
+          }
+          if (!verdict.ok) {
+            failed.push({ name: validator.name, reasons: verdict.reasons });
+          }
+        }
+        const repairsUsed = known.filter((candidate) => candidate.verdict !== 'accepted').length;
+        decision = {
+          decisionType: 'orchestrator_finish_validation',
+          callId: call.id,
+          verdict:
+            failed.length === 0 ? 'accepted' : repairsUsed < maxRepairs ? 'repair' : 'rejected',
+          failed,
+          repairsUsed,
+          maxRepairs,
+        };
+        await internals.replayer.appendSinglePhase({
+          scope: callingState.scope,
+          key: `finish-validation:${call.id}`,
+          kind: 'decision',
+          status: 'ok',
+          spanId: internals.spans.mint(callingState.spanId),
+          site: 'orchestrator-finish-validation',
+          value: decision,
+        });
+      }
+      if (decision.verdict === 'accepted') {
+        return { ok: true };
+      }
+      if (decision.verdict === 'rejected') {
+        validationTermination = finishValidationError(decision);
+        validationAbort.abort('rulvar:finish-validation');
+        return {
+          ok: false,
+          feedback: {
+            error:
+              'the finish result failed host validation and the repair bound is exhausted; ' +
+              'the run fails',
+            failed: decision.failed,
+          },
+        };
+      }
+      return {
+        ok: false,
+        feedback: {
+          error:
+            'the finish result failed host validation; repair the result and call finish again',
+          failed: decision.failed,
+          repairsRemaining: decision.maxRepairs - decision.repairsUsed - 1,
+        },
+      };
+    };
     const agentOpts: AgentOpts & InternalAgentHooks & { result: 'full' } = {
       role: 'orchestrate',
       result: 'full',
@@ -1795,7 +2047,10 @@ export function makeOrchestratorWorkflow(
         // on recoveryDone.
         void recover().then(releaseRecovery, releaseRecovery);
       },
-      [kTerminalTool]: { name: FINISH_TOOL_NAME },
+      [kTerminalTool]: {
+        name: FINISH_TOOL_NAME,
+        ...(validationSpec === undefined ? {} : { validate: validateFinish }),
+      },
       // Checkpoint lineage across root attempts (the v1.6.0 follow-up
       // review's mode (c) contract): a rerun after a cancelled root
       // (the budget abort mid-wait) boots from the prior attempt's last
@@ -1829,10 +2084,16 @@ export function makeOrchestratorWorkflow(
     if (orchestratorAccount !== undefined) {
       orchestratorState.budgetScope = orchestratorAccount;
     }
+    // Without validators the break signal IS the forced finish signal,
+    // byte identical to the pre RV-204 behavior.
+    const loopBreakSignal =
+      validationSpec === undefined
+        ? forcedFinishController.signal
+        : AbortSignal.any([forcedFinishController.signal, validationAbort.signal]);
     orchestratorState.signal =
       callingState.signal === undefined
-        ? forcedFinishController.signal
-        : AbortSignal.any([callingState.signal, forcedFinishController.signal]);
+        ? loopBreakSignal
+        : AbortSignal.any([callingState.signal, loopBreakSignal]);
 
     /**
      * The reserved final wake: a FRESH agent entry on
@@ -1992,9 +2253,28 @@ export function makeOrchestratorWorkflow(
       // loop is not re-entered.
       return await settleCapOutcome();
     }
+    if (validationSpec !== undefined) {
+      // The crash window between the journaled final rejection and the
+      // run terminal: the rejected verdict rolls forward at boot before
+      // any model call (the cap roll forward precedent).
+      const priorRejection = validationDecisions().find(
+        (decision) => decision.verdict === 'rejected',
+      );
+      if (priorRejection !== undefined) {
+        throw finishValidationError(priorRejection);
+      }
+    }
+    const promptLines = [
+      ...(extension?.promptLines?.() ?? []),
+      ...finishValidationPromptLines(validationSpec),
+    ];
     const result = await runtime.runInScope(orchestratorState, () =>
       (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
-        orchestratorPrompt(goal, opts?.maxSpawns, extension?.promptLines?.()),
+        orchestratorPrompt(
+          goal,
+          opts?.maxSpawns,
+          promptLines.length === 0 ? undefined : promptLines,
+        ),
         agentOpts,
       ),
     );
@@ -2007,6 +2287,12 @@ export function makeOrchestratorWorkflow(
       // The cap fired while the loop was suspended in a wake; the
       // forced-finish abort ended it.
       return await settleCapOutcome();
+    }
+    if (validationTermination !== undefined) {
+      // The final finish rejection (or a defective validator) aborted
+      // the loop; the typed failure wins over the cancelled status, and
+      // the journaled rejected verdict makes a resume identical.
+      throw validationTermination;
     }
     if (orchestratorAccount !== undefined) {
       internals.cost.orchestrator.spentUsd =

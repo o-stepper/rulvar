@@ -338,8 +338,20 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * tool ends the loop with status ok; the call's validated `result`
    * argument becomes the agent output (the orchestrator finish
    * tool). The tool's execute never runs, mirroring escalate.
+   * `validate` is the optional host judgment over a schema valid call
+   * (the RV-204 finish validators): ok finishes as before; a rejection
+   * becomes the call's error tool result and the turn continues, so the
+   * model can repair and call the terminal tool again. The hook owns
+   * bounding and journaling; the loop stays policy only and never
+   * throws.
    */
-  terminalTool?: { name: string };
+  terminalTool?: {
+    name: string;
+    validate?: (call: {
+      id: string;
+      result: unknown;
+    }) => Promise<{ ok: true } | { ok: false; feedback: Record<string, unknown> }>;
+  };
   agentType?: string;
   /** The primary invocation role of the tool loop; default 'loop' (M6-T05). */
   role?: 'loop' | 'plan' | 'orchestrate';
@@ -1128,6 +1140,28 @@ export async function runAgent<S extends SchemaSpec>(
           );
           continue;
         }
+        const finishArgs = validation.value as { result?: unknown };
+        // The host judgment over a schema valid call (RV-204): a
+        // rejection is the call's error tool result and the turn
+        // continues, so the model repairs and calls the tool again; the
+        // hook owns the repair bound and the journaled verdicts.
+        const hostVerdict =
+          options.terminalTool.validate === undefined
+            ? undefined
+            : await options.terminalTool.validate({
+                id: call.id,
+                result: finishArgs.result ?? null,
+              });
+        if (hostVerdict !== undefined && !hostVerdict.ok) {
+          events?.emit({
+            type: 'tool:end',
+            toolName: gatedCall.name,
+            outcome: 'error',
+            durationMs: now() - gateStartedAt,
+          });
+          parts.push(errorPart(call, hostVerdict.feedback));
+          continue;
+        }
         events?.emit({
           type: 'tool:end',
           toolName: gatedCall.name,
@@ -1140,7 +1174,6 @@ export async function runAgent<S extends SchemaSpec>(
           name: call.name,
           result: { finished: true },
         });
-        const finishArgs = validation.value as { result?: unknown };
         return { parts, limitHit: false, finished: finishArgs.result ?? null };
       }
       toolCallsUsed += 1;

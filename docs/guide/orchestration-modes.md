@@ -154,7 +154,7 @@ Rather than polling, the orchestrator sleeps on `wait_for_events` and is woken b
 Two contracts to hold in mind when you consume mode (c) results:
 
 - `await_any` and `await_all` return `TaskDigest` values, not full child reports: `status`, `costUsd`, the artifact id index, and an `outputSummary` deterministically truncated to the digest render budget (400 characters by default). The digest is a wake signal, not the result channel; a child whose full output matters should return compact structured output or write artifacts. The full output IS durable (the child's terminal journal entry holds it), and `exposeChildResultTools` below lets the orchestrator page it in place.
-- Run status `ok` proves that `finish({ result })` validated, and nothing more. The model may call `finish` after any mix of child outcomes, so `ok` alone never proves the children succeeded. When that distinction matters, set the acceptance policy below; a budget cap partial is separately visible as run status `exhausted` (or a typed `fail_run` error under `budget.atCap: 'fail-run'`), never a plain `ok`.
+- Run status `ok` proves that `finish({ result })` validated, and nothing more. The model may call `finish` after any mix of child outcomes, so `ok` alone never proves the children succeeded. When that distinction matters, set the acceptance policy below; when the result itself must carry required structure or evidence, add the finish validators one section further down; a budget cap partial is separately visible as run status `exhausted` (or a typed `fail_run` error under `budget.atCap: 'fail-run'`), never a plain `ok`.
 
 ### Acceptance: the child completion policy
 
@@ -182,6 +182,42 @@ const outcome = await audited.result;
 A violated policy fails the run instead of settling `ok`: the outcome is `error` with the typed `FailRunError` (code `fail_run`, `data.source` `'orchestrator_acceptance'`), carrying the child status counts and the degraded reasons. Under `'all-ok'`, a child still running when `finish` validates counts against the policy, and so does a deliberately cancelled straggler; zero spawned children are vacuously complete. Under `{ minSuccessful: N }`, an accepted result with any non `ok` child reports `completion: 'partial'` and names every degraded child in `degradedReasons`. Without `acceptance`, the result value stays the raw finish payload and no new journal entry is written, exactly as before.
 
 The CLI pairs with the envelope: `rulvar run --strict` (and `resume --strict`) exits nonzero when a settled `ok` value carries `completion: 'partial'`, printing the degraded reasons, so scripts can demand complete orchestrations without parsing the value themselves.
+
+### Validating the finish result
+
+`acceptance` judges the children; it never reads the result itself, so a schema valid but semantically empty `finish({ result: "all good, trust me" })` still lands as `completion: 'complete'`. `finishValidation` closes that gap with deterministic host validators over the finish result, plus a bounded repair loop.
+
+```ts
+import {
+  minMatchesValidator,
+  requiredSectionsValidator,
+} from "@rulvar/core";
+
+const audited = orchestrate(
+  engine,
+  "Audit the module; the report needs FINDINGS, EVIDENCE, and citations",
+  {
+    profiles: ["reviewer"],
+    finishValidation: {
+      validators: [
+        requiredSectionsValidator({ sections: ["FINDINGS", "EVIDENCE"] }),
+        // At least three file:line citations anywhere in the result text.
+        minMatchesValidator({ pattern: "[\\w/.]+\\.ts:\\d+", min: 3, name: "citations" }),
+      ],
+      maxRepairs: 1, // the default: repair once, then fail
+    },
+  },
+  { budgetUsd: 10 },
+);
+```
+
+Every schema valid `finish` call first passes the validators, in configuration order. On a rejection the failure reasons return to the model as the call's error tool result and the turn continues: the model repairs the result and calls `finish` again. `maxRepairs` bounds how many rejected finishes are granted that repair turn (default one; zero fails on the first rejection). A rejection past the bound fails the run with the typed `FailRunError` (code `fail_run`, `data.source` `'orchestrator_finish_validation'`, the failed validators and their reasons in `data`), and it fires BEFORE the acceptance settle, so acceptance never judges a finish the validators rejected.
+
+Every verdict (accepted, repair, rejected) journals as one decision entry keyed by the finish call id, so a resume rolls the same verdicts forward without re-running validator code and the whole exchange replays without new paid calls; a journaled final rejection even short circuits at boot, before any model call. The toolset never changes (the contract reaches the model through the orchestrator prompt), and zero configuration adds zero journal entries.
+
+The built in validators cover the plan's mechanical checks: `requiredSectionsValidator` (literal section markers in the result text), `requiredFieldsValidator` (object fields present and not empty strings), `minMatchesValidator` (at least N regex matches, the citation and source counts). Anything else is a custom `FinishValidator`: a `name` unique within the call and a synchronous, deterministic `validate(input)` over `{ result, text }`. A validator that throws is a host defect: the run fails as `ConfigError`, nothing journals, and no repair turn is spent on it.
+
+Two honest bounds: validators are HOST code, so they check mechanical properties (structure, counts, markers), not truth; and repair turns spend from the orchestrator's ordinary limits and ceilings (`limits.maxTurns`, `budget`, the root `budgetUsd`), with `maxRepairs` as the explicit bound, so there is no separate repair budget reserve. The budget cap paths keep their posture: the reserved finalize dispatch after a cap is never validated, exactly as acceptance never judges it.
 
 ### Reading a child's full evidence
 

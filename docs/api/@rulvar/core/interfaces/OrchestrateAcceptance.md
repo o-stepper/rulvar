@@ -6,7 +6,7 @@
 
 # Interface: OrchestrateAcceptance
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L144)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:149](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L149)
 
 The opt-in child completion policy (the v1.40.0 improvement plan's
 completion contract): run status 'ok' alone never proves the children
@@ -26,4 +26,4 @@ never a plain ok, so acceptance does not judge it again.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-childpolicy"></a> `childPolicy` | \| `"all-ok"` \| \{ `minSuccessful`: `number`; \} | 'all-ok' requires EVERY spawned child to have settled 'ok' when finish validates: a child still running counts against the policy, and so does a deliberately cancelled straggler (spawn nothing you do not need to succeed; zero spawned children are vacuously complete). { minSuccessful: N } requires at least N children settled 'ok' and reports every other child in degradedReasons. | [packages/core/src/orchestrator/orchestrate.ts:153](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L153) |
+| <a id="property-childpolicy"></a> `childPolicy` | \| `"all-ok"` \| \{ `minSuccessful`: `number`; \} | 'all-ok' requires EVERY spawned child to have settled 'ok' when finish validates: a child still running counts against the policy, and so does a deliberately cancelled straggler (spawn nothing you do not need to succeed; zero spawned children are vacuously complete). { minSuccessful: N } requires at least N children settled 'ok' and reports every other child in degradedReasons. | [packages/core/src/orchestrator/orchestrate.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L158) |
