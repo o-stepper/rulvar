@@ -23,7 +23,7 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@rulvar/compat", "@rulvar/docs"],
+  "ignore": ["@rulvar/compat", "@rulvar/docs", "@rulvar/examples"],
   "privatePackages": {
     "version": true,
     "tag": false
