@@ -7,10 +7,13 @@
 # Function: buildOrchestratorTools()
 
 ```ts
-function buildOrchestratorTools(runtime, profileCardText): ToolDef<SchemaSpec>[];
+function buildOrchestratorTools(
+   runtime, 
+   profileCardText, 
+   options?): ToolDef<SchemaSpec>[];
 ```
 
-Defined in: [packages/core/src/orchestrator/spawn-tools.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L134)
+Defined in: [packages/core/src/orchestrator/spawn-tools.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/spawn-tools.ts#L167)
 
 Builds the mode (c) toolset over the per-call runtime. profileCardText
 rides the spawn tools' descriptions so both modes speak one agent
@@ -22,6 +25,8 @@ vocabulary (M6-T04).
 | ------ | ------ |
 | `runtime` | [`OrchestratorRuntime`](/api/@rulvar/core/interfaces/OrchestratorRuntime.md) |
 | `profileCardText` | `string` |
+| `options?` | \{ `childResultTools?`: `boolean`; \} |
+| `options.childResultTools?` | `boolean` |
 
 ## Returns
 

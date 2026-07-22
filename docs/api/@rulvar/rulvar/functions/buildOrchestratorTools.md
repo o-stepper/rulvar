@@ -7,7 +7,10 @@
 # Function: buildOrchestratorTools()
 
 ```ts
-function buildOrchestratorTools(runtime, profileCardText): ToolDef<SchemaSpec<unknown>>[];
+function buildOrchestratorTools(
+   runtime, 
+   profileCardText, 
+   options?): ToolDef<SchemaSpec<unknown>>[];
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -22,6 +25,8 @@ vocabulary (M6-T04).
 | ------ | ------ |
 | `runtime` | [`OrchestratorRuntime`](/api/@rulvar/rulvar/interfaces/OrchestratorRuntime.md) |
 | `profileCardText` | `string` |
+| `options?` | \{ `childResultTools?`: `boolean`; \} |
+| `options.childResultTools?` | `boolean` |
 
 ## Returns
 

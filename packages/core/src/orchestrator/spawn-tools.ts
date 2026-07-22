@@ -96,6 +96,39 @@ export const CANCEL_AGENT_SCHEMA: SchemaSpec = {
   },
 };
 
+/** Default and hard-max characters per child-result / artifact page. */
+export const DEFAULT_CHILD_RESULT_PAGE_CHARS = 4000;
+export const MAX_CHILD_RESULT_PAGE_CHARS = 20000;
+
+const PAGING_PROPS = {
+  offset: { type: 'integer' as const, minimum: 0 },
+  maxChars: { type: 'integer' as const, minimum: 1 },
+};
+
+export const GET_CHILD_RESULT_SCHEMA: SchemaSpec = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['handle'],
+  properties: {
+    handle: { type: 'integer', minimum: 1 },
+    ...PAGING_PROPS,
+  },
+};
+
+export const READ_CHILD_ARTIFACT_SCHEMA: SchemaSpec = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['handle', 'artifactId'],
+  properties: {
+    handle: { type: 'integer', minimum: 1 },
+    artifactId: { type: 'string' },
+    ...PAGING_PROPS,
+  },
+};
+
+export const GET_CHILD_RESULT_TOOL_NAME = 'get_child_result';
+export const READ_CHILD_ARTIFACT_TOOL_NAME = 'read_child_artifact';
+
 /** finish; result validates against the declared output schema. */
 export const FINISH_SCHEMA: SchemaSpec = {
   type: 'object',
@@ -134,6 +167,7 @@ export interface SpawnAgentParams {
 export function buildOrchestratorTools(
   runtime: OrchestratorRuntime,
   profileCardText: string,
+  options?: { childResultTools?: boolean },
 ): ToolDef[] {
   const spawnAgent = tool({
     name: 'spawn_agent',
@@ -195,5 +229,47 @@ export function buildOrchestratorTools(
       throw new Error('finish is intercepted by the agent runtime, never executed');
     },
   });
-  return [spawnAgent, parallelAgents, awaitAny, awaitAll, cancelAgent, waitForEvents, finish];
+  const tools = [spawnAgent, parallelAgents, awaitAny, awaitAll, cancelAgent, waitForEvents];
+  if (options?.childResultTools === true) {
+    // The opt-in evidence tools (RV-201): a digest is a wake signal, so a
+    // child whose full output matters is read through these AFTER it
+    // settles. Both are pure reads of durable journal state; opting in
+    // adds them to the toolset (its hash changes by design, exactly like
+    // the extension's plan tools), so a run that never opts in keeps the
+    // frozen default toolset unchanged.
+    tools.push(
+      tool({
+        name: GET_CHILD_RESULT_TOOL_NAME,
+        description:
+          "Read a page of a SETTLED child's FULL output (the digest is truncated to 400 " +
+          'chars). Pages with offset and maxChars; the reply reports totalChars and hasMore.',
+        parameters: GET_CHILD_RESULT_SCHEMA,
+        execute: (input) => {
+          const p = input as { handle: number; offset?: number; maxChars?: number };
+          return runtime.getChildResult(p.handle, { offset: p.offset, maxChars: p.maxChars });
+        },
+      }),
+      tool({
+        name: READ_CHILD_ARTIFACT_TOOL_NAME,
+        description:
+          "Read a page of a SETTLED child's artifact content by id (ids come from " +
+          'get_child_result or a digest). Pages with offset and maxChars.',
+        parameters: READ_CHILD_ARTIFACT_SCHEMA,
+        execute: (input) => {
+          const p = input as {
+            handle: number;
+            artifactId: string;
+            offset?: number;
+            maxChars?: number;
+          };
+          return runtime.readChildArtifact(p.handle, p.artifactId, {
+            offset: p.offset,
+            maxChars: p.maxChars,
+          });
+        },
+      }),
+    );
+  }
+  tools.push(finish);
+  return tools;
 }

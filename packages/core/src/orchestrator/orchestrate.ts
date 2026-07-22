@@ -57,12 +57,20 @@ import type { AdmissionDecision } from './admission.js';
 import {
   digestOf,
   WAKE_SUMMARY_RENDER_BUDGET_CHARS,
+  type ChildArtifactPage,
+  type ChildResultPage,
   type OrchestratorRuntime,
   type SpawnAdmissionValue,
   type SpawnRecord,
   type TaskDigest,
 } from './handles.js';
-import { buildOrchestratorTools, FINISH_TOOL_NAME, type SpawnAgentParams } from './spawn-tools.js';
+import {
+  buildOrchestratorTools,
+  DEFAULT_CHILD_RESULT_PAGE_CHARS,
+  FINISH_TOOL_NAME,
+  MAX_CHILD_RESULT_PAGE_CHARS,
+  type SpawnAgentParams,
+} from './spawn-tools.js';
 import type {
   ExtensionDispatchSpec,
   OrchestratorExtension,
@@ -178,9 +186,51 @@ export interface OrchestrateOptions {
   extension?: OrchestratorExtension;
   /** The opt in child completion policy; see {@link OrchestrateAcceptance}. */
   acceptance?: OrchestrateAcceptance;
+  /**
+   * Opt in to the evidence tools `get_child_result` and
+   * `read_child_artifact` (the v1.40.0 improvement plan's narrow RV-201
+   * slice). The digest an await returns is a wake signal truncated to 400
+   * characters; with this set, the orchestrator can page a settled
+   * child's FULL output and its artifact contents, both pure reads of
+   * durable journal state. Adding the tools changes the orchestrator
+   * toolset hash by design (exactly like the extension's plan tools), so
+   * leave it off and the default toolset, and every frozen cassette, stay
+   * unchanged.
+   */
+  exposeChildResultTools?: boolean;
 }
 
 export const ORCHESTRATE_WORKFLOW_NAME = 'rulvar-orchestrate';
+
+/**
+ * One page of a string, for the child result evidence tools: maxChars is
+ * clamped to [1, MAX] and offset to [0, length], so a hostile or absent
+ * paging argument can never throw or read past the end. The window is measured in
+ * UTF-16 code units, the same unit the model counts, so hasMore and the
+ * next offset are exact.
+ */
+function pageOf(
+  content: string,
+  rawOffset: number | undefined,
+  rawMaxChars: number | undefined,
+): { totalChars: number; offset: number; content: string; hasMore: boolean } {
+  const totalChars = content.length;
+  const offset = Math.min(Math.max(0, Math.trunc(rawOffset ?? 0)), totalChars);
+  const maxChars = Math.min(
+    Math.max(1, Math.trunc(rawMaxChars ?? DEFAULT_CHILD_RESULT_PAGE_CHARS)),
+    MAX_CHILD_RESULT_PAGE_CHARS,
+  );
+  const end = Math.min(offset + maxChars, totalChars);
+  return { totalChars, offset, content: content.slice(offset, end), hasMore: end < totalChars };
+}
+
+/** The serialized full result of a settled child: the raw string, or JSON. */
+function serializeChildOutput(result: AgentResult<unknown>): string {
+  if (result.status !== 'ok') {
+    return result.errorMessage ?? `terminal status ${result.status}`;
+  }
+  return typeof result.output === 'string' ? result.output : JSON.stringify(result.output ?? null);
+}
 
 /**
  * The orchestrate intake gate (v1.35.0 review P2-2): every numeric
@@ -1516,6 +1566,75 @@ export function makeOrchestratorWorkflow(
         await recoveryDone;
         return cancelByHandle(handle, reason);
       },
+      async getChildResult(
+        handle: number,
+        opts?: { offset?: number; maxChars?: number },
+      ): Promise<ChildResultPage> {
+        await recoveryDone;
+        const record = records.get(handle);
+        if (record === undefined) {
+          throw new ConfigError(`get_child_result: unknown handle ${String(handle)}`);
+        }
+        const settled = record.settled;
+        if (settled === undefined) {
+          throw new ConfigError(
+            `get_child_result: child ${String(handle)} has not settled; await it first`,
+          );
+        }
+        const page = pageOf(serializeChildOutput(settled), opts?.offset, opts?.maxChars);
+        return {
+          handle,
+          status: settled.status,
+          ...page,
+          artifacts: (settled.artifacts ?? []).map((artifact) => ({
+            id: artifact.id,
+            kind: artifact.kind,
+            ...(artifact.label === undefined ? {} : { label: artifact.label }),
+          })),
+        };
+      },
+      async readChildArtifact(
+        handle: number,
+        artifactId: string,
+        opts?: { offset?: number; maxChars?: number },
+      ): Promise<ChildArtifactPage> {
+        await recoveryDone;
+        const record = records.get(handle);
+        if (record === undefined) {
+          throw new ConfigError(`read_child_artifact: unknown handle ${String(handle)}`);
+        }
+        const settled = record.settled;
+        if (settled === undefined) {
+          throw new ConfigError(
+            `read_child_artifact: child ${String(handle)} has not settled; await it first`,
+          );
+        }
+        const artifact = (settled.artifacts ?? []).find((a) => a.id === artifactId);
+        if (artifact === undefined) {
+          throw new ConfigError(
+            `read_child_artifact: child ${String(handle)} has no artifact '${artifactId}'`,
+          );
+        }
+        // Inline data serializes directly; an offloaded ref is fetched
+        // from the (durable) transcript store and decoded as UTF-8; a
+        // patch with only a file list carries no content string.
+        let raw = '';
+        if (artifact.data !== undefined) {
+          raw = typeof artifact.data === 'string' ? artifact.data : JSON.stringify(artifact.data);
+        } else if (artifact.ref !== undefined) {
+          const blob = await internals.transcripts.get(artifact.ref);
+          raw = blob === null ? '' : new TextDecoder().decode(blob);
+        }
+        const page = pageOf(raw, opts?.offset, opts?.maxChars);
+        return {
+          handle,
+          artifactId,
+          kind: artifact.kind,
+          ...(artifact.label === undefined ? {} : { label: artifact.label }),
+          ...page,
+          ...(artifact.files === undefined ? {} : { files: artifact.files }),
+        };
+      },
     };
 
     // The extension boots strictly BEFORE the orchestrator agent's first
@@ -1634,7 +1753,9 @@ export function makeOrchestratorWorkflow(
       });
     }
     const tools = [
-      ...buildOrchestratorTools(orchestratorRuntime, fullCardText),
+      ...buildOrchestratorTools(orchestratorRuntime, fullCardText, {
+        childResultTools: opts?.exposeChildResultTools === true,
+      }),
       ...(extension?.tools(io) ?? []),
     ];
     const agentOpts: AgentOpts & InternalAgentHooks & { result: 'full' } = {

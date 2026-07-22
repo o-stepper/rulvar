@@ -1,3 +1,8 @@
+import { execFile } from 'node:child_process';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
 
 import type { ChatRequest } from '../l0/messages.js';
@@ -8,6 +13,8 @@ import { executeWorkflow } from '../engine/ctx.js';
 import { makeInternals, scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
 import type { AgentProfile } from '../engine/ctx.js';
 import { createEngine } from '../engine/engine.js';
+import { GitWorktreeProvider } from '../tools/isolation.js';
+import { tool } from '../tools/tool.js';
 import { makeOrchestratorWorkflow, orchestrate } from './orchestrate.js';
 
 /** The telemetry namespace tells orchestrator requests from child ones. */
@@ -893,4 +900,256 @@ describe('acceptance: the child completion policy (v1.40.0 improvement plan)', (
       }),
     ).toThrow(/minSuccessful/);
   });
+});
+
+/** Every unique result the model received for calls to `toolName`, in order. */
+function toolResults(
+  calls: readonly ChatRequest[],
+  toolName: string,
+): Array<Record<string, unknown>> {
+  const bySeenId = new Map<string, Record<string, unknown>>();
+  for (const req of calls) {
+    for (const msg of req.messages) {
+      for (const part of msg.parts) {
+        if (part.type === 'tool-result' && part.name === toolName && !bySeenId.has(part.id)) {
+          bySeenId.set(part.id, part.result as Record<string, unknown>);
+        }
+      }
+    }
+  }
+  return [...bySeenId.values()];
+}
+
+describe('child result evidence tools (v1.40.0 improvement plan, RV-201)', () => {
+  const HUGE = 'EVIDENCE-' + 'y'.repeat(6000);
+  const DIGGER = { digger: { description: 'a digging child' } };
+
+  /**
+   * The orchestrator spawns one child, awaits it, then runs the tool calls
+   * `middle(handle)` produces (the child handle is journal-derived, learnt
+   * at the await turn) before finishing.
+   */
+  function singleChildAdapter(
+    childTurn: (prompt: string) => ScriptedTurn,
+    middle: (handle: number) => Array<{ name: string; args: unknown }>,
+  ) {
+    let orchTurn = 0;
+    let steps: Array<{ name: string; args: unknown }> = [];
+    return scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'digger') {
+        const prompt = req.messages[0]?.parts.find((p) => p.type === 'text') as
+          { text: string } | undefined;
+        return childTurn(prompt?.text ?? '');
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return { toolCall: { name: 'spawn_agent', args: { agentType: 'digger', prompt: 'dig' } } };
+      }
+      if (orchTurn === 2) {
+        const handles = handlesIn(req);
+        steps = middle(handles[0] ?? -1);
+        return { toolCall: { name: 'await_all', args: { handles } } };
+      }
+      const step = steps[orchTurn - 3];
+      if (step !== undefined) {
+        return { toolCall: step };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'read the evidence' } } };
+    });
+  }
+
+  it('exposeChildResultTools pages a settled child FULL output past the 400 char digest', async () => {
+    const adapter = singleChildAdapter(
+      () => ({ text: HUGE }),
+      (h) => [
+        { name: 'get_child_result', args: { handle: h, maxChars: 100 } },
+        { name: 'get_child_result', args: { handle: h, offset: 100 } },
+      ],
+    );
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: DIGGER,
+    });
+    const wf = makeOrchestratorWorkflow('gather', { exposeChildResultTools: true });
+    expect(await executeWorkflow(internals, wf, undefined)).toBe('read the evidence');
+
+    const pages = toolResults(
+      adapter.calls.filter((r) => agentTypeOf(r) === ''),
+      'get_child_result',
+    );
+    expect(pages).toHaveLength(2);
+    // The FIRST page: bounded to 100 chars, honest totalChars, more to come.
+    const [page1, page2] = pages;
+    expect(page1?.status).toBe('ok');
+    expect(page1?.totalChars).toBe(HUGE.length);
+    expect(page1?.offset).toBe(0);
+    expect((page1?.content as string).length).toBe(100);
+    expect(page1?.content).toBe(HUGE.slice(0, 100));
+    expect(page1?.hasMore).toBe(true);
+    expect(page1?.artifacts).toEqual([]);
+    // The SECOND page: from offset 100, the default window, still more.
+    expect(page2?.offset).toBe(100);
+    expect((page2?.content as string).length).toBe(4000);
+    expect(page2?.content).toBe(HUGE.slice(100, 4100));
+    expect(page2?.hasMore).toBe(true);
+  });
+
+  it('clamps an oversized maxChars and an offset past the end', async () => {
+    const adapter = singleChildAdapter(
+      () => ({ text: HUGE }),
+      (h) => [
+        { name: 'get_child_result', args: { handle: h, maxChars: 10_000_000 } },
+        { name: 'get_child_result', args: { handle: h, offset: 999_999 } },
+      ],
+    );
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: DIGGER,
+    });
+    const wf = makeOrchestratorWorkflow('gather', { exposeChildResultTools: true });
+    await executeWorkflow(internals, wf, undefined);
+    const [clamped, past] = toolResults(
+      adapter.calls.filter((r) => agentTypeOf(r) === ''),
+      'get_child_result',
+    );
+    // maxChars clamps to the 20000 hard max; the whole 6009-char body fits.
+    expect((clamped?.content as string).length).toBe(HUGE.length);
+    expect(clamped?.hasMore).toBe(false);
+    // offset past the end yields an empty tail, not an error.
+    expect(past?.offset).toBe(HUGE.length);
+    expect(past?.content).toBe('');
+    expect(past?.hasMore).toBe(false);
+  });
+
+  it('reads a FAILED child errorMessage as evidence, and errors on an unknown handle', async () => {
+    const adapter = singleChildAdapter(
+      () => ({
+        error: { code: 'agent', message: 'the dig collapsed at layer 3', retryable: false },
+      }),
+      (h) => [
+        { name: 'get_child_result', args: { handle: h } },
+        { name: 'get_child_result', args: { handle: 999 } },
+      ],
+    );
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: DIGGER,
+    });
+    const wf = makeOrchestratorWorkflow('gather', { exposeChildResultTools: true });
+    await executeWorkflow(internals, wf, undefined);
+    const orchCalls = adapter.calls.filter((r) => agentTypeOf(r) === '');
+    const [failed] = toolResults(orchCalls, 'get_child_result');
+    expect(failed?.status).toBe('error');
+    expect(failed?.content).toContain('the dig collapsed at layer 3');
+    // An unknown handle surfaces as a typed error tool result to the model.
+    const conversation = JSON.stringify(orchCalls.at(-1)?.messages ?? []);
+    expect(conversation).toContain('unknown handle 999');
+  });
+
+  it('leaves the tools and the toolset UNCHANGED when not opted in', async () => {
+    const adapter = singleChildAdapter(
+      () => ({ text: HUGE }),
+      (h) => [{ name: 'get_child_result', args: { handle: h } }],
+    );
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: DIGGER,
+    });
+    // Default (opt out): the tools are not offered, and a call to one is a
+    // refused as an unknown tool, exactly as before this feature existed.
+    const wf = makeOrchestratorWorkflow('gather', {});
+    await executeWorkflow(internals, wf, undefined);
+    const orchCalls = adapter.calls.filter((r) => agentTypeOf(r) === '');
+    const toolNames = (orchCalls[0]?.tools ?? []).map((t) => t.name);
+    expect(toolNames).not.toContain('get_child_result');
+    expect(toolNames).not.toContain('read_child_artifact');
+    // Calling the absent tool produced only an unknown tool refusal, never a
+    // valid page (a real page always carries totalChars).
+    const results = toolResults(orchCalls, 'get_child_result');
+    expect(results.every((r) => r.totalChars === undefined)).toBe(true);
+    const conversation = JSON.stringify(orchCalls.at(-1)?.messages ?? []);
+    expect(conversation.toLowerCase()).toMatch(/unknown tool|no tool|not (a )?(registered|known)/);
+  });
+
+  it('read_child_artifact pages a real worktree-patch child artifact', async () => {
+    const git = promisify(execFile);
+    const repo = await mkdtemp(join(tmpdir(), 'rulvar-orch-repo-'));
+    const run = (...args: string[]) => git('git', ['-C', repo, ...args]);
+    await run('init', '--initial-branch=main');
+    await run('config', 'user.email', 'test@example.com');
+    await run('config', 'user.name', 'Test');
+    await writeFile(join(repo, 'README.md'), 'base\n');
+    await run('add', '-A');
+    await run('commit', '-m', 'initial');
+
+    const writeNote = tool({
+      name: 'write_note',
+      description: 'writes a note into the working directory',
+      parameters: { type: 'object' },
+      risk: 'write',
+      execute: async (_input, ctx) => {
+        await writeFile(join(ctx.cwd, 'note.txt'), 'from the child agent\n');
+        return `wrote into ${ctx.cwd}`;
+      },
+    });
+
+    let orchTurn = 0;
+    let childHandle = -1;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'builder') {
+        // Turn 0: the child writes a note in its worktree; turn 1 ends,
+        // and the worktree collect attaches the patch artifact.
+        return req.messages.some((m) => m.parts.some((p) => p.type === 'tool-result'))
+          ? { text: 'noted' }
+          : { toolCall: { name: 'write_note', args: {} } };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'builder', prompt: 'edit' } },
+        };
+      }
+      if (orchTurn === 2) {
+        childHandle = handlesIn(req)[0] ?? -1;
+        return { toolCall: { name: 'await_all', args: { handles: [childHandle] } } };
+      }
+      if (orchTurn === 3) {
+        return {
+          toolCall: {
+            name: 'read_child_artifact',
+            args: { handle: childHandle, artifactId: 'worktree-patch' },
+          },
+        };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'patch read' } } };
+    });
+
+    const { internals } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      isolation: new GitWorktreeProvider({ repoRoot: repo }),
+      profiles: {
+        builder: {
+          description: 'edits files in a worktree',
+          isolation: { kind: 'worktree' },
+          tools: [writeNote],
+        },
+      },
+    });
+    const wf = makeOrchestratorWorkflow('build it', { exposeChildResultTools: true });
+    expect(await executeWorkflow(internals, wf, undefined)).toBe('patch read');
+
+    const orchCalls = adapter.calls.filter((r) => agentTypeOf(r) === '');
+    const [artifactPage] = toolResults(orchCalls, 'read_child_artifact');
+    expect(artifactPage?.kind).toBe('patch');
+    expect(artifactPage?.artifactId).toBe('worktree-patch');
+    expect(artifactPage?.files).toEqual(['note.txt']);
+    // The patch content is the durable transcript blob, decoded and paged.
+    expect(artifactPage?.content).toContain('from the child agent');
+    expect(artifactPage?.hasMore).toBe(false);
+  }, 15_000);
 });

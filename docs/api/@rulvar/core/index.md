@@ -131,7 +131,9 @@ exactly the pieces you need, for example
 | [CanonicalLadderSpec](/api/@rulvar/core/interfaces/CanonicalLadderSpec.md) | LadderSpec after canonicalization: every rung's effort resolved to an explicit value. |
 | [ChatRequest](/api/@rulvar/core/interfaces/ChatRequest.md) | The provider-neutral chat request. Sampling parameters (temperature, top_p, top_k) are deliberately absent from the first-class surface: both first-class providers reject them on current reasoning models; where a target legitimately supports them they travel through the adapter's providerOptions namespace, subject to caps scrubbing. |
 | [CheckpointState](/api/@rulvar/core/interfaces/CheckpointState.md) | The canonical-history snapshot at a turn boundary. |
+| [ChildArtifactPage](/api/@rulvar/core/interfaces/ChildArtifactPage.md) | One page of a settled child's artifact CONTENT, returned by the opt-in `read_child_artifact` tool. Inline artifact `data` serializes to a string; an offloaded artifact (a TranscriptStore `ref`) is fetched and decoded as UTF-8; a `patch` artifact with only a changed file list carries that list in `files` and empty content. Paged and pure exactly like [ChildResultPage](/api/@rulvar/core/interfaces/ChildResultPage.md). |
 | [ChildIdentityInput](/api/@rulvar/core/interfaces/ChildIdentityInput.md) | Nested workflow spawns: ctx.workflow (kind 'child'). |
+| [ChildResultPage](/api/@rulvar/core/interfaces/ChildResultPage.md) | One page of a settled child's FULL output, returned by the opt-in `get_child_result` tool. The digest is a wake signal truncated to 400 characters; this is the whole evidence, paged so a large result can be read without overflowing the orchestrator's context in one call (v1.40.0 improvement plan, the narrow RV-201 slice). The content is a deterministic serialization of the child's `output` (the raw string when the output IS a string, else its JCS-independent `JSON.stringify`) for a settled ok child, or the child's `errorMessage` otherwise, so the orchestrator can read WHY a child failed as readily as what it produced. Everything here is a pure read of already durable journal state, so a resume reproduces it with no new spend. |
 | [ClaimValidationOptions](/api/@rulvar/core/interfaces/ClaimValidationOptions.md) | - |
 | [CollectedTurn](/api/@rulvar/core/interfaces/CollectedTurn.md) | One collected model turn, assembled from the stream by the agent loop. |
 | [CollectOpts](/api/@rulvar/core/interfaces/CollectOpts.md) | - |
@@ -409,6 +411,7 @@ exactly the pieces you need, for example
 | [COMPACTION\_SUMMARY\_PREFIX](/api/@rulvar/core/variables/COMPACTION_SUMMARY_PREFIX.md) | Deterministic marker opening every compaction summary message. |
 | [CURRENT\_HASH\_VERSION](/api/@rulvar/core/variables/CURRENT_HASH_VERSION.md) | 1 = round 1; 2 = current. |
 | [DEFAULT\_CHILD\_BUDGET\_FRACTION](/api/@rulvar/core/variables/DEFAULT_CHILD_BUDGET_FRACTION.md) | - |
+| [DEFAULT\_CHILD\_RESULT\_PAGE\_CHARS](/api/@rulvar/core/variables/DEFAULT_CHILD_RESULT_PAGE_CHARS.md) | Default and hard-max characters per child-result / artifact page. |
 | [DEFAULT\_COMPACTION\_THRESHOLD](/api/@rulvar/core/variables/DEFAULT_COMPACTION_THRESHOLD.md) | Compaction threshold default, 0.8 of contextWindow. |
 | [DEFAULT\_ESCALATION\_LIMITS](/api/@rulvar/core/variables/DEFAULT_ESCALATION_LIMITS.md) | - |
 | [DEFAULT\_FLAT\_RESERVE\_USD](/api/@rulvar/core/variables/DEFAULT_FLAT_RESERVE_USD.md) | Last resort of the admission reserve formula. |
@@ -436,6 +439,8 @@ exactly the pieces you need, for example
 | [FINALIZE\_SYNTHESIS\_INSTRUCTION](/api/@rulvar/core/variables/FINALIZE_SYNTHESIS_INSTRUCTION.md) | The deterministic synthesis instruction appended (as a user message) to the finalize REQUEST only, never to the durable transcript. A transcript that simply ends at an assistant message reads to a real model as a fresh conversation opening, so an uninstructed synthesis call can replace the loop's correct answer with a greeting (v1.18.0 review P1-1); the extract arm has carried its own instruction since M4, and this is its finalize twin. The wording is part of the wire request: keep it stable. |
 | [FINISH\_SCHEMA](/api/@rulvar/core/variables/FINISH_SCHEMA.md) | finish; result validates against the declared output schema. |
 | [FINISH\_TOOL\_NAME](/api/@rulvar/core/variables/FINISH_TOOL_NAME.md) | - |
+| [GET\_CHILD\_RESULT\_SCHEMA](/api/@rulvar/core/variables/GET_CHILD_RESULT_SCHEMA.md) | - |
+| [GET\_CHILD\_RESULT\_TOOL\_NAME](/api/@rulvar/core/variables/GET_CHILD_RESULT_TOOL_NAME.md) | - |
 | [INBOX\_PROPOSAL\_TTL\_DAYS](/api/@rulvar/core/variables/INBOX_PROPOSAL_TTL_DAYS.md) | Inbox proposals expire after 14 days (reserved for M12 phase 3). |
 | [KB\_ACTIVE\_CLAIMS\_CAP](/api/@rulvar/core/variables/KB_ACTIVE_CLAIMS_CAP.md) | Appendix A: KB active-claims cap, default 8 per (model, taskClass). |
 | [KB\_CARD\_RENDER\_BUDGET\_CHARS](/api/@rulvar/core/variables/KB_CARD_RENDER_BUDGET_CHARS.md) | The KB card render budget (characters). |
@@ -444,9 +449,12 @@ exactly the pieces you need, for example
 | [LEGACY\_SIGNATURE\_INPUTS](/api/@rulvar/core/variables/LEGACY_SIGNATURE_INPUTS.md) | The deterministic signature inputs assigned to legacy spawns (journals written before lineage existed) and to attempts whose producers did not record signature inputs: stable constants, never wall-clock, so replay canonizes identically on every engine. |
 | [LINEAGE\_SIG\_VERSION](/api/@rulvar/core/variables/LINEAGE_SIG_VERSION.md) | approachSig/approachSigCoarse derivation version. |
 | [MASKED\_SECRET](/api/@rulvar/core/variables/MASKED_SECRET.md) | The replacement marker; deterministic and greppable. |
+| [MAX\_CHILD\_RESULT\_PAGE\_CHARS](/api/@rulvar/core/variables/MAX_CHILD_RESULT_PAGE_CHARS.md) | - |
 | [MAX\_DEPTH\_CEILING](/api/@rulvar/core/variables/MAX_DEPTH_CEILING.md) | - |
 | [ORCHESTRATE\_WORKFLOW\_NAME](/api/@rulvar/core/variables/ORCHESTRATE_WORKFLOW_NAME.md) | - |
 | [PARALLEL\_AGENTS\_SCHEMA](/api/@rulvar/core/variables/PARALLEL_AGENTS_SCHEMA.md) | parallel_agents wraps the spawn_agent params. |
+| [READ\_CHILD\_ARTIFACT\_SCHEMA](/api/@rulvar/core/variables/READ_CHILD_ARTIFACT_SCHEMA.md) | - |
+| [READ\_CHILD\_ARTIFACT\_TOOL\_NAME](/api/@rulvar/core/variables/READ_CHILD_ARTIFACT_TOOL_NAME.md) | - |
 | [ROLE\_EFFORT\_DEFAULTS](/api/@rulvar/core/variables/ROLE_EFFORT_DEFAULTS.md) | Role effort defaults: orchestrate and plan default to high; summarize and extract default to low. loop and finalize have NO role default: when the chain resolves nothing, the wire omits effort and identity records the spec with the effort member absent. |
 | [ROOT\_ACCOUNT](/api/@rulvar/core/variables/ROOT_ACCOUNT.md) | The run-root account scope. |
 | [ROOT\_SCOPE](/api/@rulvar/core/variables/ROOT_SCOPE.md) | The root sequential body of the run is the empty path. |

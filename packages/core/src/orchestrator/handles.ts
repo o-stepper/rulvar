@@ -28,6 +28,55 @@ export interface TaskDigest {
   artifactsIndex: string[];
 }
 
+/**
+ * One page of a settled child's FULL output, returned by the opt-in
+ * `get_child_result` tool. The digest is a wake signal truncated to 400
+ * characters; this is the whole evidence, paged so a large result can be
+ * read without overflowing the orchestrator's context in one call
+ * (v1.40.0 improvement plan, the narrow RV-201 slice). The content is a
+ * deterministic serialization of the child's `output` (the raw string
+ * when the output IS a string, else its JCS-independent `JSON.stringify`)
+ * for a settled ok child, or the child's `errorMessage` otherwise, so the
+ * orchestrator can read WHY a child failed as readily as what it
+ * produced. Everything here is a pure read of already durable journal
+ * state, so a resume reproduces it with no new spend.
+ */
+export interface ChildResultPage {
+  handle: number;
+  status: string;
+  /** Length of the whole serialized result, in characters. */
+  totalChars: number;
+  /** The character offset this page starts at, counted from zero. */
+  offset: number;
+  /** The page: `content.length` is at most the requested (clamped) maxChars. */
+  content: string;
+  /** True when more characters remain past this page; call again with a higher offset. */
+  hasMore: boolean;
+  /** The child's artifacts, id and kind, so the model knows what `read_child_artifact` can fetch. */
+  artifacts: Array<{ id: string; kind: string; label?: string }>;
+}
+
+/**
+ * One page of a settled child's artifact CONTENT, returned by the opt-in
+ * `read_child_artifact` tool. Inline artifact `data` serializes to a
+ * string; an offloaded artifact (a TranscriptStore `ref`) is fetched and
+ * decoded as UTF-8; a `patch` artifact with only a changed file list
+ * carries that list in `files` and empty content. Paged and pure exactly
+ * like {@link ChildResultPage}.
+ */
+export interface ChildArtifactPage {
+  handle: number;
+  artifactId: string;
+  kind: string;
+  label?: string;
+  totalChars: number;
+  offset: number;
+  content: string;
+  hasMore: boolean;
+  /** The changed file list for a `patch` artifact; absent otherwise. */
+  files?: string[];
+}
+
 /** One spawned child tracked by the orchestrator runtime. */
 export interface SpawnRecord {
   handle: number;
@@ -60,6 +109,17 @@ export interface OrchestratorRuntime {
   cancel(handle: number, reason?: string): Promise<{ cancelled: boolean; handle: number }>;
   /** Sleep until a coalesced WakeDigest (M6-T09). */
   waitForEvents(triggers: unknown): Promise<unknown>;
+  /** A page of a settled child's full output; opt-in `get_child_result` (RV-201). */
+  getChildResult(
+    handle: number,
+    opts?: { offset?: number; maxChars?: number },
+  ): Promise<ChildResultPage>;
+  /** A page of a settled child's artifact content; opt-in `read_child_artifact` (RV-201). */
+  readChildArtifact(
+    handle: number,
+    artifactId: string,
+    opts?: { offset?: number; maxChars?: number },
+  ): Promise<ChildArtifactPage>;
 }
 
 /**

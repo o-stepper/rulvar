@@ -79,6 +79,60 @@ Defined in: `packages/core/dist/index.d.ts`
 
 ***
 
+### getChildResult()
+
+```ts
+getChildResult(handle, opts?): Promise<ChildResultPage>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+A page of a settled child's full output; opt-in `get_child_result` (RV-201).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `handle` | `number` |
+| `opts?` | \{ `maxChars?`: `number`; `offset?`: `number`; \} |
+| `opts.maxChars?` | `number` |
+| `opts.offset?` | `number` |
+
+#### Returns
+
+`Promise`\&lt;[`ChildResultPage`](/api/@rulvar/rulvar/interfaces/ChildResultPage.md)\&gt;
+
+***
+
+### readChildArtifact()
+
+```ts
+readChildArtifact(
+   handle, 
+   artifactId, 
+opts?): Promise<ChildArtifactPage>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+A page of a settled child's artifact content; opt-in `read_child_artifact` (RV-201).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `handle` | `number` |
+| `artifactId` | `string` |
+| `opts?` | \{ `maxChars?`: `number`; `offset?`: `number`; \} |
+| `opts.maxChars?` | `number` |
+| `opts.offset?` | `number` |
+
+#### Returns
+
+`Promise`\&lt;[`ChildArtifactPage`](/api/@rulvar/rulvar/interfaces/ChildArtifactPage.md)\&gt;
+
+***
+
 ### spawn()
 
 ```ts
