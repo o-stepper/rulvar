@@ -187,7 +187,7 @@ Rulvar predates Build Week; everything from v1.4.0 through v1.42.0 shipped insid
 submission window (July 13-21, 2026), and the collaboration below is the part of that
 work done with Codex.
 
-**Codex was the project's independent QA engineer.** Twenty six times during the week, the
+**Codex was the project's independent QA engineer.** Twenty seven times during the week, the
 freshly shipped release was handed to Codex (session
 `019f65d7-4599-7d93-97dc-9dd4a5dc66f9`). Each round, Codex ran the full offline matrix
 plus live end-to-end orchestrations against real GPT-5.6 (Sol orchestrating; Luna,
@@ -196,7 +196,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The twenty six rounds, verbatim in this repository's history:
+The twenty seven rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                        | Shipped as |
 | ------------- | ------------------------------------------------------------------------------------------------- | ---------- |
@@ -226,6 +226,7 @@ The twenty six rounds, verbatim in this repository's history:
 | v1.39.0       | cf33550 (#271): fenced offline resolution appends, surfaced approximate usage accounting          | v1.40.0    |
 | v1.40.0       | be589ec (#274): opt in orchestration acceptance policy, strict CLI exits, contract docs sweep     | v1.41.0    |
 | v1.41.0       | 9b70f27 (#277): opt in child result evidence tools, paged full output and artifact reads          | v1.42.0    |
+| v1.42.0       | 71b7181 (#280): deterministic finish validators, bounded repair turns, journaled verdicts         | v1.43.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
