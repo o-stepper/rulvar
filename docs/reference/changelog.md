@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.44.1
+
+#### Patch Changes
+
+- @rulvar/core@1.44.1
+
 ### 1.44.0
 
 #### Patch Changes
@@ -671,6 +677,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.44.1
+
+#### Patch Changes
+
+- @rulvar/core@1.44.1
+
 ### 1.44.0
 
 #### Patch Changes
@@ -1189,6 +1201,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.44.1
+
+#### Patch Changes
+
+- @rulvar/core@1.44.1
 
 ### 1.44.0
 
@@ -1940,6 +1958,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.44.1
 
 ### 1.44.0
 
@@ -3159,6 +3179,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.44.1
+
 ### 1.44.0
 
 ### 1.43.0
@@ -3331,6 +3353,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.44.1
+
+#### Patch Changes
+
+- @rulvar/core@1.44.1
+- @rulvar/testing@1.44.1
 
 ### 1.44.0
 
@@ -3989,6 +4018,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.44.1
+
+#### Patch Changes
+
+- @rulvar/core@1.44.1
 
 ### 1.44.0
 
@@ -4660,6 +4695,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.44.1
+
+#### Patch Changes
+
+- @rulvar/core@1.44.1
+
 ### 1.44.0
 
 #### Patch Changes
@@ -5300,6 +5341,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.44.1
+
+#### Patch Changes
+
+- @rulvar/core@1.44.1
+- eslint-plugin-rulvar@1.44.1
+
 ### 1.44.0
 
 #### Patch Changes
@@ -5924,6 +5972,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.44.1
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.44.1
+- @rulvar/core@1.44.1
+- @rulvar/openai@1.44.1
 
 ### 1.44.0
 
@@ -6678,6 +6734,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.44.1
+
+#### Patch Changes
+
+- @rulvar/core@1.44.1
+
 ### 1.44.0
 
 #### Patch Changes
@@ -7272,6 +7334,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.44.1
+
+#### Patch Changes
+
+- 248a19f: Commit the fence check and the mutation it guards as one immediate transaction. The store checked the lease row in one autocommit statement and mutated in the next, so a takeover landing between them (reachable across two processes) let a superseded holder append a visible journal entry despite the moved epoch, extend the successor's lease with its own ttl, or delete the successor's live lease outright. All three were demonstrated against the published 1.44.0. The check and the insert, extension, or deletion now share one `BEGIN IMMEDIATE` transaction (the shape `acquire` always had), and the renew and release mutations additionally pin `owner` and `epoch` in their `WHERE` clauses as defense in depth. The cross-instance tests shim the interleave and prove a takeover can no longer land mid-call. The fenced run state RFC on the docs site records the full audit this fix came out of.
+  - @rulvar/core@1.44.1
+
 ### 1.44.0
 
 #### Patch Changes
@@ -7809,6 +7878,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.44.1
+
+#### Patch Changes
+
+- @rulvar/core@1.44.1
 
 ### 1.44.0
 

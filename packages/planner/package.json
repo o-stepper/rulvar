@@ -1,6 +1,6 @@
 {
   "name": "@rulvar/planner",
-  "version": "1.44.0",
+  "version": "1.44.1",
   "description": "Rulvar flagship hybrid mode: plan agent, compileScript, WorkerSandboxRunner, self-repair loop.",
   "type": "module",
   "license": "Apache-2.0",
