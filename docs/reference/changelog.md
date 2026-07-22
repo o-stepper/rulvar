@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.39.0
+
+#### Patch Changes
+
+- @rulvar/core@1.39.0
+
 ### 1.38.0
 
 #### Patch Changes
@@ -630,6 +636,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.39.0
+
+#### Patch Changes
+
+- @rulvar/core@1.39.0
+
 ### 1.38.0
 
 #### Patch Changes
@@ -1107,6 +1119,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.39.0
+
+#### Patch Changes
+
+- @rulvar/core@1.39.0
 
 ### 1.38.0
 
@@ -1772,6 +1790,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.39.0
 
 ### 1.38.0
 
@@ -2904,6 +2924,18 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.39.0
+
+#### Minor Changes
+
+- 0cff035: Close the dynamic code generation parity gap in the planner sandbox dialect (v1.38.0 review P2-CODEGEN-PARITY).
+
+  `compileScript` and the `rulvar/no-code-generation` ESLint rule now share one AST policy (`scanDialect`), so both reach the same decision for every statically visible constructor reconstruction form: `.constructor`, `["constructor"]`, a computed key that folds to the constant, `{ constructor: x }` destructuring, and `Reflect.get(fn, "constructor")`. The previous regex compile gate matched only the dotted form, so a bracket or computed key passed compile while the linter flagged some of them; moving to an AST also drops the regex false positives, where a property merely named `eval`, `Function`, or `constructor` was wrongly rejected.
+
+  A key assembled only at runtime (`fn[parts.join("")]`) cannot be decided statically without rejecting every dynamic property access, so the worker realm now neutralizes the constructor reconstruction path at runtime by replacing the `constructor` slot on all four Function family prototypes with a thrower. A script that compiles clean can no longer reach the Function constructor through a dynamic key.
+
+  The planner and orchestration docs are corrected to state the exact boundary: the dialect rejects the statically visible forms and the worker neutralizes the runtime path, but a worker in the same process shares its intrinsics with the code it runs and remains a determinism and blast radius boundary, not a hostile code wall.
+
 ### 1.38.0
 
 #### Minor Changes
@@ -3054,6 +3086,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.39.0
+
+#### Patch Changes
+
+- @rulvar/core@1.39.0
+- @rulvar/testing@1.39.0
 
 ### 1.38.0
 
@@ -3665,6 +3704,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.39.0
+
+#### Patch Changes
+
+- @rulvar/core@1.39.0
 
 ### 1.38.0
 
@@ -4295,6 +4340,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.39.0
+
+#### Patch Changes
+
+- @rulvar/core@1.39.0
+
 ### 1.38.0
 
 #### Patch Changes
@@ -4894,6 +4945,24 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.39.0
+
+#### Minor Changes
+
+- 0cff035: Close the dynamic code generation parity gap in the planner sandbox dialect (v1.38.0 review P2-CODEGEN-PARITY).
+
+  `compileScript` and the `rulvar/no-code-generation` ESLint rule now share one AST policy (`scanDialect`), so both reach the same decision for every statically visible constructor reconstruction form: `.constructor`, `["constructor"]`, a computed key that folds to the constant, `{ constructor: x }` destructuring, and `Reflect.get(fn, "constructor")`. The previous regex compile gate matched only the dotted form, so a bracket or computed key passed compile while the linter flagged some of them; moving to an AST also drops the regex false positives, where a property merely named `eval`, `Function`, or `constructor` was wrongly rejected.
+
+  A key assembled only at runtime (`fn[parts.join("")]`) cannot be decided statically without rejecting every dynamic property access, so the worker realm now neutralizes the constructor reconstruction path at runtime by replacing the `constructor` slot on all four Function family prototypes with a thrower. A script that compiles clean can no longer reach the Function constructor through a dynamic key.
+
+  The planner and orchestration docs are corrected to state the exact boundary: the dialect rejects the statically visible forms and the worker neutralizes the runtime path, but a worker in the same process shares its intrinsics with the code it runs and remains a determinism and blast radius boundary, not a hostile code wall.
+
+#### Patch Changes
+
+- Updated dependencies [0cff035]
+  - eslint-plugin-rulvar@1.39.0
+  - @rulvar/core@1.39.0
+
 ### 1.38.0
 
 #### Minor Changes
@@ -5460,6 +5529,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.39.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.39.0
+- @rulvar/core@1.39.0
+- @rulvar/openai@1.39.0
 
 ### 1.38.0
 
@@ -6161,6 +6238,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.39.0
+
+#### Patch Changes
+
+- @rulvar/core@1.39.0
+
 ### 1.38.0
 
 #### Patch Changes
@@ -6714,6 +6797,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.39.0
+
+#### Patch Changes
+
+- @rulvar/core@1.39.0
+
 ### 1.38.0
 
 #### Patch Changes
@@ -7210,6 +7299,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.39.0
+
+#### Patch Changes
+
+- @rulvar/core@1.39.0
 
 ### 1.38.0
 
