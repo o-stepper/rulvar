@@ -5,7 +5,7 @@ description: Install the @rulvar/rulvar umbrella package or compose individual @
 
 # Installation
 
-Rulvar is published on the npm registry as a set of scoped packages under `@rulvar/*` (Apache-2.0). All packages release in **lockstep** at the same version, currently <!-- version:lockstep -->1.40.0<!-- /version -->; the single exception is `@rulvar/compat`, which is versioned independently so that frozen compatibility profiles never force a release of everything else.
+Rulvar is published on the npm registry as a set of scoped packages under `@rulvar/*` (Apache-2.0). All packages release in **lockstep** at the same version, currently <!-- version:lockstep -->1.41.0<!-- /version -->; the single exception is `@rulvar/compat`, which is versioned independently so that frozen compatibility profiles never force a release of everything else.
 
 ::: tip One line install
 `pnpm add @rulvar/rulvar` gives you everything most applications need: the engine, the Anthropic and OpenAI adapters, the JSONL file store, and the terminal progress renderer, behind one import path.
