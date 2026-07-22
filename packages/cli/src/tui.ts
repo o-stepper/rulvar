@@ -38,7 +38,7 @@ function rawEventLine(event: WorkflowEvent): string | undefined {
     case 'agent:start':
       return `${replayMark}agent ${who}${str(event.label) === '' ? '' : ` [${str(event.label)}]`} ${str(event.role)} on ${str(event.model)}`;
     case 'agent:end':
-      return `${replayMark}agent ${who} ${str(event.status)} (${money(num(event.costUsd))}, ${String(num(event.usage?.inputTokens) + num(event.usage?.outputTokens))} tok)`;
+      return `${replayMark}agent ${who} ${str(event.status)} (${money(num(event.costUsd))}, ${String(num(event.usage?.inputTokens) + num(event.usage?.outputTokens))} tok)${event.usageApprox === true ? ' approx' : ''}`;
     case 'agent:error':
       return `agent ${who} error: ${str(event.error?.message)}${event.willRetry === true ? ' (will retry)' : ''}`;
     case 'agent:queued':
@@ -52,7 +52,7 @@ function rawEventLine(event: WorkflowEvent): string | undefined {
     case 'log':
       return event.level === 'debug' ? undefined : `${str(event.level)}: ${str(event.msg)}`;
     case 'run:end':
-      return `run ${str(event.runId)} ${str(event.status)}`;
+      return `run ${str(event.runId)} ${str(event.status)}${event.usageApprox === true ? ' (cost approx)' : ''}`;
     default:
       return undefined;
   }

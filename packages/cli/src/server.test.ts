@@ -17,6 +17,8 @@ import {
   normalizeEntry,
   tool,
   type Engine,
+  type JournalEntry,
+  type Lease,
   type Workflow,
   type WorkflowRegistry,
 } from '@rulvar/core';
@@ -29,6 +31,33 @@ interface GatedValue {
   analysis: unknown;
   approved: boolean;
   item: number;
+}
+
+/**
+ * A SqliteStore that, once `armed`, simulates the offline server stalling
+ * past its lease ttl before its next append: it advances the shared clock
+ * beyond the ttl and lets a queue worker reclaim the run (epoch+1), so a
+ * stale append that still carries the server's old lease is fenced out.
+ */
+class TakeoverStore extends SqliteStore {
+  armed = false;
+  private readonly clockRef: { t: number };
+  private readonly ttl: number;
+
+  constructor(clock: { t: number }, ttl: number) {
+    super({ path: ':memory:', ttlMs: ttl, now: () => clock.t });
+    this.clockRef = clock;
+    this.ttl = ttl;
+  }
+
+  override async append(runId: string, entry: JournalEntry, lease?: Lease): Promise<void> {
+    if (this.armed) {
+      this.armed = false;
+      this.clockRef.t += this.ttl + 1;
+      await this.acquire(runId, 'queue-worker');
+    }
+    return super.append(runId, entry, lease);
+  }
 }
 
 function assemble(options?: {
@@ -393,6 +422,42 @@ describe('createServer (M8-T01)', () => {
     // Cost for an untracked run folds the journal (unpriced fake usage).
     const cost = await bodyOf(await get(server, `/runs/${first.runId}/cost`));
     expect(cost).toHaveProperty('totalUsd');
+  });
+
+  it('offline resolution: a lease takeover during the resolution append fences the stale write (v1.39.0 review)', async () => {
+    // resolveOffline acquires a lease, then threads it into the Replayer so
+    // the resolution append is fenced. This store models the server
+    // stalling past its lease ttl: right before the resolution append it
+    // advances the clock and lets a queue worker take the run over
+    // (epoch+1), so the server's stale append must be rejected.
+    const { gated } = assemble();
+    const clock = { t: 1_000_000 };
+    const ttl = 60_000;
+    const journal = new TakeoverStore(clock, ttl);
+    const engine = createEngine({
+      adapters: [new FakeAdapter({ agents: { '*': 'server analysis' } })],
+      stores: { journal },
+      defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+    });
+    const server = createServer({ engine, workflows: { gated } });
+
+    // Started OUTSIDE the server, so the resolution takes the offline path.
+    const first = engine.run(gated as unknown as Workflow<unknown, unknown>, { item: 7 });
+    expect((await first.result).status).toBe('suspended');
+
+    // Arm the takeover for the very next append (the resolution append).
+    journal.armed = true;
+    const resp = await post(server, `/runs/${first.runId}/external/editor-approval`, {
+      approved: true,
+    });
+
+    // Fenced: 409 lease_held, and nothing was written, so the suspension
+    // stays open for the new owner to resolve. Before the fix (no lease in
+    // the offline Replayer) the stale append landed and returned 200.
+    expect(resp.status).toBe(409);
+    expect((await bodyOf(resp)).error).toMatchObject({ code: 'lease_held' });
+    const entries = await journal.load(first.runId);
+    expect(entries.some((e) => e.kind === 'resolution')).toBe(false);
   });
 
   it('routes: 404s, registry misses, malformed bodies, method mismatches', async () => {

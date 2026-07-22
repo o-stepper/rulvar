@@ -89,6 +89,7 @@ export function costReportFromJournal(
   const byRole = emptyByRole();
   const unpriced: Array<{ model: string; usage: Usage }> = [];
   let totalUsd = 0;
+  let usageApprox = false;
   let orchestratorSpentUsd = 0;
   let reserveUsedUsd = 0;
   let wakes = 0;
@@ -135,6 +136,11 @@ export function costReportFromJournal(
       byModel[slice.servedBy] = (byModel[slice.servedBy] ?? 0) + slice.usd;
     }
     totalUsd += priced.usd;
+    // One contributing entry with approximate usage makes the whole total
+    // an estimate: raise the flag on the same entries the total sums over.
+    if (entry.usageApprox === true) {
+      usageApprox = true;
+    }
     const facts = entry.costAttribution;
     const phase = facts?.phase ?? '';
     byPhase[phase] = (byPhase[phase] ?? 0) + priced.usd;
@@ -170,5 +176,8 @@ export function costReportFromJournal(
       reserveUsedUsd,
     },
     unpriced,
+    // Only when true: an absent field reads as exact, and every existing
+    // exact usage report stays byte for byte what it was.
+    ...(usageApprox ? { usageApprox: true } : {}),
   };
 }

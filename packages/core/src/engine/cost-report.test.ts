@@ -406,4 +406,83 @@ describe('cost report reconciliation (M5-T03)', () => {
       expect(sum).toBeCloseTo(report.totalUsd, 12);
     }
   });
+
+  it('raises usageApprox only when a contributing terminal entry is approximate (v1.39.0 review)', () => {
+    const base = { hashVersion: 2 as const, key: 'k', ordinal: 0, spanId: 's' };
+    const usage: Usage = {
+      inputTokens: 1_000_000,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    };
+    const price = (_servedBy: ModelRef, sliceUsage: Usage): number | undefined =>
+      sliceUsage.inputTokens / 1_000_000;
+
+    // Every contributing turn reported exact usage: the field is absent, so
+    // an existing exact usage report is byte for byte what it always was.
+    const exact = [
+      { ...base, seq: 1, scope: 'agent:1', kind: 'agent', status: 'running' },
+      {
+        ...base,
+        seq: 2,
+        ref: 1,
+        scope: 'agent:1',
+        kind: 'agent',
+        status: 'ok',
+        usage,
+        servedBy: 'fake:model',
+      },
+    ] as unknown as JournalEntry[];
+    expect(costReportFromJournal(exact, price).usageApprox).toBeUndefined();
+
+    // One contributing terminal with approximate usage makes the whole
+    // total an estimate.
+    const approx = [
+      { ...base, seq: 1, scope: 'agent:1', kind: 'agent', status: 'running' },
+      {
+        ...base,
+        seq: 2,
+        ref: 1,
+        scope: 'agent:1',
+        kind: 'agent',
+        status: 'ok',
+        usage,
+        servedBy: 'fake:model',
+        usageApprox: true,
+      },
+    ] as unknown as JournalEntry[];
+    const approxReport = costReportFromJournal(approx, price);
+    expect(approxReport.usageApprox).toBe(true);
+    expect(approxReport.totalUsd).toBeCloseTo(1, 12);
+
+    // Approximate usage inside an ABANDONED subtree contributes zero to the
+    // total, so it must not taint the flag either: the flag is raised on
+    // exactly the entries the total sums over.
+    const abandoned = [
+      { ...base, seq: 1, scope: 'agent:8', kind: 'agent', status: 'running' },
+      {
+        ...base,
+        seq: 2,
+        ref: 1,
+        scope: 'agent:8',
+        kind: 'agent',
+        status: 'cancelled',
+        usage,
+        servedBy: 'fake:model',
+        usageApprox: true,
+      },
+      {
+        ...base,
+        seq: 3,
+        ref: 1,
+        scope: '',
+        kind: 'abandon',
+        status: 'ok',
+        value: { target: 1, authorizedBy: 0, reason: 'superseded' },
+      },
+    ] as unknown as JournalEntry[];
+    const abandonedReport = costReportFromJournal(abandoned, price);
+    expect(abandonedReport.usageApprox).toBeUndefined();
+    expect(abandonedReport.totalUsd).toBeCloseTo(0, 12);
+  });
 });

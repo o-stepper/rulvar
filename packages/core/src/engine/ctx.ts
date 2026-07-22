@@ -1293,6 +1293,7 @@ export function createCtx(
           usage,
           costUsd,
           entryRef: terminal?.seq ?? matched.running.seq,
+          ...(terminal?.usageApprox === true ? { usageApprox: true } : {}),
         },
         spanId,
         true,
@@ -2072,7 +2073,8 @@ export function createCtx(
         result.errorMessage ?? `agent terminated with status ${result.status}`,
       );
     }
-    if ((result as { usageApprox?: boolean }).usageApprox === true) {
+    const resultUsageApprox = (result as { usageApprox?: boolean }).usageApprox === true;
+    if (resultUsageApprox) {
       terminalPatch.usageApprox = true;
     }
     if (result.artifacts !== undefined) {
@@ -2110,6 +2112,7 @@ export function createCtx(
         usage: result.usage,
         costUsd: result.costUsd,
         entryRef: terminal.seq,
+        ...(resultUsageApprox ? { usageApprox: true } : {}),
       },
       spanId,
     );

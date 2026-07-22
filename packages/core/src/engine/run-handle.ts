@@ -48,6 +48,16 @@ export interface CostReport {
   };
   /** Usage on models absent from pricing; never a silent zero. */
   unpriced: Array<{ model: string; usage: Usage }>;
+  /**
+   * Present and true when any terminal entry folded into totalUsd carried
+   * approximate usage (a transport cut, a stream the ceiling severed, or
+   * an abort estimated the turn instead of the provider reporting it), so
+   * totalUsd is a lower bound estimate, never an exact charge. Absent
+   * means every contributing entry reported exact usage. The field the
+   * v1.39.0 review asked the report to raise so approximate cost is never
+   * shown as though it were the provider invoice.
+   */
+  usageApprox?: boolean;
 }
 
 export type RunOutcome<R> = {
