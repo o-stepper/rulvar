@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.40.0
+
+#### Patch Changes
+
+- Updated dependencies [cf33550]
+  - @rulvar/core@1.40.0
+
 ### 1.39.0
 
 #### Patch Changes
@@ -636,6 +643,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.40.0
+
+#### Patch Changes
+
+- Updated dependencies [cf33550]
+  - @rulvar/core@1.40.0
+
 ### 1.39.0
 
 #### Patch Changes
@@ -1119,6 +1133,31 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.40.0
+
+#### Minor Changes
+
+- cf33550: Fence the offline resolution append and surface approximate usage (v1.39.0 review)
+
+  The CLI server's offline resolution path acquired a store lease but never
+  threaded it into the Replayer, so the resolution append ran unfenced: if the
+  process stalled past its lease ttl and a queue worker took the run over, the
+  stale append could land alongside the new owner's writes. The append now
+  carries the acquired lease, so a superseded owner is rejected with
+  LeaseHeldError (HTTP 409) instead of racing the current owner.
+
+  Approximate usage is now visible where the run is reported. usageApprox rides
+  the agent:end and run:end events and the CostReport, and the CLI cost line
+  marks an estimated total, so a total that includes usage estimated after a
+  transport cut, a ceiling that severed a stream, or an abort is never shown as
+  though it were the exact provider charge. The field is present only when true,
+  so every exact usage report and event is byte for byte unchanged.
+
+#### Patch Changes
+
+- Updated dependencies [cf33550]
+  - @rulvar/core@1.40.0
 
 ### 1.39.0
 
@@ -1790,6 +1829,26 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.40.0
+
+#### Minor Changes
+
+- cf33550: Fence the offline resolution append and surface approximate usage (v1.39.0 review)
+
+  The CLI server's offline resolution path acquired a store lease but never
+  threaded it into the Replayer, so the resolution append ran unfenced: if the
+  process stalled past its lease ttl and a queue worker took the run over, the
+  stale append could land alongside the new owner's writes. The append now
+  carries the acquired lease, so a superseded owner is rejected with
+  LeaseHeldError (HTTP 409) instead of racing the current owner.
+
+  Approximate usage is now visible where the run is reported. usageApprox rides
+  the agent:end and run:end events and the CostReport, and the CLI cost line
+  marks an estimated total, so a total that includes usage estimated after a
+  transport cut, a ceiling that severed a stream, or an abort is never shown as
+  though it were the exact provider charge. The field is present only when true,
+  so every exact usage report and event is byte for byte unchanged.
 
 ### 1.39.0
 
@@ -2924,6 +2983,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.40.0
+
 ### 1.39.0
 
 #### Minor Changes
@@ -3086,6 +3147,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.40.0
+
+#### Patch Changes
+
+- Updated dependencies [cf33550]
+  - @rulvar/core@1.40.0
+  - @rulvar/testing@1.40.0
 
 ### 1.39.0
 
@@ -3704,6 +3773,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.40.0
+
+#### Patch Changes
+
+- Updated dependencies [cf33550]
+  - @rulvar/core@1.40.0
 
 ### 1.39.0
 
@@ -4340,6 +4416,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.40.0
+
+#### Patch Changes
+
+- Updated dependencies [cf33550]
+  - @rulvar/core@1.40.0
+
 ### 1.39.0
 
 #### Patch Changes
@@ -4945,6 +5028,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.40.0
+
+#### Patch Changes
+
+- Updated dependencies [cf33550]
+  - @rulvar/core@1.40.0
+  - eslint-plugin-rulvar@1.40.0
+
 ### 1.39.0
 
 #### Minor Changes
@@ -5529,6 +5620,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.40.0
+
+#### Patch Changes
+
+- Updated dependencies [cf33550]
+  - @rulvar/core@1.40.0
+  - @rulvar/anthropic@1.40.0
+  - @rulvar/openai@1.40.0
 
 ### 1.39.0
 
@@ -6238,6 +6338,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.40.0
+
+#### Patch Changes
+
+- Updated dependencies [cf33550]
+  - @rulvar/core@1.40.0
+
 ### 1.39.0
 
 #### Patch Changes
@@ -6797,6 +6904,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.40.0
+
+#### Patch Changes
+
+- Updated dependencies [cf33550]
+  - @rulvar/core@1.40.0
+
 ### 1.39.0
 
 #### Patch Changes
@@ -7299,6 +7413,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.40.0
+
+#### Patch Changes
+
+- Updated dependencies [cf33550]
+  - @rulvar/core@1.40.0
 
 ### 1.39.0
 
