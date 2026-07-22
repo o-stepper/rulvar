@@ -677,6 +677,35 @@ function main() {
     }
   }
 
+  // Check 11: the cookbook page and the cookbook corpus stay bound
+  // (RV-212). Every examples/src/cookbook-*.ts recipe must be linked
+  // from docs/guide/cookbook.md, and every cookbook-*.ts link on the
+  // page must resolve to an existing recipe file, so the rendered
+  // cookbook can never drift from the tested corpus.
+  {
+    const cookbookPage = join(ROOT, 'docs', 'guide', 'cookbook.md');
+    const examplesDir = join(ROOT, 'examples', 'src');
+    const pageText = readFileSync(cookbookPage, 'utf8');
+    const recipeFiles = readdirSync(examplesDir).filter(
+      (name) => name.startsWith('cookbook-') && name.endsWith('.ts') && !name.endsWith('.test.ts'),
+    );
+    for (const name of recipeFiles) {
+      if (!pageText.includes(name)) {
+        fail(cookbookPage, 1, `cookbook recipe ${name} is not linked from the cookbook page`);
+      }
+    }
+    const linked = [...pageText.matchAll(/cookbook-[a-z-]+\.ts/g)].map((match) => match[0]);
+    for (const name of new Set(linked)) {
+      if (!recipeFiles.includes(name)) {
+        fail(
+          cookbookPage,
+          1,
+          `the cookbook page links ${name}, which does not exist in examples/src`,
+        );
+      }
+    }
+  }
+
   if (failures > 0) {
     console.error(`\ndocs lint failed with ${failures} problem(s)`);
     process.exit(1);

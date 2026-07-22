@@ -93,7 +93,10 @@ const guideSidebar: DefaultTheme.SidebarItem[] = [
   {
     text: 'Examples',
     collapsed: false,
-    items: [{ text: 'Example patterns', link: '/guide/examples' }],
+    items: [
+      { text: 'Example patterns', link: '/guide/examples' },
+      { text: 'Cookbook', link: '/guide/cookbook' },
+    ],
   },
 ];
 
