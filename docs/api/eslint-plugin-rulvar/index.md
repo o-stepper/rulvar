@@ -38,6 +38,7 @@ pnpm add -D eslint-plugin-rulvar
 
 | Interface | Description |
 | ------ | ------ |
+| [DialectFinding](/api/eslint-plugin-rulvar/interfaces/DialectFinding.md) | Where a finding sits in the ORIGINAL source (line and column counted from 1). |
 | [RulvarLintDiagnostic](/api/eslint-plugin-rulvar/interfaces/RulvarLintDiagnostic.md) | - |
 
 ## Variables
@@ -52,4 +53,5 @@ pnpm add -D eslint-plugin-rulvar
 
 | Function | Description |
 | ------ | ------ |
+| [scanDialect](/api/eslint-plugin-rulvar/functions/scanDialect.md) | Structural scan for compileScript: every dynamic code generation form the dialect rejects, as findings positioned in the original source. Covers bare `eval`/`Function` calls and `new`, `globalThis.eval`/`globalThis.Function`, and every constructor reconstruction form the shared predicates recognize. Member access on other objects (`response.eval`, `parser.Function`) and a property NAMED constructor in an object LITERAL are not code generation and are left alone. |
 | [toJsonDiagnostics](/api/eslint-plugin-rulvar/functions/toJsonDiagnostics.md) | - |

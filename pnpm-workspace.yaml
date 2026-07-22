@@ -23,6 +23,7 @@ catalog:
   '@types/estree': ^1.0.6
   '@types/node': ^22.20.0
   '@vitest/coverage-v8': ^4.1.10
+  acorn: ^8.17.0
   arktype: ^2.2.2
   eslint: ^9.39.4
   fast-check: ^4.8.0

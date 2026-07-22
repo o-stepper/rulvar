@@ -10,7 +10,7 @@
 function compileScript(source, o?): CompiledWorkflow;
 ```
 
-Defined in: [packages/planner/src/compile.ts:310](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L310)
+Defined in: [packages/planner/src/compile.ts:325](https://github.com/o-stepper/rulvar/blob/main/packages/planner/src/compile.ts#L325)
 
 Validates and compiles planner-generated source into a CompiledWorkflow.
 The source is an async function body over the sandbox

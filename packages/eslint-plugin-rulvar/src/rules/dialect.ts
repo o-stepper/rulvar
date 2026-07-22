@@ -1,22 +1,34 @@
 /**
- * The dialect integrity rule set (v1.37.0 review SEC-P2): dynamic code
- * generation is banned in workflow modules. eval, the Function constructor,
- * and `.constructor` access all reach a fresh compilation scope where
- * import(), ambient time, and host capability are back in reach, so
- * allowing them would defeat the sandbox's import allowlist and its blast
- * radius bound. Like the determinism rules this raises the bar and keeps
- * the workflow dialect consistent; it is not a hostile code boundary.
- * Messages are prescriptive so the mode (b) repair loop can act on them
- * mechanically.
+ * The dialect integrity rule set (v1.37.0 review SEC-P2, broadened for the
+ * v1.38.0 review P2-CODEGEN-PARITY): dynamic code generation is banned in
+ * workflow modules. eval, the Function constructor, and constructor
+ * reconstruction (`.constructor`, `["constructor"]`, a computed key that folds
+ * to `"constructor"`, `{ constructor: x }` destructuring, and
+ * `Reflect.get(fn, "constructor")`) all reach a fresh compilation scope where
+ * import(), ambient time, and host capability are back in reach, so allowing
+ * them would defeat the sandbox's import allowlist and its blast radius bound.
+ * Like the determinism rules this raises the bar and keeps the workflow
+ * dialect consistent; it is not a hostile code boundary.
  *
- * As with `no-fetch`, the rule flags the call, `new`, and member forms; a
- * bare reference merely captured as a value (`const f = Function`) is
- * outside its reach. `compileScript` is the strict structural backstop for
- * machine generated scripts.
+ * The constructor reconstruction forms are recognized by the SAME predicates
+ * `compileScript` uses (`../dialect-scan.js`), so the advisory linter and the
+ * structural compile gate reach one decision. Messages are prescriptive so the
+ * mode (b) repair loop can act on them mechanically.
+ *
+ * As with `no-fetch`, eval and Function are flagged as the global call/`new`
+ * forms; a bare reference merely captured as a value (`const f = Function`) or
+ * a member on another object (`parser.eval`) is outside their reach.
+ * `compileScript` is the strict structural backstop for machine generated
+ * scripts, and the worker realm neutralizes any residual runtime path.
  */
 import type { Rule } from 'eslint';
 import type * as ESTree from 'estree';
 
+import {
+  isConstructorMemberExpression,
+  isConstructorPatternProperty,
+  isReflectConstructorGet,
+} from '../dialect-scan.js';
 import { isGlobalMemberCall, isGlobalReference } from './shared.js';
 
 export const noCodeGeneration: Rule.RuleModule = {
@@ -24,8 +36,8 @@ export const noCodeGeneration: Rule.RuleModule = {
     type: 'problem',
     docs: {
       description:
-        'ban dynamic code generation (eval, the Function constructor, and .constructor ' +
-        'access) in workflow modules; it reopens the import allowlist and the ambient ' +
+        'ban dynamic code generation (eval, the Function constructor, and constructor ' +
+        'reconstruction) in workflow modules; it reopens the import allowlist and the ambient ' +
         'capability surface the sandbox dialect closes',
     },
     messages: {
@@ -36,7 +48,7 @@ export const noCodeGeneration: Rule.RuleModule = {
         'the Function constructor is not part of the workflow dialect; it compiles arbitrary ' +
         'code that bypasses the import allowlist. Stay on the ctx surface.',
       noConstructorAccess:
-        '.constructor access reaches the Function constructor from any function value and ' +
+        'constructor access reaches the Function constructor from any function value and ' +
         'reopens dynamic code generation; it is not part of the workflow dialect.',
     },
     schema: [],
@@ -64,18 +76,23 @@ export const noCodeGeneration: Rule.RuleModule = {
     return {
       CallExpression(node) {
         checkCallee(node, node.callee);
+        if (isReflectConstructorGet(node)) {
+          context.report({ node, messageId: 'noConstructorAccess' });
+        }
       },
       NewExpression(node) {
         checkCallee(node, node.callee);
       },
       MemberExpression(node) {
-        const { property, computed } = node;
-        if (!computed && property.type === 'Identifier' && property.name === 'constructor') {
+        if (isConstructorMemberExpression(node)) {
           context.report({ node, messageId: 'noConstructorAccess' });
-          return;
         }
-        if (computed && property.type === 'Literal' && property.value === 'constructor') {
-          context.report({ node, messageId: 'noConstructorAccess' });
+      },
+      ObjectPattern(node) {
+        for (const property of node.properties) {
+          if (property.type === 'Property' && isConstructorPatternProperty(property)) {
+            context.report({ node: property, messageId: 'noConstructorAccess' });
+          }
         }
       },
     };

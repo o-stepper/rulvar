@@ -10,4 +10,4 @@
 const default: ESLint.Plugin;
 ```
 
-Defined in: [packages/eslint-plugin-rulvar/src/index.ts:29](https://github.com/o-stepper/rulvar/blob/main/packages/eslint-plugin-rulvar/src/index.ts#L29)
+Defined in: [packages/eslint-plugin-rulvar/src/index.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/eslint-plugin-rulvar/src/index.ts#L30)

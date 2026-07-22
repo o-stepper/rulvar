@@ -66,6 +66,12 @@ tester.run('no-code-generation', rules['no-code-generation'], {
     'const t = ctx.now();',
     // A method named eval on some other object is not the global eval.
     'const r = parser.eval(expr);',
+    // A property named Function/eval on a data value is ordinary access.
+    'const shaped = payload.Function;',
+    'const viaBracket = payload["eval"];',
+    // Defining a property NAMED constructor in an object literal reaches
+    // nothing; only READING a value's constructor does.
+    'const o = { constructor: () => 1, eval: 2, Function: 3 };',
     // Shadowed Function is local, not the global constructor.
     'function f(Function) { return new Function("return 1"); }',
     // Plain data access with no constructor reach.
@@ -88,6 +94,17 @@ tester.run('no-code-generation', rules['no-code-generation'], {
       errors: [{ messageId: 'noConstructorAccess' }],
     },
     { code: 'const c = obj["constructor"];', errors: [{ messageId: 'noConstructorAccess' }] },
+    // Forms the regex gate missed, now caught by the shared AST policy.
+    { code: 'const c = obj["con" + "structor"];', errors: [{ messageId: 'noConstructorAccess' }] },
+    { code: 'const c = obj[`con${""}structor`];', errors: [{ messageId: 'noConstructorAccess' }] },
+    {
+      code: 'const { constructor: C } = fn;',
+      errors: [{ messageId: 'noConstructorAccess' }],
+    },
+    {
+      code: 'const c = Reflect.get(fn, "constructor");',
+      errors: [{ messageId: 'noConstructorAccess' }],
+    },
   ],
 });
 

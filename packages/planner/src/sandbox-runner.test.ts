@@ -424,6 +424,80 @@ describe('the sandbox rejects dynamic code generation (v1.37.0 review SEC-P2)', 
   });
 });
 
+describe('the sandbox closes the constructor reconstruction parity gap (v1.38.0 review P2-CODEGEN-PARITY)', () => {
+  const rawCompiled = (source: string): CompiledWorkflow => ({
+    kind: 'compiled-workflow',
+    name: 'compiled',
+    source,
+    errorPolicy: 'lenient',
+  });
+
+  it('rejects every statically visible reconstruction form at compile time', () => {
+    // Bracket, computed-that-folds, template-that-folds, destructuring, and
+    // reflection all reach the Function constructor; the AST policy rejects
+    // each one, closing the regex gap the review found.
+    for (const source of [
+      'return (function () {})["constructor"];',
+      'return (function () {})["con" + "structor"];',
+      'return (function () {})[`con${""}structor`];',
+      'const { constructor: C } = function () {}; return typeof C;',
+      'return Reflect.get(function () {}, "constructor");',
+    ]) {
+      expect(() => compileScript(source), source).toThrow(ScriptRejected);
+    }
+  });
+
+  it('accepts a truly dynamic key at compile time (static analysis cannot decide it)', () => {
+    // A key assembled at runtime is undecidable statically without rejecting
+    // every dynamic property access, so compile ACCEPTS it; the worker is the
+    // layer that stops it.
+    const dynamic =
+      'const key = ["con", "structor"].join(""); return typeof (function () {})[key];';
+    expect(compileScript(dynamic).kind).toBe('compiled-workflow');
+  });
+
+  it('neutralizes the .constructor slot of all four function families in the worker realm', async () => {
+    const { engine } = makeEngine();
+    const probe = rawCompiled(
+      [
+        'const reg = typeof (function () {}).constructor;',
+        'const asyncFn = typeof (async function () {}).constructor;',
+        'const gen = typeof (function* () {}).constructor;',
+        'const asyncGen = typeof (async function* () {}).constructor;',
+        'let threw = false;',
+        'try { (function () {}).constructor("return 1"); } catch { threw = true; }',
+        'return { reg, asyncFn, gen, asyncGen, threw };',
+      ].join('\n'),
+    );
+    const outcome = await engine.run(probe, null, { runId: 'reconstruction-probe' }).result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.value).toEqual({
+      reg: 'function',
+      asyncFn: 'function',
+      gen: 'function',
+      asyncGen: 'function',
+      threw: true,
+    });
+  });
+
+  it('accepted source cannot reach dynamic code generation through a dynamic key', async () => {
+    // This source PASSES compileScript (dynamic key) yet must not execute a
+    // host import: the worker taming turns the reconstruction into a throw, so
+    // the run settles at error, never returning a command result.
+    const dynamicBypass = [
+      'const key = ["con", "structor"].join("");',
+      'const make = (function () {})[key];',
+      'const load = make("s", "return import(s);");',
+      'return (await load("node:os")).platform();',
+    ].join('\n');
+    const wf = compileScript(dynamicBypass);
+    expect(wf.kind).toBe('compiled-workflow');
+    const { engine } = makeEngine();
+    const outcome = await engine.run(wf, null, { runId: 'dynamic-codegen-bypass' }).result;
+    expect(outcome.status).toBe('error');
+  });
+});
+
 describe('tools strings resolve as registered toolsets in the dialect (v1.23.0 review P2-1)', () => {
   const lookup = tool({
     name: 'lookup_web',

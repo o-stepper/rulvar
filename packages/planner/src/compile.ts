@@ -9,19 +9,27 @@
  * Validation scope committed here (M6-T01 acceptance): syntax (the source
  * must compile as an async function body over the sandbox globals), the
  * import allowlist, and the dynamic code generation ban (eval, the
- * Function constructor, and `.constructor` access). The last one keeps the
- * import allowlist meaningful: without it `new Function("return import(x)")`
- * would reopen the very import surface the allowlist closes. This raises
- * the bar and keeps the dialect consistent; it is NOT a hostile code
- * boundary (a determined author still reaches intrinsics), which is why the
- * worker sandbox is documented as a determinism and blast radius boundary,
- * not a security one. The deeper dialect rules (schema literals only,
- * no functions in options, tools by profile name) are enforced at the
- * sandbox boundary at runtime (JSON-only RPC) and advisorily by
- * eslint-plugin-rulvar in the self-repair loop.
+ * Function constructor, and constructor reconstruction). The last one keeps
+ * the import allowlist meaningful: without it `new Function("return
+ * import(x)")` would reopen the very import surface the allowlist closes. It
+ * runs the SAME shared AST policy the `no-code-generation` ESLint rule uses
+ * (scanDialect), so this structural gate and the linter reach one decision
+ * for every statically visible form: `.constructor`, `["constructor"]`, a
+ * computed key that folds to the constant, `{ constructor: x }`
+ * destructuring, and `Reflect.get(fn, "constructor")`. This raises the bar
+ * and keeps the dialect consistent; it is NOT a hostile code boundary (a
+ * truly dynamic key cannot be seen statically, and a determined author still
+ * reaches intrinsics), which is why the worker additionally neutralizes the
+ * runtime reconstruction path and the sandbox is documented as a determinism
+ * and blast radius boundary, not a security one. The deeper dialect rules
+ * (schema literals only, no functions in options, tools by profile name) are
+ * enforced at the sandbox boundary at runtime (JSON-only RPC) and advisorily
+ * by eslint-plugin-rulvar in the self-repair loop.
  */
 import type { CompiledWorkflow } from '@rulvar/core';
 import { ScriptRejected } from '@rulvar/core';
+import * as acorn from 'acorn';
+import { scanDialect, type DialectFinding } from 'eslint-plugin-rulvar';
 
 /**
  * The exact curated sandbox global set, in canonical order.
@@ -247,57 +255,64 @@ function scanImports(
   return diagnostics;
 }
 
-const CODEGEN_WORD = /\b(eval|Function)\b/g;
-const CONSTRUCTOR_ACCESS = /\.\s*constructor\b/g;
+const CODEGEN_DIAGNOSTIC: Record<DialectFinding['kind'], { ruleId: string; message: string }> = {
+  eval: {
+    ruleId: 'no-eval',
+    message:
+      'eval is not part of the sandbox dialect; dynamically generated code reopens the ' +
+      'import allowlist and the ambient capability surface the dialect closes',
+  },
+  'function-constructor': {
+    ruleId: 'no-function-constructor',
+    message:
+      'the Function constructor is not part of the sandbox dialect; it compiles arbitrary ' +
+      'code that bypasses the import allowlist (use only the curated globals)',
+  },
+  'constructor-access': {
+    ruleId: 'no-constructor-access',
+    message:
+      'constructor access is not part of the sandbox dialect; it reaches the Function ' +
+      'constructor from any function value and reopens dynamic code generation',
+  },
+};
 
 /**
  * Rejects dynamic code generation. `eval` and the Function constructor
  * compile attacker supplied text in a fresh scope where the import
  * expression, ambient time, and host capability are back in reach, so
  * banning `import` while allowing `new Function("return import(x)")` closes
- * nothing. `.constructor` access is the same vector by another name: every
- * function value exposes the Function constructor as its `.constructor`
- * ((function(){}).constructor === Function). Literals and comments are
- * blanked before the scan, so a banned word inside a string never matches;
- * the identifier form (not just calls) is rejected because a captured
- * reference (`const f = Function`) is the trivial workaround.
+ * nothing. Constructor reconstruction is the same vector by another name:
+ * every function value exposes the Function constructor through its prototype
+ * ((function(){}).constructor === Function), reachable as `.constructor`,
+ * `["constructor"]`, a computed key that folds to the constant, a
+ * `{ constructor: x }` destructuring, or `Reflect.get(fn, "constructor")`.
+ *
+ * The scan runs the SAME shared AST policy the `no-code-generation` ESLint
+ * rule uses (`scanDialect`), so the linter and this structural gate reach one
+ * decision for every statically visible form. A truly dynamic key
+ * (`fn[valueFromAnAgent]`) cannot be resolved statically without rejecting
+ * every dynamic property access, so it is left to the worker realm, which
+ * neutralizes the runtime reconstruction path. A syntax error is reported by
+ * the AsyncFunction construction below, so a parse failure here yields no
+ * diagnostics rather than a duplicate.
  */
-function scanCodegen(source: string, blanked: string): ScriptDiagnostic[] {
-  const diagnostics: ScriptDiagnostic[] = [];
-  for (let match = CODEGEN_WORD.exec(blanked); match !== null; match = CODEGEN_WORD.exec(blanked)) {
-    const at = positionAt(source, match.index);
-    if (match[1] === 'eval') {
-      diagnostics.push({
-        ruleId: 'no-eval',
-        message:
-          'eval is not part of the sandbox dialect; dynamically generated code reopens the ' +
-          'import allowlist and the ambient capability surface the dialect closes',
-        ...at,
-      });
-    } else {
-      diagnostics.push({
-        ruleId: 'no-function-constructor',
-        message:
-          'the Function constructor is not part of the sandbox dialect; it compiles arbitrary ' +
-          'code that bypasses the import allowlist (use only the curated globals)',
-        ...at,
-      });
-    }
-  }
-  for (
-    let match = CONSTRUCTOR_ACCESS.exec(blanked);
-    match !== null;
-    match = CONSTRUCTOR_ACCESS.exec(blanked)
-  ) {
-    diagnostics.push({
-      ruleId: 'no-constructor-access',
-      message:
-        '.constructor access is not part of the sandbox dialect; it reaches the Function ' +
-        'constructor from any function value and reopens dynamic code generation',
-      ...positionAt(source, match.index),
+function scanCodegen(source: string): ScriptDiagnostic[] {
+  let program: acorn.Program;
+  try {
+    program = acorn.parse(source, {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      allowReturnOutsideFunction: true,
+      allowAwaitOutsideFunction: true,
+      locations: true,
     });
+  } catch {
+    return [];
   }
-  return diagnostics;
+  return scanDialect(program).map((finding) => {
+    const { ruleId, message } = CODEGEN_DIAGNOSTIC[finding.kind];
+    return { ruleId, message, line: finding.line, column: finding.column };
+  });
 }
 
 /**
@@ -317,7 +332,7 @@ export function compileScript(source: string, o?: CompileScriptOptions): Compile
   }
   const blanked = blankLiterals(source);
   diagnostics.push(...scanImports(source, blanked, allowImports));
-  diagnostics.push(...scanCodegen(source, blanked));
+  diagnostics.push(...scanCodegen(source));
   try {
     // Constructing the function compiles the body without executing it.
     new AsyncFunctionCtor(...SANDBOX_GLOBALS, source);

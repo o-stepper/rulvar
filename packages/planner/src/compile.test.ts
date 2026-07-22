@@ -197,6 +197,59 @@ describe('compileScript', () => {
     expect(wf.kind).toBe('compiled-workflow');
   });
 
+  it('rejects every statically visible reconstruction form (v1.38.0 review P2-CODEGEN-PARITY)', () => {
+    // The regex gate only saw the dotted form; the AST policy rejects the
+    // bracket, folding-computed, folding-template, destructuring, and
+    // reflection forms too, so compileScript matches the ESLint rule.
+    for (const source of [
+      'return (function () {})["constructor"];',
+      'return (function () {})["con" + "structor"];',
+      'return (function () {})[`con${""}structor`];',
+      'const { constructor: C } = function () {}; return typeof C;',
+      'const { ["constructor"]: C } = function () {}; return typeof C;',
+      'return Reflect.get(function () {}, "constructor");',
+    ]) {
+      expect(() => compileScript(source), source).toThrow(ScriptRejected);
+      let caught: unknown;
+      try {
+        compileScript(source);
+      } catch (error) {
+        caught = error;
+      }
+      expect(scriptDiagnosticsOf(caught as ScriptRejected).map((d) => d.ruleId)).toContain(
+        'no-constructor-access',
+      );
+    }
+  });
+
+  it('accepts a truly dynamic constructor key (undecidable statically, left to the worker)', () => {
+    // A key assembled at runtime cannot be resolved without rejecting every
+    // dynamic property access, so compile accepts it; the worker realm is the
+    // layer that neutralizes it at runtime.
+    for (const source of [
+      'const key = ["con", "structor"].join(""); return typeof (function () {})[key];',
+      'const key = someInput; return typeof (function () {})[key];',
+    ]) {
+      const wf = compileScript(source, { allowImports: [] });
+      expect(wf.kind, source).toBe('compiled-workflow');
+    }
+  });
+
+  it('does not flag eval or Function as member or property names on other values', () => {
+    // The AST policy only flags the GLOBAL eval/Function call and new forms;
+    // a property named eval/Function/constructor on a data object is ordinary
+    // access, not code generation. The regex gate wrongly rejected these.
+    const source = [
+      'const parsed = payload.eval;',
+      'const shaped = payload.Function;',
+      'const meta = { eval: 1, Function: 2, constructor: () => 3 };',
+      'const viaBracket = payload["eval"];',
+      'return parsed ?? shaped ?? meta.eval ?? viaBracket;',
+    ].join('\n');
+    const wf = compileScript(source);
+    expect(wf.kind).toBe('compiled-workflow');
+  });
+
   it('still catches an import hidden inside a template interpolation', () => {
     const source = "const a = `value: ${await import('node:os')}`;\nreturn a;";
     expect(() => compileScript(source)).toThrow(ScriptRejected);

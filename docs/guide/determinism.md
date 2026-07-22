@@ -25,7 +25,7 @@ Rulvar deliberately does not force a VM onto your code to fix this. For in-proce
 * this lint, which catches the ambient escapes statically,
 * a dev mode runtime patch on `Date.now` and `Math.random` that warns and points at the shims.
 
-Scripts the planner generates get a fourth, structural layer: the worker sandbox replaces `Date.now` and `Math.random` with seeded journaled shims, unbinds `fetch` and `process`, admits only allowlisted literal imports, and rejects the dynamic code generation that could rebuild any of those at runtime. See [Planner](/guide/planner) for that side; this page covers the lint.
+Scripts the planner generates get a fourth, structural layer: the worker sandbox replaces `Date.now` and `Math.random` with seeded journaled shims, unbinds `fetch` and `process`, admits only allowlisted literal imports, rejects the statically visible dynamic code generation that could rebuild any of those, and neutralizes the constructor reconstruction path at runtime for the forms static analysis cannot see. See [Planner](/guide/planner) for that side; this page covers the lint.
 
 ## The rules
 
@@ -35,11 +35,11 @@ Scripts the planner generates get a fourth, structural layer: the worker sandbox
 | `rulvar/no-bare-random` | error | `Math.random()` | `ctx.random(key?)` |
 | `rulvar/no-fetch` | error | `fetch(...)`, `globalThis.fetch(...)` | a declared tool, or a client call journaled with `ctx.step` |
 | `rulvar/no-process-env` | error | any `process.env` access | workflow args, or a `ctx.step` that journals the read |
-| `rulvar/no-code-generation` | error | `eval`, `Function(...)`/`new Function(...)`, `.constructor` access | the curated ctx surface only |
+| `rulvar/no-code-generation` | error | `eval`, `Function(...)`/`new Function(...)`, and constructor reconstruction (`.constructor`, `["constructor"]`, a folding computed key, `{ constructor: x }`, `Reflect.get(fn, "constructor")`) | the curated ctx surface only |
 | `rulvar/no-promise-all-over-ctx` | error | `Promise.all`, `allSettled`, `race`, `any` over ctx work | `ctx.parallel([...])` (`{ settle: true }` replaces `allSettled`) |
 | `rulvar/duplicate-identical-call` | warn | byte-identical `ctx.agent` or `ctx.workflow` repeats in one function | a distinguishing `key` option |
 
-The global binding rules flag only the global bindings. A locally declared `Date`, `fetch`, `process`, `Function`, or `Promise` shadows the global and is never reported, and `Promise.all` over plain host promises (file reads, database queries) is allowed; the combinator rule fires only when an argument spawns ctx work, including inside `.map` callbacks. The one exception is `.constructor` access, which `no-code-generation` flags wherever it appears, since it reaches the `Function` constructor from any value.
+The global binding rules flag only the global bindings. A locally declared `Date`, `fetch`, `process`, `Function`, or `Promise` shadows the global and is never reported, and `Promise.all` over plain host promises (file reads, database queries) is allowed; the combinator rule fires only when an argument spawns ctx work, including inside `.map` callbacks. The exception is constructor reconstruction, which `no-code-generation` flags in every static form wherever it appears, since it reaches the `Function` constructor from any value; a key assembled only at runtime cannot be seen statically and is left to the worker sandbox.
 
 ### Time, randomness, and ids
 
@@ -193,7 +193,7 @@ flowchart LR
   gate -->|clean| run[compiled workflow in the worker sandbox]
 ```
 
-The accepted script then executes in the worker sandbox, where the discipline the lint asked for is enforced structurally: seeded journaled shims for time and randomness, `fetch` and `process` unbound, imports limited to the allowlist, and dynamic code generation rejected. Lint and sandbox teach the same dialect, so a script that lints clean does not discover new bans at runtime. The full mode is documented in [Planner](/guide/planner).
+The accepted script then executes in the worker sandbox, where the discipline the lint asked for is enforced structurally: seeded journaled shims for time and randomness, `fetch` and `process` unbound, imports limited to the allowlist, and dynamic code generation rejected. Lint and the compile gate reach one decision for every statically visible form, so a script that lints clean does not discover a new static ban at runtime; the one thing static analysis cannot see, a constructor key assembled at runtime, is neutralized in the worker rather than silently allowed. The boundary is determinism and blast radius, not a hostile code wall. The full mode is documented in [Planner](/guide/planner).
 
 ## Using the plugin in your own projects
 

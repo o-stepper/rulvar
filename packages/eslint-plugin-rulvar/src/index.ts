@@ -15,6 +15,7 @@ import { noCodeGeneration } from './rules/dialect.js';
 import { duplicateIdenticalCall, noPromiseAllOverCtx } from './rules/scheduling.js';
 
 export { toJsonDiagnostics, type RulvarLintDiagnostic } from './diagnostics.js';
+export { scanDialect, type DialectFinding } from './dialect-scan.js';
 
 export const rules: Record<string, Rule.RuleModule> = {
   'no-bare-date': noBareDate,

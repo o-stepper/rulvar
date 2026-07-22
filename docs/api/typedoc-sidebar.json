@@ -6618,6 +6618,10 @@
         "collapsed": true,
         "items": [
           {
+            "text": "DialectFinding",
+            "link": "/api/eslint-plugin-rulvar/interfaces/DialectFinding.md"
+          },
+          {
             "text": "RulvarLintDiagnostic",
             "link": "/api/eslint-plugin-rulvar/interfaces/RulvarLintDiagnostic.md"
           }
@@ -6645,6 +6649,10 @@
         "text": "Functions",
         "collapsed": true,
         "items": [
+          {
+            "text": "scanDialect",
+            "link": "/api/eslint-plugin-rulvar/functions/scanDialect.md"
+          },
           {
             "text": "toJsonDiagnostics",
             "link": "/api/eslint-plugin-rulvar/functions/toJsonDiagnostics.md"
