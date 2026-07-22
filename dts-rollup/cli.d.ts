@@ -150,6 +150,16 @@ declare function driveRun(options: {
 * P2-1). Values print as JSON, which escapes control bytes on its own.
 */
 declare function reportOutcome(outcome: RunOutcome<unknown>, io: CliIo): number;
+/**
+* `--strict` (the v1.40.0 improvement plan's completion contract): a
+* settled ok run whose orchestration acceptance envelope reports a
+* completion other than 'complete' exits nonzero, with the degraded
+* reasons printed. Outcomes without an acceptance envelope (a workflow
+* that never opted into orchestrate acceptance) and nonzero exit codes
+* pass through unchanged, so the flag never masks the ordinary status
+* exit and never bites a plain workflow.
+*/
+declare function strictExitCode(outcome: RunOutcome<unknown>, base: number, io: CliIo): number;
 //#endregion
 //#region src/server.d.ts
 interface CreateServerOptions {
@@ -352,4 +362,4 @@ declare function toOtel(run: {
   result: Promise<RunOutcome<unknown>>;
 }, tracer: TracerLike, options?: ToOtelOptions): Promise<number>;
 //#endregion
-export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type KbSweepCliConfig, type LoadedWorkflowModule, type OtelContextApi, type RulvarServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, assembleEngine, attachProgress, createServer, createWorker, driveRun, inspectCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, toOtel };
+export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type KbSweepCliConfig, type LoadedWorkflowModule, type OtelContextApi, type RulvarServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, assembleEngine, attachProgress, createServer, createWorker, driveRun, inspectCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, strictExitCode, toOtel };

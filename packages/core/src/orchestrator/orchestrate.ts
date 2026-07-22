@@ -118,6 +118,33 @@ export interface OrchestratorBudgetSpec {
 }
 
 /** Options for orchestrate(engine, goal, o?). */
+/**
+ * The opt-in child completion policy (the v1.40.0 improvement plan's
+ * completion contract): run status 'ok' alone never proves the children
+ * succeeded, because the model may call finish after any mix of child
+ * outcomes. When acceptance is set, the policy is evaluated exactly when
+ * the model's finish validates, the verdict is journaled as ONE decision
+ * entry (so a resume rolls the SAME verdict forward, immune to drift of
+ * the live options), and the workflow result becomes the acceptance
+ * envelope { result, completion, childStatusCounts, degradedReasons }. A
+ * violated policy fails the run with the typed FailRunError (code
+ * 'fail_run', data.source 'orchestrator_acceptance') instead of settling
+ * ok. A budget cap settle keeps its atCap policy: the cap partial is
+ * already visible as run status 'exhausted' or the typed fail run error,
+ * never a plain ok, so acceptance does not judge it again.
+ */
+export interface OrchestrateAcceptance {
+  /**
+   * 'all-ok' requires EVERY spawned child to have settled 'ok' when
+   * finish validates: a child still running counts against the policy,
+   * and so does a deliberately cancelled straggler (spawn nothing you do
+   * not need to succeed; zero spawned children are vacuously complete).
+   * { minSuccessful: N } requires at least N children settled 'ok' and
+   * reports every other child in degradedReasons.
+   */
+  childPolicy: 'all-ok' | { minSuccessful: number };
+}
+
 export interface OrchestrateOptions {
   model?: ModelSpec;
   /** Registered profile names to advertise; default: every profile. */
@@ -149,6 +176,8 @@ export interface OrchestrateOptions {
    * participates in the mandatory quiescence trigger.
    */
   extension?: OrchestratorExtension;
+  /** The opt in child completion policy; see {@link OrchestrateAcceptance}. */
+  acceptance?: OrchestrateAcceptance;
 }
 
 export const ORCHESTRATE_WORKFLOW_NAME = 'rulvar-orchestrate';
@@ -172,6 +201,26 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
   }
   if (opts.renderBudgetChars !== undefined) {
     requireNonNegativeInteger(opts.renderBudgetChars, 'orchestrate renderBudgetChars');
+  }
+  if (opts.acceptance !== undefined) {
+    // The runtime JS/JSON boundary: the type system cannot hold it.
+    const policy = (opts.acceptance as { childPolicy?: unknown }).childPolicy;
+    const minSuccessful =
+      typeof policy === 'object' && policy !== null && !Array.isArray(policy)
+        ? (policy as { minSuccessful?: unknown }).minSuccessful
+        : undefined;
+    if (policy !== 'all-ok' && minSuccessful === undefined) {
+      throw new ConfigError(
+        "orchestrate acceptance.childPolicy must be 'all-ok' or { minSuccessful: N }; got " +
+          `${JSON.stringify(policy)}`,
+      );
+    }
+    if (policy !== 'all-ok') {
+      requirePositiveInteger(
+        minSuccessful as number,
+        'orchestrate acceptance.childPolicy.minSuccessful',
+      );
+    }
   }
   const spec = opts.budget;
   if (spec === undefined) {
@@ -1854,7 +1903,99 @@ export function makeOrchestratorWorkflow(
           (result.errorMessage === undefined ? '' : `: ${result.errorMessage}`),
       );
     }
-    return result.output;
+    if (opts?.acceptance === undefined) {
+      return result.output;
+    }
+
+    // The acceptance settle: the JOURNALED decision entry is the
+    // authority. On the first pass the child fold runs live and the
+    // verdict is appended; a resume finds the entry and rolls the SAME
+    // verdict, counts, and reasons forward, so the settle branch and the
+    // envelope are immune to drift of the live options and to children
+    // whose settle raced the finish.
+    interface AcceptanceDecision {
+      decisionType: 'orchestrator_acceptance';
+      verdict: 'accepted' | 'rejected';
+      completion: 'complete' | 'partial' | 'rejected';
+      childPolicy: 'all-ok' | { minSuccessful: number };
+      childStatusCounts: Record<string, number>;
+      degradedReasons: string[];
+    }
+    const acceptanceKey = 'acceptance';
+    const priorAcceptance = internals.replayer
+      .snapshot()
+      .find(
+        (entry) =>
+          entry.kind === 'decision' &&
+          entry.scope === callingState.scope &&
+          entry.key === acceptanceKey,
+      );
+    let decision: AcceptanceDecision;
+    if (priorAcceptance !== undefined) {
+      decision = priorAcceptance.value as unknown as AcceptanceDecision;
+    } else {
+      const childStatusCounts: Record<string, number> = {};
+      const degradedReasons: string[] = [];
+      const sortedRecords = [...records.values()].sort((a, b) => a.spawnOrdinal - b.spawnOrdinal);
+      for (const record of sortedRecords) {
+        const status = record.settled?.status ?? 'running';
+        childStatusCounts[status] = (childStatusCounts[status] ?? 0) + 1;
+        if (status !== 'ok') {
+          degradedReasons.push(
+            status === 'running'
+              ? `child ${record.nodeId} was still running when finish validated`
+              : `child ${record.nodeId} settled '${status}'`,
+          );
+        }
+      }
+      const childPolicy = opts.acceptance.childPolicy;
+      const accepted =
+        childPolicy === 'all-ok'
+          ? degradedReasons.length === 0
+          : (childStatusCounts.ok ?? 0) >= childPolicy.minSuccessful;
+      decision = {
+        decisionType: 'orchestrator_acceptance',
+        verdict: accepted ? 'accepted' : 'rejected',
+        completion: !accepted ? 'rejected' : degradedReasons.length === 0 ? 'complete' : 'partial',
+        childPolicy,
+        childStatusCounts,
+        degradedReasons,
+      };
+      await internals.replayer.appendSinglePhase({
+        scope: callingState.scope,
+        key: acceptanceKey,
+        kind: 'decision',
+        status: 'ok',
+        spanId: internals.spans.mint(callingState.spanId),
+        site: 'orchestrator-acceptance',
+        value: decision,
+      });
+    }
+    if (decision.verdict === 'rejected') {
+      const required =
+        decision.childPolicy === 'all-ok'
+          ? 'every child ok'
+          : `at least ${String(decision.childPolicy.minSuccessful)} children ok`;
+      throw new FailRunError(
+        `the orchestrator acceptance policy rejected the finish: ` +
+          `${String(decision.childStatusCounts.ok ?? 0)} children settled 'ok' but the policy ` +
+          `requires ${required}; degraded: ${decision.degradedReasons.join('; ')}`,
+        {
+          data: {
+            source: 'orchestrator_acceptance',
+            childPolicy: decision.childPolicy as unknown as Json,
+            childStatusCounts: decision.childStatusCounts,
+            degradedReasons: decision.degradedReasons,
+          },
+        },
+      );
+    }
+    return {
+      result: result.output,
+      completion: decision.completion,
+      childStatusCounts: decision.childStatusCounts,
+      degradedReasons: decision.degradedReasons,
+    };
   });
 }
 

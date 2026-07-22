@@ -56,7 +56,7 @@ All four family unions are exported from `@rulvar/core` as `CoreEvents`, `AgentE
 | Event | Fires when | Notable fields |
 |---|---|---|
 | `run:start` | The run begins (`resumed: true` on resume). | `workflow`, `resumed` |
-| `run:end` | The run settles. | `status`, `totalUsd` |
+| `run:end` | The run settles. | `status`, `totalUsd`, `usageApprox?` |
 | `phase:start` | A `ctx.phase` block opens. | `phase` |
 | `log` | The workflow or engine logs a line. | `level`, `msg`, `data?` |
 | `budget:update` | Spend or committed reserves changed. | `spentUsd`, `remainingUsd`, `committedReserveUsd` |
@@ -70,7 +70,7 @@ All four family unions are exported from `@rulvar/core` as `CoreEvents`, `AgentE
 |---|---|---|
 | `agent:queued` | A spawn is admitted and waiting on the scheduler. | `agentType`, `label?` |
 | `agent:start` | The agent's tool loop begins. | `model`, `role` |
-| `agent:end` | The agent settles; the one event that carries money. | `status`, `usage`, `costUsd`, `entryRef` |
+| `agent:end` | The agent settles; the one event that carries money. | `status`, `usage`, `costUsd`, `entryRef`, `usageApprox?` |
 | `agent:error` | A live attempt failed. | `error` (a wire error), `willRetry` |
 | `agent:schema-retry` | Structured output failed validation and is being retried. | `attempt`, `maxAttempts` |
 | `agent:stream` | A token delta arrived; only for calls that opt into streaming. | `delta` |
@@ -253,14 +253,16 @@ interface CostReport {
     reserveUsedUsd: number;  // spend drawn from the finalize reserve
   };
   unpriced: Array<{ model: string; usage: Usage }>;
+  usageApprox?: boolean;     // present and true when the total includes estimated usage
 }
 ```
 
-Three details worth knowing:
+Four details worth knowing:
 
+- `totalUsd` is an estimate computed from the usage the provider reported and the configured price table, not the provider's invoice: registry prices can lag provider price changes, and rounding or billing rules on the provider side are not modeled. Reconcile against the provider's billing when exactness matters.
+- `usageApprox` is present and true when any usage folded into the total was estimated rather than reported by the provider (a transport cut, a stream a ceiling severed, or an abort), making the total a lower bound. The same flag rides `agent:end` and `run:end`, and the CLI cost line marks it.
 - Usage on a model absent from the price table lands in `unpriced` and never contributes a silent zero to a priced bucket. Missing pricing is visible, not invisible.
-- The `orchestrator` block exists in every run; without a dynamic orchestrator it is all zero with `forcedFinish: false`. The `share` denominator is floored at one cent, so a zero-cost run reports share 0 instead of dividing by zero.
-- `byPhase` is why `ctx.phase` is structural for cost attribution while staying cosmetic for journal identity: renaming a phase changes your report, never your replay.
+- The `orchestrator` block exists in every run; without a dynamic orchestrator it is all zero with `forcedFinish: false`. The `share` denominator is floored at one cent, so a zero-cost run reports share 0 instead of dividing by zero. `byPhase` is why `ctx.phase` is structural for cost attribution while staying cosmetic for journal identity: renaming a phase changes your report, never your replay.
 
 The budget machinery behind these numbers, including the `'exhausted'` outcome and committed reserves, is covered in [Budgets](/guide/budgets).
 

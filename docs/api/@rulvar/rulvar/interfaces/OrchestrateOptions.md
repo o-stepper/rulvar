@@ -8,12 +8,11 @@
 
 Defined in: `packages/core/dist/index.d.ts`
 
-Options for orchestrate(engine, goal, o?).
-
 ## Properties
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-acceptance"></a> `acceptance?` | [`OrchestrateAcceptance`](/api/@rulvar/rulvar/interfaces/OrchestrateAcceptance.md) | The opt in child completion policy; see [OrchestrateAcceptance](/api/@rulvar/rulvar/interfaces/OrchestrateAcceptance.md). | `packages/core/dist/index.d.ts` |
 | <a id="property-budget"></a> `budget?` | [`OrchestratorBudgetSpec`](/api/@rulvar/rulvar/interfaces/OrchestratorBudgetSpec.md) | The orchestrator's own budget sub-account (cap enforcement layers only in M6). | `packages/core/dist/index.d.ts` |
 | <a id="property-extension"></a> `extension?` | [`OrchestratorExtension`](/api/@rulvar/rulvar/interfaces/OrchestratorExtension.md) | The opt-in mode (c) extension seam (M7-T05): PlanRunner from @rulvar/plan attaches here. The extension boots strictly before the orchestrator's first agent entry, contributes tools, schedules ready plan nodes on every settlement, and participates in the mandatory quiescence trigger. | `packages/core/dist/index.d.ts` |
 | <a id="property-limits"></a> `limits?` | [`UsageLimits`](/api/@rulvar/rulvar/interfaces/UsageLimits.md) | UsageLimits of the orchestrator agent itself (maxTurns etc.). | `packages/core/dist/index.d.ts` |

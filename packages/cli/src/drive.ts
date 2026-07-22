@@ -228,3 +228,35 @@ export function reportOutcome(outcome: RunOutcome<unknown>, io: CliIo): number {
       return 1;
   }
 }
+
+/**
+ * `--strict` (the v1.40.0 improvement plan's completion contract): a
+ * settled ok run whose orchestration acceptance envelope reports a
+ * completion other than 'complete' exits nonzero, with the degraded
+ * reasons printed. Outcomes without an acceptance envelope (a workflow
+ * that never opted into orchestrate acceptance) and nonzero exit codes
+ * pass through unchanged, so the flag never masks the ordinary status
+ * exit and never bites a plain workflow.
+ */
+export function strictExitCode(outcome: RunOutcome<unknown>, base: number, io: CliIo): number {
+  if (base !== 0 || outcome.status !== 'ok') {
+    return base;
+  }
+  const value = outcome.value as
+    { completion?: unknown; degradedReasons?: unknown } | null | undefined;
+  const completion =
+    typeof value === 'object' && value !== null && typeof value.completion === 'string'
+      ? value.completion
+      : undefined;
+  if (completion === undefined || completion === 'complete') {
+    return base;
+  }
+  io.err(
+    `strict: the orchestration acceptance reports completion '${sanitizeTerminalText(completion)}'`,
+  );
+  const reasons = Array.isArray(value?.degradedReasons) ? value.degradedReasons : [];
+  for (const reason of reasons.filter((entry): entry is string => typeof entry === 'string')) {
+    io.err(`  ${sanitizeTerminalText(reason)}`);
+  }
+  return 1;
+}

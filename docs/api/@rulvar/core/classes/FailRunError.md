@@ -6,12 +6,15 @@
 
 # Class: FailRunError
 
-Defined in: [packages/core/src/l0/errors.ts:263](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L263)
+Defined in: [packages/core/src/l0/errors.ts:266](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L266)
 
 A declared fail-run policy engaged and closed the run as a failure
 (v1.35.0 review P2-1): `budget.atCap: 'fail-run'` after the journaled
-orchestrator cap decision, or `guards.fallback: 'fail-run'` after the
-journaled guard verdict. The run outcome is 'error' with this code;
+orchestrator cap decision, `guards.fallback: 'fail-run'` after the
+journaled guard verdict, or a violated orchestrate acceptance policy
+after the journaled acceptance decision (`data.source`
+'orchestrator_acceptance', with the child status counts and degraded
+reasons in `data`). The run outcome is 'error' with this code;
 `data.source` names the policy ('orchestrator_budget_cap' or
 'plan_guards') and `data` carries the decision entry reference, so the
 outcome is a pure roll forward of the journal on resume: no second
@@ -29,7 +32,7 @@ decision, no model call, no spend.
 new FailRunError(message, opts?): FailRunError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:266](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L266)
+Defined in: [packages/core/src/l0/errors.ts:269](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L269)
 
 #### Parameters
 
@@ -52,7 +55,7 @@ Defined in: [packages/core/src/l0/errors.ts:266](https://github.com/o-stepper/ru
 
 | Property | Modifier | Type | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `readonly` | `"fail_run"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:264](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L264) |
+| <a id="property-code"></a> `code` | `readonly` | `"fail_run"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:267](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L267) |
 | <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L58) |
 | <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L57) |
 
