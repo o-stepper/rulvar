@@ -737,8 +737,16 @@
             "link": "/api/@rulvar/core/interfaces/CheckpointState.md"
           },
           {
+            "text": "ChildArtifactPage",
+            "link": "/api/@rulvar/core/interfaces/ChildArtifactPage.md"
+          },
+          {
             "text": "ChildIdentityInput",
             "link": "/api/@rulvar/core/interfaces/ChildIdentityInput.md"
+          },
+          {
+            "text": "ChildResultPage",
+            "link": "/api/@rulvar/core/interfaces/ChildResultPage.md"
           },
           {
             "text": "ClaimValidationOptions",
@@ -1821,6 +1829,10 @@
             "link": "/api/@rulvar/core/variables/DEFAULT_CHILD_BUDGET_FRACTION.md"
           },
           {
+            "text": "DEFAULT_CHILD_RESULT_PAGE_CHARS",
+            "link": "/api/@rulvar/core/variables/DEFAULT_CHILD_RESULT_PAGE_CHARS.md"
+          },
+          {
             "text": "DEFAULT_COMPACTION_THRESHOLD",
             "link": "/api/@rulvar/core/variables/DEFAULT_COMPACTION_THRESHOLD.md"
           },
@@ -1929,6 +1941,14 @@
             "link": "/api/@rulvar/core/variables/FINISH_TOOL_NAME.md"
           },
           {
+            "text": "GET_CHILD_RESULT_SCHEMA",
+            "link": "/api/@rulvar/core/variables/GET_CHILD_RESULT_SCHEMA.md"
+          },
+          {
+            "text": "GET_CHILD_RESULT_TOOL_NAME",
+            "link": "/api/@rulvar/core/variables/GET_CHILD_RESULT_TOOL_NAME.md"
+          },
+          {
             "text": "INBOX_PROPOSAL_TTL_DAYS",
             "link": "/api/@rulvar/core/variables/INBOX_PROPOSAL_TTL_DAYS.md"
           },
@@ -1961,6 +1981,10 @@
             "link": "/api/@rulvar/core/variables/MASKED_SECRET.md"
           },
           {
+            "text": "MAX_CHILD_RESULT_PAGE_CHARS",
+            "link": "/api/@rulvar/core/variables/MAX_CHILD_RESULT_PAGE_CHARS.md"
+          },
+          {
             "text": "MAX_DEPTH_CEILING",
             "link": "/api/@rulvar/core/variables/MAX_DEPTH_CEILING.md"
           },
@@ -1971,6 +1995,14 @@
           {
             "text": "PARALLEL_AGENTS_SCHEMA",
             "link": "/api/@rulvar/core/variables/PARALLEL_AGENTS_SCHEMA.md"
+          },
+          {
+            "text": "READ_CHILD_ARTIFACT_SCHEMA",
+            "link": "/api/@rulvar/core/variables/READ_CHILD_ARTIFACT_SCHEMA.md"
+          },
+          {
+            "text": "READ_CHILD_ARTIFACT_TOOL_NAME",
+            "link": "/api/@rulvar/core/variables/READ_CHILD_ARTIFACT_TOOL_NAME.md"
           },
           {
             "text": "ROLE_EFFORT_DEFAULTS",
@@ -4322,8 +4354,16 @@
             "link": "/api/@rulvar/rulvar/interfaces/CheckpointState.md"
           },
           {
+            "text": "ChildArtifactPage",
+            "link": "/api/@rulvar/rulvar/interfaces/ChildArtifactPage.md"
+          },
+          {
             "text": "ChildIdentityInput",
             "link": "/api/@rulvar/rulvar/interfaces/ChildIdentityInput.md"
+          },
+          {
+            "text": "ChildResultPage",
+            "link": "/api/@rulvar/rulvar/interfaces/ChildResultPage.md"
           },
           {
             "text": "ClaimValidationOptions",
@@ -5442,6 +5482,10 @@
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_CHILD_BUDGET_FRACTION.md"
           },
           {
+            "text": "DEFAULT_CHILD_RESULT_PAGE_CHARS",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_CHILD_RESULT_PAGE_CHARS.md"
+          },
+          {
             "text": "DEFAULT_COMPACTION_THRESHOLD",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_COMPACTION_THRESHOLD.md"
           },
@@ -5550,6 +5594,14 @@
             "link": "/api/@rulvar/rulvar/variables/FINISH_TOOL_NAME.md"
           },
           {
+            "text": "GET_CHILD_RESULT_SCHEMA",
+            "link": "/api/@rulvar/rulvar/variables/GET_CHILD_RESULT_SCHEMA.md"
+          },
+          {
+            "text": "GET_CHILD_RESULT_TOOL_NAME",
+            "link": "/api/@rulvar/rulvar/variables/GET_CHILD_RESULT_TOOL_NAME.md"
+          },
+          {
             "text": "INBOX_PROPOSAL_TTL_DAYS",
             "link": "/api/@rulvar/rulvar/variables/INBOX_PROPOSAL_TTL_DAYS.md"
           },
@@ -5582,6 +5634,10 @@
             "link": "/api/@rulvar/rulvar/variables/MASKED_SECRET.md"
           },
           {
+            "text": "MAX_CHILD_RESULT_PAGE_CHARS",
+            "link": "/api/@rulvar/rulvar/variables/MAX_CHILD_RESULT_PAGE_CHARS.md"
+          },
+          {
             "text": "MAX_DEPTH_CEILING",
             "link": "/api/@rulvar/rulvar/variables/MAX_DEPTH_CEILING.md"
           },
@@ -5596,6 +5652,14 @@
           {
             "text": "PARALLEL_AGENTS_SCHEMA",
             "link": "/api/@rulvar/rulvar/variables/PARALLEL_AGENTS_SCHEMA.md"
+          },
+          {
+            "text": "READ_CHILD_ARTIFACT_SCHEMA",
+            "link": "/api/@rulvar/rulvar/variables/READ_CHILD_ARTIFACT_SCHEMA.md"
+          },
+          {
+            "text": "READ_CHILD_ARTIFACT_TOOL_NAME",
+            "link": "/api/@rulvar/rulvar/variables/READ_CHILD_ARTIFACT_TOOL_NAME.md"
           },
           {
             "text": "recommendedDefaults",
