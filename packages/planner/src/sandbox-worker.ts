@@ -164,6 +164,19 @@ function main(port: NodeMessagePort, init: SandboxInitMessage): void {
   Math.random = shimRandom;
   Reflect.set(globalThis, 'fetch', undefined);
   Reflect.set(globalThis, 'process', undefined);
+  // Defense in depth against dynamic code generation (v1.37.0 review
+  // SEC-P2): eval and the Function constructor compile arbitrary text in a
+  // fresh scope where import() and host capability are back in reach.
+  // compileScript is the real gate (it rejects eval, Function, and
+  // .constructor before a source ever runs); unbinding the globals here
+  // only stops the bare `eval(...)`/`Function(...)` forms for a source that
+  // reached the worker without passing compileScript. It is NOT hermetic:
+  // (function(){}).constructor still derives Function from the prototype
+  // chain, which is exactly why the static ban, not this scrub, is the
+  // boundary. The AsyncFunction constructor used below is captured from a
+  // prototype, not from this global, so unbinding it here is safe.
+  Reflect.set(globalThis, 'eval', undefined);
+  Reflect.set(globalThis, 'Function', undefined);
 
   const sandboxGlobals: Record<string, unknown> = {
     agent: (prompt: unknown, opts?: unknown) =>

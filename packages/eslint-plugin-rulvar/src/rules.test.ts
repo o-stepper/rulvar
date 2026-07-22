@@ -61,6 +61,36 @@ tester.run('no-process-env', rules['no-process-env'], {
   ],
 });
 
+tester.run('no-code-generation', rules['no-code-generation'], {
+  valid: [
+    'const t = ctx.now();',
+    // A method named eval on some other object is not the global eval.
+    'const r = parser.eval(expr);',
+    // Shadowed Function is local, not the global constructor.
+    'function f(Function) { return new Function("return 1"); }',
+    // Plain data access with no constructor reach.
+    'const names = items.map((i) => i.name);',
+  ],
+  invalid: [
+    { code: 'const v = eval("1 + 1");', errors: [{ messageId: 'noEval' }] },
+    { code: 'const e = globalThis.eval("1 + 1");', errors: [{ messageId: 'noEval' }] },
+    { code: 'const f = Function("return 1");', errors: [{ messageId: 'noFunctionConstructor' }] },
+    {
+      code: 'const f = new Function("return 1");',
+      errors: [{ messageId: 'noFunctionConstructor' }],
+    },
+    {
+      code: 'const g = globalThis.Function("return 1");',
+      errors: [{ messageId: 'noFunctionConstructor' }],
+    },
+    {
+      code: 'const F = (function () {}).constructor;',
+      errors: [{ messageId: 'noConstructorAccess' }],
+    },
+    { code: 'const c = obj["constructor"];', errors: [{ messageId: 'noConstructorAccess' }] },
+  ],
+});
+
 tester.run('no-promise-all-over-ctx', rules['no-promise-all-over-ctx'], {
   valid: [
     // ctx.parallel is the sanctioned combinator.
@@ -120,6 +150,7 @@ describe('plugin surface', () => {
       'duplicate-identical-call',
       'no-bare-date',
       'no-bare-random',
+      'no-code-generation',
       'no-fetch',
       'no-process-env',
       'no-promise-all-over-ctx',

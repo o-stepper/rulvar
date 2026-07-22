@@ -383,6 +383,47 @@ describe('the allowImports contract end to end (v1.22.0 review P2-7)', () => {
   });
 });
 
+describe('the sandbox rejects dynamic code generation (v1.37.0 review SEC-P2)', () => {
+  // Hand built so the source can bypass the compile time ban and exercise
+  // the runtime worker scrub directly.
+  const rawCompiled = (source: string): CompiledWorkflow => ({
+    kind: 'compiled-workflow',
+    name: 'compiled',
+    source,
+    errorPolicy: 'lenient',
+  });
+
+  it('refuses eval, the Function constructor, and .constructor at compile time', () => {
+    expect(() => compileScript('return eval("1 + 1");')).toThrow(ScriptRejected);
+    expect(() => compileScript('return new Function("return 1")();')).toThrow(ScriptRejected);
+    expect(() => compileScript('return (function () {}).constructor;')).toThrow(ScriptRejected);
+    // The exact SEC-P2 bypass: reach the Function constructor and compile a
+    // dynamic import the literal import ban never sees.
+    const bypass = [
+      'const make = (function () {}).constructor;',
+      'const load = make("s", "return import(s);");',
+      'return (await load("node:os")).platform();',
+    ].join('\n');
+    expect(() => compileScript(bypass)).toThrow(ScriptRejected);
+  });
+
+  it('unbinds eval and Function in the worker realm as defense in depth', async () => {
+    const { engine } = makeEngine();
+    const probe = rawCompiled('return { evalType: typeof eval, functionType: typeof Function };');
+    const outcome = await engine.run(probe, null, { runId: 'codegen-probe' }).result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.value).toEqual({ evalType: 'undefined', functionType: 'undefined' });
+  });
+
+  it('a bare eval call that reached the worker unchecked fails at runtime', async () => {
+    const { engine } = makeEngine();
+    const outcome = await engine.run(rawCompiled('return eval("1 + 1");'), null, {
+      runId: 'bare-eval',
+    }).result;
+    expect(outcome.status).toBe('error');
+  });
+});
+
 describe('tools strings resolve as registered toolsets in the dialect (v1.23.0 review P2-1)', () => {
   const lookup = tool({
     name: 'lookup_web',

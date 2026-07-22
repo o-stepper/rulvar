@@ -7,8 +7,15 @@
  * plan() self-repair loop; `allowImports` defaults to [] (no imports).
  *
  * Validation scope committed here (M6-T01 acceptance): syntax (the source
- * must compile as an async function body over the sandbox globals) and
- * the import allowlist. The deeper dialect rules (schema literals only,
+ * must compile as an async function body over the sandbox globals), the
+ * import allowlist, and the dynamic code generation ban (eval, the
+ * Function constructor, and `.constructor` access). The last one keeps the
+ * import allowlist meaningful: without it `new Function("return import(x)")`
+ * would reopen the very import surface the allowlist closes. This raises
+ * the bar and keeps the dialect consistent; it is NOT a hostile code
+ * boundary (a determined author still reaches intrinsics), which is why the
+ * worker sandbox is documented as a determinism and blast radius boundary,
+ * not a security one. The deeper dialect rules (schema literals only,
  * no functions in options, tools by profile name) are enforced at the
  * sandbox boundary at runtime (JSON-only RPC) and advisorily by
  * eslint-plugin-rulvar in the self-repair loop.
@@ -240,6 +247,59 @@ function scanImports(
   return diagnostics;
 }
 
+const CODEGEN_WORD = /\b(eval|Function)\b/g;
+const CONSTRUCTOR_ACCESS = /\.\s*constructor\b/g;
+
+/**
+ * Rejects dynamic code generation. `eval` and the Function constructor
+ * compile attacker supplied text in a fresh scope where the import
+ * expression, ambient time, and host capability are back in reach, so
+ * banning `import` while allowing `new Function("return import(x)")` closes
+ * nothing. `.constructor` access is the same vector by another name: every
+ * function value exposes the Function constructor as its `.constructor`
+ * ((function(){}).constructor === Function). Literals and comments are
+ * blanked before the scan, so a banned word inside a string never matches;
+ * the identifier form (not just calls) is rejected because a captured
+ * reference (`const f = Function`) is the trivial workaround.
+ */
+function scanCodegen(source: string, blanked: string): ScriptDiagnostic[] {
+  const diagnostics: ScriptDiagnostic[] = [];
+  for (let match = CODEGEN_WORD.exec(blanked); match !== null; match = CODEGEN_WORD.exec(blanked)) {
+    const at = positionAt(source, match.index);
+    if (match[1] === 'eval') {
+      diagnostics.push({
+        ruleId: 'no-eval',
+        message:
+          'eval is not part of the sandbox dialect; dynamically generated code reopens the ' +
+          'import allowlist and the ambient capability surface the dialect closes',
+        ...at,
+      });
+    } else {
+      diagnostics.push({
+        ruleId: 'no-function-constructor',
+        message:
+          'the Function constructor is not part of the sandbox dialect; it compiles arbitrary ' +
+          'code that bypasses the import allowlist (use only the curated globals)',
+        ...at,
+      });
+    }
+  }
+  for (
+    let match = CONSTRUCTOR_ACCESS.exec(blanked);
+    match !== null;
+    match = CONSTRUCTOR_ACCESS.exec(blanked)
+  ) {
+    diagnostics.push({
+      ruleId: 'no-constructor-access',
+      message:
+        '.constructor access is not part of the sandbox dialect; it reaches the Function ' +
+        'constructor from any function value and reopens dynamic code generation',
+      ...positionAt(source, match.index),
+    });
+  }
+  return diagnostics;
+}
+
 /**
  * Validates and compiles planner-generated source into a CompiledWorkflow.
  * The source is an async function body over the sandbox
@@ -257,6 +317,7 @@ export function compileScript(source: string, o?: CompileScriptOptions): Compile
   }
   const blanked = blankLiterals(source);
   diagnostics.push(...scanImports(source, blanked, allowImports));
+  diagnostics.push(...scanCodegen(source, blanked));
   try {
     // Constructing the function compiles the body without executing it.
     new AsyncFunctionCtor(...SANDBOX_GLOBALS, source);

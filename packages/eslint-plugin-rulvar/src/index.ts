@@ -11,6 +11,7 @@
 import type { ESLint, Linter, Rule } from 'eslint';
 
 import { noBareDate, noBareRandom, noFetch, noProcessEnv } from './rules/determinism.js';
+import { noCodeGeneration } from './rules/dialect.js';
 import { duplicateIdenticalCall, noPromiseAllOverCtx } from './rules/scheduling.js';
 
 export { toJsonDiagnostics, type RulvarLintDiagnostic } from './diagnostics.js';
@@ -20,6 +21,7 @@ export const rules: Record<string, Rule.RuleModule> = {
   'no-bare-random': noBareRandom,
   'no-fetch': noFetch,
   'no-process-env': noProcessEnv,
+  'no-code-generation': noCodeGeneration,
   'no-promise-all-over-ctx': noPromiseAllOverCtx,
   'duplicate-identical-call': duplicateIdenticalCall,
 };
@@ -41,6 +43,7 @@ export const workflowsConfig: Linter.Config = {
     'rulvar/no-bare-random': 'error',
     'rulvar/no-fetch': 'error',
     'rulvar/no-process-env': 'error',
+    'rulvar/no-code-generation': 'error',
     'rulvar/no-promise-all-over-ctx': 'error',
     'rulvar/duplicate-identical-call': 'warn',
   },

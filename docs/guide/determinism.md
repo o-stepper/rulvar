@@ -1,11 +1,11 @@
 ---
 title: Determinism lint
-description: Why Rulvar workflow modules must stay replay-stable and how eslint-plugin-rulvar enforces it with six flat config rules and structured JSON diagnostics for the planner self-repair loop.
+description: Why Rulvar workflow modules must stay replay-stable and how eslint-plugin-rulvar enforces it with seven flat config rules and structured JSON diagnostics for the planner self-repair loop.
 ---
 
 # Determinism lint
 
-`eslint-plugin-rulvar` ships six ESLint rules that ban ambient nondeterminism in workflow modules and point every finding at the journaled alternative. The same rules serve two audiences: you, running ESLint over the workflows in your own repository, and the planner self-repair loop, which lints every script draft a planner model writes and feeds the findings back to the model as JSON.
+`eslint-plugin-rulvar` ships seven ESLint rules for workflow modules: six ban ambient nondeterminism and ambient I/O and point every finding at the journaled alternative, and one bans dynamic code generation, which would otherwise slip past the sandbox import allowlist. The same rules serve two audiences: you, running ESLint over the workflows in your own repository, and the planner self-repair loop, which lints every script draft a planner model writes and feeds the findings back to the model as JSON.
 
 ```bash
 pnpm add -D eslint eslint-plugin-rulvar
@@ -25,7 +25,7 @@ Rulvar deliberately does not force a VM onto your code to fix this. For in-proce
 * this lint, which catches the ambient escapes statically,
 * a dev mode runtime patch on `Date.now` and `Math.random` that warns and points at the shims.
 
-Scripts the planner generates get a fourth, structural layer: the worker sandbox replaces `Date.now` and `Math.random` with seeded journaled shims and omits `import`, `fetch`, and `process` from the global scope entirely. See [Planner](/guide/planner) for that side; this page covers the lint.
+Scripts the planner generates get a fourth, structural layer: the worker sandbox replaces `Date.now` and `Math.random` with seeded journaled shims, unbinds `fetch` and `process`, admits only allowlisted literal imports, and rejects the dynamic code generation that could rebuild any of those at runtime. See [Planner](/guide/planner) for that side; this page covers the lint.
 
 ## The rules
 
@@ -35,10 +35,11 @@ Scripts the planner generates get a fourth, structural layer: the worker sandbox
 | `rulvar/no-bare-random` | error | `Math.random()` | `ctx.random(key?)` |
 | `rulvar/no-fetch` | error | `fetch(...)`, `globalThis.fetch(...)` | a declared tool, or a client call journaled with `ctx.step` |
 | `rulvar/no-process-env` | error | any `process.env` access | workflow args, or a `ctx.step` that journals the read |
+| `rulvar/no-code-generation` | error | `eval`, `Function(...)`/`new Function(...)`, `.constructor` access | the curated ctx surface only |
 | `rulvar/no-promise-all-over-ctx` | error | `Promise.all`, `allSettled`, `race`, `any` over ctx work | `ctx.parallel([...])` (`{ settle: true }` replaces `allSettled`) |
 | `rulvar/duplicate-identical-call` | warn | byte-identical `ctx.agent` or `ctx.workflow` repeats in one function | a distinguishing `key` option |
 
-Every rule flags only the global bindings. A locally declared `Date`, `fetch`, `process`, or `Promise` shadows the global and is never reported, and `Promise.all` over plain host promises (file reads, database queries) is allowed; the combinator rule fires only when an argument spawns ctx work, including inside `.map` callbacks.
+The global binding rules flag only the global bindings. A locally declared `Date`, `fetch`, `process`, `Function`, or `Promise` shadows the global and is never reported, and `Promise.all` over plain host promises (file reads, database queries) is allowed; the combinator rule fires only when an argument spawns ctx work, including inside `.map` callbacks. The one exception is `.constructor` access, which `no-code-generation` flags wherever it appears, since it reaches the `Function` constructor from any value.
 
 ### Time, randomness, and ids
 
@@ -114,7 +115,7 @@ const second = await ctx.agent('Rate this abstract from 1 to 10', { key: 'rating
 
 ## Flat config setup
 
-The plugin ships one preset, `rulvar/workflows`, wiring every rule at its intended severity: the five determinism and scheduling bans as errors, the duplicate-call advisory as a warning. The preset deliberately carries no `files` of its own, because the bans apply to workflow modules, not to your servers, scripts, or tests; scope it yourself:
+The plugin ships one preset, `rulvar/workflows`, wiring every rule at its intended severity: the six determinism, dialect, and scheduling bans as errors, the duplicate-call advisory as a warning. The preset deliberately carries no `files` of its own, because the bans apply to workflow modules, not to your servers, scripts, or tests; scope it yourself:
 
 ```ts
 // eslint.config.js
@@ -192,7 +193,7 @@ flowchart LR
   gate -->|clean| run[compiled workflow in the worker sandbox]
 ```
 
-The accepted script then executes in the worker sandbox, where the determinism the lint asked for is enforced structurally: seeded journaled shims for time and randomness, and no `fetch`, `process`, or `import` in scope at all. Lint and sandbox teach the same dialect, so a script that lints clean does not discover new bans at runtime. The full mode is documented in [Planner](/guide/planner).
+The accepted script then executes in the worker sandbox, where the discipline the lint asked for is enforced structurally: seeded journaled shims for time and randomness, `fetch` and `process` unbound, imports limited to the allowlist, and dynamic code generation rejected. Lint and sandbox teach the same dialect, so a script that lints clean does not discover new bans at runtime. The full mode is documented in [Planner](/guide/planner).
 
 ## Using the plugin in your own projects
 

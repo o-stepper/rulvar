@@ -10,7 +10,7 @@
 const workflowsConfig: Linter.Config;
 ```
 
-Defined in: [packages/eslint-plugin-rulvar/src/index.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/eslint-plugin-rulvar/src/index.ts#L36)
+Defined in: [packages/eslint-plugin-rulvar/src/index.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/eslint-plugin-rulvar/src/index.ts#L38)
 
 The flat-config preset for workflow modules: the determinism bans as
 errors, the duplicate-identical-call advisory as a warning.

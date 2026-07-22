@@ -338,6 +338,14 @@ describe('plan helpers', () => {
     expect(outcome.errors.map((e) => e.ruleId)).toContain('compile/disallowed-import');
   });
 
+  it('lintScript reports the code generation bypass from both gates (v1.37.0 review SEC-P2)', () => {
+    const outcome = lintScript('const F = (function () {}).constructor;\nreturn 1;');
+    const ruleIds = outcome.errors.map((e) => e.ruleId);
+    expect(ruleIds).toContain('rulvar/no-code-generation');
+    expect(ruleIds).toContain('compile/no-constructor-access');
+    expect(outcome.workflow).toBeUndefined();
+  });
+
   it('lintScript accepts a clean body and returns the compiled workflow', () => {
     const outcome = lintScript("return step('x', () => 1);");
     expect(outcome.errors).toEqual([]);
