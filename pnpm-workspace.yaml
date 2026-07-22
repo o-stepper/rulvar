@@ -70,3 +70,13 @@ minimumReleaseAgeExclude:
 # esbuild itself. Drop this the day VitePress ships on vite 6 or newer.
 overrides:
   vitepress>vite: '^6.4.3'
+  # Dependabot floor bumps (2026-07-22). fast-uri and dompurify are patch
+  # bumps inside their dependents' declared ranges (ajv, mermaid); the
+  # @hono/node-server major sits OUTSIDE the MCP SDK's declared ^1.19.9
+  # because the patched line is 2.x. Rulvar never loads the hono server
+  # adapter (mcp() is a client; the inprocess transport uses the SDK's
+  # in-memory wiring), so the override only keeps the vulnerable version
+  # out of the tree; drop it when the SDK moves its own range.
+  fast-uri: '^3.1.4'
+  dompurify: '^3.4.12'
+  '@hono/node-server': '^2.0.5'
