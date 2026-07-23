@@ -1,5 +1,16 @@
 # @rulvar/store-sqlite
 
+## 1.48.0
+
+### Patch Changes
+
+- 96093ea: Ship the adversarial multi-process soak and fix the SqliteStore concurrent-boot race it found (the fenced run state RFC, phase 3's last open item).
+
+  The conformance kit gains the soak harness: `runMultiProcessSoak` spawns real OS processes that storm one store location through EVERY fenced write surface (journal append, meta write, transcript blob put and delete, fenced run deletion, renew, release) with stalls injected past the lease ttl, then rebuilds the one serial history the fencing epochs promise (accepted mutations ordered by epoch and per-tenure counter) and diffs it against the actual journal, meta row, and blobs. Any stale acceptance, lost accepted write, epoch inversion, or divergent final byte is a violation. The stale probe sweep re-reads the journal tail before each stale append attempt, so the monotonic-seq guard cannot mask a fencing hole; a live lease is also probed against a foreign run, and side runs get full create-and-fenced-delete cycles. The storm runs until an activity quorum is met (takeovers, per-surface accepted writes, typed stale rejections), so a slow machine storms longer instead of asserting on thin coverage. The child side is `runSoakWriter` plus `soakWriterConfigFromEnv` (the consumer's writer script constructs its store bare and passes a `retryable` hook for backend contention errors); the pure referee `verifySoakHistory`, the report tools `parseSoakReport` and `countSoakActivity`, and the quorum types are exported alongside.
+
+  The soak's first storm against the published 1.47.0 never reached the fencing: N processes constructing `SqliteStore` over one SAME fresh file (an ordinary fleet start) collided in the constructor's schema bootstrap and the losers died with a raw SQLITE_BUSY (a 60 percent crash rate at six concurrent boots). A driver busy_timeout is not enough because the journal-mode conversion skips the busy handler on some lock transitions, so the constructor now retries the idempotent bootstrap as a unit through the SQLITE_BUSY family (extended result codes included, e.g. SQLITE_BUSY_RECOVERY while a sibling recovers the fresh WAL) under a wall-clock bound, exported as `BOOT_BUSY_TIMEOUT_MS`. Every runtime contention path keeps the documented fail-fast semantics. With the fix, 480 of 480 concurrent boots succeed, and the full storm (five writers, hundreds of takeovers, thousands of stale probes) holds every fenced surface with zero violations; `SqliteStore` now runs the soak and a concurrent-boot regression in its test suite.
+  - @rulvar/core@1.48.0
+
 ## 1.47.0
 
 ### Patch Changes
