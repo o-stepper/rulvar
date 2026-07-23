@@ -5,7 +5,7 @@ description: 'Design proposal to fence every durable run mutation behind the lea
 
 # RFC: fenced run state
 
-Status: phases 1 and 2 shipped, and the fenced transcript store followed. Phase 1 (the reference store fix and the documentation corrections) shipped together with this page in v1.44.1. Phase 2 shipped next in v1.45.0: the SPI's optional lease parameters, the `fencedWrites` marker, engine threading of the lease into every meta and blob write, `SqliteStore` enforcement on `putMeta` and `delete` (closing F1 and the worker path of F4), the `fencedWritesConformance` suite, and the retention lease pass-through. The release after it closed F2 with the sqlite transcript twin (`SqliteStore.transcripts()`, blobs beside the lease rows of the same database) and its `fencedTranscriptsConformance` suite. Still open: phase 3 (reconcile and recover).
+Status: phases 1 through 3 shipped, except phase 3's multi-process soak. Phase 1 (the reference store fix and the documentation corrections) shipped together with this page in v1.44.1. Phase 2 shipped next in v1.45.0: the SPI's optional lease parameters, the `fencedWrites` marker, engine threading of the lease into every meta and blob write, `SqliteStore` enforcement on `putMeta` and `delete` (closing F1 and the worker path of F4), the `fencedWritesConformance` suite, and the retention lease pass-through. v1.46.0 closed F2 with the sqlite transcript twin (`SqliteStore.transcripts()`, blobs beside the lease rows of the same database) and its `fencedTranscriptsConformance` suite. The release after that shipped phase 3's reconcile and recover: the journaled run settle, the `auditRun`/`auditRuns`/`reconcileRunMeta` exports, and the `rulvar runs audit [--repair]` operator probe. Still open: the adversarial multi-process soak over every write surface (the shipped M8 soak covers the append surface across two real processes).
 
 ## Why
 
@@ -26,7 +26,7 @@ The audit ran against v1.44.0. F3 was demonstrated against the published `@rulva
 
 ### F1: a stale terminal `putMeta` can strand a run
 
-Every settle writes terminal meta, and that write is unfenced and swallowed on error. A superseded segment that noticed its lease loss late (its cancel unwinds after the successor already resumed) overwrites the successor's `running` meta with a terminal status and with a `segments` counter one generation behind. The journal stays correct throughout. But the queue worker sweeps only `running` and `suspended` metas: if the successor crashes before its own settle write repairs the row, the run looks settled to every worker and sits stranded until an operator resumes it by runId. The regressed `segments` counter additionally re-derives an already used telemetry base, so the next segment's event seqs and span ids can collide with ones already emitted. No reconciler exists today that rebuilds meta from the journal.
+Every settle writes terminal meta, and that write is unfenced and swallowed on error. A superseded segment that noticed its lease loss late (its cancel unwinds after the successor already resumed) overwrites the successor's `running` meta with a terminal status and with a `segments` counter one generation behind. The journal stays correct throughout. But the queue worker sweeps only `running` and `suspended` metas: if the successor crashes before its own settle write repairs the row, the run looks settled to every worker and sits stranded until an operator resumes it by runId. The regressed `segments` counter additionally re-derives an already used telemetry base, so the next segment's event seqs and span ids can collide with ones already emitted. At the time of the audit no reconciler existed that rebuilds meta from the journal; phase 3 shipped one, and over an unfenced store (where phase 2's prevention does not apply) the stranded residue is now at least findable and repairable after the fact.
 
 ### F2: a stale checkpoint save can regress a later boot (fixed)
 
@@ -83,11 +83,12 @@ Engine changes are confined to threading: every meta write, checkpoint save, com
 
 `SqliteStore` declares the marker and enforces all three journal-side surfaces, plus the run-match rule on `append` as defense in depth.
 
-### Phase 3: reconcile and recover
+### Phase 3: reconcile and recover (shipped, except the soak)
 
-- A meta reconciler that rebuilds status from the journal fold when meta and journal disagree (a terminal journal under a `running` meta, or the reverse), run at resume and available to sweeps. Status is fully derivable from the journal; the `segments` counter is not journaled, so its protection is phase 2 prevention rather than after the fact repair.
-- A stranded run probe for operators: list runs whose journal is non-terminal but whose meta is, the exact F1 signature.
-- An adversarial multi-process soak for the conformance kit: two real processes, injected stalls, takeover windows over every write surface.
+- The journaled run settle, the prerequisite the audit surfaced: the run's terminal status used to live ONLY in the meta row, so "rebuild status from the journal" was not actually possible for a completed body. Now every settle whose segment appended durable work (or whose derived status differs from the last journaled settle) appends a `run_settle` decision entry, ordered BEFORE the meta write so a crash between the two leaves the row behind its journal, never the reverse. The write-on-change rule keeps pure replay byte stable and empty-journal runs empty, which is why the frozen v1 resume cassettes replay unchanged.
+- The meta reconciler: `auditRun` derives the journal-supported state (the last journaled settle, dangling dispatches, open suspensions) and names the divergence; `reconcileRunMeta` rewrites the row from the journal for the two sound classes ('meta-behind': the crash residue between the journal flush and the meta write repairs with zero model calls and no workflow; 'stranded': a terminal meta over live journal work becomes sweepable again), preserving every other meta field byte for byte. Pre-settle-entry journals are audited structurally, and the ambiguous residues ('suspect': open suspensions under a completed meta, a journal with no meta row) are reported, never rewritten. `engine.resume` needs no reconciler of its own: its boot and settle rewrite the row from the run itself.
+- The stranded run probe for operators: `auditRuns` sweeps the catalog (loading every journal it audits), and `rulvar runs audit [--repair]` is its CLI form, taking a brief per-run lease on a leasable store so a live owner is skipped, never raced, and exiting 0 only when the catalog ends consistent.
+- Still open: an adversarial multi-process soak for the conformance kit over EVERY write surface (meta, blobs, deletion); the shipped M8 soak exercises the append surface across two real processes with injected stalls.
 
 ## Non-goals
 

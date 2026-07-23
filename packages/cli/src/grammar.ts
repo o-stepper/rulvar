@@ -46,6 +46,7 @@ export const GRAMMAR: {
   readonly run: CommandGrammar;
   readonly resume: CommandGrammar;
   readonly 'runs ls': CommandGrammar;
+  readonly 'runs audit': CommandGrammar;
   readonly inspect: CommandGrammar;
   readonly plan: CommandGrammar;
   readonly 'kb list': CommandGrammar;
@@ -70,6 +71,11 @@ export const GRAMMAR: {
     flags: [ARGS, STORE, { name: 'dry-run' }, { name: 'allow-args-change' }, { name: 'strict' }],
   },
   'runs ls': { command: 'runs ls', positionals: [], flags: [STORE], note: '(no aliases in v1)' },
+  'runs audit': {
+    command: 'runs audit',
+    positionals: [],
+    flags: [STORE, { name: 'repair' }],
+  },
   inspect: { command: 'inspect', positionals: ['<runId>'], flags: [STORE] },
   plan: {
     command: 'plan',
@@ -109,6 +115,9 @@ export const GRAMMAR: {
 
 /** The kb dispatch line: subcommands carry their own grammar entries. */
 export const KB_FAMILY_USAGE = 'usage: rulvar kb <list | inbox | gate | sweep> (no aliases in v1)';
+
+/** The runs dispatch line: subcommands carry their own grammar entries. */
+export const RUNS_FAMILY_USAGE = 'usage: rulvar runs <ls | audit> (no aliases in v1)';
 
 function renderFlags(flags: FlagGrammar[]): string[] {
   const tokens: string[] = [];
@@ -156,7 +165,14 @@ export function usageOf(grammar: CommandGrammar): string {
  * the same list verbatim (docs contract test).
  */
 export function helpCommandLines(): string[] {
-  const top = [GRAMMAR.run, GRAMMAR.resume, GRAMMAR['runs ls'], GRAMMAR.inspect, GRAMMAR.plan];
+  const top = [
+    GRAMMAR.run,
+    GRAMMAR.resume,
+    GRAMMAR['runs ls'],
+    GRAMMAR['runs audit'],
+    GRAMMAR.inspect,
+    GRAMMAR.plan,
+  ];
   const heads = top.map((grammar) => ['rulvar', grammar.command, ...grammar.positionals].join(' '));
   const kbHead = 'rulvar kb <list | inbox | gate | sweep>';
   const width = Math.max(...heads.map((head) => head.length), kbHead.length);
@@ -175,7 +191,14 @@ export function helpCommandLines(): string[] {
  * test compares the fenced block against this list literally.
  */
 export function docsGrammarLines(): string[] {
-  const top = [GRAMMAR.run, GRAMMAR.resume, GRAMMAR['runs ls'], GRAMMAR.inspect, GRAMMAR.plan];
+  const top = [
+    GRAMMAR.run,
+    GRAMMAR.resume,
+    GRAMMAR['runs ls'],
+    GRAMMAR['runs audit'],
+    GRAMMAR.inspect,
+    GRAMMAR.plan,
+  ];
   return [
     ...top.map((grammar) =>
       ['rulvar', grammar.command, ...grammar.positionals, ...renderFlags(grammar.flags)].join(' '),

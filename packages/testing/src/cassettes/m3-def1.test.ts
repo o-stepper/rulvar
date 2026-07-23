@@ -92,7 +92,17 @@ describe('DEF-1 live cassettes (M3-T11)', () => {
 
   it('crash-between-report-and-decision: the first resume pays the decision once, the second replays both', async () => {
     const { entries } = cassette('crash-between-report-and-decision');
-    expect(entries.some((e) => e.kind === 'decision')).toBe(false);
+    // The scenario's precondition: the crash landed BEFORE the owner's
+    // escalation decision was journaled. The journaled run settle
+    // (decisionType run_settle, fenced run state RFC phase 3) is a
+    // different decision entry and legitimately present.
+    expect(
+      entries.some(
+        (e) =>
+          e.kind === 'decision' &&
+          (e.value as { decisionType?: string } | undefined)?.decisionType !== 'run_settle',
+      ),
+    ).toBe(false);
 
     // First resume: the escalated entry replays with zero adapter calls;
     // the owner's decision is paid live exactly once (the hook fires and
@@ -126,7 +136,11 @@ describe('DEF-1 live cassettes (M3-T11)', () => {
     expect(hookCalls).toBe(1);
     expect(adapter.calls).toHaveLength(0);
     const afterFirst = (await store.load(runId)).map((entry) => normalizeEntry(entry));
-    const decisionEntry = afterFirst.find((e) => e.kind === 'decision');
+    const decisionEntry = afterFirst.find(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string } | undefined)?.decisionType === 'escalation.decision',
+    );
     expect(decisionEntry?.value).toMatchObject({
       decisionType: 'escalation.decision',
       decision: { kind: 'accept', note: 'salvage and move on' },

@@ -10,7 +10,7 @@
 type WorkflowRegistry = Record<string, Workflow<never, unknown>>;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L88)
+Defined in: [packages/core/src/engine/engine.ts:90](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L90)
 
 The per-engine workflow registry (M5-T01): an
 explicit, first-class value; no module-level registry exists. Shells

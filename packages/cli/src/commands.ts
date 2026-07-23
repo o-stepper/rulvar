@@ -12,6 +12,7 @@
 import { join } from 'node:path';
 
 import {
+  auditRuns,
   claimExpired,
   claimExpiry,
   ConfigError,
@@ -20,13 +21,17 @@ import {
   FileModelKnowledgeStore,
   hashRunArgs,
   INBOX_PROPOSAL_TTL_DAYS,
+  LeaseHeldError,
   proposalStatement,
   readRunMeta,
+  reconcileRunMeta,
   remeasureQueue,
   sanitizeTerminalText,
   type CreateEngineOptions,
   type EvidenceRef,
   type GateRecord,
+  type LeasableStore,
+  type Lease,
   type ModelClaim,
   type ModelRef,
   type RunMeta,
@@ -355,6 +360,84 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
   });
   const base = reportOutcome(outcome, context.io);
   return parsed.values.strict === true ? strictExitCode(outcome, base, context.io) : base;
+}
+
+/**
+ * The stranded run probe and reconciler (fenced run state RFC, phase
+ * 3): audits every run the catalog lists against its journal, prints
+ * the divergences worker sweeps can never see, and with --repair
+ * rewrites the sound ones from the journal (under a brief lease when
+ * the store is leasable, so a live owner is never raced). Exit 0 when
+ * the catalog ends clean; exit 1 while any divergence remains.
+ */
+export async function runsAuditCommand(argv: string[], context: CommandContext): Promise<number> {
+  const parsed = parseCommand(GRAMMAR['runs audit'], argv);
+  const store = parsed.values.store as string | undefined;
+  const repair = parsed.values.repair === true;
+  const config = await loadCliConfig(context.cwd);
+  const assembled = assembleEngine({
+    config,
+    ...(store === undefined ? {} : { storePath: store }),
+    cwd: context.cwd,
+  });
+  const audits = await auditRuns(assembled.store);
+  if (audits.length === 0) {
+    context.io.err('every run is consistent with its journal');
+    return 0;
+  }
+  let remaining = 0;
+  for (const audit of audits) {
+    const line = `${audit.runId} ${audit.verdict}: ${audit.reason}`;
+    if (!repair || audit.repairTo === undefined) {
+      context.io.out(sanitizeTerminalText(line));
+      remaining += 1;
+      continue;
+    }
+    // The brief operator lease, exactly like the worker's retention
+    // sweep: on a leasable store a live owner makes acquire reject and
+    // the run is skipped, never raced.
+    const leasable = assembled.store as Partial<LeasableStore>;
+    let lease: Lease | undefined;
+    if (typeof leasable.acquire === 'function') {
+      try {
+        lease = await leasable.acquire(audit.runId, `runs-audit-${String(process.pid)}`);
+      } catch (thrown) {
+        if (thrown instanceof LeaseHeldError) {
+          context.io.out(sanitizeTerminalText(`${line} (leased by a live owner, skipped)`));
+          remaining += 1;
+          continue;
+        }
+        throw thrown;
+      }
+    }
+    try {
+      const result = await reconcileRunMeta(assembled.store, audit.runId, {
+        ...(lease === undefined ? {} : { lease }),
+      });
+      // The repaired status comes from the INNER audit: the run may
+      // have moved between the listing and the repair.
+      const wrote = result.audit.repairTo;
+      context.io.out(
+        sanitizeTerminalText(
+          result.repaired ? `${line} (repaired to '${String(wrote)}')` : `${line} (not repaired)`,
+        ),
+      );
+      if (!result.repaired) {
+        remaining += 1;
+      }
+    } finally {
+      if (lease !== undefined && typeof leasable.release === 'function') {
+        await leasable.release(lease);
+      }
+    }
+  }
+  context.io.err(
+    remaining === 0
+      ? 'every divergence repaired'
+      : `${String(remaining)} divergence(s) remain; suspect verdicts need an operator ` +
+          '(https://docs.rulvar.com/contributing/rfc-fenced-run-state)',
+  );
+  return remaining === 0 ? 0 : 1;
 }
 
 export async function runsLsCommand(argv: string[], context: CommandContext): Promise<number> {

@@ -35,9 +35,11 @@ import { normalizeEntry, type JournalEntry } from '../l0/entries.js';
 import { Replayer } from '../journal/replayer.js';
 import {
   buildDeriverRegistry,
+  deriverV2,
   registryKeyRing,
   scanJournalCompatibility,
 } from '../journal/keyderiver.js';
+import { lastRunSettle, RUN_SETTLE_DECISION_TYPE } from '../stores/reconcile.js';
 import { dispositionHook } from '../journal/disposition.js';
 import type { EscalationLimits } from '../journal/lineage.js';
 import type { ResumeReport } from '../journal/matching.js';
@@ -1031,6 +1033,40 @@ export function createEngine(options: CreateEngineOptions): Engine {
       }
       if (wireError !== undefined) {
         outcome.error = wireError;
+      }
+      // The journaled settle (fenced run state RFC, phase 3): the run's
+      // outcome becomes part of the journal, making RunMeta a
+      // rebuildable projection (stores/reconcile.ts is the auditor).
+      // Appended only when this segment did durable work or the derived
+      // status differs from the last journaled settle: a pure-replay
+      // resume of an already settled run appends nothing, so replay
+      // stays byte stable and empty-journal runs stay empty. Ordered
+      // BEFORE the meta write: a crash between the two leaves the
+      // repairable 'meta-behind' residue, never a journal behind its
+      // projection. A fenced store's rejection of a superseded
+      // segment's settle entry is swallowed exactly like its meta
+      // write below.
+      if (resumeCtx?.strict !== true) {
+        const priorCount = resumeCtx?.priorEntries.length ?? 0;
+        const appendedHere = replayer.snapshot().length - priorCount;
+        const recorded = lastRunSettle(replayer.snapshot());
+        if (appendedHere > 0 || (recorded !== undefined && recorded.runStatus !== status)) {
+          await replayer
+            .appendSinglePhase({
+              scope: '',
+              key: deriverV2.deriveKey({ kind: 'run-settle' }),
+              kind: 'decision',
+              status: 'ok',
+              spanId: rootSpanId,
+              site: 'run-settle',
+              value: {
+                decisionType: RUN_SETTLE_DECISION_TYPE,
+                runStatus: status,
+                segment: segmentsBefore + 1,
+              },
+            })
+            .catch(() => undefined);
+        }
       }
       await putMeta(status).catch(() => undefined);
       bus.emit(

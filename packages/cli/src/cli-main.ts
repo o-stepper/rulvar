@@ -10,9 +10,10 @@ import {
   planCommand,
   resumeCommand,
   runCommand,
+  runsAuditCommand,
   runsLsCommand,
 } from './commands.js';
-import { GRAMMAR, helpCommandLines, usageOf } from './grammar.js';
+import { helpCommandLines, RUNS_FAMILY_USAGE } from './grammar.js';
 import type { CliIo } from './io.js';
 
 // The command block renders from the one canonical grammar structure
@@ -28,6 +29,10 @@ Engine assembly: adapters, defaults, and the workflow registry come from
 rulvar.config.mjs in the working directory (default export
 { engineOptions?, workflows? }) or from the workflow module's named
 exports. --store selects the JsonlFileStore directory (default .rulvar).
+runs audit compares every run's meta row against its journal and names
+the divergences worker sweeps cannot see (a stranded run's terminal
+meta over live journal work); --repair rewrites the sound ones from
+the journal under a brief lease, exit 1 while any divergence remains.
 plan asks the planner model (role plan) to write a workflow script,
 lints and self-repairs it, then runs it in the worker sandbox; --dry-run
 prints the accepted script without running. Both stages are paid runs
@@ -58,10 +63,13 @@ export async function runCli(argv: string[], options: { cwd: string; io: CliIo }
         return await resumeCommand(rest, context);
       case 'runs': {
         const [sub, ...subRest] = rest;
-        if (sub !== 'ls') {
-          throw new ConfigError(usageOf(GRAMMAR['runs ls']));
+        if (sub === 'ls') {
+          return await runsLsCommand(subRest, context);
         }
-        return await runsLsCommand(subRest, context);
+        if (sub === 'audit') {
+          return await runsAuditCommand(subRest, context);
+        }
+        throw new ConfigError(RUNS_FAMILY_USAGE);
       }
       case 'inspect':
         return await inspectCommand(rest, context);

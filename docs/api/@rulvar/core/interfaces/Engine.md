@@ -6,15 +6,15 @@
 
 # Interface: Engine
 
-Defined in: [packages/core/src/engine/engine.ts:308](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L308)
+Defined in: [packages/core/src/engine/engine.ts:310](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L310)
 
 ## Properties
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-stores"></a> `stores` | `readonly` | \{ `journal`: [`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md); `transcripts`: [`TranscriptStore`](/api/@rulvar/core/interfaces/TranscriptStore.md); \} | The engine's configured stores, exposed for shells and hosts (M8 entry amendment: the journal store comes from the engine). Exactly the instances createEngine received, or the defaults it built; no store contract widens through this accessor. With a serialization hook configured these are the HOOKED wrappers, so every reader passes the one policy point (M8-T04). | [packages/core/src/engine/engine.ts:340](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L340) |
-| `stores.journal` | `public` | [`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md) | - | [packages/core/src/engine/engine.ts:340](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L340) |
-| `stores.transcripts` | `public` | [`TranscriptStore`](/api/@rulvar/core/interfaces/TranscriptStore.md) | - | [packages/core/src/engine/engine.ts:340](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L340) |
+| <a id="property-stores"></a> `stores` | `readonly` | \{ `journal`: [`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md); `transcripts`: [`TranscriptStore`](/api/@rulvar/core/interfaces/TranscriptStore.md); \} | The engine's configured stores, exposed for shells and hosts (M8 entry amendment: the journal store comes from the engine). Exactly the instances createEngine received, or the defaults it built; no store contract widens through this accessor. With a serialization hook configured these are the HOOKED wrappers, so every reader passes the one policy point (M8-T04). | [packages/core/src/engine/engine.ts:342](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L342) |
+| `stores.journal` | `public` | [`JournalStore`](/api/@rulvar/core/interfaces/JournalStore.md) | - | [packages/core/src/engine/engine.ts:342](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L342) |
+| `stores.transcripts` | `public` | [`TranscriptStore`](/api/@rulvar/core/interfaces/TranscriptStore.md) | - | [packages/core/src/engine/engine.ts:342](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L342) |
 
 ## Methods
 
@@ -24,7 +24,7 @@ Defined in: [packages/core/src/engine/engine.ts:308](https://github.com/o-steppe
 deleteRun(runId, opts?): Promise<void>;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:350](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L350)
+Defined in: [packages/core/src/engine/engine.ts:352](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L352)
 
 Retention (OQ-20 executed at M8-T04): deletes every
 blob transcripts.list(runId) returns, then the journal; no orphan
@@ -54,7 +54,7 @@ deletes assert the single-writer precondition as before.
 profileCard(names?): string;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:330](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L330)
+Defined in: [packages/core/src/engine/engine.ts:332](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L332)
 
 Renders the registered agent profiles into the shared vocabulary
 card, optionally filtered to `names`; the registry itself stays
@@ -78,7 +78,7 @@ private to the engine (M6-T05 amendment). Unknown names are ignored.
 pruneRun(runId, opts?): Promise<number>;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:359](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L359)
+Defined in: [packages/core/src/engine/engine.ts:361](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L361)
 
 Checkpoint pruning (OQ-20 executed at M8-T04):
 deletes checkpoint blobs of ok-terminal attempts that no other
@@ -110,7 +110,7 @@ resume<A, R>(
 options?): ResumeHandle<R>;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:320](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L320)
+Defined in: [packages/core/src/engine/engine.ts:322](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L322)
 
 Rebinds a journal to a workflow definition and resumes. Requires wf
 for in-process workflows;
@@ -151,7 +151,7 @@ run<A, R>(
 opts?): RunHandle<R>;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:309](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L309)
+Defined in: [packages/core/src/engine/engine.ts:311](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L311)
 
 #### Type Parameters
 
