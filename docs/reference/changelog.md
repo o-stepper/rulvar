@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.51.0
+
+#### Patch Changes
+
+- @rulvar/core@1.51.0
+
 ### 1.50.0
 
 #### Patch Changes
@@ -718,6 +724,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.51.0
+
+#### Patch Changes
+
+- @rulvar/core@1.51.0
+
 ### 1.50.0
 
 #### Patch Changes
@@ -1283,6 +1295,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.51.0
+
+#### Patch Changes
+
+- @rulvar/core@1.51.0
 
 ### 1.50.0
 
@@ -2111,6 +2129,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.51.0
 
 ### 1.50.0
 
@@ -3378,6 +3398,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.51.0
+
 ### 1.50.0
 
 ### 1.49.0
@@ -3564,6 +3586,23 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.51.0
+
+#### Minor Changes
+
+- 11bf944: The reproducible benchmark kit (RV-213): `runBenchmark(engine, spec, options)` turns one workflow into a citable measurement series and enforces the distinction a hand-rolled loop silently skips: a run that finished is not yet a run that counts.
+
+  - Each of the spec's `repeats` runs sequentially and is verified by the replay-strict gate before it may score: a dry-run resume must replay it with zero misses and reruns, reproduce the journaled settle status and the `outputHash` digest, and raise zero workflow-provenance determinism warnings across the live and replayed streams. A non-reproducible run (a result mixing in bare `Math.random()`, an output JCS cannot hash, a diverged replay) lands in its record with machine-readable `rejectedReasons` and stays out of the series.
+  - Percentiles (`min`/`p50`/`p90`/`max`/`mean`, nearest-rank, no interpolation) are computed over SCORED runs only for wall time, cost, and any named per-run metric extractor, and are absent entirely when nothing scored: the kit never fabricates a series. Wall time comes from each run's own `run:start`/`run:end` event timestamps; the kit reads no clock.
+  - Graders reuse the eval contract unchanged (golden, rubric, and LLM-judge graders compose as-is; judge runs stay journaled, budgeted, VCR-recordable, and blind: the judge sees the output and the rubric, never a system label, ordinal, or runId). A failing grader rejects the run; judge budget events normalize to `judge:refused`/`judge:exhausted` rejections with the spend counted.
+  - The report carries every run's full record (runId for independent `rulvar replay` re-verification, verification verdict with both digests, dispatch and invocation counts, per-run metrics), honest totals (`totalCostUsd` includes rejected work), and a `BenchmarkFingerprint`: Node version, platform, arch, resolved rulvar package versions, the first run's start timestamp, and host-supplied `labels` (commit, pricing snapshot, corpus hash, cache series). The kit never shells out or guesses identity.
+  - `SpendEnvelope` composes exactly like the eval runners: every target and judge run authorizes its ceiling before starting; a target refusal throws typed, a judge refusal rejects that run.
+
+#### Patch Changes
+
+- @rulvar/core@1.51.0
+- @rulvar/testing@1.51.0
 
 ### 1.50.0
 
@@ -4276,6 +4315,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.51.0
+
+#### Patch Changes
+
+- @rulvar/core@1.51.0
 
 ### 1.50.0
 
@@ -4994,6 +5039,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.51.0
+
+#### Patch Changes
+
+- @rulvar/core@1.51.0
+
 ### 1.50.0
 
 #### Patch Changes
@@ -5681,6 +5732,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.51.0
+
+#### Patch Changes
+
+- @rulvar/core@1.51.0
+- eslint-plugin-rulvar@1.51.0
+
 ### 1.50.0
 
 #### Patch Changes
@@ -6359,6 +6417,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.51.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.51.0
+- @rulvar/core@1.51.0
+- @rulvar/openai@1.51.0
 
 ### 1.50.0
 
@@ -7174,6 +7240,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.51.0
+
+#### Patch Changes
+
+- @rulvar/core@1.51.0
+
 ### 1.50.0
 
 #### Patch Changes
@@ -7831,6 +7903,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.51.0
+
+#### Patch Changes
+
+- @rulvar/core@1.51.0
+
 ### 1.50.0
 
 #### Patch Changes
@@ -8429,6 +8507,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.51.0
+
+#### Patch Changes
+
+- @rulvar/core@1.51.0
 
 ### 1.50.0
 
