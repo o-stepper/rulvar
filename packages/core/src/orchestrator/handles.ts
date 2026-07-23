@@ -139,12 +139,19 @@ export const WAKE_SUMMARY_RENDER_BUDGET_CHARS = 400;
  * spawn ordinal; the LLM distillation upgrade is M7 territory).
  */
 export function summarizeOutput(result: AgentResult<unknown>): string {
-  const raw =
-    result.status === 'ok'
-      ? typeof result.output === 'string'
-        ? result.output
-        : JSON.stringify(result.output ?? null)
-      : (result.errorMessage ?? `terminal status ${result.status}`);
+  let raw: string;
+  if (result.status === 'ok') {
+    raw = typeof result.output === 'string' ? result.output : JSON.stringify(result.output ?? null);
+  } else {
+    raw = result.errorMessage ?? `terminal status ${result.status}`;
+    // The structured terminal partial (RV-210 close-out): a limit child
+    // that recorded progress surfaces it in the digest instead of dying
+    // as an opaque status line. Present only when the report exists, so
+    // every digest without one stays byte-identical.
+    if (result.partial !== undefined) {
+      raw = `${raw}; partial: ${JSON.stringify(result.partial)}`;
+    }
+  }
   // The budget bounds the WHOLE distilled row, marker included
   // (v1.35.0 review P2-2): the old idiom returned up to budget + 3.
   return truncateToBudget(raw, WAKE_SUMMARY_RENDER_BUDGET_CHARS);

@@ -54,6 +54,26 @@ export interface UsageLimits {
    * default.
    */
   maxNoNewEvidenceCalls?: number;
+  /**
+   * Per-tool execution caps by tool NAME (RV-210 close-out): the call
+   * that would exceed its tool's cap is denied with a typed error tool
+   * result instead of dispatched (visible to the model, never terminal),
+   * and the denial does not consume maxToolCalls or tool units. A cap of
+   * 0 bans the tool for the invocation; names absent from the record are
+   * unlimited. Per layer the whole record replaces (no per-key merge),
+   * like every other UsageLimits field.
+   */
+  maxCallsPerTool?: Record<string, number>;
+  /**
+   * The weighted tool budget (RV-210 close-out): every EXECUTED call of
+   * tool T costs `costs[T] ?? 1` units (a cost of 0 makes bookkeeping
+   * tools free), and once the spent units reach `max` the invocation
+   * terminates as status 'limit' exactly like maxToolCalls (paid partial
+   * work; executed results stand). Denied calls cost nothing. On resume
+   * the spent units rebuild from the restored transcript's successful
+   * executions, the same conservative window the exploration guards use.
+   */
+  toolUnits?: { max: number; costs?: Record<string, number> };
 }
 
 export const DEFAULT_MAX_TURNS = 32;
@@ -71,6 +91,8 @@ export interface EffectiveUsageLimits {
   toolBudgetNotices?: boolean;
   maxRepeatedToolSignature?: number;
   maxNoNewEvidenceCalls?: number;
+  maxCallsPerTool?: Record<string, number>;
+  toolUnits?: { max: number; costs?: Record<string, number> };
 }
 
 /**
@@ -116,6 +138,14 @@ export function mergeUsageLimits(
   if (maxNoNewEvidenceCalls !== undefined) {
     merged.maxNoNewEvidenceCalls = maxNoNewEvidenceCalls;
   }
+  const maxCallsPerTool = pick('maxCallsPerTool');
+  if (maxCallsPerTool !== undefined) {
+    merged.maxCallsPerTool = maxCallsPerTool;
+  }
+  const toolUnits = pick('toolUnits');
+  if (toolUnits !== undefined) {
+    merged.toolUnits = toolUnits;
+  }
   return merged;
 }
 
@@ -160,5 +190,30 @@ export function validateUsageLimits(limits: UsageLimits, site: string): void {
   }
   if (limits.maxNoNewEvidenceCalls !== undefined) {
     requirePositiveInteger(limits.maxNoNewEvidenceCalls, `${site}.maxNoNewEvidenceCalls`);
+  }
+  if (limits.maxCallsPerTool !== undefined) {
+    const caps: unknown = limits.maxCallsPerTool;
+    if (typeof caps !== 'object' || caps === null || Array.isArray(caps)) {
+      throw new ConfigError(`${site}.maxCallsPerTool must be a record of per-tool caps`);
+    }
+    for (const [name, cap] of Object.entries(caps as Record<string, unknown>)) {
+      requireNonNegativeInteger(cap as number, `${site}.maxCallsPerTool['${name}']`);
+    }
+  }
+  if (limits.toolUnits !== undefined) {
+    const units: unknown = limits.toolUnits;
+    if (typeof units !== 'object' || units === null || Array.isArray(units)) {
+      throw new ConfigError(`${site}.toolUnits must be { max, costs? }`);
+    }
+    const { max, costs } = units as { max?: unknown; costs?: unknown };
+    requirePositiveInteger(max as number, `${site}.toolUnits.max`);
+    if (costs !== undefined) {
+      if (typeof costs !== 'object' || costs === null || Array.isArray(costs)) {
+        throw new ConfigError(`${site}.toolUnits.costs must be a record of per-tool costs`);
+      }
+      for (const [name, cost] of Object.entries(costs as Record<string, unknown>)) {
+        requireNonNegativeInteger(cost as number, `${site}.toolUnits.costs['${name}']`);
+      }
+    }
   }
 }

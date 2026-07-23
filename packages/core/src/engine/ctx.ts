@@ -106,6 +106,7 @@ import {
   type UsageLimits,
 } from '../runtime/usage-limits.js';
 import { buildToolContext } from '../tools/context.js';
+import { latestProgressReport } from '../tools/progress.js';
 import { resolveToolset, type ToolsOption } from '../tools/toolset-hash.js';
 import { AdmissionController, type AdmitVerdict } from '../orchestrator/admission.js';
 import { makeOrchestratorWorkflow, type OrchestrateOptions } from '../orchestrator/orchestrate.js';
@@ -1271,6 +1272,16 @@ export function createCtx(
         const checkpoint = blob === null ? undefined : decodeCheckpoint(blob);
         if (checkpoint !== undefined) {
           result.turns = checkpoint.turns;
+          // The structured terminal partial (RV-210 close-out) rebuilds
+          // from the terminal checkpoint's messages, the same scan the
+          // live loop ran over the same window (the loop writes a final
+          // boundary checkpoint whenever a report exists).
+          if (result.status === 'limit') {
+            const partialReport = latestProgressReport(checkpoint.messages);
+            if (partialReport !== undefined) {
+              result.partial = partialReport;
+            }
+          }
           replayedToolResults = checkpoint.messages
             .filter((msg) => msg.role === 'tool')
             .flatMap((msg) => msg.parts)

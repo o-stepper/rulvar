@@ -64,6 +64,7 @@ import {
   type ExplorationSummary,
 } from './exploration.js';
 import { NoProgressDetector, type AbortClass } from './no-progress.js';
+import { latestProgressReport, type ProgressReport } from '../tools/progress.js';
 import {
   applyStructuredOutputTier,
   extractCandidate,
@@ -165,6 +166,18 @@ export interface AgentResult<T> {
    * transportRetries.
    */
   exploration?: ExplorationSummary;
+  /**
+   * The structured terminal partial (RV-210 close-out): the LAST
+   * successful `report_progress` call of the invocation, present only on
+   * a 'limit' terminal (cap expiry or an engine-decided abort) whose
+   * transcript recorded at least one report. Derived deterministically
+   * from the message window: live from the loop's own history (a final
+   * boundary checkpoint is written so the window is durable), on replay
+   * from the terminal checkpoint, so both read the same bytes. This is
+   * what lets a caller salvage a limit child's collected work instead of
+   * seeing a bare 'terminal status limit'.
+   */
+  partial?: ProgressReport;
 }
 
 export type EscalatedResult<T> = AgentResult<T> & {
@@ -1171,6 +1184,12 @@ export async function runAgent<S extends SchemaSpec>(
         // already-executed results stand.
         return { parts, limitHit: true };
       }
+      if (guard !== undefined && guard.unitsExhausted()) {
+        // The weighted tool budget expired (RV-210 close-out): terminal
+        // 'limit' exactly like maxToolCalls; the summary's toolUnitsUsed
+        // tells the story.
+        return { parts, limitHit: true };
+      }
       const def = runtime.defs.find((candidate) => candidate.name === call.name);
       events?.emit({
         type: 'tool:start',
@@ -1344,10 +1363,11 @@ export async function runAgent<S extends SchemaSpec>(
         });
         return { parts, limitHit: false, finished: finishArgs.result ?? null };
       }
-      // The repeated-signature exploration guard (RV-210): the call that
-      // would exceed the per-signature execution cap is never dispatched;
-      // the model receives a typed error result naming the count, and the
-      // denial does not consume the tool budget.
+      // The pre-dispatch exploration guards (RV-210): the call that
+      // would exceed its tool's maxCallsPerTool cap, or the per-signature
+      // execution cap, is never dispatched; the model receives a typed
+      // error result naming the guard and the count, and the denial does
+      // not consume the tool budget or the weighted units.
       if (guard !== undefined) {
         const guardVerdict = guard.beforeExecute(gatedCall.name, gatedCall.args);
         if (guardVerdict.deny) {
@@ -1356,9 +1376,9 @@ export async function runAgent<S extends SchemaSpec>(
             toolName: gatedCall.name,
             outcome: 'denied',
             durationMs: now() - gateStartedAt,
-            guard: 'repeated-signature',
+            guard: guardVerdict.guard,
           });
-          parts.push(errorPart(call, { error: guardVerdict.reason, guard: 'repeated-signature' }));
+          parts.push(errorPart(call, { error: guardVerdict.reason, guard: guardVerdict.guard }));
           continue;
         }
       }
@@ -2491,6 +2511,16 @@ export async function runAgent<S extends SchemaSpec>(
     endPhase(extractPhase, phaseOutcome(), extractServed);
   }
 
+  // The structured terminal partial (RV-210 close-out): a 'limit'
+  // terminal keeps the last successful progress report. The extra final
+  // boundary checkpoint (written ONLY when a report exists, so runs
+  // without the tool stay byte-identical) pins the exact message window,
+  // making the replayed partial identical to the live one.
+  const limitPartial = status === 'limit' ? latestProgressReport(messages) : undefined;
+  if (limitPartial !== undefined) {
+    await saveBoundary();
+  }
+
   // Persist the canonical transcript; the journal stays small.
   let transcriptRef = '';
   if (options.transcript !== undefined) {
@@ -2530,6 +2560,9 @@ export async function runAgent<S extends SchemaSpec>(
   }
   if (guard !== undefined) {
     result.exploration = guard.summary(toolCallsUsed);
+  }
+  if (limitPartial !== undefined) {
+    result.partial = limitPartial;
   }
   if (usageApprox) {
     (result as { usageApprox?: boolean }).usageApprox = true;

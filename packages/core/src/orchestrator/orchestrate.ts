@@ -157,6 +157,21 @@ export interface OrchestrateAcceptance {
    * reports every other child in degradedReasons.
    */
   childPolicy: 'all-ok' | { minSuccessful: number };
+  /**
+   * The partial-child salvage switch (RV-210 close-out; default false).
+   * When true, a child that settled 'limit' WITH a structured terminal
+   * partial (it recorded progress through the stock `report_progress`
+   * tool before the budget expired) counts as a successful child for the
+   * policy: under 'all-ok' it no longer rejects the run, and under
+   * { minSuccessful: N } it counts toward N. The acceptance verdict then
+   * reports completion 'partial' (never 'complete'), lists the salvaged
+   * children in `salvagedPartialChildren` on the result envelope, and
+   * keeps a per-child note in degradedReasons. A limit child WITHOUT a
+   * partial gave the caller nothing to salvage and still counts against
+   * the policy. The whole fold is journaled in the single acceptance
+   * decision, so a resume rolls the same verdict forward.
+   */
+  acceptPartialChildren?: boolean;
 }
 
 /** How many rejected finishes are repaired by default: the plan's repair once. */
@@ -405,7 +420,15 @@ function pageOf(
 /** The serialized full result of a settled child: the raw string, or JSON. */
 function serializeChildOutput(result: AgentResult<unknown>): string {
   if (result.status !== 'ok') {
-    return result.errorMessage ?? `terminal status ${result.status}`;
+    const base = result.errorMessage ?? `terminal status ${result.status}`;
+    // The structured terminal partial (RV-210 close-out): get_child_result
+    // pages the WHOLE partial of a limit child, so the orchestrator can
+    // salvage or respawn narrowed without losing the collected work.
+    // Shape change only when a report exists (the tool is opt-in).
+    if (result.partial !== undefined) {
+      return JSON.stringify({ error: base, partial: result.partial });
+    }
+    return base;
   }
   return typeof result.output === 'string' ? result.output : JSON.stringify(result.output ?? null);
 }
@@ -447,6 +470,13 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
       requirePositiveInteger(
         minSuccessful as number,
         'orchestrate acceptance.childPolicy.minSuccessful',
+      );
+    }
+    const acceptPartial = (opts.acceptance as { acceptPartialChildren?: unknown })
+      .acceptPartialChildren;
+    if (acceptPartial !== undefined && typeof acceptPartial !== 'boolean') {
+      throw new ConfigError(
+        `orchestrate acceptance.acceptPartialChildren must be a boolean; got ${typeof acceptPartial}`,
       );
     }
   }
@@ -610,6 +640,24 @@ function finishValidationPromptLines(spec: FinishValidationSpec | undefined): st
         : repairs === 1
           ? 'At most one repair attempt is granted before the run fails.'
           : `At most ${String(repairs)} repair attempts are granted before the run fails.`),
+  ];
+}
+
+/**
+ * The partial-salvage contract rides the PROMPT exactly like finish
+ * validation (RV-210 close-out): present only when
+ * acceptance.acceptPartialChildren is set, so every other configuration
+ * keeps byte-identical coordination prompts.
+ */
+function acceptancePromptLines(acceptance: OrchestrateAcceptance | undefined): string[] {
+  if (acceptance?.acceptPartialChildren !== true) {
+    return [];
+  }
+  return [
+    'Partial salvage is on: a child that ends at its limit AFTER recording progress with ' +
+      'report_progress counts as a partial success for acceptance; its digest carries the ' +
+      'partial and get_child_result (when enabled) pages the full report. When the gap ' +
+      'matters, respawn a NARROWED child carrying the partial instead of repeating the task.',
   ];
 }
 
@@ -2872,6 +2920,7 @@ export function makeOrchestratorWorkflow(
     const promptLines = [
       ...(extension?.promptLines?.() ?? []),
       ...finishValidationPromptLines(validationSpec),
+      ...acceptancePromptLines(opts?.acceptance),
     ];
     const result = await runtime.runInScope(orchestratorState, () =>
       (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
@@ -2932,6 +2981,8 @@ export function makeOrchestratorWorkflow(
       childPolicy: 'all-ok' | { minSuccessful: number };
       childStatusCounts: Record<string, number>;
       degradedReasons: string[];
+      /** Limit children salvaged by acceptPartialChildren (RV-210 close-out); absent before it. */
+      salvagedPartialChildren?: string[];
     }
     const acceptanceKey = 'acceptance';
     const priorAcceptance = internals.replayer
@@ -2948,23 +2999,38 @@ export function makeOrchestratorWorkflow(
     } else {
       const childStatusCounts: Record<string, number> = {};
       const degradedReasons: string[] = [];
+      const salvaged: string[] = [];
+      // Degradations the policy still counts: with acceptPartialChildren
+      // a limit child carrying a structured partial moves to `salvaged`
+      // instead (RV-210 close-out) and keeps only its degradedReasons note.
+      let hardDegraded = 0;
+      const acceptPartial = opts.acceptance.acceptPartialChildren === true;
       const sortedRecords = [...records.values()].sort((a, b) => a.spawnOrdinal - b.spawnOrdinal);
       for (const record of sortedRecords) {
         const status = record.settled?.status ?? 'running';
         childStatusCounts[status] = (childStatusCounts[status] ?? 0) + 1;
-        if (status !== 'ok') {
-          degradedReasons.push(
-            status === 'running'
-              ? `child ${record.nodeId} was still running when finish validated`
-              : `child ${record.nodeId} settled '${status}'`,
-          );
+        if (status === 'ok') {
+          continue;
         }
+        if (acceptPartial && status === 'limit' && record.settled?.partial !== undefined) {
+          salvaged.push(record.nodeId);
+          degradedReasons.push(
+            `child ${record.nodeId} accepted as partial (settled 'limit' with a structured partial)`,
+          );
+          continue;
+        }
+        hardDegraded += 1;
+        degradedReasons.push(
+          status === 'running'
+            ? `child ${record.nodeId} was still running when finish validated`
+            : `child ${record.nodeId} settled '${status}'`,
+        );
       }
       const childPolicy = opts.acceptance.childPolicy;
       const accepted =
         childPolicy === 'all-ok'
-          ? degradedReasons.length === 0
-          : (childStatusCounts.ok ?? 0) >= childPolicy.minSuccessful;
+          ? hardDegraded === 0
+          : (childStatusCounts.ok ?? 0) + salvaged.length >= childPolicy.minSuccessful;
       decision = {
         decisionType: 'orchestrator_acceptance',
         verdict: accepted ? 'accepted' : 'rejected',
@@ -2972,6 +3038,7 @@ export function makeOrchestratorWorkflow(
         childPolicy,
         childStatusCounts,
         degradedReasons,
+        ...(salvaged.length === 0 ? {} : { salvagedPartialChildren: salvaged }),
       };
       await internals.replayer.appendSinglePhase({
         scope: callingState.scope,
@@ -3001,6 +3068,9 @@ export function makeOrchestratorWorkflow(
             childPolicy: decision.childPolicy as unknown as Json,
             childStatusCounts: decision.childStatusCounts,
             degradedReasons: decision.degradedReasons,
+            ...(decision.salvagedPartialChildren === undefined
+              ? {}
+              : { salvagedPartialChildren: decision.salvagedPartialChildren }),
           },
         },
       );
@@ -3012,6 +3082,9 @@ export function makeOrchestratorWorkflow(
       completion: decision.completion,
       childStatusCounts: decision.childStatusCounts,
       degradedReasons: decision.degradedReasons,
+      ...(decision.salvagedPartialChildren === undefined
+        ? {}
+        : { salvagedPartialChildren: decision.salvagedPartialChildren }),
     };
   });
 }

@@ -45,12 +45,21 @@ export type { ExplorationSummary } from '../l0/events.js';
 
 /** The guard's per-call verdict before dispatch. */
 export type ExplorationVerdict =
-  { deny: false } | { deny: true; reason: string; executions: number };
+  | { deny: false }
+  | {
+      deny: true;
+      /** Which guard denied: the tool:end and error-result marker. */
+      guard: 'repeated-signature' | 'per-tool-cap';
+      reason: string;
+      executions: number;
+    };
 
 /** The subset of UsageLimits the guard consumes. */
 export interface ExplorationGuardConfig {
   maxRepeatedToolSignature?: number;
   maxNoNewEvidenceCalls?: number;
+  maxCallsPerTool?: Record<string, number>;
+  toolUnits?: { max: number; costs?: Record<string, number> };
 }
 
 /** True when any exploration guard field asks for tracking. */
@@ -58,11 +67,15 @@ export function explorationTrackingEnabled(limits: {
   maxRepeatedToolSignature?: number;
   maxNoNewEvidenceCalls?: number;
   toolBudgetNotices?: boolean;
+  maxCallsPerTool?: Record<string, number>;
+  toolUnits?: { max: number; costs?: Record<string, number> };
 }): boolean {
   return (
     limits.maxRepeatedToolSignature !== undefined ||
     limits.maxNoNewEvidenceCalls !== undefined ||
-    limits.toolBudgetNotices === true
+    limits.toolBudgetNotices === true ||
+    limits.maxCallsPerTool !== undefined ||
+    limits.toolUnits !== undefined
   );
 }
 
@@ -84,6 +97,8 @@ export class ExplorationGuard {
   private repeated = 0;
   private duplicateResults = 0;
   private denied = 0;
+  private deniedToolCap = 0;
+  private unitsUsed = 0;
   private unserializableSeq = 0;
 
   constructor(config: ExplorationGuardConfig) {
@@ -129,10 +144,28 @@ export class ExplorationGuard {
   }
 
   /**
-   * The pre-dispatch verdict: denies the call that would exceed
-   * maxRepeatedToolSignature executions of the same signature.
+   * The pre-dispatch verdict: denies the call that would exceed its
+   * tool's maxCallsPerTool cap, then the call that would exceed
+   * maxRepeatedToolSignature executions of the same signature. A denial
+   * never consumes maxToolCalls or tool units.
    */
   beforeExecute(name: string, args: unknown): ExplorationVerdict {
+    const cap = this.config.maxCallsPerTool?.[name];
+    if (cap !== undefined) {
+      const executions = this.byTool.get(name) ?? 0;
+      if (executions >= cap) {
+        this.deniedToolCap += 1;
+        return {
+          deny: true,
+          guard: 'per-tool-cap',
+          executions,
+          reason:
+            `exploration guard: '${name}' already executed ${String(executions)} time(s) ` +
+            `this invocation (maxCallsPerTool ${String(cap)}). Use what you have or a ` +
+            `different tool (${GUARD_DOCS_URL}).`,
+        };
+      }
+    }
     const max = this.config.maxRepeatedToolSignature;
     if (max === undefined) {
       return { deny: false };
@@ -144,6 +177,7 @@ export class ExplorationGuard {
     this.denied += 1;
     return {
       deny: true,
+      guard: 'repeated-signature',
       executions,
       reason:
         `exploration guard: this exact '${name}' call already executed ` +
@@ -172,6 +206,9 @@ export class ExplorationGuard {
   ): boolean {
     this.executed += 1;
     this.byTool.set(name, (this.byTool.get(name) ?? 0) + 1);
+    if (this.config.toolUnits !== undefined) {
+      this.unitsUsed += this.config.toolUnits.costs?.[name] ?? 1;
+    }
     const signature = this.signatureOf(name, args);
     const prior = this.signatureExecutions.get(signature) ?? 0;
     if (prior > 0) {
@@ -193,6 +230,15 @@ export class ExplorationGuard {
     this.noNewEvidenceStreak += 1;
     const max = this.config.maxNoNewEvidenceCalls;
     return max !== undefined && this.noNewEvidenceStreak >= max;
+  }
+
+  /**
+   * True once the spent tool units reached the weighted budget: the
+   * loop's pre-dispatch check, mirroring maxToolCalls (terminal 'limit',
+   * paid partial work). Never true without toolUnits configured.
+   */
+  unitsExhausted(): boolean {
+    return this.config.toolUnits !== undefined && this.unitsUsed >= this.config.toolUnits.max;
   }
 
   /** The abort message for a tripped no-new-evidence guard. */
@@ -221,6 +267,11 @@ export class ExplorationGuard {
       duplicateResultCalls: this.duplicateResults,
       deniedRepeats: this.denied,
       byTool,
+      // Present only when their limits are configured, so summaries of
+      // runs without them stay byte-identical (they are journaled with
+      // the guard abort).
+      ...(this.config.maxCallsPerTool === undefined ? {} : { deniedToolCap: this.deniedToolCap }),
+      ...(this.config.toolUnits === undefined ? {} : { toolUnitsUsed: this.unitsUsed }),
     };
   }
 }

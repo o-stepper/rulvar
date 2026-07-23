@@ -90,6 +90,10 @@ export interface ExplorationSummary {
   deniedRepeats: number;
   /** Executions per tool name. */
   byTool: Record<string, number>;
+  /** Calls denied by maxCallsPerTool; present when that limit is configured. */
+  deniedToolCap?: number;
+  /** Weighted tool units spent; present when toolUnits is configured. */
+  toolUnitsUsed?: number;
 }
 
 /**
