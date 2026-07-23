@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.47.0
+
+#### Patch Changes
+
+- Updated dependencies [a3687fe]
+  - @rulvar/core@1.47.0
+
 ### 1.46.0
 
 #### Patch Changes
@@ -691,6 +698,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.47.0
+
+#### Patch Changes
+
+- Updated dependencies [a3687fe]
+  - @rulvar/core@1.47.0
+
 ### 1.46.0
 
 #### Patch Changes
@@ -1229,6 +1243,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.47.0
+
+#### Minor Changes
+
+- a3687fe: Ship phase 3 of the fenced run state RFC, reconcile and recover. The engine now journals every run settle whose segment did durable work (or changed the recorded status) as a `run_settle` decision entry ordered BEFORE the meta write, so the run's outcome is part of the journal and `RunMeta` is a rebuildable projection; the write-on-change rule keeps pure replay byte stable, so a resume that only replays appends nothing. On top of it, `auditRun` names the divergences a worker sweep can never see, `auditRuns` sweeps the catalog, and `reconcileRunMeta` rewrites the sound cases from the journal with zero model calls and no workflow: `meta-behind` (the crash residue between the journal flush and the meta write, or a stale write contradicted by a journaled settle) takes the journaled status, and `stranded` (a terminal meta over live journal work, the F1 residue an unfenced store admits, demonstrated against the published 1.46.0 first) becomes sweepable again; ambiguous residues are reported as `suspect` and never rewritten. The CLI gains `rulvar runs audit [--repair]`, the operator probe: it lists every divergence, repairs under a brief per-run lease on a leasable store (a live owner is skipped, never raced), and exits 0 only when the catalog ends consistent. `ResolutionOutcome` additionally carries `woke: true` exactly when a resolution settled a live in-process waiter, and the HTTP server uses it to close a quiesce-window race: a resolve that applied through the fold while the segment was closing now awaits the imminent settle and continues the run in place instead of answering `resumed: false` on timing grounds and stranding it suspended. The committed cassette catalog is re-frozen for the additive settle entry under the journal-shape-revision lane of the fixtures lock: an additive journal evolution that revises no identity (the hashVersion stays 2; entry identity, adapter requests, and the frozen v1 resume fixtures are untouched byte for byte).
+
+#### Patch Changes
+
+- Updated dependencies [a3687fe]
+  - @rulvar/core@1.47.0
 
 ### 1.46.0
 
@@ -2004,6 +2029,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.47.0
+
+#### Minor Changes
+
+- a3687fe: Ship phase 3 of the fenced run state RFC, reconcile and recover. The engine now journals every run settle whose segment did durable work (or changed the recorded status) as a `run_settle` decision entry ordered BEFORE the meta write, so the run's outcome is part of the journal and `RunMeta` is a rebuildable projection; the write-on-change rule keeps pure replay byte stable, so a resume that only replays appends nothing. On top of it, `auditRun` names the divergences a worker sweep can never see, `auditRuns` sweeps the catalog, and `reconcileRunMeta` rewrites the sound cases from the journal with zero model calls and no workflow: `meta-behind` (the crash residue between the journal flush and the meta write, or a stale write contradicted by a journaled settle) takes the journaled status, and `stranded` (a terminal meta over live journal work, the F1 residue an unfenced store admits, demonstrated against the published 1.46.0 first) becomes sweepable again; ambiguous residues are reported as `suspect` and never rewritten. The CLI gains `rulvar runs audit [--repair]`, the operator probe: it lists every divergence, repairs under a brief per-run lease on a leasable store (a live owner is skipped, never raced), and exits 0 only when the catalog ends consistent. `ResolutionOutcome` additionally carries `woke: true` exactly when a resolution settled a live in-process waiter, and the HTTP server uses it to close a quiesce-window race: a resolve that applied through the fold while the segment was closing now awaits the imminent settle and continues the run in place instead of answering `resumed: false` on timing grounds and stranding it suspended. The committed cassette catalog is re-frozen for the additive settle entry under the journal-shape-revision lane of the fixtures lock: an additive journal evolution that revises no identity (the hashVersion stays 2; entry identity, adapter requests, and the frozen v1 resume fixtures are untouched byte for byte).
 
 ### 1.46.0
 
@@ -3237,6 +3268,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.47.0
+
 ### 1.46.0
 
 ### 1.45.0
@@ -3415,6 +3448,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.47.0
+
+#### Patch Changes
+
+- Updated dependencies [a3687fe]
+  - @rulvar/core@1.47.0
+  - @rulvar/testing@1.47.0
 
 ### 1.46.0
 
@@ -4096,6 +4137,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.47.0
+
+#### Patch Changes
+
+- Updated dependencies [a3687fe]
+  - @rulvar/core@1.47.0
 
 ### 1.46.0
 
@@ -4787,6 +4835,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.47.0
+
+#### Patch Changes
+
+- Updated dependencies [a3687fe]
+  - @rulvar/core@1.47.0
+
 ### 1.46.0
 
 #### Patch Changes
@@ -5447,6 +5502,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.47.0
+
+#### Patch Changes
+
+- Updated dependencies [a3687fe]
+  - @rulvar/core@1.47.0
+  - eslint-plugin-rulvar@1.47.0
+
 ### 1.46.0
 
 #### Patch Changes
@@ -6094,6 +6157,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.47.0
+
+#### Patch Changes
+
+- Updated dependencies [a3687fe]
+  - @rulvar/core@1.47.0
+  - @rulvar/anthropic@1.47.0
+  - @rulvar/openai@1.47.0
 
 ### 1.46.0
 
@@ -6874,6 +6946,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.47.0
+
+#### Patch Changes
+
+- Updated dependencies [a3687fe]
+  - @rulvar/core@1.47.0
+
 ### 1.46.0
 
 #### Minor Changes
@@ -7496,6 +7575,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.47.0
+
+#### Patch Changes
+
+- Updated dependencies [a3687fe]
+  - @rulvar/core@1.47.0
+
 ### 1.46.0
 
 #### Minor Changes
@@ -8062,6 +8148,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.47.0
+
+#### Patch Changes
+
+- Updated dependencies [a3687fe]
+  - @rulvar/core@1.47.0
 
 ### 1.46.0
 
