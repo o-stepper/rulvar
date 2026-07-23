@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.50.0
+
+#### Patch Changes
+
+- Updated dependencies [e39a885]
+  - @rulvar/core@1.50.0
+
 ### 1.49.0
 
 #### Patch Changes
@@ -711,6 +718,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.50.0
+
+#### Patch Changes
+
+- Updated dependencies [e39a885]
+  - @rulvar/core@1.50.0
+
 ### 1.49.0
 
 #### Patch Changes
@@ -1269,6 +1283,25 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.50.0
+
+#### Minor Changes
+
+- e39a885: The structured determinism contract (RV-209): bare-nondeterminism detection is engine-owned, classified, localized, and enforceable, and replay verification is a first-class CLI gate.
+
+  - New `determinism:warning` event on the run stream: a bare `Date.now()` or `Math.random()` call observed inside an in-process workflow body emits `category`, `provenance` (`workflow` | `allowlisted`), the calling `frame`, and the parsed `file`/`line`/`column`, at most once per (category, provenance) per execution segment. Installed dependencies (node_modules) and Node runtime frames are classified exempt and stay silent, so an SDK's internal randomness never brands the run nondeterministic. Never journaled; because replay re-executes the body, a violation still in the code fires again on every replay organically.
+  - `CreateEngineOptions.determinism`: `mode: 'off' | 'warn' | 'error'` (warn stays the default and the pre-RV-209 dev-only behavior; the process warnings now name the callsite), `allowlist` (substring or RegExp patterns for confirmed-safe frames, classified `allowlisted`, never rejected), and `redact` (applied to frames and file paths before they leave in events, warnings, and errors). Config is validated loudly at `createEngine`.
+  - `mode: 'error'` detects in every environment including production and rejects the run: the offending call throws a typed `DeterminismError` (new error code `determinism`, localization in `data`) at the call site, and a workflow that swallows it is re-thrown at settle, so the run ends `'error'` instead of recording a value replay cannot reproduce.
+  - The journaled run-settle decision now records `outputHash` (canonical JCS sha256 of the settling segment's result; absent for undefined or non-serializable values). Pure replays append no settle, so a divergent replayed result can never overwrite the live baseline. `hashRunOutput` and the extended `lastRunSettle` are exported.
+  - New `rulvar replay <runId> [--args JSON] [--store PATH] [--assert-no-live] [--compare-output-hash]`: a dry-run resume (zero journal or meta writes, zero adapter calls) that reports replay accounting, every localized determinism warning, and the digest comparison; `--assert-no-live` exits 1 unless the replay is pure, `--compare-output-hash` exits 1 unless the replayed result's digest equals the journaled one. Deliberately no `--allow-args-change`: verifying a different logical run proves nothing.
+  - The TUI renders `determinism:warning` lines, and the OTel exporter attaches the event to its span with `rulvar.determinism.*` plus `code.filepath`/`code.lineno` attributes.
+  - The frozen cassette catalog is re-recorded for the additive `outputHash` field on run-settle decisions (journal-shape-revision, policy not identity: no hashVersion change, no matching impact).
+
+#### Patch Changes
+
+- Updated dependencies [e39a885]
+  - @rulvar/core@1.50.0
 
 ### 1.49.0
 
@@ -2078,6 +2111,20 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.50.0
+
+#### Minor Changes
+
+- e39a885: The structured determinism contract (RV-209): bare-nondeterminism detection is engine-owned, classified, localized, and enforceable, and replay verification is a first-class CLI gate.
+
+  - New `determinism:warning` event on the run stream: a bare `Date.now()` or `Math.random()` call observed inside an in-process workflow body emits `category`, `provenance` (`workflow` | `allowlisted`), the calling `frame`, and the parsed `file`/`line`/`column`, at most once per (category, provenance) per execution segment. Installed dependencies (node_modules) and Node runtime frames are classified exempt and stay silent, so an SDK's internal randomness never brands the run nondeterministic. Never journaled; because replay re-executes the body, a violation still in the code fires again on every replay organically.
+  - `CreateEngineOptions.determinism`: `mode: 'off' | 'warn' | 'error'` (warn stays the default and the pre-RV-209 dev-only behavior; the process warnings now name the callsite), `allowlist` (substring or RegExp patterns for confirmed-safe frames, classified `allowlisted`, never rejected), and `redact` (applied to frames and file paths before they leave in events, warnings, and errors). Config is validated loudly at `createEngine`.
+  - `mode: 'error'` detects in every environment including production and rejects the run: the offending call throws a typed `DeterminismError` (new error code `determinism`, localization in `data`) at the call site, and a workflow that swallows it is re-thrown at settle, so the run ends `'error'` instead of recording a value replay cannot reproduce.
+  - The journaled run-settle decision now records `outputHash` (canonical JCS sha256 of the settling segment's result; absent for undefined or non-serializable values). Pure replays append no settle, so a divergent replayed result can never overwrite the live baseline. `hashRunOutput` and the extended `lastRunSettle` are exported.
+  - New `rulvar replay <runId> [--args JSON] [--store PATH] [--assert-no-live] [--compare-output-hash]`: a dry-run resume (zero journal or meta writes, zero adapter calls) that reports replay accounting, every localized determinism warning, and the digest comparison; `--assert-no-live` exits 1 unless the replay is pure, `--compare-output-hash` exits 1 unless the replayed result's digest equals the journaled one. Deliberately no `--allow-args-change`: verifying a different logical run proves nothing.
+  - The TUI renders `determinism:warning` lines, and the OTel exporter attaches the event to its span with `rulvar.determinism.*` plus `code.filepath`/`code.lineno` attributes.
+  - The frozen cassette catalog is re-recorded for the additive `outputHash` field on run-settle decisions (journal-shape-revision, policy not identity: no hashVersion change, no matching impact).
 
 ### 1.49.0
 
@@ -3331,6 +3378,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.50.0
+
 ### 1.49.0
 
 ### 1.48.0
@@ -3515,6 +3564,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.50.0
+
+#### Patch Changes
+
+- Updated dependencies [e39a885]
+  - @rulvar/core@1.50.0
+  - @rulvar/testing@1.50.0
 
 ### 1.49.0
 
@@ -4219,6 +4276,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.50.0
+
+#### Patch Changes
+
+- Updated dependencies [e39a885]
+  - @rulvar/core@1.50.0
 
 ### 1.49.0
 
@@ -4930,6 +4994,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.50.0
+
+#### Patch Changes
+
+- Updated dependencies [e39a885]
+  - @rulvar/core@1.50.0
+
 ### 1.49.0
 
 #### Patch Changes
@@ -5610,6 +5681,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.50.0
+
+#### Patch Changes
+
+- Updated dependencies [e39a885]
+  - @rulvar/core@1.50.0
+  - eslint-plugin-rulvar@1.50.0
+
 ### 1.49.0
 
 #### Patch Changes
@@ -6280,6 +6359,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.50.0
+
+#### Patch Changes
+
+- Updated dependencies [e39a885]
+  - @rulvar/core@1.50.0
+  - @rulvar/anthropic@1.50.0
+  - @rulvar/openai@1.50.0
 
 ### 1.49.0
 
@@ -7086,6 +7174,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.50.0
+
+#### Patch Changes
+
+- Updated dependencies [e39a885]
+  - @rulvar/core@1.50.0
+
 ### 1.49.0
 
 #### Patch Changes
@@ -7736,6 +7831,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.50.0
+
+#### Patch Changes
+
+- Updated dependencies [e39a885]
+  - @rulvar/core@1.50.0
+
 ### 1.49.0
 
 #### Patch Changes
@@ -8327,6 +8429,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.50.0
+
+#### Patch Changes
+
+- Updated dependencies [e39a885]
+  - @rulvar/core@1.50.0
 
 ### 1.49.0
 
