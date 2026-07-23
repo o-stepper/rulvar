@@ -1,5 +1,16 @@
 # @rulvar/store-conformance
 
+## 1.46.0
+
+### Minor Changes
+
+- 865e7bf: Close finding F2 of the fenced run state RFC with the sqlite transcript twin. `SqliteStore.transcripts()` returns a `TranscriptStore` that declares `fencedWrites` because its blobs live in the store's own database, beside the lease rows: a lease-carrying `put` or `delete` verifies the current holder of the run the ref's leading path segment names atomically with the blob mutation, in the same one-immediate-transaction shape as the journal side, and rejects stale or cross-run holders with the typed `LeaseHeldError` leaving the prior blob byte intact. Demonstrated against the published 1.45.0 first: the engine threaded the superseded segment's lease into its late checkpoint save, both shipped transcript stores ignored it, and the blob at the deterministic ref both segments share regressed to older turn state (the state a later boot decodes, replaying turns the successor already paid for) while the same holder's journal append bounced typed. Over the `{ journal: store, transcripts: store.transcripts() }` pair, `assertFencedWrites` now passes and every durable run mutation is fenced. The conformance kit gains `fencedTranscriptsConformance`, the executable definition of the transcript-side promise, taking a factory for the pair that shares the fencing domain; staleness is produced with release plus reacquire, so the suite needs no wall sleeps.
+
+### Patch Changes
+
+- Updated dependencies [865e7bf]
+  - @rulvar/core@1.46.0
+
 ## 1.45.0
 
 ### Minor Changes

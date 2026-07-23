@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.46.0
+
+#### Patch Changes
+
+- Updated dependencies [865e7bf]
+  - @rulvar/core@1.46.0
+
 ### 1.45.0
 
 #### Patch Changes
@@ -684,6 +691,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.46.0
+
+#### Patch Changes
+
+- Updated dependencies [865e7bf]
+  - @rulvar/core@1.46.0
+
 ### 1.45.0
 
 #### Patch Changes
@@ -1215,6 +1229,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.46.0
+
+#### Patch Changes
+
+- Updated dependencies [865e7bf]
+  - @rulvar/core@1.46.0
 
 ### 1.45.0
 
@@ -1983,6 +2004,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.46.0
+
+#### Minor Changes
+
+- 865e7bf: Close finding F2 of the fenced run state RFC with the sqlite transcript twin. `SqliteStore.transcripts()` returns a `TranscriptStore` that declares `fencedWrites` because its blobs live in the store's own database, beside the lease rows: a lease-carrying `put` or `delete` verifies the current holder of the run the ref's leading path segment names atomically with the blob mutation, in the same one-immediate-transaction shape as the journal side, and rejects stale or cross-run holders with the typed `LeaseHeldError` leaving the prior blob byte intact. Demonstrated against the published 1.45.0 first: the engine threaded the superseded segment's lease into its late checkpoint save, both shipped transcript stores ignored it, and the blob at the deterministic ref both segments share regressed to older turn state (the state a later boot decodes, replaying turns the successor already paid for) while the same holder's journal append bounced typed. Over the `{ journal: store, transcripts: store.transcripts() }` pair, `assertFencedWrites` now passes and every durable run mutation is fenced. The conformance kit gains `fencedTranscriptsConformance`, the executable definition of the transcript-side promise, taking a factory for the pair that shares the fencing domain; staleness is produced with release plus reacquire, so the suite needs no wall sleeps.
 
 ### 1.45.0
 
@@ -3210,6 +3237,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.46.0
+
 ### 1.45.0
 
 ### 1.44.1
@@ -3386,6 +3415,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.46.0
+
+#### Patch Changes
+
+- Updated dependencies [865e7bf]
+  - @rulvar/core@1.46.0
+  - @rulvar/testing@1.46.0
 
 ### 1.45.0
 
@@ -4059,6 +4096,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.46.0
+
+#### Patch Changes
+
+- Updated dependencies [865e7bf]
+  - @rulvar/core@1.46.0
 
 ### 1.45.0
 
@@ -4743,6 +4787,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.46.0
+
+#### Patch Changes
+
+- Updated dependencies [865e7bf]
+  - @rulvar/core@1.46.0
+
 ### 1.45.0
 
 #### Patch Changes
@@ -5396,6 +5447,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.46.0
+
+#### Patch Changes
+
+- Updated dependencies [865e7bf]
+  - @rulvar/core@1.46.0
+  - eslint-plugin-rulvar@1.46.0
+
 ### 1.45.0
 
 #### Patch Changes
@@ -6035,6 +6094,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.46.0
+
+#### Patch Changes
+
+- Updated dependencies [865e7bf]
+  - @rulvar/core@1.46.0
+  - @rulvar/anthropic@1.46.0
+  - @rulvar/openai@1.46.0
 
 ### 1.45.0
 
@@ -6806,6 +6874,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.46.0
+
+#### Minor Changes
+
+- 865e7bf: Close finding F2 of the fenced run state RFC with the sqlite transcript twin. `SqliteStore.transcripts()` returns a `TranscriptStore` that declares `fencedWrites` because its blobs live in the store's own database, beside the lease rows: a lease-carrying `put` or `delete` verifies the current holder of the run the ref's leading path segment names atomically with the blob mutation, in the same one-immediate-transaction shape as the journal side, and rejects stale or cross-run holders with the typed `LeaseHeldError` leaving the prior blob byte intact. Demonstrated against the published 1.45.0 first: the engine threaded the superseded segment's lease into its late checkpoint save, both shipped transcript stores ignored it, and the blob at the deterministic ref both segments share regressed to older turn state (the state a later boot decodes, replaying turns the successor already paid for) while the same holder's journal append bounced typed. Over the `{ journal: store, transcripts: store.transcripts() }` pair, `assertFencedWrites` now passes and every durable run mutation is fenced. The conformance kit gains `fencedTranscriptsConformance`, the executable definition of the transcript-side promise, taking a factory for the pair that shares the fencing domain; staleness is produced with release plus reacquire, so the suite needs no wall sleeps.
+
+#### Patch Changes
+
+- Updated dependencies [865e7bf]
+  - @rulvar/core@1.46.0
+
 ### 1.45.0
 
 #### Minor Changes
@@ -7417,6 +7496,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.46.0
+
+#### Minor Changes
+
+- 865e7bf: Close finding F2 of the fenced run state RFC with the sqlite transcript twin. `SqliteStore.transcripts()` returns a `TranscriptStore` that declares `fencedWrites` because its blobs live in the store's own database, beside the lease rows: a lease-carrying `put` or `delete` verifies the current holder of the run the ref's leading path segment names atomically with the blob mutation, in the same one-immediate-transaction shape as the journal side, and rejects stale or cross-run holders with the typed `LeaseHeldError` leaving the prior blob byte intact. Demonstrated against the published 1.45.0 first: the engine threaded the superseded segment's lease into its late checkpoint save, both shipped transcript stores ignored it, and the blob at the deterministic ref both segments share regressed to older turn state (the state a later boot decodes, replaying turns the successor already paid for) while the same holder's journal append bounced typed. Over the `{ journal: store, transcripts: store.transcripts() }` pair, `assertFencedWrites` now passes and every durable run mutation is fenced. The conformance kit gains `fencedTranscriptsConformance`, the executable definition of the transcript-side promise, taking a factory for the pair that shares the fencing domain; staleness is produced with release plus reacquire, so the suite needs no wall sleeps.
+
+#### Patch Changes
+
+- Updated dependencies [865e7bf]
+  - @rulvar/core@1.46.0
+
 ### 1.45.0
 
 #### Minor Changes
@@ -7972,6 +8062,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.46.0
+
+#### Patch Changes
+
+- Updated dependencies [865e7bf]
+  - @rulvar/core@1.46.0
 
 ### 1.45.0
 
