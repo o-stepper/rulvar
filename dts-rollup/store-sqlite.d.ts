@@ -1,4 +1,4 @@
-import { JournalEntry, LeasableStore, Lease, MetaLookupStore, RunFilter, RunMeta } from "@rulvar/core";
+import { JournalEntry, LeasableStore, Lease, MetaLookupStore, RunFilter, RunMeta, TranscriptStore } from "@rulvar/core";
 
 //#region src/store.d.ts
 /** Appendix A interim reference for the sqlite store. */
@@ -18,6 +18,17 @@ interface SqliteStoreOptions {
   /** Injectable clock for lease-expiry tests. */
   now?: () => number;
 }
+/**
+* The fenced transcript twin over a SqliteStore database (the fenced
+* run state RFC, F2): a TranscriptStore that declares `fencedWrites`
+* because its blobs live in the SAME database as the lease rows, giving
+* the fence check and the blob mutation one transactional domain.
+* Obtain it from {@link SqliteStore.transcripts}; its lifetime is the
+* owning store's (one shared connection, one `close()`).
+*/
+interface SqliteTranscriptStore extends TranscriptStore {
+  readonly fencedWrites: true;
+}
 declare class SqliteStore implements MetaLookupStore, LeasableStore {
   /**
   * The fenced writes promise (fenced run state RFC, phase 2): every
@@ -30,6 +41,7 @@ declare class SqliteStore implements MetaLookupStore, LeasableStore {
   private readonly db;
   private readonly ttlMs;
   private readonly now;
+  private transcriptTwin;
   constructor(options: SqliteStoreOptions);
   close(): void;
   private liveLease;
@@ -62,6 +74,25 @@ declare class SqliteStore implements MetaLookupStore, LeasableStore {
   private deleteRows;
   delete(runId: string, lease?: Lease): Promise<void>;
   /**
+  * The fenced transcript twin (fenced run state RFC, F2): a
+  * TranscriptStore whose blobs live in THIS store's database, beside
+  * the lease rows, so a lease-carrying put or delete verifies the
+  * current holder of the run the ref's leading path segment names
+  * atomically with the blob mutation, in the same one-immediate-
+  * transaction shape as the journal side. Sharing the connection is
+  * what makes the capability implementable at all (a blob write and a
+  * lease check in different domains cannot commit as one unit; with
+  * ':memory:' a separate connection would not even see the leases) and
+  * keeps one close() lifecycle. Wire it as the engine's transcript
+  * store next to this store as the journal: over the pair every
+  * durable run mutation is fenced, which is what
+  * `assertFencedWrites({ journal, transcripts })` verifies. The blob
+  * cascade of `deleteRun`/`pruneRun` stays ENGINE-side, exactly as the
+  * TranscriptStore contract says; the journal-side `delete(runId)`
+  * never touches blob rows.
+  */
+  transcripts(): SqliteTranscriptStore;
+  /**
   * TTL introspection (the LeasableStore optional capability): lets
   * createWorker verify at construction that its renew cadence matches
   * this store's expiry instead of trusting two config sources to agree.
@@ -72,4 +103,4 @@ declare class SqliteStore implements MetaLookupStore, LeasableStore {
   release(l: Lease): Promise<void>;
 }
 //#endregion
-export { DEFAULT_LEASE_TTL_MS, SqliteStore, type SqliteStoreOptions };
+export { DEFAULT_LEASE_TTL_MS, SqliteStore, type SqliteStoreOptions, type SqliteTranscriptStore };

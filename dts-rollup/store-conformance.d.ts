@@ -1,4 +1,4 @@
-import { JournalEntry, JournalStore, LeasableStore } from "@rulvar/core";
+import { JournalEntry, JournalStore, LeasableStore, TranscriptStore } from "@rulvar/core";
 
 //#region src/types.d.ts
 /**
@@ -50,6 +50,17 @@ declare function leasableStoreConformance(mk: StoreFactory<LeasableStore>, optio
 //#region src/fenced-writes.d.ts
 declare function fencedWritesConformance(mk: StoreFactory<LeasableStore>): ConformanceSuite;
 //#endregion
+//#region src/fenced-transcripts.d.ts
+/**
+* The paired factory product: the transcript store under test plus the
+* leasable journal store sharing its fencing domain.
+*/
+interface FencedTranscriptsFixture {
+  journal: LeasableStore;
+  transcripts: TranscriptStore;
+}
+declare function fencedTranscriptsConformance(mk: StoreFactory<FencedTranscriptsFixture>): ConformanceSuite;
+//#endregion
 //#region src/fixtures/golden-fold.d.ts
 /**
 * seq 0  agent spawn (running; abandoned by seq 6)
@@ -74,4 +85,4 @@ declare function foldStateSha256(entries: readonly JournalEntry[]): string;
 /** The reference hash; computed once from the kernel fold and frozen. */
 declare const GOLDEN_FOLD_STATE_SHA256 = "81e6ccff549fb3e6c1de4d34ba65b912162eba6f66403b5d5f23a3e1ec69243c";
 //#endregion
-export { type ConformanceCheck, type ConformanceSuite, GOLDEN_FOLD_JOURNAL, GOLDEN_FOLD_STATE_SHA256, type StoreFactory, type TestRegistrar, fencedWritesConformance, foldStateSha256, journalStoreConformance, leasableStoreConformance, makeSuite, materializeFoldState, registerConformance, stableStringify };
+export { type ConformanceCheck, type ConformanceSuite, type FencedTranscriptsFixture, GOLDEN_FOLD_JOURNAL, GOLDEN_FOLD_STATE_SHA256, type StoreFactory, type TestRegistrar, fencedTranscriptsConformance, fencedWritesConformance, foldStateSha256, journalStoreConformance, leasableStoreConformance, makeSuite, materializeFoldState, registerConformance, stableStringify };

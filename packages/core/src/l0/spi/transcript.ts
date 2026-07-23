@@ -32,7 +32,9 @@ export interface TranscriptStore {
    * sources). The shipped file and in-memory transcript stores do NOT
    * declare it (they are single-writer by contract); a fenced
    * implementation needs the blobs and the lease state in one
-   * transactional domain.
+   * transactional domain, which is exactly how the sqlite twin ships:
+   * `SqliteStore.transcripts()` in `@rulvar/store-sqlite` keeps blobs
+   * beside the lease rows of the same database.
    */
   readonly fencedWrites?: true;
 }

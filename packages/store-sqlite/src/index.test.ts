@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ConfigError, LeaseHeldError, type JournalEntry, type Lease } from '@rulvar/core';
 import {
+  fencedTranscriptsConformance,
   fencedWritesConformance,
   journalStoreConformance,
   leasableStoreConformance,
@@ -38,6 +39,14 @@ registerConformance(
 
 registerConformance(
   fencedWritesConformance(() => memoryStore()),
+  { describe, it },
+);
+
+registerConformance(
+  fencedTranscriptsConformance(() => {
+    const store = memoryStore();
+    return { journal: store, transcripts: store.transcripts() };
+  }),
   { describe, it },
 );
 
@@ -258,6 +267,57 @@ describe('SqliteStore cross-instance concurrency (one database file)', () => {
     b.close();
   });
 
+  it('a stale checkpoint save cannot regress the successor blob (RFC F2)', async () => {
+    const { a, b, clock } = fencedPair();
+    const ref = 'RUN/ckpt/7'; // the deterministic ref both segments share
+    const leaseA = await a.acquire('RUN', 'worker-a');
+    await a.transcripts().put(ref, new Uint8Array([1]), leaseA);
+    clock.t += 150; // worker-a stalls past its ttl mid turn
+    const leaseB = await b.acquire('RUN', 'worker-b');
+    await b.transcripts().put(ref, new Uint8Array([3]), leaseB);
+    // The superseded segment's late save: on 1.45.0 this landed last
+    // write wins on both shipped transcript stores, so the next boot of
+    // the attempt decoded the OLDER turn state and replayed paid turns.
+    await expect(a.transcripts().put(ref, new Uint8Array([2]), leaseA)).rejects.toThrow(
+      LeaseHeldError,
+    );
+    expect(await b.transcripts().get(ref)).toEqual(new Uint8Array([3]));
+    expect(await a.transcripts().get(ref)).toEqual(new Uint8Array([3]));
+    // The stale holder cannot delete the successor's blob either (F4).
+    await expect(a.transcripts().delete(ref, leaseA)).rejects.toThrow(LeaseHeldError);
+    expect(await b.transcripts().get(ref)).toEqual(new Uint8Array([3]));
+    a.close();
+    b.close();
+  });
+
+  it('a takeover cannot land between a transcript fence check and its blob write', async () => {
+    const { a, b, clock } = fencedPair();
+    const ref = 'RUN/ckpt/7';
+    const leaseA = await a.acquire('RUN', 'worker-a');
+    await a.transcripts().put(ref, new Uint8Array([1]), leaseA);
+    let blockedMidCall = false;
+    armInterleave(a, () => {
+      clock.t += 150; // worker-a's lease expires unrenewed
+      b.acquire('RUN', 'worker-b').then(undefined, () => {
+        blockedMidCall = true;
+      });
+    });
+    // The check saw a live lease inside the same transaction, so this
+    // save legitimately serializes BEFORE the takeover.
+    await a.transcripts().put(ref, new Uint8Array([2]), leaseA);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(blockedMidCall).toBe(true);
+    // After the call the reclaim lands, and the old holder is fenced.
+    const reclaimed = await b.acquire('RUN', 'worker-b');
+    await b.transcripts().put(ref, new Uint8Array([3]), reclaimed);
+    await expect(a.transcripts().put(ref, new Uint8Array([4]), leaseA)).rejects.toThrow(
+      LeaseHeldError,
+    );
+    expect(await b.transcripts().get(ref)).toEqual(new Uint8Array([3]));
+    a.close();
+    b.close();
+  });
+
   it('preserves unknown fields byte-for-byte through store and load (A4)', async () => {
     const store = memoryStore();
     const exotic = {
@@ -268,6 +328,57 @@ describe('SqliteStore cross-instance concurrency (one database file)', () => {
     await store.append('RUN', exotic);
     const [loaded] = await store.load('RUN');
     expect(loaded).toEqual(exotic);
+    store.close();
+  });
+});
+
+describe('the fenced transcript twin surface (RFC F2)', () => {
+  it('round-trips blobs byte exact, overwrites in place, and hands out copies', async () => {
+    const store = memoryStore();
+    const twin = store.transcripts();
+    expect(store.transcripts()).toBe(twin); // one twin per store
+    const big = new Uint8Array(64 * 1024).map((_, i) => (i * 31 + 7) % 256);
+    await twin.put('RUN/ckpt/1', big);
+    expect(await twin.get('RUN/ckpt/1')).toEqual(big);
+    // Reads are copies: mutating what get returned never leaks back.
+    const first = await twin.get('RUN/ckpt/1');
+    first?.fill(0);
+    expect(await twin.get('RUN/ckpt/1')).toEqual(big);
+    await twin.put('RUN/ckpt/1', new Uint8Array([9]));
+    expect(await twin.get('RUN/ckpt/1')).toEqual(new Uint8Array([9]));
+    expect(await twin.get('RUN/missing')).toBeNull();
+    store.close();
+  });
+
+  it('lists exactly the refs under the run prefix, sorted', async () => {
+    const store = memoryStore();
+    const twin = store.transcripts();
+    await twin.put('RUN/wt/patch', new Uint8Array([1]));
+    await twin.put('RUN/ckpt/2', new Uint8Array([2]));
+    await twin.put('OTHER/ckpt/1', new Uint8Array([3]));
+    // A degenerate slashless ref stores, but never lists under a run:
+    // the `${runId}/` prefix convention of the shipped stores.
+    await twin.put('RUN', new Uint8Array([4]));
+    expect(await twin.list('RUN')).toEqual(['RUN/ckpt/2', 'RUN/wt/patch']);
+    expect(await twin.list('OTHER')).toEqual(['OTHER/ckpt/1']);
+    expect(await twin.list('missing')).toEqual([]);
+    await twin.delete('RUN/ckpt/2');
+    await twin.delete('RUN/ckpt/2'); // a missing ref is a no-op
+    expect(await twin.list('RUN')).toEqual(['RUN/wt/patch']);
+    store.close();
+  });
+
+  it('journal-side run deletion leaves blob rows to the engine cascade', async () => {
+    // The blob cascade of deleteRun/pruneRun is ENGINE-side by the
+    // TranscriptStore contract; the journal delete must not guess.
+    const store = memoryStore();
+    const twin = store.transcripts();
+    await store.putMeta({ runId: 'RUN', status: 'ok', segments: 1, updatedAt: 'x' });
+    await twin.put('RUN/ckpt/1', new Uint8Array([1]));
+    await store.delete('RUN');
+    expect(await twin.get('RUN/ckpt/1')).toEqual(new Uint8Array([1]));
+    await twin.delete('RUN/ckpt/1');
+    expect(await twin.get('RUN/ckpt/1')).toBeNull();
     store.close();
   });
 });
