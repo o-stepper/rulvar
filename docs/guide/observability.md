@@ -72,7 +72,7 @@ All four family unions are exported from `@rulvar/core` as `CoreEvents`, `AgentE
 | `agent:start` | The logical agent dispatch begins; exactly one per span. | `model`, `role` |
 | `agent:phase:start` | One model invocation phase activates inside the span (`loop`, `summarize`, `finalize`, `extract`). | `role`, `model`, `invocation` |
 | `agent:phase:end` | That activation settles, with its own slice of the money. | `role`, `model`, `invocation`, `durationMs`, `usage`, `costUsd`, `outcome`, `retries?` |
-| `agent:end` | The agent settles; the one event that carries the whole total. | `status`, `usage`, `costUsd`, `entryRef`, `usageApprox?`, `retryCount?` |
+| `agent:end` | The agent settles; the one event that carries the whole total. | `status`, `usage`, `costUsd`, `entryRef`, `usageApprox?`, `retryCount?`, `exploration?` |
 | `agent:error` | A live attempt failed. | `error` (a wire error), `willRetry` |
 | `agent:schema-retry` | Structured output failed validation and is being retried. | `attempt`, `maxAttempts` |
 | `agent:stream` | A token delta arrived; only for calls that opt into streaming. | `delta` |
@@ -94,9 +94,9 @@ Token accounting semantics, so the numbers read correctly: `cacheReadTokens` and
 | Event | Fires when | Notable fields |
 |---|---|---|
 | `tool:start` | A tool call dispatches. | `toolName`, `risk?` |
-| `tool:end` | The tool call settles. | `outcome` (`'ok'`, `'error'`, `'denied'`), `durationMs`, plus the permission audit fields `verdict?`, `decidedBy?`, `rule?`, `advisory?` |
+| `tool:end` | The tool call settles. | `outcome` (`'ok'`, `'error'`, `'denied'`), `durationMs`, plus the permission audit fields `verdict?`, `decidedBy?`, `rule?`, `advisory?`, and `guard?` when an exploration guard denied the call |
 
-The audit fields on `tool:end` record which layer of the permission chain decided and which rule matched; see [Tools](/guide/tools).
+The audit fields on `tool:end` record which layer of the permission chain decided and which rule matched; see [Tools](/guide/tools). A `tool:end` carrying `guard: 'repeated-signature'` was denied by the [exploration guards](/guide/agents#exploration-guards), not the permission chain, and was never dispatched. The `exploration` summary on `agent:end` carries the guard counters (`toolCallsUsed`, `distinctSignatures`, `repeatedCalls`, `duplicateResultCalls`, `deniedRepeats`, `byTool`): present live whenever any exploration limit was configured, and on replay only when the guard abort journaled it. The OTel exporter maps the summary to `rulvar.exploration.*` span attributes and the guard marker to `rulvar.tool.guard`.
 
 ### Determinism detection
 

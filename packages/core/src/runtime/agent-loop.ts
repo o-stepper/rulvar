@@ -56,6 +56,13 @@ import {
 } from './escalation.js';
 import { compactMessages, shouldCompact, summarizeInstruction } from './compaction.js';
 import { DEFAULT_MODEL_RETRY_ATTEMPTS, ModelRetry } from './model-retry.js';
+import {
+  crossedNoticeThresholds,
+  ExplorationGuard,
+  explorationTrackingEnabled,
+  toolBudgetNoticeText,
+  type ExplorationSummary,
+} from './exploration.js';
 import { NoProgressDetector, type AbortClass } from './no-progress.js';
 import {
   applyStructuredOutputTier,
@@ -149,6 +156,15 @@ export interface AgentResult<T> {
    * result omits it (absent means "zero or unknown").
    */
   transportRetries?: number;
+  /**
+   * The exploration guard counters (RV-210): present whenever any of
+   * the exploration limits (toolBudgetNotices, maxRepeatedToolSignature,
+   * maxNoNewEvidenceCalls) was configured. Journaled inside the terminal
+   * error payload (and restored on replay) only for the guard's own
+   * abort (abortClass 'exploration'); otherwise live telemetry like
+   * transportRetries.
+   */
+  exploration?: ExplorationSummary;
 }
 
 export type EscalatedResult<T> = AgentResult<T> & {
@@ -972,6 +988,44 @@ export async function runAgent<S extends SchemaSpec>(
   let escalationRequest: EscalationRequest | undefined;
   let abortClass: AbortClass | undefined;
   const noProgress = new NoProgressDetector(limits.noProgressTurns);
+  // Exploration guards (RV-210): tracking exists only when a guard limit
+  // asks for it, so an unconfigured invocation is byte-identical to
+  // before (no summary field, no notice messages, no denial results).
+  const guard = explorationTrackingEnabled(limits) ? new ExplorationGuard(limits) : undefined;
+  if (limits.toolBudgetNotices === true && limits.maxToolCalls === undefined) {
+    events?.emit({
+      type: 'log',
+      level: 'warn',
+      msg: 'toolBudgetNotices is enabled but maxToolCalls is not set; the notices are inert',
+    });
+  }
+  const firedNotices = new Set<number>();
+  /**
+   * Pushes the soft tool-budget notice when an unfired threshold has
+   * been crossed (one message per boundary, carrying the exact counts,
+   * so the model can pace itself before the hard cap). The notice is an
+   * ordinary user message: it rides checkpoints and transcripts, so a
+   * resume never re-fires a threshold the restored count already
+   * crossed.
+   */
+  const maybePushBudgetNotice = (): void => {
+    if (limits.toolBudgetNotices !== true || limits.maxToolCalls === undefined) {
+      return;
+    }
+    const crossed = crossedNoticeThresholds(toolCallsUsed, limits.maxToolCalls).filter(
+      (threshold) => !firedNotices.has(threshold),
+    );
+    if (crossed.length === 0) {
+      return;
+    }
+    for (const threshold of crossed) {
+      firedNotices.add(threshold);
+    }
+    messages.push({
+      role: 'user',
+      parts: [{ type: 'text', text: toolBudgetNoticeText(toolCallsUsed, limits.maxToolCalls) }],
+    });
+  };
   const modelRetryCounts = new Map<string, number>();
   // Compaction state (M4-T03): the estimate is the last loop turn's
   // inputTokens + outputTokens; points record the turns at which
@@ -1014,6 +1068,15 @@ export async function runAgent<S extends SchemaSpec>(
         usageViolations(slice.usage).length === 0 ? slice.usage : sanitizeUsage(slice.usage);
       addPhaseUsage(slice.role ?? primaryRole, slice.servedBy, sliceUsage);
       options.budget?.onUsage(sliceUsage, slice.servedBy);
+    }
+    // The exploration guard rebuilds from the restored history (the same
+    // window the model sees), and thresholds the restored count already
+    // crossed never re-fire (their notices are in the restored messages).
+    guard?.restore(messages);
+    if (limits.toolBudgetNotices === true && limits.maxToolCalls !== undefined) {
+      for (const threshold of crossedNoticeThresholds(toolCallsUsed, limits.maxToolCalls)) {
+        firedNotices.add(threshold);
+      }
     }
   }
 
@@ -1088,6 +1151,8 @@ export async function runAgent<S extends SchemaSpec>(
     limitHit: boolean;
     escalated?: EscalationRequest;
     finished?: unknown;
+    /** The no-new-evidence exploration guard ended the turn (RV-210). */
+    guardTrip?: boolean;
   }> => {
     const runtime = options.tools;
     if (runtime === undefined) {
@@ -1279,18 +1344,50 @@ export async function runAgent<S extends SchemaSpec>(
         });
         return { parts, limitHit: false, finished: finishArgs.result ?? null };
       }
+      // The repeated-signature exploration guard (RV-210): the call that
+      // would exceed the per-signature execution cap is never dispatched;
+      // the model receives a typed error result naming the count, and the
+      // denial does not consume the tool budget.
+      if (guard !== undefined) {
+        const guardVerdict = guard.beforeExecute(gatedCall.name, gatedCall.args);
+        if (guardVerdict.deny) {
+          events?.emit({
+            type: 'tool:end',
+            toolName: gatedCall.name,
+            outcome: 'denied',
+            durationMs: now() - gateStartedAt,
+            guard: 'repeated-signature',
+          });
+          parts.push(errorPart(call, { error: guardVerdict.reason, guard: 'repeated-signature' }));
+          continue;
+        }
+      }
       toolCallsUsed += 1;
-      parts.push(
-        await executeToolCall({
-          call: gatedCall,
-          runtime,
-          retryCounts: modelRetryCounts,
-          maxModelRetries: options.modelRetryAttempts ?? DEFAULT_MODEL_RETRY_ATTEMPTS,
-          ...(events === undefined ? {} : { events }),
-          ...(gateAudit === undefined ? {} : { audit: gateAudit }),
-          now,
-        }),
-      );
+      const executedPart = await executeToolCall({
+        call: gatedCall,
+        runtime,
+        retryCounts: modelRetryCounts,
+        maxModelRetries: options.modelRetryAttempts ?? DEFAULT_MODEL_RETRY_ATTEMPTS,
+        ...(events === undefined ? {} : { events }),
+        ...(gateAudit === undefined ? {} : { audit: gateAudit }),
+        now,
+      });
+      parts.push(executedPart);
+      if (guard !== undefined) {
+        const executedRecord = executedPart as { result?: unknown; isError?: boolean };
+        const tripped = guard.afterExecute(
+          gatedCall.name,
+          gatedCall.args,
+          executedRecord.result,
+          executedRecord.isError === true,
+        );
+        if (tripped) {
+          // No-new-evidence abort: paid partial work, the executed
+          // results stand, and the loop terminates as the dedicated
+          // 'exploration' abort class.
+          return { parts, limitHit: true, guardTrip: true };
+        }
+      }
     }
     return { parts, limitHit: false };
   };
@@ -1312,7 +1409,7 @@ export async function runAgent<S extends SchemaSpec>(
       }
       return part;
     });
-    const { parts, limitHit, escalated, finished } = await runToolCalls(
+    const { parts, limitHit, escalated, finished, guardTrip } = await runToolCalls(
       [restored.pending.awaiting, ...restored.pending.remaining],
       priorParts,
     );
@@ -1328,7 +1425,13 @@ export async function runAgent<S extends SchemaSpec>(
       await saveBoundary();
     } else if (limitHit) {
       status = 'limit';
+      if (guardTrip === true && guard !== undefined) {
+        abortClass = 'exploration';
+        agentError = { kind: 'terminal', retryable: false };
+        errorMessage = guard.describeTrip();
+      }
     } else {
+      maybePushBudgetNotice();
       await saveBoundary();
     }
   }
@@ -1823,7 +1926,7 @@ export async function runAgent<S extends SchemaSpec>(
     // next model turn.
     if (options.tools !== undefined && outcome.turn.toolCalls.length > 0) {
       noProgress.recordTurn({ toolCalls: outcome.turn.toolCalls.length });
-      const { parts, limitHit, escalated, finished } = await runToolCalls(
+      const { parts, limitHit, escalated, finished, guardTrip } = await runToolCalls(
         outcome.turn.toolCalls,
         [],
       );
@@ -1847,8 +1950,17 @@ export async function runAgent<S extends SchemaSpec>(
       }
       if (limitHit) {
         status = 'limit';
+        if (guardTrip === true && guard !== undefined) {
+          abortClass = 'exploration';
+          agentError = { kind: 'terminal', retryable: false };
+          errorMessage = guard.describeTrip();
+        }
         break;
       }
+      // Soft tool-budget visibility (RV-210): the notice joins the
+      // conversation before the boundary checkpoint, so a resume
+      // rebuilds the same history.
+      maybePushBudgetNotice();
       // Compaction check at the tool turn boundary (M4-T03): the
       // estimate is the last loop turn's usage against the loop model's
       // contextWindow. Compaction runs BEFORE the boundary checkpoint,
@@ -2415,6 +2527,9 @@ export async function runAgent<S extends SchemaSpec>(
   }
   if (errorMessage !== undefined) {
     result.errorMessage = errorMessage;
+  }
+  if (guard !== undefined) {
+    result.exploration = guard.summary(toolCallsUsed);
   }
   if (usageApprox) {
     (result as { usageApprox?: boolean }).usageApprox = true;

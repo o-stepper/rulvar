@@ -6,7 +6,7 @@
 
 # Interface: RuntimeEventSink
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:164](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L164)
+Defined in: [packages/core/src/runtime/agent-loop.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L180)
 
 Minimal internal event sink; the typed WorkflowEvent envelope wraps it in M1-T10.
 
@@ -18,7 +18,7 @@ Minimal internal event sink; the typed WorkflowEvent envelope wraps it in M1-T10
 emit(body): void;
 ```
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:165](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L165)
+Defined in: [packages/core/src/runtime/agent-loop.ts:181](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L181)
 
 #### Parameters
 

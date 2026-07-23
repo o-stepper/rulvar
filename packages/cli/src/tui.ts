@@ -50,7 +50,7 @@ function rawEventLine(event: WorkflowEvent): string | undefined {
     case 'tool:start':
       return `${replayMark}tool ${str(event.toolName)}`;
     case 'tool:end':
-      return `${replayMark}tool ${str(event.toolName)} ${str(event.outcome)} (${String(num(event.durationMs))}ms)`;
+      return `${replayMark}tool ${str(event.toolName)} ${str(event.outcome)} (${String(num(event.durationMs))}ms)${str(event.guard) === '' ? '' : ` guard ${str(event.guard)}`}`;
     case 'approval:pending':
       return `approval pending: tool ${str(event.toolName)} (entry ${String(num(event.entryRef))})`;
     case 'determinism:warning': {

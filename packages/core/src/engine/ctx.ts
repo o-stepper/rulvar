@@ -82,6 +82,7 @@ import {
   type PhaseTarget,
   type ToolRuntime,
 } from '../runtime/agent-loop.js';
+import type { ExplorationSummary } from '../l0/events.js';
 import type { AbortClass } from '../runtime/no-progress.js';
 import {
   countsAgainstLimit,
@@ -1248,12 +1249,16 @@ export function createCtx(
       {
         // Engine-decided abort classes ride the terminal error payload;
         // replay restores whichever class was stamped (no-progress,
-        // output-truncated) so a resumed consumer sees the same typed
-        // result the live run reported.
-        const stamped = (terminal?.error?.data as { abortClass?: AbortClass } | undefined)
-          ?.abortClass;
-        if (stamped !== undefined) {
-          result.abortClass = stamped;
+        // output-truncated, exploration) so a resumed consumer sees the
+        // same typed result the live run reported. The exploration abort
+        // additionally journaled its structured summary (RV-210).
+        const stampedData = terminal?.error?.data as
+          { abortClass?: AbortClass; exploration?: ExplorationSummary } | undefined;
+        if (stampedData?.abortClass !== undefined) {
+          result.abortClass = stampedData.abortClass;
+        }
+        if (stampedData?.exploration !== undefined) {
+          result.exploration = stampedData.exploration;
         }
       }
       // Tool results reconstructed from the replayed turn checkpoint are
@@ -1339,6 +1344,8 @@ export function createCtx(
           costUsd,
           entryRef: terminal?.seq ?? matched.running.seq,
           ...(terminal?.usageApprox === true ? { usageApprox: true } : {}),
+          // Present only when the guard abort journaled it (RV-210).
+          ...(result.exploration === undefined ? {} : { exploration: result.exploration }),
         },
         spanId,
         true,
@@ -2133,7 +2140,9 @@ export function createCtx(
       // An engine-decided abort replays on every resume: memoizeOutcome
       // stamped on the TERMINAL, the class marker in the error payload
       // (M3-T08 for no-progress; the v1.9.0 follow-up review added
-      // output-truncated). The work is paid, so a rerun would only
+      // output-truncated; RV-210 added exploration, which additionally
+      // journals its structured summary so a replayed consumer sees the
+      // same typed evidence). The work is paid, so a rerun would only
       // re-pay the same bounded failure.
       terminalPatch.memoizeOutcome = true;
       if (terminalPatch.error !== undefined) {
@@ -2144,7 +2153,13 @@ export function createCtx(
             : {};
         terminalPatch.error = {
           ...terminalPatch.error,
-          data: { ...dataRecord, abortClass: result.abortClass },
+          data: {
+            ...dataRecord,
+            abortClass: result.abortClass,
+            ...(result.abortClass === 'exploration' && result.exploration !== undefined
+              ? { exploration: result.exploration as unknown as Json }
+              : {}),
+          },
         };
       }
     }
@@ -2167,6 +2182,9 @@ export function createCtx(
         ...(result.transportRetries !== undefined && result.transportRetries > 0
           ? { retryCount: result.transportRetries }
           : {}),
+        // Present live whenever any exploration guard limit was
+        // configured (RV-210); journaled only with the guard abort.
+        ...(result.exploration === undefined ? {} : { exploration: result.exploration }),
       },
       spanId,
     );

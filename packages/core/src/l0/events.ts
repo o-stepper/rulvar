@@ -50,6 +50,29 @@ export type CoreEvents =
   | { type: 'child:end'; workflow: string; scope: string; status: string };
 
 /**
+ * The structured exploration summary (RV-210): the engine-side tool
+ * exploration counters for one agent invocation. Attached to the full
+ * AgentResult and to the live `agent:end` event whenever any exploration
+ * guard limit is configured; journaled inside the terminal error payload
+ * (and therefore restored on replay) only when the guard itself ended
+ * the invocation (abortClass 'exploration').
+ */
+export interface ExplorationSummary {
+  /** Tool executions dispatched by the loop (the loop's own counter). */
+  toolCallsUsed: number;
+  /** Distinct (tool name, canonical args) signatures executed. */
+  distinctSignatures: number;
+  /** Executions of a signature that had already executed before. */
+  repeatedCalls: number;
+  /** Successful executions whose result digest was already seen. */
+  duplicateResultCalls: number;
+  /** Calls denied by the repeated-signature guard (never dispatched). */
+  deniedRepeats: number;
+  /** Executions per tool name. */
+  byTool: Record<string, number>;
+}
+
+/**
  * Agent lifecycle. One logical agent dispatch emits EXACTLY ONE
  * `agent:start`/`agent:end` pair on its span (the start carries the
  * primary role), and each model invocation phase inside the span
@@ -128,6 +151,13 @@ export type AgentEvents =
        * or unknown").
        */
       retryCount?: number;
+      /**
+       * The exploration guard counters (RV-210). Present live whenever
+       * any exploration guard limit was configured for the invocation;
+       * on replay present only when the guard abort journaled it in the
+       * terminal error payload.
+       */
+      exploration?: ExplorationSummary;
     }
   | { type: 'agent:error'; agentType: string; label?: string; error: WireError; willRetry: boolean }
   | { type: 'agent:schema-retry'; agentType: string; attempt: number; maxAttempts: number }
@@ -152,6 +182,12 @@ export type ToolEvents =
       decidedBy?: string;
       rule?: Json;
       advisory?: Json;
+      /**
+       * Present when an exploration guard (RV-210), not the permission
+       * chain, denied the call: the outcome is 'denied' and the call was
+       * never dispatched.
+       */
+      guard?: 'repeated-signature';
     };
 
 /**

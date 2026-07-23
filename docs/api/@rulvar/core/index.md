@@ -162,6 +162,7 @@ exactly the pieces you need, for example
 | [EscalationOptions](/api/@rulvar/core/interfaces/EscalationOptions.md) | - |
 | [EscalationReport](/api/@rulvar/core/interfaces/EscalationReport.md) | - |
 | [EscalationRequest](/api/@rulvar/core/interfaces/EscalationRequest.md) | The model-facing request: the report minus the runtime-filled fields. |
+| [ExplorationSummary](/api/@rulvar/core/interfaces/ExplorationSummary.md) | The structured exploration summary (RV-210): the engine-side tool exploration counters for one agent invocation. Attached to the full AgentResult and to the live `agent:end` event whenever any exploration guard limit is configured; journaled inside the terminal error payload (and therefore restored on replay) only when the guard itself ended the invocation (abortClass 'exploration'). |
 | [ExtensionAppendInput](/api/@rulvar/core/interfaces/ExtensionAppendInput.md) | One append into an extension-owned sequential scope. |
 | [ExtensionDispatchSpec](/api/@rulvar/core/interfaces/ExtensionDispatchSpec.md) | A child dispatch under an explicit scope (plan/NodeId). |
 | [ExternalIdentityInput](/api/@rulvar/core/interfaces/ExternalIdentityInput.md) | External inputs: ctx.awaitExternal (kind 'external'). |
@@ -291,7 +292,7 @@ exactly the pieces you need, for example
 | ------ | ------ |
 | [AbandonAttempt](/api/@rulvar/core/type-aliases/AbandonAttempt.md) | - |
 | [AbandonPayload](/api/@rulvar/core/type-aliases/AbandonPayload.md) | Payload of abandon ref-entries (DEF-4/DEF-5). |
-| [AbortClass](/api/@rulvar/core/type-aliases/AbortClass.md) | The consumer-visible engine-decided abort classes (FR-424). 'no-progress' is the detector below; 'output-truncated' is a schema-less turn that ended at its output token allowance (finish reason 'max-tokens') without visible output (v1.9.0 follow-up review). Both stamp memoizeOutcome on the terminal: the work is paid, so every resume replays the abort instead of re-paying the same bounded failure. |
+| [AbortClass](/api/@rulvar/core/type-aliases/AbortClass.md) | The consumer-visible engine-decided abort classes (FR-424). 'no-progress' is the detector below; 'output-truncated' is a schema-less turn that ended at its output token allowance (finish reason 'max-tokens') without visible output (v1.9.0 follow-up review); 'exploration' is the tripped no-new-evidence exploration guard (RV-210), carrying its structured summary in the terminal error payload. All stamp memoizeOutcome on the terminal: the work is paid, so every resume replays the abort instead of re-paying the same bounded failure. |
 | [AdaptiveEvents](/api/@rulvar/core/type-aliases/AdaptiveEvents.md) | Adaptive orchestration, resolutions, and accounting: emitted only by runs where the corresponding machinery is active (applicability per mode: https://docs.rulvar.com/guide/adaptive-orchestration). The types land as one closed catalog with M7-T03; emitters arrive with their tasks. |
 | [AdmitRejectReason](/api/@rulvar/core/type-aliases/AdmitRejectReason.md) | The merged reject-code set. |
 | [AdmitVerdict](/api/@rulvar/core/type-aliases/AdmitVerdict.md) | The unified admission verdict (XF-11). One union, closed now; every debit is atomic with its carrying decision entry and embeds the balance-after (DEF-2). |
