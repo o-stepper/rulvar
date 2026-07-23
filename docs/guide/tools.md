@@ -343,6 +343,34 @@ The lifecycle has three phases. **Acquire** creates a worktree from `HEAD` (or t
 
 Applying the patch is always your decision: the engine never auto-applies patches to the host tree. And an agent is never resumed into a destroyed environment: if a parked agent's worktree had to be dropped (retained trees count against a pin cap, default 4), resuming it restarts the agent rather than silently continuing against a fresh tree.
 
+## The repository research toolset
+
+Generic research over a repository is where tool loops burn budget: hand-authored list/search/read tools with offset pagination re-serve shifted pages, unconfined paths wander, and nothing collects evidence in a checkable form. `repositoryResearchToolset({ root })` ships that loop as a standard kit: five `risk: 'read'` tools over a confined directory root, with stable pagination and an evidence collector that refuses fabricated citations at collection time.
+
+```ts
+import { repositoryResearchToolset } from "@rulvar/core";
+
+const research = repositoryResearchToolset({
+  root: "/work/checkout",
+  pageSize: 50, // list/search/evidence rows per page (the default)
+  readPageChars: 4000, // one read_file page budget (the default)
+  maxFileBytes: 262144, // larger files are refused (the default)
+  ignore: ["dist"], // merged over the always-on '.git' and 'node_modules'
+});
+
+// Attach research.tools to an agent or profile; read the collected
+// evidence host-side after the run settles.
+const collected = research.evidence();
+```
+
+- `list_files({ dir?, cursor? })` lists files recursively in deterministic byte order, one page at a time with `totalFiles`.
+- `search_files({ query, dir?, cursor? })` finds a LITERAL substring (never a regex) in deterministic `(path, line)` order, skipping and counting binary and oversized files.
+- `read_file({ path, cursor? })` returns numbered whole-line pages under the character budget.
+- `record_evidence({ claim, file, lines?, quote? })` verifies the citation BEFORE recording it: the file must exist under the root, `lines` must be a valid 1-based line or range inside it, and `quote` must appear verbatim in the file; a fabricated citation is a typed error result, not an entry. Identical entries dedupe.
+- `list_evidence({ cursor? })` pages what has been recorded, so the model can recap its evidence after a compaction.
+
+Three properties carry the design. **Stable cursors**: every cursor is a keyset cursor (the last path, the last `(path, line)`, the last line number) bound to its query identity, so a page boundary never shifts when unrelated entries appear and a cursor replayed against different arguments is a typed error result. **Canonical pages**: a page is a pure function of the filesystem state and the logical window, never of how the window was addressed, so duplicate reads return byte-identical results, which is exactly what the [exploration guards](/guide/agents#exploration-guards) need: `maxRepeatedToolSignature` denies byte-identical repeat calls, and `maxNoNewEvidenceCalls` counts duplicate result digests, so an agent circling over the same pages trips the guard instead of silently exhausting its budget. **Confinement**: paths are root-relative only; absolute paths, `..` escapes, and symlink escapes are typed error results, and symlinked directories are never walked (results are journaled at execution time, so replay never touches the filesystem).
+
 ## Tool results in the journal
 
 Tool calls inside an agent's loop are not individual journal entries. They live as tool-call and tool-result records in the agent's canonical history, which is checkpointed at every turn boundary; the agent itself is one two-phase journal entry whose content key includes `toolsetHash`. This has three practical consequences:

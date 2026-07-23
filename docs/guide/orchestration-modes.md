@@ -273,6 +273,32 @@ const audited = orchestrate(
 
 The invocation is an ordinary journaled agent entry: a resume replays it with zero paid calls (the prompt derives deterministically from journaled state), and its telemetry is a full span with role `synthesize` phase pairs, so `CostReport.byRole.synthesize` and [`reduceCriticalPath`](/guide/observability#agent-lifecycle) attribute its cost and wall share without heuristics; a debug `log` event (`orchestrator synthesis context`) reports the actual draft, digest, and prompt sizes entering it. Ordering and failure posture are strict: synthesis runs only AFTER an accepted acceptance verdict (a rejected run never pays for it), `finishValidation` validators bind the SYNTHESIS finish rather than the draft (the final output is what they must judge, same repair loop, same journaled verdicts), and a synthesis invocation that dies falls back to the coordination draft under a journaled `orchestrator_synthesis_fallback` decision and a warn log when no validators are configured, or fails the run typed (`data.source` `'orchestrator_synthesis'`) when they are, because an unvalidated draft cannot stand in for a validated result. The budget cap paths are unchanged: a capped run settles through the reserved finalizer and never reaches synthesis.
 
+#### Incremental synthesis
+
+The single post-fan-in merge puts the whole synthesis on the critical path: nothing composes until the last child settles, then one invocation reads everything at once. `synthesis.mode: 'incremental'` moves that work INTO the fan-out. Every settled child triggers ONE bounded `synthesize`-role NOTE invocation the moment it settles (default `noteLimits` `{ maxTurns: 2 }`, the finish-only toolset, the same `synthesize` routing), concurrent with the children still running, and the FINAL result is a DETERMINISTIC reconciliation, never another model call: an `IncrementalSynthesisResult` envelope carrying the draft and one section per settled child in spawn order, each with the child's terminal status, the note invocation's status, and the note text.
+
+```ts
+const research = orchestrate(
+  engine,
+  "Survey the repository and reconcile the findings",
+  {
+    profiles: ["researcher"],
+    synthesis: {
+      mode: "incremental",
+      dedupeClaims: true,
+      noteLimits: { maxTurns: 2 }, // the default
+    },
+  },
+  { budgetUsd: 10 },
+);
+```
+
+The tradeoffs are explicit, not hidden. Notes are paid DURING the run, so an acceptance rejection can no longer guarantee that a rejected run paid nothing toward synthesis (only the reconciliation itself is deferred past the verdict); and because the deterministic reconciliation has no model-composed finish for validators to bind, configuring `finishValidation` together with `mode: 'incremental'` is a `ConfigError` at intake. A note that dies falls back to that child's raw digest summary under a journaled per-child `orchestrator_synthesis_note_fallback` decision and a warn log. Replay identity holds end to end: the notes are ordinary journaled agent entries and the reconciliation is a pure fold over journaled state, so a resume reproduces the envelope byte for byte with zero paid calls. A debug `log` event (`orchestrator synthesis reconciliation`) reports the sizes, note spans overlap the fan-out in [`reduceCriticalPath`](/guide/observability#agent-lifecycle) (which is exactly how they shrink `postFanInShare`), and the cap paths are unchanged: a capped run settles through the reserved finalizer and never reconciles.
+
+#### Deduplicating repeated claims
+
+Parallel children often report the same finding, and the verbatim repeats ride into the synthesis model call buying nothing. `synthesis.dedupeClaims: true` dedupes BEFORE the model call: in `'single'` mode the digest entering the synthesis prompt keeps only the FIRST occurrence of every repeated line, with a `REPEATED CLAIMS` index (each claim with its reporters) riding the prompt beside it; in `'incremental'` mode the deterministic reconciliation dedupes the note texts the same way and the envelope carries the `repeatedClaims` index. Matching is whitespace-collapsed exact line equality via the exported pure `dedupeRepeatedClaims`, so two DISTINCT claims can never merge fuzzily. The option defaults to false, and the synthesis prompt stays byte-identical when unset: prompt bytes are journal identity, so a changed default would re-pay every existing synthesis on resume.
+
 ### Reading a child's full evidence
 
 The digest an await returns is a wake signal truncated to 400 characters, so an evidence heavy child (a research agent whose report carries dozens of `file:line` citations, say) settles with its findings intact in the journal but only a snippet in the digest. `exposeChildResultTools: true` adds two pure read tools the orchestrator can call AFTER a child settles.

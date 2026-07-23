@@ -813,6 +813,10 @@
             "link": "/api/@rulvar/core/interfaces/DeclaredLadder.md"
           },
           {
+            "text": "DedupedClaims",
+            "link": "/api/@rulvar/core/interfaces/DedupedClaims.md"
+          },
+          {
             "text": "DedupNote",
             "link": "/api/@rulvar/core/interfaces/DedupNote.md"
           },
@@ -923,6 +927,10 @@
           {
             "text": "GraftBoot",
             "link": "/api/@rulvar/core/interfaces/GraftBoot.md"
+          },
+          {
+            "text": "IncrementalSynthesisResult",
+            "link": "/api/@rulvar/core/interfaces/IncrementalSynthesisResult.md"
           },
           {
             "text": "InvocationTable",
@@ -1123,6 +1131,22 @@
           {
             "text": "RefusalInfo",
             "link": "/api/@rulvar/core/interfaces/RefusalInfo.md"
+          },
+          {
+            "text": "RepeatedClaim",
+            "link": "/api/@rulvar/core/interfaces/RepeatedClaim.md"
+          },
+          {
+            "text": "RepositoryResearchToolset",
+            "link": "/api/@rulvar/core/interfaces/RepositoryResearchToolset.md"
+          },
+          {
+            "text": "RepositoryResearchToolsetOptions",
+            "link": "/api/@rulvar/core/interfaces/RepositoryResearchToolsetOptions.md"
+          },
+          {
+            "text": "ResearchEvidenceEntry",
+            "link": "/api/@rulvar/core/interfaces/ResearchEvidenceEntry.md"
           },
           {
             "text": "ResolutionLayer",
@@ -1989,6 +2013,10 @@
             "link": "/api/@rulvar/core/variables/DEFAULT_SYNTHESIS_MAX_TURNS.md"
           },
           {
+            "text": "DEFAULT_SYNTHESIS_NOTE_MAX_TURNS",
+            "link": "/api/@rulvar/core/variables/DEFAULT_SYNTHESIS_NOTE_MAX_TURNS.md"
+          },
+          {
             "text": "deriverV1",
             "link": "/api/@rulvar/core/variables/deriverV1.md"
           },
@@ -2351,6 +2379,10 @@
             "link": "/api/@rulvar/core/functions/decodeCheckpoint.md"
           },
           {
+            "text": "dedupeRepeatedClaims",
+            "link": "/api/@rulvar/core/functions/dedupeRepeatedClaims.md"
+          },
+          {
             "text": "defineWorkflow",
             "link": "/api/@rulvar/core/functions/defineWorkflow.md"
           },
@@ -2685,6 +2717,10 @@
           {
             "text": "replayDisposition",
             "link": "/api/@rulvar/core/functions/replayDisposition.md"
+          },
+          {
+            "text": "repositoryResearchToolset",
+            "link": "/api/@rulvar/core/functions/repositoryResearchToolset.md"
           },
           {
             "text": "requiredFieldsValidator",
@@ -4624,6 +4660,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/DeclaredLadder.md"
           },
           {
+            "text": "DedupedClaims",
+            "link": "/api/@rulvar/rulvar/interfaces/DedupedClaims.md"
+          },
+          {
             "text": "DedupNote",
             "link": "/api/@rulvar/rulvar/interfaces/DedupNote.md"
           },
@@ -4734,6 +4774,10 @@
           {
             "text": "GraftBoot",
             "link": "/api/@rulvar/rulvar/interfaces/GraftBoot.md"
+          },
+          {
+            "text": "IncrementalSynthesisResult",
+            "link": "/api/@rulvar/rulvar/interfaces/IncrementalSynthesisResult.md"
           },
           {
             "text": "InvocationTable",
@@ -4958,6 +5002,22 @@
           {
             "text": "RenderProgressOptions",
             "link": "/api/@rulvar/rulvar/interfaces/RenderProgressOptions.md"
+          },
+          {
+            "text": "RepeatedClaim",
+            "link": "/api/@rulvar/rulvar/interfaces/RepeatedClaim.md"
+          },
+          {
+            "text": "RepositoryResearchToolset",
+            "link": "/api/@rulvar/rulvar/interfaces/RepositoryResearchToolset.md"
+          },
+          {
+            "text": "RepositoryResearchToolsetOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/RepositoryResearchToolsetOptions.md"
+          },
+          {
+            "text": "ResearchEvidenceEntry",
+            "link": "/api/@rulvar/rulvar/interfaces/ResearchEvidenceEntry.md"
           },
           {
             "text": "ResolutionLayer",
@@ -5836,6 +5896,10 @@
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_SYNTHESIS_MAX_TURNS.md"
           },
           {
+            "text": "DEFAULT_SYNTHESIS_NOTE_MAX_TURNS",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_SYNTHESIS_NOTE_MAX_TURNS.md"
+          },
+          {
             "text": "deriverV1",
             "link": "/api/@rulvar/rulvar/variables/deriverV1.md"
           },
@@ -6210,6 +6274,10 @@
             "link": "/api/@rulvar/rulvar/functions/decodeCheckpoint.md"
           },
           {
+            "text": "dedupeRepeatedClaims",
+            "link": "/api/@rulvar/rulvar/functions/dedupeRepeatedClaims.md"
+          },
+          {
             "text": "defineWorkflow",
             "link": "/api/@rulvar/rulvar/functions/defineWorkflow.md"
           },
@@ -6556,6 +6624,10 @@
           {
             "text": "replayDisposition",
             "link": "/api/@rulvar/rulvar/functions/replayDisposition.md"
+          },
+          {
+            "text": "repositoryResearchToolset",
+            "link": "/api/@rulvar/rulvar/functions/repositoryResearchToolset.md"
           },
           {
             "text": "requiredFieldsValidator",

@@ -163,6 +163,7 @@ const engine = createEngine({
 | [CriticalPath](/api/@rulvar/rulvar/interfaces/CriticalPath.md) | The critical-path summary of one run (RV-211): the plan's post-fan-in gate ("synthesis takes at most 40% of wall time with four settled workers") computed as a pure fold over the same vocabulary, no heuristics beyond the role tags. Post-fan-in is the interval from the LAST settled non-coordination agent (any span whose primary role is neither 'orchestrate' nor 'synthesize') to run:end; the synthesis wall is the summed span wall of 'synthesize' spans. Wall numbers are LIVE fidelity: a replayed stream re-stamps emission times, so its intervals are degenerate, exactly like phase durations. Absent pieces (no run:end, no worker spans) leave the corresponding fields undefined rather than guessed at. |
 | [Ctx](/api/@rulvar/rulvar/interfaces/Ctx.md) | The canonical Ctx interface, M1 members. |
 | [DeclaredLadder](/api/@rulvar/rulvar/interfaces/DeclaredLadder.md) | One declared ladder of the run, named by its agentType. |
+| [DedupedClaims](/api/@rulvar/rulvar/interfaces/DedupedClaims.md) | - |
 | [DedupNote](/api/@rulvar/rulvar/interfaces/DedupNote.md) | Telemetry for a SpawnKey match admitted fresh. |
 | [DeterminismConfig](/api/@rulvar/rulvar/interfaces/DeterminismConfig.md) | Host configuration for the guard (CreateEngineOptions.determinism). |
 | [DonorCandidate](/api/@rulvar/rulvar/interfaces/DonorCandidate.md) | One donor candidate surfaced by the DedupIndex fold. |
@@ -191,6 +192,7 @@ const engine = createEngine({
 | [GateAudit](/api/@rulvar/rulvar/interfaces/GateAudit.md) | The ctx-side verdict for one dispatch, produced by the permission chain (M3-T03). For 'ask' the loop writes the turn checkpoint with the pending state FIRST, then suspend() journals the approval entry (or re-matches an existing one) and parks until a resolution closes it. |
 | [GitWorktreeProviderOptions](/api/@rulvar/rulvar/interfaces/GitWorktreeProviderOptions.md) | - |
 | [GraftBoot](/api/@rulvar/rulvar/interfaces/GraftBoot.md) | Graft bootstrap payload. |
+| [IncrementalSynthesisResult](/api/@rulvar/rulvar/interfaces/IncrementalSynthesisResult.md) | The deterministic reconciliation envelope an 'incremental' synthesis returns as the run result (RV-211 remainder): the coordination draft plus one section per settled child in spawn order, each carrying the child's terminal status and its note (the note invocation's finish output, or the child's raw digest summary when the note fell back). With `dedupeClaims`, repeated claim lines keep their first occurrence only and the `repeatedClaims` index lists each with its reporters. Everything here derives from journaled state, so a resume reproduces the envelope byte for byte with zero paid calls. |
 | [InvocationTable](/api/@rulvar/rulvar/interfaces/InvocationTable.md) | The reduced table plus the per-role aggregate across every span. |
 | [IsolationProvider](/api/@rulvar/rulvar/interfaces/IsolationProvider.md) | - |
 | [JournalOperation](/api/@rulvar/rulvar/interfaces/JournalOperation.md) | One logical journaled operation: its dispatch entry plus its terminal, when present. |
@@ -247,6 +249,10 @@ const engine = createEngine({
 | [RefEntryAppender](/api/@rulvar/rulvar/interfaces/RefEntryAppender.md) | The append surface the arbiter drives (implemented by the Replayer). |
 | [RefusalInfo](/api/@rulvar/rulvar/interfaces/RefusalInfo.md) | - |
 | [RenderProgressOptions](/api/@rulvar/rulvar/interfaces/RenderProgressOptions.md) | - |
+| [RepeatedClaim](/api/@rulvar/rulvar/interfaces/RepeatedClaim.md) | One claim reported more than once across the input rows. |
+| [RepositoryResearchToolset](/api/@rulvar/rulvar/interfaces/RepositoryResearchToolset.md) | - |
+| [RepositoryResearchToolsetOptions](/api/@rulvar/rulvar/interfaces/RepositoryResearchToolsetOptions.md) | - |
+| [ResearchEvidenceEntry](/api/@rulvar/rulvar/interfaces/ResearchEvidenceEntry.md) | One verified evidence entry recorded by `record_evidence`. |
 | [ResolutionLayer](/api/@rulvar/rulvar/interfaces/ResolutionLayer.md) | One layer's contribution to the resolution merge. |
 | [ResolvedInvocation](/api/@rulvar/rulvar/interfaces/ResolvedInvocation.md) | The resolved, scrubbed result of one invocation's resolution. |
 | [ResolvedToolset](/api/@rulvar/rulvar/interfaces/ResolvedToolset.md) | The spawn's frozen toolset snapshot plus its identity hash. |
@@ -473,6 +479,7 @@ const engine = createEngine({
 | [DEFAULT\_RETRY\_POLICY](/api/@rulvar/rulvar/variables/DEFAULT_RETRY_POLICY.md) | Appendix A committed defaults (M4 entry gate, PR #26). |
 | [DEFAULT\_STREAM\_IDLE\_TIMEOUT\_MS](/api/@rulvar/rulvar/variables/DEFAULT_STREAM_IDLE_TIMEOUT_MS.md) | - |
 | [DEFAULT\_SYNTHESIS\_MAX\_TURNS](/api/@rulvar/rulvar/variables/DEFAULT_SYNTHESIS_MAX_TURNS.md) | Default maxTurns of the synthesize invocation (RV-211): the finish call plus headroom for one validator repair exchange. |
+| [DEFAULT\_SYNTHESIS\_NOTE\_MAX\_TURNS](/api/@rulvar/rulvar/variables/DEFAULT_SYNTHESIS_NOTE_MAX_TURNS.md) | Default maxTurns of ONE incremental synthesis note (RV-211 remainder): a note summarizes a single settled child into a bounded finish call, so it needs less headroom than the full synthesis invocation. |
 | [deriverV1](/api/@rulvar/rulvar/variables/deriverV1.md) | The frozen v1 (round 1) profile: the projection removes effort from the requested modelSpec (the v1 predicate is effort-insensitive by construction); features outside the v1 domain are incomparable. |
 | [deriverV2](/api/@rulvar/rulvar/variables/deriverV2.md) | The current (hashVersion 2) frozen profile. |
 | [EMIT\_RESULT\_TOOL](/api/@rulvar/rulvar/variables/EMIT_RESULT_TOOL.md) | The synthesized forced-tool contract name. |
@@ -570,6 +577,7 @@ const engine = createEngine({
 | [createSandboxBridge](/api/@rulvar/rulvar/functions/createSandboxBridge.md) | - |
 | [currentOnlyKeyRing](/api/@rulvar/rulvar/functions/currentOnlyKeyRing.md) | - |
 | [decodeCheckpoint](/api/@rulvar/rulvar/functions/decodeCheckpoint.md) | Decodes a checkpoint blob. Returns undefined for an empty blob or an unknown format byte: a resume never trusts a checkpoint it cannot parse; the dangling dispatch reruns from the top instead (at-least-once is the documented floor). |
+| [dedupeRepeatedClaims](/api/@rulvar/rulvar/functions/dedupeRepeatedClaims.md) | Removes later occurrences of repeated claim lines across the rows and indexes each repeated claim with its reporters. Deterministic: output depends only on the input order and bytes. |
 | [defineWorkflow](/api/@rulvar/rulvar/functions/defineWorkflow.md) | - |
 | [deriveContentKey](/api/@rulvar/rulvar/functions/deriveContentKey.md) | key = sha256(JCS(IdentityInput)). |
 | [digestOf](/api/@rulvar/rulvar/functions/digestOf.md) | Folds one settled child into its digest (spawn-ordinal ordering is the caller's). |
@@ -657,6 +665,7 @@ const engine = createEngine({
 | [remeasureQueue](/api/@rulvar/rulvar/functions/remeasureQueue.md) | The re-measurement queue: expired eval-measured claims that are still ACTIVE. Just a status filter: the next sweep re-measures these subjects; nothing archives them (archiving would empty the queue and hide the decay). |
 | [renderProgress](/api/@rulvar/rulvar/functions/renderProgress.md) | Renders events until the stream ends (the run settled). Returns after the final run:end line. |
 | [replayDisposition](/api/@rulvar/rulvar/functions/replayDisposition.md) | The single canonical predicate, dispatched on the entry's own hashVersion (compatibility lemma: on the v1 domain the tables coincide). Suspended entries are outside the table (the DEF-4 fold consumes them); the alias column (DEF-5) activates with node.link producers in M7: a skipped entry WITHOUT an incoming alias is always skipped. |
+| [repositoryResearchToolset](/api/@rulvar/rulvar/functions/repositoryResearchToolset.md) | - |
 | [requiredFieldsValidator](/api/@rulvar/rulvar/functions/requiredFieldsValidator.md) | Requires the result to be a JSON object carrying every named field with a substantial value: present, not null, and not an empty or whitespace only string (empty arrays, zero, and false COUNT as present; emptiness rules beyond strings belong to a custom validator). Default name 'required-fields'. |
 | [requiredSectionsValidator](/api/@rulvar/rulvar/functions/requiredSectionsValidator.md) | Requires every named section to appear LITERALLY in the result text (a heading like 'FINDINGS' or any marker the goal demands). Default name 'required-sections'; pass `name` to run several instances. |
 | [resolveModelInvocation](/api/@rulvar/rulvar/functions/resolveModelInvocation.md) | Resolution runs on every model invocation, not once per agent: a layered merge of { model, effort, providerOptions, fallbacks } in the order call override > agent profile > workflow defaults > engine defaults, with the invocation role attached as a tag. After resolution the router reads ModelCaps and scrubs illegal parameters visibly: unsupported effort is removed from the wire but kept in identity; sampling params rejected by the model are removed from the adapter's namespace, never silently sent. |

@@ -253,9 +253,22 @@ export async function toOtel(
       continue;
     }
     switch (event.type) {
-      case 'run:end':
+      case 'run:end': {
+        // The semantic completion lift (RV-207 tail): transport status
+        // and semantic completeness are different claims; surface both.
+        const runOpen = openBySpanId.get(event.spanId);
+        if (runOpen !== undefined && event.completion !== undefined) {
+          runOpen.span.setAttribute('rulvar.run.completion', event.completion);
+        }
+        if (runOpen !== undefined && event.childStatusCounts !== undefined) {
+          runOpen.span.setAttribute(
+            'rulvar.run.childStatusCounts',
+            JSON.stringify(event.childStatusCounts),
+          );
+        }
         endSpan(event.spanId, event.ts, event.status);
         break;
+      }
       // Phase activations are child spans of the agent span, keyed
       // (spanId, invocation) so a summarize that fires three times gets
       // three spans.

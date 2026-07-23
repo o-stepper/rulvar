@@ -65,7 +65,7 @@ function rawEventLine(event: WorkflowEvent): string | undefined {
     case 'log':
       return event.level === 'debug' ? undefined : `${str(event.level)}: ${str(event.msg)}`;
     case 'run:end':
-      return `run ${str(event.runId)} ${str(event.status)}${event.usageApprox === true ? ' (cost approx)' : ''}`;
+      return `run ${str(event.runId)} ${str(event.status)}${event.usageApprox === true ? ' (cost approx)' : ''}${event.completion === undefined ? '' : ` completion=${str(event.completion)}`}`;
     default:
       return undefined;
   }
