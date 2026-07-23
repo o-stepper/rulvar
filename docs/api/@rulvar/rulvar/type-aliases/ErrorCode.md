@@ -24,7 +24,8 @@ type ErrorCode =
   | "admission_rejected"
   | "sandbox_limit"
   | "lease_held"
-  | "knowledge_cas";
+  | "knowledge_cas"
+  | "determinism";
 ```
 
 Defined in: `packages/core/dist/index.d.ts`

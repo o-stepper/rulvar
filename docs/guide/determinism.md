@@ -113,6 +113,39 @@ const first = await ctx.agent('Rate this abstract from 1 to 10', { key: 'rating-
 const second = await ctx.agent('Rate this abstract from 1 to 10', { key: 'rating-b' });
 ```
 
+## Runtime detection and enforcement
+
+Lint sees your workflow files; it cannot see a helper you did not lint, a vendored module, or code assembled at runtime. The engine therefore also watches the two nondeterminism globals at runtime (RV-209): while an in-process workflow body executes, a bare `Date.now()` or `Math.random()` call is caught, classified by its calling frame, and localized to a file and line.
+
+Classification is what keeps the signal honest. Frames under `node_modules` (a provider SDK, any installed dependency, rulvar's own published dist) and frames with `node:` specifiers (the undici transport behind `fetch`, timers, stream internals) are classified exempt and stay completely silent: an SDK rolling `Math.random()` internally is that library's business and never brands your run nondeterministic. Everything else is workflow-origin, and that is the violation the guard exists for:
+
+- a `determinism:warning` event is emitted on the run's stream, carrying `category` (`bare-date-now` | `bare-math-random`), `provenance` (`workflow` | `allowlisted`), the calling `frame`, and the parsed `file`/`line`/`column`;
+- in the default mode a process warning (`RULVAR_BARE_DATE_NOW` / `RULVAR_BARE_MATH_RANDOM`) also fires, now naming the callsite in its message.
+
+The behavior is configured on the engine:
+
+```ts
+import { createEngine, type CreateEngineOptions } from '@rulvar/core';
+
+const determinism: CreateEngineOptions['determinism'] = {
+  // 'off' | 'warn' (default) | 'error'
+  mode: 'error',
+  // Frames you have confirmed safe: substring or RegExp, matched
+  // against the RAW frame. Classified 'allowlisted' in the event,
+  // never rejected, never a process warning.
+  allowlist: ['vendor/legacy-telemetry.js', /generated\/.*\.mjs/],
+  // Applied to the frame and file before they leave in events,
+  // warnings, and errors, so public telemetry needs no host paths.
+  redact: (frame) => frame.replace(process.cwd(), '<app>'),
+};
+```
+
+`mode: 'warn'` (the default) detects outside production only, exactly like the pre-RV-209 behavior. `mode: 'error'` detects in every environment including production, and rejects the run: the offending call throws a typed `DeterminismError` (code `determinism`, with the localization in `data`) at the call site, and a workflow that catches and swallows it is re-thrown at settle, so the run ends `'error'` either way instead of recording a value replay cannot reproduce. `mode: 'off'` disables detection entirely.
+
+Because replay re-executes the workflow body, a violation that survives in code fires again on every replay of the run, so the event shows up in replayed streams organically; `rulvar replay` prints each one with its location, and the settling segment additionally journals an `outputHash` (canonical JCS sha256 of the result) that `rulvar replay --compare-output-hash` verifies the replayed result against. See [the CLI page](/guide/cli) for the full replay-strict gate.
+
+Runtime detection covers mode (a) in-process bodies; a compiled workflow in the worker sandbox has `Date.now` and `Math.random` replaced by seeded journaled shims at the dialect level, so the guard has nothing to add there.
+
 ## Flat config setup
 
 The plugin ships one preset, `rulvar/workflows`, wiring every rule at its intended severity: the six determinism, dialect, and scheduling bans as errors, the duplicate-call advisory as a warning. The preset deliberately carries no `files` of its own, because the bans apply to workflow modules, not to your servers, scripts, or tests; scope it yourself:

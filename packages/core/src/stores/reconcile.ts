@@ -40,22 +40,32 @@ const TERMINAL: ReadonlySet<string> = new Set(['ok', 'error', 'cancelled', 'exha
 // (the same convention as the engine's real clock).
 const wallClock: () => number = Date.now.bind(globalThis);
 
-/** The last journaled run settle of a journal, if any. */
+/**
+ * The last journaled run settle of a journal, if any. `outputHash` is
+ * present when that settle recorded the result digest (RV-209; settles
+ * written before it, or over undefined/non-serializable results, carry
+ * none).
+ */
 export function lastRunSettle(
   entries: readonly JournalEntry[],
-): { runStatus: RunStatus; seq: number } | undefined {
+): { runStatus: RunStatus; seq: number; outputHash?: string } | undefined {
   for (let i = entries.length - 1; i >= 0; i -= 1) {
     const entry = entries[i];
     if (entry === undefined || entry.kind !== 'decision') {
       continue;
     }
-    const value = entry.value as { decisionType?: unknown; runStatus?: unknown } | undefined;
+    const value = entry.value as
+      { decisionType?: unknown; runStatus?: unknown; outputHash?: unknown } | undefined;
     if (
       value?.decisionType === RUN_SETTLE_DECISION_TYPE &&
       typeof value.runStatus === 'string' &&
       RUN_STATUSES.has(value.runStatus)
     ) {
-      return { runStatus: value.runStatus as RunStatus, seq: entry.seq };
+      return {
+        runStatus: value.runStatus as RunStatus,
+        seq: entry.seq,
+        ...(typeof value.outputHash === 'string' ? { outputHash: value.outputHash } : {}),
+      };
     }
   }
   return undefined;

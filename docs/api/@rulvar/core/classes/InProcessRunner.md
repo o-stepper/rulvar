@@ -6,17 +6,19 @@
 
 # Class: InProcessRunner
 
-Defined in: [packages/core/src/runner/inprocess.ts:130](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L130)
+Defined in: [packages/core/src/runner/inprocess.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L50)
 
 The mode (a) runner for human-authored closures. Determinism is enforced
 by convention, lint, and the ctx shims, NOT by a VM: only the sequence
-of keys must be stable. Dev mode (NODE_ENV !== 'production') detects
-bare Date.now and Math.random and emits one warning per run pointing at
-ctx.now()/ctx.random(). Detection is attributed by AsyncLocalStorage:
-only code inside the workflow body's async context can trigger it, so
-host code running concurrently, engine internals outside the body, and
-other runs never produce a false warning, and nothing is ever restored,
-so concurrent executes cannot race the patch state.
+of keys must be stable. Bare-nondeterminism detection is ENGINE-owned
+since RV-209: the engine wraps its `execute` call in
+`withDeterminismDetection` (runner/determinism.ts), which classifies
+bare Date.now/Math.random callers, emits the structured
+`determinism:warning` event on the run's stream, and under
+`determinism.mode: 'error'` rejects the run with a typed
+DeterminismError. The runner itself is a pure executor, so the frozen
+ScriptRunner seam carries no detection surface; a standalone execute
+outside an engine runs without detection.
 
 ## Implements
 
@@ -30,7 +32,7 @@ so concurrent executes cannot race the patch state.
 new InProcessRunner(o?): InProcessRunner;
 ```
 
-Defined in: [packages/core/src/runner/inprocess.ts:133](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L133)
+Defined in: [packages/core/src/runner/inprocess.ts:53](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L53)
 
 #### Parameters
 
@@ -55,7 +57,7 @@ get escalationHook():
   | undefined;
 ```
 
-Defined in: [packages/core/src/runner/inprocess.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L140)
+Defined in: [packages/core/src/runner/inprocess.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L60)
 
 The hook is read by the escalation delivery path from M3 onward.
 
@@ -75,7 +77,7 @@ execute<A, R>(
 args): Promise<R>;
 ```
 
-Defined in: [packages/core/src/runner/inprocess.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L144)
+Defined in: [packages/core/src/runner/inprocess.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L64)
 
 #### Type Parameters
 

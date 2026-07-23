@@ -53,6 +53,15 @@ function rawEventLine(event: WorkflowEvent): string | undefined {
       return `${replayMark}tool ${str(event.toolName)} ${str(event.outcome)} (${String(num(event.durationMs))}ms)`;
     case 'approval:pending':
       return `approval pending: tool ${str(event.toolName)} (entry ${String(num(event.entryRef))})`;
+    case 'determinism:warning': {
+      // The frame carries its own `at ...`; a parsed location renders as
+      // the compact site instead.
+      const where =
+        str(event.file) === ''
+          ? str(event.frame)
+          : `at ${str(event.file)}:${String(num(event.line))}:${String(num(event.column))}`;
+      return `determinism ${str(event.category)} (${str(event.provenance)}) ${where}`;
+    }
     case 'log':
       return event.level === 'debug' ? undefined : `${str(event.level)}: ${str(event.msg)}`;
     case 'run:end':
@@ -86,6 +95,7 @@ export function attachProgress(handle: RunHandle<unknown>, io: CliIo): () => voi
     'tool:start',
     'tool:end',
     'approval:pending',
+    'determinism:warning',
     'log',
     'run:end',
   ] as const) {

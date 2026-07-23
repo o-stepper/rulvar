@@ -12,7 +12,7 @@ type OnEscalation = (result) =>
 | Promise<EscalationDecision>;
 ```
 
-Defined in: [packages/core/src/runner/inprocess.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L35)
+Defined in: [packages/core/src/runner/inprocess.ts:33](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runner/inprocess.ts#L33)
 
 Escalation hook: decides for value-form calls.
 

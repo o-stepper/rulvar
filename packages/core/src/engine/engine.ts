@@ -72,6 +72,11 @@ import {
 } from './run-handle.js';
 import { DEFAULT_PER_RUN_CONCURRENCY, Semaphore } from './scheduler.js';
 import { InProcessRunner, type CompiledWorkflow, type ScriptRunner } from '../runner/inprocess.js';
+import {
+  validateDeterminismConfig,
+  withDeterminismDetection,
+  type DeterminismConfig,
+} from '../runner/determinism.js';
 import { validateRetryPolicy, type RetryPolicy } from '../model/retry.js';
 import { KeyedLimiter } from '../model/concurrency.js';
 import { resolvePricing, priceUsdOf, type PriceTable } from '../model/pricing.js';
@@ -192,6 +197,18 @@ export interface CreateEngineOptions {
    * emitted WorkflowEvent are masked; never touches the journal.
    */
   redaction?: { maskEvents?: boolean };
+  /**
+   * Bare-nondeterminism detection over in-process workflow bodies
+   * (RV-209): mode 'off' | 'warn' (default; detects outside production)
+   * | 'error' (detects everywhere and rejects the run at the first
+   * workflow-origin bare Date.now/Math.random with a typed
+   * DeterminismError), plus the frame `allowlist` for confirmed-safe
+   * callers and the `redact` hook for public telemetry. Workflow-origin
+   * violations emit the structured `determinism:warning` event with the
+   * caller frame and parsed file/line; installed dependencies and Node
+   * runtime frames are classified exempt and stay silent.
+   */
+  determinism?: DeterminismConfig;
 }
 
 export interface RunOptions {
@@ -401,6 +418,29 @@ export function hashRunArgs(args: unknown): string | undefined {
   return createHash('sha256').update(jcsSerialize(args), 'utf8').digest('hex');
 }
 
+/**
+ * sha256 hex over the JCS canonical serialization of a run's result
+ * value: the digest the engine records as `outputHash` on the journaled
+ * run-settle decision when the settling segment computed a value, and
+ * the value `rulvar replay --compare-output-hash` compares a replayed
+ * result against (RV-209). Best-effort by design: returns undefined for
+ * undefined values and for values JCS cannot serialize (functions,
+ * cycles, non-finite numbers), so an unhashable result records no
+ * baseline rather than failing the settle. Like `hashRunArgs`, the
+ * digest is deterministic and unsalted: treat it as sensitive-derived
+ * metadata for low-entropy results.
+ */
+export function hashRunOutput(value: unknown): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  try {
+    return createHash('sha256').update(jcsSerialize(value), 'utf8').digest('hex');
+  } catch {
+    return undefined;
+  }
+}
+
 export function createEngine(options: CreateEngineOptions): Engine {
   const adapters = buildAdapterRegistry(options.adapters);
   const rawJournal = options.stores?.journal ?? new InMemoryStore();
@@ -501,6 +541,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
       );
     }
   }
+  // The determinism guard config fails loud at construction, before any
+  // run can start under an invalid mode, pattern, or hook (RV-209).
+  validateDeterminismConfig(options.determinism);
   // The runtime side holds the current()-only handle, never the store:
   // commit is unreachable from inside a run by the shape of the API.
   const knowledgeStore = options.stores?.modelKnowledge;
@@ -915,7 +958,18 @@ export function createEngine(options: CreateEngineOptions): Engine {
         const ctx = createCtx(internals, wf.kind === 'workflow' ? wf : undefined);
         const selectedRunner =
           compiled === undefined ? runner : (options.runners?.sandbox as ScriptRunner);
-        const bodyPromise = selectedRunner.execute(wf, ctx, args);
+        // Bare-nondeterminism detection wraps the IN-PROCESS execution
+        // only (RV-209): a compiled workflow runs in the worker sandbox,
+        // whose dialect is statically scanned at compile time and whose
+        // thread an AsyncLocalStorage context cannot reach anyway.
+        const bodyPromise =
+          compiled === undefined
+            ? withDeterminismDetection(
+                options.determinism,
+                (event) => bus.emit(event, rootSpanId),
+                () => selectedRunner.execute(wf, ctx, args),
+              )
+            : selectedRunner.execute(wf, ctx, args);
         // Every in-flight branch blocked on suspensions settles the run
         // 'suspended' with the open keys.
         const raced = await Promise.race([
@@ -1051,6 +1105,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
         const appendedHere = replayer.snapshot().length - priorCount;
         const recorded = lastRunSettle(replayer.snapshot());
         if (appendedHere > 0 || (recorded !== undefined && recorded.runStatus !== status)) {
+          // The output digest rides the settle it belongs to (RV-209):
+          // recorded only by a segment that COMPUTED the value (pure
+          // replays append no settle, so a divergent replayed result can
+          // never overwrite the live baseline), absent when the result
+          // is undefined or not JCS-serializable.
+          const outputHash = hashRunOutput(outcome.value);
           await replayer
             .appendSinglePhase({
               scope: '',
@@ -1063,6 +1123,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
                 decisionType: RUN_SETTLE_DECISION_TYPE,
                 runStatus: status,
                 segment: segmentsBefore + 1,
+                ...(outputHash === undefined ? {} : { outputHash }),
               },
             })
             .catch(() => undefined);

@@ -8,6 +8,7 @@ import {
   inspectCommand,
   kbCommand,
   planCommand,
+  replayCommand,
   resumeCommand,
   runCommand,
   runsAuditCommand,
@@ -33,6 +34,12 @@ runs audit compares every run's meta row against its journal and names
 the divergences worker sweeps cannot see (a stranded run's terminal
 meta over live journal work); --repair rewrites the sound ones from
 the journal under a brief lease, exit 1 while any divergence remains.
+replay verifies a recorded run without paying: a dry-run resume (zero
+journal or meta writes, zero adapter calls) that reports replay
+accounting, localized determinism warnings, and the output digest;
+--assert-no-live exits 1 unless the replay is pure, and
+--compare-output-hash exits 1 unless the replayed result's digest
+equals the journaled one.
 plan asks the planner model (role plan) to write a workflow script,
 lints and self-repairs it, then runs it in the worker sandbox; --dry-run
 prints the accepted script without running. Both stages are paid runs
@@ -61,6 +68,8 @@ export async function runCli(argv: string[], options: { cwd: string; io: CliIo }
         return await runCommand(rest, context);
       case 'resume':
         return await resumeCommand(rest, context);
+      case 'replay':
+        return await replayCommand(rest, context);
       case 'runs': {
         const [sub, ...subRest] = rest;
         if (sub === 'ls') {

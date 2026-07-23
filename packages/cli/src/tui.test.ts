@@ -46,6 +46,15 @@ describe('renderEventLine terminal safety', () => {
     ),
     ev({ type: 'tool:start', toolName: EVIL }, 'a1'),
     ev({ type: 'approval:pending', toolName: EVIL, entryRef: 1 }, 'a1'),
+    ev(
+      {
+        type: 'determinism:warning',
+        category: 'bare-math-random',
+        provenance: 'workflow',
+        frame: EVIL,
+      },
+      'root',
+    ),
     ev({ type: 'log', level: 'error', msg: EVIL }, 'root'),
   ];
 
@@ -114,6 +123,38 @@ describe('renderEventLine terminal safety', () => {
         ),
       ),
     ).toBe('agent reviewer ok ($0.0120, 15 tok, 2 retries)');
+  });
+
+  it('renders the determinism warning with its localized site, or the frame without one', () => {
+    expect(
+      renderEventLine(
+        ev(
+          {
+            type: 'determinism:warning',
+            category: 'bare-math-random',
+            provenance: 'workflow',
+            frame: 'at body (/app/wf.mjs:12:9)',
+            file: '/app/wf.mjs',
+            line: 12,
+            column: 9,
+          },
+          'root',
+        ),
+      ),
+    ).toBe('determinism bare-math-random (workflow) at /app/wf.mjs:12:9');
+    expect(
+      renderEventLine(
+        ev(
+          {
+            type: 'determinism:warning',
+            category: 'bare-date-now',
+            provenance: 'allowlisted',
+            frame: 'at native',
+          },
+          'root',
+        ),
+      ),
+    ).toBe('determinism bare-date-now (allowlisted) at native');
   });
 });
 

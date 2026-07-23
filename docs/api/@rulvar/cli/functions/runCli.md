@@ -10,7 +10,7 @@
 function runCli(argv, options): Promise<number>;
 ```
 
-Defined in: [packages/cli/src/cli-main.ts:55](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/cli-main.ts#L55)
+Defined in: [packages/cli/src/cli-main.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/cli-main.ts#L62)
 
 @rulvar/cli: the Rulvar shell (https://docs.rulvar.com/guide/cli).
 M5 surface: run/resume/runs ls/inspect over the canonical

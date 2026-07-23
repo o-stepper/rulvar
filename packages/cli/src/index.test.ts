@@ -275,6 +275,77 @@ export default defineWorkflow({ name: 'from-file' }, async (ctx) => ctx.agent('g
     expect(code).toBe(0);
     expect(io.outLines.join('\n')).toContain('from the file');
   });
+
+  it('replay verifies reproducibility: gates pass on a stable run, fail typed on drift (RV-209)', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-replay-'));
+    const configOf = (
+      extraAgentCall: boolean,
+    ): string => `import { defineWorkflow } from ${JSON.stringify(CORE_DIST)};
+import { FakeAdapter, FAKE_MODEL_REF } from ${JSON.stringify(TESTING_DIST)};
+
+const stable = defineWorkflow({ name: 'stable' }, async (ctx) => {
+  const analysis = await ctx.agent('analyze');
+${extraAgentCall ? "  await ctx.agent('extra pass');\n" : ''}  const stamp = await ctx.random();
+  return { analysis, stamp };
+});
+
+const drifty = defineWorkflow({ name: 'drifty' }, async (ctx) => {
+  const analysis = await ctx.agent('analyze');
+  return { analysis, stamp: Math.random() };
+});
+
+export default {
+  engineOptions: {
+    adapters: [new FakeAdapter({ agents: { '*': 'analysis complete' } })],
+    defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+  },
+  workflows: { stable, drifty },
+};
+`;
+    writeFileSync(join(cwd, 'rulvar.config.mjs'), configOf(false), 'utf8');
+
+    // A journaled-random run replays byte for byte: both gates PASS.
+    const stableRun = scriptedIo();
+    expect(await runCli(['run', 'stable'], { cwd, io: stableRun })).toBe(0);
+    const stableId = runIdOf(stableRun);
+    const verify = scriptedIo();
+    expect(
+      await runCli(['replay', stableId, '--assert-no-live', '--compare-output-hash'], {
+        cwd,
+        io: verify,
+      }),
+    ).toBe(0);
+    const verifyErr = verify.errLines.join('\n');
+    expect(verifyErr).toContain('assert-no-live: PASS');
+    expect(verifyErr).toContain('compare-output-hash: PASS');
+
+    // A bare Math.random in the RESULT: the replay pays nothing
+    // (assert-no-live PASS) yet produces a different output, so the
+    // digest gate fails and the warning is localized to the config file.
+    const driftyRun = scriptedIo();
+    expect(await runCli(['run', 'drifty'], { cwd, io: driftyRun })).toBe(0);
+    const driftyId = runIdOf(driftyRun);
+    const gate = scriptedIo();
+    expect(
+      await runCli(['replay', driftyId, '--assert-no-live', '--compare-output-hash'], {
+        cwd,
+        io: gate,
+      }),
+    ).toBe(1);
+    const gateErr = gate.errLines.join('\n');
+    expect(gateErr).toContain('assert-no-live: PASS');
+    expect(gateErr).toContain('compare-output-hash: FAIL');
+    expect(gateErr).toMatch(
+      /determinism: bare-math-random \(workflow\) at .*rulvar\.config\.mjs:\d+:\d+/,
+    );
+
+    // Code drift: the registered workflow gains an extra paid call, so
+    // the replay is no longer pure and --assert-no-live catches it.
+    writeFileSync(join(cwd, 'rulvar.config.mjs'), configOf(true), 'utf8');
+    const drift = scriptedIo();
+    expect(await runCli(['replay', stableId, '--assert-no-live'], { cwd, io: drift })).toBe(1);
+    expect(drift.errLines.join('\n')).toContain('assert-no-live: FAIL');
+  });
 });
 
 describe('resume args safety and the dry-run preview (v1.23.0 review)', () => {

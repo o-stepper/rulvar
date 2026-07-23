@@ -45,6 +45,7 @@ const STORE = { name: 'store', placeholder: 'PATH' } as const;
 export const GRAMMAR: {
   readonly run: CommandGrammar;
   readonly resume: CommandGrammar;
+  readonly replay: CommandGrammar;
   readonly 'runs ls': CommandGrammar;
   readonly 'runs audit': CommandGrammar;
   readonly inspect: CommandGrammar;
@@ -69,6 +70,11 @@ export const GRAMMAR: {
     command: 'resume',
     positionals: ['<runId>'],
     flags: [ARGS, STORE, { name: 'dry-run' }, { name: 'allow-args-change' }, { name: 'strict' }],
+  },
+  replay: {
+    command: 'replay',
+    positionals: ['<runId>'],
+    flags: [ARGS, STORE, { name: 'assert-no-live' }, { name: 'compare-output-hash' }],
   },
   'runs ls': { command: 'runs ls', positionals: [], flags: [STORE], note: '(no aliases in v1)' },
   'runs audit': {
@@ -168,6 +174,7 @@ export function helpCommandLines(): string[] {
   const top = [
     GRAMMAR.run,
     GRAMMAR.resume,
+    GRAMMAR.replay,
     GRAMMAR['runs ls'],
     GRAMMAR['runs audit'],
     GRAMMAR.inspect,
@@ -194,6 +201,7 @@ export function docsGrammarLines(): string[] {
   const top = [
     GRAMMAR.run,
     GRAMMAR.resume,
+    GRAMMAR.replay,
     GRAMMAR['runs ls'],
     GRAMMAR['runs audit'],
     GRAMMAR.inspect,

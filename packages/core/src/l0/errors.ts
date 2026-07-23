@@ -42,7 +42,8 @@ export type ErrorCode =
   | 'admission_rejected'
   | 'sandbox_limit'
   | 'lease_held'
-  | 'knowledge_cas';
+  | 'knowledge_cas'
+  | 'determinism';
 
 /** An alias for the registry type; both names are public. */
 export type RulvarErrorCode = ErrorCode;
@@ -325,6 +326,26 @@ export class KnowledgeCasError extends RulvarError {
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
     super(message, { retryable: true, ...opts });
+  }
+}
+
+/**
+ * A workflow-origin bare-nondeterminism violation under
+ * `determinism.mode: 'error'` (RV-209): bare `Date.now()` or
+ * `Math.random()` called from workflow code inside a run. Thrown at the
+ * offending call site (and re-thrown at settle if the workflow swallowed
+ * it), so the run rejects instead of recording a value replay cannot
+ * reproduce. `data` carries the structured localization: `category`,
+ * `frame`, and the parsed `file`/`line`/`column` when the frame names
+ * one. Never journaled as its own entry; the run settles 'error' with
+ * this wire error. Exempt provenances (installed dependencies, Node
+ * runtime frames, allowlisted patterns) never raise it.
+ */
+export class DeterminismError extends RulvarError {
+  readonly code = 'determinism' as const;
+
+  constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
+    super(message, { retryable: false, ...opts });
   }
 }
 

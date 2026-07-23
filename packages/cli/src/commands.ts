@@ -20,7 +20,9 @@ import {
   createEngine,
   FileModelKnowledgeStore,
   hashRunArgs,
+  hashRunOutput,
   INBOX_PROPOSAL_TTL_DAYS,
+  lastRunSettle,
   LeaseHeldError,
   proposalStatement,
   readRunMeta,
@@ -28,6 +30,7 @@ import {
   remeasureQueue,
   sanitizeTerminalText,
   type CreateEngineOptions,
+  type DeterminismEvents,
   type EvidenceRef,
   type GateRecord,
   type LeasableStore,
@@ -360,6 +363,136 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
   });
   const base = reportOutcome(outcome, context.io);
   return parsed.values.strict === true ? strictExitCode(outcome, base, context.io) : base;
+}
+
+/**
+ * `rulvar replay` (RV-209): replay-strict verification of a recorded
+ * run. Resumes under the engine's dry-run mode (zero journal or meta
+ * writes, zero adapter calls; the first would-be-live call is a typed
+ * JournalMissError settle), then reports the replay accounting, every
+ * determinism warning the re-executed body raised (with its localized
+ * frame), and the output digest comparison against the journaled
+ * settle. `--assert-no-live` exits nonzero unless the replay was pure
+ * (zero misses, zero reruns); `--compare-output-hash` exits nonzero
+ * unless the replayed result's JCS sha256 equals the recorded
+ * `outputHash`. Without flags the command reports and exits 0, so it
+ * can sit in a pipeline as a diagnostic before it gates anything.
+ * Args follow the resume binding exactly, but there is no
+ * --allow-args-change here: changed args change the logical run, and a
+ * verification against a different logical run proves nothing.
+ */
+export async function replayCommand(argv: string[], context: CommandContext): Promise<number> {
+  const parsed = parseCommand(GRAMMAR.replay, argv);
+  const runId = parsed.positionals[0];
+  const rawArgs = parsed.values.args as string | undefined;
+  const args = parseArgsJson(rawArgs);
+  const argsGiven = rawArgs !== undefined;
+  const assertNoLive = parsed.values['assert-no-live'] === true;
+  const compareOutputHash = parsed.values['compare-output-hash'] === true;
+  const store = parsed.values.store as string | undefined;
+  const config = await loadCliConfig(context.cwd);
+  const assembled = assembleEngine({
+    config,
+    ...(store === undefined ? {} : { storePath: store }),
+    cwd: context.cwd,
+  });
+  const meta = await readRunMeta(assembled.store, runId);
+  if (meta === undefined) {
+    throw new ConfigError(`run '${runId}' not found in the store`);
+  }
+  enforceArgsBinding({ meta, argsGiven, args, allowChange: false, io: context.io });
+  const name = meta.workflowName;
+  const workflow =
+    name === undefined
+      ? undefined
+      : (assembled.workflows[name] as Workflow<never, unknown> | undefined);
+  if (workflow === undefined) {
+    throw new ConfigError(
+      `run '${runId}' was started from workflow '${name ?? '(unknown)'}'; register it under ` +
+        `that name in rulvar.config.mjs workflows to replay ` +
+        '(replay requires the in-process workflow value)',
+    );
+  }
+  const handle = assembled.engine.resume(runId, workflow as unknown as Workflow<unknown, unknown>, {
+    args,
+    dryRun: true,
+  });
+  const warnings: DeterminismEvents[] = [];
+  const consumer = (async () => {
+    for await (const event of handle.events) {
+      if (event.type === 'determinism:warning') {
+        warnings.push(event);
+      }
+    }
+  })().catch(() => undefined);
+  const outcome = await handle.result;
+  const preview = await handle.preview;
+  await consumer;
+  const recorded = lastRunSettle(await assembled.store.load(runId));
+  const io = context.io;
+  io.err(
+    `replay of '${sanitizeTerminalText(runId)}' (zero journal or meta writes, zero adapter calls):`,
+  );
+  io.err(
+    `  hits: ${preview.hits}  misses: ${preview.misses}  reruns: ${preview.reruns}  ` +
+      `skipped: ${preview.skipped}`,
+  );
+  io.err(
+    recorded === undefined
+      ? '  recorded settle: none (journal predates the settle entry)'
+      : `  recorded settle: ${recorded.runStatus}`,
+  );
+  io.err(`  replayed settle: ${outcome.status}`);
+  if (outcome.error !== undefined && outcome.error.code !== 'journal_miss') {
+    io.err(`  error: ${sanitizeTerminalText(outcome.error.message)}`);
+  }
+  for (const warning of warnings) {
+    // The frame carries its own `at ...`; a parsed location renders as
+    // the compact site instead.
+    const where =
+      warning.file === undefined
+        ? warning.frame
+        : `at ${warning.file}:${warning.line ?? '?'}:${warning.column ?? '?'}`;
+    io.err(
+      `  determinism: ${warning.category} (${warning.provenance}) ${sanitizeTerminalText(where)}`,
+    );
+  }
+  let exit = 0;
+  if (assertNoLive) {
+    const pure =
+      preview.misses === 0 && preview.reruns === 0 && outcome.error?.code !== 'journal_miss';
+    if (pure) {
+      io.err('  assert-no-live: PASS (pure replay, zero would-be-live calls)');
+    } else {
+      io.err(
+        `  assert-no-live: FAIL (misses ${preview.misses}, reruns ${preview.reruns}: ` +
+          'a real resume would perform new paid work)',
+      );
+      exit = 1;
+    }
+  }
+  if (compareOutputHash) {
+    const replayedHash = hashRunOutput(outcome.value);
+    if (recorded?.outputHash === undefined) {
+      io.err(
+        '  compare-output-hash: FAIL (the recorded settle carries no output hash: the run ' +
+          'predates it, settled without a value, or the value is not JCS-serializable)',
+      );
+      exit = 1;
+    } else if (replayedHash === undefined) {
+      io.err('  compare-output-hash: FAIL (the replayed run produced no hashable value)');
+      exit = 1;
+    } else if (replayedHash === recorded.outputHash) {
+      io.err(`  compare-output-hash: PASS (${replayedHash.slice(0, 12)})`);
+    } else {
+      io.err(
+        `  compare-output-hash: FAIL (recorded ${recorded.outputHash.slice(0, 12)}, ` +
+          `replayed ${replayedHash.slice(0, 12)}: the workflow does not reproduce its output)`,
+      );
+      exit = 1;
+    }
+  }
+  return exit;
 }
 
 /**

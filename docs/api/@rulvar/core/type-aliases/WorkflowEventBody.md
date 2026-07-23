@@ -11,7 +11,8 @@ type WorkflowEventBody =
   | CoreEvents
   | AgentEvents
   | ToolEvents
+  | DeterminismEvents
   | AdaptiveEvents;
 ```
 
-Defined in: [packages/core/src/l0/events.ts:288](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L288)
+Defined in: [packages/core/src/l0/events.ts:320](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L320)

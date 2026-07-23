@@ -24,7 +24,8 @@ type ErrorCode =
   | "admission_rejected"
   | "sandbox_limit"
   | "lease_held"
-  | "knowledge_cas";
+  | "knowledge_cas"
+  | "determinism";
 ```
 
 Defined in: [packages/core/src/l0/errors.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L28)

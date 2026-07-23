@@ -93,4 +93,5 @@ export {
 export * from './engine/run-handle.js';
 export * from './engine/engine.js';
 export * from './runner/inprocess.js';
+export type { DeterminismConfig, DeterminismMode } from './runner/determinism.js';
 export * from './runner/sandbox-bridge.js';

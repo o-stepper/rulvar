@@ -9,15 +9,19 @@
 ```ts
 function lastRunSettle(entries): 
   | {
+  outputHash?: string;
   runStatus: RunStatus;
   seq: number;
 }
   | undefined;
 ```
 
-Defined in: [packages/core/src/stores/reconcile.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L44)
+Defined in: [packages/core/src/stores/reconcile.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/stores/reconcile.ts#L49)
 
-The last journaled run settle of a journal, if any.
+The last journaled run settle of a journal, if any. `outputHash` is
+present when that settle recorded the result digest (RV-209; settles
+written before it, or over undefined/non-serializable results, carry
+none).
 
 ## Parameters
 
@@ -28,6 +32,7 @@ The last journaled run settle of a journal, if any.
 ## Returns
 
   \| \{
+  `outputHash?`: `string`;
   `runStatus`: [`RunStatus`](/api/@rulvar/core/type-aliases/RunStatus.md);
   `seq`: `number`;
 \}

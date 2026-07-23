@@ -11,6 +11,7 @@ type WorkflowEventBody =
   | CoreEvents
   | AgentEvents
   | ToolEvents
+  | DeterminismEvents
   | AdaptiveEvents;
 ```
 

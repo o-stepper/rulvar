@@ -475,6 +475,10 @@
             "link": "/api/@rulvar/core/classes/DedupIndex.md"
           },
           {
+            "text": "DeterminismError",
+            "link": "/api/@rulvar/core/classes/DeterminismError.md"
+          },
+          {
             "text": "EscalationDecisionAbortedError",
             "link": "/api/@rulvar/core/classes/EscalationDecisionAbortedError.md"
           },
@@ -807,6 +811,10 @@
           {
             "text": "DedupNote",
             "link": "/api/@rulvar/core/interfaces/DedupNote.md"
+          },
+          {
+            "text": "DeterminismConfig",
+            "link": "/api/@rulvar/core/interfaces/DeterminismConfig.md"
           },
           {
             "text": "DonorCandidate",
@@ -1441,6 +1449,14 @@
           {
             "text": "DeriverRegistry",
             "link": "/api/@rulvar/core/type-aliases/DeriverRegistry.md"
+          },
+          {
+            "text": "DeterminismEvents",
+            "link": "/api/@rulvar/core/type-aliases/DeterminismEvents.md"
+          },
+          {
+            "text": "DeterminismMode",
+            "link": "/api/@rulvar/core/type-aliases/DeterminismMode.md"
           },
           {
             "text": "DispositionRule",
@@ -2413,6 +2429,10 @@
           {
             "text": "hashRunArgs",
             "link": "/api/@rulvar/core/functions/hashRunArgs.md"
+          },
+          {
+            "text": "hashRunOutput",
+            "link": "/api/@rulvar/core/functions/hashRunOutput.md"
           },
           {
             "text": "hashWorkflowBody",
@@ -4200,6 +4220,10 @@
             "link": "/api/@rulvar/rulvar/classes/DedupIndex.md"
           },
           {
+            "text": "DeterminismError",
+            "link": "/api/@rulvar/rulvar/classes/DeterminismError.md"
+          },
+          {
             "text": "EscalationDecisionAbortedError",
             "link": "/api/@rulvar/rulvar/classes/EscalationDecisionAbortedError.md"
           },
@@ -4536,6 +4560,10 @@
           {
             "text": "DedupNote",
             "link": "/api/@rulvar/rulvar/interfaces/DedupNote.md"
+          },
+          {
+            "text": "DeterminismConfig",
+            "link": "/api/@rulvar/rulvar/interfaces/DeterminismConfig.md"
           },
           {
             "text": "DonorCandidate",
@@ -5194,6 +5222,14 @@
           {
             "text": "DeriverRegistry",
             "link": "/api/@rulvar/rulvar/type-aliases/DeriverRegistry.md"
+          },
+          {
+            "text": "DeterminismEvents",
+            "link": "/api/@rulvar/rulvar/type-aliases/DeterminismEvents.md"
+          },
+          {
+            "text": "DeterminismMode",
+            "link": "/api/@rulvar/rulvar/type-aliases/DeterminismMode.md"
           },
           {
             "text": "DispositionRule",
@@ -6190,6 +6226,10 @@
           {
             "text": "hashRunArgs",
             "link": "/api/@rulvar/rulvar/functions/hashRunArgs.md"
+          },
+          {
+            "text": "hashRunOutput",
+            "link": "/api/@rulvar/rulvar/functions/hashRunOutput.md"
           },
           {
             "text": "hashWorkflowBody",
