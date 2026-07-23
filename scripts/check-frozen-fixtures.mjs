@@ -64,15 +64,29 @@ function listFrozenFiles() {
   return files;
 }
 
+/**
+ * Two sanctioned regeneration lanes, each named by a literal changeset
+ * token so the cause ships in the same reviewable PR as the fixture and
+ * lock diffs:
+ * - 'hashVersion-bump': an identity-profile revision (keys, ordinals,
+ *   or hashes of existing entries change);
+ * - 'journal-shape-revision': an additive journal evolution that
+ *   revises no identity (the engine appends a NEW entry kind or fact to
+ *   every run, existing entries byte-identical; established by the
+ *   run_settle entry of the fenced run state RFC, phase 3).
+ */
+const REGEN_TOKENS = ['hashVersion-bump', 'journal-shape-revision'];
+
 function changesetsCarryBumpToken() {
   const changesetDir = join(root, '.changeset');
   return existsSync(changesetDir)
-    ? readdirSync(changesetDir).some(
-        (name) =>
-          name.endsWith('.md') &&
-          name !== 'README.md' &&
-          readFileSync(join(changesetDir, name), 'utf8').includes('hashVersion-bump'),
-      )
+    ? readdirSync(changesetDir).some((name) => {
+        if (!name.endsWith('.md') || name === 'README.md') {
+          return false;
+        }
+        const body = readFileSync(join(changesetDir, name), 'utf8');
+        return REGEN_TOKENS.some((token) => body.includes(token));
+      })
     : false;
 }
 
@@ -87,9 +101,9 @@ const current = listFrozenFiles().map((path) => `${sha256(path)}  ${path}`);
 if (process.argv.includes('--update')) {
   if (existsSync(lockPath) && !changesetsCarryBumpToken()) {
     console.error(
-      'refusing to refresh fixtures.sha256: no .changeset/*.md carries the hashVersion-bump ' +
-        'token. Frozen fixtures are the DEF-6 compatibility contract; ship the token-carrying ' +
-        'changeset first, then rerun with --update.',
+      'refusing to refresh fixtures.sha256: no .changeset/*.md carries a regeneration token ' +
+        `(${REGEN_TOKENS.join(' or ')}). Frozen fixtures are the DEF-6 compatibility contract; ` +
+        'ship the token-carrying changeset first, then rerun with --update.',
     );
     process.exit(1);
   }
@@ -122,7 +136,7 @@ for (const line of drifted) {
 }
 if (changesetsCarryBumpToken()) {
   console.error(
-    '\nan accompanying changeset carries the hashVersion-bump token: regeneration is' +
+    '\nan accompanying changeset carries a regeneration token: regeneration is' +
       ' authorized, but the lock must land in the same PR. Refresh it and commit:' +
       ' node scripts/check-frozen-fixtures.mjs --update',
   );
@@ -130,8 +144,9 @@ if (changesetsCarryBumpToken()) {
 }
 console.error(
   '\nfrozen fixtures are the DEF-6 compatibility contract (docs/11, section "Frozen journal' +
-    ' fixtures"). Regenerating them to make a test pass is forbidden. If this change is a' +
-    ' deliberate identity-profile revision, ship a changeset carrying the hashVersion-bump token' +
-    ' and refresh the lock: node scripts/check-frozen-fixtures.mjs --update',
+    ' fixtures"). Regenerating them to make a test pass is forbidden. A deliberate revision' +
+    ' ships a changeset carrying its cause as a literal token (hashVersion-bump for an' +
+    ' identity-profile revision; journal-shape-revision for an additive journal evolution that' +
+    ' revises no identity) and refreshes the lock: node scripts/check-frozen-fixtures.mjs --update',
 );
 process.exit(1);

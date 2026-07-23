@@ -142,8 +142,11 @@ diagnostics intact.
 
 Besides the CI-wired scripts, `scripts/` holds operator tooling that no
 workflow invokes: the `record-m*-cassettes.mjs` family regenerates frozen
-cassettes deliberately (guarded by the `hashVersion-bump` changeset token
-and the fixtures lock), `contract-tests.mjs` backs the scheduled live
+cassettes deliberately (guarded by the fixtures lock and a changeset
+carrying the regeneration's cause as a literal token: `hashVersion-bump`
+for an identity-profile revision, `journal-shape-revision` for an
+additive journal evolution that revises no identity, like the journaled
+run settle), `contract-tests.mjs` backs the scheduled live
 workflow, and `checkpoint-corpus.mjs` with `run-value-checkpoint.mjs` are
 release-time value checkpoints run by hand. Treat them as production
 scripts: they are versioned, reviewed, and referenced from the milestone
