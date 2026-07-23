@@ -98,6 +98,14 @@ Token accounting semantics, so the numbers read correctly: `cacheReadTokens` and
 
 The audit fields on `tool:end` record which layer of the permission chain decided and which rule matched; see [Tools](/guide/tools).
 
+### Determinism detection
+
+| Event | Fires when | Notable fields |
+|---|---|---|
+| `determinism:warning` | A bare `Date.now()` or `Math.random()` call was observed inside the run, classified workflow-origin or allowlisted. | `category` (`'bare-date-now'`, `'bare-math-random'`), `provenance` (`'workflow'`, `'allowlisted'`), `frame`, `file?`, `line?`, `column?` |
+
+Emitted live, at most once per `(category, provenance)` per execution segment, and never journaled; because replay re-executes the body, a violation still in the code fires again on every replay, so the event appears in replayed streams organically (without the `replayed` flag). Installed dependencies and Node runtime frames are classified exempt and emit nothing. Under `determinism.mode: 'error'` a workflow-origin call additionally rejects the run with a typed `DeterminismError`; see [Runtime detection and enforcement](/guide/determinism#runtime-detection-and-enforcement).
+
 ### Adaptive orchestration, plan, and accounting events
 
 These fire only in runs where the corresponding machinery is active (see [Adaptive orchestration](/guide/adaptive-orchestration) and [Orchestration modes](/guide/orchestration-modes)):
@@ -329,6 +337,7 @@ Attributes use two namespaces:
 | `rulvar.replayed` | spans opened by replayed events |
 | `gen_ai.request.model` | agent spans |
 | `gen_ai.operation.name` | agent spans (the invocation role) |
+| `rulvar.determinism.category`, `rulvar.determinism.provenance`, `code.filepath`, `code.lineno` | the `determinism:warning` span event, attached to its enclosing span with the localized code location, so a backend can alert on workflow-provenance warnings without parsing frames |
 
 The `gen_ai.*` semantic conventions are flagged unstable upstream, so the exact mapping is documented per release and may change in minor releases; OTel attribute names are outside Rulvar's compatibility surface (see [Versioning](/reference/versioning)).
 

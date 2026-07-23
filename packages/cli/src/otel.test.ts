@@ -492,3 +492,73 @@ describe('toOtel invocation spans (RV-207)', () => {
     expect(agents[0]?.endTime).toBe(Date.parse(at(70)));
   });
 });
+
+describe('toOtel determinism events (RV-209)', () => {
+  it('attaches determinism:warning as a span event with classification and code location', async () => {
+    const okResult = Promise.resolve({
+      status: 'ok',
+      dropped: [],
+      pending: [],
+      usage: { inputTokens: 0, outputTokens: 0 },
+      cost: { totalUsd: 0, byModel: {}, byPhase: {}, byAgentType: {}, byRole: {}, unpriced: [] },
+    } as unknown as import('@rulvar/core').RunOutcome<unknown>);
+    const at = (ms: number): string => new Date(1_700_000_000_000 + ms).toISOString();
+    const base = { runId: 'rd', seq: 0 };
+    const events: WorkflowEvent[] = [
+      { ...base, ts: at(0), spanId: 's0', type: 'run:start', workflow: 'wf', resumed: false },
+      {
+        ...base,
+        ts: at(5),
+        spanId: 's0',
+        type: 'determinism:warning',
+        category: 'bare-math-random',
+        provenance: 'workflow',
+        frame: 'at body (/app/wf.mjs:12:9)',
+        file: '/app/wf.mjs',
+        line: 12,
+        column: 9,
+      },
+      { ...base, ts: at(10), spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0 },
+    ];
+    const recorded: Array<{
+      name: string;
+      events: Array<{ name: string; attributes?: Record<string, string | number | boolean> }>;
+    }> = [];
+    const tracer: TracerLike = {
+      startSpan(name) {
+        const record: (typeof recorded)[number] = { name, events: [] };
+        recorded.push(record);
+        return {
+          setAttribute: () => undefined,
+          addEvent: (eventName, attributes) => {
+            record.events.push({
+              name: eventName,
+              ...(attributes === undefined ? {} : { attributes }),
+            });
+          },
+          setStatus: () => undefined,
+          end: () => undefined,
+        };
+      },
+    };
+    await toOtel(
+      {
+        runId: 'rd',
+        events: (async function* () {
+          for (const event of events) {
+            yield await Promise.resolve(event);
+          }
+        })(),
+        result: okResult,
+      },
+      tracer,
+    );
+    const runSpan = recorded.find((span) => span.name.startsWith('run '));
+    const warning = runSpan?.events.find((event) => event.name === 'determinism:warning');
+    expect(warning).toBeDefined();
+    expect(warning?.attributes?.['rulvar.determinism.category']).toBe('bare-math-random');
+    expect(warning?.attributes?.['rulvar.determinism.provenance']).toBe('workflow');
+    expect(warning?.attributes?.['code.filepath']).toBe('/app/wf.mjs');
+    expect(warning?.attributes?.['code.lineno']).toBe(12);
+  });
+});

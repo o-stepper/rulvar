@@ -284,6 +284,21 @@ export async function toOtel(
       case 'child:end':
         endSpan(event.spanId, event.ts, event.status);
         break;
+      // The determinism warning attaches as a span event carrying its
+      // classification and the localized code location (OTel semantic
+      // convention keys), so a backend can alert on workflow-provenance
+      // warnings without parsing frames (RV-209).
+      case 'determinism:warning': {
+        const host = openBySpanId.get(event.spanId) ?? stack[stack.length - 1];
+        host?.span.addEvent('determinism:warning', {
+          'rulvar.entry_seq': event.seq,
+          'rulvar.determinism.category': event.category,
+          'rulvar.determinism.provenance': event.provenance,
+          ...(event.file === undefined ? {} : { 'code.filepath': maskSecrets(event.file) }),
+          ...(event.line === undefined ? {} : { 'code.lineno': event.line }),
+        });
+        break;
+      }
       default: {
         // Payload-only event: attach to its own span if it has one,
         // else to the innermost open span.

@@ -115,7 +115,8 @@
       "value": {
         "decisionType": "run_settle",
         "runStatus": "ok",
-        "segment": 1
+        "segment": 1,
+        "outputHash": "0e6615a24e65e0a8c4ba4ec7d75b50504d7185e2ae308e86d3cfd6c3262f24e8"
       },
       "endedAt": "2026-02-01T00:00:04.000Z"
     }

@@ -510,7 +510,8 @@
       "value": {
         "decisionType": "run_settle",
         "runStatus": "exhausted",
-        "segment": 1
+        "segment": 1,
+        "outputHash": "hash-0020-------------------------------------------------------"
       },
       "endedAt": "2026-02-01T00:00:00.000Z"
     }

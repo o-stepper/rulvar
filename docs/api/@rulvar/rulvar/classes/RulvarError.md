@@ -21,6 +21,7 @@ it never means a provider SDK autoretry, which is disabled.
 - [`AdmissionRejectedError`](/api/@rulvar/rulvar/classes/AdmissionRejectedError.md)
 - [`BudgetExhaustedError`](/api/@rulvar/rulvar/classes/BudgetExhaustedError.md)
 - [`ConfigError`](/api/@rulvar/rulvar/classes/ConfigError.md)
+- [`DeterminismError`](/api/@rulvar/rulvar/classes/DeterminismError.md)
 - [`FailRunError`](/api/@rulvar/rulvar/classes/FailRunError.md)
 - [`InvalidResolutionError`](/api/@rulvar/rulvar/classes/InvalidResolutionError.md)
 - [`JournalCompatibilityError`](/api/@rulvar/rulvar/classes/JournalCompatibilityError.md)
