@@ -376,8 +376,8 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
     }) => Promise<{ ok: true } | { ok: false; feedback: Record<string, unknown> }>;
   };
   agentType?: string;
-  /** The primary invocation role of the tool loop; default 'loop' (M6-T05). */
-  role?: 'loop' | 'plan' | 'orchestrate';
+  /** The primary invocation role of the tool loop; default 'loop' (M6-T05; RV-211 adds synthesize). */
+  role?: 'loop' | 'plan' | 'orchestrate' | 'synthesize';
   label?: string;
   now?: () => number;
 }

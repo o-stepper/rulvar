@@ -45,7 +45,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | `retry.policy?` | [`RetryPolicy`](/api/@rulvar/rulvar/interfaces/RetryPolicy.md) | - | `packages/core/dist/index.d.ts` |
 | `retry.random?` | () => `number` | - | `packages/core/dist/index.d.ts` |
 | `retry.sleep?` | (`ms`) => `Promise`\&lt;`void`\&gt; | - | `packages/core/dist/index.d.ts` |
-| <a id="property-role"></a> `role?` | `"orchestrate"` \| `"plan"` \| `"loop"` | The primary invocation role of the tool loop; default 'loop' (M6-T05). | `packages/core/dist/index.d.ts` |
+| <a id="property-role"></a> `role?` | `"orchestrate"` \| `"plan"` \| `"loop"` \| `"synthesize"` | The primary invocation role of the tool loop; default 'loop' (M6-T05; RV-211 adds synthesize). | `packages/core/dist/index.d.ts` |
 | <a id="property-schema"></a> `schema?` | `S` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-schemaretryattempts"></a> `schemaRetryAttempts?` | `number` | Bounded schema re-prompt attempts; default 2 (Appendix A). | `packages/core/dist/index.d.ts` |
 | <a id="property-signal"></a> `signal?` | `AbortSignal` | Host or sibling cancellation. | `packages/core/dist/index.d.ts` |

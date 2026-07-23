@@ -185,3 +185,86 @@ export function reduceInvocationTable(events: Iterable<WorkflowEvent>): Invocati
   }
   return { agents: order, byRole, totalCostUsd };
 }
+
+/**
+ * The critical-path summary of one run (RV-211): the plan's post-fan-in
+ * gate ("synthesis takes at most 40% of wall time with four settled
+ * workers") computed as a pure fold over the same vocabulary, no
+ * heuristics beyond the role tags. Post-fan-in is the interval from the
+ * LAST settled non-coordination agent (any span whose primary role is
+ * neither 'orchestrate' nor 'synthesize') to run:end; the synthesis wall
+ * is the summed span wall of 'synthesize' spans. Wall numbers are LIVE
+ * fidelity: a replayed stream re-stamps emission times, so its intervals
+ * are degenerate, exactly like phase durations. Absent pieces (no
+ * run:end, no worker spans) leave the corresponding fields undefined
+ * rather than guessed at.
+ */
+export interface CriticalPath {
+  /** run:start to run:end; absent while the run is open. */
+  runWallMs?: number;
+  /** Last non-coordination agent:end to run:end; absent without both. */
+  postFanInMs?: number;
+  /** Summed wall of completed 'synthesize' spans (0 when none). */
+  synthesisMs: number;
+  /** postFanInMs / runWallMs when both are defined and the wall is > 0. */
+  postFanInShare?: number;
+  /** synthesisMs / runWallMs under the same conditions. */
+  synthesisShare?: number;
+  /** Settled non-coordination agent spans that anchored the fan-in. */
+  workerSpans: number;
+}
+
+export function reduceCriticalPath(events: Iterable<WorkflowEvent>): CriticalPath {
+  let runStart: number | undefined;
+  let runEnd: number | undefined;
+  const startBySpan = new Map<string, { role: string; at: number }>();
+  let lastWorkerEnd: number | undefined;
+  let workerSpans = 0;
+  let synthesisMs = 0;
+  for (const event of events) {
+    const at = Date.parse(event.ts);
+    if (!Number.isFinite(at)) {
+      continue;
+    }
+    switch (event.type) {
+      case 'run:start':
+        runStart ??= at;
+        break;
+      case 'run:end':
+        runEnd = at;
+        break;
+      case 'agent:start':
+        startBySpan.set(event.spanId, { role: event.role, at });
+        break;
+      case 'agent:end': {
+        const started = startBySpan.get(event.spanId);
+        if (started === undefined) {
+          break;
+        }
+        if (started.role === 'synthesize') {
+          synthesisMs += Math.max(0, at - started.at);
+        } else if (started.role !== 'orchestrate') {
+          workerSpans += 1;
+          lastWorkerEnd = lastWorkerEnd === undefined ? at : Math.max(lastWorkerEnd, at);
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+  const path: CriticalPath = { synthesisMs, workerSpans };
+  if (runStart !== undefined && runEnd !== undefined) {
+    path.runWallMs = Math.max(0, runEnd - runStart);
+  }
+  if (runEnd !== undefined && lastWorkerEnd !== undefined) {
+    path.postFanInMs = Math.max(0, runEnd - lastWorkerEnd);
+  }
+  if (path.runWallMs !== undefined && path.runWallMs > 0) {
+    if (path.postFanInMs !== undefined) {
+      path.postFanInShare = path.postFanInMs / path.runWallMs;
+    }
+    path.synthesisShare = synthesisMs / path.runWallMs;
+  }
+  return path;
+}

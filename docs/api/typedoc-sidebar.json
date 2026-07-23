@@ -801,6 +801,10 @@
             "link": "/api/@rulvar/core/interfaces/CreateEngineOptions.md"
           },
           {
+            "text": "CriticalPath",
+            "link": "/api/@rulvar/core/interfaces/CriticalPath.md"
+          },
+          {
             "text": "Ctx",
             "link": "/api/@rulvar/core/interfaces/Ctx.md"
           },
@@ -1027,6 +1031,10 @@
           {
             "text": "OrchestrateOptions",
             "link": "/api/@rulvar/core/interfaces/OrchestrateOptions.md"
+          },
+          {
+            "text": "OrchestrateSynthesis",
+            "link": "/api/@rulvar/core/interfaces/OrchestrateSynthesis.md"
           },
           {
             "text": "OrchestratorBudgetSpec",
@@ -1977,6 +1985,10 @@
             "link": "/api/@rulvar/core/variables/DEFAULT_STREAM_IDLE_TIMEOUT_MS.md"
           },
           {
+            "text": "DEFAULT_SYNTHESIS_MAX_TURNS",
+            "link": "/api/@rulvar/core/variables/DEFAULT_SYNTHESIS_MAX_TURNS.md"
+          },
+          {
             "text": "deriverV1",
             "link": "/api/@rulvar/core/variables/deriverV1.md"
           },
@@ -2653,6 +2665,10 @@
           {
             "text": "reconcileRunMeta",
             "link": "/api/@rulvar/core/functions/reconcileRunMeta.md"
+          },
+          {
+            "text": "reduceCriticalPath",
+            "link": "/api/@rulvar/core/functions/reduceCriticalPath.md"
           },
           {
             "text": "reduceInvocationTable",
@@ -4596,6 +4612,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/CreateEngineOptions.md"
           },
           {
+            "text": "CriticalPath",
+            "link": "/api/@rulvar/rulvar/interfaces/CriticalPath.md"
+          },
+          {
             "text": "Ctx",
             "link": "/api/@rulvar/rulvar/interfaces/Ctx.md"
           },
@@ -4826,6 +4846,10 @@
           {
             "text": "OrchestrateOptions",
             "link": "/api/@rulvar/rulvar/interfaces/OrchestrateOptions.md"
+          },
+          {
+            "text": "OrchestrateSynthesis",
+            "link": "/api/@rulvar/rulvar/interfaces/OrchestrateSynthesis.md"
           },
           {
             "text": "OrchestratorBudgetSpec",
@@ -5808,6 +5832,10 @@
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_STREAM_IDLE_TIMEOUT_MS.md"
           },
           {
+            "text": "DEFAULT_SYNTHESIS_MAX_TURNS",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_SYNTHESIS_MAX_TURNS.md"
+          },
+          {
             "text": "deriverV1",
             "link": "/api/@rulvar/rulvar/variables/deriverV1.md"
           },
@@ -6504,6 +6532,10 @@
           {
             "text": "reconcileRunMeta",
             "link": "/api/@rulvar/rulvar/functions/reconcileRunMeta.md"
+          },
+          {
+            "text": "reduceCriticalPath",
+            "link": "/api/@rulvar/rulvar/functions/reduceCriticalPath.md"
           },
           {
             "text": "reduceInvocationTable",

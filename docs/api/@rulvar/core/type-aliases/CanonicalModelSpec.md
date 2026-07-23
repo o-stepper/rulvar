@@ -19,7 +19,7 @@ type CanonicalModelSpec =
 };
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:207](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L207)
+Defined in: [packages/core/src/l0/messages.ts:214](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L214)
 
 Identity-facing canonical form of a RESOLVED model request; the value
 that enters AgentIdentityInput.modelSpec.

@@ -178,7 +178,14 @@ export type ChatEvent =
 /** Strictly 'adapterId:model', no query parameters. */
 export type ModelRef = `${string}:${string}`;
 
-export type InvocationRole = 'orchestrate' | 'plan' | 'loop' | 'finalize' | 'extract' | 'summarize';
+/**
+ * The seven invocation roles. 'synthesize' is the orchestrator's
+ * post-fan-in synthesis invocation (RV-211): it fires only when
+ * OrchestrateOptions.synthesis is configured, and the routing key picks
+ * its model like any other role without ever summoning it.
+ */
+export type InvocationRole =
+  'orchestrate' | 'plan' | 'loop' | 'finalize' | 'extract' | 'summarize' | 'synthesize';
 
 /**
  * What authors write wherever a model is configurable: a call override, an

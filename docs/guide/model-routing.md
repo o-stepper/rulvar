@@ -1,6 +1,6 @@
 ---
 title: Model routing
-description: How Rulvar resolves a model for every invocation through the call, profile, workflow, and engine layers, routes six invocation roles across providers, scrubs capabilities, enforces role quality floors, and prices usage from a versioned price table.
+description: How Rulvar resolves a model for every invocation through the call, profile, workflow, and engine layers, routes seven invocation roles across providers, scrubs capabilities, enforces role quality floors, and prices usage from a versioned price table.
 ---
 
 # Model routing
@@ -132,7 +132,7 @@ Three merge rules matter in practice:
 
 ## Invocation roles
 
-Every invocation resolves with one of six roles attached, and each role can route to a different model. This is how one agent mixes providers mid-conversation:
+Every invocation resolves with one of seven roles attached, and each role can route to a different model. This is how one agent mixes providers mid-conversation:
 
 | Role | Fires |
 |---|---|
@@ -142,6 +142,7 @@ Every invocation resolves with one of six roles attached, and each role can rout
 | `summarize` | At the compaction threshold, and for `ctx.brief`. |
 | `plan` | The planner model in planned mode. |
 | `orchestrate` | The orchestrator agent in orchestrator mode, resolved through the same chain as everything else. |
+| `synthesize` | The orchestrator's post-fan-in synthesis invocation, only when `OrchestrateOptions.synthesis` is configured; the routing key picks its model and never summons it. |
 
 ```ts
 import { defineWorkflow } from '@rulvar/core';
@@ -170,7 +171,7 @@ const triage = defineWorkflow({ name: 'triage' }, async (ctx, args: { report: st
 
 Cross-provider mixing inside one agent is correct by construction: the history projector re-derives each provider's wire view (tool-call ids, retained reasoning blocks) from the canonical history on every outgoing request, so the loop can run on Anthropic while extract runs on OpenAI, each seeing a valid transcript. The mechanics live in [Providers](/guide/providers).
 
-Roles also carry **effort defaults** when no layer of the chain resolves an effort: `orchestrate` and `plan` default to `high`; `summarize` and `extract` default to `low`. `loop` and `finalize` have no role default; when nothing resolves one, the request omits effort and the provider default applies (high on current Anthropic models, medium on GPT-5.6 and gpt-5.5). These defaults are router policy, not identity surgery: changing them between releases never invalidates paid journal prefixes.
+Roles also carry **effort defaults** when no layer of the chain resolves an effort: `orchestrate` and `plan` default to `high`; `summarize` and `extract` default to `low`. `loop`, `finalize`, and `synthesize` have no role default; when nothing resolves one, the request omits effort and the provider default applies (high on current Anthropic models, medium on GPT-5.6 and gpt-5.5). These defaults are router policy, not identity surgery: changing them between releases never invalidates paid journal prefixes.
 
 ## Capability scrubbing
 

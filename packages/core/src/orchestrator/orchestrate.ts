@@ -25,11 +25,11 @@ import {
 } from '../l0/validate-numbers.js';
 import { truncateToBudget } from '../l0/truncate.js';
 import type { Json } from '../l0/json.js';
-import { createCanonicalIdMinter, type ModelSpec } from '../l0/messages.js';
+import { createCanonicalIdMinter, type Effort, type ModelSpec } from '../l0/messages.js';
 import { canonicalIsolationTag, type SpawnLineageOpt } from '../journal/lineage.js';
 import { agentScope } from '../journal/scope.js';
 import type { AgentResult } from '../runtime/agent-loop.js';
-import type { UsageLimits } from '../runtime/usage-limits.js';
+import { validateUsageLimits, type UsageLimits } from '../runtime/usage-limits.js';
 import { profileCard } from '../model/profile-card.js';
 import {
   collectDeclaredLadders,
@@ -162,6 +162,12 @@ export interface OrchestrateAcceptance {
 export const DEFAULT_FINISH_MAX_REPAIRS = 1;
 
 /**
+ * Default maxTurns of the synthesize invocation (RV-211): the finish
+ * call plus headroom for one validator repair exchange.
+ */
+export const DEFAULT_SYNTHESIS_MAX_TURNS = 4;
+
+/**
  * The opt in deterministic validation of the orchestrator finish result
  * (the v1.40.0 improvement plan's RV-204 slice). Every SCHEMA valid
  * finish({ result }) call first passes the configured host validators;
@@ -251,6 +257,52 @@ export interface OrchestrateOptions {
    * unchanged.
    */
   exposeChildResultTools?: boolean;
+  /**
+   * The opt in post-fan-in synthesis invocation (RV-211): with this set,
+   * the coordination loop's finish({ result }) becomes a DRAFT, and a
+   * SEPARATE fresh invocation with role 'synthesize' (its own model,
+   * effort, and limits through the ordinary resolution chain; the
+   * routing key 'synthesize' picks its model and never summons it)
+   * composes the final run result from the goal, the draft, and the
+   * settled child digest, on the finish-only toolset. When
+   * finishValidation is configured its validators bind the SYNTHESIS
+   * finish (the final output), not the draft. See
+   * {@link OrchestrateSynthesis}.
+   */
+  synthesis?: OrchestrateSynthesis;
+}
+
+/**
+ * The synthesis invocation's own knobs (RV-211). Everything else about
+ * the invocation is deterministic: the prompt derives from the journaled
+ * draft and the settled child digest, the toolset is the single finish
+ * tool (a distinct toolsetHash, exactly like the reserved cap
+ * finalizer), the invocation journals as an ordinary agent entry (a
+ * resume replays it with zero paid calls), and its telemetry is a full
+ * agent span with role 'synthesize' phase pairs, so
+ * `CostReport.byRole.synthesize` and `reduceCriticalPath` attribute it
+ * without heuristics. Failure posture: with finishValidation configured
+ * a failed synthesis fails the run typed (the validated path is
+ * mandatory); without validators the run falls back to the coordination
+ * draft under a journaled 'orchestrator_synthesis_fallback' decision and
+ * a warn log, never silently.
+ */
+export interface OrchestrateSynthesis {
+  /** Model override for the synthesize invocation; the routing key and chain apply otherwise. */
+  model?: ModelSpec;
+  /** Canonical effort of the synthesize invocation. */
+  effort?: Effort;
+  /** UsageLimits of the synthesize invocation; default { maxTurns: 4 }. */
+  limits?: UsageLimits;
+  /** Extra deterministic instruction lines appended to the synthesis prompt. */
+  instructions?: string;
+  /**
+   * Admission estimate for the synthesize invocation, like
+   * AgentOpts.estCost: under a tight orchestrator cap the default
+   * reserve (full maxOutputTokens pricing) can refuse the dispatch; an
+   * explicit estimate is the host speaking.
+   */
+  estCost?: number;
 }
 
 export const ORCHESTRATE_WORKFLOW_NAME = 'rulvar-orchestrate';
@@ -356,6 +408,35 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     }
     if (fv.maxRepairs !== undefined) {
       requireNonNegativeInteger(fv.maxRepairs as number, 'orchestrate finishValidation.maxRepairs');
+    }
+  }
+  if (opts.synthesis !== undefined) {
+    // The runtime JS/JSON boundary: the type system cannot hold it.
+    const synthesis = opts.synthesis as {
+      effort?: unknown;
+      limits?: unknown;
+      instructions?: unknown;
+      estCost?: unknown;
+    };
+    if (
+      synthesis.effort !== undefined &&
+      !['low', 'medium', 'high', 'xhigh', 'max'].includes(synthesis.effort as string)
+    ) {
+      throw new ConfigError(
+        "orchestrate synthesis.effort must be one of 'low' | 'medium' | 'high' | 'xhigh' | " +
+          `'max'; got ${JSON.stringify(synthesis.effort)}`,
+      );
+    }
+    if (synthesis.limits !== undefined) {
+      validateUsageLimits(synthesis.limits as UsageLimits, 'orchestrate synthesis.limits');
+    }
+    if (synthesis.instructions !== undefined && typeof synthesis.instructions !== 'string') {
+      throw new ConfigError(
+        `orchestrate synthesis.instructions must be a string; got ${typeof synthesis.instructions}`,
+      );
+    }
+    if (synthesis.estCost !== undefined) {
+      requireNonNegativeNumber(synthesis.estCost as number, 'orchestrate synthesis.estCost');
     }
   }
   const spec = opts.budget;
@@ -2063,7 +2144,12 @@ export function makeOrchestratorWorkflow(
       },
       [kTerminalTool]: {
         name: FINISH_TOOL_NAME,
-        ...(validationSpec === undefined ? {} : { validate: validateFinish }),
+        // With synthesis configured (RV-211) the coordination finish is
+        // a DRAFT: the validators bind the synthesis finish instead,
+        // because they must judge the FINAL output.
+        ...(validationSpec === undefined || opts?.synthesis !== undefined
+          ? {}
+          : { validate: validateFinish }),
       },
       // Checkpoint lineage across root attempts (the v1.6.0 follow-up
       // review's mode (c) contract): a rerun after a cancelled root
@@ -2225,6 +2311,161 @@ export function makeOrchestratorWorkflow(
     };
 
     /**
+     * The post-fan-in synthesis invocation (RV-211): a FRESH agent entry
+     * with role 'synthesize' on the finish-only toolset (a distinct
+     * toolsetHash, the reserved-finalizer precedent), its prompt derived
+     * deterministically from the goal, the journaled coordination draft,
+     * and the settled child digest, so a resume replays it by identity
+     * with zero paid calls. Runs strictly AFTER the acceptance verdict
+     * (a rejected run never pays for synthesis) and owns the finish
+     * validators when they are configured. Failure posture: with
+     * validators the run fails typed (the validated path is mandatory);
+     * without them the run falls back to the draft under a journaled
+     * decision and a warn log, never silently.
+     */
+    const runSynthesis = async (draft: unknown): Promise<unknown> => {
+      const spec = opts?.synthesis;
+      if (spec === undefined) {
+        return draft;
+      }
+      // A REPLAYED root returns before the async recovery has rebuilt
+      // `records` (live roots gate on it through the tools; a replayed
+      // one executes none), and an empty digest here would change the
+      // synthesis identity and re-pay the invocation on every resume.
+      await recoveryDone;
+      const finishOnly = buildOrchestratorTools(orchestratorRuntime, fullCardText).filter(
+        (tool) => tool.name === FINISH_TOOL_NAME,
+      );
+      // ALL settled children in spawn order (the finalize-fallback fold),
+      // not the wake digest: at synthesis time every settlement has been
+      // delivered, so an undelivered-only view would be empty.
+      const settledDigests = [...records.values()]
+        .filter((record) => record.settled !== undefined)
+        .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal)
+        .map((record) => digestOf(record, record.settled as AgentResult<unknown>));
+      const draftJson = JSON.stringify(draft ?? null);
+      const digestJson = JSON.stringify(settledDigests);
+      const promptLines = [
+        'You are the synthesis invocation of an orchestrated run. Compose the FINAL ' +
+          'result of the run from the goal, the coordination draft, and the settled child ' +
+          'evidence below by calling finish({ result }) EXACTLY once. Preserve the evidence ' +
+          'and citations the draft relies on; do not invent findings. No other tool exists.',
+        ...(spec.instructions === undefined ? [] : [spec.instructions]),
+        ...finishValidationPromptLines(validationSpec),
+        `GOAL: ${goal}`,
+        `DRAFT: ${draftJson}`,
+        `DIGEST: ${digestJson}`,
+      ];
+      const prompt = promptLines.join('\n');
+      // Root context diagnostics (RV-211): the actual sizes entering the
+      // synthesis prompt, debug-level so ordinary consoles stay quiet.
+      internals.events.emit(
+        {
+          type: 'log',
+          level: 'debug',
+          msg: 'orchestrator synthesis context',
+          data: {
+            children: settledDigests.length,
+            draftChars: draftJson.length,
+            digestChars: digestJson.length,
+            promptChars: prompt.length,
+            perChild: settledDigests.map((entry) => ({
+              nodeId: entry.nodeId,
+              chars: JSON.stringify(entry).length,
+            })),
+          },
+        },
+        callingState.spanId,
+      );
+      const synthesisState: CtxScopeState = { ...callingState };
+      if (orchestratorAccount !== undefined) {
+        synthesisState.budgetScope = orchestratorAccount;
+      }
+      // A validator rejection aborts the synthesis loop exactly like the
+      // coordination loop; the caller throws the armed termination.
+      const synthesisBreak = validationSpec === undefined ? undefined : validationAbort.signal;
+      if (synthesisBreak !== undefined) {
+        synthesisState.signal =
+          callingState.signal === undefined
+            ? synthesisBreak
+            : AbortSignal.any([callingState.signal, synthesisBreak]);
+      }
+      const synthesisOpts: AgentOpts & InternalAgentHooks & { result: 'full' } = {
+        role: 'synthesize',
+        result: 'full',
+        tools: finishOnly,
+        limits: spec.limits ?? { maxTurns: DEFAULT_SYNTHESIS_MAX_TURNS },
+        ...(spec.model === undefined ? {} : { model: spec.model }),
+        ...(spec.effort === undefined ? {} : { effort: spec.effort }),
+        ...(spec.estCost === undefined ? {} : { estCost: spec.estCost }),
+        [kTerminalTool]: {
+          name: FINISH_TOOL_NAME,
+          ...(validationSpec === undefined ? {} : { validate: validateFinish }),
+        },
+      };
+      const synthesized = await runtime.runInScope(synthesisState, () =>
+        (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
+          prompt,
+          synthesisOpts,
+        ),
+      );
+      if (validationTermination !== undefined) {
+        // The synthesis finish rejection (or a defective validator)
+        // aborted the invocation; the typed failure wins.
+        throw validationTermination;
+      }
+      if (synthesized.status === 'ok') {
+        return synthesized.output;
+      }
+      if (validationSpec !== undefined) {
+        throw new FailRunError(
+          `the synthesis invocation terminated with status '${synthesized.status}'` +
+            (synthesized.errorMessage === undefined ? '' : `: ${synthesized.errorMessage}`) +
+            '; finish validators are configured, so the unvalidated draft cannot stand',
+          {
+            data: {
+              source: 'orchestrator_synthesis',
+              status: synthesized.status,
+              turnsUsed: synthesized.turns,
+            },
+          },
+        );
+      }
+      const fallbackKey = deriverV2.deriveKey({ kind: 'orchestrator-synthesis-fallback' });
+      if (
+        !internals.replayer
+          .snapshot()
+          .some((entry) => entry.kind === 'decision' && entry.key === fallbackKey)
+      ) {
+        await internals.replayer.appendSinglePhase({
+          scope: callingState.scope,
+          key: fallbackKey,
+          kind: 'decision',
+          status: 'ok',
+          spanId: internals.spans.mint(callingState.spanId),
+          site: 'orchestrator-synthesis',
+          value: {
+            decisionType: 'orchestrator_synthesis_fallback',
+            status: synthesized.status,
+            turnsUsed: synthesized.turns,
+          },
+        });
+      }
+      internals.events.emit(
+        {
+          type: 'log',
+          level: 'warn',
+          msg:
+            `the synthesis invocation terminated with status '${synthesized.status}'; ` +
+            'falling back to the coordination draft (journaled decision ' +
+            "'orchestrator_synthesis_fallback')",
+        },
+        callingState.spanId,
+      );
+      return draft;
+    };
+
+    /**
      * The settle at the cap: the JOURNALED cap decision drives the policy
      * branch (its `fallback` field froze budget.atCap when the cap
      * tripped), so a crash between the decision and its effect rolls the
@@ -2325,7 +2566,7 @@ export function makeOrchestratorWorkflow(
       );
     }
     if (opts?.acceptance === undefined) {
-      return result.output;
+      return await runSynthesis(result.output);
     }
 
     // The acceptance settle: the JOURNALED decision entry is the
@@ -2411,8 +2652,10 @@ export function makeOrchestratorWorkflow(
         },
       );
     }
+    // Synthesis runs strictly AFTER the accepted verdict: a rejected run
+    // never pays for a synthesis invocation (RV-211).
     return {
-      result: result.output,
+      result: await runSynthesis(result.output),
       completion: decision.completion,
       childStatusCounts: decision.childStatusCounts,
       degradedReasons: decision.degradedReasons,

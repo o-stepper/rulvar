@@ -10,4 +10,4 @@
 type TriggerClass = "error" | "limit" | "schema-exhausted" | "verify-failed" | "no-progress";
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:211](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L211)
+Defined in: [packages/core/src/l0/messages.ts:218](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L218)

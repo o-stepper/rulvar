@@ -246,6 +246,33 @@ Distinct pattern matches are collected across the outputs of children settled `o
 
 Two honest bounds: validators are HOST code, so they check mechanical properties (structure, counts, markers), not truth; and repair turns spend from the orchestrator's ordinary limits and ceilings (`limits.maxTurns`, `budget`, the root `budgetUsd`), with `maxRepairs` as the explicit bound, so there is no separate repair budget reserve. The budget cap paths keep their posture: the reserved finalize dispatch after a cap is never validated, exactly as acceptance never judges it.
 
+### The synthesis invocation
+
+Without further configuration the coordination loop composes the final answer itself, on the `orchestrate` model, indistinguishable in cost and telemetry from the coordination turns. The opt-in `synthesis` option splits that work off: the loop's `finish({ result })` becomes a DRAFT, and one fresh post-fan-in invocation with role `synthesize` composes the final run result from the goal, the draft, and the settled child digest (spawn order, the same deterministic distillation the awaits delivered), on the finish-only toolset.
+
+```ts
+const audited = orchestrate(
+  engine,
+  "Audit the module and synthesize the findings",
+  {
+    profiles: ["reviewer"],
+    synthesis: {
+      // Route the synthesis independently of coordination: a strong
+      // model for the evidence-heavy merge, or a cheap one for a
+      // mechanical merge under a strong coordinator. The routing key
+      // 'synthesize' works at every layer too; this override wins.
+      model: "anthropic:claude-opus-4-8",
+      effort: "high",
+      limits: { maxTurns: 4 }, // the default
+      instructions: "Render the findings as FINDINGS / EVIDENCE sections.",
+    },
+  },
+  { budgetUsd: 10 },
+);
+```
+
+The invocation is an ordinary journaled agent entry: a resume replays it with zero paid calls (the prompt derives deterministically from journaled state), and its telemetry is a full span with role `synthesize` phase pairs, so `CostReport.byRole.synthesize` and [`reduceCriticalPath`](/guide/observability#agent-lifecycle) attribute its cost and wall share without heuristics; a debug `log` event (`orchestrator synthesis context`) reports the actual draft, digest, and prompt sizes entering it. Ordering and failure posture are strict: synthesis runs only AFTER an accepted acceptance verdict (a rejected run never pays for it), `finishValidation` validators bind the SYNTHESIS finish rather than the draft (the final output is what they must judge, same repair loop, same journaled verdicts), and a synthesis invocation that dies falls back to the coordination draft under a journaled `orchestrator_synthesis_fallback` decision and a warn log when no validators are configured, or fails the run typed (`data.source` `'orchestrator_synthesis'`) when they are, because an unvalidated draft cannot stand in for a validated result. The budget cap paths are unchanged: a capped run settles through the reserved finalizer and never reaches synthesis.
+
 ### Reading a child's full evidence
 
 The digest an await returns is a wake signal truncated to 400 characters, so an evidence heavy child (a research agent whose report carries dozens of `file:line` citations, say) settles with its findings intact in the journal but only a snippet in the digest. `exposeChildResultTools: true` adds two pure read tools the orchestrator can call AFTER a child settles.

@@ -85,8 +85,10 @@ export * from './engine/ctx.js';
 export type * from './l0/events.js';
 export * from './engine/events.js';
 export {
+  reduceCriticalPath,
   reduceInvocationTable,
   type AgentInvocationRow,
+  type CriticalPath,
   type InvocationTable,
   type PhaseRow,
 } from './l0/telemetry-reduce.js';

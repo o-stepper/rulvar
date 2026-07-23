@@ -36,7 +36,7 @@ const engine = createEngine({
 | Profile field | What it defaults |
 |---|---|
 | `model` | The model for all roles of this agent; a `ModelRef` like `'anthropic:claude-sonnet-5'`, a `ModelChoice`, or a ladder. |
-| `routing` | Per-role model overrides, keyed by any of the six [invocation roles](#invocation-roles). |
+| `routing` | Per-role model overrides, keyed by any of the seven [invocation roles](#invocation-roles). |
 | `effort` | Canonical reasoning effort: `low`, `medium`, `high`, `xhigh`, or `max`. |
 | `tools` | The default toolset: `ToolDef` values, tool sources, or registered toolset names from `defaults.toolsets` ([tools guide](/guide/tools#attaching-tools-to-agents)). |
 | `limits` | `UsageLimits` merged below per-call limits and above engine defaults. |
@@ -135,7 +135,7 @@ flowchart LR
 
 ### Invocation roles
 
-Every model invocation in a run carries exactly one invocation role, and each stage of an agent's life resolves its model through its role, so one agent can mix models per stage. This table is the complete `InvocationRole` union, four worker-stage roles plus two control-plane roles, and a docs check fails CI when a new role appears in core without a row here:
+Every model invocation in a run carries exactly one invocation role, and each stage of an agent's life resolves its model through its role, so one agent can mix models per stage. This table is the complete `InvocationRole` union, four worker-stage roles plus three control-plane roles, and a docs check fails CI when a new role appears in core without a row here:
 
 | Role | Belongs to | Fires |
 |---|---|---|
@@ -145,8 +145,9 @@ Every model invocation in a run carries exactly one invocation role, and each st
 | `summarize` | Worker-agent execution | At the compaction threshold, and for `ctx.brief`. |
 | `plan` | The [planner](/guide/planner) | Each turn of the planning conversation that writes a frozen script; never during the planned run itself. |
 | `orchestrate` | The [dynamic orchestrator](/guide/adaptive-orchestration) | Every turn of the orchestrator agent, which is an ordinary agent whose toolset spawns other agents ([below](#agents-under-the-dynamic-orchestrator)). |
+| `synthesize` | The [dynamic orchestrator](/guide/adaptive-orchestration) | Only when `OrchestrateOptions.synthesis` is configured: one fresh post-fan-in invocation that composes the final run result from the coordination draft and the settled child digest ([orchestration modes](/guide/orchestration-modes#the-synthesis-invocation)). The routing key picks its model and never summons it. |
 
-Four boundaries keep this taxonomy honest. `agentType` is the name of a registered `AgentProfile`, and the registry is yours: it is an open namespace, not a built-in catalog of agent kinds. An [eval judge](/guide/evals) is an ordinary agent invocation on the same engine, not a seventh role. Reviewer, critic, and panel members are likewise profiles or [recipes](/guide/examples), never roles. And human-written workflows, the planner, and the dynamic orchestrator are the three control-flow authoring modes from [orchestration modes](/guide/orchestration-modes); modes decide who writes the control flow, roles label the model invocations it makes.
+Four boundaries keep this taxonomy honest. `agentType` is the name of a registered `AgentProfile`, and the registry is yours: it is an open namespace, not a built-in catalog of agent kinds. An [eval judge](/guide/evals) is an ordinary agent invocation on the same engine, not an eighth role. Reviewer, critic, and panel members are likewise profiles or [recipes](/guide/examples), never roles. And human-written workflows, the planner, and the dynamic orchestrator are the three control-flow authoring modes from [orchestration modes](/guide/orchestration-modes); modes decide who writes the control flow, roles label the model invocations it makes.
 
 Turns are bounded by `UsageLimits`, merged per spawn (call over profile over engine): `maxTurns` (default 32), `maxToolCalls`, `maxOutputTokensPerTurn`, `timeoutMs`, and the no-progress detector (default 3 consecutive turns without tool calls or artifact deltas). Expiry of any of these lands the terminal status `limit`, with the paid partial work kept. `streamIdleTimeoutMs` (default 120000) is different: a stalled stream is severed and surfaces as a retryable transport error under the retry policy, not as `limit`. Three further opt-in fields (`toolBudgetNotices`, `maxRepeatedToolSignature`, `maxNoNewEvidenceCalls`) guard how the tool budget is spent; see [exploration guards](#exploration-guards).
 
@@ -174,7 +175,7 @@ Like the no-progress abort, the truncation memoizes: the engine stamps `memoizeO
 
 ## Model preferences
 
-Model resolution runs on every model invocation, not once per agent: a layered merge in the order call override, agent profile, workflow defaults, engine defaults, with the invocation role attached. `AgentOpts.model` overrides all roles at once; `AgentOpts.routing` overrides per role and wins over `profile.routing`. Role effort defaults fill gaps: `orchestrate` and `plan` default to `high`, `summarize` and `extract` to `low`; `loop` and `finalize` have no default, so the provider default applies when nothing resolves one.
+Model resolution runs on every model invocation, not once per agent: a layered merge in the order call override, agent profile, workflow defaults, engine defaults, with the invocation role attached. `AgentOpts.model` overrides all roles at once; `AgentOpts.routing` overrides per role and wins over `profile.routing`. Role effort defaults fill gaps: `orchestrate` and `plan` default to `high`, `summarize` and `extract` to `low`; `loop`, `finalize`, and `synthesize` have no default, so the provider default applies when nothing resolves one.
 
 After resolution the router reads the model's capabilities and scrubs illegal parameters visibly (a warning event, never a silent translation), and hard per-role quality floors from engine config can allowlist or denylist models for critical roles. The full chain, failover, and pricing live in [model routing](/guide/model-routing).
 
