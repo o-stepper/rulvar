@@ -22,6 +22,6 @@ type RefEntryClassification =
 };
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L52)
+Defined in: [packages/core/src/journal/resolution.ts:65](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L65)
 
 Fold classification of one ref-entry; NEVER persisted.

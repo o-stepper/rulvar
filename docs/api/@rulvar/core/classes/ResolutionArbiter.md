@@ -6,7 +6,7 @@
 
 # Class: ResolutionArbiter
 
-Defined in: [packages/core/src/journal/resolution.ts:288](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L288)
+Defined in: [packages/core/src/journal/resolution.ts:301](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L301)
 
 Per-run, per-target FIFO serializer of resolution/abandon attempts:
 classification against the in-memory fold ->
@@ -23,7 +23,7 @@ Cross-process protection remains the LeasableStore fencing epoch.
 new ResolutionArbiter(fold, appender): ResolutionArbiter;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:293](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L293)
+Defined in: [packages/core/src/journal/resolution.ts:306](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L306)
 
 #### Parameters
 
@@ -47,7 +47,7 @@ submitAbandon(
 attempt): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:352](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L352)
+Defined in: [packages/core/src/journal/resolution.ts:365](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L365)
 
 #### Parameters
 
@@ -73,7 +73,7 @@ submitResolution(
 attempt): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/journal/resolution.ts:308](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L308)
+Defined in: [packages/core/src/journal/resolution.ts:321](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/resolution.ts#L321)
 
 #### Parameters
 

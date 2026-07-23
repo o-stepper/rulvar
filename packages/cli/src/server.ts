@@ -657,26 +657,43 @@ export function createServer(options: CreateServerOptions): RulvarServer {
       }
       const outcome = await run.handle.resolveExternal(key, value);
       let resumed = false;
-      if (outcome.applied && settledSuspended) {
-        // The segment had settled: continue the run in place. The
-        // registry workflow and the retained original args re-bind it
-        // (OQ-21).
-        const workflow = workflows[run.workflowName];
-        if (workflow === undefined) {
-          return json(409, {
-            error: {
-              code: 'config',
-              message:
-                `resolution applied, but workflow '${run.workflowName}' is no longer registered; ` +
-                'resume it from a worker or a process with the registration',
+      if (outcome.applied && outcome.woke !== true) {
+        // Applied WITHOUT waking the body: either the segment had
+        // already settled suspended, or it was still closing when the
+        // attempt landed (the quiesce window; the append is durable and
+        // the closed body never continues). Either way the settle is
+        // past or imminent, so waiting for it here is bounded, and the
+        // continuation belongs to this host (the suspension ownership
+        // rule's "exactly one engine.resume"). Racing the settle on
+        // timing instead of this typed signal is what left the run
+        // stranded 'suspended' when the resolve won the window.
+        const settled = settledSuspended
+          ? (run.outcome as RunOutcome<unknown>)
+          : await run.handle.result;
+        if (settled.status === 'suspended') {
+          // The registry workflow and the retained original args
+          // re-bind the continuation (OQ-21).
+          const workflow = workflows[run.workflowName];
+          if (workflow === undefined) {
+            return json(409, {
+              error: {
+                code: 'config',
+                message:
+                  `resolution applied, but workflow '${run.workflowName}' is no longer ` +
+                  'registered; resume it from a worker or a process with the registration',
+              },
+            });
+          }
+          const handle = engine.resume(
+            run.runId,
+            workflow as unknown as Workflow<unknown, unknown>,
+            {
+              args: run.args,
             },
-          });
+          );
+          attach(run, handle);
+          resumed = true;
         }
-        const handle = engine.resume(run.runId, workflow as unknown as Workflow<unknown, unknown>, {
-          args: run.args,
-        });
-        attach(run, handle);
-        resumed = true;
       }
       return json(200, { ...outcome, resumed });
     });

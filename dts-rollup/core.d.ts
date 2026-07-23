@@ -2227,6 +2227,16 @@ type AbandonAttempt = {
 type ResolutionOutcome = {
   applied: true;
   seq: number;
+  /**
+  * The resolution settled a live in-process waiter and the segment
+  * continues in place. Absent when the append landed WITHOUT a
+  * wake (the journal-fold path: a settled segment, or one already
+  * closing when the attempt landed): the append is durable, the
+  * closed body never continues, and the continuation belongs to a
+  * resume (the suspension ownership rule). Hosts that auto-resume
+  * on resolution branch on this instead of racing the settle.
+  */
+  woke?: true;
 } | {
   applied: false;
   seq: number;

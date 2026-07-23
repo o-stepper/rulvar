@@ -367,6 +367,69 @@ describe('createServer (M8-T01)', () => {
     expect(Number(resumedStart?.id)).toBeGreaterThanOrEqual(EVENT_SEGMENT_STRIDE);
   });
 
+  it('a resolve landing in the quiesce window still continues the run (typed woke signal)', async () => {
+    // The deterministic form of the race Node scheduling exposed: the
+    // segment's registry has CLOSED but its settle has not finished
+    // (parked here on the journaled run_settle append), the resolution
+    // applies through the fold WITHOUT waking the closed body, and the
+    // server must continue the run itself instead of reporting
+    // resumed:false and leaving it stranded 'suspended'.
+    const inner = new SqliteStore({ path: ':memory:' });
+    let armed = true;
+    let releaseParked: () => void = () => undefined;
+    const parked = new Promise<void>((resolveParked) => {
+      releaseParked = resolveParked;
+    });
+    let signalAttempted: () => void = () => undefined;
+    const attempted = new Promise<void>((resolveAttempted) => {
+      signalAttempted = resolveAttempted;
+    });
+    const isSettle = (e: JournalEntry): boolean =>
+      e.kind === 'decision' &&
+      (e.value as { decisionType?: string } | undefined)?.decisionType === 'run_settle';
+    const journal = new Proxy(inner, {
+      get(target, prop, receiver) {
+        if (prop === 'append') {
+          return async (runId: string, e: JournalEntry, lease?: Lease) => {
+            if (armed && isSettle(e)) {
+              armed = false;
+              signalAttempted();
+              await parked;
+            }
+            return inner.append(runId, e, lease);
+          };
+        }
+        return Reflect.get(target, prop, receiver) as unknown;
+      },
+    });
+    const gatedWf = defineWorkflow({ name: 'gated' }, async (ctx) => {
+      const approval = await ctx.awaitExternal<{ approved: boolean }>('editor-approval');
+      return { approved: approval.approved };
+    }) as unknown as Workflow<never, unknown>;
+    const engine = createEngine({
+      adapters: [new FakeAdapter({ agents: { '*': 'x' } })],
+      stores: { journal },
+      defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+    });
+    const server = createServer({ engine, workflows: { gated: gatedWf } });
+    const started = await post(server, '/runs', { workflow: 'gated', args: {} });
+    const { runId } = (await bodyOf(started)) as { runId: string };
+    // The settle reached the parked append: the registry is closed, the
+    // outcome is pending. The resolve lands exactly in the window;
+    // release the settle only after it is in flight.
+    await attempted;
+    const resolving = post(server, `/runs/${runId}/external/editor-approval`, {
+      approved: true,
+    });
+    await new Promise((resolveTick) => setTimeout(resolveTick, 20));
+    releaseParked();
+    const resolved = await bodyOf(await resolving);
+    expect(resolved).toMatchObject({ applied: true, resumed: true });
+    expect(resolved.woke).toBeUndefined();
+    const settled = await untilStatus(server, runId, 'ok');
+    expect(settled.value).toEqual({ approved: true });
+  });
+
   it('offline resolution: append under the lease, resume stays with the host or a worker', async () => {
     const { engine, server, gated } = assemble();
 
