@@ -3,8 +3,13 @@
  * tracer)` maps the spanId tree of a run 1:1 onto OTel spans: one span
  * per rulvar span, parented per the span hierarchy (run > phase >
  * agent > tool > child), with start/end timestamps from the lifecycle
- * events. Events without an own span (log, budget:update) attach as span
- * events on their enclosing span.
+ * events; each agent:phase pair additionally becomes a child span of
+ * its agent span keyed (spanId, invocation), carrying the phase's role,
+ * model, usage, and cost. Events without an own span (log,
+ * budget:update) attach as span events on their enclosing span. An
+ * opener for an already-open span never duplicates it (replayed
+ * re-emissions mark the original; a pre-RV-207 stream's extra per-phase
+ * agent:start cannot leak the agent span unended).
  *
  * `@opentelemetry/api` ^1.9 is an OPTIONAL peer: the CLI has no OTel
  * dependency, and the exporter is typed against a minimal structural
@@ -67,6 +72,34 @@ interface OpenSpan {
 const STATUS_OK = 1;
 const STATUS_ERROR = 2;
 
+/**
+ * Usage, cost, and retry attributes on a closing span, defensively: the
+ * exporter tolerates foreign or truncated streams, so absent fields
+ * simply do not become attributes.
+ */
+function setUsageAttributes(
+  open: OpenSpan | undefined,
+  event: { usage?: { inputTokens?: number; outputTokens?: number }; costUsd?: number },
+  retryKey: string,
+  retries: number | undefined,
+): void {
+  if (open === undefined) {
+    return;
+  }
+  if (typeof event.usage?.inputTokens === 'number') {
+    open.span.setAttribute('gen_ai.usage.input_tokens', event.usage.inputTokens);
+  }
+  if (typeof event.usage?.outputTokens === 'number') {
+    open.span.setAttribute('gen_ai.usage.output_tokens', event.usage.outputTokens);
+  }
+  if (typeof event.costUsd === 'number') {
+    open.span.setAttribute('rulvar.cost_usd', event.costUsd);
+  }
+  if (typeof retries === 'number') {
+    open.span.setAttribute(retryKey, retries);
+  }
+}
+
 function spanName(event: Extract<WorkflowEvent, { type: string }>): string {
   switch (event.type) {
     case 'run:start':
@@ -75,6 +108,8 @@ function spanName(event: Extract<WorkflowEvent, { type: string }>): string {
       return `phase ${event.phase}`;
     case 'agent:start':
       return `agent ${event.agentType || '(anon)'} ${event.role}`;
+    case 'agent:phase:start':
+      return `invocation ${event.role}`;
     case 'tool:start':
       return `tool ${event.toolName}`;
     case 'child:start':
@@ -103,6 +138,12 @@ function openAttributes(
     attrs['rulvar.agent_type'] = event.agentType;
     attrs['gen_ai.request.model'] = event.model;
     attrs['gen_ai.operation.name'] = event.role;
+  }
+  if (event.type === 'agent:phase:start') {
+    attrs['rulvar.agent_type'] = event.agentType;
+    attrs['gen_ai.request.model'] = event.model;
+    attrs['gen_ai.operation.name'] = event.role;
+    attrs['rulvar.invocation'] = event.invocation;
   }
   if (event.type === 'tool:start') {
     attrs['rulvar.tool_name'] = event.toolName;
@@ -140,19 +181,29 @@ export async function toOtel(
 
   const { contextApi, setSpan } = options;
 
-  const startSpan = (event: WorkflowEvent): void => {
-    if (event.replayed === true && openBySpanId.has(event.spanId)) {
-      // A replayed opener for a span already exported: mark, do not
-      // duplicate.
-      openBySpanId.get(event.spanId)?.span.setAttribute('rulvar.replayed', true);
+  const startSpan = (
+    event: WorkflowEvent,
+    key: string = event.spanId,
+    parentKey?: string,
+  ): void => {
+    const parentId = parentKey ?? event.parentSpanId;
+    if (openBySpanId.has(key)) {
+      // An opener for a span already open never duplicates: replayed
+      // re-emissions mark the original, and a live duplicate (a stream
+      // from a pre-RV-207 core, where every phase emitted an extra
+      // agent:start) must not overwrite the tracked span and leak the
+      // first one unended with the last phase's duration reported as
+      // the agent's.
+      if (event.replayed === true) {
+        openBySpanId.get(key)?.span.setAttribute('rulvar.replayed', true);
+      }
       return;
     }
     // Real parent-child nesting when the host wires the OTel context
     // API: the parent is resolved through the event envelope's
     // parentSpanId against the still-open spans. Without both options,
     // spans come out flat but fully attributed.
-    const parent =
-      event.parentSpanId === undefined ? undefined : openBySpanId.get(event.parentSpanId);
+    const parent = parentId === undefined ? undefined : openBySpanId.get(parentId);
     const parentContext =
       parent !== undefined && contextApi !== undefined && setSpan !== undefined
         ? setSpan(contextApi.active(), parent.span)
@@ -168,10 +219,10 @@ export async function toOtel(
     created += 1;
     const open: OpenSpan = {
       span,
-      spanId: event.spanId,
-      ...(event.parentSpanId === undefined ? {} : { parentSpanId: event.parentSpanId }),
+      spanId: key,
+      ...(parentId === undefined ? {} : { parentSpanId: parentId }),
     };
-    openBySpanId.set(event.spanId, open);
+    openBySpanId.set(key, open);
     stack.push(open);
   };
 
@@ -205,9 +256,28 @@ export async function toOtel(
       case 'run:end':
         endSpan(event.spanId, event.ts, event.status);
         break;
-      case 'agent:end':
+      // Phase activations are child spans of the agent span, keyed
+      // (spanId, invocation) so a summarize that fires three times gets
+      // three spans.
+      case 'agent:phase:start':
+        startSpan(event, `${event.spanId}#${event.invocation}`, event.spanId);
+        break;
+      case 'agent:phase:end': {
+        const key = `${event.spanId}#${event.invocation}`;
+        setUsageAttributes(openBySpanId.get(key), event, 'rulvar.retries', event.retries);
+        endSpan(key, event.ts, event.outcome);
+        break;
+      }
+      case 'agent:end': {
+        setUsageAttributes(
+          openBySpanId.get(event.spanId),
+          event,
+          'rulvar.retry_count',
+          event.retryCount,
+        );
         endSpan(event.spanId, event.ts, event.status);
         break;
+      }
       case 'tool:end':
         endSpan(event.spanId, event.ts, event.outcome);
         break;

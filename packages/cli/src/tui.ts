@@ -37,8 +37,12 @@ function rawEventLine(event: WorkflowEvent): string | undefined {
       return `phase ${str(event.phase)}`;
     case 'agent:start':
       return `${replayMark}agent ${who}${str(event.label) === '' ? '' : ` [${str(event.label)}]`} ${str(event.role)} on ${str(event.model)}`;
+    case 'agent:phase:start':
+      return `${replayMark}agent ${who} ${str(event.role)} phase on ${str(event.model)}`;
+    case 'agent:phase:end':
+      return `${replayMark}agent ${who} ${str(event.role)} phase ${str(event.outcome)} (${money(num(event.costUsd))}, ${String(num(event.usage?.inputTokens) + num(event.usage?.outputTokens))} tok, ${String(num(event.durationMs))}ms${num(event.retries) > 0 ? `, ${String(num(event.retries))} retries` : ''})`;
     case 'agent:end':
-      return `${replayMark}agent ${who} ${str(event.status)} (${money(num(event.costUsd))}, ${String(num(event.usage?.inputTokens) + num(event.usage?.outputTokens))} tok)${event.usageApprox === true ? ' approx' : ''}`;
+      return `${replayMark}agent ${who} ${str(event.status)} (${money(num(event.costUsd))}, ${String(num(event.usage?.inputTokens) + num(event.usage?.outputTokens))} tok${num(event.retryCount) > 0 ? `, ${String(num(event.retryCount))} retries` : ''})${event.usageApprox === true ? ' approx' : ''}`;
     case 'agent:error':
       return `agent ${who} error: ${str(event.error?.message)}${event.willRetry === true ? ' (will retry)' : ''}`;
     case 'agent:queued':
@@ -74,6 +78,8 @@ export function attachProgress(handle: RunHandle<unknown>, io: CliIo): () => voi
     'run:start',
     'phase:start',
     'agent:start',
+    'agent:phase:start',
+    'agent:phase:end',
     'agent:end',
     'agent:error',
     'agent:queued',

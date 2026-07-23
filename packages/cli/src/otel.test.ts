@@ -320,3 +320,175 @@ describe('OTel attribute masking (M8-T04; docs/09 section 8)', () => {
     expect(JSON.stringify(spans)).not.toContain(SECRET);
   });
 });
+
+describe('toOtel invocation spans (RV-207)', () => {
+  const okResult = Promise.resolve({
+    status: 'ok',
+    dropped: [],
+    pending: [],
+    usage: { inputTokens: 0, outputTokens: 0 },
+    cost: { totalUsd: 0, byModel: {}, byPhase: {}, byAgentType: {}, byRole: {}, unpriced: [] },
+  } as unknown as import('@rulvar/core').RunOutcome<unknown>);
+  const at = (ms: number): string => new Date(1_700_000_000_000 + ms).toISOString();
+  const usage = { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 };
+  const toStream = (events: WorkflowEvent[]): AsyncIterable<WorkflowEvent> =>
+    (async function* () {
+      for (const event of events) {
+        yield await Promise.resolve(event);
+      }
+    })();
+
+  it('phase pairs become ended child spans and the agent span covers the whole dispatch', async () => {
+    const base = { runId: 'r2', seq: 0 };
+    const events: WorkflowEvent[] = [
+      { ...base, ts: at(0), spanId: 's0', type: 'run:start', workflow: 'wf', resumed: false },
+      {
+        ...base,
+        ts: at(1),
+        spanId: 's1',
+        parentSpanId: 's0',
+        type: 'agent:start',
+        agentType: 'reviewer',
+        model: 'fake:model',
+        role: 'loop',
+      },
+      {
+        ...base,
+        ts: at(1),
+        spanId: 's1',
+        type: 'agent:phase:start',
+        agentType: 'reviewer',
+        role: 'loop',
+        model: 'fake:model',
+        invocation: 1,
+      },
+      {
+        ...base,
+        ts: at(60),
+        spanId: 's1',
+        type: 'agent:phase:end',
+        agentType: 'reviewer',
+        role: 'loop',
+        model: 'fake:model',
+        invocation: 1,
+        durationMs: 59,
+        usage,
+        costUsd: 0.01,
+        outcome: 'ok',
+        retries: 2,
+      },
+      {
+        ...base,
+        ts: at(60),
+        spanId: 's1',
+        type: 'agent:phase:start',
+        agentType: 'reviewer',
+        role: 'extract',
+        model: 'fake:extract',
+        invocation: 2,
+      },
+      {
+        ...base,
+        ts: at(70),
+        spanId: 's1',
+        type: 'agent:phase:end',
+        agentType: 'reviewer',
+        role: 'extract',
+        model: 'fake:extract',
+        invocation: 2,
+        durationMs: 10,
+        usage,
+        costUsd: 0.002,
+        outcome: 'ok',
+      },
+      {
+        ...base,
+        ts: at(71),
+        spanId: 's1',
+        type: 'agent:end',
+        agentType: 'reviewer',
+        status: 'ok',
+        usage,
+        costUsd: 0.012,
+        entryRef: 2,
+        retryCount: 2,
+      },
+      { ...base, ts: at(72), spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0.012 },
+    ];
+    const { tracer, spans } = inMemoryTracer();
+    const created = await toOtel(
+      { runId: 'r2', events: toStream(events), result: okResult },
+      tracer,
+    );
+    // run + agent + two invocation children.
+    expect(created).toBe(4);
+    expect(spans.every((span) => span.ended)).toBe(true);
+    const agent = spans.find((span) => span.name.startsWith('agent '));
+    expect(agent?.startTime).toBe(Date.parse(at(1)));
+    expect(agent?.endTime).toBe(Date.parse(at(71)));
+    expect(agent?.attributes['rulvar.retry_count']).toBe(2);
+    expect(agent?.attributes['gen_ai.usage.input_tokens']).toBe(10);
+    const invocations = spans.filter((span) => span.name.startsWith('invocation '));
+    expect(invocations.map((span) => span.name)).toEqual(['invocation loop', 'invocation extract']);
+    expect(invocations[0]?.attributes['rulvar.retries']).toBe(2);
+    expect(invocations[0]?.attributes['rulvar.cost_usd']).toBe(0.01);
+    expect(invocations[1]?.attributes['gen_ai.request.model']).toBe('fake:extract');
+    expect(invocations[1]?.attributes['rulvar.invocation']).toBe(2);
+  });
+
+  it('a pre-RV-207 stream with extra per-phase agent:start events cannot leak spans', async () => {
+    // The published-1.48.0 shape: several live agent:start on ONE span,
+    // one agent:end. The exporter must keep exactly one agent span and
+    // end it (before the guard, the second opener overwrote the first,
+    // which then never ended, and the closed one measured only the last
+    // phase).
+    const base = { runId: 'r3', seq: 0 };
+    const events: WorkflowEvent[] = [
+      { ...base, ts: at(0), spanId: 's0', type: 'run:start', workflow: 'wf', resumed: false },
+      {
+        ...base,
+        ts: at(1),
+        spanId: 's1',
+        parentSpanId: 's0',
+        type: 'agent:start',
+        agentType: 'reviewer',
+        model: 'fake:model',
+        role: 'loop',
+      },
+      {
+        ...base,
+        ts: at(50),
+        spanId: 's1',
+        parentSpanId: 's0',
+        type: 'agent:start',
+        agentType: 'reviewer',
+        model: 'fake:extract',
+        role: 'extract',
+      },
+      {
+        ...base,
+        ts: at(70),
+        spanId: 's1',
+        type: 'agent:end',
+        agentType: 'reviewer',
+        status: 'ok',
+        usage,
+        costUsd: 0.01,
+        entryRef: 2,
+      },
+      { ...base, ts: at(71), spanId: 's0', type: 'run:end', status: 'ok', totalUsd: 0.01 },
+    ];
+    const { tracer, spans } = inMemoryTracer();
+    const created = await toOtel(
+      { runId: 'r3', events: toStream(events), result: okResult },
+      tracer,
+    );
+    expect(created).toBe(2);
+    const agents = spans.filter((span) => span.name.startsWith('agent '));
+    expect(agents).toHaveLength(1);
+    expect(agents[0]?.ended).toBe(true);
+    // The single span covers the WHOLE dispatch, first start to end.
+    expect(agents[0]?.startTime).toBe(Date.parse(at(1)));
+    expect(agents[0]?.endTime).toBe(Date.parse(at(70)));
+  });
+});

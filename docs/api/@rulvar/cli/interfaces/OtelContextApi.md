@@ -6,7 +6,7 @@
 
 # Interface: OtelContextApi
 
-Defined in: [packages/cli/src/otel.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L36)
+Defined in: [packages/cli/src/otel.ts:41](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L41)
 
 Minimal OTel context surface (setSpan/with) for parentage.
 
@@ -18,7 +18,7 @@ Minimal OTel context surface (setSpan/with) for parentage.
 active(): unknown;
 ```
 
-Defined in: [packages/cli/src/otel.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L37)
+Defined in: [packages/cli/src/otel.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L42)
 
 #### Returns
 
@@ -32,7 +32,7 @@ Defined in: [packages/cli/src/otel.ts:37](https://github.com/o-stepper/rulvar/bl
 with<T>(context, fn): T;
 ```
 
-Defined in: [packages/cli/src/otel.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L38)
+Defined in: [packages/cli/src/otel.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L43)
 
 #### Type Parameters
 

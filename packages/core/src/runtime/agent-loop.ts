@@ -142,6 +142,13 @@ export interface AgentResult<T> {
    * cancellation or ordinary cap hits.
    */
   abortClass?: AbortClass;
+  /**
+   * Transport retries across the span's phase activations, present only
+   * when greater than zero. Live telemetry only: the ctx layer surfaces
+   * it as `agent:end` retryCount; it is never journaled, so a replayed
+   * result omits it (absent means "zero or unknown").
+   */
+  transportRetries?: number;
 }
 
 export type EscalatedResult<T> = AgentResult<T> & {
@@ -855,6 +862,102 @@ export async function runAgent<S extends SchemaSpec>(
       usage: addUsage(prior?.usage ?? ZERO_USAGE, usage),
     });
   };
+
+  // Phase activation telemetry (the RV-207 event-model contract): one
+  // agent:phase:start/end pair per activation, its usage measured as
+  // the delta the activation added to its role's (role, model) slices,
+  // so the pairs sum exactly to the journaled split and the official
+  // reducer needs no heuristics. The retry counter also feeds
+  // agent:end's retryCount; all of it is live telemetry, never journal
+  // identity.
+  let invocationCounter = 0;
+  let transportRetries = 0;
+  type OpenPhase = {
+    invocation: number;
+    role: InvocationRole;
+    model: ModelRef;
+    before: Map<string, Usage>;
+    startedAtMs: number;
+    retriesBefore: number;
+  };
+  const roleUsageSnapshot = (role: InvocationRole): Map<string, Usage> => {
+    const snapshot = new Map<string, Usage>();
+    for (const [key, slice] of usageByPhaseModel) {
+      if (slice.role === role) {
+        snapshot.set(key, slice.usage);
+      }
+    }
+    return snapshot;
+  };
+  const usageDelta = (after: Usage, before: Usage | undefined): Usage => {
+    const base = before ?? ZERO_USAGE;
+    const delta: Usage = {
+      inputTokens: Math.max(0, after.inputTokens - base.inputTokens),
+      outputTokens: Math.max(0, after.outputTokens - base.outputTokens),
+      cacheReadTokens: Math.max(0, after.cacheReadTokens - base.cacheReadTokens),
+      cacheWriteTokens: Math.max(0, after.cacheWriteTokens - base.cacheWriteTokens),
+    };
+    const reasoning = (after.reasoningTokens ?? 0) - (base.reasoningTokens ?? 0);
+    if (reasoning > 0) {
+      delta.reasoningTokens = reasoning;
+    }
+    return delta;
+  };
+  const beginPhase = (role: InvocationRole, model: ModelRef): OpenPhase => {
+    invocationCounter += 1;
+    events?.emit({
+      type: 'agent:phase:start',
+      agentType,
+      label: options.label,
+      role,
+      model,
+      invocation: invocationCounter,
+    });
+    return {
+      invocation: invocationCounter,
+      role,
+      model,
+      before: roleUsageSnapshot(role),
+      startedAtMs: now(),
+      retriesBefore: transportRetries,
+    };
+  };
+  const endPhase = (phase: OpenPhase, outcome: 'ok' | 'error', servedModel?: ModelRef): void => {
+    let phaseUsage: Usage = ZERO_USAGE;
+    let phaseUsd = 0;
+    for (const [key, slice] of usageByPhaseModel) {
+      if (slice.role !== phase.role) {
+        continue;
+      }
+      const delta = usageDelta(slice.usage, phase.before.get(key));
+      phaseUsage = addUsage(phaseUsage, delta);
+      const priced = options.priceUsd?.(slice.servedBy, delta) ?? 0;
+      // The same guard as priceRecordedUsage: a broken price row must
+      // not poison the phase's costUsd.
+      if (Number.isFinite(priced) && priced > 0) {
+        phaseUsd += priced;
+      }
+    }
+    const retries = transportRetries - phase.retriesBefore;
+    events?.emit({
+      type: 'agent:phase:end',
+      agentType,
+      label: options.label,
+      role: phase.role,
+      model: servedModel ?? phase.model,
+      invocation: phase.invocation,
+      durationMs: Math.max(0, now() - phase.startedAtMs),
+      usage: phaseUsage,
+      costUsd: phaseUsd,
+      outcome,
+      ...(retries > 0 ? { retries } : {}),
+    });
+  };
+  // The binary phase verdict: an activation whose surrounding status
+  // moved to error or cancelled failed; limits and escalations are
+  // bounded outcomes of a phase that itself ran.
+  const phaseOutcome = (): 'ok' | 'error' =>
+    status === 'error' || status === 'cancelled' ? 'error' : 'ok';
   let turns = 0;
   let schemaAttempts = 0;
   let output: Out<S> | null = null;
@@ -1231,6 +1334,9 @@ export async function runAgent<S extends SchemaSpec>(
   }
   const separateExtract = options.extract !== undefined && options.schema !== undefined;
 
+  // Exactly ONE agent:start per span (the logical dispatch, primary
+  // role); every phase activation below emits its own paired
+  // agent:phase events instead of an extra unpaired start.
   events?.emit({
     type: 'agent:start',
     agentType,
@@ -1238,6 +1344,7 @@ export async function runAgent<S extends SchemaSpec>(
     model: servedBy,
     role: primaryRole,
   });
+  const loopPhase = beginPhase(primaryRole, servedBy);
 
   // The runtime never throws past policy: an adapter violating the Usage
   // invariant becomes a typed transport-class terminal, not an escape.
@@ -1470,6 +1577,7 @@ export async function runAgent<S extends SchemaSpec>(
           const retryAfter = (outcome.wireError?.data as { retryAfterMs?: unknown } | undefined)
             ?.retryAfterMs;
           if (outcome.wireError !== undefined) {
+            transportRetries += 1;
             events?.emit({
               type: 'agent:error',
               agentType,
@@ -1757,13 +1865,9 @@ export async function runAgent<S extends SchemaSpec>(
         })
       ) {
         const summarizeResolved = options.summarize.resolved;
-        events?.emit({
-          type: 'agent:start',
-          agentType,
-          label: options.label,
-          model: summarizeResolved.ref,
-          role: 'summarize',
-        });
+        // Each compaction is its own phase activation: a run that
+        // summarizes three times emits three pairs.
+        const summarizePhase = beginPhase('summarize', summarizeResolved.ref);
         // Visible scrub at fire time (M4-T08):
         // the summarize resolution rarely fires, so its scrubs surface
         // here rather than as spawn-time noise.
@@ -1775,6 +1879,7 @@ export async function runAgent<S extends SchemaSpec>(
         } catch {
           status = 'error';
           agentError = { kind: 'budget', retryable: false };
+          endPhase(summarizePhase, 'error');
           break;
         }
         turns += 1;
@@ -1818,17 +1923,21 @@ export async function runAgent<S extends SchemaSpec>(
           status = 'error';
           agentError = { kind: 'budget', retryable: false };
           errorMessage = thrown.message;
+          endPhase(summarizePhase, 'error');
           break;
         }
-        const { outcome: summary } = summaryDispatch;
+        const { outcome: summary, target: summarizeTarget } = summaryDispatch;
+        const summarizeServed = summarizeTarget.resolved.ref;
         usageApprox = usageApprox || summary.usageApprox;
         if (summary.aborted === 'budget') {
           status = 'cancelled';
           agentError = { kind: 'budget', retryable: false };
+          endPhase(summarizePhase, 'error', summarizeServed);
           break;
         }
         if (summary.aborted === 'external') {
           status = 'cancelled';
+          endPhase(summarizePhase, 'error', summarizeServed);
           break;
         }
         if (
@@ -1851,6 +1960,7 @@ export async function runAgent<S extends SchemaSpec>(
                   ? 'timed out'
                   : 'returned an empty summary'),
           });
+          endPhase(summarizePhase, 'error', summarizeServed);
         } else {
           const compacted = compactMessages(messages, summary.turn.text);
           messages.length = 0;
@@ -1859,6 +1969,7 @@ export async function runAgent<S extends SchemaSpec>(
           // The next turn's prompt is the compact history; the stale
           // estimate must not re-trip the threshold.
           lastTurnUsage = { inputTokens: 0, outputTokens: 0 };
+          endPhase(summarizePhase, 'ok', summarizeServed);
         }
       }
       // Turn boundary: tools executed, results appended. A crash after
@@ -1972,6 +2083,10 @@ export async function runAgent<S extends SchemaSpec>(
     await saveBoundary();
     continue loop;
   }
+  // The primary phase closes here whatever ended it (a clean stop, a
+  // limit, an escalation, an error): the pending-turn early paths that
+  // skip the loop entirely still pass this point with a zero delta.
+  endPhase(loopPhase, phaseOutcome(), servedBy);
 
   // Finalize synthesis invocation (role 'finalize', M4-T01): after tools
   // stop, one invocation with toolChoice 'none' over the full transcript
@@ -1982,13 +2097,8 @@ export async function runAgent<S extends SchemaSpec>(
   // over the transcript INCLUDING the synthesis.
   if (status === 'ok' && !finishedViaTool && options.finalize !== undefined) {
     const finalizeResolved = options.finalize.resolved;
-    events?.emit({
-      type: 'agent:start',
-      agentType,
-      label: options.label,
-      model: finalizeResolved.ref,
-      role: 'finalize',
-    });
+    const finalizePhase = beginPhase('finalize', finalizeResolved.ref);
+    let finalizeServed: ModelRef | undefined;
     let proceed = true;
     try {
       options.budget?.beforeTurn();
@@ -2058,6 +2168,7 @@ export async function runAgent<S extends SchemaSpec>(
       }
       if (finalizeDispatch !== undefined) {
         const { outcome, target: finalizeTarget } = finalizeDispatch;
+        finalizeServed = finalizeTarget.resolved.ref;
         usageApprox = usageApprox || outcome.usageApprox;
         messages.push(
           assistantMsg(
@@ -2117,6 +2228,7 @@ export async function runAgent<S extends SchemaSpec>(
         }
       }
     }
+    endPhase(finalizePhase, phaseOutcome(), finalizeServed);
   }
 
   // Separate extract invocation (role 'extract'): one structured-output
@@ -2129,13 +2241,8 @@ export async function runAgent<S extends SchemaSpec>(
     options.schema !== undefined
   ) {
     const extractResolved = options.extract.resolved;
-    events?.emit({
-      type: 'agent:start',
-      agentType,
-      label: options.label,
-      model: extractResolved.ref,
-      role: 'extract',
-    });
+    const extractPhase = beginPhase('extract', extractResolved.ref);
+    let extractServed: ModelRef | undefined;
     // The extract tier follows the SERVING model's caps; forced-tool is
     // legitimate here (the pinned emit_result IS the mechanism).
     const extractTierFor = (target: PhaseTarget): StructuredOutputTier =>
@@ -2217,6 +2324,7 @@ export async function runAgent<S extends SchemaSpec>(
         break;
       }
       const { outcome, target: extractTarget } = extractDispatch;
+      extractServed = extractTarget.resolved.ref;
       usageApprox = usageApprox || outcome.usageApprox;
       if (invariantViolation !== undefined) {
         status = 'error';
@@ -2268,6 +2376,7 @@ export async function runAgent<S extends SchemaSpec>(
         }
       }
     }
+    endPhase(extractPhase, phaseOutcome(), extractServed);
   }
 
   // Persist the canonical transcript; the journal stays small.
@@ -2309,6 +2418,9 @@ export async function runAgent<S extends SchemaSpec>(
   }
   if (usageApprox) {
     (result as { usageApprox?: boolean }).usageApprox = true;
+  }
+  if (transportRetries > 0) {
+    result.transportRetries = transportRetries;
   }
   // agent:end (with entryRef) is emitted by the ctx layer after the
   // terminal journal entry is appended.

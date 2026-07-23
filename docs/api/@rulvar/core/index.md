@@ -111,6 +111,7 @@ exactly the pieces you need, for example
 | [AdmitLineage](/api/@rulvar/core/interfaces/AdmitLineage.md) | The lineage block every non-reject verdict carries (DEF-3). |
 | [AdmitSpec](/api/@rulvar/core/interfaces/AdmitSpec.md) | What the admission point needs to know about one spawn. |
 | [AgentIdentityInput](/api/@rulvar/core/interfaces/AgentIdentityInput.md) | Spawn entries: ctx.agent and orchestrator spawn tools (kind 'agent'). |
+| [AgentInvocationRow](/api/@rulvar/core/interfaces/AgentInvocationRow.md) | One logical agent span. |
 | [AgentOpts](/api/@rulvar/core/interfaces/AgentOpts.md) | Per-spawn options. The identity split is normative: agentType, model/routing/effort (the requested modelSpec), schema (schemaHash), and key enter the content key; everything else is policy or telemetry and never re-keys entries. Fields whose machinery lands later (tools, isolation, escalation, lineage, ladder, retry) arrive with their milestones. |
 | [AgentProfile](/api/@rulvar/core/interfaces/AgentProfile.md) | The canonical, complete AgentProfile shape; M1 honors description, model, routing, effort, limits, and estCost. A profile never carries a prompt or a schema. |
 | [AgentProfilePermissions](/api/@rulvar/core/interfaces/AgentProfilePermissions.md) | Profile-level permissions. inheritPermissions governs SUBAGENT inheritance (mode c orchestrators, M6+): children get their own config only unless explicitly opted in. It is carried as data here and consumed by the spawning layers. |
@@ -173,6 +174,7 @@ exactly the pieces you need, for example
 | [GateAudit](/api/@rulvar/core/interfaces/GateAudit.md) | The ctx-side verdict for one dispatch, produced by the permission chain (M3-T03). For 'ask' the loop writes the turn checkpoint with the pending state FIRST, then suspend() journals the approval entry (or re-matches an existing one) and parks until a resolution closes it. |
 | [GitWorktreeProviderOptions](/api/@rulvar/core/interfaces/GitWorktreeProviderOptions.md) | - |
 | [GraftBoot](/api/@rulvar/core/interfaces/GraftBoot.md) | Graft bootstrap payload. |
+| [InvocationTable](/api/@rulvar/core/interfaces/InvocationTable.md) | The reduced table plus the per-role aggregate across every span. |
 | [IsolationProvider](/api/@rulvar/core/interfaces/IsolationProvider.md) | - |
 | [JournalOperation](/api/@rulvar/core/interfaces/JournalOperation.md) | One logical journaled operation: its dispatch entry plus its terminal, when present. |
 | [JournalSerializationHook](/api/@rulvar/core/interfaces/JournalSerializationHook.md) | - |
@@ -206,6 +208,7 @@ exactly the pieces you need, for example
 | [PendingExternal](/api/@rulvar/core/interfaces/PendingExternal.md) | Suspensions still open at settle time; producers arrive with M2. |
 | [PendingToolTurn](/api/@rulvar/core/interfaces/PendingToolTurn.md) | Mid-turn suspension state (M3-T03): the turn's already-executed tool results plus the call awaiting an approval resolution, so resume continues the SAME turn without re-running executed tools. |
 | [PermissionConfig](/api/@rulvar/core/interfaces/PermissionConfig.md) | Host-side permission configuration (engine defaults.permissions). |
+| [PhaseRow](/api/@rulvar/core/interfaces/PhaseRow.md) | One phase activation of one agent span. |
 | [PhaseTarget](/api/@rulvar/core/interfaces/PhaseTarget.md) | One serving target of a phase: the primary or a failover fallback. |
 | [PipelineCollected](/api/@rulvar/core/interfaces/PipelineCollected.md) | Pipeline results plus the dropped evidence, returned by onItemError: 'collect'. |
 | [PipelineOpts](/api/@rulvar/core/interfaces/PipelineOpts.md) | - |
@@ -291,7 +294,7 @@ exactly the pieces you need, for example
 | [AdmitRejectReason](/api/@rulvar/core/type-aliases/AdmitRejectReason.md) | The merged reject-code set. |
 | [AdmitVerdict](/api/@rulvar/core/type-aliases/AdmitVerdict.md) | The unified admission verdict (XF-11). One union, closed now; every debit is atomic with its carrying decision entry and embeds the balance-after (DEF-2). |
 | [AgentError](/api/@rulvar/core/type-aliases/AgentError.md) | The structured error value carried on AgentResult.error and journaled inside the agent terminal entry. Deliberately NOT a RulvarError subclass. |
-| [AgentEvents](/api/@rulvar/core/type-aliases/AgentEvents.md) | Agent lifecycle. |
+| [AgentEvents](/api/@rulvar/core/type-aliases/AgentEvents.md) | Agent lifecycle. One logical agent dispatch emits EXACTLY ONE `agent:start`/`agent:end` pair on its span (the start carries the primary role), and each model invocation phase inside the span (`loop`, then possibly `summarize` activations, `finalize`, `extract`) emits its own `agent:phase:start`/`agent:phase:end` pair, so durations, per-phase usage, and attempts are derivable without heuristics (the RV-207 event-model contract; before it, every phase emitted an unpaired extra `agent:start` and consumers pairing starts with the single end computed the LAST phase's duration as the agent's). `reduceInvocationTable` is the official reducer over this vocabulary. |
 | [AgentStatus](/api/@rulvar/core/type-aliases/AgentStatus.md) | - |
 | [AttemptOutcomeClass](/api/@rulvar/core/type-aliases/AttemptOutcomeClass.md) | Attempt outcome classes entering LineageStats. |
 | [Bytes](/api/@rulvar/core/type-aliases/Bytes.md) | L0 byte-blob alias consumed by TranscriptStore and IsolationProvider. |
@@ -612,6 +615,7 @@ exactly the pieces you need, for example
 | [readRunMeta](/api/@rulvar/core/functions/readRunMeta.md) | One run's meta: `getMeta` when the store has the capability, else the full `listRuns` scan. `undefined` means the run is not in the store. |
 | [readTerminationInit](/api/@rulvar/core/functions/readTerminationInit.md) | Reads a termination.init entry's payload; undefined when malformed. |
 | [reconcileRunMeta](/api/@rulvar/core/functions/reconcileRunMeta.md) | Repairs a divergent meta row from the journal: 'meta-behind' and 'stranded' audits rewrite `status` (every other meta field, unknown fields included, is preserved byte for byte), 'suspect' and 'consistent' audits change nothing. Zero model calls, no workflow needed; the crash residue between a settle's journal flush and its meta write repairs without resuming the run at all. |
+| [reduceInvocationTable](/api/@rulvar/core/functions/reduceInvocationTable.md) | Reduces one run's event stream (or any slice of it) to the invocation table. Feed it the events in emission order; both a live stream and a replayed one produce the same usage and cost columns. |
 | [registryKeyRing](/api/@rulvar/core/functions/registryKeyRing.md) | KeyRing over the registry: the live call is projected DOWN into the profile of the stored entry; there is no upward canonization. |
 | [remeasureQueue](/api/@rulvar/core/functions/remeasureQueue.md) | The re-measurement queue: expired eval-measured claims that are still ACTIVE. Just a status filter: the next sweep re-measures these subjects; nothing archives them (archiving would empty the queue and hide the decay). |
 | [replayDisposition](/api/@rulvar/core/functions/replayDisposition.md) | The single canonical predicate, dispatched on the entry's own hashVersion (compatibility lemma: on the v1 domain the tables coincide). Suspended entries are outside the table (the DEF-4 fold consumes them); the alias column (DEF-5) activates with node.link producers in M7: a skipped entry WITHOUT an incoming alias is always skipped. |

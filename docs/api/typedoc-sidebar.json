@@ -657,6 +657,10 @@
             "link": "/api/@rulvar/core/interfaces/AgentIdentityInput.md"
           },
           {
+            "text": "AgentInvocationRow",
+            "link": "/api/@rulvar/core/interfaces/AgentInvocationRow.md"
+          },
+          {
             "text": "AgentOpts",
             "link": "/api/@rulvar/core/interfaces/AgentOpts.md"
           },
@@ -905,6 +909,10 @@
             "link": "/api/@rulvar/core/interfaces/GraftBoot.md"
           },
           {
+            "text": "InvocationTable",
+            "link": "/api/@rulvar/core/interfaces/InvocationTable.md"
+          },
+          {
             "text": "IsolationProvider",
             "link": "/api/@rulvar/core/interfaces/IsolationProvider.md"
           },
@@ -1035,6 +1043,10 @@
           {
             "text": "PermissionConfig",
             "link": "/api/@rulvar/core/interfaces/PermissionConfig.md"
+          },
+          {
+            "text": "PhaseRow",
+            "link": "/api/@rulvar/core/interfaces/PhaseRow.md"
           },
           {
             "text": "PhaseTarget",
@@ -2617,6 +2629,10 @@
           {
             "text": "reconcileRunMeta",
             "link": "/api/@rulvar/core/functions/reconcileRunMeta.md"
+          },
+          {
+            "text": "reduceInvocationTable",
+            "link": "/api/@rulvar/core/functions/reduceInvocationTable.md"
           },
           {
             "text": "registryKeyRing",
@@ -4366,6 +4382,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/AgentIdentityInput.md"
           },
           {
+            "text": "AgentInvocationRow",
+            "link": "/api/@rulvar/rulvar/interfaces/AgentInvocationRow.md"
+          },
+          {
             "text": "AgentOpts",
             "link": "/api/@rulvar/rulvar/interfaces/AgentOpts.md"
           },
@@ -4618,6 +4638,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/GraftBoot.md"
           },
           {
+            "text": "InvocationTable",
+            "link": "/api/@rulvar/rulvar/interfaces/InvocationTable.md"
+          },
+          {
             "text": "IsolationProvider",
             "link": "/api/@rulvar/rulvar/interfaces/IsolationProvider.md"
           },
@@ -4752,6 +4776,10 @@
           {
             "text": "PermissionConfig",
             "link": "/api/@rulvar/rulvar/interfaces/PermissionConfig.md"
+          },
+          {
+            "text": "PhaseRow",
+            "link": "/api/@rulvar/rulvar/interfaces/PhaseRow.md"
           },
           {
             "text": "PhaseTarget",
@@ -6386,6 +6414,10 @@
           {
             "text": "reconcileRunMeta",
             "link": "/api/@rulvar/rulvar/functions/reconcileRunMeta.md"
+          },
+          {
+            "text": "reduceInvocationTable",
+            "link": "/api/@rulvar/rulvar/functions/reduceInvocationTable.md"
           },
           {
             "text": "registryKeyRing",

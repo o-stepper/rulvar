@@ -123,6 +123,7 @@ const engine = createEngine({
 | [AdmitLineage](/api/@rulvar/rulvar/interfaces/AdmitLineage.md) | The lineage block every non-reject verdict carries (DEF-3). |
 | [AdmitSpec](/api/@rulvar/rulvar/interfaces/AdmitSpec.md) | What the admission point needs to know about one spawn. |
 | [AgentIdentityInput](/api/@rulvar/rulvar/interfaces/AgentIdentityInput.md) | Spawn entries: ctx.agent and orchestrator spawn tools (kind 'agent'). |
+| [AgentInvocationRow](/api/@rulvar/rulvar/interfaces/AgentInvocationRow.md) | One logical agent span. |
 | [AgentOpts](/api/@rulvar/rulvar/interfaces/AgentOpts.md) | Per-spawn options. The identity split is normative: agentType, model/routing/effort (the requested modelSpec), schema (schemaHash), and key enter the content key; everything else is policy or telemetry and never re-keys entries. Fields whose machinery lands later (tools, isolation, escalation, lineage, ladder, retry) arrive with their milestones. |
 | [AgentProfile](/api/@rulvar/rulvar/interfaces/AgentProfile.md) | The canonical, complete AgentProfile shape; M1 honors description, model, routing, effort, limits, and estCost. A profile never carries a prompt or a schema. |
 | [AgentProfilePermissions](/api/@rulvar/rulvar/interfaces/AgentProfilePermissions.md) | Profile-level permissions. inheritPermissions governs SUBAGENT inheritance (mode c orchestrators, M6+): children get their own config only unless explicitly opted in. It is carried as data here and consumed by the spawning layers. |
@@ -186,6 +187,7 @@ const engine = createEngine({
 | [GateAudit](/api/@rulvar/rulvar/interfaces/GateAudit.md) | The ctx-side verdict for one dispatch, produced by the permission chain (M3-T03). For 'ask' the loop writes the turn checkpoint with the pending state FIRST, then suspend() journals the approval entry (or re-matches an existing one) and parks until a resolution closes it. |
 | [GitWorktreeProviderOptions](/api/@rulvar/rulvar/interfaces/GitWorktreeProviderOptions.md) | - |
 | [GraftBoot](/api/@rulvar/rulvar/interfaces/GraftBoot.md) | Graft bootstrap payload. |
+| [InvocationTable](/api/@rulvar/rulvar/interfaces/InvocationTable.md) | The reduced table plus the per-role aggregate across every span. |
 | [IsolationProvider](/api/@rulvar/rulvar/interfaces/IsolationProvider.md) | - |
 | [JournalOperation](/api/@rulvar/rulvar/interfaces/JournalOperation.md) | One logical journaled operation: its dispatch entry plus its terminal, when present. |
 | [JournalSerializationHook](/api/@rulvar/rulvar/interfaces/JournalSerializationHook.md) | - |
@@ -220,6 +222,7 @@ const engine = createEngine({
 | [PendingExternal](/api/@rulvar/rulvar/interfaces/PendingExternal.md) | Suspensions still open at settle time; producers arrive with M2. |
 | [PendingToolTurn](/api/@rulvar/rulvar/interfaces/PendingToolTurn.md) | Mid-turn suspension state (M3-T03): the turn's already-executed tool results plus the call awaiting an approval resolution, so resume continues the SAME turn without re-running executed tools. |
 | [PermissionConfig](/api/@rulvar/rulvar/interfaces/PermissionConfig.md) | Host-side permission configuration (engine defaults.permissions). |
+| [PhaseRow](/api/@rulvar/rulvar/interfaces/PhaseRow.md) | One phase activation of one agent span. |
 | [PhaseTarget](/api/@rulvar/rulvar/interfaces/PhaseTarget.md) | One serving target of a phase: the primary or a failover fallback. |
 | [PipelineCollected](/api/@rulvar/rulvar/interfaces/PipelineCollected.md) | Pipeline results plus the dropped evidence, returned by onItemError: 'collect'. |
 | [PipelineOpts](/api/@rulvar/rulvar/interfaces/PipelineOpts.md) | - |
@@ -310,7 +313,7 @@ const engine = createEngine({
 | [AdmitRejectReason](/api/@rulvar/rulvar/type-aliases/AdmitRejectReason.md) | The merged reject-code set. |
 | [AdmitVerdict](/api/@rulvar/rulvar/type-aliases/AdmitVerdict.md) | The unified admission verdict (XF-11). One union, closed now; every debit is atomic with its carrying decision entry and embeds the balance-after (DEF-2). |
 | [AgentError](/api/@rulvar/rulvar/type-aliases/AgentError.md) | The structured error value carried on AgentResult.error and journaled inside the agent terminal entry. Deliberately NOT a RulvarError subclass. |
-| [AgentEvents](/api/@rulvar/rulvar/type-aliases/AgentEvents.md) | Agent lifecycle. |
+| [AgentEvents](/api/@rulvar/rulvar/type-aliases/AgentEvents.md) | Agent lifecycle. One logical agent dispatch emits EXACTLY ONE `agent:start`/`agent:end` pair on its span (the start carries the primary role), and each model invocation phase inside the span (`loop`, then possibly `summarize` activations, `finalize`, `extract`) emits its own `agent:phase:start`/`agent:phase:end` pair, so durations, per-phase usage, and attempts are derivable without heuristics (the RV-207 event-model contract; before it, every phase emitted an unpaired extra `agent:start` and consumers pairing starts with the single end computed the LAST phase's duration as the agent's). `reduceInvocationTable` is the official reducer over this vocabulary. |
 | [AgentStatus](/api/@rulvar/rulvar/type-aliases/AgentStatus.md) | - |
 | [AttemptOutcomeClass](/api/@rulvar/rulvar/type-aliases/AttemptOutcomeClass.md) | Attempt outcome classes entering LineageStats. |
 | [Bytes](/api/@rulvar/rulvar/type-aliases/Bytes.md) | L0 byte-blob alias consumed by TranscriptStore and IsolationProvider. |
@@ -639,6 +642,7 @@ const engine = createEngine({
 | [readRunMeta](/api/@rulvar/rulvar/functions/readRunMeta.md) | One run's meta: `getMeta` when the store has the capability, else the full `listRuns` scan. `undefined` means the run is not in the store. |
 | [readTerminationInit](/api/@rulvar/rulvar/functions/readTerminationInit.md) | Reads a termination.init entry's payload; undefined when malformed. |
 | [reconcileRunMeta](/api/@rulvar/rulvar/functions/reconcileRunMeta.md) | Repairs a divergent meta row from the journal: 'meta-behind' and 'stranded' audits rewrite `status` (every other meta field, unknown fields included, is preserved byte for byte), 'suspect' and 'consistent' audits change nothing. Zero model calls, no workflow needed; the crash residue between a settle's journal flush and its meta write repairs without resuming the run at all. |
+| [reduceInvocationTable](/api/@rulvar/rulvar/functions/reduceInvocationTable.md) | Reduces one run's event stream (or any slice of it) to the invocation table. Feed it the events in emission order; both a live stream and a replayed one produce the same usage and cost columns. |
 | [registryKeyRing](/api/@rulvar/rulvar/functions/registryKeyRing.md) | KeyRing over the registry: the live call is projected DOWN into the profile of the stored entry; there is no upward canonization. |
 | [remeasureQueue](/api/@rulvar/rulvar/functions/remeasureQueue.md) | The re-measurement queue: expired eval-measured claims that are still ACTIVE. Just a status filter: the next sweep re-measures these subjects; nothing archives them (archiving would empty the queue and hide the decay). |
 | [renderProgress](/api/@rulvar/rulvar/functions/renderProgress.md) | Renders events until the stream ends (the run settled). Returns after the final run:end line. |

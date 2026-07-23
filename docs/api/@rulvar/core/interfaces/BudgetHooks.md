@@ -6,7 +6,7 @@
 
 # Interface: BudgetHooks
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:162](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L162)
+Defined in: [packages/core/src/runtime/agent-loop.ts:169](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L169)
 
 Budget hooks bound by the three-layer budget.
 
@@ -14,8 +14,8 @@ Budget hooks bound by the three-layer budget.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-maxaffordableoutputtokens"></a> `maxAffordableOutputTokens?` | (`servedBy`, `estimatedInputTokens`) => `number` \| `undefined` | Layer 2b, the pre-dispatch output bound: the output tokens the remaining budget still affords from `servedBy` for a prompt of `estimatedInputTokens`. The dispatch clamps the request's maxOutputTokens to it and denies the turn entirely when not even one output token fits. Undefined = unbounded (no ceiling, no price row, or free output). | [packages/core/src/runtime/agent-loop.ts:173](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L173) |
-| <a id="property-signal"></a> `signal?` | `AbortSignal` | Layer 3: the ceiling AbortSignal. | [packages/core/src/runtime/agent-loop.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L180) |
+| <a id="property-maxaffordableoutputtokens"></a> `maxAffordableOutputTokens?` | (`servedBy`, `estimatedInputTokens`) => `number` \| `undefined` | Layer 2b, the pre-dispatch output bound: the output tokens the remaining budget still affords from `servedBy` for a prompt of `estimatedInputTokens`. The dispatch clamps the request's maxOutputTokens to it and denies the turn entirely when not even one output token fits. Undefined = unbounded (no ceiling, no price row, or free output). | [packages/core/src/runtime/agent-loop.ts:180](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L180) |
+| <a id="property-signal"></a> `signal?` | `AbortSignal` | Layer 3: the ceiling AbortSignal. | [packages/core/src/runtime/agent-loop.ts:187](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L187) |
 
 ## Methods
 
@@ -25,7 +25,7 @@ Budget hooks bound by the three-layer budget.
 beforeTurn(): void;
 ```
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:164](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L164)
+Defined in: [packages/core/src/runtime/agent-loop.ts:171](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L171)
 
 Layer 2: before every turn; throws BudgetExhaustedError to block dispatch.
 
@@ -41,7 +41,7 @@ Layer 2: before every turn; throws BudgetExhaustedError to block dispatch.
 onUsage(usage, servedBy): void;
 ```
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:178](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L178)
+Defined in: [packages/core/src/runtime/agent-loop.ts:185](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L185)
 
 Live usage accounting; layer 3 may respond by aborting `signal`.
 

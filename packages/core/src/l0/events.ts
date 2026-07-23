@@ -49,10 +49,62 @@ export type CoreEvents =
   | { type: 'child:start'; workflow: string; scope: string }
   | { type: 'child:end'; workflow: string; scope: string; status: string };
 
-/** Agent lifecycle. */
+/**
+ * Agent lifecycle. One logical agent dispatch emits EXACTLY ONE
+ * `agent:start`/`agent:end` pair on its span (the start carries the
+ * primary role), and each model invocation phase inside the span
+ * (`loop`, then possibly `summarize` activations, `finalize`,
+ * `extract`) emits its own `agent:phase:start`/`agent:phase:end` pair,
+ * so durations, per-phase usage, and attempts are derivable without
+ * heuristics (the RV-207 event-model contract; before it, every phase
+ * emitted an unpaired extra `agent:start` and consumers pairing starts
+ * with the single end computed the LAST phase's duration as the
+ * agent's). `reduceInvocationTable` is the official reducer over this
+ * vocabulary.
+ */
 export type AgentEvents =
   | { type: 'agent:queued'; agentType: string; label?: string }
   | { type: 'agent:start'; agentType: string; label?: string; model: string; role: string }
+  | {
+      type: 'agent:phase:start';
+      agentType: string;
+      label?: string;
+      /** The invocation role this phase activation runs as. */
+      role: string;
+      /** The model the activation resolved to (fallbacks may serve another; the end event reports the server). */
+      model: string;
+      /**
+       * 1-based activation ordinal within the span, unique per
+       * activation (a summarize that fires three times gets three
+       * pairs). Key phases by (spanId, invocation).
+       */
+      invocation: number;
+    }
+  | {
+      type: 'agent:phase:end';
+      agentType: string;
+      label?: string;
+      role: string;
+      /** The model that actually served the activation's last attempt. */
+      model: string;
+      invocation: number;
+      /**
+       * Wall-clock activation duration. Live telemetry only: replayed
+       * phase pairs (reconstructed from the terminal entry's usage
+       * slices) carry 0.
+       */
+      durationMs: number;
+      /** The usage this activation added to its (role, model) slices. */
+      usage: Usage;
+      /** That usage priced at each serving model's own rate. */
+      costUsd: number;
+      outcome: 'ok' | 'error';
+      /**
+       * Transport retries inside this activation. Present only when
+       * greater than zero; live telemetry only (absent on replay).
+       */
+      retries?: number;
+    }
   | {
       type: 'agent:end';
       agentType: string;
@@ -69,6 +121,13 @@ export type AgentEvents =
        * terminal journal entry's usageApprox.
        */
       usageApprox?: boolean;
+      /**
+       * Total transport retries across the span's activations. Present
+       * only when greater than zero; live telemetry only, never
+       * journaled, so a replayed agent:end omits it (absent means "zero
+       * or unknown").
+       */
+      retryCount?: number;
     }
   | { type: 'agent:error'; agentType: string; label?: string; error: WireError; willRetry: boolean }
   | { type: 'agent:schema-retry'; agentType: string; attempt: number; maxAttempts: number }
