@@ -1,4 +1,4 @@
-import { CompiledWorkflow, DeclaredLadder, Effort, Engine, EvidenceRef, Json, JsonSchema, KnowledgeSnapshot, ModelClaim, ModelKnowledgeStore, ModelRef, ModelSpec, RunOutcome, SchemaSpec, TaskClass, Usage, WireError, Workflow } from "@rulvar/core";
+import { CompiledWorkflow, DeclaredLadder, Effort, Engine, EvidenceRef, Json, JsonSchema, KnowledgeSnapshot, ModelClaim, ModelKnowledgeStore, ModelRef, ModelSpec, RunOutcome, SchemaSpec, TaskClass, Usage, WireError, Workflow, WorkflowEvent } from "@rulvar/core";
 
 //#region src/envelope.d.ts
 /** Thrown when authorizing a run's ceiling would exceed the envelope. */
@@ -391,6 +391,145 @@ declare function flipStaleOnCanaryDrift(store: ModelKnowledgeStore, model: Model
   attempts?: number;
 }): Promise<CanaryDriftReport>;
 //#endregion
+//#region src/benchmark.d.ts
+/** One benchmark: a workflow measured over a series of repeats. */
+interface BenchmarkSpec {
+  name: string;
+  workflow: Workflow | CompiledWorkflow;
+  args: Json;
+  /**
+  * Scored repeats to attempt; a positive integer. The regression
+  * protocol this kit serves calls for at least 5 before a series is
+  * citable; the kit does not enforce that floor, it reports what ran.
+  */
+  repeats: number;
+  /**
+  * Per-run graders over the settled outcome, the same contract the
+  * eval runners use (golden, rubric, and LLM-judge graders compose
+  * unchanged). A failing grader rejects the run from scoring; a
+  * throwing grader is a defect of the spec and propagates.
+  */
+  graders?: Grader[];
+}
+/** A per-run metric extractor over the run's full event stream. */
+type BenchmarkMetricExtractor = (events: readonly WorkflowEvent[], outcome: RunOutcome<Json>) => number;
+interface RunBenchmarkOptions {
+  /** Run ceiling for each target run. */
+  budgetUsd?: number;
+  /** Run ceiling for each judge run a grader performs. */
+  judgeBudgetUsd?: number;
+  /**
+  * Aggregate debit-only envelope: every target and judge run
+  * authorizes its ceiling here BEFORE starting, exactly like the eval
+  * runners. A target-run refusal throws SweepBudgetError; a judge-run
+  * refusal rejects that run from scoring as 'judge:refused'.
+  */
+  envelope?: SpendEnvelope;
+  /**
+  * Host-supplied fingerprint labels: the commit, the pricing snapshot
+  * id, the corpus hash, the series name (cold/warm). The kit never
+  * shells out or guesses; identity the host does not supply is not
+  * recorded.
+  */
+  labels?: Record<string, string>;
+  /** Named per-run metric extractors; each scored series gets percentiles. */
+  metrics?: Record<string, BenchmarkMetricExtractor>;
+}
+/** Nearest-rank percentile summary of one scored series. */
+interface BenchmarkPercentiles {
+  min: number;
+  p50: number;
+  p90: number;
+  max: number;
+  mean: number;
+}
+/** The replay-strict verification verdict of one run. */
+interface BenchmarkVerification {
+  /** Every clause below held. */
+  verified: boolean;
+  /** The dry-run resume had zero misses and zero reruns. */
+  pureReplay: boolean;
+  /** The replayed settle status equals the journaled one. */
+  statusReproduced: boolean;
+  /** The journaled output digest, when the settle recorded one. */
+  outputHash?: string;
+  /** The digest of the replayed result, when hashable. */
+  replayedOutputHash?: string;
+  /**
+  * Digest equality where comparable. A run that settled ok with a
+  * value but no journaled digest (a non-JCS-serializable result)
+  * fails this clause explicitly: a benchmark demands comparable
+  * outputs. A run with no output value passes it vacuously.
+  */
+  outputReproduced: boolean;
+  /** Workflow-provenance determinism warnings across live and replay. */
+  determinismWarnings: number;
+  /** Machine-readable failure reasons; empty when verified. */
+  reasons: string[];
+}
+/** The full record of one benchmark run, scored or not. */
+interface BenchmarkRunRecord {
+  /** 1-based ordinal in execution order. */
+  ordinal: number;
+  runId: string;
+  status: RunOutcome<Json>["status"];
+  /** Counted into the percentile series. */
+  scored: boolean;
+  /** Why the run was excluded; empty when scored. */
+  rejectedReasons: string[];
+  /** run:start to run:end, from event timestamps. */
+  wallMs: number;
+  /** The target run's cost (judge runs are separate). */
+  costUsd: number;
+  /** The judge-run share this run's grading spent. */
+  judgeCostUsd: number;
+  usage: Usage;
+  /** agent:end events on the live stream (logical dispatches). */
+  agentDispatches: number;
+  /** agent:phase:end events on the live stream (model activations). */
+  invocations: number;
+  verdicts: GraderVerdict[];
+  verification: BenchmarkVerification;
+  /** Extractor values for this run. */
+  metrics: Record<string, number>;
+  error?: WireError;
+}
+/** Where the numbers came from; percentiles without this are hearsay. */
+interface BenchmarkFingerprint {
+  node: string;
+  platform: string;
+  arch: string;
+  /** Resolved versions of the rulvar packages doing the measuring. */
+  packages: Record<string, string>;
+  /** The first run's run:start timestamp (event time, no clock read). */
+  startedAt?: string;
+  labels?: Record<string, string>;
+}
+interface BenchmarkReport {
+  name: string;
+  /** Repeats attempted (equals runs.length). */
+  repeats: number;
+  /** Runs that entered the percentile series. */
+  scored: number;
+  runs: BenchmarkRunRecord[];
+  /** Absent when no run scored: the kit never fabricates a series. */
+  wallMs?: BenchmarkPercentiles;
+  costUsd?: BenchmarkPercentiles;
+  /** Percentiles per named extractor, over scored runs. */
+  metrics: Record<string, BenchmarkPercentiles>;
+  /** Every target and judge run, scored or rejected (honest spend). */
+  totalCostUsd: number;
+  judgeCostUsd: number;
+  fingerprint: BenchmarkFingerprint;
+}
+/**
+* Runs the spec's repeats sequentially and reports the verified series.
+* Throws only for spec defects (invalid repeats, a throwing grader or
+* extractor) and for a target-run envelope refusal; everything a run
+* does wrong lands in its record instead.
+*/
+declare function runBenchmark(engine: Engine, spec: BenchmarkSpec, options?: RunBenchmarkOptions): Promise<BenchmarkReport>;
+//#endregion
 //#region src/sweeps.d.ts
 /** One fixed pool member; effort is part of the claim subject identity. */
 interface SweepModel {
@@ -610,4 +749,4 @@ declare function runValueCheckpoint(checkpointPool: CheckpointPool, options: Run
 /** The deterministic render for the M12 gate docs amendment. */
 declare function renderCheckpointReport(report: CheckpointReport): string;
 //#endregion
-export { type CanaryDriftReport, type CanaryProbeSet, type CanaryReport, type CanaryRunOptions, type CheckpointArm, type CheckpointCell, type CheckpointLadder, type CheckpointPool, type CheckpointReport, type CriterionOneReport, type CriterionTwoReport, type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type OrchestratedCase, type RubricCriterion, type RubricGraderOptions, type RunCheckpointOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, SpendEnvelope, SweepBudgetError, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, agentTypeRuleHolds, canaryFingerprint, commitEvalMeasured, evalMeasuredClaim, flipStaleOnCanaryDrift, goldenGrader, judgeGrader, normalizeCanaryOutput, renderCheckpointReport, rubricGrader, runCanary, runEvalCase, runEvalMatrix, runEvalSuite, runSweepMatrix, runValueCheckpoint, rungRuleHolds };
+export { type BenchmarkFingerprint, type BenchmarkMetricExtractor, type BenchmarkPercentiles, type BenchmarkReport, type BenchmarkRunRecord, type BenchmarkSpec, type BenchmarkVerification, type CanaryDriftReport, type CanaryProbeSet, type CanaryReport, type CanaryRunOptions, type CheckpointArm, type CheckpointCell, type CheckpointLadder, type CheckpointPool, type CheckpointReport, type CriterionOneReport, type CriterionTwoReport, type EvalCase, type EvalCaseResult, type EvalCommitterOptions, EvalJudgeError, type EvalMatrixReport, type EvalSuiteResult, type GoldenGraderOptions, type Grader, type GraderContext, type GraderVerdict, JUDGE_VERDICT_SCHEMA, type JudgeGraderOptions, type JudgeSpec, type MatrixCell, type MatrixCellReport, type MeasuredClaimInput, type OrchestratedCase, type RubricCriterion, type RubricGraderOptions, type RunBenchmarkOptions, type RunCheckpointOptions, type RunEvalCaseOptions, type RunEvalSuiteOptions, type RunSweepOptions, SWEEP_THRESHOLD_DEFAULTS, SpendEnvelope, SweepBudgetError, type SweepCase, type SweepCellReport, type SweepModel, type SweepPool, type SweepReport, type SweepThresholds, agentTypeRuleHolds, canaryFingerprint, commitEvalMeasured, evalMeasuredClaim, flipStaleOnCanaryDrift, goldenGrader, judgeGrader, normalizeCanaryOutput, renderCheckpointReport, rubricGrader, runBenchmark, runCanary, runEvalCase, runEvalMatrix, runEvalSuite, runSweepMatrix, runValueCheckpoint, rungRuleHolds };

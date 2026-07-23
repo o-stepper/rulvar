@@ -2878,6 +2878,30 @@
         "collapsed": true,
         "items": [
           {
+            "text": "BenchmarkFingerprint",
+            "link": "/api/@rulvar/evals/interfaces/BenchmarkFingerprint.md"
+          },
+          {
+            "text": "BenchmarkPercentiles",
+            "link": "/api/@rulvar/evals/interfaces/BenchmarkPercentiles.md"
+          },
+          {
+            "text": "BenchmarkReport",
+            "link": "/api/@rulvar/evals/interfaces/BenchmarkReport.md"
+          },
+          {
+            "text": "BenchmarkRunRecord",
+            "link": "/api/@rulvar/evals/interfaces/BenchmarkRunRecord.md"
+          },
+          {
+            "text": "BenchmarkSpec",
+            "link": "/api/@rulvar/evals/interfaces/BenchmarkSpec.md"
+          },
+          {
+            "text": "BenchmarkVerification",
+            "link": "/api/@rulvar/evals/interfaces/BenchmarkVerification.md"
+          },
+          {
             "text": "CanaryDriftReport",
             "link": "/api/@rulvar/evals/interfaces/CanaryDriftReport.md"
           },
@@ -2990,6 +3014,10 @@
             "link": "/api/@rulvar/evals/interfaces/RubricGraderOptions.md"
           },
           {
+            "text": "RunBenchmarkOptions",
+            "link": "/api/@rulvar/evals/interfaces/RunBenchmarkOptions.md"
+          },
+          {
             "text": "RunCheckpointOptions",
             "link": "/api/@rulvar/evals/interfaces/RunCheckpointOptions.md"
           },
@@ -3028,6 +3056,16 @@
           {
             "text": "SweepThresholds",
             "link": "/api/@rulvar/evals/interfaces/SweepThresholds.md"
+          }
+        ]
+      },
+      {
+        "text": "Type Aliases",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "BenchmarkMetricExtractor",
+            "link": "/api/@rulvar/evals/type-aliases/BenchmarkMetricExtractor.md"
           }
         ]
       },
@@ -3088,6 +3126,10 @@
           {
             "text": "rubricGrader",
             "link": "/api/@rulvar/evals/functions/rubricGrader.md"
+          },
+          {
+            "text": "runBenchmark",
+            "link": "/api/@rulvar/evals/functions/runBenchmark.md"
           },
           {
             "text": "runCanary",
