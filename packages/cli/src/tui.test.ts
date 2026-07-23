@@ -62,6 +62,59 @@ describe('renderEventLine terminal safety', () => {
     const line = renderEventLine(ev({ type: 'phase:start', phase: 'gather' }, 'root'));
     expect(line).toBe('phase gather');
   });
+
+  it('renders the RV-207 phase pair and retry facts', () => {
+    const usage = { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    expect(
+      renderEventLine(
+        ev(
+          {
+            type: 'agent:phase:start',
+            agentType: 'reviewer',
+            role: 'extract',
+            model: 'fake:extract',
+            invocation: 2,
+          },
+          'a1',
+        ),
+      ),
+    ).toBe('agent reviewer extract phase on fake:extract');
+    expect(
+      renderEventLine(
+        ev(
+          {
+            type: 'agent:phase:end',
+            agentType: 'reviewer',
+            role: 'loop',
+            model: 'fake:model',
+            invocation: 1,
+            durationMs: 59,
+            usage,
+            costUsd: 0.01,
+            outcome: 'ok',
+            retries: 2,
+          },
+          'a1',
+        ),
+      ),
+    ).toBe('agent reviewer loop phase ok ($0.0100, 15 tok, 59ms, 2 retries)');
+    expect(
+      renderEventLine(
+        ev(
+          {
+            type: 'agent:end',
+            agentType: 'reviewer',
+            status: 'ok',
+            usage,
+            costUsd: 0.012,
+            entryRef: 2,
+            retryCount: 2,
+          },
+          'a1',
+        ),
+      ),
+    ).toBe('agent reviewer ok ($0.0120, 15 tok, 2 retries)');
+  });
 });
 
 describe('malformed external events (v1.22.0 review P2-3)', () => {

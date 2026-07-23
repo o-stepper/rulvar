@@ -155,7 +155,11 @@ describe('compaction in the agent loop (M4-T03)', () => {
     const last = states.at(-1);
     expect(last?.compaction).toEqual([2]);
     expect(last?.messages).toHaveLength(2);
-    expect(events.ofType('agent:start').map((e) => e.role)).toEqual(['loop', 'summarize']);
+    // One agent:start; the compaction is its own paired phase
+    // activation (the RV-207 contract).
+    expect(events.ofType('agent:start').map((e) => e.role)).toEqual(['loop']);
+    expect(events.ofType('agent:phase:start').map((e) => e.role)).toEqual(['loop', 'summarize']);
+    expect(events.ofType('agent:phase:end').map((e) => e.role)).toEqual(['summarize', 'loop']);
 
     // Resume from that checkpoint: the history is already compact, the
     // run finishes without any re-summarize (acceptance).

@@ -13,7 +13,7 @@ function toOtel(
 options?): Promise<number>;
 ```
 
-Defined in: [packages/cli/src/otel.ts:128](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L128)
+Defined in: [packages/cli/src/otel.ts:169](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/otel.ts#L169)
 
 Exports one settled run's event stream onto a tracer. The run's
 events are consumed in seq order; span openers start spans, the

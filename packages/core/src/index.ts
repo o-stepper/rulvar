@@ -84,6 +84,12 @@ export * from './orchestrator/wake.js';
 export * from './engine/ctx.js';
 export type * from './l0/events.js';
 export * from './engine/events.js';
+export {
+  reduceInvocationTable,
+  type AgentInvocationRow,
+  type InvocationTable,
+  type PhaseRow,
+} from './l0/telemetry-reduce.js';
 export * from './engine/run-handle.js';
 export * from './engine/engine.js';
 export * from './runner/inprocess.js';

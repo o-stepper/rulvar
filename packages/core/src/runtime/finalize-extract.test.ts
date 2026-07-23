@@ -105,9 +105,13 @@ describe('finalize synthesis (M4-T01)', () => {
     const lastMsg = synthesisReq?.messages.at(-1);
     expect(lastMsg?.role).toBe('user');
     expect(lastMsg?.parts).toEqual([{ type: 'text', text: FINALIZE_SYNTHESIS_INSTRUCTION }]);
-    const starts = events.ofType('agent:start');
-    expect(starts.map((e) => e.role)).toEqual(['loop', 'finalize']);
-    expect(starts[1]?.model).toBe('strong:big');
+    // One agent:start per span (the RV-207 contract); the phases pair
+    // up on their own events, finalize on its routed model.
+    expect(events.ofType('agent:start').map((e) => e.role)).toEqual(['loop']);
+    const phases = events.ofType('agent:phase:start');
+    expect(phases.map((e) => e.role)).toEqual(['loop', 'finalize']);
+    expect(phases[1]?.model).toBe('strong:big');
+    expect(events.ofType('agent:phase:end').map((e) => e.role)).toEqual(['loop', 'finalize']);
   });
 
   it('with a schema, extract runs AFTER the synthesis over the transcript including it', async () => {
@@ -145,8 +149,18 @@ describe('finalize synthesis (M4-T01)', () => {
       m.parts.filter((p) => p.type === 'text').map((p) => p.text),
     );
     expect(texts).toContain('the verdict is pass');
-    const starts = events.ofType('agent:start');
-    expect(starts.map((e) => e.role)).toEqual(['loop', 'finalize', 'extract']);
+    // One agent:start; the three phases each emit a paired activation.
+    expect(events.ofType('agent:start').map((e) => e.role)).toEqual(['loop']);
+    expect(events.ofType('agent:phase:start').map((e) => e.role)).toEqual([
+      'loop',
+      'finalize',
+      'extract',
+    ]);
+    expect(events.ofType('agent:phase:end').map((e) => e.role)).toEqual([
+      'loop',
+      'finalize',
+      'extract',
+    ]);
     // The loop requests never carried the schema: it rides neither the
     // loop nor the synthesis when finalize is routed.
     for (const req of [...loopAdapter.calls, ...finalizeAdapter.calls]) {

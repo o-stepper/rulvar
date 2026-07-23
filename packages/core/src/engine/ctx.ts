@@ -56,7 +56,12 @@ import {
   workflowScope,
 } from '../journal/scope.js';
 import type { Replayer } from '../journal/replayer.js';
-import { priceEntryUsage, type JournalEntry, type UsageSlice } from '../l0/entries.js';
+import {
+  entryUsageSlices,
+  priceEntryUsage,
+  type JournalEntry,
+  type UsageSlice,
+} from '../l0/entries.js';
 import { selectStructuredOutputTier } from '../model/caps.js';
 import { fallbackTriggerOf, type FallbackField, type FallbackTrigger } from '../model/failover.js';
 import type { KeyedLimiter } from '../model/concurrency.js';
@@ -1293,6 +1298,37 @@ export function createCtx(
           true,
         );
       }
+      // One replayed phase pair per recorded (role, model) slice: the
+      // official reducer builds IDENTICAL usage and cost tables from a
+      // live and a replayed stream. Durations and retries are live-only
+      // fidelity, so replayed pairs carry durationMs 0 and no retries.
+      if (terminal !== undefined) {
+        entryUsageSlices(terminal).forEach((slice, index) => {
+          const priced = internals.priceUsd(slice.servedBy, slice.usage) ?? 0;
+          const sliceUsd = Number.isFinite(priced) && priced > 0 ? priced : 0;
+          const common = {
+            agentType,
+            label: opts.label,
+            role: slice.role ?? primaryRole,
+            model: slice.servedBy,
+            invocation: index + 1,
+          };
+          internals.events.emit({ type: 'agent:phase:start', ...common }, spanId, true);
+          internals.events.emit(
+            {
+              type: 'agent:phase:end',
+              ...common,
+              durationMs: 0,
+              usage: slice.usage,
+              costUsd: sliceUsd,
+              outcome:
+                terminal.status === 'error' || terminal.status === 'cancelled' ? 'error' : 'ok',
+            },
+            spanId,
+            true,
+          );
+        });
+      }
       internals.events.emit(
         {
           type: 'agent:end',
@@ -2126,6 +2162,11 @@ export function createCtx(
         costUsd: result.costUsd,
         entryRef: terminal.seq,
         ...(resultUsageApprox ? { usageApprox: true } : {}),
+        // Live telemetry only, never journaled: a replayed agent:end
+        // omits it (absent means "zero or unknown").
+        ...(result.transportRetries !== undefined && result.transportRetries > 0
+          ? { retryCount: result.transportRetries }
+          : {}),
       },
       spanId,
     );

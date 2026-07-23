@@ -81,6 +81,14 @@ describe('RetryPolicy under the journal (M4-T05)', () => {
     expect(slept).toEqual([500, 1000]);
     const retries = events.ofType('agent:error').filter((e) => e.willRetry === true);
     expect(retries).toHaveLength(2);
+    // The RV-207 attempt accounting: the retries surface as a counted
+    // fact on the phase pair and on the result (live telemetry only,
+    // never journaled).
+    expect(result.transportRetries).toBe(2);
+    const phaseEnds = events.ofType('agent:phase:end');
+    expect(phaseEnds).toHaveLength(1);
+    expect(phaseEnds[0]?.role).toBe('loop');
+    expect(phaseEnds[0]?.retries).toBe(2);
   });
 
   it('non-retryable failures go terminal immediately (task-class never retries)', async () => {
