@@ -512,6 +512,7 @@ export class ExternalRegistry {
         // closed segment must never execute again.
         if (!this.closedFlag) {
           waiter.resolve(attempt.value);
+          return { ...outcome, woke: true };
         }
       }
     }
@@ -545,6 +546,7 @@ export class ExternalRegistry {
       // continues the closed body.
       if (!this.closedFlag) {
         waiter.resolve(value);
+        return { ...outcome, woke: true };
       }
     }
     return outcome;

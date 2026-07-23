@@ -50,6 +50,7 @@ export * from './engine/external.js';
 export * from './stores/inmemory.js';
 export * from './stores/meta-lookup.js';
 export * from './stores/fenced.js';
+export * from './stores/reconcile.js';
 export * from './stores/jsonl.js';
 export * from './engine/cost-report.js';
 export * from './engine/run-profiles.js';

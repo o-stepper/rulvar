@@ -32,6 +32,7 @@ The canonical grammar, with no aliases:
 rulvar run <file|name> [--args JSON] [--store PATH] [--budget-usd N] [--profile NAME] [--strict]
 rulvar resume <runId> [--args JSON] [--store PATH] [--dry-run] [--allow-args-change] [--strict]
 rulvar runs ls [--store PATH]
+rulvar runs audit [--store PATH] [--repair]
 rulvar inspect <runId> [--store PATH]
 rulvar plan "<goal>" [--planning-budget-usd N] [--budget-usd N] [--allow-unbounded] [--dry-run]
 rulvar kb <list | inbox | gate | sweep>
@@ -42,6 +43,7 @@ rulvar kb <list | inbox | gate | sweep>
 | `run` | Start a workflow from a file path or a registered name, drive it to a settled outcome, exit with a code reflecting it. |
 | `resume` | Rebind a journal to its workflow and continue; fully replayed prefixes cost zero live calls. |
 | `runs ls` | List run metadata (id, status, last update, workflow, name) from the store. |
+| `runs audit` | Compare every run's meta row against its journal and name the divergences worker sweeps cannot see; `--repair` rewrites the sound ones from the journal. |
 | `inspect` | Print one run's journal-derived state: entries, suspensions, spend. |
 | `plan` | Ask the planner to write a workflow script for a goal, then run it in the worker sandbox. |
 | `kb` | Maintain the [model knowledge](/guide/model-knowledge) claim store. |
@@ -52,6 +54,7 @@ Flag semantics are uniform:
 - `--args JSON` supplies workflow arguments. It appears on `resume` too because original run arguments are not journaled in this version: the host re-supplies them. What IS recorded at genesis is the binding (`RunMeta.argsProvided` plus a canonical `argsHash`, never the raw args), and `resume` verifies the re-supplied value against it before the engine starts: forgetting `--args` on a run started with them, adding them to a run started without them, or supplying a different value is a typed refusal, because a silently changed value changes the logical run and re-pays every args-dependent call. Runs recorded before v1.24.0 carry no binding, so a bare `resume` of one demands the explicit acknowledgment below. The `--args` value must be finite JSON (representable in canonical JCS): a numeric literal that overflows to `Infinity` is a typed refusal at parse time, before any store or adapter loads, because a non-canonical value would record a binding with no hash and defeat this gate. The recorded `argsHash` is a deterministic, unsalted digest, so it reveals args equality across runs and low-entropy args are recoverable by hashing candidates; `rulvar inspect` prints the full hash as a sensitive diagnostic, so treat it and the store with the same care as the journal.
 - `--allow-args-change` (`resume` only) is that acknowledgment: it overrides the args gate deliberately (resume without the genesis args, with new args, or of a legacy run whose journal predates the binding), always with a loud warning on stderr.
 - `--dry-run` (`resume` only) previews the resume without performing it: the engine replays in strict mode and the CLI prints the replay accounting (hits, misses, reruns, skipped, orphaned effect roots, invalid resolutions) plus what the run would settle as, with zero journal or meta writes and zero adapter calls. A preview that reaches work needing a live call reports the exact stopping point instead of paying for it.
+- `--repair` (`runs audit` only) rewrites each divergent meta row from the journal: a row behind a journaled settle takes that settle's status, and a stranded row (terminal meta over live journal work, the [fenced run state RFC](/contributing/rfc-fenced-run-state)'s finding F1 residue) becomes sweepable again. When the store is leasable the repair takes a brief per-run lease, so a live owner makes it skip instead of racing; `suspect` verdicts are printed and never rewritten. Without `--repair` the command only reports. Either way it exits 0 only when the catalog ends consistent, so it can gate a cron probe.
 - `--strict` (`run` and `resume`) refuses a partial orchestration: when the settled value is an [acceptance envelope](/guide/orchestration-modes#acceptance-the-child-completion-policy) whose `completion` is not `'complete'`, the command prints the degraded reasons and exits nonzero even though the run status is `ok`. Outcomes without an acceptance envelope are unaffected, and non `ok` statuses keep their ordinary exit codes.
 - `--budget-usd N` sets the run's dollar ceiling, immutable after start (see [Budgets](/guide/budgets)). On `plan` it caps the execution run of the generated workflow, consistent with `run`.
 - `--planning-budget-usd N` (`plan` only) caps the planning run: the planner conversation is its own paid run with its own journal, so its ceiling is separate from the execution ceiling by construction.

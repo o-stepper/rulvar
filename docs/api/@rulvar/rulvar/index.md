@@ -133,6 +133,7 @@ const engine = createEngine({
 | [ApprovalDecision](/api/@rulvar/rulvar/interfaces/ApprovalDecision.md) | The resolution value shape of a tool-approval suspension (M3-T03). |
 | [ApprovalIdentityInput](/api/@rulvar/rulvar/interfaces/ApprovalIdentityInput.md) | Tool-approval suspensions (kind 'approval'). |
 | [Artifact](/api/@rulvar/rulvar/interfaces/Artifact.md) | Artifact: the normative shape of AgentResult.artifacts entries. |
+| [AuditRunsOptions](/api/@rulvar/rulvar/interfaces/AuditRunsOptions.md) | - |
 | [BaseAppend](/api/@rulvar/rulvar/interfaces/BaseAppend.md) | Fields common to every append through the kernel. |
 | [BriefOpts](/api/@rulvar/rulvar/interfaces/BriefOpts.md) | Options of ctx.brief (concrete shape fixed in M6-T10): the content to distill plus an optional instruction; the invocation resolves role 'summarize', so it needs defaults.routing.summarize, a profile, or the explicit model. |
 | [BudgetAccountView](/api/@rulvar/rulvar/interfaces/BudgetAccountView.md) | Read-only projection of one account. |
@@ -233,6 +234,8 @@ const engine = createEngine({
 | [ProviderAdapter](/api/@rulvar/rulvar/interfaces/ProviderAdapter.md) | - |
 | [QualityFloors](/api/@rulvar/rulvar/interfaces/QualityFloors.md) | - |
 | [RandIdentityInput](/api/@rulvar/rulvar/interfaces/RandIdentityInput.md) | Deterministic shims: ctx.now / ctx.random / ctx.uuid (kind 'rand'). |
+| [ReconcileOptions](/api/@rulvar/rulvar/interfaces/ReconcileOptions.md) | - |
+| [ReconcileResult](/api/@rulvar/rulvar/interfaces/ReconcileResult.md) | - |
 | [RefEntryAppender](/api/@rulvar/rulvar/interfaces/RefEntryAppender.md) | The append surface the arbiter drives (implemented by the Replayer). |
 | [RefusalInfo](/api/@rulvar/rulvar/interfaces/RefusalInfo.md) | - |
 | [RenderProgressOptions](/api/@rulvar/rulvar/interfaces/RenderProgressOptions.md) | - |
@@ -251,6 +254,7 @@ const engine = createEngine({
 | [RunInternals](/api/@rulvar/rulvar/interfaces/RunInternals.md) | Everything one run's ctx needs; created per run by the engine (M1-T11). |
 | [RunOptions](/api/@rulvar/rulvar/interfaces/RunOptions.md) | - |
 | [RunProfile](/api/@rulvar/rulvar/interfaces/RunProfile.md) | - |
+| [RunStateAudit](/api/@rulvar/rulvar/interfaces/RunStateAudit.md) | - |
 | [RuntimeEventSink](/api/@rulvar/rulvar/interfaces/RuntimeEventSink.md) | Minimal internal event sink; the typed WorkflowEvent envelope wraps it in M1-T10. |
 | [SandboxBridge](/api/@rulvar/rulvar/interfaces/SandboxBridge.md) | - |
 | [SandboxBridgeOptions](/api/@rulvar/rulvar/interfaces/SandboxBridgeOptions.md) | - |
@@ -387,6 +391,7 @@ const engine = createEngine({
 | [RiskRuleValue](/api/@rulvar/rulvar/type-aliases/RiskRuleValue.md) | Declarative rule tables (no closures). `'undeclared'` in risk position matches every tool WITHOUT declared risk: presets treat the undeclared state conservatively. Argv rules match through the real shell matcher; domain rules are ADVISORY for every tool in the current release: they never change a verdict, and matches surface in the tool:end audit fields (enforcement will live in a first-party fetch tool when one ships). |
 | [Role](/api/@rulvar/rulvar/type-aliases/Role.md) | - |
 | [RulvarErrorCode](/api/@rulvar/rulvar/type-aliases/RulvarErrorCode.md) | An alias for the registry type; both names are public. |
+| [RunAuditVerdict](/api/@rulvar/rulvar/type-aliases/RunAuditVerdict.md) | - |
 | [RunFilter](/api/@rulvar/rulvar/type-aliases/RunFilter.md) | - |
 | [RunMeta](/api/@rulvar/rulvar/type-aliases/RunMeta.md) | Run-level metadata written by the ENGINE via putMeta as a separate record, so listRuns never parses payloads. The hashVersion range fields are advisory only; the journal is authoritative. |
 | [RunOutcome](/api/@rulvar/rulvar/type-aliases/RunOutcome.md) | - |
@@ -491,6 +496,7 @@ const engine = createEngine({
 | [ROOT\_ACCOUNT](/api/@rulvar/rulvar/variables/ROOT_ACCOUNT.md) | The run-root account scope. |
 | [ROOT\_SCOPE](/api/@rulvar/rulvar/variables/ROOT_SCOPE.md) | The root sequential body of the run is the empty path. |
 | [RUN\_PROFILES](/api/@rulvar/rulvar/variables/RUN_PROFILES.md) | The shipped presets (fast / standard / deep / ultra "and similar"). Data only; a review-time assertion checks the engine has zero behavioral branches keyed on these names. |
+| [RUN\_SETTLE\_DECISION\_TYPE](/api/@rulvar/rulvar/variables/RUN_SETTLE_DECISION_TYPE.md) | The decisionType of the journaled run settle entry. |
 | [SANDBOX\_AGENT\_OPT\_KEYS](/api/@rulvar/rulvar/variables/SANDBOX_AGENT_OPT_KEYS.md) | The sanctioned JSON subset of AgentOpts a sandbox script may pass: the planner-dialect allowlist. Exported as the single source both for the runtime validator below and for the planner API card, so the two can never drift (v1.22.0 review P2-4: the hand-maintained card had silently fallen three options behind). |
 | [SPAWN\_AGENT\_SCHEMA](/api/@rulvar/rulvar/variables/SPAWN_AGENT_SCHEMA.md) | The spawn_agent parameter schema (normative). |
 | [TOOL\_NAME\_PATTERN](/api/@rulvar/rulvar/variables/TOOL_NAME_PATTERN.md) | First-party provider tool-name constraint intersection. |
@@ -516,6 +522,8 @@ const engine = createEngine({
 | [archiveDeprecatedModelOps](/api/@rulvar/rulvar/functions/archiveDeprecatedModelOps.md) | Deprecation maintenance (deprecations archive claims, never delete them, so historical runs keep their audit trail): archive ops for every non-terminal claim of the deprecated models. The caller commits them under its own gate-free archive ops. |
 | [assertFencedWrites](/api/@rulvar/rulvar/functions/assertFencedWrites.md) | Deployment-time assertion for queue hosts that require the full fence: throws a typed ConfigError naming each store that does NOT declare `fencedWrites`. A host that tolerates advisory meta or transcript writes simply never calls this. The shipped pair that satisfies it with transcripts present is `@rulvar/store-sqlite`: the store as the journal plus its `transcripts()` twin. |
 | [atCompactionThreshold](/api/@rulvar/rulvar/functions/atCompactionThreshold.md) | The summarize trigger: the compaction threshold on the context window (default 0.8). Pure predicate; the compaction pipeline that acts on it is M4-T03. |
+| [auditRun](/api/@rulvar/rulvar/functions/auditRun.md) | Audits one run: loads the meta row and the journal, derives the state the journal supports, and names the divergence. Read only. |
+| [auditRuns](/api/@rulvar/rulvar/functions/auditRuns.md) | Audits every run the catalog lists. Loads EVERY journal it audits: this is operator tooling for finding stranded runs, not a hot path. |
 | [buildAbandonFold](/api/@rulvar/rulvar/functions/buildAbandonFold.md) | Builds the AbandonFold in ONE pass at load, in append order, pinned for the entire resume (DEF-1 ordering rule 4). Coverage is the target seq itself plus, transitively, every entry under the target's child scope-prefix. Repeated abandons over an already-covered target fold to noop. |
 | [buildAdapterRegistry](/api/@rulvar/rulvar/functions/buildAdapterRegistry.md) | Per-engine adapter registry: strictly per engine, no global mutable registry exists. A duplicate adapterId is a typed ConfigError. |
 | [buildCostReport](/api/@rulvar/rulvar/functions/buildCostReport.md) | Folds the per-run attribution buckets into the normative CostReport. |
@@ -587,6 +595,7 @@ const engine = createEngine({
 | [knowledgeHash](/api/@rulvar/rulvar/functions/knowledgeHash.md) | Deterministic content hash of the claims array (JCS + sha256). |
 | [ladderLengthOf](/api/@rulvar/rulvar/functions/ladderLengthOf.md) | Reads the declared ladder length of one agent profile. Ladders are declared through the profile's ModelSpec (`model: { ladder }`, or the loop-role routing entry). The reader is defensive so the snapshot is total over every registry shape (an undeclared ladder has length 1: the single implicit rung). |
 | [ladderRungChoice](/api/@rulvar/rulvar/functions/ladderRungChoice.md) | The concrete ModelChoice of one rung attempt: each attempt is an ordinary agent scope whose CanonicalModelSpec is that rung's `{ kind: 'model' }` form. |
+| [lastRunSettle](/api/@rulvar/rulvar/functions/lastRunSettle.md) | The last journaled run settle of a journal, if any. |
 | [lexShellCommand](/api/@rulvar/rulvar/functions/lexShellCommand.md) | Lexes a command into segments per the matching algorithm above. Quotes and escapes are honored; nothing is expanded; `$(`, backticks, `<(`, `>(`, and `<<` (outside single quotes) poison their segment. |
 | [liftRetainedParts](/api/@rulvar/rulvar/functions/liftRetainedParts.md) | Lifts the adapter-shipped retention payload of one finished turn into provider-raw parts (the retention transport). Reads providerMetadata[&lt;adapter id&gt;].retainedParts and tags each block with the adapter's provider family. Returns [] when the adapter shipped nothing. |
 | [lineageWeightOf](/api/@rulvar/rulvar/functions/lineageWeightOf.md) | C = E0 + kMax: the per-spawn weight of the variant function. |
@@ -629,6 +638,7 @@ const engine = createEngine({
 | [providerOf](/api/@rulvar/rulvar/functions/providerOf.md) | The provider family of an adapter: `provider` when set, else `id`. |
 | [readRunMeta](/api/@rulvar/rulvar/functions/readRunMeta.md) | One run's meta: `getMeta` when the store has the capability, else the full `listRuns` scan. `undefined` means the run is not in the store. |
 | [readTerminationInit](/api/@rulvar/rulvar/functions/readTerminationInit.md) | Reads a termination.init entry's payload; undefined when malformed. |
+| [reconcileRunMeta](/api/@rulvar/rulvar/functions/reconcileRunMeta.md) | Repairs a divergent meta row from the journal: 'meta-behind' and 'stranded' audits rewrite `status` (every other meta field, unknown fields included, is preserved byte for byte), 'suspect' and 'consistent' audits change nothing. Zero model calls, no workflow needed; the crash residue between a settle's journal flush and its meta write repairs without resuming the run at all. |
 | [registryKeyRing](/api/@rulvar/rulvar/functions/registryKeyRing.md) | KeyRing over the registry: the live call is projected DOWN into the profile of the stored entry; there is no upward canonization. |
 | [remeasureQueue](/api/@rulvar/rulvar/functions/remeasureQueue.md) | The re-measurement queue: expired eval-measured claims that are still ACTIVE. Just a status filter: the next sweep re-measures these subjects; nothing archives them (archiving would empty the queue and hide the decay). |
 | [renderProgress](/api/@rulvar/rulvar/functions/renderProgress.md) | Renders events until the stream ends (the run settled). Returns after the final run:end line. |

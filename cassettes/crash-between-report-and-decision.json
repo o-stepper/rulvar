@@ -58,6 +58,23 @@
           "artifacts": []
         }
       }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 2,
+      "scope": "",
+      "key": "3fd93855d26018a9c623181740c4b1aa968db68b3d192fe4a02d9c5a2c88e657",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:02.000Z",
+      "value": {
+        "decisionType": "run_settle",
+        "runStatus": "ok",
+        "segment": 1
+      },
+      "endedAt": "2026-02-01T00:00:02.000Z"
     }
   ]
 }

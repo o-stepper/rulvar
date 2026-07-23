@@ -234,7 +234,7 @@ Defined in: [packages/core/src/engine/external.ts:159](https://github.com/o-step
 resolveExternal(key, value): Promise<ResolutionOutcome>;
 ```
 
-Defined in: [packages/core/src/engine/external.ts:530](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L530)
+Defined in: [packages/core/src/engine/external.ts:531](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/external.ts#L531)
 
 RunHandle.resolveExternal: the live path validates BEFORE append and
 throws InvalidResolutionError without journaling; a winning attempt

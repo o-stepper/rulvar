@@ -9,6 +9,8 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import { JsonlFileStore, type RunMeta } from '@rulvar/core';
+
 import type { CliIo } from './io.js';
 import { runCli } from './cli-main.js';
 import { reportDryRun, reportOutcome, strictExitCode } from './drive.js';
@@ -719,5 +721,71 @@ describe('--strict refuses a partial acceptance envelope (v1.40.0 improvement pl
       strictExitCode({ ...okOutcome({ completion: 'partial' }), status: 'error' }, 1, io),
     ).toBe(1);
     expect(io.errLines).toHaveLength(0);
+  });
+});
+
+describe('runs audit (fenced run state RFC, phase 3)', () => {
+  const strandedEntry = {
+    hashVersion: 2,
+    seq: 0,
+    scope: '',
+    key: 'stranded-agent',
+    ordinal: 0,
+    kind: 'agent',
+    status: 'running',
+    spanId: 's',
+    startedAt: new Date(1_700_000_000_000).toISOString(),
+  } as const;
+
+  it('names divergences, repairs the sound ones, and exits by catalog cleanliness', async () => {
+    const cwd = writeFixtureProject();
+    const io = scriptedIo();
+    expect(await runCli(['run', 'echo', '--args', '{"value":1}'], { cwd, io })).toBe(0);
+    const runId = runIdOf(io);
+
+    const clean = scriptedIo();
+    expect(await runCli(['runs', 'audit'], { cwd, io: clean })).toBe(0);
+    expect(clean.errLines.some((line) => line.includes('every run is consistent'))).toBe(true);
+
+    // The crash residue (the settle reached the journal, the meta write
+    // did not) plus the F1 stranded residue (a dangling dispatch under
+    // a terminal meta) on a second run.
+    const store = new JsonlFileStore({ dir: join(cwd, '.rulvar') });
+    const meta = (await store.getMeta(runId)) as RunMeta;
+    await store.putMeta({ ...meta, status: 'running' });
+    await store.append('STRANDED', strandedEntry);
+    await store.putMeta({ runId: 'STRANDED', status: 'cancelled', segments: 1, updatedAt: 'x' });
+
+    const listOnly = scriptedIo();
+    expect(await runCli(['runs', 'audit'], { cwd, io: listOnly })).toBe(1);
+    expect(listOnly.outLines.some((line) => line.startsWith(`${runId} meta-behind`))).toBe(true);
+    expect(listOnly.outLines.some((line) => line.startsWith('STRANDED stranded'))).toBe(true);
+
+    const repair = scriptedIo();
+    expect(await runCli(['runs', 'audit', '--repair'], { cwd, io: repair })).toBe(0);
+    expect(repair.errLines.some((line) => line.includes('every divergence repaired'))).toBe(true);
+    expect((await store.getMeta(runId))?.status).toBe('ok');
+    expect((await store.getMeta('STRANDED'))?.status).toBe('running');
+
+    const after = scriptedIo();
+    expect(await runCli(['runs', 'audit'], { cwd, io: after })).toBe(0);
+  });
+
+  it('suspect verdicts are reported, never rewritten, and hold the exit at 1', async () => {
+    const cwd = writeFixtureProject();
+    const store = new JsonlFileStore({ dir: join(cwd, '.rulvar') });
+    await store.append('SUSPECT', {
+      ...strandedEntry,
+      key: 'gate',
+      kind: 'external',
+      status: 'suspended',
+    } as never);
+    await store.putMeta({ runId: 'SUSPECT', status: 'ok', segments: 1, updatedAt: 'x' });
+
+    const repair = scriptedIo();
+    expect(await runCli(['runs', 'audit', '--repair'], { cwd, io: repair })).toBe(1);
+    expect(repair.outLines.some((line) => line.startsWith('SUSPECT suspect'))).toBe(true);
+    expect(repair.errLines.some((line) => line.includes('divergence(s) remain'))).toBe(true);
+    expect((await store.getMeta('SUSPECT'))?.status).toBe('ok');
   });
 });

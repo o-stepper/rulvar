@@ -158,6 +158,23 @@
         "budgetAccount": "run"
       },
       "transcriptRef": "fixture-transcript"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 7,
+      "scope": "",
+      "key": "hash-0007-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "run_settle",
+        "runStatus": "ok",
+        "segment": 2
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
     }
   ]
 }

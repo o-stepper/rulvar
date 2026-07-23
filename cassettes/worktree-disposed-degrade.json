@@ -1889,6 +1889,23 @@
       },
       "transcriptRef": "fixture-transcript",
       "checkpointRef": "fixture-checkpoint"
+    },
+    {
+      "hashVersion": 2,
+      "seq": 47,
+      "scope": "",
+      "key": "hash-0050-------------------------------------------------------",
+      "ordinal": 0,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:00.000Z",
+      "value": {
+        "decisionType": "run_settle",
+        "runStatus": "ok",
+        "segment": 1
+      },
+      "endedAt": "2026-02-01T00:00:00.000Z"
     }
   ]
 }

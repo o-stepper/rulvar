@@ -32,21 +32,19 @@
     {
       "hashVersion": 2,
       "seq": 1,
-      "ref": 0,
       "scope": "",
-      "key": "",
+      "key": "3fd93855d26018a9c623181740c4b1aa968db68b3d192fe4a02d9c5a2c88e657",
       "ordinal": 0,
-      "kind": "resolution",
+      "kind": "decision",
       "status": "ok",
       "spanId": "fixture-span",
       "startedAt": "2026-02-01T00:00:01.000Z",
-      "resolution": {
-        "target": 0,
-        "by": "external",
-        "value": {
-          "approved": "yes-ish"
-        }
-      }
+      "value": {
+        "decisionType": "run_settle",
+        "runStatus": "suspended",
+        "segment": 1
+      },
+      "endedAt": "2026-02-01T00:00:01.000Z"
     },
     {
       "hashVersion": 2,
@@ -63,9 +61,45 @@
         "target": 0,
         "by": "external",
         "value": {
+          "approved": "yes-ish"
+        }
+      }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 3,
+      "ref": 0,
+      "scope": "",
+      "key": "",
+      "ordinal": 0,
+      "kind": "resolution",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:03.000Z",
+      "resolution": {
+        "target": 0,
+        "by": "external",
+        "value": {
           "approved": true
         }
       }
+    },
+    {
+      "hashVersion": 2,
+      "seq": 4,
+      "scope": "",
+      "key": "3fd93855d26018a9c623181740c4b1aa968db68b3d192fe4a02d9c5a2c88e657",
+      "ordinal": 1,
+      "kind": "decision",
+      "status": "ok",
+      "spanId": "fixture-span",
+      "startedAt": "2026-02-01T00:00:04.000Z",
+      "value": {
+        "decisionType": "run_settle",
+        "runStatus": "ok",
+        "segment": 2
+      },
+      "endedAt": "2026-02-01T00:00:04.000Z"
     }
   ]
 }

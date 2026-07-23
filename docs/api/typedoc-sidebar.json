@@ -693,6 +693,10 @@
             "link": "/api/@rulvar/core/interfaces/Artifact.md"
           },
           {
+            "text": "AuditRunsOptions",
+            "link": "/api/@rulvar/core/interfaces/AuditRunsOptions.md"
+          },
+          {
             "text": "BaseAppend",
             "link": "/api/@rulvar/core/interfaces/BaseAppend.md"
           },
@@ -1073,6 +1077,14 @@
             "link": "/api/@rulvar/core/interfaces/RandIdentityInput.md"
           },
           {
+            "text": "ReconcileOptions",
+            "link": "/api/@rulvar/core/interfaces/ReconcileOptions.md"
+          },
+          {
+            "text": "ReconcileResult",
+            "link": "/api/@rulvar/core/interfaces/ReconcileResult.md"
+          },
+          {
             "text": "RefEntryAppender",
             "link": "/api/@rulvar/core/interfaces/RefEntryAppender.md"
           },
@@ -1139,6 +1151,10 @@
           {
             "text": "RunProfile",
             "link": "/api/@rulvar/core/interfaces/RunProfile.md"
+          },
+          {
+            "text": "RunStateAudit",
+            "link": "/api/@rulvar/core/interfaces/RunStateAudit.md"
           },
           {
             "text": "RuntimeEventSink",
@@ -1663,6 +1679,10 @@
             "link": "/api/@rulvar/core/type-aliases/RulvarErrorCode.md"
           },
           {
+            "text": "RunAuditVerdict",
+            "link": "/api/@rulvar/core/type-aliases/RunAuditVerdict.md"
+          },
+          {
             "text": "RunFilter",
             "link": "/api/@rulvar/core/type-aliases/RunFilter.md"
           },
@@ -2053,6 +2073,10 @@
             "link": "/api/@rulvar/core/variables/RUN_PROFILES.md"
           },
           {
+            "text": "RUN_SETTLE_DECISION_TYPE",
+            "link": "/api/@rulvar/core/variables/RUN_SETTLE_DECISION_TYPE.md"
+          },
+          {
             "text": "SANDBOX_AGENT_OPT_KEYS",
             "link": "/api/@rulvar/core/variables/SANDBOX_AGENT_OPT_KEYS.md"
           },
@@ -2133,6 +2157,14 @@
           {
             "text": "atCompactionThreshold",
             "link": "/api/@rulvar/core/functions/atCompactionThreshold.md"
+          },
+          {
+            "text": "auditRun",
+            "link": "/api/@rulvar/core/functions/auditRun.md"
+          },
+          {
+            "text": "auditRuns",
+            "link": "/api/@rulvar/core/functions/auditRuns.md"
           },
           {
             "text": "buildAbandonFold",
@@ -2419,6 +2451,10 @@
             "link": "/api/@rulvar/core/functions/ladderRungChoice.md"
           },
           {
+            "text": "lastRunSettle",
+            "link": "/api/@rulvar/core/functions/lastRunSettle.md"
+          },
+          {
             "text": "lexShellCommand",
             "link": "/api/@rulvar/core/functions/lexShellCommand.md"
           },
@@ -2577,6 +2613,10 @@
           {
             "text": "readTerminationInit",
             "link": "/api/@rulvar/core/functions/readTerminationInit.md"
+          },
+          {
+            "text": "reconcileRunMeta",
+            "link": "/api/@rulvar/core/functions/reconcileRunMeta.md"
           },
           {
             "text": "registryKeyRing",
@@ -4366,6 +4406,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/Artifact.md"
           },
           {
+            "text": "AuditRunsOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/AuditRunsOptions.md"
+          },
+          {
             "text": "BaseAppend",
             "link": "/api/@rulvar/rulvar/interfaces/BaseAppend.md"
           },
@@ -4766,6 +4810,14 @@
             "link": "/api/@rulvar/rulvar/interfaces/RandIdentityInput.md"
           },
           {
+            "text": "ReconcileOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/ReconcileOptions.md"
+          },
+          {
+            "text": "ReconcileResult",
+            "link": "/api/@rulvar/rulvar/interfaces/ReconcileResult.md"
+          },
+          {
             "text": "RefEntryAppender",
             "link": "/api/@rulvar/rulvar/interfaces/RefEntryAppender.md"
           },
@@ -4836,6 +4888,10 @@
           {
             "text": "RunProfile",
             "link": "/api/@rulvar/rulvar/interfaces/RunProfile.md"
+          },
+          {
+            "text": "RunStateAudit",
+            "link": "/api/@rulvar/rulvar/interfaces/RunStateAudit.md"
           },
           {
             "text": "RuntimeEventSink",
@@ -5368,6 +5424,10 @@
             "link": "/api/@rulvar/rulvar/type-aliases/RulvarErrorCode.md"
           },
           {
+            "text": "RunAuditVerdict",
+            "link": "/api/@rulvar/rulvar/type-aliases/RunAuditVerdict.md"
+          },
+          {
             "text": "RunFilter",
             "link": "/api/@rulvar/rulvar/type-aliases/RunFilter.md"
           },
@@ -5770,6 +5830,10 @@
             "link": "/api/@rulvar/rulvar/variables/RUN_PROFILES.md"
           },
           {
+            "text": "RUN_SETTLE_DECISION_TYPE",
+            "link": "/api/@rulvar/rulvar/variables/RUN_SETTLE_DECISION_TYPE.md"
+          },
+          {
             "text": "SANDBOX_AGENT_OPT_KEYS",
             "link": "/api/@rulvar/rulvar/variables/SANDBOX_AGENT_OPT_KEYS.md"
           },
@@ -5854,6 +5918,14 @@
           {
             "text": "atCompactionThreshold",
             "link": "/api/@rulvar/rulvar/functions/atCompactionThreshold.md"
+          },
+          {
+            "text": "auditRun",
+            "link": "/api/@rulvar/rulvar/functions/auditRun.md"
+          },
+          {
+            "text": "auditRuns",
+            "link": "/api/@rulvar/rulvar/functions/auditRuns.md"
           },
           {
             "text": "buildAbandonFold",
@@ -6140,6 +6212,10 @@
             "link": "/api/@rulvar/rulvar/functions/ladderRungChoice.md"
           },
           {
+            "text": "lastRunSettle",
+            "link": "/api/@rulvar/rulvar/functions/lastRunSettle.md"
+          },
+          {
             "text": "lexShellCommand",
             "link": "/api/@rulvar/rulvar/functions/lexShellCommand.md"
           },
@@ -6306,6 +6382,10 @@
           {
             "text": "readTerminationInit",
             "link": "/api/@rulvar/rulvar/functions/readTerminationInit.md"
+          },
+          {
+            "text": "reconcileRunMeta",
+            "link": "/api/@rulvar/rulvar/functions/reconcileRunMeta.md"
           },
           {
             "text": "registryKeyRing",
