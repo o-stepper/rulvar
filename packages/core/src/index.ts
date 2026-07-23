@@ -34,6 +34,8 @@ export * from './tools/context.js';
 export * from './tools/mcp.js';
 export * from './tools/isolation.js';
 export * from './tools/research.js';
+export * from './tools/progress.js';
+export * from './engine/profile-templates.js';
 export * from './journal/identity.js';
 export * from './journal/lineage.js';
 export * from './journal/termination.js';

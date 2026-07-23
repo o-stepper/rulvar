@@ -13,7 +13,7 @@ function mergeUsageLimits(
    engine?): EffectiveUsageLimits;
 ```
 
-Defined in: [packages/core/src/runtime/usage-limits.ts:80](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/usage-limits.ts#L80)
+Defined in: [packages/core/src/runtime/usage-limits.ts:102](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/usage-limits.ts#L102)
 
 Limits merge per spawn: AgentOpts.limits over profile limits over engine
 defaults.limits.

@@ -183,6 +183,47 @@ A violated policy fails the run instead of settling `ok`: the outcome is `error`
 
 The CLI pairs with the envelope: `rulvar run --strict` (and `resume --strict`) exits nonzero when a settled `ok` value carries `completion: 'partial'`, printing the degraded reasons, so scripts can demand complete orchestrations without parsing the value themselves.
 
+### Partial-child salvage and profile templates
+
+Both policies used to treat a `limit` child as a plain failure, which made budget expiry doubly expensive: the child's paid work was lost AND the run rejected. With the [progress contract](/guide/tools#the-progress-contract-and-the-structured-terminal-partial) in the child's toolset, the collected work survives the expiry as the structured terminal partial, and `acceptance.acceptPartialChildren: true` lets the policy salvage it:
+
+```ts
+import { createEngine, orchestrate, researchAgentProfile } from "@rulvar/core";
+import { anthropic } from "@rulvar/anthropic";
+
+const research = researchAgentProfile({ root: "/work/checkout" });
+const engine = createEngine({
+  adapters: [anthropic()],
+  defaults: {
+    // The template ships the research toolset, report_progress, and the
+    // stop conditions (weighted units, per-tool caps, both repetition
+    // guards, budget notices) already merged into limits.
+    profiles: { researcher: research.profile },
+  },
+});
+
+const handle = orchestrate(
+  engine,
+  "Map the error handling of this repository",
+  {
+    profiles: ["researcher"],
+    acceptance: { childPolicy: "all-ok", acceptPartialChildren: true },
+    exposeChildResultTools: true,
+  },
+  { budgetUsd: 10 },
+);
+const outcome = await handle.result;
+// A researcher that ran out of budget AFTER reporting progress no longer
+// rejects the run: the envelope reports completion 'partial' and lists it
+// in salvagedPartialChildren; its digest carried `partial: {...}` and
+// get_child_result paged the full report. The host still reads every
+// verified citation: research.evidence().
+```
+
+A child that settled `limit` WITH a partial counts as a successful child for the policy: under `'all-ok'` it no longer rejects the run, and under `{ minSuccessful: N }` it counts toward N. The accepted envelope then reports `completion: 'partial'` (never `'complete'`), lists the salvaged children in `salvagedPartialChildren`, and keeps a per-child note in `degradedReasons`; the whole fold is part of the single journaled acceptance decision, so a resume rolls the same verdict forward. A limit child WITHOUT a partial gave the caller nothing to salvage and still counts against the policy, salvage or not. Enabling the option also appends one deterministic line to the coordination prompt telling the orchestrator that partial children are salvageable and that respawning a NARROWED child carrying the partial beats repeating the task; every other configuration keeps byte-identical prompts.
+
+Three profile templates package the stop conditions so hosts stop hand-tuning limits per fan-out: `researchAgentProfile({ root })` (the research toolset plus the progress tool plus `RESEARCH_PROFILE_LIMITS`), and `implementationAgentProfile({ tools })` / `reviewAgentProfile({ tools })` (the caller's task tools with `report_progress` prepended, under `IMPLEMENTATION_PROFILE_LIMITS` / `REVIEW_PROFILE_LIMITS`). Templates are pure preset builders: `limits` overrides merge per key over the template's limits, and the exported limit constants document the exact defaults. One research kit instance backs one research profile, so children spawned from the same registered profile pool their verified evidence (and see each other's entries through `list_evidence`); construct one template per fan-out run, or per child, when isolation matters.
+
 ### Validating the finish result
 
 `acceptance` judges the children; it never reads the result itself, so a schema valid but semantically empty `finish({ result: "all good, trust me" })` still lands as `completion: 'complete'`. `finishValidation` closes that gap with deterministic host validators over the finish result, plus a bounded repair loop.
@@ -315,7 +356,7 @@ const audit = orchestrate(
 );
 ```
 
-- `get_child_result(handle, offset?, maxChars?)` pages a settled child's FULL output (its raw string, or its JSON; for a failed child, its error message, so the orchestrator can read WHY it failed). The reply reports `totalChars` and `hasMore`, so the model reads exactly as much as it needs and pages on. `maxChars` clamps to 20000 per call, so one read can never flood the orchestrator's context.
+- `get_child_result(handle, offset?, maxChars?)` pages a settled child's FULL output (its raw string, or its JSON; for a failed child, its error message, so the orchestrator can read WHY it failed; for a limit child carrying a [structured terminal partial](/guide/tools#the-progress-contract-and-the-structured-terminal-partial), `{ error, partial }`, so the collected work is readable in full). The reply reports `totalChars` and `hasMore`, so the model reads exactly as much as it needs and pages on. `maxChars` clamps to 20000 per call, so one read can never flood the orchestrator's context.
 - `read_child_artifact(handle, artifactId, offset?, maxChars?)` pages a settled child's artifact content by id (ids come from `get_child_result` or the digest): inline data, an offloaded transcript blob decoded as UTF-8, or a patch's changed file list.
 
 Both are pure reads of already-durable journal state, so a resume reproduces them with no new spend. Adding the tools changes the orchestrator toolset hash by design (exactly like the extension's plan tools); leave the option off and the default toolset is unchanged.

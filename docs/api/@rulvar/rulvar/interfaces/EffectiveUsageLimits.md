@@ -12,6 +12,7 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-maxcallspertool"></a> `maxCallsPerTool?` | `Record`\&lt;`string`, `number`\&gt; | - | `packages/core/dist/index.d.ts` |
 | <a id="property-maxnonewevidencecalls"></a> `maxNoNewEvidenceCalls?` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-maxoutputtokensperturn"></a> `maxOutputTokensPerTurn?` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-maxrepeatedtoolsignature"></a> `maxRepeatedToolSignature?` | `number` | - | `packages/core/dist/index.d.ts` |
@@ -21,3 +22,6 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-streamidletimeoutms"></a> `streamIdleTimeoutMs` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-timeoutms"></a> `timeoutMs?` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-toolbudgetnotices"></a> `toolBudgetNotices?` | `boolean` | RV-210 exploration guards; absent = off. | `packages/core/dist/index.d.ts` |
+| <a id="property-toolunits"></a> `toolUnits?` | \{ `costs?`: `Record`\&lt;`string`, `number`\&gt;; `max`: `number`; \} | - | `packages/core/dist/index.d.ts` |
+| `toolUnits.costs?` | `Record`\&lt;`string`, `number`\&gt; | - | `packages/core/dist/index.d.ts` |
+| `toolUnits.max` | `number` | - | `packages/core/dist/index.d.ts` |

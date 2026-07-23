@@ -10,7 +10,7 @@
 const DEFAULT_SYNTHESIS_NOTE_MAX_TURNS: 2 = 2;
 ```
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:176](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L176)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:191](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L191)
 
 Default maxTurns of ONE incremental synthesis note (RV-211 remainder):
 a note summarizes a single settled child into a bounded finish call,

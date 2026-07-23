@@ -8,6 +8,10 @@
 
 Defined in: [packages/core/src/tools/research.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/research.ts#L42)
 
+## Extended by
+
+- [`ResearchAgentProfileOptions`](/api/@rulvar/core/interfaces/ResearchAgentProfileOptions.md)
+
 ## Properties
 
 | Property | Type | Description | Defined in |
