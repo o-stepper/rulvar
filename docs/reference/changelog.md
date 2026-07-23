@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.45.0
+
+#### Patch Changes
+
+- Updated dependencies [b96305d]
+  - @rulvar/core@1.45.0
+
 ### 1.44.1
 
 #### Patch Changes
@@ -677,6 +684,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.45.0
+
+#### Patch Changes
+
+- Updated dependencies [b96305d]
+  - @rulvar/core@1.45.0
+
 ### 1.44.1
 
 #### Patch Changes
@@ -1201,6 +1215,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.45.0
+
+#### Minor Changes
+
+- b96305d: The fenced writes capability (the fenced run state RFC, phase 2). `JournalStore.putMeta` and `delete` and `TranscriptStore.put` and `delete` accept the same optional trailing lease that `append` always took, and a store declares enforcement with the `fencedWrites: true` marker: a mutation carrying a lease that is not the current holder for the mutated run rejects with the typed `LeaseHeldError`, atomically and leaving nothing changed, including a live lease for a different run. The engine threads the segment's lease into every durable mutation of a leased resume (meta writes, checkpoints, compaction summaries, worktree patches, workflow sources), so over a declaring store a superseded worker can no longer overwrite the successor's meta at its late settle and strand the run from worker sweeps, and its very first refused meta write now fails the stale segment typed at boot with zero paid calls. `SqliteStore` declares the marker and enforces it on `putMeta`, `delete`, and `append` (with the run-match rule as defense in depth); the conformance kit gains `fencedWritesConformance` as the capability's executable definition; the queue worker's retention sweep passes its brief lease through the new optional second argument of `engine.deleteRun` (`pruneRun` takes the same); and `hasFencedWrites` plus `assertFencedWrites` let a host assert the full fence at deployment time. Stores written before the capability are untouched: without the marker the extra argument is ignored and the journal-append fence works exactly as before.
+
+#### Patch Changes
+
+- Updated dependencies [b96305d]
+  - @rulvar/core@1.45.0
 
 ### 1.44.1
 
@@ -1958,6 +1983,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.45.0
+
+#### Minor Changes
+
+- b96305d: The fenced writes capability (the fenced run state RFC, phase 2). `JournalStore.putMeta` and `delete` and `TranscriptStore.put` and `delete` accept the same optional trailing lease that `append` always took, and a store declares enforcement with the `fencedWrites: true` marker: a mutation carrying a lease that is not the current holder for the mutated run rejects with the typed `LeaseHeldError`, atomically and leaving nothing changed, including a live lease for a different run. The engine threads the segment's lease into every durable mutation of a leased resume (meta writes, checkpoints, compaction summaries, worktree patches, workflow sources), so over a declaring store a superseded worker can no longer overwrite the successor's meta at its late settle and strand the run from worker sweeps, and its very first refused meta write now fails the stale segment typed at boot with zero paid calls. `SqliteStore` declares the marker and enforces it on `putMeta`, `delete`, and `append` (with the run-match rule as defense in depth); the conformance kit gains `fencedWritesConformance` as the capability's executable definition; the queue worker's retention sweep passes its brief lease through the new optional second argument of `engine.deleteRun` (`pruneRun` takes the same); and `hasFencedWrites` plus `assertFencedWrites` let a host assert the full fence at deployment time. Stores written before the capability are untouched: without the marker the extra argument is ignored and the journal-append fence works exactly as before.
 
 ### 1.44.1
 
@@ -3179,6 +3210,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.45.0
+
 ### 1.44.1
 
 ### 1.44.0
@@ -3353,6 +3386,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.45.0
+
+#### Patch Changes
+
+- Updated dependencies [b96305d]
+  - @rulvar/core@1.45.0
+  - @rulvar/testing@1.45.0
 
 ### 1.44.1
 
@@ -4018,6 +4059,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.45.0
+
+#### Patch Changes
+
+- Updated dependencies [b96305d]
+  - @rulvar/core@1.45.0
 
 ### 1.44.1
 
@@ -4695,6 +4743,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.45.0
+
+#### Patch Changes
+
+- Updated dependencies [b96305d]
+  - @rulvar/core@1.45.0
+
 ### 1.44.1
 
 #### Patch Changes
@@ -5341,6 +5396,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.45.0
+
+#### Patch Changes
+
+- Updated dependencies [b96305d]
+  - @rulvar/core@1.45.0
+  - eslint-plugin-rulvar@1.45.0
+
 ### 1.44.1
 
 #### Patch Changes
@@ -5972,6 +6035,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.45.0
+
+#### Patch Changes
+
+- Updated dependencies [b96305d]
+  - @rulvar/core@1.45.0
+  - @rulvar/anthropic@1.45.0
+  - @rulvar/openai@1.45.0
 
 ### 1.44.1
 
@@ -6734,6 +6806,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.45.0
+
+#### Minor Changes
+
+- b96305d: The fenced writes capability (the fenced run state RFC, phase 2). `JournalStore.putMeta` and `delete` and `TranscriptStore.put` and `delete` accept the same optional trailing lease that `append` always took, and a store declares enforcement with the `fencedWrites: true` marker: a mutation carrying a lease that is not the current holder for the mutated run rejects with the typed `LeaseHeldError`, atomically and leaving nothing changed, including a live lease for a different run. The engine threads the segment's lease into every durable mutation of a leased resume (meta writes, checkpoints, compaction summaries, worktree patches, workflow sources), so over a declaring store a superseded worker can no longer overwrite the successor's meta at its late settle and strand the run from worker sweeps, and its very first refused meta write now fails the stale segment typed at boot with zero paid calls. `SqliteStore` declares the marker and enforces it on `putMeta`, `delete`, and `append` (with the run-match rule as defense in depth); the conformance kit gains `fencedWritesConformance` as the capability's executable definition; the queue worker's retention sweep passes its brief lease through the new optional second argument of `engine.deleteRun` (`pruneRun` takes the same); and `hasFencedWrites` plus `assertFencedWrites` let a host assert the full fence at deployment time. Stores written before the capability are untouched: without the marker the extra argument is ignored and the journal-append fence works exactly as before.
+
+#### Patch Changes
+
+- Updated dependencies [b96305d]
+  - @rulvar/core@1.45.0
+
 ### 1.44.1
 
 #### Patch Changes
@@ -7334,6 +7417,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.45.0
+
+#### Minor Changes
+
+- b96305d: The fenced writes capability (the fenced run state RFC, phase 2). `JournalStore.putMeta` and `delete` and `TranscriptStore.put` and `delete` accept the same optional trailing lease that `append` always took, and a store declares enforcement with the `fencedWrites: true` marker: a mutation carrying a lease that is not the current holder for the mutated run rejects with the typed `LeaseHeldError`, atomically and leaving nothing changed, including a live lease for a different run. The engine threads the segment's lease into every durable mutation of a leased resume (meta writes, checkpoints, compaction summaries, worktree patches, workflow sources), so over a declaring store a superseded worker can no longer overwrite the successor's meta at its late settle and strand the run from worker sweeps, and its very first refused meta write now fails the stale segment typed at boot with zero paid calls. `SqliteStore` declares the marker and enforces it on `putMeta`, `delete`, and `append` (with the run-match rule as defense in depth); the conformance kit gains `fencedWritesConformance` as the capability's executable definition; the queue worker's retention sweep passes its brief lease through the new optional second argument of `engine.deleteRun` (`pruneRun` takes the same); and `hasFencedWrites` plus `assertFencedWrites` let a host assert the full fence at deployment time. Stores written before the capability are untouched: without the marker the extra argument is ignored and the journal-append fence works exactly as before.
+
+#### Patch Changes
+
+- Updated dependencies [b96305d]
+  - @rulvar/core@1.45.0
+
 ### 1.44.1
 
 #### Patch Changes
@@ -7878,6 +7972,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.45.0
+
+#### Patch Changes
+
+- Updated dependencies [b96305d]
+  - @rulvar/core@1.45.0
 
 ### 1.44.1
 
