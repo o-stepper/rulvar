@@ -7,6 +7,7 @@
  */
 export {
   SqliteStore,
+  BOOT_BUSY_TIMEOUT_MS,
   DEFAULT_LEASE_TTL_MS,
   type SqliteStoreOptions,
   type SqliteTranscriptStore,

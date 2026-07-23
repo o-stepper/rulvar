@@ -306,6 +306,48 @@ console.log(foldStateSha256(await store.load('golden')) === GOLDEN_FOLD_STATE_SH
 
 If that prints `false`, your store altered a payload somewhere between append and load; diff the loaded entries against `GOLDEN_FOLD_JOURNAL` field by field.
 
+### The multi-process soak
+
+A store built for multi-process queue deployments certifies one more way: the adversarial soak storms your store from real OS processes through every fenced surface and diffs the final state against the serial history the epochs promise (see [the user-side description](/guide/stores#the-multi-process-soak)). Two pieces are yours to provide. First a writer script, spawned once per storm process; it constructs your store bare (concurrent boot over one fresh location is part of the promise under test) and hands it to the kit's writer protocol, with a `retryable` hook classifying your backend's transient contention errors:
+
+```js
+// soak-writer.mjs, spawned once per storm process.
+import { runSoakWriter, soakWriterConfigFromEnv } from '@rulvar/store-conformance';
+import { SqliteStore } from '@rulvar/store-sqlite';
+
+const config = soakWriterConfigFromEnv();
+const store = new SqliteStore({ path: config.storePath, ttlMs: config.ttlMs });
+const busy = (thrown) => thrown?.errcode !== undefined && (thrown.errcode & 0xff) === 5;
+await runSoakWriter({ journal: store, transcripts: store.transcripts() }, config, {
+  retryable: busy,
+});
+store.close();
+```
+
+Then the referee call, from any test: it spawns the writers, stops the storm once the activity quorum is met, verifies, and throws one Error naming every violation.
+
+```ts
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { runMultiProcessSoak } from '@rulvar/store-conformance';
+import { SqliteStore } from '@rulvar/store-sqlite';
+
+const dir = mkdtempSync(join(tmpdir(), 'soak-'));
+const result = await runMultiProcessSoak({
+  writerScript: '/absolute/path/to/soak-writer.mjs',
+  dir,
+  openStore: (storePath) => {
+    const store = new SqliteStore({ path: storePath, ttlMs: 250 });
+    return { journal: store, transcripts: store.transcripts() };
+  },
+  closeStore: (fixture) => (fixture.journal as SqliteStore).close(),
+});
+console.log(result.activity); // takeovers, accepted writes per surface, stale rejections
+```
+
+The soak needs a store whose fencing actually spans processes (a shared file, a database server); the in-memory store above is out of scope by nature. Writers deliberately keep probing with superseded leases, attempt appends from a freshly re-read journal tail (so the monotonic-seq guard cannot mask a fencing hole), guard a foreign run with a live lease, and run full create-and-fenced-delete cycles on side runs. Every one of those must reject with the typed `LeaseHeldError` and change nothing.
+
 ## Common failure modes
 
 - **Normalizing payloads.** Dropping undefined-like fields, reordering keys, or coercing numbers breaks the opaque-payload obligation and, downstream, replay identity. Store the serialized bytes.

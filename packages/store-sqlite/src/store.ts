@@ -32,6 +32,10 @@
  * - acquire on a held, unexpired lease rejects with LeaseHeldError; the
  *   holder MUST renew at an interval of at most ttl/3; an unrenewed
  *   lease is reclaimable after ttl and reclaiming advances the epoch.
+ * - Concurrent boot: constructing over one shared file from several
+ *   processes at once serializes on a boot-scoped busy timeout
+ *   (BOOT_BUSY_TIMEOUT_MS) instead of dying raw in the schema
+ *   bootstrap; runtime contention stays fail fast (busy 0).
  * - The lease ttl default is the Appendix A interim reference for this
  *   store (60000 ms; the committed value is decided before M8).
  */
@@ -54,6 +58,37 @@ import {
 
 /** Appendix A interim reference for the sqlite store. */
 export const DEFAULT_LEASE_TTL_MS = 60_000;
+
+/**
+ * Total time the constructor keeps retrying its schema bootstrap
+ * through SQLITE_BUSY before giving up, so concurrent multi-process
+ * construction over one fresh file serializes instead of dying raw.
+ * The bound applies ONLY to boot; every runtime contention path keeps
+ * the documented fail-fast semantics (busy surfaces immediately). A
+ * boot still busy past the bound throws the driver's error: something
+ * is wedged, not merely concurrent.
+ */
+export const BOOT_BUSY_TIMEOUT_MS = 5_000;
+
+/**
+ * The SQLITE_BUSY family, the one boot error class worth a bounded
+ * retry. The driver reports EXTENDED result codes (a concurrent boot
+ * also yields SQLITE_BUSY_RECOVERY 261 while a sibling process is
+ * recovering the fresh WAL), so the primary code is the low byte.
+ */
+function isSqliteBusy(thrown: unknown): boolean {
+  const errcode = (thrown as { errcode?: number } | undefined)?.errcode;
+  return errcode !== undefined && (errcode & 0xff) === 5;
+}
+
+/**
+ * Synchronous bounded sleep for the boot retry loop (the constructor is
+ * synchronous by SPI shape): Atomics.wait blocks the thread for the few
+ * milliseconds another process needs to finish the shared bootstrap.
+ */
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
 
 export interface SqliteStoreOptions {
   /** Database file path, or ':memory:' for an in-process store. */
@@ -122,9 +157,21 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
     this.db = new DatabaseSync(options.path);
     this.ttlMs = ttlMs;
     this.now = options.now ?? wallClock;
+    // Boot-scoped busy handling: the WAL switch and the DDL below take
+    // write locks, so N worker processes constructing over the SAME
+    // fresh file at once (an ordinary fleet start) collided and the
+    // losers died in the constructor with a raw SQLITE_BUSY (the
+    // multi-process soak reproduced a 60 percent crash rate at six
+    // concurrent boots). A driver busy_timeout is NOT enough here: the
+    // journal-mode conversion deliberately skips the busy handler on
+    // some lock transitions, so the whole bootstrap retries as a unit
+    // (every statement is idempotent) under a wall-clock bound. Runtime
+    // contention paths are untouched and keep the documented fail-fast
+    // semantics (a competing BEGIN IMMEDIATE surfaces busy immediately).
+    //
     // WAL keeps concurrent readers consistent with the single writer on
     // file-backed databases; a no-op for ':memory:'.
-    this.db.exec(`
+    const schema = `
       PRAGMA journal_mode = WAL;
       CREATE TABLE IF NOT EXISTS entries (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -158,7 +205,19 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
         data BLOB NOT NULL
       );
       CREATE INDEX IF NOT EXISTS blobs_by_run ON blobs (run_id);
-    `);
+    `;
+    const bootDeadline = wallClock() + BOOT_BUSY_TIMEOUT_MS;
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        this.db.exec(schema);
+        break;
+      } catch (thrown) {
+        if (!isSqliteBusy(thrown) || wallClock() > bootDeadline) {
+          throw thrown;
+        }
+        sleepSync(2 + (attempt % 7));
+      }
+    }
   }
 
   close(): void {

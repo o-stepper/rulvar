@@ -18,7 +18,11 @@ Defined in: [packages/store-conformance/src/types.ts:43](https://github.com/o-st
 fencedWritesConformance when it declares the fencedWrites promise, and
 fencedTranscriptsConformance when its transcript store declares the
 same promise) or it is not a Rulvar store; the kit is the executable
-definition of the storage seam frozen at 1.0.
+definition of the storage seam frozen at 1.0. Stores meant for
+multi-process queue deployments additionally run the adversarial
+multi-process soak (runMultiProcessSoak: real OS processes storm one
+store location through every fenced write surface and the referee
+diffs the state against the serial history the epochs promise).
 
 Usage under Vitest:
 
