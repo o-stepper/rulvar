@@ -7,6 +7,7 @@
  * never 'limit'. The run-level deadline is RunOptions.deadlineAt, not a
  * UsageLimits field.
  */
+import { ConfigError } from '../l0/errors.js';
 import {
   requireNonNegativeInteger,
   requirePositiveInteger,
@@ -29,6 +30,30 @@ export interface UsageLimits {
    * engine aborts with the dedicated class (M3-T08).
    */
   noProgressTurns?: number;
+  /**
+   * Soft 50%/80% thresholds over maxToolCalls (RV-210), surfaced to the
+   * model as a plain user message carrying the exact remaining count.
+   * Inert (with a loud log warning) when maxToolCalls is not set. Off by
+   * default: the notice enters the conversation, so enabling it changes
+   * recorded model requests.
+   */
+  toolBudgetNotices?: boolean;
+  /**
+   * How many times the SAME tool signature (name + canonical JCS args)
+   * may execute per invocation (RV-210). The call that would exceed it
+   * is denied with a typed error tool result instead of dispatched; the
+   * denial is visible to the model and does not consume maxToolCalls.
+   * Unlimited by default.
+   */
+  maxRepeatedToolSignature?: number;
+  /**
+   * How many consecutive successful tool executions may return only
+   * already-seen result digests before the engine aborts the invocation
+   * as status 'limit' with abortClass 'exploration' (RV-210). The
+   * executed work is kept and the terminal memoizes. Unlimited by
+   * default.
+   */
+  maxNoNewEvidenceCalls?: number;
 }
 
 export const DEFAULT_MAX_TURNS = 32;
@@ -42,6 +67,10 @@ export interface EffectiveUsageLimits {
   streamIdleTimeoutMs: number;
   /** Default DEFAULT_NO_PROGRESS_TURNS. */
   noProgressTurns?: number;
+  /** RV-210 exploration guards; absent = off. */
+  toolBudgetNotices?: boolean;
+  maxRepeatedToolSignature?: number;
+  maxNoNewEvidenceCalls?: number;
 }
 
 /**
@@ -74,6 +103,18 @@ export function mergeUsageLimits(
   const noProgressTurns = pick('noProgressTurns');
   if (noProgressTurns !== undefined) {
     merged.noProgressTurns = noProgressTurns;
+  }
+  const toolBudgetNotices = pick('toolBudgetNotices');
+  if (toolBudgetNotices !== undefined) {
+    merged.toolBudgetNotices = toolBudgetNotices;
+  }
+  const maxRepeatedToolSignature = pick('maxRepeatedToolSignature');
+  if (maxRepeatedToolSignature !== undefined) {
+    merged.maxRepeatedToolSignature = maxRepeatedToolSignature;
+  }
+  const maxNoNewEvidenceCalls = pick('maxNoNewEvidenceCalls');
+  if (maxNoNewEvidenceCalls !== undefined) {
+    merged.maxNoNewEvidenceCalls = maxNoNewEvidenceCalls;
   }
   return merged;
 }
@@ -108,5 +149,16 @@ export function validateUsageLimits(limits: UsageLimits, site: string): void {
   }
   if (limits.noProgressTurns !== undefined) {
     requirePositiveInteger(limits.noProgressTurns, `${site}.noProgressTurns`);
+  }
+  if (limits.toolBudgetNotices !== undefined && typeof limits.toolBudgetNotices !== 'boolean') {
+    throw new ConfigError(
+      `${site}.toolBudgetNotices must be a boolean; got ${typeof limits.toolBudgetNotices}`,
+    );
+  }
+  if (limits.maxRepeatedToolSignature !== undefined) {
+    requirePositiveInteger(limits.maxRepeatedToolSignature, `${site}.maxRepeatedToolSignature`);
+  }
+  if (limits.maxNoNewEvidenceCalls !== undefined) {
+    requirePositiveInteger(limits.maxNoNewEvidenceCalls, `${site}.maxNoNewEvidenceCalls`);
   }
 }

@@ -24,11 +24,13 @@ export const DEFAULT_NO_PROGRESS_TURNS = 3;
  * 'no-progress' is the detector below; 'output-truncated' is a
  * schema-less turn that ended at its output token allowance
  * (finish reason 'max-tokens') without visible output (v1.9.0
- * follow-up review). Both stamp memoizeOutcome on the terminal:
+ * follow-up review); 'exploration' is the tripped no-new-evidence
+ * exploration guard (RV-210), carrying its structured summary in the
+ * terminal error payload. All stamp memoizeOutcome on the terminal:
  * the work is paid, so every resume replays the abort instead of
  * re-paying the same bounded failure.
  */
-export type AbortClass = 'no-progress' | 'output-truncated';
+export type AbortClass = 'no-progress' | 'output-truncated' | 'exploration';
 
 /**
  * Counts consecutive progress-free turns. A turn with at least one tool

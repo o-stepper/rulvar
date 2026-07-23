@@ -17,6 +17,7 @@ type ToolEvents =
   advisory?: Json;
   decidedBy?: string;
   durationMs: number;
+  guard?: "repeated-signature";
   outcome: "ok" | "error" | "denied";
   rule?: Json;
   toolName: string;
@@ -50,6 +51,7 @@ Tool lifecycle (emitters arrive with the tool system, M3).
   advisory?: Json;
   decidedBy?: string;
   durationMs: number;
+  guard?: "repeated-signature";
   outcome: "ok" | "error" | "denied";
   rule?: Json;
   toolName: string;
@@ -63,6 +65,7 @@ Tool lifecycle (emitters arrive with the tool system, M3).
 | `advisory?` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | - | `packages/core/dist/index.d.ts` |
 | `decidedBy?` | `string` | - | `packages/core/dist/index.d.ts` |
 | `durationMs` | `number` | - | `packages/core/dist/index.d.ts` |
+| `guard?` | `"repeated-signature"` | Present when an exploration guard (RV-210), not the permission chain, denied the call: the outcome is 'denied' and the call was never dispatched. | `packages/core/dist/index.d.ts` |
 | `outcome` | `"ok"` \| `"error"` \| `"denied"` | - | `packages/core/dist/index.d.ts` |
 | `rule?` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | - | `packages/core/dist/index.d.ts` |
 | `toolName` | `string` | - | `packages/core/dist/index.d.ts` |

@@ -861,6 +861,10 @@
             "link": "/api/@rulvar/core/interfaces/EscalationRequest.md"
           },
           {
+            "text": "ExplorationSummary",
+            "link": "/api/@rulvar/core/interfaces/ExplorationSummary.md"
+          },
+          {
             "text": "ExtensionAppendInput",
             "link": "/api/@rulvar/core/interfaces/ExtensionAppendInput.md"
           },
@@ -4650,6 +4654,10 @@
           {
             "text": "EscalationRequest",
             "link": "/api/@rulvar/rulvar/interfaces/EscalationRequest.md"
+          },
+          {
+            "text": "ExplorationSummary",
+            "link": "/api/@rulvar/rulvar/interfaces/ExplorationSummary.md"
           },
           {
             "text": "ExtensionAppendInput",

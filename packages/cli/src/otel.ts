@@ -269,16 +269,39 @@ export async function toOtel(
         break;
       }
       case 'agent:end': {
-        setUsageAttributes(
-          openBySpanId.get(event.spanId),
-          event,
-          'rulvar.retry_count',
-          event.retryCount,
-        );
+        const agentOpen = openBySpanId.get(event.spanId);
+        setUsageAttributes(agentOpen, event, 'rulvar.retry_count', event.retryCount);
+        // The exploration guard counters (RV-210) as span attributes, so
+        // a backend can gate on the repeated/duplicate call share.
+        if (event.exploration !== undefined && agentOpen !== undefined) {
+          agentOpen.span.setAttribute(
+            'rulvar.exploration.tool_calls_used',
+            event.exploration.toolCallsUsed,
+          );
+          agentOpen.span.setAttribute(
+            'rulvar.exploration.distinct_signatures',
+            event.exploration.distinctSignatures,
+          );
+          agentOpen.span.setAttribute(
+            'rulvar.exploration.repeated_calls',
+            event.exploration.repeatedCalls,
+          );
+          agentOpen.span.setAttribute(
+            'rulvar.exploration.duplicate_result_calls',
+            event.exploration.duplicateResultCalls,
+          );
+          agentOpen.span.setAttribute(
+            'rulvar.exploration.denied_repeats',
+            event.exploration.deniedRepeats,
+          );
+        }
         endSpan(event.spanId, event.ts, event.status);
         break;
       }
       case 'tool:end':
+        if (event.guard !== undefined) {
+          openBySpanId.get(event.spanId)?.span.setAttribute('rulvar.tool.guard', event.guard);
+        }
         endSpan(event.spanId, event.ts, event.outcome);
         break;
       case 'child:end':

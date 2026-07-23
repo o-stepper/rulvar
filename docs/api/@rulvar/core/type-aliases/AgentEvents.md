@@ -45,6 +45,7 @@ type AgentEvents =
   agentType: string;
   costUsd: number;
   entryRef: number;
+  exploration?: ExplorationSummary;
   label?: string;
   retryCount?: number;
   status: string;
@@ -71,7 +72,7 @@ type AgentEvents =
 };
 ```
 
-Defined in: [packages/core/src/l0/events.ts:65](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L65)
+Defined in: [packages/core/src/l0/events.ts:88](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L88)
 
 Agent lifecycle. One logical agent dispatch emits EXACTLY ONE
 `agent:start`/`agent:end` pair on its span (the start carries the
@@ -128,12 +129,12 @@ vocabulary.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/l0/events.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L70) |
-| `invocation` | `number` | 1-based activation ordinal within the span, unique per activation (a summarize that fires three times gets three pairs). Key phases by (spanId, invocation). | [packages/core/src/l0/events.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L81) |
-| `label?` | `string` | - | [packages/core/src/l0/events.ts:71](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L71) |
-| `model` | `string` | The model the activation resolved to (fallbacks may serve another; the end event reports the server). | [packages/core/src/l0/events.ts:75](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L75) |
-| `role` | `string` | The invocation role this phase activation runs as. | [packages/core/src/l0/events.ts:73](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L73) |
-| `type` | `"agent:phase:start"` | - | [packages/core/src/l0/events.ts:69](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L69) |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L93) |
+| `invocation` | `number` | 1-based activation ordinal within the span, unique per activation (a summarize that fires three times gets three pairs). Key phases by (spanId, invocation). | [packages/core/src/l0/events.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L104) |
+| `label?` | `string` | - | [packages/core/src/l0/events.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L94) |
+| `model` | `string` | The model the activation resolved to (fallbacks may serve another; the end event reports the server). | [packages/core/src/l0/events.ts:98](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L98) |
+| `role` | `string` | The invocation role this phase activation runs as. | [packages/core/src/l0/events.ts:96](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L96) |
+| `type` | `"agent:phase:start"` | - | [packages/core/src/l0/events.ts:92](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L92) |
 
 ***
 
@@ -157,17 +158,17 @@ vocabulary.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/l0/events.ts:85](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L85) |
-| `costUsd` | `number` | That usage priced at each serving model's own rate. | [packages/core/src/l0/events.ts:100](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L100) |
-| `durationMs` | `number` | Wall-clock activation duration. Live telemetry only: replayed phase pairs (reconstructed from the terminal entry's usage slices) carry 0. | [packages/core/src/l0/events.ts:96](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L96) |
-| `invocation` | `number` | - | [packages/core/src/l0/events.ts:90](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L90) |
-| `label?` | `string` | - | [packages/core/src/l0/events.ts:86](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L86) |
-| `model` | `string` | The model that actually served the activation's last attempt. | [packages/core/src/l0/events.ts:89](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L89) |
-| `outcome` | `"ok"` \| `"error"` | - | [packages/core/src/l0/events.ts:101](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L101) |
-| `retries?` | `number` | Transport retries inside this activation. Present only when greater than zero; live telemetry only (absent on replay). | [packages/core/src/l0/events.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L106) |
-| `role` | `string` | - | [packages/core/src/l0/events.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L87) |
-| `type` | `"agent:phase:end"` | - | [packages/core/src/l0/events.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L84) |
-| `usage` | [`Usage`](/api/@rulvar/core/type-aliases/Usage.md) | The usage this activation added to its (role, model) slices. | [packages/core/src/l0/events.ts:98](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L98) |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:108](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L108) |
+| `costUsd` | `number` | That usage priced at each serving model's own rate. | [packages/core/src/l0/events.ts:123](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L123) |
+| `durationMs` | `number` | Wall-clock activation duration. Live telemetry only: replayed phase pairs (reconstructed from the terminal entry's usage slices) carry 0. | [packages/core/src/l0/events.ts:119](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L119) |
+| `invocation` | `number` | - | [packages/core/src/l0/events.ts:113](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L113) |
+| `label?` | `string` | - | [packages/core/src/l0/events.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L109) |
+| `model` | `string` | The model that actually served the activation's last attempt. | [packages/core/src/l0/events.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L112) |
+| `outcome` | `"ok"` \| `"error"` | - | [packages/core/src/l0/events.ts:124](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L124) |
+| `retries?` | `number` | Transport retries inside this activation. Present only when greater than zero; live telemetry only (absent on replay). | [packages/core/src/l0/events.ts:129](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L129) |
+| `role` | `string` | - | [packages/core/src/l0/events.ts:110](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L110) |
+| `type` | `"agent:phase:end"` | - | [packages/core/src/l0/events.ts:107](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L107) |
+| `usage` | [`Usage`](/api/@rulvar/core/type-aliases/Usage.md) | The usage this activation added to its (role, model) slices. | [packages/core/src/l0/events.ts:121](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L121) |
 
 ***
 
@@ -178,6 +179,7 @@ vocabulary.
   agentType: string;
   costUsd: number;
   entryRef: number;
+  exploration?: ExplorationSummary;
   label?: string;
   retryCount?: number;
   status: string;
@@ -189,15 +191,16 @@ vocabulary.
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `agentType` | `string` | - | [packages/core/src/l0/events.ts:110](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L110) |
-| `costUsd` | `number` | - | [packages/core/src/l0/events.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L114) |
-| `entryRef` | `number` | - | [packages/core/src/l0/events.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L115) |
-| `label?` | `string` | - | [packages/core/src/l0/events.ts:111](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L111) |
-| `retryCount?` | `number` | Total transport retries across the span's activations. Present only when greater than zero; live telemetry only, never journaled, so a replayed agent:end omits it (absent means "zero or unknown"). | [packages/core/src/l0/events.ts:130](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L130) |
-| `status` | `string` | - | [packages/core/src/l0/events.ts:112](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L112) |
-| `type` | `"agent:end"` | - | [packages/core/src/l0/events.ts:109](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L109) |
-| `usage` | [`Usage`](/api/@rulvar/core/type-aliases/Usage.md) | - | [packages/core/src/l0/events.ts:113](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L113) |
-| `usageApprox?` | `boolean` | Present and true when this agent's usage is approximate rather than reported by the provider (the turn was cut by a transport failure, a ceiling that severed the stream, or an abort). Absent means the provider reported the usage exactly. Mirrors the terminal journal entry's usageApprox. | [packages/core/src/l0/events.ts:123](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L123) |
+| `agentType` | `string` | - | [packages/core/src/l0/events.ts:133](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L133) |
+| `costUsd` | `number` | - | [packages/core/src/l0/events.ts:137](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L137) |
+| `entryRef` | `number` | - | [packages/core/src/l0/events.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L138) |
+| `exploration?` | [`ExplorationSummary`](/api/@rulvar/core/interfaces/ExplorationSummary.md) | The exploration guard counters (RV-210). Present live whenever any exploration guard limit was configured for the invocation; on replay present only when the guard abort journaled it in the terminal error payload. | [packages/core/src/l0/events.ts:160](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L160) |
+| `label?` | `string` | - | [packages/core/src/l0/events.ts:134](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L134) |
+| `retryCount?` | `number` | Total transport retries across the span's activations. Present only when greater than zero; live telemetry only, never journaled, so a replayed agent:end omits it (absent means "zero or unknown"). | [packages/core/src/l0/events.ts:153](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L153) |
+| `status` | `string` | - | [packages/core/src/l0/events.ts:135](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L135) |
+| `type` | `"agent:end"` | - | [packages/core/src/l0/events.ts:132](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L132) |
+| `usage` | [`Usage`](/api/@rulvar/core/type-aliases/Usage.md) | - | [packages/core/src/l0/events.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L136) |
+| `usageApprox?` | `boolean` | Present and true when this agent's usage is approximate rather than reported by the provider (the turn was cut by a transport failure, a ceiling that severed the stream, or an abort). Absent means the provider reported the usage exactly. Mirrors the terminal journal entry's usageApprox. | [packages/core/src/l0/events.ts:146](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L146) |
 
 ***
 
