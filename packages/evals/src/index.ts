@@ -47,6 +47,17 @@ export {
 } from './canary.js';
 export { SpendEnvelope, SweepBudgetError } from './envelope.js';
 export {
+  runBenchmark,
+  type BenchmarkFingerprint,
+  type BenchmarkMetricExtractor,
+  type BenchmarkPercentiles,
+  type BenchmarkReport,
+  type BenchmarkRunRecord,
+  type BenchmarkSpec,
+  type BenchmarkVerification,
+  type RunBenchmarkOptions,
+} from './benchmark.js';
+export {
   agentTypeRuleHolds,
   renderCheckpointReport,
   rungRuleHolds,

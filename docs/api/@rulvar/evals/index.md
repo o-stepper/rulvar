@@ -44,6 +44,12 @@ pnpm add -D @rulvar/evals
 
 | Interface | Description |
 | ------ | ------ |
+| [BenchmarkFingerprint](/api/@rulvar/evals/interfaces/BenchmarkFingerprint.md) | Where the numbers came from; percentiles without this are hearsay. |
+| [BenchmarkPercentiles](/api/@rulvar/evals/interfaces/BenchmarkPercentiles.md) | Nearest-rank percentile summary of one scored series. |
+| [BenchmarkReport](/api/@rulvar/evals/interfaces/BenchmarkReport.md) | - |
+| [BenchmarkRunRecord](/api/@rulvar/evals/interfaces/BenchmarkRunRecord.md) | The full record of one benchmark run, scored or not. |
+| [BenchmarkSpec](/api/@rulvar/evals/interfaces/BenchmarkSpec.md) | One benchmark: a workflow measured over a series of repeats. |
+| [BenchmarkVerification](/api/@rulvar/evals/interfaces/BenchmarkVerification.md) | The replay-strict verification verdict of one run. |
 | [CanaryDriftReport](/api/@rulvar/evals/interfaces/CanaryDriftReport.md) | - |
 | [CanaryProbeSet](/api/@rulvar/evals/interfaces/CanaryProbeSet.md) | - |
 | [CanaryReport](/api/@rulvar/evals/interfaces/CanaryReport.md) | - |
@@ -72,6 +78,7 @@ pnpm add -D @rulvar/evals
 | [OrchestratedCase](/api/@rulvar/evals/interfaces/OrchestratedCase.md) | - |
 | [RubricCriterion](/api/@rulvar/evals/interfaces/RubricCriterion.md) | - |
 | [RubricGraderOptions](/api/@rulvar/evals/interfaces/RubricGraderOptions.md) | - |
+| [RunBenchmarkOptions](/api/@rulvar/evals/interfaces/RunBenchmarkOptions.md) | - |
 | [RunCheckpointOptions](/api/@rulvar/evals/interfaces/RunCheckpointOptions.md) | - |
 | [RunEvalCaseOptions](/api/@rulvar/evals/interfaces/RunEvalCaseOptions.md) | @rulvar/evals: quality measurement strictly on the public APIs (L6). EvalCase with golden, rubric, and LLM-judge graders; judge calls run through the engine (journaled, budgeted, VCR-recordable), so eval CI is deterministic; config-matrix comparison reports pass-rate, cost, and latency per cell. Matrix sweeps feeding ModelKnowledge, the eval-committer identity, and canary fingerprints are the M11 round-3 extensions. |
 | [RunEvalSuiteOptions](/api/@rulvar/evals/interfaces/RunEvalSuiteOptions.md) | @rulvar/evals: quality measurement strictly on the public APIs (L6). EvalCase with golden, rubric, and LLM-judge graders; judge calls run through the engine (journaled, budgeted, VCR-recordable), so eval CI is deterministic; config-matrix comparison reports pass-rate, cost, and latency per cell. Matrix sweeps feeding ModelKnowledge, the eval-committer identity, and canary fingerprints are the M11 round-3 extensions. |
@@ -82,6 +89,12 @@ pnpm add -D @rulvar/evals
 | [SweepPool](/api/@rulvar/evals/interfaces/SweepPool.md) | - |
 | [SweepReport](/api/@rulvar/evals/interfaces/SweepReport.md) | - |
 | [SweepThresholds](/api/@rulvar/evals/interfaces/SweepThresholds.md) | The claim bands. Both effective values must be finite fractions in [0, 1] with weakness strictly below strength (so the bands are ordered and an uninformative mid band exists); runSweepMatrix rejects anything else with a ConfigError before any engine, store, or envelope activity. |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [BenchmarkMetricExtractor](/api/@rulvar/evals/type-aliases/BenchmarkMetricExtractor.md) | A per-run metric extractor over the run's full event stream. |
 
 ## Variables
 
@@ -104,6 +117,7 @@ pnpm add -D @rulvar/evals
 | [normalizeCanaryOutput](/api/@rulvar/evals/functions/normalizeCanaryOutput.md) | The committed v1 normalization (OQ-06): NFC, trim, collapse whitespace. |
 | [renderCheckpointReport](/api/@rulvar/evals/functions/renderCheckpointReport.md) | The deterministic render for the M12 gate docs amendment. |
 | [rubricGrader](/api/@rulvar/evals/functions/rubricGrader.md) | - |
+| [runBenchmark](/api/@rulvar/evals/functions/runBenchmark.md) | Runs the spec's repeats sequentially and reports the verified series. Throws only for spec defects (invalid repeats, a throwing grader or extractor) and for a target-run envelope refusal; everything a run does wrong lands in its record instead. |
 | [runCanary](/api/@rulvar/evals/functions/runCanary.md) | Runs the fixed probe set through the ordinary engine. Probes run sequentially in declaration order, one run per probe, so recordings replay deterministically. Each probe run carries the optional immutable ceiling (options.budgetUsd) and authorizes it against the optional envelope before starting; an envelope refusal records the probe as 'refused' and keeps walking instead of throwing away the completed probes. A non-ok or refused probe enters the fingerprint as `!status` and clears allOk: callers gate drift flipping on allOk, because a budget-starved or transiently failing probe fingerprints differently without the model having drifted. |
 | [runEvalCase](/api/@rulvar/evals/functions/runEvalCase.md) | @rulvar/evals: quality measurement strictly on the public APIs (L6). EvalCase with golden, rubric, and LLM-judge graders; judge calls run through the engine (journaled, budgeted, VCR-recordable), so eval CI is deterministic; config-matrix comparison reports pass-rate, cost, and latency per cell. Matrix sweeps feeding ModelKnowledge, the eval-committer identity, and canary fingerprints are the M11 round-3 extensions. |
 | [runEvalMatrix](/api/@rulvar/evals/functions/runEvalMatrix.md) | Runs the same case list against every cell's engine, sequentially and in declaration order (deterministic cassette consumption), and reports per-cell aggregates for side-by-side comparison. |

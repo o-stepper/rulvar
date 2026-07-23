@@ -164,6 +164,56 @@ for (const cell of report.cells) {
 
 Pass rate, cost, and latency per cell come from the runs' own usage and cost accounting; the harness adds no measurement of its own.
 
+## The benchmark kit
+
+`runBenchmark(engine, spec, options?)` (RV-213) turns one workflow into a citable measurement series: it runs the spec's `repeats` sequentially, verifies every run, and reports nearest-rank percentiles over the runs that survived. The distinction it enforces is the one a hand-rolled loop silently skips: a run that FINISHED is not yet a run that counts. A run is SCORED only when it settles `ok`, every grader passes, and the replay-strict verification holds: a dry-run resume (zero journal or meta writes, zero adapter calls) replays it with zero misses and reruns, reproduces the journaled settle status and the run's `outputHash` digest, and the re-executed body raises zero workflow-provenance [determinism warnings](/guide/determinism#runtime-detection-and-enforcement). Anything else lands in the run's record with machine-readable `rejectedReasons` (`verification:output-diverged`, `verification:determinism-warning`, `grader:<name>`, `judge:refused`, ...) and stays out of the series, so a workflow whose result mixes in bare `Math.random()` produces `scored: 0` and no percentiles at all rather than clean-looking numbers that no one can reproduce.
+
+```ts
+import { createEngine } from '@rulvar/core';
+import { anthropic } from '@rulvar/anthropic';
+import { judgeGrader, rubricGrader, runBenchmark, SpendEnvelope } from '@rulvar/evals';
+import { research } from './workflows/research.js';
+
+const engine = createEngine({
+  adapters: [anthropic()],
+  defaults: { routing: { loop: 'anthropic:claude-sonnet-5' } },
+});
+
+const report = await runBenchmark(
+  engine,
+  {
+    name: 'research-corpus',
+    workflow: research,
+    args: { corpus: 'docs/' },
+    repeats: 5, // the regression protocol wants at least 5 for a citable series
+    graders: [
+      rubricGrader([
+        { name: 'has-citations', check: (v) => Array.isArray((v as { citations?: unknown[] })?.citations) },
+      ]),
+      judgeGrader({ model: 'anthropic:claude-opus-4-8', instruction: 'the report must cover risks and cite sources' }),
+    ],
+  },
+  {
+    budgetUsd: 5,
+    judgeBudgetUsd: 0.5,
+    envelope: new SpendEnvelope(30),
+    labels: { commit: 'abc1234', series: 'cold' },
+  },
+);
+
+console.log(report.scored, report.wallMs?.p50, report.wallMs?.p90, report.costUsd?.p90);
+```
+
+The report's shape follows the honesty rules of the rest of the package:
+
+- `wallMs` and `costUsd` are `{ min, p50, p90, max, mean }` over SCORED runs and absent entirely when nothing scored: the kit never fabricates a series. Percentiles use the nearest-rank method (1-based, ascending, no interpolation), so a reported p90 is always a value that actually occurred. Wall time comes from each run's own `run:start`/`run:end` event timestamps; the kit reads no clock.
+- Every run's full record is in `runs`: its `runId` (so anyone can re-verify with [`rulvar replay`](/guide/cli)), status, wall, cost, usage, `agentDispatches` and `invocations` counts, grader verdicts, the complete `verification` verdict with both digests, and per-run metric values.
+- `totalCostUsd` counts every target and judge run, scored or rejected: rejected work was still paid for.
+- `fingerprint` records where the numbers came from: Node version, platform, arch, the resolved `@rulvar/core` and `@rulvar/evals` versions, the first run's start timestamp, and whatever `labels` the host supplies (the commit, the pricing snapshot id, the corpus hash, the cache series). The kit never shells out or guesses; identity the host does not supply is not recorded.
+- `options.metrics` takes named extractors over each run's captured event stream (`(events, outcome) => number`), and each gets its own percentile series over scored runs; this is where critical-path metrics plug in without the kit hardcoding any orchestration shape.
+
+Judging stays blind by construction: graders (including LLM judges through the shared judge channel, journaled and VCR-recordable like everything else) see the run's output and their own rubric, never a system label, run ordinal, or runId, so comparing two systems is running the same spec on two engines and comparing reports. Repeats run sequentially in ordinal order; cold-versus-warm cache comparisons are two benchmark invocations with different `labels`.
+
 ## Deterministic eval CI
 
 Because target runs and judge runs both cross the `ProviderAdapter` seam, the VCR from [`@rulvar/testing`](/guide/testing) applies unchanged. Record the suite once against live providers, commit the redacted cassette, and run CI hermetically:

@@ -241,7 +241,13 @@ export async function runEvalCase(
   };
 }
 
-async function runJudge(
+/**
+ * Runs one judge invocation through the engine. Package-internal: the
+ * benchmark kit reuses it so benchmark judge runs are journaled,
+ * budgeted, and VCR-recordable exactly like eval judge runs; not part
+ * of the public index.
+ */
+export async function runJudge(
   engine: Engine,
   judgeName: string,
   spec: JudgeSpec,
