@@ -14,10 +14,11 @@ Defined in: [packages/store-conformance/src/types.ts:43](https://github.com/o-st
 
 @rulvar/store-conformance: the executable store conformance kit
 (M2-T11, DEF-4). A store implementation passes journalStoreConformance
-(and leasableStoreConformance when it has the lease capability, and
-fencedWritesConformance when it declares the fencedWrites promise) or
-it is not a Rulvar store; the kit is the executable definition of the
-storage seam frozen at 1.0.
+(and leasableStoreConformance when it has the lease capability,
+fencedWritesConformance when it declares the fencedWrites promise, and
+fencedTranscriptsConformance when its transcript store declares the
+same promise) or it is not a Rulvar store; the kit is the executable
+definition of the storage seam frozen at 1.0.
 
 Usage under Vitest:
 

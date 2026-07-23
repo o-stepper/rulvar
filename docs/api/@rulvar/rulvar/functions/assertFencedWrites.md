@@ -15,7 +15,9 @@ Defined in: `packages/core/dist/index.d.ts`
 Deployment-time assertion for queue hosts that require the full
 fence: throws a typed ConfigError naming each store that does NOT
 declare `fencedWrites`. A host that tolerates advisory meta or
-transcript writes simply never calls this.
+transcript writes simply never calls this. The shipped pair that
+satisfies it with transcripts present is `@rulvar/store-sqlite`:
+the store as the journal plus its `transcripts()` twin.
 
 ## Parameters
 

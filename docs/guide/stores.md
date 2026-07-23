@@ -81,7 +81,18 @@ interface FencedJournalStore extends JournalStore {
 
 The promise (the executable definition is `fencedWritesConformance` in the conformance kit): every mutation carrying a lease verifies it is the current holder FOR THE RUN THE MUTATION TARGETS, atomically with the mutation itself, and rejects with the typed `LeaseHeldError` leaving nothing changed when it is not; a lease for a different run guards nothing; a mutation carrying no lease keeps single-writer semantics. The engine threads the segment's lease into every meta write and every transcript blob write of a leased resume, so over a declaring store a superseded worker can no longer overwrite the successor's meta row at its late settle (the stranded run finding of the [fenced run state RFC](/contributing/rfc-fenced-run-state)), and the queue worker's retention sweep passes its brief lease through `engine.deleteRun` so a fenced store refuses a deletion from a superseded holder. Note the boot consequence: a stale segment's very first meta write is refused typed, so it dies with zero paid calls instead of paying a live dispatch whose append then bounces.
 
-`SqliteStore` declares the marker. `TranscriptStore` carries the twin optional lease and marker, but the shipped file and in-memory transcript stores do NOT declare it (fencing a blob write atomically needs the blobs and the lease state in one transactional domain), so checkpoint blobs remain unfenced in the reference deployment; the RFC tracks a fenced transcript store. A host that requires the full fence asserts it at deployment time with `assertFencedWrites(engine.stores)` (or checks one store with `hasFencedWrites`), both exported from `@rulvar/core`.
+`SqliteStore` declares the marker on both sides. The journal store itself enforces it on `append`, `putMeta`, and `delete`, and its `transcripts()` method returns the transcript-side twin: a `TranscriptStore` whose blobs live in the same database as the lease rows, which is what makes the capability implementable at all (fencing a blob write atomically needs the blobs and the lease state in one transactional domain). Over the pair, a superseded segment's late checkpoint save is refused typed instead of landing last write wins at the deterministic ref both segments share, so a later boot of the attempt can no longer decode regressed turn state and replay turns the successor already paid for (the checkpoint finding of the RFC). The shipped file and in-memory transcript stores do NOT declare the marker (they are single-writer by contract), so checkpoint blobs stay advisory over those. A host that requires the full fence asserts it at deployment time with `assertFencedWrites(engine.stores)` (or checks one store with `hasFencedWrites`), both exported from `@rulvar/core`:
+
+```ts
+import { createEngine, assertFencedWrites } from '@rulvar/core';
+import { anthropic } from '@rulvar/anthropic';
+import { SqliteStore } from '@rulvar/store-sqlite';
+
+const store = new SqliteStore({ path: './rulvar.db' });
+const stores = { journal: store, transcripts: store.transcripts() };
+assertFencedWrites(stores); // throws unless BOTH declare fencedWrites
+const engine = createEngine({ adapters: [anthropic()], stores });
+```
 
 ## The meta lookup capability
 
@@ -188,12 +199,12 @@ const store = new SqliteStore({
 });
 ```
 
-The options are `path` (a database file, or `':memory:'`), `ttlMs` (lease ttl, default `DEFAULT_LEASE_TTL_MS`, 60000 ms), and an injectable `now` clock so lease expiry is testable without wall-clock sleeps. `ttlMs` must be an integer between 1 and 2147483647 ms, refused as a `ConfigError` before the database opens: zero or a negative would make every lease born expired (an immediate takeover by a second owner), NaN failed the first acquire with a raw sqlite error, and Infinity never expired. The configured value is exposed as the readonly `leaseTtlMs`, the optional `LeasableStore` capability `createWorker` verifies its own ttl against. Call `close()` when you are done with the handle.
+The options are `path` (a database file, or `':memory:'`), `ttlMs` (lease ttl, default `DEFAULT_LEASE_TTL_MS`, 60000 ms), and an injectable `now` clock so lease expiry is testable without wall-clock sleeps. `ttlMs` must be an integer between 1 and 2147483647 ms, refused as a `ConfigError` before the database opens: zero or a negative would make every lease born expired (an immediate takeover by a second owner), NaN failed the first acquire with a raw sqlite error, and Infinity never expired. The configured value is exposed as the readonly `leaseTtlMs`, the optional `LeasableStore` capability `createWorker` verifies its own ttl against. `transcripts()` returns the [fenced transcript twin](#the-fenced-writes-capability) over the same database (one per store, sharing its connection, so it works for `':memory:'` too and there is nothing separate to close). Call `close()` when you are done with the handle.
 
 A queue worker acquires the lease, resumes with it, renews on a timer, and releases when the run settles:
 
 ```ts
-import { createEngine, FileTranscriptStore, LeaseHeldError, type Lease } from '@rulvar/core';
+import { createEngine, LeaseHeldError, type Lease } from '@rulvar/core';
 import { SqliteStore } from '@rulvar/store-sqlite';
 import { anthropic } from '@rulvar/anthropic';
 import { review } from './workflows/review.js';
@@ -201,7 +212,9 @@ import { review } from './workflows/review.js';
 const store = new SqliteStore({ path: './rulvar.db' });
 const engine = createEngine({
   adapters: [anthropic()],
-  stores: { journal: store, transcripts: new FileTranscriptStore({ dir: './blobs' }) },
+  // The transcript twin keeps blobs in the same database, so checkpoint
+  // saves ride the same fence as journal appends and meta writes.
+  stores: { journal: store, transcripts: store.transcripts() },
 });
 
 async function resumeAsWorker(runId: string): Promise<void> {

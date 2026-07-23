@@ -24,6 +24,11 @@
  *   lease's runId to BE the mutated run, so a superseded worker can
  *   neither strand a run through a stale terminal meta write (F1) nor
  *   delete live run state (F4).
+ * - Fenced transcripts (the RFC's F2): transcripts() returns the
+ *   TranscriptStore twin over this same database, so checkpoint,
+ *   compaction, worktree patch, and workflow source blobs are fenced
+ *   under the identical atomic rule, and a superseded segment's late
+ *   checkpoint save cannot regress the blob a later boot decodes.
  * - acquire on a held, unexpired lease rejects with LeaseHeldError; the
  *   holder MUST renew at an interval of at most ttl/3; an unrenewed
  *   lease is reclaimable after ttl and reclaiming advances the epoch.
@@ -37,12 +42,14 @@ import {
   JournalOrderViolation,
   LeaseHeldError,
   metaMatchesFilter,
+  type Bytes,
   type JournalEntry,
   type LeasableStore,
   type Lease,
   type MetaLookupStore,
   type RunFilter,
   type RunMeta,
+  type TranscriptStore,
 } from '@rulvar/core';
 
 /** Appendix A interim reference for the sqlite store. */
@@ -70,6 +77,18 @@ interface LeaseRow {
   expires_at: number;
 }
 
+/**
+ * The fenced transcript twin over a SqliteStore database (the fenced
+ * run state RFC, F2): a TranscriptStore that declares `fencedWrites`
+ * because its blobs live in the SAME database as the lease rows, giving
+ * the fence check and the blob mutation one transactional domain.
+ * Obtain it from {@link SqliteStore.transcripts}; its lifetime is the
+ * owning store's (one shared connection, one `close()`).
+ */
+export interface SqliteTranscriptStore extends TranscriptStore {
+  readonly fencedWrites: true;
+}
+
 // Bound at module load, before any dev-mode bare-Date.now patch can
 // install: a store constructed after a run must not capture the patched
 // wrapper and false-warn from its own frames (v1.18.0 review P2-6; the
@@ -88,6 +107,7 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
   private readonly db: DatabaseSync;
   private readonly ttlMs: number;
   private readonly now: () => number;
+  private transcriptTwin: SqliteTranscriptStore | undefined;
 
   constructor(options: SqliteStoreOptions) {
     const ttlMs = options.ttlMs ?? DEFAULT_LEASE_TTL_MS;
@@ -132,6 +152,12 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
         run_id TEXT PRIMARY KEY,
         epoch INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS blobs (
+        ref TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL,
+        data BLOB NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS blobs_by_run ON blobs (run_id);
     `);
   }
 
@@ -341,6 +367,88 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
       this.db.exec('ROLLBACK');
       throw thrown;
     }
+  }
+
+  /**
+   * The fenced transcript twin (fenced run state RFC, F2): a
+   * TranscriptStore whose blobs live in THIS store's database, beside
+   * the lease rows, so a lease-carrying put or delete verifies the
+   * current holder of the run the ref's leading path segment names
+   * atomically with the blob mutation, in the same one-immediate-
+   * transaction shape as the journal side. Sharing the connection is
+   * what makes the capability implementable at all (a blob write and a
+   * lease check in different domains cannot commit as one unit; with
+   * ':memory:' a separate connection would not even see the leases) and
+   * keeps one close() lifecycle. Wire it as the engine's transcript
+   * store next to this store as the journal: over the pair every
+   * durable run mutation is fenced, which is what
+   * `assertFencedWrites({ journal, transcripts })` verifies. The blob
+   * cascade of `deleteRun`/`pruneRun` stays ENGINE-side, exactly as the
+   * TranscriptStore contract says; the journal-side `delete(runId)`
+   * never touches blob rows.
+   */
+  transcripts(): SqliteTranscriptStore {
+    if (this.transcriptTwin !== undefined) {
+      return this.transcriptTwin;
+    }
+    // The run a ref belongs to is its leading path segment (the
+    // `<runId>/<name>` convention every engine ref follows).
+    const runOf = (ref: string): string => ref.split('/', 1)[0] ?? ref;
+    const upsertBlob = (ref: string, blob: Bytes): void => {
+      this.db
+        .prepare(
+          'INSERT INTO blobs (ref, run_id, data) VALUES (?, ?, ?) ' +
+            'ON CONFLICT(ref) DO UPDATE SET run_id = excluded.run_id, data = excluded.data',
+        )
+        .run(ref, runOf(ref), blob);
+    };
+    const deleteBlob = (ref: string): void => {
+      // A missing ref is a no-op, never an error.
+      this.db.prepare('DELETE FROM blobs WHERE ref = ?').run(ref);
+    };
+    this.transcriptTwin = {
+      fencedWrites: true,
+      // eslint-disable-next-line @typescript-eslint/require-await
+      put: async (ref: string, blob: Bytes, lease?: Lease): Promise<void> => {
+        if (lease !== undefined) {
+          this.requireRunMatch(lease, runOf(ref), 'transcript write');
+          this.fenced(lease, () => {
+            upsertBlob(ref, blob);
+          });
+          return;
+        }
+        upsertBlob(ref, blob);
+      },
+      // eslint-disable-next-line @typescript-eslint/require-await
+      get: async (ref: string): Promise<Bytes | null> => {
+        const row = this.db.prepare('SELECT data FROM blobs WHERE ref = ?').get(ref) as
+          { data: Uint8Array } | undefined;
+        // A fresh copy per read, so callers can never alias driver state.
+        return row === undefined ? null : new Uint8Array(row.data);
+      },
+      // eslint-disable-next-line @typescript-eslint/require-await
+      list: async (runId: string): Promise<string[]> => {
+        // `ref <> run_id` excludes a degenerate slashless ref, matching
+        // the shipped stores' `${runId}/` prefix semantics; sorted like
+        // the file store.
+        const rows = this.db
+          .prepare('SELECT ref FROM blobs WHERE run_id = ? AND ref <> run_id ORDER BY ref')
+          .all(runId) as Array<{ ref: string }>;
+        return rows.map((row) => row.ref);
+      },
+      // eslint-disable-next-line @typescript-eslint/require-await
+      delete: async (ref: string, lease?: Lease): Promise<void> => {
+        if (lease !== undefined) {
+          this.requireRunMatch(lease, runOf(ref), 'transcript deletion');
+          this.fenced(lease, () => {
+            deleteBlob(ref);
+          });
+          return;
+        }
+        deleteBlob(ref);
+      },
+    };
+    return this.transcriptTwin;
   }
 
   /**

@@ -965,7 +965,9 @@ interface TranscriptStore {
   * sources). The shipped file and in-memory transcript stores do NOT
   * declare it (they are single-writer by contract); a fenced
   * implementation needs the blobs and the lease state in one
-  * transactional domain.
+  * transactional domain, which is exactly how the sqlite twin ships:
+  * `SqliteStore.transcripts()` in `@rulvar/store-sqlite` keeps blobs
+  * beside the lease rows of the same database.
   */
   readonly fencedWrites?: true;
 }
@@ -6821,7 +6823,9 @@ declare function hasFencedWrites(store: JournalStore | TranscriptStore): boolean
 * Deployment-time assertion for queue hosts that require the full
 * fence: throws a typed ConfigError naming each store that does NOT
 * declare `fencedWrites`. A host that tolerates advisory meta or
-* transcript writes simply never calls this.
+* transcript writes simply never calls this. The shipped pair that
+* satisfies it with transcripts present is `@rulvar/store-sqlite`:
+* the store as the journal plus its `transcripts()` twin.
 */
 declare function assertFencedWrites(stores: {
   journal: JournalStore;

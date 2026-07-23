@@ -5,4 +5,9 @@
  * Requires a Node.js with node:sqlite available
  * (unflagged in the 22.13+/23.4+ lines).
  */
-export { SqliteStore, DEFAULT_LEASE_TTL_MS, type SqliteStoreOptions } from './store.js';
+export {
+  SqliteStore,
+  DEFAULT_LEASE_TTL_MS,
+  type SqliteStoreOptions,
+  type SqliteTranscriptStore,
+} from './store.js';

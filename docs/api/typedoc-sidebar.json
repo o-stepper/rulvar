@@ -6525,6 +6525,10 @@
             "link": "/api/@rulvar/store-conformance/interfaces/ConformanceSuite.md"
           },
           {
+            "text": "FencedTranscriptsFixture",
+            "link": "/api/@rulvar/store-conformance/interfaces/FencedTranscriptsFixture.md"
+          },
+          {
             "text": "TestRegistrar",
             "link": "/api/@rulvar/store-conformance/interfaces/TestRegistrar.md"
           }
@@ -6558,6 +6562,10 @@
         "text": "Functions",
         "collapsed": true,
         "items": [
+          {
+            "text": "fencedTranscriptsConformance",
+            "link": "/api/@rulvar/store-conformance/functions/fencedTranscriptsConformance.md"
+          },
           {
             "text": "fencedWritesConformance",
             "link": "/api/@rulvar/store-conformance/functions/fencedWritesConformance.md"
@@ -6616,6 +6624,10 @@
           {
             "text": "SqliteStoreOptions",
             "link": "/api/@rulvar/store-sqlite/interfaces/SqliteStoreOptions.md"
+          },
+          {
+            "text": "SqliteTranscriptStore",
+            "link": "/api/@rulvar/store-sqlite/interfaces/SqliteTranscriptStore.md"
           }
         ]
       },
