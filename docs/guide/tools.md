@@ -371,6 +371,20 @@ const collected = research.evidence();
 
 Three properties carry the design. **Stable cursors**: every cursor is a keyset cursor (the last path, the last `(path, line)`, the last line number) bound to its query identity, so a page boundary never shifts when unrelated entries appear and a cursor replayed against different arguments is a typed error result. **Canonical pages**: a page is a pure function of the filesystem state and the logical window, never of how the window was addressed, so duplicate reads return byte-identical results, which is exactly what the [exploration guards](/guide/agents#exploration-guards) need: `maxRepeatedToolSignature` denies byte-identical repeat calls, and `maxNoNewEvidenceCalls` counts duplicate result digests, so an agent circling over the same pages trips the guard instead of silently exhausting its budget. **Confinement**: paths are root-relative only; absolute paths, `..` escapes, and symlink escapes are typed error results, and symlinked directories are never walked (results are journaled at execution time, so replay never touches the filesystem).
 
+## The progress contract and the structured terminal partial
+
+A budget expiry used to be lossy by construction: the agent hit `maxToolCalls` (or an [exploration guard](/guide/agents#exploration-guards)), settled `limit`, and everything it had established was invisible to the caller; a digest said only `terminal status limit`. The progress contract closes that loss with one stock tool and one engine scan:
+
+```ts
+import { progressReportTool, PROGRESS_REPORT_TOOL_NAME } from "@rulvar/core";
+
+// Attach beside the task tools; the description instructs the model to
+// report after every research batch.
+const tools = [...research.tools, progressReportTool()];
+```
+
+`report_progress({ facts, evidence?, questions?, note? })` is stateless and deterministic: the result echoes the counts, so a verbatim repeated report is a duplicate digest to the exploration guards (composition again, exactly like the canonical pages). The contract is the side effect: when an invocation terminates with status `limit`, the engine scans the transcript for the LAST successful `report_progress` call and returns it as `AgentResult.partial` (`{ facts, evidence, questions, note? }`, normalized). A denied or failed call never counts, an invocation that never reported stays byte-identical to before, and the terminal writes a final boundary checkpoint so a replayed or recovered result rebuilds the identical partial from the same message window. Downstream, the orchestrator digest of a limit child appends `partial: {...}` to its summary, `get_child_result` pages the full report, and [acceptance can salvage the child](/guide/orchestration-modes#partial-child-salvage-and-profile-templates).
+
 ## Tool results in the journal
 
 Tool calls inside an agent's loop are not individual journal entries. They live as tool-call and tool-result records in the agent's canonical history, which is checkpointed at every turn boundary; the agent itself is one two-phase journal entry whose content key includes `toolsetHash`. This has three practical consequences:

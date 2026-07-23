@@ -21,7 +21,9 @@ the invocation (abortClass 'exploration').
 | ------ | ------ | ------ | ------ |
 | <a id="property-bytool"></a> `byTool` | `Record`\&lt;`string`, `number`\&gt; | Executions per tool name. | `packages/core/dist/index.d.ts` |
 | <a id="property-deniedrepeats"></a> `deniedRepeats` | `number` | Calls denied by the repeated-signature guard (never dispatched). | `packages/core/dist/index.d.ts` |
+| <a id="property-deniedtoolcap"></a> `deniedToolCap?` | `number` | Calls denied by maxCallsPerTool; present when that limit is configured. | `packages/core/dist/index.d.ts` |
 | <a id="property-distinctsignatures"></a> `distinctSignatures` | `number` | Distinct (tool name, canonical args) signatures executed. | `packages/core/dist/index.d.ts` |
 | <a id="property-duplicateresultcalls"></a> `duplicateResultCalls` | `number` | Successful executions whose result digest was already seen. | `packages/core/dist/index.d.ts` |
 | <a id="property-repeatedcalls"></a> `repeatedCalls` | `number` | Executions of a signature that had already executed before. | `packages/core/dist/index.d.ts` |
 | <a id="property-toolcallsused"></a> `toolCallsUsed` | `number` | Tool executions dispatched by the loop (the loop's own counter). | `packages/core/dist/index.d.ts` |
+| <a id="property-toolunitsused"></a> `toolUnitsUsed?` | `number` | Weighted tool units spent; present when toolUnits is configured. | `packages/core/dist/index.d.ts` |

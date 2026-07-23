@@ -677,6 +677,10 @@
             "link": "/api/@rulvar/core/interfaces/AgentProfilePermissions.md"
           },
           {
+            "text": "AgentProfileTemplateOptions",
+            "link": "/api/@rulvar/core/interfaces/AgentProfileTemplateOptions.md"
+          },
+          {
             "text": "AgentResult",
             "link": "/api/@rulvar/core/interfaces/AgentResult.md"
           },
@@ -1105,6 +1109,10 @@
             "link": "/api/@rulvar/core/interfaces/PricingTier.md"
           },
           {
+            "text": "ProgressReport",
+            "link": "/api/@rulvar/core/interfaces/ProgressReport.md"
+          },
+          {
             "text": "ProviderAdapter",
             "link": "/api/@rulvar/core/interfaces/ProviderAdapter.md"
           },
@@ -1143,6 +1151,14 @@
           {
             "text": "RepositoryResearchToolsetOptions",
             "link": "/api/@rulvar/core/interfaces/RepositoryResearchToolsetOptions.md"
+          },
+          {
+            "text": "ResearchAgentProfileOptions",
+            "link": "/api/@rulvar/core/interfaces/ResearchAgentProfileOptions.md"
+          },
+          {
+            "text": "ResearchAgentProfileResult",
+            "link": "/api/@rulvar/core/interfaces/ResearchAgentProfileResult.md"
           },
           {
             "text": "ResearchEvidenceEntry",
@@ -2073,6 +2089,10 @@
             "link": "/api/@rulvar/core/variables/GET_CHILD_RESULT_TOOL_NAME.md"
           },
           {
+            "text": "IMPLEMENTATION_PROFILE_LIMITS",
+            "link": "/api/@rulvar/core/variables/IMPLEMENTATION_PROFILE_LIMITS.md"
+          },
+          {
             "text": "INBOX_PROPOSAL_TTL_DAYS",
             "link": "/api/@rulvar/core/variables/INBOX_PROPOSAL_TTL_DAYS.md"
           },
@@ -2121,12 +2141,24 @@
             "link": "/api/@rulvar/core/variables/PARALLEL_AGENTS_SCHEMA.md"
           },
           {
+            "text": "PROGRESS_REPORT_TOOL_NAME",
+            "link": "/api/@rulvar/core/variables/PROGRESS_REPORT_TOOL_NAME.md"
+          },
+          {
             "text": "READ_CHILD_ARTIFACT_SCHEMA",
             "link": "/api/@rulvar/core/variables/READ_CHILD_ARTIFACT_SCHEMA.md"
           },
           {
             "text": "READ_CHILD_ARTIFACT_TOOL_NAME",
             "link": "/api/@rulvar/core/variables/READ_CHILD_ARTIFACT_TOOL_NAME.md"
+          },
+          {
+            "text": "RESEARCH_PROFILE_LIMITS",
+            "link": "/api/@rulvar/core/variables/RESEARCH_PROFILE_LIMITS.md"
+          },
+          {
+            "text": "REVIEW_PROFILE_LIMITS",
+            "link": "/api/@rulvar/core/variables/REVIEW_PROFILE_LIMITS.md"
           },
           {
             "text": "ROLE_EFFORT_DEFAULTS",
@@ -2499,6 +2531,10 @@
             "link": "/api/@rulvar/core/functions/identityJcs.md"
           },
           {
+            "text": "implementationAgentProfile",
+            "link": "/api/@rulvar/core/functions/implementationAgentProfile.md"
+          },
+          {
             "text": "isEscalated",
             "link": "/api/@rulvar/core/functions/isEscalated.md"
           },
@@ -2533,6 +2569,10 @@
           {
             "text": "lastRunSettle",
             "link": "/api/@rulvar/core/functions/lastRunSettle.md"
+          },
+          {
+            "text": "latestProgressReport",
+            "link": "/api/@rulvar/core/functions/latestProgressReport.md"
           },
           {
             "text": "lexShellCommand",
@@ -2667,6 +2707,10 @@
             "link": "/api/@rulvar/core/functions/profileRegistrySnapshotHash.md"
           },
           {
+            "text": "progressReportTool",
+            "link": "/api/@rulvar/core/functions/progressReportTool.md"
+          },
+          {
             "text": "projectHistory",
             "link": "/api/@rulvar/core/functions/projectHistory.md"
           },
@@ -2731,6 +2775,10 @@
             "link": "/api/@rulvar/core/functions/requiredSectionsValidator.md"
           },
           {
+            "text": "researchAgentProfile",
+            "link": "/api/@rulvar/core/functions/researchAgentProfile.md"
+          },
+          {
             "text": "resolveModelInvocation",
             "link": "/api/@rulvar/core/functions/resolveModelInvocation.md"
           },
@@ -2749,6 +2797,10 @@
           {
             "text": "retryDelayMs",
             "link": "/api/@rulvar/core/functions/retryDelayMs.md"
+          },
+          {
+            "text": "reviewAgentProfile",
+            "link": "/api/@rulvar/core/functions/reviewAgentProfile.md"
           },
           {
             "text": "roleConfiguredInRouting",
@@ -4520,6 +4572,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/AgentProfilePermissions.md"
           },
           {
+            "text": "AgentProfileTemplateOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/AgentProfileTemplateOptions.md"
+          },
+          {
             "text": "AgentResult",
             "link": "/api/@rulvar/rulvar/interfaces/AgentResult.md"
           },
@@ -4968,6 +5024,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/ProgressOptions.md"
           },
           {
+            "text": "ProgressReport",
+            "link": "/api/@rulvar/rulvar/interfaces/ProgressReport.md"
+          },
+          {
             "text": "ProgressSink",
             "link": "/api/@rulvar/rulvar/interfaces/ProgressSink.md"
           },
@@ -5014,6 +5074,14 @@
           {
             "text": "RepositoryResearchToolsetOptions",
             "link": "/api/@rulvar/rulvar/interfaces/RepositoryResearchToolsetOptions.md"
+          },
+          {
+            "text": "ResearchAgentProfileOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/ResearchAgentProfileOptions.md"
+          },
+          {
+            "text": "ResearchAgentProfileResult",
+            "link": "/api/@rulvar/rulvar/interfaces/ResearchAgentProfileResult.md"
           },
           {
             "text": "ResearchEvidenceEntry",
@@ -5956,6 +6024,10 @@
             "link": "/api/@rulvar/rulvar/variables/GET_CHILD_RESULT_TOOL_NAME.md"
           },
           {
+            "text": "IMPLEMENTATION_PROFILE_LIMITS",
+            "link": "/api/@rulvar/rulvar/variables/IMPLEMENTATION_PROFILE_LIMITS.md"
+          },
+          {
             "text": "INBOX_PROPOSAL_TTL_DAYS",
             "link": "/api/@rulvar/rulvar/variables/INBOX_PROPOSAL_TTL_DAYS.md"
           },
@@ -6008,6 +6080,10 @@
             "link": "/api/@rulvar/rulvar/variables/PARALLEL_AGENTS_SCHEMA.md"
           },
           {
+            "text": "PROGRESS_REPORT_TOOL_NAME",
+            "link": "/api/@rulvar/rulvar/variables/PROGRESS_REPORT_TOOL_NAME.md"
+          },
+          {
             "text": "READ_CHILD_ARTIFACT_SCHEMA",
             "link": "/api/@rulvar/rulvar/variables/READ_CHILD_ARTIFACT_SCHEMA.md"
           },
@@ -6018,6 +6094,14 @@
           {
             "text": "recommendedDefaults",
             "link": "/api/@rulvar/rulvar/variables/recommendedDefaults.md"
+          },
+          {
+            "text": "RESEARCH_PROFILE_LIMITS",
+            "link": "/api/@rulvar/rulvar/variables/RESEARCH_PROFILE_LIMITS.md"
+          },
+          {
+            "text": "REVIEW_PROFILE_LIMITS",
+            "link": "/api/@rulvar/rulvar/variables/REVIEW_PROFILE_LIMITS.md"
           },
           {
             "text": "ROLE_EFFORT_DEFAULTS",
@@ -6394,6 +6478,10 @@
             "link": "/api/@rulvar/rulvar/functions/identityJcs.md"
           },
           {
+            "text": "implementationAgentProfile",
+            "link": "/api/@rulvar/rulvar/functions/implementationAgentProfile.md"
+          },
+          {
             "text": "isEscalated",
             "link": "/api/@rulvar/rulvar/functions/isEscalated.md"
           },
@@ -6428,6 +6516,10 @@
           {
             "text": "lastRunSettle",
             "link": "/api/@rulvar/rulvar/functions/lastRunSettle.md"
+          },
+          {
+            "text": "latestProgressReport",
+            "link": "/api/@rulvar/rulvar/functions/latestProgressReport.md"
           },
           {
             "text": "lexShellCommand",
@@ -6570,6 +6662,10 @@
             "link": "/api/@rulvar/rulvar/functions/progress.md"
           },
           {
+            "text": "progressReportTool",
+            "link": "/api/@rulvar/rulvar/functions/progressReportTool.md"
+          },
+          {
             "text": "projectHistory",
             "link": "/api/@rulvar/rulvar/functions/projectHistory.md"
           },
@@ -6638,6 +6734,10 @@
             "link": "/api/@rulvar/rulvar/functions/requiredSectionsValidator.md"
           },
           {
+            "text": "researchAgentProfile",
+            "link": "/api/@rulvar/rulvar/functions/researchAgentProfile.md"
+          },
+          {
             "text": "resolveModelInvocation",
             "link": "/api/@rulvar/rulvar/functions/resolveModelInvocation.md"
           },
@@ -6656,6 +6756,10 @@
           {
             "text": "retryDelayMs",
             "link": "/api/@rulvar/rulvar/functions/retryDelayMs.md"
+          },
+          {
+            "text": "reviewAgentProfile",
+            "link": "/api/@rulvar/rulvar/functions/reviewAgentProfile.md"
           },
           {
             "text": "roleConfiguredInRouting",

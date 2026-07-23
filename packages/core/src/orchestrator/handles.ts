@@ -38,8 +38,10 @@ export interface TaskDigest {
  * when the output IS a string, else its JCS-independent `JSON.stringify`)
  * for a settled ok child, or the child's `errorMessage` otherwise, so the
  * orchestrator can read WHY a child failed as readily as what it
- * produced. Everything here is a pure read of already durable journal
- * state, so a resume reproduces it with no new spend.
+ * produced; a limit child carrying a structured terminal partial serves
+ * `{ error, partial }` instead (RV-210 close-out), so the collected work
+ * is pageable in full. Everything here is a pure read of already durable
+ * journal state, so a resume reproduces it with no new spend.
  */
 export interface ChildResultPage {
   handle: number;

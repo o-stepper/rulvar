@@ -9,11 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Msg } from '../l0/messages.js';
 import type { ToolContext } from '../l0/spi/toolsource.js';
-import {
-  latestProgressReport,
-  PROGRESS_REPORT_TOOL_NAME,
-  progressReportTool,
-} from './progress.js';
+import { latestProgressReport, PROGRESS_REPORT_TOOL_NAME, progressReportTool } from './progress.js';
 
 const ctx = {} as ToolContext;
 
@@ -95,9 +91,7 @@ describe('latestProgressReport', () => {
   it('returns undefined when no report exists', () => {
     expect(latestProgressReport([])).toBeUndefined();
     expect(
-      latestProgressReport([
-        { role: 'user', parts: [{ type: 'text', text: 'no tools here' }] },
-      ]),
+      latestProgressReport([{ role: 'user', parts: [{ type: 'text', text: 'no tools here' }] }]),
     ).toBeUndefined();
   });
 });

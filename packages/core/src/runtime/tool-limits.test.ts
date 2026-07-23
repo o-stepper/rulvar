@@ -28,7 +28,7 @@ const echoTool = (name: string) =>
     name,
     description: `${name} tool`,
     parameters: z.strictObject({ q: z.string() }),
-    execute: (input) => Promise.resolve({ tool: name, q: (input as { q: string }).q }),
+    execute: (input) => Promise.resolve({ tool: name, q: input.q }),
   });
 
 describe('maxCallsPerTool (RV-210 close-out)', () => {
@@ -64,9 +64,7 @@ describe('maxCallsPerTool (RV-210 close-out)', () => {
     }>;
     expect(ends.filter((e) => e.toolName === 'read' && e.outcome === 'ok')).toHaveLength(2);
     const denied = ends.filter((e) => e.outcome === 'denied');
-    expect(denied).toEqual([
-      expect.objectContaining({ toolName: 'read', guard: 'per-tool-cap' }),
-    ]);
+    expect(denied).toEqual([expect.objectContaining({ toolName: 'read', guard: 'per-tool-cap' })]);
     // The unrelated tool is untouched and the denial consumed no budget.
     expect(ends.filter((e) => e.toolName === 'grep' && e.outcome === 'ok')).toHaveLength(1);
     expect(result.exploration).toMatchObject({
@@ -138,14 +136,11 @@ describe('the intake validation and the layer merge', () => {
     expect(() =>
       validateUsageLimits({ toolUnits: [] as unknown as { max: number } }, 'site'),
     ).toThrow(ConfigError);
+    expect(() => validateUsageLimits({ maxCallsPerTool: { read: 1.5 } }, 'site')).toThrow(
+      ConfigError,
+    );
     expect(() =>
-      validateUsageLimits({ maxCallsPerTool: { read: 1.5 } }, 'site'),
-    ).toThrow(ConfigError);
-    expect(() =>
-      validateUsageLimits(
-        { maxCallsPerTool: 3 as unknown as Record<string, number> },
-        'site',
-      ),
+      validateUsageLimits({ maxCallsPerTool: 3 as unknown as Record<string, number> }, 'site'),
     ).toThrow(ConfigError);
     // Valid shapes pass, including the 0 sentinels.
     validateUsageLimits(

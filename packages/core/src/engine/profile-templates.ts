@@ -101,7 +101,7 @@ export interface ResearchAgentProfileResult {
    * entries through list_evidence); construct one template per fan-out
    * run, or per child, when isolation matters.
    */
-  evidence(): ResearchEvidenceEntry[];
+  evidence: () => ResearchEvidenceEntry[];
 }
 
 function mergeLimits(template: UsageLimits, overrides: UsageLimits | undefined): UsageLimits {

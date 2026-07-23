@@ -10,7 +10,7 @@
 function digestOf(record, result): TaskDigest;
 ```
 
-Defined in: [packages/core/src/orchestrator/handles.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L154)
+Defined in: [packages/core/src/orchestrator/handles.ts:163](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/handles.ts#L163)
 
 Folds one settled child into its digest (spawn-ordinal ordering is the caller's).
 

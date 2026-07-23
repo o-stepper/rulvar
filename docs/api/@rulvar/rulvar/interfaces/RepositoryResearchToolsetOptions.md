@@ -8,6 +8,10 @@
 
 Defined in: `packages/core/dist/index.d.ts`
 
+## Extended by
+
+- [`ResearchAgentProfileOptions`](/api/@rulvar/rulvar/interfaces/ResearchAgentProfileOptions.md)
+
 ## Properties
 
 | Property | Type | Description | Defined in |
