@@ -1,5 +1,16 @@
 # @rulvar/cli
 
+## 1.52.0
+
+### Minor Changes
+
+- e138df9: Ship the RV-210 exploration guards (first slice): three opt-in `UsageLimits` fields that make an oscillating tool loop visible and boundable. `toolBudgetNotices` surfaces soft 50%/80% thresholds over `maxToolCalls` to the model as a plain user message with the exact remaining count (once per threshold, checkpoint-safe, inert with a loud warning without `maxToolCalls`). `maxRepeatedToolSignature` caps executions of the byte-identical call (tool name plus RFC 8785 canonical args): the excess call is never dispatched, the model receives a typed error result naming the count, the denial does not consume the tool budget, and `tool:end` carries `outcome: 'denied'` with `guard: 'repeated-signature'`. `maxNoNewEvidenceCalls` aborts the invocation as status `limit` with the new `abortClass: 'exploration'` when N consecutive successful executions return only already-seen result digests; the executed work is kept, the terminal memoizes, and the structured `ExplorationSummary` (`toolCallsUsed`, `distinctSignatures`, `repeatedCalls`, `duplicateResultCalls`, `deniedRepeats`, `byTool`) journals beside the abort class so a replayed consumer sees the same typed evidence with zero live calls. Whenever any guard field is configured the summary also rides the full `AgentResult` and the live `agent:end` event (live-only for non-abort terminals, like `transportRetries`); values JCS cannot serialize fail open (unique signatures, fresh evidence); on resume the guard rebuilds from the restored checkpoint messages. The CLI TUI renders the guard marker on denied tool lines and the OTel exporter maps the counters to `rulvar.exploration.*` and `rulvar.tool.guard` attributes. Unconfigured invocations are byte-identical to before. Demonstrated against published 1.51.0 first: the identical call executed six of six times with zero signal, the model never saw a remaining count, duplicate pages never flagged, and the terminal was a bare `limit` indistinguishable from honest work.
+
+### Patch Changes
+
+- Updated dependencies [e138df9]
+  - @rulvar/core@1.52.0
+
 ## 1.51.0
 
 ### Patch Changes
