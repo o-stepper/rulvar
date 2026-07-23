@@ -22,7 +22,7 @@ type Gate =
 };
 ```
 
-Defined in: [packages/core/src/l0/messages.ts:217](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L217)
+Defined in: [packages/core/src/l0/messages.ts:224](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/messages.ts#L224)
 
 Ladder acceptance gates. Spot-check sibling selection is strictly via
 ctx.random, never Math.random.

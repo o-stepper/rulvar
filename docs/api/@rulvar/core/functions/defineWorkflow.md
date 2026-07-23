@@ -10,7 +10,7 @@
 function defineWorkflow<A, R, P>(meta, body): Workflow<A, R>;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:544](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L544)
+Defined in: [packages/core/src/engine/ctx.ts:546](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L546)
 
 ## Type Parameters
 

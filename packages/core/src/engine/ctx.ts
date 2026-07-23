@@ -174,10 +174,12 @@ export interface AgentOpts<S extends SchemaSpec = SchemaSpec> {
    * The primary invocation role of the agent's tool loop; default
    * 'loop'. The plan and orchestrate entry points set it so the
    * resolution chain, role effort defaults, quality floors, and cost
-   * buckets see the right role; extract/finalize/summarize stay
-   * trigger-derived and are never settable here (M6-T05 amendment).
+   * buckets see the right role, and the orchestrator's post-fan-in
+   * synthesis invocation (RV-211) runs as 'synthesize';
+   * extract/finalize/summarize stay trigger-derived and are never
+   * settable here (M6-T05 amendment).
    */
-  role?: 'loop' | 'plan' | 'orchestrate';
+  role?: 'loop' | 'plan' | 'orchestrate' | 'synthesize';
   /** Overrides all roles at once. */
   model?: ModelSpec;
   /** Per-role, wins over profile.routing. */

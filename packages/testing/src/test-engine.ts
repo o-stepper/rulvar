@@ -70,6 +70,9 @@ export function createTestEngine(options: CreateTestEngineOptions): TestEngine {
         orchestrate: FAKE_MODEL_REF,
         plan: FAKE_MODEL_REF,
         summarize: FAKE_MODEL_REF,
+        // Like the other keys, model-picking only: the synthesize
+        // invocation fires only via OrchestrateOptions.synthesis.
+        synthesize: FAKE_MODEL_REF,
       },
       profiles,
     },
