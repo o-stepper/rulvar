@@ -1,5 +1,17 @@
 # @rulvar/core
 
+## 1.54.0
+
+### Minor Changes
+
+- 3f6bc03: Three improvement-plan remainders: the `run:end` semantic completion lift (RV-207 tail), the standard repository research toolset (RV-210), and incremental synthesis with pre-model claim deduplication (RV-211).
+
+  **The completion lift.** Transport status and semantic completeness are different claims, and `run:end` now carries both: a workflow that returns an object result with a valid `completion` literal (`'complete' | 'partial' | 'rejected'`) and optionally a `childStatusCounts` record, or throws a typed error whose `data` carries them, gets both lifted onto the `run:end` event. The orchestrator acceptance path emits the envelope on every terminal, including the typed rejection (its `FailRunError` data now carries `completion: 'rejected'`). Malformed shapes stay silently absent, replay recomputes identical fields, the CLI progress line renders `completion=...`, and the OTel exporter maps `rulvar.run.completion` and `rulvar.run.childStatusCounts`.
+
+  **The repository research toolset.** `repositoryResearchToolset({ root })` ships five `risk: 'read'` tools over a confined directory root: `list_files`, `search_files`, and `read_file` with deterministic byte ordering and STABLE keyset cursors (a page boundary never shifts when unrelated entries appear; every cursor embeds its query identity), plus `record_evidence`, which verifies citations at collection time (the file must exist under the root, `lines` must be a valid 1-based range inside it, `quote` must appear verbatim), and `list_evidence`. Pages are canonical: byte-identical however addressed, which is exactly what the exploration guards measure, so `maxRepeatedToolSignature` and `maxNoNewEvidenceCalls` compose with the kit instead of being defeated by marker fields. Absolute paths, `..` escapes, and symlink escapes are typed error results; the host reads collected evidence via `kit.evidence()`.
+
+  **Incremental synthesis and claim dedup.** `synthesis.mode: 'incremental'` dispatches one bounded `synthesize`-role NOTE invocation per settled child the moment it settles (default `noteLimits` `{ maxTurns: 2 }`), overlapping the still-running fan-out, and the final result is a DETERMINISTIC reconciliation envelope (`IncrementalSynthesisResult`), never another model call; a dead note falls back to that child's raw digest summary under a journaled per-child `orchestrator_synthesis_note_fallback` decision, replay reproduces the envelope with zero paid calls, and `finishValidation` plus incremental mode is a `ConfigError` at intake because the reconciliation has no model-composed finish to validate. `synthesis.dedupeClaims: true` deduplicates repeated claim lines across children BEFORE any model call (whitespace-collapsed exact matching via the exported pure `dedupeRepeatedClaims`, never fuzzy): in single mode the digest keeps first occurrences with a `REPEATED CLAIMS` index riding the prompt, in incremental mode the envelope carries `repeatedClaims`. Both options default off and the synthesis prompt stays byte-identical when unset.
+
 ## 1.53.0
 
 ### Minor Changes
