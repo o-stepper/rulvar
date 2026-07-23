@@ -48,4 +48,5 @@ pnpm add @rulvar/core @rulvar/store-sqlite
 
 | Variable | Description |
 | ------ | ------ |
+| [BOOT\_BUSY\_TIMEOUT\_MS](/api/@rulvar/store-sqlite/variables/BOOT_BUSY_TIMEOUT_MS.md) | Total time the constructor keeps retrying its schema bootstrap through SQLITE_BUSY before giving up, so concurrent multi-process construction over one fresh file serializes instead of dying raw. The bound applies ONLY to boot; every runtime contention path keeps the documented fail-fast semantics (busy surfaces immediately). A boot still busy past the bound throws the driver's error: something is wedged, not merely concurrent. |
 | [DEFAULT\_LEASE\_TTL\_MS](/api/@rulvar/store-sqlite/variables/DEFAULT_LEASE_TTL_MS.md) | Appendix A interim reference for the sqlite store. |

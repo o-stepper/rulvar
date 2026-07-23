@@ -3,6 +3,16 @@ import { JournalEntry, LeasableStore, Lease, MetaLookupStore, RunFilter, RunMeta
 //#region src/store.d.ts
 /** Appendix A interim reference for the sqlite store. */
 declare const DEFAULT_LEASE_TTL_MS = 6e4;
+/**
+* Total time the constructor keeps retrying its schema bootstrap
+* through SQLITE_BUSY before giving up, so concurrent multi-process
+* construction over one fresh file serializes instead of dying raw.
+* The bound applies ONLY to boot; every runtime contention path keeps
+* the documented fail-fast semantics (busy surfaces immediately). A
+* boot still busy past the bound throws the driver's error: something
+* is wedged, not merely concurrent.
+*/
+declare const BOOT_BUSY_TIMEOUT_MS = 5e3;
 interface SqliteStoreOptions {
   /** Database file path, or ':memory:' for an in-process store. */
   path: string;
@@ -103,4 +113,4 @@ declare class SqliteStore implements MetaLookupStore, LeasableStore {
   release(l: Lease): Promise<void>;
 }
 //#endregion
-export { DEFAULT_LEASE_TTL_MS, SqliteStore, type SqliteStoreOptions, type SqliteTranscriptStore };
+export { BOOT_BUSY_TIMEOUT_MS, DEFAULT_LEASE_TTL_MS, SqliteStore, type SqliteStoreOptions, type SqliteTranscriptStore };

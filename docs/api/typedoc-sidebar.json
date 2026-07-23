@@ -6609,6 +6609,30 @@
             "link": "/api/@rulvar/store-conformance/interfaces/FencedTranscriptsFixture.md"
           },
           {
+            "text": "MultiProcessSoakOptions",
+            "link": "/api/@rulvar/store-conformance/interfaces/MultiProcessSoakOptions.md"
+          },
+          {
+            "text": "MultiProcessSoakResult",
+            "link": "/api/@rulvar/store-conformance/interfaces/MultiProcessSoakResult.md"
+          },
+          {
+            "text": "SoakActivity",
+            "link": "/api/@rulvar/store-conformance/interfaces/SoakActivity.md"
+          },
+          {
+            "text": "SoakQuorum",
+            "link": "/api/@rulvar/store-conformance/interfaces/SoakQuorum.md"
+          },
+          {
+            "text": "SoakWriterConfig",
+            "link": "/api/@rulvar/store-conformance/interfaces/SoakWriterConfig.md"
+          },
+          {
+            "text": "SoakWriterHooks",
+            "link": "/api/@rulvar/store-conformance/interfaces/SoakWriterHooks.md"
+          },
+          {
             "text": "TestRegistrar",
             "link": "/api/@rulvar/store-conformance/interfaces/TestRegistrar.md"
           }
@@ -6619,6 +6643,18 @@
         "collapsed": true,
         "items": [
           {
+            "text": "SoakAcceptSurface",
+            "link": "/api/@rulvar/store-conformance/type-aliases/SoakAcceptSurface.md"
+          },
+          {
+            "text": "SoakEvent",
+            "link": "/api/@rulvar/store-conformance/type-aliases/SoakEvent.md"
+          },
+          {
+            "text": "SoakProbeSurface",
+            "link": "/api/@rulvar/store-conformance/type-aliases/SoakProbeSurface.md"
+          },
+          {
             "text": "StoreFactory",
             "link": "/api/@rulvar/store-conformance/type-aliases/StoreFactory.md"
           }
@@ -6628,6 +6664,10 @@
         "text": "Variables",
         "collapsed": true,
         "items": [
+          {
+            "text": "DEFAULT_SOAK_QUORUM",
+            "link": "/api/@rulvar/store-conformance/variables/DEFAULT_SOAK_QUORUM.md"
+          },
           {
             "text": "GOLDEN_FOLD_JOURNAL",
             "link": "/api/@rulvar/store-conformance/variables/GOLDEN_FOLD_JOURNAL.md"
@@ -6642,6 +6682,10 @@
         "text": "Functions",
         "collapsed": true,
         "items": [
+          {
+            "text": "countSoakActivity",
+            "link": "/api/@rulvar/store-conformance/functions/countSoakActivity.md"
+          },
           {
             "text": "fencedTranscriptsConformance",
             "link": "/api/@rulvar/store-conformance/functions/fencedTranscriptsConformance.md"
@@ -6671,12 +6715,32 @@
             "link": "/api/@rulvar/store-conformance/functions/materializeFoldState.md"
           },
           {
+            "text": "parseSoakReport",
+            "link": "/api/@rulvar/store-conformance/functions/parseSoakReport.md"
+          },
+          {
             "text": "registerConformance",
             "link": "/api/@rulvar/store-conformance/functions/registerConformance.md"
           },
           {
+            "text": "runMultiProcessSoak",
+            "link": "/api/@rulvar/store-conformance/functions/runMultiProcessSoak.md"
+          },
+          {
+            "text": "runSoakWriter",
+            "link": "/api/@rulvar/store-conformance/functions/runSoakWriter.md"
+          },
+          {
+            "text": "soakWriterConfigFromEnv",
+            "link": "/api/@rulvar/store-conformance/functions/soakWriterConfigFromEnv.md"
+          },
+          {
             "text": "stableStringify",
             "link": "/api/@rulvar/store-conformance/functions/stableStringify.md"
+          },
+          {
+            "text": "verifySoakHistory",
+            "link": "/api/@rulvar/store-conformance/functions/verifySoakHistory.md"
           }
         ]
       }
@@ -6715,6 +6779,10 @@
         "text": "Variables",
         "collapsed": true,
         "items": [
+          {
+            "text": "BOOT_BUSY_TIMEOUT_MS",
+            "link": "/api/@rulvar/store-sqlite/variables/BOOT_BUSY_TIMEOUT_MS.md"
+          },
           {
             "text": "DEFAULT_LEASE_TTL_MS",
             "link": "/api/@rulvar/store-sqlite/variables/DEFAULT_LEASE_TTL_MS.md"

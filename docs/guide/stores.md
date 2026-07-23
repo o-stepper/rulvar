@@ -94,6 +94,12 @@ assertFencedWrites(stores); // throws unless BOTH declare fencedWrites
 const engine = createEngine({ adapters: [anthropic()], stores });
 ```
 
+## The multi-process soak
+
+The capability suites above prove each fenced surface in isolation. The soak proves the whole promise under real concurrency: `runMultiProcessSoak` in the conformance kit spawns writer processes that storm one store location through every fenced surface (journal appends, meta writes, transcript blob puts and deletes, fenced run deletion, renew, release), with stalls injected past the lease ttl so takeovers happen while superseded holders are still alive and probing every surface with their dead leases. Each accepted mutation carries the holder's epoch and a per-tenure counter, so afterwards the referee rebuilds the one serial history fencing requires and diffs it against the actual journal, meta row, and blobs: any stale acceptance, lost accepted write, epoch inversion, or divergent final byte fails the soak. The storm runs until an activity quorum is met (takeover count, per-surface accepted writes, typed stale rejections), so a slower machine storms longer instead of asserting on thin coverage.
+
+Concurrent construction is deliberately part of the exercise: every writer constructs the store bare, at the same moment, over the same fresh location, because a fleet start does exactly that. The soak's first storm found that defect in the reference store (concurrent boots collided in the schema bootstrap and died with a raw SQLITE_BUSY) before it reached the fencing at all; the constructor now retries its idempotent bootstrap under a wall-clock bound. `SqliteStore` runs the soak in its own test suite; wiring it for your store is shown in [Writing a store](/guide/store-authors#the-multi-process-soak).
+
 ## The meta lookup capability
 
 Point operations (`engine.resume`, the HTTP status endpoint, CLI `resume` and `inspect`, the deterministic planner lookup) need ONE run's metadata, and forcing them through `listRuns` makes each of them scan the whole catalog. A store can add the exact lookup capability, optional exactly like the lease capability:
