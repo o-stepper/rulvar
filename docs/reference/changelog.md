@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.53.0
+
+#### Patch Changes
+
+- Updated dependencies [b821bd1]
+  - @rulvar/core@1.53.0
+
 ### 1.52.0
 
 #### Patch Changes
@@ -731,6 +738,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.53.0
+
+#### Patch Changes
+
+- Updated dependencies [b821bd1]
+  - @rulvar/core@1.53.0
+
 ### 1.52.0
 
 #### Patch Changes
@@ -1309,6 +1323,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.53.0
+
+#### Patch Changes
+
+- Updated dependencies [b821bd1]
+  - @rulvar/core@1.53.0
 
 ### 1.52.0
 
@@ -2154,6 +2175,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.53.0
+
+#### Minor Changes
+
+- b821bd1: Ship the RV-211 synthesis role and critical-path metrics. `InvocationRole` gains `'synthesize'`: the dynamic orchestrator's opt-in post-fan-in synthesis invocation (`OrchestrateOptions.synthesis { model?, effort?, limits?, instructions?, estCost? }`). With it configured, the coordination loop's `finish({ result })` becomes a draft and one fresh finish-only invocation with role `synthesize` composes the final run result from the goal, the draft, and the settled child digest, routable independently of coordination through the ordinary chain (the routing key picks its model and never summons it; no role effort default, like `loop` and `finalize`). Ordering and failure posture are strict: synthesis runs only after an accepted acceptance verdict; `finishValidation` validators bind the synthesis finish instead of the draft (same repair loop, same journaled verdicts); a dead synthesis falls back to the draft under a journaled `orchestrator_synthesis_fallback` decision and a warn log without validators, or fails the run typed (`data.source` `'orchestrator_synthesis'`) with them. The invocation is an ordinary journaled agent entry, so a resume replays it with zero paid calls (the prompt derives from journaled state, and the replayed root now awaits recovery before the digest fold). Telemetry: full `synthesize` span and phase pairs (`CostReport.byRole.synthesize`), a debug `log` event with the actual draft/digest/prompt sizes, and the new pure reducer `reduceCriticalPath(events)` (`CriticalPath`), which computes run wall, the post-fan-in interval, the synthesis wall, and their shares, so the improvement plan's post-fan-in gate (at most 40% of wall time) is a field read; the benchmark kit can expose any of them as metric extractors. `createTestEngine` routes `synthesize` to the fake model like every other model-picking key. Demonstrated against published 1.52.0 first: the whole orchestration emitted only orchestrate/loop roles, the final synthesis request ran on the coordination model, `byRole` had no synthesize bucket, the post-fan-in share was hand-rolled or nothing, and the synthesis vocabulary was silently ignored words.
 
 ### 1.52.0
 
@@ -3429,6 +3456,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.53.0
+
 ### 1.52.0
 
 ### 1.51.0
@@ -3619,6 +3648,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.53.0
+
+#### Patch Changes
+
+- Updated dependencies [b821bd1]
+  - @rulvar/core@1.53.0
+  - @rulvar/testing@1.53.0
 
 ### 1.52.0
 
@@ -4357,6 +4394,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/openai
 
+### 1.53.0
+
+#### Patch Changes
+
+- Updated dependencies [b821bd1]
+  - @rulvar/core@1.53.0
+
 ### 1.52.0
 
 #### Patch Changes
@@ -5087,6 +5131,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.53.0
+
+#### Patch Changes
+
+- Updated dependencies [b821bd1]
+  - @rulvar/core@1.53.0
+
 ### 1.52.0
 
 #### Patch Changes
@@ -5787,6 +5838,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.53.0
+
+#### Patch Changes
+
+- Updated dependencies [b821bd1]
+  - @rulvar/core@1.53.0
+  - eslint-plugin-rulvar@1.53.0
+
 ### 1.52.0
 
 #### Patch Changes
@@ -6480,6 +6539,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.53.0
+
+#### Patch Changes
+
+- Updated dependencies [b821bd1]
+  - @rulvar/core@1.53.0
+  - @rulvar/anthropic@1.53.0
+  - @rulvar/openai@1.53.0
 
 ### 1.52.0
 
@@ -7312,6 +7380,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.53.0
+
+#### Patch Changes
+
+- Updated dependencies [b821bd1]
+  - @rulvar/core@1.53.0
+
 ### 1.52.0
 
 #### Patch Changes
@@ -7982,6 +8057,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.53.0
+
+#### Patch Changes
+
+- Updated dependencies [b821bd1]
+  - @rulvar/core@1.53.0
+
 ### 1.52.0
 
 #### Patch Changes
@@ -8593,6 +8675,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.53.0
+
+#### Minor Changes
+
+- b821bd1: Ship the RV-211 synthesis role and critical-path metrics. `InvocationRole` gains `'synthesize'`: the dynamic orchestrator's opt-in post-fan-in synthesis invocation (`OrchestrateOptions.synthesis { model?, effort?, limits?, instructions?, estCost? }`). With it configured, the coordination loop's `finish({ result })` becomes a draft and one fresh finish-only invocation with role `synthesize` composes the final run result from the goal, the draft, and the settled child digest, routable independently of coordination through the ordinary chain (the routing key picks its model and never summons it; no role effort default, like `loop` and `finalize`). Ordering and failure posture are strict: synthesis runs only after an accepted acceptance verdict; `finishValidation` validators bind the synthesis finish instead of the draft (same repair loop, same journaled verdicts); a dead synthesis falls back to the draft under a journaled `orchestrator_synthesis_fallback` decision and a warn log without validators, or fails the run typed (`data.source` `'orchestrator_synthesis'`) with them. The invocation is an ordinary journaled agent entry, so a resume replays it with zero paid calls (the prompt derives from journaled state, and the replayed root now awaits recovery before the digest fold). Telemetry: full `synthesize` span and phase pairs (`CostReport.byRole.synthesize`), a debug `log` event with the actual draft/digest/prompt sizes, and the new pure reducer `reduceCriticalPath(events)` (`CriticalPath`), which computes run wall, the post-fan-in interval, the synthesis wall, and their shares, so the improvement plan's post-fan-in gate (at most 40% of wall time) is a field read; the benchmark kit can expose any of them as metric extractors. `createTestEngine` routes `synthesize` to the fake model like every other model-picking key. Demonstrated against published 1.52.0 first: the whole orchestration emitted only orchestrate/loop roles, the final synthesis request ran on the coordination model, `byRole` had no synthesize bucket, the post-fan-in share was hand-rolled or nothing, and the synthesis vocabulary was silently ignored words.
+
+#### Patch Changes
+
+- Updated dependencies [b821bd1]
+  - @rulvar/core@1.53.0
 
 ### 1.52.0
 
