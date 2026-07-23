@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.49.0
+
+#### Patch Changes
+
+- Updated dependencies [bab7b2c]
+  - @rulvar/core@1.49.0
+
 ### 1.48.0
 
 #### Patch Changes
@@ -704,6 +711,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.49.0
+
+#### Patch Changes
+
+- Updated dependencies [bab7b2c]
+  - @rulvar/core@1.49.0
+
 ### 1.48.0
 
 #### Patch Changes
@@ -1255,6 +1269,23 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.49.0
+
+#### Minor Changes
+
+- bab7b2c: Make the agent event model unambiguous (RV-207): one `agent:start`/`agent:end` pair per logical agent span, a paired `agent:phase:start`/`agent:phase:end` per model invocation phase, an official reducer, and the OTel exporter leak the old shape caused is closed.
+
+  Before this release one spanId emitted an extra unpaired `agent:start` for every phase of the dispatch (`loop`, then `summarize` per compaction, `finalize`, `extract`) with a single `agent:end`, so durations and attempts were underivable without heuristics: a consumer pairing starts with the end read the LAST phase's duration as the agent's, a starts-minus-ends gauge leaked one running agent per phase, and the shipped `toOtel` exporter (reproduced on the published 1.48.0) leaked a never-ended OTel span per multi-phase agent while the span it did close measured only the last phase. The replayed stream had a different shape than the live one (one start), so the same consumer built different tables live and on replay.
+
+  Now every phase activation emits `agent:phase:start`/`agent:phase:end` keyed `(spanId, invocation)` (a 1-based activation ordinal; a summarize that fires three times gets three pairs), carrying the phase's role, the serving model, `durationMs`, the usage delta the activation added to its `(role, model)` slice (the pairs sum exactly to `agent:end` and to the journaled `usageByModel` split), `costUsd` priced at each serving model's own rate, a binary `outcome`, and `retries` (transport retries inside the activation). `agent:end` gains `retryCount`. The retry facts are live telemetry only, never journaled: replayed events omit them, and replayed phase pairs are reconstructed from the terminal entry's recorded slices with `durationMs` 0, so a live stream and its replay reduce to IDENTICAL usage and cost tables. `reduceInvocationTable` (new in `@rulvar/core`) is the official no-heuristics reducer: per-agent per-phase rows plus a per-role aggregate that matches `CostReport.byRole`; truncated streams stay honest (`open: true`), never guessed at.
+
+  `@rulvar/cli`: `toOtel` maps each phase pair to an `invocation <role>` child span of its agent span with `gen_ai.usage.*`, `rulvar.cost_usd`, and `rulvar.retries` attributes, closes the agent span with the whole dispatch's totals and `rulvar.retry_count`, and an opener for an already-open span never duplicates it, so even a stream from a pre-RV-207 core cannot overwrite the tracked agent span and leak it unended. The progress renderer prints the phase lines (`agent w extract phase on model`, then the settle line with per-phase cost, tokens, duration, and retries). Journal bytes, cassettes, and toolset hashes are untouched: events are telemetry, never identity.
+
+#### Patch Changes
+
+- Updated dependencies [bab7b2c]
+  - @rulvar/core@1.49.0
 
 ### 1.48.0
 
@@ -2047,6 +2078,18 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.49.0
+
+#### Minor Changes
+
+- bab7b2c: Make the agent event model unambiguous (RV-207): one `agent:start`/`agent:end` pair per logical agent span, a paired `agent:phase:start`/`agent:phase:end` per model invocation phase, an official reducer, and the OTel exporter leak the old shape caused is closed.
+
+  Before this release one spanId emitted an extra unpaired `agent:start` for every phase of the dispatch (`loop`, then `summarize` per compaction, `finalize`, `extract`) with a single `agent:end`, so durations and attempts were underivable without heuristics: a consumer pairing starts with the end read the LAST phase's duration as the agent's, a starts-minus-ends gauge leaked one running agent per phase, and the shipped `toOtel` exporter (reproduced on the published 1.48.0) leaked a never-ended OTel span per multi-phase agent while the span it did close measured only the last phase. The replayed stream had a different shape than the live one (one start), so the same consumer built different tables live and on replay.
+
+  Now every phase activation emits `agent:phase:start`/`agent:phase:end` keyed `(spanId, invocation)` (a 1-based activation ordinal; a summarize that fires three times gets three pairs), carrying the phase's role, the serving model, `durationMs`, the usage delta the activation added to its `(role, model)` slice (the pairs sum exactly to `agent:end` and to the journaled `usageByModel` split), `costUsd` priced at each serving model's own rate, a binary `outcome`, and `retries` (transport retries inside the activation). `agent:end` gains `retryCount`. The retry facts are live telemetry only, never journaled: replayed events omit them, and replayed phase pairs are reconstructed from the terminal entry's recorded slices with `durationMs` 0, so a live stream and its replay reduce to IDENTICAL usage and cost tables. `reduceInvocationTable` (new in `@rulvar/core`) is the official no-heuristics reducer: per-agent per-phase rows plus a per-role aggregate that matches `CostReport.byRole`; truncated streams stay honest (`open: true`), never guessed at.
+
+  `@rulvar/cli`: `toOtel` maps each phase pair to an `invocation <role>` child span of its agent span with `gen_ai.usage.*`, `rulvar.cost_usd`, and `rulvar.retries` attributes, closes the agent span with the whole dispatch's totals and `rulvar.retry_count`, and an opener for an already-open span never duplicates it, so even a stream from a pre-RV-207 core cannot overwrite the tracked agent span and leak it unended. The progress renderer prints the phase lines (`agent w extract phase on model`, then the settle line with per-phase cost, tokens, duration, and retries). Journal bytes, cassettes, and toolset hashes are untouched: events are telemetry, never identity.
 
 ### 1.48.0
 
@@ -3288,6 +3331,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.49.0
+
 ### 1.48.0
 
 ### 1.47.0
@@ -3470,6 +3515,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.49.0
+
+#### Patch Changes
+
+- Updated dependencies [bab7b2c]
+  - @rulvar/core@1.49.0
+  - @rulvar/testing@1.49.0
 
 ### 1.48.0
 
@@ -4166,6 +4219,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/testing@0.1.0
 
 ## @rulvar/openai
+
+### 1.49.0
+
+#### Patch Changes
+
+- Updated dependencies [bab7b2c]
+  - @rulvar/core@1.49.0
 
 ### 1.48.0
 
@@ -4870,6 +4930,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.49.0
+
+#### Patch Changes
+
+- Updated dependencies [bab7b2c]
+  - @rulvar/core@1.49.0
+
 ### 1.48.0
 
 #### Patch Changes
@@ -5543,6 +5610,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.49.0
+
+#### Patch Changes
+
+- Updated dependencies [bab7b2c]
+  - @rulvar/core@1.49.0
+  - eslint-plugin-rulvar@1.49.0
+
 ### 1.48.0
 
 #### Patch Changes
@@ -6205,6 +6280,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.49.0
+
+#### Patch Changes
+
+- Updated dependencies [bab7b2c]
+  - @rulvar/core@1.49.0
+  - @rulvar/anthropic@1.49.0
+  - @rulvar/openai@1.49.0
 
 ### 1.48.0
 
@@ -7002,6 +7086,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.49.0
+
+#### Patch Changes
+
+- Updated dependencies [bab7b2c]
+  - @rulvar/core@1.49.0
+
 ### 1.48.0
 
 #### Minor Changes
@@ -7645,6 +7736,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.49.0
+
+#### Patch Changes
+
+- Updated dependencies [bab7b2c]
+  - @rulvar/core@1.49.0
+
 ### 1.48.0
 
 #### Patch Changes
@@ -8229,6 +8327,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.49.0
+
+#### Patch Changes
+
+- Updated dependencies [bab7b2c]
+  - @rulvar/core@1.49.0
 
 ### 1.48.0
 
