@@ -56,13 +56,15 @@ All four family unions are exported from `@rulvar/core` as `CoreEvents`, `AgentE
 | Event | Fires when | Notable fields |
 |---|---|---|
 | `run:start` | The run begins (`resumed: true` on resume). | `workflow`, `resumed` |
-| `run:end` | The run settles. | `status`, `totalUsd`, `usageApprox?` |
+| `run:end` | The run settles. | `status`, `totalUsd`, `usageApprox?`, `completion?`, `childStatusCounts?` |
 | `phase:start` | A `ctx.phase` block opens. | `phase` |
 | `log` | The workflow or engine logs a line. | `level`, `msg`, `data?` |
 | `budget:update` | Spend or committed reserves changed. | `spentUsd`, `remainingUsd`, `committedReserveUsd` |
 | `external:waiting` | The run suspended on `ctx.awaitExternal`. | `key`, `entryRef`, `prompt?`, `deadlineAt?` |
 | `approval:pending` | A tool call is suspended awaiting approval. | `toolName`, `entryRef`, `deadlineAt?` |
 | `child:start` / `child:end` | A child workflow starts and settles. | `workflow`, `scope`, `status` on end |
+
+Transport status and semantic completeness are different claims, and `run:end` carries both: `status` says whether the run RAN (`'ok'` includes an accepted degraded run), while `completion` (`'complete' | 'partial' | 'rejected'`) and `childStatusCounts` say whether the work is COMPLETE. They surface through the completion envelope contract: a workflow that returns an object result carrying a valid `completion` literal (and optionally a `childStatusCounts` record), or throws a typed error whose `data` carries them, gets both lifted onto `run:end`; the [orchestrator acceptance policy](/guide/orchestration-modes#acceptance-the-child-completion-policy) emits this envelope on every path, including the typed rejection. Malformed shapes stay silently absent (the event is telemetry, never authority), replay recomputes the same values from the re-executed workflow, and the OTel exporter maps them to `rulvar.run.completion` and `rulvar.run.childStatusCounts`.
 
 ### Agent lifecycle
 

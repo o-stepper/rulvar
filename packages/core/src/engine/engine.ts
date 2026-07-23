@@ -396,6 +396,48 @@ export function workflowSourceRef(runId: string): string {
 }
 
 /**
+ * The completion envelope contract (RV-207 tail): a workflow reports
+ * SEMANTIC completion by returning an object result carrying a
+ * `completion` literal (and optionally `childStatusCounts`), or by
+ * throwing a typed RulvarError whose `data` carries them; the engine
+ * lifts the validated fields onto the `run:end` event so telemetry
+ * consumers read completeness without parsing workflow-specific result
+ * shapes. The orchestrator acceptance path emits this envelope. Pure
+ * shape validation: anything malformed is silently absent (the event is
+ * telemetry, never authority), and an invalid counts record drops the
+ * counts while keeping a valid completion.
+ */
+function liftRunCompletion(candidate: unknown):
+  | {
+      completion: 'complete' | 'partial' | 'rejected';
+      childStatusCounts?: Record<string, number>;
+    }
+  | undefined {
+  if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
+    return undefined;
+  }
+  const completion = (candidate as { completion?: unknown }).completion;
+  if (completion !== 'complete' && completion !== 'partial' && completion !== 'rejected') {
+    return undefined;
+  }
+  const counts = (candidate as { childStatusCounts?: unknown }).childStatusCounts;
+  if (typeof counts === 'object' && counts !== null && !Array.isArray(counts)) {
+    const entries = Object.entries(counts as Record<string, unknown>);
+    if (
+      entries.every(
+        ([, value]) => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0,
+      )
+    ) {
+      return {
+        completion,
+        childStatusCounts: Object.fromEntries(entries) as Record<string, number>,
+      };
+    }
+  }
+  return { completion };
+}
+
+/**
  * sha256 hex over the JCS canonical serialization of a run's args: the
  * value the engine records as `RunMeta.argsHash` at genesis, exposed so
  * hosts can verify re-supplied resume args against the recorded hash
@@ -1130,12 +1172,25 @@ export function createEngine(options: CreateEngineOptions): Engine {
         }
       }
       await putMeta(status).catch(() => undefined);
+      // The semantic completion lift: an ok/exhausted run reports through
+      // its result envelope, a typed failure through its error data (the
+      // orchestrator acceptance rejection). Replay re-executes the
+      // workflow and recomputes the same value, so the lifted fields are
+      // identical live and replayed.
+      const lifted = liftRunCompletion(
+        status === 'ok' || status === 'exhausted'
+          ? outcome.value
+          : status === 'error'
+            ? wireError?.data
+            : undefined,
+      );
       bus.emit(
         {
           type: 'run:end',
           status,
           totalUsd: ledger.usd,
           ...(outcome.cost.usageApprox === true ? { usageApprox: true } : {}),
+          ...(lifted === undefined ? {} : lifted),
         },
         rootSpanId,
       );

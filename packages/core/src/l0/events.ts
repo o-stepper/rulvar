@@ -29,6 +29,26 @@ export type CoreEvents =
        * charge. Absent means every contributing turn reported exact usage.
        */
       usageApprox?: boolean;
+      /**
+       * The semantic completion lift (RV-207 tail): present when the
+       * workflow reported semantic completion through the completion
+       * envelope contract: an `ok`/`exhausted` run whose result value is
+       * an object carrying a valid `completion` literal, or an `error`
+       * run whose typed error data carries one (the orchestrator
+       * acceptance path emits both). Transport status says whether the
+       * run ran; completion says whether the work is COMPLETE: an
+       * accepted degraded run is `status: 'ok'` with `completion:
+       * 'partial'`. Replay recomputes the same value from the re-executed
+       * workflow, so the field is identical live and replayed. Absent
+       * when the workflow makes no completion claim.
+       */
+      completion?: 'complete' | 'partial' | 'rejected';
+      /**
+       * Settled child statuses by status name, lifted from the same
+       * envelope (or typed error data) when it carries a valid record of
+       * nonnegative integers. Absent otherwise.
+       */
+      childStatusCounts?: Record<string, number>;
     }
   | { type: 'phase:start'; phase: string }
   | { type: 'log'; level: 'debug' | 'info' | 'warn' | 'error'; msg: string; data?: Json }

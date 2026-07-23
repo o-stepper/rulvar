@@ -54,6 +54,7 @@ import { defineWorkflow } from '../engine/ctx.js';
 import type { Engine, RunOptions } from '../engine/engine.js';
 import type { RunHandle } from '../engine/run-handle.js';
 import type { AdmissionDecision } from './admission.js';
+import { dedupeRepeatedClaims, type RepeatedClaim } from './claims.js';
 import {
   digestOf,
   WAKE_SUMMARY_RENDER_BUDGET_CHARS,
@@ -166,6 +167,13 @@ export const DEFAULT_FINISH_MAX_REPAIRS = 1;
  * call plus headroom for one validator repair exchange.
  */
 export const DEFAULT_SYNTHESIS_MAX_TURNS = 4;
+
+/**
+ * Default maxTurns of ONE incremental synthesis note (RV-211 remainder):
+ * a note summarizes a single settled child into a bounded finish call,
+ * so it needs less headroom than the full synthesis invocation.
+ */
+export const DEFAULT_SYNTHESIS_NOTE_MAX_TURNS = 2;
 
 /**
  * The opt in deterministic validation of the orchestrator finish result
@@ -300,9 +308,74 @@ export interface OrchestrateSynthesis {
    * Admission estimate for the synthesize invocation, like
    * AgentOpts.estCost: under a tight orchestrator cap the default
    * reserve (full maxOutputTokens pricing) can refuse the dispatch; an
-   * explicit estimate is the host speaking.
+   * explicit estimate is the host speaking. In 'incremental' mode the
+   * estimate applies to EACH note invocation.
    */
   estCost?: number;
+  /**
+   * The synthesis shape (RV-211 remainder). Default 'single': one
+   * post-fan-in synthesize invocation composes the final result from the
+   * draft and the whole settled digest. 'incremental': every settled
+   * child triggers ONE bounded synthesize-role NOTE invocation as soon
+   * as it settles (concurrent with the still-running fan-out, which is
+   * what moves synthesis wall time off the post-fan-in critical path),
+   * and the FINAL result is a DETERMINISTIC reconciliation, never
+   * another model call: an {@link IncrementalSynthesisResult} envelope
+   * composed from the draft and the notes in spawn order. The tradeoffs
+   * are explicit: notes are paid DURING the run, so an acceptance
+   * rejection can no longer guarantee "a rejected run never paid for
+   * synthesis"; and because the reconciliation has no model-composed
+   * finish, `finishValidation` cannot bind it: configuring both is a
+   * ConfigError at intake. A note that dies falls back to the child's
+   * raw digest summary under a journaled per-child
+   * 'orchestrator_synthesis_note_fallback' decision and a warn log.
+   * Cap paths are unchanged: a capped run settles through the reserved
+   * finalizer and never reconciles.
+   */
+  mode?: 'single' | 'incremental';
+  /**
+   * Deduplicate repeated claim lines across children BEFORE any model
+   * call (RV-211 remainder; default false, and the prompt stays byte
+   * identical when unset). In 'single' mode the digest entering the
+   * synthesis prompt keeps only the FIRST occurrence of every repeated
+   * line and a REPEATED CLAIMS index (each claim with its reporters)
+   * rides the prompt beside it. In 'incremental' mode the deterministic
+   * reconciliation dedupes the note texts the same way and the envelope
+   * carries the `repeatedClaims` index. Matching is whitespace-collapsed
+   * exact line equality: nothing fuzzy ever merges two distinct claims.
+   */
+  dedupeClaims?: boolean;
+  /**
+   * UsageLimits of ONE incremental note invocation; default
+   * { maxTurns: 2 }. Ignored in 'single' mode.
+   */
+  noteLimits?: UsageLimits;
+}
+
+/**
+ * The deterministic reconciliation envelope an 'incremental' synthesis
+ * returns as the run result (RV-211 remainder): the coordination draft
+ * plus one section per settled child in spawn order, each carrying the
+ * child's terminal status and its note (the note invocation's finish
+ * output, or the child's raw digest summary when the note fell back).
+ * With `dedupeClaims`, repeated claim lines keep their first occurrence
+ * only and the `repeatedClaims` index lists each with its reporters.
+ * Everything here derives from journaled state, so a resume reproduces
+ * the envelope byte for byte with zero paid calls.
+ */
+export interface IncrementalSynthesisResult {
+  synthesis: 'incremental';
+  draft: unknown;
+  sections: {
+    nodeId: string;
+    logicalTaskId: string;
+    /** The child's terminal status. */
+    status: string;
+    /** The note invocation's terminal status ('ok' unless it fell back). */
+    noteStatus: string;
+    note: string;
+  }[];
+  repeatedClaims?: RepeatedClaim[];
 }
 
 export const ORCHESTRATE_WORKFLOW_NAME = 'rulvar-orchestrate';
@@ -417,7 +490,36 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
       limits?: unknown;
       instructions?: unknown;
       estCost?: unknown;
+      mode?: unknown;
+      dedupeClaims?: unknown;
+      noteLimits?: unknown;
     };
+    if (
+      synthesis.mode !== undefined &&
+      synthesis.mode !== 'single' &&
+      synthesis.mode !== 'incremental'
+    ) {
+      throw new ConfigError(
+        "orchestrate synthesis.mode must be 'single' or 'incremental'; got " +
+          JSON.stringify(synthesis.mode),
+      );
+    }
+    if (synthesis.mode === 'incremental' && opts.finishValidation !== undefined) {
+      throw new ConfigError(
+        "orchestrate synthesis.mode 'incremental' reconciles deterministically and has no " +
+          'model-composed final finish for finishValidation to bind; configure validators ' +
+          "with mode 'single', or drop them",
+      );
+    }
+    if (synthesis.dedupeClaims !== undefined && typeof synthesis.dedupeClaims !== 'boolean') {
+      throw new ConfigError(
+        'orchestrate synthesis.dedupeClaims must be a boolean; got ' +
+          typeof synthesis.dedupeClaims,
+      );
+    }
+    if (synthesis.noteLimits !== undefined) {
+      validateUsageLimits(synthesis.noteLimits as UsageLimits, 'orchestrate synthesis.noteLimits');
+    }
     if (
       synthesis.effort !== undefined &&
       !['low', 'medium', 'high', 'xhigh', 'max'].includes(synthesis.effort as string)
@@ -848,6 +950,23 @@ export function makeOrchestratorWorkflow(
     const recoveryDone = new Promise<void>((resolve) => {
       releaseRecovery = resolve;
     });
+    /**
+     * Incremental synthesis notes (RV-211 remainder): one bounded
+     * synthesize-role invocation per settled child, keyed by nodeId so a
+     * note can never double-dispatch. The settle hook fires the note the
+     * moment its child settles (overlapping the still-running fan-out);
+     * the deterministic reconciliation is the completeness backstop and
+     * dispatches any note the hook missed. The dispatcher installs right
+     * before the coordination loop because it closes over runtime pieces
+     * built below; these bindings are declared HERE, before
+     * dispatchChild, so a recovered child's settle hook (which can fire
+     * during the recovery scan) never touches a binding in its temporal
+     * dead zone.
+     */
+    const synthesisNotes = new Map<string, Promise<AgentResult<unknown>>>();
+    let synthesisNoteDispatcher:
+      ((record: SpawnRecord) => Promise<AgentResult<unknown>>) | undefined;
+    let synthesisSettleFrozen = false;
     // Extension activity (scheduling edges) serializes on one chain and
     // always precedes wake-trigger evaluation for the settlement that
     // caused it (quiescence sees the post-scheduling state).
@@ -984,6 +1103,14 @@ export function makeOrchestratorWorkflow(
       };
       void settledResult.then(async (settled) => {
         record.settled = settled;
+        // Incremental synthesis (RV-211 remainder): the note dispatches
+        // the moment the child settles, so note wall time overlaps the
+        // still-running fan-out instead of stacking post-fan-in. Inert
+        // until the dispatcher installs (mode 'incremental' only) and
+        // after the reconciliation froze its snapshot.
+        if (!synthesisSettleFrozen) {
+          void synthesisNoteDispatcher?.(record);
+        }
         // The scheduling edge runs BEFORE wake evaluation so quiescence
         // sees newly-ready nodes.
         await runExtensionActivity();
@@ -2311,17 +2438,207 @@ export function makeOrchestratorWorkflow(
     };
 
     /**
+     * One incremental synthesis note (RV-211 remainder): a FRESH agent
+     * entry with role 'synthesize' on the finish-only toolset whose
+     * prompt derives deterministically from the goal and the ONE settled
+     * child's digest, so a resume replays it by identity with zero paid
+     * calls. The invocation itself never throws out of here: an infra
+     * failure settles as a synthesized error result and the
+     * reconciliation falls back to the raw digest summary.
+     */
+    const runSynthesisNote = async (record: SpawnRecord): Promise<AgentResult<unknown>> => {
+      const spec = opts?.synthesis as OrchestrateSynthesis;
+      const finishOnly = buildOrchestratorTools(orchestratorRuntime, fullCardText).filter(
+        (tool) => tool.name === FINISH_TOOL_NAME,
+      );
+      const digest = digestOf(record, record.settled as AgentResult<unknown>);
+      const prompt = [
+        'You are an incremental synthesis note of an orchestrated run. Digest the SINGLE ' +
+          'settled child below into a self-contained note for the final deterministic ' +
+          'reconciliation by calling finish({ result }) EXACTLY once, where result is a ' +
+          'STRING. Preserve concrete evidence and citations; do not invent findings. No ' +
+          'other tool exists.',
+        ...(spec.instructions === undefined ? [] : [spec.instructions]),
+        `GOAL: ${goal}`,
+        `CHILD: ${JSON.stringify(digest)}`,
+      ].join('\n');
+      const noteState: CtxScopeState = { ...callingState };
+      if (orchestratorAccount !== undefined) {
+        noteState.budgetScope = orchestratorAccount;
+      }
+      const noteOpts: AgentOpts & InternalAgentHooks & { result: 'full' } = {
+        role: 'synthesize',
+        result: 'full',
+        tools: finishOnly,
+        limits: spec.noteLimits ?? { maxTurns: DEFAULT_SYNTHESIS_NOTE_MAX_TURNS },
+        ...(spec.model === undefined ? {} : { model: spec.model }),
+        ...(spec.effort === undefined ? {} : { effort: spec.effort }),
+        ...(spec.estCost === undefined ? {} : { estCost: spec.estCost }),
+        [kTerminalTool]: { name: FINISH_TOOL_NAME },
+      };
+      return runtime.runInScope(noteState, () =>
+        (ctx.agent as (prompt: string, o?: unknown) => Promise<AgentResult<unknown>>)(
+          prompt,
+          noteOpts,
+        ),
+      );
+    };
+
+    /**
+     * Note dispatch is idempotent per child: the settle hook and the
+     * reconciliation both come through here, and the map guarantees one
+     * dispatch per nodeId (a concurrent identical dispatch would mint a
+     * second occurrence and PAY twice: the v1.32.0 lesson).
+     */
+    const ensureSynthesisNote = (record: SpawnRecord): Promise<AgentResult<unknown>> => {
+      const existing = synthesisNotes.get(record.nodeId);
+      if (existing !== undefined) {
+        return existing;
+      }
+      const note = runSynthesisNote(record).catch((thrown: unknown): AgentResult<unknown> => ({
+        status: 'error',
+        output: null,
+        usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        costUsd: 0,
+        turns: 0,
+        servedBy: 'unknown:unknown',
+        transcriptRef: '',
+        errorMessage: thrown instanceof Error ? thrown.message : String(thrown),
+      }));
+      synthesisNotes.set(record.nodeId, note);
+      return note;
+    };
+    if (opts?.synthesis?.mode === 'incremental' && capDecisionRef === undefined) {
+      // Install the settle-hook dispatcher (declared before dispatchChild
+      // so recovered settle hooks never hit a TDZ). A run that booted at
+      // the cap never installs it: the cap settle path never reconciles,
+      // so eager notes would be pure waste.
+      synthesisNoteDispatcher = ensureSynthesisNote;
+    }
+
+    /**
+     * The deterministic reconciliation of 'incremental' synthesis: the
+     * final result is a PURE fold of the journaled draft and the note
+     * results in spawn order, never another model call. A note that died
+     * falls back to the child's raw digest summary under a journaled
+     * per-child decision and a warn log. With dedupeClaims, repeated
+     * claim lines keep their first occurrence and the envelope carries
+     * the repeatedClaims index.
+     */
+    const reconcileIncremental = async (
+      draft: unknown,
+      spec: OrchestrateSynthesis,
+    ): Promise<IncrementalSynthesisResult> => {
+      synthesisSettleFrozen = true;
+      const settledRecords = [...records.values()]
+        .filter((record) => record.settled !== undefined)
+        .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal);
+      const sections: IncrementalSynthesisResult['sections'] = [];
+      for (const record of settledRecords) {
+        const settled = record.settled as AgentResult<unknown>;
+        const note = await ensureSynthesisNote(record);
+        let noteText: string;
+        if (note.status === 'ok') {
+          noteText =
+            typeof note.output === 'string' ? note.output : JSON.stringify(note.output ?? null);
+        } else {
+          const fallbackKey = deriverV2.deriveKey({
+            kind: 'orchestrator-synthesis-note-fallback',
+            nodeId: record.nodeId,
+          });
+          if (
+            !internals.replayer
+              .snapshot()
+              .some((entry) => entry.kind === 'decision' && entry.key === fallbackKey)
+          ) {
+            await internals.replayer.appendSinglePhase({
+              scope: callingState.scope,
+              key: fallbackKey,
+              kind: 'decision',
+              status: 'ok',
+              spanId: internals.spans.mint(callingState.spanId),
+              site: 'orchestrator-synthesis',
+              value: {
+                decisionType: 'orchestrator_synthesis_note_fallback',
+                nodeId: record.nodeId,
+                status: note.status,
+                turnsUsed: note.turns,
+              },
+            });
+          }
+          internals.events.emit(
+            {
+              type: 'log',
+              level: 'warn',
+              msg:
+                `the synthesis note for child '${record.nodeId}' terminated with status ` +
+                `'${note.status}'; falling back to the raw digest summary (journaled ` +
+                "decision 'orchestrator_synthesis_note_fallback')",
+            },
+            callingState.spanId,
+          );
+          noteText = digestOf(record, settled).outputSummary;
+        }
+        sections.push({
+          nodeId: record.nodeId,
+          logicalTaskId: record.logicalTaskId,
+          status: settled.status,
+          noteStatus: note.status,
+          note: noteText,
+        });
+      }
+      let repeatedClaims: RepeatedClaim[] | undefined;
+      if (spec.dedupeClaims === true) {
+        const deduped = dedupeRepeatedClaims(
+          sections.map((section) => ({ nodeId: section.nodeId, text: section.note })),
+        );
+        const textByNode = new Map(deduped.rows.map((row) => [row.nodeId, row.text]));
+        for (const section of sections) {
+          section.note = textByNode.get(section.nodeId) ?? section.note;
+        }
+        repeatedClaims = deduped.repeated;
+      }
+      const draftJson = JSON.stringify(draft ?? null);
+      internals.events.emit(
+        {
+          type: 'log',
+          level: 'debug',
+          msg: 'orchestrator synthesis reconciliation',
+          data: {
+            children: sections.length,
+            draftChars: draftJson.length,
+            notesChars: sections.reduce((sum, section) => sum + section.note.length, 0),
+            perChild: sections.map((section) => ({
+              nodeId: section.nodeId,
+              chars: section.note.length,
+            })),
+            ...(repeatedClaims === undefined ? {} : { repeatedClaims: repeatedClaims.length }),
+          },
+        },
+        callingState.spanId,
+      );
+      return {
+        synthesis: 'incremental',
+        draft,
+        sections,
+        ...(repeatedClaims === undefined ? {} : { repeatedClaims }),
+      };
+    };
+
+    /**
      * The post-fan-in synthesis invocation (RV-211): a FRESH agent entry
      * with role 'synthesize' on the finish-only toolset (a distinct
      * toolsetHash, the reserved-finalizer precedent), its prompt derived
      * deterministically from the goal, the journaled coordination draft,
      * and the settled child digest, so a resume replays it by identity
      * with zero paid calls. Runs strictly AFTER the acceptance verdict
-     * (a rejected run never pays for synthesis) and owns the finish
-     * validators when they are configured. Failure posture: with
-     * validators the run fails typed (the validated path is mandatory);
-     * without them the run falls back to the draft under a journaled
-     * decision and a warn log, never silently.
+     * (a rejected run never pays for synthesis; in 'incremental' mode
+     * the per-child notes are paid DURING the run, so only the
+     * reconciliation itself is deferred) and owns the finish validators
+     * when they are configured. Failure posture: with validators the run
+     * fails typed (the validated path is mandatory); without them the
+     * run falls back to the draft under a journaled decision and a warn
+     * log, never silently.
      */
     const runSynthesis = async (draft: unknown): Promise<unknown> => {
       const spec = opts?.synthesis;
@@ -2333,6 +2650,11 @@ export function makeOrchestratorWorkflow(
       // one executes none), and an empty digest here would change the
       // synthesis identity and re-pay the invocation on every resume.
       await recoveryDone;
+      if (spec.mode === 'incremental') {
+        // The final step of incremental synthesis is deterministic:
+        // no model call composes the final result.
+        return await reconcileIncremental(draft, spec);
+      }
       const finishOnly = buildOrchestratorTools(orchestratorRuntime, fullCardText).filter(
         (tool) => tool.name === FINISH_TOOL_NAME,
       );
@@ -2343,18 +2665,45 @@ export function makeOrchestratorWorkflow(
         .filter((record) => record.settled !== undefined)
         .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal)
         .map((record) => digestOf(record, record.settled as AgentResult<unknown>));
+      // Pre-model claim deduplication (RV-211 remainder): opt in, and
+      // the prompt stays byte identical when unset (prompt bytes are
+      // journal identity: a default change would re-pay every existing
+      // synthesis on resume).
+      let digestRows = settledDigests;
+      let repeatedClaims: RepeatedClaim[] | undefined;
+      if (spec.dedupeClaims === true) {
+        const deduped = dedupeRepeatedClaims(
+          settledDigests.map((row) => ({ nodeId: row.nodeId, text: row.outputSummary })),
+        );
+        const textByNode = new Map(deduped.rows.map((row) => [row.nodeId, row.text]));
+        digestRows = settledDigests.map((row) => ({
+          ...row,
+          outputSummary: textByNode.get(row.nodeId) ?? row.outputSummary,
+        }));
+        repeatedClaims = deduped.repeated;
+      }
       const draftJson = JSON.stringify(draft ?? null);
-      const digestJson = JSON.stringify(settledDigests);
+      const digestJson = JSON.stringify(digestRows);
       const promptLines = [
         'You are the synthesis invocation of an orchestrated run. Compose the FINAL ' +
           'result of the run from the goal, the coordination draft, and the settled child ' +
           'evidence below by calling finish({ result }) EXACTLY once. Preserve the evidence ' +
           'and citations the draft relies on; do not invent findings. No other tool exists.',
+        ...(repeatedClaims === undefined
+          ? []
+          : [
+              'Repeated claims across children were deduplicated before this prompt: only ' +
+                'the first occurrence of each repeated line remains in the digest, and the ' +
+                'REPEATED CLAIMS index below lists each one with its reporters.',
+            ]),
         ...(spec.instructions === undefined ? [] : [spec.instructions]),
         ...finishValidationPromptLines(validationSpec),
         `GOAL: ${goal}`,
         `DRAFT: ${draftJson}`,
         `DIGEST: ${digestJson}`,
+        ...(repeatedClaims === undefined
+          ? []
+          : [`REPEATED CLAIMS: ${JSON.stringify(repeatedClaims)}`]),
       ];
       const prompt = promptLines.join('\n');
       // Root context diagnostics (RV-211): the actual sizes entering the
@@ -2369,10 +2718,11 @@ export function makeOrchestratorWorkflow(
             draftChars: draftJson.length,
             digestChars: digestJson.length,
             promptChars: prompt.length,
-            perChild: settledDigests.map((entry) => ({
+            perChild: digestRows.map((entry) => ({
               nodeId: entry.nodeId,
               chars: JSON.stringify(entry).length,
             })),
+            ...(repeatedClaims === undefined ? {} : { repeatedClaims: repeatedClaims.length }),
           },
         },
         callingState.spanId,
@@ -2645,6 +2995,9 @@ export function makeOrchestratorWorkflow(
         {
           data: {
             source: 'orchestrator_acceptance',
+            // The completion envelope contract (RV-207 tail): the engine
+            // lifts these two onto run:end for the rejected terminal.
+            completion: 'rejected',
             childPolicy: decision.childPolicy as unknown as Json,
             childStatusCounts: decision.childStatusCounts,
             degradedReasons: decision.degradedReasons,
