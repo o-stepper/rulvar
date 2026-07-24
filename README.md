@@ -196,49 +196,50 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The thirty nine rounds, verbatim in this repository's history:
+The forty rounds, verbatim in this repository's history:
 
-| Codex audited | Fix commit                                                                                                | Shipped as |
-| ------------- | --------------------------------------------------------------------------------------------------------- | ---------- |
-| v1.17.0       | 943962d (#202): priced siblings, executable toolset names, conservative envelope                          | v1.18.0    |
-| v1.18.0       | 8cc9a9c (#205): instructed finalize, cache write accounting, corrected prices, ULP envelope               | v1.19.0    |
-| v1.19.0       | 9367030 (#207): cache subset accounting, byRole phase attribution, envelope domain                        | v1.20.0    |
-| v1.20.0       | 7ee42a0 (#209): usage-telemetry hardening plus the live terminal progress view                            | v1.21.0    |
-| v1.21.0       | 77b554f (#211): terminal control-character sanitization, progress option validation                       | v1.22.0    |
-| v1.22.0       | 1f9c272 (#214): resume ordinal identity, segment-durable telemetry counters, event parity                 | v1.23.0    |
-| v1.23.0       | 2b033e8 (#216): card toolset semantics, resume args binding, RunMeta docs truth, testing barrel           | v1.24.0    |
-| v1.24.0       | 0bb14db (#219): resume args gate overflow bypass, argsHash secrecy honesty                                | v1.24.1    |
-| v1.24.1       | 74851ed (#222): CLI diagnostics value withholding and sanitation, worker execArgv isolation               | v1.25.0    |
-| v1.25.0       | a4fc757 (#226): linear event drain, exact reference checkpoint pruning, scale safe stores                 | v1.26.0    |
-| v1.26.0       | 884a433 (#231): drained SSE terminal close, per client pending bound, validated caps                      | v1.27.0    |
-| v1.27.0       | d98eb0b (#235): fail closed truncated streams, terminal stop consumption, abort and CLI guards            | v1.28.0    |
-| v1.28.0       | 621d566 (#238): interruptible retry backoff, validated retry delays, VCR row and band guards              | v1.29.0    |
-| v1.29.0       | 87ce985 (#241): ordered VCR occurrences, retry policy validation, strict retry delay grammar              | v1.30.0    |
-| v1.30.0       | df6b8f8 (#244): replayed provenance stamps, deep cassette validation, OWS retry delay padding             | v1.31.0    |
-| v1.31.0       | e366d64 (#247): passthrough provenance agreement, caller order occurrences, deep event shapes             | v1.32.0    |
-| v1.32.0       | 3f0f5e8 (#250): seeded appending record sessions, duplicate occurrence refusal, replay order gate         | v1.33.0    |
-| v1.33.0       | f1505ec (#253): MCP source close lifecycle, VCR occurrence ceiling, auth retry docs gate                  | v1.34.0    |
-| v1.34.0       | d4ac3bf (#256): numeric intake validation, abort aware scheduler, sliced deadline timers                  | v1.35.0    |
-| v1.35.0       | 101795b (#259): abort aware escalation waits, executable fail run policies, option intake gates           | v1.36.0    |
-| v1.36.0       | e6b1481 (#262): contained transcript refs, validated persisted knowledge snapshots                        | v1.37.0    |
-| v1.37.0       | 3e2d591 (#265): banned dynamic code generation in the planner sandbox dialect                             | v1.38.0    |
-| v1.38.0       | 0cff035 (#268): one AST codegen policy across compile and lint, worker taming for dynamic keys            | v1.39.0    |
-| v1.39.0       | cf33550 (#271): fenced offline resolution appends, surfaced approximate usage accounting                  | v1.40.0    |
-| v1.40.0       | be589ec (#274): opt in orchestration acceptance policy, strict CLI exits, contract docs sweep             | v1.41.0    |
-| v1.41.0       | 9b70f27 (#277): opt in child result evidence tools, paged full output and artifact reads                  | v1.42.0    |
-| v1.42.0       | 71b7181 (#280): deterministic finish validators, bounded repair turns, journaled verdicts                 | v1.43.0    |
-| v1.43.0       | 299f7d2 (#283): evidence preservation contract, child outputs in validation, fabrication guard            | v1.44.0    |
-| v1.44.0       | 248a19f (#288): atomic fence check and mutation in the sqlite store, fenced run state RFC                 | v1.44.1    |
-| v1.44.1       | b96305d (#291): fenced writes capability, lease on every run mutation, run match rule                     | v1.45.0    |
-| v1.45.0       | 865e7bf (#294): fenced transcript twin in the sqlite store, checkpoint blobs on the run lease             | v1.46.0    |
-| v1.46.0       | a3687fe (#297): journaled run settle, meta reconciler and stranded run probe, runs audit CLI              | v1.47.0    |
-| v1.47.0       | 96093ea (#300): multi-process soak in the conformance kit, sqlite concurrent boot retry                   | v1.48.0    |
-| v1.48.0       | bab7b2c (#303): paired invocation phase events, official telemetry reducer, otel leak fix                 | v1.49.0    |
-| v1.49.0       | e39a885 (#306): localized determinism warnings, strict error mode, replay verification gate               | v1.50.0    |
-| v1.50.0       | 11bf944 (#309): benchmark kit with verified repeats, nearest-rank percentiles, blind judging              | v1.51.0    |
-| v1.51.0       | e138df9 (#312): exploration guards, soft budget notices, repeat denial, no-new-evidence abort             | v1.52.0    |
-| v1.52.0       | b821bd1 (#315): synthesis role, routable post-fan-in invocation, critical-path reducer                    | v1.53.0    |
-| v1.53.0       | 3f6bc03 (#318): run:end completion lift, repository research toolset, incremental synthesis + claim dedup | v1.54.0    |
+| Codex audited | Fix commit                                                                                                                          | Shipped as |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| v1.17.0       | 943962d (#202): priced siblings, executable toolset names, conservative envelope                                                    | v1.18.0    |
+| v1.18.0       | 8cc9a9c (#205): instructed finalize, cache write accounting, corrected prices, ULP envelope                                         | v1.19.0    |
+| v1.19.0       | 9367030 (#207): cache subset accounting, byRole phase attribution, envelope domain                                                  | v1.20.0    |
+| v1.20.0       | 7ee42a0 (#209): usage-telemetry hardening plus the live terminal progress view                                                      | v1.21.0    |
+| v1.21.0       | 77b554f (#211): terminal control-character sanitization, progress option validation                                                 | v1.22.0    |
+| v1.22.0       | 1f9c272 (#214): resume ordinal identity, segment-durable telemetry counters, event parity                                           | v1.23.0    |
+| v1.23.0       | 2b033e8 (#216): card toolset semantics, resume args binding, RunMeta docs truth, testing barrel                                     | v1.24.0    |
+| v1.24.0       | 0bb14db (#219): resume args gate overflow bypass, argsHash secrecy honesty                                                          | v1.24.1    |
+| v1.24.1       | 74851ed (#222): CLI diagnostics value withholding and sanitation, worker execArgv isolation                                         | v1.25.0    |
+| v1.25.0       | a4fc757 (#226): linear event drain, exact reference checkpoint pruning, scale safe stores                                           | v1.26.0    |
+| v1.26.0       | 884a433 (#231): drained SSE terminal close, per client pending bound, validated caps                                                | v1.27.0    |
+| v1.27.0       | d98eb0b (#235): fail closed truncated streams, terminal stop consumption, abort and CLI guards                                      | v1.28.0    |
+| v1.28.0       | 621d566 (#238): interruptible retry backoff, validated retry delays, VCR row and band guards                                        | v1.29.0    |
+| v1.29.0       | 87ce985 (#241): ordered VCR occurrences, retry policy validation, strict retry delay grammar                                        | v1.30.0    |
+| v1.30.0       | df6b8f8 (#244): replayed provenance stamps, deep cassette validation, OWS retry delay padding                                       | v1.31.0    |
+| v1.31.0       | e366d64 (#247): passthrough provenance agreement, caller order occurrences, deep event shapes                                       | v1.32.0    |
+| v1.32.0       | 3f0f5e8 (#250): seeded appending record sessions, duplicate occurrence refusal, replay order gate                                   | v1.33.0    |
+| v1.33.0       | f1505ec (#253): MCP source close lifecycle, VCR occurrence ceiling, auth retry docs gate                                            | v1.34.0    |
+| v1.34.0       | d4ac3bf (#256): numeric intake validation, abort aware scheduler, sliced deadline timers                                            | v1.35.0    |
+| v1.35.0       | 101795b (#259): abort aware escalation waits, executable fail run policies, option intake gates                                     | v1.36.0    |
+| v1.36.0       | e6b1481 (#262): contained transcript refs, validated persisted knowledge snapshots                                                  | v1.37.0    |
+| v1.37.0       | 3e2d591 (#265): banned dynamic code generation in the planner sandbox dialect                                                       | v1.38.0    |
+| v1.38.0       | 0cff035 (#268): one AST codegen policy across compile and lint, worker taming for dynamic keys                                      | v1.39.0    |
+| v1.39.0       | cf33550 (#271): fenced offline resolution appends, surfaced approximate usage accounting                                            | v1.40.0    |
+| v1.40.0       | be589ec (#274): opt in orchestration acceptance policy, strict CLI exits, contract docs sweep                                       | v1.41.0    |
+| v1.41.0       | 9b70f27 (#277): opt in child result evidence tools, paged full output and artifact reads                                            | v1.42.0    |
+| v1.42.0       | 71b7181 (#280): deterministic finish validators, bounded repair turns, journaled verdicts                                           | v1.43.0    |
+| v1.43.0       | 299f7d2 (#283): evidence preservation contract, child outputs in validation, fabrication guard                                      | v1.44.0    |
+| v1.44.0       | 248a19f (#288): atomic fence check and mutation in the sqlite store, fenced run state RFC                                           | v1.44.1    |
+| v1.44.1       | b96305d (#291): fenced writes capability, lease on every run mutation, run match rule                                               | v1.45.0    |
+| v1.45.0       | 865e7bf (#294): fenced transcript twin in the sqlite store, checkpoint blobs on the run lease                                       | v1.46.0    |
+| v1.46.0       | a3687fe (#297): journaled run settle, meta reconciler and stranded run probe, runs audit CLI                                        | v1.47.0    |
+| v1.47.0       | 96093ea (#300): multi-process soak in the conformance kit, sqlite concurrent boot retry                                             | v1.48.0    |
+| v1.48.0       | bab7b2c (#303): paired invocation phase events, official telemetry reducer, otel leak fix                                           | v1.49.0    |
+| v1.49.0       | e39a885 (#306): localized determinism warnings, strict error mode, replay verification gate                                         | v1.50.0    |
+| v1.50.0       | 11bf944 (#309): benchmark kit with verified repeats, nearest-rank percentiles, blind judging                                        | v1.51.0    |
+| v1.51.0       | e138df9 (#312): exploration guards, soft budget notices, repeat denial, no-new-evidence abort                                       | v1.52.0    |
+| v1.52.0       | b821bd1 (#315): synthesis role, routable post-fan-in invocation, critical-path reducer                                              | v1.53.0    |
+| v1.53.0       | 3f6bc03 (#318): run:end completion lift, repository research toolset, incremental synthesis + claim dedup                           | v1.54.0    |
+| v1.54.0       | e9b005b (#321): weighted tool limits, progress contract with structured terminal partials, partial-child salvage, profile templates | v1.55.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
