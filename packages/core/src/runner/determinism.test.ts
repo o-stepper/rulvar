@@ -11,6 +11,7 @@ import { InMemoryStore } from '../stores/inmemory.js';
 import { lastRunSettle } from '../stores/reconcile.js';
 import { createEngine, hashRunOutput, type CreateEngineOptions } from '../engine/engine.js';
 import { defineWorkflow } from '../engine/ctx.js';
+import { scriptedAdapter } from '../engine/test-harness.js';
 import { validateDeterminismConfig } from './determinism.js';
 
 /** The 1-based line of the CALLER of this helper, from its own stack. */
@@ -188,7 +189,7 @@ describe('determinism detection (RV-209)', () => {
   });
 
   it('the redact hook rewrites frame and file before they leave in events and errors', async () => {
-    const redact = (frame: string): string => frame.replace(/\/[^\s():]*\//g, '<redacted>/');
+    const redact = (frame: string): string => frame.replace(/\/.*\//g, '<redacted>/');
     const wf = defineWorkflow({ name: 'redacted' }, () => {
       Math.random();
       return Promise.resolve(1);
@@ -201,6 +202,48 @@ describe('determinism detection (RV-209)', () => {
     const data = outcome.error?.data as { file?: string };
     expect(data.file).toBe('<redacted>/determinism.test.ts');
     expect(outcome.error?.message).not.toContain('/Users/');
+    // The sample redactor must hold on paths WITH spaces: the previous
+    // non-whitespace pattern stopped at the space and leaked the
+    // segment between matches ('<redacted>/rulvar test<redacted>/...').
+    expect(redact('at wf (/Users/x/rulvar test/pkg/determinism.test.ts:1:2)')).toBe(
+      'at wf (<redacted>/determinism.test.ts:1:2)',
+    );
+  });
+
+  it("the engine's own retry jitter never classifies as workflow nondeterminism", async () => {
+    const warnings = spyWarnings();
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? {
+            error: {
+              code: 'agent',
+              message: 'blip',
+              retryable: true,
+              data: { kind: 'transport' },
+            },
+          }
+        : { text: 'recovered' },
+    );
+    const engine = createEngine({
+      adapters: [adapter],
+      defaults: {
+        routing: { loop: 'fake:model' },
+        // Tiny jittered backoff: the retry path consults the default
+        // rng (no injected retry.random) without slowing the suite.
+        retry: { attempts: 2, backoff: { initialMs: 1, factor: 2, maxMs: 2, jitter: true } },
+      },
+    });
+    const wf = defineWorkflow({ name: 'engine-retry-jitter' }, async (ctx) => {
+      await ctx.agent('say hi');
+      return 1;
+    });
+    const handle = engine.run(wf, undefined);
+    const { determinism } = await collect(handle);
+    warnings.restore();
+    expect((await handle.result).status).toBe('ok');
+    expect(adapter.calls).toHaveLength(2);
+    expect(determinism).toEqual([]);
+    expect(warnings.codes.filter((code) => code.startsWith('RULVAR_BARE'))).toEqual([]);
   });
 
   it("NODE_ENV=production disables 'warn' but never 'error'", async () => {

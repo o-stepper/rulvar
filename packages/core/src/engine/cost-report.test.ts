@@ -486,3 +486,92 @@ describe('cost report reconciliation (M5-T03)', () => {
     expect(abandonedReport.totalUsd).toBeCloseTo(0, 12);
   });
 });
+
+describe('byRole attribution is exhaustive (v1.59.0 review P0)', () => {
+  it('folds the synthesis invocation to a finite byRole.synthesize, live and offline', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-cost-'));
+    const store = new JsonlFileStore({ dir });
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req, _call): ScriptedTurn => {
+      const rulvar = (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)
+        ?.rulvar;
+      if (rulvar?.agentType === 'worker') {
+        return { text: 'evidence', usage: { inputTokens: 400, outputTokens: 30 } };
+      }
+      const text = req.messages
+        .flatMap((msg) => msg.parts)
+        .filter((part) => part.type === 'text')
+        .map((part) => part.text)
+        .join('\n');
+      if (text.includes('DRAFT:')) {
+        return {
+          toolCall: { name: 'finish', args: { result: 'synthesized: agree' } },
+          usage: { inputTokens: 700, outputTokens: 90 },
+        };
+      }
+      const handles: number[] = [];
+      for (const msg of req.messages) {
+        for (const part of msg.parts) {
+          if (part.type === 'tool-result') {
+            const result = part.result as { handle?: number } | undefined;
+            if (typeof result?.handle === 'number' && !handles.includes(result.handle)) {
+              handles.push(result.handle);
+            }
+          }
+        }
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'study A' } },
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'draft: agree' } } };
+    });
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: {
+        routing: {
+          loop: 'fake:model',
+          orchestrate: 'fake:model',
+          synthesize: 'fake:model',
+        },
+        profiles: { worker: { description: 'does one task' } },
+      },
+    });
+    const wfSynth = makeOrchestratorWorkflow('compare the studies', { synthesis: {} });
+    const outcome = await engine.run(wfSynth, undefined, { runId: 'COST-SYNTH' }).result;
+    expect(outcome.status).toBe('ok');
+    expect(outcome.value).toBe('synthesized: agree');
+
+    // Every role bucket exists and is finite; before the fix the
+    // synthesize bucket folded `undefined + usd` to NaN.
+    const live = outcome.cost.byRole;
+    expect(Object.keys(live).sort()).toEqual([
+      'extract',
+      'finalize',
+      'loop',
+      'orchestrate',
+      'plan',
+      'summarize',
+      'synthesize',
+    ]);
+    for (const usd of Object.values(live)) {
+      expect(Number.isFinite(usd)).toBe(true);
+    }
+    // testCaps pricing (1 in, 10 out per MTok) over the scripted
+    // synthesis usage: 700 input + 90 output tokens.
+    expect(live.synthesize).toBeCloseTo(0.0016, 12);
+    // NaN survives no JSON round trip (it reads back as null); the
+    // report stays JSON clean.
+    expect(JSON.stringify(live)).not.toContain('null');
+
+    // The independent journal fold agrees with the live report.
+    const independent = costReportFromJournal(await store.load('COST-SYNTH'), priceVia(adapter));
+    expect(independent.byRole).toEqual(live);
+  });
+});

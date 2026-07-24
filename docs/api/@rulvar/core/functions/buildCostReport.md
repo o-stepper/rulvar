@@ -10,7 +10,7 @@
 function buildCostReport(attribution, totalUsd): CostReport;
 ```
 
-Defined in: [packages/core/src/engine/cost-report.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/cost-report.ts#L45)
+Defined in: [packages/core/src/engine/cost-report.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/cost-report.ts#L54)
 
 Folds the per-run attribution buckets into the normative CostReport.
 
