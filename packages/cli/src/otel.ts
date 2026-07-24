@@ -19,7 +19,13 @@
  * `rulvar.*` and `gen_ai.*` attributes. Replayed events do not create
  * duplicate spans; the single span is marked `rulvar.replayed = true`.
  */
-import { maskSecrets, type RunOutcome, type WorkflowEvent } from '@rulvar/core';
+import {
+  compileSecretMasker,
+  maskSecrets,
+  type RunOutcome,
+  type SecretMasker,
+  type WorkflowEvent,
+} from '@rulvar/core';
 
 /** The tiny subset of the OTel Tracer/Span API the exporter uses. */
 export interface SpanLike {
@@ -48,6 +54,13 @@ export interface ToOtelOptions {
   contextApi?: OtelContextApi;
   /** trace.setSpan(context, span) equivalent; required with contextApi. */
   setSpan?: (context: unknown, span: SpanLike) => unknown;
+  /**
+   * Host redaction patterns applied to every exported string attribute
+   * ON TOP of the default credential set (RV-217). Feed the same list
+   * as `createEngine redaction.patterns` for event/trace parity; an
+   * invalid pattern is a typed ConfigError before anything exports.
+   */
+  patterns?: ReadonlyArray<RegExp | string>;
 }
 
 const SPAN_OPENERS = new Set([
@@ -122,6 +135,7 @@ function spanName(event: Extract<WorkflowEvent, { type: string }>): string {
 function openAttributes(
   event: WorkflowEvent,
   runId: string,
+  maskText: (text: string) => string,
 ): Record<string, string | number | boolean> {
   const attrs: Record<string, string | number | boolean> = {
     'rulvar.run_id': runId,
@@ -153,7 +167,7 @@ function openAttributes(
   // masked at the bus already; this covers the exporter's own strings.
   for (const [key, value] of Object.entries(attrs)) {
     if (typeof value === 'string') {
-      attrs[key] = maskSecrets(value);
+      attrs[key] = maskText(value);
     }
   }
   return attrs;
@@ -180,6 +194,13 @@ export async function toOtel(
   let created = 0;
 
   const { contextApi, setSpan } = options;
+  // Compiled once, typed failure before anything exports (RV-217).
+  const masker: SecretMasker | undefined =
+    options.patterns === undefined
+      ? undefined
+      : compileSecretMasker(options.patterns, 'toOtel patterns');
+  const maskText = (text: string): string =>
+    masker === undefined ? maskSecrets(text) : masker.maskText(text);
 
   const startSpan = (
     event: WorkflowEvent,
@@ -212,7 +233,7 @@ export async function toOtel(
       spanName(event),
       {
         startTime: msOf(event.ts),
-        attributes: openAttributes(event, run.runId),
+        attributes: openAttributes(event, run.runId, maskText),
       },
       parentContext,
     );
@@ -330,7 +351,7 @@ export async function toOtel(
           'rulvar.entry_seq': event.seq,
           'rulvar.determinism.category': event.category,
           'rulvar.determinism.provenance': event.provenance,
-          ...(event.file === undefined ? {} : { 'code.filepath': maskSecrets(event.file) }),
+          ...(event.file === undefined ? {} : { 'code.filepath': maskText(event.file) }),
           ...(event.line === undefined ? {} : { 'code.lineno': event.line }),
         });
         break;

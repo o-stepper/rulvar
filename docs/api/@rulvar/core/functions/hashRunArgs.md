@@ -7,10 +7,10 @@
 # Function: hashRunArgs()
 
 ```ts
-function hashRunArgs(args): string | undefined;
+function hashRunArgs(args, options?): string | undefined;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:473](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L473)
+Defined in: [packages/core/src/engine/engine.ts:520](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L520)
 
 sha256 hex over the JCS canonical serialization of a run's args: the
 value the engine records as `RunMeta.argsHash` at genesis, exposed so
@@ -32,6 +32,8 @@ sensitive-derived metadata, not a value safe to publish (see the
 | Parameter | Type |
 | ------ | ------ |
 | `args` | `unknown` |
+| `options?` | \{ `salt?`: `string`; \} |
+| `options.salt?` | `string` |
 
 ## Returns
 

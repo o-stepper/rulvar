@@ -75,7 +75,7 @@ export class EventBus {
   private readonly runId: string;
   private readonly spans: SpanRegistry;
   private readonly now: () => number;
-  private readonly maskEvents: boolean;
+  private readonly mask: ((body: WorkflowEventBody) => WorkflowEventBody) | undefined;
   private readonly subscribers = new Set<Subscriber>();
   private readonly listeners = new Set<(event: WorkflowEvent) => void>();
   private seq: number;
@@ -93,6 +93,12 @@ export class EventBus {
      */
     maskEvents?: boolean;
     /**
+     * The compiled masking policy applied when maskEvents is on
+     * (RV-217): the default credential set plus host patterns. Absent
+     * falls back to the default maskSecretsDeep.
+     */
+    mask?: (body: WorkflowEventBody) => WorkflowEventBody;
+    /**
      * First seq value (default 0): the resumed-segment base that keeps
      * seq strictly increasing per run across segments (v1.22.0 review
      * P1-2).
@@ -105,13 +111,13 @@ export class EventBus {
     // global: a bus built after a run would capture the dev-mode patch
     // and false-warn from its own frames (v1.18.0 review P2-6).
     this.now = options.now ?? realNow;
-    this.maskEvents = options.maskEvents ?? true;
+    this.mask = (options.maskEvents ?? true) ? (options.mask ?? maskSecretsDeep) : undefined;
     this.seq = options.firstSeq ?? 0;
   }
 
   emit(body: WorkflowEventBody, spanId: string, replayed?: boolean): WorkflowEvent {
     const parentSpanId = this.spans.parentOf(spanId);
-    const safeBody = this.maskEvents ? maskSecretsDeep(body) : body;
+    const safeBody = this.mask === undefined ? body : this.mask(body);
     const event: WorkflowEvent = {
       runId: this.runId,
       seq: this.seq++,

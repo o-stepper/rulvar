@@ -289,7 +289,7 @@ The conformance suites, the cross-instance fencing tests, and the adversarial mu
 | Ops visibility, greppable and diffable journals | `JsonlFileStore` |
 | Another backend (an object store, a KV, another RDBMS) | Write your own against the SPI; see [Writing a store](/guide/store-authors) |
 
-The contracts are the only coupling point: any `JournalStore` that passes the conformance kit slots into `createEngine` unchanged, and the kernel's determinism does not depend on the backend. Whatever total order a store persists, the folds yield the same outcome on every store and every replay.
+Encrypting what these stores persist is the serialization hook plus the shipped envelope encryption, see [Data protection](/guide/data-protection). The contracts are the only coupling point: any `JournalStore` that passes the conformance kit slots into `createEngine` unchanged, and the kernel's determinism does not depend on the backend. Whatever total order a store persists, the folds yield the same outcome on every store and every replay.
 
 ## Durability expectations
 

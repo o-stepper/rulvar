@@ -91,6 +91,8 @@ export function createTestEngine(options: CreateTestEngineOptions): TestEngine {
     resume: (runId, wf, options) => engine.resume(runId, wf, options),
     deleteRun: (runId) => engine.deleteRun(runId),
     pruneRun: (runId) => engine.pruneRun(runId),
+    exportRun: (runId) => engine.exportRun(runId),
+    importRun: (bundle) => engine.importRun(bundle),
     profileCard: (names) => engine.profileCard(names),
     run<A, R>(wf: Workflow<A, R>, args: A, opts?: RunOptions): TestRunHandle<R> {
       const handle = engine.run(wf, args, opts);

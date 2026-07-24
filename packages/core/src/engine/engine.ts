@@ -5,7 +5,7 @@
  * ctx is created per run. engine.resume lands with the journal
  * kernel in M2.
  */
-import { createHash } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import { BudgetExhaustedError, ConfigError, RulvarError, type WireError } from '../l0/errors.js';
 import { setLongTimeout, type LongTimer } from '../l0/long-timer.js';
 import { realNow } from '../l0/real-clock.js';
@@ -20,9 +20,10 @@ import type { WorkflowEventBody } from '../l0/events.js';
 import type { InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
 import type { IsolationProvider } from '../l0/spi/isolation.js';
 import type { Pricing, ProviderAdapter } from '../l0/spi/provider.js';
-import type { JournalStore, Lease } from '../l0/spi/store.js';
+import type { RunMeta, JournalStore, Lease } from '../l0/spi/store.js';
 import type { TranscriptStore } from '../l0/spi/transcript.js';
 import {
+  compileSecretMasker,
   wrapJournalStore,
   wrapTranscriptStore,
   type SerializationHook,
@@ -44,6 +45,7 @@ import { dispositionHook } from '../journal/disposition.js';
 import type { EscalationLimits } from '../journal/lineage.js';
 import type { ResumeReport } from '../journal/matching.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
+import type { Bytes } from '../l0/json.js';
 import { readRunMeta } from '../stores/meta-lookup.js';
 import { buildAdapterRegistry, parseModelRef } from '../model/router.js';
 import type { EscalationDecision } from '../runtime/escalation.js';
@@ -209,11 +211,16 @@ export interface CreateEngineOptions {
    */
   serialization?: SerializationHook;
   /**
-   * The default key-masking policy at the telemetry boundary. Default
-   * ON: key-shaped strings in every
-   * emitted WorkflowEvent are masked; never touches the journal.
+   * The masking policy at the telemetry boundary. Default ON:
+   * key-shaped strings in every emitted WorkflowEvent are masked;
+   * never touches the journal (lossless encryption via `serialization`
+   * is the persistence-side tool). `patterns` adds host-defined
+   * redaction on top of the default credential set (RV-217): RegExp or
+   * pattern strings, compiled once at construction, applied to every
+   * string in every emitted event body. Feed the same patterns to the
+   * OTel exporter for trace parity.
    */
-  redaction?: { maskEvents?: boolean };
+  redaction?: { maskEvents?: boolean; patterns?: ReadonlyArray<RegExp | string> };
   /**
    * Bare-nondeterminism detection over in-process workflow bodies
    * (RV-209): mode 'off' | 'warn' (default; detects outside production)
@@ -226,6 +233,19 @@ export interface CreateEngineOptions {
    * runtime frames are classified exempt and stay silent.
    */
   determinism?: DeterminismConfig;
+  /**
+   * Metadata protection knobs (RV-217). `argsHashSalt` switches the
+   * RunMeta.argsHash digest from plain sha256 to HMAC-SHA256 under the
+   * salt: equal args stop correlating across deployments and
+   * low-entropy args stop being recoverable from the digest. The salt
+   * is deployment config, not a per-run secret: every engine (and the
+   * CLI host config) resuming this store's runs must carry the SAME
+   * salt, or the resume args gate refuses matching args. Runs recorded
+   * before the salt keep their unsalted digests; the gate then simply
+   * mismatches until forced, so introduce the salt on a fresh store or
+   * accept --allow-args-change on legacy runs.
+   */
+  security?: { argsHashSalt?: string };
 }
 
 export interface RunOptions {
@@ -393,6 +413,33 @@ export interface Engine {
    * delete exactly like the deleteRun cascade.
    */
   pruneRun(runId: string, opts?: { lease?: Lease }): Promise<number>;
+  /**
+   * Portable run export (RV-217): the meta record, every journal
+   * entry, and every transcript blob, read through Engine.stores (the
+   * one policy point), so an encrypted deployment exports PLAINTEXT
+   * for a subject-access request or a store migration, without raw
+   * store spelunking. Blobs are materialized in memory; export runs
+   * one at a time, not catalogs.
+   */
+  exportRun(runId: string): Promise<RunExport>;
+  /**
+   * Imports a bundle produced by exportRun, under its ORIGINAL runId
+   * (transcript refs and journal fields embed it; rewriting ids is
+   * deliberately out of scope). Writes through Engine.stores, so an
+   * encrypting target re-encrypts under its own policy. Refuses typed
+   * when the run already exists in the target store, so an import can
+   * never interleave with live history.
+   */
+  importRun(bundle: RunExport): Promise<void>;
+}
+
+/** The portable bundle exportRun produces and importRun consumes (RV-217). */
+export interface RunExport {
+  runId: string;
+  /** Absent when the source store had no meta row for the run. */
+  meta?: RunMeta;
+  entries: JournalEntry[];
+  blobs: Array<{ ref: string; data: Bytes }>;
 }
 
 /** Content hash of an in-process workflow body (run-to-definition binding). */
@@ -470,11 +517,21 @@ function liftRunCompletion(candidate: unknown):
  * sensitive-derived metadata, not a value safe to publish (see the
  * `argsHash` field docs).
  */
-export function hashRunArgs(args: unknown): string | undefined {
+export function hashRunArgs(args: unknown, options?: { salt?: string }): string | undefined {
   if (args === undefined) {
     return undefined;
   }
-  return createHash('sha256').update(jcsSerialize(args), 'utf8').digest('hex');
+  const canonical = jcsSerialize(args);
+  const salt = options?.salt;
+  if (salt === undefined) {
+    return createHash('sha256').update(canonical, 'utf8').digest('hex');
+  }
+  // Salted form (RV-217): HMAC-SHA256 keyed by the deployment salt, so
+  // equal args no longer produce equal digests ACROSS deployments and
+  // low-entropy args stop being recoverable by hashing candidates
+  // against a public table. Within one deployment the digest stays
+  // deterministic, which is all the resume args gate needs.
+  return createHmac('sha256', Buffer.from(salt, 'utf8')).update(canonical, 'utf8').digest('hex');
 }
 
 /**
@@ -516,6 +573,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
       ? rawTranscripts
       : wrapTranscriptStore(rawTranscripts, options.serialization.transcripts);
   const maskEvents = options.redaction?.maskEvents ?? true;
+  // Compiled eagerly so an invalid pattern fails typed at construction,
+  // before any run emits under the policy (RV-217).
+  const eventMasker =
+    options.redaction?.patterns === undefined
+      ? undefined
+      : compileSecretMasker(options.redaction.patterns, 'createEngine redaction.patterns');
   const defaults = options.defaults ?? {};
   // Retry policies are validated at construction: an invalid engine
   // default or profile retry fails here, before any run can merge it
@@ -606,6 +669,15 @@ export function createEngine(options: CreateEngineOptions): Engine {
   // The shared quota limiter config fails loud too: a malformed
   // limiter must never reach a dispatch decision (RV-215).
   validateEngineQuotaConfig(options.quota);
+  if (
+    options.security?.argsHashSalt !== undefined &&
+    (typeof options.security.argsHashSalt !== 'string' || options.security.argsHashSalt === '')
+  ) {
+    throw new ConfigError(
+      'createEngine security.argsHashSalt must be a nonempty string when given',
+    );
+  }
+  const argsHashSalt = options.security?.argsHashSalt;
   const quotaRuntime: EngineQuotaRuntime | undefined =
     options.quota === undefined
       ? undefined
@@ -738,7 +810,14 @@ export function createEngine(options: CreateEngineOptions): Engine {
     const segmentsBefore = resumeCtx?.segmentsBefore ?? 0;
     const telemetryBase = segmentsBefore * EVENT_SEGMENT_STRIDE;
     const spans = new SpanRegistry({ first: telemetryBase });
-    const bus = new EventBus({ runId, spans, now: realNow, maskEvents, firstSeq: telemetryBase });
+    const bus = new EventBus({
+      runId,
+      spans,
+      now: realNow,
+      maskEvents,
+      ...(eventMasker === undefined ? {} : { mask: (body) => eventMasker.maskDeep(body) }),
+      firstSeq: telemetryBase,
+    });
     const rootSpanId = spans.mint();
     let budgetSeed: { usd: number; usage: Usage; agentsSpawned: number } | undefined;
     // B0 is immutable across the run's whole life: a fresh run takes it
@@ -913,7 +992,10 @@ export function createEngine(options: CreateEngineOptions): Engine {
     if (resumeCtx === undefined) {
       argsBinding.argsProvided = args !== undefined;
       try {
-        const argsHash = hashRunArgs(args);
+        const argsHash = hashRunArgs(
+          args,
+          argsHashSalt === undefined ? undefined : { salt: argsHashSalt },
+        );
         if (argsHash !== undefined) {
           argsBinding.argsHash = argsHash;
         }
@@ -1451,6 +1533,57 @@ export function createEngine(options: CreateEngineOptions): Engine {
     };
   }
 
+  /** Portable export through the policy point (RV-217). */
+  async function exportRun(runId: string): Promise<RunExport> {
+    const entries = await journal.load(runId);
+    const meta = await readRunMeta(journal, runId);
+    const blobs: Array<{ ref: string; data: Bytes }> = [];
+    for (const ref of await transcripts.list(runId)) {
+      const data = await transcripts.get(ref);
+      if (data !== null) {
+        blobs.push({ ref, data });
+      }
+    }
+    if (entries.length === 0 && meta === undefined && blobs.length === 0) {
+      throw new ConfigError(`exportRun: run '${runId}' does not exist in this engine's stores`);
+    }
+    return { runId, ...(meta === undefined ? {} : { meta }), entries, blobs };
+  }
+
+  /** Import under the original runId; refuses an existing run (RV-217). */
+  async function importRun(bundle: RunExport): Promise<void> {
+    const raw: unknown = bundle;
+    if (
+      typeof raw !== 'object' ||
+      raw === null ||
+      typeof (raw as { runId?: unknown }).runId !== 'string' ||
+      (raw as { runId?: string }).runId === '' ||
+      !Array.isArray((raw as { entries?: unknown }).entries) ||
+      !Array.isArray((raw as { blobs?: unknown }).blobs)
+    ) {
+      throw new ConfigError('importRun: the bundle must be a RunExport (runId, entries, blobs)');
+    }
+    const runId = bundle.runId;
+    const existingMeta = await readRunMeta(journal, runId);
+    const existingEntries = await journal.load(runId);
+    const existingBlobs = await transcripts.list(runId);
+    if (existingMeta !== undefined || existingEntries.length > 0 || existingBlobs.length > 0) {
+      throw new ConfigError(
+        `importRun: run '${runId}' already exists in the target stores; an import never ` +
+          'interleaves with live history (delete the run first if replacement is intended)',
+      );
+    }
+    for (const entry of bundle.entries) {
+      await journal.append(runId, entry);
+    }
+    for (const blob of bundle.blobs) {
+      await transcripts.put(blob.ref, blob.data);
+    }
+    if (bundle.meta !== undefined) {
+      await journal.putMeta({ ...bundle.meta, runId });
+    }
+  }
+
   /** Retention cascade (OQ-20 executed at M8-T04): blobs, then journal. */
   async function deleteRun(runId: string, opts?: { lease?: Lease }): Promise<void> {
     const refs = await transcripts.list(runId);
@@ -1547,6 +1680,8 @@ export function createEngine(options: CreateEngineOptions): Engine {
     stores: { journal, transcripts },
     deleteRun,
     pruneRun,
+    exportRun,
+    importRun,
     profileCard: (names) => {
       const registered = defaults.profiles ?? {};
       if (names === undefined) {

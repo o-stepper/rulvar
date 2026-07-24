@@ -208,3 +208,86 @@ export function maskSecretsDeep<T>(value: T): T {
 export function maskSecretsJson(value: Json): Json {
   return maskSecretsDeep(value);
 }
+
+/** A compiled masking policy: text and deep-JSON forms of one pattern set. */
+export interface SecretMasker {
+  maskText(text: string): string;
+  maskDeep<T>(value: T): T;
+}
+
+/**
+ * Compiles the redaction policy: the DEFAULT credential pattern set
+ * plus host-defined patterns (RV-217), for the telemetry boundary
+ * (events and traces; never the journal, where lossless encryption is
+ * the right tool). String patterns compile as global regexes; RegExp
+ * patterns are recompiled with the global flag when it is missing, so
+ * replace-all semantics always hold. An invalid pattern is a typed
+ * ConfigError at compile time, before anything runs under the policy.
+ */
+export function compileSecretMasker(
+  patterns: ReadonlyArray<RegExp | string> = [],
+  site = 'redaction.patterns',
+): SecretMasker {
+  const raw: unknown = patterns;
+  if (!Array.isArray(raw)) {
+    throw new ConfigError(`${site} must be an array of RegExp or string patterns`);
+  }
+  const compiled: RegExp[] = raw.map((pattern: unknown, index) => {
+    const at = `${site}[${String(index)}]`;
+    if (pattern instanceof RegExp) {
+      return pattern.flags.includes('g')
+        ? pattern
+        : new RegExp(pattern.source, `${pattern.flags}g`);
+    }
+    if (typeof pattern !== 'string' || pattern === '') {
+      throw new ConfigError(`${at} must be a RegExp or a nonempty pattern string`);
+    }
+    try {
+      return new RegExp(pattern, 'g');
+    } catch (thrown) {
+      const detail = thrown instanceof Error ? thrown.message : String(thrown);
+      throw new ConfigError(`${at} is not a valid regular expression: ${detail}`);
+    }
+  });
+  const maskText = (text: string): string => {
+    let masked = maskSecrets(text);
+    for (const pattern of compiled) {
+      masked = masked.replace(pattern, MASKED_SECRET);
+    }
+    return masked;
+  };
+  const maskDeep = <T>(value: T): T => deepMap(value, maskText);
+  return { maskText, maskDeep };
+}
+
+/** Shared deep string walk preserving identity when nothing changed. */
+function deepMap<T>(value: T, mapText: (text: string) => string): T {
+  if (typeof value === 'string') {
+    const masked = mapText(value);
+    return (masked === value ? value : masked) as unknown as T;
+  }
+  if (Array.isArray(value)) {
+    let changed = false;
+    const next = value.map((item: unknown) => {
+      const masked = deepMap(item, mapText);
+      if (masked !== item) {
+        changed = true;
+      }
+      return masked;
+    });
+    return (changed ? next : value) as unknown as T;
+  }
+  if (value !== null && typeof value === 'object') {
+    let changed = false;
+    const next: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+      const masked = deepMap(item, mapText);
+      if (masked !== item) {
+        changed = true;
+      }
+      next[key] = masked;
+    }
+    return (changed ? next : value) as unknown as T;
+  }
+  return value;
+}

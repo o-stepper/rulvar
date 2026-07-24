@@ -58,6 +58,68 @@ deletes assert the single-writer precondition as before.
 
 ***
 
+### exportRun()
+
+```ts
+exportRun(runId): Promise<RunExport>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Portable run export (RV-217): the meta record, every journal
+entry, and every transcript blob, read through Engine.stores (the
+one policy point), so an encrypted deployment exports PLAINTEXT
+for a subject-access request or a store migration, without raw
+store spelunking. Blobs are materialized in memory; export runs
+one at a time, not catalogs.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `runId` | `string` |
+
+#### Returns
+
+`Promise`\&lt;[`RunExport`](/api/@rulvar/rulvar/interfaces/RunExport.md)\&gt;
+
+#### Inherited from
+
+[`Engine`](/api/@rulvar/rulvar/interfaces/Engine.md).[`exportRun`](/api/@rulvar/rulvar/interfaces/Engine.md#exportrun)
+
+***
+
+### importRun()
+
+```ts
+importRun(bundle): Promise<void>;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Imports a bundle produced by exportRun, under its ORIGINAL runId
+(transcript refs and journal fields embed it; rewriting ids is
+deliberately out of scope). Writes through Engine.stores, so an
+encrypting target re-encrypts under its own policy. Refuses typed
+when the run already exists in the target store, so an import can
+never interleave with live history.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `bundle` | [`RunExport`](/api/@rulvar/rulvar/interfaces/RunExport.md) |
+
+#### Returns
+
+`Promise`\&lt;`void`\&gt;
+
+#### Inherited from
+
+[`Engine`](/api/@rulvar/rulvar/interfaces/Engine.md).[`importRun`](/api/@rulvar/rulvar/interfaces/Engine.md#importrun)
+
+***
+
 ### profileCard()
 
 ```ts

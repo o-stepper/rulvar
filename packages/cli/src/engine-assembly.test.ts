@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { runProfile, type ModelSpec, type RunProfile } from '@rulvar/core';
 
-import { applyRunProfile } from './engine-assembly.js';
+import { assembleEngine, applyRunProfile } from './engine-assembly.js';
 
 function shippedProfile(name: string): RunProfile {
   const profile = runProfile(name);
@@ -54,5 +54,22 @@ describe('applyRunProfile effort seeding', () => {
     });
     expect(merged.defaults?.permissions).toBeDefined();
     expect(merged.defaults?.routing?.orchestrate).toEqual({ model: 'fake:model', effort: 'max' });
+  });
+});
+
+describe('argsHash salt surfacing (RV-217)', () => {
+  it('assembleEngine exposes engineOptions.security.argsHashSalt for the resume args gate', () => {
+    const salted = assembleEngine({
+      config: { engineOptions: { adapters: [], security: { argsHashSalt: 'deploy-salt' } } },
+      cwd: '/tmp',
+      storePath: '/tmp/rulvar-assembly-salt',
+    });
+    expect(salted.argsHashSalt).toBe('deploy-salt');
+    const bare = assembleEngine({
+      config: { engineOptions: { adapters: [] } },
+      cwd: '/tmp',
+      storePath: '/tmp/rulvar-assembly-salt',
+    });
+    expect(bare.argsHashSalt).toBeUndefined();
   });
 });

@@ -203,6 +203,8 @@ function enforceArgsBinding(input: {
   args: unknown;
   allowChange: boolean;
   io: CliIo;
+  /** The deployment argsHash salt (RV-217); must match the engine's. */
+  salt?: string;
 }): void {
   const { meta, argsGiven, args, allowChange, io } = input;
   // Warnings print directly (no runCli catch in between), and the runId
@@ -265,7 +267,7 @@ function enforceArgsBinding(input: {
     }
     let supplied: string | undefined;
     try {
-      supplied = hashRunArgs(args);
+      supplied = hashRunArgs(args, input.salt === undefined ? undefined : { salt: input.salt });
     } catch {
       // Defense in depth: parseArgsJson already rejects non-canonical
       // CLI args before the gate, so this is unreachable from the CLI. A
@@ -334,7 +336,14 @@ export async function resumeCommand(argv: string[], context: CommandContext): Pr
   if (meta === undefined) {
     throw new ConfigError(`run '${runId}' not found in the store`);
   }
-  enforceArgsBinding({ meta, argsGiven, args, allowChange, io: context.io });
+  enforceArgsBinding({
+    meta,
+    argsGiven,
+    args,
+    allowChange,
+    io: context.io,
+    ...(assembled.argsHashSalt === undefined ? {} : { salt: assembled.argsHashSalt }),
+  });
   const name = meta.workflowName;
   const workflow =
     name === undefined
@@ -400,7 +409,14 @@ export async function replayCommand(argv: string[], context: CommandContext): Pr
   if (meta === undefined) {
     throw new ConfigError(`run '${runId}' not found in the store`);
   }
-  enforceArgsBinding({ meta, argsGiven, args, allowChange: false, io: context.io });
+  enforceArgsBinding({
+    meta,
+    argsGiven,
+    args,
+    allowChange: false,
+    io: context.io,
+    ...(assembled.argsHashSalt === undefined ? {} : { salt: assembled.argsHashSalt }),
+  });
   const name = meta.workflowName;
   const workflow =
     name === undefined

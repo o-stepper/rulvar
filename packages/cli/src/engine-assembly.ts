@@ -38,6 +38,12 @@ export interface AssembledCli {
   workflows: WorkflowRegistry;
   /** The journal-fold price function (table wins over caps). */
   priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
+  /**
+   * The deployment's argsHash salt (engineOptions.security, RV-217),
+   * surfaced so the CLI resume args gate hashes supplied --args the
+   * same way the engine hashed the genesis args.
+   */
+  argsHashSalt?: string;
 }
 
 export function assembleEngine(options: {
@@ -88,7 +94,14 @@ export function assembleEngine(options: {
     );
     return pricing === undefined ? undefined : priceUsdOf(pricing, usage);
   };
-  return { engine, store, workflows, priceUsd };
+  const argsHashSalt = engineOptions.security?.argsHashSalt;
+  return {
+    engine,
+    store,
+    workflows,
+    priceUsd,
+    ...(argsHashSalt === undefined ? {} : { argsHashSalt }),
+  };
 }
 
 /**

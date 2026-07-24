@@ -562,3 +562,87 @@ describe('toOtel determinism events (RV-209)', () => {
     expect(warning?.attributes?.['code.lineno']).toBe(12);
   });
 });
+
+describe('OTel host redaction patterns (RV-217)', () => {
+  const PII = 'ivan.petrov+medical@example.com';
+  const ts = '2026-01-01T00:00:00.000Z';
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async function* synthetic(): AsyncIterable<WorkflowEvent> {
+    yield {
+      runId: 'r1',
+      seq: 0,
+      ts,
+      spanId: 's0',
+      type: 'run:start',
+      workflow: 'wf',
+      resumed: false,
+    } as unknown as WorkflowEvent;
+    yield {
+      runId: 'r1',
+      seq: 1,
+      ts,
+      spanId: 's1',
+      parentSpanId: 's0',
+      type: 'agent:start',
+      agentType: 'outreach',
+      model: `contact-${PII}`,
+      role: 'loop',
+    } as unknown as WorkflowEvent;
+    yield {
+      runId: 'r1',
+      seq: 2,
+      ts,
+      spanId: 's1',
+      type: 'agent:end',
+      status: 'ok',
+    } as unknown as WorkflowEvent;
+    yield {
+      runId: 'r1',
+      seq: 3,
+      ts,
+      spanId: 's0',
+      type: 'run:end',
+      status: 'ok',
+    } as unknown as WorkflowEvent;
+  }
+
+  it('masks host PII in exported attributes on top of the default set', async () => {
+    const attributes: Record<string, unknown>[] = [];
+    const tracer = {
+      startSpan: (name: string, options?: { attributes?: Record<string, unknown> }) => {
+        attributes.push(options?.attributes ?? {});
+        return {
+          setAttribute: () => undefined,
+          addEvent: () => undefined,
+          setStatus: () => undefined,
+          end: () => undefined,
+        };
+      },
+    };
+    await toOtel(
+      { runId: 'r1', events: synthetic(), result: Promise.resolve({ status: 'ok' } as never) },
+      tracer,
+      { patterns: ['[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}'] },
+    );
+    const flat = JSON.stringify(attributes);
+    expect(flat).not.toContain(PII);
+    expect(flat).toContain('[masked-secret]');
+  });
+
+  it('rejects an invalid pattern typed before anything exports', async () => {
+    await expect(
+      toOtel(
+        { runId: 'r1', events: synthetic(), result: Promise.resolve({ status: 'ok' } as never) },
+        {
+          startSpan: () => ({
+            setAttribute: () => undefined,
+            addEvent: () => undefined,
+            setStatus: () => undefined,
+            end: () => undefined,
+          }),
+        },
+        { patterns: ['('] },
+      ),
+    ).rejects.toThrow(/not a valid regular expression/);
+  });
+});

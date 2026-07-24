@@ -121,6 +121,12 @@ interface AssembledCli {
   workflows: WorkflowRegistry;
   /** The journal-fold price function (table wins over caps). */
   priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
+  /**
+  * The deployment's argsHash salt (engineOptions.security, RV-217),
+  * surfaced so the CLI resume args gate hashes supplied --args the
+  * same way the engine hashed the genesis args.
+  */
+  argsHashSalt?: string;
 }
 declare function assembleEngine(options: {
   config: CliConfig;
@@ -348,6 +354,13 @@ interface ToOtelOptions {
   contextApi?: OtelContextApi;
   /** trace.setSpan(context, span) equivalent; required with contextApi. */
   setSpan?: (context: unknown, span: SpanLike) => unknown;
+  /**
+  * Host redaction patterns applied to every exported string attribute
+  * ON TOP of the default credential set (RV-217). Feed the same list
+  * as `createEngine redaction.patterns` for event/trace parity; an
+  * invalid pattern is a typed ConfigError before anything exports.
+  */
+  patterns?: ReadonlyArray<RegExp | string>;
 }
 /**
 * Exports one settled run's event stream onto a tracer. The run's
