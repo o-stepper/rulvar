@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.58.0
+
+#### Patch Changes
+
+- Updated dependencies [4fa35ce]
+  - @rulvar/core@1.58.0
+
 ### 1.57.0
 
 #### Patch Changes
@@ -766,6 +773,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.58.0
+
+#### Patch Changes
+
+- Updated dependencies [4fa35ce]
+  - @rulvar/core@1.58.0
+
 ### 1.57.0
 
 #### Patch Changes
@@ -1379,6 +1393,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.58.0
+
+#### Minor Changes
+
+- 4fa35ce: RV-217: data protection hooks, the full close. The plan's gate ("PII never persists or emits in plaintext under policy") now holds end to end. (1) ENVELOPE ENCRYPTION on the serialization seam: `createEnvelopeEncryption({provider, historicalWrappedKeys?, plaintextReads?})` returns a `SerializationHook` that AES-256-GCM encrypts every persisted byte (journal payloads, transcript blobs, checkpoints) with entry identity as associated data (a ciphertext moved between entries or refs fails authentication), keeping only the kernel-pinned ordering/identity fields plus spanId and timestamps plaintext; `DataKeyProvider` is the KMS seam (the exact shape of GenerateDataKey/Decrypt, called only in the async factory so the sync hooks run on in-memory data keys, and every envelope carries its wrapped key so reads need no live KMS); the shipped `localKeyProvider` derives KEKs via HKDF-SHA256 with an `info` partition for tenant-scoped keys (a different tenant's provider cannot unwrap, pinned by tests); reads of non-enveloped data fail closed by default with `plaintextReads: 'passthrough'` as the explicit migration mode; `fromStored(toStored(e))` reproduces entries exactly, so replay, resume, and recovery are untouched and a run over real files greps to ZERO plaintext PII while `Engine.stores` reads plaintext through the one policy point. (2) REDACTION POLICY: `redaction.patterns` adds host-defined patterns (RegExp or strings, compiled once, typed ConfigError on an invalid one) on top of the default credential set for every emitted event, via the new exported `compileSecretMasker`; the OTel exporter accepts the same `patterns` for trace parity. (3) EXPORT/IMPORT: `engine.exportRun(runId)` produces the portable bundle (meta, entries, blobs) read through the policy point, so encrypted deployments export plaintext for subject-access requests; `engine.importRun(bundle)` writes through the target's stores (re-encrypting under its policy), keeps the original runId, and refuses an existing run typed; together with the existing `deleteRun`/`pruneRun` this completes the retention/deletion/export surface. (4) SALTED METADATA DIGESTS: `security.argsHashSalt` switches `RunMeta.argsHash` to HMAC-SHA256 under a deployment salt (equal args stop correlating across deployments; low-entropy args stop being recoverable from the digest), `hashRunArgs` gains the optional salt, and the CLI resume args gate picks the salt up from `engineOptions.security` automatically. (5) AUDIT TRAIL: `reduceAuditTrail(entries)` folds a journal into the typed, ordered sequence of authority events (suspensions with deadlines, resolutions with who and what, abandons with reasons, engine decisions, termination denials, run settles), tolerant across journal vintages. New guide page: https://docs.rulvar.com/guide/data-protection.
+
+#### Patch Changes
+
+- Updated dependencies [4fa35ce]
+  - @rulvar/core@1.58.0
 
 ### 1.57.0
 
@@ -2269,6 +2294,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.58.0
+
+#### Minor Changes
+
+- 4fa35ce: RV-217: data protection hooks, the full close. The plan's gate ("PII never persists or emits in plaintext under policy") now holds end to end. (1) ENVELOPE ENCRYPTION on the serialization seam: `createEnvelopeEncryption({provider, historicalWrappedKeys?, plaintextReads?})` returns a `SerializationHook` that AES-256-GCM encrypts every persisted byte (journal payloads, transcript blobs, checkpoints) with entry identity as associated data (a ciphertext moved between entries or refs fails authentication), keeping only the kernel-pinned ordering/identity fields plus spanId and timestamps plaintext; `DataKeyProvider` is the KMS seam (the exact shape of GenerateDataKey/Decrypt, called only in the async factory so the sync hooks run on in-memory data keys, and every envelope carries its wrapped key so reads need no live KMS); the shipped `localKeyProvider` derives KEKs via HKDF-SHA256 with an `info` partition for tenant-scoped keys (a different tenant's provider cannot unwrap, pinned by tests); reads of non-enveloped data fail closed by default with `plaintextReads: 'passthrough'` as the explicit migration mode; `fromStored(toStored(e))` reproduces entries exactly, so replay, resume, and recovery are untouched and a run over real files greps to ZERO plaintext PII while `Engine.stores` reads plaintext through the one policy point. (2) REDACTION POLICY: `redaction.patterns` adds host-defined patterns (RegExp or strings, compiled once, typed ConfigError on an invalid one) on top of the default credential set for every emitted event, via the new exported `compileSecretMasker`; the OTel exporter accepts the same `patterns` for trace parity. (3) EXPORT/IMPORT: `engine.exportRun(runId)` produces the portable bundle (meta, entries, blobs) read through the policy point, so encrypted deployments export plaintext for subject-access requests; `engine.importRun(bundle)` writes through the target's stores (re-encrypting under its policy), keeps the original runId, and refuses an existing run typed; together with the existing `deleteRun`/`pruneRun` this completes the retention/deletion/export surface. (4) SALTED METADATA DIGESTS: `security.argsHashSalt` switches `RunMeta.argsHash` to HMAC-SHA256 under a deployment salt (equal args stop correlating across deployments; low-entropy args stop being recoverable from the digest), `hashRunArgs` gains the optional salt, and the CLI resume args gate picks the salt up from `engineOptions.security` automatically. (5) AUDIT TRAIL: `reduceAuditTrail(entries)` folds a journal into the typed, ordered sequence of authority events (suspensions with deadlines, resolutions with who and what, abandons with reasons, engine decisions, termination denials, run settles), tolerant across journal vintages. New guide page: https://docs.rulvar.com/guide/data-protection.
 
 ### 1.57.0
 
@@ -3580,6 +3611,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.58.0
+
 ### 1.57.0
 
 ### 1.56.0
@@ -3780,6 +3813,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.58.0
+
+#### Patch Changes
+
+- Updated dependencies [4fa35ce]
+  - @rulvar/core@1.58.0
+  - @rulvar/testing@1.58.0
 
 ### 1.57.0
 
@@ -4558,6 +4599,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/openai
 
+### 1.58.0
+
+#### Patch Changes
+
+- Updated dependencies [4fa35ce]
+  - @rulvar/core@1.58.0
+
 ### 1.57.0
 
 #### Patch Changes
@@ -5323,6 +5371,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.58.0
+
+#### Patch Changes
+
+- Updated dependencies [4fa35ce]
+  - @rulvar/core@1.58.0
+
 ### 1.57.0
 
 #### Patch Changes
@@ -6058,6 +6113,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.58.0
+
+#### Patch Changes
+
+- Updated dependencies [4fa35ce]
+  - @rulvar/core@1.58.0
+  - eslint-plugin-rulvar@1.58.0
+
 ### 1.57.0
 
 #### Patch Changes
@@ -6791,6 +6854,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.58.0
+
+#### Patch Changes
+
+- Updated dependencies [4fa35ce]
+  - @rulvar/core@1.58.0
+  - @rulvar/anthropic@1.58.0
+  - @rulvar/openai@1.58.0
 
 ### 1.57.0
 
@@ -7668,6 +7740,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.58.0
+
+#### Patch Changes
+
+- Updated dependencies [4fa35ce]
+  - @rulvar/core@1.58.0
+
 ### 1.57.0
 
 #### Patch Changes
@@ -8373,6 +8452,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.58.0
+
+#### Patch Changes
+
+- Updated dependencies [4fa35ce]
+  - @rulvar/core@1.58.0
+
 ### 1.57.0
 
 #### Minor Changes
@@ -8385,6 +8471,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.58.0
+
+#### Patch Changes
+
+- Updated dependencies [4fa35ce]
+  - @rulvar/core@1.58.0
 
 ### 1.57.0
 
@@ -9037,6 +9130,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.58.0
+
+#### Minor Changes
+
+- 4fa35ce: RV-217: data protection hooks, the full close. The plan's gate ("PII never persists or emits in plaintext under policy") now holds end to end. (1) ENVELOPE ENCRYPTION on the serialization seam: `createEnvelopeEncryption({provider, historicalWrappedKeys?, plaintextReads?})` returns a `SerializationHook` that AES-256-GCM encrypts every persisted byte (journal payloads, transcript blobs, checkpoints) with entry identity as associated data (a ciphertext moved between entries or refs fails authentication), keeping only the kernel-pinned ordering/identity fields plus spanId and timestamps plaintext; `DataKeyProvider` is the KMS seam (the exact shape of GenerateDataKey/Decrypt, called only in the async factory so the sync hooks run on in-memory data keys, and every envelope carries its wrapped key so reads need no live KMS); the shipped `localKeyProvider` derives KEKs via HKDF-SHA256 with an `info` partition for tenant-scoped keys (a different tenant's provider cannot unwrap, pinned by tests); reads of non-enveloped data fail closed by default with `plaintextReads: 'passthrough'` as the explicit migration mode; `fromStored(toStored(e))` reproduces entries exactly, so replay, resume, and recovery are untouched and a run over real files greps to ZERO plaintext PII while `Engine.stores` reads plaintext through the one policy point. (2) REDACTION POLICY: `redaction.patterns` adds host-defined patterns (RegExp or strings, compiled once, typed ConfigError on an invalid one) on top of the default credential set for every emitted event, via the new exported `compileSecretMasker`; the OTel exporter accepts the same `patterns` for trace parity. (3) EXPORT/IMPORT: `engine.exportRun(runId)` produces the portable bundle (meta, entries, blobs) read through the policy point, so encrypted deployments export plaintext for subject-access requests; `engine.importRun(bundle)` writes through the target's stores (re-encrypting under its policy), keeps the original runId, and refuses an existing run typed; together with the existing `deleteRun`/`pruneRun` this completes the retention/deletion/export surface. (4) SALTED METADATA DIGESTS: `security.argsHashSalt` switches `RunMeta.argsHash` to HMAC-SHA256 under a deployment salt (equal args stop correlating across deployments; low-entropy args stop being recoverable from the digest), `hashRunArgs` gains the optional salt, and the CLI resume args gate picks the salt up from `engineOptions.security` automatically. (5) AUDIT TRAIL: `reduceAuditTrail(entries)` folds a journal into the typed, ordered sequence of authority events (suspensions with deadlines, resolutions with who and what, abandons with reasons, engine decisions, termination denials, run settles), tolerant across journal vintages. New guide page: https://docs.rulvar.com/guide/data-protection.
+
+#### Patch Changes
+
+- Updated dependencies [4fa35ce]
+  - @rulvar/core@1.58.0
 
 ### 1.57.0
 
