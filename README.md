@@ -198,7 +198,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The forty nine rounds, verbatim in this repository's history:
+The fifty rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                       | Shipped as |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -251,6 +251,7 @@ The forty nine rounds, verbatim in this repository's history:
 | v1.59.2       | deaef36 (#343): the isolated-executor idempotency key binds the logical invocation (agent entry seq and call ordinal), so two intended effects never fold to one | v1.59.3    |
 | v1.59.3       | c49d7a1 (#346): the genesis ownership protocol: every segment holds the run lease over a leasable store, so a worker sweep can no longer adopt a live fresh run  | v1.59.4    |
 | v1.59.4       | 59bbeaa (#349): the finalization reserve: a tool-budget expiry closes the batch tail explicitly and grants the model one bounded summary turn                    | v1.60.0    |
+| v1.60.0       | b4c1f1f (#352): durable provider reconciliation: the per-dispatch ledger with provider response ids, the gross/net cost split, and the invoice export            | v1.61.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
