@@ -198,7 +198,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The forty seven rounds, verbatim in this repository's history:
+The forty eight rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                       | Shipped as |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -249,6 +249,7 @@ The forty seven rounds, verbatim in this repository's history:
 | v1.59.0       | c127770 (#337): the external experiment review fixes: finite synthesize cost attribution, engine retry jitter provenance, the isolation docs caught up           | v1.59.1    |
 | v1.59.1       | dd0e10f (#340): envelope encryption binds journal ciphertext to the full entry identity (runId and every clear field), closing the cross-run transplant gap      | v1.59.2    |
 | v1.59.2       | deaef36 (#343): the isolated-executor idempotency key binds the logical invocation (agent entry seq and call ordinal), so two intended effects never fold to one | v1.59.3    |
+| v1.59.3       | c49d7a1 (#346): the genesis ownership protocol: every segment holds the run lease over a leasable store, so a worker sweep can no longer adopt a live fresh run  | v1.59.4    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
