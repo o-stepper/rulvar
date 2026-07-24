@@ -316,9 +316,7 @@ describe('agent loop tool dispatch (M3-T01)', () => {
     };
     let turn = 0;
     const adapter = scriptedAdapter(() =>
-      turn++ === 0
-        ? { toolCalls: [{ name: 'remote', args: { code: 'x' } }] }
-        : { text: 'done' },
+      turn++ === 0 ? { toolCalls: [{ name: 'remote', args: { code: 'x' } }] } : { text: 'done' },
     );
     const result = await runAgent({
       prompt: 'go',
@@ -355,7 +353,10 @@ describe('agent loop tool dispatch (M3-T01)', () => {
       tools: runtimeOf([remote]),
     });
     expect(result.status).toBe('ok');
-    const first = toolResults(adapter.calls[1])[0] as { result?: { error?: string }; isError?: boolean };
+    const first = toolResults(adapter.calls[1])[0] as {
+      result?: { error?: string };
+      isError?: boolean;
+    };
     expect(first.result?.error).toContain('no executor is registered');
     expect(first.isError).toBe(true);
   });

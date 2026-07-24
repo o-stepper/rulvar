@@ -126,7 +126,7 @@ const executor = subprocessExecutor({ ledger });
 // After a run, ledger.entries() is the audit of what actually executed.
 ```
 
-Binding an approval to the effect it authorized is then a lookup: an [ask-approval](/guide/tools#ask-approval-suspensions) entry and its effect share `(runId, tool, argsHash)`, and the idempotency key is stable across a rerun of the same call. Pair a side-effecting tool's `needsApproval: true` with the ledger to prove that only approved calls ran, and each ran once.
+Binding an approval to the effect it authorized is then a lookup: an [ask-approval](/guide/tools#ask-approvals-surface-to-the-host) entry and its effect share `(runId, tool, argsHash)`, and the idempotency key is stable across a rerun of the same call. Pair a side-effecting tool's `needsApproval: true` with the ledger to prove that only approved calls ran, and each ran once.
 
 ## Conformance
 

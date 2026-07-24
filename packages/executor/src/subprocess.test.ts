@@ -10,10 +10,7 @@ import { join } from 'node:path';
 import { defineWorkflow } from '@rulvar/core';
 import { createTestEngine, fakeToolCalls, type FakeCall } from '@rulvar/testing';
 import { describe, expect, it } from 'vitest';
-import {
-  executorConformance,
-  registerExecutorConformance,
-} from './conformance.js';
+import { executorConformance, registerExecutorConformance } from './conformance.js';
 import { ExecutorError, memoryEffectLedger } from './spi.js';
 import { subprocessExecutor, subprocessTool } from './subprocess.js';
 
@@ -164,15 +161,18 @@ describe('subprocessTool + engine end-to-end (RV-216)', () => {
       args: [PROBE],
     });
     await expect(
-      probe.execute({}, {
-        runId: 'r',
-        spanId: 's',
-        agent: { agentType: 'a' },
-        cwd: process.cwd(),
-        isolation: 'none',
-        signal: new AbortController().signal,
-        log: () => undefined,
-      }),
+      probe.execute(
+        {},
+        {
+          runId: 'r',
+          spanId: 's',
+          agent: { agentType: 'a' },
+          cwd: process.cwd(),
+          isolation: 'none',
+          signal: new AbortController().signal,
+          log: () => undefined,
+        },
+      ),
     ).rejects.toBeInstanceOf(ExecutorError);
   });
 

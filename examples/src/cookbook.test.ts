@@ -539,7 +539,7 @@ describe('isolated tool execution (cookbook)', () => {
       writeFileSync(
         runner,
         "let i='';process.stdin.on('data',c=>i+=c);process.stdin.on('end',()=>{" +
-          "process.stdout.write(JSON.stringify({secret:process.env.COOKBOOK_HOST_SECRET??null," +
+          'process.stdout.write(JSON.stringify({secret:process.env.COOKBOOK_HOST_SECRET??null,' +
           'token:process.env.TOOL_TOKEN??null}));process.exit(0);});',
         'utf8',
       );

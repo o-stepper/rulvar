@@ -121,9 +121,7 @@ function resolveCommand(
  * tools declaring `executor: 'subprocess'` (see {@link subprocessTool})
  * then dispatch through it.
  */
-export function subprocessExecutor(
-  options: SubprocessExecutorOptions = {},
-): ToolExecutorProvider {
+export function subprocessExecutor(options: SubprocessExecutorOptions = {}): ToolExecutorProvider {
   const timeoutMs = options.timeoutMs ?? 30_000;
   const killGraceMs = options.killGraceMs ?? 2_000;
   const maxOutputBytes = options.maxOutputBytes ?? 1024 * 1024;
@@ -152,8 +150,7 @@ export function subprocessExecutor(
 
         const wrapper =
           options.sandbox === undefined ? [] : [...options.sandbox({ workdir, request })];
-        const [spawnCommand, ...spawnPrefix] =
-          wrapper.length > 0 ? wrapper : [command];
+        const [spawnCommand, ...spawnPrefix] = wrapper.length > 0 ? wrapper : [command];
         const spawnArgs = wrapper.length > 0 ? [...spawnPrefix, command, ...args] : args;
 
         let child;
@@ -266,7 +263,10 @@ export function subprocessTool<S extends SchemaSpec>(init: SubprocessToolInit<S>
     parameters: init.parameters,
     ...(init.version === undefined ? {} : { version: init.version }),
     executor: 'subprocess',
-    executorSpec: { command: init.command, ...(init.args === undefined ? {} : { args: [...init.args] }) },
+    executorSpec: {
+      command: init.command,
+      ...(init.args === undefined ? {} : { args: [...init.args] }),
+    },
     ...(init.needsApproval === undefined ? {} : { needsApproval: init.needsApproval }),
     ...(init.risk === undefined ? {} : { risk: init.risk }),
     execute: () =>

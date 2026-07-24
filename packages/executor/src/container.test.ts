@@ -199,7 +199,10 @@ describe.skipIf(!RUN_DOCKER)('containerExecutor (docker-gated, RV-216)', () => {
   it('mounts the root filesystem read-only', async () => {
     const executor = containerExecutor({ image: IMAGE });
     const result = (await executor.run(
-      request('ro', 'if echo x > /rvtest 2>/dev/null; then printf \'{"wrote":true}\'; else printf \'{"wrote":false}\'; fi'),
+      request(
+        'ro',
+        'if echo x > /rvtest 2>/dev/null; then printf \'{"wrote":true}\'; else printf \'{"wrote":false}\'; fi',
+      ),
     )) as { wrote: boolean };
     expect(result.wrote).toBe(false);
   }, 60_000);
@@ -207,7 +210,10 @@ describe.skipIf(!RUN_DOCKER)('containerExecutor (docker-gated, RV-216)', () => {
   it('gives the tool a writable ephemeral /work', async () => {
     const executor = containerExecutor({ image: IMAGE });
     const result = (await executor.run(
-      request('work', 'echo hi > /work/f; printf \'{"work":"\'; tr -d "\\n" < /work/f; printf \'"}\''),
+      request(
+        'work',
+        'echo hi > /work/f; printf \'{"work":"\'; tr -d "\\n" < /work/f; printf \'"}\'',
+      ),
     )) as { work: string };
     expect(result.work).toBe('hi');
   }, 60_000);
@@ -239,9 +245,9 @@ describe.skipIf(!RUN_DOCKER)('containerExecutor (docker-gated, RV-216)', () => {
   it('surfaces a non-zero exit as a typed error with the stderr tail and records the ledger', async () => {
     const ledger = memoryEffectLedger();
     const executor = containerExecutor({ image: IMAGE, ledger });
-    await expect(executor.run(request('crash', 'echo boom-container >&2; exit 4'))).rejects.toMatchObject(
-      { name: 'ExecutorError', code: 'exit' },
-    );
+    await expect(
+      executor.run(request('crash', 'echo boom-container >&2; exit 4')),
+    ).rejects.toMatchObject({ name: 'ExecutorError', code: 'exit' });
     const rows = ledger.entries();
     expect(rows).toHaveLength(1);
     expect(rows[0]?.outcome).toBe('error');

@@ -36,7 +36,9 @@ export interface ConformanceExecutorConfig {
 }
 
 /** Builds the provider under test from a shared-contract config. */
-export type ConformanceExecutorFactory = (config: ConformanceExecutorConfig) => ToolExecutorProvider;
+export type ConformanceExecutorFactory = (
+  config: ConformanceExecutorConfig,
+) => ToolExecutorProvider;
 
 export interface ExecutorConformanceCheck {
   id: string;
@@ -140,10 +142,7 @@ export function executorConformance(
     },
   });
 
-  const asExecutorError = async (
-    id: string,
-    promise: Promise<unknown>,
-  ): Promise<ExecutorError> => {
+  const asExecutorError = async (id: string, promise: Promise<unknown>): Promise<ExecutorError> => {
     try {
       await promise;
     } catch (err) {
@@ -202,7 +201,11 @@ export function executorConformance(
           const result = (await provider.run(
             request('reader', { behavior: 'read-env', name }),
           )) as { value: string | null };
-          ensure(result.value === 'passed-through', 'e3', 'an allowlisted var did not pass through');
+          ensure(
+            result.value === 'passed-through',
+            'e3',
+            'an allowlisted var did not pass through',
+          );
         } finally {
           delete process.env[name];
         }
@@ -220,7 +223,11 @@ export function executorConformance(
         const result = (await provider.run(
           request('reader', { behavior: 'read-env', name: 'RV_CRED' }),
         )) as { value: string | null };
-        ensure(result.value === 'minted-token', 'e4', 'the minted credential did not reach the tool');
+        ensure(
+          result.value === 'minted-token',
+          'e4',
+          'the minted credential did not reach the tool',
+        );
       },
     },
     {
@@ -229,7 +236,11 @@ export function executorConformance(
       async run() {
         const provider = factory({ command: runtime, args: baseArgs });
         const result = (await provider.run(
-          request('reader', { behavior: 'read-env', name: 'RULVAR_IDEMPOTENCY_KEY' }, { idempotencyKey: 'key-abc' }),
+          request(
+            'reader',
+            { behavior: 'read-env', name: 'RULVAR_IDEMPOTENCY_KEY' },
+            { idempotencyKey: 'key-abc' },
+          ),
         )) as { value: string | null };
         ensure(result.value === 'key-abc', 'e5', 'the idempotency key did not reach the tool');
       },
@@ -240,7 +251,10 @@ export function executorConformance(
       async run() {
         const provider = factory({ command: runtime, args: baseArgs, timeoutMs: 300 });
         const startedAt = Date.now();
-        const err = await asExecutorError('e6', provider.run(request('slow', { behavior: 'sleep', ms: 100000 })));
+        const err = await asExecutorError(
+          'e6',
+          provider.run(request('slow', { behavior: 'sleep', ms: 100000 })),
+        );
         ensure(err.code === 'timeout', 'e6', `expected code 'timeout', got '${err.code}'`);
         ensure(Date.now() - startedAt < 5000, 'e6', 'the timeout did not fire promptly');
       },
@@ -254,7 +268,10 @@ export function executorConformance(
           args: baseArgs,
           maxOutputBytes: 32 * 1024,
         });
-        const err = await asExecutorError('e7', provider.run(request('flood', { behavior: 'huge', chunks: 256 })));
+        const err = await asExecutorError(
+          'e7',
+          provider.run(request('flood', { behavior: 'huge', chunks: 256 })),
+        );
         ensure(err.code === 'output-cap', 'e7', `expected code 'output-cap', got '${err.code}'`);
       },
     },
@@ -265,7 +282,9 @@ export function executorConformance(
         const provider = factory({ command: runtime, args: baseArgs });
         const err = await asExecutorError(
           'e8',
-          provider.run(request('crasher', { behavior: 'exit', code: 3, stderr: 'boom-diagnostic' })),
+          provider.run(
+            request('crasher', { behavior: 'exit', code: 3, stderr: 'boom-diagnostic' }),
+          ),
         );
         ensure(err.code === 'exit', 'e8', `expected code 'exit', got '${err.code}'`);
         ensure(err.message.includes('boom-diagnostic'), 'e8', 'the stderr tail was not surfaced');
@@ -276,7 +295,10 @@ export function executorConformance(
       title: 'rejects a tool that does not write a JSON result',
       async run() {
         const provider = factory({ command: runtime, args: baseArgs });
-        const err = await asExecutorError('e9', provider.run(request('sloppy', { behavior: 'garbage' })));
+        const err = await asExecutorError(
+          'e9',
+          provider.run(request('sloppy', { behavior: 'garbage' })),
+        );
         ensure(err.code === 'protocol', 'e9', `expected code 'protocol', got '${err.code}'`);
       },
     },
@@ -286,12 +308,20 @@ export function executorConformance(
       async run() {
         const ledger = memoryEffectLedger();
         const provider = factory({ command: runtime, args: baseArgs, ledger });
-        const first = (await provider.run(request('w', { behavior: 'workdir' }))) as { before: number };
-        const second = (await provider.run(request('w', { behavior: 'workdir' }))) as { before: number };
+        const first = (await provider.run(request('w', { behavior: 'workdir' }))) as {
+          before: number;
+        };
+        const second = (await provider.run(request('w', { behavior: 'workdir' }))) as {
+          before: number;
+        };
         ensure(first.before === 0, 'e10', 'the first workdir was not empty');
         ensure(second.before === 0, 'e10', 'the second call saw leftovers from the first');
         for (const record of ledger.entries()) {
-          ensure(!existsSync(record.workdir), 'e10', 'the ephemeral workdir was not removed after the call');
+          ensure(
+            !existsSync(record.workdir),
+            'e10',
+            'the ephemeral workdir was not removed after the call',
+          );
         }
       },
     },
@@ -301,13 +331,24 @@ export function executorConformance(
       async run() {
         const ledger = memoryEffectLedger();
         const provider = factory({ command: runtime, args: baseArgs, ledger });
-        await provider.run(request('ok_tool', { behavior: 'echo', payload: 1 }, { idempotencyKey: 'k-ok' }));
-        await asExecutorError('e11', provider.run(request('bad_tool', { behavior: 'exit', code: 1 }, { idempotencyKey: 'k-bad' })));
+        await provider.run(
+          request('ok_tool', { behavior: 'echo', payload: 1 }, { idempotencyKey: 'k-ok' }),
+        );
+        await asExecutorError(
+          'e11',
+          provider.run(
+            request('bad_tool', { behavior: 'exit', code: 1 }, { idempotencyKey: 'k-bad' }),
+          ),
+        );
         const rows = ledger.entries();
         ensure(rows.length === 2, 'e11', `expected 2 ledger records, got ${rows.length}`);
         const ok = rows.find((r) => r.tool === 'ok_tool');
         const bad = rows.find((r) => r.tool === 'bad_tool');
-        ensure(ok?.outcome === 'ok' && ok.idempotencyKey === 'k-ok', 'e11', 'the ok record is wrong');
+        ensure(
+          ok?.outcome === 'ok' && ok.idempotencyKey === 'k-ok',
+          'e11',
+          'the ok record is wrong',
+        );
         ensure(bad?.outcome === 'error' && bad.exitCode === 1, 'e11', 'the error record is wrong');
         ensure(
           rows.every((r) => typeof r.argsHash === 'string' && r.argsHash.length === 64),

@@ -23,11 +23,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type {
-  IsolatedExecRequest,
-  Json,
-  ToolExecutorProvider,
-} from '@rulvar/core';
+import type { IsolatedExecRequest, Json, ToolExecutorProvider } from '@rulvar/core';
 import { runChildProcess } from './child.js';
 import {
   ExecutorError,

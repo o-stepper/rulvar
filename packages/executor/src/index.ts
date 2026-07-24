@@ -45,4 +45,9 @@ export {
   type ExecutorConformanceSuite,
   type ExecutorTestRegistrar,
 } from './conformance.js';
-export { runChildProcess, type ChildResult, type ChildSpec, type ChildStopReason } from './child.js';
+export {
+  runChildProcess,
+  type ChildResult,
+  type ChildSpec,
+  type ChildStopReason,
+} from './child.js';

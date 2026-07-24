@@ -1046,9 +1046,7 @@ export function createCtx(
       internals.defaults.toolsets,
       // The registered non-inprocess executor tags (RV-216): a tool
       // declaring an unregistered tag fails typed here, at spawn time.
-      internals.executors === undefined
-        ? undefined
-        : new Set(Object.keys(internals.executors)),
+      internals.executors === undefined ? undefined : new Set(Object.keys(internals.executors)),
     );
 
     // Role trigger protocol (M4-T01; predicates in model/roles.ts):
