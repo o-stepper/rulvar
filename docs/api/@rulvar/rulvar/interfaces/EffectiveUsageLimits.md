@@ -12,6 +12,8 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-finalizationreserve"></a> `finalizationReserve?` | \{ `maxOutputTokens?`: `number`; \} | - | `packages/core/dist/index.d.ts` |
+| `finalizationReserve.maxOutputTokens?` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-maxcallspertool"></a> `maxCallsPerTool?` | `Record`\&lt;`string`, `number`\&gt; | - | `packages/core/dist/index.d.ts` |
 | <a id="property-maxnonewevidencecalls"></a> `maxNoNewEvidenceCalls?` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-maxoutputtokensperturn"></a> `maxOutputTokensPerTurn?` | `number` | - | `packages/core/dist/index.d.ts` |

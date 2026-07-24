@@ -1067,11 +1067,32 @@ export async function runAgent<S extends SchemaSpec>(
   let toolCallsUsed = 0;
   let escalationRequest: EscalationRequest | undefined;
   let abortClass: AbortClass | undefined;
+  /**
+   * Set at a tool-budget expiry when limits.finalizationReserve is
+   * configured (P1.1); the reserve turn itself runs at ONE site after
+   * the loop ends (the pending-turn path trips before the dispatch
+   * machinery below is even defined), inside the still-open loop phase.
+   */
+  let reserveRequest: { limiter: 'maxToolCalls' | 'toolUnits'; skipped: number } | undefined;
   const noProgress = new NoProgressDetector(limits.noProgressTurns);
   // Exploration guards (RV-210): tracking exists only when a guard limit
   // asks for it, so an unconfigured invocation is byte-identical to
   // before (no summary field, no notice messages, no denial results).
   const guard = explorationTrackingEnabled(limits) ? new ExplorationGuard(limits) : undefined;
+  /**
+   * The exact limiter behind a tool-budget expiry, with its counts: the
+   * wording rides the finalization-reserve instruction and the 'limit'
+   * terminal's errorMessage (P1.1 criterion: the terminal names the
+   * limiter, never a bare status).
+   */
+  const toolBudgetDetail = (limiter: 'maxToolCalls' | 'toolUnits'): string => {
+    if (limiter === 'maxToolCalls') {
+      return `maxToolCalls (${String(toolCallsUsed)}/${String(limits.maxToolCalls ?? 0)})`;
+    }
+    const max = limits.toolUnits?.max ?? 0;
+    const used = guard === undefined ? max : (guard.summary(toolCallsUsed).toolUnitsUsed ?? max);
+    return `toolUnits (${String(used)}/${String(max)})`;
+  };
   if (limits.toolBudgetNotices === true && limits.maxToolCalls === undefined) {
     events?.emit({
       type: 'log',
@@ -1233,6 +1254,10 @@ export async function runAgent<S extends SchemaSpec>(
     finished?: unknown;
     /** The no-new-evidence exploration guard ended the turn (RV-210). */
     guardTrip?: boolean;
+    /** The tool-budget limiter that expired mid-batch (P1.1). */
+    limiter?: 'maxToolCalls' | 'toolUnits';
+    /** How many of the batch's calls were not admitted (P1.1). */
+    skipped?: number;
   }> => {
     const runtime = options.tools;
     if (runtime === undefined) {
@@ -1245,17 +1270,50 @@ export async function runAgent<S extends SchemaSpec>(
       (part as { isError?: boolean }).isError = true;
       return part;
     };
+    /**
+     * Closes the batch tail at a tool-budget expiry (P1.1): with the
+     * finalization reserve configured every not-admitted call gets a
+     * typed skipped-call error result naming the limiter, so the model
+     * (and the transcript) sees exactly which calls never executed and
+     * the summary turn's history stays well formed (providers reject
+     * tool calls without matching results). Without the reserve the
+     * tail stays unanswered, byte-identical to before.
+     */
+    const closeSkippedTail = (
+      skippedCalls: ToolCallRequest[],
+      limiter: 'maxToolCalls' | 'toolUnits',
+    ): void => {
+      if (limits.finalizationReserve === undefined) {
+        return;
+      }
+      for (const call of skippedCalls) {
+        parts.push(
+          errorPart(call, {
+            error: 'skipped: the tool budget is exhausted; the call was not executed',
+            limiter,
+            skipped: true,
+          }),
+        );
+      }
+    };
     for (const [index, call] of calls.entries()) {
       if (limits.maxToolCalls !== undefined && toolCallsUsed >= limits.maxToolCalls) {
         // Expiry of maxToolCalls is terminal 'limit': paid partial work;
         // already-executed results stand.
-        return { parts, limitHit: true };
+        closeSkippedTail(calls.slice(index), 'maxToolCalls');
+        return {
+          parts,
+          limitHit: true,
+          limiter: 'maxToolCalls',
+          skipped: calls.length - index,
+        };
       }
       if (guard !== undefined && guard.unitsExhausted()) {
         // The weighted tool budget expired (RV-210 close-out): terminal
         // 'limit' exactly like maxToolCalls; the summary's toolUnitsUsed
         // tells the story.
-        return { parts, limitHit: true };
+        closeSkippedTail(calls.slice(index), 'toolUnits');
+        return { parts, limitHit: true, limiter: 'toolUnits', skipped: calls.length - index };
       }
       const def = runtime.defs.find((candidate) => candidate.name === call.name);
       events?.emit({
@@ -1500,10 +1558,8 @@ export async function runAgent<S extends SchemaSpec>(
       }
       return part;
     });
-    const { parts, limitHit, escalated, finished, guardTrip } = await runToolCalls(
-      [restored.pending.awaiting, ...restored.pending.remaining],
-      priorParts,
-    );
+    const { parts, limitHit, escalated, finished, guardTrip, limiter, skipped } =
+      await runToolCalls([restored.pending.awaiting, ...restored.pending.remaining], priorParts);
     if (parts.length > 0) {
       messages.push({ role: 'tool', parts });
     }
@@ -1520,6 +1576,16 @@ export async function runAgent<S extends SchemaSpec>(
         abortClass = 'exploration';
         agentError = { kind: 'terminal', retryable: false };
         errorMessage = guard.describeTrip();
+      } else if (limiter !== undefined && limits.finalizationReserve !== undefined) {
+        // The guaranteed finalization turn (P1.1): the terminal names
+        // the exact limiter, and the reserve turn runs at the single
+        // post-loop site below (the dispatch machinery is not defined
+        // yet on this path).
+        agentError = { kind: 'terminal', retryable: false };
+        errorMessage =
+          `tool budget exhausted: ${toolBudgetDetail(limiter)}; ` +
+          `skipped tool calls: ${String(skipped ?? 0)}`;
+        reserveRequest = { limiter, skipped: skipped ?? 0 };
       }
     } else {
       maybePushBudgetNotice();
@@ -2115,10 +2181,8 @@ export async function runAgent<S extends SchemaSpec>(
     // next model turn.
     if (options.tools !== undefined && outcome.turn.toolCalls.length > 0) {
       noProgress.recordTurn({ toolCalls: outcome.turn.toolCalls.length });
-      const { parts, limitHit, escalated, finished, guardTrip } = await runToolCalls(
-        outcome.turn.toolCalls,
-        [],
-      );
+      const { parts, limitHit, escalated, finished, guardTrip, limiter, skipped } =
+        await runToolCalls(outcome.turn.toolCalls, []);
       if (parts.length > 0) {
         messages.push({ role: 'tool', parts });
       }
@@ -2143,6 +2207,16 @@ export async function runAgent<S extends SchemaSpec>(
           abortClass = 'exploration';
           agentError = { kind: 'terminal', retryable: false };
           errorMessage = guard.describeTrip();
+        } else if (limiter !== undefined && limits.finalizationReserve !== undefined) {
+          // The guaranteed finalization turn (P1.1): name the exact
+          // limiter on the terminal; the reserve turn itself runs at
+          // the single post-loop site so this path and the pending-turn
+          // resume path share one implementation.
+          agentError = { kind: 'terminal', retryable: false };
+          errorMessage =
+            `tool budget exhausted: ${toolBudgetDetail(limiter)}; ` +
+            `skipped tool calls: ${String(skipped ?? 0)}`;
+          reserveRequest = { limiter, skipped: skipped ?? 0 };
         }
         break;
       }
@@ -2384,6 +2458,163 @@ export async function runAgent<S extends SchemaSpec>(
     await saveBoundary();
     continue loop;
   }
+  // The guaranteed finalization turn (P1.1): a tool-budget expiry under
+  // limits.finalizationReserve grants the model exactly ONE summary turn
+  // with tools withheld before the invocation settles as 'limit'. One
+  // site serves both trip paths (the loop and the pending-turn resume).
+  // Best effort: a blocked or failed dispatch keeps the earned 'limit'
+  // terminal with a warn log; only a real abort (host cancel, budget
+  // ceiling) or a usage-invariant violation moves the status, exactly
+  // like every other arm.
+  if (status === 'limit' && reserveRequest !== undefined) {
+    const { limiter, skipped } = reserveRequest;
+    let proceed = true;
+    try {
+      options.budget?.beforeTurn();
+    } catch {
+      events?.emit({
+        type: 'log',
+        level: 'warn',
+        msg: 'the finalization reserve turn was skipped: the budget blocks further turns',
+      });
+      proceed = false;
+    }
+    if (proceed) {
+      turns += 1;
+      // Request-only, like the summarize and finalize instructions: the
+      // durable transcript keeps the raw history; the model's summary
+      // reply is what persists.
+      const reserveMessages: Msg[] = [
+        ...messages,
+        {
+          role: 'user',
+          parts: [
+            {
+              type: 'text',
+              text:
+                `The tool budget is exhausted (${toolBudgetDetail(limiter)}). ` +
+                `Skipped tool calls: ${String(skipped)}; no further tool calls will execute. ` +
+                `This is the final turn: produce your best final answer from the evidence ` +
+                `already collected.`,
+            },
+          ],
+        },
+      ];
+      let reserveDispatch: Awaited<ReturnType<typeof dispatchPhase>> | undefined;
+      try {
+        reserveDispatch = await dispatchPhase({
+          role: primaryRole,
+          chain: loopChain,
+          cursor: loopCursor,
+          requestFor: (target) => {
+            let req = buildRequest(
+              target.resolved,
+              projectHistory(reserveMessages, providerOf(target.adapter)),
+              limits,
+              options.tools?.contracts,
+            );
+            if (
+              options.schema !== undefined &&
+              options.canonicalSchema !== undefined &&
+              !separateExtract
+            ) {
+              // The summary rides the same structured-output tier as an
+              // ordinary loop turn, so a valid final parses into TYPED
+              // output even at the limit.
+              req = applyStructuredOutputTier(req, rideTierFor(target), options.canonicalSchema);
+            }
+            if (req.tools !== undefined) {
+              req = { ...req, toolChoice: 'none' };
+            }
+            const reserveMax = limits.finalizationReserve?.maxOutputTokens;
+            if (reserveMax !== undefined) {
+              req = {
+                ...req,
+                maxOutputTokens: Math.min(req.maxOutputTokens ?? reserveMax, reserveMax),
+              };
+            }
+            return applyOutputBudget(req, target, options.budget);
+          },
+          streamOptionsFor: (target) => {
+            const reserveStreamOptions: Parameters<typeof streamTurn>[2] = {
+              idleTimeoutMs: limits.streamIdleTimeoutMs,
+              signals: options.signal === undefined ? [] : [options.signal],
+              onUsage: (delta) => options.budget?.onUsage(delta, target.resolved.ref),
+            };
+            if (options.budget?.signal !== undefined) {
+              reserveStreamOptions.budgetSignal = options.budget.signal;
+            }
+            if (options.stream === true) {
+              reserveStreamOptions.onDelta = (delta) =>
+                events?.emit({ type: 'agent:stream', delta });
+            }
+            return reserveStreamOptions;
+          },
+        });
+      } catch (thrown) {
+        if (!(thrown instanceof BudgetExhaustedError)) {
+          throw thrown;
+        }
+        events?.emit({
+          type: 'log',
+          level: 'warn',
+          msg: `the finalization reserve turn was skipped: ${thrown.message}`,
+        });
+      }
+      if (reserveDispatch !== undefined) {
+        const { outcome, target: reserveTarget } = reserveDispatch;
+        servedBy = reserveTarget.resolved.ref;
+        usageApprox = usageApprox || outcome.usageApprox;
+        messages.push(
+          assistantMsg(
+            outcome.turn,
+            liftRetainedParts(outcome.providerMetadata, reserveTarget.adapter),
+          ),
+        );
+        if (invariantViolation !== undefined) {
+          status = 'error';
+          agentError = { kind: 'transport', retryable: false };
+          errorMessage = invariantViolation;
+        } else if (outcome.aborted === 'external') {
+          status = 'cancelled';
+        } else if (outcome.aborted === 'budget') {
+          status = 'cancelled';
+          agentError = { kind: 'budget', retryable: false };
+        } else {
+          // The boundary pins the summary into the terminal checkpoint,
+          // so a replayed result reads the same window (turns included).
+          await saveBoundary();
+          if (outcome.wireError !== undefined || outcome.aborted === 'idle') {
+            events?.emit({
+              type: 'log',
+              level: 'warn',
+              msg:
+                'the finalization reserve turn failed; the limit terminal stands' +
+                (outcome.wireError === undefined
+                  ? ' (stream idle timeout)'
+                  : ` (${outcome.wireError.message})`),
+            });
+          } else if (options.schema === undefined) {
+            const summary = outcome.turn.text;
+            if (summary.trim() !== '') {
+              output = summary as Out<S>;
+            }
+          } else if (!separateExtract && options.canonicalSchema !== undefined) {
+            // One attempt, no re-prompt: an invalid summary keeps the
+            // transcript text without typed output.
+            const candidate = extractCandidate(outcome.turn, rideTierFor(reserveTarget));
+            if (candidate !== undefined) {
+              const validation = await validateSchemaSpec(options.schema, candidate.raw);
+              if (validation.valid) {
+                output = validation.value;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   // The primary phase closes here whatever ended it (a clean stop, a
   // limit, an escalation, an error): the pending-turn early paths that
   // skip the loop entirely still pass this point with a zero delta.

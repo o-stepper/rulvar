@@ -2225,7 +2225,11 @@ export function createCtx(
     if (result.status === 'escalated' && result.escalation !== undefined) {
       terminalPatch.escalation = result.escalation;
     }
-    if (result.output !== null && result.status === 'ok') {
+    if (result.output !== null && (result.status === 'ok' || result.status === 'limit')) {
+      // A 'limit' terminal carries a value only when the finalization
+      // reserve (P1.1) produced a final answer; journaling it is what
+      // lets replay restore the same output. Old limit terminals never
+      // had one, so their bytes are unchanged.
       terminalPatch.value = result.output;
     }
     if (result.error !== undefined) {

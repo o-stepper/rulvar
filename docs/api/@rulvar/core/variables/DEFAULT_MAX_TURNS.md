@@ -10,4 +10,4 @@
 const DEFAULT_MAX_TURNS: 32 = 32;
 ```
 
-Defined in: [packages/core/src/runtime/usage-limits.ts:79](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/usage-limits.ts#L79)
+Defined in: [packages/core/src/runtime/usage-limits.ts:95](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/usage-limits.ts#L95)
