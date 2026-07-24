@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.56.0
+
+#### Patch Changes
+
+- Updated dependencies [f26dba0]
+  - @rulvar/core@1.56.0
+
 ### 1.55.0
 
 #### Patch Changes
@@ -752,6 +759,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.56.0
+
+#### Patch Changes
+
+- Updated dependencies [f26dba0]
+  - @rulvar/core@1.56.0
+
 ### 1.55.0
 
 #### Patch Changes
@@ -1351,6 +1365,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.56.0
+
+#### Patch Changes
+
+- Updated dependencies [f26dba0]
+  - @rulvar/core@1.56.0
 
 ### 1.55.0
 
@@ -2227,6 +2248,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.56.0
+
+#### Minor Changes
+
+- f26dba0: RV-215: distributed provider limiting. The new `QuotaLimiter` SPI is the extension seam for SHARED rate/quota limiting across engine instances and OS processes: `createEngine({quota: {limiter, tenant?, onLimiterError?}})` makes the engine reserve capacity before EVERY live wire dispatch (initial attempts, transport retries, and failover takeovers alike, in every phase), dimensioned by provider/model/tenant with a heuristic token estimate, and reconcile each granted reservation with the attempt's actual usage after the outcome settles. A denial becomes a synthetic rate-limit-class WireError that rides the existing provider-429 retry and failover machinery verbatim, except no wire call is paid: the limiter's retryAfterMs (the honest window remainder) drives the interruptible backoff, attempts stay bounded by RetryPolicy, exhaustion fails over (the takeover reserves under its own model), and the terminal is the typed `error` of kind `rate-limit`. `onLimiterError` decides what a limiter INFRASTRUCTURE failure means: `'deny'` (default) fails closed as a retryable transport-class denial, `'allow'` logs a warning and dispatches without a reservation. Quota admission is live-only by construction (nothing journaled; replay and resume of memoized work never touch the limiter), and an unconfigured engine takes the exact pre-quota dispatch path down to promise-tick identity. Two reference implementations share one rule model (`QuotaRule`: optional provider/model/tenant dimensions; `requestsPerMinute` exact and hard, `tokensPerMinute` estimated at admission and settled to actual; every matching rule must admit; fixed epoch-aligned one-minute windows; `validateQuotaRules` at intake): `memoryQuotaLimiter` in @rulvar/core coordinates engines inside one process, and `SqliteQuotaLimiter` in @rulvar/store-sqlite coordinates PROCESSES over one database file, with admission inside a single BEGIN IMMEDIATE transaction, cross-process reconciliation via reservation rows, lazy two-window pruning, and the store's boot-scoped busy retry; a multi-process test fleet of real engines proves the global cap holds (dispatched wire calls exactly equal recorded window consumption, no window over cap). `createTestEngine` in @rulvar/testing passes a `quota` option through to the engine.
 
 ### 1.55.0
 
@@ -3526,6 +3553,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.56.0
+
 ### 1.55.0
 
 ### 1.54.0
@@ -3722,6 +3751,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.56.0
+
+#### Patch Changes
+
+- Updated dependencies [f26dba0]
+  - @rulvar/core@1.56.0
+  - @rulvar/testing@1.56.0
 
 ### 1.55.0
 
@@ -4484,6 +4521,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/openai
 
+### 1.56.0
+
+#### Patch Changes
+
+- Updated dependencies [f26dba0]
+  - @rulvar/core@1.56.0
+
 ### 1.55.0
 
 #### Patch Changes
@@ -5235,6 +5279,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.56.0
+
+#### Patch Changes
+
+- Updated dependencies [f26dba0]
+  - @rulvar/core@1.56.0
+
 ### 1.55.0
 
 #### Patch Changes
@@ -5956,6 +6007,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.56.0
+
+#### Patch Changes
+
+- Updated dependencies [f26dba0]
+  - @rulvar/core@1.56.0
+  - eslint-plugin-rulvar@1.56.0
+
 ### 1.55.0
 
 #### Patch Changes
@@ -6673,6 +6732,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.56.0
+
+#### Patch Changes
+
+- Updated dependencies [f26dba0]
+  - @rulvar/core@1.56.0
+  - @rulvar/anthropic@1.56.0
+  - @rulvar/openai@1.56.0
 
 ### 1.55.0
 
@@ -7532,6 +7600,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.56.0
+
+#### Patch Changes
+
+- Updated dependencies [f26dba0]
+  - @rulvar/core@1.56.0
+
 ### 1.55.0
 
 #### Patch Changes
@@ -8223,6 +8298,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-sqlite
 
+### 1.56.0
+
+#### Minor Changes
+
+- f26dba0: RV-215: distributed provider limiting. The new `QuotaLimiter` SPI is the extension seam for SHARED rate/quota limiting across engine instances and OS processes: `createEngine({quota: {limiter, tenant?, onLimiterError?}})` makes the engine reserve capacity before EVERY live wire dispatch (initial attempts, transport retries, and failover takeovers alike, in every phase), dimensioned by provider/model/tenant with a heuristic token estimate, and reconcile each granted reservation with the attempt's actual usage after the outcome settles. A denial becomes a synthetic rate-limit-class WireError that rides the existing provider-429 retry and failover machinery verbatim, except no wire call is paid: the limiter's retryAfterMs (the honest window remainder) drives the interruptible backoff, attempts stay bounded by RetryPolicy, exhaustion fails over (the takeover reserves under its own model), and the terminal is the typed `error` of kind `rate-limit`. `onLimiterError` decides what a limiter INFRASTRUCTURE failure means: `'deny'` (default) fails closed as a retryable transport-class denial, `'allow'` logs a warning and dispatches without a reservation. Quota admission is live-only by construction (nothing journaled; replay and resume of memoized work never touch the limiter), and an unconfigured engine takes the exact pre-quota dispatch path down to promise-tick identity. Two reference implementations share one rule model (`QuotaRule`: optional provider/model/tenant dimensions; `requestsPerMinute` exact and hard, `tokensPerMinute` estimated at admission and settled to actual; every matching rule must admit; fixed epoch-aligned one-minute windows; `validateQuotaRules` at intake): `memoryQuotaLimiter` in @rulvar/core coordinates engines inside one process, and `SqliteQuotaLimiter` in @rulvar/store-sqlite coordinates PROCESSES over one database file, with admission inside a single BEGIN IMMEDIATE transaction, cross-process reconciliation via reservation rows, lazy two-window pruning, and the store's boot-scoped busy retry; a multi-process test fleet of real engines proves the global cap holds (dispatched wire calls exactly equal recorded window consumption, no window over cap). `createTestEngine` in @rulvar/testing passes a `quota` option through to the engine.
+
+#### Patch Changes
+
+- Updated dependencies [f26dba0]
+  - @rulvar/core@1.56.0
+
 ### 1.55.0
 
 #### Patch Changes
@@ -8855,6 +8941,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.56.0
+
+#### Minor Changes
+
+- f26dba0: RV-215: distributed provider limiting. The new `QuotaLimiter` SPI is the extension seam for SHARED rate/quota limiting across engine instances and OS processes: `createEngine({quota: {limiter, tenant?, onLimiterError?}})` makes the engine reserve capacity before EVERY live wire dispatch (initial attempts, transport retries, and failover takeovers alike, in every phase), dimensioned by provider/model/tenant with a heuristic token estimate, and reconcile each granted reservation with the attempt's actual usage after the outcome settles. A denial becomes a synthetic rate-limit-class WireError that rides the existing provider-429 retry and failover machinery verbatim, except no wire call is paid: the limiter's retryAfterMs (the honest window remainder) drives the interruptible backoff, attempts stay bounded by RetryPolicy, exhaustion fails over (the takeover reserves under its own model), and the terminal is the typed `error` of kind `rate-limit`. `onLimiterError` decides what a limiter INFRASTRUCTURE failure means: `'deny'` (default) fails closed as a retryable transport-class denial, `'allow'` logs a warning and dispatches without a reservation. Quota admission is live-only by construction (nothing journaled; replay and resume of memoized work never touch the limiter), and an unconfigured engine takes the exact pre-quota dispatch path down to promise-tick identity. Two reference implementations share one rule model (`QuotaRule`: optional provider/model/tenant dimensions; `requestsPerMinute` exact and hard, `tokensPerMinute` estimated at admission and settled to actual; every matching rule must admit; fixed epoch-aligned one-minute windows; `validateQuotaRules` at intake): `memoryQuotaLimiter` in @rulvar/core coordinates engines inside one process, and `SqliteQuotaLimiter` in @rulvar/store-sqlite coordinates PROCESSES over one database file, with admission inside a single BEGIN IMMEDIATE transaction, cross-process reconciliation via reservation rows, lazy two-window pruning, and the store's boot-scoped busy retry; a multi-process test fleet of real engines proves the global cap holds (dispatched wire calls exactly equal recorded window consumption, no window over cap). `createTestEngine` in @rulvar/testing passes a `quota` option through to the engine.
+
+#### Patch Changes
+
+- Updated dependencies [f26dba0]
+  - @rulvar/core@1.56.0
 
 ### 1.55.0
 
