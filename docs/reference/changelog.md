@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.59.3
+
+#### Patch Changes
+
+- Updated dependencies [deaef36]
+  - @rulvar/core@1.59.3
+
 ### 1.59.2
 
 #### Patch Changes
@@ -794,6 +801,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.59.3
+
+#### Patch Changes
+
+- Updated dependencies [deaef36]
+  - @rulvar/core@1.59.3
+
 ### 1.59.2
 
 #### Patch Changes
@@ -1435,6 +1449,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.59.3
+
+#### Patch Changes
+
+- Updated dependencies [deaef36]
+  - @rulvar/core@1.59.3
 
 ### 1.59.2
 
@@ -2357,6 +2378,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.59.3
+
+#### Patch Changes
+
+- deaef36: Bind the isolated-executor idempotency key to the logical invocation, not just the arguments (v1.59.x review P0.4). The key was `sha256(runId, tool, args)`, so two intentionally separate out-of-process tool calls in one run with byte-identical arguments received the same key, and an external system deduplicating on it would silently drop the second intended effect. The key now folds in the containing agent entry's journal seq and the call's ordinal within that agent's tool loop; both are journal- and checkpoint-stable, so distinct calls (different ordinals, or different agents) never collide, while an at-least-once crash-resume of the same logical call reuses the same agent entry and the restored ordinal and therefore the same key. `deriveExecIdempotencyKey` and the internal `ToolRuntime.executeExternal` gain the invocation parameters; the key never enters run identity (no content key or toolset hash), so journals stay byte-identical.
 
 ### 1.59.2
 
@@ -3692,6 +3719,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.59.3
+
 ### 1.59.2
 
 ### 1.59.1
@@ -3900,6 +3929,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.59.3
+
+#### Patch Changes
+
+- Updated dependencies [deaef36]
+  - @rulvar/core@1.59.3
+  - @rulvar/testing@1.59.3
 
 ### 1.59.2
 
@@ -4710,6 +4747,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.59.3
+
+#### Patch Changes
+
+- Updated dependencies [deaef36]
+  - @rulvar/core@1.59.3
+
 ### 1.59.2
 
 #### Patch Changes
@@ -4736,6 +4780,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.59.3
+
+#### Patch Changes
+
+- Updated dependencies [deaef36]
+  - @rulvar/core@1.59.3
 
 ### 1.59.2
 
@@ -5530,6 +5581,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.59.3
+
+#### Patch Changes
+
+- Updated dependencies [deaef36]
+  - @rulvar/core@1.59.3
+
 ### 1.59.2
 
 #### Patch Changes
@@ -6292,6 +6350,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.59.3
+
+#### Patch Changes
+
+- Updated dependencies [deaef36]
+  - @rulvar/core@1.59.3
+  - eslint-plugin-rulvar@1.59.3
 
 ### 1.59.2
 
@@ -7058,6 +7124,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.59.3
+
+#### Patch Changes
+
+- Updated dependencies [deaef36]
+  - @rulvar/core@1.59.3
+  - @rulvar/anthropic@1.59.3
+  - @rulvar/openai@1.59.3
 
 ### 1.59.2
 
@@ -7971,6 +8046,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.59.3
+
+#### Patch Changes
+
+- Updated dependencies [deaef36]
+  - @rulvar/core@1.59.3
+
 ### 1.59.2
 
 #### Patch Changes
@@ -8704,6 +8786,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.59.3
+
+#### Patch Changes
+
+- Updated dependencies [deaef36]
+  - @rulvar/core@1.59.3
+
 ### 1.59.2
 
 #### Patch Changes
@@ -8744,6 +8833,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.59.3
+
+#### Patch Changes
+
+- Updated dependencies [deaef36]
+  - @rulvar/core@1.59.3
 
 ### 1.59.2
 
@@ -9424,6 +9520,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.59.3
+
+#### Patch Changes
+
+- Updated dependencies [deaef36]
+  - @rulvar/core@1.59.3
 
 ### 1.59.2
 
