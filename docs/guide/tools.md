@@ -298,7 +298,7 @@ The resolution value normalizes to an `ApprovalDecision`, and it fails closed: a
 
 `executor` declares where `execute` runs: `'inprocess'`, `'subprocess'`, or `'container'`, default `'inprocess'`. The declaration is a capability statement consumed by dispatch and by policy; a host that distrusts a tool's declared executor can deny it with an ordinary rule or hook.
 
-The current release enforces only the in-process executor. Registering a tool whose declared executor the engine cannot serve fails with a typed `ConfigError` at registration, not at first call. Subprocess and container executors are planned, not shipped, and until they ship you should treat containment of hostile code as your responsibility: the worker sandbox that runs compiled workflows is a determinism and blast-radius boundary, not a security boundary.
+An in-process tool is an ordinary function call with full host capabilities: an execution convenience, never a sandbox for hostile or model-generated code. A tool whose input is untrusted (a code interpreter, a shell) declares a non-inprocess executor, and its dispatch routes out of process through a `ToolExecutorProvider` registered as `createEngine({ executors })`; an unregistered tag is a typed `ConfigError` at spawn time, before any provider or model call. The [isolated executor guide](/guide/isolated-executor) covers the seam and the shipped reference adapters (`subprocessExecutor`, `containerExecutor`) in `@rulvar/executor`. The worker sandbox that runs compiled workflows is a separate thing: a determinism and blast-radius boundary, not a security boundary.
 
 ## Worktree isolation
 

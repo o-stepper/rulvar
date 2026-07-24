@@ -19,6 +19,7 @@ exactly them to the model.
 | ------ | ------ | ------ | ------ |
 | <a id="property-contracts"></a> `contracts` | [`ToolContract`](/api/@rulvar/rulvar/interfaces/ToolContract.md)[] | - | `packages/core/dist/index.d.ts` |
 | <a id="property-defs"></a> `defs` | [`ToolDef`](/api/@rulvar/rulvar/interfaces/ToolDef.md)\&lt;[`SchemaSpec`](/api/@rulvar/rulvar/type-aliases/SchemaSpec.md)\&lt;`unknown`\&gt;\&gt;[] | - | `packages/core/dist/index.d.ts` |
+| <a id="property-executeexternal"></a> `executeExternal?` | (`def`, `args`) => `Promise`\&lt;`unknown`\&gt; | Runs a non-inprocess tool out of process through the engine's registered ToolExecutorProvider (RV-216). Present whenever the frozen toolset holds any non-inprocess tool; the ctx layer mints the tool span and idempotency key and wires the provider. A throw becomes the call's error tool result exactly like an inprocess execute throw. | `packages/core/dist/index.d.ts` |
 | <a id="property-permission"></a> `permission?` | (`call`) => `Promise`\&lt;[`PermissionGate`](/api/@rulvar/rulvar/type-aliases/PermissionGate.md)\&gt; | Permission chain evaluation (M3-T03); absent = every call allowed. | `packages/core/dist/index.d.ts` |
 
 ## Methods

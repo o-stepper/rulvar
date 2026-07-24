@@ -6,7 +6,7 @@
 
 # Interface: ToolSource
 
-Defined in: [packages/core/src/l0/spi/toolsource.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L81)
+Defined in: [packages/core/src/l0/spi/toolsource.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L93)
 
 The ToolSource seam: tools() yields the source's current ToolDefs. The
 toolset snapshot for a given agent spawn is captured at spawn time and
@@ -21,7 +21,7 @@ NOT mutate an in-flight agent's toolset.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="property-id"></a> `id` | `string` | [packages/core/src/l0/spi/toolsource.ts:82](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L82) |
+| <a id="property-id"></a> `id` | `string` | [packages/core/src/l0/spi/toolsource.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L94) |
 
 ## Methods
 
@@ -31,7 +31,7 @@ NOT mutate an in-flight agent's toolset.
 tools(session): Promise<ToolDef<SchemaSpec>[]>;
 ```
 
-Defined in: [packages/core/src/l0/spi/toolsource.ts:83](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L83)
+Defined in: [packages/core/src/l0/spi/toolsource.ts:95](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/spi/toolsource.ts#L95)
 
 #### Parameters
 

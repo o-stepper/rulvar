@@ -50,6 +50,13 @@ export async function resolveToolset(
   specs: ToolsOption | undefined,
   session: ToolSourceSession,
   toolsets?: Record<string, ToolsOption>,
+  /**
+   * The engine's registered non-inprocess executor tags (RV-216). A tool
+   * declaring an executor absent from this set fails typed at spawn time,
+   * before any provider or model call; the default empty set preserves
+   * the pre-RV-216 behavior where only 'inprocess' is accepted.
+   */
+  executors?: ReadonlySet<string>,
 ): Promise<ResolvedToolset> {
   if (specs === undefined || specs.length === 0) {
     return emptyToolset();
@@ -105,13 +112,16 @@ export async function resolveToolset(
           'MCP prefix option',
       );
     }
-    if (def.executor !== 'inprocess') {
-      // Fail at registration, not at first call: only the inprocess
-      // executor is enforced in v1; subprocess/container stay declared
-      // capability until the executor design closes (still an open question).
+    if (def.executor !== 'inprocess' && !(executors?.has(def.executor) ?? false)) {
+      // Fail at spawn, not at first call (RV-216): a non-inprocess tool is
+      // dispatched through a registered ToolExecutorProvider, so an
+      // unregistered tag can never reach a provider or the model. With no
+      // executors registered this is byte-identical to the pre-RV-216
+      // "only 'inprocess'" rejection.
       throw new ConfigError(
-        `tool '${def.name}' declares executor '${def.executor}', but this engine ` +
-          "implements only 'inprocess' in v1",
+        `tool '${def.name}' declares executor '${def.executor}', but no such executor is ` +
+          'registered; register one via createEngine({ executors }) ' +
+          '(https://docs.rulvar.com/guide/isolated-executor)',
       );
     }
     seen.set(def.name, def);

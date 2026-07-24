@@ -10,7 +10,8 @@
 function resolveToolset(
    specs, 
    session, 
-toolsets?): Promise<ResolvedToolset>;
+   toolsets?, 
+executors?): Promise<ResolvedToolset>;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -29,6 +30,7 @@ a miss, so nothing outside the declared registry is ever reachable.
 | `specs` | \| [`ToolsOption`](/api/@rulvar/rulvar/type-aliases/ToolsOption.md) \| `undefined` |
 | `session` | [`ToolSourceSession`](/api/@rulvar/rulvar/interfaces/ToolSourceSession.md) |
 | `toolsets?` | `Record`\&lt;`string`, [`ToolsOption`](/api/@rulvar/rulvar/type-aliases/ToolsOption.md)\&gt; |
+| `executors?` | `ReadonlySet`\&lt;`string`\&gt; |
 
 ## Returns
 

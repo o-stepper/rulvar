@@ -18,6 +18,7 @@ import {
 } from '../l0/validate-numbers.js';
 import type { WorkflowEventBody } from '../l0/events.js';
 import type { InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
+import type { ExecutorRegistry } from '../l0/spi/executor.js';
 import type { IsolationProvider } from '../l0/spi/isolation.js';
 import type { Pricing, ProviderAdapter } from '../l0/spi/provider.js';
 import type { RunMeta, JournalStore, Lease } from '../l0/spi/store.js';
@@ -188,6 +189,19 @@ export interface CreateEngineOptions {
    * resuming a compiled workflow without one is a typed ConfigError.
    */
   runners?: { sandbox?: ScriptRunner };
+  /**
+   * Isolated tool executors (RV-216): one ToolExecutorProvider per
+   * non-inprocess `executor` tag. A tool declaring `executor: 'subprocess'`
+   * or `'container'` dispatches through the matching provider, so its work
+   * runs OUT of the engine process under host-owned isolation instead of
+   * as an inprocess closure with full host capabilities. The shipped
+   * reference adapters (subprocessExecutor, containerExecutor) live in
+   * `@rulvar/executor`. Absent = only inprocess tools are accepted, and a
+   * non-inprocess tag is a typed ConfigError at spawn time. In-process
+   * tools stay ordinary function calls: never a sandbox for hostile or
+   * model-generated code.
+   */
+  executors?: ExecutorRegistry;
   /**
    * The InProcessRunner escalation hook:
    * receives escalated results when the call form cannot carry them; the
@@ -976,6 +990,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       pricingOf,
       runSignal: controller.signal,
       ...(defaults.isolation === undefined ? {} : { isolation: defaults.isolation }),
+      ...(options.executors === undefined ? {} : { executors: options.executors }),
       ...(options.onEscalation === undefined ? {} : { onEscalation: options.onEscalation }),
       external,
       mintTranscriptRef: () => `${runId}/t${transcriptCounter++}`,

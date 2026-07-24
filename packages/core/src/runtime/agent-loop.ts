@@ -266,6 +266,14 @@ export interface ToolRuntime {
   contextFor(toolName: string): ToolContext;
   /** Permission chain evaluation (M3-T03); absent = every call allowed. */
   permission?: (call: ToolCallRequest) => Promise<PermissionGate>;
+  /**
+   * Runs a non-inprocess tool out of process through the engine's
+   * registered ToolExecutorProvider (RV-216). Present whenever the frozen
+   * toolset holds any non-inprocess tool; the ctx layer mints the tool
+   * span and idempotency key and wires the provider. A throw becomes the
+   * call's error tool result exactly like an inprocess execute throw.
+   */
+  executeExternal?: (def: ToolDef, args: Json) => Promise<unknown>;
 }
 
 /** One serving target of a phase: the primary or a failover fallback. */
@@ -850,7 +858,24 @@ async function executeToolCall(options: {
     );
   }
   try {
-    const value = await def.execute(validation.value, runtime.contextFor(call.name));
+    // Non-inprocess tools (RV-216) run out of process through the
+    // registered ToolExecutorProvider; inprocess tools call their execute
+    // closure directly. resolveToolset already rejected any non-inprocess
+    // tag without a registered executor, so executeExternal is present
+    // here for every non-inprocess def; the guard is defense in depth.
+    let value: unknown;
+    if (def.executor === 'inprocess') {
+      value = await def.execute(validation.value, runtime.contextFor(call.name));
+    } else if (runtime.executeExternal !== undefined) {
+      value = await runtime.executeExternal(def, validation.value as Json);
+    } else {
+      return finish(
+        {
+          error: `tool '${call.name}' declares executor '${def.executor}' but no executor is registered`,
+        },
+        'error',
+      );
+    }
     // The returned value MUST be JSON-serializable; it is recorded in the
     // canonical history and checkpointed.
     const serialized = toJournalValue(value === undefined ? null : value, `tool '${call.name}'`);

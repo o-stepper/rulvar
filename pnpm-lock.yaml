@@ -182,6 +182,9 @@ importers:
       '@rulvar/core':
         specifier: workspace:*
         version: link:../packages/core
+      '@rulvar/executor':
+        specifier: workspace:*
+        version: link:../packages/executor
       '@rulvar/testing':
         specifier: workspace:*
         version: link:../packages/testing
@@ -347,6 +350,25 @@ importers:
         specifier: workspace:*
         version: link:../testing
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.0
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.22.3(@arethetypeswrong/core@0.18.4)(publint@0.3.21)(typescript@6.0.3)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
+  packages/executor:
+    dependencies:
+      '@rulvar/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@rulvar/testing':
+        specifier: workspace:*
+        version: link:../testing
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.0

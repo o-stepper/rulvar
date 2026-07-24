@@ -9,6 +9,7 @@
       "@rulvar/cli",
       "@rulvar/core",
       "@rulvar/evals",
+      "@rulvar/executor",
       "@rulvar/openai",
       "@rulvar/plan",
       "@rulvar/planner",

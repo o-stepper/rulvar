@@ -10,7 +10,8 @@
 function resolveToolset(
    specs, 
    session, 
-toolsets?): Promise<ResolvedToolset>;
+   toolsets?, 
+executors?): Promise<ResolvedToolset>;
 ```
 
 Defined in: [packages/core/src/tools/toolset-hash.ts:49](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/tools/toolset-hash.ts#L49)
@@ -24,11 +25,12 @@ a miss, so nothing outside the declared registry is ever reachable.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `specs` | \| [`ToolsOption`](/api/@rulvar/core/type-aliases/ToolsOption.md) \| `undefined` |
-| `session` | [`ToolSourceSession`](/api/@rulvar/core/interfaces/ToolSourceSession.md) |
-| `toolsets?` | `Record`\&lt;`string`, [`ToolsOption`](/api/@rulvar/core/type-aliases/ToolsOption.md)\&gt; |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `specs` | \| [`ToolsOption`](/api/@rulvar/core/type-aliases/ToolsOption.md) \| `undefined` | - |
+| `session` | [`ToolSourceSession`](/api/@rulvar/core/interfaces/ToolSourceSession.md) | - |
+| `toolsets?` | `Record`\&lt;`string`, [`ToolsOption`](/api/@rulvar/core/type-aliases/ToolsOption.md)\&gt; | - |
+| `executors?` | `ReadonlySet`\&lt;`string`\&gt; | The engine's registered non-inprocess executor tags (RV-216). A tool declaring an executor absent from this set fails typed at spawn time, before any provider or model call; the default empty set preserves the pre-RV-216 behavior where only 'inprocess' is accepted. |
 
 ## Returns
 

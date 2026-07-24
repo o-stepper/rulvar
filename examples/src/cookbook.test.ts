@@ -32,7 +32,12 @@ import {
 import { briefThenSummarize, runThenResume } from './cookbook-resume-replay.js';
 import { boundedBudgetOptions, rootCeiling } from './cookbook-bounded-budget.js';
 import { migrationWithApproval } from './cookbook-hitl-suspension.js';
-import { isolatedWriterProfile, outOfProcessTools } from './cookbook-isolated-tools.js';
+import {
+  hardenedToolExecutor,
+  isolatedWriterProfile,
+  outOfProcessTools,
+  sandboxedTool,
+} from './cookbook-isolated-tools.js';
 
 const ROUTING = {
   loop: FAKE_MODEL_REF,
@@ -524,4 +529,57 @@ describe('isolated tool execution (cookbook)', () => {
     expect(profile.tools).toEqual([]);
     expect(profile.description).toContain('patch artifact');
   });
+
+  it(
+    'the hardened executor scrubs the host environment: a tool cannot read a host secret',
+    { timeout: 20000 },
+    async () => {
+      const runnerDir = mkdtempSync(join(tmpdir(), 'rulvar-cookbook-exec-'));
+      const runner = join(runnerDir, 'runner.cjs');
+      writeFileSync(
+        runner,
+        "let i='';process.stdin.on('data',c=>i+=c);process.stdin.on('end',()=>{" +
+          "process.stdout.write(JSON.stringify({secret:process.env.COOKBOOK_HOST_SECRET??null," +
+          'token:process.env.TOOL_TOKEN??null}));process.exit(0);});',
+        'utf8',
+      );
+      process.env.COOKBOOK_HOST_SECRET = 'sk-live-cookbook';
+      try {
+        let toolResult: { secret?: unknown; token?: unknown } | undefined;
+        const adapter = new FakeAdapter({
+          agents: {
+            '*': (call: FakeCall) => {
+              const parts = (call.req.messages ?? []).flatMap(
+                (m) => (m as { parts?: Array<Record<string, unknown>> }).parts ?? [],
+              );
+              const tr = [...parts].reverse().find((p) => p.type === 'tool-result');
+              if (tr !== undefined) {
+                toolResult = tr.result as { secret?: unknown; token?: unknown };
+                return 'done';
+              }
+              return fakeToolCalls({ name: 'sandboxed', args: {} });
+            },
+          },
+        });
+        const engine = createEngine({
+          adapters: [adapter],
+          stores: { journal: new InMemoryStore({ quiet: true }) },
+          defaults: { routing: ROUTING, profiles: {} },
+          executors: { subprocess: hardenedToolExecutor() },
+        });
+        const tool = sandboxedTool(process.execPath, [runner]);
+        const { defineWorkflow } = await import('@rulvar/core');
+        const wf = defineWorkflow({ name: 'hardened-exec' }, async (ctx) => {
+          await ctx.agent('read the host secret via the sandboxed tool', { tools: [tool] });
+        });
+        const outcome = await engine.run(wf, undefined, { runId: 'CB-HARDENED' }).result;
+        expect(outcome.status).toBe('ok');
+        // The host secret was scrubbed; the per-call scoped token WAS injected.
+        expect(toolResult?.secret).toBeNull();
+        expect(toolResult?.token).toBe('scoped-and-short-lived');
+      } finally {
+        delete process.env.COOKBOOK_HOST_SECRET;
+      }
+    },
+  );
 });

@@ -20,5 +20,5 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-prefix"></a> `prefix?` | `string` | Namespaces imported names as `${prefix}_${name}`. | `packages/core/dist/index.d.ts` |
 | <a id="property-risk"></a> `risk?` | `Record`\&lt;`string`, [`ToolRisk`](/api/@rulvar/rulvar/type-aliases/ToolRisk.md)\&gt; | Host-supplied risk labels for imported tools. | `packages/core/dist/index.d.ts` |
 | <a id="property-server"></a> `server?` | `unknown` | inprocess: in-memory server instance (anything with connect()). | `packages/core/dist/index.d.ts` |
-| <a id="property-transport"></a> `transport` | `"stdio"` \| `"streamable-http"` \| `"inprocess"` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-transport"></a> `transport` | `"inprocess"` \| `"stdio"` \| `"streamable-http"` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-url"></a> `url?` | `string` | streamable-http: server endpoint. | `packages/core/dist/index.d.ts` |

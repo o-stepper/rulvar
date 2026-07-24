@@ -21,6 +21,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-description"></a> `description` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-execute"></a> `execute` | (`input`, `ctx`) => `Promise`\&lt;`unknown`\&gt; | - | `packages/core/dist/index.d.ts` |
 | <a id="property-executor"></a> `executor?` | [`ToolExecutor`](/api/@rulvar/rulvar/type-aliases/ToolExecutor.md) | Default 'inprocess'. | `packages/core/dist/index.d.ts` |
+| <a id="property-executorspec"></a> `executorSpec?` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | Opaque data for a non-inprocess executor (RV-216); never identity. | `packages/core/dist/index.d.ts` |
 | <a id="property-name"></a> `name` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-needsapproval"></a> `needsApproval?` | `boolean` | Default false. | `packages/core/dist/index.d.ts` |
 | <a id="property-parameters"></a> `parameters` | `S` | - | `packages/core/dist/index.d.ts` |

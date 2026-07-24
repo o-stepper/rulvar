@@ -10,6 +10,7 @@
  * Public docs: https://docs.rulvar.com/guide/tools
  */
 import { ConfigError } from '../l0/errors.js';
+import type { Json } from '../l0/json.js';
 import type { JsonSchema, ToolContract } from '../l0/messages.js';
 import type { Out, SchemaSpec } from '../l0/schema.js';
 import { canonicalizeSchema, projectToJsonSchema } from '../l0/schema.js';
@@ -26,6 +27,8 @@ export interface ToolInit<S extends SchemaSpec> {
   version?: string;
   /** Default 'inprocess'. */
   executor?: ToolExecutor;
+  /** Opaque data for a non-inprocess executor (RV-216); never identity. */
+  executorSpec?: Json;
   /** Default false. */
   needsApproval?: boolean;
   /** Policy metadata; never identity. */
@@ -58,6 +61,7 @@ export function tool<S extends SchemaSpec>(init: ToolInit<S>): ToolDef<S> {
     executor: init.executor ?? 'inprocess',
     needsApproval: init.needsApproval ?? false,
     ...(init.version === undefined ? {} : { version: init.version }),
+    ...(init.executorSpec === undefined ? {} : { executorSpec: init.executorSpec }),
     ...(init.risk === undefined ? {} : { risk: init.risk }),
     execute: init.execute,
   };

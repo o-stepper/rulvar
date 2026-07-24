@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@rulvar/core": "workspace:*",
+    "@rulvar/executor": "workspace:*",
     "@rulvar/testing": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
