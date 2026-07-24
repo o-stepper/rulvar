@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.60.0
+
+#### Patch Changes
+
+- Updated dependencies [59bbeaa]
+  - @rulvar/core@1.60.0
+
 ### 1.59.4
 
 #### Patch Changes
@@ -808,6 +815,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.60.0
+
+#### Patch Changes
+
+- Updated dependencies [59bbeaa]
+  - @rulvar/core@1.60.0
+
 ### 1.59.4
 
 #### Patch Changes
@@ -1463,6 +1477,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.60.0
+
+#### Patch Changes
+
+- Updated dependencies [59bbeaa]
+  - @rulvar/core@1.60.0
 
 ### 1.59.4
 
@@ -2399,6 +2420,21 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.60.0
+
+#### Minor Changes
+
+- 59bbeaa: The finalization reserve (the experiment-review P1.1): `limits.finalizationReserve` guarantees the model one bounded summary turn when a tool budget expires, so a research agent that pays for its evidence no longer dies mid-batch without its final report.
+
+  Before this, a `maxToolCalls` or `toolUnits` expiry inside a tool batch dropped the batch tail silently (dangling tool calls without results in the transcript), settled `limit` before any further model turn, and named no limiter on the terminal. With the reserve configured (an object; `{}` enables it):
+
+  - The batch tail closes explicitly: every call the budget did not admit gets a typed error tool result `{ error: 'skipped: the tool budget is exhausted; the call was not executed', limiter, skipped: true }`, keeping the transcript well formed and the skipped calls visible to the model and to transcript readers.
+  - The model always gets ONE summary turn on the loop chain (failover, retry policy, quota, and the budget all apply; usage is attributed to the loop role) with tools withheld and a request-only instruction naming the limiter, its counts, and the skipped calls. `finalizationReserve.maxOutputTokens` bounds this turn alone.
+  - The `limit` terminal names the exact limiter: `error: { kind: 'terminal' }` with an errorMessage such as `tool budget exhausted: maxToolCalls (72/72); skipped tool calls: 3`.
+  - The summary becomes the limit result's `output` (typed when a ridden schema parses it; one attempt, no re-prompt), the terminal journals the value, and a replayed result restores the same output with zero live calls. The structured terminal partial from `report_progress` still derives beside it.
+
+  The reserve fires only for the two tool-budget limiters, never for `maxTurns`, `timeoutMs`, or the exploration aborts. A transport failure on the summary turn keeps the earned `limit` terminal with a `log` warning; host cancellation and the budget ceiling keep their own semantics. Without the field every byte stays as before, exactly like the other opt-in limits.
 
 ### 1.59.4
 
@@ -3746,6 +3782,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.60.0
+
 ### 1.59.4
 
 ### 1.59.3
@@ -3958,6 +3996,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.60.0
+
+#### Patch Changes
+
+- Updated dependencies [59bbeaa]
+  - @rulvar/core@1.60.0
+  - @rulvar/testing@1.60.0
 
 ### 1.59.4
 
@@ -4784,6 +4830,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.60.0
+
+#### Patch Changes
+
+- Updated dependencies [59bbeaa]
+  - @rulvar/core@1.60.0
+
 ### 1.59.4
 
 #### Patch Changes
@@ -4824,6 +4877,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.60.0
+
+#### Patch Changes
+
+- Updated dependencies [59bbeaa]
+  - @rulvar/core@1.60.0
 
 ### 1.59.4
 
@@ -5632,6 +5692,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.60.0
+
+#### Patch Changes
+
+- Updated dependencies [59bbeaa]
+  - @rulvar/core@1.60.0
+
 ### 1.59.4
 
 #### Patch Changes
@@ -6408,6 +6475,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.60.0
+
+#### Patch Changes
+
+- Updated dependencies [59bbeaa]
+  - @rulvar/core@1.60.0
+  - eslint-plugin-rulvar@1.60.0
 
 ### 1.59.4
 
@@ -7190,6 +7265,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.60.0
+
+#### Patch Changes
+
+- Updated dependencies [59bbeaa]
+  - @rulvar/core@1.60.0
+  - @rulvar/anthropic@1.60.0
+  - @rulvar/openai@1.60.0
 
 ### 1.59.4
 
@@ -8121,6 +8205,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.60.0
+
+#### Patch Changes
+
+- Updated dependencies [59bbeaa]
+  - @rulvar/core@1.60.0
+
 ### 1.59.4
 
 #### Patch Changes
@@ -8868,6 +8959,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.60.0
+
+#### Patch Changes
+
+- Updated dependencies [59bbeaa]
+  - @rulvar/core@1.60.0
+
 ### 1.59.4
 
 #### Patch Changes
@@ -8922,6 +9020,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.60.0
+
+#### Patch Changes
+
+- Updated dependencies [59bbeaa]
+  - @rulvar/core@1.60.0
 
 ### 1.59.4
 
@@ -9616,6 +9721,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.60.0
+
+#### Patch Changes
+
+- Updated dependencies [59bbeaa]
+  - @rulvar/core@1.60.0
 
 ### 1.59.4
 
