@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.62.0
+
+#### Patch Changes
+
+- Updated dependencies [fca5fd1]
+  - @rulvar/core@1.62.0
+
 ### 1.61.0
 
 #### Patch Changes
@@ -822,6 +829,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.62.0
+
+#### Patch Changes
+
+- Updated dependencies [fca5fd1]
+  - @rulvar/core@1.62.0
+
 ### 1.61.0
 
 #### Patch Changes
@@ -1491,6 +1505,21 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.62.0
+
+#### Minor Changes
+
+- fca5fd1: Ship the preflight effective-limits estimator and effective-config linter (the experiment-review P2.2): everything the engine derives from a configuration, computed before any provider dispatch, machine readable, with zero paid requests by construction.
+
+  Core exports `preflightEstimate(input)`: a pure function over the same options `createEngine` and `engine.run` receive plus a declared spawn wave, returning the JSON-serializable `PreflightReport`. The estimate cannot drift from the engine because it reuses the runtime's own arithmetic: `mergeUsageLimits` for the effective per-spawn limit merge (call over profile over engine defaults), `admissionReserveUsd` for the layer-1 reserve formula arm for arm (estCost, profile estCost, the priced estimate from `estInputTokens`, the flat default, and the unpriced-model zero), the settlement price resolution, and the shared-quota dimension match. The report carries the admission projection over the declared wave mirroring `admitSpawn` exactly (which spawns admit, which are denied and by what: budget, spawn cap, orchestrator maxSpawns, or an orchestrator cap its own reserve cannot fit), the per-tool and weighted-unit executed-call ceilings with the first bottleneck named, the orchestrator effective cap and finalize reserve echo, the concurrency and per-provider exposure floors with the one-more-turn overshoot floor, and the linter findings with stable kebab-case codes (errors: `unrouted-role`, `unknown-profile`, `nothing-admitted`, `orchestrator-cap-below-reserve`; warnings: `partial-admission`, `weighted-units-bind-first`, `tool-unaffordable`, `unpriced-under-ceiling`, `inert-finalization-reserve`, `inert-tool-budget-notices`, `orchestrator-cap-fraction-bound`, the quota-window comparisons; infos: `overshoot-exposure`, `no-usd-ceiling`, `no-quota`, `per-tool-cap-unreachable`).
+
+  The CLI gains `rulvar preflight <file|name> [--budget-usd N] [--profile NAME] [--spawns JSON] [--json]`: it assembles exactly the options `rulvar run` would (config, module exports, run profile) but constructs no engine, opens no store, and dispatches nothing. The declared wave comes from the new `preflight` export of the config or workflow module (`{ spawns?, orchestrator?, quotaRules? }`), `--spawns` overrides it, `--json` emits the machine-readable report, and the exit code is the linter contract: 1 when any finding has severity error.
+
+#### Patch Changes
+
+- Updated dependencies [fca5fd1]
+  - @rulvar/core@1.62.0
 
 ### 1.61.0
 
@@ -2451,6 +2480,16 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.62.0
+
+#### Minor Changes
+
+- fca5fd1: Ship the preflight effective-limits estimator and effective-config linter (the experiment-review P2.2): everything the engine derives from a configuration, computed before any provider dispatch, machine readable, with zero paid requests by construction.
+
+  Core exports `preflightEstimate(input)`: a pure function over the same options `createEngine` and `engine.run` receive plus a declared spawn wave, returning the JSON-serializable `PreflightReport`. The estimate cannot drift from the engine because it reuses the runtime's own arithmetic: `mergeUsageLimits` for the effective per-spawn limit merge (call over profile over engine defaults), `admissionReserveUsd` for the layer-1 reserve formula arm for arm (estCost, profile estCost, the priced estimate from `estInputTokens`, the flat default, and the unpriced-model zero), the settlement price resolution, and the shared-quota dimension match. The report carries the admission projection over the declared wave mirroring `admitSpawn` exactly (which spawns admit, which are denied and by what: budget, spawn cap, orchestrator maxSpawns, or an orchestrator cap its own reserve cannot fit), the per-tool and weighted-unit executed-call ceilings with the first bottleneck named, the orchestrator effective cap and finalize reserve echo, the concurrency and per-provider exposure floors with the one-more-turn overshoot floor, and the linter findings with stable kebab-case codes (errors: `unrouted-role`, `unknown-profile`, `nothing-admitted`, `orchestrator-cap-below-reserve`; warnings: `partial-admission`, `weighted-units-bind-first`, `tool-unaffordable`, `unpriced-under-ceiling`, `inert-finalization-reserve`, `inert-tool-budget-notices`, `orchestrator-cap-fraction-bound`, the quota-window comparisons; infos: `overshoot-exposure`, `no-usd-ceiling`, `no-quota`, `per-tool-cap-unreachable`).
+
+  The CLI gains `rulvar preflight <file|name> [--budget-usd N] [--profile NAME] [--spawns JSON] [--json]`: it assembles exactly the options `rulvar run` would (config, module exports, run profile) but constructs no engine, opens no store, and dispatches nothing. The declared wave comes from the new `preflight` export of the config or workflow module (`{ spawns?, orchestrator?, quotaRules? }`), `--spawns` overrides it, `--json` emits the machine-readable report, and the exit code is the linter contract: 1 when any finding has severity error.
 
 ### 1.61.0
 
@@ -3825,6 +3864,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.62.0
+
 ### 1.61.0
 
 ### 1.60.0
@@ -4041,6 +4082,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.62.0
+
+#### Patch Changes
+
+- Updated dependencies [fca5fd1]
+  - @rulvar/core@1.62.0
+  - @rulvar/testing@1.62.0
 
 ### 1.61.0
 
@@ -4883,6 +4932,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.62.0
+
+#### Patch Changes
+
+- Updated dependencies [fca5fd1]
+  - @rulvar/core@1.62.0
+
 ### 1.61.0
 
 #### Patch Changes
@@ -4937,6 +4993,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.62.0
+
+#### Patch Changes
+
+- Updated dependencies [fca5fd1]
+  - @rulvar/core@1.62.0
 
 ### 1.61.0
 
@@ -5759,6 +5822,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.62.0
+
+#### Patch Changes
+
+- Updated dependencies [fca5fd1]
+  - @rulvar/core@1.62.0
+
 ### 1.61.0
 
 #### Patch Changes
@@ -6549,6 +6619,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.62.0
+
+#### Patch Changes
+
+- Updated dependencies [fca5fd1]
+  - @rulvar/core@1.62.0
+  - eslint-plugin-rulvar@1.62.0
 
 ### 1.61.0
 
@@ -7347,6 +7425,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.62.0
+
+#### Patch Changes
+
+- Updated dependencies [fca5fd1]
+  - @rulvar/core@1.62.0
+  - @rulvar/anthropic@1.62.0
+  - @rulvar/openai@1.62.0
 
 ### 1.61.0
 
@@ -8296,6 +8383,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.62.0
+
+#### Patch Changes
+
+- Updated dependencies [fca5fd1]
+  - @rulvar/core@1.62.0
+
 ### 1.61.0
 
 #### Patch Changes
@@ -9057,6 +9151,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.62.0
+
+#### Patch Changes
+
+- Updated dependencies [fca5fd1]
+  - @rulvar/core@1.62.0
+
 ### 1.61.0
 
 #### Patch Changes
@@ -9125,6 +9226,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.62.0
+
+#### Patch Changes
+
+- Updated dependencies [fca5fd1]
+  - @rulvar/core@1.62.0
 
 ### 1.61.0
 
@@ -9833,6 +9941,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.62.0
+
+#### Patch Changes
+
+- Updated dependencies [fca5fd1]
+  - @rulvar/core@1.62.0
 
 ### 1.61.0
 
