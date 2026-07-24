@@ -6,7 +6,7 @@
 
 # Interface: ExecutorTestRegistrar
 
-Defined in: [packages/executor/src/conformance.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L54)
+Defined in: [packages/executor/src/conformance.ts:56](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L56)
 
 Structural subset of the Vitest/Jest registration API.
 
@@ -18,7 +18,7 @@ Structural subset of the Vitest/Jest registration API.
 describe(name, factory): void;
 ```
 
-Defined in: [packages/executor/src/conformance.ts:55](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L55)
+Defined in: [packages/executor/src/conformance.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L57)
 
 #### Parameters
 
@@ -39,7 +39,7 @@ Defined in: [packages/executor/src/conformance.ts:55](https://github.com/o-stepp
 it(name, fn): void;
 ```
 
-Defined in: [packages/executor/src/conformance.ts:56](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L56)
+Defined in: [packages/executor/src/conformance.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L58)
 
 #### Parameters
 

@@ -10,7 +10,7 @@
 function registerExecutorConformance(suite, api): void;
 ```
 
-Defined in: [packages/executor/src/conformance.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L59)
+Defined in: [packages/executor/src/conformance.ts:61](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L61)
 
 ## Parameters
 
