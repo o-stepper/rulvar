@@ -1269,6 +1269,12 @@ export function createCtx(
       if (terminal?.artifacts !== undefined) {
         result.artifacts = terminal.artifacts as unknown as Artifact[];
       }
+      if (terminal?.providerCalls !== undefined) {
+        // The reconciliation ledger restores verbatim (P1.3): a
+        // replayed result names the same wire calls and response ids
+        // the live one did, with zero adapter calls.
+        result.providerCalls = terminal.providerCalls;
+      }
       if (terminal?.status === 'escalated' && terminal.escalation !== undefined) {
         // The byte-identical report, zero adapter calls (DEF-1: an
         // escalated entry replays as completed, paid work).
@@ -2207,6 +2213,11 @@ export function createCtx(
       // fold then prices each slice at its own rate instead of billing
       // the whole call at the loop model's.
       ...(result.usageByModel === undefined ? {} : { usageByModel: result.usageByModel }),
+      // The per-dispatch reconciliation ledger (P1.3): journaling it is
+      // what makes every billable wire call map to a journal entry and
+      // lets the invoice export name provider response ids. Absent when
+      // the invocation made no wire call.
+      ...(result.providerCalls === undefined ? {} : { providerCalls: result.providerCalls }),
       // The attribution facts behind the CostReport breakdowns: policy,
       // never identity. Folding these from the journal is what makes a
       // replayed run report the same numbers byte for byte instead of

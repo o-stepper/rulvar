@@ -6,6 +6,7 @@ import { ConfigError, sanitizeTerminalText } from '@rulvar/core';
 
 import {
   inspectCommand,
+  invoiceCommand,
   kbCommand,
   planCommand,
   replayCommand,
@@ -40,6 +41,11 @@ accounting, localized determinism warnings, and the output digest;
 --assert-no-live exits 1 unless the replay is pure, and
 --compare-output-hash exits 1 unless the replayed result's digest
 equals the journaled one.
+invoice prints the per-dispatch reconciliation export: one row per
+billable provider call (failed and retried attempts included) with the
+provider's response id when the adapter surfaced one, plus the
+gross/net ledger totals (gross includes abandoned subtrees, exactly
+what the provider bills); --json emits the machine-readable form.
 plan asks the planner model (role plan) to write a workflow script,
 lints and self-repairs it, then runs it in the worker sandbox; --dry-run
 prints the accepted script without running. Both stages are paid runs
@@ -82,6 +88,8 @@ export async function runCli(argv: string[], options: { cwd: string; io: CliIo }
       }
       case 'inspect':
         return await inspectCommand(rest, context);
+      case 'invoice':
+        return await invoiceCommand(rest, context);
       case 'plan':
         return await planCommand(rest, context);
       case 'kb':

@@ -18,6 +18,7 @@ import {
   type EntryKind,
   type EntryStatus,
   type JournalEntry,
+  type ProviderCallRecord,
   type UsageSlice,
 } from '../l0/entries.js';
 import type { ModelRef, Usage } from '../l0/messages.js';
@@ -102,6 +103,8 @@ export interface TerminalPatch {
   usageByModel?: UsageSlice[];
   /** Attribution facts behind the CostReport breakdowns; see JournalEntry. */
   costAttribution?: CostAttributionFacts;
+  /** The per-dispatch reconciliation ledger (P1.3); see JournalEntry. */
+  providerCalls?: ProviderCallRecord[];
   /** The serving adapter's usage-semantics version; see JournalEntry. */
   usageSemantics?: string;
   transcriptRef?: string;
@@ -485,6 +488,9 @@ export class Replayer {
       }
       if (patch.costAttribution !== undefined) {
         entry.costAttribution = patch.costAttribution;
+      }
+      if (patch.providerCalls !== undefined) {
+        entry.providerCalls = patch.providerCalls;
       }
       if (patch.usageSemantics !== undefined) {
         entry.usageSemantics = patch.usageSemantics;

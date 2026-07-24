@@ -22,7 +22,34 @@ export interface PendingExternal {
 
 /** Full contract: https://docs.rulvar.com/guide/observability. */
 export interface CostReport {
+  /**
+   * The NET ledger: priced terminal usage with abandoned subtrees
+   * contributing zero (their spend is a sunk cost of branches the
+   * orchestrator discarded, not of the work the run kept). The
+   * provider still billed them: reconcile invoices against `grossUsd`,
+   * never this.
+   */
   totalUsd: number;
+  /**
+   * The gross/net split (P1.3): totalUsd + abandoned.usd, every priced
+   * terminal slice with abandonment included. This is the immutable
+   * provider-spend figure an invoice reconciles against; abandoning a
+   * branch never shrinks it.
+   */
+  grossUsd: number;
+  /**
+   * Priced spend under abandoned subtrees, exactly the part totalUsd
+   * excludes. `unpriced` here surfaces abandoned slices with no price
+   * row (the top-level `unpriced` lists only slices contributing to
+   * totalUsd), and `usageApprox` follows the same semantics as the
+   * top-level flag over the abandoned entries; grossUsd is an estimate
+   * whenever either flag is raised.
+   */
+  abandoned: {
+    usd: number;
+    unpriced: Array<{ model: string; usage: Usage }>;
+    usageApprox?: boolean;
+  };
   /** Keyed by canonical ModelRef 'adapterId:model'. */
   byModel: Record<string, number>;
   /** ctx.phase names; phase is structural for this map. */

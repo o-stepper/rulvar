@@ -103,6 +103,50 @@ export interface UsageSlice {
 }
 
 /**
+ * One live provider dispatch of an agent invocation (P1.3, the durable
+ * reconciliation ledger): every wire call the engine actually made,
+ * successful or not, with the usage it consumed and the provider's
+ * response id when the adapter surfaced one. Quota-denied attempts and
+ * abort short circuits that never reached the adapter mint no record:
+ * the ledger enumerates exactly the calls a provider could bill.
+ * Records are minted from the same sanitized usage the phase slices
+ * accumulate, so per-model sums over an entry's records reconcile with
+ * `usageByModel` (and with `usage`) by construction on a fully live
+ * invocation.
+ */
+export interface ProviderCallRecord {
+  /** 1-based dispatch order across the whole invocation, phases included. */
+  ordinal: number;
+  /** The invocation phase that paid the call. */
+  role: InvocationRole;
+  servedBy: ModelRef;
+  /** 1-based try number on the serving target; retries increment it. */
+  attempt: number;
+  /**
+   * 'ok' = a terminal finish; 'error' = a wire failure after dispatch
+   * (the provider may still have billed the recorded usage); 'aborted' =
+   * the stream was severed by `aborted` below.
+   */
+  outcome: 'ok' | 'error' | 'aborted';
+  /**
+   * The provider's response id from the finish metadata
+   * (`providerMetadata[<adapter id>].responseId`, surfaced by both
+   * shipped adapters). Absent when the adapter reported none or the
+   * call never finished; the invoice export marks such rows instead of
+   * dropping them.
+   */
+  responseId?: string;
+  /** This call's usage exactly, sanitized like every accounted number. */
+  usage: Usage;
+  /** True when the stream was cut, so the usage is a lower bound. */
+  usageApprox?: boolean;
+  /** WireError.code on 'error' outcomes. */
+  errorCode?: string;
+  /** What severed an 'aborted' call. */
+  aborted?: 'budget' | 'external' | 'idle';
+}
+
+/**
  * Cost-attribution facts a live run knows at settlement and a pure
  * journal fold cannot re-derive: the innermost phase name at the call
  * site, the agent profile, the primary invocation role, the budget
@@ -220,6 +264,18 @@ export type JournalEntry = {
    * like usageByModel.
    */
   costAttribution?: CostAttributionFacts;
+  /**
+   * Terminal agent entries: the per-dispatch reconciliation ledger
+   * (P1.3), one record per live provider call the invocation made,
+   * failed and retried attempts included, so every billable wire call
+   * maps to a journal entry and the invoice export can name the
+   * provider response ids behind the usage total. Absent on entries
+   * written before this shipped and on fully replayed invocations
+   * (which made no calls); the invoice fold surfaces such entries as
+   * unattributed rows instead of losing their spend. Policy, never
+   * identity, exactly like usageByModel.
+   */
+  providerCalls?: ProviderCallRecord[];
   /**
    * The serving adapters' declared usage-telemetry semantics at write
    * time (ProviderAdapter.usageSemantics), stamped so cost numbers stay

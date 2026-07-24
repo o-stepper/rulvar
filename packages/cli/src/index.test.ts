@@ -244,6 +244,41 @@ export default {
     expect(inspect.outLines.join('\n')).toContain('open suspensions: 1');
   });
 
+  it('invoice exports the reconciliation rows and totals for a stored run (P1.3)', async () => {
+    const cwd = writeFixtureProject();
+    const io = scriptedIo(['{"approved":true}']);
+    await runCli(['run', 'review', '--args', '{"item":3}'], { cwd, io });
+    const runId = runIdOf(io);
+
+    const text = scriptedIo();
+    expect(await runCli(['invoice', runId], { cwd, io: text })).toBe(0);
+    const lines = text.outLines.join('\n');
+    expect(lines).toContain(`run ${runId}: invoice (ok)`);
+    // FakeAdapter is priced at zero by construction; the gross/net
+    // split still renders.
+    expect(lines).toContain('gross: $0.0000 | net: $0.0000 | abandoned: $0.0000');
+    // FakeAdapter surfaces no provider ids, so every dispatched call
+    // reconciles as missing-provider-id instead of silently matching.
+    expect(lines).toContain('[missing-provider-id]');
+
+    const json = scriptedIo();
+    expect(await runCli(['invoice', runId, '--json'], { cwd, io: json })).toBe(0);
+    const parsed = JSON.parse(json.outLines.join('\n')) as {
+      totalUsd: number;
+      netUsd: number;
+      rows: Array<{ ordinal: number; outcome: string; reconciliation: string }>;
+      reconciliationFailures: number;
+    };
+    expect(parsed.totalUsd).toBe(0);
+    expect(parsed.rows.length).toBeGreaterThan(0);
+    expect(parsed.rows.every((row) => row.outcome === 'ok')).toBe(true);
+    expect(parsed.reconciliationFailures).toBe(parsed.rows.length);
+
+    const missing = scriptedIo();
+    expect(await runCli(['invoice', 'missing-run'], { cwd, io: missing })).toBe(1);
+    expect(missing.errLines.join('\n')).toContain("run 'missing-run' not found");
+  });
+
   it('rejects a resume whose workflow is not registered', async () => {
     const cwd = writeFixtureProject();
     const io = scriptedIo([]);

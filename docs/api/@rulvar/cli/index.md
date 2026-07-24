@@ -72,6 +72,7 @@ pnpm exec rulvar --help
 | [createWorker](/api/@rulvar/cli/functions/createWorker.md) | - |
 | [driveRun](/api/@rulvar/cli/functions/driveRun.md) | Drives a handle to a terminal outcome, resolving suspensions interactively and resuming until the run settles or input runs dry. |
 | [inspectCommand](/api/@rulvar/cli/functions/inspectCommand.md) | - |
+| [invoiceCommand](/api/@rulvar/cli/functions/invoiceCommand.md) | rulvar invoice (P1.3): the per-dispatch reconciliation export from the journal's providerCalls ledger, one row per billable provider call with the provider's response id when the adapter surfaced one, plus the gross/net ledger totals (`totalUsd` here is the GROSS figure: abandoned subtrees included, exactly what a provider invoice bills). --json prints the machine-readable InvoiceExport; the text form prints one line per row. Pricing folds at read time from the assembled price table, the same numbers rulvar inspect reports. |
 | [loadCliConfig](/api/@rulvar/cli/functions/loadCliConfig.md) | Loads `rulvar.config.mjs`/`.js` from cwd; absent config is fine. |
 | [loadWorkflowModule](/api/@rulvar/cli/functions/loadWorkflowModule.md) | Imports a workflow module given on the command line. |
 | [looksLikeFile](/api/@rulvar/cli/functions/looksLikeFile.md) | True when the `run` target names a file rather than a registry entry. |

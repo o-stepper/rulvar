@@ -21,6 +21,7 @@ type JournalEntry = {
   kind: EntryKind;
   memoizeOutcome?: boolean;
   ordinal: number;
+  providerCalls?: ProviderCallRecord[];
   ref?: number;
   resolution?: ResolutionPayload;
   scope: string;
@@ -194,6 +195,26 @@ ordinal: number;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
+
+***
+
+### providerCalls?
+
+```ts
+optional providerCalls?: ProviderCallRecord[];
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Terminal agent entries: the per-dispatch reconciliation ledger
+(P1.3), one record per live provider call the invocation made,
+failed and retried attempts included, so every billable wire call
+maps to a journal entry and the invoice export can name the
+provider response ids behind the usage total. Absent on entries
+written before this shipped and on fully replayed invocations
+(which made no calls); the invoice fold surfaces such entries as
+unattributed rows instead of losing their spend. Policy, never
+identity, exactly like usageByModel.
 
 ***
 

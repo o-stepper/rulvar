@@ -17,6 +17,7 @@ import {
   claimExpiry,
   ConfigError,
   costReportFromJournal,
+  invoiceFromJournal,
   createEngine,
   FileModelKnowledgeStore,
   hashRunArgs,
@@ -667,6 +668,14 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
   // config's adapters and table; unpriced surfaces, never silent zero.
   const cost = costReportFromJournal(entries, assembled.priceUsd);
   context.io.out(`cost: $${cost.totalUsd.toFixed(4)}`);
+  // The gross/net split surfaces only when the run actually abandoned
+  // paid work (P1.3); every other inspect output stays byte-identical.
+  if (cost.abandoned.usd > 0) {
+    context.io.out(
+      `gross: $${cost.grossUsd.toFixed(4)} (abandoned: $${cost.abandoned.usd.toFixed(4)}; ` +
+        'see rulvar invoice)',
+    );
+  }
   for (const [model, usd] of Object.entries(cost.byModel)) {
     context.io.out(`  ${model}: $${usd.toFixed(4)}`);
   }
@@ -679,6 +688,65 @@ export async function inspectCommand(argv: string[], context: CommandContext): P
     const status = entry.status === undefined ? '' : ` ${entry.status}`;
     const served = entry.servedBy === undefined ? '' : ` servedBy=${entry.servedBy}`;
     context.io.out(`#${entry.seq} ${entry.kind}${status}${served}`);
+  }
+  return 0;
+}
+
+/**
+ * rulvar invoice (P1.3): the per-dispatch reconciliation export from
+ * the journal's providerCalls ledger, one row per billable provider
+ * call with the provider's response id when the adapter surfaced one,
+ * plus the gross/net ledger totals (`totalUsd` here is the GROSS
+ * figure: abandoned subtrees included, exactly what a provider invoice
+ * bills). --json prints the machine-readable InvoiceExport; the text
+ * form prints one line per row. Pricing folds at read time from the
+ * assembled price table, the same numbers rulvar inspect reports.
+ */
+export async function invoiceCommand(argv: string[], context: CommandContext): Promise<number> {
+  const parsed = parseCommand(GRAMMAR.invoice, argv);
+  const runId = parsed.positionals[0];
+  const store = parsed.values.store as string | undefined;
+  const json = parsed.values.json === true;
+  const config = await loadCliConfig(context.cwd);
+  const assembled = assembleEngine({
+    config,
+    ...(store === undefined ? {} : { storePath: store }),
+    cwd: context.cwd,
+  });
+  const meta = await readRunMeta(assembled.store, runId);
+  if (meta === undefined) {
+    throw new ConfigError(`run '${runId}' not found in the store`);
+  }
+  const entries = await assembled.store.load(runId);
+  const invoice = invoiceFromJournal(entries, assembled.priceUsd);
+  if (json) {
+    context.io.out(JSON.stringify(invoice, null, 2));
+    return 0;
+  }
+  context.io.out(`run ${meta.runId}: invoice (${meta.status})`);
+  context.io.out(
+    `gross: $${invoice.totalUsd.toFixed(4)} | net: $${invoice.netUsd.toFixed(4)} | ` +
+      `abandoned: $${invoice.abandonedUsd.toFixed(4)}${invoice.usageApprox === true ? ' (approx)' : ''}`,
+  );
+  context.io.out(
+    `rows: ${invoice.rows.length} (reconciliation failures: ${invoice.reconciliationFailures})`,
+  );
+  for (const row of invoice.rows) {
+    const usd = row.usd === undefined ? 'unpriced' : `$${row.usd.toFixed(4)}`;
+    const tokens = row.usage.inputTokens + row.usage.outputTokens;
+    const id = row.responseId ?? 'no-id';
+    const flags = `${row.usageApprox === true ? ' approx' : ''}${row.abandoned === true ? ' abandoned' : ''}`;
+    context.io.out(
+      `#${row.entrySeq}.${row.ordinal} ${row.servedBy}` +
+        `${row.role === undefined ? '' : ` ${row.role}`}` +
+        `${row.attempt === undefined ? '' : ` attempt=${row.attempt}`}` +
+        ` ${row.outcome} ${id} ${tokens} tok ${usd}${flags} [${row.reconciliation}]`,
+    );
+  }
+  for (const item of invoice.unpriced) {
+    context.io.out(
+      `unpriced: ${item.model} (${item.usage.inputTokens + item.usage.outputTokens} tok)`,
+    );
   }
   return 0;
 }

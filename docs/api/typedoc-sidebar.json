@@ -261,6 +261,10 @@
             "link": "/api/@rulvar/cli/functions/inspectCommand.md"
           },
           {
+            "text": "invoiceCommand",
+            "link": "/api/@rulvar/cli/functions/invoiceCommand.md"
+          },
+          {
             "text": "loadCliConfig",
             "link": "/api/@rulvar/cli/functions/loadCliConfig.md"
           },
@@ -965,6 +969,14 @@
             "link": "/api/@rulvar/core/interfaces/InvocationTable.md"
           },
           {
+            "text": "InvoiceExport",
+            "link": "/api/@rulvar/core/interfaces/InvoiceExport.md"
+          },
+          {
+            "text": "InvoiceRow",
+            "link": "/api/@rulvar/core/interfaces/InvoiceRow.md"
+          },
+          {
             "text": "IsolatedExecContext",
             "link": "/api/@rulvar/core/interfaces/IsolatedExecContext.md"
           },
@@ -1155,6 +1167,10 @@
           {
             "text": "ProviderAdapter",
             "link": "/api/@rulvar/core/interfaces/ProviderAdapter.md"
+          },
+          {
+            "text": "ProviderCallRecord",
+            "link": "/api/@rulvar/core/interfaces/ProviderCallRecord.md"
           },
           {
             "text": "QualityFloors",
@@ -1685,6 +1701,10 @@
           {
             "text": "InvocationRole",
             "link": "/api/@rulvar/core/type-aliases/InvocationRole.md"
+          },
+          {
+            "text": "InvoiceReconciliation",
+            "link": "/api/@rulvar/core/type-aliases/InvoiceReconciliation.md"
           },
           {
             "text": "IsolatedExecutorTag",
@@ -2645,6 +2665,10 @@
           {
             "text": "implementationAgentProfile",
             "link": "/api/@rulvar/core/functions/implementationAgentProfile.md"
+          },
+          {
+            "text": "invoiceFromJournal",
+            "link": "/api/@rulvar/core/functions/invoiceFromJournal.md"
           },
           {
             "text": "isEscalated",
@@ -5147,6 +5171,14 @@
             "link": "/api/@rulvar/rulvar/interfaces/InvocationTable.md"
           },
           {
+            "text": "InvoiceExport",
+            "link": "/api/@rulvar/rulvar/interfaces/InvoiceExport.md"
+          },
+          {
+            "text": "InvoiceRow",
+            "link": "/api/@rulvar/rulvar/interfaces/InvoiceRow.md"
+          },
+          {
             "text": "IsolatedExecContext",
             "link": "/api/@rulvar/rulvar/interfaces/IsolatedExecContext.md"
           },
@@ -5357,6 +5389,10 @@
           {
             "text": "ProviderAdapter",
             "link": "/api/@rulvar/rulvar/interfaces/ProviderAdapter.md"
+          },
+          {
+            "text": "ProviderCallRecord",
+            "link": "/api/@rulvar/rulvar/interfaces/ProviderCallRecord.md"
           },
           {
             "text": "QualityFloors",
@@ -5891,6 +5927,10 @@
           {
             "text": "InvocationRole",
             "link": "/api/@rulvar/rulvar/type-aliases/InvocationRole.md"
+          },
+          {
+            "text": "InvoiceReconciliation",
+            "link": "/api/@rulvar/rulvar/type-aliases/InvoiceReconciliation.md"
           },
           {
             "text": "IsolatedExecutorTag",
@@ -6875,6 +6915,10 @@
           {
             "text": "implementationAgentProfile",
             "link": "/api/@rulvar/rulvar/functions/implementationAgentProfile.md"
+          },
+          {
+            "text": "invoiceFromJournal",
+            "link": "/api/@rulvar/rulvar/functions/invoiceFromJournal.md"
           },
           {
             "text": "isEscalated",

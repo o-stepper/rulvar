@@ -31,6 +31,17 @@ declare function runCommand(argv: string[], context: CommandContext): Promise<nu
 declare function resumeCommand(argv: string[], context: CommandContext): Promise<number>;
 declare function runsLsCommand(argv: string[], context: CommandContext): Promise<number>;
 declare function inspectCommand(argv: string[], context: CommandContext): Promise<number>;
+/**
+* rulvar invoice (P1.3): the per-dispatch reconciliation export from
+* the journal's providerCalls ledger, one row per billable provider
+* call with the provider's response id when the adapter surfaced one,
+* plus the gross/net ledger totals (`totalUsd` here is the GROSS
+* figure: abandoned subtrees included, exactly what a provider invoice
+* bills). --json prints the machine-readable InvoiceExport; the text
+* form prints one line per row. Pricing folds at read time from the
+* assembled price table, the same numbers rulvar inspect reports.
+*/
+declare function invoiceCommand(argv: string[], context: CommandContext): Promise<number>;
 //#endregion
 //#region src/config.d.ts
 /** The shape both the config module and a workflow module may export. */
@@ -375,4 +386,4 @@ declare function toOtel(run: {
   result: Promise<RunOutcome<unknown>>;
 }, tracer: TracerLike, options?: ToOtelOptions): Promise<number>;
 //#endregion
-export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type KbSweepCliConfig, type LoadedWorkflowModule, type OtelContextApi, type RulvarServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, assembleEngine, attachProgress, createServer, createWorker, driveRun, inspectCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, strictExitCode, toOtel };
+export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type KbSweepCliConfig, type LoadedWorkflowModule, type OtelContextApi, type RulvarServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, assembleEngine, attachProgress, createServer, createWorker, driveRun, inspectCommand, invoiceCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, strictExitCode, toOtel };

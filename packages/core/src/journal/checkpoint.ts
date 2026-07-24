@@ -10,7 +10,7 @@
  * future migration; the exact format is a tracked open question.
  * Nothing in the format enters identity.
  */
-import type { UsageSlice } from '../l0/entries.js';
+import type { ProviderCallRecord, UsageSlice } from '../l0/entries.js';
 import type { Msg, Part, Usage } from '../l0/messages.js';
 
 /** Leading format byte of the v1 checkpoint blob. */
@@ -47,6 +47,15 @@ export interface CheckpointState {
    * exactly as they did then.
    */
   usageByModel?: UsageSlice[];
+  /**
+   * The per-dispatch reconciliation ledger so far (P1.3), carried at
+   * every boundary so a kill-and-resume keeps pre-kill wire calls
+   * attributable. Absent before the first call and on checkpoints
+   * written before the ledger shipped: those restore none, and the
+   * invoice fold surfaces the restored usage as an unattributed
+   * remainder instead of losing it.
+   */
+  providerCalls?: ProviderCallRecord[];
   toolCallsUsed: number;
   schemaAttempts: number;
   /** Compaction points; producers arrive with M4-T03. */

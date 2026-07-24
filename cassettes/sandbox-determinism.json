@@ -38,6 +38,21 @@
         "role": "loop",
         "budgetAccount": "run"
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 3,
+            "outputTokens": 6,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      ],
       "transcriptRef": "m6-sandbox-determinism/t0"
     },
     {
@@ -76,6 +91,21 @@
         "role": "loop",
         "budgetAccount": "run"
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 3,
+            "outputTokens": 6,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      ],
       "transcriptRef": "m6-sandbox-determinism/t1"
     },
     {
@@ -114,6 +144,21 @@
         "role": "loop",
         "budgetAccount": "run"
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 3,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      ],
       "transcriptRef": "m6-sandbox-determinism/t2"
     },
     {

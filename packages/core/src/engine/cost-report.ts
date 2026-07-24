@@ -50,8 +50,17 @@ function isOrchestratorAccount(scope: string): boolean {
   return scope === 'orchestrator' || scope.endsWith('/orchestrator');
 }
 
-/** Folds the per-run attribution buckets into the normative CostReport. */
-export function buildCostReport(attribution: CostAttribution, totalUsd: number): CostReport {
+/**
+ * Folds the per-run attribution buckets into the normative CostReport.
+ * Live attribution buckets never see abandoned subtrees, so a host
+ * that tracked abandoned spend itself passes it as `abandoned`;
+ * omitted, the report shows a gross equal to the net.
+ */
+export function buildCostReport(
+  attribution: CostAttribution,
+  totalUsd: number,
+  abandoned: CostReport['abandoned'] = { usd: 0, unpriced: [] },
+): CostReport {
   const byRole = emptyByRole();
   for (const [role, usd] of attribution.byRole) {
     byRole[role] = usd;
@@ -64,6 +73,8 @@ export function buildCostReport(attribution: CostAttribution, totalUsd: number):
   };
   return {
     totalUsd,
+    grossUsd: totalUsd + abandoned.usd,
+    abandoned,
     byModel: Object.fromEntries(attribution.byModel),
     byPhase: Object.fromEntries(attribution.byPhase),
     byAgentType: Object.fromEntries(attribution.byAgentType),
@@ -99,6 +110,12 @@ export function costReportFromJournal(
   const unpriced: Array<{ model: string; usage: Usage }> = [];
   let totalUsd = 0;
   let usageApprox = false;
+  // The gross side of the split (P1.3): abandoned terminal usage,
+  // priced by the same slice fold but kept out of totalUsd and every
+  // breakdown, so the net report stays byte for byte what it was.
+  let abandonedUsd = 0;
+  const abandonedUnpriced: Array<{ model: string; usage: Usage }> = [];
+  let abandonedApprox = false;
   let orchestratorSpentUsd = 0;
   let reserveUsedUsd = 0;
   let wakes = 0;
@@ -128,6 +145,19 @@ export function costReportFromJournal(
       entry.kind !== 'abandon' &&
       abandonFold.isAbandoned(entry.ref ?? entry.seq)
     ) {
+      // The provider billed these attempts all the same: they fold into
+      // the abandoned ledger (and so into grossUsd), never into the net
+      // total or its breakdowns.
+      if (entry.status !== 'running' && entry.usage !== undefined) {
+        const abandonedPriced = priceEntryUsage(entry, priceUsd);
+        abandonedUsd += abandonedPriced.usd;
+        for (const slice of abandonedPriced.unpriced) {
+          abandonedUnpriced.push({ model: slice.servedBy, usage: slice.usage });
+        }
+        if (entry.usageApprox === true) {
+          abandonedApprox = true;
+        }
+      }
       continue;
     }
     if (entry.status === 'running' || entry.usage === undefined) {
@@ -172,6 +202,12 @@ export function costReportFromJournal(
   }
   return {
     totalUsd,
+    grossUsd: totalUsd + abandonedUsd,
+    abandoned: {
+      usd: abandonedUsd,
+      unpriced: abandonedUnpriced,
+      ...(abandonedApprox ? { usageApprox: true } : {}),
+    },
     byModel,
     byPhase,
     byAgentType,
