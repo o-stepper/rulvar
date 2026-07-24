@@ -511,6 +511,37 @@ orchestrator sees), and a replayed run reports the same numbers
 byte-for-byte. Live budget telemetry and the event stream are covered in
 [Observability](/guide/observability).
 
+## The preflight estimator
+
+Every number above is derived by the engine at run time; `preflightEstimate` computes the same numbers from the configuration alone, before any provider dispatch. It is a pure function: no engine is constructed, no store is opened, no journal entry is written, and the only adapter surface it touches is the pure `caps()` lookup, so a preflight can never pay for a token. The estimate cannot drift from the engine because it reuses the runtime's own functions: `mergeUsageLimits` for the per-spawn limit merge, `admissionReserveUsd` for the layer-1 reserve formula, the same price resolution as settlement, and the shared-quota dimension match.
+
+```ts
+import { preflightEstimate } from '@rulvar/core';
+
+const report = preflightEstimate({
+  engine: engineOptions,
+  run: { budgetUsd: 1.2 },
+  spawns: [
+    { label: 'ingest', estCost: 0.5 },
+    { label: 'normalize', estCost: 0.5 },
+    { label: 'risk', estCost: 0.5 },
+  ],
+});
+// report.admission.wave names which spawns admit and which are denied;
+// report.findings carries the linter verdicts, most severe first.
+```
+
+The report is plain JSON-serializable data:
+
+- **`spawns`**: the effective merged `UsageLimits` per declared spawn (the same call-over-profile-over-engine merge the runtime applies), the resolved serving model, the admission reserve with the arm of the formula that produced it (`estCost`, the profile's `estCost`, the priced estimate from `estInputTokens`, the flat default, or the unpriced-model zero), the per-turn output bound, the one-turn cost floor, and the per-tool executed-call ceilings with the limiter that provides each (`maxCallsPerTool`, `toolUnits`, or `maxToolCalls`).
+- **`admission`**: the layer-1 projection over the declared wave in order, mirroring `admitSpawn` exactly (exact fill admitted, one dollar past the ceiling denied, a denial committing nothing): which spawns admit, which are denied, and by what (`budget`, `spawn-cap`, `orchestrator-max-spawns`, or `orchestrator-cap`). With an `orchestrator` input the orchestrator agent itself admits first, and only a plan-extension orchestration subtracts the finalize reserve from spawn headroom, exactly like the boot path.
+- **`budget` and `exposure`**: the echoed defaults (flat reserve, lifetime spawn cap, child fraction, depth), the orchestrator's effective cap (`min(capUsd, (capFraction ?? 0.2) x ceiling)`) and finalize reserve, the maximum concurrent in-flight turns, the per-provider first-wave request and token floors at the declared estimates, and the one-more-turn overshoot floor past a ceiling crossing (the documented bound is one turn per in-flight agent; real turns grow with the prompt, so the floor is a floor).
+- **`findings`**: the linter verdicts, sorted most severe first, each with a stable kebab-case `code`. Errors mean the run cannot start or admits nothing (`unrouted-role`, `unknown-profile`, `nothing-admitted`, `orchestrator-cap-below-reserve`); warnings mean the run will not do what the numbers suggest (`partial-admission`, `weighted-units-bind-first`, `tool-unaffordable`, `unpriced-under-ceiling`, `inert-finalization-reserve`, `orchestrator-cap-fraction-bound`, the quota-window comparisons); infos are transparency (`overshoot-exposure`, `no-usd-ceiling`, `no-quota`, `per-tool-cap-unreachable`).
+
+Where the runtime consults live state a static estimate cannot know, the input carries explicit stand-ins: `estInputTokens` replaces the adapter's `countTokens` over the real prompt, and `quotaRules` mirrors the rule set behind the configured limiter (the SPI hides rules behind `reserve()`). Absent estimates degrade exactly like the runtime's own fallbacks: a spawn without `estCost` or `estInputTokens` reserves the flat default, and token floors count the output bound alone.
+
+The CLI form is [`rulvar preflight`](/guide/cli#the-preflight-command): the same report over the config and module `rulvar run` would assemble, `--json` for the machine-readable form, exit 1 when any finding is severity `error`.
+
 ## Practical sizing
 
 - **Always set `budgetUsd`.** It is the only dollar bound; without it the

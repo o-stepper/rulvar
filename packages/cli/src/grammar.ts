@@ -51,6 +51,7 @@ export const GRAMMAR: {
   readonly inspect: CommandGrammar;
   readonly invoice: CommandGrammar;
   readonly plan: CommandGrammar;
+  readonly preflight: CommandGrammar;
   readonly 'kb list': CommandGrammar;
   readonly 'kb inbox': CommandGrammar;
   readonly 'kb gate': CommandGrammar;
@@ -93,6 +94,16 @@ export const GRAMMAR: {
       { name: 'budget-usd', placeholder: 'N' },
       { name: 'allow-unbounded' },
       { name: 'dry-run' },
+    ],
+  },
+  preflight: {
+    command: 'preflight',
+    positionals: ['<file|name>'],
+    flags: [
+      { name: 'budget-usd', placeholder: 'N' },
+      { name: 'profile', placeholder: 'NAME' },
+      { name: 'spawns', placeholder: 'JSON' },
+      { name: 'json' },
     ],
   },
   'kb list': { command: 'kb list', positionals: [], flags: [] },
@@ -182,6 +193,7 @@ export function helpCommandLines(): string[] {
     GRAMMAR.inspect,
     GRAMMAR.invoice,
     GRAMMAR.plan,
+    GRAMMAR.preflight,
   ];
   const heads = top.map((grammar) => ['rulvar', grammar.command, ...grammar.positionals].join(' '));
   const kbHead = 'rulvar kb <list | inbox | gate | sweep>';
@@ -210,6 +222,7 @@ export function docsGrammarLines(): string[] {
     GRAMMAR.inspect,
     GRAMMAR.invoice,
     GRAMMAR.plan,
+    GRAMMAR.preflight,
   ];
   return [
     ...top.map((grammar) =>

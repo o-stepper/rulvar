@@ -25,8 +25,10 @@ import {
   INBOX_PROPOSAL_TTL_DAYS,
   lastRunSettle,
   LeaseHeldError,
+  preflightEstimate,
   proposalStatement,
   readRunMeta,
+  runProfile,
   reconcileRunMeta,
   remeasureQueue,
   sanitizeTerminalText,
@@ -38,13 +40,16 @@ import {
   type Lease,
   type ModelClaim,
   type ModelRef,
+  type PreflightInput,
+  type PreflightReport,
+  type PreflightSpawnSpec,
   type RunMeta,
   type RunOptions,
   type Workflow,
 } from '@rulvar/core';
 
 import { loadCliConfig, loadWorkflowModule, looksLikeFile } from './config.js';
-import { assembleEngine } from './engine-assembly.js';
+import { applyRunProfile, assembleEngine } from './engine-assembly.js';
 import { driveRun, reportDryRun, reportOutcome, strictExitCode } from './drive.js';
 import { GRAMMAR, KB_FAMILY_USAGE, parseBudgetValue, parseCommand, usageOf } from './grammar.js';
 import type { CliIo } from './io.js';
@@ -749,6 +754,184 @@ export async function invoiceCommand(argv: string[], context: CommandContext): P
     );
   }
   return 0;
+}
+
+/** Formats an optional USD number for the preflight text rows. */
+function usdOf(value: number | undefined): string {
+  return value === undefined ? 'n/a' : `$${value.toFixed(4)}`;
+}
+
+function renderPreflight(report: PreflightReport, io: CliIo): void {
+  io.out('preflight: effective limits and admission projection (zero provider dispatches)');
+  const perProvider = report.concurrency.perProvider;
+  io.out(
+    `concurrency: perRun=${report.concurrency.perRun}` +
+      (perProvider === undefined
+        ? ''
+        : ` perProvider={${Object.entries(perProvider)
+            .map(([id, cap]) => `${id}:${cap}`)
+            .join(', ')}}`),
+  );
+  const budget = report.budget;
+  io.out(
+    `budget: ceiling=${usdOf(budget.ceilingUsd)} flatReserve=${usdOf(budget.flatReserveUsd)} ` +
+      `lifetimeSpawnCap=${budget.lifetimeSpawnCap} childFraction=${budget.childBudgetFraction} ` +
+      `maxDepth=${budget.maxDepth}`,
+  );
+  if (budget.orchestrator !== undefined) {
+    const orch = budget.orchestrator;
+    io.out(
+      `orchestrator: effectiveCap=${usdOf(orch.effectiveCapUsd)} ` +
+        `finalizeReserve=${usdOf(orch.finalizeReserveUsd)} over ${orch.finalizeTurns} turns ` +
+        `(${orch.reserveCommitted ? 'committed against the run root' : 'not committed: no plan extension'})`,
+    );
+  }
+  io.out(
+    `quota: ${report.quota.configured ? 'configured' : 'none'}` +
+      (report.quota.tenant === undefined ? '' : ` tenant=${report.quota.tenant}`) +
+      (report.quota.rules === undefined ? '' : ` rules=${report.quota.rules}`),
+  );
+  io.out(`run limits: ${JSON.stringify(report.runLimits)}`);
+  for (const spawn of report.spawns) {
+    io.out(
+      `spawn '${spawn.label}' role=${spawn.role} x${spawn.count}` +
+        ` servedBy=${spawn.servedBy ?? 'UNROUTED'}${spawn.unpriced === true ? ' (unpriced)' : ''}` +
+        ` reserve=${usdOf(spawn.admissionReserveUsd)} (${spawn.reserveSource})` +
+        (spawn.maxOutputTokensPerTurn === undefined
+          ? ''
+          : ` maxOutput=${spawn.maxOutputTokensPerTurn}`) +
+        (spawn.turnFloorUsd === undefined ? '' : ` turnFloor=${usdOf(spawn.turnFloorUsd)}`) +
+        ` toolCallCeiling=${spawn.executedToolCallCeiling ?? 'unlimited'}`,
+    );
+    io.out(`  limits: ${JSON.stringify(spawn.limits)}`);
+    for (const row of spawn.toolCeilings) {
+      if (row.tool === '(any)' && row.ceiling === null) {
+        continue;
+      }
+      io.out(
+        `  tool ${row.tool}: ceiling=${row.ceiling ?? 'unlimited'}` +
+          (row.boundBy === undefined ? '' : ` (${row.boundBy})`),
+      );
+    }
+  }
+  const admission = report.admission;
+  if (admission.wave.length > 0) {
+    io.out(
+      `admission: ${admission.admitted} of ${admission.wave.length} admitted` +
+        (admission.ceilingUsd === undefined
+          ? ''
+          : ` under ceiling=${usdOf(admission.ceilingUsd)}`) +
+        (admission.reservedForFinalizationUsd === 0
+          ? ''
+          : ` (finalization holds ${usdOf(admission.reservedForFinalizationUsd)})`),
+    );
+    for (const row of admission.wave) {
+      io.out(
+        `  ${row.admitted ? 'admit' : 'DENY '} ${row.label} reserve=${usdOf(row.reserveUsd)}` +
+          (row.deniedBy === undefined ? '' : ` [${row.deniedBy}]`),
+      );
+    }
+  }
+  io.out(
+    `exposure: maxInFlight=${report.exposure.maxInFlight}` +
+      (report.exposure.overshootOneTurnFloorUsd === undefined
+        ? ''
+        : ` overshootOneTurnFloor=${usdOf(report.exposure.overshootOneTurnFloorUsd)}`),
+  );
+  for (const [provider, row] of Object.entries(report.exposure.perProvider)) {
+    io.out(
+      `  provider ${provider}: inFlight=${row.inFlight} requestsPerWave=${row.requestsPerWave} ` +
+        `tokensPerWaveFloor=${row.tokensPerWaveFloor}`,
+    );
+  }
+  io.out(`findings: ${report.findings.length}`);
+  for (const finding of report.findings) {
+    io.out(
+      `  ${finding.severity} ${finding.code}: ${finding.message}` +
+        (finding.spawn === undefined ? '' : ` [spawn ${finding.spawn}]`),
+    );
+  }
+}
+
+/**
+ * rulvar preflight (the experiment-review P2.2; grammar in grammar.ts):
+ * the effective-config linter and dry-run estimator. Loads the SAME
+ * config, module, and run-profile merge `rulvar run` would assemble,
+ * but constructs no engine, opens no store, and dispatches nothing:
+ * the report is computed by preflightEstimate over options alone, so
+ * the command cannot pay for a single provider token by construction.
+ * The declared spawn wave comes from the `preflight` export of the
+ * config or workflow module (module wins), and --spawns JSON overrides
+ * it from the command line. --json prints the machine-readable report.
+ * Exit 1 when any finding has severity 'error' (the linter contract:
+ * green preflight means the run can at least start), 0 otherwise.
+ */
+export async function preflightCommand(argv: string[], context: CommandContext): Promise<number> {
+  const parsed = parseCommand(GRAMMAR.preflight, argv);
+  const target = parsed.positionals[0];
+  const profile = parsed.values.profile as string | undefined;
+  const json = parsed.values.json === true;
+  const budgetUsd =
+    parsed.values['budget-usd'] === undefined
+      ? undefined
+      : parseBudgetValue('budget-usd', parsed.values['budget-usd'] as string);
+  const config = await loadCliConfig(context.cwd);
+  const module = looksLikeFile(target) ? await loadWorkflowModule(target, context.cwd) : undefined;
+  // The target must resolve a workflow exactly like `rulvar run`: a
+  // green preflight over a typo'd name would lint nothing and mislead.
+  const workflows = { ...config.workflows, ...module?.workflows };
+  const workflow = module?.workflow ?? workflows[target];
+  if (workflow === undefined) {
+    throw new ConfigError(
+      looksLikeFile(target)
+        ? `${target} exports no workflow (default export or named 'workflow')`
+        : `no workflow named '${target}' in the registry; register it in rulvar.config.mjs`,
+    );
+  }
+  let engineOptions: Partial<CreateEngineOptions> = {
+    ...config.engineOptions,
+    ...module?.engineOptions,
+  };
+  if (profile !== undefined) {
+    const preset = runProfile(profile);
+    if (preset === undefined) {
+      throw new ConfigError(
+        `unknown run profile '${profile}'; shipped: fast, standard, deep, ultra`,
+      );
+    }
+    engineOptions = applyRunProfile(preset, engineOptions);
+  }
+  const declaration = { ...config.preflight, ...module?.preflight };
+  let spawns = declaration.spawns;
+  const spawnsJson = parsed.values.spawns as string | undefined;
+  if (spawnsJson !== undefined) {
+    let parsedSpawns: unknown;
+    try {
+      parsedSpawns = JSON.parse(spawnsJson);
+    } catch (error) {
+      throw new ConfigError(
+        `--spawns is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    if (!Array.isArray(parsedSpawns)) {
+      throw new ConfigError('--spawns must be a JSON array of spawn specs');
+    }
+    spawns = parsedSpawns as PreflightSpawnSpec[];
+  }
+  const input: PreflightInput = {
+    engine: engineOptions,
+    run: { ...(budgetUsd === undefined ? {} : { budgetUsd }) },
+    ...(declaration.orchestrator === undefined ? {} : { orchestrator: declaration.orchestrator }),
+    ...(spawns === undefined ? {} : { spawns }),
+    ...(declaration.quotaRules === undefined ? {} : { quotaRules: declaration.quotaRules }),
+  };
+  const report = preflightEstimate(input);
+  if (json) {
+    context.io.out(JSON.stringify(report, null, 2));
+  } else {
+    renderPreflight(report, context.io);
+  }
+  return report.findings.some((finding) => finding.severity === 'error') ? 1 : 0;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { CreateEngineOptions, Engine, JournalStore, KeyDeriver, LeasableStore, ModelRef, RunHandle, RunMeta, RunOutcome, Usage, Workflow, WorkflowEvent, WorkflowRegistry } from "@rulvar/core";
+import { CreateEngineOptions, Engine, JournalStore, KeyDeriver, LeasableStore, ModelRef, PreflightInput, RunHandle, RunMeta, RunOutcome, Usage, Workflow, WorkflowEvent, WorkflowRegistry } from "@rulvar/core";
 
 //#region src/io.d.ts
 interface CliIo {
@@ -42,12 +42,38 @@ declare function inspectCommand(argv: string[], context: CommandContext): Promis
 * assembled price table, the same numbers rulvar inspect reports.
 */
 declare function invoiceCommand(argv: string[], context: CommandContext): Promise<number>;
+/**
+* rulvar preflight (the experiment-review P2.2; grammar in grammar.ts):
+* the effective-config linter and dry-run estimator. Loads the SAME
+* config, module, and run-profile merge `rulvar run` would assemble,
+* but constructs no engine, opens no store, and dispatches nothing:
+* the report is computed by preflightEstimate over options alone, so
+* the command cannot pay for a single provider token by construction.
+* The declared spawn wave comes from the `preflight` export of the
+* config or workflow module (module wins), and --spawns JSON overrides
+* it from the command line. --json prints the machine-readable report.
+* Exit 1 when any finding has severity 'error' (the linter contract:
+* green preflight means the run can at least start), 0 otherwise.
+*/
+declare function preflightCommand(argv: string[], context: CommandContext): Promise<number>;
 //#endregion
 //#region src/config.d.ts
+/**
+* The preflight declaration a config or workflow module may export
+* (the experiment-review P2.2): the declared spawn wave, the
+* orchestrator spec, and the quota rule set behind the configured
+* limiter, exactly the PreflightInput slices the estimator cannot
+* derive from engineOptions alone. `rulvar preflight` merges the
+* workflow module's declaration over the config file's, and --spawns
+* overrides the spawn wave from the command line.
+*/
+type PreflightDeclaration = Pick<PreflightInput, "spawns" | "orchestrator" | "quotaRules">;
 /** The shape both the config module and a workflow module may export. */
 interface CliConfig {
   engineOptions?: Partial<CreateEngineOptions>;
   workflows?: WorkflowRegistry;
+  /** rulvar preflight declaration (P2.2). */
+  preflight?: PreflightDeclaration;
   /** rulvar kb sweep configuration (M11-T05). */
   kbSweep?: KbSweepCliConfig;
 }
@@ -118,6 +144,7 @@ interface LoadedWorkflowModule {
   workflow?: Workflow<never, unknown>;
   engineOptions?: Partial<CreateEngineOptions>;
   workflows?: WorkflowRegistry;
+  preflight?: PreflightDeclaration;
 }
 /** Imports a workflow module given on the command line. */
 declare function loadWorkflowModule(file: string, cwd: string): Promise<LoadedWorkflowModule>;
@@ -386,4 +413,4 @@ declare function toOtel(run: {
   result: Promise<RunOutcome<unknown>>;
 }, tracer: TracerLike, options?: ToOtelOptions): Promise<number>;
 //#endregion
-export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type KbSweepCliConfig, type LoadedWorkflowModule, type OtelContextApi, type RulvarServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, assembleEngine, attachProgress, createServer, createWorker, driveRun, inspectCommand, invoiceCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, strictExitCode, toOtel };
+export { type AssembledCli, type CliConfig, type CliIo, type CommandContext, type CreateServerOptions, type CreateWorkerOptions, DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT, DEFAULT_STORE_DIR, DEFAULT_WORKER_TTL_MS, HELP, type KbSweepCliConfig, type LoadedWorkflowModule, type OtelContextApi, type PreflightDeclaration, type RulvarServer, type SpanLike, type ToOtelOptions, type TracerLike, type Worker, assembleEngine, attachProgress, createServer, createWorker, driveRun, inspectCommand, invoiceCommand, loadCliConfig, loadWorkflowModule, looksLikeFile, preflightCommand, processIo, renderEventLine, reportOutcome, resumeCommand, runCli, runCommand, runsLsCommand, strictExitCode, toOtel };

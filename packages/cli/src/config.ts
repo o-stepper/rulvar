@@ -20,14 +20,28 @@ import { pathToFileURL } from 'node:url';
 import {
   ConfigError,
   type CreateEngineOptions,
+  type PreflightInput,
   type Workflow,
   type WorkflowRegistry,
 } from '@rulvar/core';
+
+/**
+ * The preflight declaration a config or workflow module may export
+ * (the experiment-review P2.2): the declared spawn wave, the
+ * orchestrator spec, and the quota rule set behind the configured
+ * limiter, exactly the PreflightInput slices the estimator cannot
+ * derive from engineOptions alone. `rulvar preflight` merges the
+ * workflow module's declaration over the config file's, and --spawns
+ * overrides the spawn wave from the command line.
+ */
+export type PreflightDeclaration = Pick<PreflightInput, 'spawns' | 'orchestrator' | 'quotaRules'>;
 
 /** The shape both the config module and a workflow module may export. */
 export interface CliConfig {
   engineOptions?: Partial<CreateEngineOptions>;
   workflows?: WorkflowRegistry;
+  /** rulvar preflight declaration (P2.2). */
+  preflight?: PreflightDeclaration;
   /** rulvar kb sweep configuration (M11-T05). */
   kbSweep?: KbSweepCliConfig;
 }
@@ -99,6 +113,7 @@ interface ConfigModule {
   workflow?: Workflow<never, unknown>;
   engineOptions?: Partial<CreateEngineOptions>;
   workflows?: WorkflowRegistry;
+  preflight?: PreflightDeclaration;
 }
 
 function isWorkflowValue(value: unknown): value is Workflow<never, unknown> {
@@ -128,6 +143,7 @@ export async function loadCliConfig(cwd: string): Promise<CliConfig> {
       ...(config ?? {}),
       ...(mod.engineOptions === undefined ? {} : { engineOptions: mod.engineOptions }),
       ...(mod.workflows === undefined ? {} : { workflows: mod.workflows }),
+      ...(mod.preflight === undefined ? {} : { preflight: mod.preflight }),
     };
   }
   return {};
@@ -137,6 +153,7 @@ export interface LoadedWorkflowModule {
   workflow?: Workflow<never, unknown>;
   engineOptions?: Partial<CreateEngineOptions>;
   workflows?: WorkflowRegistry;
+  preflight?: PreflightDeclaration;
 }
 
 /** Imports a workflow module given on the command line. */
@@ -156,6 +173,9 @@ export async function loadWorkflowModule(file: string, cwd: string): Promise<Loa
   }
   if (mod.workflows !== undefined) {
     loaded.workflows = mod.workflows;
+  }
+  if (mod.preflight !== undefined) {
+    loaded.preflight = mod.preflight;
   }
   return loaded;
 }

@@ -9,6 +9,7 @@ import {
   invoiceCommand,
   kbCommand,
   planCommand,
+  preflightCommand,
   replayCommand,
   resumeCommand,
   runCommand,
@@ -46,6 +47,16 @@ billable provider call (failed and retried attempts included) with the
 provider's response id when the adapter surfaced one, plus the
 gross/net ledger totals (gross includes abandoned subtrees, exactly
 what the provider bills); --json emits the machine-readable form.
+preflight is the effective-config linter and dry-run estimator: it
+assembles the SAME options rulvar run would (config, module exports,
+--profile, --budget-usd) but constructs no engine and dispatches
+nothing, then prints the effective merged limits per declared spawn,
+the layer-1 admission projection over the declared wave (which spawns
+admit, which are denied and by what), the per-tool and weighted-unit
+bottleneck ordering, the concurrency and quota exposure floors, and
+the linter findings. The declared wave comes from the preflight export
+of the config or workflow module, or --spawns JSON; --json emits the
+machine-readable report; exit 1 when any finding is severity error.
 plan asks the planner model (role plan) to write a workflow script,
 lints and self-repairs it, then runs it in the worker sandbox; --dry-run
 prints the accepted script without running. Both stages are paid runs
@@ -92,6 +103,8 @@ export async function runCli(argv: string[], options: { cwd: string; io: CliIo }
         return await invoiceCommand(rest, context);
       case 'plan':
         return await planCommand(rest, context);
+      case 'preflight':
+        return await preflightCommand(rest, context);
       case 'kb':
         return await kbCommand(rest, context);
       case undefined:

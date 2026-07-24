@@ -61,6 +61,7 @@ export * from './stores/reconcile.js';
 export * from './stores/jsonl.js';
 export * from './engine/cost-report.js';
 export * from './engine/invoice.js';
+export * from './engine/preflight.js';
 export * from './engine/run-profiles.js';
 export * from './model/caps.js';
 export * from './model/concurrency.js';

@@ -37,6 +37,7 @@ rulvar runs audit [--store PATH] [--repair]
 rulvar inspect <runId> [--store PATH]
 rulvar invoice <runId> [--store PATH] [--json]
 rulvar plan "<goal>" [--planning-budget-usd N] [--budget-usd N] [--allow-unbounded] [--dry-run]
+rulvar preflight <file|name> [--budget-usd N] [--profile NAME] [--spawns JSON] [--json]
 rulvar kb <list | inbox | gate | sweep>
 ```
 
@@ -50,6 +51,7 @@ rulvar kb <list | inbox | gate | sweep>
 | `inspect` | Print one run's journal-derived state: entries, suspensions, spend. |
 | `invoice` | Export the per-dispatch reconciliation ledger: one row per billable provider call (failed and retried attempts included) with the provider response id, plus the gross/net totals; `--json` for the machine-readable form. See [the invoice export](/guide/observability#the-invoice-export). |
 | `plan` | Ask the planner to write a workflow script for a goal, then run it in the worker sandbox. |
+| `preflight` | Lint the effective config and estimate the run before any provider dispatch: effective merged limits per declared spawn, the admission projection, bottleneck ordering, and exposure floors; `--json` for the machine-readable report. See [the preflight estimator](/guide/budgets#the-preflight-estimator). |
 | `kb` | Maintain the [model knowledge](/guide/model-knowledge) claim store. |
 
 Flag semantics are uniform:
@@ -105,6 +107,14 @@ Both stages are paid runs with their own immutable ceilings, and a machine-writt
 - `--allow-unbounded` waives the missing ceilings explicitly and loudly.
 
 Planning exhaustion stops before execution starts (`plan()` throws its typed `ScriptRejected` carrying `budget_exhausted`), and execution exhaustion never touches the planning journal: two runs, two ceilings, two journals.
+
+## The preflight command
+
+`rulvar preflight <file|name>` is the effective-config linter and dry-run estimator: it assembles exactly the options `rulvar run` would (the config file, the workflow module's exports, `--profile`, `--budget-usd`) but constructs no engine, opens no store, and dispatches nothing, then prints what the engine would derive. The target must resolve a workflow exactly like `run`, so a green preflight always describes the run you are about to pay for. See [the preflight estimator](/guide/budgets#the-preflight-estimator) for the report's semantics.
+
+The report covers the effective merged `UsageLimits` per declared spawn (call over profile over engine defaults, the same merge the runtime applies), each spawn's layer-1 admission reserve and which arm of the reserve formula produced it, the admission projection over the declared wave (which spawns admit, which are denied and by what: the budget, the lifetime spawn cap, the orchestrator's `maxSpawns`, or an orchestrator cap its own reserve cannot fit), the per-tool and weighted-unit executed-call ceilings with the first bottleneck named, the orchestrator's effective cap and finalize reserve, and the concurrency and quota exposure floors.
+
+The declared spawn wave comes from the `preflight` export of the config or workflow module (`{ spawns?, orchestrator?, quotaRules? }`, module over config), and `--spawns JSON` overrides it from the command line. `--json` emits the machine-readable `PreflightReport`. The exit code is the linter contract: 1 when any finding has severity `error` (an unrouted role, an unknown profile, a wave that admits nothing), 0 otherwise.
 
 ## Knowledge-base maintenance
 

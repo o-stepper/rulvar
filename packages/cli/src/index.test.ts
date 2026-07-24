@@ -279,6 +279,115 @@ export default {
     expect(missing.errLines.join('\n')).toContain("run 'missing-run' not found");
   });
 
+  it('preflight lints the effective config without a store or a dispatch (P2.2)', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-preflight-'));
+    writeFileSync(
+      join(cwd, 'rulvar.config.mjs'),
+      `import { defineWorkflow } from ${JSON.stringify(CORE_DIST)};
+import { FakeAdapter, FAKE_MODEL_REF } from ${JSON.stringify(TESTING_DIST)};
+
+const pipeline = defineWorkflow({ name: 'pipeline' }, async (ctx) => ctx.agent('go'));
+
+export default {
+  engineOptions: {
+    adapters: [new FakeAdapter({ agents: { '*': 'done' } })],
+    defaults: { routing: { loop: FAKE_MODEL_REF } },
+  },
+  workflows: { pipeline },
+  preflight: {
+    spawns: [
+      { label: 'ingest', estCost: 0.5 },
+      { label: 'normalize', estCost: 0.5 },
+      { label: 'risk', estCost: 0.5 },
+      { label: 'compliance', estCost: 0.5 },
+      { label: 'pricing', estCost: 0.5 },
+      {
+        label: 'audit',
+        estCost: 0.5,
+        limits: { maxToolCalls: 40, toolUnits: { max: 10, costs: { web_search: 5 } } },
+      },
+    ],
+  },
+};
+`,
+      'utf8',
+    );
+
+    const text = scriptedIo();
+    expect(await runCli(['preflight', 'pipeline', '--budget-usd', '1.2'], { cwd, io: text })).toBe(
+      0,
+    );
+    const lines = text.outLines.join('\n');
+    expect(lines).toContain('zero provider dispatches');
+    expect(lines).toContain('admission: 2 of 6 admitted');
+    expect(lines).toContain('DENY  risk');
+    expect(lines).toContain('tool web_search: ceiling=2 (toolUnits)');
+    expect(lines).toContain('warning weighted-units-bind-first');
+    expect(lines).toContain('warning partial-admission');
+    // The linter neither creates a store nor dispatches: no .rulvar
+    // directory appears and the fake adapter records zero calls.
+    expect(existsSync(join(cwd, '.rulvar'))).toBe(false);
+
+    const json = scriptedIo();
+    expect(
+      await runCli(['preflight', 'pipeline', '--budget-usd', '1.2', '--json'], { cwd, io: json }),
+    ).toBe(0);
+    const report = JSON.parse(json.outLines.join('\n')) as {
+      admission: { admitted: number; denied: number };
+      spawns: Array<{ label: string }>;
+      findings: Array<{ code: string; severity: string }>;
+    };
+    expect(report.admission).toMatchObject({ admitted: 2, denied: 4 });
+    expect(report.spawns.map((spawn) => spawn.label)).toContain('audit');
+    expect(report.findings.some((f) => f.code === 'partial-admission')).toBe(true);
+
+    // --spawns overrides the declared wave from the command line.
+    const overridden = scriptedIo();
+    expect(
+      await runCli(
+        [
+          'preflight',
+          'pipeline',
+          '--budget-usd',
+          '1.2',
+          '--spawns',
+          '[{"label":"solo","estCost":0.5}]',
+          '--json',
+        ],
+        { cwd, io: overridden },
+      ),
+    ).toBe(0);
+    const soloReport = JSON.parse(overridden.outLines.join('\n')) as {
+      admission: { admitted: number; denied: number };
+    };
+    expect(soloReport.admission).toMatchObject({ admitted: 1, denied: 0 });
+
+    // An error finding exits 1: strip the routing so the role is unrouted.
+    writeFileSync(
+      join(cwd, 'rulvar.config.mjs'),
+      `import { defineWorkflow } from ${JSON.stringify(CORE_DIST)};
+import { FakeAdapter } from ${JSON.stringify(TESTING_DIST)};
+
+const pipeline = defineWorkflow({ name: 'pipeline' }, async (ctx) => ctx.agent('go'));
+
+export default {
+  engineOptions: { adapters: [new FakeAdapter({ agents: { '*': 'done' } })] },
+  workflows: { pipeline },
+  preflight: { spawns: [{ label: 'orphan' }] },
+};
+`,
+      'utf8',
+    );
+    const failing = scriptedIo();
+    expect(await runCli(['preflight', 'pipeline'], { cwd, io: failing })).toBe(1);
+    expect(failing.outLines.join('\n')).toContain('error unrouted-role');
+
+    // A typo'd target fails exactly like run instead of linting nothing.
+    const missing = scriptedIo();
+    expect(await runCli(['preflight', 'nope'], { cwd, io: missing })).toBe(1);
+    expect(missing.errLines.join('\n')).toContain("no workflow named 'nope'");
+  });
+
   it('rejects a resume whose workflow is not registered', async () => {
     const cwd = writeFixtureProject();
     const io = scriptedIo([]);
