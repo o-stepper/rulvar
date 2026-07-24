@@ -10,7 +10,7 @@
 function wrapJournalStore(inner, hook): JournalStore;
 ```
 
-Defined in: [packages/core/src/l0/serialization.ts:80](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L80)
+Defined in: [packages/core/src/l0/serialization.ts:93](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L93)
 
 Wraps a journal store with the hook; the lease and meta lookup
 capabilities are preserved (meta is never hooked, exactly like

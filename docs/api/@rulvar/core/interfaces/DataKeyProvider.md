@@ -6,7 +6,7 @@
 
 # Interface: DataKeyProvider
 
-Defined in: [packages/core/src/l0/encryption.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/encryption.ts#L64)
+Defined in: [packages/core/src/l0/encryption.ts:69](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/encryption.ts#L69)
 
 The KMS seam. `keyId` is a stable routing id stamped into every
 envelope (a KMS key ARN or alias, or a local rotation label); the
@@ -17,7 +17,7 @@ Both are called only inside `createEnvelopeEncryption`.
 
 | Property | Modifier | Type | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-keyid"></a> `keyId` | `readonly` | `string` | [packages/core/src/l0/encryption.ts:65](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/encryption.ts#L65) |
+| <a id="property-keyid"></a> `keyId` | `readonly` | `string` | [packages/core/src/l0/encryption.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/encryption.ts#L70) |
 
 ## Methods
 
@@ -30,7 +30,7 @@ generateDataKey(): Promise<{
 }>;
 ```
 
-Defined in: [packages/core/src/l0/encryption.ts:66](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/encryption.ts#L66)
+Defined in: [packages/core/src/l0/encryption.ts:71](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/encryption.ts#L71)
 
 #### Returns
 
@@ -47,7 +47,7 @@ Defined in: [packages/core/src/l0/encryption.ts:66](https://github.com/o-stepper
 unwrapDataKey(wrapped): Promise<Bytes>;
 ```
 
-Defined in: [packages/core/src/l0/encryption.ts:67](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/encryption.ts#L67)
+Defined in: [packages/core/src/l0/encryption.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/encryption.ts#L72)
 
 #### Parameters
 
