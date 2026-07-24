@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.57.0
+
+#### Patch Changes
+
+- Updated dependencies [5897232]
+  - @rulvar/core@1.57.0
+
 ### 1.56.0
 
 #### Patch Changes
@@ -759,6 +766,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.57.0
+
+#### Patch Changes
+
+- Updated dependencies [5897232]
+  - @rulvar/core@1.57.0
+
 ### 1.56.0
 
 #### Patch Changes
@@ -1365,6 +1379,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.57.0
+
+#### Patch Changes
+
+- Updated dependencies [5897232]
+  - @rulvar/core@1.57.0
 
 ### 1.56.0
 
@@ -2248,6 +2269,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.57.0
+
+#### Patch Changes
+
+- 5897232: Two follow-ups from the RV-210 and RV-215 cycles. (1) Resume of a run that already SETTLED ok no longer re-dispatches plain cap-expiry `limit` children live: the canonical replay predicate now takes a `runSettledOk` input (computed by the engine from the loaded journal's run settle entry), and the memoize-limit rule replays unstamped limit entries when the run is finished history, so resuming a completed run makes ZERO adapter calls and `replay --assert-no-live` style verification holds. Non-ok settles and never-settled journals keep the rerun retry semantics (a crashed segment still resumes into a second chance), and an explicit invalidate still forces a rerun. (2) `SqliteQuotaLimiter` carries its own class TSDoc (the api page previously inherited the bare SPI interface line), documenting the single-transaction admission, cross-process reconciliation, identical-rules requirement, pruning, and the busy_timeout contract.
 
 ### 1.56.0
 
@@ -3553,6 +3580,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.57.0
+
 ### 1.56.0
 
 ### 1.55.0
@@ -3751,6 +3780,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.57.0
+
+#### Patch Changes
+
+- Updated dependencies [5897232]
+  - @rulvar/core@1.57.0
+  - @rulvar/testing@1.57.0
 
 ### 1.56.0
 
@@ -4521,6 +4558,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/openai
 
+### 1.57.0
+
+#### Patch Changes
+
+- Updated dependencies [5897232]
+  - @rulvar/core@1.57.0
+
 ### 1.56.0
 
 #### Patch Changes
@@ -5279,6 +5323,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.57.0
+
+#### Patch Changes
+
+- Updated dependencies [5897232]
+  - @rulvar/core@1.57.0
+
 ### 1.56.0
 
 #### Patch Changes
@@ -6007,6 +6058,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/planner
 
+### 1.57.0
+
+#### Patch Changes
+
+- Updated dependencies [5897232]
+  - @rulvar/core@1.57.0
+  - eslint-plugin-rulvar@1.57.0
+
 ### 1.56.0
 
 #### Patch Changes
@@ -6732,6 +6791,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.57.0
+
+#### Patch Changes
+
+- Updated dependencies [5897232]
+  - @rulvar/core@1.57.0
+  - @rulvar/anthropic@1.57.0
+  - @rulvar/openai@1.57.0
 
 ### 1.56.0
 
@@ -7600,6 +7668,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.57.0
+
+#### Patch Changes
+
+- Updated dependencies [5897232]
+  - @rulvar/core@1.57.0
+
 ### 1.56.0
 
 #### Patch Changes
@@ -8296,7 +8371,28 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 - Updated dependencies [f4e2be9]
   - @rulvar/core@0.1.0
 
+## @rulvar/store-postgres
+
+### 1.57.0
+
+#### Minor Changes
+
+- dc6ef2c: RV-214: the official PostgreSQL store. The new `@rulvar/store-postgres` package ships `PostgresStore`, implementing the full storage contract over node-postgres for multi-process AND multi-host deployments: `JournalStore` plus `LeasableStore` with fencing epochs, `fencedWrites` on both the journal side and the `transcripts()` twin, and the `getMeta`/`leaseTtlMs` capabilities. Payloads stay opaque TEXT (obligation A4 forbids jsonb normalization; jsonb appears only in query-side casts and expression indexes). Every run-scoped mutation runs inside one transaction that first takes a per-run advisory transaction lock, this store's translation of the sqlite BEGIN IMMEDIATE lesson: the fence check and the guarded mutation commit as ONE serialized unit across processes and hosts, at per-run granularity so unrelated runs never queue behind each other. The A5 monotonic-seq guard is one conditional INSERT under that lock, with per-instance appends chained in submission order (a genuinely async pool would otherwise let a later-submitted seq reach the server first). The lazy idempotent schema bootstrap serializes on a schema-scoped advisory lock so a fleet start over one fresh database boots clean; the `schema` option namespaces the five tables and doubles as cheap isolation. Lease expiry uses the client clock with an injectable `now` (NTP-synced hosts; the 60 s default ttl dwarfs sane drift), and one write region per run is the documented boundary. The package's own suite runs the full conformance kit, cross-instance fencing over one schema, an engine-level e2e (run on one store instance, resume from another with zero adapter calls), the adversarial multi-process soak, and the fleet boot race, all against a real postgres (gated on `RULVAR_POSTGRES_URL`; CI provides a service container). The stores guide documents options, pooling and backpressure sizing, the clock and single-write-region boundaries, and a backup/PITR runbook.
+
+#### Patch Changes
+
+- Updated dependencies [5897232]
+  - @rulvar/core@1.57.0
+
 ## @rulvar/store-sqlite
+
+### 1.57.0
+
+#### Patch Changes
+
+- 5897232: Two follow-ups from the RV-210 and RV-215 cycles. (1) Resume of a run that already SETTLED ok no longer re-dispatches plain cap-expiry `limit` children live: the canonical replay predicate now takes a `runSettledOk` input (computed by the engine from the loaded journal's run settle entry), and the memoize-limit rule replays unstamped limit entries when the run is finished history, so resuming a completed run makes ZERO adapter calls and `replay --assert-no-live` style verification holds. Non-ok settles and never-settled journals keep the rerun retry semantics (a crashed segment still resumes into a second chance), and an explicit invalidate still forces a rerun. (2) `SqliteQuotaLimiter` carries its own class TSDoc (the api page previously inherited the bare SPI interface line), documenting the single-transaction admission, cross-process reconciliation, identical-rules requirement, pruning, and the busy_timeout contract.
+- Updated dependencies [5897232]
+  - @rulvar/core@1.57.0
 
 ### 1.56.0
 
@@ -8941,6 +9037,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.57.0
+
+#### Patch Changes
+
+- Updated dependencies [5897232]
+  - @rulvar/core@1.57.0
 
 ### 1.56.0
 
