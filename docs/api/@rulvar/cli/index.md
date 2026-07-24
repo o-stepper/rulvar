@@ -53,6 +53,12 @@ pnpm exec rulvar --help
 | [TracerLike](/api/@rulvar/cli/interfaces/TracerLike.md) | - |
 | [Worker](/api/@rulvar/cli/interfaces/Worker.md) | - |
 
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [PreflightDeclaration](/api/@rulvar/cli/type-aliases/PreflightDeclaration.md) | The preflight declaration a config or workflow module may export (the experiment-review P2.2): the declared spawn wave, the orchestrator spec, and the quota rule set behind the configured limiter, exactly the PreflightInput slices the estimator cannot derive from engineOptions alone. `rulvar preflight` merges the workflow module's declaration over the config file's, and --spawns overrides the spawn wave from the command line. |
+
 ## Variables
 
 | Variable | Description |
@@ -76,6 +82,7 @@ pnpm exec rulvar --help
 | [loadCliConfig](/api/@rulvar/cli/functions/loadCliConfig.md) | Loads `rulvar.config.mjs`/`.js` from cwd; absent config is fine. |
 | [loadWorkflowModule](/api/@rulvar/cli/functions/loadWorkflowModule.md) | Imports a workflow module given on the command line. |
 | [looksLikeFile](/api/@rulvar/cli/functions/looksLikeFile.md) | True when the `run` target names a file rather than a registry entry. |
+| [preflightCommand](/api/@rulvar/cli/functions/preflightCommand.md) | rulvar preflight (the experiment-review P2.2; grammar in grammar.ts): the effective-config linter and dry-run estimator. Loads the SAME config, module, and run-profile merge `rulvar run` would assemble, but constructs no engine, opens no store, and dispatches nothing: the report is computed by preflightEstimate over options alone, so the command cannot pay for a single provider token by construction. The declared spawn wave comes from the `preflight` export of the config or workflow module (module wins), and --spawns JSON overrides it from the command line. --json prints the machine-readable report. Exit 1 when any finding has severity 'error' (the linter contract: green preflight means the run can at least start), 0 otherwise. |
 | [processIo](/api/@rulvar/cli/functions/processIo.md) | The process-backed io the bin entry uses. |
 | [renderEventLine](/api/@rulvar/cli/functions/renderEventLine.md) | Renders one event to a line, or undefined for silent event types. The composed line is sanitized so an untrusted provider/tool/log string cannot inject a control sequence or a second physical line (v1.21.0 review P2-1). |
 | [reportOutcome](/api/@rulvar/cli/functions/reportOutcome.md) | Renders the settled outcome; returns the process exit code. Error messages, suspension keys, model refs, and phase names originate from providers, tools, and workflow authors, so each is sanitized before it reaches a terminal line, matching the TUI renderer (v1.24.1 review P2-1). Values print as JSON, which escapes control bytes on its own. |

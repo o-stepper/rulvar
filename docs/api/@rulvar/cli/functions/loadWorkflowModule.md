@@ -10,7 +10,7 @@
 function loadWorkflowModule(file, cwd): Promise<LoadedWorkflowModule>;
 ```
 
-Defined in: [packages/cli/src/config.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/config.ts#L143)
+Defined in: [packages/cli/src/config.ts:160](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/config.ts#L160)
 
 Imports a workflow module given on the command line.
 

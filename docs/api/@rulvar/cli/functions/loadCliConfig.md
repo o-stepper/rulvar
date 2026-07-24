@@ -10,7 +10,7 @@
 function loadCliConfig(cwd): Promise<CliConfig>;
 ```
 
-Defined in: [packages/cli/src/config.ts:114](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/config.ts#L114)
+Defined in: [packages/cli/src/config.ts:129](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/config.ts#L129)
 
 Loads `rulvar.config.mjs`/`.js` from cwd; absent config is fine.
 

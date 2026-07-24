@@ -16,6 +16,7 @@ export {
   runsLsCommand,
   inspectCommand,
   invoiceCommand,
+  preflightCommand,
   type CommandContext,
 } from './commands.js';
 export {
@@ -25,6 +26,7 @@ export {
   type CliConfig,
   type KbSweepCliConfig,
   type LoadedWorkflowModule,
+  type PreflightDeclaration,
 } from './config.js';
 export { assembleEngine, DEFAULT_STORE_DIR, type AssembledCli } from './engine-assembly.js';
 export { driveRun, reportOutcome, strictExitCode } from './drive.js';

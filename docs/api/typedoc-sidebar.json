@@ -211,6 +211,16 @@
         ]
       },
       {
+        "text": "Type Aliases",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "PreflightDeclaration",
+            "link": "/api/@rulvar/cli/type-aliases/PreflightDeclaration.md"
+          }
+        ]
+      },
+      {
         "text": "Variables",
         "collapsed": true,
         "items": [
@@ -275,6 +285,10 @@
           {
             "text": "looksLikeFile",
             "link": "/api/@rulvar/cli/functions/looksLikeFile.md"
+          },
+          {
+            "text": "preflightCommand",
+            "link": "/api/@rulvar/cli/functions/preflightCommand.md"
           },
           {
             "text": "processIo",
@@ -1143,6 +1157,38 @@
           {
             "text": "PipelineOpts",
             "link": "/api/@rulvar/core/interfaces/PipelineOpts.md"
+          },
+          {
+            "text": "PreflightAdmissionRow",
+            "link": "/api/@rulvar/core/interfaces/PreflightAdmissionRow.md"
+          },
+          {
+            "text": "PreflightFinding",
+            "link": "/api/@rulvar/core/interfaces/PreflightFinding.md"
+          },
+          {
+            "text": "PreflightInput",
+            "link": "/api/@rulvar/core/interfaces/PreflightInput.md"
+          },
+          {
+            "text": "PreflightOrchestratorSpec",
+            "link": "/api/@rulvar/core/interfaces/PreflightOrchestratorSpec.md"
+          },
+          {
+            "text": "PreflightReport",
+            "link": "/api/@rulvar/core/interfaces/PreflightReport.md"
+          },
+          {
+            "text": "PreflightSpawnReport",
+            "link": "/api/@rulvar/core/interfaces/PreflightSpawnReport.md"
+          },
+          {
+            "text": "PreflightSpawnSpec",
+            "link": "/api/@rulvar/core/interfaces/PreflightSpawnSpec.md"
+          },
+          {
+            "text": "PreflightToolCeiling",
+            "link": "/api/@rulvar/core/interfaces/PreflightToolCeiling.md"
           },
           {
             "text": "PricedUsage",
@@ -2837,6 +2883,10 @@
           {
             "text": "planNodeScope",
             "link": "/api/@rulvar/core/functions/planNodeScope.md"
+          },
+          {
+            "text": "preflightEstimate",
+            "link": "/api/@rulvar/core/functions/preflightEstimate.md"
           },
           {
             "text": "priceEntryUsage",
@@ -5351,6 +5401,38 @@
             "link": "/api/@rulvar/rulvar/interfaces/PipelineOpts.md"
           },
           {
+            "text": "PreflightAdmissionRow",
+            "link": "/api/@rulvar/rulvar/interfaces/PreflightAdmissionRow.md"
+          },
+          {
+            "text": "PreflightFinding",
+            "link": "/api/@rulvar/rulvar/interfaces/PreflightFinding.md"
+          },
+          {
+            "text": "PreflightInput",
+            "link": "/api/@rulvar/rulvar/interfaces/PreflightInput.md"
+          },
+          {
+            "text": "PreflightOrchestratorSpec",
+            "link": "/api/@rulvar/rulvar/interfaces/PreflightOrchestratorSpec.md"
+          },
+          {
+            "text": "PreflightReport",
+            "link": "/api/@rulvar/rulvar/interfaces/PreflightReport.md"
+          },
+          {
+            "text": "PreflightSpawnReport",
+            "link": "/api/@rulvar/rulvar/interfaces/PreflightSpawnReport.md"
+          },
+          {
+            "text": "PreflightSpawnSpec",
+            "link": "/api/@rulvar/rulvar/interfaces/PreflightSpawnSpec.md"
+          },
+          {
+            "text": "PreflightToolCeiling",
+            "link": "/api/@rulvar/rulvar/interfaces/PreflightToolCeiling.md"
+          },
+          {
             "text": "PricedUsage",
             "link": "/api/@rulvar/rulvar/interfaces/PricedUsage.md"
           },
@@ -7091,6 +7173,10 @@
           {
             "text": "planNodeScope",
             "link": "/api/@rulvar/rulvar/functions/planNodeScope.md"
+          },
+          {
+            "text": "preflightEstimate",
+            "link": "/api/@rulvar/rulvar/functions/preflightEstimate.md"
           },
           {
             "text": "priceEntryUsage",
