@@ -128,6 +128,7 @@ export class Replayer {
   private readonly runId: string;
   private readonly store: JournalStore;
   private readonly lease?: Lease;
+  private readonly leaseOf?: () => Lease | undefined;
   private readonly now: () => number;
   private readonly priceUsd?: (servedBy: ModelRef | undefined, usage: Usage) => number | undefined;
   private readonly onWarn?: (msg: string) => void;
@@ -163,11 +164,22 @@ export class Replayer {
      * is asserted instead of fenced (the embedded default).
      */
     lease?: Lease;
+    /**
+     * Late-bound lease lookup (P0.2): consulted at EVERY append,
+     * winning over the static `lease` when it returns one. The engine
+     * passes its segment-lease holder here, because the
+     * engine-acquired genesis lease exists only after the ownership
+     * boot, which runs after this constructor.
+     */
+    leaseOf?: () => Lease | undefined;
   }) {
     this.runId = options.runId;
     this.store = options.store;
     if (options.lease !== undefined) {
       this.lease = options.lease;
+    }
+    if (options.leaseOf !== undefined) {
+      this.leaseOf = options.leaseOf;
     }
     this.now = options.now ?? realNow;
     if (options.priceUsd !== undefined) {
@@ -617,8 +629,10 @@ export class Replayer {
     }
     // The single append site: queue-mode fencing rides here: a stale
     // lease makes the store reject and nothing becomes
-    // visible.
-    await this.store.append(this.runId, entry, this.lease);
+    // visible. The late-bound lookup wins so an engine-acquired
+    // genesis lease (P0.2) covers appends even though it exists only
+    // after this Replayer was constructed.
+    await this.store.append(this.runId, entry, this.leaseOf?.() ?? this.lease);
     this.entries.push(entry);
     if (entry.status === 'suspended') {
       this.foldInternal.registerSuspended(entry);

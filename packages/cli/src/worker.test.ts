@@ -631,4 +631,36 @@ describe('generation identity and sweep hygiene (v1.25.0 scale review)', () => {
     expect(errors).toHaveLength(2);
     await worker.stop();
   });
+
+  it('a sweep never adopts a LIVE fresh run: the genesis lease excludes it (P0.2)', async () => {
+    const store = new SqliteStore({ path: dbPath() });
+    let openGate: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      openGate = resolve;
+    });
+    const live = defineWorkflow({ name: 'live' }, async (ctx) => {
+      const first = await ctx.agent('turn one');
+      await gate;
+      const second = await ctx.agent('turn two');
+      return { first: String(first).length, second: String(second).length };
+    }) as unknown as Workflow<never, unknown>;
+    const engineA = makeEngine(store, { live });
+    const workerEngine = makeEngine(store, { live });
+    const worker = createWorker(workerEngine, { store });
+    const handle = engineA.run(live as unknown as Workflow<unknown, unknown>, undefined);
+    await untilMeta(store, handle.runId, 'running');
+    // Before the genesis ownership protocol this sweep ADOPTED the live
+    // run (its meta says running, nothing held its lease), redispatched
+    // the in-flight turn, and raced the journal from a stale tail. Now
+    // the fresh segment holds the lease from its own boot, so the
+    // sweep's acquire rejects and the run is skipped, not adopted.
+    expect(await worker.sweep()).toBe(0);
+    openGate();
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    // Settle released the genesis lease: terminal meta, nothing for a
+    // later sweep to pick up either.
+    expect(await worker.sweep()).toBe(0);
+    await worker.stop();
+  });
 });

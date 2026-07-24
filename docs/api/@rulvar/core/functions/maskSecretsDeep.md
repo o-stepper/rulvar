@@ -10,7 +10,7 @@
 function maskSecretsDeep<T>(value): T;
 ```
 
-Defined in: [packages/core/src/l0/serialization.ts:189](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L189)
+Defined in: [packages/core/src/l0/serialization.ts:196](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L196)
 
 Deep-masks every string value in a JSON tree; non-strings pass
 through. Returns the input identity when nothing matched, so the

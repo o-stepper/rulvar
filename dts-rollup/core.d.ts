@@ -2652,6 +2652,7 @@ declare class Replayer {
   private readonly runId;
   private readonly store;
   private readonly lease?;
+  private readonly leaseOf?;
   private readonly now;
   private readonly priceUsd?;
   private readonly onWarn?;
@@ -2683,6 +2684,14 @@ declare class Replayer {
     * is asserted instead of fenced (the embedded default).
     */
     lease?: Lease;
+    /**
+    * Late-bound lease lookup (P0.2): consulted at EVERY append,
+    * winning over the static `lease` when it returns one. The engine
+    * passes its segment-lease holder here, because the
+    * engine-acquired genesis lease exists only after the ownership
+    * boot, which runs after this constructor.
+    */
+    leaseOf?: () => Lease | undefined;
   });
   /**
   * Forward-matches one live call against the prior journal. Fresh
@@ -5682,6 +5691,25 @@ interface CreateEngineOptions {
   security?: {
     argsHashSalt?: string;
   };
+  /**
+  * The genesis ownership protocol (P0.2): over a journal store with
+  * the lease capability, a run or resume segment that was NOT handed
+  * a lease acquires its own before its first durable mutation, renews
+  * it at ttl/3 exactly like a queue worker, and releases it at
+  * settle. Fresh start, in-process resume, and worker takeover then
+  * share ONE owner/lease contract: at most one live driver per run
+  * across processes, a second driver's acquire rejects with the typed
+  * LeaseHeldError before any write or provider dispatch, and a
+  * crashed owner's lease expires after the store ttl so a worker
+  * sweep recovers the run. Default 'auto'. 'none' restores the
+  * pre-1.59.4 behavior (no engine-acquired leases) for hosts that
+  * coordinate ownership entirely outside the engine; a lease passed
+  * via RunOptions.lease or ResumeOptions.lease always wins over both
+  * modes (the caller owns acquire, renew, and release). Stores
+  * without the lease capability are unaffected: the embedded
+  * single-process default keeps the single-writer precondition.
+  */
+  ownership?: "auto" | "none";
 }
 interface RunOptions {
   /** Explicit id; otherwise the engine mints a ULID. */
@@ -5713,6 +5741,19 @@ interface RunOptions {
   tags?: string[];
   /** Host-initiated cancellation. */
   signal?: AbortSignal;
+  /**
+  * A lease the caller already holds for this run (the genesis side of
+  * the ResumeOptions.lease contract): the engine carries it on EVERY
+  * durable mutation of the fresh segment (every journal append, every
+  * putMeta, every transcript blob write) and never acquires, renews,
+  * or releases it itself; lifecycle stays with the caller. Passing it
+  * disables the engine's own ownership acquisition for this run
+  * regardless of the `ownership` mode. Hosts that admit runs through
+  * an external queue acquire the lease at admission time and hand it
+  * here, so admission and the first dispatch are covered by ONE
+  * fencing epoch.
+  */
+  lease?: Lease;
 }
 /** Resume-time hit/miss/orphan accounting. */
 interface ResumePreview extends ResumeReport {
@@ -7334,8 +7375,12 @@ interface RunInternals {
   * worktree patches) exactly as the Replayer threads it into every
   * journal append, so a store declaring fencedWrites refuses a
   * superseded segment's blob overwrites (fenced run state RFC, F2).
+  * The engine binds this as a live getter over its segment-lease
+  * holder (P0.2), so the union with undefined is explicit: before
+  * the ownership boot (and on non-leasable stores) it reads
+  * undefined.
   */
-  lease?: Lease;
+  lease?: Lease | undefined;
   adapters: ReadonlyMap<string, ProviderAdapter>;
   defaults: {
     routing?: Partial<Record<InvocationRole, ModelSpec>>;

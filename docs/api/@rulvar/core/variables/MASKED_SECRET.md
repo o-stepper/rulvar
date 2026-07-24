@@ -10,6 +10,6 @@
 const MASKED_SECRET: "[masked-secret]" = '[masked-secret]';
 ```
 
-Defined in: [packages/core/src/l0/serialization.ts:150](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L150)
+Defined in: [packages/core/src/l0/serialization.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L157)
 
 The replacement marker; deterministic and greppable.
