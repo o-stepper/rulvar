@@ -35,6 +35,7 @@ it never means a provider SDK autoretry, which is disabled.
 - [`ReplayPlanHashMismatch`](/api/@rulvar/rulvar/classes/ReplayPlanHashMismatch.md)
 - [`SandboxError`](/api/@rulvar/rulvar/classes/SandboxError.md)
 - [`ScriptRejected`](/api/@rulvar/rulvar/classes/ScriptRejected.md)
+- [`SettlementError`](/api/@rulvar/rulvar/classes/SettlementError.md)
 
 ## Constructors
 

@@ -43,7 +43,8 @@ export type ErrorCode =
   | 'sandbox_limit'
   | 'lease_held'
   | 'knowledge_cas'
-  | 'determinism';
+  | 'determinism'
+  | 'settlement';
 
 /** An alias for the registry type; both names are public. */
 export type RulvarErrorCode = ErrorCode;
@@ -313,6 +314,48 @@ export class LeaseHeldError extends RulvarError {
 
   constructor(message: string, opts?: { data?: Json; cause?: unknown }) {
     super(message, { retryable: true, ...opts });
+  }
+}
+
+/**
+ * The segment computed its outcome but a settlement write failed with a
+ * NON-fencing store error, so nothing durable records that the run
+ * settled. `handle.result` rejects with this instead of resolving,
+ * because a caller acting on an unrecorded outcome is exactly the split
+ * view an authoritative store exists to prevent. `stage` names the
+ * write that failed: 'run-settle' is the journal decision entry (when
+ * it fails the terminal meta write is SKIPPED, so the projection can
+ * never run ahead of the journal), 'meta' is the terminal RunMeta
+ * projection (the journal settle IS durable; only the projection is
+ * behind, the same residue a crash between the two writes leaves).
+ * Every entry the run appended before settlement is already durable,
+ * so recovery is deterministic: resume the run and replay re-settles
+ * the same outcome without a provider call, or reconcile the store
+ * with `rulvar runs audit [--repair]`. A superseded segment's fencing
+ * rejection (LeaseHeldError) is NOT this error and stays swallowed:
+ * the successor owns settlement. `data` records
+ * { runId, runStatus, stage }.
+ */
+export class SettlementError extends RulvarError {
+  readonly code = 'settlement' as const;
+  /** The settlement write that failed first. */
+  readonly stage: 'run-settle' | 'meta';
+  readonly runId: string;
+  /** The outcome status the segment computed and could not record. */
+  readonly runStatus: string;
+
+  constructor(
+    message: string,
+    opts: { stage: 'run-settle' | 'meta'; runId: string; runStatus: string; cause?: unknown },
+  ) {
+    super(message, {
+      retryable: true,
+      data: { runId: opts.runId, runStatus: opts.runStatus, stage: opts.stage },
+      cause: opts.cause,
+    });
+    this.stage = opts.stage;
+    this.runId = opts.runId;
+    this.runStatus = opts.runStatus;
   }
 }
 

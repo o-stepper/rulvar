@@ -9,7 +9,10 @@
  * - A1-A4: single-statement inserts are atomic; per-run order is the
  *   append order (rowid); payloads are opaque JSON, unknown fields pass
  *   through untouched.
- * - Fencing: the epoch is monotonic per run for the store's lifetime;
+ * - Fencing: the epoch is monotonic per runId for the store's lifetime
+ *   INCLUDING across deleteRun and recreate (the epochs row is a
+ *   tombstone deletion preserves, so a zombie lease from a deleted
+ *   incarnation can never fence green against a recreated run);
  *   an append carrying a stale or released lease rejects with the typed
  *   LeaseHeldError and the entry never becomes visible. The fence check
  *   and the guarded mutation (append's insert, renew's extension,
@@ -403,7 +406,12 @@ export class SqliteStore implements MetaLookupStore, LeasableStore {
     this.db.prepare('DELETE FROM entries WHERE run_id = ?').run(runId);
     this.db.prepare('DELETE FROM meta WHERE run_id = ?').run(runId);
     this.db.prepare('DELETE FROM leases WHERE run_id = ?').run(runId);
-    this.db.prepare('DELETE FROM epochs WHERE run_id = ?').run(runId);
+    // The epochs row SURVIVES deletion as a monotonic tombstone: a
+    // recreate of the same explicit runId must acquire a strictly
+    // higher epoch, or a zombie lease from the deleted incarnation
+    // (same runId, same stable owner identity, same restarted epoch)
+    // would fence green against the new incarnation. The tombstone
+    // holds only the runId and a counter, never run content.
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

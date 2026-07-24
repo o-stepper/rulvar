@@ -10,7 +10,7 @@
 const BOOT_BUSY_TIMEOUT_MS: 5000 = 5_000;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:71](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L71)
+Defined in: [packages/store-sqlite/src/store.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L74)
 
 Total time the constructor keeps retrying its schema bootstrap
 through SQLITE_BUSY before giving up, so concurrent multi-process

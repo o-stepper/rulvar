@@ -6,7 +6,7 @@
 
 # Interface: ResumeHandle\&lt;R\&gt;
 
-Defined in: [packages/core/src/engine/engine.ts:405](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L405)
+Defined in: [packages/core/src/engine/engine.ts:412](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L412)
 
 ## Extends
 
@@ -23,7 +23,7 @@ Defined in: [packages/core/src/engine/engine.ts:405](https://github.com/o-steppe
 | Property | Type | Description | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-events"></a> `events` | `AsyncIterable`\&lt;[`WorkflowEvent`](/api/@rulvar/core/type-aliases/WorkflowEvent.md)\&gt; | - | [`RunHandle`](/api/@rulvar/core/interfaces/RunHandle.md).[`events`](/api/@rulvar/core/interfaces/RunHandle.md#property-events) | [packages/core/src/engine/run-handle.ts:108](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L108) |
-| <a id="property-preview"></a> `preview` | `Promise`\&lt;[`ResumePreview`](/api/@rulvar/core/interfaces/ResumePreview.md)\&gt; | Resolves at settle with the replay accounting. | - | [packages/core/src/engine/engine.ts:407](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L407) |
+| <a id="property-preview"></a> `preview` | `Promise`\&lt;[`ResumePreview`](/api/@rulvar/core/interfaces/ResumePreview.md)\&gt; | Resolves at settle with the replay accounting. | - | [packages/core/src/engine/engine.ts:414](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L414) |
 | <a id="property-result"></a> `result` | `Promise`\&lt;[`RunOutcome`](/api/@rulvar/core/type-aliases/RunOutcome.md)\&lt;`R`\&gt;\&gt; | - | [`RunHandle`](/api/@rulvar/core/interfaces/RunHandle.md).[`result`](/api/@rulvar/core/interfaces/RunHandle.md#property-result) | [packages/core/src/engine/run-handle.ts:107](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L107) |
 | <a id="property-runid"></a> `runId` | `string` | - | [`RunHandle`](/api/@rulvar/core/interfaces/RunHandle.md).[`runId`](/api/@rulvar/core/interfaces/RunHandle.md#property-runid) | [packages/core/src/engine/run-handle.ts:106](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/run-handle.ts#L106) |
 

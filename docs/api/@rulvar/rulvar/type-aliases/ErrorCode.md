@@ -25,7 +25,8 @@ type ErrorCode =
   | "sandbox_limit"
   | "lease_held"
   | "knowledge_cas"
-  | "determinism";
+  | "determinism"
+  | "settlement";
 ```
 
 Defined in: `packages/core/dist/index.d.ts`

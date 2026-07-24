@@ -10,6 +10,6 @@
 const DEFAULT_LEASE_TTL_MS: 60000 = 60_000;
 ```
 
-Defined in: [packages/store-postgres/src/store.ts:67](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L67)
+Defined in: [packages/store-postgres/src/store.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/store-postgres/src/store.ts#L70)
 
 Appendix A interim reference, shared with the sqlite store.

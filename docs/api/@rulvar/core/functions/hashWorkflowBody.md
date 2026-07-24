@@ -10,7 +10,7 @@
 function hashWorkflowBody(wf): string;
 ```
 
-Defined in: [packages/core/src/engine/engine.ts:492](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L492)
+Defined in: [packages/core/src/engine/engine.ts:499](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/engine.ts#L499)
 
 Content hash of an in-process workflow body (run-to-definition binding).
 
