@@ -10,10 +10,11 @@
 function dispositionHook(
    fold, 
    registry, 
-   invalidated?): (op) => OperationDisposition;
+   invalidated?, 
+   options?): (op) => OperationDisposition;
 ```
 
-Defined in: [packages/core/src/journal/disposition.ts:194](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/disposition.ts#L194)
+Defined in: [packages/core/src/journal/disposition.ts:216](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/disposition.ts#L216)
 
 Adapts the predicate to the matcher's disposition hook: two-phase
 operations dispatch on their terminal, single-phase on themselves.
@@ -25,6 +26,8 @@ operations dispatch on their terminal, single-phase on themselves.
 | `fold` | [`AbandonFold`](/api/@rulvar/core/interfaces/AbandonFold.md) |
 | `registry` | [`DeriverRegistry`](/api/@rulvar/core/type-aliases/DeriverRegistry.md) |
 | `invalidated?` | `ReadonlySet`\&lt;`number`\&gt; |
+| `options?` | \{ `runSettledOk?`: `boolean`; \} |
+| `options.runSettledOk?` | `boolean` |
 
 ## Returns
 

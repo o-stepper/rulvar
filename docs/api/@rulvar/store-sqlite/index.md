@@ -35,7 +35,7 @@ pnpm add @rulvar/core @rulvar/store-sqlite
 
 | Class | Description |
 | ------ | ------ |
-| [SqliteQuotaLimiter](/api/@rulvar/store-sqlite/classes/SqliteQuotaLimiter.md) | The shared rate/quota limiter seam; see the module contract above. |
+| [SqliteQuotaLimiter](/api/@rulvar/store-sqlite/classes/SqliteQuotaLimiter.md) | The cross-process reference implementation of the core QuotaLimiter SPI: engine processes pointing instances at ONE database file (this store's file or its own) enforce one global provider quota. Admission consumes the window counters inside a single `BEGIN IMMEDIATE` transaction, so two processes can never both take the last slot; reservations are rows, so `reconcile` settles a grant from any process; both tables are lazily pruned to the current and previous accounting window. The rule model, the fixed epoch-aligned one-minute windows, and the admission decision are the core's own exported functions, so this limiter and `memoryQuotaLimiter` agree on every verdict. The `rules` MUST be identical across coordinating processes (buckets key on rule content). Runtime contention queues briefly on the connection's busy_timeout (a hot limiter is EXPECTED to serialize); a call still busy past the bound throws, and the engine's `onLimiterError` policy decides what that means. Call `close()` when done. |
 | [SqliteStore](/api/@rulvar/store-sqlite/classes/SqliteStore.md) | @rulvar/store-sqlite: SqliteStore implementing JournalStore and LeasableStore with fencing epochs over the builtin node:sqlite driver; the reference implementation for community stores (M5-T02). Requires a Node.js with node:sqlite available (unflagged in the 22.13+/23.4+ lines). |
 
 ## Interfaces

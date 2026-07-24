@@ -8,6 +8,7 @@ import { createEngine, hashRunArgs } from './engine.js';
 import { defineWorkflow } from './ctx.js';
 import { scriptedAdapter } from './test-harness.js';
 import { JsonlFileStore } from '../stores/jsonl.js';
+import { tool } from '../tools/tool.js';
 import { Replayer } from '../journal/replayer.js';
 
 const approvalWf = defineWorkflow({ name: 'hitl' }, async (ctx) => {
@@ -527,5 +528,105 @@ describe('RunMeta.genesis generation identity (v1.25.0 scale review)', () => {
     const meta3 = await store.getMeta('GEN1');
     expect(typeof meta3?.genesis).toBe('string');
     expect(meta3?.genesis).not.toBe(meta1?.genesis);
+  });
+});
+
+describe('resume of a run that already settled ok replays limit children (the RV-210 finding)', () => {
+  const digTool = () =>
+    tool({
+      name: 'dig',
+      description: 'digs',
+      parameters: { type: 'object', properties: {} },
+      execute: () => Promise.resolve('dug'),
+    });
+  const limitWf = defineWorkflow({ name: 'limit-then-ok' }, async (ctx) => {
+    // The agent always answers with a tool call and maxTurns is 1, so
+    // the child ends as a PLAIN cap-expiry limit (no engine-stamped
+    // memoizeOutcome); the workflow absorbs it and the run settles ok.
+    const child = await ctx.agent('keep digging', {
+      tools: [digTool()],
+      limits: { maxTurns: 1 },
+      result: 'full',
+    });
+    return { childStatus: child.status };
+  });
+
+  it('the plain limit child is NOT re-dispatched live on resume of the completed run', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-limit-replay-'));
+    const store = new JsonlFileStore({ dir });
+    const firstAdapter = scriptedAdapter(() => ({ toolCall: { name: 'dig', args: {} } }));
+    const first = createEngine({
+      adapters: [firstAdapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const firstOutcome = await first.run(limitWf, undefined, { runId: 'RUNLIMIT' }).result;
+    expect(firstOutcome.status).toBe('ok');
+    expect(firstOutcome.value).toEqual({ childStatus: 'limit' });
+    expect(firstAdapter.calls.length).toBe(1);
+
+    // A second process resumes the COMPLETED run: this is pure replay
+    // territory (the settled output is journaled), so the limit child
+    // must NOT be re-dispatched and re-paid. Before the fix the
+    // memoize-limit disposition reran the unstamped limit entry and
+    // this adapter got a live call.
+    const secondAdapter = scriptedAdapter(() => ({ toolCall: { name: 'dig', args: {} } }));
+    const second = createEngine({
+      adapters: [secondAdapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const resumed = await second.resume('RUNLIMIT', limitWf).result;
+    expect(resumed.status).toBe('ok');
+    expect(resumed.value).toEqual({ childStatus: 'limit' });
+    expect(secondAdapter.calls.length).toBe(0);
+  });
+
+  it('a run that never settled keeps the retry semantics: the limit child reruns live', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-limit-retry-'));
+    const store = new JsonlFileStore({ dir });
+    const crashWf = defineWorkflow({ name: 'limit-then-crash' }, async (ctx) => {
+      const child = await ctx.agent('keep digging', {
+        tools: [digTool()],
+        limits: { maxTurns: 1 },
+        result: 'full',
+      });
+      // Simulate the process dying after the child settled but before
+      // the run could: suspend forever so no run settle is journaled.
+      await ctx.awaitExternal<{ go: boolean }>('never', {
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['go'],
+          properties: { go: { type: 'boolean' } },
+        },
+      });
+      return { childStatus: child.status };
+    });
+    const firstAdapter = scriptedAdapter(() => ({ toolCall: { name: 'dig', args: {} } }));
+    const first = createEngine({
+      adapters: [firstAdapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const firstOutcome = await first.run(crashWf, undefined, { runId: 'RUNCRASH' }).result;
+    expect(firstOutcome.status).toBe('suspended');
+    expect(firstAdapter.calls.length).toBe(1);
+
+    // The run never settled: a resume is a RETRY of unfinished work,
+    // and the unstamped limit child gets its second chance live.
+    const secondAdapter = scriptedAdapter(() => ({ text: 'answered this time' }));
+    const second = createEngine({
+      adapters: [secondAdapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' } },
+    });
+    const handle = second.resume('RUNCRASH', crashWf);
+    // Give the resumed segment a beat to re-dispatch, then cancel: the
+    // assertion is only that the limit child went LIVE again.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await handle.cancel('probe done');
+    await handle.result;
+    expect(secondAdapter.calls.length).toBeGreaterThan(0);
   });
 });

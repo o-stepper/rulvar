@@ -13,7 +13,7 @@ function replayDisposition(
    options?): OperationDisposition;
 ```
 
-Defined in: [packages/core/src/journal/disposition.ts:164](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/disposition.ts#L164)
+Defined in: [packages/core/src/journal/disposition.ts:179](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/disposition.ts#L179)
 
 The single canonical predicate, dispatched on the entry's own
 hashVersion (compatibility lemma: on the v1 domain the tables
@@ -24,14 +24,15 @@ skipped.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entry` | [`JournalEntry`](/api/@rulvar/core/type-aliases/JournalEntry.md) |
-| `fold` | [`AbandonFold`](/api/@rulvar/core/interfaces/AbandonFold.md) |
-| `options?` | \{ `invalidated?`: `ReadonlySet`\&lt;`number`\&gt;; `registry?`: [`DeriverRegistry`](/api/@rulvar/core/type-aliases/DeriverRegistry.md); `terminal?`: [`JournalEntry`](/api/@rulvar/core/type-aliases/JournalEntry.md); \} |
-| `options.invalidated?` | `ReadonlySet`\&lt;`number`\&gt; |
-| `options.registry?` | [`DeriverRegistry`](/api/@rulvar/core/type-aliases/DeriverRegistry.md) |
-| `options.terminal?` | [`JournalEntry`](/api/@rulvar/core/type-aliases/JournalEntry.md) |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `entry` | [`JournalEntry`](/api/@rulvar/core/type-aliases/JournalEntry.md) | - |
+| `fold` | [`AbandonFold`](/api/@rulvar/core/interfaces/AbandonFold.md) | - |
+| `options?` | \{ `invalidated?`: `ReadonlySet`\&lt;`number`\&gt;; `registry?`: [`DeriverRegistry`](/api/@rulvar/core/type-aliases/DeriverRegistry.md); `runSettledOk?`: `boolean`; `terminal?`: [`JournalEntry`](/api/@rulvar/core/type-aliases/JournalEntry.md); \} | - |
+| `options.invalidated?` | `ReadonlySet`\&lt;`number`\&gt; | - |
+| `options.registry?` | [`DeriverRegistry`](/api/@rulvar/core/type-aliases/DeriverRegistry.md) | - |
+| `options.runSettledOk?` | `boolean` | True when the loaded journal carries a run settle with runStatus 'ok' (the resume is a pure replay of a finished run): unstamped limit entries then replay instead of re-running live. Terminal settles other than ok keep the retry semantics. |
+| `options.terminal?` | [`JournalEntry`](/api/@rulvar/core/type-aliases/JournalEntry.md) | - |
 
 ## Returns
 

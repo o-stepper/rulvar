@@ -6,9 +6,24 @@
 
 # Class: SqliteQuotaLimiter
 
-Defined in: [packages/store-sqlite/src/quota.ts:99](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L99)
+Defined in: [packages/store-sqlite/src/quota.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L117)
 
-The shared rate/quota limiter seam; see the module contract above.
+The cross-process reference implementation of the core QuotaLimiter
+SPI: engine processes pointing instances at ONE database file (this
+store's file or its own) enforce one global provider quota.
+Admission consumes the window counters inside a single
+`BEGIN IMMEDIATE` transaction, so two processes can never both take
+the last slot; reservations are rows, so `reconcile` settles a
+grant from any process; both tables are lazily pruned to the
+current and previous accounting window. The rule model, the fixed
+epoch-aligned one-minute windows, and the admission decision are
+the core's own exported functions, so this limiter and
+`memoryQuotaLimiter` agree on every verdict. The `rules` MUST be
+identical across coordinating processes (buckets key on rule
+content). Runtime contention queues briefly on the connection's
+busy_timeout (a hot limiter is EXPECTED to serialize); a call still
+busy past the bound throws, and the engine's `onLimiterError`
+policy decides what that means. Call `close()` when done.
 
 ## Implements
 
@@ -22,7 +37,7 @@ The shared rate/quota limiter seam; see the module contract above.
 new SqliteQuotaLimiter(options): SqliteQuotaLimiter;
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:104](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L104)
+Defined in: [packages/store-sqlite/src/quota.ts:122](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L122)
 
 #### Parameters
 
@@ -42,7 +57,7 @@ Defined in: [packages/store-sqlite/src/quota.ts:104](https://github.com/o-steppe
 close(): void;
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:261](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L261)
+Defined in: [packages/store-sqlite/src/quota.ts:279](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L279)
 
 #### Returns
 
@@ -56,7 +71,7 @@ Defined in: [packages/store-sqlite/src/quota.ts:261](https://github.com/o-steppe
 reconcile(reservationId, usage): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:206](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L206)
+Defined in: [packages/store-sqlite/src/quota.ts:224](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L224)
 
 #### Parameters
 
@@ -81,7 +96,7 @@ Defined in: [packages/store-sqlite/src/quota.ts:206](https://github.com/o-steppe
 reserve(request): Promise<QuotaDecision>;
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:148](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L148)
+Defined in: [packages/store-sqlite/src/quota.ts:166](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L166)
 
 #### Parameters
 
@@ -110,7 +125,7 @@ snapshot(): {
 }[];
 ```
 
-Defined in: [packages/store-sqlite/src/quota.ts:243](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L243)
+Defined in: [packages/store-sqlite/src/quota.ts:261](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/quota.ts#L261)
 
 Current-window counters per rule, for telemetry and referees.
 

@@ -2280,12 +2280,21 @@ declare function replayDisposition(entry: JournalEntry, fold: AbandonFold, optio
   registry?: DeriverRegistry;
   terminal?: JournalEntry;
   invalidated?: ReadonlySet<number>;
+  /**
+  * True when the loaded journal carries a run settle with runStatus
+  * 'ok' (the resume is a pure replay of a finished run): unstamped
+  * limit entries then replay instead of re-running live. Terminal
+  * settles other than ok keep the retry semantics.
+  */
+  runSettledOk?: boolean;
 }): ReplayDisposition;
 /**
 * Adapts the predicate to the matcher's disposition hook: two-phase
 * operations dispatch on their terminal, single-phase on themselves.
 */
-declare function dispositionHook(fold: AbandonFold, registry: DeriverRegistry, invalidated?: ReadonlySet<number>): (op: JournalOperation) => ReplayDisposition;
+declare function dispositionHook(fold: AbandonFold, registry: DeriverRegistry, invalidated?: ReadonlySet<number>, options?: {
+  runSettledOk?: boolean;
+}): (op: JournalOperation) => ReplayDisposition;
 //#endregion
 //#region src/journal/resolution.d.ts
 type ResolutionAttempt = {

@@ -10,7 +10,8 @@
 function dispositionHook(
    fold, 
    registry, 
-   invalidated?): (op) => OperationDisposition;
+   invalidated?, 
+   options?): (op) => OperationDisposition;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -25,6 +26,8 @@ operations dispatch on their terminal, single-phase on themselves.
 | `fold` | [`AbandonFold`](/api/@rulvar/rulvar/interfaces/AbandonFold.md) |
 | `registry` | [`DeriverRegistry`](/api/@rulvar/rulvar/type-aliases/DeriverRegistry.md) |
 | `invalidated?` | `ReadonlySet`\&lt;`number`\&gt; |
+| `options?` | \{ `runSettledOk?`: `boolean`; \} |
+| `options.runSettledOk?` | `boolean` |
 
 ## Returns
 

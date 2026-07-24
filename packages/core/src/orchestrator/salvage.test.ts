@@ -323,14 +323,10 @@ describe('partial-child salvage (RV-210 close-out)', () => {
     expect(resumed.status).toBe('ok');
     expect(resumed.value).toEqual(first.value);
     // The envelope (verdict, salvage list, completion) rolls forward
-    // from the ONE journaled acceptance decision: no orchestrator turn
-    // and no ok child re-runs. The stuck child alone re-dispatches,
-    // because a plain cap-expiry limit entry is 'rerun' under the
-    // memoize-limit disposition (pre-existing engine posture, verified
-    // unchanged on main; a first-class limit outcome that rolls forward
-    // is candidate backlog, not this slice).
-    expect(replayAdapter.calls.map((req) => agentTypeOf(req)).filter((t) => t !== 'stuck')).toEqual(
-      [],
-    );
+    // from the ONE journaled acceptance decision, and since the run
+    // already SETTLED ok, the plain-limit stuck child replays too
+    // instead of re-dispatching live (the RV-210 cycle finding, fixed):
+    // a completed run resumes with ZERO adapter calls.
+    expect(replayAdapter.calls).toEqual([]);
   });
 });
