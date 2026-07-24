@@ -25,11 +25,24 @@ import type { JournalEntry } from './entries.js';
 import type { JournalStore, LeasableStore, Lease, MetaLookupStore } from './spi/store.js';
 import type { TranscriptStore } from './spi/transcript.js';
 
+/**
+ * The run identity the store knows at the append/load boundary but a
+ * bare JournalEntry does not carry (the runId lives in the store key,
+ * not the entry). Passed to the journal hook so a hook can bind stored
+ * bytes to the run they belong to (RV-217 follow-up: the envelope
+ * encryption uses it as associated data, so a ciphertext cannot be
+ * transplanted into another run). Optional in the type so a host hook
+ * written against the original single-argument shape stays valid.
+ */
+export interface JournalSerializationContext {
+  runId: string;
+}
+
 export interface JournalSerializationHook {
   /** Applied at append; kernel ordering/identity fields MUST pass through. */
-  toStored(e: JournalEntry): JournalEntry;
+  toStored(e: JournalEntry, ctx?: JournalSerializationContext): JournalEntry;
   /** Applied at load; MUST be symmetric with toStored for replay to hold. */
-  fromStored(e: JournalEntry): JournalEntry;
+  fromStored(e: JournalEntry, ctx?: JournalSerializationContext): JournalEntry;
 }
 
 export interface TranscriptSerializationHook {
@@ -83,13 +96,13 @@ export function wrapJournalStore(
 ): JournalStore {
   const wrapped: JournalStore & Partial<LeasableStore> & Partial<MetaLookupStore> = {
     append: async (runId: string, e: JournalEntry, lease?: Lease) => {
-      const stored = hook.toStored(e);
+      const stored = hook.toStored(e, { runId });
       assertPinnedFields(e, stored, 'journal.toStored');
       await inner.append(runId, stored, lease);
     },
     load: async (runId: string) =>
       (await inner.load(runId)).map((stored) => {
-        const loaded = hook.fromStored(stored);
+        const loaded = hook.fromStored(stored, { runId });
         assertPinnedFields(stored, loaded, 'journal.fromStored');
         return loaded;
       }),

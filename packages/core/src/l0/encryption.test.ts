@@ -4,6 +4,7 @@
  * historical keys, tenant-partitioned providers, and fail-closed
  * plaintext reads.
  */
+import { createCipheriv, randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import { ConfigError } from './errors.js';
@@ -80,6 +81,78 @@ describe('createEnvelopeEncryption', () => {
       value: { [JOURNAL_ENVELOPE_MARKER]: { ...env, data: bytes.toString('base64') } },
     };
     expect(() => enc.hook.journal!.fromStored(tampered)).toThrow(/authentication failed/);
+  });
+
+  it('writes the v2 identity-binding envelope schema', async () => {
+    const enc = await createEnvelopeEncryption({ provider: localKeyProvider({ secret: SECRET }) });
+    const stored = enc.hook.journal!.toStored(entry(5), { runId: 'RUN-A' });
+    const env = (stored.value as Record<string, { v: number }>)[JOURNAL_ENVELOPE_MARKER];
+    expect(env.v).toBe(2);
+  });
+
+  it('binds the ciphertext to its runId: a transplant into another run fails typed', async () => {
+    const enc = await createEnvelopeEncryption({ provider: localKeyProvider({ secret: SECRET }) });
+    const original = entry(4);
+    const stored = enc.hook.journal!.toStored(original, { runId: 'RUN-A' });
+    // The same wrapped key, the same entry identity, a DIFFERENT run:
+    // the runId is associated data, so authentication fails.
+    expect(() => enc.hook.journal!.fromStored(stored, { runId: 'RUN-B' })).toThrow(
+      /associated data/,
+    );
+    // The writing run reads it back cleanly.
+    expect(enc.hook.journal!.fromStored(stored, { runId: 'RUN-A' })).toEqual(original);
+  });
+
+  it('binds every clear identity field: a flipped status/scope/ordinal/kind fails typed', async () => {
+    const enc = await createEnvelopeEncryption({ provider: localKeyProvider({ secret: SECRET }) });
+    const stored = enc.hook.journal!.toStored(entry(6), { runId: 'RUN-A' });
+    const ctx = { runId: 'RUN-A' };
+    // Each clear field is part of the AAD: rewriting it on disk and
+    // reading back fails, so a stored entry cannot be silently retyped.
+    for (const over of [
+      { status: 'error' as const },
+      { scope: 'agent:evil' },
+      { ordinal: 9 },
+      { kind: 'decision' as const },
+      { hashVersion: 1 as const },
+    ]) {
+      const forged: JournalEntry = { ...stored, ...over };
+      expect(() => enc.hook.journal!.fromStored(forged, ctx)).toThrow(/associated data/);
+    }
+  });
+
+  it('reads a legacy v1 envelope (migration): the seq:key schema still decrypts', async () => {
+    const provider = localKeyProvider({ secret: SECRET });
+    // Hand-build a v1 envelope exactly as pre-upgrade writes did: the
+    // OLD `journal:seq:key` AAD, the provider's own data key.
+    const { plaintext, wrapped } = await provider.generateDataKey();
+    const original = entry(11);
+    const { value: _dropped, ...clear } = original;
+    const rest = { value: original.value, usage: original.usage };
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', Buffer.from(plaintext), iv);
+    cipher.setAAD(Buffer.from(`journal:${String(original.seq)}:${original.key}`, 'utf8'));
+    const ct = Buffer.concat([cipher.update(Buffer.from(JSON.stringify(rest))), cipher.final()]);
+    const v1Envelope = {
+      v: 1 as const,
+      keyId: provider.keyId,
+      wrapped: Buffer.from(wrapped).toString('base64'),
+      iv: iv.toString('base64'),
+      tag: cipher.getAuthTag().toString('base64'),
+      data: ct.toString('base64'),
+    };
+    const storedV1: JournalEntry = {
+      ...(clear as JournalEntry),
+      value: { [JOURNAL_ENVELOPE_MARKER]: v1Envelope },
+    };
+
+    // A fresh session that registers the wrapped key reads the v1
+    // envelope back, under any runId (v1 never bound the run).
+    const enc = await createEnvelopeEncryption({
+      provider,
+      historicalWrappedKeys: [wrapped],
+    });
+    expect(enc.hook.journal!.fromStored(storedV1, { runId: 'whatever' })).toEqual(original);
   });
 
   it('routes decryption through the key ring: historical wrapped keys read, unknown ones fail typed', async () => {

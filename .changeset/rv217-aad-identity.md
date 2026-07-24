@@ -1,0 +1,5 @@
+---
+'@rulvar/core': patch
+---
+
+Bind envelope-encrypted journal ciphertext to the full entry identity (RV-217 follow-up from the external experiment review). The v1 associated data covered only `seq` and `key`, so a ciphertext could be transplanted between two runs of the same tenant wherever `(seq, key)` matched, and a stored entry's clear identity fields (`status`, `scope`, `ordinal`, `kind`) could be rewritten on disk without failing authentication. The new v2 envelope schema authenticates over the `runId` plus every immutable clear field (`hashVersion`, `seq`, `ref`, `scope`, `key`, `ordinal`, `kind`, `status`); a transplant into another run or entry, or a rewritten clear field, now fails typed instead of decrypting. The journal serialization hook gains an optional `JournalSerializationContext` carrying the `runId` (the wrapping store always supplies it; a host hook written against the original single-argument shape stays valid). Writes always emit v2; pre-upgrade v1 envelopes still decrypt on read, so an encrypting store upgrades in place with no migration step. Transcript blobs were already ref-bound (the ref embeds the runId) and are unchanged.

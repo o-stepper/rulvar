@@ -22,10 +22,14 @@
  *   every envelope, so decrypt needs only the provider registration,
  *   not a live KMS on the read path.
  * - Payload encryption is AES-256-GCM with a random IV per write and
- *   the entry identity as ASSOCIATED DATA (`seq` and `key` for journal
- *   entries, the ref for transcript blobs), so a ciphertext moved to a
- *   different entry fails authentication instead of decrypting into
- *   the wrong place.
+ *   the FULL entry identity as ASSOCIATED DATA: for journal entries the
+ *   runId plus every immutable clear field (hashVersion, seq, ref,
+ *   scope, key, ordinal, kind, status) under the v2 schema; for
+ *   transcript blobs the ref (which itself embeds the runId). A
+ *   ciphertext moved to another run, another entry, or a stored entry
+ *   whose clear identity was rewritten fails authentication instead of
+ *   decrypting into the wrong place. Pre-upgrade v1 journal envelopes
+ *   (seq and key only) still decrypt on read; writes always emit v2.
  * - Journal entries keep the kernel ordering/identity fields plus the
  *   operational timestamps and spanId in plaintext (stores index and
  *   humans operate on them; none carry payload content); EVERYTHING
@@ -50,6 +54,7 @@ import { ConfigError } from './errors.js';
 import type { JournalEntry } from './entries.js';
 import type { Bytes, Json } from './json.js';
 import type {
+  JournalSerializationContext,
   JournalSerializationHook,
   SerializationHook,
   TranscriptSerializationHook,
@@ -171,12 +176,52 @@ const CLEAR_FIELDS = [
 type ClearField = (typeof CLEAR_FIELDS)[number];
 
 interface JournalEnvelope {
-  v: 1;
+  /**
+   * The associated-data schema of THIS envelope. v1 bound only
+   * `journal:seq:key`; v2 (RV-217 follow-up) binds the full entry
+   * identity, the runId first among it, so a ciphertext cannot be
+   * transplanted into another run or another entry. Writes always emit
+   * v2; reads honor the stored version, so pre-upgrade v1 envelopes on
+   * disk still decrypt (versioned migration, no rewrite).
+   */
+  v: 1 | 2;
   keyId: string;
   wrapped: string;
   iv: string;
   tag: string;
   data: string;
+}
+
+/**
+ * The v2 journal associated data: the full immutable entry identity,
+ * runId included, as a deterministic array of primitives. Tampering
+ * with any clear identity field (a moved run, a flipped status, a
+ * rewritten scope/ordinal/kind) changes the AAD and fails
+ * authentication. Only the entry's own clear fields and the runId feed
+ * it, so read rebuilds the exact AAD write used.
+ */
+function journalAadV2(runId: string, e: JournalEntry): Buffer {
+  return Buffer.from(
+    JSON.stringify([
+      'rulvar-journal-aad',
+      2,
+      runId,
+      e.hashVersion,
+      e.seq,
+      e.ref ?? null,
+      e.scope,
+      e.key,
+      e.ordinal,
+      e.kind,
+      e.status,
+    ]),
+    'utf8',
+  );
+}
+
+/** The v1 journal associated data (seq and key only); read-only, for migration. */
+function journalAadV1(e: JournalEntry): Buffer {
+  return Buffer.from(`journal:${String(e.seq)}:${e.key}`, 'utf8');
 }
 
 export interface EnvelopeEncryption {
@@ -226,7 +271,7 @@ function isEnvelope(value: unknown): value is { [JOURNAL_ENVELOPE_MARKER]: Journ
   return (
     typeof env === 'object' &&
     env !== null &&
-    env.v === 1 &&
+    (env.v === 1 || env.v === 2) &&
     typeof env.keyId === 'string' &&
     typeof env.wrapped === 'string' &&
     typeof env.iv === 'string' &&
@@ -308,7 +353,9 @@ export async function createEnvelopeEncryption(
     cipher.setAAD(aad);
     const ct = Buffer.concat([cipher.update(plaintext), cipher.final()]);
     return {
-      v: 1,
+      // Writes always emit the v2 identity-binding schema; the version
+      // is stamped so a read knows which AAD to rebuild.
+      v: 2,
       keyId,
       wrapped: currentWrappedB64,
       iv: iv.toString('base64'),
@@ -332,7 +379,7 @@ export async function createEnvelopeEncryption(
   };
 
   const journal: JournalSerializationHook = {
-    toStored(e: JournalEntry): JournalEntry {
+    toStored(e: JournalEntry, ctx?: JournalSerializationContext): JournalEntry {
       const clear: Partial<Record<ClearField, unknown>> = {};
       const rest: Record<string, unknown> = {};
       for (const [field, fieldValue] of Object.entries(e)) {
@@ -342,14 +389,17 @@ export async function createEnvelopeEncryption(
           rest[field] = fieldValue;
         }
       }
-      const aad = Buffer.from(`journal:${String(e.seq)}:${e.key}`, 'utf8');
+      // The runId binds the ciphertext to its run. The wrapped store
+      // always supplies it; a hook driven without a context (a direct
+      // unit call) binds the empty run, which read must mirror.
+      const aad = journalAadV2(ctx?.runId ?? '', e);
       const envelope = encrypt(currentKey, aad, Buffer.from(JSON.stringify(rest), 'utf8'));
       return {
         ...(clear as unknown as JournalEntry),
         value: { [JOURNAL_ENVELOPE_MARKER]: envelope } as unknown as Json,
       };
     },
-    fromStored(e: JournalEntry): JournalEntry {
+    fromStored(e: JournalEntry, ctx?: JournalSerializationContext): JournalEntry {
       if (!isEnvelope(e.value)) {
         if (plaintextReads === 'passthrough') {
           return e;
@@ -362,7 +412,10 @@ export async function createEnvelopeEncryption(
       }
       const env = e.value[JOURNAL_ENVELOPE_MARKER];
       const key = keyFor(env.keyId, env.wrapped, 'envelope encryption (journal read)');
-      const aad = Buffer.from(`journal:${String(e.seq)}:${e.key}`, 'utf8');
+      // Rebuild the AAD the writer used: v2 binds the full identity
+      // (runId included), v1 is the legacy seq:key schema kept so
+      // pre-upgrade envelopes still read.
+      const aad = env.v === 2 ? journalAadV2(ctx?.runId ?? '', e) : journalAadV1(e);
       const rest = JSON.parse(
         decrypt(key, aad, env, 'envelope encryption (journal read)').toString('utf8'),
       ) as Record<string, unknown>;
