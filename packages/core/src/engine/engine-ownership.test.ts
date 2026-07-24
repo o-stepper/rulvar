@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ConfigError, LeaseHeldError } from '../l0/errors.js';
-import type { Lease, LeasableStore } from '../l0/spi/store.js';
+import type { JournalStore, Lease, LeasableStore } from '../l0/spi/store.js';
 import { InMemoryStore } from '../stores/inmemory.js';
 import { createEngine } from './engine.js';
 import { defineWorkflow } from './ctx.js';
@@ -27,7 +27,9 @@ interface LeasableFixture {
 
 /** An InMemoryStore with the reference lease semantics stacked on top. */
 function leasableStore(options?: { ttlMs?: number }): LeasableFixture {
-  const inner = new InMemoryStore();
+  // Typed as the SPI so the delegating calls below may pass the
+  // optional lease parameter the interface declares.
+  const inner: JournalStore = new InMemoryStore();
   const leases = new Map<string, Lease>();
   const acquires: Array<{ runId: string; owner: string }> = [];
   const appendLeases: Array<Lease | undefined> = [];
