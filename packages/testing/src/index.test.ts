@@ -109,4 +109,36 @@ describe('createTestEngine and FakeAdapter (M1-T14)', () => {
     expect(outcome.status).toBe('exhausted');
     expect(outcome.value).toBeUndefined();
   });
+
+  it('threads the quota option into enforcement (RV-215)', async () => {
+    const seen: string[] = [];
+    const engine = createTestEngine({
+      agents: { '*': 'answered' },
+      quota: {
+        limiter: {
+          reserve: (request) => {
+            seen.push(`${request.provider}:${request.model}`);
+            return Promise.resolve({
+              granted: false,
+              retryAfterMs: 1,
+              reason: 'globally exhausted',
+            });
+          },
+          reconcile: () => Promise.resolve(),
+        },
+      },
+    });
+    const wf = defineWorkflow({ name: 'quota-denied' }, (ctx) =>
+      ctx.agent('go', { result: 'full' }),
+    );
+    const outcome = await engine.run(wf, undefined).result;
+    expect(outcome.status).toBe('ok');
+    const full = outcome.value as { status: string; error?: { kind: string } };
+    expect(full.status).toBe('error');
+    expect(full.error?.kind).toBe('rate-limit');
+    // Every reservation asked for the fake model; nothing dispatched.
+    expect(seen.length).toBeGreaterThan(0);
+    expect(new Set(seen)).toEqual(new Set(['fake:fake-model']));
+    expect(engine.fake.calls.length).toBe(0);
+  });
 });

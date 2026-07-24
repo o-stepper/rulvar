@@ -853,6 +853,14 @@
             "link": "/api/@rulvar/core/interfaces/EngineDefaults.md"
           },
           {
+            "text": "EngineQuotaConfig",
+            "link": "/api/@rulvar/core/interfaces/EngineQuotaConfig.md"
+          },
+          {
+            "text": "EngineQuotaRuntime",
+            "link": "/api/@rulvar/core/interfaces/EngineQuotaRuntime.md"
+          },
+          {
             "text": "EscalationDigest",
             "link": "/api/@rulvar/core/interfaces/EscalationDigest.md"
           },
@@ -1009,6 +1017,10 @@
             "link": "/api/@rulvar/core/interfaces/MechanicalGateVerdict.md"
           },
           {
+            "text": "MemoryQuotaLimiter",
+            "link": "/api/@rulvar/core/interfaces/MemoryQuotaLimiter.md"
+          },
+          {
             "text": "MetaLookupStore",
             "link": "/api/@rulvar/core/interfaces/MetaLookupStore.md"
           },
@@ -1119,6 +1131,30 @@
           {
             "text": "QualityFloors",
             "link": "/api/@rulvar/core/interfaces/QualityFloors.md"
+          },
+          {
+            "text": "QuotaCounters",
+            "link": "/api/@rulvar/core/interfaces/QuotaCounters.md"
+          },
+          {
+            "text": "QuotaEstimate",
+            "link": "/api/@rulvar/core/interfaces/QuotaEstimate.md"
+          },
+          {
+            "text": "QuotaLimiter",
+            "link": "/api/@rulvar/core/interfaces/QuotaLimiter.md"
+          },
+          {
+            "text": "QuotaReservationRequest",
+            "link": "/api/@rulvar/core/interfaces/QuotaReservationRequest.md"
+          },
+          {
+            "text": "QuotaRule",
+            "link": "/api/@rulvar/core/interfaces/QuotaRule.md"
+          },
+          {
+            "text": "QuotaWindowSnapshot",
+            "link": "/api/@rulvar/core/interfaces/QuotaWindowSnapshot.md"
           },
           {
             "text": "RandIdentityInput",
@@ -1711,6 +1747,10 @@
             "link": "/api/@rulvar/core/type-aliases/PermissionVerdict.md"
           },
           {
+            "text": "QuotaDecision",
+            "link": "/api/@rulvar/core/type-aliases/QuotaDecision.md"
+          },
+          {
             "text": "RandPayload",
             "link": "/api/@rulvar/core/type-aliases/RandPayload.md"
           },
@@ -2143,6 +2183,10 @@
           {
             "text": "PROGRESS_REPORT_TOOL_NAME",
             "link": "/api/@rulvar/core/variables/PROGRESS_REPORT_TOOL_NAME.md"
+          },
+          {
+            "text": "QUOTA_WINDOW_MS",
+            "link": "/api/@rulvar/core/variables/QUOTA_WINDOW_MS.md"
           },
           {
             "text": "READ_CHILD_ARTIFACT_SCHEMA",
@@ -2615,6 +2659,14 @@
             "link": "/api/@rulvar/core/functions/mcp.md"
           },
           {
+            "text": "memoryQuotaLimiter",
+            "link": "/api/@rulvar/core/functions/memoryQuotaLimiter.md"
+          },
+          {
+            "text": "mergeQuotaDenial",
+            "link": "/api/@rulvar/core/functions/mergeQuotaDenial.md"
+          },
+          {
             "text": "mergeUsageLimits",
             "link": "/api/@rulvar/core/functions/mergeUsageLimits.md"
           },
@@ -2729,6 +2781,22 @@
           {
             "text": "providerOf",
             "link": "/api/@rulvar/core/functions/providerOf.md"
+          },
+          {
+            "text": "quotaActualTokens",
+            "link": "/api/@rulvar/core/functions/quotaActualTokens.md"
+          },
+          {
+            "text": "quotaEstimateTokens",
+            "link": "/api/@rulvar/core/functions/quotaEstimateTokens.md"
+          },
+          {
+            "text": "quotaRuleAdmission",
+            "link": "/api/@rulvar/core/functions/quotaRuleAdmission.md"
+          },
+          {
+            "text": "quotaRuleMatches",
+            "link": "/api/@rulvar/core/functions/quotaRuleMatches.md"
           },
           {
             "text": "readRunMeta",
@@ -2911,6 +2979,10 @@
             "link": "/api/@rulvar/core/functions/validateEditorialCommit.md"
           },
           {
+            "text": "validateEngineQuotaConfig",
+            "link": "/api/@rulvar/core/functions/validateEngineQuotaConfig.md"
+          },
+          {
             "text": "validateEntryShape",
             "link": "/api/@rulvar/core/functions/validateEntryShape.md"
           },
@@ -2921,6 +2993,10 @@
           {
             "text": "validateEscalationReport",
             "link": "/api/@rulvar/core/functions/validateEscalationReport.md"
+          },
+          {
+            "text": "validateQuotaRules",
+            "link": "/api/@rulvar/core/functions/validateQuotaRules.md"
           },
           {
             "text": "validateRetryPolicy",
@@ -4752,6 +4828,14 @@
             "link": "/api/@rulvar/rulvar/interfaces/EngineDefaults.md"
           },
           {
+            "text": "EngineQuotaConfig",
+            "link": "/api/@rulvar/rulvar/interfaces/EngineQuotaConfig.md"
+          },
+          {
+            "text": "EngineQuotaRuntime",
+            "link": "/api/@rulvar/rulvar/interfaces/EngineQuotaRuntime.md"
+          },
+          {
             "text": "EscalationDigest",
             "link": "/api/@rulvar/rulvar/interfaces/EscalationDigest.md"
           },
@@ -4908,6 +4992,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/MechanicalGateVerdict.md"
           },
           {
+            "text": "MemoryQuotaLimiter",
+            "link": "/api/@rulvar/rulvar/interfaces/MemoryQuotaLimiter.md"
+          },
+          {
             "text": "MetaLookupStore",
             "link": "/api/@rulvar/rulvar/interfaces/MetaLookupStore.md"
           },
@@ -5038,6 +5126,30 @@
           {
             "text": "QualityFloors",
             "link": "/api/@rulvar/rulvar/interfaces/QualityFloors.md"
+          },
+          {
+            "text": "QuotaCounters",
+            "link": "/api/@rulvar/rulvar/interfaces/QuotaCounters.md"
+          },
+          {
+            "text": "QuotaEstimate",
+            "link": "/api/@rulvar/rulvar/interfaces/QuotaEstimate.md"
+          },
+          {
+            "text": "QuotaLimiter",
+            "link": "/api/@rulvar/rulvar/interfaces/QuotaLimiter.md"
+          },
+          {
+            "text": "QuotaReservationRequest",
+            "link": "/api/@rulvar/rulvar/interfaces/QuotaReservationRequest.md"
+          },
+          {
+            "text": "QuotaRule",
+            "link": "/api/@rulvar/rulvar/interfaces/QuotaRule.md"
+          },
+          {
+            "text": "QuotaWindowSnapshot",
+            "link": "/api/@rulvar/rulvar/interfaces/QuotaWindowSnapshot.md"
           },
           {
             "text": "RandIdentityInput",
@@ -5642,6 +5754,10 @@
             "link": "/api/@rulvar/rulvar/type-aliases/ProgressSource.md"
           },
           {
+            "text": "QuotaDecision",
+            "link": "/api/@rulvar/rulvar/type-aliases/QuotaDecision.md"
+          },
+          {
             "text": "RandPayload",
             "link": "/api/@rulvar/rulvar/type-aliases/RandPayload.md"
           },
@@ -6082,6 +6198,10 @@
           {
             "text": "PROGRESS_REPORT_TOOL_NAME",
             "link": "/api/@rulvar/rulvar/variables/PROGRESS_REPORT_TOOL_NAME.md"
+          },
+          {
+            "text": "QUOTA_WINDOW_MS",
+            "link": "/api/@rulvar/rulvar/variables/QUOTA_WINDOW_MS.md"
           },
           {
             "text": "READ_CHILD_ARTIFACT_SCHEMA",
@@ -6562,6 +6682,14 @@
             "link": "/api/@rulvar/rulvar/functions/mcp.md"
           },
           {
+            "text": "memoryQuotaLimiter",
+            "link": "/api/@rulvar/rulvar/functions/memoryQuotaLimiter.md"
+          },
+          {
+            "text": "mergeQuotaDenial",
+            "link": "/api/@rulvar/rulvar/functions/mergeQuotaDenial.md"
+          },
+          {
             "text": "mergeUsageLimits",
             "link": "/api/@rulvar/rulvar/functions/mergeUsageLimits.md"
           },
@@ -6684,6 +6812,22 @@
           {
             "text": "providerOf",
             "link": "/api/@rulvar/rulvar/functions/providerOf.md"
+          },
+          {
+            "text": "quotaActualTokens",
+            "link": "/api/@rulvar/rulvar/functions/quotaActualTokens.md"
+          },
+          {
+            "text": "quotaEstimateTokens",
+            "link": "/api/@rulvar/rulvar/functions/quotaEstimateTokens.md"
+          },
+          {
+            "text": "quotaRuleAdmission",
+            "link": "/api/@rulvar/rulvar/functions/quotaRuleAdmission.md"
+          },
+          {
+            "text": "quotaRuleMatches",
+            "link": "/api/@rulvar/rulvar/functions/quotaRuleMatches.md"
           },
           {
             "text": "readRunMeta",
@@ -6870,6 +7014,10 @@
             "link": "/api/@rulvar/rulvar/functions/validateEditorialCommit.md"
           },
           {
+            "text": "validateEngineQuotaConfig",
+            "link": "/api/@rulvar/rulvar/functions/validateEngineQuotaConfig.md"
+          },
+          {
             "text": "validateEntryShape",
             "link": "/api/@rulvar/rulvar/functions/validateEntryShape.md"
           },
@@ -6880,6 +7028,10 @@
           {
             "text": "validateEscalationReport",
             "link": "/api/@rulvar/rulvar/functions/validateEscalationReport.md"
+          },
+          {
+            "text": "validateQuotaRules",
+            "link": "/api/@rulvar/rulvar/functions/validateQuotaRules.md"
           },
           {
             "text": "validateRetryPolicy",
@@ -7086,6 +7238,10 @@
         "collapsed": true,
         "items": [
           {
+            "text": "SqliteQuotaLimiter",
+            "link": "/api/@rulvar/store-sqlite/classes/SqliteQuotaLimiter.md"
+          },
+          {
             "text": "SqliteStore",
             "link": "/api/@rulvar/store-sqlite/classes/SqliteStore.md"
           }
@@ -7095,6 +7251,10 @@
         "text": "Interfaces",
         "collapsed": true,
         "items": [
+          {
+            "text": "SqliteQuotaLimiterOptions",
+            "link": "/api/@rulvar/store-sqlite/interfaces/SqliteQuotaLimiterOptions.md"
+          },
           {
             "text": "SqliteStoreOptions",
             "link": "/api/@rulvar/store-sqlite/interfaces/SqliteStoreOptions.md"
@@ -7116,6 +7276,10 @@
           {
             "text": "DEFAULT_LEASE_TTL_MS",
             "link": "/api/@rulvar/store-sqlite/variables/DEFAULT_LEASE_TTL_MS.md"
+          },
+          {
+            "text": "QUOTA_BUSY_TIMEOUT_MS",
+            "link": "/api/@rulvar/store-sqlite/variables/QUOTA_BUSY_TIMEOUT_MS.md"
           }
         ]
       }

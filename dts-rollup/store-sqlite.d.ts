@@ -1,4 +1,4 @@
-import { JournalEntry, LeasableStore, Lease, MetaLookupStore, RunFilter, RunMeta, TranscriptStore } from "@rulvar/core";
+import { JournalEntry, LeasableStore, Lease, MetaLookupStore, QuotaDecision, QuotaLimiter, QuotaReservationRequest, QuotaRule, RunFilter, RunMeta, TranscriptStore, Usage } from "@rulvar/core";
 
 //#region src/store.d.ts
 /** Appendix A interim reference for the sqlite store. */
@@ -113,4 +113,40 @@ declare class SqliteStore implements MetaLookupStore, LeasableStore {
   release(l: Lease): Promise<void>;
 }
 //#endregion
-export { BOOT_BUSY_TIMEOUT_MS, DEFAULT_LEASE_TTL_MS, SqliteStore, type SqliteStoreOptions, type SqliteTranscriptStore };
+//#region src/quota.d.ts
+/**
+* How long a runtime reserve/reconcile transaction waits for a
+* sibling process's transaction before the driver reports busy. Quota
+* admissions are short single-writer transactions; queueing here IS
+* the cross-process serialization working.
+*/
+declare const QUOTA_BUSY_TIMEOUT_MS = 2e3;
+interface SqliteQuotaLimiterOptions {
+  /** Database file path shared by every coordinating process. */
+  path: string;
+  /** The shared rule set; must be identical across processes. */
+  rules: readonly QuotaRule[];
+  /** Injectable clock for window tests. */
+  now?: () => number;
+}
+declare class SqliteQuotaLimiter implements QuotaLimiter {
+  private readonly db;
+  private readonly rules;
+  private readonly now;
+  constructor(options: SqliteQuotaLimiterOptions);
+  reserve(request: QuotaReservationRequest): Promise<QuotaDecision>;
+  reconcile(reservationId: string, usage: Usage): Promise<void>;
+  /** Current-window counters per rule, for telemetry and referees. */
+  snapshot(): Array<{
+    rule: QuotaRule;
+    windowStart: number;
+    requests: number;
+    tokens: number;
+  }>;
+  close(): void;
+  /** Both tables stay bounded to the current and previous window. */
+  private prune;
+  private rollbackQuietly;
+}
+//#endregion
+export { BOOT_BUSY_TIMEOUT_MS, DEFAULT_LEASE_TTL_MS, QUOTA_BUSY_TIMEOUT_MS, SqliteQuotaLimiter, type SqliteQuotaLimiterOptions, SqliteStore, type SqliteStoreOptions, type SqliteTranscriptStore };

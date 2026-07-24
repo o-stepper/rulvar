@@ -10,7 +10,7 @@
 const FINALIZE_SYNTHESIS_INSTRUCTION: string;
 ```
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:745](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L745)
+Defined in: [packages/core/src/runtime/agent-loop.ts:772](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L772)
 
 The deterministic synthesis instruction appended (as a user message)
 to the finalize REQUEST only, never to the durable transcript. A

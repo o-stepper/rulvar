@@ -79,6 +79,11 @@ import {
 } from '../runner/determinism.js';
 import { validateRetryPolicy, type RetryPolicy } from '../model/retry.js';
 import { KeyedLimiter } from '../model/concurrency.js';
+import {
+  validateEngineQuotaConfig,
+  type EngineQuotaConfig,
+  type EngineQuotaRuntime,
+} from '../model/quota.js';
 import { resolvePricing, priceUsdOf, type PriceTable } from '../model/pricing.js';
 import type { QualityFloors } from '../model/floors.js';
 import type { ModelKnowledgeHandle, ModelKnowledgeStore } from '../l0/spi/knowledge.js';
@@ -160,6 +165,18 @@ export interface CreateEngineOptions {
     /** Per-adapter-id caps; unlimited unless configured (Appendix A; M4-T07). */
     perProvider?: Record<string, number>;
   };
+  /**
+   * The shared quota limiter (RV-215): a QuotaLimiter implementation
+   * consulted before every live wire dispatch of every run, plus the
+   * engine's tenant dimension and the limiter failure policy. Engines
+   * and processes that share one limiter (or one limiter storage,
+   * e.g. SqliteQuotaLimiter in @rulvar/store-sqlite over one database
+   * file) enforce one global quota; a denial rides the provider-429
+   * retry and failover machinery without paying a wire call. Absent =
+   * no shared quota (Appendix A: an embeddable library must not
+   * surprise-throttle hosts).
+   */
+  quota?: EngineQuotaConfig;
   /** Versioned price table; wins over caps.pricing (M4-T06). */
   pricing?: PriceTable;
   /**
@@ -586,6 +603,17 @@ export function createEngine(options: CreateEngineOptions): Engine {
   // The determinism guard config fails loud at construction, before any
   // run can start under an invalid mode, pattern, or hook (RV-209).
   validateDeterminismConfig(options.determinism);
+  // The shared quota limiter config fails loud too: a malformed
+  // limiter must never reach a dispatch decision (RV-215).
+  validateEngineQuotaConfig(options.quota);
+  const quotaRuntime: EngineQuotaRuntime | undefined =
+    options.quota === undefined
+      ? undefined
+      : {
+          limiter: options.quota.limiter,
+          ...(options.quota.tenant === undefined ? {} : { tenant: options.quota.tenant }),
+          onLimiterError: options.quota.onLimiterError ?? 'deny',
+        };
   // The runtime side holds the current()-only handle, never the store:
   // commit is unreachable from inside a run by the shape of the API.
   const knowledgeStore = options.stores?.modelKnowledge;
@@ -813,6 +841,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       admission,
       semaphore: new Semaphore(options.concurrency?.perRun ?? DEFAULT_PER_RUN_CONCURRENCY),
       providerLimiter,
+      ...(quotaRuntime === undefined ? {} : { quota: quotaRuntime }),
       ...(options.pricing === undefined ? {} : { pricingVersion: options.pricing.pricingVersion }),
       ...(options.budgetDefaults?.flatReserveUsd === undefined
         ? {}

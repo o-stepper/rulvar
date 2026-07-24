@@ -6,7 +6,7 @@
 
 # Class: KeyedLimiter
 
-Defined in: [packages/core/src/model/concurrency.ts:16](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/concurrency.ts#L16)
+Defined in: [packages/core/src/model/concurrency.ts:17](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/concurrency.ts#L17)
 
 ## Constructors
 
@@ -16,7 +16,7 @@ Defined in: [packages/core/src/model/concurrency.ts:16](https://github.com/o-ste
 new KeyedLimiter(caps?): KeyedLimiter;
 ```
 
-Defined in: [packages/core/src/model/concurrency.ts:19](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/concurrency.ts#L19)
+Defined in: [packages/core/src/model/concurrency.ts:20](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/concurrency.ts#L20)
 
 #### Parameters
 
@@ -36,7 +36,7 @@ Defined in: [packages/core/src/model/concurrency.ts:19](https://github.com/o-ste
 pending(key): number;
 ```
 
-Defined in: [packages/core/src/model/concurrency.ts:26](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/concurrency.ts#L26)
+Defined in: [packages/core/src/model/concurrency.ts:27](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/concurrency.ts#L27)
 
 Queue depth for one key (0 for unlimited keys); telemetry only.
 
@@ -62,7 +62,7 @@ withSlot<T>(
 signal?): Promise<T>;
 ```
 
-Defined in: [packages/core/src/model/concurrency.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/concurrency.ts#L36)
+Defined in: [packages/core/src/model/concurrency.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/model/concurrency.ts#L37)
 
 Runs `fn` under the key's semaphore; keys without a configured cap
 run unlimited (no queueing, no overhead). An aborted `signal` frees

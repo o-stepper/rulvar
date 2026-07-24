@@ -32,6 +32,7 @@ import type {
 } from '../l0/messages.js';
 import { sanitizeTokenCount, sanitizeUsage, snapshotUsage, usageViolations } from '../l0/usage.js';
 import type { ProviderAdapter } from '../l0/spi/provider.js';
+import type { QuotaDecision, QuotaReservationRequest } from '../l0/spi/quota.js';
 import type { ToolContext, ToolDef } from '../l0/spi/toolsource.js';
 import type { Out, SchemaSpec } from '../l0/schema.js';
 import { validateSchemaSpec } from '../l0/schema.js';
@@ -304,6 +305,25 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
    * key's queue without a slot (v1.34.0 review P2-4).
    */
   providerSlot?: <T>(key: string, fn: () => Promise<T>, signal?: AbortSignal) => Promise<T>;
+  /**
+   * The shared quota limiter hook (RV-215): consulted before EVERY
+   * live wire dispatch (initial attempts, transport retries, and
+   * failover takeovers alike, in every phase). A denial becomes a
+   * synthetic rate-limit-class WireError the retry and failover
+   * engine treats exactly like a provider 429, except no wire call
+   * was paid: retryAfterMs drives the interruptible backoff, attempts
+   * stay bounded by RetryPolicy, and exhaustion fails over (the
+   * takeover reserves under its own model). Granted reservations are
+   * reconciled with the attempt's actual usage after the outcome
+   * settles. Live-only by construction: replayed calls never reach
+   * this seam, and nothing here is journaled.
+   */
+  quota?: {
+    reserve: (request: QuotaReservationRequest) => Promise<QuotaDecision>;
+    reconcile: (reservationId: string, usage: Usage) => Promise<void>;
+    /** Limiter infrastructure failure policy; a denial is unaffected. */
+    onLimiterError: 'deny' | 'allow';
+  };
   /** The resolved toolset; absent = no tools declared. */
   tools?: ToolRuntime;
   /**
@@ -446,6 +466,13 @@ interface TurnOutcome {
   usageApprox: boolean;
   wireError?: WireError;
   aborted?: 'budget' | 'external' | 'idle';
+  /**
+   * The shared quota limiter denied this attempt BEFORE dispatch
+   * (RV-215): the adapter never ran, the usage is exactly zero, and
+   * recordUsage is skipped so no phase slice is minted for a call
+   * that never happened.
+   */
+  quotaDenied?: true;
   /** The finish event's metadata; carries the retention payload. */
   providerMetadata?: Record<string, unknown>;
 }
@@ -1654,13 +1681,92 @@ export async function runAgent<S extends SchemaSpec>(
       const target = site.chain[site.cursor.index] ?? site.chain[0];
       let tries = 0;
       inner: for (;;) {
+        // The reservation of THIS attempt; a fresh attempt (retry or
+        // failover takeover) reserves anew, exactly as each wire call
+        // consumes provider capacity anew.
+        let reservationId: string | undefined;
+        const quotaDeniedOutcome = (denial: {
+          retryAfterMs?: number;
+          reason?: string;
+          infrastructure?: string;
+        }): TurnOutcome => ({
+          turn: { text: '', toolCalls: [] },
+          usage: ZERO_USAGE,
+          reported: ZERO_USAGE,
+          usageApprox: false,
+          quotaDenied: true,
+          wireError: {
+            // 'rate-limit' rides the provider-429 machinery verbatim;
+            // an infrastructure failure under onLimiterError 'deny'
+            // is transport-class instead (the limiter, not the quota,
+            // is what failed).
+            code: denial.infrastructure === undefined ? 'rate-limit' : 'quota-limiter',
+            message:
+              denial.infrastructure ??
+              `the shared quota limiter denied ${target.resolved.ref}` +
+                (denial.reason === undefined ? '' : `: ${denial.reason}`),
+            retryable: true,
+            data: {
+              kind: denial.infrastructure === undefined ? 'rate-limit' : 'transport',
+              source: 'quota-limiter',
+              ...(denial.retryAfterMs === undefined ? {} : { retryAfterMs: denial.retryAfterMs }),
+              ...(denial.reason === undefined ? {} : { reason: denial.reason }),
+            },
+          },
+        });
+        // Reserving is async only when a quota is configured: the
+        // unconfigured path returns the streamTurn promise ITSELF, so
+        // no extra microtask ever reorders concurrent journal appends
+        // against a run without a limiter (the cassette contract).
+        const dispatchWithQuota = async (
+          quota: NonNullable<typeof options.quota>,
+        ): Promise<TurnOutcome> => {
+          const req = site.requestFor(target);
+          let decision: QuotaDecision;
+          try {
+            decision = await quota.reserve({
+              provider: target.adapter.id,
+              model: target.resolved.model,
+              estimate: {
+                requests: 1,
+                inputTokens: estimateInputTokens(req.messages),
+                ...(req.maxOutputTokens === undefined
+                  ? {}
+                  : { maxOutputTokens: req.maxOutputTokens }),
+              },
+            });
+          } catch (thrown) {
+            const detail = thrown instanceof Error ? thrown.message : String(thrown);
+            if (quota.onLimiterError === 'allow') {
+              events?.emit({
+                type: 'log',
+                level: 'warn',
+                msg:
+                  `the shared quota limiter failed; dispatching ${target.resolved.ref} ` +
+                  `without a reservation (onLimiterError 'allow'): ${detail}`,
+              });
+              return streamTurn(target.adapter, req, site.streamOptionsFor(target));
+            }
+            return quotaDeniedOutcome({
+              infrastructure: `the shared quota limiter failed (onLimiterError 'deny'): ${detail}`,
+            });
+          }
+          if (!decision.granted) {
+            return quotaDeniedOutcome(decision);
+          }
+          reservationId = decision.reservationId;
+          return streamTurn(target.adapter, req, site.streamOptionsFor(target));
+        };
         const dispatch = (): Promise<TurnOutcome> => {
           // Checked inside the thunk so a keyed limiter queue wait
           // cannot outlive an abort into a fresh provider call.
           const aborted = abortKind();
-          return aborted === undefined
+          if (aborted !== undefined) {
+            return Promise.resolve(abortedOutcome(aborted));
+          }
+          return options.quota === undefined
             ? streamTurn(target.adapter, site.requestFor(target), site.streamOptionsFor(target))
-            : Promise.resolve(abortedOutcome(aborted));
+            : dispatchWithQuota(options.quota);
         };
         // The keyed limiter gates the wire call itself; retries and
         // failover each re-acquire, so a stalled provider never holds
@@ -1670,14 +1776,33 @@ export async function runAgent<S extends SchemaSpec>(
         const outcome = await (options.providerSlot === undefined
           ? dispatch()
           : options.providerSlot(target.adapter.id, dispatch, options.signal));
-        recordUsage(
-          outcome.usage,
-          outcome.reported,
-          target.adapter.id,
-          target.resolved.ref,
-          site.role,
-          outcome.usageViolation,
-        );
+        if (reservationId !== undefined && options.quota !== undefined) {
+          // Settle the reservation against what the attempt actually
+          // consumed (an aborted or failed attempt settles too; its
+          // recorded usage is whatever the stream reported). A
+          // reconcile failure only warns: the wire call already
+          // happened and the window ages the estimate out.
+          try {
+            await options.quota.reconcile(reservationId, outcome.usage);
+          } catch (thrown) {
+            const detail = thrown instanceof Error ? thrown.message : String(thrown);
+            events?.emit({
+              type: 'log',
+              level: 'warn',
+              msg: `the shared quota limiter failed to reconcile a reservation: ${detail}`,
+            });
+          }
+        }
+        if (outcome.quotaDenied !== true) {
+          recordUsage(
+            outcome.usage,
+            outcome.reported,
+            target.adapter.id,
+            target.resolved.ref,
+            site.role,
+            outcome.usageViolation,
+          );
+        }
         tries += 1;
         const retryClass =
           outcome.aborted === 'idle'
