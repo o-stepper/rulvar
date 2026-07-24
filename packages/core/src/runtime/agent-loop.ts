@@ -272,8 +272,14 @@ export interface ToolRuntime {
    * toolset holds any non-inprocess tool; the ctx layer mints the tool
    * span and idempotency key and wires the provider. A throw becomes the
    * call's error tool result exactly like an inprocess execute throw.
+   *
+   * `ordinal` is the call's 1-based position in this agent invocation's
+   * tool loop (checkpoint-stable across suspension and crash resume); the
+   * ctx layer folds it with the agent entry's seq into the idempotency
+   * key, so two separate calls with identical arguments do not collide
+   * while an at-least-once retry of one call keeps its key (P0.4).
    */
-  executeExternal?: (def: ToolDef, args: Json) => Promise<unknown>;
+  executeExternal?: (def: ToolDef, args: Json, ordinal: number) => Promise<unknown>;
 }
 
 /** One serving target of a phase: the primary or a failover fallback. */
@@ -829,6 +835,8 @@ async function executeToolCall(options: {
   /** Consecutive ModelRetry conversions per tool name. */
   retryCounts: Map<string, number>;
   maxModelRetries: number;
+  /** 1-based position in this agent's tool loop; feeds the exec idempotency key. */
+  ordinal: number;
   events?: RuntimeEventSink;
   audit?: GateAudit;
   now: () => number;
@@ -874,7 +882,7 @@ async function executeToolCall(options: {
     if (def.executor === 'inprocess') {
       value = await def.execute(validation.value, runtime.contextFor(call.name));
     } else if (runtime.executeExternal !== undefined) {
-      value = await runtime.executeExternal(def, validation.value as Json);
+      value = await runtime.executeExternal(def, validation.value as Json, options.ordinal);
     } else {
       return finish(
         {
@@ -1447,6 +1455,10 @@ export async function runAgent<S extends SchemaSpec>(
         runtime,
         retryCounts: modelRetryCounts,
         maxModelRetries: options.modelRetryAttempts ?? DEFAULT_MODEL_RETRY_ATTEMPTS,
+        // The just-incremented count is this call's 1-based ordinal in the
+        // agent's tool loop; it is checkpoint-stable, so an at-least-once
+        // resume re-dispatches with the same ordinal and idempotency key.
+        ordinal: toolCallsUsed,
         ...(events === undefined ? {} : { events }),
         ...(gateAudit === undefined ? {} : { audit: gateAudit }),
         now,

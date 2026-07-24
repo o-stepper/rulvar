@@ -4094,8 +4094,14 @@ interface ToolRuntime {
   * toolset holds any non-inprocess tool; the ctx layer mints the tool
   * span and idempotency key and wires the provider. A throw becomes the
   * call's error tool result exactly like an inprocess execute throw.
+  *
+  * `ordinal` is the call's 1-based position in this agent invocation's
+  * tool loop (checkpoint-stable across suspension and crash resume); the
+  * ctx layer folds it with the agent entry's seq into the idempotency
+  * key, so two separate calls with identical arguments do not collide
+  * while an at-least-once retry of one call keeps its key (P0.4).
   */
-  executeExternal?: (def: ToolDef, args: Json) => Promise<unknown>;
+  executeExternal?: (def: ToolDef, args: Json, ordinal: number) => Promise<unknown>;
 }
 /** One serving target of a phase: the primary or a failover fallback. */
 interface PhaseTarget {

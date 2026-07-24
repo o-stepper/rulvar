@@ -209,6 +209,8 @@ export interface TestInternalsOptions {
   /** Shared across simulated processes for checkpoint restore tests. */
   transcripts?: InMemoryTranscriptStore;
   extraDerivers?: readonly unknown[];
+  /** Registered isolated-executor providers (RV-216). */
+  executors?: RunInternals['executors'];
 }
 
 export function makeInternals(options: TestInternalsOptions = {}): {
@@ -327,6 +329,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
     },
     priceUsd,
     ...(options.isolation === undefined ? {} : { isolation: options.isolation }),
+    ...(options.executors === undefined ? {} : { executors: options.executors }),
     ...(options.onEscalation === undefined ? {} : { onEscalation: options.onEscalation }),
     external: new ExternalRegistry(replayer),
     mintTranscriptRef: () => `test-run/t${refCounter++}`,
