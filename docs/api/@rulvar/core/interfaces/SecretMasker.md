@@ -6,7 +6,7 @@
 
 # Interface: SecretMasker
 
-Defined in: [packages/core/src/l0/serialization.ts:213](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L213)
+Defined in: [packages/core/src/l0/serialization.ts:226](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L226)
 
 A compiled masking policy: text and deep-JSON forms of one pattern set.
 
@@ -18,7 +18,7 @@ A compiled masking policy: text and deep-JSON forms of one pattern set.
 maskDeep<T>(value): T;
 ```
 
-Defined in: [packages/core/src/l0/serialization.ts:215](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L215)
+Defined in: [packages/core/src/l0/serialization.ts:228](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L228)
 
 #### Type Parameters
 
@@ -44,7 +44,7 @@ Defined in: [packages/core/src/l0/serialization.ts:215](https://github.com/o-ste
 maskText(text): string;
 ```
 
-Defined in: [packages/core/src/l0/serialization.ts:214](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L214)
+Defined in: [packages/core/src/l0/serialization.ts:227](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L227)
 
 #### Parameters
 

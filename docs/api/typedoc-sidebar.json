@@ -981,6 +981,10 @@
             "link": "/api/@rulvar/core/interfaces/JournalOperation.md"
           },
           {
+            "text": "JournalSerializationContext",
+            "link": "/api/@rulvar/core/interfaces/JournalSerializationContext.md"
+          },
+          {
             "text": "JournalSerializationHook",
             "link": "/api/@rulvar/core/interfaces/JournalSerializationHook.md"
           },
@@ -5157,6 +5161,10 @@
           {
             "text": "JournalOperation",
             "link": "/api/@rulvar/rulvar/interfaces/JournalOperation.md"
+          },
+          {
+            "text": "JournalSerializationContext",
+            "link": "/api/@rulvar/rulvar/interfaces/JournalSerializationContext.md"
           },
           {
             "text": "JournalSerializationHook",

@@ -13,7 +13,7 @@ Defined in: `packages/core/dist/index.d.ts`
 ### fromStored()
 
 ```ts
-fromStored(e): JournalEntry;
+fromStored(e, ctx?): JournalEntry;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -25,6 +25,7 @@ Applied at load; MUST be symmetric with toStored for replay to hold.
 | Parameter | Type |
 | ------ | ------ |
 | `e` | [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md) |
+| `ctx?` | [`JournalSerializationContext`](/api/@rulvar/rulvar/interfaces/JournalSerializationContext.md) |
 
 #### Returns
 
@@ -35,7 +36,7 @@ Applied at load; MUST be symmetric with toStored for replay to hold.
 ### toStored()
 
 ```ts
-toStored(e): JournalEntry;
+toStored(e, ctx?): JournalEntry;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -47,6 +48,7 @@ Applied at append; kernel ordering/identity fields MUST pass through.
 | Parameter | Type |
 | ------ | ------ |
 | `e` | [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md) |
+| `ctx?` | [`JournalSerializationContext`](/api/@rulvar/rulvar/interfaces/JournalSerializationContext.md) |
 
 #### Returns
 

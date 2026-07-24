@@ -6,17 +6,17 @@
 
 # Interface: JournalSerializationHook
 
-Defined in: [packages/core/src/l0/serialization.ts:28](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L28)
+Defined in: [packages/core/src/l0/serialization.ts:41](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L41)
 
 ## Methods
 
 ### fromStored()
 
 ```ts
-fromStored(e): JournalEntry;
+fromStored(e, ctx?): JournalEntry;
 ```
 
-Defined in: [packages/core/src/l0/serialization.ts:32](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L32)
+Defined in: [packages/core/src/l0/serialization.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L45)
 
 Applied at load; MUST be symmetric with toStored for replay to hold.
 
@@ -25,6 +25,7 @@ Applied at load; MUST be symmetric with toStored for replay to hold.
 | Parameter | Type |
 | ------ | ------ |
 | `e` | [`JournalEntry`](/api/@rulvar/core/type-aliases/JournalEntry.md) |
+| `ctx?` | [`JournalSerializationContext`](/api/@rulvar/core/interfaces/JournalSerializationContext.md) |
 
 #### Returns
 
@@ -35,10 +36,10 @@ Applied at load; MUST be symmetric with toStored for replay to hold.
 ### toStored()
 
 ```ts
-toStored(e): JournalEntry;
+toStored(e, ctx?): JournalEntry;
 ```
 
-Defined in: [packages/core/src/l0/serialization.ts:30](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L30)
+Defined in: [packages/core/src/l0/serialization.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L43)
 
 Applied at append; kernel ordering/identity fields MUST pass through.
 
@@ -47,6 +48,7 @@ Applied at append; kernel ordering/identity fields MUST pass through.
 | Parameter | Type |
 | ------ | ------ |
 | `e` | [`JournalEntry`](/api/@rulvar/core/type-aliases/JournalEntry.md) |
+| `ctx?` | [`JournalSerializationContext`](/api/@rulvar/core/interfaces/JournalSerializationContext.md) |
 
 #### Returns
 

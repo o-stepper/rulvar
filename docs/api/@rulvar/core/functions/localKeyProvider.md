@@ -10,7 +10,7 @@
 function localKeyProvider(options): DataKeyProvider;
 ```
 
-Defined in: [packages/core/src/l0/encryption.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/encryption.ts#L84)
+Defined in: [packages/core/src/l0/encryption.ts:89](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/encryption.ts#L89)
 
 The local reference DataKeyProvider: the key-encryption key is
 HKDF-SHA256(secret, info), data keys are random 32-byte AES keys,

@@ -10,7 +10,7 @@
 function compileSecretMasker(patterns?, site?): SecretMasker;
 ```
 
-Defined in: [packages/core/src/l0/serialization.ts:227](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L227)
+Defined in: [packages/core/src/l0/serialization.ts:240](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L240)
 
 Compiles the redaction policy: the DEFAULT credential pattern set
 plus host-defined patterns (RV-217), for the telemetry boundary

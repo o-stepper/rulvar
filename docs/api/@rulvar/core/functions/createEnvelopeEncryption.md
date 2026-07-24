@@ -10,7 +10,7 @@
 function createEnvelopeEncryption(options): Promise<EnvelopeEncryption>;
 ```
 
-Defined in: [packages/core/src/l0/encryption.ts:244](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/encryption.ts#L244)
+Defined in: [packages/core/src/l0/encryption.ts:289](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/encryption.ts#L289)
 
 Builds the envelope-encryption SerializationHook. All DataKeyProvider
 calls happen HERE (the hook itself is synchronous, on in-memory data

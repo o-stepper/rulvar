@@ -6,7 +6,7 @@
 
 # Interface: TranscriptSerializationHook
 
-Defined in: [packages/core/src/l0/serialization.ts:35](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L35)
+Defined in: [packages/core/src/l0/serialization.ts:48](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L48)
 
 ## Methods
 
@@ -16,7 +16,7 @@ Defined in: [packages/core/src/l0/serialization.ts:35](https://github.com/o-step
 fromStored(ref, blob): Bytes;
 ```
 
-Defined in: [packages/core/src/l0/serialization.ts:39](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L39)
+Defined in: [packages/core/src/l0/serialization.ts:52](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L52)
 
 Applied at get; MUST be symmetric with toStored.
 
@@ -39,7 +39,7 @@ Applied at get; MUST be symmetric with toStored.
 toStored(ref, blob): Bytes;
 ```
 
-Defined in: [packages/core/src/l0/serialization.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L37)
+Defined in: [packages/core/src/l0/serialization.ts:50](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/serialization.ts#L50)
 
 Applied at put.
 

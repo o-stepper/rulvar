@@ -10,7 +10,7 @@
 function constantTimeEqual(a, b): boolean;
 ```
 
-Defined in: [packages/core/src/l0/encryption.ts:439](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/encryption.ts#L439)
+Defined in: [packages/core/src/l0/encryption.ts:492](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/encryption.ts#L492)
 
 Guards against non-constant-time comparisons in host key checks.
 
