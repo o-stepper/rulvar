@@ -1856,7 +1856,12 @@ export function createCtx(
       // the call's error tool result.
       if (internals.executors !== undefined) {
         const executors = internals.executors;
-        toolRuntime.executeExternal = async (def, args) => {
+        // The containing agent's dispatch-entry seq scopes the idempotency
+        // key to THIS invocation: it is journal-deterministic and an
+        // at-least-once redispatch reuses the same entry, so the key is
+        // stable across resume while distinct agents never share it (P0.4).
+        const agentSeq = running.seq;
+        toolRuntime.executeExternal = async (def, args, ordinal) => {
           const tag = def.executor as Exclude<typeof def.executor, 'inprocess'>;
           const provider = executors[tag];
           if (provider === undefined) {
@@ -1876,7 +1881,13 @@ export function createCtx(
               runId: internals.runId,
               spanId: toolSpanId,
               agentType,
-              idempotencyKey: deriveExecIdempotencyKey(internals.runId, def.name, args),
+              idempotencyKey: deriveExecIdempotencyKey(
+                internals.runId,
+                agentSeq,
+                ordinal,
+                def.name,
+                args,
+              ),
               signal: toolSignal,
               log: (level, msg, data) =>
                 internals.events.emit(
