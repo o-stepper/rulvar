@@ -247,7 +247,7 @@ Because the journal and the transcript blobs are the entire run state, a run mov
 
 - `JsonlFileStore` and `FileTranscriptStore` keep one directory; copy it.
 - `SqliteStore` (from `@rulvar/store-sqlite`) keeps one database file; copy it, or point both machines at it.
-- `PostgresStore` (from `@rulvar/store-postgres`) keeps everything in a postgres schema; machines point at the database, and your postgres backup/PITR discipline is the copy story (see [the runbook](/guide/stores#rulvarstore-postgres)).
+- `PostgresStore` (from `@rulvar/store-postgres`) keeps everything in a postgres schema; machines point at the database, and your postgres backup/PITR discipline is the copy story (see [the runbook](/guide/stores#rulvar-store-postgres)).
 
 On the target machine you need the same workflow definition (same registered name; the body hash is checked and a mismatch warns loudly) and an engine whose supported hash-version window covers the journal's entries. For compiled workflows you need only the copied stores: the source travels inside the transcript store.
 
