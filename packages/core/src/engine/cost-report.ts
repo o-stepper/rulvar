@@ -30,10 +30,19 @@ import type { InvocationRole, ModelRef, Usage } from '../l0/messages.js';
 import type { CostAttribution } from './ctx.js';
 import type { CostReport } from './run-handle.js';
 
-const ROLES: InvocationRole[] = ['orchestrate', 'plan', 'loop', 'finalize', 'extract', 'summarize'];
-
+// The uncast literal is the exhaustiveness gate: a role missing here is
+// a compile error, not a bucket that folds `undefined + usd` into NaN
+// (v1.59.0 review P0: 'synthesize' was absent from the cast array).
 function emptyByRole(): Record<InvocationRole, number> {
-  return Object.fromEntries(ROLES.map((role) => [role, 0])) as Record<InvocationRole, number>;
+  return {
+    orchestrate: 0,
+    plan: 0,
+    loop: 0,
+    finalize: 0,
+    extract: 0,
+    summarize: 0,
+    synthesize: 0,
+  };
 }
 
 /** The orchestrator sub-account naming rule of makeOrchestratorWorkflow. */

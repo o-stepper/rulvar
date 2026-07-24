@@ -430,6 +430,13 @@ const ZERO_USAGE: Usage = {
   cacheWriteTokens: 0,
 };
 
+// Bound at module load, before the dev-mode bare-call patch can install
+// (the engine clock convention, see stores/reconcile.ts): the engine's
+// own retry jitter must never classify as workflow nondeterminism when
+// rulvar is imported from a checkout build instead of node_modules
+// (v1.59.0 review P1).
+const wallRandom: () => number = Math.random.bind(globalThis);
+
 function addUsage(total: Usage, turn: Usage): Usage {
   const sum: Usage = {
     inputTokens: total.inputTokens + turn.inputTokens,
@@ -1614,7 +1621,7 @@ export async function runAgent<S extends SchemaSpec>(
   const retryPolicy = options.retry?.policy ?? DEFAULT_RETRY_POLICY;
   const retryOn = retryPolicy.retryOn ?? DEFAULT_RETRY_POLICY.retryOn ?? [];
   const injectedSleep = options.retry?.sleep;
-  const retryRandom = options.retry?.random ?? Math.random;
+  const retryRandom = options.retry?.random ?? wallRandom;
 
   // Abort short circuit for the retry and failover engine (v1.28.0
   // review P1): a requested cancel (the host signal, which the run

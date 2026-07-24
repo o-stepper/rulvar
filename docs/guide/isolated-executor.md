@@ -40,7 +40,7 @@ const engine = createEngine({
 
 An agent given `runPython` dispatches every call through the provider. A tool declaring an executor tag that is not registered is a typed `ConfigError` at spawn time, before any provider or model call, so a misconfiguration never reaches production as a silent in-process fallback. The tag never enters `toolsetHash`: opting a tool into isolation does not change run identity, and inprocess dispatch stays byte-identical to before.
 
-Each dispatch mints its tool span under the agent span exactly like an inprocess call, and carries a stable **idempotency key**, a pure function of the run id, the tool name, and the canonical arguments. Identical calls derive the same key (a rerun after a crash reuses it; distinct calls never collide), so a tool whose work has external side effects can fold an at-least-once retry into effectively-once.
+Each dispatch mints its tool span under the agent span exactly like an inprocess call, and carries a stable **idempotency key**, a pure function of the run id, the tool name, and the canonical arguments. A rerun of the same call after a crash derives the same key, so a tool whose work has external side effects can fold an at-least-once retry into effectively-once. The flip side is deliberate and worth designing for: two intentionally separate calls with byte-identical arguments in one run also share the key, so a tool whose repeated identical invocation is meaningful must carry a distinguishing argument (an ordinal, a request id) or the external dedupe will collapse them into one effect.
 
 ### The tool-program protocol
 
