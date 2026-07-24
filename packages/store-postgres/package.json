@@ -1,6 +1,6 @@
 {
   "name": "@rulvar/store-postgres",
-  "version": "1.58.0",
+  "version": "1.59.0",
   "description": "Rulvar PostgreSQL store implementing JournalStore and LeasableStore with a fencing epoch, for multi-process and multi-host deployments.",
   "type": "module",
   "license": "Apache-2.0",
