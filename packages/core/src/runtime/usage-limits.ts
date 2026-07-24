@@ -74,6 +74,22 @@ export interface UsageLimits {
    * executions, the same conservative window the exploration guards use.
    */
   toolUnits?: { max: number; costs?: Record<string, number> };
+  /**
+   * The guaranteed finalization turn (the experiment-review P1.1): when
+   * a TOOL budget limiter (maxToolCalls or toolUnits) expires, the
+   * runtime closes the current batch's remaining calls with explicit
+   * skipped-call error results instead of dropping them silently, then
+   * grants the model exactly ONE summary turn with tools withheld
+   * before the invocation settles as status 'limit' with the exact
+   * limiter named in the terminal error. The summary text becomes the
+   * limit result's output for schema-less calls; a ridden schema
+   * validates into typed output when the summary parses (one attempt,
+   * no re-prompt). `maxOutputTokens` bounds the summary turn only;
+   * absent, the ordinary per-turn output policy applies. Off by
+   * default: the skip results and the summary instruction enter the
+   * conversation, so enabling it changes recorded model requests.
+   */
+  finalizationReserve?: { maxOutputTokens?: number };
 }
 
 export const DEFAULT_MAX_TURNS = 32;
@@ -93,6 +109,7 @@ export interface EffectiveUsageLimits {
   maxNoNewEvidenceCalls?: number;
   maxCallsPerTool?: Record<string, number>;
   toolUnits?: { max: number; costs?: Record<string, number> };
+  finalizationReserve?: { maxOutputTokens?: number };
 }
 
 /**
@@ -145,6 +162,10 @@ export function mergeUsageLimits(
   const toolUnits = pick('toolUnits');
   if (toolUnits !== undefined) {
     merged.toolUnits = toolUnits;
+  }
+  const finalizationReserve = pick('finalizationReserve');
+  if (finalizationReserve !== undefined) {
+    merged.finalizationReserve = finalizationReserve;
   }
   return merged;
 }
@@ -214,6 +235,19 @@ export function validateUsageLimits(limits: UsageLimits, site: string): void {
       for (const [name, cost] of Object.entries(costs as Record<string, unknown>)) {
         requireNonNegativeInteger(cost as number, `${site}.toolUnits.costs['${name}']`);
       }
+    }
+  }
+  if (limits.finalizationReserve !== undefined) {
+    const reserve: unknown = limits.finalizationReserve;
+    if (typeof reserve !== 'object' || reserve === null || Array.isArray(reserve)) {
+      throw new ConfigError(`${site}.finalizationReserve must be { maxOutputTokens? }`);
+    }
+    const { maxOutputTokens } = reserve as { maxOutputTokens?: unknown };
+    if (maxOutputTokens !== undefined) {
+      requirePositiveInteger(
+        maxOutputTokens as number,
+        `${site}.finalizationReserve.maxOutputTokens`,
+      );
     }
   }
 }
