@@ -196,7 +196,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The forty rounds, verbatim in this repository's history:
+The forty one rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                          | Shipped as |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -240,6 +240,7 @@ The forty rounds, verbatim in this repository's history:
 | v1.52.0       | b821bd1 (#315): synthesis role, routable post-fan-in invocation, critical-path reducer                                              | v1.53.0    |
 | v1.53.0       | 3f6bc03 (#318): run:end completion lift, repository research toolset, incremental synthesis + claim dedup                           | v1.54.0    |
 | v1.54.0       | e9b005b (#321): weighted tool limits, progress contract with structured terminal partials, partial-child salvage, profile templates | v1.55.0    |
+| v1.55.0       | f26dba0 (#324): the QuotaLimiter SPI for distributed provider limiting, with in-memory and sqlite reference limiters                | v1.56.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
