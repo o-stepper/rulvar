@@ -965,6 +965,14 @@
             "link": "/api/@rulvar/core/interfaces/InvocationTable.md"
           },
           {
+            "text": "IsolatedExecContext",
+            "link": "/api/@rulvar/core/interfaces/IsolatedExecContext.md"
+          },
+          {
+            "text": "IsolatedExecRequest",
+            "link": "/api/@rulvar/core/interfaces/IsolatedExecRequest.md"
+          },
+          {
             "text": "IsolationProvider",
             "link": "/api/@rulvar/core/interfaces/IsolationProvider.md"
           },
@@ -1409,6 +1417,10 @@
             "link": "/api/@rulvar/core/interfaces/ToolDef.md"
           },
           {
+            "text": "ToolExecutorProvider",
+            "link": "/api/@rulvar/core/interfaces/ToolExecutorProvider.md"
+          },
+          {
             "text": "ToolInit",
             "link": "/api/@rulvar/core/interfaces/ToolInit.md"
           },
@@ -1627,6 +1639,10 @@
             "link": "/api/@rulvar/core/type-aliases/EvidenceRef.md"
           },
           {
+            "text": "ExecutorRegistry",
+            "link": "/api/@rulvar/core/type-aliases/ExecutorRegistry.md"
+          },
+          {
             "text": "FailoverTrigger",
             "link": "/api/@rulvar/core/type-aliases/FailoverTrigger.md"
           },
@@ -1665,6 +1681,10 @@
           {
             "text": "InvocationRole",
             "link": "/api/@rulvar/core/type-aliases/InvocationRole.md"
+          },
+          {
+            "text": "IsolatedExecutorTag",
+            "link": "/api/@rulvar/core/type-aliases/IsolatedExecutorTag.md"
           },
           {
             "text": "IsolationSpec",
@@ -3400,6 +3420,137 @@
     ]
   },
   {
+    "text": "@rulvar/executor",
+    "link": "/api/@rulvar/executor/",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "Classes",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "ExecutorError",
+            "link": "/api/@rulvar/executor/classes/ExecutorError.md"
+          }
+        ]
+      },
+      {
+        "text": "Interfaces",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "ChildResult",
+            "link": "/api/@rulvar/executor/interfaces/ChildResult.md"
+          },
+          {
+            "text": "ChildSpec",
+            "link": "/api/@rulvar/executor/interfaces/ChildSpec.md"
+          },
+          {
+            "text": "ConformanceExecutorConfig",
+            "link": "/api/@rulvar/executor/interfaces/ConformanceExecutorConfig.md"
+          },
+          {
+            "text": "ContainerExecutorOptions",
+            "link": "/api/@rulvar/executor/interfaces/ContainerExecutorOptions.md"
+          },
+          {
+            "text": "ExecutorConformanceCheck",
+            "link": "/api/@rulvar/executor/interfaces/ExecutorConformanceCheck.md"
+          },
+          {
+            "text": "ExecutorConformanceSuite",
+            "link": "/api/@rulvar/executor/interfaces/ExecutorConformanceSuite.md"
+          },
+          {
+            "text": "ExecutorTestRegistrar",
+            "link": "/api/@rulvar/executor/interfaces/ExecutorTestRegistrar.md"
+          },
+          {
+            "text": "SubprocessCommandSpec",
+            "link": "/api/@rulvar/executor/interfaces/SubprocessCommandSpec.md"
+          },
+          {
+            "text": "SubprocessExecutorOptions",
+            "link": "/api/@rulvar/executor/interfaces/SubprocessExecutorOptions.md"
+          },
+          {
+            "text": "SubprocessToolInit",
+            "link": "/api/@rulvar/executor/interfaces/SubprocessToolInit.md"
+          },
+          {
+            "text": "ToolEffectLedger",
+            "link": "/api/@rulvar/executor/interfaces/ToolEffectLedger.md"
+          },
+          {
+            "text": "ToolEffectRecord",
+            "link": "/api/@rulvar/executor/interfaces/ToolEffectRecord.md"
+          }
+        ]
+      },
+      {
+        "text": "Type Aliases",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "ChildStopReason",
+            "link": "/api/@rulvar/executor/type-aliases/ChildStopReason.md"
+          },
+          {
+            "text": "ConformanceExecutorFactory",
+            "link": "/api/@rulvar/executor/type-aliases/ConformanceExecutorFactory.md"
+          },
+          {
+            "text": "ExecutorErrorCode",
+            "link": "/api/@rulvar/executor/type-aliases/ExecutorErrorCode.md"
+          }
+        ]
+      },
+      {
+        "text": "Functions",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "containerExecutor",
+            "link": "/api/@rulvar/executor/functions/containerExecutor.md"
+          },
+          {
+            "text": "executorConformance",
+            "link": "/api/@rulvar/executor/functions/executorConformance.md"
+          },
+          {
+            "text": "hashArgs",
+            "link": "/api/@rulvar/executor/functions/hashArgs.md"
+          },
+          {
+            "text": "memoryEffectLedger",
+            "link": "/api/@rulvar/executor/functions/memoryEffectLedger.md"
+          },
+          {
+            "text": "parseToolResult",
+            "link": "/api/@rulvar/executor/functions/parseToolResult.md"
+          },
+          {
+            "text": "registerExecutorConformance",
+            "link": "/api/@rulvar/executor/functions/registerExecutorConformance.md"
+          },
+          {
+            "text": "runChildProcess",
+            "link": "/api/@rulvar/executor/functions/runChildProcess.md"
+          },
+          {
+            "text": "subprocessExecutor",
+            "link": "/api/@rulvar/executor/functions/subprocessExecutor.md"
+          },
+          {
+            "text": "subprocessTool",
+            "link": "/api/@rulvar/executor/functions/subprocessTool.md"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "text": "@rulvar/openai",
     "link": "/api/@rulvar/openai/",
     "collapsed": true,
@@ -4992,6 +5143,14 @@
             "link": "/api/@rulvar/rulvar/interfaces/InvocationTable.md"
           },
           {
+            "text": "IsolatedExecContext",
+            "link": "/api/@rulvar/rulvar/interfaces/IsolatedExecContext.md"
+          },
+          {
+            "text": "IsolatedExecRequest",
+            "link": "/api/@rulvar/rulvar/interfaces/IsolatedExecRequest.md"
+          },
+          {
             "text": "IsolationProvider",
             "link": "/api/@rulvar/rulvar/interfaces/IsolationProvider.md"
           },
@@ -5460,6 +5619,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/ToolDef.md"
           },
           {
+            "text": "ToolExecutorProvider",
+            "link": "/api/@rulvar/rulvar/interfaces/ToolExecutorProvider.md"
+          },
+          {
             "text": "ToolInit",
             "link": "/api/@rulvar/rulvar/interfaces/ToolInit.md"
           },
@@ -5678,6 +5841,10 @@
             "link": "/api/@rulvar/rulvar/type-aliases/EvidenceRef.md"
           },
           {
+            "text": "ExecutorRegistry",
+            "link": "/api/@rulvar/rulvar/type-aliases/ExecutorRegistry.md"
+          },
+          {
             "text": "FailoverTrigger",
             "link": "/api/@rulvar/rulvar/type-aliases/FailoverTrigger.md"
           },
@@ -5716,6 +5883,10 @@
           {
             "text": "InvocationRole",
             "link": "/api/@rulvar/rulvar/type-aliases/InvocationRole.md"
+          },
+          {
+            "text": "IsolatedExecutorTag",
+            "link": "/api/@rulvar/rulvar/type-aliases/IsolatedExecutorTag.md"
           },
           {
             "text": "IsolationSpec",

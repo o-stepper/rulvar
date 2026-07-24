@@ -296,4 +296,68 @@ describe('agent loop tool dispatch (M3-T01)', () => {
     ).messages.filter((msg) => msg.role === 'tool');
     expect(toolMessages).toHaveLength(1);
   });
+
+  it('routes a non-inprocess tool through executeExternal, not its execute closure (RV-216)', async () => {
+    const external: Array<{ name: string; args: unknown }> = [];
+    const remote = tool({
+      name: 'remote',
+      description: 'runs out of process',
+      parameters: z.strictObject({ code: z.string() }),
+      executor: 'subprocess',
+      // The inprocess closure must NOT be called for a non-inprocess tool.
+      execute: () => Promise.reject(new Error('execute must not run out of process')),
+    });
+    const runtime: ToolRuntime = {
+      ...runtimeOf([remote]),
+      executeExternal: (def, args) => {
+        external.push({ name: def.name, args });
+        return Promise.resolve({ ran: 'out-of-process' });
+      },
+    };
+    let turn = 0;
+    const adapter = scriptedAdapter(() =>
+      turn++ === 0 ? { toolCalls: [{ name: 'remote', args: { code: 'x' } }] } : { text: 'done' },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits(),
+      tools: runtime,
+    });
+    expect(result.status).toBe('ok');
+    expect(external).toEqual([{ name: 'remote', args: { code: 'x' } }]);
+    const first = toolResults(adapter.calls[1])[0] as { result?: unknown };
+    expect(first.result).toEqual({ ran: 'out-of-process' });
+  });
+
+  it('errors a non-inprocess tool with no registered executor (RV-216 defense in depth)', async () => {
+    const remote = tool({
+      name: 'remote',
+      description: 'runs out of process',
+      parameters: z.strictObject({}),
+      executor: 'container',
+      execute: () => Promise.resolve('unused'),
+    });
+    // runtimeOf yields no executeExternal.
+    const adapter = scriptedAdapter((req) =>
+      toolResults(req).length === 0
+        ? { toolCalls: [{ name: 'remote', args: {} }] }
+        : { text: 'done' },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits(),
+      tools: runtimeOf([remote]),
+    });
+    expect(result.status).toBe('ok');
+    const first = toolResults(adapter.calls[1])[0] as {
+      result?: { error?: string };
+      isError?: boolean;
+    };
+    expect(first.result?.error).toContain('no executor is registered');
+    expect(first.isError).toBe(true);
+  });
 });

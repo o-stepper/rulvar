@@ -61,6 +61,7 @@ const guideSidebar: DefaultTheme.SidebarItem[] = [
     items: [
       { text: 'Tools and permissions', link: '/guide/tools' },
       { text: 'MCP', link: '/guide/mcp' },
+      { text: 'Isolated executor', link: '/guide/isolated-executor' },
     ],
   },
   {

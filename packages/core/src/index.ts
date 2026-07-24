@@ -23,6 +23,7 @@ export type * from './l0/spi/transcript.js';
 export type * from './l0/spi/toolsource.js';
 export type * from './l0/spi/knowledge.js';
 export type * from './l0/spi/quota.js';
+export type * from './l0/spi/executor.js';
 export * from './knowledge/claims.js';
 export * from './knowledge/decay.js';
 export * from './knowledge/epoch.js';

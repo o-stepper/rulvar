@@ -26,6 +26,7 @@ non-contract field are excluded by construction.
 | <a id="property-description"></a> `description` | `readonly` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-execute"></a> `execute` | `public` | (`input`, `ctx`) => `Promise`\&lt;`unknown`\&gt; | - | `packages/core/dist/index.d.ts` |
 | <a id="property-executor"></a> `executor` | `readonly` | [`ToolExecutor`](/api/@rulvar/rulvar/type-aliases/ToolExecutor.md) | Default 'inprocess'. | `packages/core/dist/index.d.ts` |
+| <a id="property-executorspec"></a> `executorSpec?` | `readonly` | [`Json`](/api/@rulvar/rulvar/type-aliases/Json.md) | Opaque policy data for a non-inprocess executor: what THIS tool's declared executor should run (for a subprocess adapter, the command and its argv). Never identity: excluded from toolsetHash exactly like `executor` and `risk`, and ignored for 'inprocess'. The engine passes it verbatim to the ToolExecutorProvider (RV-216). | `packages/core/dist/index.d.ts` |
 | <a id="property-kind"></a> `kind` | `readonly` | `"tool"` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-name"></a> `name` | `readonly` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-needsapproval"></a> `needsApproval` | `readonly` | `boolean` | Default false; the terminal permission default asks when true. | `packages/core/dist/index.d.ts` |

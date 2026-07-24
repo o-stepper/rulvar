@@ -40,6 +40,8 @@ export interface CreateTestEngineOptions {
   concurrency?: CreateEngineOptions['concurrency'];
   /** The shared quota limiter config, as in production (RV-215). */
   quota?: CreateEngineOptions['quota'];
+  /** Isolated tool executors, as in production (RV-216). */
+  executors?: CreateEngineOptions['executors'];
   /** Versioned price table; wins over adapter caps.pricing, as in production. */
   pricing?: CreateEngineOptions['pricing'];
 }
@@ -81,6 +83,7 @@ export function createTestEngine(options: CreateTestEngineOptions): TestEngine {
     ...(options.budgetDefaults === undefined ? {} : { budgetDefaults: options.budgetDefaults }),
     ...(options.concurrency === undefined ? {} : { concurrency: options.concurrency }),
     ...(options.quota === undefined ? {} : { quota: options.quota }),
+    ...(options.executors === undefined ? {} : { executors: options.executors }),
     ...(options.pricing === undefined ? {} : { pricing: options.pricing }),
   });
 

@@ -201,6 +201,8 @@ const engine = createEngine({
 | [GraftBoot](/api/@rulvar/rulvar/interfaces/GraftBoot.md) | Graft bootstrap payload. |
 | [IncrementalSynthesisResult](/api/@rulvar/rulvar/interfaces/IncrementalSynthesisResult.md) | The deterministic reconciliation envelope an 'incremental' synthesis returns as the run result (RV-211 remainder): the coordination draft plus one section per settled child in spawn order, each carrying the child's terminal status and its note (the note invocation's finish output, or the child's raw digest summary when the note fell back). With `dedupeClaims`, repeated claim lines keep their first occurrence only and the `repeatedClaims` index lists each with its reporters. Everything here derives from journaled state, so a resume reproduces the envelope byte for byte with zero paid calls. |
 | [InvocationTable](/api/@rulvar/rulvar/interfaces/InvocationTable.md) | The reduced table plus the per-role aggregate across every span. |
+| [IsolatedExecContext](/api/@rulvar/rulvar/interfaces/IsolatedExecContext.md) | The per-call context handed to a ToolExecutorProvider. It carries the tool span (so provider telemetry nests under the run tree), the cancellation signal, and a stable idempotency key. |
+| [IsolatedExecRequest](/api/@rulvar/rulvar/interfaces/IsolatedExecRequest.md) | One out-of-process tool dispatch. |
 | [IsolationProvider](/api/@rulvar/rulvar/interfaces/IsolationProvider.md) | - |
 | [JournalOperation](/api/@rulvar/rulvar/interfaces/JournalOperation.md) | One logical journaled operation: its dispatch entry plus its terminal, when present. |
 | [JournalSerializationHook](/api/@rulvar/rulvar/interfaces/JournalSerializationHook.md) | - |
@@ -318,6 +320,7 @@ const engine = createEngine({
 | [ToolContextSeed](/api/@rulvar/rulvar/interfaces/ToolContextSeed.md) | - |
 | [ToolContract](/api/@rulvar/rulvar/interfaces/ToolContract.md) | The identity-bearing tool contract: exactly what the model sees and exactly what toolsetHash hashes. Never contains execute or any closure. |
 | [ToolDef](/api/@rulvar/rulvar/interfaces/ToolDef.md) | A defined tool. The identity projection is the ToolContract { name, description, parameters, version }: exactly what the model sees and exactly what toolsetHash hashes; execute and every other non-contract field are excluded by construction. |
+| [ToolExecutorProvider](/api/@rulvar/rulvar/interfaces/ToolExecutorProvider.md) | The isolated tool executor seam. A provider runs one dispatch to its JSON result. A thrown error becomes the call's error tool result, never a run abort: an executor failure (non-zero exit, timeout kill, unparseable output, infrastructure error) is surfaced to the model exactly like any other tool error, so the loop can react and the run stays durable. |
 | [ToolInit](/api/@rulvar/rulvar/interfaces/ToolInit.md) | - |
 | [ToolRuntime](/api/@rulvar/rulvar/interfaces/ToolRuntime.md) | The spawn's frozen toolset plus the per-call context factory, prepared by the ctx layer (M3-T01). The contracts are the canonical identity projection already hashed into the spawn's content key; the loop sends exactly them to the model. |
 | [ToolSource](/api/@rulvar/rulvar/interfaces/ToolSource.md) | The ToolSource seam: tools() yields the source's current ToolDefs. The toolset snapshot for a given agent spawn is captured at spawn time and hashed into the spawn's identity via toolsetHash; a mid-run change MUST NOT mutate an in-flight agent's toolset. |
@@ -376,6 +379,7 @@ const engine = createEngine({
 | [EscalationDecision](/api/@rulvar/rulvar/type-aliases/EscalationDecision.md) | - |
 | [EscalationKind](/api/@rulvar/rulvar/type-aliases/EscalationKind.md) | Closed in v1. |
 | [EvidenceRef](/api/@rulvar/rulvar/type-aliases/EvidenceRef.md) | entryRef is the journal entry seq (canonical EntryRef; XF ruling). |
+| [ExecutorRegistry](/api/@rulvar/rulvar/type-aliases/ExecutorRegistry.md) | The engine's executor registry: at most one provider per non-inprocess tag. A tool whose `executor` tag is absent here fails typed at spawn time, before any provider or model call. |
 | [FailoverTrigger](/api/@rulvar/rulvar/type-aliases/FailoverTrigger.md) | Transport-level failover triggers; budget is explicitly excluded. |
 | [FallbackTrigger](/api/@rulvar/rulvar/type-aliases/FallbackTrigger.md) | The degenerate fallback triggers. |
 | [FinishInfo](/api/@rulvar/rulvar/type-aliases/FinishInfo.md) | Typed finish outcomes. A refusal MUST surface as a typed finish outcome carrying the provider stop details; it MUST NOT be projected to a null output silently. |
@@ -386,6 +390,7 @@ const engine = createEngine({
 | [HookVerdict](/api/@rulvar/rulvar/type-aliases/HookVerdict.md) | - |
 | [IdentityInput](/api/@rulvar/rulvar/type-aliases/IdentityInput.md) | - |
 | [InvocationRole](/api/@rulvar/rulvar/type-aliases/InvocationRole.md) | The seven invocation roles. 'synthesize' is the orchestrator's post-fan-in synthesis invocation (RV-211): it fires only when OrchestrateOptions.synthesis is configured, and the routing key picks its model like any other role without ever summoning it. |
+| [IsolatedExecutorTag](/api/@rulvar/rulvar/type-aliases/IsolatedExecutorTag.md) | The non-inprocess executor tags a provider can be registered under. |
 | [IsolationSpec](/api/@rulvar/rulvar/type-aliases/IsolationSpec.md) | The canonical identity encoding of spawn isolation: this exact value domain enters spawn identity. 'readonly' is a determinism and blast-radius declaration, not containment. |
 | [Issue](/api/@rulvar/rulvar/type-aliases/Issue.md) | The vendored Standard Schema issue shape: validation issues carried on AgentError and surfaced to the model during bounded schema re-prompts. |
 | [JournalCompatSubCode](/api/@rulvar/rulvar/type-aliases/JournalCompatSubCode.md) | Sub-code detail of JournalCompatibilityError. |
@@ -454,7 +459,7 @@ const engine = createEngine({
 | [TerminationResource](/api/@rulvar/rulvar/type-aliases/TerminationResource.md) | The countable resource vocabulary. |
 | [ToolChoice](/api/@rulvar/rulvar/type-aliases/ToolChoice.md) | - |
 | [ToolEvents](/api/@rulvar/rulvar/type-aliases/ToolEvents.md) | Tool lifecycle (emitters arrive with the tool system, M3). |
-| [ToolExecutor](/api/@rulvar/rulvar/type-aliases/ToolExecutor.md) | Where execute runs. A declared capability consumed by dispatch and policy; only 'inprocess' is enforced in v1, subprocess/container remain declared capability while the executor design stays an open question. |
+| [ToolExecutor](/api/@rulvar/rulvar/type-aliases/ToolExecutor.md) | Where execute runs. A declared capability consumed by dispatch and policy. 'inprocess' runs the tool's `execute` closure in the engine process (full host capabilities, an execution convenience). A non-inprocess tag routes dispatch through the engine's registered ToolExecutorProvider (RV-216) instead, so the tool's work runs out of process under host-owned isolation; the shipped reference adapters live in `@rulvar/executor`. The tag never enters toolsetHash. |
 | [ToolRisk](/api/@rulvar/rulvar/type-aliases/ToolRisk.md) | Declarative risk metadata on the tool contract. Policy input, not identity: it does NOT enter toolsetHash. |
 | [ToolsOption](/api/@rulvar/rulvar/type-aliases/ToolsOption.md) | The per-spawn tools option value domain. |
 | [TriggerClass](/api/@rulvar/rulvar/type-aliases/TriggerClass.md) | - |

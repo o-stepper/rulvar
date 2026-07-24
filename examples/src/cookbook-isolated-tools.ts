@@ -1,18 +1,56 @@
 /**
- * Isolated tool execution today (cookbook recipe; the rendered
- * walk-through is https://docs.rulvar.com/guide/cookbook). Two
- * boundaries exist RIGHT NOW, and one honest limit. Out of process:
- * `mcp({ transport: 'stdio' })` runs the tools in a child process the
- * engine spawns and closes with the run, so a crashing or leaking tool
- * never takes the engine down and the OS owns the kill. Filesystem:
- * a worktree isolated profile gives a child agent its own checkout; its
- * writes come back as a patch artifact, never as direct host mutations.
- * The honest limit: in-process tools are ordinary function calls with
- * full host capabilities, an execution convenience, never a sandbox for
- * hostile or model generated code; the hard executor contract
- * (CPU/memory limits, network allowlists) remains host territory.
+ * Isolated tool execution (cookbook recipe; the rendered walk-through is
+ * https://docs.rulvar.com/guide/cookbook). Three boundaries, and one
+ * honest limit. Hardened executor: a tool declaring `executor:
+ * 'subprocess'` runs OUT of process through `subprocessExecutor`, which
+ * REPLACES the environment (host credentials scrubbed), gives each call a
+ * fresh ephemeral workdir, and kills it on a timeout, so a hostile or
+ * model-generated script cannot read the host's ambient credentials
+ * (RV-216; the full contract and the container adapter are in
+ * https://docs.rulvar.com/guide/isolated-executor). Out of process:
+ * `mcp({ transport: 'stdio' })` runs tools in a child process the engine
+ * spawns and closes with the run. Filesystem: a worktree isolated profile
+ * gives a child agent its own checkout; its writes come back as a patch
+ * artifact. The honest limit: in-process tools are ordinary function
+ * calls with full host capabilities, an execution convenience, never a
+ * sandbox for hostile or model generated code.
  */
 import { mcp, type AgentProfile, type McpToolSource, type ToolsOption } from '@rulvar/core';
+import { subprocessExecutor, subprocessTool } from '@rulvar/executor';
+import type { ToolDef, ToolExecutorProvider } from '@rulvar/core';
+
+/**
+ * A subprocess executor hardened for untrusted tool input: the child sees
+ * an empty environment except the credentials minted per call, runs in an
+ * ephemeral workdir, and is killed after `timeoutMs`. Register it as
+ * `createEngine({ executors: { subprocess: hardenedToolExecutor() } })`.
+ */
+export function hardenedToolExecutor(): ToolExecutorProvider {
+  return subprocessExecutor({
+    timeoutMs: 5_000,
+    maxOutputBytes: 256 * 1024,
+    // Host credentials are NOT copied; a scoped token is minted per call.
+    credentials: () => ({ TOOL_TOKEN: 'scoped-and-short-lived' }),
+  });
+}
+
+/**
+ * A tool whose work runs under the hardened executor: it declares
+ * `executor: 'subprocess'` and carries the program on `executorSpec`, so
+ * dispatch routes to the registered provider instead of an in-process
+ * closure. `command` reads the tool-call JSON on stdin and writes its
+ * JSON result to stdout.
+ */
+export function sandboxedTool(command: string, args: string[]): ToolDef {
+  return subprocessTool({
+    name: 'sandboxed',
+    description: 'runs untrusted work out of process under the hardened executor',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+    command,
+    args,
+    risk: 'execute',
+  });
+}
 
 /**
  * Tools served by a stdio child process: the source spawns

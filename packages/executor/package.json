@@ -1,0 +1,48 @@
+{
+  "name": "@rulvar/executor",
+  "version": "1.58.0",
+  "description": "Rulvar isolated tool executors: reference ToolExecutorProvider adapters that run tool work out of process (subprocess and container) so hostile or model-generated scripts cannot reach host capabilities.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "pack-check": "publint --pack pnpm && attw --pack . --profile esm-only"
+  },
+  "dependencies": {
+    "@rulvar/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "@rulvar/testing": "workspace:*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/o-stepper/rulvar.git",
+    "directory": "packages/executor"
+  },
+  "homepage": "https://rulvar.com",
+  "bugs": {
+    "url": "https://github.com/o-stepper/rulvar/issues"
+  }
+}

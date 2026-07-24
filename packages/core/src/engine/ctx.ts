@@ -25,6 +25,7 @@ import { setLongTimeout, type LongTimer } from '../l0/long-timer.js';
 import { requireNonNegativeNumber, requirePositiveInteger } from '../l0/validate-numbers.js';
 import type { Json } from '../l0/json.js';
 import type { Effort, InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
+import type { ExecutorRegistry } from '../l0/spi/executor.js';
 import type { Pricing, ProviderAdapter } from '../l0/spi/provider.js';
 import type { Lease } from '../l0/spi/store.js';
 import type { TranscriptStore } from '../l0/spi/transcript.js';
@@ -109,6 +110,7 @@ import {
 import { buildToolContext } from '../tools/context.js';
 import { latestProgressReport } from '../tools/progress.js';
 import { resolveToolset, type ToolsOption } from '../tools/toolset-hash.js';
+import { deriveExecIdempotencyKey } from '../runtime/executor.js';
 import { AdmissionController, type AdmitVerdict } from '../orchestrator/admission.js';
 import { makeOrchestratorWorkflow, type OrchestrateOptions } from '../orchestrator/orchestrate.js';
 import { toJournalValue } from '../journal/serializable.js';
@@ -676,6 +678,14 @@ export interface RunInternals {
   /** The worktree lifecycle provider. */
   isolation?: IsolationProvider;
   /**
+   * Isolated tool executors (RV-216): the ToolExecutorProvider registry
+   * from createEngine, keyed by non-inprocess executor tag. A tool
+   * declaring such a tag dispatches through the matching provider instead
+   * of running its inprocess closure; absent means only inprocess tools
+   * are accepted.
+   */
+  executors?: ExecutorRegistry;
+  /**
    * The ModelKnowledge runtime handle (M10-T03): current()
    * only, commit physically absent. Present only when the engine was
    * given stores.modelKnowledge; absent means the feature is off and
@@ -1034,6 +1044,9 @@ export function createCtx(
       // snapshot (v1.17.0 review P1-3): one meaning for a string across
       // direct calls, profiles, and the sandbox dialect.
       internals.defaults.toolsets,
+      // The registered non-inprocess executor tags (RV-216): a tool
+      // declaring an unregistered tag fails typed here, at spawn time.
+      internals.executors === undefined ? undefined : new Set(Object.keys(internals.executors)),
     );
 
     // Role trigger protocol (M4-T01; predicates in model/roles.ts):
@@ -1835,6 +1848,47 @@ export function createCtx(
           };
         },
       };
+      // Non-inprocess dispatch (RV-216): route the call through the
+      // registered ToolExecutorProvider. The tool span is minted under the
+      // agent span exactly like an inprocess call, and the idempotency key
+      // is a pure function of (runId, tool, args) so a rerun of the same
+      // logical call reuses it. A provider throw surfaces to the loop as
+      // the call's error tool result.
+      if (internals.executors !== undefined) {
+        const executors = internals.executors;
+        toolRuntime.executeExternal = async (def, args) => {
+          const tag = def.executor as Exclude<typeof def.executor, 'inprocess'>;
+          const provider = executors[tag];
+          if (provider === undefined) {
+            throw new ConfigError(
+              `no executor registered for '${def.executor}'; register one via ` +
+                'createEngine({ executors }) ' +
+                '(https://docs.rulvar.com/guide/isolated-executor)',
+            );
+          }
+          const toolSpanId = internals.spans.mint(spanId);
+          return provider.run({
+            executor: tag,
+            tool: def.name,
+            args,
+            spec: def.executorSpec ?? null,
+            ctx: {
+              runId: internals.runId,
+              spanId: toolSpanId,
+              agentType,
+              idempotencyKey: deriveExecIdempotencyKey(internals.runId, def.name, args),
+              signal: toolSignal,
+              log: (level, msg, data) =>
+                internals.events.emit(
+                  data === undefined
+                    ? { type: 'log', level, msg }
+                    : { type: 'log', level, msg, data },
+                  toolSpanId,
+                ),
+            },
+          });
+        };
+      }
     }
     const runAgentOptions: Parameters<typeof runAgent<S>>[0] = {
       prompt,
