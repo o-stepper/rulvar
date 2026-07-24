@@ -142,7 +142,7 @@ When a live call matches a journaled entry, one canonical pure function in the j
 | `ok` | **replay**: serve the journaled result, zero live calls. |
 | `escalated` | **replay**: an escalation report is completed, paid work; the consumer sees the same report and usage. |
 | skipped (derived) | **skip**: the branch was abandoned; the caller gets status `skipped` with a zero spend increment. |
-| `limit` | **rerun**, unless `memoizeOutcome: true` was fixed in the entry; the model ran to its cap, so the work is task-complete. |
+| `limit` | **rerun**, unless `memoizeOutcome: true` was fixed in the entry, OR the loaded journal already carries a run settle with status ok: a finished run is history, so its unstamped limit children replay instead of re-paying live. Non-ok settles and never-settled journals keep the rerun retry semantics, and an explicit invalidate still forces a rerun. |
 | `error` | **rerun** by default; **replay** only when `memoizeOutcome: true` is fixed in the entry AND the error was task-class. |
 | `cancelled` | **rerun**; `memoizeOutcome` has no effect on cancellation, and only a journaled abandon can skip it. |
 | hanging `running` | **rerun**: re-dispatch (see orphan recovery below). |

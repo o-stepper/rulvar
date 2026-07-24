@@ -769,13 +769,23 @@ export function createEngine(options: CreateEngineOptions): Engine {
     for (const seqToInvalidate of invalidated) {
       replayer.invalidate(seqToInvalidate);
     }
+    // A resume whose loaded journal already settled ok is a pure replay
+    // of a finished run: unstamped limit children replay instead of
+    // re-running live (the RV-210 cycle finding). Non-ok settles and
+    // never-settled journals keep the rerun retry semantics.
+    const runSettledOk =
+      resumeCtx !== undefined && lastRunSettle(resumeCtx.priorEntries)?.runStatus === 'ok';
     replayer.setDisposition(
-      dispositionHook(replayer.fold.abandonFold, registry, replayer.invalidatedSeqs),
+      dispositionHook(replayer.fold.abandonFold, registry, replayer.invalidatedSeqs, {
+        runSettledOk,
+      }),
     );
     // Alias-sourced candidates bypass the abandon overlay (DEF-5):
     // donor entries regain their pre-abandon status through links.
     replayer.setAliasDisposition(
-      dispositionHook({ isAbandoned: () => false }, registry, replayer.invalidatedSeqs),
+      dispositionHook({ isAbandoned: () => false }, registry, replayer.invalidatedSeqs, {
+        runSettledOk,
+      }),
     );
     if (resumeCtx !== undefined) {
       const prior = replayer.ledger();

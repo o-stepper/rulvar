@@ -110,7 +110,11 @@ export function buildAbandonFold(entries: readonly JournalEntry[]): AbandonFold 
   };
 }
 
-function applyRule(rule: DispositionRule | undefined, op: JournalOperation): ReplayDisposition {
+function applyRule(
+  rule: DispositionRule | undefined,
+  op: JournalOperation,
+  runSettledOk: boolean,
+): ReplayDisposition {
   const terminal = op.terminal ?? op.running;
   switch (rule) {
     case 'replay':
@@ -123,7 +127,18 @@ function applyRule(rule: DispositionRule | undefined, op: JournalOperation): Rep
       // time, and MUST replay regardless of the user's dispatch-time
       // policy (M3 amendment).
       const memoize = terminal.memoizeOutcome ?? op.running.memoizeOutcome ?? false;
-      return memoize ? 'replay' : 'rerun';
+      if (memoize) {
+        return 'replay';
+      }
+      // A run that already SETTLED ok is history, not work: its output
+      // is journaled and every child's contribution is folded into it,
+      // so re-running an unstamped limit child live could only re-pay
+      // for a result the settle already fixed (the RV-210 cycle
+      // finding). The rerun retry semantics stay intact for runs that
+      // never settled (a crashed segment resumes into a second chance)
+      // and for explicitly invalidated entries (the invalidate check
+      // precedes the table).
+      return runSettledOk ? 'replay' : 'rerun';
     }
     case 'memoize-task-error': {
       const memoize = terminal.memoizeOutcome ?? op.running.memoizeOutcome ?? false;
@@ -168,6 +183,13 @@ export function replayDisposition(
     registry?: DeriverRegistry;
     terminal?: JournalEntry;
     invalidated?: ReadonlySet<number>;
+    /**
+     * True when the loaded journal carries a run settle with runStatus
+     * 'ok' (the resume is a pure replay of a finished run): unstamped
+     * limit entries then replay instead of re-running live. Terminal
+     * settles other than ok keep the retry semantics.
+     */
+    runSettledOk?: boolean;
   },
 ): ReplayDisposition {
   const op: JournalOperation = { running: entry, terminal: options?.terminal ?? entry };
@@ -184,7 +206,7 @@ export function replayDisposition(
   const deriver = options?.registry?.get(entry.hashVersion) ?? deriverV2;
   const status = (options?.terminal ?? entry).status as
     'ok' | 'escalated' | 'limit' | 'error' | 'cancelled' | 'running';
-  return applyRule(deriver.dispositionTable[status], op);
+  return applyRule(deriver.dispositionTable[status], op, options?.runSettledOk ?? false);
 }
 
 /**
@@ -195,11 +217,13 @@ export function dispositionHook(
   fold: AbandonFold,
   registry: DeriverRegistry,
   invalidated?: ReadonlySet<number>,
+  options?: { runSettledOk?: boolean },
 ): (op: JournalOperation) => ReplayDisposition {
   return (op) =>
     replayDisposition(op.running, fold, {
       registry,
       ...(op.terminal === undefined ? {} : { terminal: op.terminal }),
       ...(invalidated === undefined ? {} : { invalidated }),
+      ...(options?.runSettledOk === undefined ? {} : { runSettledOk: options.runSettledOk }),
     });
 }

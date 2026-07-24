@@ -96,6 +96,24 @@ export interface SqliteQuotaLimiterOptions {
   now?: () => number;
 }
 
+/**
+ * The cross-process reference implementation of the core QuotaLimiter
+ * SPI: engine processes pointing instances at ONE database file (this
+ * store's file or its own) enforce one global provider quota.
+ * Admission consumes the window counters inside a single
+ * `BEGIN IMMEDIATE` transaction, so two processes can never both take
+ * the last slot; reservations are rows, so `reconcile` settles a
+ * grant from any process; both tables are lazily pruned to the
+ * current and previous accounting window. The rule model, the fixed
+ * epoch-aligned one-minute windows, and the admission decision are
+ * the core's own exported functions, so this limiter and
+ * `memoryQuotaLimiter` agree on every verdict. The `rules` MUST be
+ * identical across coordinating processes (buckets key on rule
+ * content). Runtime contention queues briefly on the connection's
+ * busy_timeout (a hot limiter is EXPECTED to serialize); a call still
+ * busy past the bound throws, and the engine's `onLimiterError`
+ * policy decides what that means. Call `close()` when done.
+ */
 export class SqliteQuotaLimiter implements QuotaLimiter {
   private readonly db: DatabaseSync;
   private readonly rules: readonly QuotaRule[];
