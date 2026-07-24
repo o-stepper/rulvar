@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.59.4
+
+#### Patch Changes
+
+- Updated dependencies [c49d7a1]
+  - @rulvar/core@1.59.4
+
 ### 1.59.3
 
 #### Patch Changes
@@ -801,6 +808,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.59.4
+
+#### Patch Changes
+
+- Updated dependencies [c49d7a1]
+  - @rulvar/core@1.59.4
+
 ### 1.59.3
 
 #### Patch Changes
@@ -1449,6 +1463,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.59.4
+
+#### Patch Changes
+
+- Updated dependencies [c49d7a1]
+  - @rulvar/core@1.59.4
 
 ### 1.59.3
 
@@ -2378,6 +2399,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.59.4
+
+#### Patch Changes
+
+- c49d7a1: The genesis ownership protocol (P0.2): over a leasable journal store, every execution segment now holds the run's lease while it drives. A fresh `engine.run` and an in-process `engine.resume` that were not handed a lease acquire their own before their first durable write, renew it at a third of the store TTL exactly like a queue worker, and release it at settle; a second driver (a worker sweep adopting a live fresh run, a double resume from another process, a simultaneous genesis of one explicit runId) rejects at its own boot with the typed `LeaseHeldError`, before any journal write, meta write, or provider dispatch. Previously a fresh run held no lease at all, so a worker sweep on the same store adopted the live run, redispatched its in-flight provider turn (double spend), raced the journal from a stale tail, and could overwrite the settled meta with a stale error status. `RunOptions.lease` now exists as the genesis twin of `ResumeOptions.lease` for hosts that acquire at admission time and keep the lifecycle; `createEngine({ ownership: 'none' })` opts an engine out of automatic acquisition; dry-run previews never acquire. Journals stay byte-identical: leases live beside the journal and never enter run identity. The serialization wrapper now also forwards the store's `leaseTtlMs`, so the renew cadence over an encrypted store follows the configured expiry.
 
 ### 1.59.3
 
@@ -3719,6 +3746,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.59.4
+
 ### 1.59.3
 
 ### 1.59.2
@@ -3929,6 +3958,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.59.4
+
+#### Patch Changes
+
+- Updated dependencies [c49d7a1]
+  - @rulvar/core@1.59.4
+  - @rulvar/testing@1.59.4
 
 ### 1.59.3
 
@@ -4747,6 +4784,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.59.4
+
+#### Patch Changes
+
+- Updated dependencies [c49d7a1]
+  - @rulvar/core@1.59.4
+
 ### 1.59.3
 
 #### Patch Changes
@@ -4780,6 +4824,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.59.4
+
+#### Patch Changes
+
+- Updated dependencies [c49d7a1]
+  - @rulvar/core@1.59.4
 
 ### 1.59.3
 
@@ -5581,6 +5632,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.59.4
+
+#### Patch Changes
+
+- Updated dependencies [c49d7a1]
+  - @rulvar/core@1.59.4
+
 ### 1.59.3
 
 #### Patch Changes
@@ -6350,6 +6408,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.59.4
+
+#### Patch Changes
+
+- Updated dependencies [c49d7a1]
+  - @rulvar/core@1.59.4
+  - eslint-plugin-rulvar@1.59.4
 
 ### 1.59.3
 
@@ -7124,6 +7190,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.59.4
+
+#### Patch Changes
+
+- Updated dependencies [c49d7a1]
+  - @rulvar/core@1.59.4
+  - @rulvar/anthropic@1.59.4
+  - @rulvar/openai@1.59.4
 
 ### 1.59.3
 
@@ -8046,6 +8121,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.59.4
+
+#### Patch Changes
+
+- Updated dependencies [c49d7a1]
+  - @rulvar/core@1.59.4
+
 ### 1.59.3
 
 #### Patch Changes
@@ -8786,6 +8868,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.59.4
+
+#### Patch Changes
+
+- Updated dependencies [c49d7a1]
+  - @rulvar/core@1.59.4
+
 ### 1.59.3
 
 #### Patch Changes
@@ -8833,6 +8922,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.59.4
+
+#### Patch Changes
+
+- Updated dependencies [c49d7a1]
+  - @rulvar/core@1.59.4
 
 ### 1.59.3
 
@@ -9520,6 +9616,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.59.4
+
+#### Patch Changes
+
+- Updated dependencies [c49d7a1]
+  - @rulvar/core@1.59.4
 
 ### 1.59.3
 

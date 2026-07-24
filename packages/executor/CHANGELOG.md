@@ -1,5 +1,12 @@
 # @rulvar/executor
 
+## 1.59.4
+
+### Patch Changes
+
+- Updated dependencies [c49d7a1]
+  - @rulvar/core@1.59.4
+
 ## 1.59.3
 
 ### Patch Changes
