@@ -271,7 +271,7 @@ Queue semantics are honestly at-least-once, with deduplication provided by the j
 The returned handle is small: `start()` begins sweeping on the poll cadence (default 1000 ms), `sweep()` performs one deterministic pass and returns the number of runs picked up (useful in tests and cron-shaped hosts), `stop()` cancels in-flight runs and releases held leases, and `active()` lists the runIds currently held. Retention mirrors the server: an opt-in `retention` predicate evaluated during sweeps over settled runs, applied under a briefly held lease.
 
 ::: warning No cross-process rate limiter
-There is no distributed rate limiter in this version: per-provider concurrency caps live in each engine, so each worker process throttles independently. Scaling out concurrency defaults to 1 leased run per worker process, and hosts scale by adding processes, which the fencing epoch makes safe. Divide your provider quota across workers via `concurrency.perProvider` per process, or front the providers with an external gateway.
+Worker processes share provider quota through the `QuotaLimiter` SPI (`createEngine` `quota`): point every worker's `SqliteQuotaLimiter` at one database file and the fleet enforces one global rate, see [shared provider quotas](/guide/model-routing#shared-provider-quotas-across-processes). Per-provider concurrency caps still live in each engine and bound parallelism only. Scaling out concurrency defaults to 1 leased run per worker process, and hosts scale by adding processes, which the fencing epoch makes safe; a provider-side gateway remains the alternative when you already front your providers.
 :::
 
 A typical multi-process deployment composes the shells over one leasable store:

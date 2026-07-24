@@ -7,9 +7,10 @@
  * ride RetryPolicy; hosts with known tier limits opt in per adapter id
  * via createEngine concurrency.perProvider.
  *
- * There is deliberately NO distributed cross-process limiter: two
- * processes sharing one API key coordinate nothing here (a
- * process-global limiter is an open question).
+ * This keyed limiter bounds PARALLELISM inside one engine only. Two
+ * processes sharing one API key coordinate through the QuotaLimiter
+ * SPI instead (RV-215, createEngine `quota`): rate and volume live
+ * there, in shared storage; in-flight slots live here.
  */
 import { Semaphore } from '../engine/scheduler.js';
 

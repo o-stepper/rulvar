@@ -10,7 +10,7 @@
 function createTestEngine(options): TestEngine;
 ```
 
-Defined in: [packages/testing/src/test-engine.ts:45](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/test-engine.ts#L45)
+Defined in: [packages/testing/src/test-engine.ts:47](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/test-engine.ts#L47)
 
 ## Parameters
 

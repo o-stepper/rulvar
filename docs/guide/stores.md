@@ -244,6 +244,8 @@ async function resumeAsWorker(runId: string): Promise<void> {
 
 Every append of that resume carries the lease, so if this worker is presumed dead and another acquires the run, the stale worker's remaining writes are fenced out rather than interleaved.
 
+The package also ships `SqliteQuotaLimiter`, the cross-process reference implementation of the core `QuotaLimiter` SPI: engine processes pointing it at one database file (its own file, or the store's) enforce one global provider quota, with admission inside a single `BEGIN IMMEDIATE` transaction, reservations as rows so reconciliation works from any process, and both tables lazily pruned to two accounting windows. Its options are `path`, the shared `rules` (validated by the core's `validateQuotaRules`, and required to be identical across processes because buckets key on rule content), and an injectable `now`. What the engine does with a denial, and the rule model itself, is the subject of [shared provider quotas](/guide/model-routing#shared-provider-quotas-across-processes).
+
 ## Choosing a store
 
 | Situation | Store |

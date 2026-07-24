@@ -12,3 +12,8 @@ export {
   type SqliteStoreOptions,
   type SqliteTranscriptStore,
 } from './store.js';
+export {
+  QUOTA_BUSY_TIMEOUT_MS,
+  SqliteQuotaLimiter,
+  type SqliteQuotaLimiterOptions,
+} from './quota.js';

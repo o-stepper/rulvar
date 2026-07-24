@@ -45,6 +45,7 @@ Everything one run's ctx needs; created per run by the engine (M1-T11).
 | <a id="property-pricingof"></a> `pricingOf?` | (`servedBy`) => [`Pricing`](/api/@rulvar/rulvar/interfaces/Pricing.md) \| `undefined` | Raw price-row resolution (table wins, caps fallback); undefined = unpriced. | `packages/core/dist/index.d.ts` |
 | <a id="property-pricingversion"></a> `pricingVersion?` | `string` | The configured price table's version; pinned in decision entries (M4-T06). | `packages/core/dist/index.d.ts` |
 | <a id="property-providerlimiter"></a> `providerLimiter?` | [`KeyedLimiter`](/api/@rulvar/rulvar/classes/KeyedLimiter.md) | Engine-scoped per-provider keyed limiter (M4-T07). | `packages/core/dist/index.d.ts` |
+| <a id="property-quota"></a> `quota?` | [`EngineQuotaRuntime`](/api/@rulvar/rulvar/interfaces/EngineQuotaRuntime.md) | The shared quota limiter runtime (RV-215): the configured QuotaLimiter with the engine's tenant and failure policy resolved. Threaded into every live wire dispatch of every run; absent = no shared quota, byte-identical to before the feature. | `packages/core/dist/index.d.ts` |
 | <a id="property-replayer"></a> `replayer` | [`Replayer`](/api/@rulvar/rulvar/classes/Replayer.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-rootspanid"></a> `rootSpanId` | `string` | The run root span; every top-level span parents on it. | `packages/core/dist/index.d.ts` |
 | <a id="property-runid"></a> `runId` | `string` | - | `packages/core/dist/index.d.ts` |

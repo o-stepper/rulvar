@@ -6,7 +6,7 @@
 
 # Interface: ToolRuntime
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:261](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L261)
+Defined in: [packages/core/src/runtime/agent-loop.ts:262](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L262)
 
 The spawn's frozen toolset plus the per-call context factory, prepared
 by the ctx layer (M3-T01). The contracts are the canonical identity
@@ -17,9 +17,9 @@ exactly them to the model.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-contracts"></a> `contracts` | [`ToolContract`](/api/@rulvar/core/interfaces/ToolContract.md)[] | - | [packages/core/src/runtime/agent-loop.ts:263](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L263) |
-| <a id="property-defs"></a> `defs` | [`ToolDef`](/api/@rulvar/core/interfaces/ToolDef.md)\&lt;[`SchemaSpec`](/api/@rulvar/core/type-aliases/SchemaSpec.md)\&gt;[] | - | [packages/core/src/runtime/agent-loop.ts:262](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L262) |
-| <a id="property-permission"></a> `permission?` | (`call`) => `Promise`\&lt;[`PermissionGate`](/api/@rulvar/core/type-aliases/PermissionGate.md)\&gt; | Permission chain evaluation (M3-T03); absent = every call allowed. | [packages/core/src/runtime/agent-loop.ts:267](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L267) |
+| <a id="property-contracts"></a> `contracts` | [`ToolContract`](/api/@rulvar/core/interfaces/ToolContract.md)[] | - | [packages/core/src/runtime/agent-loop.ts:264](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L264) |
+| <a id="property-defs"></a> `defs` | [`ToolDef`](/api/@rulvar/core/interfaces/ToolDef.md)\&lt;[`SchemaSpec`](/api/@rulvar/core/type-aliases/SchemaSpec.md)\&gt;[] | - | [packages/core/src/runtime/agent-loop.ts:263](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L263) |
+| <a id="property-permission"></a> `permission?` | (`call`) => `Promise`\&lt;[`PermissionGate`](/api/@rulvar/core/type-aliases/PermissionGate.md)\&gt; | Permission chain evaluation (M3-T03); absent = every call allowed. | [packages/core/src/runtime/agent-loop.ts:268](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L268) |
 
 ## Methods
 
@@ -29,7 +29,7 @@ exactly them to the model.
 contextFor(toolName): ToolContext;
 ```
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:265](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L265)
+Defined in: [packages/core/src/runtime/agent-loop.ts:266](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L266)
 
 Mints a per-call ToolContext (fresh tool span under the agent span).
 

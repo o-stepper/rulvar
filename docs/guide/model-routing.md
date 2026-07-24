@@ -293,6 +293,39 @@ Transport failures resolve inside the router, under the journal:
 - **Failover** walks the `fallbacks` list of the resolved `ModelChoice` on transport-class failures and rate-limit exhaustion. The content key hashes the *requested* model spec, so a response served by a fallback model replays correctly; the fallback changes only `servedBy`. The never-pay-twice invariant stays intact, and cost attribution stays honest. Budget exhaustion is never a failover trigger: failing over on budget would convert an economic stop into a silent model swap.
 - **The degenerate fallback** (`fallback: { model, on }` on the call) is different in kind: an agent-level second attempt on terminal `error`, `limit`, or `schema-exhausted`, journaled as a decision entry, where the fallback attempt is a new content key. See [Agents](/guide/agents) for its trigger semantics.
 
+## Shared provider quotas across processes
+
+`concurrency.perProvider` bounds parallelism inside one engine; it cannot express a **rate**, and it cannot coordinate two engine processes sharing one API key. That coordination is the `QuotaLimiter` SPI (`createEngine` `quota`): a shared rate/quota limiter the engine consults **before every live wire dispatch**, in every phase, on initial attempts, transport retries, and failover takeovers alike.
+
+```ts
+import { createEngine, memoryQuotaLimiter } from '@rulvar/core';
+import { anthropic } from '@rulvar/anthropic';
+
+const engine = createEngine({
+  adapters: [anthropic()],
+  quota: {
+    limiter: memoryQuotaLimiter([
+      { provider: 'anthropic', requestsPerMinute: 50 },
+      { provider: 'anthropic', model: 'claude-opus-4-8', tokensPerMinute: 400000 },
+    ]),
+    tenant: 'acme',
+    onLimiterError: 'deny',
+  },
+});
+```
+
+The contract:
+
+- **Reserve, then dispatch.** Each attempt asks the limiter for a reservation dimensioned by `provider` (the adapter id, as in `concurrency.perProvider` keys), `model`, and the engine's `tenant`, with a heuristic token estimate (the deterministic prompt estimate plus the request's output cap). A grant consumes capacity at admission time; a denial consumes nothing and **no wire call is paid**.
+- **A denial is a synthetic 429.** The engine converts it into a rate-limit-class `WireError` that rides the retry and failover machinery above verbatim: the limiter's `retryAfterMs` (the honest window remainder) drives the interruptible backoff, attempts stay bounded by `RetryPolicy`, and exhaustion fails over, where the takeover reserves under **its own** model dimensions. A request whose estimate can never fit its token cap is denied with `retryAfterMs` 0, so the bounded attempts exhaust without waiting and failover gets its chance immediately. With no fallback left the agent terminates with the typed `error` of kind `rate-limit`, exactly as a provider 429 would.
+- **Reconcile after settlement.** Every granted reservation settles against the attempt's **actual** usage once the outcome lands, so `tokensPerMinute` windows are approximate at admission and exact at settlement; `requestsPerMinute` is the exact, hard cap (every wire attempt is exactly one request). A reconcile failure only warns: the wire call already happened, and windows age unsettled estimates out.
+- **Live-only by construction.** Like transport retries, quota admission happens under the journal: nothing is journaled, replay and resume of memoized work never touch the limiter, and an unconfigured engine takes the exact pre-quota dispatch path.
+- **Failure policy.** `onLimiterError: 'deny'` (the default) fails closed: a limiter infrastructure failure (its storage down) becomes a retryable transport-class denial and nothing dispatches unpoliced. `'allow'` fails open: a warning is logged and the call dispatches without a reservation. A limiter **denial** is unaffected by this knob.
+
+Rules match by dimension (an absent dimension matches every value), **every** matching rule must admit, and a grant consumes from each. Counters are rule-scoped: one rule matching two models pools them under one cap; write one rule per model for per-model buckets. `validateQuotaRules` rejects a malformed rule set as a typed `ConfigError` before any limiter admits under it.
+
+Two reference implementations ship: `memoryQuotaLimiter` (in `@rulvar/core`) coordinates every engine sharing the instance inside one process; `SqliteQuotaLimiter` (in `@rulvar/store-sqlite`) coordinates **processes** over one database file, with admission inside a single `BEGIN IMMEDIATE` transaction so two processes can never both take the last slot. Both agree on every verdict because the window math and the admission decision are the same exported functions. A Redis- or Postgres-backed limiter implements the same two-method SPI (`reserve`/`reconcile`); a provider-side gateway that enforces quotas behind the adapter is the alternative deployment that needs no limiter at all.
+
 ## Model ladders
 
 A ladder is the escalation form of a `ModelSpec`: ordered rungs from cheap to strong, with binding per-rung caps that bound the worst-case cost of a failed attempt:

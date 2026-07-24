@@ -65,6 +65,7 @@ import {
 import { selectStructuredOutputTier } from '../model/caps.js';
 import { fallbackTriggerOf, type FallbackField, type FallbackTrigger } from '../model/failover.js';
 import type { KeyedLimiter } from '../model/concurrency.js';
+import type { EngineQuotaRuntime } from '../model/quota.js';
 import type { QualityFloors } from '../model/floors.js';
 import { validateRetryPolicy, type RetryPolicy } from '../model/retry.js';
 import { finalizeFires, needsSeparateExtract, roleConfiguredInRouting } from '../model/roles.js';
@@ -652,6 +653,13 @@ export interface RunInternals {
   };
   /** Engine-scoped per-provider keyed limiter (M4-T07). */
   providerLimiter?: KeyedLimiter;
+  /**
+   * The shared quota limiter runtime (RV-215): the configured
+   * QuotaLimiter with the engine's tenant and failure policy
+   * resolved. Threaded into every live wire dispatch of every run;
+   * absent = no shared quota, byte-identical to before the feature.
+   */
+  quota?: EngineQuotaRuntime;
   /** The configured price table's version; pinned in decision entries (M4-T06). */
   pricingVersion?: string;
   /** budgetDefaults.flatReserveUsd; last resort of the reserve formula. */
@@ -1891,6 +1899,21 @@ export function createCtx(
     }
     if (retryPolicy !== undefined) {
       runAgentOptions.retry = { policy: retryPolicy };
+    }
+    if (internals.quota !== undefined) {
+      const quota = internals.quota;
+      // The ctx layer completes the reservation request with what the
+      // loop cannot know: the run id and the engine tenant.
+      runAgentOptions.quota = {
+        reserve: (request) =>
+          quota.limiter.reserve({
+            ...request,
+            runId: internals.runId,
+            ...(quota.tenant === undefined ? {} : { tenant: quota.tenant }),
+          }),
+        reconcile: (reservationId, usage) => quota.limiter.reconcile(reservationId, usage),
+        onLimiterError: quota.onLimiterError,
+      };
     }
     if (internals.providerLimiter !== undefined) {
       const limiter = internals.providerLimiter;
