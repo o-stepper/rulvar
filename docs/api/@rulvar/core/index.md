@@ -123,6 +123,7 @@ exactly the pieces you need, for example
 | [ApprovalDecision](/api/@rulvar/core/interfaces/ApprovalDecision.md) | The resolution value shape of a tool-approval suspension (M3-T03). |
 | [ApprovalIdentityInput](/api/@rulvar/core/interfaces/ApprovalIdentityInput.md) | Tool-approval suspensions (kind 'approval'). |
 | [Artifact](/api/@rulvar/core/interfaces/Artifact.md) | Artifact: the normative shape of AgentResult.artifacts entries. |
+| [AuditRecord](/api/@rulvar/core/interfaces/AuditRecord.md) | One reviewable authority event, in journal order. |
 | [AuditRunsOptions](/api/@rulvar/core/interfaces/AuditRunsOptions.md) | - |
 | [BaseAppend](/api/@rulvar/core/interfaces/BaseAppend.md) | Fields common to every append through the kernel. |
 | [BriefOpts](/api/@rulvar/core/interfaces/BriefOpts.md) | Options of ctx.brief (concrete shape fixed in M6-T10): the content to distill plus an optional instruction; the invocation resolves role 'summarize', so it needs defaults.routing.summarize, a profile, or the explicit model. |
@@ -150,6 +151,7 @@ exactly the pieces you need, for example
 | [CreateEngineOptions](/api/@rulvar/core/interfaces/CreateEngineOptions.md) | - |
 | [CriticalPath](/api/@rulvar/core/interfaces/CriticalPath.md) | The critical-path summary of one run (RV-211): the plan's post-fan-in gate ("synthesis takes at most 40% of wall time with four settled workers") computed as a pure fold over the same vocabulary, no heuristics beyond the role tags. Post-fan-in is the interval from the LAST settled non-coordination agent (any span whose primary role is neither 'orchestrate' nor 'synthesize') to run:end; the synthesis wall is the summed span wall of 'synthesize' spans. Wall numbers are LIVE fidelity: a replayed stream re-stamps emission times, so its intervals are degenerate, exactly like phase durations. Absent pieces (no run:end, no worker spans) leave the corresponding fields undefined rather than guessed at. |
 | [Ctx](/api/@rulvar/core/interfaces/Ctx.md) | The canonical Ctx interface, M1 members. |
+| [DataKeyProvider](/api/@rulvar/core/interfaces/DataKeyProvider.md) | The KMS seam. `keyId` is a stable routing id stamped into every envelope (a KMS key ARN or alias, or a local rotation label); the two methods are the exact shape of KMS GenerateDataKey and Decrypt. Both are called only inside `createEnvelopeEncryption`. |
 | [DeclaredLadder](/api/@rulvar/core/interfaces/DeclaredLadder.md) | One declared ladder of the run, named by its agentType. |
 | [DedupedClaims](/api/@rulvar/core/interfaces/DedupedClaims.md) | - |
 | [DedupNote](/api/@rulvar/core/interfaces/DedupNote.md) | Telemetry for a SpawnKey match admitted fresh. |
@@ -162,6 +164,8 @@ exactly the pieces you need, for example
 | [EngineDefaults](/api/@rulvar/core/interfaces/EngineDefaults.md) | - |
 | [EngineQuotaConfig](/api/@rulvar/core/interfaces/EngineQuotaConfig.md) | createEngine quota config: the limiter plus its engine-scoped knobs. |
 | [EngineQuotaRuntime](/api/@rulvar/core/interfaces/EngineQuotaRuntime.md) | The resolved engine-side quota runtime threaded into every run. |
+| [EnvelopeEncryption](/api/@rulvar/core/interfaces/EnvelopeEncryption.md) | - |
+| [EnvelopeEncryptionOptions](/api/@rulvar/core/interfaces/EnvelopeEncryptionOptions.md) | - |
 | [EscalationDigest](/api/@rulvar/core/interfaces/EscalationDigest.md) | The escalation block of a digest. |
 | [EscalationLimits](/api/@rulvar/core/interfaces/EscalationLimits.md) | Lineage limits, monotonically consumed and never replenished (DEF-3). |
 | [EscalationOptions](/api/@rulvar/core/interfaces/EscalationOptions.md) | - |
@@ -258,6 +262,7 @@ exactly the pieces you need, for example
 | [ReuseConfig](/api/@rulvar/core/interfaces/ReuseConfig.md) | The reuse block of AdmissionConfig. |
 | [RunAgentOptions](/api/@rulvar/core/interfaces/RunAgentOptions.md) | - |
 | [RunEventSink](/api/@rulvar/core/interfaces/RunEventSink.md) | Span-aware event sink: bodies are stamped into the WorkflowEvent envelope by the per-run EventBus (M1-T10); spanId defaults to the run root span when omitted. |
+| [RunExport](/api/@rulvar/core/interfaces/RunExport.md) | The portable bundle exportRun produces and importRun consumes (RV-217). |
 | [RunHandle](/api/@rulvar/core/interfaces/RunHandle.md) | - |
 | [RunInternals](/api/@rulvar/core/interfaces/RunInternals.md) | Everything one run's ctx needs; created per run by the engine (M1-T11). |
 | [RunOptions](/api/@rulvar/core/interfaces/RunOptions.md) | - |
@@ -268,6 +273,7 @@ exactly the pieces you need, for example
 | [SandboxBridgeOptions](/api/@rulvar/core/interfaces/SandboxBridgeOptions.md) | - |
 | [ScriptRunner](/api/@rulvar/core/interfaces/ScriptRunner.md) | - |
 | [ScrubNote](/api/@rulvar/core/interfaces/ScrubNote.md) | A scrub performed by the router; surfaced as a warning-level event by the engine. |
+| [SecretMasker](/api/@rulvar/core/interfaces/SecretMasker.md) | A compiled masking policy: text and deep-JSON forms of one pattern set. |
 | [SerializationHook](/api/@rulvar/core/interfaces/SerializationHook.md) | createEngine({ serialization }): absent means identity, no wrapping. |
 | [ShellPatternRules](/api/@rulvar/core/interfaces/ShellPatternRules.md) | - |
 | [ShellSegment](/api/@rulvar/core/interfaces/ShellSegment.md) | Argv-parsing shell matcher (M5-T06): shell allow/ask/deny is matched through a real argv parser, never a string prefix. The composition rule is the entire point: for a compound command the verdict is the strictest across segments, and any unmatched segment yields ask, never a silent allow: `npm test; rm -rf /` MUST yield ask (or deny when rm patterns are denied) even when `npm test` is allow-listed. |
@@ -321,6 +327,7 @@ exactly the pieces you need, for example
 | [AgentEvents](/api/@rulvar/core/type-aliases/AgentEvents.md) | Agent lifecycle. One logical agent dispatch emits EXACTLY ONE `agent:start`/`agent:end` pair on its span (the start carries the primary role), and each model invocation phase inside the span (`loop`, then possibly `summarize` activations, `finalize`, `extract`) emits its own `agent:phase:start`/`agent:phase:end` pair, so durations, per-phase usage, and attempts are derivable without heuristics (the RV-207 event-model contract; before it, every phase emitted an unpaired extra `agent:start` and consumers pairing starts with the single end computed the LAST phase's duration as the agent's). `reduceInvocationTable` is the official reducer over this vocabulary. |
 | [AgentStatus](/api/@rulvar/core/type-aliases/AgentStatus.md) | - |
 | [AttemptOutcomeClass](/api/@rulvar/core/type-aliases/AttemptOutcomeClass.md) | Attempt outcome classes entering LineageStats. |
+| [AuditCategory](/api/@rulvar/core/type-aliases/AuditCategory.md) | - |
 | [Bytes](/api/@rulvar/core/type-aliases/Bytes.md) | L0 byte-blob alias consumed by TranscriptStore and IsolationProvider. |
 | [CacheTtl](/api/@rulvar/core/type-aliases/CacheTtl.md) | - |
 | [CanonicalId](/api/@rulvar/core/type-aliases/CanonicalId.md) | Engine-minted ULID identifying a tool call across providers. The library, not the provider, mints tool-call ids; each adapter keeps a bijective map between canonical ids and wire ids (toolu_* / call_*) in both directions. |
@@ -488,6 +495,7 @@ exactly the pieces you need, for example
 | [GET\_CHILD\_RESULT\_TOOL\_NAME](/api/@rulvar/core/variables/GET_CHILD_RESULT_TOOL_NAME.md) | - |
 | [IMPLEMENTATION\_PROFILE\_LIMITS](/api/@rulvar/core/variables/IMPLEMENTATION_PROFILE_LIMITS.md) | The implementation template's stop conditions. |
 | [INBOX\_PROPOSAL\_TTL\_DAYS](/api/@rulvar/core/variables/INBOX_PROPOSAL_TTL_DAYS.md) | Inbox proposals expire after 14 days (reserved for M12 phase 3). |
+| [JOURNAL\_ENVELOPE\_MARKER](/api/@rulvar/core/variables/JOURNAL_ENVELOPE_MARKER.md) | The journal envelope marker; a stored entry's whole value is this. |
 | [KB\_ACTIVE\_CLAIMS\_CAP](/api/@rulvar/core/variables/KB_ACTIVE_CLAIMS_CAP.md) | Appendix A: KB active-claims cap, default 8 per (model, taskClass). |
 | [KB\_CARD\_RENDER\_BUDGET\_CHARS](/api/@rulvar/core/variables/KB_CARD_RENDER_BUDGET_CHARS.md) | The KB card render budget (characters). |
 | [LARGE\_VALUE\_WARN\_BYTES](/api/@rulvar/core/variables/LARGE_VALUE_WARN_BYTES.md) | Large-value soft warn threshold (committed for M2). |
@@ -562,12 +570,15 @@ exactly the pieces you need, for example
 | [compactMessages](/api/@rulvar/core/functions/compactMessages.md) | Applies a produced summary: everything after the first message (the spawn prompt) is replaced by ONE user-role summary message. Compaction fires at tool turn boundaries only, so the replaced span never splits a tool-call/tool-result pair. |
 | [compilePermissionChain](/api/@rulvar/core/functions/compilePermissionChain.md) | Merges the engine-wide config and the profile config into one chain. Layers concatenate engine-first; since rules only deny or ask, ordering within a layer cannot change the verdict. The profile's canUseTool wins over the engine's (a single slot by construction). A declared preset compiles INTO the same layers, after the host-authored rules, never as a fifth layer (M5-T05). |
 | [compilePermissionPreset](/api/@rulvar/core/functions/compilePermissionPreset.md) | - |
+| [compileSecretMasker](/api/@rulvar/core/functions/compileSecretMasker.md) | Compiles the redaction policy: the DEFAULT credential pattern set plus host-defined patterns (RV-217), for the telemetry boundary (events and traces; never the journal, where lossless encryption is the right tool). String patterns compile as global regexes; RegExp patterns are recompiled with the global flag when it is missing, so replace-all semantics always hold. An invalid pattern is a typed ConfigError at compile time, before anything runs under the policy. |
 | [compileVerifiedLayer](/api/@rulvar/core/functions/compileVerifiedLayer.md) | The verified-layer compiler (M11-T06): start-tier recommendations per (ladder, taskClass) compiled EXCLUSIVELY from eval-measured claims. A strength on a rung below the default votes down (start cheaper); a weakness on the default rung or below votes up. The net sign shifts EXACTLY one rung, bounded to the ladder (the clamp: the price of any false belief is one rung); ties hold the default and compile nothing. Editorial claims NEVER compile. Floors and ModelCaps stay hard router constraints; budget is touched only through the existing admission path. A deterministic pure function: the M12 consumers read THIS, never the card text. |
+| [constantTimeEqual](/api/@rulvar/core/functions/constantTimeEqual.md) | Guards against non-constant-time comparisons in host key checks. |
 | [costReportFromJournal](/api/@rulvar/core/functions/costReportFromJournal.md) | The pure journal fold: the complete CostReport from terminal entries, the same summation the kernel ledger uses (terminal usage exactly once, priced per servedBy slice, abandoned subtrees contribute zero). The orchestrator block folds too: spend attributed to the orchestrator sub-account, the reserve-funded share of it, the armed wake count, and the at-cap freeze flag from the journaled cap decision, so a replay-only resume reproduces the block instead of reading this process's live accounts (which a replay never charges). |
 | [countsAgainstLimit](/api/@rulvar/core/functions/countsAgainstLimit.md) | countsAgainstLimit derivation (XF-06): true iff scope_bigger; scope_different and blocked_with_evidence are exempt and never debit the escalation counter. |
 | [createCanonicalIdMinter](/api/@rulvar/core/functions/createCanonicalIdMinter.md) | Returns a per-engine minter of CanonicalId values. Monotonic within the factory instance; never a module-level singleton (no module state). |
 | [createCtx](/api/@rulvar/core/functions/createCtx.md) | Creates the per-run Ctx bound to `internals`. The current scope travels through AsyncLocalStorage so parallel branches and pipeline stages keep one ctx object while journaling under their own scope paths (I3: structure from call-and-return only). |
 | [createEngine](/api/@rulvar/core/functions/createEngine.md) | - |
+| [createEnvelopeEncryption](/api/@rulvar/core/functions/createEnvelopeEncryption.md) | Builds the envelope-encryption SerializationHook. All DataKeyProvider calls happen HERE (the hook itself is synchronous, on in-memory data keys): a fresh data key is minted and wrapped for this instance, and every historical wrapped key is unwrapped for the read path. |
 | [createSandboxBridge](/api/@rulvar/core/functions/createSandboxBridge.md) | - |
 | [currentOnlyKeyRing](/api/@rulvar/core/functions/currentOnlyKeyRing.md) | - |
 | [decodeCheckpoint](/api/@rulvar/core/functions/decodeCheckpoint.md) | Decodes a checkpoint blob. Returns undefined for an empty blob or an unknown format byte: a resume never trusts a checkpoint it cannot parse; the dangling dispatch reruns from the top instead (at-least-once is the documented floor). |
@@ -615,6 +626,7 @@ exactly the pieces you need, for example
 | [lexShellCommand](/api/@rulvar/core/functions/lexShellCommand.md) | Lexes a command into segments per the matching algorithm above. Quotes and escapes are honored; nothing is expanded; `$(`, backticks, `<(`, `>(`, and `<<` (outside single quotes) poison their segment. |
 | [liftRetainedParts](/api/@rulvar/core/functions/liftRetainedParts.md) | Lifts the adapter-shipped retention payload of one finished turn into provider-raw parts (the retention transport). Reads providerMetadata[&lt;adapter id&gt;].retainedParts and tags each block with the adapter's provider family. Returns [] when the adapter shipped nothing. |
 | [lineageWeightOf](/api/@rulvar/core/functions/lineageWeightOf.md) | C = E0 + kMax: the per-spawn weight of the variant function. |
+| [localKeyProvider](/api/@rulvar/core/functions/localKeyProvider.md) | The local reference DataKeyProvider: the key-encryption key is HKDF-SHA256(secret, info), data keys are random 32-byte AES keys, and wrapping is AES-256-GCM under the KEK. `info` partitions one master secret into unrelated KEKs (tenant-scoped keys: one provider per tenant with `info: tenantId`); a provider with different secret or info CANNOT unwrap this provider's keys. For production KMS, implement the same interface over GenerateDataKey/Decrypt. |
 | [makeOrchestratorWorkflow](/api/@rulvar/core/functions/makeOrchestratorWorkflow.md) | Builds the orchestrator workflow: ONE implementation behind both surfaces. The body wires the spawn tools over the per-call runtime, recovers spawn records from the journal on resume, and runs the orchestrator agent with the finish terminal tool. |
 | [maskSecrets](/api/@rulvar/core/functions/maskSecrets.md) | Masks credential-shaped substrings in one string. |
 | [maskSecretsDeep](/api/@rulvar/core/functions/maskSecretsDeep.md) | Deep-masks every string value in a JSON tree; non-strings pass through. Returns the input identity when nothing matched, so the default-on policy costs no allocation on clean events. |
@@ -660,6 +672,7 @@ exactly the pieces you need, for example
 | [readRunMeta](/api/@rulvar/core/functions/readRunMeta.md) | One run's meta: `getMeta` when the store has the capability, else the full `listRuns` scan. `undefined` means the run is not in the store. |
 | [readTerminationInit](/api/@rulvar/core/functions/readTerminationInit.md) | Reads a termination.init entry's payload; undefined when malformed. |
 | [reconcileRunMeta](/api/@rulvar/core/functions/reconcileRunMeta.md) | Repairs a divergent meta row from the journal: 'meta-behind' and 'stranded' audits rewrite `status` (every other meta field, unknown fields included, is preserved byte for byte), 'suspect' and 'consistent' audits change nothing. Zero model calls, no workflow needed; the crash residue between a settle's journal flush and its meta write repairs without resuming the run at all. |
+| [reduceAuditTrail](/api/@rulvar/core/functions/reduceAuditTrail.md) | Folds a loaded journal into the audit trail, in seq order. Pass the FULL entry list (`Engine.stores.journal.load(runId)` or `exportRun(runId).entries`); filtering is the reducer's job. |
 | [reduceCriticalPath](/api/@rulvar/core/functions/reduceCriticalPath.md) | - |
 | [reduceInvocationTable](/api/@rulvar/core/functions/reduceInvocationTable.md) | Reduces one run's event stream (or any slice of it) to the invocation table. Feed it the events in emission order; both a live stream and a replayed one produce the same usage and cost columns. |
 | [registryKeyRing](/api/@rulvar/core/functions/registryKeyRing.md) | KeyRing over the registry: the live call is projected DOWN into the profile of the stored entry; there is no upward canonization. |

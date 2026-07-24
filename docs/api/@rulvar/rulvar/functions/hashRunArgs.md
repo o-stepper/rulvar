@@ -7,7 +7,7 @@
 # Function: hashRunArgs()
 
 ```ts
-function hashRunArgs(args): string | undefined;
+function hashRunArgs(args, options?): string | undefined;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
@@ -32,6 +32,8 @@ sensitive-derived metadata, not a value safe to publish (see the
 | Parameter | Type |
 | ------ | ------ |
 | `args` | `unknown` |
+| `options?` | \{ `salt?`: `string`; \} |
+| `options.salt?` | `string` |
 
 ## Returns
 

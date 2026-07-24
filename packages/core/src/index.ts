@@ -10,6 +10,7 @@
 export type { Json, Bytes } from './l0/json.js';
 export * from './l0/errors.js';
 export * from './l0/serialization.js';
+export * from './l0/encryption.js';
 export * from './l0/messages.js';
 export * from './l0/usage.js';
 export * from './l0/terminal.js';
@@ -37,6 +38,7 @@ export * from './tools/isolation.js';
 export * from './tools/research.js';
 export * from './tools/progress.js';
 export * from './engine/profile-templates.js';
+export * from './engine/audit.js';
 export * from './journal/identity.js';
 export * from './journal/lineage.js';
 export * from './journal/termination.js';

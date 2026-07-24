@@ -705,6 +705,10 @@
             "link": "/api/@rulvar/core/interfaces/Artifact.md"
           },
           {
+            "text": "AuditRecord",
+            "link": "/api/@rulvar/core/interfaces/AuditRecord.md"
+          },
+          {
             "text": "AuditRunsOptions",
             "link": "/api/@rulvar/core/interfaces/AuditRunsOptions.md"
           },
@@ -813,6 +817,10 @@
             "link": "/api/@rulvar/core/interfaces/Ctx.md"
           },
           {
+            "text": "DataKeyProvider",
+            "link": "/api/@rulvar/core/interfaces/DataKeyProvider.md"
+          },
+          {
             "text": "DeclaredLadder",
             "link": "/api/@rulvar/core/interfaces/DeclaredLadder.md"
           },
@@ -859,6 +867,14 @@
           {
             "text": "EngineQuotaRuntime",
             "link": "/api/@rulvar/core/interfaces/EngineQuotaRuntime.md"
+          },
+          {
+            "text": "EnvelopeEncryption",
+            "link": "/api/@rulvar/core/interfaces/EnvelopeEncryption.md"
+          },
+          {
+            "text": "EnvelopeEncryptionOptions",
+            "link": "/api/@rulvar/core/interfaces/EnvelopeEncryptionOptions.md"
           },
           {
             "text": "EscalationDigest",
@@ -1245,6 +1261,10 @@
             "link": "/api/@rulvar/core/interfaces/RunEventSink.md"
           },
           {
+            "text": "RunExport",
+            "link": "/api/@rulvar/core/interfaces/RunExport.md"
+          },
+          {
             "text": "RunHandle",
             "link": "/api/@rulvar/core/interfaces/RunHandle.md"
           },
@@ -1283,6 +1303,10 @@
           {
             "text": "ScrubNote",
             "link": "/api/@rulvar/core/interfaces/ScrubNote.md"
+          },
+          {
+            "text": "SecretMasker",
+            "link": "/api/@rulvar/core/interfaces/SecretMasker.md"
           },
           {
             "text": "SerializationHook",
@@ -1481,6 +1505,10 @@
           {
             "text": "AttemptOutcomeClass",
             "link": "/api/@rulvar/core/type-aliases/AttemptOutcomeClass.md"
+          },
+          {
+            "text": "AuditCategory",
+            "link": "/api/@rulvar/core/type-aliases/AuditCategory.md"
           },
           {
             "text": "Bytes",
@@ -2137,6 +2165,10 @@
             "link": "/api/@rulvar/core/variables/INBOX_PROPOSAL_TTL_DAYS.md"
           },
           {
+            "text": "JOURNAL_ENVELOPE_MARKER",
+            "link": "/api/@rulvar/core/variables/JOURNAL_ENVELOPE_MARKER.md"
+          },
+          {
             "text": "KB_ACTIVE_CLAIMS_CAP",
             "link": "/api/@rulvar/core/variables/KB_ACTIVE_CLAIMS_CAP.md"
           },
@@ -2419,8 +2451,16 @@
             "link": "/api/@rulvar/core/functions/compilePermissionPreset.md"
           },
           {
+            "text": "compileSecretMasker",
+            "link": "/api/@rulvar/core/functions/compileSecretMasker.md"
+          },
+          {
             "text": "compileVerifiedLayer",
             "link": "/api/@rulvar/core/functions/compileVerifiedLayer.md"
+          },
+          {
+            "text": "constantTimeEqual",
+            "link": "/api/@rulvar/core/functions/constantTimeEqual.md"
           },
           {
             "text": "costReportFromJournal",
@@ -2441,6 +2481,10 @@
           {
             "text": "createEngine",
             "link": "/api/@rulvar/core/functions/createEngine.md"
+          },
+          {
+            "text": "createEnvelopeEncryption",
+            "link": "/api/@rulvar/core/functions/createEnvelopeEncryption.md"
           },
           {
             "text": "createSandboxBridge",
@@ -2631,6 +2675,10 @@
             "link": "/api/@rulvar/core/functions/lineageWeightOf.md"
           },
           {
+            "text": "localKeyProvider",
+            "link": "/api/@rulvar/core/functions/localKeyProvider.md"
+          },
+          {
             "text": "makeOrchestratorWorkflow",
             "link": "/api/@rulvar/core/functions/makeOrchestratorWorkflow.md"
           },
@@ -2809,6 +2857,10 @@
           {
             "text": "reconcileRunMeta",
             "link": "/api/@rulvar/core/functions/reconcileRunMeta.md"
+          },
+          {
+            "text": "reduceAuditTrail",
+            "link": "/api/@rulvar/core/functions/reduceAuditTrail.md"
           },
           {
             "text": "reduceCriticalPath",
@@ -4680,6 +4732,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/Artifact.md"
           },
           {
+            "text": "AuditRecord",
+            "link": "/api/@rulvar/rulvar/interfaces/AuditRecord.md"
+          },
+          {
             "text": "AuditRunsOptions",
             "link": "/api/@rulvar/rulvar/interfaces/AuditRunsOptions.md"
           },
@@ -4788,6 +4844,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/Ctx.md"
           },
           {
+            "text": "DataKeyProvider",
+            "link": "/api/@rulvar/rulvar/interfaces/DataKeyProvider.md"
+          },
+          {
             "text": "DeclaredLadder",
             "link": "/api/@rulvar/rulvar/interfaces/DeclaredLadder.md"
           },
@@ -4834,6 +4894,14 @@
           {
             "text": "EngineQuotaRuntime",
             "link": "/api/@rulvar/rulvar/interfaces/EngineQuotaRuntime.md"
+          },
+          {
+            "text": "EnvelopeEncryption",
+            "link": "/api/@rulvar/rulvar/interfaces/EnvelopeEncryption.md"
+          },
+          {
+            "text": "EnvelopeEncryptionOptions",
+            "link": "/api/@rulvar/rulvar/interfaces/EnvelopeEncryptionOptions.md"
           },
           {
             "text": "EscalationDigest",
@@ -5244,6 +5312,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/RunEventSink.md"
           },
           {
+            "text": "RunExport",
+            "link": "/api/@rulvar/rulvar/interfaces/RunExport.md"
+          },
+          {
             "text": "RunHandle",
             "link": "/api/@rulvar/rulvar/interfaces/RunHandle.md"
           },
@@ -5282,6 +5354,10 @@
           {
             "text": "ScrubNote",
             "link": "/api/@rulvar/rulvar/interfaces/ScrubNote.md"
+          },
+          {
+            "text": "SecretMasker",
+            "link": "/api/@rulvar/rulvar/interfaces/SecretMasker.md"
           },
           {
             "text": "SerializationHook",
@@ -5480,6 +5556,10 @@
           {
             "text": "AttemptOutcomeClass",
             "link": "/api/@rulvar/rulvar/type-aliases/AttemptOutcomeClass.md"
+          },
+          {
+            "text": "AuditCategory",
+            "link": "/api/@rulvar/rulvar/type-aliases/AuditCategory.md"
           },
           {
             "text": "Bytes",
@@ -6148,6 +6228,10 @@
             "link": "/api/@rulvar/rulvar/variables/INBOX_PROPOSAL_TTL_DAYS.md"
           },
           {
+            "text": "JOURNAL_ENVELOPE_MARKER",
+            "link": "/api/@rulvar/rulvar/variables/JOURNAL_ENVELOPE_MARKER.md"
+          },
+          {
             "text": "KB_ACTIVE_CLAIMS_CAP",
             "link": "/api/@rulvar/rulvar/variables/KB_ACTIVE_CLAIMS_CAP.md"
           },
@@ -6442,8 +6526,16 @@
             "link": "/api/@rulvar/rulvar/functions/compilePermissionPreset.md"
           },
           {
+            "text": "compileSecretMasker",
+            "link": "/api/@rulvar/rulvar/functions/compileSecretMasker.md"
+          },
+          {
             "text": "compileVerifiedLayer",
             "link": "/api/@rulvar/rulvar/functions/compileVerifiedLayer.md"
+          },
+          {
+            "text": "constantTimeEqual",
+            "link": "/api/@rulvar/rulvar/functions/constantTimeEqual.md"
           },
           {
             "text": "costReportFromJournal",
@@ -6464,6 +6556,10 @@
           {
             "text": "createEngine",
             "link": "/api/@rulvar/rulvar/functions/createEngine.md"
+          },
+          {
+            "text": "createEnvelopeEncryption",
+            "link": "/api/@rulvar/rulvar/functions/createEnvelopeEncryption.md"
           },
           {
             "text": "createSandboxBridge",
@@ -6654,6 +6750,10 @@
             "link": "/api/@rulvar/rulvar/functions/lineageWeightOf.md"
           },
           {
+            "text": "localKeyProvider",
+            "link": "/api/@rulvar/rulvar/functions/localKeyProvider.md"
+          },
+          {
             "text": "makeOrchestratorWorkflow",
             "link": "/api/@rulvar/rulvar/functions/makeOrchestratorWorkflow.md"
           },
@@ -6840,6 +6940,10 @@
           {
             "text": "reconcileRunMeta",
             "link": "/api/@rulvar/rulvar/functions/reconcileRunMeta.md"
+          },
+          {
+            "text": "reduceAuditTrail",
+            "link": "/api/@rulvar/rulvar/functions/reduceAuditTrail.md"
           },
           {
             "text": "reduceCriticalPath",

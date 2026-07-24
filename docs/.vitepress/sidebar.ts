@@ -68,6 +68,7 @@ const guideSidebar: DefaultTheme.SidebarItem[] = [
     collapsed: false,
     items: [
       { text: 'Stores', link: '/guide/stores' },
+      { text: 'Data protection', link: '/guide/data-protection' },
       { text: 'Journal compatibility', link: '/guide/journal-compatibility' },
     ],
   },
