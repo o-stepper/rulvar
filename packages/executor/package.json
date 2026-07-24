@@ -1,6 +1,6 @@
 {
   "name": "@rulvar/executor",
-  "version": "1.58.0",
+  "version": "1.59.0",
   "description": "Rulvar isolated tool executors: reference ToolExecutorProvider adapters that run tool work out of process (subprocess and container) so hostile or model-generated scripts cannot reach host capabilities.",
   "type": "module",
   "license": "Apache-2.0",
