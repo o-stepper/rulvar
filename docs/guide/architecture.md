@@ -16,7 +16,7 @@ flowchart TB
     l4["L4 orchestration\nrun engine · ctx · budget · scheduler · event stream · @rulvar/plan"]
     l3["L3 execution\nagent runtime · tool system · MCP bus"]
     l2["L2 kernel\njournal kernel · model router · @rulvar/compat"]
-    l1["L1 leaves\n@rulvar/anthropic · @rulvar/openai · @rulvar/bridge-ai-sdk · @rulvar/store-sqlite"]
+    l1["L1 leaves\n@rulvar/anthropic · @rulvar/openai · @rulvar/bridge-ai-sdk · @rulvar/store-sqlite · @rulvar/store-postgres"]
     l0["L0 contracts\nwire types · SPI interfaces · error taxonomy"]
 
     l6 --> l5 --> l4 --> l3 --> l2 --> l1 --> l0
@@ -39,7 +39,7 @@ Dependencies point strictly downward: a module in one layer never imports anythi
 | # | Component | Ships in | Deep dive |
 |---|---|---|---|
 | 1 | Journal kernel | `@rulvar/core` | [The journal](/guide/journal) |
-| 2 | Storage SPI and shipped stores | `@rulvar/core`, `@rulvar/store-sqlite` | [Stores](/guide/stores) |
+| 2 | Storage SPI and shipped stores | `@rulvar/core`, `@rulvar/store-sqlite`, `@rulvar/store-postgres` | [Stores](/guide/stores) |
 | 3 | Provider adapter SPI and wire core | `@rulvar/core`, adapter packages | [Providers](/guide/providers) |
 | 4 | Model router and capability registry | `@rulvar/core` | [Model routing](/guide/model-routing) |
 | 5 | Agent runtime | `@rulvar/core` | [Agents](/guide/agents) |
@@ -57,7 +57,7 @@ The sole writer and interpreter of run truth. It derives a content key (a sha256
 
 ### Storage SPI and shipped stores
 
-Pluggable persistence behind a deliberately dumb seam: `JournalStore` is five methods (`append`, `load`, `putMeta`, `listRuns`, `delete`), and `LeasableStore` adds `acquire`/`renew`/`release` with a fencing epoch so a stale queue worker's appends are rejected rather than corrupting a run. `TranscriptStore` keeps agent transcripts, checkpoints, and worktree patches as separate blobs, so the journal stays small and diffable. The core ships `InMemoryStore` (resume disabled, with a loud warning) and `JsonlFileStore`; `@rulvar/store-sqlite` ships `SqliteStore`, the reference for community stores, and `@rulvar/store-conformance` is the executable definition of the contract. See [Stores](/guide/stores) and [Writing a store](/guide/store-authors).
+Pluggable persistence behind a deliberately dumb seam: `JournalStore` is five methods (`append`, `load`, `putMeta`, `listRuns`, `delete`), and `LeasableStore` adds `acquire`/`renew`/`release` with a fencing epoch so a stale queue worker's appends are rejected rather than corrupting a run. `TranscriptStore` keeps agent transcripts, checkpoints, and worktree patches as separate blobs, so the journal stays small and diffable. The core ships `InMemoryStore` (resume disabled, with a loud warning) and `JsonlFileStore`; `@rulvar/store-sqlite` ships `SqliteStore`, the reference for community stores; `@rulvar/store-postgres` ships `PostgresStore` for multi-process and multi-host deployments; and `@rulvar/store-conformance` is the executable definition of the contract. See [Stores](/guide/stores) and [Writing a store](/guide/store-authors).
 
 ### Provider adapter SPI and wire core
 
@@ -183,6 +183,7 @@ Rulvar ships as 14 packages. All release in lockstep with identical versions; th
 | `@rulvar/openai` | L1 | OpenAI Responses API adapter plus the `openaiCompatible` factory for any compatible endpoint |
 | `@rulvar/bridge-ai-sdk` | L1 | Wraps any Vercel AI SDK language model as a `ProviderAdapter` for the long tail of providers; the highest-churn package |
 | `@rulvar/store-sqlite` | L1 | `SqliteStore` implementing `JournalStore` and `LeasableStore` with the fencing epoch; the reference for community stores |
+| `@rulvar/store-postgres` | L1 | `PostgresStore` implementing the same contract over node-postgres, for multi-process and multi-host deployments |
 | `@rulvar/store-conformance` | L6 | Executable conformance kit for store adapters: atomicity, total per-run order, read-your-writes, opaque payloads, fencing |
 | `@rulvar/compat` | L2 ext | Frozen key-derivation profiles for retired journal hash versions; independently versioned; attaches via `extraDerivers` |
 | `@rulvar/plan` | L4 ext | The `planRunner` extension, the run ledger, escalation extensions, and model ladder configuration for the dynamic orchestrator |
@@ -204,6 +205,7 @@ flowchart BT
     openai --> core
     bridge["@rulvar/bridge-ai-sdk"] --> core
     sqlite["@rulvar/store-sqlite"] --> core
+    postgres["@rulvar/store-postgres"] --> core
     conform["@rulvar/store-conformance"] --> core
     compat["@rulvar/compat"] --> core
     plan["@rulvar/plan"] --> core

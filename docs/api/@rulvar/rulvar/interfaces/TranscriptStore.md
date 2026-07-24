@@ -11,6 +11,7 @@ Defined in: `packages/core/dist/index.d.ts`
 ## Extended by
 
 - [`SqliteTranscriptStore`](/api/@rulvar/store-sqlite/interfaces/SqliteTranscriptStore.md)
+- [`PostgresTranscriptStore`](/api/@rulvar/store-postgres/interfaces/PostgresTranscriptStore.md)
 
 ## Properties
 

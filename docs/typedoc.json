@@ -12,6 +12,7 @@
     "../packages/plan",
     "../packages/planner",
     "../packages/store-sqlite",
+    "../packages/store-postgres",
     "../packages/store-conformance",
     "../packages/compat",
     "../packages/testing",

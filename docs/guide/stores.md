@@ -9,7 +9,7 @@ Run truth lives in the [journal](/guide/journal), and the journal lives in a sto
 
 | Seam | Holds | Shipped implementations |
 |---|---|---|
-| `JournalStore` | Journal entries and `RunMeta` records | `InMemoryStore`, `JsonlFileStore` (`@rulvar/core`), `SqliteStore` (`@rulvar/store-sqlite`) |
+| `JournalStore` | Journal entries and `RunMeta` records | `InMemoryStore`, `JsonlFileStore` (`@rulvar/core`), `SqliteStore` (`@rulvar/store-sqlite`), `PostgresStore` (`@rulvar/store-postgres`) |
 | `TranscriptStore` | Transcripts, turn-boundary checkpoints, worktree patches, persisted compiled-workflow sources | `InMemoryTranscriptStore`, `FileTranscriptStore` (`@rulvar/core`) |
 | `ModelKnowledgeStore` | Evidence-backed cross-run model claims | `FileModelKnowledgeStore` (`@rulvar/core`) |
 
@@ -246,15 +246,48 @@ Every append of that resume carries the lease, so if this worker is presumed dea
 
 The package also ships `SqliteQuotaLimiter`, the cross-process reference implementation of the core `QuotaLimiter` SPI: engine processes pointing it at one database file (its own file, or the store's) enforce one global provider quota, with admission inside a single `BEGIN IMMEDIATE` transaction, reservations as rows so reconciliation works from any process, and both tables lazily pruned to two accounting windows. Its options are `path`, the shared `rules` (validated by the core's `validateQuotaRules`, and required to be identical across processes because buckets key on rule content), and an injectable `now`. What the engine does with a denial, and the rule model itself, is the subject of [shared provider quotas](/guide/model-routing#shared-provider-quotas-across-processes).
 
+### `@rulvar/store-postgres`
+
+```bash
+pnpm add @rulvar/store-postgres
+```
+
+`PostgresStore` implements the same contract over node-postgres (`pg`): `JournalStore` plus `LeasableStore` with fencing epochs, `fencedWrites` on both the journal side and the `transcripts()` twin, and the `getMeta`/`leaseTtlMs` capabilities. It is the production reference for deployments where `SqliteStore`'s one-file-per-host boundary ends: worker processes on SEVERAL hosts point at one database and coordinate through the same leases and epochs.
+
+```ts
+import { PostgresStore } from '@rulvar/store-postgres';
+
+const store = new PostgresStore({
+  url: 'postgres://rulvar:secret@db.internal:5432/rulvar',
+  schema: 'rulvar',   // default 'public'; created on boot when missing
+  ttlMs: 60_000,      // lease ttl; 60000 ms is the default
+  max: 10,            // pool ceiling; the default
+});
+```
+
+The options are `url` (the connection string every coordinating process shares), `schema` (a plain SQL identifier; a non-public schema is created on first use and doubles as cheap isolation for tests and multi-tenant hosts), `ttlMs` (validated exactly like the sqlite store, refused typed before any connection opens), `max` (the pool ceiling), and an injectable `now` clock. Payloads are stored as opaque TEXT on purpose: `jsonb` normalizes key order and duplicate keys, and obligation A4 forbids normalization, so `jsonb` appears only in query-side casts and expression indexes. Call `close()` when done; it drains the pool.
+
+Where the sqlite store serializes the fence check and the guarded mutation with `BEGIN IMMEDIATE`, `PostgresStore` runs every run-scoped mutation inside one transaction that first takes a **per-run advisory transaction lock**. The unit is the same (a takeover from another process or host cannot land between the check and the write; the loser sees the final rows and rejects typed), but the granularity is per run, so unrelated runs never queue behind each other. The schema bootstrap is lazy, idempotent, and serialized on a schema-scoped advisory lock, so a fleet start over one fresh database boots clean without a busy-retry loop; the multi-process soak and the boot race run against a real postgres in CI.
+
+Operational notes:
+
+- **Clocks.** Lease expiry uses the CLIENT clock (mirroring the sqlite store, and keeping expiry testable through the injectable `now`). Coordinating hosts must be NTP-synced; the default 60 s ttl dwarfs sane NTP drift, and shortening the ttl toward your skew budget is the tradeoff to watch.
+- **One write region per run.** The store proves single-region, multi-host fencing. Do not split one run's writers across regions over replicated postgres: a multi-region protocol is out of scope until proven, exactly as the improvement plan scoped it.
+- **Pooling and backpressure.** Every operation is one short transaction, so the pool is the backpressure: excess operations queue for a client instead of stampeding the server. Budget `max` across your whole fleet against the server's `max_connections` (workers times pool max, plus headroom), or front the fleet with pgbouncer in session mode. There is no store-side retry of transient connection loss; the engine's own retry discipline and the queue worker's lease loss handling stay the recovery story.
+- **Backup and restore runbook.** The store keeps everything in five tables under its schema (`rulvar_entries`, `rulvar_meta`, `rulvar_leases`, `rulvar_epochs`, `rulvar_blobs`), so standard postgres tooling applies verbatim: continuous archiving plus PITR (`wal_level = replica`, `archive_command`, restore to a timestamp) is the reference setup, and a plain `pg_dump --schema=rulvar` is a consistent logical snapshot (single-snapshot dump). After a restore to an earlier point, journals are simply shorter: resume replays to the restored tail and continues live from there, exactly the crash-recovery semantics the journal already promises. Two cautions: restore the WHOLE schema together (entries, meta, and blobs must come from one snapshot, or `runs audit --repair` reconciles a meta row that ran ahead), and never restore while workers hold leases against the new timeline (stop the fleet, restore, start; epochs stay monotonic because `rulvar_epochs` restores with the same snapshot).
+
+The conformance suites, the cross-instance fencing tests, and the adversarial multi-process soak all run against a real postgres in this package's own test suite, gated on `RULVAR_POSTGRES_URL` (CI provides a service container; locally, any `docker run postgres:16` works).
+
 ## Choosing a store
 
 | Situation | Store |
 |---|---|
 | Unit and integration tests | `InMemoryStore` (the default) |
 | One application process, durable runs | `JsonlFileStore` + `FileTranscriptStore` |
-| Multiple workers over a shared queue | `SqliteStore` (leases and fencing) |
+| Multiple workers over a shared queue, one host | `SqliteStore` (leases and fencing) |
+| Multiple workers across HOSTS, or an existing postgres | `PostgresStore` (leases and fencing over one database) |
 | Ops visibility, greppable and diffable journals | `JsonlFileStore` |
-| Another backend (Postgres, an object store, a KV) | Write your own against the SPI; see [Writing a store](/guide/store-authors) |
+| Another backend (an object store, a KV, another RDBMS) | Write your own against the SPI; see [Writing a store](/guide/store-authors) |
 
 The contracts are the only coupling point: any `JournalStore` that passes the conformance kit slots into `createEngine` unchanged, and the kernel's determinism does not depend on the backend. Whatever total order a store persists, the folds yield the same outcome on every store and every replay.
 
@@ -267,6 +300,7 @@ What "durable" means, per store:
 | `InMemoryStore` | Nothing; no resume from another process | Not applicable |
 | `JsonlFileStore` | Everything appended; a torn tail line from a mid-append crash is repaired at load | One writing process per directory; no lease capability |
 | `SqliteStore` | Everything appended, in one database file | Safe under leases; stale epochs are fenced out |
+| `PostgresStore` | Everything appended, in the database (its durability is your postgres durability settings) | Safe under leases across processes AND hosts; stale epochs are fenced out |
 
 A few engine-level guarantees hold on every durable store:
 
