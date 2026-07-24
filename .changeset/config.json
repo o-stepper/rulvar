@@ -9,11 +9,12 @@
       "@rulvar/cli",
       "@rulvar/core",
       "@rulvar/evals",
-      "@rulvar/rulvar",
       "@rulvar/openai",
       "@rulvar/plan",
       "@rulvar/planner",
+      "@rulvar/rulvar",
       "@rulvar/store-conformance",
+      "@rulvar/store-postgres",
       "@rulvar/store-sqlite",
       "@rulvar/testing",
       "eslint-plugin-rulvar"

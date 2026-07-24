@@ -19,6 +19,7 @@
 | [@rulvar/planner](/api/@rulvar/planner/index.md) | Rulvar flagship hybrid mode: plan agent, compileScript, WorkerSandboxRunner, self-repair loop. |
 | [@rulvar/rulvar](/api/@rulvar/rulvar/index.md) | Rulvar umbrella package: re-exports @rulvar/core, both first-class adapters, the file store, and the terminal progress renderer. Also installable through the unscoped alias package rulvar, which re-exports this one. |
 | [@rulvar/store-conformance](/api/@rulvar/store-conformance/index.md) | Rulvar executable store conformance kit (DEF-4). |
+| [@rulvar/store-postgres](/api/@rulvar/store-postgres/index.md) | Rulvar PostgreSQL store implementing JournalStore and LeasableStore with a fencing epoch, for multi-process and multi-host deployments. |
 | [@rulvar/store-sqlite](/api/@rulvar/store-sqlite/index.md) | Rulvar SQLite store implementing JournalStore and LeasableStore with a fencing epoch. |
 | [@rulvar/testing](/api/@rulvar/testing/index.md) | Rulvar test harness: createTestEngine, FakeAdapter, VCR cassettes, replay-strict runs, matchers. |
 | [eslint-plugin-rulvar](/api/eslint-plugin-rulvar/index.md) | Rulvar determinism lint rules with structural JSON diagnostics for the planner self-repair loop. |

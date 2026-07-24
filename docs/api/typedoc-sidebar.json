@@ -7229,6 +7229,51 @@
     ]
   },
   {
+    "text": "@rulvar/store-postgres",
+    "link": "/api/@rulvar/store-postgres/",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "Classes",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "PostgresStore",
+            "link": "/api/@rulvar/store-postgres/classes/PostgresStore.md"
+          }
+        ]
+      },
+      {
+        "text": "Interfaces",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "PostgresStoreOptions",
+            "link": "/api/@rulvar/store-postgres/interfaces/PostgresStoreOptions.md"
+          },
+          {
+            "text": "PostgresTranscriptStore",
+            "link": "/api/@rulvar/store-postgres/interfaces/PostgresTranscriptStore.md"
+          }
+        ]
+      },
+      {
+        "text": "Variables",
+        "collapsed": true,
+        "items": [
+          {
+            "text": "DEFAULT_LEASE_TTL_MS",
+            "link": "/api/@rulvar/store-postgres/variables/DEFAULT_LEASE_TTL_MS.md"
+          },
+          {
+            "text": "DEFAULT_POOL_MAX",
+            "link": "/api/@rulvar/store-postgres/variables/DEFAULT_POOL_MAX.md"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "text": "@rulvar/store-sqlite",
     "link": "/api/@rulvar/store-sqlite/",
     "collapsed": true,

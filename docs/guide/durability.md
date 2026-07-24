@@ -247,10 +247,11 @@ Because the journal and the transcript blobs are the entire run state, a run mov
 
 - `JsonlFileStore` and `FileTranscriptStore` keep one directory; copy it.
 - `SqliteStore` (from `@rulvar/store-sqlite`) keeps one database file; copy it, or point both machines at it.
+- `PostgresStore` (from `@rulvar/store-postgres`) keeps everything in a postgres schema; machines point at the database, and your postgres backup/PITR discipline is the copy story (see [the runbook](/guide/stores#rulvar-store-postgres)).
 
 On the target machine you need the same workflow definition (same registered name; the body hash is checked and a mismatch warns loudly) and an engine whose supported hash-version window covers the journal's entries. For compiled workflows you need only the copied stores: the source travels inside the transcript store.
 
-When two processes might touch the same journal, use a leasable store. `SqliteStore` implements the lease contract: `acquire` hands out a fenced lease (acquiring a held lease rejects with the typed `LeaseHeldError`), and passing it as `ResumeOptions.lease` makes the engine carry it on every append, so a stale worker's writes are rejected by the fencing epoch instead of corrupting the run.
+When two processes might touch the same journal, use a leasable store. `SqliteStore` (one host) and `PostgresStore` (across hosts) implement the lease contract: `acquire` hands out a fenced lease (acquiring a held lease rejects with the typed `LeaseHeldError`), and passing it as `ResumeOptions.lease` makes the engine carry it on every append, so a stale worker's writes are rejected by the fencing epoch instead of corrupting the run.
 
 ```ts
 import { SqliteStore } from '@rulvar/store-sqlite';

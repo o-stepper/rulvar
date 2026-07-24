@@ -144,23 +144,24 @@ lockstep at a single version. Full map and dependency graph:
 <details>
 <summary>All fifteen packages</summary>
 
-| Package                     | What it is                                                                     |
-| --------------------------- | ------------------------------------------------------------------------------ |
-| `@rulvar/rulvar`            | Umbrella: core, both adapters, recommended defaults, progress renderers        |
-| `rulvar`                    | Unscoped alias of the umbrella, so the bare name resolves to the real thing    |
-| `@rulvar/core`              | The engine: journal kernel, `ctx` primitives, router, tools, stores, events    |
-| `@rulvar/anthropic`         | First-class adapter over `@anthropic-ai/sdk`                                   |
-| `@rulvar/openai`            | First-class adapter for the OpenAI Responses API, plus `openaiCompatible`      |
-| `@rulvar/bridge-ai-sdk`     | Wraps any Vercel AI SDK `LanguageModelV4` as a provider adapter                |
-| `@rulvar/store-sqlite`      | SQLite `JournalStore` and `LeasableStore` with a fencing epoch                 |
-| `@rulvar/store-conformance` | Executable conformance kit for custom store implementations                    |
-| `@rulvar/testing`           | `createTestEngine`, `FakeAdapter`, VCR cassettes, replay-strict runs, matchers |
-| `@rulvar/evals`             | Eval cases, rubric and judge graders, matrix sweeps, canary fingerprints       |
-| `@rulvar/plan`              | Adaptive orchestration: `planRunner`, the run ledger, the model ladder         |
-| `@rulvar/planner`           | Flagship mode: plan agent, `compileScript`, worker sandbox, self-repair loop   |
-| `@rulvar/cli`               | The `rulvar` shell: run, resume, inspect, plan, kb, TUI, server, worker, OTel  |
-| `@rulvar/compat`            | Frozen `KeyDeriver` profiles for hash versions outside the support window      |
-| `eslint-plugin-rulvar`      | Determinism lint rules, with JSON diagnostics for the planner self-repair loop |
+| Package                     | What it is                                                                                                       |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `@rulvar/rulvar`            | Umbrella: core, both adapters, recommended defaults, progress renderers                                          |
+| `rulvar`                    | Unscoped alias of the umbrella, so the bare name resolves to the real thing                                      |
+| `@rulvar/core`              | The engine: journal kernel, `ctx` primitives, router, tools, stores, events                                      |
+| `@rulvar/anthropic`         | First-class adapter over `@anthropic-ai/sdk`                                                                     |
+| `@rulvar/openai`            | First-class adapter for the OpenAI Responses API, plus `openaiCompatible`                                        |
+| `@rulvar/bridge-ai-sdk`     | Wraps any Vercel AI SDK `LanguageModelV4` as a provider adapter                                                  |
+| `@rulvar/store-sqlite`      | SQLite `JournalStore` and `LeasableStore` with a fencing epoch                                                   |
+| `@rulvar/store-postgres`    | PostgreSQL `JournalStore` and `LeasableStore` with a fencing epoch, for multi-process and multi-host deployments |
+| `@rulvar/store-conformance` | Executable conformance kit for custom store implementations                                                      |
+| `@rulvar/testing`           | `createTestEngine`, `FakeAdapter`, VCR cassettes, replay-strict runs, matchers                                   |
+| `@rulvar/evals`             | Eval cases, rubric and judge graders, matrix sweeps, canary fingerprints                                         |
+| `@rulvar/plan`              | Adaptive orchestration: `planRunner`, the run ledger, the model ladder                                           |
+| `@rulvar/planner`           | Flagship mode: plan agent, `compileScript`, worker sandbox, self-repair loop                                     |
+| `@rulvar/cli`               | The `rulvar` shell: run, resume, inspect, plan, kb, TUI, server, worker, OTel                                    |
+| `@rulvar/compat`            | Frozen `KeyDeriver` profiles for hash versions outside the support window                                        |
+| `eslint-plugin-rulvar`      | Determinism lint rules, with JSON diagnostics for the planner self-repair loop                                   |
 
 </details>
 
