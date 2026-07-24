@@ -25,11 +25,12 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | \{ `disposition?`: (`op`) => [`OperationDisposition`](/api/@rulvar/rulvar/type-aliases/OperationDisposition.md); `keyRing?`: [`KeyRing`](/api/@rulvar/rulvar/interfaces/KeyRing.md); `largeValueWarnBytes?`: `number`; `lease?`: [`Lease`](/api/@rulvar/rulvar/type-aliases/Lease.md); `now?`: () => `number`; `onWarn?`: (`msg`) => `void`; `priceUsd?`: (`servedBy`, `usage`) => `number` \| `undefined`; `priorEntries?`: readonly [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md)[]; `runId`: `string`; `store`: [`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md); `strict?`: `boolean`; \} | - |
+| `options` | \{ `disposition?`: (`op`) => [`OperationDisposition`](/api/@rulvar/rulvar/type-aliases/OperationDisposition.md); `keyRing?`: [`KeyRing`](/api/@rulvar/rulvar/interfaces/KeyRing.md); `largeValueWarnBytes?`: `number`; `lease?`: [`Lease`](/api/@rulvar/rulvar/type-aliases/Lease.md); `leaseOf?`: () => [`Lease`](/api/@rulvar/rulvar/type-aliases/Lease.md) \| `undefined`; `now?`: () => `number`; `onWarn?`: (`msg`) => `void`; `priceUsd?`: (`servedBy`, `usage`) => `number` \| `undefined`; `priorEntries?`: readonly [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md)[]; `runId`: `string`; `store`: [`JournalStore`](/api/@rulvar/rulvar/interfaces/JournalStore.md); `strict?`: `boolean`; \} | - |
 | `options.disposition?` | (`op`) => [`OperationDisposition`](/api/@rulvar/rulvar/type-aliases/OperationDisposition.md) | - |
 | `options.keyRing?` | [`KeyRing`](/api/@rulvar/rulvar/interfaces/KeyRing.md) | - |
 | `options.largeValueWarnBytes?` | `number` | - |
 | `options.lease?` | [`Lease`](/api/@rulvar/rulvar/type-aliases/Lease.md) | Queue mode: every append carries this lease so a stale holder's writes are rejected by the fencing epoch (M8 entry amendment). Absent means the single-writer precondition is asserted instead of fenced (the embedded default). |
+| `options.leaseOf?` | () => [`Lease`](/api/@rulvar/rulvar/type-aliases/Lease.md) \| `undefined` | Late-bound lease lookup (P0.2): consulted at EVERY append, winning over the static `lease` when it returns one. The engine passes its segment-lease holder here, because the engine-acquired genesis lease exists only after the ownership boot, which runs after this constructor. |
 | `options.now?` | () => `number` | - |
 | `options.onWarn?` | (`msg`) => `void` | - |
 | `options.priceUsd?` | (`servedBy`, `usage`) => `number` \| `undefined` | - |

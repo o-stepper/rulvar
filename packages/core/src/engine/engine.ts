@@ -21,7 +21,7 @@ import type { InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.
 import type { ExecutorRegistry } from '../l0/spi/executor.js';
 import type { IsolationProvider } from '../l0/spi/isolation.js';
 import type { Pricing, ProviderAdapter } from '../l0/spi/provider.js';
-import type { RunMeta, JournalStore, Lease } from '../l0/spi/store.js';
+import type { RunMeta, JournalStore, LeasableStore, Lease } from '../l0/spi/store.js';
 import type { TranscriptStore } from '../l0/spi/transcript.js';
 import {
   compileSecretMasker,
@@ -260,6 +260,25 @@ export interface CreateEngineOptions {
    * accept --allow-args-change on legacy runs.
    */
   security?: { argsHashSalt?: string };
+  /**
+   * The genesis ownership protocol (P0.2): over a journal store with
+   * the lease capability, a run or resume segment that was NOT handed
+   * a lease acquires its own before its first durable mutation, renews
+   * it at ttl/3 exactly like a queue worker, and releases it at
+   * settle. Fresh start, in-process resume, and worker takeover then
+   * share ONE owner/lease contract: at most one live driver per run
+   * across processes, a second driver's acquire rejects with the typed
+   * LeaseHeldError before any write or provider dispatch, and a
+   * crashed owner's lease expires after the store ttl so a worker
+   * sweep recovers the run. Default 'auto'. 'none' restores the
+   * pre-1.59.4 behavior (no engine-acquired leases) for hosts that
+   * coordinate ownership entirely outside the engine; a lease passed
+   * via RunOptions.lease or ResumeOptions.lease always wins over both
+   * modes (the caller owns acquire, renew, and release). Stores
+   * without the lease capability are unaffected: the embedded
+   * single-process default keeps the single-writer precondition.
+   */
+  ownership?: 'auto' | 'none';
 }
 
 export interface RunOptions {
@@ -292,6 +311,19 @@ export interface RunOptions {
   tags?: string[];
   /** Host-initiated cancellation. */
   signal?: AbortSignal;
+  /**
+   * A lease the caller already holds for this run (the genesis side of
+   * the ResumeOptions.lease contract): the engine carries it on EVERY
+   * durable mutation of the fresh segment (every journal append, every
+   * putMeta, every transcript blob write) and never acquires, renews,
+   * or releases it itself; lifecycle stays with the caller. Passing it
+   * disables the engine's own ownership acquisition for this run
+   * regardless of the `ownership` mode. Hosts that admit runs through
+   * an external queue acquire the lease at admission time and hand it
+   * here, so admission and the first dispatch are covered by ONE
+   * fencing epoch.
+   */
+  lease?: Lease;
 }
 
 /**
@@ -571,6 +603,36 @@ export function hashRunOutput(value: unknown): string | undefined {
   }
 }
 
+/**
+ * Engine ownership identity: a process-local counter, not Math.random()
+ * (the queue worker's identity convention): owner strings need
+ * uniqueness within the store, and the dev-mode bare-randomness guard
+ * stays armed while any run is live.
+ */
+let engineOrdinal = 0;
+
+function engineIdentity(): string {
+  engineOrdinal += 1;
+  return `rulvar-engine:${process.pid}:${engineOrdinal}`;
+}
+
+/** Lease capability guard, mirroring createWorker's detection. */
+function leaseCapable(store: JournalStore): store is LeasableStore {
+  const candidate = store as Partial<LeasableStore>;
+  return (
+    typeof candidate.acquire === 'function' &&
+    typeof candidate.renew === 'function' &&
+    typeof candidate.release === 'function'
+  );
+}
+
+/**
+ * The renew-cadence fallback when a leasable store exposes no
+ * leaseTtlMs: the Appendix A interim reference ttl the shipped stores
+ * default to (60000 ms).
+ */
+const ENGINE_DEFAULT_LEASE_TTL_MS = 60_000;
+
 export function createEngine(options: CreateEngineOptions): Engine {
   const adapters = buildAdapterRegistry(options.adapters);
   const rawJournal = options.stores?.journal ?? new InMemoryStore();
@@ -594,6 +656,32 @@ export function createEngine(options: CreateEngineOptions): Engine {
       ? undefined
       : compileSecretMasker(options.redaction.patterns, 'createEngine redaction.patterns');
   const defaults = options.defaults ?? {};
+  // The genesis ownership protocol (P0.2): resolved and validated at
+  // construction so a segment's ownership boot never discovers a
+  // malformed mode or ttl mid-run. The renew cadence adopts the
+  // store's exposed ttl exactly like createWorker (ttl/3, floored, at
+  // least 1 ms); a store exposing a non-integer ttl fails typed HERE,
+  // before any run could renew on a cadence derived from it.
+  const ownership = options.ownership ?? 'auto';
+  if (ownership !== 'auto' && ownership !== 'none') {
+    throw new ConfigError(
+      `createEngine ownership must be 'auto' or 'none'; got '${String(ownership)}'`,
+    );
+  }
+  const engineOwner = engineIdentity();
+  let ownershipRenewMs = Math.max(1, Math.floor(ENGINE_DEFAULT_LEASE_TTL_MS / 3));
+  if (ownership === 'auto' && leaseCapable(journal)) {
+    const storeTtlMs = journal.leaseTtlMs;
+    if (storeTtlMs !== undefined) {
+      if (!Number.isInteger(storeTtlMs) || storeTtlMs < 1 || storeTtlMs > 2_147_483_647) {
+        throw new ConfigError(
+          `the journal store's leaseTtlMs capability must report an integer between 1 and ` +
+            `2147483647 ms for the engine's ownership renew cadence; got ${String(storeTtlMs)}`,
+        );
+      }
+      ownershipRenewMs = Math.max(1, Math.floor(storeTtlMs / 3));
+    }
+  }
   // Retry policies are validated at construction: an invalid engine
   // default or profile retry fails here, before any run can merge it
   // and reach a provider under it (v1.29.0 review P2). The per-call
@@ -814,6 +902,24 @@ export function createEngine(options: CreateEngineOptions): Engine {
     // of the journal's own name guard, so a runId of '..' would escape the
     // transcript root there. Minted ids and prior-run ids pass unchanged.
     assertSafeRunId(runId, 'engine.run');
+    // The segment's lease rides ONE mutable holder (P0.2): caller
+    // supplied (queue mode, or the genesis handoff via
+    // RunOptions.lease) or engine acquired at the ownership boot in
+    // the async body below. Every durable write of the segment (each
+    // journal append, each putMeta, each transcript blob) reads the
+    // CURRENT lease through this holder, so fresh start, resume, and
+    // worker takeover share one owner/lease contract.
+    const suppliedLease = resumeCtx?.lease ?? opts?.lease;
+    if (suppliedLease !== undefined && suppliedLease.runId !== runId) {
+      throw new ConfigError(
+        `the supplied lease is for run '${suppliedLease.runId}', not '${runId}'; a lease ` +
+          'fences exactly the run it was acquired for',
+      );
+    }
+    const segmentLease: { current?: Lease } = {};
+    if (suppliedLease !== undefined) {
+      segmentLease.current = suppliedLease;
+    }
     const registry = buildDeriverRegistry(options.extraDerivers);
     // Segment k of a run starts its telemetry counters at
     // k * EVENT_SEGMENT_STRIDE, so seq stays strictly increasing and
@@ -856,7 +962,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
       onWarn: (msg) => bus.emit({ type: 'log', level: 'warn', msg }, rootSpanId),
       keyRing: registryKeyRing(registry),
       ...(resumeCtx === undefined ? {} : { priorEntries: resumeCtx.priorEntries }),
-      ...(resumeCtx?.lease === undefined ? {} : { lease: resumeCtx.lease }),
+      leaseOf: () => segmentLease.current,
       strict: resumeCtx?.strict ?? false,
     });
     for (const seqToInvalidate of invalidated) {
@@ -995,7 +1101,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
       external,
       mintTranscriptRef: () => `${runId}/t${transcriptCounter++}`,
       now: realNow,
-      ...(resumeCtx?.lease === undefined ? {} : { lease: resumeCtx.lease }),
+      // Read through the holder at every call site: an
+      // engine-acquired lease exists only after the async ownership
+      // boot, strictly before any consumer of this field runs.
+      get lease() {
+        return segmentLease.current;
+      },
     };
 
     // The genesis args binding is immutable like B0: a fresh run records
@@ -1068,7 +1179,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
             // it strand the run (fenced run state RFC, F1). The settle
             // caller swallows that rejection: a fenced stale settle is
             // exactly a no-op.
-            resumeCtx?.lease,
+            segmentLease.current,
           );
 
     if (activeSegments.has(runId)) {
@@ -1080,7 +1191,91 @@ export function createEngine(options: CreateEngineOptions): Engine {
     }
     activeSegments.add(runId);
 
+    // The reject-path ownership teardown handle: assigned by the async
+    // body below once its settleOwnership closure exists, called from
+    // the outer settlement hook for rejections that never reach the
+    // body's own release point.
+    let ownershipTeardown: () => Promise<void> = () => Promise.resolve();
+
     const result: Promise<RunOutcome<R>> = (async () => {
+      // The genesis ownership boot (P0.2): over a leasable journal
+      // store a segment that was NOT handed a lease acquires its own
+      // BEFORE its first durable mutation, renews it at ttl/3 exactly
+      // like a queue worker, and releases it at settle. A second
+      // driver (a worker sweep adopting a live fresh run, a double
+      // resume from another process, a simultaneous genesis of one
+      // explicit runId) then rejects typed at its OWN boot with ZERO
+      // writes and ZERO provider dispatches, instead of re-dispatching
+      // an in-flight turn and racing the journal from a stale tail. A
+      // dry-run preview performs zero store mutations and must stay
+      // runnable while another owner drives the run, so it never
+      // acquires; a caller-supplied lease keeps its caller-owned
+      // lifecycle (queue mode is unchanged).
+      let ownedLease: Lease | undefined;
+      let renewTimer: ReturnType<typeof setInterval> | undefined;
+      const settleOwnership = async (): Promise<void> => {
+        if (renewTimer !== undefined) {
+          clearInterval(renewTimer);
+          renewTimer = undefined;
+        }
+        const held = ownedLease;
+        ownedLease = undefined;
+        if (held !== undefined) {
+          segmentLease.current = undefined;
+          try {
+            await (journal as LeasableStore).release(held);
+          } catch {
+            // A lost lease is already released for us (reclaimed after
+            // the ttl); fencing made this segment's writes reject
+            // either way.
+          }
+        }
+      };
+      ownershipTeardown = settleOwnership;
+      if (
+        ownership === 'auto' &&
+        segmentLease.current === undefined &&
+        resumeCtx?.strict !== true &&
+        leaseCapable(journal)
+      ) {
+        let acquired: Lease;
+        try {
+          acquired = await journal.acquire(runId, engineOwner);
+        } catch (thrown) {
+          // Another owner holds the run: surface the typed rejection
+          // through handle.result and close the segment's surfaces so
+          // event consumers terminate. Nothing was written.
+          if (deadlineTimer !== undefined) {
+            deadlineTimer.cancel();
+          }
+          external.close();
+          bus.end();
+          throw thrown;
+        }
+        ownedLease = acquired;
+        segmentLease.current = acquired;
+        renewTimer = setInterval(() => {
+          journal.renew(acquired).catch(() => {
+            // The lease is lost (paused process, reclaim after the
+            // ttl): every further write already rejects by fencing;
+            // cancel to unwind the loop promptly instead of burning
+            // live calls (the worker convention).
+            bus.emit(
+              {
+                type: 'log',
+                level: 'warn',
+                msg: `run '${runId}' ownership lost: the lease could not be renewed and its fencing epoch may be superseded`,
+              },
+              rootSpanId,
+            );
+            requestCancel('run ownership lost: lease fencing epoch superseded');
+            if (renewTimer !== undefined) {
+              clearInterval(renewTimer);
+              renewTimer = undefined;
+            }
+          });
+        }, ownershipRenewMs);
+      }
       let status: RunOutcome<R>['status'] = 'ok';
       let value: R | undefined;
       let wireError: WireError | undefined;
@@ -1094,7 +1289,7 @@ export function createEngine(options: CreateEngineOptions): Engine {
         await transcripts.put(
           workflowSourceRef(runId),
           new TextEncoder().encode(compiled.source),
-          resumeCtx?.lease,
+          segmentLease.current,
         );
       }
       await putMeta('running');
@@ -1335,15 +1530,23 @@ export function createEngine(options: CreateEngineOptions): Engine {
         ...replayer.resumeReport(),
         invalidResolutions: replayer.fold.invalidResolutions(),
       });
+      // The ownership release happens strictly AFTER the segment's last
+      // durable write (the settle meta above) and strictly BEFORE
+      // handle.result resolves, so an await-settle-then-resume caller
+      // never collides with its own just-released lease.
+      await settleOwnership();
       return outcome;
     })();
 
     // The outcome is delivered through handle.result; an unobserved copy
     // must not crash the process. Segment ownership releases on ANY
-    // settlement, including rejects that never reach the run try block.
+    // settlement, including rejects that never reach the run try block
+    // (there the engine-acquired lease, if any, releases detached; the
+    // store ttl is the backstop if even that release cannot land).
     void result
       .catch(() => undefined)
       .finally(() => {
+        void ownershipTeardown();
         activeSegments.delete(runId);
       });
 

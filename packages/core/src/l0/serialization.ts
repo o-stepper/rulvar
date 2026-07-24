@@ -122,6 +122,13 @@ export function wrapJournalStore(
     wrapped.acquire = (runId, owner) => (inner as LeasableStore).acquire(runId, owner);
     wrapped.renew = (l) => (inner as LeasableStore).renew(l);
     wrapped.release = (l) => (inner as LeasableStore).release(l);
+    // The ttl introspection rides along (P0.2): the engine and
+    // createWorker derive their renew cadence from it, and a wrapper
+    // that dropped it would silently fall back to the reference
+    // default over a store configured with a different expiry.
+    if (typeof leasable.leaseTtlMs === 'number') {
+      (wrapped as { leaseTtlMs?: number }).leaseTtlMs = leasable.leaseTtlMs;
+    }
   }
   if (typeof (inner as Partial<MetaLookupStore>).getMeta === 'function') {
     wrapped.getMeta = (runId) => (inner as MetaLookupStore).getMeta(runId);

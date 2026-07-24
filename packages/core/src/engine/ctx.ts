@@ -633,8 +633,12 @@ export interface RunInternals {
    * worktree patches) exactly as the Replayer threads it into every
    * journal append, so a store declaring fencedWrites refuses a
    * superseded segment's blob overwrites (fenced run state RFC, F2).
+   * The engine binds this as a live getter over its segment-lease
+   * holder (P0.2), so the union with undefined is explicit: before
+   * the ownership boot (and on non-leasable stores) it reads
+   * undefined.
    */
-  lease?: Lease;
+  lease?: Lease | undefined;
   adapters: ReadonlyMap<string, ProviderAdapter>;
   defaults: {
     routing?: Partial<Record<InvocationRole, ModelSpec>>;
