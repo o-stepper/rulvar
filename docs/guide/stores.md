@@ -63,7 +63,7 @@ The rules:
 
 - `acquire` on a run whose lease is currently held rejects with a typed `LeaseHeldError`. The error is retryable by contract: try again after the holder releases or the ttl expires.
 - Leases carry a store-configured ttl; the holder must `renew` at an interval of at most ttl/3.
-- The `epoch` is a fencing token: monotonic per run, surviving release and expiry. An `append` or `renew` carrying a stale epoch (an old epoch, a foreign owner, or an expired lease) is rejected, and the rejected entry never becomes visible to a subsequent `load`.
+- The `epoch` is a fencing token: monotonic per run, surviving release, expiry, and `delete`/recreate of the same runId. The store keeps the epoch high-water mark as a tombstone through deletion, so a zombie lease from a deleted incarnation (same runId, same stable owner identity, the Kubernetes StatefulSet norm) can never fence green against the recreated run. An `append` or `renew` carrying a stale epoch (an old epoch, a foreign owner, or an expired lease) is rejected, and the rejected entry never becomes visible to a subsequent `load`.
 
 The fencing epoch is what makes multiple workers safe. Pass the lease to `engine.resume(runId, wf, { lease })` and the engine carries it on every journal append of that resume, through the kernel's single append site. A worker that stalls, loses its lease to a timeout, and wakes up later cannot corrupt the journal: its writes carry a stale epoch and bounce. You do not have to trust the zombie to notice it died; the store refuses it. An append carrying no lease is not fenced; it asserts the single-writer precondition instead.
 

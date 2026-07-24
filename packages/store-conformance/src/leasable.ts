@@ -119,6 +119,52 @@ export function leasableStoreConformance(
       },
     },
     {
+      id: 'fencing-epoch-tombstone',
+      title: 'delete/recreate of the same runId keeps the epoch strictly monotonic',
+      async run() {
+        const store = await mk();
+        // Incarnation 1: a worker with a STABLE identity (the k8s
+        // StatefulSet norm) acquires and does work; then it goes silent
+        // and the host deletes the run (retention) and recreates the
+        // SAME explicit runId.
+        const zombie = await store.acquire(RUN, 'owner-stable');
+        await store.append(RUN, leaseEntry(0), zombie);
+        // Release stands in for the ttl expiry of the silent worker
+        // (the suite's no-wall-clock convention); the zombie OBJECT and
+        // its epoch live on in the crashed process.
+        await store.release(zombie);
+        await store.delete(RUN);
+        const fresh = await store.acquire(RUN, 'owner-stable');
+        ensure(
+          fresh.epoch > zombie.epoch,
+          'fencing-epoch-tombstone',
+          `acquire after delete/recreate must return a strictly higher epoch than any epoch ` +
+            `the deleted incarnation held (got ${fresh.epoch} after ${zombie.epoch}); keep an ` +
+            `epoch tombstone through deletion`,
+        );
+        await store.append(RUN, leaseEntry(0), fresh);
+        // The zombie thread of the deleted incarnation wakes up: its
+        // lease carries the same runId, the same owner, and its old
+        // epoch, so ONLY strict monotonicity keeps it out.
+        ensure(
+          (await mustReject(() => store.append(RUN, leaseEntry(1), zombie))) !== undefined,
+          'fencing-epoch-tombstone',
+          'an append under a lease from a deleted incarnation must reject',
+        );
+        ensure(
+          (await mustReject(() => store.renew(zombie))) !== undefined,
+          'fencing-epoch-tombstone',
+          'renew of a lease from a deleted incarnation must reject',
+        );
+        const loaded = await store.load(RUN);
+        ensure(
+          loaded.length === 1 && !loaded.some((item) => item.seq === 1),
+          'fencing-epoch-tombstone',
+          'a rejected zombie append must never appear in the recreated run',
+        );
+      },
+    },
+    {
       id: 'lease-release-fences',
       title: 'a released lease can neither renew nor append',
       async run() {

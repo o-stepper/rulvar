@@ -6,7 +6,7 @@
 
 # Class: SqliteStore
 
-Defined in: [packages/store-sqlite/src/store.ts:133](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L133)
+Defined in: [packages/store-sqlite/src/store.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L136)
 
 @rulvar/store-sqlite: SqliteStore implementing JournalStore and
 LeasableStore with fencing epochs over the builtin node:sqlite driver;
@@ -27,7 +27,7 @@ Requires a Node.js with node:sqlite available
 new SqliteStore(options): SqliteStore;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:147](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L147)
+Defined in: [packages/store-sqlite/src/store.ts:150](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L150)
 
 #### Parameters
 
@@ -43,7 +43,7 @@ Defined in: [packages/store-sqlite/src/store.ts:147](https://github.com/o-steppe
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-fencedwrites"></a> `fencedWrites` | `readonly` | `true` | The fenced writes promise (fenced run state RFC, phase 2): every lease-carrying mutation of this store (append, putMeta, delete) verifies the lease is the current holder FOR THE MUTATED RUN, atomically with the mutation, and rejects stale or mismatched holders with the typed LeaseHeldError leaving nothing changed. | [packages/store-sqlite/src/store.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L141) |
+| <a id="property-fencedwrites"></a> `fencedWrites` | `readonly` | `true` | The fenced writes promise (fenced run state RFC, phase 2): every lease-carrying mutation of this store (append, putMeta, delete) verifies the lease is the current holder FOR THE MUTATED RUN, atomically with the mutation, and rejects stale or mismatched holders with the typed LeaseHeldError leaving nothing changed. | [packages/store-sqlite/src/store.ts:144](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L144) |
 
 ## Accessors
 
@@ -55,7 +55,7 @@ Defined in: [packages/store-sqlite/src/store.ts:147](https://github.com/o-steppe
 get leaseTtlMs(): number;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:518](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L518)
+Defined in: [packages/store-sqlite/src/store.ts:526](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L526)
 
 TTL introspection (the LeasableStore optional capability): lets
 createWorker verify at construction that its renew cadence matches
@@ -83,7 +83,7 @@ stores without it are accepted with the worker's own ttl.
 acquire(runId, owner): Promise<Lease>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:523](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L523)
+Defined in: [packages/store-sqlite/src/store.ts:531](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L531)
 
 #### Parameters
 
@@ -111,7 +111,7 @@ append(
 lease?): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:315](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L315)
+Defined in: [packages/store-sqlite/src/store.ts:318](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L318)
 
 #### Parameters
 
@@ -137,7 +137,7 @@ Defined in: [packages/store-sqlite/src/store.ts:315](https://github.com/o-steppe
 close(): void;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:223](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L223)
+Defined in: [packages/store-sqlite/src/store.ts:226](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L226)
 
 #### Returns
 
@@ -151,7 +151,7 @@ Defined in: [packages/store-sqlite/src/store.ts:223](https://github.com/o-steppe
 delete(runId, lease?): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:410](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L410)
+Defined in: [packages/store-sqlite/src/store.ts:418](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L418)
 
 #### Parameters
 
@@ -176,7 +176,7 @@ Defined in: [packages/store-sqlite/src/store.ts:410](https://github.com/o-steppe
 getMeta(runId): Promise<RunMeta | undefined>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:360](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L360)
+Defined in: [packages/store-sqlite/src/store.ts:363](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L363)
 
 #### Parameters
 
@@ -200,7 +200,7 @@ Defined in: [packages/store-sqlite/src/store.ts:360](https://github.com/o-steppe
 listRuns(f?): Promise<RunMeta[]>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:369](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L369)
+Defined in: [packages/store-sqlite/src/store.ts:372](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L372)
 
 #### Parameters
 
@@ -224,7 +224,7 @@ Defined in: [packages/store-sqlite/src/store.ts:369](https://github.com/o-steppe
 load(runId): Promise<JournalEntry[]>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:327](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L327)
+Defined in: [packages/store-sqlite/src/store.ts:330](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L330)
 
 #### Parameters
 
@@ -248,7 +248,7 @@ Defined in: [packages/store-sqlite/src/store.ts:327](https://github.com/o-steppe
 putMeta(m, lease?): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:344](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L344)
+Defined in: [packages/store-sqlite/src/store.ts:347](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L347)
 
 #### Parameters
 
@@ -273,7 +273,7 @@ Defined in: [packages/store-sqlite/src/store.ts:344](https://github.com/o-steppe
 release(l): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:571](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L571)
+Defined in: [packages/store-sqlite/src/store.ts:579](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L579)
 
 #### Parameters
 
@@ -297,7 +297,7 @@ Defined in: [packages/store-sqlite/src/store.ts:571](https://github.com/o-steppe
 renew(l): Promise<void>;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:560](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L560)
+Defined in: [packages/store-sqlite/src/store.ts:568](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L568)
 
 #### Parameters
 
@@ -321,7 +321,7 @@ Defined in: [packages/store-sqlite/src/store.ts:560](https://github.com/o-steppe
 transcripts(): SqliteTranscriptStore;
 ```
 
-Defined in: [packages/store-sqlite/src/store.ts:449](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L449)
+Defined in: [packages/store-sqlite/src/store.ts:457](https://github.com/o-stepper/rulvar/blob/main/packages/store-sqlite/src/store.ts#L457)
 
 The fenced transcript twin (fenced run state RFC, F2): a
 TranscriptStore whose blobs live in THIS store's database, beside

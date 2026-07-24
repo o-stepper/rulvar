@@ -159,6 +159,13 @@ export interface MetaLookupStore extends JournalStore {
  * Lease capability: acquire on a held lease MUST reject with a typed
  * LeaseHeldError; renew MUST run at an interval of at most ttl/3; an
  * append carrying a stale epoch MUST be rejected and never appear in load.
+ * The fencing epoch MUST be monotonic per runId across `delete` and
+ * recreate: after a run is deleted and the same explicit runId is
+ * started again, `acquire` MUST return a strictly higher epoch than any
+ * epoch the deleted incarnation ever held (keep a tombstone of the
+ * high-water mark through deletion), or a zombie lease from the deleted
+ * incarnation with a stable owner identity would fence green against
+ * the new incarnation's journal, meta, and delete surfaces.
  */
 export interface LeasableStore extends JournalStore {
   acquire(runId: string, owner: string): Promise<Lease>;

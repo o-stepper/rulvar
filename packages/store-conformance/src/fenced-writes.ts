@@ -146,6 +146,49 @@ export function fencedWritesConformance(mk: StoreFactory<LeasableStore>): Confor
       },
     },
     {
+      id: 'fenced-tombstone-zombie-rejected',
+      title: 'a lease from a deleted incarnation guards nothing after recreate',
+      async run() {
+        const store = await mk();
+        // Same runId, same STABLE owner identity on both sides of a
+        // delete/recreate: only strict epoch monotonicity through the
+        // deletion (the tombstone) keeps the zombie out of putMeta and
+        // delete, the two surfaces a terminal settle touches.
+        const zombie = await store.acquire(RUN, 'owner-stable');
+        await store.append(RUN, fencedEntry(0), zombie);
+        await store.putMeta(meta(RUN, 'running', 1), zombie);
+        // Release stands in for the ttl expiry of the silent worker
+        // (the suite's no-wall-clock convention); the zombie OBJECT and
+        // its epoch live on in the crashed process.
+        await store.release(zombie);
+        await store.delete(RUN);
+        const fresh = await store.acquire(RUN, 'owner-stable');
+        await store.append(RUN, fencedEntry(0), fresh);
+        await store.putMeta(meta(RUN, 'running', 1), fresh);
+        await mustRejectFenced(
+          'fenced-tombstone-zombie-rejected',
+          'a putMeta under a lease from a deleted incarnation',
+          () => store.putMeta(meta(RUN, 'ok', 1), zombie),
+        );
+        await mustRejectFenced(
+          'fenced-tombstone-zombie-rejected',
+          'a delete under a lease from a deleted incarnation',
+          () => store.delete(RUN, zombie),
+        );
+        const current = await readMeta(store, RUN);
+        ensure(
+          current !== undefined && current.status === 'running',
+          'fenced-tombstone-zombie-rejected',
+          'the recreated run must survive every zombie mutation attempt unchanged',
+        );
+        ensure(
+          (await store.load(RUN)).length === 1,
+          'fenced-tombstone-zombie-rejected',
+          'the recreated journal must survive a zombie delete attempt',
+        );
+      },
+    },
+    {
       id: 'fenced-run-match',
       title: 'a live lease for a different run guards nothing',
       async run() {

@@ -19,7 +19,10 @@
  *   commit as ONE serialized unit, so a takeover from another process or
  *   HOST cannot land between the check and the write. The lock is
  *   per-run, so unrelated runs never queue behind each other.
- * - Fencing: the epoch is monotonic per run for the store's lifetime; an
+ * - Fencing: the epoch is monotonic per runId for the store's lifetime
+ *   INCLUDING across deleteRun and recreate (the epochs row is a
+ *   tombstone deletion preserves, so a zombie lease from a deleted
+ *   incarnation can never fence green against a recreated run); an
  *   append carrying a stale or released lease rejects with the typed
  *   LeaseHeldError and the entry never becomes visible. `fencedWrites:
  *   true` on both the journal side and the transcript twin: putMeta,
@@ -476,7 +479,12 @@ export class PostgresStore implements MetaLookupStore, LeasableStore {
     await client.query(`DELETE FROM ${this.table('entries')} WHERE run_id = $1`, [runId]);
     await client.query(`DELETE FROM ${this.table('meta')} WHERE run_id = $1`, [runId]);
     await client.query(`DELETE FROM ${this.table('leases')} WHERE run_id = $1`, [runId]);
-    await client.query(`DELETE FROM ${this.table('epochs')} WHERE run_id = $1`, [runId]);
+    // The epochs row SURVIVES deletion as a monotonic tombstone: a
+    // recreate of the same explicit runId must acquire a strictly
+    // higher epoch, or a zombie lease from the deleted incarnation
+    // (same runId, same stable owner identity, same restarted epoch)
+    // would fence green against the new incarnation. The tombstone
+    // holds only the runId and a counter, never run content.
   }
 
   async delete(runId: string, lease?: Lease): Promise<void> {

@@ -6,7 +6,7 @@
 
 # Class: FailRunError
 
-Defined in: [packages/core/src/l0/errors.ts:267](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L267)
+Defined in: [packages/core/src/l0/errors.ts:268](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L268)
 
 A declared fail-run policy engaged and closed the run as a failure
 (v1.35.0 review P2-1): `budget.atCap: 'fail-run'` after the journaled
@@ -32,7 +32,7 @@ decision, no model call, no spend.
 new FailRunError(message, opts?): FailRunError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:270](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L270)
+Defined in: [packages/core/src/l0/errors.ts:271](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L271)
 
 #### Parameters
 
@@ -55,9 +55,9 @@ Defined in: [packages/core/src/l0/errors.ts:270](https://github.com/o-stepper/ru
 
 | Property | Modifier | Type | Overrides | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `readonly` | `"fail_run"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:268](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L268) |
-| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L59) |
-| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L58) |
+| <a id="property-code"></a> `code` | `readonly` | `"fail_run"` | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`code`](/api/@rulvar/core/classes/RulvarError.md#property-code) | - | [packages/core/src/l0/errors.ts:269](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L269) |
+| <a id="property-data"></a> `data?` | `readonly` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`data`](/api/@rulvar/core/classes/RulvarError.md#property-data) | [packages/core/src/l0/errors.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L60) |
+| <a id="property-retryable"></a> `retryable` | `readonly` | `boolean` | - | [`RulvarError`](/api/@rulvar/core/classes/RulvarError.md).[`retryable`](/api/@rulvar/core/classes/RulvarError.md#property-retryable) | [packages/core/src/l0/errors.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L59) |
 
 ## Methods
 
@@ -67,7 +67,7 @@ Defined in: [packages/core/src/l0/errors.ts:270](https://github.com/o-stepper/ru
 toWire(): WireError;
 ```
 
-Defined in: [packages/core/src/l0/errors.ts:70](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L70)
+Defined in: [packages/core/src/l0/errors.ts:71](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/errors.ts#L71)
 
 #### Returns
 

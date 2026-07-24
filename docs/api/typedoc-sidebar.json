@@ -637,6 +637,10 @@
             "link": "/api/@rulvar/core/classes/Semaphore.md"
           },
           {
+            "text": "SettlementError",
+            "link": "/api/@rulvar/core/classes/SettlementError.md"
+          },
+          {
             "text": "SpanRegistry",
             "link": "/api/@rulvar/core/classes/SpanRegistry.md"
           },
@@ -4869,6 +4873,10 @@
           {
             "text": "Semaphore",
             "link": "/api/@rulvar/rulvar/classes/Semaphore.md"
+          },
+          {
+            "text": "SettlementError",
+            "link": "/api/@rulvar/rulvar/classes/SettlementError.md"
           },
           {
             "text": "SpanRegistry",

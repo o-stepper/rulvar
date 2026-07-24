@@ -6,7 +6,14 @@
  * kernel in M2.
  */
 import { createHash, createHmac } from 'node:crypto';
-import { BudgetExhaustedError, ConfigError, RulvarError, type WireError } from '../l0/errors.js';
+import {
+  BudgetExhaustedError,
+  ConfigError,
+  LeaseHeldError,
+  RulvarError,
+  SettlementError,
+  type WireError,
+} from '../l0/errors.js';
 import { setLongTimeout, type LongTimer } from '../l0/long-timer.js';
 import { realNow } from '../l0/real-clock.js';
 import { assertSafeRunId } from '../l0/run-id.js';
@@ -1470,22 +1477,40 @@ export function createEngine(options: CreateEngineOptions): Engine {
       // stays byte stable and empty-journal runs stay empty. Ordered
       // BEFORE the meta write: a crash between the two leaves the
       // repairable 'meta-behind' residue, never a journal behind its
-      // projection. A fenced store's rejection of a superseded
-      // segment's settle entry is swallowed exactly like its meta
-      // write below.
+      // projection. Failure posture (the settlement acknowledgement):
+      // ONLY a fenced store's LeaseHeldError is swallowed, on both
+      // writes, because a superseded segment's settle bouncing off the
+      // successor's fence is the fencing contract working, and the
+      // successor owns settlement. Any OTHER failure rejects
+      // handle.result with the typed SettlementError below instead of
+      // resolving: the caller must never act on an outcome nothing
+      // durable records. A failed settle append also SKIPS the meta
+      // write; proceeding would fabricate a journal behind its
+      // projection, the one residue reconcile treats as impossible.
+      let settlementFailure: { stage: 'run-settle' | 'meta'; cause: unknown } | undefined;
       if (resumeCtx?.strict !== true) {
         const priorCount = resumeCtx?.priorEntries.length ?? 0;
-        const appendedHere = replayer.snapshot().length - priorCount;
+        const snapshotLength = replayer.snapshot().length;
+        const appendedHere = snapshotLength - priorCount;
         const recorded = lastRunSettle(replayer.snapshot());
-        if (appendedHere > 0 || (recorded !== undefined && recorded.runStatus !== status)) {
+        // The third arm heals a run whose earlier segment FAILED its
+        // settle append (the acknowledgement below rejected it): the
+        // journal holds work but no settle, and a pure replay appends
+        // nothing, so without this arm the run could never be settled
+        // by resume. Truly empty journals still append nothing.
+        if (
+          appendedHere > 0 ||
+          (recorded !== undefined && recorded.runStatus !== status) ||
+          (recorded === undefined && snapshotLength > 0)
+        ) {
           // The output digest rides the settle it belongs to (RV-209):
           // recorded only by a segment that COMPUTED the value (pure
           // replays append no settle, so a divergent replayed result can
           // never overwrite the live baseline), absent when the result
           // is undefined or not JCS-serializable.
           const outputHash = hashRunOutput(outcome.value);
-          await replayer
-            .appendSinglePhase({
+          try {
+            await replayer.appendSinglePhase({
               scope: '',
               key: deriverV2.deriveKey({ kind: 'run-settle' }),
               kind: 'decision',
@@ -1498,11 +1523,38 @@ export function createEngine(options: CreateEngineOptions): Engine {
                 segment: segmentsBefore + 1,
                 ...(outputHash === undefined ? {} : { outputHash }),
               },
-            })
-            .catch(() => undefined);
+            });
+          } catch (settleErr) {
+            if (!(settleErr instanceof LeaseHeldError)) {
+              settlementFailure = { stage: 'run-settle', cause: settleErr };
+            }
+          }
         }
       }
-      await putMeta(status).catch(() => undefined);
+      if (settlementFailure === undefined) {
+        try {
+          await putMeta(status);
+        } catch (metaErr) {
+          if (!(metaErr instanceof LeaseHeldError)) {
+            settlementFailure = { stage: 'meta', cause: metaErr };
+          }
+        }
+      }
+      if (settlementFailure !== undefined) {
+        // The stream stays honest before it closes: run:end below still
+        // reports the COMPUTED status (true as computation), this line
+        // says persistence did not keep up.
+        bus.emit(
+          {
+            type: 'log',
+            level: 'warn',
+            msg:
+              `settlement write failed (${settlementFailure.stage}); handle.result rejects ` +
+              `with SettlementError; resume re-settles by replay without a provider call`,
+          },
+          rootSpanId,
+        );
+      }
       // The semantic completion lift: an ok/exhausted run reports through
       // its result envelope, a typed failure through its error data (the
       // orchestrator acceptance rejection). Replay re-executes the
@@ -1535,6 +1587,28 @@ export function createEngine(options: CreateEngineOptions): Engine {
       // handle.result resolves, so an await-settle-then-resume caller
       // never collides with its own just-released lease.
       await settleOwnership();
+      if (settlementFailure !== undefined) {
+        const causeText =
+          settlementFailure.cause instanceof Error
+            ? settlementFailure.cause.message
+            : String(settlementFailure.cause);
+        throw new SettlementError(
+          `run '${runId}' computed status '${status}' but the ` +
+            (settlementFailure.stage === 'run-settle'
+              ? 'run_settle journal append failed'
+              : 'terminal RunMeta write failed') +
+            `: ${causeText}; nothing durable records the settlement, so the outcome is ` +
+            `withheld. The journal keeps every entry the run appended: resume the run to ` +
+            `re-settle by replay (no provider call is paid), or reconcile the store with ` +
+            `'rulvar runs audit'`,
+          {
+            stage: settlementFailure.stage,
+            runId,
+            runStatus: status,
+            cause: settlementFailure.cause,
+          },
+        );
+      }
       return outcome;
     })();
 
