@@ -198,7 +198,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The forty four rounds, verbatim in this repository's history:
+The forty five rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                    | Shipped as |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -246,6 +246,7 @@ The forty four rounds, verbatim in this repository's history:
 | v1.56.0       | 5897232 + dc6ef2c (#327, #329): the settled-ok limit replay, the SqliteQuotaLimiter class TSDoc, and the official PostgreSQL store                            | v1.57.0    |
 | v1.57.0       | 4fa35ce (#331): data protection hooks (envelope encryption, redaction policy, export/import, salted digests, the audit trail)                                 | v1.58.0    |
 | v1.58.0       | 615dc90 (#334): the isolated tool executor reference: the ToolExecutorProvider seam plus subprocess and container adapters and the executable conformance kit | v1.59.0    |
+| v1.59.0       | c127770 (#337): the external experiment review fixes: finite synthesize cost attribution, engine retry jitter provenance, the isolation docs caught up        | v1.59.1    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
