@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.59.1
+
+#### Patch Changes
+
+- Updated dependencies [c127770]
+  - @rulvar/core@1.59.1
+
 ### 1.59.0
 
 #### Patch Changes
@@ -780,6 +787,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.59.1
+
+#### Patch Changes
+
+- Updated dependencies [c127770]
+  - @rulvar/core@1.59.1
+
 ### 1.59.0
 
 #### Patch Changes
@@ -1407,6 +1421,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.59.1
+
+#### Patch Changes
+
+- Updated dependencies [c127770]
+  - @rulvar/core@1.59.1
 
 ### 1.59.0
 
@@ -2315,6 +2336,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.59.1
+
+#### Patch Changes
+
+- c127770: Two fixes from the v1.59.0 external experiment review. `CostReport.byRole.synthesize` folded to `NaN` in the journal cost report and in settled run outcomes because the role-bucket initializer predated the `synthesize` role; the initializer is now an uncast exhaustive literal, so a future role that misses it is a compile error instead of a NaN bucket. The engine's own retry jitter defaulted to the live `Math.random`, which the bare-nondeterminism detector classified as workflow provenance when rulvar is imported from a checkout build rather than `node_modules`; the default retry rng is now bound at module load, the same convention as the engine clock, so engine-internal retries never emit `RULVAR_BARE_MATH_RANDOM` or fail a run under `determinism.mode: 'error'`.
 
 ### 1.59.0
 
@@ -3638,6 +3665,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.59.1
+
 ### 1.59.0
 
 ### 1.58.0
@@ -3842,6 +3871,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.59.1
+
+#### Patch Changes
+
+- Updated dependencies [c127770]
+  - @rulvar/core@1.59.1
+  - @rulvar/testing@1.59.1
 
 ### 1.59.0
 
@@ -4636,6 +4673,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.59.1
+
+#### Patch Changes
+
+- Updated dependencies [c127770]
+  - @rulvar/core@1.59.1
+
 ### 1.59.0
 
 #### Minor Changes
@@ -4648,6 +4692,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.59.1
+
+#### Patch Changes
+
+- Updated dependencies [c127770]
+  - @rulvar/core@1.59.1
 
 ### 1.59.0
 
@@ -5428,6 +5479,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.59.1
+
+#### Patch Changes
+
+- Updated dependencies [c127770]
+  - @rulvar/core@1.59.1
+
 ### 1.59.0
 
 #### Patch Changes
@@ -6176,6 +6234,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.59.1
+
+#### Patch Changes
+
+- Updated dependencies [c127770]
+  - @rulvar/core@1.59.1
+  - eslint-plugin-rulvar@1.59.1
 
 ### 1.59.0
 
@@ -6926,6 +6992,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.59.1
+
+#### Patch Changes
+
+- Updated dependencies [c127770]
+  - @rulvar/core@1.59.1
+  - @rulvar/anthropic@1.59.1
+  - @rulvar/openai@1.59.1
 
 ### 1.59.0
 
@@ -7821,6 +7896,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.59.1
+
+#### Patch Changes
+
+- Updated dependencies [c127770]
+  - @rulvar/core@1.59.1
+
 ### 1.59.0
 
 #### Patch Changes
@@ -8540,6 +8622,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.59.1
+
+#### Patch Changes
+
+- Updated dependencies [c127770]
+  - @rulvar/core@1.59.1
+
 ### 1.59.0
 
 #### Patch Changes
@@ -8566,6 +8655,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.59.1
+
+#### Patch Changes
+
+- Updated dependencies [c127770]
+  - @rulvar/core@1.59.1
 
 ### 1.59.0
 
@@ -9232,6 +9328,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.59.1
+
+#### Patch Changes
+
+- Updated dependencies [c127770]
+  - @rulvar/core@1.59.1
 
 ### 1.59.0
 
