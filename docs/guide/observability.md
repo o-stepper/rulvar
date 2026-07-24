@@ -264,7 +264,13 @@ Every settled run carries a full cost report in `outcome.cost`, and `run:end` ca
 
 ```ts
 interface CostReport {
-  totalUsd: number;
+  totalUsd: number;                     // the NET ledger: abandoned subtrees contribute zero
+  grossUsd: number;                     // totalUsd + abandoned.usd: what the provider actually billed
+  abandoned: {
+    usd: number;                        // priced spend under abandoned subtrees
+    unpriced: Array<{ model: string; usage: Usage }>;
+    usageApprox?: boolean;
+  };
   byModel: Record<string, number>;      // canonical 'adapterId:model' refs
   byPhase: Record<string, number>;      // ctx.phase names
   byAgentType: Record<string, number>;
@@ -281,14 +287,40 @@ interface CostReport {
 }
 ```
 
-Four details worth knowing:
+Five details worth knowing:
 
-- `totalUsd` is an estimate computed from the usage the provider reported and the configured price table, not the provider's invoice: registry prices can lag provider price changes, and rounding or billing rules on the provider side are not modeled. Reconcile against the provider's billing when exactness matters.
+- `totalUsd` is an estimate computed from the usage the provider reported and the configured price table, not the provider's invoice: registry prices can lag provider price changes, and rounding or billing rules on the provider side are not modeled. Reconcile against the provider's billing when exactness matters, and reconcile against `grossUsd`, never `totalUsd`.
+- `totalUsd` is the NET ledger: spend under subtrees the orchestrator abandoned contributes zero to it and to every breakdown, because it paid for branches the run discarded. The provider billed those attempts all the same, so the gross side is first class: `abandoned.usd` is exactly the excluded share and `grossUsd = totalUsd + abandoned.usd` is the immutable provider-spend figure. Abandoning a branch never shrinks `grossUsd`. `abandoned.unpriced` surfaces abandoned slices with no price row (the top-level `unpriced` lists only net slices), and `abandoned.usageApprox` follows the top-level flag's semantics over the abandoned entries.
 - `usageApprox` is present and true when any usage folded into the total was estimated rather than reported by the provider (a transport cut, a stream a ceiling severed, or an abort), making the total a lower bound. The same flag rides `agent:end` and `run:end`, and the CLI cost line marks it.
 - Usage on a model absent from the price table lands in `unpriced` and never contributes a silent zero to a priced bucket. Missing pricing is visible, not invisible.
 - The `orchestrator` block exists in every run; without a dynamic orchestrator it is all zero with `forcedFinish: false`. The `share` denominator is floored at one cent, so a zero-cost run reports share 0 instead of dividing by zero. `byPhase` is why `ctx.phase` is structural for cost attribution while staying cosmetic for journal identity: renaming a phase changes your report, never your replay.
 
 The budget machinery behind these numbers, including the `'exhausted'` outcome and committed reserves, is covered in [Budgets](/guide/budgets).
+
+## The invoice export
+
+Reconciling a run against the provider's bill needs more than totals: it needs the individual wire calls. Every live provider dispatch, successful or not, mints a `ProviderCallRecord` on the terminal entry's `providerCalls` ledger:
+
+```ts
+interface ProviderCallRecord {
+  ordinal: number;                      // 1-based dispatch order across the invocation
+  role: InvocationRole;                 // the phase that paid the call
+  servedBy: ModelRef;
+  attempt: number;                      // 1-based try on the serving target; retries increment it
+  outcome: 'ok' | 'error' | 'aborted';
+  responseId?: string;                  // the provider's response id, when surfaced
+  usage: Usage;                         // this call's usage exactly
+  usageApprox?: boolean;
+  errorCode?: string;                   // WireError.code on 'error' outcomes
+  aborted?: 'budget' | 'external' | 'idle';
+}
+```
+
+Both shipped adapters surface the provider's response id on every finish, and the ledger persists it. Records are minted from the same sanitized usage the phase slices accumulate, so per-model sums over an entry's records reconcile with `usageByModel` by construction; failed and retried attempts keep their billed usage attributable instead of dissolving into the aggregate. Quota denials and abort short circuits that never reached the adapter mint nothing: the ledger enumerates exactly the calls a provider could bill. The ledger rides every checkpoint boundary (a kill-and-resume keeps pre-kill calls attributable, ordinals continuing) and restores verbatim on replay.
+
+`invoiceFromJournal(entries, priceUsd)` folds the ledger into the machine-readable export: one `InvoiceRow` per billable call, each with a reconciliation verdict. `matched` means the response id is present; `missing-provider-id` marks a finished call without one; `unconfirmed` marks a failed or severed call without one (the provider may or may not have billed it, and there is no id to match); `unattributed` marks spend with no per-call record (entries journaled before the ledger shipped, fully replayed invocations, and the remainder when restored pre-ledger usage exceeds the recorded calls). Nothing is dropped: unattributed spend becomes visible rows, and `reconciliationFailures` counts every row that is not `matched`. The totals are the same slice fold the CostReport runs, so `totalUsd === CostReport.grossUsd` and `netUsd === CostReport.totalUsd` exactly; per-row `usd` prices each call individually and is informational, since a nonlinear price table (long-context tiers) prices a split differently from its sum. Pricing happens at fold time from the table you pass, exactly like the CostReport.
+
+`rulvar invoice <runId>` prints the rows and totals from a stored run; `--json` emits the `InvoiceExport` object for finance tooling. See [the CLI guide](/guide/cli).
 
 ## Metrics
 

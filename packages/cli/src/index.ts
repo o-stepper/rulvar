@@ -15,6 +15,7 @@ export {
   resumeCommand,
   runsLsCommand,
   inspectCommand,
+  invoiceCommand,
   type CommandContext,
 } from './commands.js';
 export {

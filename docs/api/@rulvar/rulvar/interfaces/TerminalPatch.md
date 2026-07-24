@@ -18,6 +18,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-error"></a> `error?` | [`WireError`](/api/@rulvar/rulvar/type-aliases/WireError.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-escalation"></a> `escalation?` | `unknown` | Terminal escalated entries: the validated EscalationReport. | `packages/core/dist/index.d.ts` |
 | <a id="property-memoizeoutcome"></a> `memoizeOutcome?` | `boolean` | Engine-decided terminal abort classes (the no-progress abort) stamp memoizeOutcome on the TERMINAL entry so the frozen memoize rules replay them on every resume; the running entry keeps the user's policy verbatim (M3 amendment). | `packages/core/dist/index.d.ts` |
+| <a id="property-providercalls"></a> `providerCalls?` | [`ProviderCallRecord`](/api/@rulvar/rulvar/interfaces/ProviderCallRecord.md)[] | The per-dispatch reconciliation ledger (P1.3); see JournalEntry. | `packages/core/dist/index.d.ts` |
 | <a id="property-servedby"></a> `servedBy?` | `` `${string}:${string}` `` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-site"></a> `site?` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-status"></a> `status` | `"ok"` \| `"error"` \| `"limit"` \| `"cancelled"` \| `"escalated"` | - | `packages/core/dist/index.d.ts` |

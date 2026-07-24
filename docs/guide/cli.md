@@ -35,6 +35,7 @@ rulvar replay <runId> [--args JSON] [--store PATH] [--assert-no-live] [--compare
 rulvar runs ls [--store PATH]
 rulvar runs audit [--store PATH] [--repair]
 rulvar inspect <runId> [--store PATH]
+rulvar invoice <runId> [--store PATH] [--json]
 rulvar plan "<goal>" [--planning-budget-usd N] [--budget-usd N] [--allow-unbounded] [--dry-run]
 rulvar kb <list | inbox | gate | sweep>
 ```
@@ -47,6 +48,7 @@ rulvar kb <list | inbox | gate | sweep>
 | `runs ls` | List run metadata (id, status, last update, workflow, name) from the store. |
 | `runs audit` | Compare every run's meta row against its journal and name the divergences worker sweeps cannot see; `--repair` rewrites the sound ones from the journal. |
 | `inspect` | Print one run's journal-derived state: entries, suspensions, spend. |
+| `invoice` | Export the per-dispatch reconciliation ledger: one row per billable provider call (failed and retried attempts included) with the provider response id, plus the gross/net totals; `--json` for the machine-readable form. See [the invoice export](/guide/observability#the-invoice-export). |
 | `plan` | Ask the planner to write a workflow script for a goal, then run it in the worker sandbox. |
 | `kb` | Maintain the [model knowledge](/guide/model-knowledge) claim store. |
 
@@ -62,6 +64,7 @@ Flag semantics are uniform:
 - `--budget-usd N` sets the run's dollar ceiling, immutable after start (see [Budgets](/guide/budgets)). On `plan` it caps the execution run of the generated workflow, consistent with `run`.
 - `--planning-budget-usd N` (`plan` only) caps the planning run: the planner conversation is its own paid run with its own journal, so its ceiling is separate from the execution ceiling by construction.
 - `--allow-unbounded` (`plan` only) waives the missing ceilings explicitly. `plan` never runs unbounded silently: without this flag, `--planning-budget-usd` is required, and full execution additionally requires `--budget-usd`.
+- `--json` (`invoice` only) prints the machine-readable `InvoiceExport` object instead of the line form, for piping into finance tooling.
 - `--profile NAME` applies a shipped run profile (`fast`, `standard`, `deep`, `ultra`): pure data bundles of effort hints, concurrency, budget defaults, and a permission preset, merged under your own options so your config always wins. The effort hints seed only routing entries your config already declares and that carry no effort of their own: an explicit effort wins, a role you do not route stays unrouted, ladder entries are untouched, and a profile never names a model.
 
 The CLI renders progress from the run's event stream: live TUI rendering on a TTY, plain line output otherwise. When a run suspends, the CLI resolves interactively: approvals prompt for allow or deny, `awaitExternal` suspensions prompt for a value. If input runs dry (EOF), the run is left suspended in the store, ready for a later `rulvar resume`, the HTTP server, or a queue worker.

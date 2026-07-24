@@ -465,6 +465,21 @@
         "role": "loop",
         "budgetAccount": "plan/ULID-0001--------------------"
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      ],
       "transcriptRef": "fixture-transcript",
       "escalation": {
         "kind": "scope_bigger",
@@ -694,6 +709,21 @@
         "role": "loop",
         "budgetAccount": "plan/ULID-0004--------------------"
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      ],
       "transcriptRef": "fixture-transcript",
       "escalation": {
         "kind": "scope_bigger",
@@ -923,6 +953,21 @@
         "role": "loop",
         "budgetAccount": "plan/ULID-0007--------------------"
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      ],
       "transcriptRef": "fixture-transcript",
       "escalation": {
         "kind": "scope_bigger",
@@ -1206,6 +1251,60 @@
         "role": "orchestrate",
         "budgetAccount": "orchestrator"
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "orchestrate",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        },
+        {
+          "ordinal": 2,
+          "role": "orchestrate",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        },
+        {
+          "ordinal": 3,
+          "role": "orchestrate",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        },
+        {
+          "ordinal": 4,
+          "role": "orchestrate",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      ],
       "transcriptRef": "fixture-transcript",
       "checkpointRef": "fixture-checkpoint"
     },
@@ -1246,6 +1345,21 @@
         "budgetAccount": "orchestrator",
         "finalizeReserve": true
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "orchestrate",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      ],
       "transcriptRef": "fixture-transcript",
       "checkpointRef": "fixture-checkpoint"
     },

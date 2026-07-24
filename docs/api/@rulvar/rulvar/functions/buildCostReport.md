@@ -7,12 +7,18 @@
 # Function: buildCostReport()
 
 ```ts
-function buildCostReport(attribution, totalUsd): CostReport;
+function buildCostReport(
+   attribution, 
+   totalUsd, 
+   abandoned?): CostReport;
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
 
 Folds the per-run attribution buckets into the normative CostReport.
+Live attribution buckets never see abandoned subtrees, so a host
+that tracked abandoned spend itself passes it as `abandoned`;
+omitted, the report shows a gross equal to the net.
 
 ## Parameters
 
@@ -20,6 +26,10 @@ Folds the per-run attribution buckets into the normative CostReport.
 | ------ | ------ |
 | `attribution` | [`CostAttribution`](/api/@rulvar/rulvar/interfaces/CostAttribution.md) |
 | `totalUsd` | `number` |
+| `abandoned?` | \{ `unpriced`: \{ `model`: `string`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); \}[]; `usageApprox?`: `boolean`; `usd`: `number`; \} |
+| `abandoned.unpriced?` | \{ `model`: `string`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); \}[] |
+| `abandoned.usageApprox?` | `boolean` |
+| `abandoned.usd?` | `number` |
 
 ## Returns
 

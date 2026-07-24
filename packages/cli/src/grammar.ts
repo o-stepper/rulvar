@@ -49,6 +49,7 @@ export const GRAMMAR: {
   readonly 'runs ls': CommandGrammar;
   readonly 'runs audit': CommandGrammar;
   readonly inspect: CommandGrammar;
+  readonly invoice: CommandGrammar;
   readonly plan: CommandGrammar;
   readonly 'kb list': CommandGrammar;
   readonly 'kb inbox': CommandGrammar;
@@ -83,6 +84,7 @@ export const GRAMMAR: {
     flags: [STORE, { name: 'repair' }],
   },
   inspect: { command: 'inspect', positionals: ['<runId>'], flags: [STORE] },
+  invoice: { command: 'invoice', positionals: ['<runId>'], flags: [STORE, { name: 'json' }] },
   plan: {
     command: 'plan',
     positionals: ['"<goal>"'],
@@ -178,6 +180,7 @@ export function helpCommandLines(): string[] {
     GRAMMAR['runs ls'],
     GRAMMAR['runs audit'],
     GRAMMAR.inspect,
+    GRAMMAR.invoice,
     GRAMMAR.plan,
   ];
   const heads = top.map((grammar) => ['rulvar', grammar.command, ...grammar.positionals].join(' '));
@@ -205,6 +208,7 @@ export function docsGrammarLines(): string[] {
     GRAMMAR['runs ls'],
     GRAMMAR['runs audit'],
     GRAMMAR.inspect,
+    GRAMMAR.invoice,
     GRAMMAR.plan,
   ];
   return [

@@ -17,6 +17,7 @@ The canonical-history snapshot at a turn boundary.
 | <a id="property-compaction"></a> `compaction` | `number`[] | Compaction points; producers arrive with M4-T03. | `packages/core/dist/index.d.ts` |
 | <a id="property-messages"></a> `messages` | [`Msg`](/api/@rulvar/rulvar/interfaces/Msg.md)[] | Canonical history up to and including the boundary. | `packages/core/dist/index.d.ts` |
 | <a id="property-pending"></a> `pending?` | [`PendingToolTurn`](/api/@rulvar/rulvar/interfaces/PendingToolTurn.md) | Present while an ask suspension holds the turn open (M3-T03). | `packages/core/dist/index.d.ts` |
+| <a id="property-providercalls"></a> `providerCalls?` | [`ProviderCallRecord`](/api/@rulvar/rulvar/interfaces/ProviderCallRecord.md)[] | The per-dispatch reconciliation ledger so far (P1.3), carried at every boundary so a kill-and-resume keeps pre-kill wire calls attributable. Absent before the first call and on checkpoints written before the ledger shipped: those restore none, and the invoice fold surfaces the restored usage as an unattributed remainder instead of losing it. | `packages/core/dist/index.d.ts` |
 | <a id="property-schemaattempts"></a> `schemaAttempts` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-toolcallsused"></a> `toolCallsUsed` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-turns"></a> `turns` | `number` | Model turns already paid. | `packages/core/dist/index.d.ts` |

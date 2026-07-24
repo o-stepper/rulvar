@@ -10,7 +10,7 @@
 function encodeCheckpoint(state): Uint8Array;
 ```
 
-Defined in: [packages/core/src/journal/checkpoint.ts:85](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/checkpoint.ts#L85)
+Defined in: [packages/core/src/journal/checkpoint.ts:94](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/journal/checkpoint.ts#L94)
 
 Serializes a checkpoint to its blob: format byte then UTF-8 JSON.
 

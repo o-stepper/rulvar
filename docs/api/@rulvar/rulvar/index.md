@@ -201,6 +201,8 @@ const engine = createEngine({
 | [GraftBoot](/api/@rulvar/rulvar/interfaces/GraftBoot.md) | Graft bootstrap payload. |
 | [IncrementalSynthesisResult](/api/@rulvar/rulvar/interfaces/IncrementalSynthesisResult.md) | The deterministic reconciliation envelope an 'incremental' synthesis returns as the run result (RV-211 remainder): the coordination draft plus one section per settled child in spawn order, each carrying the child's terminal status and its note (the note invocation's finish output, or the child's raw digest summary when the note fell back). With `dedupeClaims`, repeated claim lines keep their first occurrence only and the `repeatedClaims` index lists each with its reporters. Everything here derives from journaled state, so a resume reproduces the envelope byte for byte with zero paid calls. |
 | [InvocationTable](/api/@rulvar/rulvar/interfaces/InvocationTable.md) | The reduced table plus the per-role aggregate across every span. |
+| [InvoiceExport](/api/@rulvar/rulvar/interfaces/InvoiceExport.md) | The machine-readable invoice: rows plus the ledger totals. |
+| [InvoiceRow](/api/@rulvar/rulvar/interfaces/InvoiceRow.md) | One billable provider call (or an unattributed usage remainder). |
 | [IsolatedExecContext](/api/@rulvar/rulvar/interfaces/IsolatedExecContext.md) | The per-call context handed to a ToolExecutorProvider. It carries the tool span (so provider telemetry nests under the run tree), the cancellation signal, and a stable idempotency key. |
 | [IsolatedExecRequest](/api/@rulvar/rulvar/interfaces/IsolatedExecRequest.md) | One out-of-process tool dispatch. |
 | [IsolationProvider](/api/@rulvar/rulvar/interfaces/IsolationProvider.md) | - |
@@ -254,6 +256,7 @@ const engine = createEngine({
 | [ProgressReport](/api/@rulvar/rulvar/interfaces/ProgressReport.md) | One progress report: what the agent has established so far. Captured as [AgentResult.partial](/api/@rulvar/rulvar/interfaces/AgentResult.md#property-partial) (normalized: absent arrays become empty) when the invocation terminates with status 'limit'. |
 | [ProgressSink](/api/@rulvar/rulvar/interfaces/ProgressSink.md) | Raw output sink; chunks may contain ANSI and partial lines. |
 | [ProviderAdapter](/api/@rulvar/rulvar/interfaces/ProviderAdapter.md) | - |
+| [ProviderCallRecord](/api/@rulvar/rulvar/interfaces/ProviderCallRecord.md) | One live provider dispatch of an agent invocation (P1.3, the durable reconciliation ledger): every wire call the engine actually made, successful or not, with the usage it consumed and the provider's response id when the adapter surfaced one. Quota-denied attempts and abort short circuits that never reached the adapter mint no record: the ledger enumerates exactly the calls a provider could bill. Records are minted from the same sanitized usage the phase slices accumulate, so per-model sums over an entry's records reconcile with `usageByModel` (and with `usage`) by construction on a fully live invocation. |
 | [QualityFloors](/api/@rulvar/rulvar/interfaces/QualityFloors.md) | - |
 | [QuotaCounters](/api/@rulvar/rulvar/interfaces/QuotaCounters.md) | Current-window counters of one rule bucket. |
 | [QuotaEstimate](/api/@rulvar/rulvar/interfaces/QuotaEstimate.md) | The pre-dispatch estimate a reservation is admitted under. Token estimates are heuristic (the engine uses its deterministic four-characters-per-token prompt estimate plus the request's output cap when one is set); reconcile() settles the difference against actual usage inside the same accounting window. |
@@ -391,6 +394,7 @@ const engine = createEngine({
 | [HookVerdict](/api/@rulvar/rulvar/type-aliases/HookVerdict.md) | - |
 | [IdentityInput](/api/@rulvar/rulvar/type-aliases/IdentityInput.md) | - |
 | [InvocationRole](/api/@rulvar/rulvar/type-aliases/InvocationRole.md) | The seven invocation roles. 'synthesize' is the orchestrator's post-fan-in synthesis invocation (RV-211): it fires only when OrchestrateOptions.synthesis is configured, and the routing key picks its model like any other role without ever summoning it. |
+| [InvoiceReconciliation](/api/@rulvar/rulvar/type-aliases/InvoiceReconciliation.md) | How a row lines up against a provider invoice. |
 | [IsolatedExecutorTag](/api/@rulvar/rulvar/type-aliases/IsolatedExecutorTag.md) | The non-inprocess executor tags a provider can be registered under. |
 | [IsolationSpec](/api/@rulvar/rulvar/type-aliases/IsolationSpec.md) | The canonical identity encoding of spawn isolation: this exact value domain enters spawn identity. 'readonly' is a determinism and blast-radius declaration, not containment. |
 | [Issue](/api/@rulvar/rulvar/type-aliases/Issue.md) | The vendored Standard Schema issue shape: validation issues carried on AgentError and surfaced to the model during bounded schema re-prompts. |
@@ -577,7 +581,7 @@ const engine = createEngine({
 | [auditRuns](/api/@rulvar/rulvar/functions/auditRuns.md) | Audits every run the catalog lists. Loads EVERY journal it audits: this is operator tooling for finding stranded runs, not a hot path. |
 | [buildAbandonFold](/api/@rulvar/rulvar/functions/buildAbandonFold.md) | Builds the AbandonFold in ONE pass at load, in append order, pinned for the entire resume (DEF-1 ordering rule 4). Coverage is the target seq itself plus, transitively, every entry under the target's child scope-prefix. Repeated abandons over an already-covered target fold to noop. |
 | [buildAdapterRegistry](/api/@rulvar/rulvar/functions/buildAdapterRegistry.md) | Per-engine adapter registry: strictly per engine, no global mutable registry exists. A duplicate adapterId is a typed ConfigError. |
-| [buildCostReport](/api/@rulvar/rulvar/functions/buildCostReport.md) | Folds the per-run attribution buckets into the normative CostReport. |
+| [buildCostReport](/api/@rulvar/rulvar/functions/buildCostReport.md) | Folds the per-run attribution buckets into the normative CostReport. Live attribution buckets never see abandoned subtrees, so a host that tracked abandoned spend itself passes it as `abandoned`; omitted, the report shows a gross equal to the net. |
 | [buildDeriverRegistry](/api/@rulvar/rulvar/functions/buildDeriverRegistry.md) | Builds the per-engine deriver registry: the shipped v1/v2 profiles plus EngineOptions.extraDerivers, the ONLY window extender. A malformed extra deriver is a ConfigError before any run effect. |
 | [buildOrchestratorTools](/api/@rulvar/rulvar/functions/buildOrchestratorTools.md) | Builds the mode (c) toolset over the per-call runtime. profileCardText rides the spawn tools' descriptions so both modes speak one agent vocabulary (M6-T04). |
 | [buildTerminationInitValue](/api/@rulvar/rulvar/functions/buildTerminationInitValue.md) | Builds the termination.init value payload. |
@@ -644,6 +648,7 @@ const engine = createEngine({
 | [hasMetaLookup](/api/@rulvar/rulvar/functions/hasMetaLookup.md) | Capability guard, same shape as the lease capability detection. |
 | [identityJcs](/api/@rulvar/rulvar/functions/identityJcs.md) | The JCS form of an IdentityInput under the hashVersion 2 profile. |
 | [implementationAgentProfile](/api/@rulvar/rulvar/functions/implementationAgentProfile.md) | The implementation child template: the caller's task tools plus the progress contract, with [IMPLEMENTATION\_PROFILE\_LIMITS](/api/@rulvar/rulvar/variables/IMPLEMENTATION_PROFILE_LIMITS.md) as the stop conditions (a no-progress detector instead of the research no-new-evidence guard: implementation legitimately re-reads state). |
+| [invoiceFromJournal](/api/@rulvar/rulvar/functions/invoiceFromJournal.md) | The pure invoice fold. Pass the same entries and price table you would pass `costReportFromJournal`; the totals are that report's gross/net split verbatim. |
 | [isEscalated](/api/@rulvar/rulvar/functions/isEscalated.md) | - |
 | [isSchemaPairSpec](/api/@rulvar/rulvar/functions/isSchemaPairSpec.md) | Form-2 guard: an explicit { jsonSchema, validate } pair. |
 | [isStandardSchemaSpec](/api/@rulvar/rulvar/functions/isStandardSchemaSpec.md) | Form-1 guard: the value implements the Standard Schema interface. Some libraries expose callable schemas (ArkType types are functions), so both object- and function-typed values qualify. |

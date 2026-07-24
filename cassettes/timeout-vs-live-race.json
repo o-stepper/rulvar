@@ -38,6 +38,21 @@
         "role": "loop",
         "budgetAccount": "run"
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 5,
+            "outputTokens": 8,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      ],
       "transcriptRef": "record/t0"
     },
     {

@@ -38,7 +38,7 @@ import type { Out, SchemaSpec } from '../l0/schema.js';
 import { validateSchemaSpec } from '../l0/schema.js';
 import { toJournalValue } from '../journal/serializable.js';
 import type { CheckpointState, PendingToolTurn } from '../journal/checkpoint.js';
-import type { UsageSlice } from '../l0/entries.js';
+import type { ProviderCallRecord, UsageSlice } from '../l0/entries.js';
 import { failoverTriggerOf, nextFailover, type FailoverTrigger } from '../model/failover.js';
 import { liftRetainedParts, projectHistory, providerOf } from '../model/projector.js';
 import {
@@ -128,6 +128,17 @@ export interface AgentResult<T> {
    * which (usage, servedBy) already describes exactly.
    */
   usageByModel?: UsageSlice[];
+  /**
+   * The per-dispatch reconciliation ledger (P1.3): one record per live
+   * provider call this invocation made, failed and retried attempts
+   * included, each with its own usage and the provider's response id
+   * when the adapter surfaced one. Journaled on the terminal entry and
+   * restored verbatim on replay, so a live result and its replayed one
+   * read the same ledger; `invoiceFromJournal` folds the same records
+   * into the invoice export. Absent when the invocation made no wire
+   * call (a fully replayed invocation).
+   */
+  providerCalls?: ProviderCallRecord[];
   transcriptRef: string;
   artifacts?: Artifact[];
   error?: AgentError;
@@ -494,6 +505,12 @@ interface TurnOutcome {
    * that never happened.
    */
   quotaDenied?: true;
+  /**
+   * A synthetic outcome minted by the abort short circuit: the adapter
+   * never ran, so no reconciliation record is minted for it (exactly
+   * like quotaDenied, a call that never happened is not billable).
+   */
+  neverDispatched?: true;
   /** The finish event's metadata; carries the retention payload. */
   providerMetadata?: Record<string, unknown>;
 }
@@ -958,6 +975,11 @@ export async function runAgent<S extends SchemaSpec>(
       usage: addUsage(prior?.usage ?? ZERO_USAGE, usage),
     });
   };
+  // The per-dispatch reconciliation ledger (P1.3): one record per live
+  // provider call, minted at the dispatch chokepoint from the SAME
+  // sanitized usage the phase slices accumulate. Restored checkpoint
+  // records are pushed first, so ordinals continue across a resume.
+  const providerCalls: ProviderCallRecord[] = [];
 
   // Phase activation telemetry (the RV-207 event-model contract): one
   // agent:phase:start/end pair per activation, its usage measured as
@@ -1170,6 +1192,20 @@ export async function runAgent<S extends SchemaSpec>(
       addPhaseUsage(slice.role ?? primaryRole, slice.servedBy, sliceUsage);
       options.budget?.onUsage(sliceUsage, slice.servedBy);
     }
+    // The reconciliation ledger restores like the slices (a persisted
+    // inlet: sanitize each record's usage on the way in), so ordinals
+    // continue across the resume and the terminal entry still
+    // enumerates the pre-kill wire calls. A checkpoint written before
+    // the ledger shipped restores none; the invoice fold then surfaces
+    // the restored spend as an unattributed remainder instead of
+    // losing it.
+    for (const record of restored.providerCalls ?? []) {
+      providerCalls.push(
+        usageViolations(record.usage).length === 0
+          ? record
+          : { ...record, usage: sanitizeUsage(record.usage) },
+      );
+    }
     // The exploration guard rebuilds from the restored history (the same
     // window the model sees), and thresholds the restored count already
     // crossed never re-fire (their notices are in the restored messages).
@@ -1223,6 +1259,11 @@ export async function runAgent<S extends SchemaSpec>(
       toolCallsUsed,
       schemaAttempts,
       compaction: [...compactionPoints],
+      // The reconciliation ledger rides every boundary (P1.3) so a
+      // kill-and-resume keeps the pre-kill wire calls attributable;
+      // absent when no call has been made, keeping such checkpoints
+      // byte-identical to before.
+      ...(providerCalls.length === 0 ? {} : { providerCalls: [...providerCalls] }),
       ...(pending === undefined ? {} : { pending }),
     });
   };
@@ -1620,7 +1661,11 @@ export async function runAgent<S extends SchemaSpec>(
     ref: ModelRef,
     role: InvocationRole,
     streamViolation?: string,
-  ): void => {
+    // Returns the sanitized usage it accounted, so the reconciliation
+    // record minted beside the call carries the SAME numbers the phase
+    // slices accumulated (P1.3: per-model sums over records reconcile
+    // with usageByModel by construction).
+  ): Usage => {
     if (streamViolation !== undefined) {
       invariantViolation ??= `adapter '${adapterId}' violated the Usage invariant: ${streamViolation}`;
     }
@@ -1686,6 +1731,7 @@ export async function runAgent<S extends SchemaSpec>(
     ) {
       options.budget?.onUsage(remainder, ref);
     }
+    return safe;
   };
 
   // Retry and failover engine (M4-T04/T05): RetryPolicy lives UNDER the
@@ -1722,6 +1768,7 @@ export async function runAgent<S extends SchemaSpec>(
     reported: ZERO_USAGE,
     usageApprox: true,
     aborted,
+    neverDispatched: true,
   });
   // The backoff wait is interruptible: the host and budget signals
   // race the delay, so an abort wakes it immediately. An injected
@@ -1903,8 +1950,8 @@ export async function runAgent<S extends SchemaSpec>(
             });
           }
         }
-        if (outcome.quotaDenied !== true) {
-          recordUsage(
+        if (outcome.quotaDenied !== true && outcome.neverDispatched !== true) {
+          const accounted = recordUsage(
             outcome.usage,
             outcome.reported,
             target.adapter.id,
@@ -1912,6 +1959,37 @@ export async function runAgent<S extends SchemaSpec>(
             site.role,
             outcome.usageViolation,
           );
+          // The reconciliation record of THIS wire call (P1.3): the
+          // provider ran (quota denials and abort short circuits are
+          // excluded above), so a provider could bill it whether it
+          // finished, failed, or was severed.
+          const namespace = outcome.providerMetadata?.[target.adapter.id] as
+            { responseId?: unknown } | undefined;
+          const record: ProviderCallRecord = {
+            ordinal: providerCalls.length + 1,
+            role: site.role,
+            servedBy: target.resolved.ref,
+            attempt: tries + 1,
+            outcome:
+              outcome.aborted !== undefined
+                ? 'aborted'
+                : outcome.wireError !== undefined
+                  ? 'error'
+                  : 'ok',
+            usage: accounted,
+          };
+          if (typeof namespace?.responseId === 'string') {
+            record.responseId = namespace.responseId;
+          }
+          if (outcome.usageApprox) {
+            record.usageApprox = true;
+          }
+          if (outcome.aborted !== undefined) {
+            record.aborted = outcome.aborted;
+          } else if (outcome.wireError !== undefined) {
+            record.errorCode = outcome.wireError.code;
+          }
+          providerCalls.push(record);
         }
         tries += 1;
         const retryClass =
@@ -2945,6 +3023,12 @@ export async function runAgent<S extends SchemaSpec>(
   // absent leaves those journals byte-identical to before.
   if (usageByPhaseModel.size > 1) {
     result.usageByModel = usageSlices();
+  }
+  // The reconciliation ledger (P1.3): present whenever the invocation
+  // made (or restored) at least one wire call; a fully replayed
+  // invocation made none and carries none.
+  if (providerCalls.length > 0) {
+    result.providerCalls = providerCalls;
   }
   if (agentError !== undefined) {
     result.error = agentError;

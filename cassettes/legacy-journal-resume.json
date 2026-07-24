@@ -38,6 +38,21 @@
         "role": "loop",
         "budgetAccount": "run"
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      ],
       "transcriptRef": "fixture-transcript"
     },
     {
@@ -76,6 +91,21 @@
         "role": "loop",
         "budgetAccount": "run"
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      ],
       "transcriptRef": "fixture-transcript"
     },
     {
@@ -157,6 +187,21 @@
         "role": "loop",
         "budgetAccount": "run"
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      ],
       "transcriptRef": "fixture-transcript"
     },
     {

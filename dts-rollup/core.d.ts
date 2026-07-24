@@ -663,6 +663,49 @@ interface UsageSlice {
   role?: InvocationRole;
 }
 /**
+* One live provider dispatch of an agent invocation (P1.3, the durable
+* reconciliation ledger): every wire call the engine actually made,
+* successful or not, with the usage it consumed and the provider's
+* response id when the adapter surfaced one. Quota-denied attempts and
+* abort short circuits that never reached the adapter mint no record:
+* the ledger enumerates exactly the calls a provider could bill.
+* Records are minted from the same sanitized usage the phase slices
+* accumulate, so per-model sums over an entry's records reconcile with
+* `usageByModel` (and with `usage`) by construction on a fully live
+* invocation.
+*/
+interface ProviderCallRecord {
+  /** 1-based dispatch order across the whole invocation, phases included. */
+  ordinal: number;
+  /** The invocation phase that paid the call. */
+  role: InvocationRole;
+  servedBy: ModelRef;
+  /** 1-based try number on the serving target; retries increment it. */
+  attempt: number;
+  /**
+  * 'ok' = a terminal finish; 'error' = a wire failure after dispatch
+  * (the provider may still have billed the recorded usage); 'aborted' =
+  * the stream was severed by `aborted` below.
+  */
+  outcome: "ok" | "error" | "aborted";
+  /**
+  * The provider's response id from the finish metadata
+  * (`providerMetadata[<adapter id>].responseId`, surfaced by both
+  * shipped adapters). Absent when the adapter reported none or the
+  * call never finished; the invoice export marks such rows instead of
+  * dropping them.
+  */
+  responseId?: string;
+  /** This call's usage exactly, sanitized like every accounted number. */
+  usage: Usage;
+  /** True when the stream was cut, so the usage is a lower bound. */
+  usageApprox?: boolean;
+  /** WireError.code on 'error' outcomes. */
+  errorCode?: string;
+  /** What severed an 'aborted' call. */
+  aborted?: "budget" | "external" | "idle";
+}
+/**
 * Cost-attribution facts a live run knows at settlement and a pure
 * journal fold cannot re-derive: the innermost phase name at the call
 * site, the agent profile, the primary invocation role, the budget
@@ -751,6 +794,18 @@ type JournalEntry = {
   * like usageByModel.
   */
   costAttribution?: CostAttributionFacts;
+  /**
+  * Terminal agent entries: the per-dispatch reconciliation ledger
+  * (P1.3), one record per live provider call the invocation made,
+  * failed and retried attempts included, so every billable wire call
+  * maps to a journal entry and the invoice export can name the
+  * provider response ids behind the usage total. Absent on entries
+  * written before this shipped and on fully replayed invocations
+  * (which made no calls); the invoice fold surfaces such entries as
+  * unattributed rows instead of losing their spend. Policy, never
+  * identity, exactly like usageByModel.
+  */
+  providerCalls?: ProviderCallRecord[];
   /**
   * The serving adapters' declared usage-telemetry semantics at write
   * time (ProviderAdapter.usageSemantics), stamped so cost numbers stay
@@ -2627,6 +2682,8 @@ interface TerminalPatch {
   usageByModel?: UsageSlice[];
   /** Attribution facts behind the CostReport breakdowns; see JournalEntry. */
   costAttribution?: CostAttributionFacts;
+  /** The per-dispatch reconciliation ledger (P1.3); see JournalEntry. */
+  providerCalls?: ProviderCallRecord[];
   /** The serving adapter's usage-semantics version; see JournalEntry. */
   usageSemantics?: string;
   transcriptRef?: string;
@@ -3096,6 +3153,15 @@ interface CheckpointState {
   * exactly as they did then.
   */
   usageByModel?: UsageSlice[];
+  /**
+  * The per-dispatch reconciliation ledger so far (P1.3), carried at
+  * every boundary so a kill-and-resume keeps pre-kill wire calls
+  * attributable. Absent before the first call and on checkpoints
+  * written before the ledger shipped: those restore none, and the
+  * invoice fold surfaces the restored usage as an unattributed
+  * remainder instead of losing it.
+  */
+  providerCalls?: ProviderCallRecord[];
   toolCallsUsed: number;
   schemaAttempts: number;
   /** Compaction points; producers arrive with M4-T03. */
@@ -3988,6 +4054,17 @@ interface AgentResult<T> {
   * which (usage, servedBy) already describes exactly.
   */
   usageByModel?: UsageSlice[];
+  /**
+  * The per-dispatch reconciliation ledger (P1.3): one record per live
+  * provider call this invocation made, failed and retried attempts
+  * included, each with its own usage and the provider's response id
+  * when the adapter surfaced one. Journaled on the terminal entry and
+  * restored verbatim on replay, so a live result and its replayed one
+  * read the same ledger; `invoiceFromJournal` folds the same records
+  * into the invoice export. Absent when the invocation made no wire
+  * call (a fully replayed invocation).
+  */
+  providerCalls?: ProviderCallRecord[];
   transcriptRef: string;
   artifacts?: Artifact[];
   error?: AgentError;
@@ -5340,8 +5417,13 @@ declare class AdmissionController {
 }
 //#endregion
 //#region src/engine/cost-report.d.ts
-/** Folds the per-run attribution buckets into the normative CostReport. */
-declare function buildCostReport(attribution: CostAttribution, totalUsd: number): CostReport;
+/**
+* Folds the per-run attribution buckets into the normative CostReport.
+* Live attribution buckets never see abandoned subtrees, so a host
+* that tracked abandoned spend itself passes it as `abandoned`;
+* omitted, the report shows a gross equal to the net.
+*/
+declare function buildCostReport(attribution: CostAttribution, totalUsd: number, abandoned?: CostReport["abandoned"]): CostReport;
 /**
 * The pure journal fold: the complete CostReport from terminal entries,
 * the same summation the kernel ledger uses (terminal usage exactly
@@ -5366,7 +5448,37 @@ interface PendingExternal {
 }
 /** Full contract: https://docs.rulvar.com/guide/observability. */
 interface CostReport {
+  /**
+  * The NET ledger: priced terminal usage with abandoned subtrees
+  * contributing zero (their spend is a sunk cost of branches the
+  * orchestrator discarded, not of the work the run kept). The
+  * provider still billed them: reconcile invoices against `grossUsd`,
+  * never this.
+  */
   totalUsd: number;
+  /**
+  * The gross/net split (P1.3): totalUsd + abandoned.usd, every priced
+  * terminal slice with abandonment included. This is the immutable
+  * provider-spend figure an invoice reconciles against; abandoning a
+  * branch never shrinks it.
+  */
+  grossUsd: number;
+  /**
+  * Priced spend under abandoned subtrees, exactly the part totalUsd
+  * excludes. `unpriced` here surfaces abandoned slices with no price
+  * row (the top-level `unpriced` lists only slices contributing to
+  * totalUsd), and `usageApprox` follows the same semantics as the
+  * top-level flag over the abandoned entries; grossUsd is an estimate
+  * whenever either flag is raised.
+  */
+  abandoned: {
+    usd: number;
+    unpriced: Array<{
+      model: string;
+      usage: Usage;
+    }>;
+    usageApprox?: boolean;
+  };
   /** Keyed by canonical ModelRef 'adapterId:model'. */
   byModel: Record<string, number>;
   /** ctx.phase names; phase is structural for this map. */
@@ -8171,6 +8283,57 @@ declare class FileTranscriptStore implements TranscriptStore {
   delete(ref: string): Promise<void>;
 }
 //#endregion
+//#region src/engine/invoice.d.ts
+/** How a row lines up against a provider invoice. */
+type InvoiceReconciliation = "matched" | "missing-provider-id" | "unconfirmed" | "unattributed";
+/** One billable provider call (or an unattributed usage remainder). */
+interface InvoiceRow {
+  /** The terminal journal entry the row folds from. */
+  entrySeq: number;
+  scope: string;
+  key: string;
+  /** The call's dispatch ordinal within its invocation; remainder and slice rows continue past it. */
+  ordinal: number;
+  servedBy: ModelRef;
+  role?: InvocationRole;
+  /** 1-based try number on the serving target (retries increment it). */
+  attempt?: number;
+  outcome: ProviderCallRecord["outcome"] | "unattributed";
+  responseId?: string;
+  usage: Usage;
+  usageApprox?: boolean;
+  /** This row priced at its own model's rate; absent when no price row covers it. */
+  usd?: number;
+  /** The row lies under an abandoned subtree: in grossUsd, not in netUsd. */
+  abandoned?: true;
+  reconciliation: InvoiceReconciliation;
+}
+/** The machine-readable invoice: rows plus the ledger totals. */
+interface InvoiceExport {
+  rows: InvoiceRow[];
+  /** Every priced terminal slice, abandonment included: equals CostReport.grossUsd. */
+  totalUsd: number;
+  /** The net ledger (abandoned subtrees contribute zero): equals CostReport.totalUsd. */
+  netUsd: number;
+  /** The abandoned share: totalUsd - netUsd, equals CostReport.abandoned.usd. */
+  abandonedUsd: number;
+  /** Usage on models absent from pricing, net and abandoned alike; never a silent zero. */
+  unpriced: Array<{
+    model: string;
+    usage: Usage;
+  }>;
+  /** Rows whose reconciliation is not 'matched'. */
+  reconciliationFailures: number;
+  /** Present and true when any contributing entry carried approximate usage. */
+  usageApprox?: boolean;
+}
+/**
+* The pure invoice fold. Pass the same entries and price table you
+* would pass `costReportFromJournal`; the totals are that report's
+* gross/net split verbatim.
+*/
+declare function invoiceFromJournal(entries: readonly JournalEntry[], priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined): InvoiceExport;
+//#endregion
 //#region src/engine/run-profiles.d.ts
 interface RunProfile {
   /** Per-role canonical effort hints (the model refs come from the host). */
@@ -8672,4 +8835,4 @@ interface SandboxBridge {
 declare const SANDBOX_AGENT_OPT_KEYS: readonly string[];
 declare function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptions): SandboxBridge;
 //#endregion
-export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, type AgentInvocationRow, AgentOpts, AgentProfile, AgentProfilePermissions, AgentProfileTemplateOptions, AgentResult, AgentResultMeta, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, AuditCategory, AuditRecord, AuditRunsOptions, BUDGET_ABORT_REASON, BaseAppend, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetExhaustionDiagnostics, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, CLAIM_STATEMENT_MAX_CHARS, CLAIM_TTL_DAYS, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildArtifactPage, ChildIdentityInput, ChildResultPage, type ClaimClass, type ClaimOp, type ClaimStatus, ClaimValidationOptions, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostAttributionFacts, CostReport, CreateEngineOptions, type CriticalPath, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_CHILD_RESULT_PAGE_CHARS, DEFAULT_CITATION_PATTERN, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_EVIDENCE_MIN_SHARE, DEFAULT_FINISH_MAX_REPAIRS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DEFAULT_SYNTHESIS_MAX_TURNS, DEFAULT_SYNTHESIS_NOTE_MAX_TURNS, DataKeyProvider, DebitResult, DeclaredLadder, DedupIndex, DedupNote, DedupedClaims, DerivedKey, DeriverRegistry, type DeterminismConfig, DeterminismError, type DeterminismEvents, type DeterminismMode, DispositionRule, DispositionTable, DonorCandidate, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EVENT_SEGMENT_STRIDE, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EngineQuotaConfig, EngineQuotaRuntime, EntryKind, EntryRef, EntryStatus, EnvelopeEncryption, EnvelopeEncryptionOptions, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDecisionAbortedError, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, type EvidenceRef, type ExecutorRegistry, type ExplorationSummary, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINALIZE_SYNTHESIS_INSTRUCTION, FINISH_SCHEMA, FINISH_TOOL_NAME, FailRunError, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileModelKnowledgeStore, FileModelKnowledgeStoreOptions, FileTranscriptStore, FinishInfo, FinishValidationChild, FinishValidationInput, FinishValidationSpec, FinishValidationVerdict, FinishValidator, GET_CHILD_RESULT_SCHEMA, GET_CHILD_RESULT_TOOL_NAME, Gate, GateAudit, type GateRecord, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IMPLEMENTATION_PROFILE_LIMITS, INBOX_PROPOSAL_TTL_DAYS, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, IncrementalSynthesisResult, InvalidResolutionError, InvocationRole, type InvocationTable, type IsolatedExecContext, type IsolatedExecRequest, type IsolatedExecutorTag, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JOURNAL_ENVELOPE_MARKER, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, JournalSerializationContext, JournalSerializationHook, type JournalStore, type Json, JsonSchema, JsonlFileStore, KB_ACTIVE_CLAIMS_CAP, KB_CARD_RENDER_BUDGET_CHARS, type KbProposal, type KbProposalTrigger, KeyDeriver, KeyRing, KeyedLimiter, KnowledgeCasError, type KnowledgeSnapshot, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, MASKED_SECRET, MAX_CHILD_RESULT_PAGE_CHARS, MAX_DEPTH_CEILING, MatchResult, McpConfig, McpToolSource, MechanicalGateProfile, MechanicalGateVerdict, MemoryQuotaLimiter, type MetaLookupStore, type ModelCaps, ModelChoice, type ModelClaim, ModelEpochInputs, type ModelKnowledgeHandle, type ModelKnowledgeStore, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateAcceptance, OrchestrateOptions, OrchestrateSynthesis, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, PROGRESS_REPORT_TOOL_NAME, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, type PhaseRow, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, PricedUsage, type Pricing, type PricingTier, ProgressReport, type ProviderAdapter, QUOTA_WINDOW_MS, QualityFloors, QuotaCounters, type QuotaDecision, type QuotaEstimate, type QuotaLimiter, type QuotaReservationRequest, QuotaRule, QuotaWindowSnapshot, READ_CHILD_ARTIFACT_SCHEMA, READ_CHILD_ARTIFACT_TOOL_NAME, RESEARCH_PROFILE_LIMITS, REVIEW_PROFILE_LIMITS, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RUN_SETTLE_DECISION_TYPE, RandIdentityInput, RandPayload, ReconcileOptions, ReconcileResult, RefEntryAppender, RefEntryClassification, RefusalInfo, RepeatedClaim, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, RepositoryResearchToolset, RepositoryResearchToolsetOptions, ResearchAgentProfileOptions, ResearchAgentProfileResult, ResearchEvidenceEntry, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RulvarError, RulvarErrorCode, RunAgentOptions, RunAuditVerdict, RunBudget, RunEventSink, RunExport, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStateAudit, RunStatus, RuntimeEventSink, SANDBOX_AGENT_OPT_KEYS, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, SecretMasker, Semaphore, SerializationHook, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, type TaskClass, TaskDigest, TaskSpec, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, type ToolExecutorProvider, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, TranscriptSerializationHook, type TranscriptStore, TriggerClass, TtlState, Usage, UsageLimits, UsageSlice, VerifiedRecommendation, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WAKE_SUMMARY_RENDER_BUDGET_CHARS, WakeBudgetBlock, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, affordableOutputTokens, agentErrorFromWire, agentErrorToWire, agentResultWire, agentScope, applyClaimOps, applyStructuredOutputTier, approachSigCoarse, approachSigOf, archiveDeprecatedModelOps, assertFencedWrites, atCompactionThreshold, auditRun, auditRuns, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeLadder, canonicalizeSchema, capIssues, capsHashOf, checkFloors, checkpointRefFor, childCoveragePrefix, claimExpired, claimExpiry, claimIssues, claimOpIssues, classifyAgentError, classifyAttemptOutcome, collectDeclaredLadders, compactMessages, compilePermissionChain, compilePermissionPreset, compileSecretMasker, compileVerifiedLayer, constantTimeEqual, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createEnvelopeEncryption, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, dedupeRepeatedClaims, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyDigestBlocks, emptyToolset, encodeCheckpoint, entryUsageSlices, escalateTool, evaluatePermission, evaluateReuse, evidencePreservedValidator, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, filterClaimsForRun, finalizeFires, foldTermination, formatRePrompt, formatScopePath, hasFencedWrites, hasMetaLookup, hashRunArgs, hashRunOutput, hashWorkflowBody, hashWorkflowSource, identityJcs, implementationAgentProfile, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, kMaxOf, knowledgeHash, ladderLengthOf, ladderRungChoice, lastRunSettle, latestProgressReport, lexShellCommand, liftRetainedParts, lineageWeightOf, localKeyProvider, makeOrchestratorWorkflow, maskSecrets, maskSecretsDeep, maskSecretsJson, matchArgvPattern, matchShellCommand, mcp, memoryQuotaLimiter, mergeQuotaDenial, mergeUsageLimits, metaMatchesFilter, minMatchesValidator, modelEpochOf, modelKnowledgeCard, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, priceEntryUsage, priceUsdOf, profileCard, profileRegistrySnapshotHash, progressReportTool, projectHistory, projectIdentity, projectToJsonSchema, proposalStatement, providerOf, quotaActualTokens, quotaEstimateTokens, quotaRuleAdmission, quotaRuleMatches, readRunMeta, readTerminationInit, reconcileRunMeta, reduceAuditTrail, reduceCriticalPath, reduceInvocationTable, registryKeyRing, remeasureQueue, replayDisposition, repositoryResearchToolset, requiredFieldsValidator, requiredSectionsValidator, researchAgentProfile, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, reviewAgentProfile, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, sanitizeTerminalText, sanitizeTokenCount, sanitizeUsage, sanitizeUsageDelta, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, snapshotUsage, spawnDepthOf, summarizeInstruction, summarizeOutput, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, ttlState, usageViolations, validateEditorialCommit, validateEngineQuotaConfig, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateQuotaRules, validateRetryPolicy, validateSchemaSpec, validateTerminationLimits, validateUsageLimits, workflowScope, workflowSourceRef, wrapJournalStore, wrapTranscriptStore };
+export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, type AgentInvocationRow, AgentOpts, AgentProfile, AgentProfilePermissions, AgentProfileTemplateOptions, AgentResult, AgentResultMeta, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, AuditCategory, AuditRecord, AuditRunsOptions, BUDGET_ABORT_REASON, BaseAppend, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetExhaustionDiagnostics, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, CLAIM_STATEMENT_MAX_CHARS, CLAIM_TTL_DAYS, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildArtifactPage, ChildIdentityInput, ChildResultPage, type ClaimClass, type ClaimOp, type ClaimStatus, ClaimValidationOptions, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostAttributionFacts, CostReport, CreateEngineOptions, type CriticalPath, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_CHILD_RESULT_PAGE_CHARS, DEFAULT_CITATION_PATTERN, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_EVIDENCE_MIN_SHARE, DEFAULT_FINISH_MAX_REPAIRS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DEFAULT_SYNTHESIS_MAX_TURNS, DEFAULT_SYNTHESIS_NOTE_MAX_TURNS, DataKeyProvider, DebitResult, DeclaredLadder, DedupIndex, DedupNote, DedupedClaims, DerivedKey, DeriverRegistry, type DeterminismConfig, DeterminismError, type DeterminismEvents, type DeterminismMode, DispositionRule, DispositionTable, DonorCandidate, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EVENT_SEGMENT_STRIDE, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EngineQuotaConfig, EngineQuotaRuntime, EntryKind, EntryRef, EntryStatus, EnvelopeEncryption, EnvelopeEncryptionOptions, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDecisionAbortedError, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, type EvidenceRef, type ExecutorRegistry, type ExplorationSummary, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINALIZE_SYNTHESIS_INSTRUCTION, FINISH_SCHEMA, FINISH_TOOL_NAME, FailRunError, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileModelKnowledgeStore, FileModelKnowledgeStoreOptions, FileTranscriptStore, FinishInfo, FinishValidationChild, FinishValidationInput, FinishValidationSpec, FinishValidationVerdict, FinishValidator, GET_CHILD_RESULT_SCHEMA, GET_CHILD_RESULT_TOOL_NAME, Gate, GateAudit, type GateRecord, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IMPLEMENTATION_PROFILE_LIMITS, INBOX_PROPOSAL_TTL_DAYS, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, IncrementalSynthesisResult, InvalidResolutionError, InvocationRole, type InvocationTable, InvoiceExport, InvoiceReconciliation, InvoiceRow, type IsolatedExecContext, type IsolatedExecRequest, type IsolatedExecutorTag, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JOURNAL_ENVELOPE_MARKER, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, JournalSerializationContext, JournalSerializationHook, type JournalStore, type Json, JsonSchema, JsonlFileStore, KB_ACTIVE_CLAIMS_CAP, KB_CARD_RENDER_BUDGET_CHARS, type KbProposal, type KbProposalTrigger, KeyDeriver, KeyRing, KeyedLimiter, KnowledgeCasError, type KnowledgeSnapshot, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, MASKED_SECRET, MAX_CHILD_RESULT_PAGE_CHARS, MAX_DEPTH_CEILING, MatchResult, McpConfig, McpToolSource, MechanicalGateProfile, MechanicalGateVerdict, MemoryQuotaLimiter, type MetaLookupStore, type ModelCaps, ModelChoice, type ModelClaim, ModelEpochInputs, type ModelKnowledgeHandle, type ModelKnowledgeStore, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateAcceptance, OrchestrateOptions, OrchestrateSynthesis, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, PROGRESS_REPORT_TOOL_NAME, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, type PhaseRow, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PriceTable, PricedUsage, type Pricing, type PricingTier, ProgressReport, type ProviderAdapter, ProviderCallRecord, QUOTA_WINDOW_MS, QualityFloors, QuotaCounters, type QuotaDecision, type QuotaEstimate, type QuotaLimiter, type QuotaReservationRequest, QuotaRule, QuotaWindowSnapshot, READ_CHILD_ARTIFACT_SCHEMA, READ_CHILD_ARTIFACT_TOOL_NAME, RESEARCH_PROFILE_LIMITS, REVIEW_PROFILE_LIMITS, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RUN_SETTLE_DECISION_TYPE, RandIdentityInput, RandPayload, ReconcileOptions, ReconcileResult, RefEntryAppender, RefEntryClassification, RefusalInfo, RepeatedClaim, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, RepositoryResearchToolset, RepositoryResearchToolsetOptions, ResearchAgentProfileOptions, ResearchAgentProfileResult, ResearchEvidenceEntry, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RulvarError, RulvarErrorCode, RunAgentOptions, RunAuditVerdict, RunBudget, RunEventSink, RunExport, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStateAudit, RunStatus, RuntimeEventSink, SANDBOX_AGENT_OPT_KEYS, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, SecretMasker, Semaphore, SerializationHook, Settled, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, type TaskClass, TaskDigest, TaskSpec, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, type ToolExecutorProvider, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, TranscriptSerializationHook, type TranscriptStore, TriggerClass, TtlState, Usage, UsageLimits, UsageSlice, VerifiedRecommendation, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WAKE_SUMMARY_RENDER_BUDGET_CHARS, WakeBudgetBlock, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, affordableOutputTokens, agentErrorFromWire, agentErrorToWire, agentResultWire, agentScope, applyClaimOps, applyStructuredOutputTier, approachSigCoarse, approachSigOf, archiveDeprecatedModelOps, assertFencedWrites, atCompactionThreshold, auditRun, auditRuns, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeLadder, canonicalizeSchema, capIssues, capsHashOf, checkFloors, checkpointRefFor, childCoveragePrefix, claimExpired, claimExpiry, claimIssues, claimOpIssues, classifyAgentError, classifyAttemptOutcome, collectDeclaredLadders, compactMessages, compilePermissionChain, compilePermissionPreset, compileSecretMasker, compileVerifiedLayer, constantTimeEqual, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createEnvelopeEncryption, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, dedupeRepeatedClaims, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispositionHook, emptyDigestBlocks, emptyToolset, encodeCheckpoint, entryUsageSlices, escalateTool, evaluatePermission, evaluateReuse, evidencePreservedValidator, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, filterClaimsForRun, finalizeFires, foldTermination, formatRePrompt, formatScopePath, hasFencedWrites, hasMetaLookup, hashRunArgs, hashRunOutput, hashWorkflowBody, hashWorkflowSource, identityJcs, implementationAgentProfile, invoiceFromJournal, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, kMaxOf, knowledgeHash, ladderLengthOf, ladderRungChoice, lastRunSettle, latestProgressReport, lexShellCommand, liftRetainedParts, lineageWeightOf, localKeyProvider, makeOrchestratorWorkflow, maskSecrets, maskSecretsDeep, maskSecretsJson, matchArgvPattern, matchShellCommand, mcp, memoryQuotaLimiter, mergeQuotaDenial, mergeUsageLimits, metaMatchesFilter, minMatchesValidator, modelEpochOf, modelKnowledgeCard, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, priceEntryUsage, priceUsdOf, profileCard, profileRegistrySnapshotHash, progressReportTool, projectHistory, projectIdentity, projectToJsonSchema, proposalStatement, providerOf, quotaActualTokens, quotaEstimateTokens, quotaRuleAdmission, quotaRuleMatches, readRunMeta, readTerminationInit, reconcileRunMeta, reduceAuditTrail, reduceCriticalPath, reduceInvocationTable, registryKeyRing, remeasureQueue, replayDisposition, repositoryResearchToolset, requiredFieldsValidator, requiredSectionsValidator, researchAgentProfile, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, reviewAgentProfile, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, sanitizeTerminalText, sanitizeTokenCount, sanitizeUsage, sanitizeUsageDelta, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, snapshotUsage, spawnDepthOf, summarizeInstruction, summarizeOutput, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, ttlState, usageViolations, validateEditorialCommit, validateEngineQuotaConfig, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateQuotaRules, validateRetryPolicy, validateSchemaSpec, validateTerminationLimits, validateUsageLimits, workflowScope, workflowSourceRef, wrapJournalStore, wrapTranscriptStore };

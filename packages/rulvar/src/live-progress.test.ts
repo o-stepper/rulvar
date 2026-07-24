@@ -386,6 +386,8 @@ describe('handle sources and lifecycle', () => {
 
   const COST: CostReport = {
     totalUsd: 0.021,
+    grossUsd: 0.021,
+    abandoned: { usd: 0, unpriced: [] },
     byModel: { 'fake:model': 0.021 },
     byPhase: {},
     byAgentType: { worker: 0.021 },

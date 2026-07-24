@@ -332,6 +332,23 @@
         "role": "loop",
         "budgetAccount": "plan/ULID-0001--------------------"
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "aborted",
+          "usage": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          },
+          "usageApprox": true,
+          "aborted": "external"
+        }
+      ],
       "transcriptRef": "fixture-transcript"
     },
     {
@@ -388,6 +405,21 @@
         "role": "loop",
         "budgetAccount": "plan/ULID-0004--------------------"
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "loop",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      ],
       "transcriptRef": "fixture-transcript"
     },
     {
@@ -585,6 +617,60 @@
         "role": "orchestrate",
         "budgetAccount": "orchestrator"
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "orchestrate",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        },
+        {
+          "ordinal": 2,
+          "role": "orchestrate",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        },
+        {
+          "ordinal": 3,
+          "role": "orchestrate",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        },
+        {
+          "ordinal": 4,
+          "role": "orchestrate",
+          "servedBy": "fake:model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 10,
+            "outputTokens": 5,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      ],
       "transcriptRef": "fixture-transcript",
       "checkpointRef": "fixture-checkpoint"
     },

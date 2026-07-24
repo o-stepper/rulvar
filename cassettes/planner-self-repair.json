@@ -38,6 +38,21 @@
         "role": "plan",
         "budgetAccount": "run"
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "plan",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 1008,
+            "outputTokens": 31,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      ],
       "transcriptRef": "plan-68a6611f52f56567c84b641e/t0"
     },
     {
@@ -76,6 +91,21 @@
         "role": "plan",
         "budgetAccount": "run"
       },
+      "providerCalls": [
+        {
+          "ordinal": 1,
+          "role": "plan",
+          "servedBy": "fake:fake-model",
+          "attempt": 1,
+          "outcome": "ok",
+          "usage": {
+            "inputTokens": 132,
+            "outputTokens": 30,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          }
+        }
+      ],
       "transcriptRef": "plan-68a6611f52f56567c84b641e/t1"
     },
     {

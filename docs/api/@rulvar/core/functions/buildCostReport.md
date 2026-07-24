@@ -7,12 +7,18 @@
 # Function: buildCostReport()
 
 ```ts
-function buildCostReport(attribution, totalUsd): CostReport;
+function buildCostReport(
+   attribution, 
+   totalUsd, 
+   abandoned?): CostReport;
 ```
 
-Defined in: [packages/core/src/engine/cost-report.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/cost-report.ts#L54)
+Defined in: [packages/core/src/engine/cost-report.ts:59](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/cost-report.ts#L59)
 
 Folds the per-run attribution buckets into the normative CostReport.
+Live attribution buckets never see abandoned subtrees, so a host
+that tracked abandoned spend itself passes it as `abandoned`;
+omitted, the report shows a gross equal to the net.
 
 ## Parameters
 
@@ -20,6 +26,10 @@ Folds the per-run attribution buckets into the normative CostReport.
 | ------ | ------ |
 | `attribution` | [`CostAttribution`](/api/@rulvar/core/interfaces/CostAttribution.md) |
 | `totalUsd` | `number` |
+| `abandoned` | \{ `unpriced`: \{ `model`: `string`; `usage`: [`Usage`](/api/@rulvar/core/type-aliases/Usage.md); \}[]; `usageApprox?`: `boolean`; `usd`: `number`; \} |
+| `abandoned.unpriced` | \{ `model`: `string`; `usage`: [`Usage`](/api/@rulvar/core/type-aliases/Usage.md); \}[] |
+| `abandoned.usageApprox?` | `boolean` |
+| `abandoned.usd` | `number` |
 
 ## Returns
 
