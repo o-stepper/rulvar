@@ -100,6 +100,20 @@ The capability suites above prove each fenced surface in isolation. The soak pro
 
 Concurrent construction is deliberately part of the exercise: every writer constructs the store bare, at the same moment, over the same fresh location, because a fleet start does exactly that. The soak's first storm found that defect in the reference store (concurrent boots collided in the schema bootstrap and died with a raw SQLITE_BUSY) before it reached the fencing at all; the constructor now retries its idempotent bootstrap under a wall-clock bound. `SqliteStore` runs the soak in its own test suite; wiring it for your store is shown in [Writing a store](/guide/store-authors#the-multi-process-soak).
 
+## The kill-point suite
+
+The soak proves fencing under contention; the kill-point suite proves RECOVERY under real death. `killPointConformance` runs a scripted engine workflow in a spawned child process over your store, and the child SIGKILLs itself around one durable write per scenario; the referee then waits out the dead owner's lease, resumes the run over its own store instance, and asserts the engine's documented recovery semantics with exact provider re-pay counts. A worker that runs to completion means the kill point was never reached, and the suite treats that as a violation, never a pass.
+
+The five write points are both brackets of the run's durable life (`before` a write = the write is lost; `after` = it is durable and everything past it is lost):
+
+- **the running entry** (the provider request): either bracket costs nothing extra; the step re-runs once on resume.
+- **the ok terminal** (the response with its usage): the `before` bracket is THE at-least-once window, the one place a step is paid twice, because the provider answered and the acknowledgement died; the `after` bracket replays for free.
+- **the limit terminal** (`maxToolCalls` expiry): `before` resumes as a dangling redispatch restored from the last transcript boundary, so the re-pay is exactly the turns since that checkpoint, not the whole agent; `after` leaves an unstamped limit terminal in a never-settled run, the documented second chance, and the resume re-runs the agent live in full.
+- **the run settle decision**: both brackets resume as a pure replay with zero provider calls; a lost settle is re-appended by the resume segment, a durable one is never duplicated.
+- **the meta projection** (written strictly after the settle): `before` is the repairable meta-behind residue and the resume heals it; `after` is a fully consistent run whose resume changes nothing.
+
+Every scenario additionally asserts exactly one `ok` run settle in the final journal, a healed `ok` meta, contiguous journal seqs, and the exact workflow value after recovery. `SqliteStore` and `PostgresStore` run the whole table in their own test suites; wiring it for your store is shown in [Writing a store](/guide/store-authors#the-kill-point-suite).
+
 ## The meta lookup capability
 
 Point operations (`engine.resume`, the HTTP status endpoint, CLI `resume` and `inspect`, the deterministic planner lookup) need ONE run's metadata, and forcing them through `listRuns` makes each of them scan the whole catalog. A store can add the exact lookup capability, optional exactly like the lease capability:
@@ -278,7 +292,7 @@ Operational notes:
 - **Pooling and backpressure.** Every operation is one short transaction, so the pool is the backpressure: excess operations queue for a client instead of stampeding the server. Budget `max` across your whole fleet against the server's `max_connections` (workers times pool max, plus headroom), or front the fleet with pgbouncer in session mode. There is no store-side retry of transient connection loss; the engine's own retry discipline and the queue worker's lease loss handling stay the recovery story.
 - **Backup and restore runbook.** The store keeps everything in five tables under its schema (`rulvar_entries`, `rulvar_meta`, `rulvar_leases`, `rulvar_epochs`, `rulvar_blobs`), so standard postgres tooling applies verbatim: continuous archiving plus PITR (`wal_level = replica`, `archive_command`, restore to a timestamp) is the reference setup, and a plain `pg_dump --schema=rulvar` is a consistent logical snapshot (single-snapshot dump). After a restore to an earlier point, journals are simply shorter: resume replays to the restored tail and continues live from there, exactly the crash-recovery semantics the journal already promises. Two cautions: restore the WHOLE schema together (entries, meta, and blobs must come from one snapshot, or `runs audit --repair` reconciles a meta row that ran ahead), and never restore while workers hold leases against the new timeline (stop the fleet, restore, start; epochs stay monotonic because `rulvar_epochs` restores with the same snapshot).
 
-The conformance suites, the cross-instance fencing tests, and the adversarial multi-process soak all run against a real postgres in this package's own test suite, gated on `RULVAR_POSTGRES_URL` (CI provides a service container; locally, any `docker run postgres:16` works).
+The conformance suites, the cross-instance fencing tests, the adversarial multi-process soak, and the [kill-point suite](/guide/stores#the-kill-point-suite) (a child process SIGKILLed around each durable write, its pool connections severed mid-flight, resumed from another process) all run against a real postgres in this package's own test suite, gated on `RULVAR_POSTGRES_URL` (CI provides a service container; locally, any `docker run postgres:16` works).
 
 ## Choosing a store
 

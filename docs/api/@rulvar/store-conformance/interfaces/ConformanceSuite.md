@@ -18,7 +18,11 @@ definition of the storage seam frozen at 1.0. Stores meant for
 multi-process queue deployments additionally run the adversarial
 multi-process soak (runMultiProcessSoak: real OS processes storm one
 store location through every fenced write surface and the referee
-diffs the state against the serial history the epochs promise).
+diffs the state against the serial history the epochs promise) and
+the engine-level kill-point suite (killPointConformance: a child
+process SIGKILLs itself around each durable write of a scripted run,
+and the referee resumes over the same store asserting the documented
+recovery semantics, re-pay counts included).
 
 Usage under Vitest:
 

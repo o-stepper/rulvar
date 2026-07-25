@@ -348,6 +348,56 @@ console.log(result.activity); // takeovers, accepted writes per surface, stale r
 
 The soak needs a store whose fencing actually spans processes (a shared file, a database server); the in-memory store above is out of scope by nature. Writers deliberately keep probing with superseded leases, attempt appends from a freshly re-read journal tail (so the monotonic-seq guard cannot mask a fencing hole), guard a foreign run with a live lease, and run full create-and-fenced-delete cycles on side runs. Every one of those must reject with the typed `LeaseHeldError` and change nothing.
 
+### The kill-point suite
+
+The soak proves fencing under contention; the kill-point suite proves engine recovery under real death (see [the user-side description](/guide/stores#the-kill-point-suite)). A child process drives a scripted engine run over your store and SIGKILLs itself around one durable write per scenario; the referee resumes over your store from the test process and asserts the documented recovery semantics, exact provider re-pay counts included. Your side is again a writer script, constructing the store over the kit's config and handing it to the worker protocol:
+
+```js
+// kp-writer.mjs, spawned once per scenario.
+import { runKillPointWorker, killPointWorkerConfigFromEnv } from '@rulvar/store-conformance';
+import { SqliteStore } from '@rulvar/store-sqlite';
+
+const config = killPointWorkerConfigFromEnv();
+const store = new SqliteStore({ path: config.storePath, ttlMs: config.ttlMs });
+await runKillPointWorker({ journal: store, transcripts: store.transcripts() }, config);
+// Only the ran-to-completion violation path reaches this line: on a
+// healthy scenario the SIGKILL fires first.
+store.close();
+```
+
+Then register the whole scenario table from your test file, with a fresh store location per scenario and a test timeout generous enough for spawn, death, lease lapse, and resume:
+
+```ts
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, it } from 'vitest';
+import { killPointConformance, registerConformance } from '@rulvar/store-conformance';
+import { SqliteStore } from '@rulvar/store-sqlite';
+
+const dir = mkdtempSync(join(tmpdir(), 'kp-'));
+registerConformance(
+  killPointConformance({
+    writerScript: '/absolute/path/to/kp-writer.mjs',
+    dir,
+    prepare: () => {
+      const storePath = join(mkdtempSync(join(tmpdir(), 'kp-db-')), 'kp.db');
+      return {
+        storePath,
+        openStore: () => {
+          const store = new SqliteStore({ path: storePath, ttlMs: 300 });
+          return { journal: store, transcripts: store.transcripts() };
+        },
+        closeStore: (fixture) => (fixture.journal as SqliteStore).close(),
+      };
+    },
+  }),
+  { describe, it: (name, fn) => it(name, fn, 40_000) },
+);
+```
+
+Like the soak, the suite needs cross-process durability (a shared file, a database server). The lease ttl is short on purpose: the killed owner never releases, and the referee waits the ttl out before it can own the resume, exactly like a production takeover of a crashed worker.
+
 ## Common failure modes
 
 - **Normalizing payloads.** Dropping undefined-like fields, reordering keys, or coercing numbers breaks the opaque-payload obligation and, downstream, replay identity. Store the serialized bytes.

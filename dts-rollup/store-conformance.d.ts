@@ -278,6 +278,189 @@ declare function verifySoakHistory(fixture: FencedTranscriptsFixture, events: re
 */
 declare function runMultiProcessSoak(options: MultiProcessSoakOptions): Promise<MultiProcessSoakResult>;
 //#endregion
+//#region src/kill-points.d.ts
+/** The five durable writes a scenario kills around. */
+type KillPointName = "running" | "ok-terminal" | "limit-terminal" | "settle" | "meta";
+/** `before` = the write is lost; `after` = everything past it is lost. */
+type KillPointPhase = "before" | "after";
+/** The two scripted runs: two plain steps, or one tool-capped agent. */
+type KillPointWorkflowKind = "happy" | "limit";
+/** The pinned recovery semantics a scenario asserts. */
+interface KillPointExpectation {
+  /** Provider calls the child paid before dying. */
+  childCalls: number;
+  /** Tool executions the child performed before dying. */
+  childToolExecutions: number;
+  /** Provider calls the resume pays (the bracket's documented re-pay). */
+  resumeCalls: number;
+  /** Tool executions during the resume. */
+  resumeToolExecutions: number;
+  /** `agent` terminals with status `limit` in the final journal. */
+  limitTerminals: number;
+  /** The workflow value after recovery. */
+  value: unknown;
+}
+interface KillPointScenario {
+  /** Stable scenario id (`<workflow>-<point>-<phase>`). */
+  id: string;
+  workflow: KillPointWorkflowKind;
+  point: KillPointName;
+  phase: KillPointPhase;
+  /** Which matching write dies (1-based; step two of the happy run is 2). */
+  occurrence: number;
+  expected: KillPointExpectation;
+}
+/**
+* The full table: both brackets of all five write points. The expected
+* counts ARE the engine's documented recovery semantics; a count moving
+* here means the durability contract moved and the change must be
+* deliberate.
+*/
+declare const KILL_POINT_SCENARIOS: readonly KillPointScenario[];
+/**
+* The per-scenario contract, serialized as JSON into the
+* `RULVAR_KILL_POINT_CONFIG` environment variable of the spawned worker.
+*/
+interface KillPointWorkerConfig {
+  /** Store location the writer script constructs its store over. */
+  storePath: string;
+  /** The run both processes drive; the referee resumes this id. */
+  runId: string;
+  /** Lease ttl the writer's store MUST be constructed with. */
+  ttlMs: number;
+  /** JSONL report file the worker appends its events to. */
+  reportPath: string;
+  /** Which {@link KILL_POINT_SCENARIOS} entry this worker executes. */
+  scenarioId: string;
+}
+/** One JSONL line of a worker's report file. */
+type KillPointEvent = {
+  t: "call";
+  prompt: string;
+} | {
+  t: "tool";
+  target: string;
+} | {
+  t: "kill";
+  point: KillPointName;
+  phase: KillPointPhase;
+  site: "append" | "putMeta";
+  kind?: string;
+  status?: string;
+  seq?: number;
+} | {
+  t: "ran-to-completion";
+  status: string;
+} | {
+  t: "fatal";
+  message: string;
+};
+/** Reads the worker contract a referee serialized into the child env. */
+declare function killPointWorkerConfigFromEnv(env?: Record<string, string | undefined>): KillPointWorkerConfig;
+/** Parses one report file, tolerating a torn trailing line. */
+declare function parseKillPointReport(path: string): KillPointEvent[];
+/** Consumer hooks for {@link runKillPointWorker}. */
+interface KillPointWorkerHooks {
+  /**
+  * The death itself; default SIGKILLs the current process and never
+  * returns. In-process protocol tests inject a throwing hook instead,
+  * which surfaces through the engine as a store failure.
+  */
+  kill?: () => void;
+}
+/**
+* The worker protocol: run it in a spawned process against the
+* consumer-constructed store pair. Wraps the journal so the configured
+* write kills the process (`before` = ahead of the write, `after` =
+* once it is durable), appends every observation to the report file
+* first (the appends are synchronous, so the report survives the
+* SIGKILL), and reports `ran-to-completion` when the kill point is
+* never reached, which the referee treats as a violation.
+*/
+declare function runKillPointWorker(fixture: FencedTranscriptsFixture, config: KillPointWorkerConfig, hooks?: KillPointWorkerHooks): Promise<void>;
+/** What a green scenario returns (the observed recovery). */
+interface KillPointObservation {
+  scenario: KillPointScenario;
+  childCalls: number;
+  childToolExecutions: number;
+  resumeCalls: number;
+  resumeToolExecutions: number;
+  /** `kind:status` per final journal entry, in seq order. */
+  journal: string[];
+  metaStatus: string | undefined;
+}
+interface KillPointScenarioOptions {
+  /**
+  * Absolute path of the consumer's writer script. It must construct
+  * the store over `killPointWorkerConfigFromEnv()` and call
+  * {@link runKillPointWorker}.
+  */
+  writerScript: string;
+  /** Scratch directory for the report file. */
+  dir: string;
+  /** The scenario to execute, by table entry or id. */
+  scenario: KillPointScenario | string;
+  /** Store location handed to the worker config; default `join(dir, 'kp.db')`. */
+  storePath?: string;
+  /**
+  * Lease ttl for BOTH sides; default 300 ms. The referee waits it out
+  * after the kill, so keep it short.
+  */
+  ttlMs?: number;
+  /**
+  * Opens the referee's own fixture over the SAME store location for
+  * the resume and the final state verification.
+  */
+  openStore: () => Promise<FencedTranscriptsFixture> | FencedTranscriptsFixture;
+  /** Closes what {@link KillPointScenarioOptions.openStore} opened. */
+  closeStore?: (fixture: FencedTranscriptsFixture) => void | Promise<void>;
+  /** Extra environment for the worker process. */
+  env?: Record<string, string>;
+  /** Extra `node` arguments placed before the writer script. */
+  execArgv?: string[];
+  /** Ceiling on lease-held resume retries; default 15000 ms. */
+  resumeDeadlineMs?: number;
+}
+/**
+* Spawns the worker, asserts it died AT the configured write by
+* SIGKILL, waits out the dead owner's lease, resumes the run over the
+* referee's own store instance, and asserts the scenario's pinned
+* recovery semantics. Throws one Error naming every violation.
+*/
+declare function runKillPointScenario(options: KillPointScenarioOptions): Promise<KillPointObservation>;
+/** Per-scenario isolation a consumer's `prepare` hands the suite. */
+interface KillPointTarget {
+  /** Store location for this scenario (worker config + referee). */
+  storePath?: string;
+  /** Extra environment for the worker process. */
+  env?: Record<string, string>;
+  openStore: KillPointScenarioOptions["openStore"];
+  closeStore?: KillPointScenarioOptions["closeStore"];
+  /** Runs after the scenario, pass or fail (drop the schema, etc). */
+  cleanup?: () => void | Promise<void>;
+}
+interface KillPointConformanceOptions {
+  /** Absolute path of the consumer's writer script. */
+  writerScript: string;
+  /** Scratch directory for report files. */
+  dir: string;
+  /** Fresh isolation per scenario: store location and referee opener. */
+  prepare: (scenario: KillPointScenario) => Promise<KillPointTarget> | KillPointTarget;
+  /** Lease ttl for both sides; default 300 ms. */
+  ttlMs?: number;
+  /** Extra `node` arguments placed before the writer script. */
+  execArgv?: string[];
+  /** Ceiling on lease-held resume retries; default 15000 ms. */
+  resumeDeadlineMs?: number;
+}
+/**
+* The whole {@link KILL_POINT_SCENARIOS} table as a conformance suite:
+* one check per scenario, each over the fresh isolation `prepare`
+* returns. Register it with a test API whose `it` allows at least
+* thirty seconds per case (spawn, run, die, lease lapse, resume).
+*/
+declare function killPointConformance(options: KillPointConformanceOptions): ConformanceSuite;
+//#endregion
 //#region src/fixtures/golden-fold.d.ts
 /**
 * seq 0  agent spawn (running; abandoned by seq 6)
@@ -302,4 +485,4 @@ declare function foldStateSha256(entries: readonly JournalEntry[]): string;
 /** The reference hash; computed once from the kernel fold and frozen. */
 declare const GOLDEN_FOLD_STATE_SHA256 = "81e6ccff549fb3e6c1de4d34ba65b912162eba6f66403b5d5f23a3e1ec69243c";
 //#endregion
-export { type ConformanceCheck, type ConformanceSuite, DEFAULT_SOAK_QUORUM, type FencedTranscriptsFixture, GOLDEN_FOLD_JOURNAL, GOLDEN_FOLD_STATE_SHA256, type MultiProcessSoakOptions, type MultiProcessSoakResult, type SoakAcceptSurface, type SoakActivity, type SoakEvent, type SoakProbeSurface, type SoakQuorum, type SoakWriterConfig, type SoakWriterHooks, type StoreFactory, type TestRegistrar, countSoakActivity, fencedTranscriptsConformance, fencedWritesConformance, foldStateSha256, journalStoreConformance, leasableStoreConformance, makeSuite, materializeFoldState, parseSoakReport, registerConformance, runMultiProcessSoak, runSoakWriter, soakWriterConfigFromEnv, stableStringify, verifySoakHistory };
+export { type ConformanceCheck, type ConformanceSuite, DEFAULT_SOAK_QUORUM, type FencedTranscriptsFixture, GOLDEN_FOLD_JOURNAL, GOLDEN_FOLD_STATE_SHA256, KILL_POINT_SCENARIOS, type KillPointConformanceOptions, type KillPointEvent, type KillPointExpectation, type KillPointName, type KillPointObservation, type KillPointPhase, type KillPointScenario, type KillPointScenarioOptions, type KillPointTarget, type KillPointWorkerConfig, type KillPointWorkerHooks, type KillPointWorkflowKind, type MultiProcessSoakOptions, type MultiProcessSoakResult, type SoakAcceptSurface, type SoakActivity, type SoakEvent, type SoakProbeSurface, type SoakQuorum, type SoakWriterConfig, type SoakWriterHooks, type StoreFactory, type TestRegistrar, countSoakActivity, fencedTranscriptsConformance, fencedWritesConformance, foldStateSha256, journalStoreConformance, killPointConformance, killPointWorkerConfigFromEnv, leasableStoreConformance, makeSuite, materializeFoldState, parseKillPointReport, parseSoakReport, registerConformance, runKillPointScenario, runKillPointWorker, runMultiProcessSoak, runSoakWriter, soakWriterConfigFromEnv, stableStringify, verifySoakHistory };
