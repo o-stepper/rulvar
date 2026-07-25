@@ -1468,6 +1468,29 @@ export function createEngine(options: CreateEngineOptions): Engine {
       if (wireError !== undefined) {
         outcome.error = wireError;
       }
+      // The semantic completion lift (RV-207 tail): an ok/exhausted run
+      // reports through its result envelope, a typed failure through its
+      // error data (the orchestrator acceptance rejection). Mirrored
+      // onto the outcome itself (the 1.65.0 experiment review, P0.5) so
+      // handle.result is self-sufficient: ONE contract on both paths
+      // instead of a workflow-shaped value parse on ok and an error-data
+      // dig on rejection. run:end below spreads the SAME object, so the
+      // outcome and the event can never disagree. Replay re-executes the
+      // workflow and recomputes the same value, so the lifted fields are
+      // identical live and replayed.
+      const lifted = liftRunCompletion(
+        status === 'ok' || status === 'exhausted'
+          ? outcome.value
+          : status === 'error'
+            ? wireError?.data
+            : undefined,
+      );
+      if (lifted !== undefined) {
+        outcome.completion = lifted.completion;
+        if (lifted.childStatusCounts !== undefined) {
+          outcome.childStatusCounts = lifted.childStatusCounts;
+        }
+      }
       // The journaled settle (fenced run state RFC, phase 3): the run's
       // outcome becomes part of the journal, making RunMeta a
       // rebuildable projection (stores/reconcile.ts is the auditor).
@@ -1555,18 +1578,8 @@ export function createEngine(options: CreateEngineOptions): Engine {
           rootSpanId,
         );
       }
-      // The semantic completion lift: an ok/exhausted run reports through
-      // its result envelope, a typed failure through its error data (the
-      // orchestrator acceptance rejection). Replay re-executes the
-      // workflow and recomputes the same value, so the lifted fields are
-      // identical live and replayed.
-      const lifted = liftRunCompletion(
-        status === 'ok' || status === 'exhausted'
-          ? outcome.value
-          : status === 'error'
-            ? wireError?.data
-            : undefined,
-      );
+      // run:end spreads the SAME lift computed at outcome construction
+      // above, so telemetry and handle.result can never disagree.
       bus.emit(
         {
           type: 'run:end',

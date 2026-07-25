@@ -485,6 +485,10 @@ describe('terminal-output salvage (P0.4 + P1.1)', () => {
     }).result;
     expect(first.status).toBe('ok');
     expect((first.value as Envelope).salvagedTerminalOutputChildren).toHaveLength(1);
+    // The RunOutcome completion mirror (P0.5) binds the real acceptance
+    // path: the lifted envelope rides the outcome itself.
+    expect(first.completion).toBe('partial');
+    expect(first.childStatusCounts).toEqual({ ok: 1, limit: 1 });
 
     const replayAdapter = salvageOutputAdapter('reserve', {});
     const engineB = createEngine({
@@ -498,6 +502,7 @@ describe('terminal-output salvage (P0.4 + P1.1)', () => {
     ).result;
     expect(resumed.status).toBe('ok');
     expect(resumed.value).toEqual(first.value);
+    expect(resumed.completion).toBe('partial');
     // The envelope rolls forward from the ONE journaled acceptance
     // decision, and the settled run replays with ZERO adapter calls,
     // the limit child's journaled terminal value included.

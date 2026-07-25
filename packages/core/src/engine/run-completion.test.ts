@@ -22,11 +22,17 @@ type RunEndEvent = {
   childStatusCounts?: Record<string, number>;
 };
 
+type OutcomeLift = {
+  status: string;
+  completion?: 'complete' | 'partial' | 'rejected';
+  childStatusCounts?: Record<string, number>;
+};
+
 async function runAndCaptureEnd(
   engine: ReturnType<typeof createEngine>,
   wf: Parameters<ReturnType<typeof createEngine>['run']>[0],
   runId?: string,
-): Promise<{ outcome: { status: string }; runEnd: RunEndEvent | undefined }> {
+): Promise<{ outcome: OutcomeLift; runEnd: RunEndEvent | undefined }> {
   const handle = engine.run(wf, undefined, runId === undefined ? undefined : { runId });
   let runEnd: RunEndEvent | undefined;
   handle.on('run:end', (event) => {
@@ -134,5 +140,98 @@ describe('the run:end semantic completion lift (RV-207 tail)', () => {
     expect(resumed.status).toBe('ok');
     expect(runEnd?.completion).toBe('complete');
     expect(runEnd?.childStatusCounts).toEqual({ ok: 2 });
+  });
+});
+
+/**
+ * The RunOutcome completion mirror (the 1.65.0 experiment review,
+ * P0.5). Reproduced on published 1.65.0: the lift rode ONLY the run:end
+ * telemetry event, so a host consuming handle.result had to parse the
+ * workflow-shaped value on the accepted path and dig the typed error
+ * data on the rejected one. The engine now computes the lift once and
+ * both surfaces spread the same object.
+ */
+describe('the RunOutcome completion mirror (P0.5)', () => {
+  it('mirrors the envelope of an ok result onto the outcome', async () => {
+    const engine = createEngine({ adapters: [] });
+    const wf = defineWorkflow({ name: 'envelope-mirror' }, () =>
+      Promise.resolve({
+        result: 'the merged report',
+        completion: 'partial' as const,
+        childStatusCounts: { ok: 3, limit: 1 },
+      }),
+    );
+    const { outcome, runEnd } = await runAndCaptureEnd(engine, wf);
+    expect(outcome.completion).toBe('partial');
+    expect(outcome.childStatusCounts).toEqual({ ok: 3, limit: 1 });
+    // The event and the outcome spread the SAME lift.
+    expect(outcome.completion).toBe(runEnd?.completion);
+    expect(outcome.childStatusCounts).toEqual(runEnd?.childStatusCounts);
+  });
+
+  it('mirrors typed error data onto the outcome of a rejected run', async () => {
+    const engine = createEngine({ adapters: [] });
+    const wf = defineWorkflow({ name: 'rejected-mirror' }, () => {
+      throw new FailRunError('the acceptance policy rejected the finish', {
+        data: {
+          source: 'orchestrator_acceptance',
+          completion: 'rejected',
+          childStatusCounts: { ok: 1, limit: 2 },
+        },
+      });
+    });
+    const { outcome, runEnd } = await runAndCaptureEnd(engine, wf);
+    expect(outcome.status).toBe('error');
+    expect(outcome.completion).toBe('rejected');
+    expect(outcome.childStatusCounts).toEqual({ ok: 1, limit: 2 });
+    expect(outcome.completion).toBe(runEnd?.completion);
+  });
+
+  it('stays absent on the outcome for plain results and invalid literals', async () => {
+    const engine = createEngine({ adapters: [] });
+    const plain = await runAndCaptureEnd(
+      engine,
+      defineWorkflow({ name: 'plain-mirror' }, () => Promise.resolve('just a string')),
+    );
+    expect(plain.outcome.completion).toBeUndefined();
+    expect(plain.outcome.childStatusCounts).toBeUndefined();
+
+    const invalid = await runAndCaptureEnd(
+      engine,
+      defineWorkflow({ name: 'invalid-mirror' }, () =>
+        Promise.resolve({ completion: 'done', childStatusCounts: { ok: 1 } }),
+      ),
+    );
+    expect(invalid.outcome.completion).toBeUndefined();
+    expect(invalid.outcome.childStatusCounts).toBeUndefined();
+  });
+
+  it('keeps a valid completion and drops malformed counts on the outcome', async () => {
+    const engine = createEngine({ adapters: [] });
+    const wf = defineWorkflow({ name: 'partial-shape-mirror' }, () =>
+      Promise.resolve({ completion: 'complete', childStatusCounts: { ok: 1.5 } }),
+    );
+    const { outcome } = await runAndCaptureEnd(engine, wf);
+    expect(outcome.completion).toBe('complete');
+    expect(outcome.childStatusCounts).toBeUndefined();
+  });
+
+  it('a resumed run mirrors the same fields on its outcome', async () => {
+    const store = new InMemoryStore();
+    const wf = defineWorkflow({ name: 'stable-mirror' }, () =>
+      Promise.resolve({
+        completion: 'complete' as const,
+        childStatusCounts: { ok: 2 },
+      }),
+    );
+    const engineA = createEngine({ adapters: [], stores: { journal: store } });
+    const first = await runAndCaptureEnd(engineA, wf, 'LIFT-MIRROR');
+    expect(first.outcome.completion).toBe('complete');
+
+    const engineB = createEngine({ adapters: [], stores: { journal: store } });
+    const resumed = (await engineB.resume('LIFT-MIRROR', wf).result) as OutcomeLift;
+    expect(resumed.status).toBe('ok');
+    expect(resumed.completion).toBe('complete');
+    expect(resumed.childStatusCounts).toEqual({ ok: 2 });
   });
 });
