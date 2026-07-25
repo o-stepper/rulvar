@@ -55,7 +55,11 @@ registerConformance(
       return {
         storePath,
         openStore: () => {
-          const store = new SqliteStore({ path: storePath, ttlMs: 300 });
+          // The referee keeps the store's generous default ttl: only the
+          // KILLED owner's lease should be short (the harness waits it
+          // out), while a scheduler stall under a loaded runner must not
+          // expire the resume's own lease mid-scenario.
+          const store = new SqliteStore({ path: storePath });
           opened.push(store);
           return { journal: store, transcripts: store.transcripts() };
         },

@@ -170,7 +170,7 @@ describe('kill-point scenario table', () => {
 describe('kill-point worker protocol (in-process, injected kill hook)', () => {
   it('a before-phase kill fires ahead of the settle write: the work is journaled, the settle is not', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'rulvar-kp-unit-'));
-    const pair = makeFakePair(250);
+    const pair = makeFakePair(60_000);
     const cfg = config(dir, 'happy-settle-before');
     await expect(
       runKillPointWorker(pair, cfg, {
@@ -200,7 +200,7 @@ describe('kill-point worker protocol (in-process, injected kill hook)', () => {
 
   it('an after-phase kill fires once the write is durable and the report names its seq', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'rulvar-kp-unit-'));
-    const pair = makeFakePair(250);
+    const pair = makeFakePair(60_000);
     const cfg = config(dir, 'happy-ok-terminal-after');
     // occurrence 2 = step two's terminal; the injected throw then fails
     // the step it brackets, so the run completes as an error instead of
@@ -230,7 +230,7 @@ describe('kill-point worker protocol (in-process, injected kill hook)', () => {
 
   it('a kill point that never fires reports ran-to-completion for the referee to flag', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'rulvar-kp-unit-'));
-    const pair = makeFakePair(250);
+    const pair = makeFakePair(60_000);
     const cfg = config(dir, 'happy-meta-before');
     // A no-op hook: the kill line is logged, nothing dies, the run
     // finishes; a worker script losing its SIGKILL privilege would look
@@ -243,7 +243,7 @@ describe('kill-point worker protocol (in-process, injected kill hook)', () => {
 
   it('an unknown scenario id is refused before any store touch', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'rulvar-kp-unit-'));
-    const pair = makeFakePair(250);
+    const pair = makeFakePair(60_000);
     await expect(runKillPointWorker(pair, config(dir, 'no-such'))).rejects.toThrow(
       /unknown scenario/,
     );

@@ -87,7 +87,11 @@ registerConformance(
       return {
         env: { RULVAR_POSTGRES_URL: url ?? '', RULVAR_PG_KP_SCHEMA: schema },
         openStore: () => {
-          const store = new PostgresStore({ url: url ?? '', schema, ttlMs: 300, max: 3 });
+          // The referee keeps the store's generous default ttl: only the
+          // KILLED owner's lease should be short (the harness waits it
+          // out), while a scheduler stall under a loaded runner must not
+          // expire the resume's own lease mid-scenario.
+          const store = new PostgresStore({ url: url ?? '', schema, max: 3 });
           opened.push(store);
           return { journal: store, transcripts: store.transcripts() };
         },

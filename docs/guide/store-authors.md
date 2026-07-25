@@ -385,7 +385,8 @@ registerConformance(
       return {
         storePath,
         openStore: () => {
-          const store = new SqliteStore({ path: storePath, ttlMs: 300 });
+          // The referee keeps the default ttl on purpose; see below.
+          const store = new SqliteStore({ path: storePath });
           return { journal: store, transcripts: store.transcripts() };
         },
         closeStore: (fixture) => (fixture.journal as SqliteStore).close(),
@@ -396,7 +397,7 @@ registerConformance(
 );
 ```
 
-Like the soak, the suite needs cross-process durability (a shared file, a database server). The lease ttl is short on purpose: the killed owner never releases, and the referee waits the ttl out before it can own the resume, exactly like a production takeover of a crashed worker.
+Like the soak, the suite needs cross-process durability (a shared file, a database server). The short ttl binds only the WORKER: the killed owner never releases, and the referee waits its ttl out before it can own the resume, exactly like a production takeover of a crashed worker. The referee's own store keeps the generous default ttl, because a scheduler stall on a loaded test runner must not expire the resume's lease mid-scenario; a lost lease cancels the run by contract, and that self-inflicted takeover would read as a recovery violation.
 
 ## Common failure modes
 
