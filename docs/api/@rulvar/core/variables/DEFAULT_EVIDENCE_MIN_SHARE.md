@@ -10,6 +10,6 @@
 const DEFAULT_EVIDENCE_MIN_SHARE: 0.95 = 0.95;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:159](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L159)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:208](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L208)
 
 The default preserved share, the improvement plan's RV-202 gate.

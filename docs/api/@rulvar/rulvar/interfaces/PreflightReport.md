@@ -43,6 +43,10 @@ The machine-readable preflight report; JSON-serializable throughout.
 | `exposure.runCeiling.requests` | `number` | - | `packages/core/dist/index.d.ts` |
 | `exposure.runCeiling.tokens` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-findings"></a> `findings` | [`PreflightFinding`](/api/@rulvar/rulvar/interfaces/PreflightFinding.md)[] | - | `packages/core/dist/index.d.ts` |
+| <a id="property-finishvalidation"></a> `finishValidation?` | \{ `contractHash?`: `string`; `selfTest`: `"skipped"` \| `"passed"` \| `"failed"`; `validators`: `string`[]; \} | Present when input.finishValidation was provided: the self test echo. `selfTest` reflects the golden fixture run alone ('skipped' = no fixture resolvable); containment drift between a contract and the validator set reports through findings either way. | `packages/core/dist/index.d.ts` |
+| `finishValidation.contractHash?` | `string` | - | `packages/core/dist/index.d.ts` |
+| `finishValidation.selfTest` | `"skipped"` \| `"passed"` \| `"failed"` | - | `packages/core/dist/index.d.ts` |
+| `finishValidation.validators` | `string`[] | - | `packages/core/dist/index.d.ts` |
 | <a id="property-quota"></a> `quota` | \{ `configured`: `boolean`; `rules?`: `number`; `tenant?`: `string`; \} | - | `packages/core/dist/index.d.ts` |
 | `quota.configured` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | `quota.rules?` | `number` | - | `packages/core/dist/index.d.ts` |

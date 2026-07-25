@@ -6,6 +6,8 @@ import {
   minMatchesValidator,
   requiredFieldsValidator,
   requiredSectionsValidator,
+  sectionCitationsValidator,
+  wordCountValidator,
   type FinishValidationChild,
   type FinishValidationInput,
 } from './finish-validators.js';
@@ -178,5 +180,77 @@ describe('minMatchesValidator', () => {
 
   it('honors a custom name so several instances can coexist', () => {
     expect(minMatchesValidator({ pattern: 'x', min: 1, name: 'citations' }).name).toBe('citations');
+  });
+});
+
+describe('wordCountValidator (the v1.71 experiment review, P0.7)', () => {
+  it('holds the whitespace-token count inside the bounds, boundaries inclusive', () => {
+    const validator = wordCountValidator({ min: 3, max: 4 });
+    expect(validator.name).toBe('word-count');
+    expect(validator.validate(text('one two three'))).toEqual({ ok: true });
+    expect(validator.validate(text('  one\n two\tthree four  '))).toEqual({ ok: true });
+    const below = validator.validate(text('one two'));
+    expect(below.ok ? [] : below.reasons).toEqual([
+      'result word count 2 is below the required minimum 3',
+    ]);
+    const above = validator.validate(text('a b c d e'));
+    expect(above.ok ? [] : above.reasons).toEqual(['result word count 5 exceeds the maximum 4']);
+  });
+
+  it('counts the empty text as zero words', () => {
+    const verdict = wordCountValidator({ min: 1 }).validate(text('   '));
+    expect(verdict.ok ? [] : verdict.reasons).toEqual([
+      'result word count 0 is below the required minimum 1',
+    ]);
+    expect(wordCountValidator({ max: 10 }).validate(text(''))).toEqual({ ok: true });
+  });
+
+  it('rejects missing, non positive, and inverted bounds at construction', () => {
+    expect(() => wordCountValidator({})).toThrow(/min, max, or both/);
+    expect(() => wordCountValidator({ min: 0 })).toThrow(/positive integer/);
+    expect(() => wordCountValidator({ max: 2.5 })).toThrow(/positive integer/);
+    expect(() => wordCountValidator({ min: 5, max: 4 })).toThrow(/exceeds max/);
+  });
+});
+
+describe('sectionCitationsValidator (the v1.71 experiment review, P1.2)', () => {
+  const BODY = '## A\nsrc/a.ts:1 src/a.ts:2\n## B\nsrc/b.ts:3\n## C\nno provenance whatsoever here';
+
+  it('judges every section slice separately and names the starved ones', () => {
+    const validator = sectionCitationsValidator({ sections: ['## A', '## B', '## C'], min: 2 });
+    expect(validator.name).toBe('section-citations');
+    const verdict = validator.validate(text(BODY));
+    expect(verdict.ok).toBe(false);
+    expect(verdict.ok ? [] : verdict.reasons).toEqual([
+      "section '## B' carries 1 citations matching /[\\w./-]+\\.\\w+:\\d+/; at least 2 required",
+      "section '## C' carries 0 citations matching /[\\w./-]+\\.\\w+:\\d+/; at least 2 required",
+    ]);
+    expect(sectionCitationsValidator({ sections: ['## A'], min: 2 }).validate(text(BODY))).toEqual({
+      ok: true,
+    });
+  });
+
+  it('slices by text position even when sections appear out of declared order', () => {
+    const swapped = '## B\nsrc/b.ts:3\n## A\nsrc/a.ts:1';
+    const validator = sectionCitationsValidator({ sections: ['## A', '## B'], min: 1 });
+    expect(validator.validate(text(swapped))).toEqual({ ok: true });
+  });
+
+  it('a missing section is its own reason, never a silent zero', () => {
+    const validator = sectionCitationsValidator({ sections: ['## Z'], min: 1 });
+    const verdict = validator.validate(text(BODY));
+    expect(verdict.ok ? [] : verdict.reasons).toEqual([
+      "required section '## Z' is missing, so its citation coverage cannot be judged",
+    ]);
+  });
+
+  it('rejects invalid patterns, sections, and min at construction', () => {
+    expect(() => sectionCitationsValidator({ sections: [], min: 1 })).toThrow(ConfigError);
+    expect(() => sectionCitationsValidator({ sections: ['A'], pattern: '(', min: 1 })).toThrow(
+      /does not compile/,
+    );
+    expect(() => sectionCitationsValidator({ sections: ['A'], min: 0 })).toThrow(
+      /positive integer/,
+    );
   });
 });

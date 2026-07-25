@@ -281,7 +281,37 @@ Every schema valid `finish` call first passes the validators, in configuration o
 
 Every verdict (accepted, repair, rejected) journals as one decision entry keyed by the finish call id, so a resume rolls the same verdicts forward without re-running validator code and the whole exchange replays without new paid calls; a journaled final rejection even short circuits at boot, before any model call. The toolset never changes (the contract reaches the model through the orchestrator prompt), and zero configuration adds zero journal entries.
 
-The built in validators cover the plan's mechanical checks: `requiredSectionsValidator` (literal section markers in the result text), `requiredFieldsValidator` (object fields present and not empty strings), `minMatchesValidator` (at least N regex matches, the citation and source counts). Anything else is a custom `FinishValidator`: a `name` unique within the call and a synchronous, deterministic `validate(input)`. A validator that throws is a host defect: the run fails as `ConfigError`, nothing journals, and no repair turn is spent on it.
+The built in validators cover the plan's mechanical checks: `requiredSectionsValidator` (literal section markers in the result text), `requiredFieldsValidator` (object fields present and not empty strings), `minMatchesValidator` (at least N regex matches, the citation and source counts), `wordCountValidator` (the word count inside declared bounds, whitespace separated tokens), and `sectionCitationsValidator` (at least N pattern matches INSIDE every named section, because a total count hides sections carrying zero provenance). Anything else is a custom `FinishValidator`: a `name` unique within the call and a synchronous, deterministic `validate(input)`. A validator that throws is a host defect: the run fails as `ConfigError`, nothing journals, and no repair turn is spent on it.
+
+### The output contract
+
+`requiredSectionsValidator({ sections: OLD })` beside a goal that names NEW sections is the drift none of the machinery above can catch: the prompt and the validators are two sources of truth maintained by hand in two places. The v1.71 experiment burned a full paid run on exactly that mismatch: the question renamed three sections, the harness validator kept the old names, and a correct schema-valid answer was rejected until the synthesis turn ceiling. `finishContract` collapses the two sources into one manifest.
+
+```ts
+import { finishContract, orchestrate } from "@rulvar/core";
+
+const contract = finishContract({
+  sections: ["## Findings", "## Evidence", "## Risks"],
+  words: { min: 400, max: 1200 },
+  citations: { min: 12, perSection: 2 },
+});
+
+const audited = orchestrate(
+  engine,
+  ["Audit the module.", ...contract.promptLines].join("\n"),
+  {
+    profiles: ["reviewer"],
+    finishValidation: { validators: contract.validators, contract },
+  },
+  { budgetUsd: 10 },
+);
+```
+
+One manifest generates everything: the stock validator set (`contract-sections`, `contract-words`, `contract-citations`, `contract-section-citations`, riding the validators above), the prompt statement (`promptLines`, injected into the coordination AND synthesis prompts automatically whenever the contract is configured, so even a goal that forgets to embed them still tells the model the demands), a stable `hash` (sha256 over the JCS form of the normalized manifest), and golden self-test fixtures. Construction is where contradictions die: a manifest whose mandatory content alone exceeds `words.max`, a custom citation pattern without a `sample` to embed in the goldens, `perSection` without `sections`, each a `ConfigError` before any run exists.
+
+The golden self test is the teeth. At workflow construction, BEFORE any provider call, every configured validator must accept the contract's `goldenAccept` skeleton, and at least one must reject `goldenReject` (a set that accepts the known-bad input validates nothing). A stale hand-written validator still demanding last month's sections rejects the fresh skeleton and construction throws, naming the validator and the exact missing markers, at a cost of zero dollars; the same drift declared to `preflightEstimate({ finishValidation: { validators, contract } })` reports as the error finding `output-contract-validator-mismatch` beside the quota and budget findings instead of throwing (programmatic only: validator functions cannot ride a JSON config file). Hosts with custom validators pass `selfTest: { accept, reject }` fixtures those validators actually accept; fixtures without a contract run standalone. Every contract validator must also appear in `finishValidation.validators` by name, so a promised contract nobody enforces is a `ConfigError`, never a silent lie.
+
+The bundle descriptor freezes what validated the run. With a contract configured, the journal records one decision entry (`decisionType 'orchestrator_finish_validation_bundle'`) carrying the contract hash, the validator names, and `maxRepairs`. A resume under the same contract appends nothing; a resume under a FIXED contract appends a superseding descriptor (`supersedes: <old hash>`) instead of failing, because repairing a stale validator and resuming is the intended remedy of exactly the failure the self test exists for. Without a contract the journal stays byte identical, so every existing configuration keeps its exact entries.
 
 ### Preserving the children's evidence
 

@@ -951,6 +951,30 @@
             "link": "/api/@rulvar/core/interfaces/FileModelKnowledgeStoreOptions.md"
           },
           {
+            "text": "FinishContract",
+            "link": "/api/@rulvar/core/interfaces/FinishContract.md"
+          },
+          {
+            "text": "FinishContractCitations",
+            "link": "/api/@rulvar/core/interfaces/FinishContractCitations.md"
+          },
+          {
+            "text": "FinishContractManifest",
+            "link": "/api/@rulvar/core/interfaces/FinishContractManifest.md"
+          },
+          {
+            "text": "FinishSelfTestFailure",
+            "link": "/api/@rulvar/core/interfaces/FinishSelfTestFailure.md"
+          },
+          {
+            "text": "FinishSelfTestFixtures",
+            "link": "/api/@rulvar/core/interfaces/FinishSelfTestFixtures.md"
+          },
+          {
+            "text": "FinishSelfTestReport",
+            "link": "/api/@rulvar/core/interfaces/FinishSelfTestReport.md"
+          },
+          {
             "text": "FinishValidationChild",
             "link": "/api/@rulvar/core/interfaces/FinishValidationChild.md"
           },
@@ -2123,6 +2147,10 @@
             "link": "/api/@rulvar/core/variables/DEFAULT_CITATION_PATTERN.md"
           },
           {
+            "text": "DEFAULT_CITATION_SAMPLE",
+            "link": "/api/@rulvar/core/variables/DEFAULT_CITATION_SAMPLE.md"
+          },
+          {
             "text": "DEFAULT_COMPACTION_THRESHOLD",
             "link": "/api/@rulvar/core/variables/DEFAULT_COMPACTION_THRESHOLD.md"
           },
@@ -2681,6 +2709,10 @@
             "link": "/api/@rulvar/core/functions/finalizeFires.md"
           },
           {
+            "text": "finishContract",
+            "link": "/api/@rulvar/core/functions/finishContract.md"
+          },
+          {
             "text": "foldTermination",
             "link": "/api/@rulvar/core/functions/foldTermination.md"
           },
@@ -3081,8 +3113,16 @@
             "link": "/api/@rulvar/core/functions/schemaHashOfSpec.md"
           },
           {
+            "text": "sectionCitationsValidator",
+            "link": "/api/@rulvar/core/functions/sectionCitationsValidator.md"
+          },
+          {
             "text": "selectStructuredOutputTier",
             "link": "/api/@rulvar/core/functions/selectStructuredOutputTier.md"
+          },
+          {
+            "text": "selfTestFinishValidation",
+            "link": "/api/@rulvar/core/functions/selfTestFinishValidation.md"
           },
           {
             "text": "shouldCompact",
@@ -3179,6 +3219,10 @@
           {
             "text": "validateUsageLimits",
             "link": "/api/@rulvar/core/functions/validateUsageLimits.md"
+          },
+          {
+            "text": "wordCountValidator",
+            "link": "/api/@rulvar/core/functions/wordCountValidator.md"
           },
           {
             "text": "workflowScope",
@@ -5205,6 +5249,30 @@
             "link": "/api/@rulvar/rulvar/interfaces/FileModelKnowledgeStoreOptions.md"
           },
           {
+            "text": "FinishContract",
+            "link": "/api/@rulvar/rulvar/interfaces/FinishContract.md"
+          },
+          {
+            "text": "FinishContractCitations",
+            "link": "/api/@rulvar/rulvar/interfaces/FinishContractCitations.md"
+          },
+          {
+            "text": "FinishContractManifest",
+            "link": "/api/@rulvar/rulvar/interfaces/FinishContractManifest.md"
+          },
+          {
+            "text": "FinishSelfTestFailure",
+            "link": "/api/@rulvar/rulvar/interfaces/FinishSelfTestFailure.md"
+          },
+          {
+            "text": "FinishSelfTestFixtures",
+            "link": "/api/@rulvar/rulvar/interfaces/FinishSelfTestFixtures.md"
+          },
+          {
+            "text": "FinishSelfTestReport",
+            "link": "/api/@rulvar/rulvar/interfaces/FinishSelfTestReport.md"
+          },
+          {
             "text": "FinishValidationChild",
             "link": "/api/@rulvar/rulvar/interfaces/FinishValidationChild.md"
           },
@@ -6413,6 +6481,10 @@
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_CITATION_PATTERN.md"
           },
           {
+            "text": "DEFAULT_CITATION_SAMPLE",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_CITATION_SAMPLE.md"
+          },
+          {
             "text": "DEFAULT_COMPACTION_THRESHOLD",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_COMPACTION_THRESHOLD.md"
           },
@@ -6983,6 +7055,10 @@
             "link": "/api/@rulvar/rulvar/functions/finalizeFires.md"
           },
           {
+            "text": "finishContract",
+            "link": "/api/@rulvar/rulvar/functions/finishContract.md"
+          },
+          {
             "text": "foldTermination",
             "link": "/api/@rulvar/rulvar/functions/foldTermination.md"
           },
@@ -7395,8 +7471,16 @@
             "link": "/api/@rulvar/rulvar/functions/schemaHashOfSpec.md"
           },
           {
+            "text": "sectionCitationsValidator",
+            "link": "/api/@rulvar/rulvar/functions/sectionCitationsValidator.md"
+          },
+          {
             "text": "selectStructuredOutputTier",
             "link": "/api/@rulvar/rulvar/functions/selectStructuredOutputTier.md"
+          },
+          {
+            "text": "selfTestFinishValidation",
+            "link": "/api/@rulvar/rulvar/functions/selfTestFinishValidation.md"
           },
           {
             "text": "shouldCompact",
@@ -7493,6 +7577,10 @@
           {
             "text": "validateUsageLimits",
             "link": "/api/@rulvar/rulvar/functions/validateUsageLimits.md"
+          },
+          {
+            "text": "wordCountValidator",
+            "link": "/api/@rulvar/rulvar/functions/wordCountValidator.md"
           },
           {
             "text": "workflowScope",

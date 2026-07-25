@@ -77,6 +77,11 @@ import type {
   FinishValidationVerdict,
   FinishValidator,
 } from './finish-validators.js';
+import {
+  selfTestFinishValidation,
+  type FinishContract,
+  type FinishSelfTestFixtures,
+} from './output-contract.js';
 import type {
   ExtensionDispatchSpec,
   OrchestratorExtension,
@@ -251,6 +256,32 @@ export interface FinishValidationSpec {
    * finish fails the run.
    */
   maxRepairs?: number;
+  /**
+   * The unified output contract this validator set enforces (the v1.71
+   * experiment review, P0.1/P0.2). Construction then runs the golden
+   * self test with the contract's fixtures as defaults, the contract's
+   * promptLines join the validator statement in BOTH the coordination
+   * and synthesis prompts, every contract validator must appear in
+   * `validators` by name (a promised contract nobody enforces is drift
+   * by omission, a ConfigError), and the run journals ONE frozen
+   * bundle descriptor (decisionType
+   * 'orchestrator_finish_validation_bundle') recording the contract
+   * hash and the validator names. A resumed segment whose live
+   * contract hash differs appends a SUPERSEDING descriptor instead of
+   * failing, because fixing a stale validator and resuming is the
+   * intended remedy, never a fault. Absent = byte identical pre 1.72
+   * behavior.
+   */
+  contract?: FinishContract;
+  /**
+   * Golden fixtures of the construction self test (the v1.71
+   * experiment review, P0.3), overriding the contract's generated
+   * fixtures: a host with custom validators supplies an accept fixture
+   * those validators actually accept. Fixtures without a contract run
+   * the self test on their own. Absent with no contract = no self
+   * test, the pre 1.72 behavior.
+   */
+  selfTest?: FinishSelfTestFixtures;
 }
 
 export interface OrchestrateOptions {
@@ -542,7 +573,12 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
   }
   if (opts.finishValidation !== undefined) {
     // The runtime JS/JSON boundary: the type system cannot hold it.
-    const fv = opts.finishValidation as { validators?: unknown; maxRepairs?: unknown };
+    const fv = opts.finishValidation as {
+      validators?: unknown;
+      maxRepairs?: unknown;
+      contract?: unknown;
+      selfTest?: unknown;
+    };
     if (!Array.isArray(fv.validators) || fv.validators.length === 0) {
       throw new ConfigError(
         'orchestrate finishValidation.validators must be a non empty array of validators',
@@ -571,6 +607,70 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     }
     if (fv.maxRepairs !== undefined) {
       requireNonNegativeInteger(fv.maxRepairs as number, 'orchestrate finishValidation.maxRepairs');
+    }
+    // The output contract wiring (the v1.71 experiment review): the
+    // containment check and the golden self test run HERE, at
+    // construction, before any journal entry, dispatch, or provider
+    // call, so a stale validator costs a ConfigError instead of a paid
+    // run. Absent contract and selfTest = byte identical validation.
+    const contract = fv.contract as FinishContract | undefined;
+    if (contract !== undefined) {
+      const shape = contract as unknown as {
+        hash?: unknown;
+        validators?: unknown;
+        promptLines?: unknown;
+        goldenAccept?: unknown;
+      };
+      if (
+        typeof shape.hash !== 'string' ||
+        !Array.isArray(shape.validators) ||
+        !Array.isArray(shape.promptLines) ||
+        shape.goldenAccept === undefined
+      ) {
+        throw new ConfigError(
+          'orchestrate finishValidation.contract must be a finishContract(...) product',
+        );
+      }
+      for (const contractValidator of contract.validators) {
+        if (!seen.has(contractValidator.name)) {
+          throw new ConfigError(
+            `orchestrate finishValidation.contract validator '${contractValidator.name}' is ` +
+              'not in finishValidation.validators; spread contract.validators into the set ' +
+              'so the promised contract is actually enforced',
+          );
+        }
+      }
+    }
+    const selfTest = fv.selfTest as FinishSelfTestFixtures | undefined;
+    if (selfTest !== undefined && (typeof selfTest !== 'object' || selfTest === null)) {
+      throw new ConfigError('orchestrate finishValidation.selfTest must be an object');
+    }
+    const acceptFixture = selfTest?.accept ?? contract?.goldenAccept;
+    const rejectFixture = selfTest?.reject ?? contract?.goldenReject;
+    if (selfTest !== undefined && acceptFixture === undefined && rejectFixture === undefined) {
+      throw new ConfigError(
+        'orchestrate finishValidation.selfTest requires an accept or reject fixture',
+      );
+    }
+    if (acceptFixture !== undefined || rejectFixture !== undefined) {
+      const report = selfTestFinishValidation({
+        validators: fv.validators as FinishValidator[],
+        ...(acceptFixture === undefined ? {} : { accept: acceptFixture }),
+        ...(rejectFixture === undefined ? {} : { reject: rejectFixture }),
+      });
+      if (!report.ok) {
+        throw new ConfigError(
+          'the finish validation self test failed BEFORE any provider call: ' +
+            report.failures
+              .map((failure) =>
+                failure.validator === undefined
+                  ? failure.reasons.join('; ')
+                  : `validator '${failure.validator}' rejected the accept fixture: ` +
+                    failure.reasons.join('; '),
+              )
+              .join('; '),
+        );
+      }
     }
   }
   if (opts.synthesis !== undefined) {
@@ -693,6 +793,12 @@ function finishValidationPromptLines(spec: FinishValidationSpec | undefined): st
   const repairs = spec.maxRepairs ?? DEFAULT_FINISH_MAX_REPAIRS;
   return [
     `The host validates every finish({ result }) with deterministic validators: ${names}.`,
+    // The contract statement (P0.1): the SAME manifest that built the
+    // validators renders these demands, so the prompt cannot promise
+    // one shape while the validators enforce another. Reaches the
+    // coordination AND synthesis prompts through this one function;
+    // absent contract keeps both byte identical.
+    ...(spec.contract === undefined ? [] : spec.contract.promptLines),
     'A rejected finish returns the failure reasons as the tool error result; repair the ' +
       'result and call finish again. ' +
       (repairs === 0
@@ -2384,6 +2490,48 @@ export function makeOrchestratorWorkflow(
         },
       };
     };
+    /**
+     * The frozen bundle descriptor (the v1.71 experiment review,
+     * P0.2): with a contract configured, the run durably records WHAT
+     * validates it. One decision entry per distinct contract hash, in
+     * supersession order: a resume under the SAME contract appends
+     * nothing (the descriptor already exists), and a resume under a
+     * FIXED contract appends a superseding descriptor instead of
+     * failing, because repairing a stale validator and resuming is the
+     * intended remedy. No contract (or no validators at all) keeps the
+     * journal byte identical, awaits included.
+     */
+    if (validationSpec?.contract !== undefined) {
+      const bundles = internals.replayer
+        .snapshot()
+        .filter(
+          (entry) =>
+            entry.kind === 'decision' &&
+            entry.scope === callingState.scope &&
+            (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+              'orchestrator_finish_validation_bundle',
+        )
+        .map((entry) => entry.value as { ordinal?: number; contractHash?: string });
+      const last = bundles.at(-1);
+      if (last?.contractHash !== validationSpec.contract.hash) {
+        await internals.replayer.appendSinglePhase({
+          scope: callingState.scope,
+          key: `finish-validation-bundle:${String(bundles.length)}`,
+          kind: 'decision',
+          status: 'ok',
+          spanId: internals.spans.mint(callingState.spanId),
+          site: 'orchestrator-finish-validation-bundle',
+          value: {
+            decisionType: 'orchestrator_finish_validation_bundle',
+            ordinal: bundles.length,
+            contractHash: validationSpec.contract.hash,
+            validators: validationSpec.validators.map((validator) => validator.name),
+            maxRepairs: validationSpec.maxRepairs ?? DEFAULT_FINISH_MAX_REPAIRS,
+            ...(last?.contractHash === undefined ? {} : { supersedes: last.contractHash }),
+          },
+        });
+      }
+    }
     const agentOpts: AgentOpts & InternalAgentHooks & { result: 'full' } = {
       role: 'orchestrate',
       result: 'full',

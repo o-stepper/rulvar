@@ -6265,6 +6265,19 @@ declare function requiredFieldsValidator(options: {
   fields: string[];
   name?: string;
 }): FinishValidator;
+/**
+* Requires the result text's word count (whitespace separated tokens;
+* an empty text counts zero) to sit inside the configured bounds (the
+* v1.71 experiment review, P0.7: a formal length requirement must be
+* code, never a natural-language plea the model may round away). At
+* least one bound is required; both are positive integers with
+* min <= max. Default name 'word-count'.
+*/
+declare function wordCountValidator(options: {
+  min?: number;
+  max?: number;
+  name?: string;
+}): FinishValidator;
 /** The default citation shape: a path with an extension, a colon, a line number. */
 declare const DEFAULT_CITATION_PATTERN = "[\\w./-]+\\.\\w+:\\d+";
 /** The default preserved share, the improvement plan's RV-202 gate. */
@@ -6294,6 +6307,24 @@ declare function evidencePreservedValidator(options?: {
   name?: string;
 }): FinishValidator;
 /**
+* Requires at least `min` matches of `pattern` INSIDE every named
+* section (the v1.71 experiment review, P1.2: a total citation count
+* hides sections carrying zero provenance). A section's slice runs
+* from its FIRST occurrence to the next found section marker in text
+* position order, or to the end of the text; a marker absent from the
+* text is its own failure reason, because coverage of a missing
+* section cannot silently count as satisfied.
+* requiredSectionsValidator still owns plain presence. Default name
+* 'section-citations'.
+*/
+declare function sectionCitationsValidator(options: {
+  sections: string[];
+  pattern?: string;
+  flags?: string;
+  min: number;
+  name?: string;
+}): FinishValidator;
+/**
 * Requires at least `min` matches of `pattern` in the result text (the
 * plan's citation and source count checks: a file:line pattern, a URL
 * pattern). The pattern compiles at construction (invalid patterns are a
@@ -6307,6 +6338,113 @@ declare function minMatchesValidator(options: {
   min: number;
   name?: string;
 }): FinishValidator;
+//#endregion
+//#region src/orchestrator/output-contract.d.ts
+/** The golden citation sample used with {@link DEFAULT_CITATION_PATTERN}. */
+declare const DEFAULT_CITATION_SAMPLE = "docs/output-contract.md:1";
+/** The citation demands of a {@link FinishContractManifest}. */
+interface FinishContractCitations {
+  /** Regex source over the result text; default {@link DEFAULT_CITATION_PATTERN}. */
+  pattern?: string;
+  flags?: string;
+  /** Total matches required across the whole result text. */
+  min?: number;
+  /** Matches required inside EVERY declared section; requires `sections`. */
+  perSection?: number;
+  /**
+  * A literal string matching `pattern`, embedded in the golden
+  * fixtures (a regex cannot be sampled mechanically). REQUIRED with a
+  * custom pattern; defaults to {@link DEFAULT_CITATION_SAMPLE} for
+  * the default pattern. Must contain no whitespace and no declared
+  * section marker.
+  */
+  sample?: string;
+}
+/**
+* The single source of truth of a textual finish contract: what the
+* prompt promises IS what the validators enforce. Declare only textual
+* demands here (sections, length, citations); an object-shaped result
+* belongs to {@link requiredSectionsValidator}'s sibling
+* requiredFieldsValidator and a host-provided selfTest accept fixture.
+*/
+interface FinishContractManifest {
+  /** Literal section markers the result must contain. */
+  sections?: string[];
+  /** Word bounds over the result text (whitespace separated tokens). */
+  words?: {
+    min?: number;
+    max?: number;
+  };
+  /** Citation demands over the result text. */
+  citations?: FinishContractCitations;
+}
+/** What {@link finishContract} builds from a manifest. */
+interface FinishContract {
+  /** The normalized manifest (defaults applied), frozen. */
+  readonly manifest: FinishContractManifest;
+  /** sha256 hex over the JCS serialization of the normalized manifest. */
+  readonly hash: string;
+  /** The stock validators enforcing the manifest; names are 'contract-*'. */
+  readonly validators: FinishValidator[];
+  /** The contract statement for the model, one demand per line. */
+  readonly promptLines: readonly string[];
+  /** A generated fixture every contract validator accepts. */
+  readonly goldenAccept: FinishValidationInput;
+  /**
+  * A generated fixture at least one contract validator rejects.
+  * Absent when the manifest carries only upper bounds, because an
+  * empty result is then legitimately acceptable.
+  */
+  readonly goldenReject?: FinishValidationInput;
+}
+/**
+* Builds a {@link FinishContract} from one manifest: validation and the
+* golden fixtures happen HERE, at configuration time, so a
+* self-contradictory contract (mandatory content alone above words.max,
+* an unsampled custom pattern) fails before any run exists. Spread
+* `contract.validators` into finishValidation.validators and pass the
+* contract itself as finishValidation.contract; the orchestrator then
+* injects `promptLines` into the coordination and synthesis prompts,
+* runs the golden self test at construction, and journals the frozen
+* bundle descriptor.
+*/
+declare function finishContract(manifest: FinishContractManifest): FinishContract;
+/** Golden fixtures of the construction self test. */
+interface FinishSelfTestFixtures {
+  /** Every configured validator must accept this input. */
+  accept?: FinishValidationInput;
+  /** At least one configured validator must reject this input. */
+  reject?: FinishValidationInput;
+}
+/** One self test failure. */
+interface FinishSelfTestFailure {
+  fixture: "accept" | "reject";
+  /** The rejecting validator on the accept side; absent on the vacuous reject side. */
+  validator?: string;
+  reasons: string[];
+}
+/** The self test verdict over one validator set. */
+interface FinishSelfTestReport {
+  ok: boolean;
+  failures: FinishSelfTestFailure[];
+}
+/**
+* Runs a configured validator set against golden fixtures BEFORE any
+* provider call exists (the v1.71 experiment review, P0.3): the accept
+* fixture must pass every validator (a stale validator rejecting a
+* correct skeleton is exactly the drift the experiment died of, three
+* renamed sections deep into a paid run), and the reject fixture must
+* fail at least one (a set that accepts the known-bad input validates
+* nothing). A validator that THROWS here is a host defect and the
+* ConfigError propagates, the same posture the live loop takes.
+* Deterministic and free: validators are pure synchronous host code by
+* contract, so this costs zero provider calls.
+*/
+declare function selfTestFinishValidation(options: {
+  validators: FinishValidator[];
+  accept?: FinishValidationInput;
+  reject?: FinishValidationInput;
+}): FinishSelfTestReport;
 //#endregion
 //#region src/orchestrator/handles.d.ts
 /** The per-child digest handed to the orchestrator. */
@@ -6899,6 +7037,32 @@ interface FinishValidationSpec {
   * finish fails the run.
   */
   maxRepairs?: number;
+  /**
+  * The unified output contract this validator set enforces (the v1.71
+  * experiment review, P0.1/P0.2). Construction then runs the golden
+  * self test with the contract's fixtures as defaults, the contract's
+  * promptLines join the validator statement in BOTH the coordination
+  * and synthesis prompts, every contract validator must appear in
+  * `validators` by name (a promised contract nobody enforces is drift
+  * by omission, a ConfigError), and the run journals ONE frozen
+  * bundle descriptor (decisionType
+  * 'orchestrator_finish_validation_bundle') recording the contract
+  * hash and the validator names. A resumed segment whose live
+  * contract hash differs appends a SUPERSEDING descriptor instead of
+  * failing, because fixing a stale validator and resuming is the
+  * intended remedy, never a fault. Absent = byte identical pre 1.72
+  * behavior.
+  */
+  contract?: FinishContract;
+  /**
+  * Golden fixtures of the construction self test (the v1.71
+  * experiment review, P0.3), overriding the contract's generated
+  * fixtures: a host with custom validators supplies an accept fixture
+  * those validators actually accept. Fixtures without a contract run
+  * the self test on their own. Absent with no contract = no self
+  * test, the pre 1.72 behavior.
+  */
+  selfTest?: FinishSelfTestFixtures;
 }
 interface OrchestrateOptions {
   model?: ModelSpec;
@@ -8603,6 +8767,20 @@ interface PreflightInput {
   * demand comparison needs them declared here.
   */
   quotaRules?: readonly QuotaRule[];
+  /**
+  * The opt in finish validation self test (the v1.71 experiment
+  * review, P1.1). Programmatic only: validator functions cannot ride
+  * a JSON config file, so the CLI never carries this. When present,
+  * preflight runs the SAME golden self test orchestrate runs at
+  * construction and reports every drift as an error finding (code
+  * 'output-contract-validator-mismatch') instead of throwing, so a
+  * planner surfaces it next to the quota and budget findings.
+  */
+  finishValidation?: {
+    validators: FinishValidator[];
+    contract?: FinishContract;
+    selfTest?: FinishSelfTestFixtures;
+  };
 }
 /** One linter verdict; `spawn` names the wave entry it is about. */
 interface PreflightFinding {
@@ -8727,6 +8905,18 @@ interface PreflightReport {
       requests: number;
       tokens: number;
     };
+  };
+  /**
+  * Present when input.finishValidation was provided: the self test
+  * echo. `selfTest` reflects the golden fixture run alone
+  * ('skipped' = no fixture resolvable); containment drift between a
+  * contract and the validator set reports through findings either
+  * way.
+  */
+  finishValidation?: {
+    contractHash?: string;
+    validators: string[];
+    selfTest: "passed" | "failed" | "skipped";
   };
   findings: PreflightFinding[];
 }
@@ -9241,4 +9431,4 @@ interface SandboxBridge {
 declare const SANDBOX_AGENT_OPT_KEYS: readonly string[];
 declare function createSandboxBridge(ctx: Ctx<never>, options: SandboxBridgeOptions): SandboxBridge;
 //#endregion
-export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, type AgentInvocationRow, AgentOpts, AgentProfile, AgentProfilePermissions, AgentProfileTemplateOptions, AgentResult, AgentResultMeta, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, AuditCategory, AuditRecord, AuditRunsOptions, BUDGET_ABORT_REASON, BaseAppend, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetExhaustionDiagnostics, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, CLAIM_STATEMENT_MAX_CHARS, CLAIM_TTL_DAYS, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildArtifactPage, ChildIdentityInput, ChildResultPage, type ClaimClass, type ClaimOp, type ClaimStatus, ClaimValidationOptions, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostAttributionFacts, CostReport, CreateEngineOptions, type CriticalPath, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_CHILD_RESULT_PAGE_CHARS, DEFAULT_CITATION_PATTERN, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_EVIDENCE_MIN_SHARE, DEFAULT_FINISH_MAX_REPAIRS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DEFAULT_SYNTHESIS_MAX_TURNS, DEFAULT_SYNTHESIS_NOTE_MAX_TURNS, DataKeyProvider, DebitResult, DeclaredLadder, DedupIndex, DedupNote, DedupedClaims, DerivedKey, DeriverRegistry, type DeterminismConfig, DeterminismError, type DeterminismEvents, type DeterminismMode, DispositionRule, DispositionTable, DonorCandidate, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EVENT_SEGMENT_STRIDE, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EngineQuotaConfig, EngineQuotaRuntime, EntryKind, EntryRef, EntryStatus, EnvelopeEncryption, EnvelopeEncryptionOptions, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDecisionAbortedError, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, type EvidenceRef, type ExecutorRegistry, type ExplorationSummary, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINALIZE_SYNTHESIS_INSTRUCTION, FINISH_SCHEMA, FINISH_TOOL_NAME, FailRunError, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileModelKnowledgeStore, FileModelKnowledgeStoreOptions, FileTranscriptStore, FinishInfo, FinishValidationChild, FinishValidationInput, FinishValidationSpec, FinishValidationVerdict, FinishValidator, GET_CHILD_RESULT_SCHEMA, GET_CHILD_RESULT_TOOL_NAME, Gate, GateAudit, type GateRecord, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IMPLEMENTATION_PROFILE_LIMITS, INBOX_PROPOSAL_TTL_DAYS, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, IncrementalSynthesisResult, InvalidResolutionError, InvocationRole, type InvocationTable, InvoiceExport, InvoiceReconciliation, InvoiceRow, type IsolatedExecContext, type IsolatedExecRequest, type IsolatedExecutorTag, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JOURNAL_ENVELOPE_MARKER, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, JournalSerializationContext, JournalSerializationHook, type JournalStore, type Json, JsonSchema, JsonlFileStore, KB_ACTIVE_CLAIMS_CAP, KB_CARD_RENDER_BUDGET_CHARS, type KbProposal, type KbProposalTrigger, KeyDeriver, KeyRing, KeyedLimiter, KnowledgeCasError, type KnowledgeSnapshot, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, MASKED_SECRET, MAX_CHILD_RESULT_PAGE_CHARS, MAX_DEPTH_CEILING, MatchResult, McpConfig, McpToolSource, MechanicalGateProfile, MechanicalGateVerdict, MemoryQuotaLimiter, type MetaLookupStore, type ModelCaps, ModelChoice, type ModelClaim, ModelEpochInputs, type ModelKnowledgeHandle, type ModelKnowledgeStore, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateAcceptance, OrchestrateOptions, OrchestrateSynthesis, OrchestrateSynthesisSkipReason, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, PROGRESS_REPORT_TOOL_NAME, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, type PhaseRow, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PreflightAdmissionRow, PreflightFinding, PreflightInput, PreflightOrchestratorSpec, PreflightReport, PreflightSpawnReport, PreflightSpawnSpec, PreflightToolCeiling, PriceTable, PricedUsage, type Pricing, type PricingTier, ProgressReport, type ProviderAdapter, ProviderCallRecord, QUOTA_WINDOW_MS, QualityFloors, QuotaCounters, type QuotaDecision, type QuotaEstimate, type QuotaLimiter, type QuotaReservationRequest, QuotaRule, QuotaWindowSnapshot, READ_CHILD_ARTIFACT_SCHEMA, READ_CHILD_ARTIFACT_TOOL_NAME, RESEARCH_PROFILE_LIMITS, REVIEW_PROFILE_LIMITS, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RUN_SETTLE_DECISION_TYPE, RandIdentityInput, RandPayload, ReconcileOptions, ReconcileResult, RefEntryAppender, RefEntryClassification, RefusalInfo, RepeatedClaim, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, RepositoryResearchToolset, RepositoryResearchToolsetOptions, ResearchAgentProfileOptions, ResearchAgentProfileResult, ResearchEvidenceEntry, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RulvarError, RulvarErrorCode, RunAgentOptions, RunAuditVerdict, RunBudget, RunEventSink, RunExport, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStateAudit, RunStatus, RuntimeEventSink, SANDBOX_AGENT_OPT_KEYS, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, SecretMasker, Semaphore, SerializationHook, Settled, SettlementError, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, type TaskClass, TaskDigest, TaskSpec, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, type ToolExecutorProvider, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, TranscriptSerializationHook, type TranscriptStore, TriggerClass, TtlState, Usage, UsageLimits, UsageSlice, VerifiedRecommendation, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WAKE_SUMMARY_RENDER_BUDGET_CHARS, WakeBudgetBlock, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, affordableOutputTokens, agentErrorFromWire, agentErrorToWire, agentResultWire, agentScope, applyClaimOps, applyStructuredOutputTier, approachSigCoarse, approachSigOf, archiveDeprecatedModelOps, assertFencedWrites, atCompactionThreshold, auditRun, auditRuns, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeLadder, canonicalizeSchema, capIssues, capsHashOf, checkFloors, checkpointRefFor, childCoveragePrefix, claimExpired, claimExpiry, claimIssues, claimOpIssues, classifyAgentError, classifyAttemptOutcome, collectDeclaredLadders, compactMessages, compilePermissionChain, compilePermissionPreset, compileSecretMasker, compileVerifiedLayer, constantTimeEqual, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createEnvelopeEncryption, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, dedupeRepeatedClaims, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispatchProjectionReserveUsd, dispositionHook, emptyDigestBlocks, emptyToolset, encodeCheckpoint, entryUsageSlices, escalateTool, evaluatePermission, evaluateReuse, evidencePreservedValidator, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, filterClaimsForRun, finalizeFires, foldTermination, formatRePrompt, formatScopePath, hasFencedWrites, hasMetaLookup, hashRunArgs, hashRunOutput, hashWorkflowBody, hashWorkflowSource, identityJcs, implementationAgentProfile, invoiceFromJournal, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, kMaxOf, knowledgeHash, ladderLengthOf, ladderRungChoice, lastRunSettle, latestProgressReport, lexShellCommand, liftRetainedParts, lineageWeightOf, localKeyProvider, makeOrchestratorWorkflow, maskSecrets, maskSecretsDeep, maskSecretsJson, matchArgvPattern, matchShellCommand, mcp, memoryQuotaLimiter, mergeQuotaDenial, mergeUsageLimits, metaMatchesFilter, minMatchesValidator, modelEpochOf, modelKnowledgeCard, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, orchestratorAdmissionEstCostUsd, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, preflightEstimate, priceEntryUsage, priceUsdOf, profileCard, profileRegistrySnapshotHash, progressReportTool, projectHistory, projectIdentity, projectToJsonSchema, proposalStatement, providerOf, quotaActualTokens, quotaEstimateTokens, quotaRuleAdmission, quotaRuleMatches, readRunMeta, readTerminationInit, reconcileRunMeta, reduceAuditTrail, reduceCriticalPath, reduceInvocationTable, registryKeyRing, remeasureQueue, replayDisposition, repositoryResearchToolset, requiredFieldsValidator, requiredSectionsValidator, researchAgentProfile, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, reviewAgentProfile, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, sanitizeTerminalText, sanitizeTokenCount, sanitizeUsage, sanitizeUsageDelta, scanJournalCompatibility, schemaHash, schemaHashOfSpec, selectStructuredOutputTier, shouldCompact, snapshotUsage, spawnDepthOf, summarizeInstruction, summarizeOutput, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, ttlState, usageViolations, validateEditorialCommit, validateEngineQuotaConfig, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateQuotaRules, validateRetryPolicy, validateSchemaSpec, validateTerminationLimits, validateUsageLimits, workflowScope, workflowSourceRef, wrapJournalStore, wrapTranscriptStore };
+export { AWAIT_SCHEMA, AbandonAttempt, AbandonFold, AbandonPayload, AbandonedSpendView, AbortClass, type AdaptiveEvents, AdmissionController, AdmissionDecision, AdmissionRejectedError, AdmissionStatsBefore, AdmitLineage, AdmitRejectReason, AdmitSpec, AdmitVerdict, AgentCallError, AgentError, type AgentEvents, AgentIdentityInput, type AgentInvocationRow, AgentOpts, AgentProfile, AgentProfilePermissions, AgentProfileTemplateOptions, AgentResult, AgentResultMeta, AgentStatus, ApproachSignatureInputs, ApprovalDecision, ApprovalIdentityInput, Artifact, AttemptOutcomeClass, AuditCategory, AuditRecord, AuditRunsOptions, BUDGET_ABORT_REASON, BaseAppend, BriefOpts, BudgetAccountView, BudgetDefaults, BudgetExhaustedError, BudgetExhaustionDiagnostics, BudgetHooks, BudgetReserve, type Bytes, CANCEL_AGENT_SCHEMA, CHECKPOINT_FORMAT_V1, CLAIM_STATEMENT_MAX_CHARS, CLAIM_TTL_DAYS, COMPACTION_SUMMARY_PREFIX, CURRENT_HASH_VERSION, CacheHint, CacheTtl, CanUseTool, CanonicalId, CanonicalIdentity, CanonicalLadderSpec, CanonicalModelSpec, ChatEvent, ChatRequest, CheckpointState, ChildArtifactPage, ChildIdentityInput, ChildResultPage, type ClaimClass, type ClaimOp, type ClaimStatus, ClaimValidationOptions, CollectOpts, CollectedTurn, CompactionConfig, CompiledPermissionChain, CompiledWorkflow, ConfigError, type CoreEvents, CostAttribution, CostAttributionFacts, CostReport, CreateEngineOptions, type CriticalPath, Ctx, DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_CHILD_RESULT_PAGE_CHARS, DEFAULT_CITATION_PATTERN, DEFAULT_CITATION_SAMPLE, DEFAULT_COMPACTION_THRESHOLD, DEFAULT_ESCALATION_LIMITS, DEFAULT_EVIDENCE_MIN_SHARE, DEFAULT_FINISH_MAX_REPAIRS, DEFAULT_FLAT_RESERVE_USD, DEFAULT_MAX_CHILDREN_PER_NODE, DEFAULT_MAX_DEPTH, DEFAULT_MAX_OSCILLATIONS_PER_KEY, DEFAULT_MAX_PINNED_WORKTREES, DEFAULT_MAX_REVISIONS_PER_RUN, DEFAULT_MAX_TOTAL_SPAWNS, DEFAULT_MAX_TURNS, DEFAULT_MODEL_RETRY_ATTEMPTS, DEFAULT_NO_PROGRESS_TURNS, DEFAULT_PER_RUN_CONCURRENCY, DEFAULT_RETRY_POLICY, DEFAULT_STREAM_IDLE_TIMEOUT_MS, DEFAULT_SYNTHESIS_MAX_TURNS, DEFAULT_SYNTHESIS_NOTE_MAX_TURNS, DataKeyProvider, DebitResult, DeclaredLadder, DedupIndex, DedupNote, DedupedClaims, DerivedKey, DeriverRegistry, type DeterminismConfig, DeterminismError, type DeterminismEvents, type DeterminismMode, DispositionRule, DispositionTable, DonorCandidate, DonorRef, DroppedItem, EMIT_RESULT_TOOL, EMPTY_SCHEMA_HASH, EMPTY_TOOLSET_HASH, ESCALATE_TOOL_NAME, ESCALATION_REPORT_SCHEMA, ESCALATION_REQUEST_SCHEMA, EVENT_SEGMENT_STRIDE, EffectiveUsageLimits, Effort, Engine, EngineDefaults, EngineQuotaConfig, EngineQuotaRuntime, EntryKind, EntryRef, EntryStatus, EnvelopeEncryption, EnvelopeEncryptionOptions, ErrorClass, ErrorCode, ErrorPolicy, EscalatedResult, EscalationDecision, EscalationDecisionAbortedError, EscalationDigest, EscalationKind, EscalationLimits, EscalationOptions, EscalationReport, EscalationRequest, EventBus, type EvidenceRef, type ExecutorRegistry, type ExplorationSummary, ExtensionAppendInput, ExtensionDispatchSpec, ExternalIdentityInput, ExternalRegistry, ExtractNecessityInput, FINALIZE_SYNTHESIS_INSTRUCTION, FINISH_SCHEMA, FINISH_TOOL_NAME, FailRunError, FailoverTarget, FailoverTrigger, FallbackField, FallbackTrigger, FileModelKnowledgeStore, FileModelKnowledgeStoreOptions, FileTranscriptStore, FinishContract, FinishContractCitations, FinishContractManifest, FinishInfo, FinishSelfTestFailure, FinishSelfTestFixtures, FinishSelfTestReport, FinishValidationChild, FinishValidationInput, FinishValidationSpec, FinishValidationVerdict, FinishValidator, GET_CHILD_RESULT_SCHEMA, GET_CHILD_RESULT_TOOL_NAME, Gate, GateAudit, type GateRecord, GitWorktreeProvider, GitWorktreeProviderOptions, GraftBoot, HashVersion, HookVerdict, IMPLEMENTATION_PROFILE_LIMITS, INBOX_PROPOSAL_TTL_DAYS, IdentityInput, InMemoryStore, InMemoryTranscriptStore, InProcessRunner, IncrementalSynthesisResult, InvalidResolutionError, InvocationRole, type InvocationTable, InvoiceExport, InvoiceReconciliation, InvoiceRow, type IsolatedExecContext, type IsolatedExecRequest, type IsolatedExecutorTag, type IsolationProvider, type IsolationSpec, Issue$1 as Issue, JOURNAL_ENVELOPE_MARKER, JournalCompatSubCode, JournalCompatibilityError, JournalEntry, JournalMatcher, JournalMissError, JournalOperation, JournalOrderViolation, JournalSerializationContext, JournalSerializationHook, type JournalStore, type Json, JsonSchema, JsonlFileStore, KB_ACTIVE_CLAIMS_CAP, KB_CARD_RENDER_BUDGET_CHARS, type KbProposal, type KbProposalTrigger, KeyDeriver, KeyRing, KeyedLimiter, KnowledgeCasError, type KnowledgeSnapshot, LARGE_VALUE_WARN_BYTES, LEGACY_LTID_PREFIX, LEGACY_SIGNATURE_INPUTS, LINEAGE_SIG_VERSION, LadderSpec, type LeasableStore, type Lease, LeaseHeldError, Ledger, LineageCounters, LineageIndex, LineageRef, LineageRelation, LineageStats, LogicalTaskId, MASKED_SECRET, MAX_CHILD_RESULT_PAGE_CHARS, MAX_DEPTH_CEILING, MatchResult, McpConfig, McpToolSource, MechanicalGateProfile, MechanicalGateVerdict, MemoryQuotaLimiter, type MetaLookupStore, type ModelCaps, ModelChoice, type ModelClaim, ModelEpochInputs, type ModelKnowledgeHandle, type ModelKnowledgeStore, ModelListConstraint, ModelRef, ModelRetry, ModelSpec, Msg, NoProgressDetector, NodeId, NodeLinkValue, NonSerializableValueError, ORCHESTRATE_WORKFLOW_NAME, OnEscalation, OperationDisposition, OrchestrateAcceptance, OrchestrateOptions, OrchestrateSynthesis, OrchestrateSynthesisSkipReason, OrchestratorBudgetSpec, OrchestratorCapConfigError, OrchestratorExtension, OrchestratorExtensionIO, OrchestratorRuntime, Out, PARALLEL_AGENTS_SCHEMA, PROGRESS_REPORT_TOOL_NAME, ParallelSiteCounter, Part, PendingExternal, PendingToolTurn, PermissionConfig, PermissionGate, PermissionHook, PermissionPreset, PermissionRule, PermissionVerdict, type PhaseRow, PhaseTarget, PipelineCollected, PipelineOpts, PlanInvariantError, PreflightAdmissionRow, PreflightFinding, PreflightInput, PreflightOrchestratorSpec, PreflightReport, PreflightSpawnReport, PreflightSpawnSpec, PreflightToolCeiling, PriceTable, PricedUsage, type Pricing, type PricingTier, ProgressReport, type ProviderAdapter, ProviderCallRecord, QUOTA_WINDOW_MS, QualityFloors, QuotaCounters, type QuotaDecision, type QuotaEstimate, type QuotaLimiter, type QuotaReservationRequest, QuotaRule, QuotaWindowSnapshot, READ_CHILD_ARTIFACT_SCHEMA, READ_CHILD_ARTIFACT_TOOL_NAME, RESEARCH_PROFILE_LIMITS, REVIEW_PROFILE_LIMITS, ROLE_EFFORT_DEFAULTS, ROOT_ACCOUNT, ROOT_SCOPE, RUN_PROFILES, RUN_SETTLE_DECISION_TYPE, RandIdentityInput, RandPayload, ReconcileOptions, ReconcileResult, RefEntryAppender, RefEntryClassification, RefusalInfo, RepeatedClaim, ReplayDisposition, ReplayMode, ReplayPlanHashMismatch, Replayer, RepositoryResearchToolset, RepositoryResearchToolsetOptions, ResearchAgentProfileOptions, ResearchAgentProfileResult, ResearchEvidenceEntry, ResolutionArbiter, ResolutionAttempt, ResolutionBy, ResolutionFold, ResolutionLayer, ResolutionOutcome, ResolutionPayload, ResolvedInvocation, ResolvedToolset, ResumeHandle, ResumeOptions, ResumePreview, ResumeReport, RetryClass, RetryPolicy, ReuseConfig, RiskRuleValue, Role, RulvarError, RulvarErrorCode, RunAgentOptions, RunAuditVerdict, RunBudget, RunEventSink, RunExport, type RunFilter, RunHandle, RunInternals, type RunMeta, RunOptions, RunOutcome, RunProfile, RunStateAudit, RunStatus, RuntimeEventSink, SANDBOX_AGENT_OPT_KEYS, SPAWN_AGENT_SCHEMA, SandboxBridge, SandboxBridgeOptions, SandboxError, SandboxHostToWorker, SandboxMethod, SandboxWorkerToHost, SchemaPair, SchemaSpec, SchemaValidationResult, ScopeSegment, ScriptRejected, ScriptRunner, ScrubNote, SecretMasker, Semaphore, SerializationHook, Settled, SettlementError, ShellPatternRules, ShellSegment, ShellVerdict, SinglePhaseAppend, SpanMinter, SpanRegistry, SpawnAdmissionValue, SpawnAgentParams, SpawnKey, SpawnLineage, SpawnLineageOpt, SpawnOrigin, SpawnRecord, Spend, Stage, type StandardJSONSchemaV1, type StandardSchemaV1, StepIdentityInput, StructuredOutputTier, SuspendedAppend, SuspensionState, TOOL_NAME_PATTERN, type TaskClass, TaskDigest, TaskSpec, TerminalPatch, TerminationAccount, TerminationAccountSnapshot, TerminationDeniedValue, TerminationDeniedWriter, TerminationInitValue, TerminationLimits, TerminationResource, ToolCallRequest, ToolChoice, type ToolContext, ToolContextSeed, ToolContract, type ToolDef, type ToolEvents, type ToolExecutor, type ToolExecutorProvider, ToolInit, type ToolRisk, ToolRuntime, type ToolSource, type ToolSourceSession, ToolsOption, TranscriptSerializationHook, type TranscriptStore, TriggerClass, TtlState, Usage, UsageLimits, UsageSlice, VerifiedRecommendation, WAIT_FOR_EVENTS_SCHEMA, WAIT_FOR_EVENTS_TOOL_NAME, WAKE_SUMMARY_RENDER_BUDGET_CHARS, WakeBudgetBlock, WakeDigest, WakeTrigger, WireError, Workflow, WorkflowCallOpts, type WorkflowEvent, type WorkflowEventBody, WorkflowRegistry, admissionReserveUsd, affordableOutputTokens, agentErrorFromWire, agentErrorToWire, agentResultWire, agentScope, applyClaimOps, applyStructuredOutputTier, approachSigCoarse, approachSigOf, archiveDeprecatedModelOps, assertFencedWrites, atCompactionThreshold, auditRun, auditRuns, buildAbandonFold, buildAdapterRegistry, buildCostReport, buildDeriverRegistry, buildOrchestratorTools, buildTerminationInitValue, buildToolContext, canRideLoopTurn, canonicalIsolationTag, canonicalizeLadder, canonicalizeSchema, capIssues, capsHashOf, checkFloors, checkpointRefFor, childCoveragePrefix, claimExpired, claimExpiry, claimIssues, claimOpIssues, classifyAgentError, classifyAttemptOutcome, collectDeclaredLadders, compactMessages, compilePermissionChain, compilePermissionPreset, compileSecretMasker, compileVerifiedLayer, constantTimeEqual, costReportFromJournal, countsAgainstLimit, createCanonicalIdMinter, createCtx, createEngine, createEnvelopeEncryption, createSandboxBridge, currentOnlyKeyRing, decodeCheckpoint, dedupeRepeatedClaims, defineWorkflow, deriveContentKey, deriverV1, deriverV2, digestOf, dispatchProjectionReserveUsd, dispositionHook, emptyDigestBlocks, emptyToolset, encodeCheckpoint, entryUsageSlices, escalateTool, evaluatePermission, evaluateReuse, evidencePreservedValidator, executeWorkflow, exhaustionCodeOf, extractCandidate, failoverTriggerOf, fallbackTriggerOf, filterClaimsForRun, finalizeFires, finishContract, foldTermination, formatRePrompt, formatScopePath, hasFencedWrites, hasMetaLookup, hashRunArgs, hashRunOutput, hashWorkflowBody, hashWorkflowSource, identityJcs, implementationAgentProfile, invoiceFromJournal, isEscalated, isSchemaPairSpec, isStandardSchemaSpec, isStrictCompatibleSchema, kMaxOf, knowledgeHash, ladderLengthOf, ladderRungChoice, lastRunSettle, latestProgressReport, lexShellCommand, liftRetainedParts, lineageWeightOf, localKeyProvider, makeOrchestratorWorkflow, maskSecrets, maskSecretsDeep, maskSecretsJson, matchArgvPattern, matchShellCommand, mcp, memoryQuotaLimiter, mergeQuotaDenial, mergeUsageLimits, metaMatchesFilter, minMatchesValidator, modelEpochOf, modelKnowledgeCard, modelSpecIdentity, needsSeparateExtract, nextFailover, nodeLinkKey, normalizeApproachTag, normalizeEntry, normalizeFallbacks, orchestrate, orchestratorAdmissionEstCostUsd, parallelScope, parseModelRef, parseScopePath, phiInitialOf, pipelineScope, planNodeScope, preflightEstimate, priceEntryUsage, priceUsdOf, profileCard, profileRegistrySnapshotHash, progressReportTool, projectHistory, projectIdentity, projectToJsonSchema, proposalStatement, providerOf, quotaActualTokens, quotaEstimateTokens, quotaRuleAdmission, quotaRuleMatches, readRunMeta, readTerminationInit, reconcileRunMeta, reduceAuditTrail, reduceCriticalPath, reduceInvocationTable, registryKeyRing, remeasureQueue, replayDisposition, repositoryResearchToolset, requiredFieldsValidator, requiredSectionsValidator, researchAgentProfile, resolveModelInvocation, resolvePricing, resolveToolset, retryClassOf, retryDelayMs, reviewAgentProfile, roleConfiguredInRouting, roundOneDisposition, runAgent, runProfile, sanitizeTerminalText, sanitizeTokenCount, sanitizeUsage, sanitizeUsageDelta, scanJournalCompatibility, schemaHash, schemaHashOfSpec, sectionCitationsValidator, selectStructuredOutputTier, selfTestFinishValidation, shouldCompact, snapshotUsage, spawnDepthOf, summarizeInstruction, summarizeOutput, terminationConfigDrift, tierWithinCaps, toApprovalDecision, toJournalValue, tool, toolContract, toolsetHash, ttlState, usageViolations, validateEditorialCommit, validateEngineQuotaConfig, validateEntryShape, validateEscalationLimits, validateEscalationReport, validateQuotaRules, validateRetryPolicy, validateSchemaSpec, validateTerminationLimits, validateUsageLimits, wordCountValidator, workflowScope, workflowSourceRef, wrapJournalStore, wrapTranscriptStore };

@@ -153,6 +153,55 @@ export function requiredFieldsValidator(options: {
   };
 }
 
+/**
+ * Requires the result text's word count (whitespace separated tokens;
+ * an empty text counts zero) to sit inside the configured bounds (the
+ * v1.71 experiment review, P0.7: a formal length requirement must be
+ * code, never a natural-language plea the model may round away). At
+ * least one bound is required; both are positive integers with
+ * min <= max. Default name 'word-count'.
+ */
+export function wordCountValidator(options: {
+  min?: number;
+  max?: number;
+  name?: string;
+}): FinishValidator {
+  const { min, max } = options;
+  if (min === undefined && max === undefined) {
+    throw new ConfigError('wordCountValidator requires min, max, or both');
+  }
+  for (const [label, value] of [
+    ['min', min],
+    ['max', max],
+  ] as const) {
+    if (value !== undefined && (!Number.isInteger(value) || value < 1)) {
+      throw new ConfigError(
+        `wordCountValidator ${label} must be a positive integer; got ${String(value)}`,
+      );
+    }
+  }
+  if (min !== undefined && max !== undefined && min > max) {
+    throw new ConfigError(`wordCountValidator min ${String(min)} exceeds max ${String(max)}`);
+  }
+  return {
+    name: options.name ?? 'word-count',
+    validate: (input) => {
+      const trimmed = input.text.trim();
+      const count = trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length;
+      const reasons: string[] = [];
+      if (min !== undefined && count < min) {
+        reasons.push(
+          `result word count ${String(count)} is below the required minimum ${String(min)}`,
+        );
+      }
+      if (max !== undefined && count > max) {
+        reasons.push(`result word count ${String(count)} exceeds the maximum ${String(max)}`);
+      }
+      return reasons.length === 0 ? ok : { ok: false, reasons };
+    },
+  };
+}
+
 /** The default citation shape: a path with an extension, a colon, a line number. */
 export const DEFAULT_CITATION_PATTERN = '[\\w./-]+\\.\\w+:\\d+';
 /** The default preserved share, the improvement plan's RV-202 gate. */
@@ -247,6 +296,78 @@ export function evidencePreservedValidator(options?: {
         if (fabricated.length > 0) {
           reasons.push(
             `unknown citations not present in any child report: ${listCitations(fabricated)}`,
+          );
+        }
+      }
+      return reasons.length === 0 ? ok : { ok: false, reasons };
+    },
+  };
+}
+
+/**
+ * Requires at least `min` matches of `pattern` INSIDE every named
+ * section (the v1.71 experiment review, P1.2: a total citation count
+ * hides sections carrying zero provenance). A section's slice runs
+ * from its FIRST occurrence to the next found section marker in text
+ * position order, or to the end of the text; a marker absent from the
+ * text is its own failure reason, because coverage of a missing
+ * section cannot silently count as satisfied.
+ * requiredSectionsValidator still owns plain presence. Default name
+ * 'section-citations'.
+ */
+export function sectionCitationsValidator(options: {
+  sections: string[];
+  pattern?: string;
+  flags?: string;
+  min: number;
+  name?: string;
+}): FinishValidator {
+  const sections = requireNonEmptyStrings(options.sections, 'sectionCitationsValidator sections');
+  const pattern = options.pattern ?? DEFAULT_CITATION_PATTERN;
+  const flags = options.flags ?? '';
+  const globalFlags = flags.includes('g') ? flags : `${flags}g`;
+  try {
+    new RegExp(pattern, globalFlags);
+  } catch (thrown) {
+    throw new ConfigError(
+      `sectionCitationsValidator pattern does not compile: ${
+        thrown instanceof Error ? thrown.message : String(thrown)
+      }`,
+    );
+  }
+  if (!Number.isInteger(options.min) || options.min < 1) {
+    throw new ConfigError(
+      `sectionCitationsValidator min must be a positive integer; got ${String(options.min)}`,
+    );
+  }
+  return {
+    name: options.name ?? 'section-citations',
+    validate: (input) => {
+      const positions = new Map<string, number>();
+      for (const section of sections) {
+        const at = input.text.indexOf(section);
+        if (at >= 0) {
+          positions.set(section, at);
+        }
+      }
+      const ordered = [...positions.entries()].sort((a, b) => a[1] - b[1]);
+      const reasons: string[] = [];
+      for (const section of sections) {
+        const at = positions.get(section);
+        if (at === undefined) {
+          reasons.push(
+            `required section '${section}' is missing, so its citation coverage cannot be judged`,
+          );
+          continue;
+        }
+        const next = ordered.find(([, position]) => position > at);
+        const slice = input.text.slice(at, next === undefined ? input.text.length : next[1]);
+        // Fresh RegExp per slice: the 'g' flag makes matching stateful.
+        const matches = slice.match(new RegExp(pattern, globalFlags))?.length ?? 0;
+        if (matches < options.min) {
+          reasons.push(
+            `section '${section}' carries ${String(matches)} citations matching ` +
+              `/${pattern}/; at least ${String(options.min)} required`,
           );
         }
       }

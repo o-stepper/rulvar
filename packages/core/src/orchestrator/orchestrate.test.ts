@@ -21,6 +21,7 @@ import {
   requiredSectionsValidator,
   type FinishValidationInput,
 } from './finish-validators.js';
+import { finishContract } from './output-contract.js';
 import { makeOrchestratorWorkflow, orchestrate } from './orchestrate.js';
 
 /** The telemetry namespace tells orchestrator requests from child ones. */
@@ -1207,6 +1208,154 @@ describe('finish validation: deterministic host validators with bounded repair (
         finishValidation: { validators: VALIDATORS(), maxRepairs: Number.NaN },
       }),
     ).toThrow(/maxRepairs/);
+  });
+});
+
+describe('output contract: manifest, construction self test, frozen bundle (v1.71 review)', () => {
+  const GOAL = 'audit the module and cite evidence';
+  const GOOD = 'FINDINGS: two bugs. EVIDENCE: src/a.ts:10 src/b.ts:22 src/c.ts:31.';
+  const CONTRACT = () =>
+    finishContract({
+      sections: ['FINDINGS', 'EVIDENCE'],
+      citations: { min: 3, pattern: 'src/[a-z]+\\.ts:\\d+', sample: 'src/a.ts:1' },
+    });
+  const DEFAULTS = {
+    routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+    profiles: PROFILES,
+  } as const;
+  const bundleEntries = (entries: readonly JournalEntry[]): JournalEntry[] =>
+    entries.filter(
+      (e) =>
+        e.kind === 'decision' &&
+        (e.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_finish_validation_bundle',
+    );
+  const finishWith = (result: unknown) =>
+    scriptedAdapter((): ScriptedTurn => ({ toolCall: { name: 'finish', args: { result } } }));
+
+  it('a stale validator fails the construction self test before any provider call', () => {
+    const contract = CONTRACT();
+    expect(() =>
+      makeOrchestratorWorkflow(GOAL, {
+        finishValidation: {
+          validators: [
+            ...contract.validators,
+            requiredSectionsValidator({ sections: ['LEGACY HEADING'], name: 'legacy-sections' }),
+          ],
+          contract,
+        },
+      }),
+    ).toThrow(/self test failed BEFORE any provider call.*legacy-sections.*LEGACY HEADING/s);
+  });
+
+  it('a contract whose validators are not in the set is drift by omission', () => {
+    expect(() =>
+      makeOrchestratorWorkflow(GOAL, {
+        finishValidation: {
+          validators: [requiredSectionsValidator({ sections: ['FINDINGS', 'EVIDENCE'] })],
+          contract: CONTRACT(),
+        },
+      }),
+    ).toThrow(/spread contract.validators/);
+  });
+
+  it('the contract statement rides the prompt and the bundle descriptor journals once', async () => {
+    const contract = CONTRACT();
+    const adapter = finishWith(GOOD);
+    const { internals, store } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow(GOAL, {
+      finishValidation: { validators: contract.validators, contract },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(GOOD);
+    const prompt = JSON.stringify(adapter.calls[0]?.messages[0]?.parts);
+    expect(prompt).toContain('contract-sections, contract-citations');
+    expect(prompt).toContain('must contain each of these section markers verbatim');
+    expect(prompt).toContain('at least 3 citations');
+    const bundles = bundleEntries(await store.load('test-run'));
+    expect(bundles).toHaveLength(1);
+    expect(bundles[0]?.value).toEqual({
+      decisionType: 'orchestrator_finish_validation_bundle',
+      ordinal: 0,
+      contractHash: contract.hash,
+      validators: ['contract-sections', 'contract-citations'],
+      maxRepairs: 1,
+    });
+  });
+
+  it('without a contract the journal keeps zero bundle descriptors', async () => {
+    const adapter = finishWith(GOOD);
+    const { internals, store } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow(GOAL, {
+      finishValidation: {
+        validators: [requiredSectionsValidator({ sections: ['FINDINGS', 'EVIDENCE'] })],
+      },
+    });
+    await executeWorkflow(internals, wf, undefined);
+    expect(bundleEntries(await store.load('test-run'))).toHaveLength(0);
+  });
+
+  it('a resume under a FIXED contract appends a superseding descriptor, never fails', async () => {
+    const store = new InMemoryStore();
+    const contractA = CONTRACT();
+    const engineA = createEngine({
+      adapters: [finishWith(GOOD)],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    const first = await engineA.run(
+      makeOrchestratorWorkflow(GOAL, {
+        finishValidation: { validators: contractA.validators, contract: contractA },
+      }),
+      undefined,
+      { runId: 'CONTRACT-DRIFT' },
+    ).result;
+    expect(first.status).toBe('ok');
+
+    // The intended remedy of the v1.71 experiment failure: fix the
+    // stale contract and resume. The journal records the supersession
+    // instead of failing the run.
+    const contractB = finishContract({ sections: ['FINDINGS'] });
+    const engineB = createEngine({
+      adapters: [finishWith(GOOD)],
+      stores: { journal: store },
+      defaults: DEFAULTS,
+    });
+    const resumed = await engineB.resume(
+      'CONTRACT-DRIFT',
+      makeOrchestratorWorkflow(GOAL, {
+        finishValidation: { validators: contractB.validators, contract: contractB },
+      }),
+    ).result;
+    expect(resumed.status).toBe('ok');
+    expect(resumed.value).toBe(first.value);
+    const bundles = bundleEntries(await store.load('CONTRACT-DRIFT')).map(
+      (e) => e.value as { ordinal?: number; contractHash?: string; supersedes?: string },
+    );
+    expect(bundles.map((b) => b.ordinal)).toEqual([0, 1]);
+    expect(bundles[1]?.contractHash).toBe(contractB.hash);
+    expect(bundles[1]?.supersedes).toBe(contractA.hash);
+  });
+
+  it('selfTest fixtures without a contract run standalone at construction', () => {
+    expect(() =>
+      makeOrchestratorWorkflow(GOAL, {
+        finishValidation: {
+          validators: [requiredSectionsValidator({ sections: ['FINDINGS'] })],
+          selfTest: {
+            accept: { result: 'nothing relevant', text: 'nothing relevant', children: [] },
+          },
+        },
+      }),
+    ).toThrow(/rejected the accept fixture/);
+    expect(() =>
+      makeOrchestratorWorkflow(GOAL, {
+        finishValidation: {
+          validators: [requiredSectionsValidator({ sections: ['FINDINGS'] })],
+          selfTest: {},
+        },
+      }),
+    ).toThrow(/requires an accept or reject fixture/);
   });
 });
 
