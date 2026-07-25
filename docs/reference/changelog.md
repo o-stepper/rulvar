@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.69.0
+
+#### Patch Changes
+
+- Updated dependencies [b21a681]
+  - @rulvar/core@1.69.0
+
 ### 1.68.0
 
 #### Patch Changes
@@ -871,6 +878,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.69.0
+
+#### Patch Changes
+
+- Updated dependencies [b21a681]
+  - @rulvar/core@1.69.0
+
 ### 1.68.0
 
 #### Patch Changes
@@ -1589,6 +1603,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.69.0
+
+#### Patch Changes
+
+- Updated dependencies [b21a681]
+  - @rulvar/core@1.69.0
 
 ### 1.68.0
 
@@ -2610,6 +2631,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.69.0
+
+#### Minor Changes
+
+- b21a681: The tool-cap-before-checkpoint preflight warning (the experiment review, recommendation P1.8). The runtime checkpoints once per COMPLETED tool turn, and nothing in the limits vocabulary bounds a parallel batch below the executed-call ceiling, so a worker on a parallel-tools model can consume its whole tool budget inside the first batch, before any checkpoint exists: a kill mid-batch re-pays every executed call on resume. `preflightEstimate` now emits the stable warning `tool-cap-before-checkpoint` for every declared spawn whose effective executed-call ceiling is finite and positive while the resolved model's caps report parallel tool support, with the exact ceiling named in the message. Serial models (one call per turn, a one-call loss window), uncapped spawns, and zero caps stay silent, and reports over such shapes are byte-identical to before.
 
 ### 1.68.0
 
@@ -4038,6 +4065,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.69.0
+
 ### 1.68.0
 
 ### 1.67.0
@@ -4268,6 +4297,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.69.0
+
+#### Patch Changes
+
+- Updated dependencies [b21a681]
+  - @rulvar/core@1.69.0
+  - @rulvar/testing@1.69.0
 
 ### 1.68.0
 
@@ -5166,6 +5203,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.69.0
+
+#### Patch Changes
+
+- Updated dependencies [b21a681]
+  - @rulvar/core@1.69.0
+
 ### 1.68.0
 
 #### Patch Changes
@@ -5269,6 +5313,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.69.0
+
+#### Patch Changes
+
+- Updated dependencies [b21a681]
+  - @rulvar/core@1.69.0
 
 ### 1.68.0
 
@@ -6140,6 +6191,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.69.0
+
+#### Patch Changes
+
+- Updated dependencies [b21a681]
+  - @rulvar/core@1.69.0
+
 ### 1.68.0
 
 #### Patch Changes
@@ -6979,6 +7037,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.69.0
+
+#### Patch Changes
+
+- Updated dependencies [b21a681]
+  - @rulvar/core@1.69.0
+  - eslint-plugin-rulvar@1.69.0
 
 ### 1.68.0
 
@@ -7833,6 +7899,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.69.0
+
+#### Patch Changes
+
+- Updated dependencies [b21a681]
+  - @rulvar/core@1.69.0
+  - @rulvar/anthropic@1.69.0
+  - @rulvar/openai@1.69.0
 
 ### 1.68.0
 
@@ -8845,6 +8920,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.69.0
+
+#### Patch Changes
+
+- Updated dependencies [b21a681]
+  - @rulvar/core@1.69.0
+
 ### 1.68.0
 
 #### Patch Changes
@@ -9663,6 +9745,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.69.0
+
+#### Patch Changes
+
+- Updated dependencies [b21a681]
+  - @rulvar/core@1.69.0
+
 ### 1.68.0
 
 #### Patch Changes
@@ -9788,6 +9877,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.69.0
+
+#### Patch Changes
+
+- Updated dependencies [b21a681]
+  - @rulvar/core@1.69.0
 
 ### 1.68.0
 
@@ -10553,6 +10649,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.69.0
+
+#### Patch Changes
+
+- Updated dependencies [b21a681]
+  - @rulvar/core@1.69.0
 
 ### 1.68.0
 
