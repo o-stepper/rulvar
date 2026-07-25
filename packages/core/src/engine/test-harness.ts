@@ -16,6 +16,7 @@ import type {
   Usage,
 } from '../l0/messages.js';
 import type { ModelCaps, ProviderAdapter } from '../l0/spi/provider.js';
+import type { SchemaSpec } from '../l0/schema.js';
 import { Replayer } from '../journal/replayer.js';
 import { buildAbandonFold, dispositionHook } from '../journal/disposition.js';
 import {
@@ -174,6 +175,8 @@ export interface TestInternalsOptions {
   adapters?: ProviderAdapter[];
   routing?: Partial<Record<InvocationRole, ModelSpec>>;
   profiles?: Record<string, AgentProfile>;
+  /** The registered SchemaSpec registry (outputSchemaRef resolution). */
+  schemas?: Record<string, SchemaSpec>;
   /** The per-engine workflow registry (M6-T06). */
   workflows?: Record<string, unknown>;
   limits?: UsageLimits;
@@ -312,6 +315,7 @@ export function makeInternals(options: TestInternalsOptions = {}): {
     defaults: {
       ...(options.routing === undefined ? {} : { routing: options.routing }),
       ...(options.profiles === undefined ? {} : { profiles: options.profiles }),
+      ...(options.schemas === undefined ? {} : { schemas: options.schemas }),
       ...(options.workflows === undefined ? {} : { workflows: options.workflows }),
       ...(options.limits === undefined ? {} : { limits: options.limits }),
       ...(options.permissions === undefined ? {} : { permissions: options.permissions }),
