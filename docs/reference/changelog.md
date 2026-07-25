@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.73.0
+
+#### Patch Changes
+
+- Updated dependencies [3e95bd1]
+  - @rulvar/core@1.73.0
+
 ### 1.72.0
 
 #### Patch Changes
@@ -904,6 +911,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.73.0
+
+#### Patch Changes
+
+- Updated dependencies [3e95bd1]
+  - @rulvar/core@1.73.0
+
 ### 1.72.0
 
 #### Patch Changes
@@ -1655,6 +1669,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.73.0
+
+#### Minor Changes
+
+- 3e95bd1: The synthesis repair envelope (the v1.71 experiment review, P0.4/P0.8/P1.7): `finishValidation.repairTurnReserve` grants bounded EXTRA turns to the invocation the validators bind, one per rejected finish exchange (schema-invalid finish arguments and host validation rejections alike), derived from the message window itself so resumes recount identically and nothing new journals; the deliberately-deferred RV-204 reserve, now that the experiment showed one malformed finish plus one validator rejection killing a whole run inside maxTurns 3. Every typed synthesis failure now carries the acceptance snapshot (`completion`, `childStatusCounts`, lifted onto the error outcome by the completion mirror, so an errored run still reports "the fan-out work is complete") and the verdict-derived repair taxonomy (`repairsUsed`, `maxRepairs`, `rejectedValidators`) read from journaled decisions. `preflightEstimate` models the separate synthesis invocation (`orchestrator.synthesis`: limits, model, estInputTokens; echoed at `budget.orchestrator.synthesis`, priced into `exposure.runCeiling`, the gap the experiment's projection stopped short of) and folds a declared `finishValidation.repairTurnReserve` into the projected turns of the bound invocation; the CLI prints the synthesis projection line. Zero reserve and no synthesis declaration keep every ceiling, journal, and report byte identical.
+
+#### Patch Changes
+
+- Updated dependencies [3e95bd1]
+  - @rulvar/core@1.73.0
 
 ### 1.72.0
 
@@ -2713,6 +2738,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.73.0
+
+#### Minor Changes
+
+- 3e95bd1: The synthesis repair envelope (the v1.71 experiment review, P0.4/P0.8/P1.7): `finishValidation.repairTurnReserve` grants bounded EXTRA turns to the invocation the validators bind, one per rejected finish exchange (schema-invalid finish arguments and host validation rejections alike), derived from the message window itself so resumes recount identically and nothing new journals; the deliberately-deferred RV-204 reserve, now that the experiment showed one malformed finish plus one validator rejection killing a whole run inside maxTurns 3. Every typed synthesis failure now carries the acceptance snapshot (`completion`, `childStatusCounts`, lifted onto the error outcome by the completion mirror, so an errored run still reports "the fan-out work is complete") and the verdict-derived repair taxonomy (`repairsUsed`, `maxRepairs`, `rejectedValidators`) read from journaled decisions. `preflightEstimate` models the separate synthesis invocation (`orchestrator.synthesis`: limits, model, estInputTokens; echoed at `budget.orchestrator.synthesis`, priced into `exposure.runCeiling`, the gap the experiment's projection stopped short of) and folds a declared `finishValidation.repairTurnReserve` into the projected turns of the bound invocation; the CLI prints the synthesis projection line. Zero reserve and no synthesis declaration keep every ceiling, journal, and report byte identical.
 
 ### 1.72.0
 
@@ -4163,6 +4194,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.73.0
+
 ### 1.72.0
 
 ### 1.71.0
@@ -4403,6 +4436,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.73.0
+
+#### Patch Changes
+
+- Updated dependencies [3e95bd1]
+  - @rulvar/core@1.73.0
+  - @rulvar/testing@1.73.0
 
 ### 1.72.0
 
@@ -5339,6 +5380,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.73.0
+
+#### Patch Changes
+
+- Updated dependencies [3e95bd1]
+  - @rulvar/core@1.73.0
+
 ### 1.72.0
 
 #### Patch Changes
@@ -5475,6 +5523,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.73.0
+
+#### Patch Changes
+
+- Updated dependencies [3e95bd1]
+  - @rulvar/core@1.73.0
 
 ### 1.72.0
 
@@ -6379,6 +6434,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.73.0
+
+#### Patch Changes
+
+- Updated dependencies [3e95bd1]
+  - @rulvar/core@1.73.0
+
 ### 1.72.0
 
 #### Patch Changes
@@ -7251,6 +7313,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.73.0
+
+#### Patch Changes
+
+- Updated dependencies [3e95bd1]
+  - @rulvar/core@1.73.0
+  - eslint-plugin-rulvar@1.73.0
 
 ### 1.72.0
 
@@ -8143,6 +8213,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.73.0
+
+#### Patch Changes
+
+- Updated dependencies [3e95bd1]
+  - @rulvar/core@1.73.0
+  - @rulvar/anthropic@1.73.0
+  - @rulvar/openai@1.73.0
 
 ### 1.72.0
 
@@ -9198,6 +9277,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.73.0
+
+#### Patch Changes
+
+- Updated dependencies [3e95bd1]
+  - @rulvar/core@1.73.0
+
 ### 1.72.0
 
 #### Patch Changes
@@ -10054,6 +10140,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.73.0
+
+#### Patch Changes
+
+- Updated dependencies [3e95bd1]
+  - @rulvar/core@1.73.0
+
 ### 1.72.0
 
 #### Patch Changes
@@ -10212,6 +10305,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.73.0
+
+#### Patch Changes
+
+- Updated dependencies [3e95bd1]
+  - @rulvar/core@1.73.0
 
 ### 1.72.0
 
@@ -11010,6 +11110,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.73.0
+
+#### Patch Changes
+
+- Updated dependencies [3e95bd1]
+  - @rulvar/core@1.73.0
 
 ### 1.72.0
 
