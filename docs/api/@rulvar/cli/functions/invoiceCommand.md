@@ -10,7 +10,7 @@
 function invoiceCommand(argv, context): Promise<number>;
 ```
 
-Defined in: [packages/cli/src/commands.ts:710](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L710)
+Defined in: [packages/cli/src/commands.ts:713](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/commands.ts#L713)
 
 rulvar invoice (P1.3): the per-dispatch reconciliation export from
 the journal's providerCalls ledger, one row per billable provider
@@ -18,8 +18,11 @@ call with the provider's response id when the adapter surfaced one,
 plus the gross/net ledger totals (`totalUsd` here is the GROSS
 figure: abandoned subtrees included, exactly what a provider invoice
 bills). --json prints the machine-readable InvoiceExport; the text
-form prints one line per row. Pricing folds at read time from the
-assembled price table, the same numbers rulvar inspect reports.
+form prints one line per row and mirrors the export's declared
+pricing basis (per-call row usd is non-additive; `allocatedUsd` is
+the additive column that sums to gross). Pricing folds at read time
+from the assembled price table, the same numbers rulvar inspect
+reports.
 
 ## Parameters
 

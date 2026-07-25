@@ -385,7 +385,7 @@ describe('the ledger across kill-and-resume (P1.3)', () => {
     const invoice = invoiceFromJournal(entries, capsPriceUsd);
     const rows = invoice.rows.filter((row) => row.entrySeq === terminal?.seq);
     expect(rows.map((row) => [row.outcome, row.reconciliation])).toEqual([
-      ['ok', 'matched'],
+      ['ok', 'provider-id-present'],
       ['unattributed', 'unattributed'],
     ]);
     // The remainder is exactly the restored usage: nothing vanished.
@@ -557,7 +557,7 @@ describe('the invoice export (P1.3)', () => {
     ).toEqual([
       // The abandoned invocation: three recorded calls plus the
       // remainder its records do not cover (1M - 700k).
-      [2, 1, 'ok', 'matched', true],
+      [2, 1, 'ok', 'provider-id-present', true],
       [2, 2, 'error', 'unconfirmed', true],
       [2, 3, 'ok', 'missing-provider-id', true],
       [2, 4, 'unattributed', 'unattributed', true],
@@ -601,7 +601,7 @@ describe('the invoice export (P1.3)', () => {
       invoice.rows.map((row) => [row.outcome, row.responseId ?? null, row.reconciliation]),
     ).toEqual([
       ['error', null, 'unconfirmed'],
-      ['ok', 'resp_ok', 'matched'],
+      ['ok', 'resp_ok', 'provider-id-present'],
     ]);
     const report = costReportFromJournal(entries, capsPriceUsd);
     expect(invoice.totalUsd).toBe(report.grossUsd);

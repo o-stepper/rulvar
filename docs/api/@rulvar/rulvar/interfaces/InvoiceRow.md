@@ -15,6 +15,7 @@ One billable provider call (or an unattributed usage remainder).
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
 | <a id="property-abandoned"></a> `abandoned?` | `true` | The row lies under an abandoned subtree: in grossUsd, not in netUsd. | `packages/core/dist/index.d.ts` |
+| <a id="property-allocatedusd"></a> `allocatedUsd` | `number` | The additive FinOps column: this row's share of `totalUsd`, always present (zero for rows on unpriced models). Shares are computed within the row's own (entry, serving model) slice of the same gross fold the totals run, proportional to per-row `usd`, and one row absorbs the IEEE rounding dust, so summing `allocatedUsd` over `rows` reproduces `totalUsd` exactly where summing `usd` does not. | `packages/core/dist/index.d.ts` |
 | <a id="property-attempt"></a> `attempt?` | `number` | 1-based try number on the serving target (retries increment it). | `packages/core/dist/index.d.ts` |
 | <a id="property-entryseq"></a> `entrySeq` | `number` | The terminal journal entry the row folds from. | `packages/core/dist/index.d.ts` |
 | <a id="property-key"></a> `key` | `string` | - | `packages/core/dist/index.d.ts` |

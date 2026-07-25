@@ -8416,8 +8416,17 @@ declare class FileTranscriptStore implements TranscriptStore {
 }
 //#endregion
 //#region src/engine/invoice.d.ts
-/** How a row lines up against a provider invoice. */
-type InvoiceReconciliation = "matched" | "missing-provider-id" | "unconfirmed" | "unattributed";
+/**
+* How far a row's identity goes toward provider-side reconciliation.
+* `provider-id-present` asserts exactly what it names: the adapter
+* surfaced the provider's response id for this call, the join key a
+* host needs to line the row up against a provider statement. It does
+* NOT assert any statement, amount, or usage match: the library never
+* sees provider billing data, so those deeper reconciliation tiers are
+* host-side joins keyed on `responseId`, not verdicts this export can
+* make.
+*/
+type InvoiceReconciliation = "provider-id-present" | "missing-provider-id" | "unconfirmed" | "unattributed";
 /** One billable provider call (or an unattributed usage remainder). */
 interface InvoiceRow {
   /** The terminal journal entry the row folds from. */
@@ -8436,6 +8445,15 @@ interface InvoiceRow {
   usageApprox?: boolean;
   /** This row priced at its own model's rate; absent when no price row covers it. */
   usd?: number;
+  /**
+  * The additive FinOps column: this row's share of `totalUsd`, always
+  * present (zero for rows on unpriced models). Shares are computed
+  * within the row's own (entry, serving model) slice of the same
+  * gross fold the totals run, proportional to per-row `usd`, and one
+  * row absorbs the IEEE rounding dust, so summing `allocatedUsd` over
+  * `rows` reproduces `totalUsd` exactly where summing `usd` does not.
+  */
+  allocatedUsd: number;
   /** The row lies under an abandoned subtree: in grossUsd, not in netUsd. */
   abandoned?: true;
   reconciliation: InvoiceReconciliation;
@@ -8449,12 +8467,25 @@ interface InvoiceExport {
   netUsd: number;
   /** The abandoned share: totalUsd - netUsd, equals CostReport.abandoned.usd. */
   abandonedUsd: number;
+  /**
+  * How per-row `usd` was computed: each call priced individually at
+  * the current table's rates. Always `'per-call'` today; declared so
+  * finance tooling never has to guess the basis.
+  */
+  pricingBasis: "per-call";
+  /**
+  * Always true: per-call `usd` values need not sum to `totalUsd`,
+  * because a nonlinear price table prices an aggregate differently
+  * from the sum of its parts. Sum `allocatedUsd` instead; it exists
+  * precisely so a column sums to the total.
+  */
+  rowUsdNonAdditive: true;
   /** Usage on models absent from pricing, net and abandoned alike; never a silent zero. */
   unpriced: Array<{
     model: string;
     usage: Usage;
   }>;
-  /** Rows whose reconciliation is not 'matched'. */
+  /** Rows whose reconciliation is not 'provider-id-present'. */
   reconciliationFailures: number;
   /** Present and true when any contributing entry carried approximate usage. */
   usageApprox?: boolean;
