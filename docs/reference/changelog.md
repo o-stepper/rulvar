@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.70.1
+
+#### Patch Changes
+
+- @rulvar/core@1.70.1
+
 ### 1.70.0
 
 #### Patch Changes
@@ -884,6 +890,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.70.1
+
+#### Patch Changes
+
+- @rulvar/core@1.70.1
+
 ### 1.70.0
 
 #### Patch Changes
@@ -1615,6 +1627,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.70.1
+
+#### Patch Changes
+
+- @rulvar/core@1.70.1
 
 ### 1.70.0
 
@@ -2649,6 +2667,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.70.1
 
 ### 1.70.0
 
@@ -4085,6 +4105,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.70.1
+
 ### 1.70.0
 
 ### 1.69.0
@@ -4319,6 +4341,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.70.1
+
+#### Patch Changes
+
+- @rulvar/core@1.70.1
+- @rulvar/testing@1.70.1
 
 ### 1.70.0
 
@@ -5232,6 +5261,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.70.1
+
+#### Patch Changes
+
+- @rulvar/core@1.70.1
+
 ### 1.70.0
 
 #### Patch Changes
@@ -5348,6 +5383,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.70.1
+
+#### Patch Changes
+
+- @rulvar/core@1.70.1
 
 ### 1.70.0
 
@@ -6232,6 +6273,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.70.1
+
+#### Patch Changes
+
+- @rulvar/core@1.70.1
+
 ### 1.70.0
 
 #### Patch Changes
@@ -7084,6 +7131,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.70.1
+
+#### Patch Changes
+
+- @rulvar/core@1.70.1
+- eslint-plugin-rulvar@1.70.1
 
 ### 1.70.0
 
@@ -7953,6 +8007,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.70.1
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.70.1
+- @rulvar/core@1.70.1
+- @rulvar/openai@1.70.1
 
 ### 1.70.0
 
@@ -8982,6 +9044,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.70.1
+
+#### Patch Changes
+
+- ac57099: Kill-point suite hardening against loaded test runners: the worker's default lease ttl rises from 300 ms to 2000 ms, because a scheduler stall past the ttl between the worker's own renewals cancels the run by contract BEFORE the kill point is reached (the worker then exits zero as ran-to-completion and the scenario reads a self-inflicted takeover as a violation); the referee's post-kill wait is now the resume retry loop itself (each attempt against a live lease rejects typed with zero writes, so polling is free) instead of a fixed sleep; and the ran-to-completion violation names the worker's settled status for diagnosability. Only the killed owner is short-leased; referees and successor instances belong on their store's generous default ttl.
+  - @rulvar/core@1.70.1
+
 ### 1.70.0
 
 #### Minor Changes
@@ -9817,6 +9886,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.70.1
+
+#### Patch Changes
+
+- @rulvar/core@1.70.1
+
 ### 1.70.0
 
 #### Patch Changes
@@ -9955,6 +10030,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.70.1
+
+#### Patch Changes
+
+- @rulvar/core@1.70.1
 
 ### 1.70.0
 
@@ -10733,6 +10814,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.70.1
+
+#### Patch Changes
+
+- @rulvar/core@1.70.1
 
 ### 1.70.0
 
