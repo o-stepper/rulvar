@@ -570,4 +570,66 @@ describe('orchestrate-wave parity (the 1.63.0 experiment review, P0.3)', () => {
     expect(orchestratorAdmissionEstCostUsd(0.18, 0)).toBeCloseTo(0.18, 10);
     expect(orchestratorAdmissionEstCostUsd(0.7, 0.3)).toBeCloseTo(0.4, 10);
   });
+
+  it('warns when the whole tool budget fits one parallel batch before any checkpoint (P1.8)', () => {
+    const adapter = scriptedAdapter(() => ({ text: 'unused' }));
+    const report = preflightEstimate({
+      engine: { adapters: [adapter], defaults: { routing: { loop: SERVED } } },
+      run: { budgetUsd: 5 },
+      spawns: [{ label: 'worker', limits: { maxTurns: 4, maxToolCalls: 5 } }],
+    });
+    const finding = report.findings.find((entry) => entry.code === 'tool-cap-before-checkpoint');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.spawn).toBe('worker');
+    // The count in the message is the effective executed-call ceiling.
+    expect(finding?.message).toContain('5 calls');
+    expect(finding?.message).toContain('one parallel tool batch');
+
+    // The units-bound ceiling is the one named, not the nominal cap.
+    const weighted = preflightEstimate({
+      engine: { adapters: [adapter], defaults: { routing: { loop: SERVED } } },
+      run: { budgetUsd: 5 },
+      spawns: [
+        {
+          label: 'searcher',
+          limits: { maxToolCalls: 40, toolUnits: { max: 10, costs: { web_search: 5 } } },
+        },
+      ],
+    });
+    const bound = weighted.findings.find((entry) => entry.code === 'tool-cap-before-checkpoint');
+    expect(bound?.message).toContain(
+      `${String(weighted.spawns[0]?.executedToolCallCeiling ?? -1)} calls`,
+    );
+  });
+
+  it('stays silent on serial adapters, uncapped spawns, and a zero cap', () => {
+    const serial = scriptedAdapter(() => ({ text: 'unused' }), {
+      caps: testCaps({ supportsParallelTools: false }),
+    });
+    const serialReport = preflightEstimate({
+      engine: { adapters: [serial], defaults: { routing: { loop: SERVED } } },
+      run: { budgetUsd: 5 },
+      spawns: [{ label: 'worker', limits: { maxToolCalls: 5 } }],
+    });
+    expect(serialReport.findings.some((entry) => entry.code === 'tool-cap-before-checkpoint')).toBe(
+      false,
+    );
+
+    const parallel = scriptedAdapter(() => ({ text: 'unused' }));
+    const uncapped = preflightEstimate({
+      engine: { adapters: [parallel], defaults: { routing: { loop: SERVED } } },
+      run: { budgetUsd: 5 },
+      spawns: [{ label: 'worker', limits: { maxTurns: 4 } }],
+    });
+    expect(uncapped.findings.some((entry) => entry.code === 'tool-cap-before-checkpoint')).toBe(
+      false,
+    );
+
+    const zero = preflightEstimate({
+      engine: { adapters: [parallel], defaults: { routing: { loop: SERVED } } },
+      run: { budgetUsd: 5 },
+      spawns: [{ label: 'no-tools', limits: { maxToolCalls: 0 } }],
+    });
+    expect(zero.findings.some((entry) => entry.code === 'tool-cap-before-checkpoint')).toBe(false);
+  });
 });
