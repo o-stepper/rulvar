@@ -609,14 +609,15 @@ export interface KillPointScenarioOptions {
   /** Store location handed to the worker config; default `join(dir, 'kp.db')`. */
   storePath?: string;
   /**
-   * The WORKER'S lease ttl; default 300 ms. The referee waits it out
-   * after the kill, so keep it short. It binds only the killed owner:
-   * the referee's own store (the `openStore` fixture) should keep its
-   * GENEROUS default ttl, so a scheduler stall under a loaded test
-   * runner cannot expire the resume's lease mid-scenario (a lost lease
-   * cancels the run by contract, and the fence then swallows its
-   * settle, which reads as a recovery violation when it is really a
-   * harness self-inflicted takeover).
+   * The WORKER'S lease ttl; default 2000 ms. The referee waits it out
+   * after the kill (retrying the resume on the typed rejection), so it
+   * stays short, but NOT so short that a scheduler stall on a loaded
+   * test runner can expire the WORKER'S own lease between its renewals
+   * before the kill point is even reached: a lost lease cancels the run
+   * by contract, the worker then exits zero as ran-to-completion, and
+   * the scenario reads a self-inflicted takeover as a violation. The
+   * same reasoning keeps the referee's own store (the `openStore`
+   * fixture) on its GENEROUS default ttl.
    */
   ttlMs?: number;
   /**
@@ -654,7 +655,7 @@ export async function runKillPointScenario(
     const named = typeof options.scenario === 'string' ? options.scenario : options.scenario.id;
     throw new Error(`store-conformance kill-points: unknown scenario '${named}'`);
   }
-  const ttlMs = options.ttlMs ?? 300;
+  const ttlMs = options.ttlMs ?? 2000;
   const storePath = options.storePath ?? join(options.dir, 'kp.db');
   const reportPath = join(options.dir, `kill-report-${scenario.id}.jsonl`);
   const runId = `kp-${scenario.id}`;
@@ -703,7 +704,8 @@ export async function runKillPointScenario(
         `${String(exit.code)}, signal ${String(exit.signal)}` +
         (completed === undefined
           ? ''
-          : ' (it ran to completion: the kill point was never reached)') +
+          : ` (it ran to completion with status '${completed.status}': the kill point was ` +
+            'never reached)') +
         (fatal === undefined ? '' : ` (fatal: ${fatal.message})`) +
         (stderr === '' ? '' : `; stderr: ${stderr.slice(0, 2000)}`),
     );
@@ -732,10 +734,10 @@ export async function runKillPointScenario(
     );
   }
 
-  // The killed owner never released; its lease must lapse before the
-  // referee can own the run.
-  await sleep(ttlMs * 2);
-
+  // The killed owner never released; its lease lapses at most ttlMs
+  // after its final renewal. The resume retry loop below IS the wait:
+  // each attempt that finds the lease still live rejects typed with
+  // ZERO writes and zero dispatches, so polling is free.
   let resumeCalls = 0;
   let resumeTools = 0;
   const fixture = await options.openStore();
@@ -862,7 +864,7 @@ export interface KillPointConformanceOptions {
   dir: string;
   /** Fresh isolation per scenario: store location and referee opener. */
   prepare: (scenario: KillPointScenario) => Promise<KillPointTarget> | KillPointTarget;
-  /** The worker's lease ttl (see {@link KillPointScenarioOptions.ttlMs}); default 300 ms. */
+  /** The worker's lease ttl (see {@link KillPointScenarioOptions.ttlMs}); default 2000 ms. */
   ttlMs?: number;
   /** Extra `node` arguments placed before the writer script. */
   execArgv?: string[];

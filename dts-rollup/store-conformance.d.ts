@@ -403,14 +403,15 @@ interface KillPointScenarioOptions {
   /** Store location handed to the worker config; default `join(dir, 'kp.db')`. */
   storePath?: string;
   /**
-  * The WORKER'S lease ttl; default 300 ms. The referee waits it out
-  * after the kill, so keep it short. It binds only the killed owner:
-  * the referee's own store (the `openStore` fixture) should keep its
-  * GENEROUS default ttl, so a scheduler stall under a loaded test
-  * runner cannot expire the resume's lease mid-scenario (a lost lease
-  * cancels the run by contract, and the fence then swallows its
-  * settle, which reads as a recovery violation when it is really a
-  * harness self-inflicted takeover).
+  * The WORKER'S lease ttl; default 2000 ms. The referee waits it out
+  * after the kill (retrying the resume on the typed rejection), so it
+  * stays short, but NOT so short that a scheduler stall on a loaded
+  * test runner can expire the WORKER'S own lease between its renewals
+  * before the kill point is even reached: a lost lease cancels the run
+  * by contract, the worker then exits zero as ran-to-completion, and
+  * the scenario reads a self-inflicted takeover as a violation. The
+  * same reasoning keeps the referee's own store (the `openStore`
+  * fixture) on its GENEROUS default ttl.
   */
   ttlMs?: number;
   /**
@@ -452,7 +453,7 @@ interface KillPointConformanceOptions {
   dir: string;
   /** Fresh isolation per scenario: store location and referee opener. */
   prepare: (scenario: KillPointScenario) => Promise<KillPointTarget> | KillPointTarget;
-  /** The worker's lease ttl (see {@link KillPointScenarioOptions.ttlMs}); default 300 ms. */
+  /** The worker's lease ttl (see {@link KillPointScenarioOptions.ttlMs}); default 2000 ms. */
   ttlMs?: number;
   /** Extra `node` arguments placed before the writer script. */
   execArgv?: string[];
