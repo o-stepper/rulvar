@@ -1073,6 +1073,43 @@ describe('adapter surface (M1-T13)', () => {
     expect((huge.data as { retryAfterMs?: number }).retryAfterMs).toBe(2_147_483_647);
   });
 
+  it('captures the x-ratelimit buckets and normalized limits on 429 (v1.71 review, P0.5)', () => {
+    // The experiment's provider SAID 1M TPM in these headers while the
+    // host declared 12M, and the old wire read only retry-after.
+    const limited = openAiErrorToWire({
+      status: 429,
+      message: 'rate limited',
+      headers: {
+        'retry-after': '7',
+        'x-ratelimit-limit-requests': '20',
+        'x-ratelimit-remaining-requests': '0',
+        'x-ratelimit-limit-tokens': '1000000',
+      },
+    });
+    expect(limited.data).toMatchObject({
+      kind: 'rate-limit',
+      retryAfterMs: 7000,
+      buckets: {
+        'x-ratelimit-limit-requests': '20',
+        'x-ratelimit-remaining-requests': '0',
+        'x-ratelimit-limit-tokens': '1000000',
+      },
+      reportedLimits: { requestsPerMinute: 20, tokensPerMinute: 1_000_000 },
+    });
+    // A malformed limit header never yields NaN or a bogus number, and
+    // a 429 without limit headers carries no reportedLimits at all.
+    const malformed = openAiErrorToWire({
+      status: 429,
+      message: 'rate limited',
+      headers: { 'x-ratelimit-limit-tokens': '1e6', 'x-ratelimit-limit-requests': '20' },
+    });
+    expect((malformed.data as { reportedLimits?: unknown }).reportedLimits).toEqual({
+      requestsPerMinute: 20,
+    });
+    const bare = openAiErrorToWire({ status: 429, message: 'rate limited' });
+    expect((bare.data as { reportedLimits?: unknown }).reportedLimits).toBeUndefined();
+  });
+
   it('Retry-After honors only the RFC delta-seconds grammar (v1.29.0 review P3)', () => {
     const msOf = (value: string): number | undefined =>
       (

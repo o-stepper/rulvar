@@ -662,6 +662,27 @@ export function anthropicErrorToWire(error: unknown): WireError {
         buckets[name] = value;
       }
     }
+    // `reportedLimits` normalizes the per-minute limits for the
+    // engine's drift telemetry (the v1.71 experiment review, P0.5):
+    // anthropic reports requests plus SPLIT input and output token
+    // windows, so the split rides as-is and the drift comparison sums
+    // them against a combined declared tokensPerMinute.
+    const limitOf = (name: string): number | undefined => {
+      const value = headerGet(name);
+      if (value === undefined) {
+        return undefined;
+      }
+      const match = /^[\t ]*([0-9]+)[\t ]*$/.exec(value);
+      return match === null ? undefined : Number(match[1]);
+    };
+    const requestsPerMinute = limitOf('x-ratelimit-limit-requests');
+    const inputTokensPerMinute = limitOf('x-ratelimit-limit-input-tokens');
+    const outputTokensPerMinute = limitOf('x-ratelimit-limit-output-tokens');
+    const reportedLimits = {
+      ...(requestsPerMinute === undefined ? {} : { requestsPerMinute }),
+      ...(inputTokensPerMinute === undefined ? {} : { inputTokensPerMinute }),
+      ...(outputTokensPerMinute === undefined ? {} : { outputTokensPerMinute }),
+    };
     return {
       code: 'agent',
       message,
@@ -670,6 +691,7 @@ export function anthropicErrorToWire(error: unknown): WireError {
         kind: 'rate-limit',
         ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
         ...(Object.keys(buckets).length > 0 ? { buckets } : {}),
+        ...(Object.keys(reportedLimits).length > 0 ? { reportedLimits } : {}),
         status: 429,
       },
     };

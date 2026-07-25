@@ -66,7 +66,7 @@ import {
 import { selectStructuredOutputTier } from '../model/caps.js';
 import { fallbackTriggerOf, type FallbackField, type FallbackTrigger } from '../model/failover.js';
 import type { KeyedLimiter } from '../model/concurrency.js';
-import type { EngineQuotaRuntime } from '../model/quota.js';
+import { quotaRuleMatches, type EngineQuotaRuntime, type QuotaRule } from '../model/quota.js';
 import type { QualityFloors } from '../model/floors.js';
 import { validateRetryPolicy, type RetryPolicy } from '../model/retry.js';
 import { finalizeFires, needsSeparateExtract, roleConfiguredInRouting } from '../model/roles.js';
@@ -2029,6 +2029,104 @@ export function createCtx(
       exitActivity?.();
     }
     internals.budget.releaseReserve(reserve, budgetAccount);
+
+    // Quota drift telemetry (the v1.71 experiment review, P0.5
+    // resized): the loop's live 429 observations held against the
+    // declared rule mirror. For every (provider, model) observation
+    // and every dimension where the binding declared cap EXCEEDS what
+    // the provider reported, ONE decision entry journals per
+    // invocation (a deterministic key in the invocation's own scope,
+    // so parallel agents order exactly like their terminals do) and a
+    // warn log fires. VCR replay re-observes the same 429s from the
+    // recorded stream and re-derives the same entries; a journal
+    // resume replays the terminal without live observations and
+    // appends nothing, rolling the existing entries forward inert. No
+    // declaredRules, or no observations, means zero new entries,
+    // events, and awaits: byte identical to before, promise ticks
+    // included.
+    const declaredRules = internals.quota?.declaredRules;
+    if (declaredRules !== undefined && result.rateLimitObservations !== undefined) {
+      for (const observation of result.rateLimitObservations) {
+        const probe = {
+          provider: observation.provider,
+          model: observation.model,
+          ...(internals.quota?.tenant === undefined ? {} : { tenant: internals.quota.tenant }),
+          estimate: { requests: 1, inputTokens: 0 },
+        };
+        const matching = declaredRules.filter((rule) => quotaRuleMatches(rule, probe));
+        const declaredOf = (pick: (rule: QuotaRule) => number | undefined): number | undefined => {
+          const caps = matching.map(pick).filter((cap): cap is number => cap !== undefined);
+          return caps.length === 0 ? undefined : Math.min(...caps);
+        };
+        const reported = observation.reportedLimits;
+        const reportedTokens =
+          reported.tokensPerMinute ??
+          (reported.inputTokensPerMinute !== undefined &&
+          reported.outputTokensPerMinute !== undefined
+            ? reported.inputTokensPerMinute + reported.outputTokensPerMinute
+            : undefined);
+        const dimensions: Array<{
+          dimension: 'requests' | 'tokens';
+          declared: number | undefined;
+          observed: number | undefined;
+        }> = [
+          {
+            dimension: 'requests',
+            declared: declaredOf((rule) => rule.requestsPerMinute),
+            observed: reported.requestsPerMinute,
+          },
+          {
+            dimension: 'tokens',
+            declared: declaredOf((rule) => rule.tokensPerMinute),
+            observed: reportedTokens,
+          },
+        ];
+        for (const { dimension, declared, observed } of dimensions) {
+          if (declared === undefined || observed === undefined || declared <= observed) {
+            continue;
+          }
+          const key = `quota-drift:${dimension}:${observation.provider}:${observation.model}`;
+          const exists = internals.replayer
+            .snapshot()
+            .some(
+              (entry) =>
+                entry.kind === 'decision' && entry.scope === state.scope && entry.key === key,
+            );
+          if (!exists) {
+            await internals.replayer.appendSinglePhase({
+              scope: state.scope,
+              key,
+              kind: 'decision',
+              status: 'ok',
+              spanId,
+              value: {
+                decisionType: 'quota_drift',
+                provider: observation.provider,
+                model: observation.model,
+                ...(internals.quota?.tenant === undefined
+                  ? {}
+                  : { tenant: internals.quota.tenant }),
+                dimension,
+                declaredPerMinute: declared,
+                reportedPerMinute: observed,
+              },
+            });
+          }
+          internals.events.emit(
+            {
+              type: 'log',
+              level: 'warn',
+              msg:
+                `declared quota exceeds the provider-reported limit: ${observation.provider}:` +
+                `${observation.model} ${dimension} declared ${String(declared)}/min, the ` +
+                `provider reports ${String(observed)}/min; the limiter under-throttles and ` +
+                "live 429s follow (journaled decision 'quota_drift')",
+            },
+            spanId,
+          );
+        }
+      }
+    }
 
     // collect() before dispose, shared by the settled tail and the
     // aborted flavor B wait: the patch lands in TranscriptStore and its

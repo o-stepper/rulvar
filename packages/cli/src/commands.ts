@@ -737,7 +737,8 @@ export async function invoiceCommand(argv: string[], context: CommandContext): P
       `abandoned: $${invoice.abandonedUsd.toFixed(4)}${invoice.usageApprox === true ? ' (approx)' : ''}`,
   );
   context.io.out(
-    `rows: ${invoice.rows.length} (reconciliation failures: ${invoice.reconciliationFailures})`,
+    `rows: ${invoice.rows.length} (reconciliation failures: ${invoice.reconciliationFailures}` +
+      `${invoice.usageUnknownRows === undefined ? '' : `; usage unknown: ${invoice.usageUnknownRows}`})`,
   );
   context.io.out(
     `pricing basis: ${invoice.pricingBasis} (row usd is non-additive; allocatedUsd sums to gross)`,
@@ -746,7 +747,10 @@ export async function invoiceCommand(argv: string[], context: CommandContext): P
     const usd = row.usd === undefined ? 'unpriced' : `$${row.usd.toFixed(4)}`;
     const tokens = row.usage.inputTokens + row.usage.outputTokens;
     const id = row.responseId ?? 'no-id';
-    const flags = `${row.usageApprox === true ? ' approx' : ''}${row.abandoned === true ? ' abandoned' : ''}`;
+    const flags =
+      `${row.usageApprox === true ? ' approx' : ''}` +
+      `${row.usageUnknown === true ? ' usage-unknown' : ''}` +
+      `${row.abandoned === true ? ' abandoned' : ''}`;
     context.io.out(
       `#${row.entrySeq}.${row.ordinal} ${row.servedBy}` +
         `${row.role === undefined ? '' : ` ${row.role}`}` +

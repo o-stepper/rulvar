@@ -23,3 +23,4 @@ The machine-readable invoice: rows plus the ledger totals.
 | <a id="property-totalusd"></a> `totalUsd` | `number` | Every priced terminal slice, abandonment included: equals CostReport.grossUsd. | `packages/core/dist/index.d.ts` |
 | <a id="property-unpriced"></a> `unpriced` | \{ `model`: `string`; `usage`: [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md); \}[] | Usage on models absent from pricing, net and abandoned alike; never a silent zero. | `packages/core/dist/index.d.ts` |
 | <a id="property-usageapprox"></a> `usageApprox?` | `boolean` | Present and true when any contributing entry carried approximate usage. | `packages/core/dist/index.d.ts` |
+| <a id="property-usageunknownrows"></a> `usageUnknownRows?` | `number` | Rows carrying `usageUnknown`; present when at least one does. | `packages/core/dist/index.d.ts` |

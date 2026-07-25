@@ -1279,6 +1279,10 @@
             "link": "/api/@rulvar/core/interfaces/RandIdentityInput.md"
           },
           {
+            "text": "RateLimitObservation",
+            "link": "/api/@rulvar/core/interfaces/RateLimitObservation.md"
+          },
+          {
             "text": "ReconcileOptions",
             "link": "/api/@rulvar/core/interfaces/ReconcileOptions.md"
           },
@@ -5595,6 +5599,10 @@
           {
             "text": "RandIdentityInput",
             "link": "/api/@rulvar/rulvar/interfaces/RandIdentityInput.md"
+          },
+          {
+            "text": "RateLimitObservation",
+            "link": "/api/@rulvar/rulvar/interfaces/RateLimitObservation.md"
           },
           {
             "text": "ReconcileOptions",
