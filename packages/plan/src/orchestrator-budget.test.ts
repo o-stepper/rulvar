@@ -187,6 +187,45 @@ describe('orchestrator cap and finalize reserve (M7-T12, DEF-7)', () => {
     const entries = await store.load(handle.runId);
     expect(decisionsOf(entries, 'orchestrator_finalize_fallback')).toHaveLength(1);
   });
+
+  it('a capped run freezes the synthesis-skip reason into the cap decision (11.4)', async () => {
+    const withSynthesis = scriptedAdapter(planScript());
+    const withStore = new InMemoryStore();
+    const handle = orchestratePlanned(
+      engineWith(withSynthesis, withStore),
+      'freeze with synthesis',
+      {
+        budget: { capUsd: 0.4, finalizeReserveUsd: 0.01 },
+        synthesis: {},
+      },
+    );
+    const logs: Array<{ msg?: string; data?: { reason?: string } }> = [];
+    handle.on('log', (event) => logs.push(event as { msg?: string }));
+    const outcome = await handle.result;
+    // The reserved finalizer settles the capped run; synthesis never runs.
+    expect(outcome.status).toBe('ok');
+    expect(outcome.value).toBe('partial but honest');
+
+    const entries = await withStore.load(handle.runId);
+    const caps = decisionsOf(entries, 'orchestrator_budget_cap');
+    expect(caps[0]?.synthesisSkipped).toBe('synthesis_skipped_by_budget_cap');
+    expect(logs.find((event) => event.msg === 'orchestrator synthesis skipped')?.data?.reason).toBe(
+      'synthesis_skipped_by_budget_cap',
+    );
+
+    // The control without synthesis keeps its decision byte identical.
+    const control = scriptedAdapter(planScript());
+    const controlStore = new InMemoryStore();
+    const controlHandle = orchestratePlanned(engineWith(control, controlStore), 'freeze control', {
+      budget: { capUsd: 0.4, finalizeReserveUsd: 0.01 },
+    });
+    expect((await controlHandle.result).status).toBe('ok');
+    const controlCaps = decisionsOf(
+      await controlStore.load(controlHandle.runId),
+      'orchestrator_budget_cap',
+    );
+    expect('synthesisSkipped' in (controlCaps[0] ?? {})).toBe(false);
+  });
 });
 
 describe("executable 'fail-run' policies (v1.35.0 review P2-1)", () => {
@@ -217,6 +256,23 @@ describe("executable 'fail-run' policies (v1.35.0 review P2-1)", () => {
     expect(caps).toHaveLength(1);
     expect(caps[0]?.fallback).toBe('fail-run');
     expect(decisionsOf(entries, 'orchestrator_finalize_fallback')).toHaveLength(0);
+  });
+
+  it('atCap fail-run with synthesis configured carries the skip reason in the typed data (11.4)', async () => {
+    const adapter = scriptedAdapter(planScript());
+    const store = new InMemoryStore();
+    const handle = orchestratePlanned(engineWith(adapter, store), 'fail at cap with synthesis', {
+      budget: { capUsd: 0.4, finalizeReserveUsd: 0.01, atCap: 'fail-run' },
+      synthesis: {},
+    });
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('error');
+    expect(outcome.error?.data).toMatchObject({
+      source: 'orchestrator_budget_cap',
+      synthesisSkipped: 'synthesis_skipped_by_budget_cap',
+    });
+    const caps = decisionsOf(await store.load(handle.runId), 'orchestrator_budget_cap');
+    expect(caps[0]?.synthesisSkipped).toBe('synthesis_skipped_by_budget_cap');
   });
 
   it('resume rolls the journaled fail-run forward: no model call, no second decision, journal wins over live options', async () => {

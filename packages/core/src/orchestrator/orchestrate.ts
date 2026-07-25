@@ -416,6 +416,27 @@ export interface IncrementalSynthesisResult {
   repeatedClaims?: RepeatedClaim[];
 }
 
+/**
+ * The machine-readable reason a CONFIGURED synthesis step was skipped
+ * (the 1.65.0 experiment review, item 11.4): telemetry that shows zero
+ * synthesize spend must say why instead of leaving the host to infer it
+ * from the acceptance decision. 'synthesis_skipped_by_acceptance': the
+ * acceptance policy rejected the finish, and a rejected run never pays
+ * for the post-fan-in composing step (in 'incremental' mode the settled
+ * notes were already paid during the run; the skipped step is the free
+ * deterministic reconciliation). 'synthesis_skipped_by_budget_cap': the
+ * orchestrator budget cap froze the plan, and a capped run settles
+ * through the reserved finalizer, never synthesis. The reason is frozen
+ * into the journaled decision that caused the skip (the acceptance
+ * decision or the budget-cap decision), spread into the typed
+ * FailRunError data on the failing paths, and announced by an info
+ * 'orchestrator synthesis skipped' log event; it is absent everywhere
+ * when synthesis is not configured or actually ran, so existing runs
+ * stay byte identical.
+ */
+export type OrchestrateSynthesisSkipReason =
+  'synthesis_skipped_by_acceptance' | 'synthesis_skipped_by_budget_cap';
+
 export const ORCHESTRATE_WORKFLOW_NAME = 'rulvar-orchestrate';
 
 /**
@@ -1530,6 +1551,12 @@ export function makeOrchestratorWorkflow(
           },
           fallback: capState.atCap,
           disarmedTriggers: ['child_terminal', 'escalation', 'budget_threshold'],
+          // A configured synthesis step will never run on a capped run
+          // (the reserved finalizer settles it): the machine reason is
+          // frozen at trip time, immune to option drift (11.4).
+          ...(opts?.synthesis === undefined
+            ? {}
+            : { synthesisSkipped: 'synthesis_skipped_by_budget_cap' }),
         },
       });
       capDecisionRef = entry.seq;
@@ -2953,7 +2980,22 @@ export function makeOrchestratorWorkflow(
     const settleCapOutcome = async (): Promise<unknown> => {
       const capEntry = internals.replayer.snapshot().find((entry) => entry.seq === capDecisionRef);
       const capValue = capEntry?.value as
-        { fallback?: string; spentUsd?: number; capUsd?: number } | undefined;
+        | { fallback?: string; spentUsd?: number; capUsd?: number; synthesisSkipped?: string }
+        | undefined;
+      if (capValue?.synthesisSkipped !== undefined) {
+        // The skip is a designed outcome, not a failure: the info log
+        // names the machine reason beside the zero synthesize spend
+        // (11.4), on the live pass and on every roll-forward alike.
+        internals.events.emit(
+          {
+            type: 'log',
+            level: 'info',
+            msg: 'orchestrator synthesis skipped',
+            data: { reason: capValue.synthesisSkipped, capDecisionRef: capDecisionRef ?? -1 },
+          },
+          callingState.spanId,
+        );
+      }
       if (capValue?.fallback === 'fail-run') {
         throw new FailRunError(
           `the orchestrator budget cap was reached (decision entry ` +
@@ -2965,6 +3007,9 @@ export function makeOrchestratorWorkflow(
               capDecisionRef: capDecisionRef ?? -1,
               spentUsd: capValue.spentUsd ?? 0,
               capUsd: capValue.capUsd ?? 0,
+              ...(capValue.synthesisSkipped === undefined
+                ? {}
+                : { synthesisSkipped: capValue.synthesisSkipped }),
             },
           },
         );
@@ -3066,6 +3111,14 @@ export function makeOrchestratorWorkflow(
        * (the 1.64.0 experiment review, P0.4 + P1.1); absent before it.
        */
       salvagedTerminalOutputChildren?: string[];
+      /**
+       * Present when this rejection skipped a CONFIGURED synthesis step
+       * (the 1.65.0 experiment review, item 11.4): the machine-readable
+       * cause, frozen into the journaled decision so a resume re-throws
+       * the identical fact. Absent on accepted verdicts, on runs without
+       * synthesis, and on decisions written before this shipped.
+       */
+      synthesisSkipped?: OrchestrateSynthesisSkipReason;
     }
     const acceptanceKey = 'acceptance';
     const priorAcceptance = internals.replayer
@@ -3144,6 +3197,12 @@ export function makeOrchestratorWorkflow(
         degradedReasons,
         ...(salvaged.length === 0 ? {} : { salvagedPartialChildren: salvaged }),
         ...(salvagedOutput.length === 0 ? {} : { salvagedTerminalOutputChildren: salvagedOutput }),
+        // A rejected verdict skips a configured synthesis step by design
+        // (RV-211): the machine reason rides the decision (11.4), so the
+        // journal, not the live options, is the authority on resume.
+        ...(accepted || opts.synthesis === undefined
+          ? {}
+          : { synthesisSkipped: 'synthesis_skipped_by_acceptance' as const }),
       };
       await internals.replayer.appendSinglePhase({
         scope: callingState.scope,
@@ -3156,6 +3215,20 @@ export function makeOrchestratorWorkflow(
       });
     }
     if (decision.verdict === 'rejected') {
+      if (decision.synthesisSkipped !== undefined) {
+        // The skip is a designed outcome, not a failure: the info log
+        // names the machine reason beside the zero synthesize spend
+        // (11.4), on the live pass and on the resume roll-forward alike.
+        internals.events.emit(
+          {
+            type: 'log',
+            level: 'info',
+            msg: 'orchestrator synthesis skipped',
+            data: { reason: decision.synthesisSkipped },
+          },
+          callingState.spanId,
+        );
+      }
       const required =
         decision.childPolicy === 'all-ok'
           ? 'every child ok'
@@ -3179,6 +3252,9 @@ export function makeOrchestratorWorkflow(
             ...(decision.salvagedTerminalOutputChildren === undefined
               ? {}
               : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
+            ...(decision.synthesisSkipped === undefined
+              ? {}
+              : { synthesisSkipped: decision.synthesisSkipped }),
           },
         },
       );

@@ -320,6 +320,148 @@ describe('the orchestrator synthesis invocation (RV-211)', () => {
     expect(synthesis.calls).toHaveLength(0);
   });
 
+  it('a rejected acceptance records the machine-readable skip reason on every surface (11.4)', async () => {
+    const coordination = coordinationAdapter();
+    const synthesis = scriptedAdapter(
+      (): ScriptedTurn => ({ toolCall: { name: 'finish', args: { result: 'synthesized' } } }),
+      { id: 'strong' },
+    );
+    const { internals, events, store } = makeInternals({
+      adapters: [coordination, synthesis],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'strong:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('goal', {
+      synthesis: {},
+      acceptance: { childPolicy: { minSuccessful: 3 } },
+    });
+    // The typed error data names the cause a host can pattern-match.
+    await expect(executeWorkflow(internals, wf, undefined)).rejects.toMatchObject({
+      name: 'FailRunError',
+      data: {
+        source: 'orchestrator_acceptance',
+        synthesisSkipped: 'synthesis_skipped_by_acceptance',
+      },
+    });
+    expect(synthesis.calls).toHaveLength(0);
+
+    // The journaled acceptance decision froze the same reason.
+    await internals.replayer.flush();
+    const entries = await store.load('test-run');
+    const decision = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_acceptance',
+    );
+    expect((decision?.value as { synthesisSkipped?: string }).synthesisSkipped).toBe(
+      'synthesis_skipped_by_acceptance',
+    );
+
+    // The info log announces it beside the zero synthesize spend.
+    const skip = events
+      .ofType('log')
+      .find((event) => (event as { msg?: string }).msg === 'orchestrator synthesis skipped') as
+      { level?: string; data?: { reason?: string } } | undefined;
+    expect(skip?.level).toBe('info');
+    expect(skip?.data?.reason).toBe('synthesis_skipped_by_acceptance');
+  });
+
+  it('a rejection without synthesis configured stays byte identical: no reason, no log', async () => {
+    const coordination = coordinationAdapter();
+    const { internals, events, store } = makeInternals({
+      adapters: [coordination],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PROFILES,
+    });
+    const wf = makeOrchestratorWorkflow('goal', {
+      acceptance: { childPolicy: { minSuccessful: 3 } },
+    });
+    let thrown: { data?: Record<string, unknown> } | undefined;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error as { data?: Record<string, unknown> };
+    }
+    expect(thrown?.data?.source).toBe('orchestrator_acceptance');
+    expect('synthesisSkipped' in (thrown?.data ?? {})).toBe(false);
+
+    await internals.replayer.flush();
+    const entries = await store.load('test-run');
+    const decision = entries.find(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_acceptance',
+    );
+    expect('synthesisSkipped' in ((decision?.value ?? {}) as Record<string, unknown>)).toBe(false);
+    expect(
+      events
+        .ofType('log')
+        .some((event) => (event as { msg?: string }).msg === 'orchestrator synthesis skipped'),
+    ).toBe(false);
+  });
+
+  it('a resume rolls the recorded skip reason forward from the journal with zero live calls', async () => {
+    const store = new InMemoryStore();
+    const transcripts = new InMemoryTranscriptStore();
+    const defaults = {
+      routing: {
+        loop: 'fake:model',
+        orchestrate: 'fake:model',
+        synthesize: 'strong:model',
+      } as const,
+      profiles: PROFILES,
+    };
+    const wfOpts = {
+      synthesis: {},
+      acceptance: { childPolicy: { minSuccessful: 3 } as const },
+    };
+    const engineA = createEngine({
+      adapters: [
+        coordinationAdapter(),
+        scriptedAdapter(
+          (): ScriptedTurn => ({ toolCall: { name: 'finish', args: { result: 'synthesized' } } }),
+          { id: 'strong' },
+        ),
+      ],
+      stores: { journal: store, transcripts },
+      defaults,
+    });
+    const first = await engineA.run(makeOrchestratorWorkflow('goal', wfOpts), undefined, {
+      runId: 'SKIP',
+    }).result;
+    expect(first.status).toBe('error');
+    expect((first.error?.data as { synthesisSkipped?: string } | undefined)?.synthesisSkipped).toBe(
+      'synthesis_skipped_by_acceptance',
+    );
+
+    const replayCoordination = coordinationAdapter();
+    const replaySynthesis = scriptedAdapter(
+      (): ScriptedTurn => ({ toolCall: { name: 'finish', args: { result: 'DIFFERENT' } } }),
+      { id: 'strong' },
+    );
+    const engineB = createEngine({
+      adapters: [replayCoordination, replaySynthesis],
+      stores: { journal: store, transcripts },
+      defaults,
+    });
+    const handle = engineB.resume('SKIP', makeOrchestratorWorkflow('goal', wfOpts));
+    const logs: Array<{ msg?: string; data?: { reason?: string } }> = [];
+    handle.on('log', (event) => logs.push(event as { msg?: string }));
+    const resumed = await handle.result;
+    expect(resumed.status).toBe('error');
+    expect(
+      (resumed.error?.data as { synthesisSkipped?: string } | undefined)?.synthesisSkipped,
+    ).toBe('synthesis_skipped_by_acceptance');
+    // The journal is the authority and no model call re-paid anything.
+    expect(replayCoordination.calls).toHaveLength(0);
+    expect(replaySynthesis.calls).toHaveLength(0);
+    expect(logs.find((event) => event.msg === 'orchestrator synthesis skipped')?.data?.reason).toBe(
+      'synthesis_skipped_by_acceptance',
+    );
+  });
+
   it('validates the synthesis option loudly at workflow construction', () => {
     expect(() =>
       makeOrchestratorWorkflow('goal', {
