@@ -807,7 +807,8 @@ function renderPreflight(report: PreflightReport, io: CliIo): void {
           ? ''
           : ` maxOutput=${spawn.maxOutputTokensPerTurn}`) +
         (spawn.turnFloorUsd === undefined ? '' : ` turnFloor=${usdOf(spawn.turnFloorUsd)}`) +
-        ` toolCallCeiling=${spawn.executedToolCallCeiling ?? 'unlimited'}`,
+        ` toolCallCeiling=${spawn.executedToolCallCeiling ?? 'unlimited'}` +
+        ` projectedTurns=${spawn.projectedProviderTurns}`,
     );
     io.out(`  limits: ${JSON.stringify(spawn.limits)}`);
     for (const row of spawn.toolCeilings) {
@@ -842,7 +843,11 @@ function renderPreflight(report: PreflightReport, io: CliIo): void {
     `exposure: maxInFlight=${report.exposure.maxInFlight}` +
       (report.exposure.overshootOneTurnFloorUsd === undefined
         ? ''
-        : ` overshootOneTurnFloor=${usdOf(report.exposure.overshootOneTurnFloorUsd)}`),
+        : ` overshootOneTurnFloor=${usdOf(report.exposure.overshootOneTurnFloorUsd)}`) +
+      (report.exposure.runCeiling === undefined
+        ? ''
+        : ` runCeiling: requests=${report.exposure.runCeiling.requests}` +
+          ` tokens=${report.exposure.runCeiling.tokens}`),
   );
   for (const [provider, row] of Object.entries(report.exposure.perProvider)) {
     io.out(

@@ -339,6 +339,136 @@ describe('preflightEstimate (P2.2)', () => {
     // The rule of another provider matches no declared unit: no finding.
     expect(report.findings.filter((f) => f.code === 'quota-requests-below-wave')).toHaveLength(1);
     expect(report.quota.rules).toBe(3);
+    // Disjointness: a wave that already exceeds the window keeps the
+    // stronger wave diagnosis and never doubles it with the run one.
+    expect(report.findings.filter((f) => f.code === 'quota-requests-below-run')).toHaveLength(0);
+    expect(report.findings.filter((f) => f.code === 'quota-tokens-below-run')).toHaveLength(0);
+  });
+
+  it('derives the per-spawn provider-turn ceiling from the limits vocabulary', () => {
+    const adapter = scriptedAdapter(() => ({ text: 'x', finish: 'stop' }));
+    const report = preflightEstimate({
+      engine: { adapters: [adapter], defaults: { routing: { loop: SERVED } } },
+      spawns: [
+        { label: 'unbounded-tools' },
+        { label: 'turn-capped', limits: { maxTurns: 5 } },
+        { label: 'tool-capped', limits: { maxToolCalls: 3 } },
+        { label: 'finalized', limits: { maxToolCalls: 3, finalizationReserve: {} } },
+        { label: 'turns-win', limits: { maxTurns: 2, maxToolCalls: 10 } },
+        { label: 'unit-capped', limits: { toolUnits: { max: 6 } } },
+      ],
+    });
+    const turnsOf = new Map(report.spawns.map((s) => [s.label, s.projectedProviderTurns]));
+    expect(turnsOf.get('unbounded-tools')).toBe(32); // the maxTurns default
+    expect(turnsOf.get('turn-capped')).toBe(5);
+    expect(turnsOf.get('tool-capped')).toBe(4); // 3 executed calls + the final no-tool turn
+    expect(turnsOf.get('finalized')).toBe(5); // plus the armed summary turn
+    expect(turnsOf.get('turns-win')).toBe(2); // maxTurns binds below the tool chain
+    expect(turnsOf.get('unit-capped')).toBe(7); // 6 weighted executions + the final turn
+    expect(report.exposure.runCeiling?.requests).toBe(32 + 5 + 4 + 5 + 2 + 7);
+  });
+
+  it('counts the orchestrator loop into the run ceiling and echoes its turns', () => {
+    const adapter = scriptedAdapter(() => ({ text: 'x', finish: 'stop' }));
+    const report = preflightEstimate({
+      engine: { adapters: [adapter], defaults: { routing: { loop: SERVED, orchestrate: SERVED } } },
+      orchestrator: { limits: { maxToolCalls: 2 } },
+      spawns: [{ label: 'child', limits: { maxToolCalls: 1 } }],
+    });
+    expect(report.budget.orchestrator?.projectedProviderTurns).toBe(3);
+    // Orchestrator 3 turns + the child's 2; token growth at the 4096
+    // output bound of the test caps with no declared input floors.
+    expect(report.exposure.runCeiling).toEqual({
+      requests: 5,
+      tokens: (4_096 * 3 * 4) / 2 + (4_096 * 2 * 3) / 2,
+    });
+  });
+
+  it('flags the turn whose context-grown reservation can never fit the token window', () => {
+    const adapter = scriptedAdapter(() => ({ text: 'x', finish: 'stop' }));
+    const report = preflightEstimate({
+      engine: { adapters: [adapter], defaults: { routing: { loop: SERVED } } },
+      spawns: [
+        {
+          label: 'greedy',
+          estInputTokens: 100,
+          limits: { maxToolCalls: 9, maxOutputTokensPerTurn: 50 },
+        },
+      ],
+      quotaRules: [{ provider: 'fake', tokensPerMinute: 300 }],
+    });
+    // Turn k reserves 100 + k x 50; k = 4 sits exactly AT the window
+    // (300 admits, the denial is strictly greater), so k = 5 is the
+    // first never-fitting reservation of the 10-turn loop.
+    const neverFits = report.findings.find((f) => f.code === 'quota-turn-never-fits');
+    expect(neverFits?.severity).toBe('warning');
+    expect(neverFits?.spawn).toBe('greedy');
+    expect(neverFits?.message).toContain('by turn 5 of 10');
+    expect(neverFits?.message).toContain('about 350 tokens');
+    // The wave fits (150 tokens), so the run-level token warning rides
+    // beside the never-fits diagnosis.
+    expect(report.findings.filter((f) => f.code === 'quota-tokens-below-wave')).toHaveLength(0);
+    const run = report.findings.find((f) => f.code === 'quota-tokens-below-run');
+    expect(run?.message).toContain('3750');
+  });
+
+  it('stays silent when the run ceiling fits the quota windows', () => {
+    const adapter = scriptedAdapter(() => ({ text: 'x', finish: 'stop' }));
+    const report = preflightEstimate({
+      engine: { adapters: [adapter], defaults: { routing: { loop: SERVED } } },
+      spawns: [
+        {
+          label: 'calm',
+          estInputTokens: 10,
+          limits: { maxTurns: 2, maxOutputTokensPerTurn: 5 },
+        },
+      ],
+      quotaRules: [{ provider: 'fake', requestsPerMinute: 100, tokensPerMinute: 1_000 }],
+    });
+    expect(report.exposure.runCeiling).toEqual({ requests: 2, tokens: 35 });
+    expect(report.findings.filter((f) => f.code.startsWith('quota-'))).toHaveLength(0);
+  });
+
+  it('projects the run past the first wave: fan-out times turn ceilings with context regrowth (the second report, rec 9)', () => {
+    // The experiment shape: 8 workers under 20 RPM / 900k TPM fit the
+    // first wave comfortably (8 dispatches, ~104k tokens), yet their
+    // tool loops legally demand 200 provider calls and ~12.4M tokens.
+    const adapter = scriptedAdapter(() => ({ text: 'x', finish: 'stop' }));
+    const report = preflightEstimate({
+      engine: { adapters: [adapter], defaults: { routing: { loop: SERVED } } },
+      spawns: [
+        {
+          label: 'worker',
+          count: 8,
+          estInputTokens: 9_000,
+          limits: { maxToolCalls: 24, maxOutputTokensPerTurn: 4_096 },
+        },
+      ],
+      quotaRules: [
+        { provider: 'fake', requestsPerMinute: 20 },
+        { provider: 'fake', tokensPerMinute: 900_000 },
+      ],
+    });
+    // No first-wave finding: the wave alone fits both rules.
+    expect(report.findings.filter((f) => f.code.endsWith('below-wave'))).toHaveLength(0);
+    // The per-spawn loop ceiling: min(maxTurns 32, maxToolCalls 24 + 1).
+    expect(report.spawns[0].projectedProviderTurns).toBe(25);
+    // Fan-out times turns; cumulative tokens with per-turn regrowth:
+    // turn k reserves est + k x outputBound, so K turns cost
+    // K x est + outputBound x K(K+1)/2 per worker.
+    expect(report.exposure.runCeiling).toEqual({
+      requests: 200,
+      tokens: 8 * (25 * 9_000 + (4_096 * 25 * 26) / 2),
+    });
+    const requests = report.findings.find((f) => f.code === 'quota-requests-below-run');
+    expect(requests?.severity).toBe('warning');
+    expect(requests?.message).toContain('200 provider calls');
+    expect(requests?.message).toContain('requestsPerMinute 20');
+    expect(requests?.message).toContain('10 windows');
+    const tokens = report.findings.find((f) => f.code === 'quota-tokens-below-run');
+    expect(tokens?.severity).toBe('warning');
+    expect(tokens?.message).toContain('tokensPerMinute 900000');
+    expect(tokens?.message).toContain('14 windows');
   });
 
   it('denies past the lifetime spawn cap and the orchestrator maxSpawns in projection', () => {

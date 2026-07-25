@@ -8646,6 +8646,15 @@ interface PreflightSpawnReport {
   turnFloorUsd?: number;
   /** Executed-call ceiling across any tool mix; null = unlimited. */
   executedToolCallCeiling: number | null;
+  /**
+  * The provider-call ceiling of ONE spawn's whole loop: maxTurns
+  * bounded by the executed-call ceiling plus its final no-tool turn,
+  * plus the finalization summary turn when a tool budget limiter arms
+  * it. Every provider turn is one wire request and one quota
+  * reservation, so this is the per-spawn multiplier of quota demand;
+  * retries sit on top of it.
+  */
+  projectedProviderTurns: number;
   /** Per-tool ceilings for every tool a cap or a unit cost names. */
   toolCeilings: PreflightToolCeiling[];
 }
@@ -8672,7 +8681,8 @@ interface PreflightReport {
       /** min(capUsd, (capFraction ?? 0.2) x ceiling); absent when unresolvable. */effectiveCapUsd?: number;
       finalizeReserveUsd: number;
       finalizeTurns: number; /** Whether the finalize reserve is committed against the run root (extension runs). */
-      reserveCommitted: boolean;
+      reserveCommitted: boolean; /** The orchestrator agent's own loop ceiling, derived exactly like a spawn's. */
+      projectedProviderTurns: number;
     };
   };
   quota: {
@@ -8704,6 +8714,19 @@ interface PreflightReport {
       requestsPerWave: number;
       tokensPerWaveFloor: number;
     }>;
+    /**
+    * The declared wave run to its derived turn ceilings, at the
+    * declared estimates (the second experiment report, rec 9): total
+    * provider calls (fan-out times per-spawn projected turns, before
+    * any retries) and the cumulative token demand with the context
+    * regrowing every turn (turn k re-sends the declared prompt plus
+    * the k-1 prior output bounds, so K turns cost K x est +
+    * outputBound x K(K+1)/2). Absent when nothing is declared.
+    */
+    runCeiling?: {
+      requests: number;
+      tokens: number;
+    };
   };
   findings: PreflightFinding[];
 }

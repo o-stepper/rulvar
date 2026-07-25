@@ -338,6 +338,8 @@ export default {
     expect(lines).toContain('admission: 2 of 6 admitted');
     expect(lines).toContain('DENY  risk');
     expect(lines).toContain('tool web_search: ceiling=2 (toolUnits)');
+    expect(lines).toContain('projectedTurns=11'); // audit: 10 weighted executions + the final turn
+    expect(lines).toContain('runCeiling: requests=171'); // five 32-turn loops + audit's 11
     expect(lines).toContain('warning weighted-units-bind-first');
     expect(lines).toContain('warning partial-admission');
     // The linter neither creates a store nor dispatches: no .rulvar
