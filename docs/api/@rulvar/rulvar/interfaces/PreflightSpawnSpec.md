@@ -20,8 +20,9 @@ many spawns of this shape the first wave holds.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-budgetusd"></a> `budgetUsd?` | `number` | The spawn's explicit budget, exactly the spawn_agent `budgetUsd` param. Consumed by the layer-2 spawn-gate projection only (the shared `dispatchProjectionReserveUsd` clamp); a dynamic spawn's budget never becomes an account, so the layer-1 chain reserve is NOT clamped by it, exactly like the runtime. | `packages/core/dist/index.d.ts` |
 | <a id="property-count"></a> `count?` | `number` | How many spawns of this shape the wave declares; default 1. | `packages/core/dist/index.d.ts` |
-| <a id="property-estcost"></a> `estCost?` | `number` | The call-layer admission reserve hint, exactly AgentOpts.estCost. | `packages/core/dist/index.d.ts` |
+| <a id="property-estcost"></a> `estCost?` | `number` | The declared admission estimate. In a PLAIN wave this is AgentOpts.estCost verbatim. In an orchestrate wave (an `orchestrator` spec is present) a spawn tool has no per-call estCost channel, so declare the agentType PROFILE's estimate here: the layer-2 spawn gate evaluates exactly that (or the flat default), never the priced estimate. | `packages/core/dist/index.d.ts` |
 | <a id="property-estinputtokens"></a> `estInputTokens?` | `number` | The prompt-size stand-in for the runtime's adapter countTokens: feeds the priced admission estimate and the per-turn and quota exposure floors. Absent, the reserve falls through to the flat default exactly like a runtime spawn whose adapter cannot count. | `packages/core/dist/index.d.ts` |
 | <a id="property-label"></a> `label?` | `string` | Display label; defaults to the role name. | `packages/core/dist/index.d.ts` |
 | <a id="property-limits"></a> `limits?` | [`UsageLimits`](/api/@rulvar/rulvar/interfaces/UsageLimits.md) | The call-layer limits, merged exactly like AgentOpts.limits. | `packages/core/dist/index.d.ts` |

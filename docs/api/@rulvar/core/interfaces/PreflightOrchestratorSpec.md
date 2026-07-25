@@ -6,7 +6,7 @@
 
 # Interface: PreflightOrchestratorSpec
 
-Defined in: [packages/core/src/engine/preflight.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L76)
+Defined in: [packages/core/src/engine/preflight.ts:98](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L98)
 
 The OrchestrateOptions slice the estimator consumes.
 
@@ -14,7 +14,8 @@ The OrchestrateOptions slice the estimator consumes.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-budget"></a> `budget?` | [`OrchestratorBudgetSpec`](/api/@rulvar/core/interfaces/OrchestratorBudgetSpec.md) | - | [packages/core/src/engine/preflight.ts:77](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L77) |
-| <a id="property-extension"></a> `extension?` | `boolean` | Whether the orchestration runs under a plan extension (PlanRunner): only extension runs commit the finalize reserve against the run root, so only they subtract it from spawn-admission headroom. | [packages/core/src/engine/preflight.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L87) |
-| <a id="property-limits"></a> `limits?` | [`UsageLimits`](/api/@rulvar/core/interfaces/UsageLimits.md) | The orchestrator agent's own limits, exactly OrchestrateOptions.limits. | [packages/core/src/engine/preflight.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L81) |
-| <a id="property-maxspawns"></a> `maxSpawns?` | `number` | The per-orchestrate spawn cap, exactly OrchestrateOptions.maxSpawns. | [packages/core/src/engine/preflight.ts:79](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L79) |
+| <a id="property-budget"></a> `budget?` | [`OrchestratorBudgetSpec`](/api/@rulvar/core/interfaces/OrchestratorBudgetSpec.md) | - | [packages/core/src/engine/preflight.ts:99](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L99) |
+| <a id="property-estinputtokens"></a> `estInputTokens?` | `number` | The prompt-size stand-in for the UNCAPPED orchestrator's priced admission estimate (the goal prompt the runtime would countTokens). A CAPPED orchestrator ignores it: its admission estimate is the shared exact-fill hint (effectiveCap minus the committed finalize carve-out), exactly the live dispatch. | [packages/core/src/engine/preflight.ts:111](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L111) |
+| <a id="property-extension"></a> `extension?` | `boolean` | Whether the orchestration runs under a plan extension (PlanRunner): only extension runs commit the finalize reserve against the run root, so only they subtract it from spawn-admission headroom. | [packages/core/src/engine/preflight.ts:117](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L117) |
+| <a id="property-limits"></a> `limits?` | [`UsageLimits`](/api/@rulvar/core/interfaces/UsageLimits.md) | The orchestrator agent's own limits, exactly OrchestrateOptions.limits. | [packages/core/src/engine/preflight.ts:103](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L103) |
+| <a id="property-maxspawns"></a> `maxSpawns?` | `number` | The per-orchestrate spawn cap, exactly OrchestrateOptions.maxSpawns. | [packages/core/src/engine/preflight.ts:101](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L101) |

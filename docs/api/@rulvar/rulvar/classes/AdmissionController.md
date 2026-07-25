@@ -225,7 +225,10 @@ child-allowance account at dispatch; the childBudgetFraction cap
 never materializes as an account and must not shrink the
 projection. The token-count-priced estimate of ctx.agent is
 unreachable here (async); a divergence there lands as a journaled
-dispatch rejection instead of a strand.
+dispatch rejection instead of a strand. Delegates to the exported
+[dispatchProjectionReserveUsd](/api/@rulvar/rulvar/functions/dispatchProjectionReserveUsd.md) so the live gate and
+preflightEstimate share ONE formula (the 1.63.0 experiment review,
+P0.3).
 
 #### Parameters
 

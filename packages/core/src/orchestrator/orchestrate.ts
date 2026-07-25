@@ -667,6 +667,24 @@ function acceptancePromptLines(acceptance: OrchestrateAcceptance | undefined): s
  * unknown ref is a typed ConfigError, surfaced as a tool error to the
  * orchestrator and never a run failure.
  */
+/**
+ * The capped orchestrator's own admission estimate (the 1.63.0
+ * experiment review, P0.3): the effective cap MINUS the finalize
+ * carve-out already committed on the cap account, so the dispatch
+ * admits at EXACT FILL by construction (a capped orchestrator can never
+ * spend past its effectiveCap, and pricing the model's full
+ * maxOutputTokens instead pinned small run ceilings at zero remainder;
+ * the M12 checkpoint measured a self-solving orchestrator because no
+ * child was ever admitted). Exported so the live dispatch and
+ * preflightEstimate share ONE formula: both call this function.
+ */
+export function orchestratorAdmissionEstCostUsd(
+  effectiveCapUsd: number,
+  committedFinalizeReserveUsd: number,
+): number {
+  return effectiveCapUsd - committedFinalizeReserveUsd;
+}
+
 function resolveDispatchOpts(
   spec: SpawnAgentParams | ExtensionDispatchSpec,
   defaults: {
@@ -2300,11 +2318,12 @@ export function makeOrchestratorWorkflow(
       ...(capState === undefined
         ? {}
         : {
-            estCost:
-              capState.effectiveCapUsd -
-              (orchestratorAccount === undefined
+            estCost: orchestratorAdmissionEstCostUsd(
+              capState.effectiveCapUsd,
+              orchestratorAccount === undefined
                 ? 0
-                : (internals.budget.accountView(orchestratorAccount)?.finalizeReserveUsd ?? 0)),
+                : (internals.budget.accountView(orchestratorAccount)?.finalizeReserveUsd ?? 0),
+            ),
           }),
       ...(opts?.model === undefined ? {} : { model: opts.model }),
       ...(opts?.limits === undefined ? {} : { limits: opts.limits }),

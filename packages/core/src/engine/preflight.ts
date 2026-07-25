@@ -33,8 +33,15 @@ import {
   type EffectiveUsageLimits,
   type UsageLimits,
 } from '../runtime/usage-limits.js';
-import { DEFAULT_CHILD_BUDGET_FRACTION, DEFAULT_MAX_DEPTH } from '../orchestrator/admission.js';
-import type { OrchestratorBudgetSpec } from '../orchestrator/orchestrate.js';
+import {
+  DEFAULT_CHILD_BUDGET_FRACTION,
+  DEFAULT_MAX_DEPTH,
+  dispatchProjectionReserveUsd,
+} from '../orchestrator/admission.js';
+import {
+  orchestratorAdmissionEstCostUsd,
+  type OrchestratorBudgetSpec,
+} from '../orchestrator/orchestrate.js';
 import { admissionReserveUsd, DEFAULT_FLAT_RESERVE_USD } from './budget.js';
 import type { CreateEngineOptions, RunOptions } from './engine.js';
 import { DEFAULT_PER_RUN_CONCURRENCY } from './scheduler.js';
@@ -59,8 +66,23 @@ export interface PreflightSpawnSpec {
   model?: ModelSpec;
   /** The call-layer limits, merged exactly like AgentOpts.limits. */
   limits?: UsageLimits;
-  /** The call-layer admission reserve hint, exactly AgentOpts.estCost. */
+  /**
+   * The declared admission estimate. In a PLAIN wave this is
+   * AgentOpts.estCost verbatim. In an orchestrate wave (an
+   * `orchestrator` spec is present) a spawn tool has no per-call
+   * estCost channel, so declare the agentType PROFILE's estimate here:
+   * the layer-2 spawn gate evaluates exactly that (or the flat
+   * default), never the priced estimate.
+   */
   estCost?: number;
+  /**
+   * The spawn's explicit budget, exactly the spawn_agent `budgetUsd`
+   * param. Consumed by the layer-2 spawn-gate projection only (the
+   * shared `dispatchProjectionReserveUsd` clamp); a dynamic spawn's
+   * budget never becomes an account, so the layer-1 chain reserve is
+   * NOT clamped by it, exactly like the runtime.
+   */
+  budgetUsd?: number;
   /**
    * The prompt-size stand-in for the runtime's adapter countTokens:
    * feeds the priced admission estimate and the per-turn and quota
@@ -79,6 +101,14 @@ export interface PreflightOrchestratorSpec {
   maxSpawns?: number;
   /** The orchestrator agent's own limits, exactly OrchestrateOptions.limits. */
   limits?: UsageLimits;
+  /**
+   * The prompt-size stand-in for the UNCAPPED orchestrator's priced
+   * admission estimate (the goal prompt the runtime would countTokens).
+   * A CAPPED orchestrator ignores it: its admission estimate is the
+   * shared exact-fill hint (effectiveCap minus the committed finalize
+   * carve-out), exactly the live dispatch.
+   */
+  estInputTokens?: number;
   /**
    * Whether the orchestration runs under a plan extension (PlanRunner):
    * only extension runs commit the finalize reserve against the run
@@ -165,7 +195,7 @@ export interface PreflightAdmissionRow {
   label: string;
   reserveUsd: number;
   admitted: boolean;
-  deniedBy?: 'budget' | 'spawn-cap' | 'orchestrator-max-spawns' | 'orchestrator-cap';
+  deniedBy?: 'budget' | 'spawn-cap' | 'orchestrator-max-spawns';
 }
 
 /** The machine-readable preflight report; JSON-serializable throughout. */
@@ -295,6 +325,9 @@ function validateSpawnSpec(spec: PreflightSpawnSpec, index: number): void {
   if (spec.count !== undefined) {
     requirePositiveInteger(spec.count, `${site}.count`);
   }
+  if (spec.budgetUsd !== undefined) {
+    requireNonNegativeNumber(spec.budgetUsd, `${site}.budgetUsd`);
+  }
 }
 
 /**
@@ -351,6 +384,12 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
   let reservedForFinalizationUsd = 0;
   let effectiveCapUsd: number | undefined;
   if (input.orchestrator !== undefined) {
+    if (input.orchestrator.estInputTokens !== undefined) {
+      requireNonNegativeInteger(
+        input.orchestrator.estInputTokens,
+        'preflight.orchestrator.estInputTokens',
+      );
+    }
     const spec = input.orchestrator.budget;
     const fraction = spec?.capFraction ?? 0.2;
     const fromFraction = ceilingUsd === undefined ? undefined : fraction * ceilingUsd;
@@ -404,6 +443,13 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
   const spawnSpecs = input.spawns ?? [];
   spawnSpecs.forEach(validateSpawnSpec);
   const spawnReports: PreflightSpawnReport[] = [];
+  /**
+   * The layer-2 spawn-gate inputs per report, in report order: the
+   * DECLARED estimate (estCost or the profile's; never the priced
+   * arm, which the embedded gate cannot reach) and the explicit spawn
+   * budget. Only an orchestrate wave consumes them.
+   */
+  const waveGateInputs: Array<{ estCostUsd?: number; budgetUsd?: number }> = [];
   const units: SpawnUnit[] = [];
   for (const spec of spawnSpecs) {
     const role = spec.role ?? 'loop';
@@ -618,6 +664,13 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       executedToolCallCeiling,
       toolCeilings,
     });
+    {
+      const declaredEstCostUsd = spec.estCost ?? profile?.estCost;
+      waveGateInputs.push({
+        ...(declaredEstCostUsd === undefined ? {} : { estCostUsd: declaredEstCostUsd }),
+        ...(spec.budgetUsd === undefined ? {} : { budgetUsd: spec.budgetUsd }),
+      });
+    }
     for (let i = 0; i < count; i += 1) {
       const unit: SpawnUnit = {
         label: count === 1 ? label : `${label}#${String(i + 1)}`,
@@ -637,6 +690,7 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
   // The orchestrator agent is a declared unit too: its serving model
   // comes from routing.orchestrate, and an orchestration without one
   // would fail at spawn time exactly like an unrouted child.
+  let orchestratorReserveUsd: number | undefined;
   if (input.orchestrator !== undefined) {
     const servedBy = resolveServing(defaults.routing?.orchestrate);
     if (servedBy === undefined) {
@@ -674,6 +728,38 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         });
       }
       units.push(unit);
+      // The orchestrator's own admission reserve, exactly the live
+      // dispatch (the shared formulas of the 1.63.0 experiment review,
+      // P0.3): a CAPPED orchestrator admits at exact fill with the
+      // effectiveCap-minus-committed-finalize hint, so its cap chain
+      // can never deny it; an UNCAPPED one runs the same ctx.agent
+      // reserve chain every spawn runs (there is no estCost channel
+      // for the main orchestrator dispatch, so the arms are the priced
+      // estimate from the estInputTokens stand-in, the flat default,
+      // and the unpriced-model zero).
+      if (effectiveCapUsd !== undefined) {
+        // Floored at zero for the report: a cap below the committed
+        // finalize reserve makes the hint negative, but that config
+        // never dispatches (the boot refuses typed, and the
+        // orchestrator-cap-below-finalize-reserve error says so).
+        orchestratorReserveUsd = Math.max(
+          0,
+          orchestratorAdmissionEstCostUsd(effectiveCapUsd, reservedForFinalizationUsd),
+        );
+      } else if (pricing === undefined) {
+        orchestratorReserveUsd = 0;
+      } else {
+        orchestratorReserveUsd = admissionReserveUsd({
+          ...(input.orchestrator.estInputTokens === undefined
+            ? {}
+            : { inputTokens: input.orchestrator.estInputTokens }),
+          ...(caps === undefined ? {} : { caps }),
+          ...(orchLimits.maxOutputTokensPerTurn === undefined
+            ? {}
+            : { maxOutputTokensPerTurn: orchLimits.maxOutputTokensPerTurn }),
+          flatReserveUsd,
+        });
+      }
     }
   }
 
@@ -694,12 +780,13 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     return !(held >= ceilingUsd || held + reserveUsd > ceilingUsd);
   };
   if (input.orchestrator !== undefined) {
-    const reserveUsd = flatReserveUsd;
+    // A capped orchestrator's reserve is the exact-fill hint, so its
+    // own cap chain admits it by construction (the shared formula);
+    // only the spawn cap or an exotic root ceiling can deny the row.
+    const reserveUsd = orchestratorReserveUsd ?? flatReserveUsd;
     let deniedBy: PreflightAdmissionRow['deniedBy'];
     if (spawned >= lifetimeSpawnCap) {
       deniedBy = 'spawn-cap';
-    } else if (effectiveCapUsd !== undefined && reserveUsd > effectiveCapUsd) {
-      deniedBy = 'orchestrator-cap';
     } else if (!admitAgainstRoot(reserveUsd)) {
       deniedBy = 'budget';
     }
@@ -712,18 +799,12 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     if (deniedBy === undefined) {
       committed += reserveUsd;
       spawned += 1;
-    } else if (deniedBy === 'orchestrator-cap') {
-      say({
-        severity: 'error',
-        code: 'orchestrator-cap-below-reserve',
-        message:
-          `the orchestrator's own admission reserve ${reserveUsd.toFixed(4)} USD does not fit ` +
-          `its effective cap ${(effectiveCapUsd ?? 0).toFixed(4)} USD: the run cannot start`,
-      });
     }
   }
   const maxSpawns = input.orchestrator?.maxSpawns;
-  for (const report of spawnReports) {
+  const orchestrateWave = input.orchestrator !== undefined;
+  for (const [reportIndex, report] of spawnReports.entries()) {
+    const gate = waveGateInputs[reportIndex] ?? {};
     for (let i = 0; i < report.count; i += 1) {
       const label = report.count === 1 ? report.label : `${report.label}#${String(i + 1)}`;
       const reserveUsd = report.admissionReserveUsd;
@@ -732,8 +813,24 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         deniedBy = 'spawn-cap';
       } else if (maxSpawns !== undefined && children >= maxSpawns) {
         deniedBy = 'orchestrator-max-spawns';
-      } else if (!admitAgainstRoot(reserveUsd)) {
-        deniedBy = 'budget';
+      } else {
+        if (orchestrateWave && ceilingUsd !== undefined) {
+          // Layer 2, the embedded spawn gate: the SAME projection the
+          // live spawn_agent evaluation runs (the shared
+          // dispatchProjectionReserveUsd), against the remainder net of
+          // everything already committed, strict past exact fill. The
+          // gate never sees the priced estimate, so a wave the layer-1
+          // chain would afford can still die here, exactly like the
+          // runtime.
+          const remainder = ceilingUsd - committed - reservedForFinalizationUsd;
+          const projection = dispatchProjectionReserveUsd(gate, flatReserveUsd);
+          if (remainder <= 0 || remainder < projection) {
+            deniedBy = 'budget';
+          }
+        }
+        if (deniedBy === undefined && !admitAgainstRoot(reserveUsd)) {
+          deniedBy = 'budget';
+        }
       }
       wave.push({
         label,
