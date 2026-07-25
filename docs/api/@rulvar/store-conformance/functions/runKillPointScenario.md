@@ -10,7 +10,7 @@
 function runKillPointScenario(options): Promise<KillPointObservation>;
 ```
 
-Defined in: [packages/store-conformance/src/kill-points.ts:640](https://github.com/o-stepper/rulvar/blob/main/packages/store-conformance/src/kill-points.ts#L640)
+Defined in: [packages/store-conformance/src/kill-points.ts:646](https://github.com/o-stepper/rulvar/blob/main/packages/store-conformance/src/kill-points.ts#L646)
 
 Spawns the worker, asserts it died AT the configured write by
 SIGKILL, waits out the dead owner's lease, resumes the run over the
