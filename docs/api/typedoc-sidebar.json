@@ -2609,6 +2609,10 @@
             "link": "/api/@rulvar/core/functions/digestOf.md"
           },
           {
+            "text": "dispatchProjectionReserveUsd",
+            "link": "/api/@rulvar/core/functions/dispatchProjectionReserveUsd.md"
+          },
+          {
             "text": "dispositionHook",
             "link": "/api/@rulvar/core/functions/dispositionHook.md"
           },
@@ -2863,6 +2867,10 @@
           {
             "text": "orchestrate",
             "link": "/api/@rulvar/core/functions/orchestrate.md"
+          },
+          {
+            "text": "orchestratorAdmissionEstCostUsd",
+            "link": "/api/@rulvar/core/functions/orchestratorAdmissionEstCostUsd.md"
           },
           {
             "text": "parallelScope",
@@ -6899,6 +6907,10 @@
             "link": "/api/@rulvar/rulvar/functions/digestOf.md"
           },
           {
+            "text": "dispatchProjectionReserveUsd",
+            "link": "/api/@rulvar/rulvar/functions/dispatchProjectionReserveUsd.md"
+          },
+          {
             "text": "dispositionHook",
             "link": "/api/@rulvar/rulvar/functions/dispositionHook.md"
           },
@@ -7157,6 +7169,10 @@
           {
             "text": "orchestrate",
             "link": "/api/@rulvar/rulvar/functions/orchestrate.md"
+          },
+          {
+            "text": "orchestratorAdmissionEstCostUsd",
+            "link": "/api/@rulvar/rulvar/functions/orchestratorAdmissionEstCostUsd.md"
           },
           {
             "text": "parallelScope",

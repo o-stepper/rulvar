@@ -12,6 +12,8 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import type { ModelRef } from '../l0/messages.js';
+import { dispatchProjectionReserveUsd } from '../orchestrator/admission.js';
+import { orchestrate, orchestratorAdmissionEstCostUsd } from '../orchestrator/orchestrate.js';
 import { tool } from '../tools/tool.js';
 import { mergeUsageLimits } from '../runtime/usage-limits.js';
 import { defineWorkflow } from './ctx.js';
@@ -231,12 +233,18 @@ describe('preflightEstimate (P2.2)', () => {
     expect(plain.budget.orchestrator?.reserveCommitted).toBe(false);
     expect(plain.admission.reservedForFinalizationUsd).toBe(0);
     expect(plain.findings.map((f) => f.code)).toContain('orchestrator-cap-fraction-bound');
-    // The orchestrator's own flat reserve 0.5 does not fit its 0.18 cap.
+    // The capped orchestrator ADMITS at exact fill with the shared
+    // hint (effectiveCap minus the committed finalize carve-out): a
+    // tight cap is a tight loop budget, never a refused run (the
+    // 1.63.0 experiment review, P0.3: the old flat-reserve model
+    // errored here while the live run started fine).
     const orchRow = plain.admission.wave[0];
     expect(orchRow.label).toBe('orchestrator');
-    expect(orchRow.admitted).toBe(false);
-    expect(orchRow.deniedBy).toBe('orchestrator-cap');
-    expect(plain.findings.map((f) => f.code)).toContain('orchestrator-cap-below-reserve');
+    expect(orchRow.admitted).toBe(true);
+    expect(orchRow.reserveUsd).toBeCloseTo(0.18, 10);
+    expect(plain.findings.map((f) => f.code)).not.toContain('orchestrator-cap-below-reserve');
+    const plainChild = plain.admission.wave.find((row) => row.label === 'child');
+    expect(plainChild?.admitted).toBe(true);
 
     const extension = preflightEstimate({
       engine,
@@ -248,7 +256,11 @@ describe('preflightEstimate (P2.2)', () => {
     expect(extension.findings.map((f) => f.code)).toContain(
       'orchestrator-cap-below-finalize-reserve',
     );
-    // The committed reserve exceeds the whole ceiling: no child admits.
+    // The committed reserve exceeds the whole ceiling: nothing admits
+    // (live refuses the whole run typed at boot).
+    const orchExt = extension.admission.wave[0];
+    expect(orchExt.admitted).toBe(false);
+    expect(orchExt.deniedBy).toBe('budget');
     const child = extension.admission.wave.find((row) => row.label === 'child');
     expect(child?.admitted).toBe(false);
     expect(child?.deniedBy).toBe('budget');
@@ -374,5 +386,188 @@ describe('preflightEstimate (P2.2)', () => {
     expect(report.budget.childBudgetFraction).toBe(0.3);
     expect(report.budget.maxDepth).toBe(1);
     expect(report.quota.configured).toBe(false);
+  });
+});
+
+/** The telemetry namespace tells orchestrator requests from child ones. */
+function agentTypeOf(req: { providerOptions?: unknown }): string {
+  const rulvar = (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)?.rulvar;
+  return rulvar?.agentType ?? '';
+}
+
+describe('orchestrate-wave parity (the 1.63.0 experiment review, P0.3)', () => {
+  it('a capped orchestrator below the flat reserve admits at exact fill, matching the live run', async () => {
+    const engineOptions = {
+      defaults: {
+        routing: { loop: SERVED, orchestrate: SERVED },
+        profiles: { worker: { description: 'does one task', estCost: 0.2 } },
+      },
+    };
+    const report = preflightEstimate({
+      engine: { ...engineOptions, adapters: [scriptedAdapter(() => ({ text: 'x' }))] },
+      run: { budgetUsd: 0.9 },
+      orchestrator: { budget: { capUsd: 0.7 } },
+      spawns: [{ label: 'worker', profile: 'worker' }],
+    });
+    // Published 1.63.0 DENIED the orchestrator here with an error-tier
+    // finding (exit 1 in CI) while the live run started fine: the
+    // shared hint admits at exact fill.
+    expect(report.admission.wave[0].admitted).toBe(true);
+    expect(report.admission.wave[0].reserveUsd).toBeCloseTo(0.18, 10);
+    expect(report.admission.admitted).toBe(2);
+    expect(report.findings.filter((f) => f.severity === 'error')).toEqual([]);
+
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req) => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'did the task' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'go' } },
+        };
+      }
+      return { toolCall: { name: 'finish', args: { result: { done: true } } } };
+    });
+    const engine = createEngine({ ...engineOptions, adapters: [adapter] });
+    const outcome = await orchestrate(
+      engine,
+      'audit the ledger',
+      { profiles: ['worker'], budget: { capUsd: 0.7 } },
+      { budgetUsd: 0.9 },
+    ).result;
+    expect(outcome.status).toBe('ok');
+    const workerCalls = adapter.calls.filter((req) => agentTypeOf(req) === 'worker');
+    // The live wave admits exactly what the projection admits: the
+    // orchestrator plus the one worker.
+    expect(workerCalls.length).toBe(report.admission.admitted - 1);
+  });
+
+  it('children the live layer-2 gate denies are denied by the projection too', async () => {
+    const engineOptions = {
+      defaults: {
+        routing: { loop: SERVED, orchestrate: SERVED },
+        profiles: { worker: { description: 'does one task' } },
+      },
+    };
+    const report = preflightEstimate({
+      engine: { ...engineOptions, adapters: [scriptedAdapter(() => ({ text: 'x' }))] },
+      run: { budgetUsd: 0.6 },
+      orchestrator: { budget: { capFraction: 1.0 } },
+      spawns: [
+        { label: 'w1', estInputTokens: 1000 },
+        { label: 'w2', estInputTokens: 1000 },
+        { label: 'w3', estInputTokens: 1000 },
+      ],
+    });
+    // Published 1.63.0 projected 4 of 4 admitted (green) because the
+    // priced layer-1 arm is tiny; the live layer-2 gate evaluates the
+    // flat default against the remainder NET of the orchestrator's own
+    // exact-fill hold (0.6 - 0.6 = 0) and rejects every spawn.
+    expect(report.admission.wave[0].label).toBe('orchestrator');
+    expect(report.admission.wave[0].admitted).toBe(true);
+    expect(report.admission.wave[0].reserveUsd).toBeCloseTo(0.6, 10);
+    expect(report.admission.admitted).toBe(1);
+    for (const row of report.admission.wave.slice(1)) {
+      expect(row.admitted).toBe(false);
+      expect(row.deniedBy).toBe('budget');
+    }
+    expect(report.findings.map((f) => f.code)).toContain('partial-admission');
+
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req) => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'never reached' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'one' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'two' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'three' } },
+          ],
+        };
+      }
+      return { toolCall: { name: 'finish', args: { result: { done: true } } } };
+    });
+    const engine = createEngine({ ...engineOptions, adapters: [adapter] });
+    const rejected: string[] = [];
+    const handle = orchestrate(
+      engine,
+      'research the corpus',
+      { profiles: ['worker'], budget: { capFraction: 1.0 } },
+      { budgetUsd: 0.6 },
+    );
+    handle.on('spawn:rejected', (event) => {
+      rejected.push((event as { code: string }).code);
+    });
+    const outcome = await handle.result;
+    expect(outcome.status).toBe('ok');
+    expect(rejected).toEqual(['budget', 'budget', 'budget']);
+    expect(adapter.calls.filter((req) => agentTypeOf(req) === 'worker')).toHaveLength(0);
+  });
+
+  it('a spawn passing layer 2 on its explicit budget still dies on the layer-1 chain, both sides', async () => {
+    const engineOptions = {
+      defaults: {
+        routing: { loop: SERVED, orchestrate: SERVED },
+        profiles: { worker: { description: 'does one task' } },
+      },
+    };
+    const report = preflightEstimate({
+      engine: { ...engineOptions, adapters: [scriptedAdapter(() => ({ text: 'x' }))] },
+      run: { budgetUsd: 0.6 },
+      orchestrator: { budget: { capFraction: 0.5 } },
+      spawns: [{ label: 'worker', budgetUsd: 0.2 }],
+    });
+    // Layer 2 clamps to the explicit budget (min(0.5, 0.2) = 0.2, fits
+    // the 0.3 remainder) but the layer-1 chain commits the flat 0.5 (a
+    // dynamic spawn's budget never becomes an account), which busts the
+    // ceiling: the live spawn dies at dispatch, and the projection
+    // denies the same row.
+    expect(report.admission.wave[0].reserveUsd).toBeCloseTo(0.3, 10);
+    const row = report.admission.wave.find((r) => r.label === 'worker');
+    expect(row?.admitted).toBe(false);
+    expect(row?.deniedBy).toBe('budget');
+
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req) => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'never reached' };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCall: {
+            name: 'spawn_agent',
+            args: { agentType: 'worker', prompt: 'go', budgetUsd: 0.2 },
+          },
+        };
+      }
+      return { toolCall: { name: 'finish', args: { result: { done: true } } } };
+    });
+    const engine = createEngine({ ...engineOptions, adapters: [adapter] });
+    const outcome = await orchestrate(
+      engine,
+      'one bounded task',
+      { profiles: ['worker'], budget: { capFraction: 0.5 } },
+      { budgetUsd: 0.6 },
+    ).result;
+    // A layer-2 rejection is a polite spawn:rejected and the run goes
+    // on; a layer-1 bust AT DISPATCH is a ceiling event and settles the
+    // run exhausted. Either way the worker never dispatches, exactly
+    // as the projection's denied row says.
+    expect(outcome.status).toBe('exhausted');
+    expect(adapter.calls.filter((req) => agentTypeOf(req) === 'worker')).toHaveLength(0);
+  });
+
+  it('exports the two shared formulas the live paths call', () => {
+    expect(dispatchProjectionReserveUsd({}, 0.5)).toBe(0.5);
+    expect(dispatchProjectionReserveUsd({ estCostUsd: 2, budgetUsd: 0.4 }, 0.5)).toBe(0.4);
+    expect(dispatchProjectionReserveUsd({ budgetUsd: 0.1 }, 0.5)).toBe(0.1);
+    expect(orchestratorAdmissionEstCostUsd(0.18, 0)).toBeCloseTo(0.18, 10);
+    expect(orchestratorAdmissionEstCostUsd(0.7, 0.3)).toBeCloseTo(0.4, 10);
   });
 });

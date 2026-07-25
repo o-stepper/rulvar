@@ -221,6 +221,24 @@ export const MAX_DEPTH_CEILING = 4;
 export const DEFAULT_MAX_CHILDREN_PER_NODE = 16;
 export const DEFAULT_CHILD_BUDGET_FRACTION = 0.3;
 
+/**
+ * The ONE dispatch-projection reserve formula (the 1.63.0 experiment
+ * review, P0.3): the spawn's declared estimate (a spawn tool has no
+ * per-call estCost channel, so the estimate is the agentType profile's)
+ * or the flat default, clamped by the explicit child budget when one
+ * exists. This is the reserve the embedded layer-2 gate evaluates a
+ * spawn_agent call against BEFORE dispatch, and the number
+ * preflightEstimate projects for the same gate, so the linter and the
+ * runtime cannot drift: both call this function.
+ */
+export function dispatchProjectionReserveUsd(
+  spec: { estCostUsd?: number; budgetUsd?: number },
+  flatReserveUsd: number,
+): number {
+  const base = spec.estCostUsd ?? flatReserveUsd;
+  return spec.budgetUsd === undefined ? base : Math.min(base, spec.budgetUsd);
+}
+
 /** Nesting depth of a child scope: its workflow, agent, and plan-node segments. */
 export function spawnDepthOf(childScope: string): number {
   return parseScopePath(childScope).filter(
@@ -433,11 +451,13 @@ export class AdmissionController {
    * never materializes as an account and must not shrink the
    * projection. The token-count-priced estimate of ctx.agent is
    * unreachable here (async); a divergence there lands as a journaled
-   * dispatch rejection instead of a strand.
+   * dispatch rejection instead of a strand. Delegates to the exported
+   * {@link dispatchProjectionReserveUsd} so the live gate and
+   * preflightEstimate share ONE formula (the 1.63.0 experiment review,
+   * P0.3).
    */
   projectedDispatchReserveUsd(spec: Pick<AdmitSpec, 'estCostUsd' | 'budgetUsd'>): number {
-    const base = spec.estCostUsd ?? this.flatReserveUsd;
-    return spec.budgetUsd === undefined ? base : Math.min(base, spec.budgetUsd);
+    return dispatchProjectionReserveUsd(spec, this.flatReserveUsd);
   }
 
   admit(spec: AdmitSpec, options?: { commitReserve?: boolean }): AdmissionDecision {

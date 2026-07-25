@@ -15,6 +15,6 @@ One wave entry of the admission projection.
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
 | <a id="property-admitted"></a> `admitted` | `boolean` | `packages/core/dist/index.d.ts` |
-| <a id="property-deniedby"></a> `deniedBy?` | `"budget"` \| `"orchestrator-cap"` \| `"spawn-cap"` \| `"orchestrator-max-spawns"` | `packages/core/dist/index.d.ts` |
+| <a id="property-deniedby"></a> `deniedBy?` | `"budget"` \| `"spawn-cap"` \| `"orchestrator-max-spawns"` | `packages/core/dist/index.d.ts` |
 | <a id="property-label"></a> `label` | `string` | `packages/core/dist/index.d.ts` |
 | <a id="property-reserveusd"></a> `reserveUsd` | `number` | `packages/core/dist/index.d.ts` |
