@@ -198,7 +198,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The fifty two rounds, verbatim in this repository's history:
+The fifty three rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                          | Shipped as |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -254,6 +254,7 @@ The fifty two rounds, verbatim in this repository's history:
 | v1.60.0       | b4c1f1f (#352): durable provider reconciliation: the per-dispatch ledger with provider response ids, the gross/net cost split, and the invoice export               | v1.61.0    |
 | v1.61.0       | fca5fd1 (#355): the preflight effective-limits estimator and effective-config linter: the admission projection, the first-bottleneck ordering, and rulvar preflight | v1.62.0    |
 | v1.62.0       | 8a28aed (#358): the durable settlement acknowledgement and the fencing epoch tombstone: SettlementError, the meta-write skip, and delete/recreate monotonicity      | v1.63.0    |
+| v1.63.0       | 991f9b5 (#361): the preflight and live admission reserve unification: the two shared exported formulas, the two-gate orchestrate mirror, and the corrected findings | v1.64.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
