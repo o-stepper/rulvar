@@ -255,3 +255,43 @@ describe('the honest invoice (P1.2/P1.3/P1.4)', () => {
     expect(allocated).toBe(invoice.totalUsd);
   });
 });
+
+describe('usageUnknown on unconfirmed zero rows (the v1.71 experiment review, P1.4)', () => {
+  it('marks only the unconfirmed rows that recorded nothing, and counts them', () => {
+    const entry = terminalEntry(9, {
+      usage: usageOf(30, 8),
+      providerCalls: [
+        record(1, usageOf(0, 0), { outcome: 'error', errorCode: 'agent' }),
+        record(2, usageOf(10, 0), { outcome: 'error', errorCode: 'agent', attempt: 2 }),
+        record(3, usageOf(20, 8), { attempt: 3, responseId: 'resp-1' }),
+      ],
+    });
+    const invoice = invoiceFromJournal([entry], tieredPrice);
+    expect(invoice.rows.map((row) => row.reconciliation)).toEqual([
+      'unconfirmed',
+      'unconfirmed',
+      'provider-id-present',
+    ]);
+    // The zero row means "nothing recorded"; the partial-usage failure
+    // and the confirmed call never carry the marker.
+    expect(invoice.rows.map((row) => row.usageUnknown === true)).toEqual([true, false, false]);
+    expect(invoice.usageUnknownRows).toBe(1);
+  });
+
+  it('recorded reasoning tokens alone disqualify the marker, and the field stays absent otherwise', () => {
+    const entry = terminalEntry(11, {
+      usage: usageOf(0, 0),
+      providerCalls: [
+        record(
+          1,
+          { ...usageOf(0, 0), reasoningTokens: 5 },
+          { outcome: 'error', errorCode: 'agent' },
+        ),
+      ],
+    });
+    const invoice = invoiceFromJournal([entry], tieredPrice);
+    expect(invoice.rows[0]?.usageUnknown).toBeUndefined();
+    expect(invoice.usageUnknownRows).toBeUndefined();
+    expect(invoiceFromJournal([retriedEntry()], tieredPrice).usageUnknownRows).toBeUndefined();
+  });
+});

@@ -10,7 +10,7 @@
 function invoiceFromJournal(entries, priceUsd): InvoiceExport;
 ```
 
-Defined in: [packages/core/src/engine/invoice.ts:252](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L252)
+Defined in: [packages/core/src/engine/invoice.ts:265](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L265)
 
 The pure invoice fold. Pass the same entries and price table you
 would pass `costReportFromJournal`; the totals are that report's

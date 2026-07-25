@@ -322,6 +322,25 @@ export interface EngineQuotaConfig {
    * knob. reconcile failures only ever warn.
    */
   onLimiterError?: 'deny' | 'allow';
+  /**
+   * The drift telemetry opt-in (the v1.71 experiment review, P0.5
+   * resized): the SAME rule declaration `preflightEstimate` takes as
+   * `quotaRules`, mirrored here so the engine can hold it against what
+   * providers actually REPORT. When a live 429 carries
+   * provider-normalized limits (the openai and anthropic adapters
+   * parse the x-ratelimit headers into
+   * `WireError.data.reportedLimits`) and a declared per-minute cap
+   * EXCEEDS the reported one, the run journals a `quota_drift`
+   * decision (provider, model, tenant, dimension, declared, reported;
+   * one per invocation and dimension) and emits a warn log, because a
+   * limiter configured above the provider's real ceiling
+   * under-throttles and live denials follow: the experiment inflated
+   * 12M TPM over a real 1M and paid seven live 429s with nothing
+   * recording the mismatch. Purely observational: nothing clamps, the
+   * limiter keeps enforcing the declaration (clamping is host policy).
+   * Absent = byte identical journals and events.
+   */
+  declaredRules?: readonly QuotaRule[];
 }
 
 /** The resolved engine-side quota runtime threaded into every run. */
@@ -329,6 +348,8 @@ export interface EngineQuotaRuntime {
   limiter: QuotaLimiter;
   tenant?: string;
   onLimiterError: 'deny' | 'allow';
+  /** The declared rule mirror for drift telemetry; see {@link EngineQuotaConfig}. */
+  declaredRules?: readonly QuotaRule[];
 }
 
 /**
@@ -371,5 +392,9 @@ export function validateEngineQuotaConfig(
     candidate.onLimiterError !== 'allow'
   ) {
     throw new ConfigError(`${site}.onLimiterError must be 'deny' or 'allow' when given`);
+  }
+  const declared = (candidate as { declaredRules?: unknown }).declaredRules;
+  if (declared !== undefined) {
+    validateQuotaRules(declared as readonly QuotaRule[], `${site}.declaredRules`);
   }
 }

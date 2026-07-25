@@ -170,6 +170,16 @@ export interface AgentResult<T> {
    */
   transportRetries?: number;
   /**
+   * Provider-reported rate limits observed on this invocation's 429s
+   * (the v1.71 experiment review, P0.5): one entry per (provider,
+   * model), the latest observation winning, parsed by the adapters
+   * into `WireError.data.reportedLimits`. Live telemetry only, exactly
+   * like transportRetries: never journaled, absent on a replayed
+   * result; the ctx layer holds it against `quota.declaredRules` and
+   * journals the drift verdicts, which ARE durable.
+   */
+  rateLimitObservations?: RateLimitObservation[];
+  /**
    * The exploration guard counters (RV-210): present whenever any of
    * the exploration limits (toolBudgetNotices, maxRepeatedToolSignature,
    * maxNoNewEvidenceCalls) was configured. Journaled inside the terminal
@@ -190,6 +200,25 @@ export interface AgentResult<T> {
    * seeing a bare 'terminal status limit'.
    */
   partial?: ProgressReport;
+}
+
+/** One 429's provider-normalized limits, per (provider, model). */
+export interface RateLimitObservation {
+  provider: string;
+  model: string;
+  /**
+   * Per-minute limits the provider REPORTED in its rate-limit
+   * headers, normalized by the adapter: openai fills
+   * requestsPerMinute and tokensPerMinute; anthropic fills
+   * requestsPerMinute plus the split inputTokensPerMinute and
+   * outputTokensPerMinute.
+   */
+  reportedLimits: {
+    requestsPerMinute?: number;
+    tokensPerMinute?: number;
+    inputTokensPerMinute?: number;
+    outputTokensPerMinute?: number;
+  };
 }
 
 export type EscalatedResult<T> = AgentResult<T> & {
@@ -1002,6 +1031,7 @@ export async function runAgent<S extends SchemaSpec>(
   // identity.
   let invocationCounter = 0;
   let transportRetries = 0;
+  const rateLimitObservations = new Map<string, RateLimitObservation>();
   type OpenPhase = {
     invocation: number;
     role: InvocationRole;
@@ -2002,6 +2032,27 @@ export async function runAgent<S extends SchemaSpec>(
             record.errorCode = outcome.wireError.code;
           }
           providerCalls.push(record);
+          // Drift telemetry raw material (the v1.71 experiment review,
+          // P0.5): a real provider 429 that carries adapter-normalized
+          // reported limits is remembered per (provider, model), the
+          // latest observation winning. Synthetic limiter denials never
+          // reach this block (excluded with the other non-calls above),
+          // so only the provider's own voice counts. Live-only, exactly
+          // like transportRetries; the ctx layer holds the observations
+          // against quota.declaredRules and journals the verdicts.
+          const limited = outcome.wireError?.data as
+            { kind?: string; reportedLimits?: RateLimitObservation['reportedLimits'] } | undefined;
+          if (
+            limited?.kind === 'rate-limit' &&
+            typeof limited.reportedLimits === 'object' &&
+            limited.reportedLimits !== null
+          ) {
+            rateLimitObservations.set(`${target.adapter.id}:${target.resolved.model}`, {
+              provider: target.adapter.id,
+              model: target.resolved.model,
+              reportedLimits: limited.reportedLimits,
+            });
+          }
         }
         tries += 1;
         const retryClass =
@@ -3091,6 +3142,9 @@ export async function runAgent<S extends SchemaSpec>(
   }
   if (transportRetries > 0) {
     result.transportRetries = transportRetries;
+  }
+  if (rateLimitObservations.size > 0) {
+    result.rateLimitObservations = [...rateLimitObservations.values()];
   }
   // agent:end (with entryRef) is emitted by the ctx layer after the
   // terminal journal entry is appended.

@@ -262,6 +262,7 @@ exactly the pieces you need, for example
 | [QuotaRule](/api/@rulvar/core/interfaces/QuotaRule.md) | One shared-quota rule. The dimension fields select which requests the rule governs (an absent dimension matches every value); EVERY matching rule must admit a request, and a grant consumes capacity from each of them. The counters are rule-scoped: one rule matching two models pools them under one cap; write one rule per model for per-model buckets. |
 | [QuotaWindowSnapshot](/api/@rulvar/core/interfaces/QuotaWindowSnapshot.md) | One rule's live counters, exposed by `snapshot()` for telemetry. |
 | [RandIdentityInput](/api/@rulvar/core/interfaces/RandIdentityInput.md) | Deterministic shims: ctx.now / ctx.random / ctx.uuid (kind 'rand'). |
+| [RateLimitObservation](/api/@rulvar/core/interfaces/RateLimitObservation.md) | One 429's provider-normalized limits, per (provider, model). |
 | [ReconcileOptions](/api/@rulvar/core/interfaces/ReconcileOptions.md) | - |
 | [ReconcileResult](/api/@rulvar/core/interfaces/ReconcileResult.md) | - |
 | [RefEntryAppender](/api/@rulvar/core/interfaces/RefEntryAppender.md) | The append surface the arbiter drives (implemented by the Replayer). |

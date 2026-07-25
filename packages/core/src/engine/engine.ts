@@ -794,6 +794,9 @@ export function createEngine(options: CreateEngineOptions): Engine {
           limiter: options.quota.limiter,
           ...(options.quota.tenant === undefined ? {} : { tenant: options.quota.tenant }),
           onLimiterError: options.quota.onLimiterError ?? 'deny',
+          ...(options.quota.declaredRules === undefined
+            ? {}
+            : { declaredRules: options.quota.declaredRules }),
         };
   // The runtime side holds the current()-only handle, never the store:
   // commit is unreachable from inside a run by the shape of the API.

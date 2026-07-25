@@ -237,3 +237,174 @@ describe('byte-identity when granted', () => {
     expect(JSON.stringify(quotaed.calls)).toBe(JSON.stringify(bare.calls));
   });
 });
+
+describe('quota drift telemetry (the v1.71 experiment review, P0.5 resized)', () => {
+  const DECLARED = [{ requestsPerMinute: 120, tokensPerMinute: 12_000_000 }];
+
+  /** Fails the first wire call with a 429 carrying reported limits, then answers. */
+  function limitedThenAnswering(
+    reportedLimits: Record<string, number>,
+  ): ProviderAdapter & { callCount: () => number } {
+    let calls = 0;
+    return {
+      id: 'fake',
+      callCount: () => calls,
+      caps: () => testCaps(),
+      // eslint-disable-next-line @typescript-eslint/require-await
+      async *stream(req: ChatRequest): AsyncIterable<ChatEvent> {
+        void req;
+        calls += 1;
+        if (calls === 1) {
+          yield {
+            type: 'error',
+            error: {
+              code: 'agent',
+              message: 'rate limited',
+              retryable: true,
+              data: { kind: 'rate-limit', retryAfterMs: 1, status: 429, reportedLimits },
+            },
+          };
+          return;
+        }
+        yield { type: 'text-delta', text: 'answered' };
+        yield {
+          type: 'finish',
+          finish: { reason: 'stop' },
+          usage: { inputTokens: 12, outputTokens: 7, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        };
+      },
+    };
+  }
+
+  it('journals declared-versus-reported per dimension and warns, once per invocation', async () => {
+    const adapter = limitedThenAnswering({ requestsPerMinute: 20, tokensPerMinute: 1_000_000 });
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' }, retry: fastRetry },
+      quota: {
+        limiter: memoryQuotaLimiter(DECLARED),
+        tenant: 'acme',
+        declaredRules: DECLARED,
+      },
+    });
+    const handle = engine.run(askWf, undefined, { runId: 'DRIFT' });
+    const warns: string[] = [];
+    const drained = (async () => {
+      for await (const event of handle.events) {
+        if (event.type === 'log' && event.level === 'warn') {
+          warns.push(event.msg);
+        }
+      }
+    })();
+    const outcome = await handle.result;
+    await drained;
+    expect(outcome.status).toBe('ok');
+    const drifts = (await store.load('DRIFT'))
+      .filter(
+        (e) =>
+          e.kind === 'decision' &&
+          (e.value as { decisionType?: string } | undefined)?.decisionType === 'quota_drift',
+      )
+      .map((e) => e.value as Record<string, unknown>);
+    expect(drifts).toHaveLength(2);
+    expect(drifts).toContainEqual(
+      expect.objectContaining({
+        dimension: 'requests',
+        provider: 'fake',
+        model: 'model',
+        tenant: 'acme',
+        declaredPerMinute: 120,
+        reportedPerMinute: 20,
+      }),
+    );
+    expect(drifts).toContainEqual(
+      expect.objectContaining({
+        dimension: 'tokens',
+        declaredPerMinute: 12_000_000,
+        reportedPerMinute: 1_000_000,
+      }),
+    );
+    expect(warns.join('\n')).toContain("journaled decision 'quota_drift'");
+    expect(warns.join('\n')).toContain('declared 120/min');
+  });
+
+  it('sums split input and output token limits before comparing (the anthropic shape)', async () => {
+    const adapter = limitedThenAnswering({
+      inputTokensPerMinute: 400_000,
+      outputTokensPerMinute: 80_000,
+    });
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store },
+      defaults: { routing: { loop: 'fake:model' }, retry: fastRetry },
+      quota: { limiter: memoryQuotaLimiter(DECLARED), declaredRules: DECLARED },
+    });
+    const outcome = await engine.run(askWf, undefined, { runId: 'DRIFT-SUM' }).result;
+    expect(outcome.status).toBe('ok');
+    const drifts = (await store.load('DRIFT-SUM'))
+      .filter(
+        (e) =>
+          e.kind === 'decision' &&
+          (e.value as { decisionType?: string } | undefined)?.decisionType === 'quota_drift',
+      )
+      .map((e) => e.value as Record<string, unknown>);
+    expect(drifts).toHaveLength(1);
+    expect(drifts[0]).toMatchObject({
+      dimension: 'tokens',
+      declaredPerMinute: 12_000_000,
+      reportedPerMinute: 480_000,
+    });
+  });
+
+  it('stays silent without declaredRules and when the declaration is honest', async () => {
+    // (a) No declaredRules: the observation flows through retry exactly
+    // as before, zero new journal entries (byte identity).
+    const bare = limitedThenAnswering({ requestsPerMinute: 20 });
+    const bareStore = new InMemoryStore();
+    const bareOutcome = await createEngine({
+      adapters: [bare],
+      stores: { journal: bareStore },
+      defaults: { routing: { loop: 'fake:model' }, retry: fastRetry },
+      quota: { limiter: memoryQuotaLimiter(DECLARED) },
+    }).run(askWf, undefined, { runId: 'NO-DECL' }).result;
+    expect(bareOutcome.status).toBe('ok');
+    expect(
+      (await bareStore.load('NO-DECL')).some(
+        (e) => (e.value as { decisionType?: string } | undefined)?.decisionType === 'quota_drift',
+      ),
+    ).toBe(false);
+
+    // (b) Honest declaration: reported meets or exceeds it, no drift.
+    const honest = limitedThenAnswering({ requestsPerMinute: 200, tokensPerMinute: 20_000_000 });
+    const honestStore = new InMemoryStore();
+    const honestOutcome = await createEngine({
+      adapters: [honest],
+      stores: { journal: honestStore },
+      defaults: { routing: { loop: 'fake:model' }, retry: fastRetry },
+      quota: { limiter: memoryQuotaLimiter(DECLARED), declaredRules: DECLARED },
+    }).run(askWf, undefined, { runId: 'HONEST' }).result;
+    expect(honestOutcome.status).toBe('ok');
+    expect(
+      (await honestStore.load('HONEST')).some(
+        (e) => (e.value as { decisionType?: string } | undefined)?.decisionType === 'quota_drift',
+      ),
+    ).toBe(false);
+  });
+
+  it('rejects malformed declaredRules at createEngine intake', () => {
+    expect(() =>
+      createEngine({
+        adapters: [answeringAdapter()],
+        stores: { journal: new InMemoryStore() },
+        defaults: { routing: { loop: 'fake:model' } },
+        quota: {
+          limiter: memoryQuotaLimiter(DECLARED),
+          declaredRules: [{ requestsPerMinute: -1 }],
+        },
+      }),
+    ).toThrow(ConfigError);
+  });
+});

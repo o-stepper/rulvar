@@ -66,6 +66,17 @@ export interface InvoiceRow {
   responseId?: string;
   usage: Usage;
   usageApprox?: boolean;
+  /**
+   * Present and true when this `unconfirmed` row recorded ZERO usage
+   * on every counter (the v1.71 experiment review, P1.4): a failed
+   * attempt whose usage this ledger never saw. The zeros mean
+   * "nothing recorded", never "the provider metered nothing": the
+   * provider may have billed prompt processing before the failure, so
+   * a statement join must treat this row's usage as unknown, not as
+   * zero. Derived at export time from the journaled record; rows with
+   * any recorded usage, and every other verdict, never carry it.
+   */
+  usageUnknown?: true;
   /** This row priced at its own model's rate; absent when no price row covers it. */
   usd?: number;
   /**
@@ -108,6 +119,8 @@ export interface InvoiceExport {
   unpriced: Array<{ model: string; usage: Usage }>;
   /** Rows whose reconciliation is not 'provider-id-present'. */
   reconciliationFailures: number;
+  /** Rows carrying `usageUnknown`; present when at least one does. */
+  usageUnknownRows?: number;
   /** Present and true when any contributing entry carried approximate usage. */
   usageApprox?: boolean;
 }
@@ -269,6 +282,20 @@ export function invoiceFromJournal(
     const records = entry.providerCalls ?? [];
     for (const record of records) {
       const usd = rowUsd(priceUsd, record.servedBy, record.usage);
+      const reconciliation: InvoiceReconciliation =
+        record.responseId !== undefined
+          ? 'provider-id-present'
+          : record.outcome === 'ok'
+            ? 'missing-provider-id'
+            : 'unconfirmed';
+      // The zero on an unconfirmed row means "nothing recorded", not
+      // "the provider metered nothing" (the v1.71 experiment review,
+      // P1.4): say so machine-readably instead of letting the zeros
+      // read as a statement claim.
+      const usageUnknown =
+        reconciliation === 'unconfirmed' &&
+        USAGE_FIELDS.every((field) => record.usage[field] === 0) &&
+        (record.usage.reasoningTokens ?? 0) === 0;
       rows.push({
         ...base,
         ordinal: record.ordinal,
@@ -279,15 +306,11 @@ export function invoiceFromJournal(
         ...(record.responseId === undefined ? {} : { responseId: record.responseId }),
         usage: record.usage,
         ...(record.usageApprox === true ? { usageApprox: true } : {}),
+        ...(usageUnknown ? { usageUnknown: true } : {}),
         ...(usd === undefined ? {} : { usd }),
         allocatedUsd: 0,
         ...mark,
-        reconciliation:
-          record.responseId !== undefined
-            ? 'provider-id-present'
-            : record.outcome === 'ok'
-              ? 'missing-provider-id'
-              : 'unconfirmed',
+        reconciliation,
       });
     }
     if (records.length === 0) {
@@ -344,6 +367,10 @@ export function invoiceFromJournal(
     unpriced: [...report.unpriced, ...report.abandoned.unpriced],
     reconciliationFailures: rows.filter((row) => row.reconciliation !== 'provider-id-present')
       .length,
+    ...((): { usageUnknownRows?: number } => {
+      const count = rows.filter((row) => row.usageUnknown === true).length;
+      return count === 0 ? {} : { usageUnknownRows: count };
+    })(),
     ...(usageApprox ? { usageApprox: true } : {}),
   };
 }

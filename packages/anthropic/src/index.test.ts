@@ -447,13 +447,27 @@ describe('stream mapping (M1-T12)', () => {
       headers: {
         'retry-after': '7',
         'x-ratelimit-remaining-requests': '0',
+        'x-ratelimit-limit-requests': '50',
+        'x-ratelimit-limit-input-tokens': '40000',
+        'x-ratelimit-limit-output-tokens': '8000',
       },
     });
     expect(rateLimited.retryable).toBe(true);
     expect(rateLimited.data).toMatchObject({
       kind: 'rate-limit',
       retryAfterMs: 7000,
-      buckets: { 'x-ratelimit-remaining-requests': '0' },
+      buckets: {
+        'x-ratelimit-remaining-requests': '0',
+        'x-ratelimit-limit-requests': '50',
+      },
+      // The normalized per-minute limits for the engine's drift
+      // telemetry (the v1.71 experiment review, P0.5): anthropic
+      // reports split input and output token windows.
+      reportedLimits: {
+        requestsPerMinute: 50,
+        inputTokensPerMinute: 40_000,
+        outputTokensPerMinute: 8_000,
+      },
     });
     expect(anthropicErrorToWire({ status: 529, message: 'overloaded' }).retryable).toBe(true);
     expect(anthropicErrorToWire({ status: 400, message: 'bad' }).retryable).toBe(false);

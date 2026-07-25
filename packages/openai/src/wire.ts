@@ -549,6 +549,15 @@ function retryAfterMsFrom(header: string): number | undefined {
   return Math.min(Number(match[1]) * 1000, MAX_RETRY_AFTER_MS);
 }
 
+/** A plain nonnegative integer header value, or undefined. */
+function limitHeaderValue(header: string | undefined): number | undefined {
+  if (header === undefined) {
+    return undefined;
+  }
+  const match = /^[\t ]*([0-9]+)[\t ]*$/.exec(header);
+  return match === null ? undefined : Number(match[1]);
+}
+
 /** Projects SDK/API errors into the retryable WireError vocabulary. */
 export function openAiErrorToWire(error: unknown): WireError {
   const record = error as {
@@ -558,18 +567,45 @@ export function openAiErrorToWire(error: unknown): WireError {
   };
   const status = typeof record.status === 'number' ? record.status : undefined;
   const message = typeof record.message === 'string' ? record.message : String(error);
-  if (status === 429) {
-    let retryAfterMs: number | undefined;
+  const headerGet = (name: string): string | undefined => {
     const headers = record.headers;
-    if (headers !== undefined && headers !== null) {
-      const value =
-        typeof (headers as Headers).get === 'function'
-          ? ((headers as Headers).get('retry-after') ?? undefined)
-          : (headers as Record<string, string>)['retry-after'];
+    if (headers === undefined || headers === null) {
+      return undefined;
+    }
+    if (typeof (headers as Headers).get === 'function') {
+      return (headers as Headers).get(name) ?? undefined;
+    }
+    return (headers as Record<string, string>)[name];
+  };
+  if (status === 429) {
+    const retryAfterHeader = headerGet('retry-after');
+    const retryAfterMs =
+      retryAfterHeader === undefined ? undefined : retryAfterMsFrom(retryAfterHeader);
+    // The raw x-ratelimit buckets ride for forensics (the anthropic
+    // wire's symmetry, closed by the v1.71 experiment review: the
+    // provider SAID 1M TPM in these headers while the host declared
+    // 12M, and nothing captured it), and `reportedLimits` normalizes
+    // the per-minute limits so the engine's drift telemetry can hold
+    // them against quota.declaredRules without provider-specific
+    // header knowledge.
+    const buckets: Record<string, string> = {};
+    for (const name of [
+      'x-ratelimit-limit-requests',
+      'x-ratelimit-remaining-requests',
+      'x-ratelimit-limit-tokens',
+      'x-ratelimit-remaining-tokens',
+    ]) {
+      const value = headerGet(name);
       if (value !== undefined) {
-        retryAfterMs = retryAfterMsFrom(value);
+        buckets[name] = value;
       }
     }
+    const requestsPerMinute = limitHeaderValue(headerGet('x-ratelimit-limit-requests'));
+    const tokensPerMinute = limitHeaderValue(headerGet('x-ratelimit-limit-tokens'));
+    const reportedLimits = {
+      ...(requestsPerMinute === undefined ? {} : { requestsPerMinute }),
+      ...(tokensPerMinute === undefined ? {} : { tokensPerMinute }),
+    };
     return {
       code: 'agent',
       message,
@@ -577,6 +613,8 @@ export function openAiErrorToWire(error: unknown): WireError {
       data: {
         kind: 'rate-limit',
         ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
+        ...(Object.keys(buckets).length > 0 ? { buckets } : {}),
+        ...(Object.keys(reportedLimits).length > 0 ? { reportedLimits } : {}),
         status: 429,
       },
     };
