@@ -198,7 +198,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The fifty seven rounds, verbatim in this repository's history:
+The fifty eight rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                          | Shipped as |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -259,6 +259,7 @@ The fifty seven rounds, verbatim in this repository's history:
 | v1.65.0       | 1b8987e (#367): the RunOutcome completion mirror: one lift computed once and spread onto both handle.result and run:end, on every path                              | v1.66.0    |
 | v1.66.0       | 8e6006d (#370): the honest invoice: provider-id-present verdict, declared per-call pricing basis and non-additivity, additive allocatedUsd                          | v1.67.0    |
 | v1.67.0       | b227874 (#373): the machine-readable synthesis-skip reason: the causing journaled decision freezes it, typed error data and an info log carry it                    | v1.68.0    |
+| v1.68.0       | b21a681 (#376): the tool-cap-before-checkpoint preflight warning: the parallel-batch loss window named with the exact executed-call ceiling                         | v1.69.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
