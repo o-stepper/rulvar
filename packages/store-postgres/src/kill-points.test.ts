@@ -72,25 +72,27 @@ afterAll(async () => {
   await admin.end();
 });
 
-if (hasDb) {
-  registerConformance(
-    killPointConformance({
-      writerScript,
-      dir,
-      prepare: () => {
-        schemaCounter += 1;
-        const schema = `rulvar_kp_${SUITE_ID}_${String(schemaCounter)}`;
-        schemas.push(schema);
-        return {
-          env: { RULVAR_POSTGRES_URL: url ?? '', RULVAR_PG_KP_SCHEMA: schema },
-          openStore: () => {
-            const store = new PostgresStore({ url: url ?? '', schema, ttlMs: 300, max: 3 });
-            opened.push(store);
-            return { journal: store, transcripts: store.transcripts() };
-          },
-        };
-      },
-    }),
-    { describe: describeDb, it: (name, fn) => it.skipIf(!hasDb)(name, fn, 40_000) },
-  );
-}
+// Registered UNCONDITIONALLY: without a database the skipIf registrar
+// records the whole table as skipped (a file whose every suite lives
+// behind `if (hasDb)` registers nothing on the no-service CI jobs, and
+// vitest fails it with "No test suite found").
+registerConformance(
+  killPointConformance({
+    writerScript,
+    dir,
+    prepare: () => {
+      schemaCounter += 1;
+      const schema = `rulvar_kp_${SUITE_ID}_${String(schemaCounter)}`;
+      schemas.push(schema);
+      return {
+        env: { RULVAR_POSTGRES_URL: url ?? '', RULVAR_PG_KP_SCHEMA: schema },
+        openStore: () => {
+          const store = new PostgresStore({ url: url ?? '', schema, ttlMs: 300, max: 3 });
+          opened.push(store);
+          return { journal: store, transcripts: store.transcripts() };
+        },
+      };
+    },
+  }),
+  { describe: describeDb, it: (name, fn) => it.skipIf(!hasDb)(name, fn, 40_000) },
+);
