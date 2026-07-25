@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.72.0
+
+#### Patch Changes
+
+- Updated dependencies [662e9e0]
+  - @rulvar/core@1.72.0
+
 ### 1.71.0
 
 #### Patch Changes
@@ -897,6 +904,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.72.0
+
+#### Patch Changes
+
+- Updated dependencies [662e9e0]
+  - @rulvar/core@1.72.0
+
 ### 1.71.0
 
 #### Patch Changes
@@ -1641,6 +1655,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.72.0
+
+#### Patch Changes
+
+- Updated dependencies [662e9e0]
+  - @rulvar/core@1.72.0
 
 ### 1.71.0
 
@@ -2692,6 +2713,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.72.0
+
+#### Minor Changes
+
+- 662e9e0: The unified output contract (the v1.71 experiment review, P0.1/P0.2/P0.3/P1.1): `finishContract(manifest)` generates the prompt statement, the stock validator set, a stable sha256 hash, and golden self-test fixtures from ONE immutable manifest, so the prompt a model follows and the validators a host enforces cannot drift apart by construction. `finishValidation.contract` wires it into orchestrate: the construction-time golden self test fails a stale validator as a ConfigError BEFORE any provider call (the experiment burned a full paid run on three renamed section headings), the contract statement is injected into the coordination and synthesis prompts, every contract validator must be present in the configured set by name, and the run journals a frozen bundle descriptor (`orchestrator_finish_validation_bundle`) with supersession on resume under a fixed contract. `preflightEstimate` accepts the same declaration and reports drift as the error finding `output-contract-validator-mismatch` with a `finishValidation` echo block. Two new stock validators: `wordCountValidator` (formal length bounds as code) and `sectionCitationsValidator` (per-section citation coverage, because a total count hides sections with zero provenance). Absent contract and selfTest, every existing configuration keeps byte-identical prompts, journals, and reports.
 
 ### 1.71.0
 
@@ -4136,6 +4163,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.72.0
+
 ### 1.71.0
 
 ### 1.70.1
@@ -4374,6 +4403,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.72.0
+
+#### Patch Changes
+
+- Updated dependencies [662e9e0]
+  - @rulvar/core@1.72.0
+  - @rulvar/testing@1.72.0
 
 ### 1.71.0
 
@@ -5302,6 +5339,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.72.0
+
+#### Patch Changes
+
+- Updated dependencies [662e9e0]
+  - @rulvar/core@1.72.0
+
 ### 1.71.0
 
 #### Patch Changes
@@ -5431,6 +5475,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.72.0
+
+#### Patch Changes
+
+- Updated dependencies [662e9e0]
+  - @rulvar/core@1.72.0
 
 ### 1.71.0
 
@@ -6328,6 +6379,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.72.0
+
+#### Patch Changes
+
+- Updated dependencies [662e9e0]
+  - @rulvar/core@1.72.0
+
 ### 1.71.0
 
 #### Patch Changes
@@ -7193,6 +7251,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.72.0
+
+#### Patch Changes
+
+- Updated dependencies [662e9e0]
+  - @rulvar/core@1.72.0
+  - eslint-plugin-rulvar@1.72.0
 
 ### 1.71.0
 
@@ -8077,6 +8143,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.72.0
+
+#### Patch Changes
+
+- Updated dependencies [662e9e0]
+  - @rulvar/core@1.72.0
+  - @rulvar/anthropic@1.72.0
+  - @rulvar/openai@1.72.0
 
 ### 1.71.0
 
@@ -9123,6 +9198,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.72.0
+
+#### Patch Changes
+
+- Updated dependencies [662e9e0]
+  - @rulvar/core@1.72.0
+
 ### 1.71.0
 
 #### Patch Changes
@@ -9972,6 +10054,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.72.0
+
+#### Patch Changes
+
+- Updated dependencies [662e9e0]
+  - @rulvar/core@1.72.0
+
 ### 1.71.0
 
 #### Patch Changes
@@ -10123,6 +10212,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.72.0
+
+#### Patch Changes
+
+- Updated dependencies [662e9e0]
+  - @rulvar/core@1.72.0
 
 ### 1.71.0
 
@@ -10914,6 +11010,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.72.0
+
+#### Patch Changes
+
+- Updated dependencies [662e9e0]
+  - @rulvar/core@1.72.0
 
 ### 1.71.0
 
