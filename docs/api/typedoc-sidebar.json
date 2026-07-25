@@ -1841,6 +1841,10 @@
             "link": "/api/@rulvar/core/type-aliases/OperationDisposition.md"
           },
           {
+            "text": "OrchestrateSynthesisSkipReason",
+            "link": "/api/@rulvar/core/type-aliases/OrchestrateSynthesisSkipReason.md"
+          },
+          {
             "text": "Out",
             "link": "/api/@rulvar/core/type-aliases/Out.md"
           },
@@ -6113,6 +6117,10 @@
           {
             "text": "OperationDisposition",
             "link": "/api/@rulvar/rulvar/type-aliases/OperationDisposition.md"
+          },
+          {
+            "text": "OrchestrateSynthesisSkipReason",
+            "link": "/api/@rulvar/rulvar/type-aliases/OrchestrateSynthesisSkipReason.md"
           },
           {
             "text": "Out",
