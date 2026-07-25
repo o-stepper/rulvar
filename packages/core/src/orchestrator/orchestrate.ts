@@ -257,6 +257,23 @@ export interface FinishValidationSpec {
    */
   maxRepairs?: number;
   /**
+   * The repair turn reserve (the v1.71 experiment review, P0.4; the
+   * reserve RV-204 deliberately deferred). A nonnegative integer,
+   * default 0: max EXTRA turns the invocation the validators bind (the
+   * synthesis invocation when `synthesis` is configured, the
+   * coordination loop otherwise) may consume past its `maxTurns`, one
+   * granted per rejected finish exchange, schema-invalid finish
+   * arguments and host validation rejections alike. Without it, repair
+   * exchanges and generation compete for the same turn budget: the
+   * v1.71 experiment lost its whole run to one malformed finish plus
+   * one validator rejection inside maxTurns 3. The reserve is bounded,
+   * spends from the ordinary budget ceilings (a granted turn is a paid
+   * provider turn), and folds into the preflight turn projection
+   * (`projectedProviderTurns` and the run ceiling) when declared
+   * there. Zero keeps the pre 1.73 ceiling byte identical.
+   */
+  repairTurnReserve?: number;
+  /**
    * The unified output contract this validator set enforces (the v1.71
    * experiment review, P0.1/P0.2). Construction then runs the golden
    * self test with the contract's fixtures as defaults, the contract's
@@ -607,6 +624,12 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     }
     if (fv.maxRepairs !== undefined) {
       requireNonNegativeInteger(fv.maxRepairs as number, 'orchestrate finishValidation.maxRepairs');
+    }
+    if ((fv as { repairTurnReserve?: unknown }).repairTurnReserve !== undefined) {
+      requireNonNegativeInteger(
+        (fv as { repairTurnReserve?: unknown }).repairTurnReserve as number,
+        'orchestrate finishValidation.repairTurnReserve',
+      );
     }
     // The output contract wiring (the v1.71 experiment review): the
     // containment check and the golden self test run HERE, at
@@ -2574,10 +2597,17 @@ export function makeOrchestratorWorkflow(
         name: FINISH_TOOL_NAME,
         // With synthesis configured (RV-211) the coordination finish is
         // a DRAFT: the validators bind the synthesis finish instead,
-        // because they must judge the FINAL output.
+        // because they must judge the FINAL output. The repair reserve
+        // rides exactly with the validators, so a draft finish can
+        // never spend it.
         ...(validationSpec === undefined || opts?.synthesis !== undefined
           ? {}
-          : { validate: validateFinish }),
+          : {
+              validate: validateFinish,
+              ...(validationSpec.repairTurnReserve === undefined
+                ? {}
+                : { repairTurnReserve: validationSpec.repairTurnReserve }),
+            }),
       },
       // Checkpoint lineage across root attempts (the v1.6.0 follow-up
       // review's mode (c) contract): a rerun after a cancelled root
@@ -3051,7 +3081,14 @@ export function makeOrchestratorWorkflow(
         ...(spec.estCost === undefined ? {} : { estCost: spec.estCost }),
         [kTerminalTool]: {
           name: FINISH_TOOL_NAME,
-          ...(validationSpec === undefined ? {} : { validate: validateFinish }),
+          ...(validationSpec === undefined
+            ? {}
+            : {
+                validate: validateFinish,
+                ...(validationSpec.repairTurnReserve === undefined
+                  ? {}
+                  : { repairTurnReserve: validationSpec.repairTurnReserve }),
+              }),
         },
       };
       const synthesized = await runtime.runInScope(synthesisState, () =>
@@ -3235,8 +3272,52 @@ export function makeOrchestratorWorkflow(
           (result.errorMessage === undefined ? '' : `: ${result.errorMessage}`),
       );
     }
+    /**
+     * The synthesis failure enrichment (the v1.71 experiment review,
+     * P0.8 remainder + P1.7): every typed failure a synthesis
+     * invocation throws gains the verdict-derived repair taxonomy read
+     * from the JOURNALED validation decisions (identical live and on
+     * replay), and, when an acceptance verdict exists, the acceptance
+     * snapshot the children already earned; the completion mirror then
+     * lifts completion and childStatusCounts onto the error outcome,
+     * exactly like the acceptance rejection path. The experiment's
+     * outcome showed completion null beside four accepted children;
+     * these are the fields that say "the fan-out work is complete, the
+     * failure is downstream". The rejection-past-the-bound error keeps
+     * its own repairsUsed/maxRepairs/failed untouched.
+     */
+    const enrichSynthesisFailure = (
+      thrown: unknown,
+      snapshot?: { completion: Json; childStatusCounts: Json },
+    ): never => {
+      if (!(thrown instanceof FailRunError)) {
+        throw thrown;
+      }
+      const base = (thrown.data ?? {}) as Record<string, Json>;
+      const spent = validationDecisions().filter((candidate) => candidate.verdict !== 'accepted');
+      const rejectedValidators = [
+        ...new Set(spent.flatMap((candidate) => candidate.failed.map((f) => f.name))),
+      ];
+      throw new FailRunError(thrown.message, {
+        data: {
+          ...base,
+          ...(snapshot ?? {}),
+          ...(spent.length === 0 || base.repairsUsed !== undefined
+            ? {}
+            : {
+                repairsUsed: spent.length,
+                maxRepairs: validationSpec?.maxRepairs ?? DEFAULT_FINISH_MAX_REPAIRS,
+                rejectedValidators,
+              }),
+        },
+      });
+    };
     if (opts?.acceptance === undefined) {
-      return await runSynthesis(result.output);
+      try {
+        return await runSynthesis(result.output);
+      } catch (thrown) {
+        return enrichSynthesisFailure(thrown);
+      }
     }
 
     // The acceptance settle: the JOURNALED decision entry is the
@@ -3409,8 +3490,17 @@ export function makeOrchestratorWorkflow(
     }
     // Synthesis runs strictly AFTER the accepted verdict: a rejected run
     // never pays for a synthesis invocation (RV-211).
+    let synthesizedFinal: unknown;
+    try {
+      synthesizedFinal = await runSynthesis(result.output);
+    } catch (thrown) {
+      enrichSynthesisFailure(thrown, {
+        completion: decision.completion,
+        childStatusCounts: decision.childStatusCounts,
+      });
+    }
     return {
-      result: await runSynthesis(result.output),
+      result: synthesizedFinal,
       completion: decision.completion,
       childStatusCounts: decision.childStatusCounts,
       degradedReasons: decision.degradedReasons,

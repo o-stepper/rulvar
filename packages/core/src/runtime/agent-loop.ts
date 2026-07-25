@@ -432,6 +432,18 @@ export interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
       id: string;
       result: unknown;
     }) => Promise<{ ok: true } | { ok: false; feedback: Record<string, unknown> }>;
+    /**
+     * The repair reserve (the v1.71 experiment review, P0.4): max EXTRA
+     * turns the loop may grant past limits.maxTurns, one per rejected
+     * terminal-tool exchange, schema-invalid arguments and host
+     * validation rejections alike. The grant count derives from the
+     * message window itself (error tool results named after the
+     * terminal tool, clamped to the reserve), so a resumed segment that
+     * restored the window mid-exchange re-derives the same grants and
+     * nothing needs journaling. Zero (or absent) keeps the ceiling
+     * byte identical to the pre 1.73 loop.
+     */
+    repairTurnReserve?: number;
   };
   agentType?: string;
   /** The primary invocation role of the tool loop; default 'loop' (M6-T05; RV-211 adds synthesize). */
@@ -2092,7 +2104,33 @@ export async function runAgent<S extends SchemaSpec>(
       status = 'limit';
       break;
     }
-    if (turns >= limits.maxTurns) {
+    // The repair reserve (the v1.71 experiment review, P0.4): each
+    // rejected terminal-tool exchange in the window (an error tool
+    // result named after the terminal tool: schema-invalid arguments
+    // and host validation rejections alike) grants one extra turn,
+    // clamped to the configured reserve. Derived from the window itself
+    // so a resumed segment that restored mid-exchange recounts the SAME
+    // grants without journaling anything; a zero (or absent) reserve
+    // computes nothing and keeps the ceiling comparison byte identical.
+    const repairReserve = options.terminalTool?.repairTurnReserve ?? 0;
+    const grantedRepairTurns =
+      repairReserve === 0
+        ? 0
+        : Math.min(
+            repairReserve,
+            messages.reduce(
+              (count, message) =>
+                count +
+                message.parts.filter(
+                  (part) =>
+                    part.type === 'tool-result' &&
+                    part.name === options.terminalTool?.name &&
+                    (part as { isError?: boolean }).isError === true,
+                ).length,
+              0,
+            ),
+          );
+    if (turns >= limits.maxTurns + grantedRepairTurns) {
       status = 'limit';
       break;
     }

@@ -295,6 +295,44 @@ export default {
     expect(missing.errLines.join('\n')).toContain("run 'missing-run' not found");
   });
 
+  it('preflight prints the synthesis projection line (v1.71 review)', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-preflight-synth-'));
+    writeFileSync(
+      join(cwd, 'rulvar.config.mjs'),
+      `import { defineWorkflow } from ${JSON.stringify(CORE_DIST)};
+import { FakeAdapter, FAKE_MODEL_REF } from ${JSON.stringify(TESTING_DIST)};
+
+const pipeline = defineWorkflow({ name: 'pipeline' }, async (ctx) => ctx.agent('go'));
+
+export default {
+  engineOptions: {
+    adapters: [new FakeAdapter({ agents: { '*': 'done' } })],
+    defaults: {
+      routing: { loop: FAKE_MODEL_REF, orchestrate: FAKE_MODEL_REF, synthesize: FAKE_MODEL_REF },
+    },
+  },
+  workflows: { pipeline },
+  preflight: {
+    orchestrator: {
+      limits: { maxTurns: 2 },
+      estInputTokens: 1000,
+      synthesis: { limits: { maxTurns: 3 }, estInputTokens: 500 },
+    },
+  },
+};
+`,
+      'utf8',
+    );
+
+    const text = scriptedIo();
+    expect(await runCli(['preflight', 'pipeline', '--budget-usd', '1.2'], { cwd, io: text })).toBe(
+      0,
+    );
+    const lines = text.outLines.join('\n');
+    expect(lines).toContain('synthesis: servedBy=fake:fake-model projectedTurns=3');
+    expect(lines).toContain('runCeiling: requests=5');
+  });
+
   it('preflight lints the effective config without a store or a dispatch (P2.2)', async () => {
     const cwd = mkdtempSync(join(tmpdir(), 'rulvar-cli-preflight-'));
     writeFileSync(

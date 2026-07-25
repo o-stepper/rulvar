@@ -69,6 +69,12 @@ export interface InternalAgentHooks {
       id: string;
       result: unknown;
     }) => Promise<{ ok: true } | { ok: false; feedback: Record<string, unknown> }>;
+    /**
+     * Max EXTRA turns the loop may grant past limits.maxTurns, one per
+     * rejected terminal-tool exchange (schema-invalid arguments or a
+     * host validation rejection); see FinishValidationSpec.repairTurnReserve.
+     */
+    repairTurnReserve?: number;
   };
   [kBootCheckpoint]?: string;
   [kFinalizeReserve]?: boolean;

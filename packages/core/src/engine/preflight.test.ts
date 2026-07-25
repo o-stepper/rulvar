@@ -821,4 +821,93 @@ describe('orchestrate-wave parity (the 1.63.0 experiment review, P0.3)', () => {
     const absent = preflightEstimate({ run: { budgetUsd: 1 } });
     expect(absent.finishValidation).toBeUndefined();
   });
+
+  it('models the separate synthesis invocation in the echo and the run ceiling (v1.71 review)', () => {
+    const adapter = scriptedAdapter(() => ({ text: 'unused' }));
+    const engine = {
+      adapters: [adapter],
+      defaults: { routing: { orchestrate: SERVED, synthesize: SERVED } },
+    };
+    const report = preflightEstimate({
+      engine,
+      orchestrator: {
+        limits: { maxTurns: 2 },
+        estInputTokens: 1000,
+        synthesis: { limits: { maxTurns: 3 }, estInputTokens: 500 },
+      },
+    });
+    expect(report.budget.orchestrator?.synthesis).toEqual({
+      projectedProviderTurns: 3,
+      servedBy: SERVED,
+    });
+    // orchestrator 2 turns over est 1000 + synthesis 3 turns over est
+    // 500, context regrowth at the 4096 output bound on both.
+    expect(report.exposure.runCeiling).toEqual({
+      requests: 5,
+      tokens: 2 * 1000 + 4096 * 3 + (3 * 500 + 4096 * 6),
+    });
+
+    // The undeclared-limits invocation projects the RV-211 default.
+    const defaulted = preflightEstimate({
+      engine,
+      orchestrator: { limits: { maxTurns: 2 }, synthesis: {} },
+    });
+    expect(defaulted.budget.orchestrator?.synthesis?.projectedProviderTurns).toBe(4);
+
+    // An unroutable synthesis role is the same error an unrouted spawn gets.
+    const unrouted = preflightEstimate({
+      engine: { adapters: [adapter], defaults: { routing: { orchestrate: SERVED } } },
+      orchestrator: { limits: { maxTurns: 2 }, synthesis: {} },
+    });
+    const finding = unrouted.findings.find(
+      (entry) => entry.code === 'unrouted-role' && entry.spawn === 'synthesis',
+    );
+    expect(finding?.severity).toBe('error');
+    expect(unrouted.budget.orchestrator?.synthesis).toBeUndefined();
+  });
+
+  it('folds the repair turn reserve into the invocation the validators bind', () => {
+    const adapter = scriptedAdapter(() => ({ text: 'unused' }));
+    const engine = {
+      adapters: [adapter],
+      defaults: { routing: { orchestrate: SERVED, synthesize: SERVED } },
+    };
+    const validators = [requiredSectionsValidator({ sections: ['## Findings'] })];
+    // With synthesis declared, the reserve extends the SYNTHESIS turns
+    // and the coordination loop stays untouched.
+    const bound = preflightEstimate({
+      engine,
+      orchestrator: {
+        limits: { maxTurns: 2 },
+        estInputTokens: 1000,
+        synthesis: { limits: { maxTurns: 3 }, estInputTokens: 500 },
+      },
+      finishValidation: { validators, repairTurnReserve: 2 },
+    });
+    expect(bound.budget.orchestrator?.projectedProviderTurns).toBe(2);
+    expect(bound.budget.orchestrator?.synthesis?.projectedProviderTurns).toBe(5);
+    expect(bound.exposure.runCeiling?.requests).toBe(7);
+
+    // Without synthesis the validators bind the coordination loop.
+    const coordination = preflightEstimate({
+      engine,
+      orchestrator: { limits: { maxTurns: 2 }, estInputTokens: 1000 },
+      finishValidation: { validators, repairTurnReserve: 2 },
+    });
+    expect(coordination.budget.orchestrator?.projectedProviderTurns).toBe(4);
+    expect(coordination.exposure.runCeiling?.requests).toBe(4);
+
+    // A declared zero reserve keeps every projection identical.
+    const zeroReserve = preflightEstimate({
+      engine,
+      orchestrator: { limits: { maxTurns: 2 }, estInputTokens: 1000 },
+      finishValidation: { validators, repairTurnReserve: 0 },
+    });
+    expect(zeroReserve.budget.orchestrator?.projectedProviderTurns).toBe(2);
+    expect(() =>
+      preflightEstimate({
+        finishValidation: { validators, repairTurnReserve: -1 },
+      }),
+    ).toThrow(/repairTurnReserve/);
+  });
 });

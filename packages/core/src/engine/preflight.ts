@@ -39,6 +39,7 @@ import {
   dispatchProjectionReserveUsd,
 } from '../orchestrator/admission.js';
 import {
+  DEFAULT_SYNTHESIS_MAX_TURNS,
   orchestratorAdmissionEstCostUsd,
   type OrchestratorBudgetSpec,
 } from '../orchestrator/orchestrate.js';
@@ -122,6 +123,23 @@ export interface PreflightOrchestratorSpec {
    * root, so only they subtract it from spawn-admission headroom.
    */
   extension?: boolean;
+  /**
+   * The separate synthesis invocation (RV-211), when the orchestration
+   * configures one (the v1.71 experiment review: the run ceiling used
+   * to stop at the coordination loop, undercounting the synthesis
+   * turns). `limits` mirrors OrchestrateSynthesis.limits exactly
+   * (absent = the DEFAULT_SYNTHESIS_MAX_TURNS invocation), `model`
+   * mirrors its model override (absent = defaults.routing.synthesize),
+   * and `estInputTokens` is the prompt-size stand-in for the derived
+   * synthesis prompt. When `finishValidation.repairTurnReserve` is
+   * declared, the reserve folds into THIS invocation's projected turns,
+   * because the validators bind the synthesis finish.
+   */
+  synthesis?: {
+    model?: ModelSpec;
+    limits?: UsageLimits;
+    estInputTokens?: number;
+  };
 }
 
 /** The full input: engine surface, run surface, and the declared wave. */
@@ -159,6 +177,15 @@ export interface PreflightInput {
     validators: FinishValidator[];
     contract?: FinishContract;
     selfTest?: FinishSelfTestFixtures;
+    /**
+     * Mirrors FinishValidationSpec.repairTurnReserve: folds the
+     * declared repair headroom into the projected turns of the
+     * invocation the validators bind (the synthesis invocation when
+     * orchestrator.synthesis is declared, the coordination loop
+     * otherwise), so the run ceiling prices the repair exchange the
+     * runtime would actually grant.
+     */
+    repairTurnReserve?: number;
   };
 }
 
@@ -246,6 +273,16 @@ export interface PreflightReport {
       reserveCommitted: boolean;
       /** The orchestrator agent's own loop ceiling, derived exactly like a spawn's. */
       projectedProviderTurns: number;
+      /**
+       * The separate synthesis invocation's projection, present when
+       * input.orchestrator.synthesis was declared and the role
+       * resolves: its turn ceiling (the repair turn reserve folded in
+       * when declared) and its serving model.
+       */
+      synthesis?: {
+        projectedProviderTurns: number;
+        servedBy?: ModelRef;
+      };
     };
   };
   quota: { configured: boolean; tenant?: string; rules?: number };
@@ -492,6 +529,13 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
   // (capFraction ?? 0.2) x ceiling); finalize reserve defaults to
   // finalizeTurns x the flat reserve; only extension runs commit it
   // against the run root.
+  // The finish repair reserve (the v1.71 experiment review, P0.4) folds
+  // into the turn projection of the invocation the validators bind: the
+  // synthesis invocation when one is declared, the coordination loop
+  // otherwise. Zero (or no declaration) changes nothing.
+  const finishRepairReserve = input.finishValidation?.repairTurnReserve ?? 0;
+  const coordinationRepairReserve =
+    input.orchestrator?.synthesis === undefined ? finishRepairReserve : 0;
   let orchestratorEcho: NonNullable<PreflightReport['budget']['orchestrator']> | undefined;
   let reservedForFinalizationUsd = 0;
   let effectiveCapUsd: number | undefined;
@@ -521,10 +565,11 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       finalizeReserveUsd,
       finalizeTurns,
       reserveCommitted,
-      projectedProviderTurns: projectedProviderTurnsOf(
-        echoLimits,
-        overallExecutedCeiling(echoLimits, toolCeilingsOf(echoLimits)),
-      ),
+      projectedProviderTurns:
+        projectedProviderTurnsOf(
+          echoLimits,
+          overallExecutedCeiling(echoLimits, toolCeilingsOf(echoLimits)),
+        ) + coordinationRepairReserve,
     };
     if (
       spec?.capUsd !== undefined &&
@@ -879,10 +924,11 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         model,
         inputFloor: input.orchestrator.estInputTokens ?? 0,
         outputBound: outputBound ?? 0,
-        turns: projectedProviderTurnsOf(
-          orchLimits,
-          overallExecutedCeiling(orchLimits, toolCeilingsOf(orchLimits)),
-        ),
+        turns:
+          projectedProviderTurnsOf(
+            orchLimits,
+            overallExecutedCeiling(orchLimits, toolCeilingsOf(orchLimits)),
+          ) + coordinationRepairReserve,
         count: 1,
       });
       // The orchestrator's own admission reserve, exactly the live
@@ -915,6 +961,69 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
             ? {}
             : { maxOutputTokensPerTurn: orchLimits.maxOutputTokensPerTurn }),
           flatReserveUsd,
+        });
+      }
+    }
+    // The separate synthesis invocation (RV-211; the v1.71 experiment
+    // review): one more provider loop the run ceiling must price, the
+    // one the projection used to stop short of. Its serving model
+    // resolves like the runtime would (the declared override, else
+    // routing.synthesize), its limits mirror the OrchestrateSynthesis
+    // default wholesale, and the repair turn reserve folds in HERE,
+    // because with synthesis configured the validators bind the
+    // synthesis finish. Post-fan-in by construction, so it joins the
+    // run ceiling shapes but never the first-wave exposure or the
+    // admission wave.
+    if (input.orchestrator.synthesis !== undefined) {
+      const synthesis = input.orchestrator.synthesis;
+      if (synthesis.limits !== undefined) {
+        validateUsageLimits(synthesis.limits, 'preflight orchestrator.synthesis.limits');
+      }
+      if (synthesis.estInputTokens !== undefined) {
+        requireNonNegativeInteger(
+          synthesis.estInputTokens,
+          'preflight orchestrator.synthesis.estInputTokens',
+        );
+      }
+      const servedBy =
+        resolveServing(synthesis.model) ?? resolveServing(defaults.routing?.synthesize);
+      if (servedBy === undefined) {
+        say({
+          severity: 'error',
+          code: 'unrouted-role',
+          message:
+            "the synthesis invocation resolves no model for role 'synthesize': set " +
+            'defaults.routing.synthesize or a synthesis model on the call',
+          spawn: 'synthesis',
+        });
+      } else {
+        const caps = capsOf(servedBy);
+        const merged = mergeUsageLimits(
+          synthesis.limits ?? { maxTurns: DEFAULT_SYNTHESIS_MAX_TURNS },
+          undefined,
+          defaults.limits,
+        );
+        const outputBound =
+          caps === undefined
+            ? merged.maxOutputTokensPerTurn
+            : merged.maxOutputTokensPerTurn === undefined
+              ? caps.maxOutputTokens
+              : Math.min(caps.maxOutputTokens, merged.maxOutputTokensPerTurn);
+        const projected =
+          projectedProviderTurnsOf(merged, overallExecutedCeiling(merged, toolCeilingsOf(merged))) +
+          finishRepairReserve;
+        if (orchestratorEcho !== undefined) {
+          orchestratorEcho.synthesis = { projectedProviderTurns: projected, servedBy };
+        }
+        const { adapterId, model } = parseModelRef(servedBy);
+        shapes.push({
+          label: 'synthesis',
+          provider: adapterId,
+          model,
+          inputFloor: synthesis.estInputTokens ?? 0,
+          outputBound: outputBound ?? 0,
+          turns: projected,
+          count: 1,
         });
       }
     }
@@ -1257,6 +1366,12 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         );
       }
       names.add(validator.name);
+    }
+    if (fv.repairTurnReserve !== undefined) {
+      requireNonNegativeInteger(
+        fv.repairTurnReserve,
+        'preflight finishValidation.repairTurnReserve',
+      );
     }
     if (fv.contract !== undefined) {
       for (const contractValidator of fv.contract.validators) {
