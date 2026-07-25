@@ -177,6 +177,9 @@ const outcome = await audited.result;
 // With acceptance set, outcome.value is the envelope:
 //   { result, completion: 'complete' | 'partial',
 //     childStatusCounts: { ok: 4, ... }, degradedReasons: [...] }
+// and the outcome itself mirrors the lifted fields on EVERY path,
+// the typed rejection included: outcome.completion,
+// outcome.childStatusCounts (the same values run:end carries).
 ```
 
 A violated policy fails the run instead of settling `ok`: the outcome is `error` with the typed `FailRunError` (code `fail_run`, `data.source` `'orchestrator_acceptance'`), carrying the child status counts and the degraded reasons. Under `'all-ok'`, a child still running when `finish` validates counts against the policy, and so does a deliberately cancelled straggler; zero spawned children are vacuously complete. Under `{ minSuccessful: N }`, an accepted result with any non `ok` child reports `completion: 'partial'` and names every degraded child in `degradedReasons`. Without `acceptance`, the result value stays the raw finish payload and no new journal entry is written, exactly as before.

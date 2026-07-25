@@ -101,7 +101,7 @@ The handle carries `runId`, the `result` promise, an `events` async iterable (pl
 | `exhausted` | The budget ceiling blocked further work. Overrides `error`, and always arrives with the full cost report and the dropped and pending evidence. |
 | `suspended` | Every in-flight branch is blocked on an external input; `pending` lists the open keys. |
 
-Every outcome, regardless of status, includes `dropped`, `pending`, `usage`, and `cost`. To pick a run back up in a new process, use `engine.resume(runId, wf)`; the binding and replay rules are covered in [Durability](/guide/durability).
+Every outcome, regardless of status, includes `dropped`, `pending`, `usage`, and `cost`. When the workflow reports semantic completion through the [completion envelope contract](/guide/observability#run-lifecycle-and-core-telemetry), the outcome also mirrors the lifted `completion` (`'complete' | 'partial' | 'rejected'`) and `childStatusCounts`, the same fields `run:end` carries, computed once and spread onto both surfaces, so a host reads completeness from `handle.result` directly instead of parsing the value shape on the accepted path and the typed error data on the rejected one. To pick a run back up in a new process, use `engine.resume(runId, wf)`; the binding and replay rules are covered in [Durability](/guide/durability).
 
 ## The ctx surface
 
