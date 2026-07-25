@@ -1359,6 +1359,169 @@ describe('output contract: manifest, construction self test, frozen bundle (v1.7
   });
 });
 
+describe('synthesis repair reserve and the failure snapshot (v1.71 review)', () => {
+  const SECTIONED = '## Findings\nEverything the contract demands.';
+  const SECTIONLESS = 'a schema-valid candidate without the required section';
+  const SYNTH_DEFAULTS = {
+    routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+    profiles: PROFILES,
+  } as const;
+  /** One coordination draft, then the synthesis script turn by turn. */
+  function synthesisScriptAdapter(script: Array<Record<string, unknown> | 'malformed'>) {
+    let call = 0;
+    return scriptedAdapter((): ScriptedTurn => {
+      call += 1;
+      if (call === 1) {
+        return { toolCall: { name: 'finish', args: { result: 'DRAFT' } } };
+      }
+      const step = script[Math.min(call - 2, script.length - 1)] ?? 'malformed';
+      return {
+        toolCall: {
+          name: 'finish',
+          args: step === 'malformed' ? {} : step,
+        },
+      };
+    });
+  }
+
+  it('a granted repair reserve extends the bound invocation past maxTurns', async () => {
+    // The v1.71 experiment shape: a malformed finish plus a validator
+    // rejection inside a tight synthesis budget. The reserve grants one
+    // extra turn per rejected finish exchange, bounded, so the fourth
+    // turn exists and the good candidate lands.
+    const adapter = synthesisScriptAdapter([
+      'malformed',
+      { result: SECTIONLESS },
+      'malformed',
+      { result: SECTIONED },
+    ]);
+    const { internals } = makeInternals({ adapters: [adapter], ...SYNTH_DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      synthesis: { limits: { maxTurns: 3 } },
+      finishValidation: {
+        validators: [requiredSectionsValidator({ sections: ['## Findings'] })],
+        maxRepairs: 3,
+        repairTurnReserve: 2,
+      },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(SECTIONED);
+    // One coordination draft plus four synthesis turns: three from
+    // maxTurns and one granted from the reserve.
+    expect(adapter.calls).toHaveLength(5);
+  });
+
+  it('the reserve is bounded and the limit failure carries the acceptance snapshot', async () => {
+    const adapter = synthesisScriptAdapter([
+      'malformed',
+      { result: SECTIONLESS },
+      'malformed',
+      'malformed',
+      'malformed',
+      { result: SECTIONED },
+    ]);
+    const { internals } = makeInternals({ adapters: [adapter], ...SYNTH_DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      acceptance: { childPolicy: 'all-ok' },
+      synthesis: { limits: { maxTurns: 3 } },
+      finishValidation: {
+        validators: [requiredSectionsValidator({ sections: ['## Findings'] })],
+        maxRepairs: 3,
+        repairTurnReserve: 2,
+      },
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as Record<string, unknown>;
+    expect(data.source).toBe('orchestrator_synthesis');
+    expect(data.status).toBe('limit');
+    expect(data.turnsUsed).toBe(5);
+    // The acceptance snapshot (P0.8 remainder): the children completed,
+    // the failure is downstream, and the error data says both.
+    expect(data.completion).toBe('complete');
+    expect(data.childStatusCounts).toEqual({});
+    // The verdict-derived taxonomy: one validator rejection happened.
+    expect(data.repairsUsed).toBe(1);
+    expect(data.maxRepairs).toBe(3);
+    expect(data.rejectedValidators).toEqual(['required-sections']);
+  });
+
+  it('without a reserve the ceiling is unchanged and the outcome mirrors the snapshot', async () => {
+    const store = new InMemoryStore();
+    const engine = createEngine({
+      adapters: [synthesisScriptAdapter(['malformed', { result: SECTIONLESS }, 'malformed'])],
+      stores: { journal: store },
+      defaults: SYNTH_DEFAULTS,
+    });
+    const outcome = await engine.run(
+      makeOrchestratorWorkflow('assess', {
+        acceptance: { childPolicy: 'all-ok' },
+        synthesis: { limits: { maxTurns: 3 } },
+        finishValidation: {
+          validators: [requiredSectionsValidator({ sections: ['## Findings'] })],
+          maxRepairs: 3,
+        },
+      }),
+      undefined,
+      { runId: 'SYNTH-SNAPSHOT' },
+    ).result;
+    expect(outcome.status).toBe('error');
+    expect(outcome.error?.message).toContain("terminated with status 'limit'");
+    // The completion mirror lifts the snapshot from the typed error
+    // data: child work complete, the failure downstream.
+    expect(outcome.completion).toBe('complete');
+    expect(outcome.childStatusCounts).toEqual({});
+  });
+
+  it('a synthesis finish rejection past the bound carries the snapshot too', async () => {
+    const adapter = synthesisScriptAdapter([{ result: SECTIONLESS }]);
+    const { internals } = makeInternals({ adapters: [adapter], ...SYNTH_DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      acceptance: { childPolicy: 'all-ok' },
+      synthesis: {},
+      finishValidation: {
+        validators: [requiredSectionsValidator({ sections: ['## Findings'] })],
+        maxRepairs: 0,
+      },
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as Record<string, unknown>;
+    expect(data.source).toBe('orchestrator_finish_validation');
+    expect(data.completion).toBe('complete');
+    expect(data.childStatusCounts).toEqual({});
+  });
+
+  it('rejects a malformed repairTurnReserve synchronously at construction', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        finishValidation: {
+          validators: [requiredSectionsValidator({ sections: ['A'] })],
+          repairTurnReserve: -1,
+        },
+      }),
+    ).toThrow(/repairTurnReserve/);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        finishValidation: {
+          validators: [requiredSectionsValidator({ sections: ['A'] })],
+          repairTurnReserve: 1.5,
+        },
+      }),
+    ).toThrow(/repairTurnReserve/);
+  });
+});
+
 /** Every unique result the model received for calls to `toolName`, in order. */
 function toolResults(
   calls: readonly ChatRequest[],

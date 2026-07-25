@@ -6,7 +6,7 @@
 
 # Interface: PreflightFinding
 
-Defined in: [packages/core/src/engine/preflight.ts:166](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L166)
+Defined in: [packages/core/src/engine/preflight.ts:193](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L193)
 
 One linter verdict; `spawn` names the wave entry it is about.
 
@@ -14,7 +14,7 @@ One linter verdict; `spawn` names the wave entry it is about.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-code"></a> `code` | `string` | Stable kebab-case code for machine consumption. | [packages/core/src/engine/preflight.ts:169](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L169) |
-| <a id="property-message"></a> `message` | `string` | - | [packages/core/src/engine/preflight.ts:170](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L170) |
-| <a id="property-severity"></a> `severity` | `"error"` \| `"info"` \| `"warning"` | - | [packages/core/src/engine/preflight.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L167) |
-| <a id="property-spawn"></a> `spawn?` | `string` | - | [packages/core/src/engine/preflight.ts:171](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L171) |
+| <a id="property-code"></a> `code` | `string` | Stable kebab-case code for machine consumption. | [packages/core/src/engine/preflight.ts:196](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L196) |
+| <a id="property-message"></a> `message` | `string` | - | [packages/core/src/engine/preflight.ts:197](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L197) |
+| <a id="property-severity"></a> `severity` | `"error"` \| `"info"` \| `"warning"` | - | [packages/core/src/engine/preflight.ts:194](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L194) |
+| <a id="property-spawn"></a> `spawn?` | `string` | - | [packages/core/src/engine/preflight.ts:198](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L198) |

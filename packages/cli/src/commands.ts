@@ -791,6 +791,12 @@ function renderPreflight(report: PreflightReport, io: CliIo): void {
         `finalizeReserve=${usdOf(orch.finalizeReserveUsd)} over ${orch.finalizeTurns} turns ` +
         `(${orch.reserveCommitted ? 'committed against the run root' : 'not committed: no plan extension'})`,
     );
+    if (orch.synthesis !== undefined) {
+      io.out(
+        `synthesis: servedBy=${orch.synthesis.servedBy ?? 'UNROUTED'}` +
+          ` projectedTurns=${orch.synthesis.projectedProviderTurns}`,
+      );
+    }
   }
   io.out(
     `quota: ${report.quota.configured ? 'configured' : 'none'}` +

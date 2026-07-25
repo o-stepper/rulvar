@@ -20,18 +20,21 @@ The machine-readable preflight report; JSON-serializable throughout.
 | `admission.denied` | `number` | - | `packages/core/dist/index.d.ts` |
 | `admission.reservedForFinalizationUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | `admission.wave` | [`PreflightAdmissionRow`](/api/@rulvar/rulvar/interfaces/PreflightAdmissionRow.md)[] | - | `packages/core/dist/index.d.ts` |
-| <a id="property-budget"></a> `budget` | \{ `ceilingUsd?`: `number`; `childBudgetFraction`: `number`; `flatReserveUsd`: `number`; `lifetimeSpawnCap`: `number`; `maxDepth`: `number`; `orchestrator?`: \{ `effectiveCapUsd?`: `number`; `finalizeReserveUsd`: `number`; `finalizeTurns`: `number`; `projectedProviderTurns`: `number`; `reserveCommitted`: `boolean`; \}; \} | - | `packages/core/dist/index.d.ts` |
+| <a id="property-budget"></a> `budget` | \{ `ceilingUsd?`: `number`; `childBudgetFraction`: `number`; `flatReserveUsd`: `number`; `lifetimeSpawnCap`: `number`; `maxDepth`: `number`; `orchestrator?`: \{ `effectiveCapUsd?`: `number`; `finalizeReserveUsd`: `number`; `finalizeTurns`: `number`; `projectedProviderTurns`: `number`; `reserveCommitted`: `boolean`; `synthesis?`: \{ `projectedProviderTurns`: `number`; `servedBy?`: `` `${string}:${string}` ``; \}; \}; \} | - | `packages/core/dist/index.d.ts` |
 | `budget.ceilingUsd?` | `number` | - | `packages/core/dist/index.d.ts` |
 | `budget.childBudgetFraction` | `number` | - | `packages/core/dist/index.d.ts` |
 | `budget.flatReserveUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | `budget.lifetimeSpawnCap` | `number` | - | `packages/core/dist/index.d.ts` |
 | `budget.maxDepth` | `number` | - | `packages/core/dist/index.d.ts` |
-| `budget.orchestrator?` | \{ `effectiveCapUsd?`: `number`; `finalizeReserveUsd`: `number`; `finalizeTurns`: `number`; `projectedProviderTurns`: `number`; `reserveCommitted`: `boolean`; \} | - | `packages/core/dist/index.d.ts` |
+| `budget.orchestrator?` | \{ `effectiveCapUsd?`: `number`; `finalizeReserveUsd`: `number`; `finalizeTurns`: `number`; `projectedProviderTurns`: `number`; `reserveCommitted`: `boolean`; `synthesis?`: \{ `projectedProviderTurns`: `number`; `servedBy?`: `` `${string}:${string}` ``; \}; \} | - | `packages/core/dist/index.d.ts` |
 | `budget.orchestrator.effectiveCapUsd?` | `number` | min(capUsd, (capFraction ?? 0.2) x ceiling); absent when unresolvable. | `packages/core/dist/index.d.ts` |
 | `budget.orchestrator.finalizeReserveUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | `budget.orchestrator.finalizeTurns` | `number` | - | `packages/core/dist/index.d.ts` |
 | `budget.orchestrator.projectedProviderTurns` | `number` | - | `packages/core/dist/index.d.ts` |
 | `budget.orchestrator.reserveCommitted` | `boolean` | - | `packages/core/dist/index.d.ts` |
+| `budget.orchestrator.synthesis?` | \{ `projectedProviderTurns`: `number`; `servedBy?`: `` `${string}:${string}` ``; \} | The separate synthesis invocation's projection, present when input.orchestrator.synthesis was declared and the role resolves: its turn ceiling (the repair turn reserve folded in when declared) and its serving model. | `packages/core/dist/index.d.ts` |
+| `budget.orchestrator.synthesis.projectedProviderTurns` | `number` | - | `packages/core/dist/index.d.ts` |
+| `budget.orchestrator.synthesis.servedBy?` | `` `${string}:${string}` `` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-concurrency"></a> `concurrency` | \{ `perProvider?`: `Record`\&lt;`string`, `number`\&gt;; `perRun`: `number`; \} | - | `packages/core/dist/index.d.ts` |
 | `concurrency.perProvider?` | `Record`\&lt;`string`, `number`\&gt; | - | `packages/core/dist/index.d.ts` |
 | `concurrency.perRun` | `number` | - | `packages/core/dist/index.d.ts` |

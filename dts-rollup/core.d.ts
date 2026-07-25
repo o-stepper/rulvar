@@ -4405,6 +4405,18 @@ interface RunAgentOptions<S extends SchemaSpec = JsonSchema> {
       ok: false;
       feedback: Record<string, unknown>;
     }>;
+    /**
+    * The repair reserve (the v1.71 experiment review, P0.4): max EXTRA
+    * turns the loop may grant past limits.maxTurns, one per rejected
+    * terminal-tool exchange, schema-invalid arguments and host
+    * validation rejections alike. The grant count derives from the
+    * message window itself (error tool results named after the
+    * terminal tool, clamped to the reserve), so a resumed segment that
+    * restored the window mid-exchange re-derives the same grants and
+    * nothing needs journaling. Zero (or absent) keeps the ceiling
+    * byte identical to the pre 1.73 loop.
+    */
+    repairTurnReserve?: number;
   };
   agentType?: string;
   /** The primary invocation role of the tool loop; default 'loop' (M6-T05; RV-211 adds synthesize). */
@@ -7038,6 +7050,23 @@ interface FinishValidationSpec {
   */
   maxRepairs?: number;
   /**
+  * The repair turn reserve (the v1.71 experiment review, P0.4; the
+  * reserve RV-204 deliberately deferred). A nonnegative integer,
+  * default 0: max EXTRA turns the invocation the validators bind (the
+  * synthesis invocation when `synthesis` is configured, the
+  * coordination loop otherwise) may consume past its `maxTurns`, one
+  * granted per rejected finish exchange, schema-invalid finish
+  * arguments and host validation rejections alike. Without it, repair
+  * exchanges and generation compete for the same turn budget: the
+  * v1.71 experiment lost its whole run to one malformed finish plus
+  * one validator rejection inside maxTurns 3. The reserve is bounded,
+  * spends from the ordinary budget ceilings (a granted turn is a paid
+  * provider turn), and folds into the preflight turn projection
+  * (`projectedProviderTurns` and the run ceiling) when declared
+  * there. Zero keeps the pre 1.73 ceiling byte identical.
+  */
+  repairTurnReserve?: number;
+  /**
   * The unified output contract this validator set enforces (the v1.71
   * experiment review, P0.1/P0.2). Construction then runs the golden
   * self test with the contract's fixtures as defaults, the contract's
@@ -8749,6 +8778,23 @@ interface PreflightOrchestratorSpec {
   * root, so only they subtract it from spawn-admission headroom.
   */
   extension?: boolean;
+  /**
+  * The separate synthesis invocation (RV-211), when the orchestration
+  * configures one (the v1.71 experiment review: the run ceiling used
+  * to stop at the coordination loop, undercounting the synthesis
+  * turns). `limits` mirrors OrchestrateSynthesis.limits exactly
+  * (absent = the DEFAULT_SYNTHESIS_MAX_TURNS invocation), `model`
+  * mirrors its model override (absent = defaults.routing.synthesize),
+  * and `estInputTokens` is the prompt-size stand-in for the derived
+  * synthesis prompt. When `finishValidation.repairTurnReserve` is
+  * declared, the reserve folds into THIS invocation's projected turns,
+  * because the validators bind the synthesis finish.
+  */
+  synthesis?: {
+    model?: ModelSpec;
+    limits?: UsageLimits;
+    estInputTokens?: number;
+  };
 }
 /** The full input: engine surface, run surface, and the declared wave. */
 interface PreflightInput {
@@ -8780,6 +8826,15 @@ interface PreflightInput {
     validators: FinishValidator[];
     contract?: FinishContract;
     selfTest?: FinishSelfTestFixtures;
+    /**
+    * Mirrors FinishValidationSpec.repairTurnReserve: folds the
+    * declared repair headroom into the projected turns of the
+    * invocation the validators bind (the synthesis invocation when
+    * orchestrator.synthesis is declared, the coordination loop
+    * otherwise), so the run ceiling prices the repair exchange the
+    * runtime would actually grant.
+    */
+    repairTurnReserve?: number;
   };
 }
 /** One linter verdict; `spawn` names the wave entry it is about. */
@@ -8861,6 +8916,16 @@ interface PreflightReport {
       finalizeTurns: number; /** Whether the finalize reserve is committed against the run root (extension runs). */
       reserveCommitted: boolean; /** The orchestrator agent's own loop ceiling, derived exactly like a spawn's. */
       projectedProviderTurns: number;
+      /**
+      * The separate synthesis invocation's projection, present when
+      * input.orchestrator.synthesis was declared and the role
+      * resolves: its turn ceiling (the repair turn reserve folded in
+      * when declared) and its serving model.
+      */
+      synthesis?: {
+        projectedProviderTurns: number;
+        servedBy?: ModelRef;
+      };
     };
   };
   quota: {
