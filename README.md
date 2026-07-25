@@ -198,7 +198,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The fifty nine rounds, verbatim in this repository's history:
+The sixty rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                          | Shipped as |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -261,6 +261,7 @@ The fifty nine rounds, verbatim in this repository's history:
 | v1.67.0       | b227874 (#373): the machine-readable synthesis-skip reason: the causing journaled decision freezes it, typed error data and an info log carry it                    | v1.68.0    |
 | v1.68.0       | b21a681 (#376): the tool-cap-before-checkpoint preflight warning: the parallel-batch loss window named with the exact executed-call ceiling                         | v1.69.0    |
 | v1.69.0       | 29141ed (#379): the engine-level kill-point suite: SIGKILL around each durable write, resumed with the documented re-pay pinned per bracket                         | v1.70.0    |
+| v1.70.1       | 20d02e0 (#384): the quota planner run-ceiling projection: per-spawn turn ceilings, context-regrowth demand, and the beyond-wave quota findings                      | v1.71.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
