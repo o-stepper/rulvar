@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.68.0
+
+#### Patch Changes
+
+- Updated dependencies [b227874]
+  - @rulvar/core@1.68.0
+
 ### 1.67.0
 
 #### Patch Changes
@@ -864,6 +871,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.68.0
+
+#### Patch Changes
+
+- Updated dependencies [b227874]
+  - @rulvar/core@1.68.0
+
 ### 1.67.0
 
 #### Patch Changes
@@ -1575,6 +1589,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.68.0
+
+#### Patch Changes
+
+- Updated dependencies [b227874]
+  - @rulvar/core@1.68.0
 
 ### 1.67.0
 
@@ -2589,6 +2610,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.68.0
+
+#### Minor Changes
+
+- b227874: The machine-readable synthesis-skip reason (the experiment review, item 11.4, recommendation P1.5). A run that configures the post-fan-in `synthesis` invocation and never runs it used to show zero `synthesize` spend with no recorded cause: the artifacts of a rejected run with synthesis configured were byte-indistinguishable from a run that never configured synthesis at all, and a host had to infer the skip from the acceptance decision and the RV-211 design. Both designed skips now record the exported `OrchestrateSynthesisSkipReason`: the journaled decision that causes the skip freezes `synthesisSkipped` (`'synthesis_skipped_by_acceptance'` on the rejected acceptance decision, `'synthesis_skipped_by_budget_cap'` on the budget-cap decision, immune to live-option drift on resume), the typed `FailRunError` data of the failing paths carries the same field, and an info `log` event (`orchestrator synthesis skipped`) announces it beside the zero spend, on the live pass and on every resume roll-forward alike. The field is absent when synthesis is not configured or when it actually ran, so existing runs stay byte identical.
 
 ### 1.67.0
 
@@ -4011,6 +4038,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.68.0
+
 ### 1.67.0
 
 ### 1.66.0
@@ -4239,6 +4268,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.68.0
+
+#### Patch Changes
+
+- Updated dependencies [b227874]
+  - @rulvar/core@1.68.0
+  - @rulvar/testing@1.68.0
 
 ### 1.67.0
 
@@ -5129,6 +5166,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.68.0
+
+#### Patch Changes
+
+- Updated dependencies [b227874]
+  - @rulvar/core@1.68.0
+
 ### 1.67.0
 
 #### Patch Changes
@@ -5225,6 +5269,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.68.0
+
+#### Patch Changes
+
+- Updated dependencies [b227874]
+  - @rulvar/core@1.68.0
 
 ### 1.67.0
 
@@ -6089,6 +6140,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.68.0
+
+#### Patch Changes
+
+- Updated dependencies [b227874]
+  - @rulvar/core@1.68.0
+
 ### 1.67.0
 
 #### Patch Changes
@@ -6921,6 +6979,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.68.0
+
+#### Patch Changes
+
+- Updated dependencies [b227874]
+  - @rulvar/core@1.68.0
+  - eslint-plugin-rulvar@1.68.0
 
 ### 1.67.0
 
@@ -7767,6 +7833,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.68.0
+
+#### Patch Changes
+
+- Updated dependencies [b227874]
+  - @rulvar/core@1.68.0
+  - @rulvar/anthropic@1.68.0
+  - @rulvar/openai@1.68.0
 
 ### 1.67.0
 
@@ -8770,6 +8845,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.68.0
+
+#### Patch Changes
+
+- Updated dependencies [b227874]
+  - @rulvar/core@1.68.0
+
 ### 1.67.0
 
 #### Patch Changes
@@ -9581,6 +9663,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.68.0
+
+#### Patch Changes
+
+- Updated dependencies [b227874]
+  - @rulvar/core@1.68.0
+
 ### 1.67.0
 
 #### Patch Changes
@@ -9699,6 +9788,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.68.0
+
+#### Patch Changes
+
+- Updated dependencies [b227874]
+  - @rulvar/core@1.68.0
 
 ### 1.67.0
 
@@ -10457,6 +10553,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.68.0
+
+#### Patch Changes
+
+- Updated dependencies [b227874]
+  - @rulvar/core@1.68.0
 
 ### 1.67.0
 
