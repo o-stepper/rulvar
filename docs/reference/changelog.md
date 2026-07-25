@@ -18,6 +18,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.74.0
+
+#### Minor Changes
+
+- d94beab: Quota drift telemetry and the honest zero (the v1.71 experiment review, P0.5 resized + P1.4). The experiment declared 12M TPM over a provider-real 1M, the local limiter went quiet, and seven live 429s followed with nothing recording the mismatch. Now: both wire adapters parse the provider's x-ratelimit headers on every real 429 into normalized per-minute limits (`WireError.data.reportedLimits`; the openai wire also gains the raw bucket capture the anthropic wire already had), the loop remembers them per (provider, model) as live telemetry, and the opt-in `quota.declaredRules` (the SAME rule array preflight takes) makes the engine journal a `quota_drift` decision plus a warn log whenever a binding declared cap EXCEEDS the provider-reported one, per invocation and dimension, with anthropic's split input and output windows summed against a combined declared tokensPerMinute. Purely observational, synthetic limiter denials never count, and without declaredRules journals and events stay byte identical. On the invoice, an `unconfirmed` row that recorded zero usage on every counter now carries `usageUnknown: true` (export-level `usageUnknownRows` count, CLI `usage-unknown` marker): the zeros mean "nothing recorded", never "the provider metered nothing"; derived at export time, no journal shape change.
+
+#### Patch Changes
+
+- Updated dependencies [d94beab]
+  - @rulvar/core@1.74.0
+
 ### 1.73.0
 
 #### Patch Changes
@@ -911,6 +922,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.74.0
+
+#### Patch Changes
+
+- Updated dependencies [d94beab]
+  - @rulvar/core@1.74.0
+
 ### 1.73.0
 
 #### Patch Changes
@@ -1669,6 +1687,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.74.0
+
+#### Minor Changes
+
+- d94beab: Quota drift telemetry and the honest zero (the v1.71 experiment review, P0.5 resized + P1.4). The experiment declared 12M TPM over a provider-real 1M, the local limiter went quiet, and seven live 429s followed with nothing recording the mismatch. Now: both wire adapters parse the provider's x-ratelimit headers on every real 429 into normalized per-minute limits (`WireError.data.reportedLimits`; the openai wire also gains the raw bucket capture the anthropic wire already had), the loop remembers them per (provider, model) as live telemetry, and the opt-in `quota.declaredRules` (the SAME rule array preflight takes) makes the engine journal a `quota_drift` decision plus a warn log whenever a binding declared cap EXCEEDS the provider-reported one, per invocation and dimension, with anthropic's split input and output windows summed against a combined declared tokensPerMinute. Purely observational, synthetic limiter denials never count, and without declaredRules journals and events stay byte identical. On the invoice, an `unconfirmed` row that recorded zero usage on every counter now carries `usageUnknown: true` (export-level `usageUnknownRows` count, CLI `usage-unknown` marker): the zeros mean "nothing recorded", never "the provider metered nothing"; derived at export time, no journal shape change.
+
+#### Patch Changes
+
+- Updated dependencies [d94beab]
+  - @rulvar/core@1.74.0
 
 ### 1.73.0
 
@@ -2738,6 +2767,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.74.0
+
+#### Minor Changes
+
+- d94beab: Quota drift telemetry and the honest zero (the v1.71 experiment review, P0.5 resized + P1.4). The experiment declared 12M TPM over a provider-real 1M, the local limiter went quiet, and seven live 429s followed with nothing recording the mismatch. Now: both wire adapters parse the provider's x-ratelimit headers on every real 429 into normalized per-minute limits (`WireError.data.reportedLimits`; the openai wire also gains the raw bucket capture the anthropic wire already had), the loop remembers them per (provider, model) as live telemetry, and the opt-in `quota.declaredRules` (the SAME rule array preflight takes) makes the engine journal a `quota_drift` decision plus a warn log whenever a binding declared cap EXCEEDS the provider-reported one, per invocation and dimension, with anthropic's split input and output windows summed against a combined declared tokensPerMinute. Purely observational, synthetic limiter denials never count, and without declaredRules journals and events stay byte identical. On the invoice, an `unconfirmed` row that recorded zero usage on every counter now carries `usageUnknown: true` (export-level `usageUnknownRows` count, CLI `usage-unknown` marker): the zeros mean "nothing recorded", never "the provider metered nothing"; derived at export time, no journal shape change.
 
 ### 1.73.0
 
@@ -4194,6 +4229,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.74.0
+
 ### 1.73.0
 
 ### 1.72.0
@@ -4436,6 +4473,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.74.0
+
+#### Patch Changes
+
+- Updated dependencies [d94beab]
+  - @rulvar/core@1.74.0
+  - @rulvar/testing@1.74.0
 
 ### 1.73.0
 
@@ -5380,6 +5425,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.74.0
+
+#### Patch Changes
+
+- Updated dependencies [d94beab]
+  - @rulvar/core@1.74.0
+
 ### 1.73.0
 
 #### Patch Changes
@@ -5523,6 +5575,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.74.0
+
+#### Minor Changes
+
+- d94beab: Quota drift telemetry and the honest zero (the v1.71 experiment review, P0.5 resized + P1.4). The experiment declared 12M TPM over a provider-real 1M, the local limiter went quiet, and seven live 429s followed with nothing recording the mismatch. Now: both wire adapters parse the provider's x-ratelimit headers on every real 429 into normalized per-minute limits (`WireError.data.reportedLimits`; the openai wire also gains the raw bucket capture the anthropic wire already had), the loop remembers them per (provider, model) as live telemetry, and the opt-in `quota.declaredRules` (the SAME rule array preflight takes) makes the engine journal a `quota_drift` decision plus a warn log whenever a binding declared cap EXCEEDS the provider-reported one, per invocation and dimension, with anthropic's split input and output windows summed against a combined declared tokensPerMinute. Purely observational, synthetic limiter denials never count, and without declaredRules journals and events stay byte identical. On the invoice, an `unconfirmed` row that recorded zero usage on every counter now carries `usageUnknown: true` (export-level `usageUnknownRows` count, CLI `usage-unknown` marker): the zeros mean "nothing recorded", never "the provider metered nothing"; derived at export time, no journal shape change.
+
+#### Patch Changes
+
+- Updated dependencies [d94beab]
+  - @rulvar/core@1.74.0
 
 ### 1.73.0
 
@@ -6434,6 +6497,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.74.0
+
+#### Patch Changes
+
+- Updated dependencies [d94beab]
+  - @rulvar/core@1.74.0
+
 ### 1.73.0
 
 #### Patch Changes
@@ -7313,6 +7383,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.74.0
+
+#### Patch Changes
+
+- Updated dependencies [d94beab]
+  - @rulvar/core@1.74.0
+  - eslint-plugin-rulvar@1.74.0
 
 ### 1.73.0
 
@@ -8213,6 +8291,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.74.0
+
+#### Patch Changes
+
+- Updated dependencies [d94beab]
+  - @rulvar/core@1.74.0
+  - @rulvar/openai@1.74.0
+  - @rulvar/anthropic@1.74.0
 
 ### 1.73.0
 
@@ -9277,6 +9364,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.74.0
+
+#### Patch Changes
+
+- Updated dependencies [d94beab]
+  - @rulvar/core@1.74.0
+
 ### 1.73.0
 
 #### Patch Changes
@@ -10140,6 +10234,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.74.0
+
+#### Patch Changes
+
+- Updated dependencies [d94beab]
+  - @rulvar/core@1.74.0
+
 ### 1.73.0
 
 #### Patch Changes
@@ -10305,6 +10406,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.74.0
+
+#### Patch Changes
+
+- Updated dependencies [d94beab]
+  - @rulvar/core@1.74.0
 
 ### 1.73.0
 
@@ -11110,6 +11218,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.74.0
+
+#### Patch Changes
+
+- Updated dependencies [d94beab]
+  - @rulvar/core@1.74.0
 
 ### 1.73.0
 
