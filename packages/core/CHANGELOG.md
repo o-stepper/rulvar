@@ -1,5 +1,11 @@
 # @rulvar/core
 
+## 1.65.0
+
+### Minor Changes
+
+- 0b6b859: Terminal-output salvage for limit children (the 1.64.0 experiment review, P0.4 + P1.1). A child that hits its tool budget with `limits.finalizationReserve` configured can end `limit` CARRYING a terminal output that already validated against its declared output schema; published bits discarded that paid, journaled work at every orchestrator surface. Now the digest appends `final: {...}` and `get_child_result` pages the full output unconditionally, and the new opt-in `acceptance.acceptValidatedTerminalOutputOnLimit` lets the completion policy count such a child as a success: the accepted envelope reports `completion: 'partial'` and lists the children in `salvagedTerminalOutputChildren`, an invalid summary keeps `output: null` and still rejects (validation runs before acceptance by construction), and a child carrying both an output and a progress partial salvages by its output. The finish validation input gains `FinishValidationChild.salvageableOutput` (set only under the option), and `evidencePreservedValidator` counts a marked child's citations in the cited pool, so `requireKnown` no longer flags the orchestrator for quoting salvaged evidence. Every configuration without the option keeps byte-identical prompts and acceptance folds.
+
 ## 1.64.0
 
 ### Minor Changes
