@@ -87,6 +87,7 @@ export * from './engine/scheduler.js';
 export * from './orchestrator/admission.js';
 export * from './orchestrator/extension.js';
 export * from './orchestrator/finish-validators.js';
+export * from './orchestrator/output-contract.js';
 export * from './orchestrator/handles.js';
 export * from './orchestrator/spawn-tools.js';
 export * from './orchestrator/orchestrate.js';

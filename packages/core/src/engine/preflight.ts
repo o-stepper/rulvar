@@ -42,6 +42,13 @@ import {
   orchestratorAdmissionEstCostUsd,
   type OrchestratorBudgetSpec,
 } from '../orchestrator/orchestrate.js';
+import { ConfigError } from '../l0/errors.js';
+import type { FinishValidator } from '../orchestrator/finish-validators.js';
+import {
+  selfTestFinishValidation,
+  type FinishContract,
+  type FinishSelfTestFixtures,
+} from '../orchestrator/output-contract.js';
 import { admissionReserveUsd, DEFAULT_FLAT_RESERVE_USD } from './budget.js';
 import type { CreateEngineOptions, RunOptions } from './engine.js';
 import { DEFAULT_PER_RUN_CONCURRENCY } from './scheduler.js';
@@ -139,6 +146,20 @@ export interface PreflightInput {
    * demand comparison needs them declared here.
    */
   quotaRules?: readonly QuotaRule[];
+  /**
+   * The opt in finish validation self test (the v1.71 experiment
+   * review, P1.1). Programmatic only: validator functions cannot ride
+   * a JSON config file, so the CLI never carries this. When present,
+   * preflight runs the SAME golden self test orchestrate runs at
+   * construction and reports every drift as an error finding (code
+   * 'output-contract-validator-mismatch') instead of throwing, so a
+   * planner surfaces it next to the quota and budget findings.
+   */
+  finishValidation?: {
+    validators: FinishValidator[];
+    contract?: FinishContract;
+    selfTest?: FinishSelfTestFixtures;
+  };
 }
 
 /** One linter verdict; `spawn` names the wave entry it is about. */
@@ -263,6 +284,18 @@ export interface PreflightReport {
      * outputBound x K(K+1)/2). Absent when nothing is declared.
      */
     runCeiling?: { requests: number; tokens: number };
+  };
+  /**
+   * Present when input.finishValidation was provided: the self test
+   * echo. `selfTest` reflects the golden fixture run alone
+   * ('skipped' = no fixture resolvable); containment drift between a
+   * contract and the validator set reports through findings either
+   * way.
+   */
+  finishValidation?: {
+    contractHash?: string;
+    validators: string[];
+    selfTest: 'passed' | 'failed' | 'skipped';
   };
   findings: PreflightFinding[];
 }
@@ -1196,6 +1229,77 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
           { requests: 0, tokens: 0 },
         );
 
+  /**
+   * The finish validation self test (the v1.71 experiment review,
+   * P1.1): the SAME golden checks orchestrate runs at construction,
+   * reported as error findings instead of throws. The experiment's
+   * initial preflight was silent while a stale validator waited to
+   * reject every correct answer; with the contract declared here, that
+   * drift is a red finding before the first paid call.
+   */
+  let finishValidationEcho: PreflightReport['finishValidation'];
+  if (input.finishValidation !== undefined) {
+    const fv = input.finishValidation;
+    if (!Array.isArray(fv.validators) || fv.validators.length === 0) {
+      throw new ConfigError(
+        'preflight finishValidation.validators must be a non empty array of validators',
+      );
+    }
+    const names = new Set<string>();
+    for (const candidate of fv.validators) {
+      const validator = candidate as { name?: unknown; validate?: unknown };
+      if (typeof validator.name !== 'string' || validator.name.length === 0) {
+        throw new ConfigError('every preflight finish validator must carry a non empty name');
+      }
+      if (typeof validator.validate !== 'function') {
+        throw new ConfigError(
+          `preflight finish validator '${validator.name}' has no validate function`,
+        );
+      }
+      names.add(validator.name);
+    }
+    if (fv.contract !== undefined) {
+      for (const contractValidator of fv.contract.validators) {
+        if (!names.has(contractValidator.name)) {
+          findings.push({
+            severity: 'error',
+            code: 'output-contract-validator-mismatch',
+            message:
+              `contract validator '${contractValidator.name}' is not in the configured ` +
+              'validator set; the promised contract is not enforced',
+          });
+        }
+      }
+    }
+    const acceptFixture = fv.selfTest?.accept ?? fv.contract?.goldenAccept;
+    const rejectFixture = fv.selfTest?.reject ?? fv.contract?.goldenReject;
+    let selfTestOutcome: 'passed' | 'failed' | 'skipped' = 'skipped';
+    if (acceptFixture !== undefined || rejectFixture !== undefined) {
+      const report = selfTestFinishValidation({
+        validators: fv.validators,
+        ...(acceptFixture === undefined ? {} : { accept: acceptFixture }),
+        ...(rejectFixture === undefined ? {} : { reject: rejectFixture }),
+      });
+      selfTestOutcome = report.ok ? 'passed' : 'failed';
+      for (const failure of report.failures) {
+        findings.push({
+          severity: 'error',
+          code: 'output-contract-validator-mismatch',
+          message:
+            failure.validator === undefined
+              ? failure.reasons.join('; ')
+              : `validator '${failure.validator}' rejected the golden accept fixture: ` +
+                failure.reasons.join('; '),
+        });
+      }
+    }
+    finishValidationEcho = {
+      ...(fv.contract === undefined ? {} : { contractHash: fv.contract.hash }),
+      validators: fv.validators.map((validator) => validator.name),
+      selfTest: selfTestOutcome,
+    };
+  }
+
   const severityRank = { error: 0, warning: 1, info: 2 } as const;
   findings.sort((a, b) => severityRank[a.severity] - severityRank[b.severity]);
 
@@ -1232,6 +1336,7 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       perProvider,
       ...(runCeiling === undefined ? {} : { runCeiling }),
     },
+    ...(finishValidationEcho === undefined ? {} : { finishValidation: finishValidationEcho }),
     findings,
   };
 }

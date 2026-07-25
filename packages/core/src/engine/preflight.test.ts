@@ -13,6 +13,8 @@ import { z } from 'zod';
 
 import type { ModelRef } from '../l0/messages.js';
 import { dispatchProjectionReserveUsd } from '../orchestrator/admission.js';
+import { requiredSectionsValidator } from '../orchestrator/finish-validators.js';
+import { finishContract } from '../orchestrator/output-contract.js';
 import { orchestrate, orchestratorAdmissionEstCostUsd } from '../orchestrator/orchestrate.js';
 import { tool } from '../tools/tool.js';
 import { mergeUsageLimits } from '../runtime/usage-limits.js';
@@ -761,5 +763,62 @@ describe('orchestrate-wave parity (the 1.63.0 experiment review, P0.3)', () => {
       spawns: [{ label: 'no-tools', limits: { maxToolCalls: 0 } }],
     });
     expect(zero.findings.some((entry) => entry.code === 'tool-cap-before-checkpoint')).toBe(false);
+  });
+
+  it('surfaces output contract drift as an error finding before any paid call (P1.1)', () => {
+    // The v1.71 experiment shape: the question renamed the sections,
+    // the harness validator kept the old names, and the run burned to
+    // its turn ceiling. Declared here, the drift is a red finding.
+    const contract = finishContract({ sections: ['## 5. Kill-point analysis'] });
+    const report = preflightEstimate({
+      finishValidation: {
+        validators: [
+          ...contract.validators,
+          requiredSectionsValidator({
+            sections: ['## 5. Failure and recovery analysis'],
+            name: 'legacy-sections',
+          }),
+        ],
+        contract,
+      },
+    });
+    const finding = report.findings.find(
+      (entry) => entry.code === 'output-contract-validator-mismatch',
+    );
+    expect(finding?.severity).toBe('error');
+    expect(finding?.message).toContain('legacy-sections');
+    expect(finding?.message).toContain('## 5. Failure and recovery analysis');
+    expect(report.finishValidation).toEqual({
+      contractHash: contract.hash,
+      validators: ['contract-sections', 'legacy-sections'],
+      selfTest: 'failed',
+    });
+  });
+
+  it('echoes a passing self test and a missing contract validator separately', () => {
+    const contract = finishContract({ sections: ['FINDINGS'], words: { min: 5, max: 500 } });
+    const clean = preflightEstimate({
+      finishValidation: { validators: contract.validators, contract },
+    });
+    expect(clean.findings.filter((f) => f.code === 'output-contract-validator-mismatch')).toEqual(
+      [],
+    );
+    expect(clean.finishValidation?.selfTest).toBe('passed');
+
+    // Containment drift: the contract is declared but nobody enforces
+    // its validators; the goldens still pass the configured set, so the
+    // echo says 'passed' while the finding carries the omission.
+    const omitted = preflightEstimate({
+      finishValidation: {
+        validators: [requiredSectionsValidator({ sections: ['FINDINGS'] })],
+        contract,
+      },
+    });
+    const codes = omitted.findings.filter((f) => f.code === 'output-contract-validator-mismatch');
+    expect(codes.map((f) => f.message).join(' ')).toContain('contract-sections');
+    expect(codes.map((f) => f.message).join(' ')).toContain('contract-words');
+    // A report without the input keeps the pre 1.72 shape exactly.
+    const absent = preflightEstimate({ run: { budgetUsd: 1 } });
+    expect(absent.finishValidation).toBeUndefined();
   });
 });
