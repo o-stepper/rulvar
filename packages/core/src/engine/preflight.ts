@@ -186,6 +186,15 @@ export interface PreflightSpawnReport {
   turnFloorUsd?: number;
   /** Executed-call ceiling across any tool mix; null = unlimited. */
   executedToolCallCeiling: number | null;
+  /**
+   * The provider-call ceiling of ONE spawn's whole loop: maxTurns
+   * bounded by the executed-call ceiling plus its final no-tool turn,
+   * plus the finalization summary turn when a tool budget limiter arms
+   * it. Every provider turn is one wire request and one quota
+   * reservation, so this is the per-spawn multiplier of quota demand;
+   * retries sit on top of it.
+   */
+  projectedProviderTurns: number;
   /** Per-tool ceilings for every tool a cap or a unit cost names. */
   toolCeilings: PreflightToolCeiling[];
 }
@@ -214,6 +223,8 @@ export interface PreflightReport {
       finalizeTurns: number;
       /** Whether the finalize reserve is committed against the run root (extension runs). */
       reserveCommitted: boolean;
+      /** The orchestrator agent's own loop ceiling, derived exactly like a spawn's. */
+      projectedProviderTurns: number;
     };
   };
   quota: { configured: boolean; tenant?: string; rules?: number };
@@ -242,6 +253,16 @@ export interface PreflightReport {
       string,
       { inFlight: number; requestsPerWave: number; tokensPerWaveFloor: number }
     >;
+    /**
+     * The declared wave run to its derived turn ceilings, at the
+     * declared estimates (the second experiment report, rec 9): total
+     * provider calls (fan-out times per-spawn projected turns, before
+     * any retries) and the cumulative token demand with the context
+     * regrowing every turn (turn k re-sends the declared prompt plus
+     * the k-1 prior output bounds, so K turns cost K x est +
+     * outputBound x K(K+1)/2). Absent when nothing is declared.
+     */
+    runCeiling?: { requests: number; tokens: number };
   };
   findings: PreflightFinding[];
 }
@@ -252,6 +273,64 @@ interface SpawnUnit {
   model?: string;
   turnFloorUsd?: number;
   tokensFloor: number;
+}
+
+/** One declared spawn shape of the run-ceiling quota projection. */
+interface QuotaShape {
+  label: string;
+  provider?: string;
+  model?: string;
+  /** The declared prompt floor (estInputTokens); 0 when undeclared. */
+  inputFloor: number;
+  /** The per-turn output bound; 0 when nothing bounds output. */
+  outputBound: number;
+  /** The provider-call ceiling of one spawn's loop. */
+  turns: number;
+  count: number;
+}
+
+/**
+ * The overall executed-call ceiling across any tool mix: the cheapest
+ * single-tool strategy bounds it from above; maxToolCalls bounds it
+ * regardless of mix. A free tool (unit cost 0) lifts the units bound
+ * entirely for calls of that tool.
+ */
+function overallExecutedCeiling(
+  limits: EffectiveUsageLimits,
+  toolCeilings: PreflightToolCeiling[],
+): number | null {
+  const overall = toolCeilings.reduce<number | null>(
+    (best, row) =>
+      row.ceiling === null ? best : best === null ? row.ceiling : Math.max(best, row.ceiling),
+    null,
+  );
+  return limits.maxToolCalls !== undefined && (overall === null || limits.maxToolCalls < overall)
+    ? limits.maxToolCalls
+    : overall;
+}
+
+/**
+ * The provider-call ceiling of one whole loop: maxTurns bounded by the
+ * executed-call ceiling plus the final no-tool turn, plus the
+ * finalization summary turn when a tool budget limiter arms it.
+ */
+function projectedProviderTurnsOf(
+  limits: EffectiveUsageLimits,
+  executedToolCallCeiling: number | null,
+): number {
+  const toolBound = executedToolCallCeiling === null ? undefined : executedToolCallCeiling + 1;
+  const finalizeTurn =
+    limits.finalizationReserve !== undefined &&
+    (limits.maxToolCalls !== undefined || limits.toolUnits !== undefined)
+      ? 1
+      : 0;
+  const base = toolBound === undefined ? limits.maxTurns : Math.min(limits.maxTurns, toolBound);
+  return base + finalizeTurn;
+}
+
+/** Cumulative token demand of one whole loop at the declared estimates. */
+function shapeRunTokens(shape: QuotaShape): number {
+  return shape.turns * shape.inputFloor + (shape.outputBound * shape.turns * (shape.turns + 1)) / 2;
 }
 
 const ANY_TOOL = '(any)';
@@ -403,11 +482,16 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     if (reserveCommitted) {
       reservedForFinalizationUsd = finalizeReserveUsd;
     }
+    const echoLimits = mergeUsageLimits(input.orchestrator.limits, undefined, defaults.limits);
     orchestratorEcho = {
       ...(effectiveCapUsd === undefined ? {} : { effectiveCapUsd }),
       finalizeReserveUsd,
       finalizeTurns,
       reserveCommitted,
+      projectedProviderTurns: projectedProviderTurnsOf(
+        echoLimits,
+        overallExecutedCeiling(echoLimits, toolCeilingsOf(echoLimits)),
+      ),
     };
     if (
       spec?.capUsd !== undefined &&
@@ -451,6 +535,7 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
    */
   const waveGateInputs: Array<{ estCostUsd?: number; budgetUsd?: number }> = [];
   const units: SpawnUnit[] = [];
+  const shapes: QuotaShape[] = [];
   for (const spec of spawnSpecs) {
     const role = spec.role ?? 'loop';
     const label = spec.label ?? role;
@@ -545,19 +630,8 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
           });
 
     const toolCeilings = toolCeilingsOf(limits);
-    const overall = toolCeilings.reduce<number | null>(
-      (best, row) =>
-        row.ceiling === null ? best : best === null ? row.ceiling : Math.max(best, row.ceiling),
-      null,
-    );
-    // The overall executed-call ceiling across any mix: the cheapest
-    // single-tool strategy bounds it from above; maxToolCalls bounds it
-    // regardless of mix. A free tool (unit cost 0) lifts the units
-    // bound entirely for calls of that tool.
-    const executedToolCallCeiling =
-      limits.maxToolCalls !== undefined && (overall === null || limits.maxToolCalls < overall)
-        ? limits.maxToolCalls
-        : overall;
+    const executedToolCallCeiling = overallExecutedCeiling(limits, toolCeilings);
+    const projectedProviderTurns = projectedProviderTurnsOf(limits, executedToolCallCeiling);
 
     for (const row of toolCeilings) {
       if (row.tool === ANY_TOOL) {
@@ -684,6 +758,7 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       ...(outputBound === undefined ? {} : { maxOutputTokensPerTurn: outputBound }),
       ...(turnFloorUsd === undefined ? {} : { turnFloorUsd }),
       executedToolCallCeiling,
+      projectedProviderTurns,
       toolCeilings,
     });
     {
@@ -707,6 +782,21 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         unit.turnFloorUsd = turnFloorUsd;
       }
       units.push(unit);
+    }
+    {
+      const shape: QuotaShape = {
+        label,
+        inputFloor: spec.estInputTokens ?? 0,
+        outputBound: outputBound ?? 0,
+        turns: projectedProviderTurns,
+        count,
+      };
+      if (servedBy !== undefined) {
+        const { adapterId, model } = parseModelRef(servedBy);
+        shape.provider = adapterId;
+        shape.model = model;
+      }
+      shapes.push(shape);
     }
   }
   // The orchestrator agent is a declared unit too: its serving model
@@ -750,6 +840,18 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         });
       }
       units.push(unit);
+      shapes.push({
+        label: 'orchestrator',
+        provider: adapterId,
+        model,
+        inputFloor: input.orchestrator.estInputTokens ?? 0,
+        outputBound: outputBound ?? 0,
+        turns: projectedProviderTurnsOf(
+          orchLimits,
+          overallExecutedCeiling(orchLimits, toolCeilingsOf(orchLimits)),
+        ),
+        count: 1,
+      });
       // The orchestrator's own admission reserve, exactly the live
       // dispatch (the shared formulas of the 1.63.0 experiment review,
       // P0.3): a CAPPED orchestrator admits at exact fill with the
@@ -998,8 +1100,101 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
             'inside one window',
         });
       }
+      // ---- Past the first wave (the second experiment report, rec
+      // 9): the same rule against the run ceiling. Every provider turn
+      // is one wire request, a loop is bounded by
+      // projectedProviderTurns, and the context regrows every turn, so
+      // at the declared estimates turn k reserves inputFloor + k x
+      // outputBound. The below-run checks fire only when the wave
+      // check for the same dimension stayed silent: a wave that
+      // already exceeds the window is the stronger, certain diagnosis.
+      let runRequests = 0;
+      let runTokens = 0;
+      for (const shape of shapes) {
+        if (shape.provider === undefined || shape.model === undefined) {
+          continue;
+        }
+        const shapeRequest = {
+          provider: shape.provider,
+          model: shape.model,
+          ...(engine.quota?.tenant === undefined ? {} : { tenant: engine.quota.tenant }),
+          estimate: { requests: 1, inputTokens: 0 },
+        };
+        if (!quotaRuleMatches(rule, shapeRequest)) {
+          continue;
+        }
+        runRequests += shape.count * shape.turns;
+        runTokens += shape.count * shapeRunTokens(shape);
+        if (rule.tokensPerMinute !== undefined && shape.outputBound > 0) {
+          // The smallest k whose single reservation exceeds the whole
+          // window: the limiter denies it with retryAfterMs 0 (the
+          // estimate can never fit), so the loop dies there after
+          // paying for the earlier turns.
+          const k = Math.max(
+            1,
+            Math.floor((rule.tokensPerMinute - shape.inputFloor) / shape.outputBound) + 1,
+          );
+          if (k <= shape.turns) {
+            say({
+              severity: 'warning',
+              code: 'quota-turn-never-fits',
+              message:
+                `spawn '${shape.label}': by turn ${String(k)} of ${String(shape.turns)} the ` +
+                `context-grown reservation (about ` +
+                `${String(shape.inputFloor + k * shape.outputBound)} tokens) exceeds ${name} ` +
+                `tokensPerMinute ${String(rule.tokensPerMinute)} outright: the limiter denies ` +
+                `it as never fitting the window (no wait helps) and the invocation fails after ` +
+                `paying for the earlier turns`,
+              spawn: shape.label,
+            });
+          }
+        }
+      }
+      if (
+        rule.requestsPerMinute !== undefined &&
+        requests <= rule.requestsPerMinute &&
+        runRequests > rule.requestsPerMinute
+      ) {
+        say({
+          severity: 'warning',
+          code: 'quota-requests-below-run',
+          message:
+            `${name}: the declared wave fits ${String(requests)} dispatches under ` +
+            `requestsPerMinute ${String(rule.requestsPerMinute)}, but run to its turn ceilings ` +
+            `it projects up to ${String(runRequests)} provider calls (fan-out times per-spawn ` +
+            `turns, before any retries): expect synthetic rate-limit denials and backoff across ` +
+            `about ${String(Math.ceil(runRequests / rule.requestsPerMinute))} windows`,
+        });
+      }
+      if (
+        rule.tokensPerMinute !== undefined &&
+        tokens <= rule.tokensPerMinute &&
+        runTokens > rule.tokensPerMinute
+      ) {
+        say({
+          severity: 'warning',
+          code: 'quota-tokens-below-run',
+          message:
+            `${name}: the declared wave demands ${String(tokens)} tokens up front, but with ` +
+            `the context regrowing every turn its loops project about ${String(runTokens)} ` +
+            `tokens against tokensPerMinute ${String(rule.tokensPerMinute)}: expect ` +
+            `estimate-driven throttling across about ` +
+            `${String(Math.ceil(runTokens / rule.tokensPerMinute))} windows`,
+        });
+      }
     });
   }
+
+  const runCeiling =
+    shapes.length === 0
+      ? undefined
+      : shapes.reduce(
+          (sum, shape) => ({
+            requests: sum.requests + shape.count * shape.turns,
+            tokens: sum.tokens + shape.count * shapeRunTokens(shape),
+          }),
+          { requests: 0, tokens: 0 },
+        );
 
   const severityRank = { error: 0, warning: 1, info: 2 } as const;
   findings.sort((a, b) => severityRank[a.severity] - severityRank[b.severity]);
@@ -1035,6 +1230,7 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       maxInFlight,
       ...(overshootOneTurnFloorUsd === undefined ? {} : { overshootOneTurnFloorUsd }),
       perProvider,
+      ...(runCeiling === undefined ? {} : { runCeiling }),
     },
     findings,
   };
