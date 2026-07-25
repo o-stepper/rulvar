@@ -38,8 +38,11 @@ declare function inspectCommand(argv: string[], context: CommandContext): Promis
 * plus the gross/net ledger totals (`totalUsd` here is the GROSS
 * figure: abandoned subtrees included, exactly what a provider invoice
 * bills). --json prints the machine-readable InvoiceExport; the text
-* form prints one line per row. Pricing folds at read time from the
-* assembled price table, the same numbers rulvar inspect reports.
+* form prints one line per row and mirrors the export's declared
+* pricing basis (per-call row usd is non-additive; `allocatedUsd` is
+* the additive column that sums to gross). Pricing folds at read time
+* from the assembled price table, the same numbers rulvar inspect
+* reports.
 */
 declare function invoiceCommand(argv: string[], context: CommandContext): Promise<number>;
 /**

@@ -260,18 +260,34 @@ export default {
     // FakeAdapter surfaces no provider ids, so every dispatched call
     // reconciles as missing-provider-id instead of silently matching.
     expect(lines).toContain('[missing-provider-id]');
+    // The text form mirrors the export's declared pricing basis.
+    expect(lines).toContain(
+      'pricing basis: per-call (row usd is non-additive; allocatedUsd sums to gross)',
+    );
 
     const json = scriptedIo();
     expect(await runCli(['invoice', runId, '--json'], { cwd, io: json })).toBe(0);
     const parsed = JSON.parse(json.outLines.join('\n')) as {
       totalUsd: number;
       netUsd: number;
-      rows: Array<{ ordinal: number; outcome: string; reconciliation: string }>;
+      pricingBasis: string;
+      rowUsdNonAdditive: boolean;
+      rows: Array<{
+        ordinal: number;
+        outcome: string;
+        reconciliation: string;
+        allocatedUsd: number;
+      }>;
       reconciliationFailures: number;
     };
     expect(parsed.totalUsd).toBe(0);
+    expect(parsed.pricingBasis).toBe('per-call');
+    expect(parsed.rowUsdNonAdditive).toBe(true);
     expect(parsed.rows.length).toBeGreaterThan(0);
     expect(parsed.rows.every((row) => row.outcome === 'ok')).toBe(true);
+    // The additive column is always present and sums to the gross total.
+    expect(parsed.rows.every((row) => typeof row.allocatedUsd === 'number')).toBe(true);
+    expect(parsed.rows.reduce((acc, row) => acc + row.allocatedUsd, 0)).toBe(parsed.totalUsd);
     expect(parsed.reconciliationFailures).toBe(parsed.rows.length);
 
     const missing = scriptedIo();
