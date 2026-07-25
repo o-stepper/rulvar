@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.64.0
+
+#### Patch Changes
+
+- Updated dependencies [991f9b5]
+  - @rulvar/core@1.64.0
+
 ### 1.63.0
 
 #### Patch Changes
@@ -836,6 +843,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.64.0
+
+#### Patch Changes
+
+- Updated dependencies [991f9b5]
+  - @rulvar/core@1.64.0
+
 ### 1.63.0
 
 #### Patch Changes
@@ -1519,6 +1533,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.64.0
+
+#### Patch Changes
+
+- Updated dependencies [991f9b5]
+  - @rulvar/core@1.64.0
 
 ### 1.63.0
 
@@ -2501,6 +2522,16 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.64.0
+
+#### Minor Changes
+
+- 991f9b5: Preflight and live admission share one reserve arithmetic (the 1.63.0 experiment review, P0.3).
+
+  Published 1.63.0 drifted from the runtime in both directions for orchestrate waves. A capped orchestrator below the flat reserve made `preflightEstimate` emit the error-tier `orchestrator-cap-below-reserve` finding (exit 1 in CI) while the live run started fine, because the live dispatch admits the capped orchestrator at EXACT FILL with the `effectiveCap - committedFinalizeReserve` estimate hint. And the projection admitted children whose priced layer-1 arm was tiny while the live embedded layer-2 spawn gate, which never sees the priced estimate, rejected every one of them against the remainder net of the orchestrator's own hold.
+
+  Now the two formulas are exported pure functions the live paths themselves call, and `preflightEstimate` calls the same two: `dispatchProjectionReserveUsd` (the layer-2 spawn-gate projection: the declared estimate or the flat default, clamped by the spawn's explicit budget) and `orchestratorAdmissionEstCostUsd` (the capped orchestrator's exact-fill dispatch hint). An orchestrate wave now mirrors the runtime's two gates per spawn in live order; a plain wave keeps the parity-proven `admitSpawn` mirror. New inputs: `PreflightSpawnSpec.budgetUsd` (the spawn param; layer-2 clamp only) and `PreflightOrchestratorSpec.estInputTokens` (the uncapped orchestrator's goal-prompt stand-in). Removed: the false `orchestrator-cap-below-reserve` error finding and the `'orchestrator-cap'` deniedBy value (a tight cap is a tight loop budget, never a refused run). Three new parity tests run live orchestrations beside the projection: the capped-below-flat config, the all-children-denied wave, and the layer-2-pass-layer-1-bust spawn.
 
 ### 1.63.0
 
@@ -3895,6 +3926,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.64.0
+
 ### 1.63.0
 
 ### 1.62.0
@@ -4115,6 +4148,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.64.0
+
+#### Patch Changes
+
+- Updated dependencies [991f9b5]
+  - @rulvar/core@1.64.0
+  - @rulvar/testing@1.64.0
 
 ### 1.63.0
 
@@ -4973,6 +5014,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.64.0
+
+#### Patch Changes
+
+- Updated dependencies [991f9b5]
+  - @rulvar/core@1.64.0
+
 ### 1.63.0
 
 #### Patch Changes
@@ -5041,6 +5089,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.64.0
+
+#### Patch Changes
+
+- Updated dependencies [991f9b5]
+  - @rulvar/core@1.64.0
 
 ### 1.63.0
 
@@ -5877,6 +5932,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.64.0
+
+#### Patch Changes
+
+- Updated dependencies [991f9b5]
+  - @rulvar/core@1.64.0
+
 ### 1.63.0
 
 #### Patch Changes
@@ -6681,6 +6743,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.64.0
+
+#### Patch Changes
+
+- Updated dependencies [991f9b5]
+  - @rulvar/core@1.64.0
+  - eslint-plugin-rulvar@1.64.0
 
 ### 1.63.0
 
@@ -7495,6 +7565,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.64.0
+
+#### Patch Changes
+
+- Updated dependencies [991f9b5]
+  - @rulvar/core@1.64.0
+  - @rulvar/anthropic@1.64.0
+  - @rulvar/openai@1.64.0
 
 ### 1.63.0
 
@@ -8462,6 +8541,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.64.0
+
+#### Patch Changes
+
+- Updated dependencies [991f9b5]
+  - @rulvar/core@1.64.0
+
 ### 1.63.0
 
 #### Minor Changes
@@ -9245,6 +9331,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.64.0
+
+#### Patch Changes
+
+- Updated dependencies [991f9b5]
+  - @rulvar/core@1.64.0
+
 ### 1.63.0
 
 #### Minor Changes
@@ -9335,6 +9428,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.64.0
+
+#### Patch Changes
+
+- Updated dependencies [991f9b5]
+  - @rulvar/core@1.64.0
 
 ### 1.63.0
 
@@ -10065,6 +10165,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.64.0
+
+#### Patch Changes
+
+- Updated dependencies [991f9b5]
+  - @rulvar/core@1.64.0
 
 ### 1.63.0
 
