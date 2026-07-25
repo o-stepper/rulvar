@@ -7536,6 +7536,38 @@
             "link": "/api/@rulvar/store-conformance/interfaces/FencedTranscriptsFixture.md"
           },
           {
+            "text": "KillPointConformanceOptions",
+            "link": "/api/@rulvar/store-conformance/interfaces/KillPointConformanceOptions.md"
+          },
+          {
+            "text": "KillPointExpectation",
+            "link": "/api/@rulvar/store-conformance/interfaces/KillPointExpectation.md"
+          },
+          {
+            "text": "KillPointObservation",
+            "link": "/api/@rulvar/store-conformance/interfaces/KillPointObservation.md"
+          },
+          {
+            "text": "KillPointScenario",
+            "link": "/api/@rulvar/store-conformance/interfaces/KillPointScenario.md"
+          },
+          {
+            "text": "KillPointScenarioOptions",
+            "link": "/api/@rulvar/store-conformance/interfaces/KillPointScenarioOptions.md"
+          },
+          {
+            "text": "KillPointTarget",
+            "link": "/api/@rulvar/store-conformance/interfaces/KillPointTarget.md"
+          },
+          {
+            "text": "KillPointWorkerConfig",
+            "link": "/api/@rulvar/store-conformance/interfaces/KillPointWorkerConfig.md"
+          },
+          {
+            "text": "KillPointWorkerHooks",
+            "link": "/api/@rulvar/store-conformance/interfaces/KillPointWorkerHooks.md"
+          },
+          {
             "text": "MultiProcessSoakOptions",
             "link": "/api/@rulvar/store-conformance/interfaces/MultiProcessSoakOptions.md"
           },
@@ -7570,6 +7602,22 @@
         "collapsed": true,
         "items": [
           {
+            "text": "KillPointEvent",
+            "link": "/api/@rulvar/store-conformance/type-aliases/KillPointEvent.md"
+          },
+          {
+            "text": "KillPointName",
+            "link": "/api/@rulvar/store-conformance/type-aliases/KillPointName.md"
+          },
+          {
+            "text": "KillPointPhase",
+            "link": "/api/@rulvar/store-conformance/type-aliases/KillPointPhase.md"
+          },
+          {
+            "text": "KillPointWorkflowKind",
+            "link": "/api/@rulvar/store-conformance/type-aliases/KillPointWorkflowKind.md"
+          },
+          {
             "text": "SoakAcceptSurface",
             "link": "/api/@rulvar/store-conformance/type-aliases/SoakAcceptSurface.md"
           },
@@ -7602,6 +7650,10 @@
           {
             "text": "GOLDEN_FOLD_STATE_SHA256",
             "link": "/api/@rulvar/store-conformance/variables/GOLDEN_FOLD_STATE_SHA256.md"
+          },
+          {
+            "text": "KILL_POINT_SCENARIOS",
+            "link": "/api/@rulvar/store-conformance/variables/KILL_POINT_SCENARIOS.md"
           }
         ]
       },
@@ -7630,6 +7682,14 @@
             "link": "/api/@rulvar/store-conformance/functions/journalStoreConformance.md"
           },
           {
+            "text": "killPointConformance",
+            "link": "/api/@rulvar/store-conformance/functions/killPointConformance.md"
+          },
+          {
+            "text": "killPointWorkerConfigFromEnv",
+            "link": "/api/@rulvar/store-conformance/functions/killPointWorkerConfigFromEnv.md"
+          },
+          {
             "text": "leasableStoreConformance",
             "link": "/api/@rulvar/store-conformance/functions/leasableStoreConformance.md"
           },
@@ -7642,12 +7702,24 @@
             "link": "/api/@rulvar/store-conformance/functions/materializeFoldState.md"
           },
           {
+            "text": "parseKillPointReport",
+            "link": "/api/@rulvar/store-conformance/functions/parseKillPointReport.md"
+          },
+          {
             "text": "parseSoakReport",
             "link": "/api/@rulvar/store-conformance/functions/parseSoakReport.md"
           },
           {
             "text": "registerConformance",
             "link": "/api/@rulvar/store-conformance/functions/registerConformance.md"
+          },
+          {
+            "text": "runKillPointScenario",
+            "link": "/api/@rulvar/store-conformance/functions/runKillPointScenario.md"
+          },
+          {
+            "text": "runKillPointWorker",
+            "link": "/api/@rulvar/store-conformance/functions/runKillPointWorker.md"
           },
           {
             "text": "runMultiProcessSoak",

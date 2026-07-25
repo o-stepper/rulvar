@@ -2,9 +2,13 @@
 
 The executable conformance kit for Rulvar store adapters: append
 atomicity, total per-run order, read-your-writes, payload opacity, lease
-fencing, and golden fold-state fixtures. If you implement a custom
-store, this suite is the contract your implementation must pass. Exports
-`journalStoreConformance`, `leasableStoreConformance`, and
+fencing, golden fold-state fixtures, the adversarial multi-process soak,
+and the engine-level kill-point suite (a child process SIGKILLed around
+each durable write, resumed from another process, with the documented
+re-pay counts asserted). If you implement a custom store, this suite is
+the contract your implementation must pass. Exports
+`journalStoreConformance`, `leasableStoreConformance`,
+`runMultiProcessSoak`, `killPointConformance`, and
 `registerConformance`.
 
 Part of [Rulvar](https://rulvar.com), an embeddable TypeScript engine

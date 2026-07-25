@@ -9,7 +9,11 @@
  * multi-process queue deployments additionally run the adversarial
  * multi-process soak (runMultiProcessSoak: real OS processes storm one
  * store location through every fenced write surface and the referee
- * diffs the state against the serial history the epochs promise).
+ * diffs the state against the serial history the epochs promise) and
+ * the engine-level kill-point suite (killPointConformance: a child
+ * process SIGKILLs itself around each durable write of a scripted run,
+ * and the referee resumes over the same store asserting the documented
+ * recovery semantics, re-pay counts included).
  *
  * Usage under Vitest:
  *
@@ -53,6 +57,26 @@ export {
   type SoakWriterConfig,
   type SoakWriterHooks,
 } from './multi-process-soak.js';
+export {
+  KILL_POINT_SCENARIOS,
+  killPointConformance,
+  killPointWorkerConfigFromEnv,
+  parseKillPointReport,
+  runKillPointScenario,
+  runKillPointWorker,
+  type KillPointConformanceOptions,
+  type KillPointEvent,
+  type KillPointExpectation,
+  type KillPointName,
+  type KillPointObservation,
+  type KillPointPhase,
+  type KillPointScenario,
+  type KillPointScenarioOptions,
+  type KillPointTarget,
+  type KillPointWorkerConfig,
+  type KillPointWorkerHooks,
+  type KillPointWorkflowKind,
+} from './kill-points.js';
 export {
   GOLDEN_FOLD_JOURNAL,
   GOLDEN_FOLD_STATE_SHA256,
