@@ -618,6 +618,28 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
       }
     }
     if (
+      executedToolCallCeiling !== null &&
+      executedToolCallCeiling > 0 &&
+      caps?.supportsParallelTools === true
+    ) {
+      // The experiment review P1.8: the runtime checkpoints once per
+      // COMPLETED tool turn, and nothing in the limits vocabulary bounds
+      // a parallel batch below the executed-call ceiling, so the whole
+      // tool budget can burn inside the first batch before any
+      // checkpoint exists. Serial adapters (one call per turn) keep the
+      // loss window at one call and stay silent.
+      say({
+        severity: 'warning',
+        code: 'tool-cap-before-checkpoint',
+        message:
+          `spawn '${label}': the whole executed-call budget ` +
+          `(${String(executedToolCallCeiling)} calls) fits into one parallel tool batch, and ` +
+          `checkpoints write once per completed tool turn: the cap can be reached before any ` +
+          `checkpoint exists, and a kill mid-batch re-pays every executed call on resume`,
+        spawn: label,
+      });
+    }
+    if (
       limits.finalizationReserve !== undefined &&
       limits.maxToolCalls === undefined &&
       limits.toolUnits === undefined
