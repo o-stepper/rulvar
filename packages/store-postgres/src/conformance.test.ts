@@ -129,9 +129,14 @@ describe('PostgresStore option intake', () => {
 
 describeDb('cross-instance fencing over one schema (two processes in production)', () => {
   it('a takeover on instance B fences instance A out of every write surface', async () => {
+    // Asymmetric ttls on purpose: only A's lease must expire fast (the
+    // sleep below waits it out); B's takeover lease guards B's OWN
+    // writes through the rest of the test, and a scheduler stall on a
+    // loaded runner must not expire it mid-assertion, so B keeps the
+    // store's generous default.
     const a = fresh({ ttlMs: 120 });
     const schema = schemas[schemas.length - 1];
-    const b = over(schema, { ttlMs: 120 });
+    const b = over(schema);
 
     const stale = await a.acquire('RUN', 'worker-a');
     await a.append('RUN', entry(1), stale);
