@@ -30,6 +30,16 @@ export interface FinishValidationChild {
    * same serialization the child result evidence tools page.
    */
   readonly text: string;
+  /**
+   * Present and true ONLY when acceptance.acceptValidatedTerminalOutputOnLimit
+   * is configured and this child settled 'limit' CARRYING a terminal
+   * output (the finalization reserve summary that, for a schema child,
+   * already validated against the declared output schema). Acceptance
+   * will count such a child as a success, so evidencePreservedValidator
+   * treats its text as part of the cited evidence pool. Absent in every
+   * other configuration, keeping the old pool exactly.
+   */
+  readonly salvageableOutput?: boolean;
 }
 
 /** What a {@link FinishValidator} judges. */
@@ -204,7 +214,13 @@ export function evidencePreservedValidator(options?: {
       // Fresh RegExp per scan: the 'g' flag makes matching stateful.
       const cited = new Set<string>();
       for (const child of input.children ?? []) {
-        if (child.status !== 'ok') {
+        // A salvage-accepted limit output is evidence too (the 1.64.0
+        // experiment review, P0.4): the runtime marks salvageableOutput
+        // only under acceptance.acceptValidatedTerminalOutputOnLimit,
+        // so every other configuration keeps the exact old pool, and
+        // with requireKnown the orchestrator quoting a salvaged child
+        // is no longer flagged as fabricating citations.
+        if (child.status !== 'ok' && child.salvageableOutput !== true) {
           continue;
         }
         for (const match of child.text.match(new RegExp(pattern, globalFlags)) ?? []) {

@@ -10,6 +10,6 @@
 const DEFAULT_CITATION_PATTERN: "[\w./-]+\.\w+:\d+" = '[\w./-]+\.\w+:\d+';
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:147](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L147)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:157](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L157)
 
 The default citation shape: a path with an extension, a colon, a line number.

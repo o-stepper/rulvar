@@ -172,6 +172,29 @@ export interface OrchestrateAcceptance {
    * decision, so a resume rolls the same verdict forward.
    */
   acceptPartialChildren?: boolean;
+  /**
+   * The terminal-output salvage switch (the 1.64.0 experiment review,
+   * P0.4 + P1.1; default false). When true, a child that settled
+   * 'limit' CARRYING a terminal output counts as a successful child for
+   * the policy, exactly like acceptPartialChildren counts a
+   * partial-bearing one. A limit terminal carries an output ONLY when
+   * the child's limits.finalizationReserve summary turn produced one
+   * AND, for a schema child, that summary already validated against the
+   * declared output schema (an invalid summary keeps output null and is
+   * never salvaged), so validation runs BEFORE acceptance by
+   * construction. The verdict then reports completion 'partial' (never
+   * 'complete'), lists the children in `salvagedTerminalOutputChildren`
+   * on the result envelope, and keeps a per-child note in
+   * degradedReasons. A child carrying BOTH an output and a progress
+   * partial salvages by its output. The child's digest and
+   * get_child_result surface the output unconditionally (paid, journaled
+   * evidence is never withheld); this option gates only the acceptance
+   * fold, the evidencePreservedValidator cited pool (via
+   * FinishValidationChild.salvageableOutput), and the coordination
+   * prompt line. The whole fold is journaled in the single acceptance
+   * decision, so a resume rolls the same verdict forward.
+   */
+  acceptValidatedTerminalOutputOnLimit?: boolean;
 }
 
 /** How many rejected finishes are repaired by default: the plan's repair once. */
@@ -421,12 +444,20 @@ function pageOf(
 function serializeChildOutput(result: AgentResult<unknown>): string {
   if (result.status !== 'ok') {
     const base = result.errorMessage ?? `terminal status ${result.status}`;
-    // The structured terminal partial (RV-210 close-out): get_child_result
-    // pages the WHOLE partial of a limit child, so the orchestrator can
+    const limitOutput =
+      result.status === 'limit' && result.output !== null && result.output !== undefined;
+    // The structured terminal partial (RV-210 close-out) and the
+    // validated terminal output (the 1.64.0 experiment review, P0.4):
+    // get_child_result pages the WHOLE partial and the finalization
+    // reserve's final output of a limit child, so the orchestrator can
     // salvage or respawn narrowed without losing the collected work.
-    // Shape change only when a report exists (the tool is opt-in).
-    if (result.partial !== undefined) {
-      return JSON.stringify({ error: base, partial: result.partial });
+    // Shape change only when either exists (the tool is opt-in).
+    if (limitOutput || result.partial !== undefined) {
+      return JSON.stringify({
+        error: base,
+        ...(limitOutput ? { output: result.output } : {}),
+        ...(result.partial === undefined ? {} : { partial: result.partial }),
+      });
     }
     return base;
   }
@@ -477,6 +508,14 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     if (acceptPartial !== undefined && typeof acceptPartial !== 'boolean') {
       throw new ConfigError(
         `orchestrate acceptance.acceptPartialChildren must be a boolean; got ${typeof acceptPartial}`,
+      );
+    }
+    const acceptOutput = (opts.acceptance as { acceptValidatedTerminalOutputOnLimit?: unknown })
+      .acceptValidatedTerminalOutputOnLimit;
+    if (acceptOutput !== undefined && typeof acceptOutput !== 'boolean') {
+      throw new ConfigError(
+        'orchestrate acceptance.acceptValidatedTerminalOutputOnLimit must be a boolean; got ' +
+          typeof acceptOutput,
       );
     }
   }
@@ -650,15 +689,24 @@ function finishValidationPromptLines(spec: FinishValidationSpec | undefined): st
  * keeps byte-identical coordination prompts.
  */
 function acceptancePromptLines(acceptance: OrchestrateAcceptance | undefined): string[] {
-  if (acceptance?.acceptPartialChildren !== true) {
-    return [];
+  const lines: string[] = [];
+  if (acceptance?.acceptPartialChildren === true) {
+    lines.push(
+      'Partial salvage is on: a child that ends at its limit AFTER recording progress with ' +
+        'report_progress counts as a partial success for acceptance; its digest carries the ' +
+        'partial and get_child_result (when enabled) pages the full report. When the gap ' +
+        'matters, respawn a NARROWED child carrying the partial instead of repeating the task.',
+    );
   }
-  return [
-    'Partial salvage is on: a child that ends at its limit AFTER recording progress with ' +
-      'report_progress counts as a partial success for acceptance; its digest carries the ' +
-      'partial and get_child_result (when enabled) pages the full report. When the gap ' +
-      'matters, respawn a NARROWED child carrying the partial instead of repeating the task.',
-  ];
+  if (acceptance?.acceptValidatedTerminalOutputOnLimit === true) {
+    lines.push(
+      'Terminal-output salvage is on: a child that ends at its limit WITH a final answer ' +
+        '(its finalization reserve summary, already validated against the declared output ' +
+        'schema) counts as a successful child for acceptance; its digest carries it after ' +
+        "the 'final:' marker and get_child_result (when enabled) pages it in full.",
+    );
+  }
+  return lines;
 }
 
 /**
@@ -2217,6 +2265,7 @@ export function makeOrchestratorWorkflow(
         // the finish result against the evidence the children produced.
         // Only the JOURNALED verdict survives; on replay the snapshot is
         // never rebuilt because the entry is read by call id above.
+        const salvageOutputOn = opts?.acceptance?.acceptValidatedTerminalOutputOnLimit === true;
         const children = [...records.values()]
           .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal)
           .map((record) => ({
@@ -2224,6 +2273,16 @@ export function makeOrchestratorWorkflow(
             nodeId: record.nodeId,
             status: record.settled?.status ?? 'running',
             text: record.settled === undefined ? '' : serializeChildOutput(record.settled),
+            // The salvage marker (P0.4): set only under the acceptance
+            // option, for a limit child whose terminal output acceptance
+            // WILL count as a success, so evidencePreservedValidator
+            // includes its text in the cited pool.
+            ...(salvageOutputOn &&
+            record.settled?.status === 'limit' &&
+            record.settled.output !== null &&
+            record.settled.output !== undefined
+              ? { salvageableOutput: true }
+              : {}),
           }));
         const input: FinishValidationInput = {
           result,
@@ -3002,6 +3061,11 @@ export function makeOrchestratorWorkflow(
       degradedReasons: string[];
       /** Limit children salvaged by acceptPartialChildren (RV-210 close-out); absent before it. */
       salvagedPartialChildren?: string[];
+      /**
+       * Limit children salvaged by acceptValidatedTerminalOutputOnLimit
+       * (the 1.64.0 experiment review, P0.4 + P1.1); absent before it.
+       */
+      salvagedTerminalOutputChildren?: string[];
     }
     const acceptanceKey = 'acceptance';
     const priorAcceptance = internals.replayer
@@ -3019,16 +3083,36 @@ export function makeOrchestratorWorkflow(
       const childStatusCounts: Record<string, number> = {};
       const degradedReasons: string[] = [];
       const salvaged: string[] = [];
+      const salvagedOutput: string[] = [];
       // Degradations the policy still counts: with acceptPartialChildren
       // a limit child carrying a structured partial moves to `salvaged`
-      // instead (RV-210 close-out) and keeps only its degradedReasons note.
+      // instead (RV-210 close-out) and keeps only its degradedReasons
+      // note; with acceptValidatedTerminalOutputOnLimit a limit child
+      // carrying a terminal output moves to `salvagedOutput` (the
+      // 1.64.0 experiment review, P0.4 + P1.1), and the output arm wins
+      // when both apply (the reserve summary already passed the child's
+      // output validation, so it is the stronger evidence).
       let hardDegraded = 0;
       const acceptPartial = opts.acceptance.acceptPartialChildren === true;
+      const acceptOutput = opts.acceptance.acceptValidatedTerminalOutputOnLimit === true;
       const sortedRecords = [...records.values()].sort((a, b) => a.spawnOrdinal - b.spawnOrdinal);
       for (const record of sortedRecords) {
         const status = record.settled?.status ?? 'running';
         childStatusCounts[status] = (childStatusCounts[status] ?? 0) + 1;
         if (status === 'ok') {
+          continue;
+        }
+        if (
+          acceptOutput &&
+          status === 'limit' &&
+          record.settled?.output !== null &&
+          record.settled?.output !== undefined
+        ) {
+          salvagedOutput.push(record.nodeId);
+          degradedReasons.push(
+            `child ${record.nodeId} accepted with its validated terminal output ` +
+              `(settled 'limit' after the finalization reserve summary)`,
+          );
           continue;
         }
         if (acceptPartial && status === 'limit' && record.settled?.partial !== undefined) {
@@ -3049,7 +3133,8 @@ export function makeOrchestratorWorkflow(
       const accepted =
         childPolicy === 'all-ok'
           ? hardDegraded === 0
-          : (childStatusCounts.ok ?? 0) + salvaged.length >= childPolicy.minSuccessful;
+          : (childStatusCounts.ok ?? 0) + salvaged.length + salvagedOutput.length >=
+            childPolicy.minSuccessful;
       decision = {
         decisionType: 'orchestrator_acceptance',
         verdict: accepted ? 'accepted' : 'rejected',
@@ -3058,6 +3143,7 @@ export function makeOrchestratorWorkflow(
         childStatusCounts,
         degradedReasons,
         ...(salvaged.length === 0 ? {} : { salvagedPartialChildren: salvaged }),
+        ...(salvagedOutput.length === 0 ? {} : { salvagedTerminalOutputChildren: salvagedOutput }),
       };
       await internals.replayer.appendSinglePhase({
         scope: callingState.scope,
@@ -3090,6 +3176,9 @@ export function makeOrchestratorWorkflow(
             ...(decision.salvagedPartialChildren === undefined
               ? {}
               : { salvagedPartialChildren: decision.salvagedPartialChildren }),
+            ...(decision.salvagedTerminalOutputChildren === undefined
+              ? {}
+              : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
           },
         },
       );
@@ -3104,6 +3193,9 @@ export function makeOrchestratorWorkflow(
       ...(decision.salvagedPartialChildren === undefined
         ? {}
         : { salvagedPartialChildren: decision.salvagedPartialChildren }),
+      ...(decision.salvagedTerminalOutputChildren === undefined
+        ? {}
+        : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
     };
   });
 }

@@ -6169,6 +6169,16 @@ interface FinishValidationChild {
   * same serialization the child result evidence tools page.
   */
   readonly text: string;
+  /**
+  * Present and true ONLY when acceptance.acceptValidatedTerminalOutputOnLimit
+  * is configured and this child settled 'limit' CARRYING a terminal
+  * output (the finalization reserve summary that, for a schema child,
+  * already validated against the declared output schema). Acceptance
+  * will count such a child as a success, so evidencePreservedValidator
+  * treats its text as part of the cited evidence pool. Absent in every
+  * other configuration, keeping the old pool exactly.
+  */
+  readonly salvageableOutput?: boolean;
 }
 /** What a {@link FinishValidator} judges. */
 interface FinishValidationInput {
@@ -6790,6 +6800,29 @@ interface OrchestrateAcceptance {
   * decision, so a resume rolls the same verdict forward.
   */
   acceptPartialChildren?: boolean;
+  /**
+  * The terminal-output salvage switch (the 1.64.0 experiment review,
+  * P0.4 + P1.1; default false). When true, a child that settled
+  * 'limit' CARRYING a terminal output counts as a successful child for
+  * the policy, exactly like acceptPartialChildren counts a
+  * partial-bearing one. A limit terminal carries an output ONLY when
+  * the child's limits.finalizationReserve summary turn produced one
+  * AND, for a schema child, that summary already validated against the
+  * declared output schema (an invalid summary keeps output null and is
+  * never salvaged), so validation runs BEFORE acceptance by
+  * construction. The verdict then reports completion 'partial' (never
+  * 'complete'), lists the children in `salvagedTerminalOutputChildren`
+  * on the result envelope, and keeps a per-child note in
+  * degradedReasons. A child carrying BOTH an output and a progress
+  * partial salvages by its output. The child's digest and
+  * get_child_result surface the output unconditionally (paid, journaled
+  * evidence is never withheld); this option gates only the acceptance
+  * fold, the evidencePreservedValidator cited pool (via
+  * FinishValidationChild.salvageableOutput), and the coordination
+  * prompt line. The whole fold is journaled in the single acceptance
+  * decision, so a resume rolls the same verdict forward.
+  */
+  acceptValidatedTerminalOutputOnLimit?: boolean;
 }
 /** How many rejected finishes are repaired by default: the plan's repair once. */
 declare const DEFAULT_FINISH_MAX_REPAIRS = 1;

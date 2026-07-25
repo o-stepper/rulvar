@@ -146,6 +146,16 @@ export function summarizeOutput(result: AgentResult<unknown>): string {
     raw = typeof result.output === 'string' ? result.output : JSON.stringify(result.output ?? null);
   } else {
     raw = result.errorMessage ?? `terminal status ${result.status}`;
+    // The validated terminal output of a 'limit' child (the 1.64.0
+    // experiment review, P0.4): the finalization reserve summary is
+    // journaled, replayable, paid work, so the digest surfaces it
+    // instead of discarding it behind a bare status line. Present only
+    // when it exists, so every other digest stays byte-identical.
+    if (result.status === 'limit' && result.output !== null && result.output !== undefined) {
+      const final =
+        typeof result.output === 'string' ? result.output : JSON.stringify(result.output);
+      raw = `${raw}; final: ${final}`;
+    }
     // The structured terminal partial (RV-210 close-out): a limit child
     // that recorded progress surfaces it in the digest instead of dying
     // as an opaque status line. Present only when the report exists, so

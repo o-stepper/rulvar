@@ -222,6 +222,28 @@ const outcome = await handle.result;
 
 A child that settled `limit` WITH a partial counts as a successful child for the policy: under `'all-ok'` it no longer rejects the run, and under `{ minSuccessful: N }` it counts toward N. The accepted envelope then reports `completion: 'partial'` (never `'complete'`), lists the salvaged children in `salvagedPartialChildren`, and keeps a per-child note in `degradedReasons`; the whole fold is part of the single journaled acceptance decision, so a resume rolls the same verdict forward. A limit child WITHOUT a partial gave the caller nothing to salvage and still counts against the policy, salvage or not. Enabling the option also appends one deterministic line to the coordination prompt telling the orchestrator that partial children are salvageable and that respawning a NARROWED child carrying the partial beats repeating the task; every other configuration keeps byte-identical prompts.
 
+The progress report is not the only thing a limit child can leave behind. A child whose profile carries [`limits.finalizationReserve`](/guide/agents#the-finalization-reserve) gets one summary turn at a tool-budget expiry, and when its declared output schema rides the loop turn, that summary validates into TYPED output on the same `limit` terminal, journaled and replayable. The digest of such a child appends `final: {...}` beside any `partial: {...}` segment, and `get_child_result` pages the full output; that surfacing is unconditional, because paid, journaled evidence is never withheld from the orchestrator. Whether acceptance may COUNT that child as a success is the opt-in `acceptance.acceptValidatedTerminalOutputOnLimit`:
+
+```ts
+const salvaged = orchestrate(
+  engine,
+  "Map the error handling of this repository",
+  {
+    profiles: ["researcher"],
+    acceptance: {
+      childPolicy: "all-ok",
+      // A limit child whose reserve summary VALIDATED into output counts
+      // as a success; an invalid summary keeps output null and still
+      // rejects, so validation always runs before acceptance.
+      acceptValidatedTerminalOutputOnLimit: true,
+    },
+  },
+  { budgetUsd: 10 },
+);
+```
+
+The accepted envelope reports `completion: 'partial'` and lists such children in `salvagedTerminalOutputChildren` (a child carrying BOTH an output and a progress partial salvages by its output, the stronger evidence, and appears only there). A limit child whose summary failed schema validation carries `output: null` and is never salvaged: the validation the child's own contract demanded runs BEFORE acceptance by construction. The option also appends its own deterministic coordination prompt line and marks the child on the finish validation input (`FinishValidationChild.salvageableOutput`), which is what lets `evidencePreservedValidator` below count the salvaged child's citations; everything else stays byte-identical without it.
+
 Three profile templates package the stop conditions so hosts stop hand-tuning limits per fan-out: `researchAgentProfile({ root })` (the research toolset plus the progress tool plus `RESEARCH_PROFILE_LIMITS`), and `implementationAgentProfile({ tools })` / `reviewAgentProfile({ tools })` (the caller's task tools with `report_progress` prepended, under `IMPLEMENTATION_PROFILE_LIMITS` / `REVIEW_PROFILE_LIMITS`). Templates are pure preset builders: `limits` overrides merge per key over the template's limits, and the exported limit constants document the exact defaults. One research kit instance backs one research profile, so children spawned from the same registered profile pool their verified evidence (and see each other's entries through `list_evidence`); construct one template per fan-out run, or per child, when isolation matters.
 
 ### Validating the finish result
@@ -283,7 +305,7 @@ const audited = orchestrate(
 );
 ```
 
-Distinct pattern matches are collected across the outputs of children settled `ok`; at least `minShare` of them must appear literally in the result text, and the rejection lists exactly the missing ones (capped at 20) so the repair turn can restore them. Zero child citations pass vacuously. With `requireKnown: true` the contract also runs in reverse: a citation in the result that no child ever produced is rejected as unknown, which closes the fabrication path. The contract is purely textual and deterministic; verifying that cited targets exist on disk stays host territory (a custom validator). Custom validators get the same `children` input, so any provenance rule the goal demands (per child minimums, required sections per specialist) is a few lines of host code.
+Distinct pattern matches are collected across the outputs of children settled `ok`, plus any limit child the runtime marked `salvageableOutput` (present only under `acceptance.acceptValidatedTerminalOutputOnLimit`: acceptance will count that child as a success, so its validated output is part of the evidence, and with `requireKnown` the orchestrator quoting it is no longer flagged as fabricating); at least `minShare` of them must appear literally in the result text, and the rejection lists exactly the missing ones (capped at 20) so the repair turn can restore them. Zero child citations pass vacuously. With `requireKnown: true` the contract also runs in reverse: a citation in the result that no child ever produced is rejected as unknown, which closes the fabrication path. The contract is purely textual and deterministic; verifying that cited targets exist on disk stays host territory (a custom validator). Custom validators get the same `children` input, so any provenance rule the goal demands (per child minimums, required sections per specialist) is a few lines of host code.
 
 Two honest bounds: validators are HOST code, so they check mechanical properties (structure, counts, markers), not truth; and repair turns spend from the orchestrator's ordinary limits and ceilings (`limits.maxTurns`, `budget`, the root `budgetUsd`), with `maxRepairs` as the explicit bound, so there is no separate repair budget reserve. The budget cap paths keep their posture: the reserved finalize dispatch after a cap is never validated, exactly as acceptance never judges it.
 
