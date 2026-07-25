@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.71.0
+
+#### Patch Changes
+
+- Updated dependencies [20d02e0]
+  - @rulvar/core@1.71.0
+
 ### 1.70.1
 
 #### Patch Changes
@@ -890,6 +897,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.71.0
+
+#### Patch Changes
+
+- Updated dependencies [20d02e0]
+  - @rulvar/core@1.71.0
+
 ### 1.70.1
 
 #### Patch Changes
@@ -1627,6 +1641,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.71.0
+
+#### Minor Changes
+
+- 20d02e0: The preflight quota planner follows the run past the first wave (the second experiment report, rec 9). Every declared spawn now reports `projectedProviderTurns`, the provider-call ceiling of its whole loop (`maxTurns` bounded by the executed-call ceiling plus the final no-tool turn, plus the finalization summary turn when a tool budget limiter arms it), and the orchestrator echoes its own. `exposure.runCeiling` totals the declared wave run to those ceilings at the declared estimates: provider calls as fan-out times per-spawn turns, and cumulative tokens with the context regrowing every turn (turn k re-sends the declared prompt plus the k-1 prior output bounds, so a K-turn loop costs K x est + outputBound x K(K+1)/2). Three findings compare that projection against the declared `quotaRules` when the first-wave checks stay silent: `quota-requests-below-run` (the loops project more wire requests than `requestsPerMinute` admits; the message names about how many windows the run needs at best), `quota-tokens-below-run` (the regrowth cumulative exceeds `tokensPerMinute`), and the spawn-attributed `quota-turn-never-fits` (by turn k the single context-grown reservation exceeds the whole token window, which the limiter denies with `retryAfterMs 0` and no wait helps). The first-wave checks are byte-identical, and a run whose ceiling fits its windows produces exactly the findings it did before. `rulvar preflight` prints the new turn ceiling per spawn and the run ceiling on the exposure line; `--json` carries the fields verbatim. The experiment run behind the recommendation had zero preflight quota findings and eleven live limiter denials; this projection is what would have said so before the first dispatch.
+
+#### Patch Changes
+
+- Updated dependencies [20d02e0]
+  - @rulvar/core@1.71.0
 
 ### 1.70.1
 
@@ -2667,6 +2692,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.71.0
+
+#### Minor Changes
+
+- 20d02e0: The preflight quota planner follows the run past the first wave (the second experiment report, rec 9). Every declared spawn now reports `projectedProviderTurns`, the provider-call ceiling of its whole loop (`maxTurns` bounded by the executed-call ceiling plus the final no-tool turn, plus the finalization summary turn when a tool budget limiter arms it), and the orchestrator echoes its own. `exposure.runCeiling` totals the declared wave run to those ceilings at the declared estimates: provider calls as fan-out times per-spawn turns, and cumulative tokens with the context regrowing every turn (turn k re-sends the declared prompt plus the k-1 prior output bounds, so a K-turn loop costs K x est + outputBound x K(K+1)/2). Three findings compare that projection against the declared `quotaRules` when the first-wave checks stay silent: `quota-requests-below-run` (the loops project more wire requests than `requestsPerMinute` admits; the message names about how many windows the run needs at best), `quota-tokens-below-run` (the regrowth cumulative exceeds `tokensPerMinute`), and the spawn-attributed `quota-turn-never-fits` (by turn k the single context-grown reservation exceeds the whole token window, which the limiter denies with `retryAfterMs 0` and no wait helps). The first-wave checks are byte-identical, and a run whose ceiling fits its windows produces exactly the findings it did before. `rulvar preflight` prints the new turn ceiling per spawn and the run ceiling on the exposure line; `--json` carries the fields verbatim. The experiment run behind the recommendation had zero preflight quota findings and eleven live limiter denials; this projection is what would have said so before the first dispatch.
 
 ### 1.70.1
 
@@ -4105,6 +4136,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.71.0
+
 ### 1.70.1
 
 ### 1.70.0
@@ -4341,6 +4374,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.71.0
+
+#### Patch Changes
+
+- Updated dependencies [20d02e0]
+  - @rulvar/core@1.71.0
+  - @rulvar/testing@1.71.0
 
 ### 1.70.1
 
@@ -5261,6 +5302,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.71.0
+
+#### Patch Changes
+
+- Updated dependencies [20d02e0]
+  - @rulvar/core@1.71.0
+
 ### 1.70.1
 
 #### Patch Changes
@@ -5383,6 +5431,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.71.0
+
+#### Patch Changes
+
+- Updated dependencies [20d02e0]
+  - @rulvar/core@1.71.0
 
 ### 1.70.1
 
@@ -6273,6 +6328,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.71.0
+
+#### Patch Changes
+
+- Updated dependencies [20d02e0]
+  - @rulvar/core@1.71.0
+
 ### 1.70.1
 
 #### Patch Changes
@@ -7131,6 +7193,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.71.0
+
+#### Patch Changes
+
+- Updated dependencies [20d02e0]
+  - @rulvar/core@1.71.0
+  - eslint-plugin-rulvar@1.71.0
 
 ### 1.70.1
 
@@ -8007,6 +8077,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.71.0
+
+#### Patch Changes
+
+- Updated dependencies [20d02e0]
+  - @rulvar/core@1.71.0
+  - @rulvar/anthropic@1.71.0
+  - @rulvar/openai@1.71.0
 
 ### 1.70.1
 
@@ -9044,6 +9123,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.71.0
+
+#### Patch Changes
+
+- Updated dependencies [20d02e0]
+  - @rulvar/core@1.71.0
+
 ### 1.70.1
 
 #### Patch Changes
@@ -9886,6 +9972,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.71.0
+
+#### Patch Changes
+
+- Updated dependencies [20d02e0]
+  - @rulvar/core@1.71.0
+
 ### 1.70.1
 
 #### Patch Changes
@@ -10030,6 +10123,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.71.0
+
+#### Patch Changes
+
+- Updated dependencies [20d02e0]
+  - @rulvar/core@1.71.0
 
 ### 1.70.1
 
@@ -10814,6 +10914,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.71.0
+
+#### Patch Changes
+
+- Updated dependencies [20d02e0]
+  - @rulvar/core@1.71.0
 
 ### 1.70.1
 
