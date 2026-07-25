@@ -376,7 +376,7 @@ describe('terminal-output salvage (P0.4 + P1.1)', () => {
     expect(page.output).toEqual({ verdict: 'cache.ts:12 doubles at dawn', sources: 1 });
   });
 
-  it('evidencePreservedValidator counts a salvaged child only when marked', async () => {
+  it('evidencePreservedValidator counts a salvaged child only when marked', () => {
     const validator = evidencePreservedValidator({ requireKnown: true });
     const salvagedChild = {
       handle: 7,
@@ -437,7 +437,7 @@ describe('terminal-output salvage (P0.4 + P1.1)', () => {
             {
               name: 'capture',
               validate: (input) => {
-                captured = (input.children ?? []) as typeof captured;
+                captured = input.children ?? [];
                 return { ok: true };
               },
             },
