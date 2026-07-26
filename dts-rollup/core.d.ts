@@ -4197,6 +4197,16 @@ interface AgentResult<T> {
   * seeing a bare 'terminal status limit'.
   */
   partial?: ProgressReport;
+  /**
+  * Terminal-tool exchanges whose ARGUMENTS died at the schema gate
+  * (the unparsed second chance included, when it did not recover): the
+  * v1.74 experiment lost six finish payloads to exactly this class,
+  * and nothing outside the transcript said so (host validation
+  * rejections, by contrast, journal decision entries). Derived from
+  * the message window like the repair-reserve grants, so live and
+  * resumed segments count the same total; absent when zero.
+  */
+  schemaRejectedTerminalExchanges?: number;
 }
 /** One 429's provider-normalized limits, per (provider, model). */
 interface RateLimitObservation {
@@ -7162,8 +7172,17 @@ interface FinishValidationSpec {
   * hash and the validator names. A resumed segment whose live
   * contract hash differs appends a SUPERSEDING descriptor instead of
   * failing, because fixing a stale validator and resuming is the
-  * intended remedy, never a fault. Absent = byte identical pre 1.72
-  * behavior.
+  * intended remedy, never a fault. The remedy is generation-scoped
+  * (cycle 73): every decision entry written under a contract carries
+  * `contractHash`, and only the CURRENT generation is judged, so
+  * repairsUsed restarts under a fixed contract and a final rejection
+  * a superseded generation left in the crash window neither rolls
+  * forward at boot nor re-arms on replay (its exchange replays byte
+  * identical and the loop continues to a live repair turn). Decisions
+  * recorded before 1.77 carry no hash and bind to the current
+  * contract only while the journal holds a single bundle descriptor;
+  * once a supersession is recorded they are stale. Absent = byte
+  * identical pre 1.72 behavior.
   */
   contract?: FinishContract;
   /**
@@ -8964,6 +8983,13 @@ interface PreflightInput {
     * runtime would actually grant.
     */
     repairTurnReserve?: number;
+    /**
+    * Mirrors FinishValidationSpec.maxRepairs (default
+    * {@link DEFAULT_FINISH_MAX_REPAIRS}): with zero, the first
+    * rejection is final and there is no repair exchange to fund, so
+    * the repair-reserve-unfunded warning stays silent.
+    */
+    maxRepairs?: number;
   };
 }
 /** One linter verdict; `spawn` names the wave entry it is about. */

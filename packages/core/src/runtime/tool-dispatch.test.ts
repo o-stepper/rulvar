@@ -535,3 +535,63 @@ describe('unparsed tool arguments recovery (the v1.74 experiment review)', () =>
     expect(first.isError).toBe(true);
   });
 });
+
+describe('the schema-rejected terminal exchange counter (the v1.74 experiment review, cycle 73)', () => {
+  const finishTool = () =>
+    tool({
+      name: 'finish',
+      description: 'the terminal tool',
+      parameters: z.strictObject({ result: z.string() }),
+      execute: () => Promise.resolve('unused'),
+    });
+
+  it('finish exchanges that die at the schema gate are counted on the full result', async () => {
+    const adapter = scriptedAdapter((_req, call) =>
+      call <= 1
+        ? { toolCall: { name: 'finish', args: { wrong: true } } }
+        : { toolCall: { name: 'finish', args: { result: 'done' } } },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits(),
+      tools: runtimeOf([finishTool()]),
+      terminalTool: { name: 'finish' },
+    });
+    expect(result.status).toBe('ok');
+    expect(result.output).toBe('done');
+    expect(result.schemaRejectedTerminalExchanges).toBe(2);
+  });
+
+  it('a host validation rejection is not a schema rejection, and a clean run carries no field', async () => {
+    let rejected = false;
+    const adapter = scriptedAdapter(() => ({
+      toolCall: { name: 'finish', args: { result: 'candidate' } },
+    }));
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits(),
+      tools: runtimeOf([finishTool()]),
+      terminalTool: {
+        name: 'finish',
+        validate: () => {
+          if (rejected) {
+            return Promise.resolve({ ok: true as const });
+          }
+          rejected = true;
+          return Promise.resolve({
+            ok: false as const,
+            feedback: { error: 'repair the result and call finish again' },
+          });
+        },
+      },
+    });
+    expect(result.status).toBe('ok');
+    // The host rejection is journal-visible through its decision entry;
+    // only the SCHEMA gate is otherwise invisible, so only it counts.
+    expect(result.schemaRejectedTerminalExchanges).toBeUndefined();
+  });
+});

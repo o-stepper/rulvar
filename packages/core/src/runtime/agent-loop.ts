@@ -201,6 +201,16 @@ export interface AgentResult<T> {
    * seeing a bare 'terminal status limit'.
    */
   partial?: ProgressReport;
+  /**
+   * Terminal-tool exchanges whose ARGUMENTS died at the schema gate
+   * (the unparsed second chance included, when it did not recover): the
+   * v1.74 experiment lost six finish payloads to exactly this class,
+   * and nothing outside the transcript said so (host validation
+   * rejections, by contrast, journal decision entries). Derived from
+   * the message window like the repair-reserve grants, so live and
+   * resumed segments count the same total; absent when zero.
+   */
+  schemaRejectedTerminalExchanges?: number;
 }
 
 /** One 429's provider-normalized limits, per (provider, model). */
@@ -786,6 +796,16 @@ function estimateInputTokens(messages: Msg[]): number {
     chars += JSON.stringify(msg.parts).length;
   }
   return Math.ceil(chars / 4);
+}
+
+/**
+ * The terminal tool's schema-rejection feedback line. One producer, two
+ * readers: the interception writes it as the error result, and the
+ * window-derived schemaRejectedTerminalExchanges counter recognizes the
+ * exchange by exactly these bytes, so the two can never drift.
+ */
+function terminalSchemaRejectionMessage(name: string): string {
+  return `the '${name}' call failed validation`;
 }
 
 /**
@@ -1744,7 +1764,7 @@ export async function runAgent<S extends SchemaSpec>(
           });
           parts.push(
             errorPart(call, {
-              error: `the '${gatedCall.name}' call failed validation`,
+              error: terminalSchemaRejectionMessage(gatedCall.name),
               issues: validation === undefined ? [] : validation.issues.map((i) => i.message),
             }),
           );
@@ -3351,6 +3371,29 @@ export async function runAgent<S extends SchemaSpec>(
   }
   if (limitPartial !== undefined) {
     result.partial = limitPartial;
+  }
+  // Window-derived exactly like the repair-reserve grants above: an
+  // error result named after the terminal tool and carrying the
+  // interception's own rejection line is a schema-dead exchange.
+  const terminalName = options.terminalTool?.name;
+  const schemaRejectedTerminalExchanges =
+    terminalName === undefined
+      ? 0
+      : messages.reduce(
+          (count, message) =>
+            count +
+            message.parts.filter(
+              (part) =>
+                part.type === 'tool-result' &&
+                part.name === terminalName &&
+                (part as { isError?: boolean }).isError === true &&
+                (part.result as { error?: unknown } | undefined)?.error ===
+                  terminalSchemaRejectionMessage(terminalName),
+            ).length,
+          0,
+        );
+  if (schemaRejectedTerminalExchanges > 0) {
+    result.schemaRejectedTerminalExchanges = schemaRejectedTerminalExchanges;
   }
   if (usageApprox) {
     (result as { usageApprox?: boolean }).usageApprox = true;

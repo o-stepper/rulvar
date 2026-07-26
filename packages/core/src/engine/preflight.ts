@@ -39,6 +39,7 @@ import {
   dispatchProjectionReserveUsd,
 } from '../orchestrator/admission.js';
 import {
+  DEFAULT_FINISH_MAX_REPAIRS,
   DEFAULT_SYNTHESIS_MAX_TURNS,
   orchestratorAdmissionEstCostUsd,
   type OrchestratorBudgetSpec,
@@ -195,6 +196,13 @@ export interface PreflightInput {
      * runtime would actually grant.
      */
     repairTurnReserve?: number;
+    /**
+     * Mirrors FinishValidationSpec.maxRepairs (default
+     * {@link DEFAULT_FINISH_MAX_REPAIRS}): with zero, the first
+     * rejection is final and there is no repair exchange to fund, so
+     * the repair-reserve-unfunded warning stays silent.
+     */
+    maxRepairs?: number;
   };
 }
 
@@ -511,6 +519,57 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
   const findings: PreflightFinding[] = [];
   const say = (finding: PreflightFinding): void => {
     findings.push(finding);
+  };
+
+  /**
+   * The contract turn feasibility check (the v1.74 experiment review,
+   * cycle 73), run against the invocation the validators bind. The
+   * floor is the contract's own minimal accepting payload, serialized
+   * exactly as the model must emit it ({ result }) and priced at the
+   * loop's four-characters-per-token output heuristic: the v1.74 run's
+   * conforming payloads truncated at their 9000 token turn cap, and its
+   * contract's minimum alone prices above that cap. A minimum at or
+   * over the bound is an error (every conforming finish truncates mid
+   * payload); a minimum within double of the bound is a warning,
+   * because real conforming payloads run richer than the minimum.
+   */
+  const contractFeasibilityFindings = (
+    outputBound: number | undefined,
+    spawn: 'orchestrator' | 'synthesis',
+    servedBy: ModelRef,
+  ): void => {
+    const contract = input.finishValidation?.contract;
+    if (contract === undefined || outputBound === undefined) {
+      return;
+    }
+    const minTokens = Math.ceil(JSON.stringify({ result: contract.goldenAccept.text }).length / 4);
+    const which = spawn === 'synthesis' ? 'the synthesis invocation' : 'the coordination loop';
+    if (minTokens >= outputBound) {
+      say({
+        severity: 'error',
+        code: 'output-contract-turn-infeasible',
+        message:
+          `the finish contract's minimal accepting payload is about ${String(minTokens)} ` +
+          `tokens (four characters per token over the golden accept fixture) but ${which} ` +
+          `dispatches at most ${String(outputBound)} output tokens per turn ('${servedBy}'): ` +
+          'every conforming finish truncates mid payload; raise maxOutputTokensPerTurn or ' +
+          'shrink the contract',
+        spawn,
+      });
+      return;
+    }
+    if (minTokens * 2 > outputBound) {
+      say({
+        severity: 'warning',
+        code: 'output-contract-turn-headroom',
+        message:
+          `the finish contract's minimal accepting payload is about ${String(minTokens)} ` +
+          `tokens against the ${String(outputBound)} token output bound of ${which} ` +
+          `('${servedBy}'): real conforming payloads run richer than the minimum and the ` +
+          'margin is under double; raise the bound or trim the contract',
+        spawn,
+      });
+    }
   };
 
   const adapters = new Map((engine.adapters ?? []).map((adapter) => [adapter.id, adapter]));
@@ -946,6 +1005,11 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
           spawn: 'orchestrator',
         });
       }
+      // Without a synthesis invocation the validators bind the
+      // coordination finish, so the contract must fit THIS loop's turns.
+      if (input.orchestrator.synthesis === undefined) {
+        contractFeasibilityFindings(outputBound, 'orchestrator', servedBy);
+      }
       const { adapterId, model } = parseModelRef(servedBy);
       const unit: SpawnUnit = {
         label: 'orchestrator',
@@ -1119,6 +1183,9 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
             spawn: 'synthesis',
           });
         }
+        // With synthesis configured the validators bind ITS finish: the
+        // contract must fit the synthesis invocation's turns.
+        contractFeasibilityFindings(outputBound, 'synthesis', servedBy);
         const projected =
           projectedProviderTurnsOf(merged, overallExecutedCeiling(merged, toolCeilingsOf(merged))) +
           finishRepairReserve;
@@ -1482,6 +1549,28 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         fv.repairTurnReserve,
         'preflight finishValidation.repairTurnReserve',
       );
+    }
+    if (fv.maxRepairs !== undefined) {
+      requireNonNegativeInteger(fv.maxRepairs, 'preflight finishValidation.maxRepairs');
+    }
+    // The unfunded repair warning (cycle 73): the runtime grants repair
+    // exchanges, but without a declared reserve each one burns an
+    // ordinary turn, so a window sized at maxTurns settles 'limit' with
+    // its repairs unspent (the v1.74 run's terminal repair starved
+    // exactly this way).
+    {
+      const grantedRepairs = fv.maxRepairs ?? DEFAULT_FINISH_MAX_REPAIRS;
+      if (grantedRepairs > 0 && fv.repairTurnReserve === undefined) {
+        findings.push({
+          severity: 'warning',
+          code: 'repair-reserve-unfunded',
+          message:
+            `finishValidation grants up to ${String(grantedRepairs)} repair ` +
+            'exchange(s) but declares no repairTurnReserve: a rejected finish burns an ' +
+            "ordinary turn and a window at maxTurns settles 'limit' with the repair " +
+            'unspent; set finishValidation.repairTurnReserve to fund the repair exchanges',
+        });
+      }
     }
     if (fv.contract !== undefined) {
       for (const contractValidator of fv.contract.validators) {

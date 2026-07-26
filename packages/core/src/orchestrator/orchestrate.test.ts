@@ -2017,3 +2017,175 @@ describe('synthesis evidence symmetry and the draft gate (the v1.74 experiment r
     ).toThrow(/requireSections/);
   });
 });
+
+describe('error-outcome parity and the schema-rejected finish counter (cycle 73)', () => {
+  const PARITY_DEFAULTS = {
+    routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+    profiles: PROFILES,
+  } as const;
+  const promptTextOf = (req: ChatRequest | undefined): string => {
+    const user = req?.messages.find((message) => message.role === 'user');
+    const part = user?.parts.find((p) => p.type === 'text');
+    return (part as { text?: string } | undefined)?.text ?? '';
+  };
+  const CHILD_FAILURE = {
+    code: 'agent',
+    message: 'scripted child failure',
+    retryable: false,
+    data: { kind: 'model' },
+  } as const;
+
+  /**
+   * One cited child, one child that dies at the wire, a coordination
+   * script with an optional schema-dead finish exchange, and a blind
+   * synthesis candidate the evidence validator rejects.
+   */
+  function parityAdapter(options: {
+    schemaDeadFinish?: boolean;
+    synthesis?: boolean;
+  }): ReturnType<typeof scriptedAdapter> {
+    let coordination = 0;
+    return scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        if (/doomed/.test(promptTextOf(req))) {
+          return { error: { ...CHILD_FAILURE, data: { ...CHILD_FAILURE.data } } };
+        }
+        return { text: 'Alpha findings. Citations: src/core/alpha.ts:12 src/util/alpha.ts:34' };
+      }
+      if (/synthesis invocation/.test(promptTextOf(req))) {
+        return { toolCall: { name: 'finish', args: { result: 'blind: citations dropped' } } };
+      }
+      coordination += 1;
+      if (coordination === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'research alpha' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'doomed detour' } },
+          ],
+        };
+      }
+      if (coordination === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      if (coordination === 3 && options.schemaDeadFinish === true) {
+        // The v1.74 casualty class: a finish call missing its required
+        // `result`, dead at the SCHEMA gate before any validator runs.
+        return { toolCall: { name: 'finish', args: { wrong: true } } };
+      }
+      const draft =
+        options.synthesis === false
+          ? { result: 'no sections here' }
+          : { result: 'a coordination draft without citations' };
+      return { toolCall: { name: 'finish', args: draft } };
+    });
+  }
+
+  it('the synthesis failure mirrors the degradation facts the ok envelope carries', async () => {
+    const adapter = parityAdapter({ schemaDeadFinish: true });
+    const { internals } = makeInternals({ adapters: [adapter], ...PARITY_DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      maxSpawns: 2,
+      limits: { maxTurns: 8 },
+      synthesis: { limits: { maxTurns: 2 } },
+      acceptance: { childPolicy: { minSuccessful: 1 } },
+      finishValidation: {
+        validators: [evidencePreservedValidator({ minShare: 0.75 })],
+        maxRepairs: 0,
+      },
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as {
+      completion?: string;
+      childStatusCounts?: Record<string, number>;
+      degradedReasons?: string[];
+      schemaRejectedFinishExchanges?: number;
+    };
+    expect(data.completion).toBe('partial');
+    expect(data.childStatusCounts).toEqual({ ok: 1, error: 1 });
+    // The parity gap (cycle 73): the ok envelope names WHY the run is
+    // partial; the error outcome must name it too.
+    expect(data.degradedReasons).toHaveLength(1);
+    expect(data.degradedReasons?.[0]).toContain("settled 'error'");
+    // The schema-dead coordination exchange is visible beside repairsUsed.
+    expect(data.schemaRejectedFinishExchanges).toBe(1);
+  });
+
+  it('without acceptance the counter still rides the synthesis failure', async () => {
+    const adapter = parityAdapter({ schemaDeadFinish: true });
+    const { internals } = makeInternals({ adapters: [adapter], ...PARITY_DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      maxSpawns: 2,
+      limits: { maxTurns: 8 },
+      synthesis: { limits: { maxTurns: 2 } },
+      finishValidation: {
+        validators: [evidencePreservedValidator({ minShare: 0.75 })],
+        maxRepairs: 0,
+      },
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as { schemaRejectedFinishExchanges?: number };
+    expect(data.schemaRejectedFinishExchanges).toBe(1);
+  });
+
+  it('a coordination rejection past the bound carries the counter beside repairsUsed', async () => {
+    const adapter = parityAdapter({ schemaDeadFinish: true, synthesis: false });
+    const { internals } = makeInternals({ adapters: [adapter], ...PARITY_DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      maxSpawns: 2,
+      limits: { maxTurns: 8 },
+      finishValidation: {
+        validators: [requiredSectionsValidator({ sections: ['## Findings'] })],
+        maxRepairs: 0,
+      },
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as {
+      repairsUsed?: number;
+      schemaRejectedFinishExchanges?: number;
+    };
+    expect(data.repairsUsed).toBe(0);
+    expect(data.schemaRejectedFinishExchanges).toBe(1);
+  });
+
+  it('a run with no schema-dead exchange carries no counter field at all', async () => {
+    const adapter = parityAdapter({});
+    const { internals } = makeInternals({ adapters: [adapter], ...PARITY_DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      maxSpawns: 2,
+      limits: { maxTurns: 8 },
+      synthesis: { limits: { maxTurns: 2 } },
+      acceptance: { childPolicy: { minSuccessful: 1 } },
+      finishValidation: {
+        validators: [evidencePreservedValidator({ minShare: 0.75 })],
+        maxRepairs: 0,
+      },
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, wf, undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(FailRunError);
+    const data = (thrown as FailRunError).data as Record<string, unknown>;
+    expect('schemaRejectedFinishExchanges' in data).toBe(false);
+  });
+});

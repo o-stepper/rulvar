@@ -49,6 +49,7 @@ import { ROOT_ACCOUNT } from '../engine/budget.js';
 import { emitSpawnAdmitted, emitSpawnRejected } from '../engine/spawn-events.js';
 import { OrchestratorCapConfigError } from '../l0/errors.js';
 import { deriverV2 } from '../journal/keyderiver.js';
+import { lastRunSettle } from '../stores/reconcile.js';
 import type { AgentOpts, AgentProfile, Workflow } from '../engine/ctx.js';
 import { defineWorkflow } from '../engine/ctx.js';
 import type { Engine, RunOptions } from '../engine/engine.js';
@@ -314,8 +315,17 @@ export interface FinishValidationSpec {
    * hash and the validator names. A resumed segment whose live
    * contract hash differs appends a SUPERSEDING descriptor instead of
    * failing, because fixing a stale validator and resuming is the
-   * intended remedy, never a fault. Absent = byte identical pre 1.72
-   * behavior.
+   * intended remedy, never a fault. The remedy is generation-scoped
+   * (cycle 73): every decision entry written under a contract carries
+   * `contractHash`, and only the CURRENT generation is judged, so
+   * repairsUsed restarts under a fixed contract and a final rejection
+   * a superseded generation left in the crash window neither rolls
+   * forward at boot nor re-arms on replay (its exchange replays byte
+   * identical and the loop continues to a live repair turn). Decisions
+   * recorded before 1.77 carry no hash and bind to the current
+   * contract only while the journal holds a single bundle descriptor;
+   * once a supersession is recorded they are stale. Absent = byte
+   * identical pre 1.72 behavior.
    */
   contract?: FinishContract;
   /**
@@ -2487,6 +2497,12 @@ export function makeOrchestratorWorkflow(
     const validationSpec = opts?.finishValidation;
     const validationAbort = new AbortController();
     let validationTermination: Error | undefined;
+    /**
+     * The synthesis invocation's schema-dead finish exchanges (cycle
+     * 73), captured from its full agent result so the failure
+     * enrichment can fold BOTH windows into one honest counter.
+     */
+    let synthesisSchemaRejectedExchanges = 0;
     interface FinishValidationDecision {
       decisionType: 'orchestrator_finish_validation';
       callId: string;
@@ -2494,6 +2510,13 @@ export function makeOrchestratorWorkflow(
       failed: { name: string; reasons: string[] }[];
       repairsUsed: number;
       maxRepairs: number;
+      /**
+       * The contract generation this verdict was rendered under (cycle
+       * 73): present exactly when a contract is configured. Absent on
+       * decisions written without a contract and on every decision
+       * recorded before 1.77.
+       */
+      contractHash?: string;
     }
     const finishValidationError = (decision: FinishValidationDecision): FailRunError =>
       new FailRunError(
@@ -2523,6 +2546,36 @@ export function makeOrchestratorWorkflow(
               'orchestrator_finish_validation',
         )
         .map((entry) => entry.value as unknown as FinishValidationDecision);
+    /**
+     * The contract generation membership test (cycle 73). Without a
+     * contract there are no generations and every decision is current
+     * (the pre 1.77 behavior, byte identical). With one, a decision
+     * belongs to the current generation when its journaled hash matches
+     * the live contract; a pre 1.77 decision carries no hash and counts
+     * as current only while the journal has never recorded a
+     * superseding bundle descriptor, because a single descriptor means
+     * every decision was necessarily rendered under it.
+     */
+    const contractGenerationCurrent = (decision: FinishValidationDecision): boolean => {
+      const hash = validationSpec?.contract?.hash;
+      if (hash === undefined) {
+        return true;
+      }
+      if (decision.contractHash !== undefined) {
+        return decision.contractHash === hash;
+      }
+      return (
+        internals.replayer
+          .snapshot()
+          .filter(
+            (entry) =>
+              entry.kind === 'decision' &&
+              entry.scope === callingState.scope &&
+              (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+                'orchestrator_finish_validation_bundle',
+          ).length <= 1
+      );
+    };
     const validateFinish = async (call: {
       id: string;
       result: unknown;
@@ -2586,7 +2639,11 @@ export function makeOrchestratorWorkflow(
             failed.push({ name: validator.name, reasons: verdict.reasons });
           }
         }
-        const repairsUsed = known.filter((candidate) => candidate.verdict !== 'accepted').length;
+        // Only the CURRENT contract generation spends the repair budget
+        // (cycle 73): a fixed contract starts with the full bound again.
+        const repairsUsed = known.filter(
+          (candidate) => candidate.verdict !== 'accepted' && contractGenerationCurrent(candidate),
+        ).length;
         decision = {
           decisionType: 'orchestrator_finish_validation',
           callId: call.id,
@@ -2595,6 +2652,9 @@ export function makeOrchestratorWorkflow(
           failed,
           repairsUsed,
           maxRepairs,
+          ...(validationSpec.contract === undefined
+            ? {}
+            : { contractHash: validationSpec.contract.hash }),
         };
         await internals.replayer.appendSinglePhase({
           scope: callingState.scope,
@@ -2610,8 +2670,16 @@ export function makeOrchestratorWorkflow(
         return { ok: true };
       }
       if (decision.verdict === 'rejected') {
-        validationTermination = finishValidationError(decision);
-        validationAbort.abort('rulvar:finish-validation');
+        // A STALE final rejection (a fixed contract superseded its
+        // generation, cycle 73) replays its exact feedback bytes so the
+        // exchange window stays identical, but no longer arms the
+        // failure: the loop continues into a live repair turn judged by
+        // the current generation. A current-generation rejection fails
+        // the run exactly as before.
+        if (contractGenerationCurrent(decision)) {
+          validationTermination = finishValidationError(decision);
+          validationAbort.abort('rulvar:finish-validation');
+        }
         return {
           ok: false,
           feedback: {
@@ -3311,6 +3379,7 @@ export function makeOrchestratorWorkflow(
           synthesisOpts,
         ),
       );
+      synthesisSchemaRejectedExchanges = synthesized.schemaRejectedTerminalExchanges ?? 0;
       if (validationTermination !== undefined) {
         // The synthesis finish rejection (or a defective validator)
         // aborted the invocation; the typed failure wins.
@@ -3431,12 +3500,29 @@ export function makeOrchestratorWorkflow(
     if (validationSpec !== undefined) {
       // The crash window between the journaled final rejection and the
       // run terminal: the rejected verdict rolls forward at boot before
-      // any model call (the cap roll forward precedent).
+      // any model call (the cap roll forward precedent). Only the
+      // CURRENT contract generation's rejection rolls (cycle 73): a
+      // rejection a superseded generation left behind is exactly what
+      // the fix-and-resume remedy repairs, so the loop resumes instead.
+      // The scoping rescues the CRASH WINDOW alone: a journal whose
+      // last run settle is terminal belongs to a run that already
+      // settled with this failure, and a re-settle by replay must roll
+      // the SAME rejection forward whatever the live contract says,
+      // with zero paid calls. The boot re-throw carries the
+      // journal-derived fields alone; the window-derived counter needs
+      // a live window and stays absent.
       const priorRejection = validationDecisions().find(
         (decision) => decision.verdict === 'rejected',
       );
       if (priorRejection !== undefined) {
-        throw finishValidationError(priorRejection);
+        const settle = lastRunSettle(internals.replayer.snapshot());
+        const settledTerminal =
+          settle !== undefined &&
+          settle.runStatus !== 'running' &&
+          settle.runStatus !== 'suspended';
+        if (settledTerminal || contractGenerationCurrent(priorRejection)) {
+          throw finishValidationError(priorRejection);
+        }
       }
     }
     const promptLines = [
@@ -3464,11 +3550,68 @@ export function makeOrchestratorWorkflow(
       // forced-finish abort ended it.
       return await settleCapOutcome();
     }
+    /**
+     * The finish-validation failure enrichment (the v1.71 experiment
+     * review, P0.8 remainder + P1.7; widened by cycle 73): every typed
+     * failure a finish rejection produces gains the verdict-derived
+     * repair taxonomy read from the JOURNALED validation decisions of
+     * the CURRENT contract generation (identical live and on replay),
+     * the schema-dead finish exchange counter derived from the
+     * coordination and synthesis windows (the class the v1.74 run lost
+     * six payloads to, invisible in every other field), and, when an
+     * acceptance verdict exists, the acceptance snapshot the children
+     * already earned: completion and childStatusCounts, and now the
+     * degradation facts beside them (degradedReasons and the salvage
+     * lists), exactly what the ok envelope reports. The
+     * rejection-past-the-bound error keeps its own
+     * repairsUsed/maxRepairs/failed untouched.
+     */
+    const enrichSynthesisFailure = (
+      thrown: unknown,
+      snapshot?: {
+        completion: Json;
+        childStatusCounts: Json;
+        degradedReasons: Json;
+        salvagedPartialChildren?: Json;
+        salvagedTerminalOutputChildren?: Json;
+      },
+    ): never => {
+      if (!(thrown instanceof FailRunError)) {
+        throw thrown;
+      }
+      const base = (thrown.data ?? {}) as Record<string, Json>;
+      const spent = validationDecisions().filter(
+        (candidate) => candidate.verdict !== 'accepted' && contractGenerationCurrent(candidate),
+      );
+      const rejectedValidators = [
+        ...new Set(spent.flatMap((candidate) => candidate.failed.map((f) => f.name))),
+      ];
+      const schemaRejected =
+        (result.schemaRejectedTerminalExchanges ?? 0) + synthesisSchemaRejectedExchanges;
+      throw new FailRunError(thrown.message, {
+        data: {
+          ...base,
+          ...(snapshot ?? {}),
+          ...(spent.length === 0 || base.repairsUsed !== undefined
+            ? {}
+            : {
+                repairsUsed: spent.length,
+                maxRepairs: validationSpec?.maxRepairs ?? DEFAULT_FINISH_MAX_REPAIRS,
+                rejectedValidators,
+              }),
+          ...(schemaRejected === 0 || base.schemaRejectedFinishExchanges !== undefined
+            ? {}
+            : { schemaRejectedFinishExchanges: schemaRejected }),
+        },
+      });
+    };
     if (validationTermination !== undefined) {
       // The final finish rejection (or a defective validator) aborted
       // the loop; the typed failure wins over the cancelled status, and
-      // the journaled rejected verdict makes a resume identical.
-      throw validationTermination;
+      // the journaled rejected verdict makes a resume identical. The
+      // enrichment adds the window-derived schema counter (a defective
+      // validator's ConfigError passes through untouched).
+      enrichSynthesisFailure(validationTermination);
     }
     if (orchestratorAccount !== undefined) {
       internals.cost.orchestrator.spentUsd =
@@ -3486,46 +3629,6 @@ export function makeOrchestratorWorkflow(
           (result.errorMessage === undefined ? '' : `: ${result.errorMessage}`),
       );
     }
-    /**
-     * The synthesis failure enrichment (the v1.71 experiment review,
-     * P0.8 remainder + P1.7): every typed failure a synthesis
-     * invocation throws gains the verdict-derived repair taxonomy read
-     * from the JOURNALED validation decisions (identical live and on
-     * replay), and, when an acceptance verdict exists, the acceptance
-     * snapshot the children already earned; the completion mirror then
-     * lifts completion and childStatusCounts onto the error outcome,
-     * exactly like the acceptance rejection path. The experiment's
-     * outcome showed completion null beside four accepted children;
-     * these are the fields that say "the fan-out work is complete, the
-     * failure is downstream". The rejection-past-the-bound error keeps
-     * its own repairsUsed/maxRepairs/failed untouched.
-     */
-    const enrichSynthesisFailure = (
-      thrown: unknown,
-      snapshot?: { completion: Json; childStatusCounts: Json },
-    ): never => {
-      if (!(thrown instanceof FailRunError)) {
-        throw thrown;
-      }
-      const base = (thrown.data ?? {}) as Record<string, Json>;
-      const spent = validationDecisions().filter((candidate) => candidate.verdict !== 'accepted');
-      const rejectedValidators = [
-        ...new Set(spent.flatMap((candidate) => candidate.failed.map((f) => f.name))),
-      ];
-      throw new FailRunError(thrown.message, {
-        data: {
-          ...base,
-          ...(snapshot ?? {}),
-          ...(spent.length === 0 || base.repairsUsed !== undefined
-            ? {}
-            : {
-                repairsUsed: spent.length,
-                maxRepairs: validationSpec?.maxRepairs ?? DEFAULT_FINISH_MAX_REPAIRS,
-                rejectedValidators,
-              }),
-        },
-      });
-    };
     if (opts?.acceptance === undefined) {
       try {
         return await runSynthesis(result.output);
@@ -3708,9 +3811,19 @@ export function makeOrchestratorWorkflow(
     try {
       synthesizedFinal = await runSynthesis(result.output);
     } catch (thrown) {
+      // The full acceptance snapshot rides the failure (cycle 73): the
+      // error outcome names the same degradation facts the ok envelope
+      // below reports, salvage lists included.
       enrichSynthesisFailure(thrown, {
         completion: decision.completion,
         childStatusCounts: decision.childStatusCounts,
+        degradedReasons: decision.degradedReasons,
+        ...(decision.salvagedPartialChildren === undefined
+          ? {}
+          : { salvagedPartialChildren: decision.salvagedPartialChildren }),
+        ...(decision.salvagedTerminalOutputChildren === undefined
+          ? {}
+          : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
       });
     }
     return {

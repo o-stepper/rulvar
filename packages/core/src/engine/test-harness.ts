@@ -87,7 +87,21 @@ const DEFAULT_USAGE: Usage = {
  */
 export function scriptedAdapter(
   script: (req: ChatRequest, call: number) => ScriptedTurn,
-  options?: { id?: string; caps?: ModelCaps; provider?: string },
+  options?: {
+    id?: string;
+    caps?: ModelCaps;
+    provider?: string;
+    /**
+     * Uniquifies tool-call ids across adapter INSTANCES (opt in; the
+     * default template stays byte identical). A resumed run's live
+     * adapter starts its call ordinals at zero, so without a salt its
+     * minted ids collide with the ids already journaled by the
+     * pre-crash instance; real providers mint globally unique ids, and
+     * anything keyed by call id (the finish-validation decisions)
+     * assumes exactly that.
+     */
+    toolCallSalt?: string;
+  },
 ): ProviderAdapter & { calls: ChatRequest[] } {
   const calls: ChatRequest[] = [];
   const caps = options?.caps ?? testCaps();
@@ -108,7 +122,10 @@ export function scriptedAdapter(
         ...(turn.toolCalls ?? []),
       ];
       for (const [index, toolCall] of toolCalls.entries()) {
-        const id = `id-${call}-${index}`;
+        const id =
+          options?.toolCallSalt === undefined
+            ? `id-${call}-${index}`
+            : `id-${options.toolCallSalt}-${call}-${index}`;
         yield { type: 'tool-call-start', id, name: toolCall.name };
         yield {
           type: 'tool-call-delta',

@@ -1032,3 +1032,132 @@ describe('synthesis evidence asymmetry (the v1.74 experiment review)', () => {
     }
   });
 });
+
+describe('contract turn feasibility and the repair funding (the v1.74 experiment review, cycle 73)', () => {
+  const engineOf = () => ({
+    adapters: [scriptedAdapter(() => ({ text: 'x' }))],
+    defaults: { routing: { orchestrate: SERVED, synthesize: SERVED } },
+  });
+  /** Minimal payload about 9106 tokens: the v1.74 experiment's contract shape. */
+  const bigContract = () =>
+    finishContract({ sections: ['## Findings'], words: { min: 3000 }, citations: { min: 30 } });
+  const codesOf = (report: { findings: { code: string }[] }): string[] =>
+    report.findings.map((finding) => finding.code);
+
+  it('an impossible contract against the synthesis turn cap is an error finding', () => {
+    const contract = bigContract();
+    const report = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: {
+        limits: { maxTurns: 4 },
+        synthesis: { limits: { maxTurns: 2, maxOutputTokensPerTurn: 2000 } },
+      },
+      finishValidation: { validators: contract.validators, contract, repairTurnReserve: 1 },
+    });
+    const finding = report.findings.find(
+      (candidate) => candidate.code === 'output-contract-turn-infeasible',
+    );
+    expect(finding?.severity).toBe('error');
+    expect(finding?.spawn).toBe('synthesis');
+    expect(finding?.message).toContain('2000');
+    expect(finding?.message).toMatch(/minimal accepting payload/);
+  });
+
+  it('the provider output ceiling alone can make the contract infeasible', () => {
+    // No per-turn cap configured: the serving model's own 4096 token
+    // maxOutputTokens is the bound, and the 9106 token minimum exceeds it.
+    const contract = bigContract();
+    const report = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: {
+        limits: { maxTurns: 4 },
+        synthesis: { limits: { maxTurns: 2 } },
+      },
+      finishValidation: { validators: contract.validators, contract, repairTurnReserve: 1 },
+    });
+    expect(codesOf(report)).toContain('output-contract-turn-infeasible');
+  });
+
+  it('with no synthesis the finding lands on the coordination loop', () => {
+    const contract = bigContract();
+    const report = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: { limits: { maxTurns: 4, maxOutputTokensPerTurn: 2000 } },
+      finishValidation: { validators: contract.validators, contract, repairTurnReserve: 1 },
+    });
+    const finding = report.findings.find(
+      (candidate) => candidate.code === 'output-contract-turn-infeasible',
+    );
+    expect(finding?.severity).toBe('error');
+    expect(finding?.spawn).toBe('orchestrator');
+  });
+
+  it('a feasible but thin margin is a headroom warning, and real headroom is silent', () => {
+    // About 2410 minimal payload tokens against the 4096 provider bound:
+    // under the doubled margin, so the warning names the thin headroom.
+    const thin = finishContract({ words: { min: 800 } });
+    const thinReport = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: {
+        limits: { maxTurns: 4 },
+        synthesis: { limits: { maxTurns: 2 } },
+      },
+      finishValidation: { validators: thin.validators, contract: thin, repairTurnReserve: 1 },
+    });
+    const finding = thinReport.findings.find(
+      (candidate) => candidate.code === 'output-contract-turn-headroom',
+    );
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.spawn).toBe('synthesis');
+    expect(codesOf(thinReport)).not.toContain('output-contract-turn-infeasible');
+
+    const roomy = finishContract({ words: { min: 100 } });
+    const roomyReport = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: {
+        limits: { maxTurns: 4 },
+        synthesis: { limits: { maxTurns: 2 } },
+      },
+      finishValidation: { validators: roomy.validators, contract: roomy, repairTurnReserve: 1 },
+    });
+    expect(codesOf(roomyReport)).not.toContain('output-contract-turn-infeasible');
+    expect(codesOf(roomyReport)).not.toContain('output-contract-turn-headroom');
+  });
+
+  it('validators with repairs possible but no funded reserve draw the unfunded warning', () => {
+    const unfunded = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: { limits: { maxTurns: 4 } },
+      finishValidation: {
+        validators: [requiredSectionsValidator({ sections: ['## A'] })],
+      },
+    });
+    const finding = unfunded.findings.find(
+      (candidate) => candidate.code === 'repair-reserve-unfunded',
+    );
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('repairTurnReserve');
+
+    const funded = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: { limits: { maxTurns: 4 } },
+      finishValidation: {
+        validators: [requiredSectionsValidator({ sections: ['## A'] })],
+        repairTurnReserve: 1,
+      },
+    });
+    expect(codesOf(funded)).not.toContain('repair-reserve-unfunded');
+
+    // maxRepairs 0 means the first rejection is final: there is no
+    // repair exchange to fund, so the mirror silences the warning.
+    const noRepairs = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: { limits: { maxTurns: 4 } },
+      finishValidation: {
+        validators: [requiredSectionsValidator({ sections: ['## A'] })],
+        maxRepairs: 0,
+      },
+    });
+    expect(codesOf(noRepairs)).not.toContain('repair-reserve-unfunded');
+  });
+});
