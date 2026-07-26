@@ -115,6 +115,23 @@ export type RunOutcome<R> = {
    * otherwise.
    */
   childStatusCounts?: Record<string, number>;
+  /**
+   * Per-child degradation notes, lifted from the same envelope (or
+   * typed error data) when it carries a valid string array (the fifth
+   * experiment, cycle 75): the facts the orchestrator acceptance path
+   * has always emitted beside completion, now on the outcome itself so
+   * a host stops digging error.data on the rejected path. An empty
+   * array is the workflow's claim of zero degradation; absence means no
+   * claim was made.
+   */
+  degradedReasons?: string[];
+  /** Children accepted by acceptPartialChildren; same lift and posture. */
+  salvagedPartialChildren?: string[];
+  /**
+   * Children accepted through validated terminal output salvage on
+   * 'limit'; same lift and posture.
+   */
+  salvagedTerminalOutputChildren?: string[];
   /** Pipeline drops and onError:'null' losses; silent losses are forbidden. */
   dropped: DroppedItem[];
   /** Suspensions open at settle time (M2). */

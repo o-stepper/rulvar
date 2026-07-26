@@ -66,7 +66,9 @@ const wf = defineWorkflow({ name: 'review' }, async (ctx) => {
 });
 
 /** Replays a run's events into a collector so toOtel can consume them. */
-async function runAndCollect(): Promise<{
+async function runAndCollect(
+  workflow: Parameters<ReturnType<typeof createEngine>['run']>[0] = wf,
+): Promise<{
   runId: string;
   events: AsyncIterable<WorkflowEvent>;
   result: Promise<import('@rulvar/core').RunOutcome<unknown>>;
@@ -76,7 +78,7 @@ async function runAndCollect(): Promise<{
     stores: { journal: new InMemoryStore() },
     defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
   });
-  const handle = engine.run(wf, undefined);
+  const handle = engine.run(workflow, undefined);
   const collected: WorkflowEvent[] = [];
   for await (const event of handle.events) {
     collected.push(event);
@@ -120,6 +122,30 @@ describe('toOtel (M5-T08)', () => {
         expect(key.includes('completion')).toBe(false);
       }
     }
+  });
+
+  it('the degradation mirror rides the run span (cycle 75)', async () => {
+    const degraded = defineWorkflow({ name: 'degraded' }, () =>
+      Promise.resolve({
+        result: 'the merged report',
+        completion: 'partial' as const,
+        childStatusCounts: { ok: 1, limit: 1 },
+        degradedReasons: ["child w2 settled 'limit' after the finalization reserve summary"],
+        salvagedTerminalOutputChildren: ['w2'],
+      }),
+    );
+    const run = await runAndCollect(degraded);
+    const { tracer, spans } = inMemoryTracer();
+    await toOtel(run, tracer);
+    const runSpan = spans.find((s) => s.name.startsWith('run '));
+    expect(runSpan?.attributes['rulvar.run.completion']).toBe('partial');
+    expect(runSpan?.attributes['rulvar.run.degradedReasons']).toBe(
+      JSON.stringify(["child w2 settled 'limit' after the finalization reserve summary"]),
+    );
+    expect(runSpan?.attributes['rulvar.run.salvagedTerminalOutputChildren']).toBe(
+      JSON.stringify(['w2']),
+    );
+    expect(runSpan?.attributes['rulvar.run.salvagedPartialChildren']).toBeUndefined();
   });
 
   it('start/end timestamps come from the lifecycle events', async () => {

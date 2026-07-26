@@ -20,12 +20,18 @@ type RunEndEvent = {
   status: string;
   completion?: 'complete' | 'partial' | 'rejected';
   childStatusCounts?: Record<string, number>;
+  degradedReasons?: string[];
+  salvagedPartialChildren?: string[];
+  salvagedTerminalOutputChildren?: string[];
 };
 
 type OutcomeLift = {
   status: string;
   completion?: 'complete' | 'partial' | 'rejected';
   childStatusCounts?: Record<string, number>;
+  degradedReasons?: string[];
+  salvagedPartialChildren?: string[];
+  salvagedTerminalOutputChildren?: string[];
 };
 
 async function runAndCaptureEnd(
@@ -233,5 +239,74 @@ describe('the RunOutcome completion mirror (P0.5)', () => {
     expect(resumed.status).toBe('ok');
     expect(resumed.completion).toBe('complete');
     expect(resumed.childStatusCounts).toEqual({ ok: 2 });
+  });
+});
+
+/**
+ * The degradation mirror (the fifth experiment, cycle 75). The
+ * experiment's error outcome carried degradedReasons and the salvage
+ * lists ONLY inside error.data; the top level RunOutcome mirrored just
+ * completion and childStatusCounts, so the harness serialized empty
+ * top-level arrays while the truth sat one level deeper. The lift now
+ * carries the three degradation fields the acceptance envelope already
+ * emits, on both surfaces, both paths.
+ */
+describe('the degradation mirror (cycle 75)', () => {
+  it('mirrors degradedReasons and the salvage lists from an ok envelope', async () => {
+    const engine = createEngine({ adapters: [] });
+    const wf = defineWorkflow({ name: 'degraded-ok' }, () =>
+      Promise.resolve({
+        result: 'the merged report',
+        completion: 'partial' as const,
+        childStatusCounts: { ok: 3, limit: 1 },
+        degradedReasons: ["child w3 settled 'limit' after the finalization reserve summary"],
+        salvagedTerminalOutputChildren: ['w3'],
+      }),
+    );
+    const { outcome, runEnd } = await runAndCaptureEnd(engine, wf);
+    expect(outcome.degradedReasons).toEqual([
+      "child w3 settled 'limit' after the finalization reserve summary",
+    ]);
+    expect(outcome.salvagedTerminalOutputChildren).toEqual(['w3']);
+    expect(outcome.salvagedPartialChildren).toBeUndefined();
+    expect(runEnd?.degradedReasons).toEqual(outcome.degradedReasons);
+    expect(runEnd?.salvagedTerminalOutputChildren).toEqual(outcome.salvagedTerminalOutputChildren);
+  });
+
+  it('mirrors the degradation facts from typed error data on the rejected path', async () => {
+    const engine = createEngine({ adapters: [] });
+    const wf = defineWorkflow({ name: 'degraded-error' }, () => {
+      throw new FailRunError('the synthesis invocation terminated', {
+        data: {
+          source: 'orchestrator_synthesis',
+          completion: 'partial',
+          childStatusCounts: { ok: 2, limit: 2 },
+          degradedReasons: ["child a settled 'limit'", "child b settled 'limit'"],
+          salvagedTerminalOutputChildren: ['a', 'b'],
+          salvagedPartialChildren: [],
+        },
+      });
+    });
+    const { outcome } = await runAndCaptureEnd(engine, wf);
+    expect(outcome.status).toBe('error');
+    expect(outcome.degradedReasons).toHaveLength(2);
+    expect(outcome.salvagedTerminalOutputChildren).toEqual(['a', 'b']);
+    // An empty claimed list mirrors as the claim it is, not as absence.
+    expect(outcome.salvagedPartialChildren).toEqual([]);
+  });
+
+  it('drops malformed degradation shapes while keeping the valid completion', async () => {
+    const engine = createEngine({ adapters: [] });
+    const wf = defineWorkflow({ name: 'degraded-malformed' }, () =>
+      Promise.resolve({
+        completion: 'partial' as const,
+        degradedReasons: 'not an array',
+        salvagedTerminalOutputChildren: [1, 2],
+      }),
+    );
+    const { outcome } = await runAndCaptureEnd(engine, wf);
+    expect(outcome.completion).toBe('partial');
+    expect(outcome.degradedReasons).toBeUndefined();
+    expect(outcome.salvagedTerminalOutputChildren).toBeUndefined();
   });
 });

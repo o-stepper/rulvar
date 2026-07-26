@@ -206,6 +206,19 @@ export interface PreflightInput {
      * the repair-reserve-unfunded warning stays silent.
      */
     maxRepairs?: number;
+    /**
+     * Mirrors FinishValidationSpec.draftPolicy (the fifth experiment,
+     * cycle 75): declaring it lets the estimator compare the draft
+     * gate's word floor against the contract's own word minimum. The
+     * experiment gated drafts at 3200 words under a 4500 word contract,
+     * so the gate admitted a draft the final validators had to reject
+     * and the synthesis started from an underlength base; the
+     * draft-gate-below-contract warning names exactly that shape.
+     */
+    draftPolicy?: {
+      minWords?: number;
+      requireSections?: string[];
+    };
   };
 }
 
@@ -1145,6 +1158,38 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
           });
         }
       }
+      // The synthesis tool headroom check (the fifth experiment, cycle
+      // 75): the experiment harness set the synthesis tool cap to the
+      // child count, the mandatory get_child_result reads exhausted the
+      // whole budget, and evidence access ended there. The terminal
+      // finish itself is admitted budget free, so the finding is about
+      // the READS: a cap below one read per possible child cannot cover
+      // the evidence the read tools exist to deliver.
+      {
+        const synthesisToolCap = synthesis.limits?.maxToolCalls;
+        const expectedReads = input.orchestrator?.maxSpawns ?? 1;
+        if (
+          synthesis.exposeChildResultTools === true &&
+          synthesisToolCap !== undefined &&
+          synthesisToolCap < expectedReads
+        ) {
+          say({
+            severity: 'warning',
+            code: 'synthesis-terminal-tool-headroom',
+            message:
+              `synthesis.limits.maxToolCalls ${String(synthesisToolCap)} cannot cover one ` +
+              `get_child_result read per child (${
+                input.orchestrator?.maxSpawns === undefined
+                  ? 'at least 1 read'
+                  : `maxSpawns ${String(expectedReads)}`
+              }): the reads exhaust the tool budget and the synthesis loses evidence access ` +
+              '(the terminal finish is admitted budget free and needs no slot); raise the cap ' +
+              "to at least the child count plus paging margin, or use context 'full' without " +
+              'the read tools',
+            spawn: 'synthesis',
+          });
+        }
+      }
       const servedBy =
         resolveServing(synthesis.model) ?? resolveServing(defaults.routing?.synthesize);
       if (servedBy === undefined) {
@@ -1572,6 +1617,34 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
             'exchange(s) but declares no repairTurnReserve: a rejected finish burns an ' +
             "ordinary turn and a window at maxTurns settles 'limit' with the repair " +
             'unspent; set finishValidation.repairTurnReserve to fund the repair exchanges',
+        });
+      }
+    }
+    // The underlength draft gate warning (the fifth experiment, cycle
+    // 75): a draft word floor below the contract's own word minimum
+    // admits drafts the final validators must reject, so the paid
+    // synthesis starts from a base that already needs expansion (the
+    // experiment gated 3984 word drafts at 3200 under a 4500 minimum,
+    // and the synthesis copied the draft nearly verbatim).
+    {
+      const draftMinWords = fv.draftPolicy?.minWords;
+      if (draftMinWords !== undefined) {
+        requireNonNegativeInteger(draftMinWords, 'preflight finishValidation.draftPolicy.minWords');
+      }
+      const contractMinWords = fv.contract?.manifest.words?.min;
+      if (
+        draftMinWords !== undefined &&
+        contractMinWords !== undefined &&
+        draftMinWords < contractMinWords
+      ) {
+        findings.push({
+          severity: 'warning',
+          code: 'draft-gate-below-contract',
+          message:
+            `draftPolicy.minWords ${String(draftMinWords)} sits below the contract word ` +
+            `minimum ${String(contractMinWords)}: the draft gate admits drafts the final ` +
+            'validators must reject, so the synthesis starts from an underlength base; raise ' +
+            'draftPolicy.minWords to the contract minimum or above',
         });
       }
     }

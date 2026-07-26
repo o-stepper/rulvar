@@ -2206,3 +2206,146 @@ describe('error-outcome parity and the schema-rejected finish counter (cycle 73)
     expect('schemaRejectedFinishExchanges' in data).toBe(false);
   });
 });
+
+describe('the synthesis terminal starvation shape (the fifth experiment, cycle 75)', () => {
+  const STARVE_DEFAULTS = {
+    routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+    profiles: PROFILES,
+  } as const;
+  const promptTextOf = (req: ChatRequest | undefined): string => {
+    const user = req?.messages.find((message) => message.role === 'user');
+    const part = user?.parts.find((p) => p.type === 'text');
+    return (part as { text?: string } | undefined)?.text ?? '';
+  };
+  const SHORT_FINAL = 'an interim final still far below the word bound';
+  const LONG_FINAL =
+    'the expanded final ' + Array.from({ length: 70 }, (unused, i) => `word${String(i)}`).join(' ');
+
+  /**
+   * The experiment harness shape at test scale: two children, the
+   * synthesis reads BOTH (spending the whole tool budget), then calls
+   * finish. `synthesisFinals` scripts the finish results in order.
+   */
+  function starvationAdapter(synthesisFinals: string[]): ReturnType<typeof scriptedAdapter> {
+    let coordination = 0;
+    let synthesisFinishes = 0;
+    let readHandles: number[] = [];
+    return scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'worker findings with evidence src/core/topic.ts:12' };
+      }
+      if (/synthesis invocation/.test(promptTextOf(req))) {
+        if (readHandles.length === 0) {
+          readHandles = [
+            ...new Set([...promptTextOf(req).matchAll(/"handle":(\d+)/g)].map((m) => Number(m[1]))),
+          ];
+          return {
+            toolCalls: readHandles.slice(0, 2).map((handle) => ({
+              name: 'get_child_result',
+              args: { handle },
+            })),
+          };
+        }
+        synthesisFinishes += 1;
+        const final =
+          synthesisFinals[Math.min(synthesisFinishes - 1, synthesisFinals.length - 1)] ??
+          SHORT_FINAL;
+        return { toolCall: { name: 'finish', args: { result: final } } };
+      }
+      coordination += 1;
+      if (coordination === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'research alpha' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'research beta' } },
+          ],
+        };
+      }
+      if (coordination === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: SHORT_FINAL } } };
+    });
+  }
+
+  function starvationWorkflow() {
+    return makeOrchestratorWorkflow('produce the assessment', {
+      maxSpawns: 2,
+      limits: { maxTurns: 6 },
+      synthesis: {
+        limits: { maxTurns: 2, maxToolCalls: 2 },
+        exposeChildResultTools: true,
+        context: 'full',
+      },
+      finishValidation: {
+        validators: [wordCountValidator({ min: 60 })],
+        maxRepairs: 2,
+        repairTurnReserve: 1,
+        draftPolicy: { minWords: 5 },
+      },
+    });
+  }
+
+  it('the finish after the reads spent the budget is admitted, rejected, and repaired to ok', async () => {
+    // The fifth experiment's exact shape: the tool cap equals the child
+    // count, the mandatory reads exhaust it, and the terminal finish
+    // arrives with zero admission slots. Before cycle 75 this settled
+    // 'limit' with the finish never executed and the run failed closed.
+    const adapter = starvationAdapter([SHORT_FINAL, LONG_FINAL]);
+    const { internals } = makeInternals({ adapters: [adapter], ...STARVE_DEFAULTS });
+    const outcome = await executeWorkflow(internals, starvationWorkflow(), undefined);
+    expect(outcome).toBe(LONG_FINAL);
+    const synthesisReqs = adapter.calls.filter((req) =>
+      /synthesis invocation/.test(promptTextOf(req)),
+    );
+    // Reads, rejected finish, repaired finish: three synthesis turns.
+    expect(synthesisReqs).toHaveLength(3);
+    const repairView = JSON.stringify(synthesisReqs[2]?.messages ?? []);
+    expect(repairView).toContain('word count');
+  });
+
+  it('a synthesis that never calls finish still fails closed with the exact message', async () => {
+    // The admission exemption is for the terminal tool only: a model
+    // that burns every turn on reads keeps the typed fail-closed error.
+    let coordination = 0;
+    const neverFinishing = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'worker findings with evidence src/core/topic.ts:12' };
+      }
+      if (/synthesis invocation/.test(promptTextOf(req))) {
+        const handle = Number(/"handle":(\d+)/.exec(promptTextOf(req))?.[1] ?? -1);
+        return { toolCall: { name: 'get_child_result', args: { handle } } };
+      }
+      coordination += 1;
+      if (coordination === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'research alpha' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'research beta' } },
+          ],
+        };
+      }
+      if (coordination === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: SHORT_FINAL } } };
+    });
+    const { internals } = makeInternals({
+      adapters: [neverFinishing],
+      ...STARVE_DEFAULTS,
+    });
+    let thrown: unknown;
+    try {
+      await executeWorkflow(internals, starvationWorkflow(), undefined);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(FailRunError);
+    expect((thrown as FailRunError).message).toContain(
+      "the synthesis invocation terminated with status 'limit'",
+    );
+    expect((thrown as FailRunError).message).toContain(
+      'finish validators are configured, so the unvalidated draft cannot stand',
+    );
+  });
+});

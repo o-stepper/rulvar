@@ -11,9 +11,12 @@ type RunOutcome<R> = {
   childStatusCounts?: Record<string, number>;
   completion?: "complete" | "partial" | "rejected";
   cost: CostReport;
+  degradedReasons?: string[];
   dropped: DroppedItem[];
   error?: WireError;
   pending: PendingExternal[];
+  salvagedPartialChildren?: string[];
+  salvagedTerminalOutputChildren?: string[];
   status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
   usage: Usage;
   value?: R;
@@ -80,6 +83,24 @@ Defined in: `packages/core/dist/index.d.ts`
 
 ***
 
+### degradedReasons?
+
+```ts
+optional degradedReasons?: string[];
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Per-child degradation notes, lifted from the same envelope (or
+typed error data) when it carries a valid string array (the fifth
+experiment, cycle 75): the facts the orchestrator acceptance path
+has always emitted beside completion, now on the outcome itself so
+a host stops digging error.data on the rejected path. An empty
+array is the workflow's claim of zero degradation; absence means no
+claim was made.
+
+***
+
 ### dropped
 
 ```ts
@@ -107,6 +128,29 @@ pending: PendingExternal[];
 ```
 
 Defined in: `packages/core/dist/index.d.ts`
+
+***
+
+### salvagedPartialChildren?
+
+```ts
+optional salvagedPartialChildren?: string[];
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+***
+
+### salvagedTerminalOutputChildren?
+
+```ts
+optional salvagedTerminalOutputChildren?: string[];
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Children accepted through validated terminal output salvage on
+'limit'; same lift and posture.
 
 ***
 

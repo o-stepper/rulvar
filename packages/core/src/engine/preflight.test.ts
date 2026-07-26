@@ -1188,3 +1188,139 @@ describe('contract turn feasibility and the repair funding (the v1.74 experiment
     expect(codesOf(noRepairs)).not.toContain('repair-reserve-unfunded');
   });
 });
+
+describe('the synthesis tool headroom and the draft gate findings (the fifth experiment, cycle 75)', () => {
+  const engineOf = () => ({
+    adapters: [scriptedAdapter(() => ({ text: 'x' }))],
+    defaults: { routing: { orchestrate: SERVED, synthesize: SERVED } },
+  });
+  const codesOf = (report: { findings: { code: string }[] }): string[] =>
+    report.findings.map((finding) => finding.code);
+
+  it('a synthesis tool cap below the child count with read tools exposed is a warning', () => {
+    const report = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: {
+        maxSpawns: 4,
+        limits: { maxTurns: 6 },
+        synthesis: {
+          limits: { maxTurns: 4, maxToolCalls: 3 },
+          exposeChildResultTools: true,
+        },
+      },
+    });
+    const finding = report.findings.find(
+      (candidate) => candidate.code === 'synthesis-terminal-tool-headroom',
+    );
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.spawn).toBe('synthesis');
+    expect(finding?.message).toContain('3');
+    expect(finding?.message).toContain('4');
+  });
+
+  it('a cap covering one read per child is quiet, as are undeclared shapes', () => {
+    const covered = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: {
+        maxSpawns: 4,
+        limits: { maxTurns: 6 },
+        synthesis: {
+          limits: { maxTurns: 4, maxToolCalls: 4 },
+          exposeChildResultTools: true,
+        },
+      },
+    });
+    expect(codesOf(covered)).not.toContain('synthesis-terminal-tool-headroom');
+
+    const noTools = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: {
+        maxSpawns: 4,
+        limits: { maxTurns: 6 },
+        synthesis: { limits: { maxTurns: 4, maxToolCalls: 1 }, context: 'full' },
+      },
+    });
+    expect(codesOf(noTools)).not.toContain('synthesis-terminal-tool-headroom');
+
+    const noCap = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: {
+        maxSpawns: 4,
+        limits: { maxTurns: 6 },
+        synthesis: { limits: { maxTurns: 4 }, exposeChildResultTools: true },
+      },
+    });
+    expect(codesOf(noCap)).not.toContain('synthesis-terminal-tool-headroom');
+  });
+
+  it('without a declared maxSpawns a zero cap still warns (one read is the floor)', () => {
+    const report = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: {
+        limits: { maxTurns: 6 },
+        synthesis: {
+          limits: { maxTurns: 4, maxToolCalls: 0 },
+          exposeChildResultTools: true,
+        },
+      },
+    });
+    expect(codesOf(report)).toContain('synthesis-terminal-tool-headroom');
+  });
+
+  it('a draft gate below the contract word minimum is a warning naming both bounds', () => {
+    const contract = finishContract({ sections: ['## R'], words: { min: 60 } });
+    const report = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: {
+        limits: { maxTurns: 6 },
+        synthesis: { limits: { maxTurns: 3 } },
+      },
+      finishValidation: {
+        validators: [...contract.validators],
+        contract,
+        repairTurnReserve: 1,
+        draftPolicy: { minWords: 10 },
+      },
+    });
+    const finding = report.findings.find(
+      (candidate) => candidate.code === 'draft-gate-below-contract',
+    );
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('10');
+    expect(finding?.message).toContain('60');
+  });
+
+  it('a draft gate at or above the contract minimum is quiet, as is a wordless contract', () => {
+    const contract = finishContract({ sections: ['## R'], words: { min: 60 } });
+    const atMinimum = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: {
+        limits: { maxTurns: 6 },
+        synthesis: { limits: { maxTurns: 3 } },
+      },
+      finishValidation: {
+        validators: [...contract.validators],
+        contract,
+        repairTurnReserve: 1,
+        draftPolicy: { minWords: 60 },
+      },
+    });
+    expect(codesOf(atMinimum)).not.toContain('draft-gate-below-contract');
+
+    const wordless = finishContract({ sections: ['## R'] });
+    const noWords = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: {
+        limits: { maxTurns: 6 },
+        synthesis: { limits: { maxTurns: 3 } },
+      },
+      finishValidation: {
+        validators: [...wordless.validators],
+        contract: wordless,
+        repairTurnReserve: 1,
+        draftPolicy: { minWords: 10 },
+      },
+    });
+    expect(codesOf(noWords)).not.toContain('draft-gate-below-contract');
+  });
+});
