@@ -198,7 +198,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The sixty four rounds, verbatim in this repository's history:
+The sixty five rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                          | Shipped as |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -266,6 +266,7 @@ The sixty four rounds, verbatim in this repository's history:
 | v1.72.0       | 3e95bd1 (#390): the synthesis repair envelope: the bounded repairTurnReserve, the acceptance snapshot on synthesis failures, and the preflight synthesis projection | v1.73.0    |
 | v1.73.0       | d94beab (#393): quota drift telemetry: normalized x-ratelimit capture in both wires, journaled quota_drift verdicts against declaredRules, the usageUnknown marker  | v1.74.0    |
 | v1.74.0       | c486de8 (#396): the provider output floor and the unparsed finish second chance: caps-declared minimum output, near-JSON recovery, raw history projection           | v1.75.0    |
+| v1.75.1       | 22cba47 (#401): synthesis evidence symmetry and the draft gate: opt-in read tools and full context for synthesis, draftPolicy, the asymmetry preflight finding      | v1.76.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
