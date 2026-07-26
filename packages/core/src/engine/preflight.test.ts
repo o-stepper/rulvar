@@ -13,7 +13,10 @@ import { z } from 'zod';
 
 import type { ModelRef } from '../l0/messages.js';
 import { dispatchProjectionReserveUsd } from '../orchestrator/admission.js';
-import { requiredSectionsValidator } from '../orchestrator/finish-validators.js';
+import {
+  evidencePreservedValidator,
+  requiredSectionsValidator,
+} from '../orchestrator/finish-validators.js';
 import { finishContract } from '../orchestrator/output-contract.js';
 import { orchestrate, orchestratorAdmissionEstCostUsd } from '../orchestrator/orchestrate.js';
 import { tool } from '../tools/tool.js';
@@ -959,5 +962,73 @@ describe('output caps below the provider minimum (the v1.74 experiment review)',
     expect(
       atFloor.findings.find((candidate) => candidate.code === 'output-cap-below-provider-minimum'),
     ).toBeUndefined();
+  });
+});
+
+describe('synthesis evidence asymmetry (the v1.74 experiment review)', () => {
+  const engineOf = () => ({
+    adapters: [scriptedAdapter(() => ({ text: 'x' }))],
+    defaults: { routing: { orchestrate: SERVED, synthesize: SERVED } },
+  });
+
+  it('warns when evidence validators bind a digest-blind synthesis', () => {
+    const report = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: {
+        limits: { maxTurns: 4 },
+        synthesis: { limits: { maxTurns: 2 } },
+      },
+      finishValidation: {
+        validators: [evidencePreservedValidator({ minShare: 0.75 })],
+      },
+    });
+    const finding = report.findings.find(
+      (candidate) => candidate.code === 'synthesis-evidence-asymmetry',
+    );
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('digest');
+    expect(finding?.message).toContain('evidence-preserved');
+  });
+
+  it('stays quiet when the synthesis can actually reach the evidence', () => {
+    const base = {
+      engine: engineOf(),
+      finishValidation: {
+        validators: [evidencePreservedValidator({ minShare: 0.75 })],
+      },
+    };
+    const withTools = preflightEstimate({
+      ...base,
+      orchestrator: {
+        limits: { maxTurns: 4 },
+        synthesis: { limits: { maxTurns: 2 }, exposeChildResultTools: true },
+      },
+    });
+    const withFull = preflightEstimate({
+      ...base,
+      orchestrator: {
+        limits: { maxTurns: 4 },
+        synthesis: { limits: { maxTurns: 2 }, context: 'full' },
+      },
+    });
+    const noEvidence = preflightEstimate({
+      engine: engineOf(),
+      orchestrator: {
+        limits: { maxTurns: 4 },
+        synthesis: { limits: { maxTurns: 2 } },
+      },
+      finishValidation: {
+        validators: [requiredSectionsValidator({ sections: ['## A'] })],
+      },
+    });
+    const noSynthesis = preflightEstimate({
+      ...base,
+      orchestrator: { limits: { maxTurns: 4 } },
+    });
+    for (const report of [withTools, withFull, noEvidence, noSynthesis]) {
+      expect(
+        report.findings.find((candidate) => candidate.code === 'synthesis-evidence-asymmetry'),
+      ).toBeUndefined();
+    }
   });
 });

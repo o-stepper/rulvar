@@ -1773,3 +1773,247 @@ describe('child result evidence tools (v1.40.0 improvement plan, RV-201)', () =>
     expect(artifactPage?.hasMore).toBe(false);
   }, 15_000);
 });
+
+describe('synthesis evidence symmetry and the draft gate (the v1.74 experiment review)', () => {
+  const SYMMETRY_DEFAULTS = {
+    routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+    profiles: PROFILES,
+  } as const;
+  /** Tail citations sit beyond the 400 char digest truncation. */
+  const TAIL_CITED = (topic: string): string =>
+    `${topic} findings. ${`${topic} filler sentence for bulk. `.repeat(30)}` +
+    `Citations: src/core/${topic}.ts:12 src/util/${topic}.ts:34`;
+  const PRESERVING =
+    '## Findings preserved: src/core/alpha.ts:12 src/util/alpha.ts:34 ' +
+    'src/core/beta.ts:12 src/util/beta.ts:34';
+
+  const promptOf = (req: ChatRequest | undefined): string => {
+    const user = req?.messages.find((message) => message.role === 'user');
+    const part = user?.parts.find((p) => p.type === 'text');
+    return (part as { text?: string } | undefined)?.text ?? '';
+  };
+
+  /**
+   * Two tail-cited children, a coordination draft script, and a
+   * synthesis turn script, discriminated by agent type and the
+   * synthesis prompt header.
+   */
+  function symmetryAdapter(options: {
+    draftTurns: Array<Record<string, unknown>>;
+    synthesisTurns: ScriptedTurn[];
+    /** First synthesis turn reads the first digest row's handle. */
+    readFirstChild?: boolean;
+  }): ReturnType<typeof scriptedAdapter> {
+    let coordination = 0;
+    let synthesis = 0;
+    return scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: TAIL_CITED(/alpha/.test(promptOf(req)) ? 'alpha' : 'beta') };
+      }
+      if (/synthesis invocation/.test(promptOf(req))) {
+        synthesis += 1;
+        if (options.readFirstChild === true && synthesis === 1) {
+          // The model does what a real one would: it takes the handle
+          // from the digest row it was shown.
+          const handle = Number(/"handle":(\d+)/.exec(promptOf(req))?.[1] ?? -1);
+          return { toolCall: { name: 'get_child_result', args: { handle } } };
+        }
+        const step = options.readFirstChild === true ? synthesis - 2 : synthesis - 1;
+        const turn =
+          options.synthesisTurns[Math.min(Math.max(step, 0), options.synthesisTurns.length - 1)];
+        return turn ?? { toolCall: { name: 'finish', args: { result: PRESERVING } } };
+      }
+      coordination += 1;
+      if (coordination === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'research alpha' } },
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'research beta' } },
+          ],
+        };
+      }
+      if (coordination === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      const draft = options.draftTurns[Math.min(coordination - 3, options.draftTurns.length - 1)];
+      return { toolCall: { name: 'finish', args: draft ?? { result: 'DRAFT' } } };
+    });
+  }
+
+  it('exposeChildResultTools opens the read tools to synthesis with handles in the rows', async () => {
+    const adapter = symmetryAdapter({
+      draftTurns: [{ result: 'DRAFT' }],
+      readFirstChild: true,
+      synthesisTurns: [{ toolCall: { name: 'finish', args: { result: PRESERVING } } }],
+    });
+    const { internals } = makeInternals({ adapters: [adapter], ...SYMMETRY_DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      maxSpawns: 2,
+      synthesis: { limits: { maxTurns: 3 }, exposeChildResultTools: true },
+      finishValidation: {
+        validators: [evidencePreservedValidator({ minShare: 0.75 })],
+        maxRepairs: 0,
+      },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(PRESERVING);
+    const synthesisReqs = adapter.calls.filter((req) => /synthesis invocation/.test(promptOf(req)));
+    const toolNames = (synthesisReqs[0]?.tools ?? []).map((contract) => contract.name).sort();
+    expect(toolNames).toEqual(['finish', 'get_child_result', 'read_child_artifact']);
+    // The digest rows name the handles the read tools take.
+    expect(promptOf(synthesisReqs[0])).toContain('"handle":');
+    // The page the tool returned carried the tail citation to the model.
+    const secondTurn = JSON.stringify(synthesisReqs[1]?.messages ?? []);
+    expect(secondTurn).toContain('src/core/alpha.ts:12');
+  });
+
+  it('without the new options the synthesis toolset and prompt stay exactly closed', async () => {
+    const adapter = symmetryAdapter({
+      draftTurns: [{ result: 'DRAFT' }],
+      synthesisTurns: [{ toolCall: { name: 'finish', args: { result: PRESERVING } } }],
+    });
+    const { internals } = makeInternals({ adapters: [adapter], ...SYMMETRY_DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      maxSpawns: 2,
+      synthesis: { limits: { maxTurns: 2 } },
+    });
+    await executeWorkflow(internals, wf, undefined);
+    const synthesisReq = adapter.calls.find((req) => /synthesis invocation/.test(promptOf(req)));
+    expect((synthesisReq?.tools ?? []).map((contract) => contract.name)).toEqual(['finish']);
+    expect(promptOf(synthesisReq)).toContain('No other tool exists.');
+    expect(promptOf(synthesisReq)).not.toContain('"handle":');
+  });
+
+  it("synthesisContext 'full' embeds the full child outputs beside the digest", async () => {
+    const adapter = symmetryAdapter({
+      draftTurns: [{ result: 'DRAFT' }],
+      synthesisTurns: [{ toolCall: { name: 'finish', args: { result: PRESERVING } } }],
+    });
+    const { internals } = makeInternals({ adapters: [adapter], ...SYMMETRY_DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      maxSpawns: 2,
+      synthesis: { limits: { maxTurns: 2 }, context: 'full' },
+      finishValidation: {
+        validators: [evidencePreservedValidator({ minShare: 0.75 })],
+        maxRepairs: 0,
+      },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(PRESERVING);
+    const prompt = promptOf(
+      adapter.calls.find((req) => /synthesis invocation/.test(promptOf(req))),
+    );
+    expect(prompt).toContain('CHILD OUTPUTS');
+    expect(prompt).toContain('src/core/alpha.ts:12');
+    expect(prompt).toContain('src/util/beta.ts:34');
+  });
+
+  it('the draft gate rejects a collapsed draft before any synthesis dispatch', async () => {
+    const adapter = symmetryAdapter({
+      draftTurns: [{ result: 'test' }, { result: 'a proper five word draft' }],
+      synthesisTurns: [{ toolCall: { name: 'finish', args: { result: PRESERVING } } }],
+    });
+    const { internals } = makeInternals({ adapters: [adapter], ...SYMMETRY_DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      maxSpawns: 2,
+      synthesis: { limits: { maxTurns: 2 }, context: 'full' },
+      finishValidation: {
+        validators: [evidencePreservedValidator({ minShare: 0.75 })],
+        maxRepairs: 0,
+        draftPolicy: { minWords: 3 },
+        repairTurnReserve: 1,
+      },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(PRESERVING);
+    // Exactly one synthesis dispatch: the collapsed draft never reached it.
+    expect(adapter.calls.filter((req) => /synthesis invocation/.test(promptOf(req)))).toHaveLength(
+      1,
+    );
+    // The rejection reached the coordination model as an error result
+    // naming the draft policy.
+    const feedback = JSON.stringify(adapter.calls.map((req) => req.messages));
+    expect(feedback).toContain('draft');
+    expect(feedback).toMatch(/3 words|required 3/);
+  });
+
+  it('the draft gate honors requireSections', async () => {
+    const adapter = symmetryAdapter({
+      draftTurns: [{ result: 'long enough but with no marker' }, { result: '## Findings enough' }],
+      synthesisTurns: [{ toolCall: { name: 'finish', args: { result: PRESERVING } } }],
+    });
+    const { internals } = makeInternals({ adapters: [adapter], ...SYMMETRY_DEFAULTS });
+    const wf = makeOrchestratorWorkflow('assess', {
+      maxSpawns: 2,
+      synthesis: { limits: { maxTurns: 2 }, context: 'full' },
+      finishValidation: {
+        validators: [evidencePreservedValidator({ minShare: 0.75 })],
+        maxRepairs: 0,
+        draftPolicy: { requireSections: ['## Findings'] },
+        repairTurnReserve: 1,
+      },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe(PRESERVING);
+    expect(adapter.calls.filter((req) => /synthesis invocation/.test(promptOf(req)))).toHaveLength(
+      1,
+    );
+    // The FIRST draft was rejected (its feedback names the section) and
+    // the SECOND draft is what reached the transcript: without the gate
+    // the marker-less draft would have been accepted silently.
+    const transcript = JSON.stringify(adapter.calls.map((req) => req.messages));
+    expect(transcript).toContain("required draft section '## Findings'");
+    expect(transcript).toContain('## Findings enough');
+  });
+
+  it('draftPolicy without synthesis is a ConfigError', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('x', {
+        finishValidation: {
+          validators: [requiredSectionsValidator({ sections: ['## A'] })],
+          draftPolicy: { minWords: 2 },
+        },
+      }),
+    ).toThrow(/draftPolicy/);
+  });
+
+  it('the new fields validate at intake', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('x', {
+        synthesis: { context: 'everything' as never },
+      }),
+    ).toThrow(/context/);
+    expect(() =>
+      makeOrchestratorWorkflow('x', {
+        synthesis: { exposeChildResultTools: 'yes' as never },
+      }),
+    ).toThrow(/exposeChildResultTools/);
+    expect(() =>
+      makeOrchestratorWorkflow('x', {
+        synthesis: {},
+        finishValidation: {
+          validators: [requiredSectionsValidator({ sections: ['## A'] })],
+          draftPolicy: {},
+        },
+      }),
+    ).toThrow(/draftPolicy/);
+    expect(() =>
+      makeOrchestratorWorkflow('x', {
+        synthesis: {},
+        finishValidation: {
+          validators: [requiredSectionsValidator({ sections: ['## A'] })],
+          draftPolicy: { minWords: 0 },
+        },
+      }),
+    ).toThrow(/minWords/);
+    expect(() =>
+      makeOrchestratorWorkflow('x', {
+        synthesis: {},
+        finishValidation: {
+          validators: [requiredSectionsValidator({ sections: ['## A'] })],
+          draftPolicy: { requireSections: [] },
+        },
+      }),
+    ).toThrow(/requireSections/);
+  });
+});

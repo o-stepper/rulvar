@@ -139,6 +139,15 @@ export interface PreflightOrchestratorSpec {
     model?: ModelSpec;
     limits?: UsageLimits;
     estInputTokens?: number;
+    /**
+     * Mirrors OrchestrateSynthesis.exposeChildResultTools (the v1.74
+     * experiment review, P0.2): declaring it lets the evidence
+     * asymmetry check see that the synthesis model can page the full
+     * child outputs the validators judge against.
+     */
+    exposeChildResultTools?: boolean;
+    /** Mirrors OrchestrateSynthesis.context; default 'digests'. */
+    context?: 'digests' | 'full';
   };
 }
 
@@ -1019,6 +1028,55 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
           synthesis.estInputTokens,
           'preflight orchestrator.synthesis.estInputTokens',
         );
+      }
+      if (
+        synthesis.context !== undefined &&
+        synthesis.context !== 'digests' &&
+        synthesis.context !== 'full'
+      ) {
+        throw new ConfigError(
+          "preflight orchestrator.synthesis.context must be 'digests' or 'full'; got " +
+            JSON.stringify(synthesis.context),
+        );
+      }
+      // The evidence asymmetry check (the v1.74 experiment review,
+      // P0.2): the stock evidence validators judge the finish against
+      // the FULL child outputs while a digest-blind synthesis model
+      // sees 400 char rows, so when the coordination draft collapses,
+      // preserving the demanded citations is model-impossible. The
+      // detection is by the stock validator names and the contract's
+      // citation demand; a custom-named validator is out of its reach.
+      {
+        const evidenceNames = new Set([
+          'evidence-preserved',
+          'contract-citations',
+          'contract-section-citations',
+        ]);
+        const declaredValidators = (input.finishValidation?.validators ?? []).map(
+          (validator) => validator.name,
+        );
+        const evidenceValidators = declaredValidators.filter((name) => evidenceNames.has(name));
+        const demandsEvidence =
+          evidenceValidators.length > 0 ||
+          input.finishValidation?.contract?.manifest.citations !== undefined;
+        if (
+          demandsEvidence &&
+          synthesis.exposeChildResultTools !== true &&
+          (synthesis.context ?? 'digests') === 'digests'
+        ) {
+          say({
+            severity: 'warning',
+            code: 'synthesis-evidence-asymmetry',
+            message:
+              `the finish validators demand child evidence (${
+                evidenceValidators.length > 0 ? evidenceValidators.join(', ') : 'contract citations'
+              }) but the synthesis invocation sees only truncated digest rows and has no child ` +
+              'read tools: a collapsed coordination draft starves it of every citation (the ' +
+              'v1.74 experiment shape); set synthesis.exposeChildResultTools, synthesis.context ' +
+              "'full', or bind the validators to coordination by dropping synthesis",
+            spawn: 'synthesis',
+          });
+        }
       }
       const servedBy =
         resolveServing(synthesis.model) ?? resolveServing(defaults.routing?.synthesize);

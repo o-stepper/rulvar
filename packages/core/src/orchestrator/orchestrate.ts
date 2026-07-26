@@ -69,7 +69,9 @@ import {
   buildOrchestratorTools,
   DEFAULT_CHILD_RESULT_PAGE_CHARS,
   FINISH_TOOL_NAME,
+  GET_CHILD_RESULT_TOOL_NAME,
   MAX_CHILD_RESULT_PAGE_CHARS,
+  READ_CHILD_ARTIFACT_TOOL_NAME,
   type SpawnAgentParams,
 } from './spawn-tools.js';
 import type {
@@ -274,6 +276,32 @@ export interface FinishValidationSpec {
    */
   repairTurnReserve?: number;
   /**
+   * The coordination draft gate (the v1.74 experiment review, P0.3),
+   * meaningful ONLY with `synthesis` configured: with validators bound
+   * to the synthesis finish, the coordination finish is an unvalidated
+   * draft, and the experiment's model escaped six failed finish
+   * exchanges with the schema-valid draft 'test', which then starved
+   * synthesis of every citation the validators demanded. The policy
+   * runs deterministic library checks on each coordination finish
+   * (whitespace-token `minWords`, literal `requireSections` markers,
+   * the wordCountValidator and requiredSectionsValidator semantics);
+   * a failing draft returns to the model as the finish call's error
+   * result and the turn continues, exactly like a host validation
+   * rejection, and `repairTurnReserve` grants coordination the same
+   * per-rejected-exchange headroom it grants the synthesis finish.
+   * Pure text checks over the durable exchange: nothing journals, a
+   * resumed segment recounts identically, and `maxRepairs` is not
+   * consumed (it belongs to the synthesis-bound validators). Absent =
+   * byte identical pre 1.76 behavior; configured without `synthesis` =
+   * ConfigError.
+   */
+  draftPolicy?: {
+    /** Minimum whitespace-separated words the draft must carry. */
+    minWords?: number;
+    /** Literal markers the draft text must contain. */
+    requireSections?: string[];
+  };
+  /**
    * The unified output contract this validator set enforces (the v1.71
    * experiment review, P0.1/P0.2). Construction then runs the golden
    * self test with the contract's fixtures as defaults, the contract's
@@ -436,6 +464,31 @@ export interface OrchestrateSynthesis {
    * { maxTurns: 2 }. Ignored in 'single' mode.
    */
   noteLimits?: UsageLimits;
+  /**
+   * Give the 'single' synthesis invocation the RV-201 evidence tools
+   * `get_child_result` and `read_child_artifact` beside `finish` (the
+   * v1.74 experiment review, P0.2): the finish validators hold the
+   * result against the FULL child outputs while the synthesis model
+   * sees 400 char digests, so when the coordination draft collapses the
+   * evidence the validators demand is model-invisible. With the tools
+   * exposed the digest rows in the synthesis prompt carry each child's
+   * `handle`, and the model pages any settled child's full output or
+   * artifacts before finishing. Off by default: the synthesis toolset
+   * and prompt stay byte identical, exactly like the coordination
+   * `exposeChildResultTools`.
+   */
+  exposeChildResultTools?: boolean;
+  /**
+   * What the 'single' synthesis prompt embeds beside the draft (the
+   * v1.74 experiment review, P0.2). Default 'digests': the 400 char
+   * settled digest rows, byte identical to pre 1.76. 'full' appends a
+   * CHILD OUTPUTS section carrying every settled child's FULL
+   * serialized output after the digest rows: the whole evidence pool
+   * the validators judge against rides the prompt, paid as input
+   * tokens (declare `estCost` or the preflight `estInputTokens`
+   * accordingly).
+   */
+  context?: 'digests' | 'full';
 }
 
 /**
@@ -631,6 +684,52 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
         'orchestrate finishValidation.repairTurnReserve',
       );
     }
+    const draftPolicy = (fv as { draftPolicy?: unknown }).draftPolicy;
+    if (draftPolicy !== undefined) {
+      if (typeof draftPolicy !== 'object' || draftPolicy === null) {
+        throw new ConfigError('orchestrate finishValidation.draftPolicy must be an object');
+      }
+      if (opts.synthesis === undefined) {
+        throw new ConfigError(
+          'orchestrate finishValidation.draftPolicy requires synthesis: without a synthesis ' +
+            'invocation the validators bind the coordination finish itself and there is no ' +
+            'unvalidated draft to gate',
+        );
+      }
+      const policy = draftPolicy as { minWords?: unknown; requireSections?: unknown };
+      if (policy.minWords === undefined && policy.requireSections === undefined) {
+        throw new ConfigError(
+          'orchestrate finishValidation.draftPolicy must declare minWords, requireSections, ' +
+            'or both',
+        );
+      }
+      if (policy.minWords !== undefined) {
+        if (
+          typeof policy.minWords !== 'number' ||
+          !Number.isInteger(policy.minWords) ||
+          policy.minWords < 1
+        ) {
+          throw new ConfigError(
+            'orchestrate finishValidation.draftPolicy.minWords must be a positive integer; ' +
+              `got ${JSON.stringify(policy.minWords)}`,
+          );
+        }
+      }
+      if (policy.requireSections !== undefined) {
+        if (
+          !Array.isArray(policy.requireSections) ||
+          policy.requireSections.length === 0 ||
+          policy.requireSections.some(
+            (section) => typeof section !== 'string' || section.length === 0,
+          )
+        ) {
+          throw new ConfigError(
+            'orchestrate finishValidation.draftPolicy.requireSections must be a non empty ' +
+              'array of non empty strings',
+          );
+        }
+      }
+    }
     // The output contract wiring (the v1.71 experiment review): the
     // containment check and the golden self test run HERE, at
     // construction, before any journal entry, dispatch, or provider
@@ -728,6 +827,26 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
       throw new ConfigError(
         'orchestrate synthesis.dedupeClaims must be a boolean; got ' +
           typeof synthesis.dedupeClaims,
+      );
+    }
+    const symmetry = synthesis as { exposeChildResultTools?: unknown; context?: unknown };
+    if (
+      symmetry.exposeChildResultTools !== undefined &&
+      typeof symmetry.exposeChildResultTools !== 'boolean'
+    ) {
+      throw new ConfigError(
+        'orchestrate synthesis.exposeChildResultTools must be a boolean; got ' +
+          typeof symmetry.exposeChildResultTools,
+      );
+    }
+    if (
+      symmetry.context !== undefined &&
+      symmetry.context !== 'digests' &&
+      symmetry.context !== 'full'
+    ) {
+      throw new ConfigError(
+        "orchestrate synthesis.context must be 'digests' or 'full'; got " +
+          JSON.stringify(symmetry.context),
       );
     }
     if (synthesis.noteLimits !== undefined) {
@@ -2514,6 +2633,55 @@ export function makeOrchestratorWorkflow(
       };
     };
     /**
+     * The coordination draft gate (the v1.74 experiment review, P0.3):
+     * deterministic library text checks over the draft finish, run only
+     * when the validators bind synthesis. Unlike validateFinish nothing
+     * journals: the checks are pure functions of the exchange, the
+     * rejected exchange is durable in the transcript itself, and a
+     * resumed segment recounts identically. The rejection is the finish
+     * call's error result, so the loop's repair-reserve grants count it
+     * exactly like a host validation rejection.
+     */
+    const validateDraft = (call: {
+      id: string;
+      result: unknown;
+    }): Promise<{ ok: true } | { ok: false; feedback: Record<string, unknown> }> => {
+      const policy = validationSpec?.draftPolicy;
+      if (policy === undefined) {
+        return Promise.resolve({ ok: true });
+      }
+      const result = (call.result ?? null) as Json | null;
+      const text = typeof result === 'string' ? result : JSON.stringify(result);
+      const reasons: string[] = [];
+      if (policy.minWords !== undefined) {
+        const trimmed = text.trim();
+        const words = trimmed === '' ? 0 : trimmed.split(/\s+/).length;
+        if (words < policy.minWords) {
+          reasons.push(
+            `the draft carries ${String(words)} words, below the required ${String(policy.minWords)}`,
+          );
+        }
+      }
+      for (const section of policy.requireSections ?? []) {
+        if (!text.includes(section)) {
+          reasons.push(`required draft section '${section}' is missing`);
+        }
+      }
+      if (reasons.length === 0) {
+        return Promise.resolve({ ok: true });
+      }
+      return Promise.resolve({
+        ok: false,
+        feedback: {
+          error:
+            'the coordination draft failed the draft policy; repair the draft and call finish ' +
+            'again: the synthesis invocation composes the FINAL result from this draft, and a ' +
+            'collapsed draft starves it of the evidence the validators demand',
+          reasons,
+        },
+      });
+    };
+    /**
      * The frozen bundle descriptor (the v1.71 experiment review,
      * P0.2): with a contract configured, the run durably records WHAT
      * validates it. One decision entry per distinct contract hash, in
@@ -2599,9 +2767,19 @@ export function makeOrchestratorWorkflow(
         // a DRAFT: the validators bind the synthesis finish instead,
         // because they must judge the FINAL output. The repair reserve
         // rides exactly with the validators, so a draft finish can
-        // never spend it.
+        // never spend it. With a draftPolicy declared (the v1.74
+        // experiment review, P0.3), the DRAFT gate rides here instead,
+        // and the same repair reserve grants coordination its own
+        // per-rejected-exchange headroom.
         ...(validationSpec === undefined || opts?.synthesis !== undefined
-          ? {}
+          ? validationSpec?.draftPolicy !== undefined && opts?.synthesis !== undefined
+            ? {
+                validate: validateDraft,
+                ...(validationSpec.repairTurnReserve === undefined
+                  ? {}
+                  : { repairTurnReserve: validationSpec.repairTurnReserve }),
+              }
+            : {}
           : {
               validate: validateFinish,
               ...(validationSpec.repairTurnReserve === undefined
@@ -2986,16 +3164,31 @@ export function makeOrchestratorWorkflow(
         // no model call composes the final result.
         return await reconcileIncremental(draft, spec);
       }
-      const finishOnly = buildOrchestratorTools(orchestratorRuntime, fullCardText).filter(
-        (tool) => tool.name === FINISH_TOOL_NAME,
-      );
+      // The evidence symmetry options (the v1.74 experiment review,
+      // P0.2): both default off, and the synthesis toolset and prompt
+      // stay byte identical without them.
+      const exposeTools = spec.exposeChildResultTools === true;
+      const fullContext = spec.context === 'full';
+      const synthesisToolNames = new Set<string>([
+        FINISH_TOOL_NAME,
+        ...(exposeTools ? [GET_CHILD_RESULT_TOOL_NAME, READ_CHILD_ARTIFACT_TOOL_NAME] : []),
+      ]);
+      const synthesisTools = buildOrchestratorTools(orchestratorRuntime, fullCardText, {
+        childResultTools: exposeTools,
+      }).filter((tool) => synthesisToolNames.has(tool.name));
       // ALL settled children in spawn order (the finalize-fallback fold),
       // not the wake digest: at synthesis time every settlement has been
       // delivered, so an undelivered-only view would be empty.
-      const settledDigests = [...records.values()]
-        .filter((record) => record.settled !== undefined)
-        .sort((a, b) => a.spawnOrdinal - b.spawnOrdinal)
-        .map((record) => digestOf(record, record.settled as AgentResult<unknown>));
+      const settledEntries = [...records.entries()]
+        .filter((entry) => entry[1].settled !== undefined)
+        .sort((a, b) => a[1].spawnOrdinal - b[1].spawnOrdinal);
+      const settledDigests = settledEntries.map(([handle, record]) => ({
+        // The handle rides the digest rows ONLY when the read tools are
+        // exposed: it is what get_child_result takes, and prompt bytes
+        // are journal identity for every run that never opts in.
+        ...(exposeTools ? { handle } : {}),
+        ...digestOf(record, record.settled as AgentResult<unknown>),
+      }));
       // Pre-model claim deduplication (RV-211 remainder): opt in, and
       // the prompt stays byte identical when unset (prompt bytes are
       // journal identity: a default change would re-pay every existing
@@ -3019,7 +3212,12 @@ export function makeOrchestratorWorkflow(
         'You are the synthesis invocation of an orchestrated run. Compose the FINAL ' +
           'result of the run from the goal, the coordination draft, and the settled child ' +
           'evidence below by calling finish({ result }) EXACTLY once. Preserve the evidence ' +
-          'and citations the draft relies on; do not invent findings. No other tool exists.',
+          'and citations the draft relies on; do not invent findings. ' +
+          (exposeTools
+            ? 'Beside finish, get_child_result and read_child_artifact page any SETTLED ' +
+              "child's FULL output and artifacts by handle (each DIGEST row carries its " +
+              'handle); read what the validators will hold you to before finishing.'
+            : 'No other tool exists.'),
         ...(repeatedClaims === undefined
           ? []
           : [
@@ -3032,6 +3230,22 @@ export function makeOrchestratorWorkflow(
         `GOAL: ${goal}`,
         `DRAFT: ${draftJson}`,
         `DIGEST: ${digestJson}`,
+        // The full evidence pool (the v1.74 experiment review, P0.2):
+        // with context 'full' every settled child's serialized output
+        // rides the prompt AFTER the digest rows, so the model sees
+        // exactly what the validators will judge against.
+        ...(fullContext
+          ? [
+              `CHILD OUTPUTS: ${JSON.stringify(
+                settledEntries.map(([handle, record]) => ({
+                  ...(exposeTools ? { handle } : {}),
+                  nodeId: record.nodeId,
+                  status: (record.settled as AgentResult<unknown>).status,
+                  text: serializeChildOutput(record.settled as AgentResult<unknown>),
+                })),
+              )}`,
+            ]
+          : []),
         ...(repeatedClaims === undefined
           ? []
           : [`REPEATED CLAIMS: ${JSON.stringify(repeatedClaims)}`]),
@@ -3074,7 +3288,7 @@ export function makeOrchestratorWorkflow(
       const synthesisOpts: AgentOpts & InternalAgentHooks & { result: 'full' } = {
         role: 'synthesize',
         result: 'full',
-        tools: finishOnly,
+        tools: synthesisTools,
         limits: spec.limits ?? { maxTurns: DEFAULT_SYNTHESIS_MAX_TURNS },
         ...(spec.model === undefined ? {} : { model: spec.model }),
         ...(spec.effort === undefined ? {} : { effort: spec.effort }),
