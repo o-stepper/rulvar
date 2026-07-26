@@ -16,6 +16,9 @@ type CoreEvents =
   | {
   childStatusCounts?: Record<string, number>;
   completion?: "complete" | "partial" | "rejected";
+  degradedReasons?: string[];
+  salvagedPartialChildren?: string[];
+  salvagedTerminalOutputChildren?: string[];
   status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
   totalUsd: number;
   type: "run:end";
@@ -87,6 +90,9 @@ Run lifecycle and core telemetry (M1 subset).
 {
   childStatusCounts?: Record<string, number>;
   completion?: "complete" | "partial" | "rejected";
+  degradedReasons?: string[];
+  salvagedPartialChildren?: string[];
+  salvagedTerminalOutputChildren?: string[];
   status: "ok" | "error" | "cancelled" | "exhausted" | "suspended";
   totalUsd: number;
   type: "run:end";
@@ -98,6 +104,9 @@ Run lifecycle and core telemetry (M1 subset).
 | ------ | ------ | ------ | ------ |
 | `childStatusCounts?` | `Record`\&lt;`string`, `number`\&gt; | Settled child statuses by status name, lifted from the same envelope (or typed error data) when it carries a valid record of nonnegative integers. Absent otherwise. | `packages/core/dist/index.d.ts` |
 | `completion?` | `"complete"` \| `"partial"` \| `"rejected"` | The semantic completion lift (RV-207 tail): present when the workflow reported semantic completion through the completion envelope contract: an `ok`/`exhausted` run whose result value is an object carrying a valid `completion` literal, or an `error` run whose typed error data carries one (the orchestrator acceptance path emits both). Transport status says whether the run ran; completion says whether the work is COMPLETE: an accepted degraded run is `status: 'ok'` with `completion: 'partial'`. Replay recomputes the same value from the re-executed workflow, so the field is identical live and replayed. Absent when the workflow makes no completion claim. | `packages/core/dist/index.d.ts` |
+| `degradedReasons?` | `string`[] | Per-child degradation notes, lifted from the same envelope (or typed error data) when it carries a valid string array (the fifth experiment, cycle 75). An empty array is the workflow's claim of zero degradation; absence means no claim. The outcome mirror spreads the SAME lift, so the surfaces cannot disagree. | `packages/core/dist/index.d.ts` |
+| `salvagedPartialChildren?` | `string`[] | - | `packages/core/dist/index.d.ts` |
+| `salvagedTerminalOutputChildren?` | `string`[] | - | `packages/core/dist/index.d.ts` |
 | `status` | `"ok"` \| `"error"` \| `"cancelled"` \| `"exhausted"` \| `"suspended"` | - | `packages/core/dist/index.d.ts` |
 | `totalUsd` | `number` | - | `packages/core/dist/index.d.ts` |
 | `type` | `"run:end"` | - | `packages/core/dist/index.d.ts` |

@@ -528,6 +528,9 @@ function liftRunCompletion(candidate: unknown):
   | {
       completion: 'complete' | 'partial' | 'rejected';
       childStatusCounts?: Record<string, number>;
+      degradedReasons?: string[];
+      salvagedPartialChildren?: string[];
+      salvagedTerminalOutputChildren?: string[];
     }
   | undefined {
   if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
@@ -537,6 +540,13 @@ function liftRunCompletion(candidate: unknown):
   if (completion !== 'complete' && completion !== 'partial' && completion !== 'rejected') {
     return undefined;
   }
+  const lifted: {
+    completion: 'complete' | 'partial' | 'rejected';
+    childStatusCounts?: Record<string, number>;
+    degradedReasons?: string[];
+    salvagedPartialChildren?: string[];
+    salvagedTerminalOutputChildren?: string[];
+  } = { completion };
   const counts = (candidate as { childStatusCounts?: unknown }).childStatusCounts;
   if (typeof counts === 'object' && counts !== null && !Array.isArray(counts)) {
     const entries = Object.entries(counts as Record<string, unknown>);
@@ -545,13 +555,35 @@ function liftRunCompletion(candidate: unknown):
         ([, value]) => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0,
       )
     ) {
-      return {
-        completion,
-        childStatusCounts: Object.fromEntries(entries) as Record<string, number>,
-      };
+      lifted.childStatusCounts = Object.fromEntries(entries) as Record<string, number>;
     }
   }
-  return { completion };
+  // The degradation mirror (the fifth experiment, cycle 75): the
+  // acceptance envelope and the typed rejection data have carried the
+  // degradation facts since 1.65/1.71, but the lift stopped at counts,
+  // so a host read the reasons on the ok path from a workflow-shaped
+  // value and on the rejected path from error.data. Same posture as
+  // counts: valid shapes mirror (an empty array is the claim of zero
+  // degradation, not absence), malformed shapes drop silently.
+  const liftStringList = (key: string): string[] | undefined => {
+    const value = (candidate as Record<string, unknown>)[key];
+    return Array.isArray(value) && value.every((entry) => typeof entry === 'string')
+      ? ([...value] as string[])
+      : undefined;
+  };
+  const degradedReasons = liftStringList('degradedReasons');
+  if (degradedReasons !== undefined) {
+    lifted.degradedReasons = degradedReasons;
+  }
+  const salvagedPartialChildren = liftStringList('salvagedPartialChildren');
+  if (salvagedPartialChildren !== undefined) {
+    lifted.salvagedPartialChildren = salvagedPartialChildren;
+  }
+  const salvagedTerminalOutputChildren = liftStringList('salvagedTerminalOutputChildren');
+  if (salvagedTerminalOutputChildren !== undefined) {
+    lifted.salvagedTerminalOutputChildren = salvagedTerminalOutputChildren;
+  }
+  return lifted;
 }
 
 /**
@@ -1492,6 +1524,15 @@ export function createEngine(options: CreateEngineOptions): Engine {
         outcome.completion = lifted.completion;
         if (lifted.childStatusCounts !== undefined) {
           outcome.childStatusCounts = lifted.childStatusCounts;
+        }
+        if (lifted.degradedReasons !== undefined) {
+          outcome.degradedReasons = lifted.degradedReasons;
+        }
+        if (lifted.salvagedPartialChildren !== undefined) {
+          outcome.salvagedPartialChildren = lifted.salvagedPartialChildren;
+        }
+        if (lifted.salvagedTerminalOutputChildren !== undefined) {
+          outcome.salvagedTerminalOutputChildren = lifted.salvagedTerminalOutputChildren;
         }
       }
       // The journaled settle (fenced run state RFC, phase 3): the run's

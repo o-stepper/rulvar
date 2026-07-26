@@ -3476,6 +3476,16 @@ type CoreEvents = {
   * nonnegative integers. Absent otherwise.
   */
   childStatusCounts?: Record<string, number>;
+  /**
+  * Per-child degradation notes, lifted from the same envelope (or
+  * typed error data) when it carries a valid string array (the
+  * fifth experiment, cycle 75). An empty array is the workflow's
+  * claim of zero degradation; absence means no claim. The outcome
+  * mirror spreads the SAME lift, so the surfaces cannot disagree.
+  */
+  degradedReasons?: string[]; /** Children accepted by acceptPartialChildren; same lift. */
+  salvagedPartialChildren?: string[]; /** Children accepted through validated terminal output salvage on 'limit'; same lift. */
+  salvagedTerminalOutputChildren?: string[];
 } | {
   type: "phase:start";
   phase: string;
@@ -5682,7 +5692,23 @@ type RunOutcome<R> = {
   * nonnegative integers; the mirror of the `run:end` field. Absent
   * otherwise.
   */
-  childStatusCounts?: Record<string, number>; /** Pipeline drops and onError:'null' losses; silent losses are forbidden. */
+  childStatusCounts?: Record<string, number>;
+  /**
+  * Per-child degradation notes, lifted from the same envelope (or
+  * typed error data) when it carries a valid string array (the fifth
+  * experiment, cycle 75): the facts the orchestrator acceptance path
+  * has always emitted beside completion, now on the outcome itself so
+  * a host stops digging error.data on the rejected path. An empty
+  * array is the workflow's claim of zero degradation; absence means no
+  * claim was made.
+  */
+  degradedReasons?: string[]; /** Children accepted by acceptPartialChildren; same lift and posture. */
+  salvagedPartialChildren?: string[];
+  /**
+  * Children accepted through validated terminal output salvage on
+  * 'limit'; same lift and posture.
+  */
+  salvagedTerminalOutputChildren?: string[]; /** Pipeline drops and onError:'null' losses; silent losses are forbidden. */
   dropped: DroppedItem[]; /** Suspensions open at settle time (M2). */
   pending: PendingExternal[];
   usage: Usage;
@@ -9112,6 +9138,19 @@ interface PreflightInput {
     * the repair-reserve-unfunded warning stays silent.
     */
     maxRepairs?: number;
+    /**
+    * Mirrors FinishValidationSpec.draftPolicy (the fifth experiment,
+    * cycle 75): declaring it lets the estimator compare the draft
+    * gate's word floor against the contract's own word minimum. The
+    * experiment gated drafts at 3200 words under a 4500 word contract,
+    * so the gate admitted a draft the final validators had to reject
+    * and the synthesis started from an underlength base; the
+    * draft-gate-below-contract warning names exactly that shape.
+    */
+    draftPolicy?: {
+      minWords?: number;
+      requireSections?: string[];
+    };
   };
 }
 /** One linter verdict; `spawn` names the wave entry it is about. */

@@ -287,6 +287,27 @@ export async function toOtel(
             JSON.stringify(event.childStatusCounts),
           );
         }
+        // The degradation mirror (the fifth experiment, cycle 75):
+        // library-authored child notes and salvage id lists, never
+        // model content, so the no-content export policy holds.
+        if (runOpen !== undefined && event.degradedReasons !== undefined) {
+          runOpen.span.setAttribute(
+            'rulvar.run.degradedReasons',
+            JSON.stringify(event.degradedReasons),
+          );
+        }
+        if (runOpen !== undefined && event.salvagedPartialChildren !== undefined) {
+          runOpen.span.setAttribute(
+            'rulvar.run.salvagedPartialChildren',
+            JSON.stringify(event.salvagedPartialChildren),
+          );
+        }
+        if (runOpen !== undefined && event.salvagedTerminalOutputChildren !== undefined) {
+          runOpen.span.setAttribute(
+            'rulvar.run.salvagedTerminalOutputChildren',
+            JSON.stringify(event.salvagedTerminalOutputChildren),
+          );
+        }
         endSpan(event.spanId, event.ts, event.status);
         break;
       }

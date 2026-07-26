@@ -1597,24 +1597,59 @@ export async function runAgent<S extends SchemaSpec>(
         );
       }
     };
+    let terminalAdmitted = false;
     for (const [index, call] of calls.entries()) {
-      if (limits.maxToolCalls !== undefined && toolCallsUsed >= limits.maxToolCalls) {
-        // Expiry of maxToolCalls is terminal 'limit': paid partial work;
-        // already-executed results stand.
-        closeSkippedTail(calls.slice(index), 'maxToolCalls');
-        return {
-          parts,
-          limitHit: true,
-          limiter: 'maxToolCalls',
-          skipped: calls.length - index,
-        };
-      }
-      if (guard !== undefined && guard.unitsExhausted()) {
-        // The weighted tool budget expired (RV-210 close-out): terminal
-        // 'limit' exactly like maxToolCalls; the summary's toolUnitsUsed
-        // tells the story.
-        closeSkippedTail(calls.slice(index), 'toolUnits');
-        return { parts, limitHit: true, limiter: 'toolUnits', skipped: calls.length - index };
+      const expiredLimiter: 'maxToolCalls' | 'toolUnits' | undefined =
+        limits.maxToolCalls !== undefined && toolCallsUsed >= limits.maxToolCalls
+          ? 'maxToolCalls'
+          : guard !== undefined && guard.unitsExhausted()
+            ? 'toolUnits'
+            : undefined;
+      if (expiredLimiter !== undefined) {
+        // Expiry of a tool budget is terminal 'limit': paid partial
+        // work; already-executed results stand. The one exemption is the
+        // terminal tool (the fifth experiment, cycle 75): it never
+        // consumes the budget below the cap, so an exhausted budget must
+        // not starve it either, or the validators and the repair reserve
+        // built around its rejection become unreachable exactly when the
+        // model is ready to finish. A tail carrying a terminal call is
+        // walked call by call instead of being closed wholesale.
+        const tail = calls.slice(index);
+        const terminalName = options.terminalTool?.name;
+        const admitsTerminal =
+          terminalName !== undefined &&
+          (terminalAdmitted || tail.some((candidate) => candidate.name === terminalName));
+        if (!admitsTerminal) {
+          closeSkippedTail(tail, expiredLimiter);
+          return {
+            parts,
+            limitHit: true,
+            limiter: expiredLimiter,
+            skipped: calls.length - index,
+          };
+        }
+        if (call.name !== terminalName) {
+          // A non-terminal call beside an admitted terminal one is
+          // always answered with the typed skipped result, reserve or
+          // not: the loop continues past this batch, and providers
+          // reject tool calls without matching results.
+          parts.push(
+            errorPart(call, {
+              error: 'skipped: the tool budget is exhausted; the call was not executed',
+              limiter: expiredLimiter,
+              skipped: true,
+            }),
+          );
+          continue;
+        }
+        terminalAdmitted = true;
+        events?.emit({
+          type: 'log',
+          level: 'warn',
+          msg:
+            `terminal tool '${call.name}' admitted at the exhausted tool budget ` +
+            `(${expiredLimiter}): terminal calls do not consume the budget`,
+        });
       }
       const def = runtime.defs.find((candidate) => candidate.name === call.name);
       events?.emit({

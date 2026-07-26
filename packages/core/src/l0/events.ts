@@ -49,6 +49,18 @@ export type CoreEvents =
        * nonnegative integers. Absent otherwise.
        */
       childStatusCounts?: Record<string, number>;
+      /**
+       * Per-child degradation notes, lifted from the same envelope (or
+       * typed error data) when it carries a valid string array (the
+       * fifth experiment, cycle 75). An empty array is the workflow's
+       * claim of zero degradation; absence means no claim. The outcome
+       * mirror spreads the SAME lift, so the surfaces cannot disagree.
+       */
+      degradedReasons?: string[];
+      /** Children accepted by acceptPartialChildren; same lift. */
+      salvagedPartialChildren?: string[];
+      /** Children accepted through validated terminal output salvage on 'limit'; same lift. */
+      salvagedTerminalOutputChildren?: string[];
     }
   | { type: 'phase:start'; phase: string }
   | { type: 'log'; level: 'debug' | 'info' | 'warn' | 'error'; msg: string; data?: Json }

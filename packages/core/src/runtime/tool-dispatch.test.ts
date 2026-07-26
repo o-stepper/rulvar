@@ -595,3 +595,189 @@ describe('the schema-rejected terminal exchange counter (the v1.74 experiment re
     expect(result.schemaRejectedTerminalExchanges).toBeUndefined();
   });
 });
+
+describe('terminal admission at an exhausted tool budget (the fifth experiment, cycle 75)', () => {
+  const readTool = (executions: { count: number }) =>
+    tool({
+      name: 'read',
+      description: 'reads evidence',
+      parameters: {},
+      execute: () => {
+        executions.count += 1;
+        return Promise.resolve(`evidence ${String(executions.count)}`);
+      },
+    });
+  const finishTool = () =>
+    tool({
+      name: 'finish',
+      description: 'the terminal tool',
+      parameters: z.strictObject({ result: z.string() }),
+      execute: () => Promise.resolve('unused: the interception ends the loop'),
+    });
+  const rejectShort = (call: { result: unknown }) =>
+    Promise.resolve(
+      typeof call.result === 'string' && call.result.length >= 20
+        ? { ok: true as const }
+        : {
+            ok: false as const,
+            feedback: { error: 'word count below the minimum; repair and call finish again' },
+          },
+    );
+
+  it('a terminal finish after the expired budget is admitted, validated, and repaired', async () => {
+    // The fifth experiment shape at unit scale: the reads spend the whole
+    // budget, the finish arrives on the LAST turn, its rejection must
+    // grant the repair turn the reserve funds.
+    const executions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) => {
+      if (call === 0) {
+        return {
+          toolCalls: [
+            { name: 'read', args: {} },
+            { name: 'read', args: {} },
+          ],
+        };
+      }
+      if (call === 1) {
+        return { toolCall: { name: 'finish', args: { result: 'too short' } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'the expanded repaired final' } } };
+    });
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({ maxTurns: 2, maxToolCalls: 2 }),
+      tools: runtimeOf([readTool(executions), finishTool()]),
+      terminalTool: { name: 'finish', validate: rejectShort, repairTurnReserve: 1 },
+    });
+    expect(result.status).toBe('ok');
+    expect(result.output).toBe('the expanded repaired final');
+    expect(result.turns).toBe(3);
+    expect(executions.count).toBe(2);
+    // The rejection travelled back to the model as the finish error result.
+    const repairView = toolResults(adapter.calls[2]) as Array<{
+      name: string;
+      isError?: boolean;
+    }>;
+    expect(repairView.some((part) => part.name === 'finish' && part.isError === true)).toBe(true);
+  });
+
+  it('a mixed batch at the expired budget answers the skipped read and admits the terminal', async () => {
+    const executions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) => {
+      if (call === 0) {
+        return {
+          toolCalls: [
+            { name: 'read', args: {} },
+            { name: 'read', args: {} },
+          ],
+        };
+      }
+      if (call === 1) {
+        return {
+          toolCalls: [
+            { name: 'read', args: {} },
+            { name: 'finish', args: { result: 'too short' } },
+          ],
+        };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'the expanded repaired final' } } };
+    });
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({ maxTurns: 3, maxToolCalls: 2 }),
+      tools: runtimeOf([readTool(executions), finishTool()]),
+      terminalTool: { name: 'finish', validate: rejectShort },
+    });
+    expect(result.status).toBe('ok');
+    expect(result.output).toBe('the expanded repaired final');
+    // The third read never executed; its slot was answered, not dropped.
+    expect(executions.count).toBe(2);
+    const repairView = toolResults(adapter.calls[2]) as Array<{
+      name: string;
+      isError?: boolean;
+      result: Record<string, unknown>;
+    }>;
+    const skipped = repairView.find(
+      (part) =>
+        part.name === 'read' &&
+        (part.result as { skipped?: boolean } | undefined)?.skipped === true,
+    );
+    expect(skipped?.isError).toBe(true);
+    expect(skipped?.result).toMatchObject({ limiter: 'maxToolCalls', skipped: true });
+    expect(repairView.some((part) => part.name === 'finish' && part.isError === true)).toBe(true);
+  });
+
+  it('an expired budget with only non-terminal calls still settles limit exactly as before', async () => {
+    const executions = { count: 0 };
+    const adapter = scriptedAdapter(() => ({
+      toolCalls: [
+        { name: 'read', args: {} },
+        { name: 'read', args: {} },
+      ],
+    }));
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({ maxToolCalls: 2 }),
+      tools: runtimeOf([readTool(executions), finishTool()]),
+      terminalTool: { name: 'finish', validate: rejectShort },
+    });
+    expect(result.status).toBe('limit');
+    expect(executions.count).toBe(2);
+    expect(result.turns).toBe(2);
+  });
+
+  it('exhausted weighted tool units admit the terminal call the same way', async () => {
+    const executions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? {
+            toolCalls: [
+              { name: 'read', args: {} },
+              { name: 'read', args: {} },
+            ],
+          }
+        : { toolCall: { name: 'finish', args: { result: 'the expanded repaired final' } } },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({ maxTurns: 4, toolUnits: { max: 2 } }),
+      tools: runtimeOf([readTool(executions), finishTool()]),
+      terminalTool: { name: 'finish', validate: rejectShort },
+    });
+    expect(result.status).toBe('ok');
+    expect(result.output).toBe('the expanded repaired final');
+    expect(executions.count).toBe(2);
+  });
+
+  it('the terminal call below the cap still consumes no budget (the standing exemption)', async () => {
+    const executions = { count: 0 };
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? {
+            toolCalls: [
+              { name: 'read', args: {} },
+              { name: 'read', args: {} },
+            ],
+          }
+        : { toolCall: { name: 'finish', args: { result: 'the expanded repaired final' } } },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits({ maxTurns: 4, maxToolCalls: 3 }),
+      tools: runtimeOf([readTool(executions), finishTool()]),
+      terminalTool: { name: 'finish', validate: rejectShort },
+    });
+    expect(result.status).toBe('ok');
+    expect(result.exploration?.toolCallsUsed ?? 0).toBeLessThanOrEqual(2);
+  });
+});
