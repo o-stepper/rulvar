@@ -139,7 +139,7 @@ export function buildResponsesParams(
             type: 'function_call',
             call_id: ids.wireFor(part.id),
             name: part.name,
-            arguments: JSON.stringify(part.args ?? {}),
+            arguments: argumentsTextOf(part.args),
           });
           break;
         case 'tool-result':
@@ -549,13 +549,41 @@ function retryAfterMsFrom(header: string): number | undefined {
   return Math.min(Number(match[1]) * 1000, MAX_RETRY_AFTER_MS);
 }
 
-/** A plain nonnegative integer header value, or undefined. */
+/**
+ * A plain nonnegative SAFE integer header value, or undefined. The
+ * digit-run grammar alone still admits an arbitrarily long run, and
+ * Number() turns 400 digits into Infinity (the v1.74 experiment
+ * review, P2.11): an unsafe value is dropped, never normalized.
+ */
 function limitHeaderValue(header: string | undefined): number | undefined {
   if (header === undefined) {
     return undefined;
   }
   const match = /^[\t ]*([0-9]+)[\t ]*$/.exec(header);
-  return match === null ? undefined : Number(match[1]);
+  if (match === null) {
+    return undefined;
+  }
+  const value = Number(match[1]);
+  return Number.isSafeInteger(value) ? value : undefined;
+}
+
+/**
+ * Serializes tool-call arguments for re-projection into the request. An
+ * adapter parse-failure wrapper ({__unparsed: raw} and nothing else)
+ * projects as the ORIGINAL raw string the model wrote (the v1.74
+ * experiment review): re-encoding the internal wrapper showed the live
+ * model {"__unparsed":"..."} as its own past call, taught it to imitate
+ * that shape, and doubled the history bytes with escaping.
+ */
+function argumentsTextOf(args: unknown): string {
+  if (typeof args === 'object' && args !== null && !Array.isArray(args)) {
+    const keys = Object.keys(args);
+    const raw = (args as { __unparsed?: unknown }).__unparsed;
+    if (keys.length === 1 && keys[0] === '__unparsed' && typeof raw === 'string') {
+      return raw;
+    }
+  }
+  return JSON.stringify(args ?? {});
 }
 
 /** Projects SDK/API errors into the retryable WireError vocabulary. */
@@ -661,7 +689,7 @@ export function buildChatCompletionsParams(
           return {
             id: ids.wireFor(call.id),
             type: 'function',
-            function: { name: call.name, arguments: JSON.stringify(call.args ?? {}) },
+            function: { name: call.name, arguments: argumentsTextOf(call.args) },
           };
         });
       const item: Item = { role: 'assistant' };

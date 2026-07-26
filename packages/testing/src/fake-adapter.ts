@@ -79,6 +79,13 @@ export interface FakeAdapterOptions {
    * is the fallback.
    */
   agents: Record<string, FakeResponder>;
+  /**
+   * Declared capability fields layered over the fake defaults (the
+   * v1.74 experiment review): lets an offline test drive caps-driven
+   * runtime behavior, e.g. minOutputTokensPerTurn for the provider
+   * output floor, without a live adapter.
+   */
+  capsOverrides?: Partial<ModelCaps>;
 }
 
 export const FAKE_MODEL = 'fake-model';
@@ -155,13 +162,14 @@ export class FakeAdapter implements ProviderAdapter {
    * was already aborted on arrival was never served and is not recorded.
    */
   readonly calls: FakeCall[] = [];
+  /** Detachment-safe like the historical `caps(this: void)` method. */
+  readonly caps: () => ModelCaps;
 
   constructor(options: FakeAdapterOptions) {
     this.agents = options.agents;
-  }
-
-  caps(this: void): ModelCaps {
-    return FAKE_CAPS;
+    const declaredCaps =
+      options.capsOverrides === undefined ? FAKE_CAPS : { ...FAKE_CAPS, ...options.capsOverrides };
+    this.caps = () => declaredCaps;
   }
 
   private match(call: FakeCall): FakeResponder | undefined {

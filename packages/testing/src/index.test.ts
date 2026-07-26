@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import { defineWorkflow } from '@rulvar/core';
+import { FakeAdapter } from './fake-adapter.js';
 import { createTestEngine } from './test-engine.js';
 import { rulvarMatchers } from './matchers.js';
 
@@ -140,5 +141,19 @@ describe('createTestEngine and FakeAdapter (M1-T14)', () => {
     expect(seen.length).toBeGreaterThan(0);
     expect(new Set(seen)).toEqual(new Set(['fake:fake-model']));
     expect(engine.fake.calls.length).toBe(0);
+  });
+});
+
+describe('FakeAdapter capsOverrides (the v1.74 experiment review)', () => {
+  it('layers declared caps over the fake defaults', () => {
+    const adapter = new FakeAdapter({
+      agents: {},
+      capsOverrides: { minOutputTokensPerTurn: 16, maxOutputTokens: 2_000 },
+    });
+    expect(adapter.caps().minOutputTokensPerTurn).toBe(16);
+    expect(adapter.caps().maxOutputTokens).toBe(2_000);
+    // Unnamed fields keep their fake defaults.
+    expect(adapter.caps().contextWindow).toBe(1_000_000);
+    expect(new FakeAdapter({ agents: {} }).caps().minOutputTokensPerTurn).toBeUndefined();
   });
 });

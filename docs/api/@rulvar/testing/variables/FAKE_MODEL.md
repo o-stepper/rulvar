@@ -10,7 +10,7 @@
 const FAKE_MODEL: "fake-model" = 'fake-model';
 ```
 
-Defined in: [packages/testing/src/fake-adapter.ts:84](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L84)
+Defined in: [packages/testing/src/fake-adapter.ts:91](https://github.com/o-stepper/rulvar/blob/main/packages/testing/src/fake-adapter.ts#L91)
 
 @rulvar/testing tier 1 (M1-T14): FakeAdapter and createTestEngine for
 fast, fully typed, zero-network unit tests through the real engine.

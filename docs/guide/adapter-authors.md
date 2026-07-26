@@ -33,6 +33,7 @@ type ModelCaps = {
   reasoningEfforts: Effort[];
   contextWindow: number;
   maxOutputTokens: number;
+  minOutputTokensPerTurn?: number;
   pricing?: Pricing;
 };
 ```
@@ -146,6 +147,7 @@ Two mechanisms depend on your adapter being byte stable.
 | `reasoningEfforts` | Canonical efforts the model accepts after mapping; anything else is scrubbed visibly. |
 | `contextWindow` | Compaction threshold and context accounting. |
 | `maxOutputTokens` | Output budget ceiling. |
+| `minOutputTokensPerTurn` | The smallest request output cap the provider accepts (OpenAI's Responses API rejects `max_output_tokens` below 16). The runtime never dispatches below it: a budget last gasp sends the floor instead of one token, a remainder that cannot buy the floor is refused typed, and a configured per-turn cap below it is a `ConfigError`. Absent means one. |
 | `pricing` | Fallback only; the engine's versioned price table wins when both exist. |
 
 Be honest and be conservative. Declaring a capability the provider cannot serve produces live 400s; declaring less than the truth merely costs a tier. When you cannot introspect the target (gateways, long tail hosts), take the posture `openaiCompatible` takes and let callers override per model: `structuredOutput: "prompt"`, `supportsTemperature: true`, `supportsParallelTools: false`, empty `reasoningEfforts`, no pricing (exported as `CONSERVATIVE_COMPATIBLE_CAPS` from `@rulvar/openai`). `refreshCaps` and `countTokens` are optional: implement them when your provider has a live model list or a token counting endpoint.
