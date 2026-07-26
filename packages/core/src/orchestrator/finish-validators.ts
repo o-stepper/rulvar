@@ -92,28 +92,144 @@ function requireNonEmptyStrings(values: unknown, what: string): string[] {
       throw new ConfigError(`${what} must contain only non empty strings`);
     }
   }
-  return values as string[];
+  // A defensive copy: the validator must not change behavior when the
+  // caller later mutates (or has frozen) the array it passed in.
+  return [...(values as string[])];
+}
+
+/**
+ * How section markers must appear in the judged text (cycle 74):
+ * 'anywhere' is the historical substring test; 'line' demands the
+ * marker as its own line (surrounding whitespace ignored), so a
+ * mid sentence mention or a quoted marker no longer satisfies a
+ * heading requirement.
+ */
+export type SectionMatchMode = 'anywhere' | 'line';
+
+/**
+ * Whether fenced code participates in textual validation (cycle 74):
+ * 'counted' is the historical behavior; 'excluded' removes fenced code
+ * blocks (see {@link stripFencedBlocks}) before matching, counting, or
+ * slicing, so code samples can neither satisfy a section marker nor
+ * inflate word and citation counts.
+ */
+export type FencedCodeMode = 'counted' | 'excluded';
+
+const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
+const FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
+
+/**
+ * Removes fenced code blocks from a text, the delimiter lines
+ * included, and returns the remaining lines joined by newlines. The
+ * grammar is the CommonMark shape as a deliberate line heuristic: a
+ * fence opens at a line starting (after at most three spaces) with
+ * three or more backticks or tildes, an optional info string allowed;
+ * it closes at the next line carrying only at least as many of the
+ * SAME character; an unclosed fence runs to the end of the text.
+ * Indented (four space) code blocks are not treated as code. This is
+ * the exact exclusion the `fencedCode: 'excluded'` validator option
+ * applies, exported so custom host validators can stay symmetric.
+ */
+export function stripFencedBlocks(text: string): string {
+  const kept: string[] = [];
+  let fence: { char: string; length: number } | undefined;
+  for (const line of text.split('\n')) {
+    if (fence === undefined) {
+      const open = FENCE_OPEN.exec(line);
+      const delimiter = open?.[1];
+      if (delimiter !== undefined) {
+        fence = { char: delimiter.charAt(0), length: delimiter.length };
+        continue;
+      }
+      kept.push(line);
+      continue;
+    }
+    const close = FENCE_CLOSE.exec(line)?.[1];
+    if (close !== undefined && close.charAt(0) === fence.char && close.length >= fence.length) {
+      fence = undefined;
+    }
+  }
+  return kept.join('\n');
+}
+
+function requireSectionMatchMode(value: unknown, what: string): SectionMatchMode {
+  if (value !== 'anywhere' && value !== 'line') {
+    throw new ConfigError(`${what} must be 'anywhere' or 'line'; got ${String(value)}`);
+  }
+  return value;
+}
+
+function requireFencedCodeMode(value: unknown, what: string): FencedCodeMode {
+  if (value !== 'counted' && value !== 'excluded') {
+    throw new ConfigError(`${what} must be 'counted' or 'excluded'; got ${String(value)}`);
+  }
+  return value;
+}
+
+/**
+ * The first position of a section marker in the (already fence
+ * filtered) scope under the configured match mode: the plain substring
+ * offset for 'anywhere', the offset of the first line whose trimmed
+ * content EQUALS the marker for 'line'; -1 when absent. One shared
+ * primitive so presence checks and slice anchoring can never disagree.
+ */
+function sectionPosition(scope: string, section: string, match: SectionMatchMode): number {
+  if (match === 'anywhere') {
+    return scope.indexOf(section);
+  }
+  let offset = 0;
+  for (const line of scope.split('\n')) {
+    if (line.trim() === section) {
+      return offset;
+    }
+    offset += line.length + 1;
+  }
+  return -1;
+}
+
+function missingSectionQualifier(match: SectionMatchMode, fencedCode: FencedCodeMode): string {
+  const demands =
+    (match === 'line' ? ' as its own line' : '') +
+    (fencedCode === 'excluded' ? ' outside fenced code' : '');
+  return demands === '' ? '' : ` (required${demands})`;
 }
 
 /**
  * Requires every named section to appear LITERALLY in the result text
  * (a heading like 'FINDINGS' or any marker the goal demands). Default
  * name 'required-sections'; pass `name` to run several instances.
+ * `match: 'line'` demands each marker as its own line and
+ * `fencedCode: 'excluded'` ignores markers inside fenced code blocks
+ * (cycle 74); both default to the historical byte identical behavior.
  */
 export function requiredSectionsValidator(options: {
-  sections: string[];
+  sections: readonly string[];
   name?: string;
+  match?: SectionMatchMode;
+  fencedCode?: FencedCodeMode;
 }): FinishValidator {
   const sections = requireNonEmptyStrings(options.sections, 'requiredSectionsValidator sections');
+  const match =
+    options.match === undefined
+      ? 'anywhere'
+      : requireSectionMatchMode(options.match, 'requiredSectionsValidator match');
+  const fencedCode =
+    options.fencedCode === undefined
+      ? 'counted'
+      : requireFencedCodeMode(options.fencedCode, 'requiredSectionsValidator fencedCode');
+  const qualifier = missingSectionQualifier(match, fencedCode);
   return {
     name: options.name ?? 'required-sections',
     validate: (input) => {
-      const missing = sections.filter((section) => !input.text.includes(section));
+      const scope = fencedCode === 'excluded' ? stripFencedBlocks(input.text) : input.text;
+      const missing = sections.filter((section) => sectionPosition(scope, section, match) < 0);
       return missing.length === 0
         ? ok
         : {
             ok: false,
-            reasons: missing.map((section) => `required section '${section}' is missing`),
+            reasons: missing.map(
+              (section) => `required section '${section}' is missing${qualifier}`,
+            ),
           };
     },
   };
@@ -127,7 +243,7 @@ export function requiredSectionsValidator(options: {
  * validator). Default name 'required-fields'.
  */
 export function requiredFieldsValidator(options: {
-  fields: string[];
+  fields: readonly string[];
   name?: string;
 }): FinishValidator {
   const fields = requireNonEmptyStrings(options.fields, 'requiredFieldsValidator fields');
@@ -159,12 +275,16 @@ export function requiredFieldsValidator(options: {
  * v1.71 experiment review, P0.7: a formal length requirement must be
  * code, never a natural-language plea the model may round away). At
  * least one bound is required; both are positive integers with
- * min <= max. Default name 'word-count'.
+ * min <= max. Default name 'word-count'. `fencedCode: 'excluded'`
+ * counts only words outside fenced code blocks (cycle 74), so code
+ * samples cannot pad a length requirement; the default counts
+ * everything, byte identical to the historical behavior.
  */
 export function wordCountValidator(options: {
   min?: number;
   max?: number;
   name?: string;
+  fencedCode?: FencedCodeMode;
 }): FinishValidator {
   const { min, max } = options;
   if (min === undefined && max === undefined) {
@@ -183,19 +303,27 @@ export function wordCountValidator(options: {
   if (min !== undefined && max !== undefined && min > max) {
     throw new ConfigError(`wordCountValidator min ${String(min)} exceeds max ${String(max)}`);
   }
+  const fencedCode =
+    options.fencedCode === undefined
+      ? 'counted'
+      : requireFencedCodeMode(options.fencedCode, 'wordCountValidator fencedCode');
+  const counted = fencedCode === 'excluded' ? ' (fenced code excluded)' : '';
   return {
     name: options.name ?? 'word-count',
     validate: (input) => {
-      const trimmed = input.text.trim();
+      const scope = fencedCode === 'excluded' ? stripFencedBlocks(input.text) : input.text;
+      const trimmed = scope.trim();
       const count = trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length;
       const reasons: string[] = [];
       if (min !== undefined && count < min) {
         reasons.push(
-          `result word count ${String(count)} is below the required minimum ${String(min)}`,
+          `result word count ${String(count)}${counted} is below the required minimum ${String(min)}`,
         );
       }
       if (max !== undefined && count > max) {
-        reasons.push(`result word count ${String(count)} exceeds the maximum ${String(max)}`);
+        reasons.push(
+          `result word count ${String(count)}${counted} exceeds the maximum ${String(max)}`,
+        );
       }
       return reasons.length === 0 ? ok : { ok: false, reasons };
     },
@@ -313,14 +441,20 @@ export function evidencePreservedValidator(options?: {
  * text is its own failure reason, because coverage of a missing
  * section cannot silently count as satisfied.
  * requiredSectionsValidator still owns plain presence. Default name
- * 'section-citations'.
+ * 'section-citations'. `match: 'line'` anchors each section at the
+ * first line equal to its marker and `fencedCode: 'excluded'` removes
+ * fenced code before anchoring, slicing, and counting (cycle 74), so a
+ * marker echoed inside a code sample can neither anchor a slice nor
+ * donate citations; both default to the historical behavior.
  */
 export function sectionCitationsValidator(options: {
-  sections: string[];
+  sections: readonly string[];
   pattern?: string;
   flags?: string;
   min: number;
   name?: string;
+  match?: SectionMatchMode;
+  fencedCode?: FencedCodeMode;
 }): FinishValidator {
   const sections = requireNonEmptyStrings(options.sections, 'sectionCitationsValidator sections');
   const pattern = options.pattern ?? DEFAULT_CITATION_PATTERN;
@@ -340,12 +474,23 @@ export function sectionCitationsValidator(options: {
       `sectionCitationsValidator min must be a positive integer; got ${String(options.min)}`,
     );
   }
+  const match =
+    options.match === undefined
+      ? 'anywhere'
+      : requireSectionMatchMode(options.match, 'sectionCitationsValidator match');
+  const fencedCode =
+    options.fencedCode === undefined
+      ? 'counted'
+      : requireFencedCodeMode(options.fencedCode, 'sectionCitationsValidator fencedCode');
+  const qualifier = missingSectionQualifier(match, fencedCode);
+  const counted = fencedCode === 'excluded' ? ' (fenced code excluded)' : '';
   return {
     name: options.name ?? 'section-citations',
     validate: (input) => {
+      const scope = fencedCode === 'excluded' ? stripFencedBlocks(input.text) : input.text;
       const positions = new Map<string, number>();
       for (const section of sections) {
-        const at = input.text.indexOf(section);
+        const at = sectionPosition(scope, section, match);
         if (at >= 0) {
           positions.set(section, at);
         }
@@ -356,18 +501,19 @@ export function sectionCitationsValidator(options: {
         const at = positions.get(section);
         if (at === undefined) {
           reasons.push(
-            `required section '${section}' is missing, so its citation coverage cannot be judged`,
+            `required section '${section}' is missing${qualifier}, ` +
+              'so its citation coverage cannot be judged',
           );
           continue;
         }
         const next = ordered.find(([, position]) => position > at);
-        const slice = input.text.slice(at, next === undefined ? input.text.length : next[1]);
+        const slice = scope.slice(at, next === undefined ? scope.length : next[1]);
         // Fresh RegExp per slice: the 'g' flag makes matching stateful.
         const matches = slice.match(new RegExp(pattern, globalFlags))?.length ?? 0;
         if (matches < options.min) {
           reasons.push(
             `section '${section}' carries ${String(matches)} citations matching ` +
-              `/${pattern}/; at least ${String(options.min)} required`,
+              `/${pattern}/${counted}; at least ${String(options.min)} required`,
           );
         }
       }
@@ -383,12 +529,17 @@ export function sectionCitationsValidator(options: {
  * ConfigError before any run exists) and matches globally; `min` is a
  * positive integer. Default name 'min-matches'; pass `name` to run
  * several instances, because names must be unique per orchestrate call.
+ * `fencedCode: 'excluded'` matches only outside fenced code blocks
+ * (cycle 74), so citations quoted inside code samples do not count;
+ * the default matches everything, byte identical to the historical
+ * behavior.
  */
 export function minMatchesValidator(options: {
   pattern: string;
   flags?: string;
   min: number;
   name?: string;
+  fencedCode?: FencedCodeMode;
 }): FinishValidator {
   const flags = options.flags ?? '';
   const globalFlags = flags.includes('g') ? flags : `${flags}g`;
@@ -406,18 +557,24 @@ export function minMatchesValidator(options: {
       `minMatchesValidator min must be a positive integer; got ${String(options.min)}`,
     );
   }
+  const fencedCode =
+    options.fencedCode === undefined
+      ? 'counted'
+      : requireFencedCodeMode(options.fencedCode, 'minMatchesValidator fencedCode');
+  const counted = fencedCode === 'excluded' ? ' (fenced code excluded)' : '';
   return {
     name: options.name ?? 'min-matches',
     validate: (input) => {
+      const scope = fencedCode === 'excluded' ? stripFencedBlocks(input.text) : input.text;
       // A fresh RegExp per verdict: the 'g' flag makes matching stateful.
-      const found = input.text.match(new RegExp(options.pattern, globalFlags))?.length ?? 0;
+      const found = scope.match(new RegExp(options.pattern, globalFlags))?.length ?? 0;
       return found >= options.min
         ? ok
         : {
             ok: false,
             reasons: [
               `expected at least ${String(options.min)} matches of /${options.pattern}/` +
-                `${flags}; found ${String(found)}`,
+                `${flags}; found ${String(found)}${counted}`,
             ],
           };
     },

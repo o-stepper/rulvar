@@ -22,8 +22,8 @@ validator). Default name 'required-fields'.
 
 | Parameter | Type |
 | ------ | ------ |
-| `options` | \{ `fields`: `string`[]; `name?`: `string`; \} |
-| `options.fields` | `string`[] |
+| `options` | \{ `fields`: readonly `string`[]; `name?`: `string`; \} |
+| `options.fields` | readonly `string`[] |
 | `options.name?` | `string` |
 
 ## Returns

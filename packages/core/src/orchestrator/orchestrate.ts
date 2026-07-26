@@ -324,8 +324,13 @@ export interface FinishValidationSpec {
    * identical and the loop continues to a live repair turn). Decisions
    * recorded before 1.77 carry no hash and bind to the current
    * contract only while the journal holds a single bundle descriptor;
-   * once a supersession is recorded they are stale. Absent = byte
-   * identical pre 1.72 behavior.
+   * once a supersession is recorded they are stale. The bundle is
+   * deeply frozen and the construction self test also runs the
+   * contract's per validator reject goldens against the CONFIGURED
+   * set (cycle 74), so a post construction mutation throws and a
+   * same-name replacement weaker than the contract's own validator is
+   * a ConfigError before any provider call. Absent = byte identical
+   * pre 1.72 behavior.
    */
   contract?: FinishContract;
   /**
@@ -784,11 +789,18 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
         'orchestrate finishValidation.selfTest requires an accept or reject fixture',
       );
     }
-    if (acceptFixture !== undefined || rejectFixture !== undefined) {
+    const rejectGoldens = contract?.goldenRejects;
+    if (acceptFixture !== undefined || rejectFixture !== undefined || rejectGoldens !== undefined) {
       const report = selfTestFinishValidation({
         validators: fv.validators as FinishValidator[],
         ...(acceptFixture === undefined ? {} : { accept: acceptFixture }),
         ...(rejectFixture === undefined ? {} : { reject: rejectFixture }),
+        // The per validator reject goldens (cycle 74): the configured
+        // validator carrying each contract name must itself reject
+        // the contract's fixture, so a same-name weakened replacement
+        // is a ConfigError here, never a silently accepted result the
+        // journaled contract hash forbids.
+        ...(rejectGoldens === undefined ? {} : { rejects: rejectGoldens }),
       });
       if (!report.ok) {
         throw new ConfigError(
@@ -797,8 +809,11 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
               .map((failure) =>
                 failure.validator === undefined
                   ? failure.reasons.join('; ')
-                  : `validator '${failure.validator}' rejected the accept fixture: ` +
-                    failure.reasons.join('; '),
+                  : failure.fixture === 'reject'
+                    ? `validator '${failure.validator}' failed its reject golden: ` +
+                      failure.reasons.join('; ')
+                    : `validator '${failure.validator}' rejected the accept fixture: ` +
+                      failure.reasons.join('; '),
               )
               .join('; '),
         );

@@ -16,4 +16,4 @@ One self test failure.
 | ------ | ------ | ------ | ------ |
 | <a id="property-fixture"></a> `fixture` | `"accept"` \| `"reject"` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-reasons"></a> `reasons` | `string`[] | - | `packages/core/dist/index.d.ts` |
-| <a id="property-validator"></a> `validator?` | `string` | The rejecting validator on the accept side; absent on the vacuous reject side. | `packages/core/dist/index.d.ts` |
+| <a id="property-validator"></a> `validator?` | `string` | The failing validator: the rejecting one on the accept side, the named one on a per validator reject golden (cycle 74); absent only on the vacuous single-fixture reject side. | `packages/core/dist/index.d.ts` |

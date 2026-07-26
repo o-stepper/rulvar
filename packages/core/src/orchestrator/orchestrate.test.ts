@@ -19,6 +19,7 @@ import {
   evidencePreservedValidator,
   minMatchesValidator,
   requiredSectionsValidator,
+  wordCountValidator,
   type FinishValidationInput,
 } from './finish-validators.js';
 import { finishContract } from './output-contract.js';
@@ -1246,6 +1247,22 @@ describe('output contract: manifest, construction self test, frozen bundle (v1.7
         },
       }),
     ).toThrow(/self test failed BEFORE any provider call.*legacy-sections.*LEGACY HEADING/s);
+  });
+
+  it('a same-name WEAKENED replacement fails construction through the per validator goldens (cycle 74)', () => {
+    const strict = finishContract({ sections: ['## Report'], words: { min: 50 } });
+    expect(() =>
+      makeOrchestratorWorkflow(GOAL, {
+        finishValidation: {
+          validators: [
+            requiredSectionsValidator({ sections: ['## Report'], name: 'contract-sections' }),
+            wordCountValidator({ min: 1, name: 'contract-words' }),
+          ],
+          contract: strict,
+          maxRepairs: 0,
+        },
+      }),
+    ).toThrow(/'contract-words' failed its reject golden/);
   });
 
   it('a contract whose validators are not in the set is drift by omission', () => {

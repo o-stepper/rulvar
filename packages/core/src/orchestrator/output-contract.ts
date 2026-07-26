@@ -20,8 +20,10 @@ import {
   requiredSectionsValidator,
   sectionCitationsValidator,
   wordCountValidator,
+  type FencedCodeMode,
   type FinishValidationInput,
   type FinishValidator,
+  type SectionMatchMode,
 } from './finish-validators.js';
 
 /** The golden citation sample used with {@link DEFAULT_CITATION_PATTERN}. */
@@ -58,19 +60,68 @@ export interface FinishContractCitations {
 export interface FinishContractManifest {
   /** Literal section markers the result must contain. */
   sections?: string[];
+  /**
+   * How section markers must appear (cycle 74): 'anywhere' (the
+   * default, a plain substring test) or 'line' (each marker must
+   * stand as its own line, surrounding whitespace ignored, so a mid
+   * sentence mention no longer satisfies a heading). Requires
+   * `sections`. Joins the hash and the prompt statement only when
+   * 'line'; an explicit 'anywhere' normalizes away, keeping the hash
+   * of the plain manifest.
+   */
+  sectionsMatch?: SectionMatchMode;
   /** Word bounds over the result text (whitespace separated tokens). */
   words?: { min?: number; max?: number };
   /** Citation demands over the result text. */
   citations?: FinishContractCitations;
+  /**
+   * Whether fenced code blocks count (cycle 74): 'counted' (the
+   * default) or 'excluded' (fenced code is removed before section
+   * matching, slicing, word counting, and citation matching, so code
+   * samples can neither satisfy a marker nor pad a count). Joins the
+   * hash and adds a prompt statement only when 'excluded'; an explicit
+   * 'counted' normalizes away. With 'excluded', a section marker or a
+   * citation sample that would itself OPEN a fence is a ConfigError,
+   * because the golden fixtures embed both at line starts.
+   */
+  fencedCode?: FencedCodeMode;
 }
 
-/** What {@link finishContract} builds from a manifest. */
+/**
+ * One per validator reject golden (cycle 74): a fixture the NAMED
+ * contract validator is proven to reject at construction time.
+ * {@link selfTestFinishValidation} holds the CONFIGURED validator of
+ * that name against it, so a same-name replacement weaker than the
+ * contract's own validator (a words minimum of one standing in for
+ * three thousand) is caught before any provider call instead of
+ * silently accepting what the journaled contract hash forbids.
+ */
+export interface FinishContractGoldenReject {
+  /** The contract validator this fixture targets, by name. */
+  readonly validator: string;
+  /** The fixture that validator must reject. */
+  readonly input: FinishValidationInput;
+}
+
+/**
+ * What {@link finishContract} builds from a manifest. The whole bundle
+ * is DEEPLY frozen (cycle 74): the nested manifest objects, the
+ * sections array, the validators array, and each validator object, so
+ * a post construction mutation throws instead of silently diverging
+ * behavior from the journaled contract hash.
+ */
 export interface FinishContract {
-  /** The normalized manifest (defaults applied), frozen. */
+  /** The normalized manifest (defaults applied), deeply frozen. */
   readonly manifest: FinishContractManifest;
   /** sha256 hex over the JCS serialization of the normalized manifest. */
   readonly hash: string;
-  /** The stock validators enforcing the manifest; names are 'contract-*'. */
+  /**
+   * The stock validators enforcing the manifest; names are
+   * 'contract-*'. The array and each validator object are frozen at
+   * runtime (the type stays mutable for source compatibility), so an
+   * in-place pop or a validate() swap throws instead of silently
+   * weakening what the hash promises.
+   */
   readonly validators: FinishValidator[];
   /** The contract statement for the model, one demand per line. */
   readonly promptLines: readonly string[];
@@ -82,6 +133,13 @@ export interface FinishContract {
    * empty result is then legitimately acceptable.
    */
   readonly goldenReject?: FinishValidationInput;
+  /**
+   * One reject golden PER contract validator (cycle 74), in validator
+   * order, each verified at construction; boundary sharp where a
+   * boundary is mechanically safe (the words fixture sits exactly one
+   * word outside the bound), the empty text otherwise.
+   */
+  readonly goldenRejects: readonly FinishContractGoldenReject[];
 }
 
 function requirePositiveInt(value: unknown, what: string): number {
@@ -111,7 +169,7 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
   if (typeof manifest !== 'object' || manifest === null) {
     throw new ConfigError('finishContract manifest must be an object');
   }
-  const { sections, words, citations } = manifest;
+  const { sections, sectionsMatch, words, citations, fencedCode } = manifest;
   if (sections === undefined && words === undefined && citations === undefined) {
     throw new ConfigError('finishContract manifest must declare sections, words, or citations');
   }
@@ -226,21 +284,96 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
     };
   }
 
+  // The exactness knobs (cycle 74): explicit defaults normalize away,
+  // so a manifest declaring 'anywhere' or 'counted' hashes exactly
+  // like one declaring nothing.
+  let normalizedSectionsMatch: 'line' | undefined;
+  if (sectionsMatch !== undefined) {
+    if (sectionsMatch !== 'anywhere' && sectionsMatch !== 'line') {
+      throw new ConfigError(
+        `finishContract sectionsMatch must be 'anywhere' or 'line'; got ${String(sectionsMatch)}`,
+      );
+    }
+    if (normalizedSections === undefined) {
+      throw new ConfigError('finishContract sectionsMatch requires sections');
+    }
+    if (sectionsMatch === 'line') {
+      normalizedSectionsMatch = 'line';
+    }
+  }
+  let normalizedFencedCode: 'excluded' | undefined;
+  if (fencedCode !== undefined) {
+    if (fencedCode !== 'counted' && fencedCode !== 'excluded') {
+      throw new ConfigError(
+        `finishContract fencedCode must be 'counted' or 'excluded'; got ${String(fencedCode)}`,
+      );
+    }
+    if (fencedCode === 'excluded') {
+      normalizedFencedCode = 'excluded';
+    }
+  }
+  if (normalizedFencedCode === 'excluded') {
+    // The golden fixtures place markers and samples at line starts, so
+    // content that would OPEN a fence would exclude the rest of the
+    // fixture from its own validation: a contradiction, caught here.
+    const opensFence = /^\s*(`{3,}|~{3,})/;
+    for (const section of normalizedSections ?? []) {
+      if (opensFence.test(section)) {
+        throw new ConfigError(
+          `finishContract section '${section}' would open a code fence under ` +
+            "fencedCode 'excluded'",
+        );
+      }
+    }
+    if (normalizedCitations !== undefined && opensFence.test(normalizedCitations.sample)) {
+      throw new ConfigError(
+        `finishContract citations.sample '${normalizedCitations.sample}' would open a code ` +
+          "fence under fencedCode 'excluded'",
+      );
+    }
+  }
+
   const normalized: FinishContractManifest = {
     ...(normalizedSections === undefined ? {} : { sections: normalizedSections }),
+    ...(normalizedSectionsMatch === undefined ? {} : { sectionsMatch: normalizedSectionsMatch }),
     ...(normalizedWords === undefined ? {} : { words: normalizedWords }),
     ...(normalizedCitations === undefined ? {} : { citations: normalizedCitations }),
+    ...(normalizedFencedCode === undefined ? {} : { fencedCode: normalizedFencedCode }),
   };
   const hash = createHash('sha256').update(jcsSerialize(normalized), 'utf8').digest('hex');
+  // The deep freeze (cycle 74): the hash just bound these bytes, so
+  // every nested object the bundle exposes must be immutable from
+  // here on. The sections array is also what the validators captured
+  // by copy, so a frozen manifest can never diverge from enforcement.
+  if (normalizedSections !== undefined) {
+    Object.freeze(normalizedSections);
+  }
+  if (normalizedWords !== undefined) {
+    Object.freeze(normalizedWords);
+  }
+  if (normalizedCitations !== undefined) {
+    Object.freeze(normalizedCitations);
+  }
 
+  const matchOption =
+    normalizedSectionsMatch === undefined ? {} : { match: normalizedSectionsMatch };
+  const fencedOption =
+    normalizedFencedCode === undefined ? {} : { fencedCode: normalizedFencedCode };
   const validators: FinishValidator[] = [];
   if (normalizedSections !== undefined) {
     validators.push(
-      requiredSectionsValidator({ sections: normalizedSections, name: 'contract-sections' }),
+      requiredSectionsValidator({
+        sections: normalizedSections,
+        name: 'contract-sections',
+        ...matchOption,
+        ...fencedOption,
+      }),
     );
   }
   if (normalizedWords !== undefined) {
-    validators.push(wordCountValidator({ ...normalizedWords, name: 'contract-words' }));
+    validators.push(
+      wordCountValidator({ ...normalizedWords, name: 'contract-words', ...fencedOption }),
+    );
   }
   if (normalizedCitations?.min !== undefined) {
     validators.push(
@@ -249,6 +382,7 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
         flags: normalizedCitations.flags,
         min: normalizedCitations.min,
         name: 'contract-citations',
+        ...fencedOption,
       }),
     );
   }
@@ -260,6 +394,8 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
         flags: normalizedCitations.flags,
         min: normalizedCitations.perSection,
         name: 'contract-section-citations',
+        ...matchOption,
+        ...fencedOption,
       }),
     );
   }
@@ -267,7 +403,10 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
   const promptLines: string[] = [];
   if (normalizedSections !== undefined) {
     promptLines.push(
-      'The final result must contain each of these section markers verbatim: ' +
+      (normalizedSectionsMatch === 'line'
+        ? 'The final result must contain each of these section markers verbatim, each on ' +
+          'its own line: '
+        : 'The final result must contain each of these section markers verbatim: ') +
         normalizedSections.map((section) => `'${section}'`).join(', ') +
         '.',
     );
@@ -302,6 +441,12 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
           `${String(normalizedCitations.perSection)} such citations.`,
       );
     }
+  }
+  if (normalizedFencedCode === 'excluded') {
+    promptLines.push(
+      'Text inside fenced code blocks (``` or ~~~) does not count toward sections, word ' +
+        'counts, or citations.',
+    );
   }
 
   // The golden accept skeleton: sections in order, per-section
@@ -360,6 +505,104 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
       })
     : undefined;
 
+  // The construction self check plus the per validator reject goldens
+  // (cycle 74). Every validator must accept the generated skeleton
+  // (free, synchronous, and it turns any manifest interaction the
+  // golden builder missed into a ConfigError instead of a confusing
+  // run-time self test failure), and every validator gets one fixture
+  // it provably rejects, so a same-name replacement weaker than the
+  // contract's own validator is detectable before any provider call.
+  for (const validator of validators) {
+    const verdict = validator.validate(goldenAccept);
+    if (!verdict.ok) {
+      throw new ConfigError(
+        `finishContract self check failed: '${validator.name}' rejects the generated ` +
+          `golden accept fixture: ${verdict.reasons.join('; ')}`,
+      );
+    }
+  }
+  const rejectInput = (text: string): FinishValidationInput =>
+    Object.freeze({ result: text, text, children: Object.freeze([]) });
+  const goldenRejects: FinishContractGoldenReject[] = [];
+  const addGoldenReject = (validator: FinishValidator, candidate: string) => {
+    // Boundary sharp when the boundary candidate actually rejects;
+    // the empty text is the fallback for the corner cases (a marker
+    // that is a substring of another marker, a pattern that over
+    // matches inside its own sample).
+    let fixture = rejectInput(candidate);
+    if (validator.validate(fixture).ok) {
+      fixture = rejectInput('');
+    }
+    if (validator.validate(fixture).ok) {
+      throw new ConfigError(
+        `finishContract cannot build a reject golden for '${validator.name}': it accepts ` +
+          'both the boundary fixture and the empty text, so it validates nothing',
+      );
+    }
+    goldenRejects.push(Object.freeze({ validator: validator.name, input: fixture }));
+  };
+  for (const validator of validators) {
+    switch (validator.name) {
+      case 'contract-sections': {
+        if (normalizedSections === undefined) {
+          break;
+        }
+        const last = normalizedSections[normalizedSections.length - 1];
+        addGoldenReject(
+          validator,
+          goldenText
+            .split('\n')
+            .filter((line) => line !== last)
+            .join('\n'),
+        );
+        break;
+      }
+      case 'contract-words': {
+        const deficit =
+          normalizedWords?.min !== undefined
+            ? normalizedWords.min - 1
+            : (normalizedWords?.max ?? 0) + 1;
+        addGoldenReject(validator, Array.from({ length: deficit }, () => FILLER_WORD).join(' '));
+        break;
+      }
+      case 'contract-citations': {
+        if (normalizedCitations === undefined) {
+          break;
+        }
+        const sample = normalizedCitations.sample;
+        addGoldenReject(
+          validator,
+          Array.from({ length: (normalizedCitations.min ?? 1) - 1 }, () => sample).join(' '),
+        );
+        break;
+      }
+      case 'contract-section-citations': {
+        if (normalizedSections === undefined || normalizedCitations === undefined) {
+          break;
+        }
+        const markers = normalizedSections;
+        const sample = normalizedCitations.sample;
+        const per = normalizedCitations.perSection ?? 1;
+        const rows: string[] = [];
+        markers.forEach((section, index) => {
+          rows.push(section);
+          const grant = index === markers.length - 1 ? per - 1 : per;
+          if (grant > 0) {
+            rows.push(Array.from({ length: grant }, () => sample).join(' '));
+          }
+        });
+        addGoldenReject(validator, rows.join('\n'));
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  for (const validator of validators) {
+    Object.freeze(validator);
+  }
+  Object.freeze(validators);
   return Object.freeze({
     manifest: Object.freeze(normalized),
     hash,
@@ -367,6 +610,7 @@ export function finishContract(manifest: FinishContractManifest): FinishContract
     promptLines: Object.freeze(promptLines),
     goldenAccept,
     ...(goldenReject === undefined ? {} : { goldenReject }),
+    goldenRejects: Object.freeze(goldenRejects),
   });
 }
 
@@ -381,7 +625,11 @@ export interface FinishSelfTestFixtures {
 /** One self test failure. */
 export interface FinishSelfTestFailure {
   fixture: 'accept' | 'reject';
-  /** The rejecting validator on the accept side; absent on the vacuous reject side. */
+  /**
+   * The failing validator: the rejecting one on the accept side, the
+   * named one on a per validator reject golden (cycle 74); absent
+   * only on the vacuous single-fixture reject side.
+   */
   validator?: string;
   reasons: string[];
 }
@@ -402,12 +650,18 @@ export interface FinishSelfTestReport {
  * nothing). A validator that THROWS here is a host defect and the
  * ConfigError propagates, the same posture the live loop takes.
  * Deterministic and free: validators are pure synchronous host code by
- * contract, so this costs zero provider calls.
+ * contract, so this costs zero provider calls. `rejects` (cycle 74)
+ * carries the contract's per validator reject goldens: for each one
+ * the CONFIGURED validator of that name must exist and must reject
+ * the fixture, so a same-name replacement weaker than the contract's
+ * own validator fails here instead of silently accepting what the
+ * journaled contract hash forbids.
  */
 export function selfTestFinishValidation(options: {
-  validators: FinishValidator[];
+  validators: readonly FinishValidator[];
   accept?: FinishValidationInput;
   reject?: FinishValidationInput;
+  rejects?: readonly FinishContractGoldenReject[];
 }): FinishSelfTestReport {
   const run = (validator: FinishValidator, input: FinishValidationInput) => {
     try {
@@ -437,6 +691,30 @@ export function selfTestFinishValidation(options: {
         fixture: 'reject',
         reasons: [
           'every configured validator accepts the known-bad fixture; the validation is vacuous',
+        ],
+      });
+    }
+  }
+  for (const golden of options.rejects ?? []) {
+    const named = options.validators.find((validator) => validator.name === golden.validator);
+    if (named === undefined) {
+      failures.push({
+        fixture: 'reject',
+        validator: golden.validator,
+        reasons: [
+          `no configured validator is named '${golden.validator}', so its reject golden ` +
+            'cannot run',
+        ],
+      });
+      continue;
+    }
+    if (run(named, golden.input).ok) {
+      failures.push({
+        fixture: 'reject',
+        validator: golden.validator,
+        reasons: [
+          "the configured validator accepts the fixture the contract's own validator " +
+            'rejects; a same name replacement must be at least as strict',
         ],
       });
     }

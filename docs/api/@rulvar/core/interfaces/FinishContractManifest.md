@@ -6,7 +6,7 @@
 
 # Interface: FinishContractManifest
 
-Defined in: [packages/core/src/orchestrator/output-contract.ts:58](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L58)
+Defined in: [packages/core/src/orchestrator/output-contract.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L60)
 
 The single source of truth of a textual finish contract: what the
 prompt promises IS what the validators enforce. Declare only textual
@@ -18,8 +18,10 @@ requiredFieldsValidator and a host-provided selfTest accept fixture.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-citations"></a> `citations?` | [`FinishContractCitations`](/api/@rulvar/core/interfaces/FinishContractCitations.md) | Citation demands over the result text. | [packages/core/src/orchestrator/output-contract.ts:64](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L64) |
-| <a id="property-sections"></a> `sections?` | `string`[] | Literal section markers the result must contain. | [packages/core/src/orchestrator/output-contract.ts:60](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L60) |
-| <a id="property-words"></a> `words?` | \{ `max?`: `number`; `min?`: `number`; \} | Word bounds over the result text (whitespace separated tokens). | [packages/core/src/orchestrator/output-contract.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L62) |
-| `words.max?` | `number` | - | [packages/core/src/orchestrator/output-contract.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L62) |
-| `words.min?` | `number` | - | [packages/core/src/orchestrator/output-contract.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L62) |
+| <a id="property-citations"></a> `citations?` | [`FinishContractCitations`](/api/@rulvar/core/interfaces/FinishContractCitations.md) | Citation demands over the result text. | [packages/core/src/orchestrator/output-contract.ts:76](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L76) |
+| <a id="property-fencedcode"></a> `fencedCode?` | [`FencedCodeMode`](/api/@rulvar/core/type-aliases/FencedCodeMode.md) | Whether fenced code blocks count (cycle 74): 'counted' (the default) or 'excluded' (fenced code is removed before section matching, slicing, word counting, and citation matching, so code samples can neither satisfy a marker nor pad a count). Joins the hash and adds a prompt statement only when 'excluded'; an explicit 'counted' normalizes away. With 'excluded', a section marker or a citation sample that would itself OPEN a fence is a ConfigError, because the golden fixtures embed both at line starts. | [packages/core/src/orchestrator/output-contract.ts:87](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L87) |
+| <a id="property-sections"></a> `sections?` | `string`[] | Literal section markers the result must contain. | [packages/core/src/orchestrator/output-contract.ts:62](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L62) |
+| <a id="property-sectionsmatch"></a> `sectionsMatch?` | [`SectionMatchMode`](/api/@rulvar/core/type-aliases/SectionMatchMode.md) | How section markers must appear (cycle 74): 'anywhere' (the default, a plain substring test) or 'line' (each marker must stand as its own line, surrounding whitespace ignored, so a mid sentence mention no longer satisfies a heading). Requires `sections`. Joins the hash and the prompt statement only when 'line'; an explicit 'anywhere' normalizes away, keeping the hash of the plain manifest. | [packages/core/src/orchestrator/output-contract.ts:72](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L72) |
+| <a id="property-words"></a> `words?` | \{ `max?`: `number`; `min?`: `number`; \} | Word bounds over the result text (whitespace separated tokens). | [packages/core/src/orchestrator/output-contract.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L74) |
+| `words.max?` | `number` | - | [packages/core/src/orchestrator/output-contract.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L74) |
+| `words.min?` | `number` | - | [packages/core/src/orchestrator/output-contract.ts:74](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L74) |

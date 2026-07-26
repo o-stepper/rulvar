@@ -10,7 +10,7 @@
 function requiredFieldsValidator(options): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:129](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L129)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:245](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L245)
 
 Requires the result to be a JSON object carrying every named field
 with a substantial value: present, not null, and not an empty or
@@ -22,8 +22,8 @@ validator). Default name 'required-fields'.
 
 | Parameter | Type |
 | ------ | ------ |
-| `options` | \{ `fields`: `string`[]; `name?`: `string`; \} |
-| `options.fields` | `string`[] |
+| `options` | \{ `fields`: readonly `string`[]; `name?`: `string`; \} |
+| `options.fields` | readonly `string`[] |
 | `options.name?` | `string` |
 
 ## Returns
