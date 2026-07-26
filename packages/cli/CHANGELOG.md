@@ -1,5 +1,12 @@
 # @rulvar/cli
 
+## 1.75.0
+
+### Patch Changes
+
+- Updated dependencies [c486de8]
+  - @rulvar/core@1.75.0
+
 ## 1.74.0
 
 ### Minor Changes
