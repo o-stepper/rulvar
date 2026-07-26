@@ -366,7 +366,11 @@ export interface OrchestrateOptions {
   /**
    * Per-orchestrate spawn cap: a nonnegative integer (zero admits no
    * spawns), validated before any journal entry or dispatch. The engine
-   * lifetime cap applies regardless.
+   * lifetime cap applies regardless. The cap counts ADMITTED children:
+   * an admission-rejected spawn (budget, quota, depth) consumes no slot,
+   * so the orchestrator may retry a rejected role at a viable budget
+   * (v1.81; the sixth comparison experiment's run 2). Attempts stay
+   * bounded regardless through the coordination turn's own tool budget.
    */
   maxSpawns?: number;
   /** The orchestrator's own budget sub-account (cap enforcement layers only in M6). */
@@ -1400,6 +1404,15 @@ export function makeOrchestratorWorkflow(
      */
     const recoveredSpecByOrdinal = new Map<number, SpawnAgentParams>();
     let nextOrdinal = 0;
+    /**
+     * The maxSpawns ledger counts ADMITTED children, never attempt
+     * ordinals: an admission-rejected spawn spends nothing, so it must
+     * not consume a slot (the sixth comparison experiment's run 2, where
+     * a transient budget rejection burned the fourth slot and the
+     * orchestrator's viable retry was refused). Ordinals keep advancing
+     * per attempt regardless: they are journal identity, not quota.
+     */
+    let admittedSpawnCount = 0;
     let orchSeq: number | undefined;
     // Wake substrate (M6-T09): coalescing state plus settle listeners.
     const deliveredNodeIds = new Set<string>();
@@ -1634,6 +1647,9 @@ export function makeOrchestratorWorkflow(
       dispatch: async (spec, childScope, identity) => {
         const spawnOrdinal = nextOrdinal;
         nextOrdinal += 1;
+        // Extension dispatches are real children: they consume a slot at
+        // entry, exactly as their ordinal did before the ledger split.
+        admittedSpawnCount += 1;
         const record = await dispatchChild(spec, spawnOrdinal, identity, {
           childScope,
           ownAccount: true,
@@ -1736,6 +1752,9 @@ export function makeOrchestratorWorkflow(
           rejectedByOrdinal.set(value.spawnOrdinal, { decision, entrySeq });
           continue;
         }
+        // The recovered slot ledger mirrors the live one: admits count,
+        // rejections never do.
+        admittedSpawnCount += 1;
         // The recovered admission takes effect here (the child
         // re-dispatches), so the event fires now, with the standard
         // replayed marker, never as a fresh live admission (v1.22.0
@@ -2033,9 +2052,11 @@ export function makeOrchestratorWorkflow(
             { data: { decision: recoveredRejection.decision as unknown as Json } },
           );
         }
-        if (opts?.maxSpawns !== undefined && spawnOrdinal >= opts.maxSpawns) {
+        if (opts?.maxSpawns !== undefined && admittedSpawnCount >= opts.maxSpawns) {
           // A config-gate rejection precedes any journal append, so the
-          // event carries no entryRef.
+          // event carries no entryRef. The gate reads the slot ledger of
+          // ADMITTED children: attempts the admission itself rejected
+          // never counted (the run-2 burned-slot class).
           internals.events.emit(
             { type: 'spawn:rejected', code: 'lifetime', agentType: params.agentType },
             callingState.spanId,
@@ -2111,6 +2132,12 @@ export function makeOrchestratorWorkflow(
           spec: params as unknown as Json,
           decision: decision as unknown as Json,
         };
+        if (decision.verdict.kind !== 'reject') {
+          // The slot is taken in the same synchronous slice as the
+          // verdict, before the journal await, so an interleaved sibling
+          // spawn can never read a stale ledger.
+          admittedSpawnCount += 1;
+        }
         const decisionEntry = await internals.replayer.appendSinglePhase({
           scope: callingState.scope,
           key: '',
@@ -2570,6 +2597,12 @@ export function makeOrchestratorWorkflow(
      * enrichment can fold BOTH windows into one honest counter.
      */
     let synthesisSchemaRejectedExchanges = 0;
+    /**
+     * The recovered twin (cycle 77): near-JSON finish exchanges the
+     * unparsed second chance salvaged, folded from the same two windows
+     * onto the ok envelope and the failure enrichment.
+     */
+    let synthesisSchemaRecoveredExchanges = 0;
     interface FinishValidationDecision {
       decisionType: 'orchestrator_finish_validation';
       callId: string;
@@ -3457,6 +3490,7 @@ export function makeOrchestratorWorkflow(
         ),
       );
       synthesisSchemaRejectedExchanges = synthesized.schemaRejectedTerminalExchanges ?? 0;
+      synthesisSchemaRecoveredExchanges = synthesized.schemaRecoveredTerminalExchanges ?? 0;
       if (validationTermination !== undefined) {
         // The synthesis finish rejection (or a defective validator)
         // aborted the invocation; the typed failure wins.
@@ -3665,6 +3699,8 @@ export function makeOrchestratorWorkflow(
       ];
       const schemaRejected =
         (result.schemaRejectedTerminalExchanges ?? 0) + synthesisSchemaRejectedExchanges;
+      const schemaRecovered =
+        (result.schemaRecoveredTerminalExchanges ?? 0) + synthesisSchemaRecoveredExchanges;
       throw new FailRunError(thrown.message, {
         data: {
           ...base,
@@ -3679,6 +3715,9 @@ export function makeOrchestratorWorkflow(
           ...(schemaRejected === 0 || base.schemaRejectedFinishExchanges !== undefined
             ? {}
             : { schemaRejectedFinishExchanges: schemaRejected }),
+          ...(schemaRecovered === 0 || base.schemaRecoveredFinishExchanges !== undefined
+            ? {}
+            : { schemaRecoveredFinishExchanges: schemaRecovered }),
         },
       });
     };
@@ -3903,6 +3942,8 @@ export function makeOrchestratorWorkflow(
           : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
       });
     }
+    const envelopeSchemaRecovered =
+      (result.schemaRecoveredTerminalExchanges ?? 0) + synthesisSchemaRecoveredExchanges;
     return {
       result: synthesizedFinal,
       completion: decision.completion,
@@ -3914,6 +3955,11 @@ export function makeOrchestratorWorkflow(
       ...(decision.salvagedTerminalOutputChildren === undefined
         ? {}
         : { salvagedTerminalOutputChildren: decision.salvagedTerminalOutputChildren }),
+      // The recovery trace (cycle 77): absent when zero, so every
+      // pre-existing envelope stays byte identical.
+      ...(envelopeSchemaRecovered === 0
+        ? {}
+        : { schemaRecoveredFinishExchanges: envelopeSchemaRecovered }),
     };
   });
 }

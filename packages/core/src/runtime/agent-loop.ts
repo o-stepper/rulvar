@@ -211,6 +211,16 @@ export interface AgentResult<T> {
    * resumed segments count the same total; absent when zero.
    */
   schemaRejectedTerminalExchanges?: number;
+  /**
+   * Terminal-tool exchanges whose near-JSON ARGUMENTS the unparsed
+   * second chance (v1.75.1) RECOVERED into a schema-valid call (the
+   * sixth comparison experiment; the judge's P1.5): the recovery used
+   * to leave only a warn log behind, invisible on the outcome. A live
+   * process counter like transportRetries (pure telemetry: nothing
+   * downstream feeds on it), so a resumed segment counts only its own
+   * recoveries; absent when zero.
+   */
+  schemaRecoveredTerminalExchanges?: number;
 }
 
 /** One 429's provider-normalized limits, per (provider, model). */
@@ -1249,6 +1259,7 @@ export async function runAgent<S extends SchemaSpec>(
   // identity.
   let invocationCounter = 0;
   let transportRetries = 0;
+  let schemaRecoveredTerminalExchanges = 0;
   const rateLimitObservations = new Map<string, RateLimitObservation>();
   type OpenPhase = {
     invocation: number;
@@ -1786,6 +1797,7 @@ export async function runAgent<S extends SchemaSpec>(
             const revalidation = await validateSchemaSpec(terminalDef.parameters, recovered.value);
             if (revalidation.valid) {
               validation = revalidation;
+              schemaRecoveredTerminalExchanges += 1;
               events?.emit(unparsedRecoveryLog(gatedCall.name, unparsedRaw.length, recovered.pass));
             }
           }
@@ -3429,6 +3441,9 @@ export async function runAgent<S extends SchemaSpec>(
         );
   if (schemaRejectedTerminalExchanges > 0) {
     result.schemaRejectedTerminalExchanges = schemaRejectedTerminalExchanges;
+  }
+  if (schemaRecoveredTerminalExchanges > 0) {
+    result.schemaRecoveredTerminalExchanges = schemaRecoveredTerminalExchanges;
   }
   if (usageApprox) {
     (result as { usageApprox?: boolean }).usageApprox = true;
