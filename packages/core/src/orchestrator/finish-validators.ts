@@ -194,6 +194,146 @@ function missingSectionQualifier(match: SectionMatchMode, fencedCode: FencedCode
   return demands === '' ? '' : ` (required${demands})`;
 }
 
+const MAX_LISTED_EXTRA_HEADINGS = 5;
+
+/**
+ * Judges the markdown HEADING STRUCTURE of the result (the sixth
+ * comparison experiment; the judge's P1.3): line presence proves each
+ * declared heading EXISTS, not that the document carries them in the
+ * declared order without extras. The sections must all start with the
+ * SAME markdown heading marker (an identical count of leading '#'
+ * characters, one to six, followed by whitespace); the governed level
+ * derives from that marker. Fenced code is ALWAYS stripped first,
+ * because a '## ' line inside a code sample is not a heading in
+ * rendered markdown, so a fenced fake can neither satisfy a declared
+ * heading nor trip exclusivity. Heading lines compare trimmed, whole
+ * line. With `ordered` (default true) the declared headings must
+ * appear in declaration order; with `exclusive` (default true) each
+ * declared heading must appear exactly once and no undeclared heading
+ * of the governed level may exist (other levels stay free). Default
+ * name 'heading-structure'.
+ */
+export function headingStructureValidator(options: {
+  sections: readonly string[];
+  name?: string;
+  ordered?: boolean;
+  exclusive?: boolean;
+}): FinishValidator {
+  const sections = requireNonEmptyStrings(
+    options.sections,
+    'headingStructureValidator sections',
+  ).map((section) => section.trim());
+  let level: number | undefined;
+  for (const section of sections) {
+    const marker = /^(#{1,6})\s+\S/.exec(section);
+    if (marker?.[1] === undefined) {
+      throw new ConfigError(
+        `headingStructureValidator section '${section}' is not a markdown heading ` +
+          "(one to six '#' characters, whitespace, then content)",
+      );
+    }
+    if (level === undefined) {
+      level = marker[1].length;
+    } else if (marker[1].length !== level) {
+      throw new ConfigError(
+        'headingStructureValidator sections must all start with the ' +
+          `same markdown heading marker; got level ${String(marker[1].length)} ` +
+          `after level ${String(level)}`,
+      );
+    }
+  }
+  const declaredLevel = level ?? 2;
+  const declared = new Set<string>();
+  for (const section of sections) {
+    if (declared.has(section)) {
+      throw new ConfigError(`headingStructureValidator sections carry a duplicate: '${section}'`);
+    }
+    declared.add(section);
+  }
+  for (const [flag, value] of [
+    ['ordered', options.ordered],
+    ['exclusive', options.exclusive],
+  ] as const) {
+    if (value !== undefined && typeof value !== 'boolean') {
+      throw new ConfigError(
+        `headingStructureValidator ${flag} must be a boolean; got ${String(value)}`,
+      );
+    }
+  }
+  const ordered = options.ordered ?? true;
+  const exclusive = options.exclusive ?? true;
+  const headingRe = new RegExp(`^#{${String(declaredLevel)}}(?!#)\\s`);
+  return {
+    name: options.name ?? 'heading-structure',
+    validate: (input) => {
+      const headings = stripFencedBlocks(input.text)
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => headingRe.test(line));
+      const reasons: string[] = [];
+      const present = new Set(headings);
+      for (const section of sections) {
+        if (!present.has(section)) {
+          reasons.push(`required heading '${section}' is missing`);
+        }
+      }
+      if (exclusive) {
+        const seenDeclared = new Set<string>();
+        for (const heading of headings) {
+          if (declared.has(heading)) {
+            if (seenDeclared.has(heading)) {
+              reasons.push(`duplicate heading '${heading}'`);
+            }
+            seenDeclared.add(heading);
+          }
+        }
+      }
+      if (ordered) {
+        // First occurrences of declared headings in text order, held
+        // against the declaration order of those actually present.
+        const firstSeen: string[] = [];
+        const taken = new Set<string>();
+        for (const heading of headings) {
+          if (declared.has(heading) && !taken.has(heading)) {
+            taken.add(heading);
+            firstSeen.push(heading);
+          }
+        }
+        const expected = sections.filter((section) => taken.has(section));
+        for (let i = 0; i < expected.length; i++) {
+          if (firstSeen[i] !== expected[i]) {
+            reasons.push(
+              `heading order mismatch at position ${String(i + 1)}: ` +
+                `found '${firstSeen[i] ?? ''}' where '${expected[i] ?? ''}' is declared`,
+            );
+            break;
+          }
+        }
+      }
+      if (exclusive) {
+        const extras: string[] = [];
+        const listed = new Set<string>();
+        for (const heading of headings) {
+          if (!declared.has(heading) && !listed.has(heading)) {
+            listed.add(heading);
+            extras.push(heading);
+          }
+        }
+        for (const extra of extras.slice(0, MAX_LISTED_EXTRA_HEADINGS)) {
+          reasons.push(`undeclared level ${String(declaredLevel)} heading '${extra}'`);
+        }
+        if (extras.length > MAX_LISTED_EXTRA_HEADINGS) {
+          reasons.push(
+            `and ${String(extras.length - MAX_LISTED_EXTRA_HEADINGS)} more undeclared ` +
+              `level ${String(declaredLevel)} headings`,
+          );
+        }
+      }
+      return reasons.length === 0 ? ok : { ok: false, reasons };
+    },
+  };
+}
+
 /**
  * Requires every named section to appear LITERALLY in the result text
  * (a heading like 'FINDINGS' or any marker the goal demands). Default

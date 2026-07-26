@@ -2765,6 +2765,10 @@
             "link": "/api/@rulvar/core/functions/hasMetaLookup.md"
           },
           {
+            "text": "headingStructureValidator",
+            "link": "/api/@rulvar/core/functions/headingStructureValidator.md"
+          },
+          {
             "text": "identityJcs",
             "link": "/api/@rulvar/core/functions/identityJcs.md"
           },
@@ -7129,6 +7133,10 @@
           {
             "text": "hasMetaLookup",
             "link": "/api/@rulvar/rulvar/functions/hasMetaLookup.md"
+          },
+          {
+            "text": "headingStructureValidator",
+            "link": "/api/@rulvar/rulvar/functions/headingStructureValidator.md"
           },
           {
             "text": "identityJcs",

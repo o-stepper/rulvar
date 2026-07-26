@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { ConfigError } from '../l0/errors.js';
 import {
   evidencePreservedValidator,
+  headingStructureValidator,
   minMatchesValidator,
   requiredFieldsValidator,
   requiredSectionsValidator,
@@ -359,5 +360,117 @@ describe('fence awareness and line anchoring (cycle 74)', () => {
       ConfigError,
     );
     expect(() => wordCountValidator({ min: 1, fencedCode: 'off' as never })).toThrow(ConfigError);
+  });
+});
+
+describe('headingStructureValidator (the sixth comparison experiment, cycle 77)', () => {
+  // Judge P1.3: line presence proves each declared heading EXISTS, not
+  // that the document carries them in order without extras.
+  const SECTIONS = ['## 1. Verdict', '## 2. Evidence', '## 3. Actions'];
+  const doc = (...headings: string[]): FinishValidationInput =>
+    text(headings.map((h) => `${h}\nprose body of the section.`).join('\n'));
+
+  it('accepts the declared headings in order with sub-headings and fenced fakes around', () => {
+    const validator = headingStructureValidator({ sections: SECTIONS });
+    expect(validator.name).toBe('heading-structure');
+    const body = [
+      'preamble prose',
+      '## 1. Verdict',
+      'prose',
+      '### 1.1 nuance',
+      '```md',
+      '## fenced fake heading',
+      '```',
+      '## 2. Evidence',
+      '#### deep nuance',
+      '## 3. Actions',
+      'closing prose',
+    ].join('\n');
+    expect(validator.validate(text(body)).ok).toBe(true);
+  });
+
+  it('a missing declared heading and an undeclared extra each get a reason', () => {
+    const validator = headingStructureValidator({ sections: SECTIONS });
+    const verdict = validator.validate(doc('## 1. Verdict', '## Appendix', '## 3. Actions'));
+    expect(verdict.ok).toBe(false);
+    expect(verdict.ok ? [] : verdict.reasons).toEqual([
+      "required heading '## 2. Evidence' is missing",
+      "undeclared level 2 heading '## Appendix'",
+    ]);
+  });
+
+  it('order violations name the first mismatch position', () => {
+    const validator = headingStructureValidator({ sections: SECTIONS });
+    const verdict = validator.validate(doc('## 2. Evidence', '## 1. Verdict', '## 3. Actions'));
+    expect(verdict.ok).toBe(false);
+    expect(verdict.ok ? [] : verdict.reasons).toEqual([
+      "heading order mismatch at position 1: found '## 2. Evidence' where '## 1. Verdict' is declared",
+    ]);
+  });
+
+  it('a duplicated declared heading violates the exactly-once structure', () => {
+    const validator = headingStructureValidator({ sections: SECTIONS });
+    const verdict = validator.validate(
+      doc('## 1. Verdict', '## 2. Evidence', '## 2. Evidence', '## 3. Actions'),
+    );
+    expect(verdict.ok).toBe(false);
+    expect(verdict.ok ? [] : verdict.reasons).toEqual(["duplicate heading '## 2. Evidence'"]);
+  });
+
+  it('a declared heading hiding inside a fence is missing, not present', () => {
+    const validator = headingStructureValidator({ sections: SECTIONS });
+    const body = ['## 1. Verdict', 'prose', '```', '## 2. Evidence', '```', '## 3. Actions'].join(
+      '\n',
+    );
+    const verdict = validator.validate(text(body));
+    expect(verdict.ok).toBe(false);
+    expect(verdict.ok ? [] : verdict.reasons).toEqual([
+      "required heading '## 2. Evidence' is missing",
+    ]);
+  });
+
+  it('ordered false tolerates shuffles; exclusive false tolerates extras and duplicates', () => {
+    const shuffled = headingStructureValidator({ sections: SECTIONS, ordered: false });
+    expect(shuffled.validate(doc('## 3. Actions', '## 1. Verdict', '## 2. Evidence')).ok).toBe(
+      true,
+    );
+    const inclusive = headingStructureValidator({ sections: SECTIONS, exclusive: false });
+    expect(
+      inclusive.validate(
+        doc('## 1. Verdict', '## Appendix', '## 2. Evidence', '## 2. Evidence', '## 3. Actions'),
+      ).ok,
+    ).toBe(true);
+  });
+
+  it('extras beyond the listing cap fold into a remainder count', () => {
+    const validator = headingStructureValidator({ sections: ['## Only'] });
+    const extras = Array.from({ length: 7 }, (_, i) => `## Extra ${String(i + 1)}`);
+    const verdict = validator.validate(doc('## Only', ...extras));
+    expect(verdict.ok).toBe(false);
+    const reasons = verdict.ok ? [] : verdict.reasons;
+    expect(reasons).toHaveLength(6);
+    expect(reasons[4]).toBe("undeclared level 2 heading '## Extra 5'");
+    expect(reasons[5]).toBe('and 2 more undeclared level 2 headings');
+  });
+
+  it('level derives from the shared marker: level 3 contracts govern level 3 only', () => {
+    const validator = headingStructureValidator({
+      sections: ['### a', '### b'],
+      exclusive: true,
+    });
+    const body = ['## outer chapter', '### a', 'prose', '### b', '## another chapter'].join('\n');
+    expect(validator.validate(text(body)).ok).toBe(true);
+  });
+
+  it('construction rejects mixed levels, non-heading sections, duplicates, and bad flags', () => {
+    expect(() => headingStructureValidator({ sections: ['## a', '### b'] })).toThrow(
+      /same markdown heading marker/,
+    );
+    expect(() => headingStructureValidator({ sections: ['plain title'] })).toThrow(ConfigError);
+    expect(() => headingStructureValidator({ sections: ['## a', '## a'] })).toThrow(/duplicate/);
+    expect(() => headingStructureValidator({ sections: [] })).toThrow(ConfigError);
+    expect(() =>
+      headingStructureValidator({ sections: ['## a'], ordered: 'yes' as never }),
+    ).toThrow(ConfigError);
   });
 });

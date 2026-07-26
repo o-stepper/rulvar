@@ -536,6 +536,68 @@ describe('unparsed tool arguments recovery (the v1.74 experiment review)', () =>
   });
 });
 
+describe('the schema-recovered terminal exchange counter (the sixth comparison experiment, cycle 77)', () => {
+  const finishTool = () =>
+    tool({
+      name: 'finish',
+      description: 'the terminal tool',
+      parameters: z.strictObject({ result: z.string() }),
+      execute: () => Promise.resolve('unused'),
+    });
+
+  it('a recovered terminal payload counts once on the full result', async () => {
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? { toolCall: { name: 'finish', args: { __unparsed: '{"result": "salvaged"}' } } }
+        : { toolCall: { name: 'finish', args: { result: 'fallback' } } },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits(),
+      tools: runtimeOf([finishTool()]),
+      terminalTool: { name: 'finish' },
+    });
+    expect(result.status).toBe('ok');
+    expect(result.output).toBe('salvaged');
+    expect(result.schemaRecoveredTerminalExchanges).toBe(1);
+    expect(result.schemaRejectedTerminalExchanges).toBeUndefined();
+  });
+
+  it('a failed recovery counts as rejected only; a clean run carries neither field', async () => {
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? { toolCall: { name: 'finish', args: { __unparsed: '{"result": "abc' } } }
+        : { toolCall: { name: 'finish', args: { result: 'repaired' } } },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits(),
+      tools: runtimeOf([finishTool()]),
+      terminalTool: { name: 'finish' },
+    });
+    expect(result.status).toBe('ok');
+    expect(result.schemaRecoveredTerminalExchanges).toBeUndefined();
+    expect(result.schemaRejectedTerminalExchanges).toBe(1);
+
+    const cleanAdapter = scriptedAdapter(() => ({
+      toolCall: { name: 'finish', args: { result: 'clean' } },
+    }));
+    const clean = await runAgent({
+      prompt: 'go',
+      adapter: cleanAdapter,
+      resolved,
+      limits: mergeUsageLimits(),
+      tools: runtimeOf([finishTool()]),
+      terminalTool: { name: 'finish' },
+    });
+    expect(clean.schemaRecoveredTerminalExchanges).toBeUndefined();
+  });
+});
+
 describe('the schema-rejected terminal exchange counter (the v1.74 experiment review, cycle 73)', () => {
   const finishTool = () =>
     tool({

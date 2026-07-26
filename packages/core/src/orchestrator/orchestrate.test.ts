@@ -323,6 +323,238 @@ describe('orchestrate (M6-T07/T08)', () => {
     expect(JSON.stringify(secondTurn?.messages.at(-1)?.parts)).toContain('maxSpawns');
   });
 
+  describe('the maxSpawns slot ledger (the sixth comparison experiment, cycle 77)', () => {
+    // The rematch's run 2: a spawn died on a transient budget rejection,
+    // and the orchestrator's perfect retry at a lower budget was refused
+    // 'orchestrate maxSpawns N reached' because the gate counted attempt
+    // ordinals, not admitted children. Under the 1.0 ceiling a hanging
+    // 0.3 child leaves the next 0.3 projection short (certain budget
+    // rejection) while a 0.02 retry still fits.
+    const CHILD_BUDGET = 0.3;
+    const RETRY_BUDGET = 0.02;
+
+    const spawnWave = (includeRetry: boolean): ScriptedTurn => ({
+      toolCalls: [
+        {
+          name: 'spawn_agent',
+          args: { agentType: 'worker', prompt: 'one', budgetUsd: CHILD_BUDGET },
+        },
+        {
+          name: 'spawn_agent',
+          args: { agentType: 'worker', prompt: 'two', budgetUsd: CHILD_BUDGET },
+        },
+        ...(includeRetry
+          ? [
+              {
+                name: 'spawn_agent',
+                args: { agentType: 'worker', prompt: 'two again', budgetUsd: RETRY_BUDGET },
+              },
+            ]
+          : []),
+      ],
+    });
+
+    const verdictsOf = (entries: readonly JournalEntry[]): { kind: string; code?: string }[] =>
+      admissionEntries(entries).map((e) => {
+        const verdict = (
+          e.value as { decision: { verdict: { kind: string; reason?: { code?: string } } } }
+        ).decision.verdict;
+        return {
+          kind: verdict.kind,
+          ...(verdict.reason?.code === undefined ? {} : { code: verdict.reason.code }),
+        };
+      });
+
+    it('an admission-rejected spawn does not burn a slot: the lowered retry admits', async () => {
+      let orchTurn = 0;
+      const adapter = scriptedAdapter((req): ScriptedTurn => {
+        if (agentTypeOf(req) === 'worker') {
+          return { text: 'held', hangMs: 30_000 };
+        }
+        orchTurn += 1;
+        if (orchTurn === 1) {
+          return spawnWave(true);
+        }
+        if (orchTurn === 2) {
+          // The cap is now truly exhausted by ADMITTED children: the
+          // refusal message survives the fix verbatim.
+          return {
+            toolCall: {
+              name: 'spawn_agent',
+              args: { agentType: 'worker', prompt: 'three', budgetUsd: RETRY_BUDGET },
+            },
+          };
+        }
+        if (orchTurn === 3) {
+          return {
+            toolCalls: handlesIn(req).map((handle) => ({ name: 'cancel_agent', args: { handle } })),
+          };
+        }
+        return { toolCall: { name: 'finish', args: { result: 'adapted' } } };
+      });
+      const { internals, store } = makeInternals({
+        adapters: [adapter],
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: PROFILES,
+        budgetUsd: 1,
+      });
+      const wf = makeOrchestratorWorkflow('goal', { maxSpawns: 2 });
+      const outcome = await executeWorkflow(internals, wf, undefined);
+      expect(outcome).toBe('adapted');
+      const verdicts = verdictsOf(await store.load('test-run'));
+      expect(verdicts).toEqual([
+        { kind: 'admit' },
+        { kind: 'reject', code: 'budget' },
+        { kind: 'admit' },
+      ]);
+      const orchCalls = adapter.calls.filter((r) => agentTypeOf(r) === '');
+      // The retry's own result carries a handle, never the cap refusal.
+      expect(JSON.stringify(orchCalls[1]?.messages.at(-1)?.parts)).not.toContain('maxSpawns');
+      // The third spawn crossed the cap of ADMITTED children.
+      expect(JSON.stringify(orchCalls[2]?.messages.at(-1)?.parts)).toContain(
+        'orchestrate maxSpawns 2 reached',
+      );
+    });
+
+    it('admitted spawns still exhaust the cap with the same refusal', async () => {
+      let orchTurn = 0;
+      const adapter = scriptedAdapter((req): ScriptedTurn => {
+        if (agentTypeOf(req) === 'worker') {
+          return { text: 'done' };
+        }
+        orchTurn += 1;
+        if (orchTurn === 1) {
+          return {
+            toolCalls: [
+              { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'a' } },
+              { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'b' } },
+            ],
+          };
+        }
+        if (orchTurn === 2) {
+          return { toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'c' } } };
+        }
+        return { toolCall: { name: 'finish', args: { result: 'capped' } } };
+      });
+      const { internals, store } = makeInternals({
+        adapters: [adapter],
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: PROFILES,
+      });
+      const wf = makeOrchestratorWorkflow('goal', { maxSpawns: 2 });
+      await expect(executeWorkflow(internals, wf, undefined)).resolves.toBe('capped');
+      // The config-gate refusal precedes any journal append.
+      expect(verdictsOf(await store.load('test-run'))).toEqual([
+        { kind: 'admit' },
+        { kind: 'admit' },
+      ]);
+      const orchCalls = adapter.calls.filter((r) => agentTypeOf(r) === '');
+      expect(JSON.stringify(orchCalls[2]?.messages.at(-1)?.parts)).toContain(
+        'orchestrate maxSpawns 2 reached',
+      );
+    });
+
+    it('a crash-resume recounts recovered admits, not recovered rejections', async () => {
+      const transcripts = new InMemoryTranscriptStore();
+      let phase1OrchTurn = 0;
+      const adapter1 = scriptedAdapter((req): ScriptedTurn => {
+        if (agentTypeOf(req) === 'worker') {
+          return { text: 'held', hangMs: 30_000 };
+        }
+        phase1OrchTurn += 1;
+        if (phase1OrchTurn === 1) {
+          return spawnWave(false);
+        }
+        return { error: { code: 'agent', message: 'simulated crash', retryable: false } };
+      });
+      const phase1 = makeInternals({
+        adapters: [adapter1],
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: PROFILES,
+        budgetUsd: 1,
+        transcripts,
+      });
+      const wf = makeOrchestratorWorkflow('goal', { maxSpawns: 2 });
+      await expect(executeWorkflow(phase1.internals, wf, undefined)).rejects.toThrow(
+        /terminated with status 'error'/,
+      );
+      const phase1Entries = await phase1.store.load('test-run');
+      expect(verdictsOf(phase1Entries)).toEqual([
+        { kind: 'admit' },
+        { kind: 'reject', code: 'budget' },
+      ]);
+      const orchestratorTerminal = phase1Entries.find(
+        (e) =>
+          e.kind === 'agent' &&
+          !e.scope.startsWith('agent:') &&
+          e.status !== 'running' &&
+          e.status !== 'suspended',
+      );
+      expect(orchestratorTerminal?.status).toBe('error');
+      const priorEntries = phase1Entries.filter((e) => e.seq < (orchestratorTerminal?.seq ?? 0));
+      const truncatedStore = new InMemoryStore({ quiet: true });
+      for (const entry of priorEntries) {
+        await truncatedStore.append('test-run', entry);
+      }
+
+      // The recovered ledger holds ONE admit and one rejection: the
+      // resumed retry must take the second slot, and only the spawn
+      // after it crosses the cap.
+      let phase2OrchTurn = 0;
+      const adapter2 = scriptedAdapter((req): ScriptedTurn => {
+        if (agentTypeOf(req) === 'worker') {
+          return { text: 'held again', hangMs: 30_000 };
+        }
+        phase2OrchTurn += 1;
+        if (phase2OrchTurn === 1) {
+          return {
+            toolCall: {
+              name: 'spawn_agent',
+              args: { agentType: 'worker', prompt: 'two again', budgetUsd: RETRY_BUDGET },
+            },
+          };
+        }
+        if (phase2OrchTurn === 2) {
+          return {
+            toolCall: {
+              name: 'spawn_agent',
+              args: { agentType: 'worker', prompt: 'past the cap', budgetUsd: RETRY_BUDGET },
+            },
+          };
+        }
+        if (phase2OrchTurn === 3) {
+          return {
+            toolCalls: handlesIn(req).map((handle) => ({ name: 'cancel_agent', args: { handle } })),
+          };
+        }
+        return { toolCall: { name: 'finish', args: { result: 'recovered' } } };
+      });
+      const phase2 = makeInternals({
+        adapters: [adapter2],
+        routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+        profiles: PROFILES,
+        budgetUsd: 1,
+        priorEntries,
+        store: truncatedStore,
+        transcripts,
+      });
+      const outcome = await executeWorkflow(phase2.internals, wf, undefined);
+      expect(outcome).toBe('recovered');
+      // The retry journaled a THIRD admission decision (admit); the spawn
+      // past the cap was refused by the config gate before any append.
+      expect(verdictsOf(await truncatedStore.load('test-run'))).toEqual([
+        { kind: 'admit' },
+        { kind: 'reject', code: 'budget' },
+        { kind: 'admit' },
+      ]);
+      const orchCalls = adapter2.calls.filter((r) => agentTypeOf(r) === '');
+      expect(JSON.stringify(orchCalls[1]?.messages.at(-1)?.parts)).not.toContain('maxSpawns');
+      expect(JSON.stringify(orchCalls[2]?.messages.at(-1)?.parts)).toContain(
+        'orchestrate maxSpawns 2 reached',
+      );
+    });
+  });
+
   it('cancels an in-flight child and digests it as cancelled', async () => {
     let orchTurn = 0;
     const adapter = scriptedAdapter((req): ScriptedTurn => {
@@ -2209,6 +2441,92 @@ describe('error-outcome parity and the schema-rejected finish counter (cycle 73)
     expect(thrown).toBeInstanceOf(FailRunError);
     const data = (thrown as FailRunError).data as Record<string, unknown>;
     expect('schemaRejectedFinishExchanges' in data).toBe(false);
+  });
+});
+
+describe('the schema-recovered finish counter (the sixth comparison experiment, cycle 77)', () => {
+  // The near-JSON second chance (v1.75.1) used to leave only a warn
+  // log behind; the judge's P1.5 wants the recovery durable on the
+  // outcome, beside schemaRejectedFinishExchanges.
+  const DEFAULTS = {
+    routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+    profiles: PROFILES,
+  } as const;
+  const promptTextOf = (req: ChatRequest | undefined): string => {
+    const user = req?.messages.find((message) => message.role === 'user');
+    const part = user?.parts.find((p) => p.type === 'text');
+    return (part as { text?: string } | undefined)?.text ?? '';
+  };
+  const flowAdapter = (options: {
+    unparsedCoordination: boolean;
+    synthesis?: 'unparsed' | 'clean';
+  }) => {
+    let coordination = 0;
+    return scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) === 'worker') {
+        return { text: 'evidence' };
+      }
+      if (options.synthesis !== undefined && /synthesis invocation/.test(promptTextOf(req))) {
+        return options.synthesis === 'unparsed'
+          ? { toolCall: { name: 'finish', args: { __unparsed: '{"result": "final"}' } } }
+          : { toolCall: { name: 'finish', args: { result: 'final' } } };
+      }
+      coordination += 1;
+      if (coordination === 1) {
+        return { toolCall: { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'dig' } } };
+      }
+      if (coordination === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return options.unparsedCoordination
+        ? { toolCall: { name: 'finish', args: { __unparsed: '{"result": "done"}' } } }
+        : { toolCall: { name: 'finish', args: { result: 'done' } } };
+    });
+  };
+  interface RecoveredEnvelope {
+    result?: unknown;
+    completion?: string;
+    schemaRecoveredFinishExchanges?: number;
+  }
+
+  it('a recovered coordination finish counts once on the ok envelope', async () => {
+    const adapter = flowAdapter({ unparsedCoordination: true });
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('goal', {
+      maxSpawns: 1,
+      acceptance: { childPolicy: 'all-ok' },
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as RecoveredEnvelope;
+    expect(envelope.result).toBe('done');
+    expect(envelope.completion).toBe('complete');
+    expect(envelope.schemaRecoveredFinishExchanges).toBe(1);
+  });
+
+  it('a recovered synthesis finish counts; a clean run carries no field', async () => {
+    const adapter = flowAdapter({ unparsedCoordination: false, synthesis: 'unparsed' });
+    const { internals } = makeInternals({ adapters: [adapter], ...DEFAULTS });
+    const wf = makeOrchestratorWorkflow('goal', {
+      maxSpawns: 1,
+      synthesis: { limits: { maxTurns: 2 } },
+      acceptance: { childPolicy: 'all-ok' },
+    });
+    const envelope = (await executeWorkflow(internals, wf, undefined)) as RecoveredEnvelope;
+    expect(envelope.result).toBe('final');
+    expect(envelope.schemaRecoveredFinishExchanges).toBe(1);
+
+    const cleanAdapter = flowAdapter({ unparsedCoordination: false, synthesis: 'clean' });
+    const clean = makeInternals({ adapters: [cleanAdapter], ...DEFAULTS });
+    const cleanEnvelope = (await executeWorkflow(
+      clean.internals,
+      makeOrchestratorWorkflow('goal', {
+        maxSpawns: 1,
+        synthesis: { limits: { maxTurns: 2 } },
+        acceptance: { childPolicy: 'all-ok' },
+      }),
+      undefined,
+    )) as RecoveredEnvelope;
+    expect(cleanEnvelope.result).toBe('final');
+    expect(cleanEnvelope.schemaRecoveredFinishExchanges).toBeUndefined();
   });
 });
 
