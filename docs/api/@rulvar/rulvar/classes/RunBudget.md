@@ -278,6 +278,38 @@ Idempotent: re-registering on resume keeps the journaled amount.
 
 ***
 
+### commitSynthesisReserve()
+
+```ts
+commitSynthesisReserve(scope, reserveUsd): void;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+Registers the synthesis payload reserve (the sixth comparison
+experiment, cycle 76): absolute dollars held on the orchestrator
+account AND the run root, so neither spawn admission nor the
+per-turn output clamp lets the coordination prefix eat the money
+the synthesis finish needs. Unlike the finalize reserve it is
+released BEFORE the synthesis invocation dispatches (the held
+money is exactly what that invocation is meant to spend), and it
+never joins the severing check: a coordination running against the
+hold is clamped smaller, never aborted. Idempotent per account:
+re-registering adjusts the root by the delta.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `scope` | `string` |
+| `reserveUsd` | `number` |
+
+#### Returns
+
+`void`
+
+***
+
 ### exhaustionDiagnostics()
 
 ```ts
@@ -462,6 +494,28 @@ The reserve is replaced by real spend when the spawn settles.
 | ------ | ------ |
 | `reserveUsd` | `number` |
 | `accountScope?` | `string` |
+
+#### Returns
+
+`void`
+
+***
+
+### releaseSynthesisReserve()
+
+```ts
+releaseSynthesisReserve(scope): void;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The synthesis dispatch consumes its reserve; see commitSynthesisReserve.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `scope` | `string` |
 
 #### Returns
 

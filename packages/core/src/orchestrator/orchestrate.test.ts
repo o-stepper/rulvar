@@ -10,7 +10,7 @@ import type { JournalEntry } from '../l0/entries.js';
 import { ConfigError, FailRunError } from '../l0/errors.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { executeWorkflow } from '../engine/ctx.js';
-import { makeInternals, scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
+import { makeInternals, scriptedAdapter, testCaps, type ScriptedTurn } from '../engine/test-harness.js';
 import type { AgentProfile } from '../engine/ctx.js';
 import { createEngine } from '../engine/engine.js';
 import { GitWorktreeProvider } from '../tools/isolation.js';
@@ -2347,5 +2347,166 @@ describe('the synthesis terminal starvation shape (the fifth experiment, cycle 7
     expect((thrown as FailRunError).message).toContain(
       'finish validators are configured, so the unvalidated draft cannot stand',
     );
+  });
+});
+
+describe('the synthesis budget reserve (the sixth comparison experiment, cycle 76)', () => {
+  const RESERVE_DEFAULTS = {
+    routing: { loop: 'fake:model', orchestrate: 'fake:model', synthesize: 'fake:model' },
+  } as const;
+  const promptOf = (req: ChatRequest): string => {
+    const user = req.messages.find((message) => message.role === 'user');
+    const part = user?.parts.find((p) => p.type === 'text');
+    return (part as { text?: string } | undefined)?.text ?? '';
+  };
+  const isSynthesisReq = (req: ChatRequest): boolean => /synthesis invocation/.test(promptOf(req));
+
+  /**
+   * An OBEDIENT scripted model over a 100k output cap: every turn emits
+   * at most the request's maxOutputTokens (the budget clamp's actual
+   * lever), the coordination wants one expensive analysis turn before
+   * its draft finish, and the synthesis needs a 4000 token finish
+   * payload; a synthesis turn clamped under that burns its allowance
+   * and is cut before any tool call, exactly the sixth experiment's
+   * run 1 transcript.
+   */
+  function reserveAdapter(): ReturnType<typeof scriptedAdapter> {
+    let coordination = 0;
+    return scriptedAdapter(
+      (req): ScriptedTurn => {
+        const cap = req.maxOutputTokens;
+        if (isSynthesisReq(req)) {
+          if (cap !== undefined && cap < 62000) {
+            // A brief reasoning prelude is cut at the allowance; the spend
+            // stays small, so the sub account cap is never CROSSED and the
+            // invocation dies at maxTurns, not at the cap (the run 1 shape).
+            return {
+              finish: 'max-tokens',
+              usage: { inputTokens: 500, outputTokens: Math.min(cap, 200) },
+            };
+          }
+          return {
+            toolCall: {
+              name: 'finish',
+              args: {
+                result:
+                  'final report ' +
+                  Array.from({ length: 40 }, (unused, i) => `w${String(i)}`).join(' '),
+              },
+            },
+            usage: { inputTokens: 500, outputTokens: 62000 },
+          };
+        }
+        coordination += 1;
+        if (coordination === 1) {
+          const desired = 140000;
+          const out = cap === undefined ? desired : Math.min(desired, Math.floor(cap * 0.98));
+          return {
+            text: 'coordination analysis',
+            usage: { inputTokens: 1000, outputTokens: out },
+          };
+        }
+        return {
+          toolCall: {
+            name: 'finish',
+            args: {
+              result:
+                'the draft ' +
+                Array.from({ length: 30 }, (unused, i) => `d${String(i)}`).join(' '),
+            },
+          },
+          usage: { inputTokens: 400, outputTokens: 400 },
+        };
+      },
+      { caps: testCaps({ maxOutputTokens: 200000 }) },
+    );
+  }
+
+  function reserveWorkflow(budget: {
+    capUsd: number;
+    capFraction: number;
+    synthesisReserveUsd?: number;
+  }): ReturnType<typeof makeOrchestratorWorkflow> {
+    return makeOrchestratorWorkflow('compose the assessment', {
+      budget,
+      // estCost keeps the synthesis agent's own admission reserve small
+      // so the crossing check never double counts the payload beside
+      // the flat 0.5 default while the finish turn is still settling.
+      synthesis: { limits: { maxTurns: 2 }, estCost: 0.05 },
+      finishValidation: { validators: [wordCountValidator({ min: 20 })] },
+    });
+  }
+
+  it('without the reserve the sub account budget clamps the synthesis below the payload and the run fails closed', async () => {
+    const adapter = reserveAdapter();
+    const engine = createEngine({ adapters: [adapter], defaults: RESERVE_DEFAULTS });
+    const outcome = await engine
+      .run(reserveWorkflow({ capUsd: 2.0, capFraction: 1.0 }), undefined, { budgetUsd: 10 })
+      .result;
+    expect(outcome.status).toBe('error');
+    expect(outcome.error?.code).toBe('fail_run');
+    expect(outcome.error?.message).toContain(
+      "the synthesis invocation terminated with status 'limit'",
+    );
+    expect((outcome.error?.data as { source?: string }).source).toBe('orchestrator_synthesis');
+    const synthesisRequests = adapter.calls.filter(isSynthesisReq);
+    expect(synthesisRequests.length).toBeGreaterThan(0);
+    for (const req of synthesisRequests) {
+      expect(req.maxOutputTokens ?? Infinity).toBeLessThan(62000);
+    }
+  });
+
+  it('budget.synthesisReserveUsd holds the payload money through coordination and the finish lands', async () => {
+    const adapter = reserveAdapter();
+    const engine = createEngine({ adapters: [adapter], defaults: RESERVE_DEFAULTS });
+    const outcome = await engine
+      .run(
+        reserveWorkflow({ capUsd: 2.0, capFraction: 1.0, synthesisReserveUsd: 0.7 }),
+        undefined,
+        { budgetUsd: 10 },
+      )
+      .result;
+    expect(outcome.status).toBe('ok');
+    expect(String(outcome.value)).toContain('final report');
+    // The hold's two visible edges: the coordination allowance shrank
+    // below the raw cap, and the synthesis dispatched at or above the
+    // 4000 token payload.
+    const coordinationFirst = adapter.calls.find((req) => !isSynthesisReq(req));
+    expect(coordinationFirst?.maxOutputTokens ?? Infinity).toBeLessThan(140000);
+    const synthesisRequest = adapter.calls.find(isSynthesisReq);
+    expect(synthesisRequest?.maxOutputTokens ?? Infinity).toBeGreaterThanOrEqual(62000);
+  });
+
+  it('the reserve is validated at intake', () => {
+    expect(() =>
+      makeOrchestratorWorkflow('g', { budget: { synthesisReserveUsd: 0.1 } }),
+    ).toThrow(ConfigError);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: {},
+        budget: { synthesisReserveUsd: -1 },
+      }),
+    ).toThrow(ConfigError);
+    expect(() =>
+      makeOrchestratorWorkflow('g', {
+        synthesis: { mode: 'incremental' },
+        budget: { synthesisReserveUsd: 0.1 },
+      }),
+    ).toThrow(ConfigError);
+  });
+
+  it('a reserve at or above the effective cap refuses before any dispatch', async () => {
+    const adapter = reserveAdapter();
+    const engine = createEngine({ adapters: [adapter], defaults: RESERVE_DEFAULTS });
+    const outcome = await engine
+      .run(
+        reserveWorkflow({ capUsd: 2.0, capFraction: 1.0, synthesisReserveUsd: 2.0 }),
+        undefined,
+        { budgetUsd: 10 },
+      )
+      .result;
+    expect(outcome.status).toBe('error');
+    expect(outcome.error?.message).toMatch(/synthesis reserve/);
+    expect(adapter.calls).toHaveLength(0);
   });
 });

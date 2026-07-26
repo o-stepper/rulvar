@@ -707,6 +707,81 @@ describe('orchestrate-wave parity (the 1.63.0 experiment review, P0.3)', () => {
     expect(orchestratorAdmissionEstCostUsd(0.7, 0.3)).toBeCloseTo(0.4, 10);
   });
 
+  it('an orchestrate child admitted only at exact fill is denied by the projection (the sixth comparison experiment, cycle 76)', () => {
+    const engineOptions = {
+      defaults: {
+        routing: { loop: SERVED, orchestrate: SERVED },
+        profiles: { worker: { description: 'one specialist', estCost: 1.5 } },
+      },
+    };
+    const declaredSpawns = ['w1', 'w2', 'w3', 'w4'].map((label) => ({
+      label,
+      profile: 'worker',
+      estCost: 1.5,
+      budgetUsd: 1.5,
+    }));
+    const report = preflightEstimate({
+      engine: { ...engineOptions, adapters: [scriptedAdapter(() => ({ text: 'x' }))] },
+      run: { budgetUsd: 10 },
+      orchestrator: { maxSpawns: 4, budget: { capUsd: 4, capFraction: 1.0 } },
+      spawns: declaredSpawns,
+    });
+    // The rematch run 2 shape: the orchestrator hold (4) plus three
+    // admitted reserves (4.5) leaves exactly the fourth reserve (1.5)
+    // of the 10 ceiling. The coordination turn that issues the spawn
+    // tools is paid strictly before any spawn executes, so a child that
+    // fits only at exact fill is certain to be denied live; the
+    // projection must say so instead of promising 5 of 5.
+    expect(report.admission.wave[0].label).toBe('orchestrator');
+    expect(report.admission.wave[0].reserveUsd).toBeCloseTo(4, 10);
+    expect(report.admission.wave.map((row) => row.admitted)).toEqual([
+      true,
+      true,
+      true,
+      true,
+      false,
+    ]);
+    expect(report.admission.wave[4].deniedBy).toBe('budget');
+    const partial = report.findings.find((finding) => finding.code === 'partial-admission');
+    expect(partial?.severity).toBe('warning');
+    expect(partial?.message).toContain('4 of 5');
+    expect(partial?.message).toContain('w4');
+    // The live half of this parity is the sixth comparison experiment's
+    // own journal: the byte-same declared wave (parallel_agents, four
+    // tasks at budgetUsd 1.5 under capUsd 4 and ceiling 10) recorded
+    // verdict {kind: 'reject', reason: {code: 'budget'}} for the fourth
+    // task, because the live remainder additionally carries the
+    // coordination spend and the already-dispatched siblings' commits.
+    // In process the exact moment reserves commit and release is
+    // scheduler dependent (a settled scripted child frees its reserve
+    // again), so the live rejection is asserted by the recorded run,
+    // not re-raced here; the projection must be strictly conservative
+    // at exact fill either way.
+  });
+
+  it('an orchestrate wave below exact fill keeps admitting everyone (the revision 2.3 arithmetic)', () => {
+    const report = preflightEstimate({
+      engine: {
+        adapters: [scriptedAdapter(() => ({ text: 'x' }))],
+        defaults: {
+          routing: { loop: SERVED, orchestrate: SERVED },
+          profiles: { worker: { description: 'one specialist', estCost: 1.5 } },
+        },
+      },
+      run: { budgetUsd: 10 },
+      orchestrator: { maxSpawns: 4, budget: { capUsd: 3, capFraction: 1.0 } },
+      spawns: ['w1', 'w2', 'w3', 'w4'].map((label) => ({
+        label,
+        profile: 'worker',
+        estCost: 1.5,
+        budgetUsd: 1.5,
+      })),
+    });
+    expect(report.admission.admitted).toBe(5);
+    expect(report.admission.denied).toBe(0);
+    expect(report.findings.find((f) => f.code === 'partial-admission')).toBeUndefined();
+  });
+
   it('warns when the whole tool budget fits one parallel batch before any checkpoint (P1.8)', () => {
     const adapter = scriptedAdapter(() => ({ text: 'unused' }));
     const report = preflightEstimate({
@@ -1322,5 +1397,70 @@ describe('the synthesis tool headroom and the draft gate findings (the fifth exp
       },
     });
     expect(codesOf(noWords)).not.toContain('draft-gate-below-contract');
+  });
+});
+
+describe('the synthesis reserve finding (the sixth comparison experiment, cycle 76)', () => {
+  const CONTRACT = finishContract({
+    sections: ['## A', '## B'],
+    words: { min: 40, max: 4000 },
+    citations: { min: 2, perSection: 1 },
+  });
+  function reserveInput(budget?: {
+    capUsd?: number;
+    capFraction?: number;
+    synthesisReserveUsd?: number;
+  }): Parameters<typeof preflightEstimate>[0] {
+    return {
+      engine: {
+        adapters: [scriptedAdapter(() => ({ text: 'x' }))],
+        defaults: { routing: { orchestrate: SERVED, synthesize: SERVED } },
+      },
+      run: { budgetUsd: 10 },
+      orchestrator: {
+        maxSpawns: 2,
+        ...(budget === undefined ? {} : { budget }),
+        synthesis: {
+          limits: { maxTurns: 4 },
+          exposeChildResultTools: true,
+          context: 'full',
+        },
+      },
+      finishValidation: {
+        validators: [...CONTRACT.validators],
+        contract: CONTRACT,
+        repairTurnReserve: 1,
+      },
+    };
+  }
+
+  it('fires when a contract binds the synthesis and no reserve is declared', () => {
+    const report = preflightEstimate(reserveInput({ capUsd: 2, capFraction: 1.0 }));
+    const finding = report.findings.find((f) => f.code === 'synthesis-reserve-unfunded');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.spawn).toBe('synthesis');
+    expect(finding?.message).toContain('no synthesis reserve');
+    expect(finding?.message).toContain('budget.synthesisReserveUsd');
+  });
+
+  it('fires when the declared reserve sits below the priced payload, naming both numbers', () => {
+    const report = preflightEstimate(
+      reserveInput({ capUsd: 2, capFraction: 1.0, synthesisReserveUsd: 0.0000005 }),
+    );
+    const finding = report.findings.find((f) => f.code === 'synthesis-reserve-unfunded');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('only 0.0000 USD');
+    expect(finding?.message).toMatch(/about \d+ output tokens/);
+  });
+
+  it('stays quiet at or above the payload price, and without a contract', () => {
+    const funded = preflightEstimate(
+      reserveInput({ capUsd: 2, capFraction: 1.0, synthesisReserveUsd: 1.0 }),
+    );
+    expect(funded.findings.find((f) => f.code === 'synthesis-reserve-unfunded')).toBeUndefined();
+    const contractless = reserveInput({ capUsd: 2, capFraction: 1.0 });
+    delete (contractless as { finishValidation?: unknown }).finishValidation;
+    const report = preflightEstimate(contractless);
+    expect(report.findings.find((f) => f.code === 'synthesis-reserve-unfunded')).toBeUndefined();
   });
 });

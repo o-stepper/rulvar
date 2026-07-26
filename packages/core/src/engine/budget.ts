@@ -106,6 +106,8 @@ export interface BudgetAccountView {
   spentUsd: number;
   committedReserveUsd: number;
   finalizeReserveUsd: number;
+  /** The synthesis payload hold (cycle 76); zero when none is committed. */
+  synthesisReserveUsd: number;
   parentScope?: string;
 }
 
@@ -133,6 +135,8 @@ interface AccountState {
   spentUsd: number;
   committedReserveUsd: number;
   finalizeReserveUsd: number;
+  /** The synthesis payload hold (cycle 76); see commitSynthesisReserve. */
+  synthesisReserveUsd: number;
   parentScope?: string;
   /**
    * Diagnostic label: the orchestrator cap account marks itself, and a
@@ -200,6 +204,7 @@ export class RunBudget {
       spentUsd: 0,
       committedReserveUsd: 0,
       finalizeReserveUsd: 0,
+      synthesisReserveUsd: 0,
       controller: new AbortController(),
     };
     if (options.ceilingUsd !== undefined) {
@@ -277,6 +282,7 @@ export class RunBudget {
       spentUsd: 0,
       committedReserveUsd: 0,
       finalizeReserveUsd: options.finalizeReserveUsd ?? 0,
+      synthesisReserveUsd: 0,
       parentScope,
       controller: new AbortController(),
     };
@@ -349,6 +355,7 @@ export class RunBudget {
       spentUsd: account.spentUsd,
       committedReserveUsd: account.committedReserveUsd,
       finalizeReserveUsd: account.finalizeReserveUsd,
+      synthesisReserveUsd: account.synthesisReserveUsd,
     };
     if (account.ceilingUsd !== undefined) {
       view.ceilingUsd = account.ceilingUsd;
@@ -374,7 +381,8 @@ export class RunBudget {
       account.ceilingUsd -
         account.spentUsd -
         account.committedReserveUsd -
-        account.finalizeReserveUsd,
+        account.finalizeReserveUsd -
+        account.synthesisReserveUsd,
     );
   }
 
@@ -475,7 +483,11 @@ export class RunBudget {
       if (account.ceilingUsd === undefined) {
         continue;
       }
-      const committed = account.spentUsd + account.committedReserveUsd + account.finalizeReserveUsd;
+      const committed =
+        account.spentUsd +
+        account.committedReserveUsd +
+        account.finalizeReserveUsd +
+        account.synthesisReserveUsd;
       if (committed >= account.ceilingUsd || committed + reserveUsd > account.ceilingUsd) {
         if (account.scope === ROOT_ACCOUNT) {
           this.exhaustedInternal = true;
@@ -553,6 +565,50 @@ export class RunBudget {
     this.emitUpdate();
   }
 
+  /**
+   * Registers the synthesis payload reserve (the sixth comparison
+   * experiment, cycle 76): absolute dollars held on the orchestrator
+   * account AND the run root, so neither spawn admission nor the
+   * per-turn output clamp lets the coordination prefix eat the money
+   * the synthesis finish needs. Unlike the finalize reserve it is
+   * released BEFORE the synthesis invocation dispatches (the held
+   * money is exactly what that invocation is meant to spend), and it
+   * never joins the severing check: a coordination running against the
+   * hold is clamped smaller, never aborted. Idempotent per account:
+   * re-registering adjusts the root by the delta.
+   */
+  commitSynthesisReserve(scope: string, reserveUsd: number): void {
+    const account = this.accounts.get(scope);
+    if (account === undefined) {
+      throw new ConfigError(`unknown budget account '${scope}' for the synthesis reserve`);
+    }
+    const previous = account.synthesisReserveUsd;
+    account.synthesisReserveUsd = reserveUsd;
+    if (account.scope !== ROOT_ACCOUNT) {
+      this.root.synthesisReserveUsd = Math.max(
+        0,
+        this.root.synthesisReserveUsd + reserveUsd - previous,
+      );
+    }
+    this.emitUpdate();
+  }
+
+  /** The synthesis dispatch consumes its reserve; see commitSynthesisReserve. */
+  releaseSynthesisReserve(scope: string): void {
+    const account = this.accounts.get(scope);
+    if (account === undefined || account.synthesisReserveUsd === 0) {
+      return;
+    }
+    if (account.scope !== ROOT_ACCOUNT) {
+      this.root.synthesisReserveUsd = Math.max(
+        0,
+        this.root.synthesisReserveUsd - account.synthesisReserveUsd,
+      );
+    }
+    account.synthesisReserveUsd = 0;
+    this.emitUpdate();
+  }
+
   /** The reserve is replaced by real spend when the spawn settles. */
   releaseReserve(reserveUsd: number, accountScope: string = ROOT_ACCOUNT): void {
     for (const account of this.chainOf(accountScope)) {
@@ -607,7 +663,7 @@ export class RunBudget {
       if (account.ceilingUsd === undefined) {
         continue;
       }
-      const headroom = account.ceilingUsd - account.spentUsd;
+      const headroom = account.ceilingUsd - account.spentUsd - account.synthesisReserveUsd;
       remainingUsd = remainingUsd === undefined ? headroom : Math.min(remainingUsd, headroom);
     }
     if (remainingUsd === undefined) {
