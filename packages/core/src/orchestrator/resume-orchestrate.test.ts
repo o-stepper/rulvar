@@ -17,6 +17,7 @@ import { createEngine, type EngineDefaults } from '../engine/engine.js';
 import type { Workflow } from '../engine/ctx.js';
 import { scriptedAdapter, type ScriptedTurn } from '../engine/test-harness.js';
 import { makeOrchestratorWorkflow, ORCHESTRATE_WORKFLOW_NAME } from './orchestrate.js';
+import { finishContract } from './output-contract.js';
 
 function agentTypeOf(req: ChatRequest): string {
   const rulvar = (req.providerOptions as { rulvar?: { agentType?: string } } | undefined)?.rulvar;
@@ -272,5 +273,232 @@ describe('dynamic orchestrator resume after a budget-cancelled root', () => {
     const preview = await handle.preview;
     expect(preview.hits).toBeGreaterThan(0);
     expect(preview).toMatchObject({ misses: 0, reruns: 0, orphaned: [] });
+  });
+});
+
+describe('contract generation scoping across resume (the v1.74 experiment review, cycle 73)', () => {
+  /**
+   * A journal store that plays dead right after the final finish
+   * rejection becomes durable: every later append and meta write fails,
+   * so the run terminal is never written. This is the documented crash
+   * window between the journaled 'rejected' decision and the run
+   * terminal, reconstructed in-process.
+   */
+  class CrashingStore extends JsonlFileStore {
+    poisoned = false;
+    override async append(runId: string, entry: JournalEntry): Promise<void> {
+      if (this.poisoned) {
+        throw new Error('rv73: the process is dead');
+      }
+      await super.append(runId, entry);
+      const value = entry.value as { decisionType?: string; verdict?: string } | undefined;
+      if (
+        value?.decisionType === 'orchestrator_finish_validation' &&
+        value.verdict === 'rejected'
+      ) {
+        this.poisoned = true;
+      }
+    }
+    override async putMeta(meta: Parameters<JsonlFileStore['putMeta']>[0]): Promise<void> {
+      if (this.poisoned) {
+        throw new Error('rv73: the process is dead');
+      }
+      await super.putMeta(meta);
+    }
+  }
+
+  const contractC1 = () => finishContract({ sections: ['## Report'], words: { min: 50 } });
+  const contractC2 = () => finishContract({ sections: ['## Report'] });
+  const CONFORMING = '## Report\nfixed and conforming';
+
+  const defaults: EngineDefaults = {
+    routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+  };
+
+  const wfOf = (
+    contract: ReturnType<typeof finishContract>,
+    maxRepairs: number,
+  ): Workflow<undefined, unknown> =>
+    makeOrchestratorWorkflow('produce the report', {
+      limits: { maxTurns: 4 },
+      finishValidation: { validators: contract.validators, contract, maxRepairs },
+    });
+
+  const doomedAdapter = (drafts: string[], salt?: string) => {
+    let turn = 0;
+    // The resuming instance salts its tool-call ids: a fresh adapter
+    // restarts its ordinals at zero, and unsalted ids would collide
+    // with the journaled finish callIds of the pre-crash instance
+    // (real providers mint globally unique ids).
+    return scriptedAdapter(
+      (): ScriptedTurn => {
+        const draft = drafts[Math.min(turn, drafts.length - 1)];
+        turn += 1;
+        return { toolCall: { name: 'finish', args: { result: draft } } };
+      },
+      salt === undefined ? undefined : { toolCallSalt: salt },
+    );
+  };
+
+  /** Runs the doomed pass over a fresh dir and returns the crash-window stores. */
+  const crashWindow = async (options?: { maxRepairs?: number; drafts?: string[] }) => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-rv73-'));
+    const crashing = new CrashingStore({ dir });
+    const transcripts = new FileTranscriptStore({ dir: join(dir, 'transcripts') });
+    const engine = createEngine({
+      adapters: [doomedAdapter(options?.drafts ?? ['nope'])],
+      stores: { journal: crashing, transcripts },
+      defaults,
+    });
+    await engine
+      .run(wfOf(contractC1(), options?.maxRepairs ?? 0), undefined, { runId: 'RV73' })
+      .result.catch(() => undefined);
+    // The window is genuine: the rejection is durable, the terminal is not.
+    const store = new JsonlFileStore({ dir });
+    const entries = await store.load('RV73');
+    expect(
+      entries.some(
+        (entry) =>
+          entry.kind === 'decision' &&
+          (entry.value as { decisionType?: string } | undefined)?.decisionType === 'run_settle',
+      ),
+    ).toBe(false);
+    const decisions = entries.filter(
+      (entry) =>
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+        'orchestrator_finish_validation',
+    );
+    expect((decisions.at(-1)?.value as { verdict?: string } | undefined)?.verdict).toBe('rejected');
+    return { dir, store, transcripts, entries };
+  };
+
+  const validationDecisionsOf = (entries: readonly JournalEntry[]): Record<string, unknown>[] =>
+    entries
+      .filter(
+        (entry) =>
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_finish_validation',
+      )
+      .map((entry) => entry.value as Record<string, unknown>);
+
+  const bundlesOf = (entries: readonly JournalEntry[]): Record<string, unknown>[] =>
+    entries
+      .filter(
+        (entry) =>
+          (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_finish_validation_bundle',
+      )
+      .map((entry) => entry.value as Record<string, unknown>);
+
+  it('a resume under a FIXED contract survives the stale final rejection and repairs live', async () => {
+    const { store, transcripts } = await crashWindow();
+    const c2 = contractC2();
+    const adapter = doomedAdapter([CONFORMING], 'resume');
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store, transcripts },
+      defaults,
+    });
+    const resumed = await engine.resume('RV73', wfOf(c2, 0)).result;
+    expect(resumed.status).toBe('ok');
+    expect(resumed.value).toBe(CONFORMING);
+    // The stale exchange replayed for free: exactly ONE live turn, the
+    // repair the fixed generation validated.
+    expect(adapter.calls).toHaveLength(1);
+    const entries = await store.load('RV73');
+    const bundles = bundlesOf(entries);
+    expect(bundles).toHaveLength(2);
+    expect(bundles[1]?.supersedes).toBe(contractC1().hash);
+    const decisions = validationDecisionsOf(entries);
+    // The stale generation keeps its rejection; the fixed generation
+    // validated live, first try, with the full repair budget back.
+    expect(decisions.at(-1)).toMatchObject({
+      verdict: 'accepted',
+      repairsUsed: 0,
+      contractHash: c2.hash,
+    });
+  });
+
+  it('a resume under the SAME contract still rolls the rejection forward before any model call', async () => {
+    const { store, transcripts } = await crashWindow();
+    const adapter = doomedAdapter([CONFORMING], 'resume');
+    const engine = createEngine({
+      adapters: [adapter],
+      stores: { journal: store, transcripts },
+      defaults,
+    });
+    const resumed = await engine.resume('RV73', wfOf(contractC1(), 0)).result;
+    expect(resumed.status).toBe('error');
+    expect(resumed.error?.message).toContain('failed host validation');
+    expect(adapter.calls).toHaveLength(0);
+  });
+
+  it('legacy unhashed decisions bind to the current contract only while no supersession exists', async () => {
+    const { transcripts, entries } = await crashWindow();
+    // A journal recorded before decisions carried contractHash: strip the
+    // field, exactly what a 1.76 store holds.
+    const legacyEntries = entries.map((entry) => {
+      const value = entry.value as { decisionType?: string } | undefined;
+      if (value?.decisionType !== 'orchestrator_finish_validation') {
+        return entry;
+      }
+      const { contractHash: _dropped, ...rest } = entry.value as Record<string, unknown>;
+      return { ...entry, value: rest } as JournalEntry;
+    });
+    const copyInto = async (): Promise<JsonlFileStore> => {
+      const copyDir = mkdtempSync(join(tmpdir(), 'rulvar-rv73-legacy-'));
+      const copy = new JsonlFileStore({ dir: copyDir });
+      for (const entry of legacyEntries) {
+        await copy.append('RV73', entry);
+      }
+      return copy;
+    };
+
+    // (a) Same contract, single descriptor: the unhashed rejection is
+    // the current generation and still dooms the resume.
+    const sameStore = await copyInto();
+    const sameAdapter = doomedAdapter([CONFORMING], 'resume');
+    const sameEngine = createEngine({
+      adapters: [sameAdapter],
+      stores: { journal: sameStore, transcripts },
+      defaults,
+    });
+    const same = await sameEngine.resume('RV73', wfOf(contractC1(), 0)).result;
+    expect(same.status).toBe('error');
+    expect(sameAdapter.calls).toHaveLength(0);
+
+    // (b) Fixed contract: the superseding descriptor marks every
+    // unhashed decision stale, and the run repairs live.
+    const fixedStore = await copyInto();
+    const fixedEngine = createEngine({
+      adapters: [doomedAdapter([CONFORMING], 'fixed')],
+      stores: { journal: fixedStore, transcripts },
+      defaults,
+    });
+    const fixed = await fixedEngine.resume('RV73', wfOf(contractC2(), 0)).result;
+    expect(fixed.status).toBe('ok');
+    expect(fixed.value).toBe(CONFORMING);
+  });
+
+  it('repairsUsed counts only the current generation, so a fixed contract restores the budget', async () => {
+    const { store, transcripts } = await crashWindow({
+      maxRepairs: 1,
+      drafts: ['nope', 'still nope'],
+    });
+    const c2 = contractC2();
+    const engine = createEngine({
+      adapters: [doomedAdapter(['bad for the fixed contract too', CONFORMING], 'resume')],
+      stores: { journal: store, transcripts },
+      defaults,
+    });
+    const resumed = await engine.resume('RV73', wfOf(c2, 1)).result;
+    expect(resumed.status).toBe('ok');
+    expect(resumed.value).toBe(CONFORMING);
+    const decisions = validationDecisionsOf(await store.load('RV73'));
+    // The doomed generation spent its whole budget (repair then
+    // rejected); the fixed generation starts at zero again.
+    const fresh = decisions.filter((decision) => decision.contractHash === c2.hash);
+    expect(fresh.map((decision) => decision.verdict)).toEqual(['repair', 'accepted']);
+    expect(fresh[0]?.repairsUsed).toBe(0);
   });
 });
