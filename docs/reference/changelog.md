@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.78.0
+
+#### Patch Changes
+
+- Updated dependencies [941b6e1]
+  - @rulvar/core@1.78.0
+
 ### 1.77.0
 
 #### Patch Changes
@@ -954,6 +961,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.78.0
+
+#### Patch Changes
+
+- Updated dependencies [941b6e1]
+  - @rulvar/core@1.78.0
+
 ### 1.77.0
 
 #### Patch Changes
@@ -1747,6 +1761,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.78.0
+
+#### Patch Changes
+
+- Updated dependencies [941b6e1]
+  - @rulvar/core@1.78.0
 
 ### 1.77.0
 
@@ -2855,6 +2876,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.78.0
+
+#### Minor Changes
+
+- 941b6e1: Contract exactness (the v1.74 experiment review, cycle 74, the last fourth-report slice). The `finishContract` bundle is now DEEPLY frozen: the nested manifest objects, the sections array, the validators array, and each validator object, so a post-construction mutation throws a `TypeError` instead of silently diverging enforcement from the journaled contract hash (on 1.77.0, pushing into `manifest.sections` changed the live validator through a shared array reference while `hash` kept claiming the original manifest). The contract now carries one reject golden PER validator (`goldenRejects`), each proven at construction, and both the orchestrate construction self test and `preflightEstimate` hold the CONFIGURED validator of each name against its golden: a same-name replacement weaker than the contract's own validator (a words minimum of one standing in for fifty, which on 1.77.0 passed the single shared reject fixture on the strength of an unrelated validator and let an end-to-end run accept a five-word result against a `words.min: 50` contract) is now a `ConfigError` at construction and the new error finding `output-contract-validator-weakened` in preflight; `selfTestFinishValidation` accepts the goldens via the new `rejects` option. Two manifest knobs sharpen matching: `sectionsMatch: 'line'` demands each section marker as its own line (a mid-sentence mention or a marker echoed inside a code fence no longer satisfies a heading), and `fencedCode: 'excluded'` removes fenced code blocks (the exported `stripFencedBlocks` grammar) before section matching, per-section slicing, word counting, and citation matching, so code samples can neither pad `words.min` nor donate citations, and a fenced marker occurrence can no longer mis-anchor a section's citation slice. Both knobs default to the historical behavior, normalize away at their defaults, join the hash and the prompt statement only when non-default, and exist on the standalone validators too (`match` on `requiredSectionsValidator` and `sectionCitationsValidator`, `fencedCode` on those plus `wordCountValidator` and `minMatchesValidator`). Absent knobs and untouched bundles keep every existing configuration byte-identical: prompts, hashes, journals, and validator verdicts.
 
 ### 1.77.0
 
@@ -4347,6 +4374,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.78.0
+
 ### 1.77.0
 
 ### 1.76.0
@@ -4599,6 +4628,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.78.0
+
+#### Patch Changes
+
+- Updated dependencies [941b6e1]
+  - @rulvar/core@1.78.0
+  - @rulvar/testing@1.78.0
 
 ### 1.77.0
 
@@ -5583,6 +5620,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.78.0
+
+#### Patch Changes
+
+- Updated dependencies [941b6e1]
+  - @rulvar/core@1.78.0
+
 ### 1.77.0
 
 #### Patch Changes
@@ -5761,6 +5805,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.78.0
+
+#### Patch Changes
+
+- Updated dependencies [941b6e1]
+  - @rulvar/core@1.78.0
 
 ### 1.77.0
 
@@ -6715,6 +6766,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.78.0
+
+#### Patch Changes
+
+- Updated dependencies [941b6e1]
+  - @rulvar/core@1.78.0
+
 ### 1.77.0
 
 #### Patch Changes
@@ -7629,6 +7687,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.78.0
+
+#### Patch Changes
+
+- Updated dependencies [941b6e1]
+  - @rulvar/core@1.78.0
+  - eslint-plugin-rulvar@1.78.0
 
 ### 1.77.0
 
@@ -8569,6 +8635,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.78.0
+
+#### Patch Changes
+
+- Updated dependencies [941b6e1]
+  - @rulvar/core@1.78.0
+  - @rulvar/anthropic@1.78.0
+  - @rulvar/openai@1.78.0
 
 ### 1.77.0
 
@@ -9678,6 +9753,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.78.0
+
+#### Patch Changes
+
+- Updated dependencies [941b6e1]
+  - @rulvar/core@1.78.0
+
 ### 1.77.0
 
 #### Patch Changes
@@ -10576,6 +10658,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.78.0
+
+#### Patch Changes
+
+- Updated dependencies [941b6e1]
+  - @rulvar/core@1.78.0
+
 ### 1.77.0
 
 #### Patch Changes
@@ -10776,6 +10865,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.78.0
+
+#### Patch Changes
+
+- Updated dependencies [941b6e1]
+  - @rulvar/core@1.78.0
 
 ### 1.77.0
 
@@ -11616,6 +11712,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.78.0
+
+#### Patch Changes
+
+- Updated dependencies [941b6e1]
+  - @rulvar/core@1.78.0
 
 ### 1.77.0
 
