@@ -7126,6 +7126,30 @@ interface FinishValidationSpec {
   */
   repairTurnReserve?: number;
   /**
+  * The coordination draft gate (the v1.74 experiment review, P0.3),
+  * meaningful ONLY with `synthesis` configured: with validators bound
+  * to the synthesis finish, the coordination finish is an unvalidated
+  * draft, and the experiment's model escaped six failed finish
+  * exchanges with the schema-valid draft 'test', which then starved
+  * synthesis of every citation the validators demanded. The policy
+  * runs deterministic library checks on each coordination finish
+  * (whitespace-token `minWords`, literal `requireSections` markers,
+  * the wordCountValidator and requiredSectionsValidator semantics);
+  * a failing draft returns to the model as the finish call's error
+  * result and the turn continues, exactly like a host validation
+  * rejection, and `repairTurnReserve` grants coordination the same
+  * per-rejected-exchange headroom it grants the synthesis finish.
+  * Pure text checks over the durable exchange: nothing journals, a
+  * resumed segment recounts identically, and `maxRepairs` is not
+  * consumed (it belongs to the synthesis-bound validators). Absent =
+  * byte identical pre 1.76 behavior; configured without `synthesis` =
+  * ConfigError.
+  */
+  draftPolicy?: {
+    /** Minimum whitespace-separated words the draft must carry. */minWords?: number; /** Literal markers the draft text must contain. */
+    requireSections?: string[];
+  };
+  /**
   * The unified output contract this validator set enforces (the v1.71
   * experiment review, P0.1/P0.2). Construction then runs the golden
   * self test with the contract's fixtures as defaults, the contract's
@@ -7286,6 +7310,31 @@ interface OrchestrateSynthesis {
   * { maxTurns: 2 }. Ignored in 'single' mode.
   */
   noteLimits?: UsageLimits;
+  /**
+  * Give the 'single' synthesis invocation the RV-201 evidence tools
+  * `get_child_result` and `read_child_artifact` beside `finish` (the
+  * v1.74 experiment review, P0.2): the finish validators hold the
+  * result against the FULL child outputs while the synthesis model
+  * sees 400 char digests, so when the coordination draft collapses the
+  * evidence the validators demand is model-invisible. With the tools
+  * exposed the digest rows in the synthesis prompt carry each child's
+  * `handle`, and the model pages any settled child's full output or
+  * artifacts before finishing. Off by default: the synthesis toolset
+  * and prompt stay byte identical, exactly like the coordination
+  * `exposeChildResultTools`.
+  */
+  exposeChildResultTools?: boolean;
+  /**
+  * What the 'single' synthesis prompt embeds beside the draft (the
+  * v1.74 experiment review, P0.2). Default 'digests': the 400 char
+  * settled digest rows, byte identical to pre 1.76. 'full' appends a
+  * CHILD OUTPUTS section carrying every settled child's FULL
+  * serialized output after the digest rows: the whole evidence pool
+  * the validators judge against rides the prompt, paid as input
+  * tokens (declare `estCost` or the preflight `estInputTokens`
+  * accordingly).
+  */
+  context?: "digests" | "full";
 }
 /**
 * The deterministic reconciliation envelope an 'incremental' synthesis
@@ -8866,6 +8915,14 @@ interface PreflightOrchestratorSpec {
     model?: ModelSpec;
     limits?: UsageLimits;
     estInputTokens?: number;
+    /**
+    * Mirrors OrchestrateSynthesis.exposeChildResultTools (the v1.74
+    * experiment review, P0.2): declaring it lets the evidence
+    * asymmetry check see that the synthesis model can page the full
+    * child outputs the validators judge against.
+    */
+    exposeChildResultTools?: boolean; /** Mirrors OrchestrateSynthesis.context; default 'digests'. */
+    context?: "digests" | "full";
   };
 }
 /** The full input: engine surface, run surface, and the declared wave. */
