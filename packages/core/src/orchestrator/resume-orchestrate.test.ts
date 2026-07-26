@@ -502,3 +502,56 @@ describe('contract generation scoping across resume (the v1.74 experiment review
     expect(fresh[0]?.repairsUsed).toBe(0);
   });
 });
+
+describe('contract generation scoping never resurrects a settled run (cycle 73)', () => {
+  it('a SETTLED final rejection re-settles identically under a fixed contract, zero calls', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'rulvar-rv73-settled-'));
+    const store = new JsonlFileStore({ dir });
+    const transcripts = new FileTranscriptStore({ dir: join(dir, 'transcripts') });
+    const defaults: EngineDefaults = {
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+    };
+    const c1 = finishContract({ sections: ['## Report'], words: { min: 50 } });
+    const doomed = scriptedAdapter(() => ({
+      toolCall: { name: 'finish', args: { result: 'nope' } },
+    }));
+    const engineA = createEngine({
+      adapters: [doomed],
+      stores: { journal: store, transcripts },
+      defaults,
+    });
+    const first = await engineA.run(
+      makeOrchestratorWorkflow('produce the report', {
+        limits: { maxTurns: 4 },
+        finishValidation: { validators: c1.validators, contract: c1, maxRepairs: 0 },
+      }),
+      undefined,
+      { runId: 'RV73S' },
+    ).result;
+    expect(first.status).toBe('error');
+    expect(first.error?.message).toContain('failed host validation');
+
+    // The run SETTLED: the fixed contract must not reopen it. The
+    // resume re-settles the SAME rejection with zero live calls.
+    const c2 = finishContract({ sections: ['## Report'] });
+    const adapter = scriptedAdapter(
+      () => ({ toolCall: { name: 'finish', args: { result: '## Report\nconforming' } } }),
+      { toolCallSalt: 'resume' },
+    );
+    const engineB = createEngine({
+      adapters: [adapter],
+      stores: { journal: store, transcripts },
+      defaults,
+    });
+    const resumed = await engineB.resume(
+      'RV73S',
+      makeOrchestratorWorkflow('produce the report', {
+        limits: { maxTurns: 4 },
+        finishValidation: { validators: c2.validators, contract: c2, maxRepairs: 0 },
+      }),
+    ).result;
+    expect(resumed.status).toBe('error');
+    expect(resumed.error?.message).toContain('failed host validation');
+    expect(adapter.calls).toHaveLength(0);
+  });
+});

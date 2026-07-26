@@ -49,6 +49,7 @@ import { ROOT_ACCOUNT } from '../engine/budget.js';
 import { emitSpawnAdmitted, emitSpawnRejected } from '../engine/spawn-events.js';
 import { OrchestratorCapConfigError } from '../l0/errors.js';
 import { deriverV2 } from '../journal/keyderiver.js';
+import { lastRunSettle } from '../stores/reconcile.js';
 import type { AgentOpts, AgentProfile, Workflow } from '../engine/ctx.js';
 import { defineWorkflow } from '../engine/ctx.js';
 import type { Engine, RunOptions } from '../engine/engine.js';
@@ -3503,13 +3504,25 @@ export function makeOrchestratorWorkflow(
       // CURRENT contract generation's rejection rolls (cycle 73): a
       // rejection a superseded generation left behind is exactly what
       // the fix-and-resume remedy repairs, so the loop resumes instead.
-      // The boot re-throw carries the journal-derived fields alone; the
-      // window-derived counter needs a live window and stays absent.
+      // The scoping rescues the CRASH WINDOW alone: a journal whose
+      // last run settle is terminal belongs to a run that already
+      // settled with this failure, and a re-settle by replay must roll
+      // the SAME rejection forward whatever the live contract says,
+      // with zero paid calls. The boot re-throw carries the
+      // journal-derived fields alone; the window-derived counter needs
+      // a live window and stays absent.
       const priorRejection = validationDecisions().find(
-        (decision) => decision.verdict === 'rejected' && contractGenerationCurrent(decision),
+        (decision) => decision.verdict === 'rejected',
       );
       if (priorRejection !== undefined) {
-        throw finishValidationError(priorRejection);
+        const settle = lastRunSettle(internals.replayer.snapshot());
+        const settledTerminal =
+          settle !== undefined &&
+          settle.runStatus !== 'running' &&
+          settle.runStatus !== 'suspended';
+        if (settledTerminal || contractGenerationCurrent(priorRejection)) {
+          throw finishValidationError(priorRejection);
+        }
       }
     }
     const promptLines = [
