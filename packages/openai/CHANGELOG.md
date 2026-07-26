@@ -1,5 +1,12 @@
 # @rulvar/openai
 
+## 1.75.1
+
+### Patch Changes
+
+- Updated dependencies [82bc0f0]
+  - @rulvar/core@1.75.1
+
 ## 1.75.0
 
 ### Minor Changes
