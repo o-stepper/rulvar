@@ -16,6 +16,7 @@ import { dispatchProjectionReserveUsd } from '../orchestrator/admission.js';
 import {
   evidencePreservedValidator,
   requiredSectionsValidator,
+  wordCountValidator,
 } from '../orchestrator/finish-validators.js';
 import { finishContract } from '../orchestrator/output-contract.js';
 import { orchestrate, orchestratorAdmissionEstCostUsd } from '../orchestrator/orchestrate.js';
@@ -796,6 +797,32 @@ describe('orchestrate-wave parity (the 1.63.0 experiment review, P0.3)', () => {
       validators: ['contract-sections', 'legacy-sections'],
       selfTest: 'failed',
     });
+  });
+
+  it('a same-name weakened replacement draws the weakened error finding (cycle 74)', () => {
+    const strict = finishContract({ sections: ['## Report'], words: { min: 50 } });
+    const report = preflightEstimate({
+      finishValidation: {
+        validators: [
+          requiredSectionsValidator({ sections: ['## Report'], name: 'contract-sections' }),
+          wordCountValidator({ min: 1, name: 'contract-words' }),
+        ],
+        contract: strict,
+      },
+    });
+    const finding = report.findings.find(
+      (entry) => entry.code === 'output-contract-validator-weakened',
+    );
+    expect(finding?.severity).toBe('error');
+    expect(finding?.message).toContain("'contract-words'");
+    expect(report.finishValidation?.selfTest).toBe('failed');
+    const clean = preflightEstimate({
+      finishValidation: { validators: [...strict.validators], contract: strict },
+    });
+    expect(clean.findings.filter((f) => f.code.startsWith('output-contract-validator'))).toEqual(
+      [],
+    );
+    expect(clean.finishValidation?.selfTest).toBe('passed');
   });
 
   it('echoes a passing self test and a missing contract validator separately', () => {

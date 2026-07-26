@@ -10,7 +10,7 @@
 function selfTestFinishValidation(options): FinishSelfTestReport;
 ```
 
-Defined in: [packages/core/src/orchestrator/output-contract.ts:407](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L407)
+Defined in: [packages/core/src/orchestrator/output-contract.ts:660](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/output-contract.ts#L660)
 
 Runs a configured validator set against golden fixtures BEFORE any
 provider call exists (the v1.71 experiment review, P0.3): the accept
@@ -21,16 +21,22 @@ fail at least one (a set that accepts the known-bad input validates
 nothing). A validator that THROWS here is a host defect and the
 ConfigError propagates, the same posture the live loop takes.
 Deterministic and free: validators are pure synchronous host code by
-contract, so this costs zero provider calls.
+contract, so this costs zero provider calls. `rejects` (cycle 74)
+carries the contract's per validator reject goldens: for each one
+the CONFIGURED validator of that name must exist and must reject
+the fixture, so a same-name replacement weaker than the contract's
+own validator fails here instead of silently accepting what the
+journaled contract hash forbids.
 
 ## Parameters
 
 | Parameter | Type |
 | ------ | ------ |
-| `options` | \{ `accept?`: [`FinishValidationInput`](/api/@rulvar/core/interfaces/FinishValidationInput.md); `reject?`: [`FinishValidationInput`](/api/@rulvar/core/interfaces/FinishValidationInput.md); `validators`: [`FinishValidator`](/api/@rulvar/core/interfaces/FinishValidator.md)[]; \} |
+| `options` | \{ `accept?`: [`FinishValidationInput`](/api/@rulvar/core/interfaces/FinishValidationInput.md); `reject?`: [`FinishValidationInput`](/api/@rulvar/core/interfaces/FinishValidationInput.md); `rejects?`: readonly [`FinishContractGoldenReject`](/api/@rulvar/core/interfaces/FinishContractGoldenReject.md)[]; `validators`: readonly [`FinishValidator`](/api/@rulvar/core/interfaces/FinishValidator.md)[]; \} |
 | `options.accept?` | [`FinishValidationInput`](/api/@rulvar/core/interfaces/FinishValidationInput.md) |
 | `options.reject?` | [`FinishValidationInput`](/api/@rulvar/core/interfaces/FinishValidationInput.md) |
-| `options.validators` | [`FinishValidator`](/api/@rulvar/core/interfaces/FinishValidator.md)[] |
+| `options.rejects?` | readonly [`FinishContractGoldenReject`](/api/@rulvar/core/interfaces/FinishContractGoldenReject.md)[] |
+| `options.validators` | readonly [`FinishValidator`](/api/@rulvar/core/interfaces/FinishValidator.md)[] |
 
 ## Returns
 

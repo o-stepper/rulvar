@@ -179,9 +179,12 @@ export interface PreflightInput {
    * review, P1.1). Programmatic only: validator functions cannot ride
    * a JSON config file, so the CLI never carries this. When present,
    * preflight runs the SAME golden self test orchestrate runs at
-   * construction and reports every drift as an error finding (code
-   * 'output-contract-validator-mismatch') instead of throwing, so a
-   * planner surfaces it next to the quota and budget findings.
+   * construction and reports every drift as an error finding instead
+   * of throwing, so a planner surfaces it next to the quota and budget
+   * findings: 'output-contract-validator-mismatch' for containment and
+   * accept-side drift, 'output-contract-validator-weakened' (cycle 74)
+   * when a configured validator fails the contract's per validator
+   * reject golden, the same-name weakened replacement.
    */
   finishValidation?: {
     validators: FinishValidator[];
@@ -1587,23 +1590,34 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     }
     const acceptFixture = fv.selfTest?.accept ?? fv.contract?.goldenAccept;
     const rejectFixture = fv.selfTest?.reject ?? fv.contract?.goldenReject;
+    const rejectGoldens = fv.contract?.goldenRejects;
     let selfTestOutcome: 'passed' | 'failed' | 'skipped' = 'skipped';
-    if (acceptFixture !== undefined || rejectFixture !== undefined) {
+    if (acceptFixture !== undefined || rejectFixture !== undefined || rejectGoldens !== undefined) {
       const report = selfTestFinishValidation({
         validators: fv.validators,
         ...(acceptFixture === undefined ? {} : { accept: acceptFixture }),
         ...(rejectFixture === undefined ? {} : { reject: rejectFixture }),
+        ...(rejectGoldens === undefined ? {} : { rejects: rejectGoldens }),
       });
       selfTestOutcome = report.ok ? 'passed' : 'failed';
       for (const failure of report.failures) {
+        // A reject-side failure carrying a validator name is the per
+        // validator golden (cycle 74): the configured validator is
+        // WEAKER than the contract's own, its own finding code.
+        const weakened = failure.fixture === 'reject' && failure.validator !== undefined;
         findings.push({
           severity: 'error',
-          code: 'output-contract-validator-mismatch',
+          code: weakened
+            ? 'output-contract-validator-weakened'
+            : 'output-contract-validator-mismatch',
           message:
             failure.validator === undefined
               ? failure.reasons.join('; ')
-              : `validator '${failure.validator}' rejected the golden accept fixture: ` +
-                failure.reasons.join('; '),
+              : weakened
+                ? `validator '${failure.validator}' failed its reject golden: ` +
+                  failure.reasons.join('; ')
+                : `validator '${failure.validator}' rejected the golden accept fixture: ` +
+                  failure.reasons.join('; '),
         });
       }
     }

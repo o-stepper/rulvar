@@ -7,6 +7,7 @@ import {
   requiredFieldsValidator,
   requiredSectionsValidator,
   sectionCitationsValidator,
+  stripFencedBlocks,
   wordCountValidator,
   type FinishValidationChild,
   type FinishValidationInput,
@@ -252,5 +253,111 @@ describe('sectionCitationsValidator (the v1.71 experiment review, P1.2)', () => 
     expect(() => sectionCitationsValidator({ sections: ['A'], min: 0 })).toThrow(
       /positive integer/,
     );
+  });
+});
+
+describe('fence awareness and line anchoring (cycle 74)', () => {
+  it('stripFencedBlocks removes fenced regions, delimiters included, and keeps the rest byte identical', () => {
+    const body = 'alpha\n```js\nfenced one\n```\nbeta\n~~~\nfenced two\n~~~\ngamma';
+    expect(stripFencedBlocks(body)).toBe('alpha\nbeta\ngamma');
+    expect(stripFencedBlocks('no fences\nat all')).toBe('no fences\nat all');
+  });
+
+  it('a closing fence must be at least as long and the same character; an unclosed fence runs to the end', () => {
+    const longer = 'a\n````\ncode\n```\nstill code\n````\nb';
+    expect(stripFencedBlocks(longer)).toBe('a\nb');
+    const mixed = 'a\n```\ncode\n~~~\nstill code\n```\nb';
+    expect(stripFencedBlocks(mixed)).toBe('a\nb');
+    expect(stripFencedBlocks('a\n```\nnever closed')).toBe('a');
+  });
+
+  it("requiredSectionsValidator match 'line' demands the marker as its own line", () => {
+    const validator = requiredSectionsValidator({ sections: ['## Findings'], match: 'line' });
+    expect(validator.validate(text("We will fill the '## Findings' part later.")).ok).toBe(false);
+    const verdict = validator.validate(text('intro without the heading'));
+    expect(verdict.ok ? [] : verdict.reasons).toEqual([
+      "required section '## Findings' is missing (required as its own line)",
+    ]);
+    expect(validator.validate(text('intro\n  ## Findings  \nbody')).ok).toBe(true);
+  });
+
+  it("fencedCode 'excluded' stops a fenced marker from satisfying sections", () => {
+    const validator = requiredSectionsValidator({
+      sections: ['## Findings'],
+      fencedCode: 'excluded',
+    });
+    expect(validator.validate(text('Intro.\n```\n## Findings\n```\nno real heading')).ok).toBe(
+      false,
+    );
+    expect(validator.validate(text('## Findings\n```\ncode\n```')).ok).toBe(true);
+  });
+
+  it("wordCountValidator fencedCode 'excluded' counts only visible words", () => {
+    const validator = wordCountValidator({ min: 100, fencedCode: 'excluded' });
+    const padded =
+      'Five real words here only.\n```\n' +
+      Array.from({ length: 120 }, (unused, i) => `word${String(i)}`).join(' ') +
+      '\n```';
+    const verdict = validator.validate(text(padded));
+    expect(verdict.ok).toBe(false);
+    expect(verdict.ok ? '' : verdict.reasons.join(' ')).toContain(
+      'word count 5 (fenced code excluded)',
+    );
+  });
+
+  it("minMatchesValidator fencedCode 'excluded' ignores fenced citations", () => {
+    const validator = minMatchesValidator({
+      pattern: '[\\w./-]+\\.\\w+:\\d+',
+      min: 3,
+      fencedCode: 'excluded',
+    });
+    const fenced = 'No visible citations.\n```\nsrc/a.ts:1 src/b.ts:2 src/c.ts:3\n```';
+    const verdict = validator.validate(text(fenced));
+    expect(verdict.ok).toBe(false);
+    expect(verdict.ok ? '' : verdict.reasons.join(' ')).toContain('found 0 (fenced code excluded)');
+    expect(validator.validate(text('src/a.ts:1 src/b.ts:2 src/c.ts:3')).ok).toBe(true);
+  });
+
+  it('fence aware, line anchored slicing anchors sections at their real headings', () => {
+    const validator = sectionCitationsValidator({
+      sections: ['## A', '## B'],
+      min: 1,
+      match: 'line',
+      fencedCode: 'excluded',
+    });
+    const misAnchored = [
+      '```',
+      '## A',
+      '```',
+      'src/preamble.ts:1',
+      '## A',
+      'zero citations in the real body',
+      '## B',
+      'src/b.ts:9',
+    ].join('\n');
+    const verdict = validator.validate(text(misAnchored));
+    expect(verdict.ok).toBe(false);
+    expect(verdict.ok ? '' : verdict.reasons.join(' ')).toContain(
+      "section '## A' carries 0 citations",
+    );
+    const honest = ['## A', 'src/a.ts:1', '## B', 'src/b.ts:9'].join('\n');
+    expect(validator.validate(text(honest)).ok).toBe(true);
+  });
+
+  it('the default paths stay byte identical: anywhere matching and counted fences', () => {
+    const sections = requiredSectionsValidator({ sections: ['## Findings'] });
+    expect(sections.validate(text('mid sentence ## Findings mention')).ok).toBe(true);
+    const words = wordCountValidator({ min: 3 });
+    const verdict = words.validate(text('one two'));
+    expect(verdict.ok ? [] : verdict.reasons).toEqual([
+      'result word count 2 is below the required minimum 3',
+    ]);
+  });
+
+  it('rejects invalid mode values at construction', () => {
+    expect(() => requiredSectionsValidator({ sections: ['A'], match: 'exact' as never })).toThrow(
+      ConfigError,
+    );
+    expect(() => wordCountValidator({ min: 1, fencedCode: 'off' as never })).toThrow(ConfigError);
   });
 });

@@ -10,7 +10,7 @@
 function sectionCitationsValidator(options): FinishValidator;
 ```
 
-Defined in: [packages/core/src/orchestrator/finish-validators.ts:318](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L318)
+Defined in: [packages/core/src/orchestrator/finish-validators.ts:450](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/finish-validators.ts#L450)
 
 Requires at least `min` matches of `pattern` INSIDE every named
 section (the v1.71 experiment review, P1.2: a total citation count
@@ -20,18 +20,24 @@ position order, or to the end of the text; a marker absent from the
 text is its own failure reason, because coverage of a missing
 section cannot silently count as satisfied.
 requiredSectionsValidator still owns plain presence. Default name
-'section-citations'.
+'section-citations'. `match: 'line'` anchors each section at the
+first line equal to its marker and `fencedCode: 'excluded'` removes
+fenced code before anchoring, slicing, and counting (cycle 74), so a
+marker echoed inside a code sample can neither anchor a slice nor
+donate citations; both default to the historical behavior.
 
 ## Parameters
 
 | Parameter | Type |
 | ------ | ------ |
-| `options` | \{ `flags?`: `string`; `min`: `number`; `name?`: `string`; `pattern?`: `string`; `sections`: `string`[]; \} |
+| `options` | \{ `fencedCode?`: [`FencedCodeMode`](/api/@rulvar/core/type-aliases/FencedCodeMode.md); `flags?`: `string`; `match?`: [`SectionMatchMode`](/api/@rulvar/core/type-aliases/SectionMatchMode.md); `min`: `number`; `name?`: `string`; `pattern?`: `string`; `sections`: readonly `string`[]; \} |
+| `options.fencedCode?` | [`FencedCodeMode`](/api/@rulvar/core/type-aliases/FencedCodeMode.md) |
 | `options.flags?` | `string` |
+| `options.match?` | [`SectionMatchMode`](/api/@rulvar/core/type-aliases/SectionMatchMode.md) |
 | `options.min` | `number` |
 | `options.name?` | `string` |
 | `options.pattern?` | `string` |
-| `options.sections` | `string`[] |
+| `options.sections` | readonly `string`[] |
 
 ## Returns
 

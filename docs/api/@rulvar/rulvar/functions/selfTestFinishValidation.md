@@ -21,16 +21,22 @@ fail at least one (a set that accepts the known-bad input validates
 nothing). A validator that THROWS here is a host defect and the
 ConfigError propagates, the same posture the live loop takes.
 Deterministic and free: validators are pure synchronous host code by
-contract, so this costs zero provider calls.
+contract, so this costs zero provider calls. `rejects` (cycle 74)
+carries the contract's per validator reject goldens: for each one
+the CONFIGURED validator of that name must exist and must reject
+the fixture, so a same-name replacement weaker than the contract's
+own validator fails here instead of silently accepting what the
+journaled contract hash forbids.
 
 ## Parameters
 
 | Parameter | Type |
 | ------ | ------ |
-| `options` | \{ `accept?`: [`FinishValidationInput`](/api/@rulvar/rulvar/interfaces/FinishValidationInput.md); `reject?`: [`FinishValidationInput`](/api/@rulvar/rulvar/interfaces/FinishValidationInput.md); `validators`: [`FinishValidator`](/api/@rulvar/rulvar/interfaces/FinishValidator.md)[]; \} |
+| `options` | \{ `accept?`: [`FinishValidationInput`](/api/@rulvar/rulvar/interfaces/FinishValidationInput.md); `reject?`: [`FinishValidationInput`](/api/@rulvar/rulvar/interfaces/FinishValidationInput.md); `rejects?`: readonly [`FinishContractGoldenReject`](/api/@rulvar/rulvar/interfaces/FinishContractGoldenReject.md)[]; `validators`: readonly [`FinishValidator`](/api/@rulvar/rulvar/interfaces/FinishValidator.md)[]; \} |
 | `options.accept?` | [`FinishValidationInput`](/api/@rulvar/rulvar/interfaces/FinishValidationInput.md) |
 | `options.reject?` | [`FinishValidationInput`](/api/@rulvar/rulvar/interfaces/FinishValidationInput.md) |
-| `options.validators` | [`FinishValidator`](/api/@rulvar/rulvar/interfaces/FinishValidator.md)[] |
+| `options.rejects?` | readonly [`FinishContractGoldenReject`](/api/@rulvar/rulvar/interfaces/FinishContractGoldenReject.md)[] |
+| `options.validators` | readonly [`FinishValidator`](/api/@rulvar/rulvar/interfaces/FinishValidator.md)[] |
 
 ## Returns
 

@@ -15,14 +15,19 @@ Defined in: `packages/core/dist/index.d.ts`
 Requires every named section to appear LITERALLY in the result text
 (a heading like 'FINDINGS' or any marker the goal demands). Default
 name 'required-sections'; pass `name` to run several instances.
+`match: 'line'` demands each marker as its own line and
+`fencedCode: 'excluded'` ignores markers inside fenced code blocks
+(cycle 74); both default to the historical byte identical behavior.
 
 ## Parameters
 
 | Parameter | Type |
 | ------ | ------ |
-| `options` | \{ `name?`: `string`; `sections`: `string`[]; \} |
+| `options` | \{ `fencedCode?`: [`FencedCodeMode`](/api/@rulvar/rulvar/type-aliases/FencedCodeMode.md); `match?`: [`SectionMatchMode`](/api/@rulvar/rulvar/type-aliases/SectionMatchMode.md); `name?`: `string`; `sections`: readonly `string`[]; \} |
+| `options.fencedCode?` | [`FencedCodeMode`](/api/@rulvar/rulvar/type-aliases/FencedCodeMode.md) |
+| `options.match?` | [`SectionMatchMode`](/api/@rulvar/rulvar/type-aliases/SectionMatchMode.md) |
 | `options.name?` | `string` |
-| `options.sections` | `string`[] |
+| `options.sections` | readonly `string`[] |
 
 ## Returns
 

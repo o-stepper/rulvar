@@ -959,6 +959,10 @@
             "link": "/api/@rulvar/core/interfaces/FinishContractCitations.md"
           },
           {
+            "text": "FinishContractGoldenReject",
+            "link": "/api/@rulvar/core/interfaces/FinishContractGoldenReject.md"
+          },
+          {
             "text": "FinishContractManifest",
             "link": "/api/@rulvar/core/interfaces/FinishContractManifest.md"
           },
@@ -1749,6 +1753,10 @@
             "link": "/api/@rulvar/core/type-aliases/FallbackTrigger.md"
           },
           {
+            "text": "FencedCodeMode",
+            "link": "/api/@rulvar/core/type-aliases/FencedCodeMode.md"
+          },
+          {
             "text": "FinishInfo",
             "link": "/api/@rulvar/core/type-aliases/FinishInfo.md"
           },
@@ -1999,6 +2007,10 @@
           {
             "text": "ScopeSegment",
             "link": "/api/@rulvar/core/type-aliases/ScopeSegment.md"
+          },
+          {
+            "text": "SectionMatchMode",
+            "link": "/api/@rulvar/core/type-aliases/SectionMatchMode.md"
           },
           {
             "text": "Settled",
@@ -3139,6 +3151,10 @@
           {
             "text": "spawnDepthOf",
             "link": "/api/@rulvar/core/functions/spawnDepthOf.md"
+          },
+          {
+            "text": "stripFencedBlocks",
+            "link": "/api/@rulvar/core/functions/stripFencedBlocks.md"
           },
           {
             "text": "summarizeInstruction",
@@ -5261,6 +5277,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/FinishContractCitations.md"
           },
           {
+            "text": "FinishContractGoldenReject",
+            "link": "/api/@rulvar/rulvar/interfaces/FinishContractGoldenReject.md"
+          },
+          {
             "text": "FinishContractManifest",
             "link": "/api/@rulvar/rulvar/interfaces/FinishContractManifest.md"
           },
@@ -6075,6 +6095,10 @@
             "link": "/api/@rulvar/rulvar/type-aliases/FallbackTrigger.md"
           },
           {
+            "text": "FencedCodeMode",
+            "link": "/api/@rulvar/rulvar/type-aliases/FencedCodeMode.md"
+          },
+          {
             "text": "FinishInfo",
             "link": "/api/@rulvar/rulvar/type-aliases/FinishInfo.md"
           },
@@ -6333,6 +6357,10 @@
           {
             "text": "ScopeSegment",
             "link": "/api/@rulvar/rulvar/type-aliases/ScopeSegment.md"
+          },
+          {
+            "text": "SectionMatchMode",
+            "link": "/api/@rulvar/rulvar/type-aliases/SectionMatchMode.md"
           },
           {
             "text": "Settled",
@@ -7501,6 +7529,10 @@
           {
             "text": "spawnDepthOf",
             "link": "/api/@rulvar/rulvar/functions/spawnDepthOf.md"
+          },
+          {
+            "text": "stripFencedBlocks",
+            "link": "/api/@rulvar/rulvar/functions/stripFencedBlocks.md"
           },
           {
             "text": "summarizeInstruction",
