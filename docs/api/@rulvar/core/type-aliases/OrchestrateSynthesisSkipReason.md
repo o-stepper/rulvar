@@ -10,7 +10,7 @@
 type OrchestrateSynthesisSkipReason = "synthesis_skipped_by_acceptance" | "synthesis_skipped_by_budget_cap";
 ```
 
-Defined in: [packages/core/src/orchestrator/orchestrate.ts:547](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L547)
+Defined in: [packages/core/src/orchestrator/orchestrate.ts:548](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/orchestrator/orchestrate.ts#L548)
 
 The machine-readable reason a CONFIGURED synthesis step was skipped
 (the 1.65.0 experiment review, item 11.4): telemetry that shows zero
