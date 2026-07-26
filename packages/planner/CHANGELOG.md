@@ -1,5 +1,13 @@
 # @rulvar/planner
 
+## 1.79.0
+
+### Patch Changes
+
+- Updated dependencies [85956ab]
+  - @rulvar/core@1.79.0
+  - eslint-plugin-rulvar@1.79.0
+
 ## 1.78.0
 
 ### Patch Changes
