@@ -18,6 +18,17 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.75.0
+
+#### Minor Changes
+
+- c486de8: The provider output floor and the finish arguments second chance (the v1.74 comparison review, P0.1 + P1.5). `ModelCaps.minOutputTokensPerTurn` declares the smallest request output cap the provider accepts (OpenAI Responses: 16; absent means one), and the layer-2b budget clamp never dispatches below it: the last-gasp turn goes out AT the floor instead of one token, a remainder that cannot buy the floor is refused as a typed `BudgetExhaustedError` with zero wire calls, and a configured per-turn cap below the floor is a `ConfigError`; `preflightEstimate` reports that configuration as the error finding `output-cap-below-provider-minimum`. Tool arguments an adapter delivered as the parse-failure wrapper `{__unparsed: raw}` now get one deterministic second chance before the schema rejection: a strict re-parse, then one bounded normalization (markdown fence, first balanced object, raw control characters escaped inside string literals); a recovered object that passes the tool schema executes as if it had parsed on the wire, with a warn log naming the pass, and replay or resume recovers identically with nothing journaled. The OpenAI wire re-projects an unparseable call as the ORIGINAL raw arguments string instead of the wrapper JSON, so a model no longer learns to imitate `{"__unparsed": ...}` from its own rewritten history. Both wires drop unsafe-integer `x-ratelimit` values instead of normalizing 400 digits into `Infinity`. `FakeAdapter` gains `capsOverrides` so offline tests can drive caps-declared behavior like the floor.
+
+#### Patch Changes
+
+- Updated dependencies [c486de8]
+  - @rulvar/core@1.75.0
+
 ### 1.74.0
 
 #### Minor Changes
@@ -922,6 +933,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.75.0
+
+#### Patch Changes
+
+- Updated dependencies [c486de8]
+  - @rulvar/core@1.75.0
+
 ### 1.74.0
 
 #### Patch Changes
@@ -1687,6 +1705,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.75.0
+
+#### Patch Changes
+
+- Updated dependencies [c486de8]
+  - @rulvar/core@1.75.0
 
 ### 1.74.0
 
@@ -2767,6 +2792,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.75.0
+
+#### Minor Changes
+
+- c486de8: The provider output floor and the finish arguments second chance (the v1.74 comparison review, P0.1 + P1.5). `ModelCaps.minOutputTokensPerTurn` declares the smallest request output cap the provider accepts (OpenAI Responses: 16; absent means one), and the layer-2b budget clamp never dispatches below it: the last-gasp turn goes out AT the floor instead of one token, a remainder that cannot buy the floor is refused as a typed `BudgetExhaustedError` with zero wire calls, and a configured per-turn cap below the floor is a `ConfigError`; `preflightEstimate` reports that configuration as the error finding `output-cap-below-provider-minimum`. Tool arguments an adapter delivered as the parse-failure wrapper `{__unparsed: raw}` now get one deterministic second chance before the schema rejection: a strict re-parse, then one bounded normalization (markdown fence, first balanced object, raw control characters escaped inside string literals); a recovered object that passes the tool schema executes as if it had parsed on the wire, with a warn log naming the pass, and replay or resume recovers identically with nothing journaled. The OpenAI wire re-projects an unparseable call as the ORIGINAL raw arguments string instead of the wrapper JSON, so a model no longer learns to imitate `{"__unparsed": ...}` from its own rewritten history. Both wires drop unsafe-integer `x-ratelimit` values instead of normalizing 400 digits into `Infinity`. `FakeAdapter` gains `capsOverrides` so offline tests can drive caps-declared behavior like the floor.
 
 ### 1.74.0
 
@@ -4229,6 +4260,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.75.0
+
 ### 1.74.0
 
 ### 1.73.0
@@ -4473,6 +4506,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.75.0
+
+#### Patch Changes
+
+- Updated dependencies [c486de8]
+  - @rulvar/core@1.75.0
+  - @rulvar/testing@1.75.0
 
 ### 1.74.0
 
@@ -5425,6 +5466,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.75.0
+
+#### Patch Changes
+
+- Updated dependencies [c486de8]
+  - @rulvar/core@1.75.0
+
 ### 1.74.0
 
 #### Patch Changes
@@ -5575,6 +5623,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.75.0
+
+#### Minor Changes
+
+- c486de8: The provider output floor and the finish arguments second chance (the v1.74 comparison review, P0.1 + P1.5). `ModelCaps.minOutputTokensPerTurn` declares the smallest request output cap the provider accepts (OpenAI Responses: 16; absent means one), and the layer-2b budget clamp never dispatches below it: the last-gasp turn goes out AT the floor instead of one token, a remainder that cannot buy the floor is refused as a typed `BudgetExhaustedError` with zero wire calls, and a configured per-turn cap below the floor is a `ConfigError`; `preflightEstimate` reports that configuration as the error finding `output-cap-below-provider-minimum`. Tool arguments an adapter delivered as the parse-failure wrapper `{__unparsed: raw}` now get one deterministic second chance before the schema rejection: a strict re-parse, then one bounded normalization (markdown fence, first balanced object, raw control characters escaped inside string literals); a recovered object that passes the tool schema executes as if it had parsed on the wire, with a warn log naming the pass, and replay or resume recovers identically with nothing journaled. The OpenAI wire re-projects an unparseable call as the ORIGINAL raw arguments string instead of the wrapper JSON, so a model no longer learns to imitate `{"__unparsed": ...}` from its own rewritten history. Both wires drop unsafe-integer `x-ratelimit` values instead of normalizing 400 digits into `Infinity`. `FakeAdapter` gains `capsOverrides` so offline tests can drive caps-declared behavior like the floor.
+
+#### Patch Changes
+
+- Updated dependencies [c486de8]
+  - @rulvar/core@1.75.0
 
 ### 1.74.0
 
@@ -6497,6 +6556,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.75.0
+
+#### Patch Changes
+
+- Updated dependencies [c486de8]
+  - @rulvar/core@1.75.0
+
 ### 1.74.0
 
 #### Patch Changes
@@ -7383,6 +7449,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.75.0
+
+#### Patch Changes
+
+- Updated dependencies [c486de8]
+  - @rulvar/core@1.75.0
+  - eslint-plugin-rulvar@1.75.0
 
 ### 1.74.0
 
@@ -8291,6 +8365,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.75.0
+
+#### Patch Changes
+
+- Updated dependencies [c486de8]
+  - @rulvar/core@1.75.0
+  - @rulvar/openai@1.75.0
+  - @rulvar/anthropic@1.75.0
 
 ### 1.74.0
 
@@ -9364,6 +9447,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.75.0
+
+#### Patch Changes
+
+- Updated dependencies [c486de8]
+  - @rulvar/core@1.75.0
+
 ### 1.74.0
 
 #### Patch Changes
@@ -10234,6 +10324,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.75.0
+
+#### Patch Changes
+
+- Updated dependencies [c486de8]
+  - @rulvar/core@1.75.0
+
 ### 1.74.0
 
 #### Patch Changes
@@ -10406,6 +10503,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.75.0
+
+#### Patch Changes
+
+- Updated dependencies [c486de8]
+  - @rulvar/core@1.75.0
 
 ### 1.74.0
 
@@ -11218,6 +11322,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.75.0
+
+#### Minor Changes
+
+- c486de8: The provider output floor and the finish arguments second chance (the v1.74 comparison review, P0.1 + P1.5). `ModelCaps.minOutputTokensPerTurn` declares the smallest request output cap the provider accepts (OpenAI Responses: 16; absent means one), and the layer-2b budget clamp never dispatches below it: the last-gasp turn goes out AT the floor instead of one token, a remainder that cannot buy the floor is refused as a typed `BudgetExhaustedError` with zero wire calls, and a configured per-turn cap below the floor is a `ConfigError`; `preflightEstimate` reports that configuration as the error finding `output-cap-below-provider-minimum`. Tool arguments an adapter delivered as the parse-failure wrapper `{__unparsed: raw}` now get one deterministic second chance before the schema rejection: a strict re-parse, then one bounded normalization (markdown fence, first balanced object, raw control characters escaped inside string literals); a recovered object that passes the tool schema executes as if it had parsed on the wire, with a warn log naming the pass, and replay or resume recovers identically with nothing journaled. The OpenAI wire re-projects an unparseable call as the ORIGINAL raw arguments string instead of the wrapper JSON, so a model no longer learns to imitate `{"__unparsed": ...}` from its own rewritten history. Both wires drop unsafe-integer `x-ratelimit` values instead of normalizing 400 digits into `Infinity`. `FakeAdapter` gains `capsOverrides` so offline tests can drive caps-declared behavior like the floor.
+
+#### Patch Changes
+
+- Updated dependencies [c486de8]
+  - @rulvar/core@1.75.0
 
 ### 1.74.0
 

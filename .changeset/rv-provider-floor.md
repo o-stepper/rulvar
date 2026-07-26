@@ -1,8 +1,0 @@
----
-'@rulvar/core': minor
-'@rulvar/openai': minor
-'@rulvar/anthropic': minor
-'@rulvar/testing': minor
----
-
-The provider output floor and the finish arguments second chance (the v1.74 comparison review, P0.1 + P1.5). `ModelCaps.minOutputTokensPerTurn` declares the smallest request output cap the provider accepts (OpenAI Responses: 16; absent means one), and the layer-2b budget clamp never dispatches below it: the last-gasp turn goes out AT the floor instead of one token, a remainder that cannot buy the floor is refused as a typed `BudgetExhaustedError` with zero wire calls, and a configured per-turn cap below the floor is a `ConfigError`; `preflightEstimate` reports that configuration as the error finding `output-cap-below-provider-minimum`. Tool arguments an adapter delivered as the parse-failure wrapper `{__unparsed: raw}` now get one deterministic second chance before the schema rejection: a strict re-parse, then one bounded normalization (markdown fence, first balanced object, raw control characters escaped inside string literals); a recovered object that passes the tool schema executes as if it had parsed on the wire, with a warn log naming the pass, and replay or resume recovers identically with nothing journaled. The OpenAI wire re-projects an unparseable call as the ORIGINAL raw arguments string instead of the wrapper JSON, so a model no longer learns to imitate `{"__unparsed": ...}` from its own rewritten history. Both wires drop unsafe-integer `x-ratelimit` values instead of normalizing 400 digits into `Infinity`. `FakeAdapter` gains `capsOverrides` so offline tests can drive caps-declared behavior like the floor.
