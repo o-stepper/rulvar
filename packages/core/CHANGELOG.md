@@ -1,5 +1,13 @@
 # @rulvar/core
 
+## 1.80.0
+
+### Minor Changes
+
+- 262e397: The synthesis budget reserve and the strict admission projection (the sixth comparison experiment, cycle 76). The opt-in `budget.synthesisReserveUsd` holds absolute dollars out of the orchestrator sub-account while the coordination loop runs: spawn admission and the per-turn output clamp treat the hold as spent (the severing check does not, so a coordination running against the hold is clamped smaller, never aborted), and the hold is released to the synthesis invocation just before it dispatches. Without it the rematch's first run lost a full paid run: the default 0.2 sub-account funded the coordination prefix and the budget clamp shrank the synthesis turns below the contract's minimal accepting payload, so the finish was cut at its output allowance before any tool call and the validator-bound run failed closed at `maxTurns`. The reserve requires the `synthesis` option (single mode), must stay below the effective cap (`OrchestratorCapConfigError` otherwise), and nets out of the capped orchestrator's exact-fill admission hint exactly like the finalize carve-out. `preflightEstimate` prices the contract's minimal accepting payload at the synthesis model's output rate and reports the warning `synthesis-reserve-unfunded` when a contract binds the synthesis and the hold is missing or too small.
+
+  The admission projection is now STRICT at exact fill for the children of an orchestrate wave: the coordination turn that issues the spawn tools is paid before any spawn executes, so a child whose reserve fits only at exact fill is certain to be rejected live, and the projection now says so (`partial-admission`) instead of promising the full wave. The rematch's second run lost its mandated fourth specialist to exactly that promise: the estimator projected 5 of 5 admitted while the live gate rejected the fourth spawn with reason `budget`. The orchestrator's own row keeps its exact-fill admission (it admits at run start, before any spend exists), and plain waves are unchanged. Absent the new option every budget account, journal, prompt, and cassette stays byte identical.
+
 ## 1.79.0
 
 ### Minor Changes

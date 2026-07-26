@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.80.0
+
+#### Patch Changes
+
+- Updated dependencies [262e397]
+  - @rulvar/core@1.80.0
+
 ### 1.79.0
 
 #### Patch Changes
@@ -968,6 +975,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.80.0
+
+#### Patch Changes
+
+- Updated dependencies [262e397]
+  - @rulvar/core@1.80.0
+
 ### 1.79.0
 
 #### Patch Changes
@@ -1775,6 +1789,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.80.0
+
+#### Patch Changes
+
+- Updated dependencies [262e397]
+  - @rulvar/core@1.80.0
 
 ### 1.79.0
 
@@ -2908,6 +2929,14 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.80.0
+
+#### Minor Changes
+
+- 262e397: The synthesis budget reserve and the strict admission projection (the sixth comparison experiment, cycle 76). The opt-in `budget.synthesisReserveUsd` holds absolute dollars out of the orchestrator sub-account while the coordination loop runs: spawn admission and the per-turn output clamp treat the hold as spent (the severing check does not, so a coordination running against the hold is clamped smaller, never aborted), and the hold is released to the synthesis invocation just before it dispatches. Without it the rematch's first run lost a full paid run: the default 0.2 sub-account funded the coordination prefix and the budget clamp shrank the synthesis turns below the contract's minimal accepting payload, so the finish was cut at its output allowance before any tool call and the validator-bound run failed closed at `maxTurns`. The reserve requires the `synthesis` option (single mode), must stay below the effective cap (`OrchestratorCapConfigError` otherwise), and nets out of the capped orchestrator's exact-fill admission hint exactly like the finalize carve-out. `preflightEstimate` prices the contract's minimal accepting payload at the synthesis model's output rate and reports the warning `synthesis-reserve-unfunded` when a contract binds the synthesis and the hold is missing or too small.
+
+  The admission projection is now STRICT at exact fill for the children of an orchestrate wave: the coordination turn that issues the spawn tools is paid before any spawn executes, so a child whose reserve fits only at exact fill is certain to be rejected live, and the projection now says so (`partial-admission`) instead of promising the full wave. The rematch's second run lost its mandated fourth specialist to exactly that promise: the estimator projected 5 of 5 admitted while the live gate rejected the fourth spawn with reason `budget`. The orchestrator's own row keeps its exact-fill admission (it admits at run start, before any spend exists), and plain waves are unchanged. Absent the new option every budget account, journal, prompt, and cassette stays byte identical.
 
 ### 1.79.0
 
@@ -4419,6 +4448,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.80.0
+
 ### 1.79.0
 
 ### 1.78.0
@@ -4675,6 +4706,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.80.0
+
+#### Patch Changes
+
+- Updated dependencies [262e397]
+  - @rulvar/core@1.80.0
+  - @rulvar/testing@1.80.0
 
 ### 1.79.0
 
@@ -5675,6 +5714,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.80.0
+
+#### Patch Changes
+
+- Updated dependencies [262e397]
+  - @rulvar/core@1.80.0
+
 ### 1.79.0
 
 #### Patch Changes
@@ -5867,6 +5913,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.80.0
+
+#### Patch Changes
+
+- Updated dependencies [262e397]
+  - @rulvar/core@1.80.0
 
 ### 1.79.0
 
@@ -6835,6 +6888,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.80.0
+
+#### Patch Changes
+
+- Updated dependencies [262e397]
+  - @rulvar/core@1.80.0
+
 ### 1.79.0
 
 #### Patch Changes
@@ -7763,6 +7823,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.80.0
+
+#### Patch Changes
+
+- Updated dependencies [262e397]
+  - @rulvar/core@1.80.0
+  - eslint-plugin-rulvar@1.80.0
 
 ### 1.79.0
 
@@ -8719,6 +8787,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.80.0
+
+#### Patch Changes
+
+- Updated dependencies [262e397]
+  - @rulvar/core@1.80.0
+  - @rulvar/anthropic@1.80.0
+  - @rulvar/openai@1.80.0
 
 ### 1.79.0
 
@@ -9846,6 +9923,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.80.0
+
+#### Patch Changes
+
+- Updated dependencies [262e397]
+  - @rulvar/core@1.80.0
+
 ### 1.79.0
 
 #### Patch Changes
@@ -10758,6 +10842,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.80.0
+
+#### Patch Changes
+
+- Updated dependencies [262e397]
+  - @rulvar/core@1.80.0
+
 ### 1.79.0
 
 #### Patch Changes
@@ -10972,6 +11063,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.80.0
+
+#### Patch Changes
+
+- Updated dependencies [262e397]
+  - @rulvar/core@1.80.0
 
 ### 1.79.0
 
@@ -11826,6 +11924,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.80.0
+
+#### Patch Changes
+
+- Updated dependencies [262e397]
+  - @rulvar/core@1.80.0
 
 ### 1.79.0
 
