@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.76.0
+
+#### Patch Changes
+
+- Updated dependencies [22cba47]
+  - @rulvar/core@1.76.0
+
 ### 1.75.1
 
 #### Patch Changes
@@ -940,6 +947,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.76.0
+
+#### Patch Changes
+
+- Updated dependencies [22cba47]
+  - @rulvar/core@1.76.0
+
 ### 1.75.1
 
 #### Patch Changes
@@ -1719,6 +1733,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.76.0
+
+#### Patch Changes
+
+- Updated dependencies [22cba47]
+  - @rulvar/core@1.76.0
 
 ### 1.75.1
 
@@ -2813,6 +2834,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.76.0
+
+#### Minor Changes
+
+- 22cba47: Synthesis evidence symmetry and the coordination draft gate (the v1.74 comparison review, P0.2 + P0.3). The finish validators judge the synthesis result against the FULL child outputs while the synthesis model saw only the draft and 400 char digest rows on a finish-only toolset; when the v1.74 experiment's draft collapsed to 'test', preserving the demanded 66 citations was model-impossible and the run ended answerless. Three opt-ins, each byte identical when unset: `synthesis.exposeChildResultTools` gives the synthesis invocation the RV-201 read tools `get_child_result` and `read_child_artifact` (the digest rows then carry each child's `handle`); `synthesis.context: 'full'` embeds a `CHILD OUTPUTS` section with every settled child's full serialized output beside the digests; `finishValidation.draftPolicy` (`minWords`, `requireSections`) rejects a schema-valid but collapsed coordination draft as the call's error result BEFORE any paid synthesis dispatch, with deterministic library checks that journal nothing and the same `repairTurnReserve` headroom the synthesis finish gets. `preflightEstimate` reports the asymmetric shape as the new warning finding `synthesis-evidence-asymmetry`, and the preflight synthesis input mirrors the two new fields.
 
 ### 1.75.1
 
@@ -4287,6 +4314,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.76.0
+
 ### 1.75.1
 
 ### 1.75.0
@@ -4535,6 +4564,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.76.0
+
+#### Patch Changes
+
+- Updated dependencies [22cba47]
+  - @rulvar/core@1.76.0
+  - @rulvar/testing@1.76.0
 
 ### 1.75.1
 
@@ -5503,6 +5540,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.76.0
+
+#### Patch Changes
+
+- Updated dependencies [22cba47]
+  - @rulvar/core@1.76.0
+
 ### 1.75.1
 
 #### Patch Changes
@@ -5667,6 +5711,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.76.0
+
+#### Patch Changes
+
+- Updated dependencies [22cba47]
+  - @rulvar/core@1.76.0
 
 ### 1.75.1
 
@@ -6607,6 +6658,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.76.0
+
+#### Patch Changes
+
+- Updated dependencies [22cba47]
+  - @rulvar/core@1.76.0
+
 ### 1.75.1
 
 #### Patch Changes
@@ -7507,6 +7565,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.76.0
+
+#### Patch Changes
+
+- Updated dependencies [22cba47]
+  - @rulvar/core@1.76.0
+  - eslint-plugin-rulvar@1.76.0
 
 ### 1.75.1
 
@@ -8431,6 +8497,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.76.0
+
+#### Patch Changes
+
+- Updated dependencies [22cba47]
+  - @rulvar/core@1.76.0
+  - @rulvar/anthropic@1.76.0
+  - @rulvar/openai@1.76.0
 
 ### 1.75.1
 
@@ -9522,6 +9597,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.76.0
+
+#### Patch Changes
+
+- Updated dependencies [22cba47]
+  - @rulvar/core@1.76.0
+
 ### 1.75.1
 
 #### Patch Changes
@@ -10406,6 +10488,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.76.0
+
+#### Patch Changes
+
+- Updated dependencies [22cba47]
+  - @rulvar/core@1.76.0
+
 ### 1.75.1
 
 #### Patch Changes
@@ -10592,6 +10681,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.76.0
+
+#### Patch Changes
+
+- Updated dependencies [22cba47]
+  - @rulvar/core@1.76.0
 
 ### 1.75.1
 
@@ -11418,6 +11514,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.76.0
+
+#### Patch Changes
+
+- Updated dependencies [22cba47]
+  - @rulvar/core@1.76.0
 
 ### 1.75.1
 
