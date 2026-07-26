@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.81.0
+
+#### Patch Changes
+
+- Updated dependencies [ce4c392]
+  - @rulvar/core@1.81.0
+
 ### 1.80.0
 
 #### Patch Changes
@@ -975,6 +982,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.81.0
+
+#### Patch Changes
+
+- Updated dependencies [ce4c392]
+  - @rulvar/core@1.81.0
+
 ### 1.80.0
 
 #### Patch Changes
@@ -1789,6 +1803,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.81.0
+
+#### Patch Changes
+
+- Updated dependencies [ce4c392]
+  - @rulvar/core@1.81.0
 
 ### 1.80.0
 
@@ -2929,6 +2950,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.81.0
+
+#### Minor Changes
+
+- ce4c392: The sixth comparison experiment's P2 harvest (cycle 77). `maxSpawns` now counts ADMITTED children instead of attempt ordinals: an admission-rejected spawn (budget, quota, depth) consumes no slot, so the orchestrator can retry a rejected mandated role at a viable budget instead of losing it to `orchestrate maxSpawns N reached` (the rematch's run 2 shape); recovery rebuilds the same ledger from journaled admits, and attempt volume stays bounded by the coordination turn's tool budget. New stock validator `headingStructureValidator({ sections, ordered, exclusive })`: the markdown headings of one level (derived from the shared marker) held to the declared set, in declaration order, each exactly once and none undeclared, fenced code always stripped first (the judge's P1.3: line presence proves existence, not structure). The near-JSON finish recovery is durable (the judge's P1.5): `AgentResult.schemaRecoveredTerminalExchanges` counts the terminal exchanges the unparsed second chance salvaged (a live process counter like `transportRetries`, absent when zero), and orchestrations fold both windows into `schemaRecoveredFinishExchanges` on the acceptance ok envelope and the typed failure data, beside the rejected twin.
 
 ### 1.80.0
 
@@ -4448,6 +4475,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.81.0
+
 ### 1.80.0
 
 ### 1.79.0
@@ -4706,6 +4735,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.81.0
+
+#### Patch Changes
+
+- Updated dependencies [ce4c392]
+  - @rulvar/core@1.81.0
+  - @rulvar/testing@1.81.0
 
 ### 1.80.0
 
@@ -5714,6 +5751,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.81.0
+
+#### Patch Changes
+
+- Updated dependencies [ce4c392]
+  - @rulvar/core@1.81.0
+
 ### 1.80.0
 
 #### Patch Changes
@@ -5913,6 +5957,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.81.0
+
+#### Patch Changes
+
+- Updated dependencies [ce4c392]
+  - @rulvar/core@1.81.0
 
 ### 1.80.0
 
@@ -6888,6 +6939,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.81.0
+
+#### Patch Changes
+
+- Updated dependencies [ce4c392]
+  - @rulvar/core@1.81.0
+
 ### 1.80.0
 
 #### Patch Changes
@@ -7823,6 +7881,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.81.0
+
+#### Patch Changes
+
+- Updated dependencies [ce4c392]
+  - @rulvar/core@1.81.0
+  - eslint-plugin-rulvar@1.81.0
 
 ### 1.80.0
 
@@ -8787,6 +8853,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.81.0
+
+#### Patch Changes
+
+- Updated dependencies [ce4c392]
+  - @rulvar/core@1.81.0
+  - @rulvar/anthropic@1.81.0
+  - @rulvar/openai@1.81.0
 
 ### 1.80.0
 
@@ -9923,6 +9998,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.81.0
+
+#### Patch Changes
+
+- Updated dependencies [ce4c392]
+  - @rulvar/core@1.81.0
+
 ### 1.80.0
 
 #### Patch Changes
@@ -10842,6 +10924,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.81.0
+
+#### Patch Changes
+
+- Updated dependencies [ce4c392]
+  - @rulvar/core@1.81.0
+
 ### 1.80.0
 
 #### Patch Changes
@@ -11063,6 +11152,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.81.0
+
+#### Patch Changes
+
+- Updated dependencies [ce4c392]
+  - @rulvar/core@1.81.0
 
 ### 1.80.0
 
@@ -11924,6 +12020,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.81.0
+
+#### Patch Changes
+
+- Updated dependencies [ce4c392]
+  - @rulvar/core@1.81.0
 
 ### 1.80.0
 
