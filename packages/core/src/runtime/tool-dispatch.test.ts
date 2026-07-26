@@ -470,4 +470,68 @@ describe('unparsed tool arguments recovery (the v1.74 experiment review)', () =>
         .filter((event) => /recovered/.test((event as { msg?: string }).msg ?? '')),
     ).toHaveLength(0);
   });
+
+  it('the terminal tool gets the same second chance as regular tools (v1.75.1)', async () => {
+    // The v1.74 experiment's actual shape: the coordination finish, not
+    // a regular tool, carried the near-JSON payload. The terminal tool
+    // validates at its own interception site, so the recovery must ride
+    // there too, ending the loop in ONE turn with the recovered result.
+    const finishTool = tool({
+      name: 'finish',
+      description: 'the terminal tool',
+      parameters: z.strictObject({ result: z.string() }),
+      execute: () => Promise.resolve('unused: the interception ends the loop'),
+    });
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? { toolCall: { name: 'finish', args: { __unparsed: '{"result": "## Findings\nline"}' } } }
+        : { toolCall: { name: 'finish', args: { result: 'fallback' } } },
+    );
+    const events = recordingSink();
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits(),
+      tools: runtimeOf([finishTool]),
+      terminalTool: { name: 'finish' },
+      events,
+    });
+    expect(result.status).toBe('ok');
+    expect(result.output).toBe('## Findings\nline');
+    expect(result.turns).toBe(1);
+    expect(adapter.calls).toHaveLength(1);
+    expect(
+      events
+        .ofType('log')
+        .filter((event) => /recovered/.test((event as { msg?: string }).msg ?? '')),
+    ).toHaveLength(1);
+  });
+
+  it('an unrecoverable terminal payload stays a typed validation error', async () => {
+    const finishTool = tool({
+      name: 'finish',
+      description: 'the terminal tool',
+      parameters: z.strictObject({ result: z.string() }),
+      execute: () => Promise.resolve('unused'),
+    });
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? { toolCall: { name: 'finish', args: { __unparsed: '{"result": "abc' } } }
+        : { toolCall: { name: 'finish', args: { result: 'repaired' } } },
+    );
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits(),
+      tools: runtimeOf([finishTool]),
+      terminalTool: { name: 'finish' },
+    });
+    expect(result.status).toBe('ok');
+    expect(result.output).toBe('repaired');
+    expect(result.turns).toBe(2);
+    const first = toolResults(adapter.calls[1])[0] as { isError?: boolean };
+    expect(first.isError).toBe(true);
+  });
 });

@@ -1035,6 +1035,30 @@ function recoverUnparsedArgs(
 }
 
 /**
+ * The recovery adoption warn line, shared verbatim by the regular tool
+ * executor and the terminal tool interception so the two sites cannot
+ * drift. The recovery itself stays INLINE at both call sites (v1.75.1):
+ * an async wrapper around the common validation added one microtask
+ * tick to EVERY tool validation and shifted quiescence-sensitive
+ * cassette flows, and promise-tick identity is part of the byte
+ * contract, so only the synchronous pieces are shared.
+ */
+function unparsedRecoveryLog(
+  toolName: string,
+  rawChars: number,
+  pass: 'strict' | 'normalized',
+): { type: 'log'; level: 'warn'; msg: string } {
+  return {
+    type: 'log',
+    level: 'warn',
+    msg:
+      `arguments for '${toolName}' arrived unparsed (${String(rawChars)} ` +
+      `chars) and were recovered by a ${pass} JSON pass; the recovered object ` +
+      'passed the tool schema and the call executed',
+  };
+}
+
+/**
  * Executes one model-issued tool call to a tool-result part. Failures are
  * surfaced to the model as error tool results and never thrown past
  * policy: unknown names, argument-validation issues, ModelRetry (bounded
@@ -1083,21 +1107,15 @@ async function executeToolCall(options: {
     // recovered object itself passes the schema, so a failed recovery
     // keeps the original error result byte for byte. Deterministic
     // from the durable arguments alone: replay and resume recover
-    // identically, and nothing journals.
+    // identically, and nothing journals. Inline, not a shared async
+    // helper: the valid path must keep its exact promise ticks.
     const unparsedRaw = unparsedMarkerOf(call.args);
     const recovered = unparsedRaw === undefined ? undefined : recoverUnparsedArgs(unparsedRaw);
-    if (recovered !== undefined) {
+    if (recovered !== undefined && unparsedRaw !== undefined) {
       const revalidation = await validateSchemaSpec(def.parameters, recovered.value);
       if (revalidation.valid) {
         validation = revalidation;
-        options.events?.emit({
-          type: 'log',
-          level: 'warn',
-          msg:
-            `arguments for '${call.name}' arrived unparsed (${String(unparsedRaw?.length ?? 0)} ` +
-            `chars) and were recovered by a ${recovered.pass} JSON pass; the recovered object ` +
-            'passed the tool schema and the call executed',
-        });
+        options.events?.emit(unparsedRecoveryLog(call.name, unparsedRaw.length, recovered.pass));
       }
     }
   }
@@ -1696,10 +1714,27 @@ export async function runAgent<S extends SchemaSpec>(
       // arguments surface as an error tool result and the turn continues.
       if (options.terminalTool !== undefined && gatedCall.name === options.terminalTool.name) {
         const terminalDef = runtime.defs.find((candidate) => candidate.name === gatedCall.name);
-        const validation =
+        let validation =
           terminalDef === undefined
             ? undefined
             : await validateSchemaSpec(terminalDef.parameters, gatedCall.args);
+        if (terminalDef !== undefined && validation !== undefined && !validation.valid) {
+          // The terminal twin of the executor's unparsed second chance
+          // (v1.75.1): the terminal tool validates at this site, and the
+          // v1.74 experiment's actual casualty was the coordination
+          // finish. Inline for the same reason as the executor's block:
+          // the valid path must keep its exact promise ticks.
+          const unparsedRaw = unparsedMarkerOf(gatedCall.args);
+          const recovered =
+            unparsedRaw === undefined ? undefined : recoverUnparsedArgs(unparsedRaw);
+          if (recovered !== undefined && unparsedRaw !== undefined) {
+            const revalidation = await validateSchemaSpec(terminalDef.parameters, recovered.value);
+            if (revalidation.valid) {
+              validation = revalidation;
+              events?.emit(unparsedRecoveryLog(gatedCall.name, unparsedRaw.length, recovered.pass));
+            }
+          }
+        }
         if (validation === undefined || !validation.valid) {
           events?.emit({
             type: 'tool:end',
