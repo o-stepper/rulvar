@@ -4925,6 +4925,8 @@ interface BudgetAccountView {
   spentUsd: number;
   committedReserveUsd: number;
   finalizeReserveUsd: number;
+  /** The synthesis payload hold (cycle 76); zero when none is committed. */
+  synthesisReserveUsd: number;
   parentScope?: string;
 }
 /**
@@ -5081,6 +5083,21 @@ declare class RunBudget {
   * frozen past the cap, so nothing else can take it.
   */
   releaseFinalizeReserve(scope: string): void;
+  /**
+  * Registers the synthesis payload reserve (the sixth comparison
+  * experiment, cycle 76): absolute dollars held on the orchestrator
+  * account AND the run root, so neither spawn admission nor the
+  * per-turn output clamp lets the coordination prefix eat the money
+  * the synthesis finish needs. Unlike the finalize reserve it is
+  * released BEFORE the synthesis invocation dispatches (the held
+  * money is exactly what that invocation is meant to spend), and it
+  * never joins the severing check: a coordination running against the
+  * hold is clamped smaller, never aborted. Idempotent per account:
+  * re-registering adjusts the root by the delta.
+  */
+  commitSynthesisReserve(scope: string, reserveUsd: number): void;
+  /** The synthesis dispatch consumes its reserve; see commitSynthesisReserve. */
+  releaseSynthesisReserve(scope: string): void;
   /** The reserve is replaced by real spend when the spawn settles. */
   releaseReserve(reserveUsd: number, accountScope?: string): void;
   /** Layer 2: the per-turn guard. A turn that would cross any ceiling in the chain is not dispatched. */
@@ -7123,6 +7140,21 @@ interface OrchestratorBudgetSpec {
   * negative value would widen the cap instead of reserving.
   */
   finalizeReserveUsd?: number;
+  /**
+  * The synthesis payload reserve (the sixth comparison experiment,
+  * cycle 76): absolute USD held out of the orchestrator sub account
+  * while the coordination loop runs, released to the synthesis
+  * invocation just before it dispatches. Without it a pricey
+  * coordination can leave the synthesis turns a remainder the budget
+  * clamp shrinks below the contract's minimal accepting payload: the
+  * finish is then cut at the output allowance before any tool call,
+  * the invocation dies at maxTurns, and a validator-bound run fails
+  * closed (the rematch run 1 lost an entire paid run exactly there).
+  * Requires the `synthesis` option (single mode); must stay below the
+  * effective cap. Declaring it changes budget arithmetic only; absent
+  * keeps every account byte identical.
+  */
+  synthesisReserveUsd?: number;
   /**
   * A positive integer, validated before any journal entry or dispatch:
   * the turn limit of the reserved final wake.

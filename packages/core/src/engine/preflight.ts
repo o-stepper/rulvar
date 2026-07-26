@@ -1071,7 +1071,13 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         // orchestrator-cap-below-finalize-reserve error says so).
         orchestratorReserveUsd = Math.max(
           0,
-          orchestratorAdmissionEstCostUsd(effectiveCapUsd, reservedForFinalizationUsd),
+          orchestratorAdmissionEstCostUsd(
+            effectiveCapUsd,
+            // The synthesis payload reserve (cycle 76) is a committed
+            // carve-out exactly like the finalize reserve: the live
+            // exact-fill hint nets both, so the projection must too.
+            reservedForFinalizationUsd + (input.orchestrator.budget?.synthesisReserveUsd ?? 0),
+          ),
         );
       } else if (pricing === undefined) {
         orchestratorReserveUsd = 0;
@@ -1234,6 +1240,45 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         // With synthesis configured the validators bind ITS finish: the
         // contract must fit the synthesis invocation's turns.
         contractFeasibilityFindings(outputBound, 'synthesis', servedBy);
+        // The synthesis payload reserve check (the sixth comparison
+        // experiment, cycle 76): the rematch's first run spent the
+        // orchestrator sub account on the coordination prefix and the
+        // budget clamp shrank the synthesis turns below the contract's
+        // minimal accepting payload, so the finish was cut at the output
+        // allowance before any tool call and the validator-bound run
+        // failed closed at maxTurns. With a contract bound to the
+        // synthesis, the sub account must HOLD the payload money.
+        {
+          const contract = input.finishValidation?.contract;
+          const pricing = pricingOf(servedBy);
+          if (contract !== undefined && pricing !== undefined && pricing.outputUsdPerMTok > 0) {
+            const minTokens = Math.ceil(
+              JSON.stringify({ result: contract.goldenAccept.text }).length / 4,
+            );
+            const payloadUsd = (minTokens / 1_000_000) * pricing.outputUsdPerMTok;
+            const declared = input.orchestrator?.budget?.synthesisReserveUsd;
+            if (declared === undefined || declared < payloadUsd) {
+              say({
+                severity: 'warning',
+                code: 'synthesis-reserve-unfunded',
+                message:
+                  `the contract's minimal accepting payload is about ${String(minTokens)} ` +
+                  `output tokens, about ${payloadUsd.toFixed(4)} USD at the output rate of ` +
+                  `'${servedBy}', and the orchestrator sub account holds ` +
+                  `${
+                    declared === undefined
+                      ? 'no synthesis reserve'
+                      : `only ${declared.toFixed(4)} USD`
+                  } ` +
+                  'for it: a pricey coordination prefix can leave the synthesis turns a ' +
+                  'remainder the budget clamp shrinks below the payload, cutting the finish ' +
+                  'before any tool call; declare budget.synthesisReserveUsd at or above the ' +
+                  'payload price',
+                spawn: 'synthesis',
+              });
+            }
+          }
+        }
         const projected =
           projectedProviderTurnsOf(merged, overallExecutedCeiling(merged, toolCeilingsOf(merged))) +
           finishRepairReserve;
@@ -1263,12 +1308,26 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
   let committed = 0;
   let spawned = 0;
   let children = 0;
-  const admitAgainstRoot = (reserveUsd: number): boolean => {
+  // `strictAtFill` mirrors the one certainty a static projection has
+  // about an orchestrate wave (the sixth comparison experiment, cycle
+  // 76): the coordination turn that issues the spawn tools is PAID
+  // strictly before any spawn tool executes, so the live remainder at
+  // evaluation is always below the static one, and a child whose
+  // reserve fits only at exact fill is certain to be rejected live
+  // (the run 2 rematch lost its mandated fourth specialist to exactly
+  // that promise: the projection said 5 of 5, the live gate rejected
+  // with reason budget). The orchestrator's OWN row keeps the exact
+  // fill admission: it admits at run start, before any spend exists.
+  const admitAgainstRoot = (reserveUsd: number, strictAtFill = false): boolean => {
     if (ceilingUsd === undefined) {
       return true;
     }
     const held = committed + reservedForFinalizationUsd;
-    return !(held >= ceilingUsd || held + reserveUsd > ceilingUsd);
+    if (held >= ceilingUsd) {
+      return false;
+    }
+    const fill = held + reserveUsd;
+    return strictAtFill ? fill < ceilingUsd : fill <= ceilingUsd;
   };
   if (input.orchestrator !== undefined) {
     // A capped orchestrator's reserve is the exact-fill hint, so its
@@ -1309,17 +1368,20 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
           // Layer 2, the embedded spawn gate: the SAME projection the
           // live spawn_agent evaluation runs (the shared
           // dispatchProjectionReserveUsd), against the remainder net of
-          // everything already committed, strict past exact fill. The
-          // gate never sees the priced estimate, so a wave the layer-1
-          // chain would afford can still die here, exactly like the
-          // runtime.
+          // everything already committed. Strict AT exact fill (cycle
+          // 76): the live evaluation subtracts the coordination spend
+          // that is always already paid by the time a spawn tool runs,
+          // so a remainder that only just equals the projection is a
+          // certain live rejection. The gate never sees the priced
+          // estimate, so a wave the layer-1 chain would afford can
+          // still die here, exactly like the runtime.
           const remainder = ceilingUsd - committed - reservedForFinalizationUsd;
           const projection = dispatchProjectionReserveUsd(gate, flatReserveUsd);
-          if (remainder <= 0 || remainder < projection) {
+          if (remainder <= 0 || remainder <= projection) {
             deniedBy = 'budget';
           }
         }
-        if (deniedBy === undefined && !admitAgainstRoot(reserveUsd)) {
+        if (deniedBy === undefined && !admitAgainstRoot(reserveUsd, orchestrateWave)) {
           deniedBy = 'budget';
         }
       }

@@ -6,7 +6,7 @@
 
 # Class: RunBudget
 
-Defined in: [packages/core/src/engine/budget.ts:154](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L154)
+Defined in: [packages/core/src/engine/budget.ts:158](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L158)
 
 The per-run budget account tree. All spend accounting is per instance;
 the journal remains the durable source (the root is seeded by the
@@ -21,7 +21,7 @@ spawn-admission decision entries, M6).
 new RunBudget(options): RunBudget;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:170](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L170)
+Defined in: [packages/core/src/engine/budget.ts:174](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L174)
 
 #### Parameters
 
@@ -46,7 +46,7 @@ Defined in: [packages/core/src/engine/budget.ts:170](https://github.com/o-steppe
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="property-ceilingusd"></a> `ceilingUsd?` | `readonly` | `number` | B0; immutable after start. Undefined means no USD ceiling. | [packages/core/src/engine/budget.ts:156](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L156) |
+| <a id="property-ceilingusd"></a> `ceilingUsd?` | `readonly` | `number` | B0; immutable after start. Undefined means no USD ceiling. | [packages/core/src/engine/budget.ts:160](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L160) |
 
 ## Accessors
 
@@ -58,7 +58,7 @@ Defined in: [packages/core/src/engine/budget.ts:170](https://github.com/o-steppe
 get committedReserveUsd(): number;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:434](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L434)
+Defined in: [packages/core/src/engine/budget.ts:442](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L442)
 
 ##### Returns
 
@@ -74,7 +74,7 @@ Defined in: [packages/core/src/engine/budget.ts:434](https://github.com/o-steppe
 get exhausted(): boolean;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:420](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L420)
+Defined in: [packages/core/src/engine/budget.ts:428](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L428)
 
 ##### Returns
 
@@ -90,7 +90,7 @@ Defined in: [packages/core/src/engine/budget.ts:420](https://github.com/o-steppe
 get signal(): AbortSignal;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:411](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L411)
+Defined in: [packages/core/src/engine/budget.ts:419](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L419)
 
 Layer 3 ceiling signal of the run root; live streams sever through it.
 
@@ -108,7 +108,7 @@ Layer 3 ceiling signal of the run root; live streams sever through it.
 get spawnHeadroom(): number;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:439](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L439)
+Defined in: [packages/core/src/engine/budget.ts:447](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L447)
 
 Spawn headroom under the engine lifetime cap (embedded in admission verdicts).
 
@@ -126,7 +126,7 @@ accountView(scope):
   | undefined;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:342](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L342)
+Defined in: [packages/core/src/engine/budget.ts:348](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L348)
 
 #### Parameters
 
@@ -147,7 +147,7 @@ Defined in: [packages/core/src/engine/budget.ts:342](https://github.com/o-steppe
 admitRecovered(reserveUsd, accountScope?): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:513](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L513)
+Defined in: [packages/core/src/engine/budget.ts:525](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L525)
 
 Resume roll-forward: commits a reserve recovered from a journaled
 spawn-admission decision entry without re-evaluating admission
@@ -172,7 +172,7 @@ spawn-admission decision entry without re-evaluating admission
 admitSpawn(reserveUsd, accountScope?): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:455](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L455)
+Defined in: [packages/core/src/engine/budget.ts:463](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L463)
 
 Layer 1: PROJECTED admission before spawn. A spawn is admitted only
 when every account in the ancestor chain of `accountScope` still has
@@ -204,7 +204,7 @@ Also enforces the engine lifetime spawn cap.
 allowanceHeadroomOf(scope): number | undefined;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:392](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L392)
+Defined in: [packages/core/src/engine/budget.ts:400](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L400)
 
 The tightest allowance headroom on the chain of `scope`: the minimum
 remainder across 'child-allowance' accounts. An allowance ceiling
@@ -234,7 +234,7 @@ headroom is shared money that projected admission must protect.
 beforeTurn(accountScope?): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:565](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L565)
+Defined in: [packages/core/src/engine/budget.ts:621](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L621)
 
 Layer 2: the per-turn guard. A turn that would cross any ceiling in the chain is not dispatched.
 
@@ -256,7 +256,7 @@ Layer 2: the per-turn guard. A turn that would cross any ceiling in the chain is
 commitFinalizeReserve(scope, reserveUsd): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:529](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L529)
+Defined in: [packages/core/src/engine/budget.ts:541](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L541)
 
 Registers the orchestrator finalize reserve (DEF-7):
 absolute dollars set on the named account AND the run root, so
@@ -278,13 +278,45 @@ Idempotent: re-registering on resume keeps the journaled amount.
 
 ***
 
+### commitSynthesisReserve()
+
+```ts
+commitSynthesisReserve(scope, reserveUsd): void;
+```
+
+Defined in: [packages/core/src/engine/budget.ts:580](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L580)
+
+Registers the synthesis payload reserve (the sixth comparison
+experiment, cycle 76): absolute dollars held on the orchestrator
+account AND the run root, so neither spawn admission nor the
+per-turn output clamp lets the coordination prefix eat the money
+the synthesis finish needs. Unlike the finalize reserve it is
+released BEFORE the synthesis invocation dispatches (the held
+money is exactly what that invocation is meant to spend), and it
+never joins the severing check: a coordination running against the
+hold is clamped smaller, never aborted. Idempotent per account:
+re-registering adjusts the root by the delta.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `scope` | `string` |
+| `reserveUsd` | `number` |
+
+#### Returns
+
+`void`
+
+***
+
 ### exhaustionDiagnostics()
 
 ```ts
 exhaustionDiagnostics(scope): BudgetExhaustionDiagnostics;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:304](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L304)
+Defined in: [packages/core/src/engine/budget.ts:310](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L310)
 
 The diagnostic projection behind a ceiling error: the first CLOSED
 account (projected commitments included, exactly the layer-1
@@ -314,7 +346,7 @@ the error path.
 markExhausted(): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:429](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L429)
+Defined in: [packages/core/src/engine/budget.ts:437](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L437)
 
 Marks the run exhausted without a ceiling event: the orchestrator
 finalize fallback maps to outcome 'exhausted' with the synthesized
@@ -335,7 +367,7 @@ maxAffordableOutputTokens(
    accountScope?): number | undefined;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:596](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L596)
+Defined in: [packages/core/src/engine/budget.ts:652](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L652)
 
 Layer 2b, the pre-dispatch output bound: the output tokens the
 remaining chain budget (min over capped ancestors of ceiling minus
@@ -369,7 +401,7 @@ onUsage(
    accountScope?): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:625](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L625)
+Defined in: [packages/core/src/engine/budget.ts:681](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L681)
 
 Live accounting; spend propagates from `accountScope` to every
 ancestor. Crossing a ceiling severs the crossing account's subtree
@@ -396,7 +428,7 @@ in-flight agent; providers bill severed streams).
 openAccount(scope, options): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:256](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L256)
+Defined in: [packages/core/src/engine/budget.ts:261](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L261)
 
 Opens a child sub-account under `parentScope`.
 Re-opening an existing scope is the resume roll-forward path: the
@@ -425,7 +457,7 @@ recorded ceiling wins once and the accumulated state is kept.
 releaseFinalizeReserve(scope): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:547](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L547)
+Defined in: [packages/core/src/engine/budget.ts:559](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L559)
 
 The forced finish CONSUMES its reserve (DEF-7
 reserve-survives-run-exhaustion): once the cap decision is durable
@@ -452,7 +484,7 @@ frozen past the cap, so nothing else can take it.
 releaseReserve(reserveUsd, accountScope?): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:557](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L557)
+Defined in: [packages/core/src/engine/budget.ts:613](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L613)
 
 The reserve is replaced by real spend when the spawn settles.
 
@@ -469,13 +501,35 @@ The reserve is replaced by real spend when the spawn settles.
 
 ***
 
+### releaseSynthesisReserve()
+
+```ts
+releaseSynthesisReserve(scope): void;
+```
+
+Defined in: [packages/core/src/engine/budget.ts:597](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L597)
+
+The synthesis dispatch consumes its reserve; see commitSynthesisReserve.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `scope` | `string` |
+
+#### Returns
+
+`void`
+
+***
+
 ### remainderOf()
 
 ```ts
 remainderOf(scope): number | undefined;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:367](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L367)
+Defined in: [packages/core/src/engine/budget.ts:374](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L374)
 
 The admission remainder of one account: ceiling minus spend minus
 committed reserves minus the finalize reserve (DEF-7: childBudget
@@ -499,7 +553,7 @@ fractions never eat finalization money). Undefined when uncapped.
 remaining(): Spend | null;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:710](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L710)
+Defined in: [packages/core/src/engine/budget.ts:766](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L766)
 
 Null when the run has no USD ceiling.
 
@@ -515,7 +569,7 @@ Null when the run has no USD ceiling.
 signalOf(scope): AbortSignal | undefined;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:416](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L416)
+Defined in: [packages/core/src/engine/budget.ts:424](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L424)
 
 The layer-3 signal of one sub-account's subtree, when it exists.
 
@@ -537,7 +591,7 @@ The layer-3 signal of one sub-account's subtree, when it exists.
 spent(): Spend;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:701](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L701)
+Defined in: [packages/core/src/engine/budget.ts:757](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L757)
 
 #### Returns
 

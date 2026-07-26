@@ -122,6 +122,21 @@ export interface OrchestratorBudgetSpec {
    */
   finalizeReserveUsd?: number;
   /**
+   * The synthesis payload reserve (the sixth comparison experiment,
+   * cycle 76): absolute USD held out of the orchestrator sub account
+   * while the coordination loop runs, released to the synthesis
+   * invocation just before it dispatches. Without it a pricey
+   * coordination can leave the synthesis turns a remainder the budget
+   * clamp shrinks below the contract's minimal accepting payload: the
+   * finish is then cut at the output allowance before any tool call,
+   * the invocation dies at maxTurns, and a validator-bound run fails
+   * closed (the rematch run 1 lost an entire paid run exactly there).
+   * Requires the `synthesis` option (single mode); must stay below the
+   * effective cap. Declaring it changes budget arithmetic only; absent
+   * keeps every account byte identical.
+   */
+  synthesisReserveUsd?: number;
+  /**
    * A positive integer, validated before any journal entry or dispatch:
    * the turn limit of the reserved final wake.
    */
@@ -911,6 +926,21 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
   if (spec.finalizeReserveUsd !== undefined) {
     requireNonNegativeNumber(spec.finalizeReserveUsd, 'orchestrate budget.finalizeReserveUsd');
   }
+  if (spec.synthesisReserveUsd !== undefined) {
+    requireNonNegativeNumber(spec.synthesisReserveUsd, 'orchestrate budget.synthesisReserveUsd');
+    if (opts.synthesis === undefined) {
+      throw new ConfigError(
+        'orchestrate budget.synthesisReserveUsd requires the synthesis option: the reserve ' +
+          'holds sub account money for the separate synthesis invocation',
+      );
+    }
+    if ((opts.synthesis as { mode?: string }).mode === 'incremental') {
+      throw new ConfigError(
+        'orchestrate budget.synthesisReserveUsd is incompatible with synthesis.mode ' +
+          "'incremental': the reserve protects the single post-fan-in invocation",
+      );
+    }
+  }
   if (spec.finalizeTurns !== undefined) {
     requirePositiveInteger(spec.finalizeTurns, 'orchestrate budget.finalizeTurns');
   }
@@ -1249,6 +1279,12 @@ export function makeOrchestratorWorkflow(
         );
         orchestratorAccount =
           callingState.scope === '' ? 'orchestrator' : `${callingState.scope}/orchestrator`;
+        if (spec?.synthesisReserveUsd !== undefined && frozen.capUsd <= spec.synthesisReserveUsd) {
+          throw new OrchestratorCapConfigError(
+            `effectiveCap ${frozen.capUsd.toFixed(4)} USD is not above the synthesis reserve ` +
+              `${spec.synthesisReserveUsd.toFixed(4)} USD`,
+          );
+        }
         internals.budget.openAccount(orchestratorAccount, {
           parentScope: callingState.budgetScope ?? ROOT_ACCOUNT,
           ceilingUsd: frozen.capUsd,
@@ -1256,6 +1292,9 @@ export function makeOrchestratorWorkflow(
         });
         if (extension !== undefined) {
           internals.budget.commitFinalizeReserve(orchestratorAccount, frozen.finalizeReserveUsd);
+        }
+        if (spec?.synthesisReserveUsd !== undefined && spec.synthesisReserveUsd > 0) {
+          internals.budget.commitSynthesisReserve(orchestratorAccount, spec.synthesisReserveUsd);
         }
         capState = {
           effectiveCapUsd: frozen.capUsd,
@@ -1311,6 +1350,16 @@ export function makeOrchestratorWorkflow(
             callingState.spanId,
           );
         }
+        if (
+          spec?.synthesisReserveUsd !== undefined &&
+          effectiveCapUsd <= spec.synthesisReserveUsd
+        ) {
+          throw new OrchestratorCapConfigError(
+            `effectiveCap ${effectiveCapUsd.toFixed(4)} USD is not above the synthesis reserve ` +
+              `${spec.synthesisReserveUsd.toFixed(4)} USD: the coordination loop would have no ` +
+              'money at all',
+          );
+        }
         orchestratorAccount =
           callingState.scope === '' ? 'orchestrator' : `${callingState.scope}/orchestrator`;
         internals.budget.openAccount(orchestratorAccount, {
@@ -1323,6 +1372,9 @@ export function makeOrchestratorWorkflow(
           // run root: admission never eats the finalization money, even
           // against whole-run exhaustion.
           internals.budget.commitFinalizeReserve(orchestratorAccount, finalizeReserveUsd);
+        }
+        if (spec?.synthesisReserveUsd !== undefined && spec.synthesisReserveUsd > 0) {
+          internals.budget.commitSynthesisReserve(orchestratorAccount, spec.synthesisReserveUsd);
         }
         capState = {
           effectiveCapUsd,
@@ -2828,9 +2880,14 @@ export function makeOrchestratorWorkflow(
         : {
             estCost: orchestratorAdmissionEstCostUsd(
               capState.effectiveCapUsd,
+              // Both carve-outs already committed on the cap account net
+              // out of the exact-fill hint: the finalize reserve and the
+              // synthesis payload reserve (cycle 76), or the hint plus
+              // the holds would overfill the account's own chain.
               orchestratorAccount === undefined
                 ? 0
-                : (internals.budget.accountView(orchestratorAccount)?.finalizeReserveUsd ?? 0),
+                : (internals.budget.accountView(orchestratorAccount)?.finalizeReserveUsd ?? 0) +
+                    (internals.budget.accountView(orchestratorAccount)?.synthesisReserveUsd ?? 0),
             ),
           }),
       ...(opts?.model === undefined ? {} : { model: opts.model }),
@@ -3358,6 +3415,11 @@ export function makeOrchestratorWorkflow(
       const synthesisState: CtxScopeState = { ...callingState };
       if (orchestratorAccount !== undefined) {
         synthesisState.budgetScope = orchestratorAccount;
+        // The reserve's whole purpose arrives here: the held money is
+        // released to the invocation it was held FOR (cycle 76), so the
+        // per-turn clamp prices the synthesis finish from the freed
+        // remainder.
+        internals.budget.releaseSynthesisReserve(orchestratorAccount);
       }
       // A validator rejection aborts the synthesis loop exactly like the
       // coordination loop; the caller throws the armed termination.
