@@ -10,7 +10,12 @@ import type { JournalEntry } from '../l0/entries.js';
 import { ConfigError, FailRunError } from '../l0/errors.js';
 import { InMemoryStore, InMemoryTranscriptStore } from '../stores/inmemory.js';
 import { executeWorkflow } from '../engine/ctx.js';
-import { makeInternals, scriptedAdapter, testCaps, type ScriptedTurn } from '../engine/test-harness.js';
+import {
+  makeInternals,
+  scriptedAdapter,
+  testCaps,
+  type ScriptedTurn,
+} from '../engine/test-harness.js';
 import type { AgentProfile } from '../engine/ctx.js';
 import { createEngine } from '../engine/engine.js';
 import { GitWorktreeProvider } from '../tools/isolation.js';
@@ -2411,8 +2416,7 @@ describe('the synthesis budget reserve (the sixth comparison experiment, cycle 7
             name: 'finish',
             args: {
               result:
-                'the draft ' +
-                Array.from({ length: 30 }, (unused, i) => `d${String(i)}`).join(' '),
+                'the draft ' + Array.from({ length: 30 }, (unused, i) => `d${String(i)}`).join(' '),
             },
           },
           usage: { inputTokens: 400, outputTokens: 400 },
@@ -2440,9 +2444,11 @@ describe('the synthesis budget reserve (the sixth comparison experiment, cycle 7
   it('without the reserve the sub account budget clamps the synthesis below the payload and the run fails closed', async () => {
     const adapter = reserveAdapter();
     const engine = createEngine({ adapters: [adapter], defaults: RESERVE_DEFAULTS });
-    const outcome = await engine
-      .run(reserveWorkflow({ capUsd: 2.0, capFraction: 1.0 }), undefined, { budgetUsd: 10 })
-      .result;
+    const outcome = await engine.run(
+      reserveWorkflow({ capUsd: 2.0, capFraction: 1.0 }),
+      undefined,
+      { budgetUsd: 10 },
+    ).result;
     expect(outcome.status).toBe('error');
     expect(outcome.error?.code).toBe('fail_run');
     expect(outcome.error?.message).toContain(
@@ -2459,13 +2465,11 @@ describe('the synthesis budget reserve (the sixth comparison experiment, cycle 7
   it('budget.synthesisReserveUsd holds the payload money through coordination and the finish lands', async () => {
     const adapter = reserveAdapter();
     const engine = createEngine({ adapters: [adapter], defaults: RESERVE_DEFAULTS });
-    const outcome = await engine
-      .run(
-        reserveWorkflow({ capUsd: 2.0, capFraction: 1.0, synthesisReserveUsd: 0.7 }),
-        undefined,
-        { budgetUsd: 10 },
-      )
-      .result;
+    const outcome = await engine.run(
+      reserveWorkflow({ capUsd: 2.0, capFraction: 1.0, synthesisReserveUsd: 0.7 }),
+      undefined,
+      { budgetUsd: 10 },
+    ).result;
     expect(outcome.status).toBe('ok');
     expect(String(outcome.value)).toContain('final report');
     // The hold's two visible edges: the coordination allowance shrank
@@ -2478,9 +2482,9 @@ describe('the synthesis budget reserve (the sixth comparison experiment, cycle 7
   });
 
   it('the reserve is validated at intake', () => {
-    expect(() =>
-      makeOrchestratorWorkflow('g', { budget: { synthesisReserveUsd: 0.1 } }),
-    ).toThrow(ConfigError);
+    expect(() => makeOrchestratorWorkflow('g', { budget: { synthesisReserveUsd: 0.1 } })).toThrow(
+      ConfigError,
+    );
     expect(() =>
       makeOrchestratorWorkflow('g', {
         synthesis: {},
@@ -2498,13 +2502,11 @@ describe('the synthesis budget reserve (the sixth comparison experiment, cycle 7
   it('a reserve at or above the effective cap refuses before any dispatch', async () => {
     const adapter = reserveAdapter();
     const engine = createEngine({ adapters: [adapter], defaults: RESERVE_DEFAULTS });
-    const outcome = await engine
-      .run(
-        reserveWorkflow({ capUsd: 2.0, capFraction: 1.0, synthesisReserveUsd: 2.0 }),
-        undefined,
-        { budgetUsd: 10 },
-      )
-      .result;
+    const outcome = await engine.run(
+      reserveWorkflow({ capUsd: 2.0, capFraction: 1.0, synthesisReserveUsd: 2.0 }),
+      undefined,
+      { budgetUsd: 10 },
+    ).result;
     expect(outcome.status).toBe('error');
     expect(outcome.error?.message).toMatch(/synthesis reserve/);
     expect(adapter.calls).toHaveLength(0);

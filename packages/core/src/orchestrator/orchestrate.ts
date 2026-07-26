@@ -936,7 +936,7 @@ function validateOrchestrateOptions(opts: OrchestrateOptions | undefined): void 
     }
     if ((opts.synthesis as { mode?: string }).mode === 'incremental') {
       throw new ConfigError(
-        "orchestrate budget.synthesisReserveUsd is incompatible with synthesis.mode " +
+        'orchestrate budget.synthesisReserveUsd is incompatible with synthesis.mode ' +
           "'incremental': the reserve protects the single post-fan-in invocation",
       );
     }
@@ -1350,7 +1350,10 @@ export function makeOrchestratorWorkflow(
             callingState.spanId,
           );
         }
-        if (spec?.synthesisReserveUsd !== undefined && effectiveCapUsd <= spec.synthesisReserveUsd) {
+        if (
+          spec?.synthesisReserveUsd !== undefined &&
+          effectiveCapUsd <= spec.synthesisReserveUsd
+        ) {
           throw new OrchestratorCapConfigError(
             `effectiveCap ${effectiveCapUsd.toFixed(4)} USD is not above the synthesis reserve ` +
               `${spec.synthesisReserveUsd.toFixed(4)} USD: the coordination loop would have no ` +
@@ -2884,7 +2887,7 @@ export function makeOrchestratorWorkflow(
               orchestratorAccount === undefined
                 ? 0
                 : (internals.budget.accountView(orchestratorAccount)?.finalizeReserveUsd ?? 0) +
-                  (internals.budget.accountView(orchestratorAccount)?.synthesisReserveUsd ?? 0),
+                    (internals.budget.accountView(orchestratorAccount)?.synthesisReserveUsd ?? 0),
             ),
           }),
       ...(opts?.model === undefined ? {} : { model: opts.model }),
