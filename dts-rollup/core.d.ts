@@ -1531,7 +1531,17 @@ type ModelCaps = {
   supportsParallelTools: boolean; /** Canonical efforts this model accepts after mapping. */
   reasoningEfforts: Effort[];
   contextWindow: number;
-  maxOutputTokens: number; /** Adapter-reported fallback only; the versioned price table wins. */
+  maxOutputTokens: number;
+  /**
+  * The smallest request output cap the provider accepts (the v1.74
+  * experiment review, P0.1): OpenAI's Responses API rejects
+  * max_output_tokens below 16, so a dispatch under this floor is a
+  * guaranteed 400. The runtime never sends a request output cap below
+  * it: a budget last gasp dispatches the floor instead of one token,
+  * and a remainder that cannot buy the floor is refused typed before
+  * the wire. Absent means one, the historical floor.
+  */
+  minOutputTokensPerTurn?: number; /** Adapter-reported fallback only; the versioned price table wins. */
   pricing?: Pricing;
 };
 interface ProviderAdapter {

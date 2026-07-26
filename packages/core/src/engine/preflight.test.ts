@@ -911,3 +911,53 @@ describe('orchestrate-wave parity (the 1.63.0 experiment review, P0.3)', () => {
     ).toThrow(/repairTurnReserve/);
   });
 });
+
+describe('output caps below the provider minimum (the v1.74 experiment review)', () => {
+  const flooredAdapter = () =>
+    scriptedAdapter(() => ({ text: 'x' }), { caps: testCaps({ minOutputTokensPerTurn: 16 }) });
+
+  it('flags a spawn per-turn output cap below the serving model minimum', () => {
+    const report = preflightEstimate({
+      engine: { adapters: [flooredAdapter()], defaults: { routing: { loop: SERVED } } },
+      spawns: [{ label: 'worker', limits: { maxOutputTokensPerTurn: 10 } }],
+    });
+    const finding = report.findings.find(
+      (candidate) => candidate.code === 'output-cap-below-provider-minimum',
+    );
+    expect(finding?.severity).toBe('error');
+    expect(finding?.message).toContain("'worker'");
+    expect(finding?.message).toContain('16');
+  });
+
+  it('flags the synthesis cap below the minimum and stays quiet at or above it', () => {
+    const below = preflightEstimate({
+      engine: {
+        adapters: [flooredAdapter()],
+        defaults: { routing: { orchestrate: SERVED, synthesize: SERVED } },
+      },
+      orchestrator: {
+        limits: { maxTurns: 2 },
+        synthesis: { limits: { maxTurns: 2, maxOutputTokensPerTurn: 10 } },
+      },
+    });
+    const finding = below.findings.find(
+      (candidate) => candidate.code === 'output-cap-below-provider-minimum',
+    );
+    expect(finding?.severity).toBe('error');
+    expect(finding?.message).toContain('synthesis');
+
+    const atFloor = preflightEstimate({
+      engine: {
+        adapters: [flooredAdapter()],
+        defaults: { routing: { orchestrate: SERVED, synthesize: SERVED } },
+      },
+      orchestrator: {
+        limits: { maxTurns: 2 },
+        synthesis: { limits: { maxTurns: 2, maxOutputTokensPerTurn: 16 } },
+      },
+    });
+    expect(
+      atFloor.findings.find((candidate) => candidate.code === 'output-cap-below-provider-minimum'),
+    ).toBeUndefined();
+  });
+});

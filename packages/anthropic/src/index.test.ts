@@ -935,3 +935,19 @@ describe('live incremental streaming (the reliability-review P0)', () => {
     expect(rest.filter((e) => e.type === 'finish')).toHaveLength(1);
   }, 5_000);
 });
+
+describe('safe rate limit values (the v1.74 experiment review)', () => {
+  it('an unsafe-integer rate limit header is dropped, never Infinity', () => {
+    const wire = anthropicErrorToWire({
+      status: 429,
+      message: 'rate limited',
+      headers: {
+        'x-ratelimit-limit-requests': '50',
+        'x-ratelimit-limit-input-tokens': '9'.repeat(400),
+      },
+    });
+    expect((wire.data as { reportedLimits?: unknown }).reportedLimits).toEqual({
+      requestsPerMinute: 50,
+    });
+  });
+});

@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { z } from 'zod';
 
+import { ConfigError } from '../l0/errors.js';
 import { canonicalizeSchema, projectToJsonSchema } from '../l0/schema.js';
 import type { ResolvedInvocation } from '../model/router.js';
 import { recordingSink, scriptedAdapter, testCaps } from '../engine/test-harness.js';
@@ -325,5 +326,95 @@ describe('agent runtime v1 (M1-T06)', () => {
       expectTypeOf(result.escalation).not.toBeUndefined();
     }
     expect(isEscalated(result)).toBe(false);
+  });
+});
+
+describe('the provider output floor (the v1.74 experiment review)', () => {
+  const budgetOf = (
+    maxAffordableOutputTokens: (ref: string, estimatedInputTokens: number) => number | undefined,
+  ) => ({
+    beforeTurn: () => undefined,
+    onUsage: () => undefined,
+    maxAffordableOutputTokens,
+  });
+
+  it('the below-estimate last gasp dispatches the floor, never one token', async () => {
+    const adapter = scriptedAdapter(() => ({ text: 'done' }), {
+      caps: testCaps({ minOutputTokensPerTurn: 16 }),
+    });
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits(),
+      // The heuristic estimate says the prompt alone spends the
+      // remainder while the exact zero-input remainder still buys 40
+      // output tokens: the experiment's terminal shape.
+      budget: budgetOf((_ref, estimatedInputTokens) => (estimatedInputTokens > 0 ? -5 : 40)),
+    });
+    expect(result.status).toBe('ok');
+    expect(adapter.calls[0]?.maxOutputTokens).toBe(16);
+  });
+
+  it('a remainder below the floor is refused typed with zero dispatches', async () => {
+    const adapter = scriptedAdapter(() => ({ text: 'never' }), {
+      caps: testCaps({ minOutputTokensPerTurn: 16 }),
+    });
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits(),
+      // Five affordable output tokens are below the declared minimum:
+      // dispatching would be a guaranteed provider 400.
+      budget: budgetOf(() => 5),
+    });
+    expect(result.status).toBe('error');
+    expect(result.error?.kind).toBe('budget');
+    expect(result.errorMessage).toMatch(/16/);
+    expect(adapter.calls).toHaveLength(0);
+  });
+
+  it('an affordable clamp at or above the floor is untouched', async () => {
+    const adapter = scriptedAdapter(() => ({ text: 'done' }), {
+      caps: testCaps({ minOutputTokensPerTurn: 16 }),
+    });
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits(),
+      budget: budgetOf(() => 40),
+    });
+    expect(result.status).toBe('ok');
+    expect(adapter.calls[0]?.maxOutputTokens).toBe(40);
+  });
+
+  it('the default floor stays one token for adapters without a declared minimum', async () => {
+    const adapter = scriptedAdapter(() => ({ text: 'done' }));
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits(),
+      budget: budgetOf((_ref, estimatedInputTokens) => (estimatedInputTokens > 0 ? -5 : 3)),
+    });
+    expect(result.status).toBe('ok');
+    expect(adapter.calls[0]?.maxOutputTokens).toBe(1);
+  });
+
+  it('a configured per-turn cap below the floor is a typed ConfigError, not a wire 400', async () => {
+    const adapter = scriptedAdapter(() => ({ text: 'never' }), {
+      caps: testCaps({ minOutputTokensPerTurn: 16 }),
+    });
+    await expect(
+      runAgent({
+        prompt: 'go',
+        adapter,
+        resolved,
+        limits: mergeUsageLimits({ maxOutputTokensPerTurn: 10 }),
+      }),
+    ).rejects.toThrow(ConfigError);
+    expect(adapter.calls).toHaveLength(0);
   });
 });

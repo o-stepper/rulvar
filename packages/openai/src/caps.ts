@@ -39,6 +39,11 @@ function responses(
       reasoningEfforts: [...REASONING_EFFORTS, 'max'],
       contextWindow,
       maxOutputTokens,
+      // The documented Responses API minimum for max_output_tokens: a
+      // request below 16 is a guaranteed 400 (the v1.74 experiment's
+      // terminal repair died exactly there). An API property, so every
+      // row and the unknown-model fallback carry it alike.
+      minOutputTokensPerTurn: 16,
       ...(pricing === undefined ? {} : { pricing }),
     },
     api: 'responses',

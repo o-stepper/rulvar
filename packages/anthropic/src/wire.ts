@@ -673,7 +673,14 @@ export function anthropicErrorToWire(error: unknown): WireError {
         return undefined;
       }
       const match = /^[\t ]*([0-9]+)[\t ]*$/.exec(value);
-      return match === null ? undefined : Number(match[1]);
+      if (match === null) {
+        return undefined;
+      }
+      // The digit-run grammar admits an arbitrarily long run, and
+      // Number() turns 400 digits into Infinity (the v1.74 experiment
+      // review, P2.11): an unsafe value is dropped, never normalized.
+      const parsed = Number(match[1]);
+      return Number.isSafeInteger(parsed) ? parsed : undefined;
     };
     const requestsPerMinute = limitOf('x-ratelimit-limit-requests');
     const inputTokensPerMinute = limitOf('x-ratelimit-limit-input-tokens');

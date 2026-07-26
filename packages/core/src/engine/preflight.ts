@@ -697,6 +697,25 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         spawn: label,
       });
     }
+    if (
+      caps?.minOutputTokensPerTurn !== undefined &&
+      limits.maxOutputTokensPerTurn !== undefined &&
+      limits.maxOutputTokensPerTurn < caps.minOutputTokensPerTurn
+    ) {
+      // The provider output floor (the v1.74 experiment review, P0.1):
+      // the runtime refuses every below-floor dispatch typed, so this
+      // configuration can never produce a provider turn.
+      say({
+        severity: 'error',
+        code: 'output-cap-below-provider-minimum',
+        message:
+          `spawn '${label}' sets maxOutputTokensPerTurn ${String(limits.maxOutputTokensPerTurn)} ` +
+          `below the ${String(caps.minOutputTokensPerTurn)} token output floor of ` +
+          `'${servedBy ?? ''}': every dispatch would be refused typed before the wire; raise ` +
+          'the cap to at least the floor',
+        spawn: label,
+      });
+    }
     const turnFloorUsd =
       pricing === undefined || outputBound === undefined
         ? undefined
@@ -902,6 +921,22 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
           : orchLimits.maxOutputTokensPerTurn === undefined
             ? caps.maxOutputTokens
             : Math.min(caps.maxOutputTokens, orchLimits.maxOutputTokensPerTurn);
+      if (
+        caps?.minOutputTokensPerTurn !== undefined &&
+        orchLimits.maxOutputTokensPerTurn !== undefined &&
+        orchLimits.maxOutputTokensPerTurn < caps.minOutputTokensPerTurn
+      ) {
+        say({
+          severity: 'error',
+          code: 'output-cap-below-provider-minimum',
+          message:
+            `the orchestrator sets maxOutputTokensPerTurn ` +
+            `${String(orchLimits.maxOutputTokensPerTurn)} below the ` +
+            `${String(caps.minOutputTokensPerTurn)} token output floor of '${servedBy}': every ` +
+            'dispatch would be refused typed before the wire; raise the cap to at least the floor',
+          spawn: 'orchestrator',
+        });
+      }
       const { adapterId, model } = parseModelRef(servedBy);
       const unit: SpawnUnit = {
         label: 'orchestrator',
@@ -1009,6 +1044,23 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
             : merged.maxOutputTokensPerTurn === undefined
               ? caps.maxOutputTokens
               : Math.min(caps.maxOutputTokens, merged.maxOutputTokensPerTurn);
+        if (
+          caps?.minOutputTokensPerTurn !== undefined &&
+          merged.maxOutputTokensPerTurn !== undefined &&
+          merged.maxOutputTokensPerTurn < caps.minOutputTokensPerTurn
+        ) {
+          say({
+            severity: 'error',
+            code: 'output-cap-below-provider-minimum',
+            message:
+              `the synthesis invocation sets maxOutputTokensPerTurn ` +
+              `${String(merged.maxOutputTokensPerTurn)} below the ` +
+              `${String(caps.minOutputTokensPerTurn)} token output floor of '${servedBy}': ` +
+              'every dispatch would be refused typed before the wire; raise the cap to at ' +
+              'least the floor',
+            spawn: 'synthesis',
+          });
+        }
         const projected =
           projectedProviderTurnsOf(merged, overallExecutedCeiling(merged, toolCeilingsOf(merged))) +
           finishRepairReserve;

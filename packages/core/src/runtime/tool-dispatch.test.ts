@@ -361,3 +361,113 @@ describe('agent loop tool dispatch (M3-T01)', () => {
     expect(first.isError).toBe(true);
   });
 });
+
+describe('unparsed tool arguments recovery (the v1.74 experiment review)', () => {
+  /**
+   * Drives one turn whose tool call carries the adapter's parse-failure
+   * wrapper `{__unparsed: raw}` and reports what the loop did with it.
+   */
+  const runUnparsed = async (raw: string) => {
+    const seen: unknown[] = [];
+    const echo = tool({
+      name: 'echo',
+      description: 'echoes the recovered payload',
+      parameters: z.strictObject({ result: z.string() }),
+      execute: (input) => {
+        seen.push(input);
+        return Promise.resolve('echoed');
+      },
+    });
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0 ? { toolCall: { name: 'echo', args: { __unparsed: raw } } } : { text: 'done' },
+    );
+    const events = recordingSink();
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits(),
+      tools: runtimeOf([echo]),
+      events,
+    });
+    const recoveredLogs = events
+      .ofType('log')
+      .filter((event) => /recovered/.test((event as { msg?: string }).msg ?? ''));
+    return { result, adapter, seen, recoveredLogs };
+  };
+
+  it('a strict-parseable wrapper is recovered and executed with a warn event', async () => {
+    const { adapter, seen, recoveredLogs } = await runUnparsed('{"result":"plain"}');
+    expect(seen).toEqual([{ result: 'plain' }]);
+    expect(toolResults(adapter.calls[1])[0]).not.toMatchObject({ isError: true });
+    expect(recoveredLogs).toHaveLength(1);
+  });
+
+  it('raw control characters inside string values are normalized and recovered', async () => {
+    const { seen } = await runUnparsed('{"result": "line one\nline two"}');
+    expect(seen).toEqual([{ result: 'line one\nline two' }]);
+  });
+
+  it('a fenced payload is unwrapped and recovered', async () => {
+    const { seen } = await runUnparsed('```json\n{"result":"fenced"}\n```');
+    expect(seen).toEqual([{ result: 'fenced' }]);
+  });
+
+  it('trailing prose after one balanced object is dropped and the object recovered', async () => {
+    const { seen } = await runUnparsed('{"result":"kept"} and then commentary');
+    expect(seen).toEqual([{ result: 'kept' }]);
+  });
+
+  it('a truncated payload stays a typed schema error', async () => {
+    const { adapter, seen, recoveredLogs } = await runUnparsed('{"result": "abc');
+    expect(seen).toEqual([]);
+    expect(toolResults(adapter.calls[1])[0]).toMatchObject({ isError: true });
+    expect(recoveredLogs).toHaveLength(0);
+  });
+
+  it('a double-wrapped imitation is never accepted as a result', async () => {
+    const { seen, adapter } = await runUnparsed('{"__unparsed":"{\\"result\\":[');
+    expect(seen).toEqual([]);
+    expect(toolResults(adapter.calls[1])[0]).toMatchObject({ isError: true });
+  });
+
+  it('a non-object payload stays a typed schema error', async () => {
+    const { seen, adapter } = await runUnparsed('"just a string"');
+    expect(seen).toEqual([]);
+    expect(toolResults(adapter.calls[1])[0]).toMatchObject({ isError: true });
+  });
+
+  it('a schema that legitimately accepts the wrapper shape is never rewritten', async () => {
+    const seen: unknown[] = [];
+    const literal = tool({
+      name: 'literal',
+      description: 'accepts the wrapper shape as real arguments',
+      parameters: z.strictObject({ __unparsed: z.string() }),
+      execute: (input) => {
+        seen.push(input);
+        return Promise.resolve('kept');
+      },
+    });
+    const adapter = scriptedAdapter((_req, call) =>
+      call === 0
+        ? { toolCall: { name: 'literal', args: { __unparsed: '{"result":"x"}' } } }
+        : { text: 'done' },
+    );
+    const events = recordingSink();
+    const result = await runAgent({
+      prompt: 'go',
+      adapter,
+      resolved,
+      limits: mergeUsageLimits(),
+      tools: runtimeOf([literal]),
+      events,
+    });
+    expect(result.status).toBe('ok');
+    expect(seen).toEqual([{ __unparsed: '{"result":"x"}' }]);
+    expect(
+      events
+        .ofType('log')
+        .filter((event) => /recovered/.test((event as { msg?: string }).msg ?? '')),
+    ).toHaveLength(0);
+  });
+});

@@ -1639,3 +1639,103 @@ describe('live incremental streaming (the reliability-review P0)', () => {
     expect(rest.map((e) => e.type)).toEqual(['usage', 'finish']);
   }, 5_000);
 });
+
+describe('the provider output floor and raw projection (the v1.74 experiment review)', () => {
+  it('every Responses model declares the documented 16 token output floor', () => {
+    expect(openAiModelInfo('gpt-5.6-sol').caps.minOutputTokensPerTurn).toBe(16);
+    expect(openAiModelInfo('gpt-5.6-terra').caps.minOutputTokensPerTurn).toBe(16);
+    expect(openAiModelInfo('gpt-5.5').caps.minOutputTokensPerTurn).toBe(16);
+    // The conservative unknown-model fallback carries it too: the floor
+    // is an API property, not a per-model one.
+    expect(openAiModelInfo('never-heard-of-it').caps.minOutputTokensPerTurn).toBe(16);
+  });
+
+  it('an unsafe-integer rate limit header is dropped, never Infinity', () => {
+    const wire = openAiErrorToWire({
+      status: 429,
+      message: 'rate limited',
+      headers: {
+        'x-ratelimit-limit-requests': '9'.repeat(400),
+        'x-ratelimit-limit-tokens': '1000000',
+      },
+    });
+    expect((wire.data as { reportedLimits?: unknown }).reportedLimits).toEqual({
+      tokensPerMinute: 1_000_000,
+    });
+  });
+
+  it('projects an unparseable call as the original raw arguments string (Responses)', () => {
+    const idMap = ids();
+    const canonicalId = idMap.canonicalFor('call_raw');
+    const raw = '{"result": "the complete draft\nline two';
+    const { params } = buildResponsesParams(
+      {
+        model: 'gpt-5.5',
+        messages: [
+          { role: 'user', parts: [{ type: 'text', text: 'go' }] },
+          {
+            role: 'assistant',
+            parts: [
+              { type: 'tool-call', id: canonicalId, name: 'finish', args: { __unparsed: raw } },
+            ],
+          },
+          {
+            role: 'tool',
+            parts: [
+              {
+                type: 'tool-result',
+                id: canonicalId,
+                name: 'finish',
+                result: { error: 'arguments failed validation' },
+              },
+            ],
+          },
+        ],
+      },
+      idMap,
+    );
+    const input = params.input as Array<Record<string, unknown>>;
+    const fnCall = input.find((item) => item.type === 'function_call');
+    // The model sees exactly what it wrote, never the internal wrapper
+    // shape it would otherwise learn to imitate.
+    expect(fnCall?.arguments).toBe(raw);
+  });
+
+  it('projects an unparseable call as the original raw arguments string (Chat)', () => {
+    const idMap = ids();
+    const canonicalId = idMap.canonicalFor('call_raw');
+    const raw = '{"result": "the complete draft';
+    const params = buildChatCompletionsParams(
+      {
+        model: 'legacy-model',
+        messages: [
+          { role: 'user', parts: [{ type: 'text', text: 'go' }] },
+          {
+            role: 'assistant',
+            parts: [
+              { type: 'tool-call', id: canonicalId, name: 'finish', args: { __unparsed: raw } },
+            ],
+          },
+          {
+            role: 'tool',
+            parts: [
+              {
+                type: 'tool-result',
+                id: canonicalId,
+                name: 'finish',
+                result: { error: 'arguments failed validation' },
+              },
+            ],
+          },
+        ],
+      },
+      idMap,
+    );
+    const messages = params.messages as Array<Record<string, unknown>>;
+    const assistant = messages.find(
+      (message) => message.role === 'assistant' && message.tool_calls !== undefined,
+    );
+    const toolCalls = assistant?.tool_calls as Array<{ function: { arguments: string } }>;
+    expect(toolCalls[0]?.function.arguments).toBe(raw);
+  });
+});

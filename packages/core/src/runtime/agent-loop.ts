@@ -12,6 +12,7 @@
  */
 import {
   BudgetExhaustedError,
+  ConfigError,
   NonSerializableValueError,
   type AgentError,
   type Issue,
@@ -788,25 +789,54 @@ function estimateInputTokens(messages: Msg[]): number {
 }
 
 /**
+ * The serving model's declared minimum request output cap, default one.
+ * OpenAI's Responses API rejects max_output_tokens below 16, so a
+ * below-floor dispatch is a guaranteed provider 400: the v1.74
+ * experiment's terminal repair died exactly there (the review, P0.1).
+ * Defensive lookup: a caps() throw must not fail turns that never
+ * consulted caps at this point before.
+ */
+function outputFloorOf(target: PhaseTarget): number {
+  try {
+    const declared = target.adapter.caps(target.resolved.model).minOutputTokensPerTurn;
+    return declared !== undefined && Number.isInteger(declared) && declared > 1 ? declared : 1;
+  } catch {
+    return 1;
+  }
+}
+
+/**
  * Layer 2b at the wire boundary: clamps the outgoing request's
  * maxOutputTokens to what the remaining budget affords from the serving
- * model. The clamp uses the heuristic prompt estimate; the DENIAL does
- * not: a turn is refused (BudgetExhaustedError, never dispatched) only
- * when the remainder cannot buy even ONE output token at zero input,
- * which is exact. Denying on the estimate would kill turns the budget
- * still funds, including the DEF-7 forced finish paid from the released
- * finalize reserve; when the estimate says the prompt alone spends the
- * remainder, the turn dispatches with a one-token output floor and the
- * exact layers (2 and 3) settle the difference. A no-op without a hook
- * or when the hook reports no bound. The clamp touches only the wire
- * request, exactly like limits.maxOutputTokensPerTurn above it; identity
- * is computed at the ctx layer and never sees it.
+ * model, and holds every dispatch at or above the serving model's
+ * output floor. The clamp uses the heuristic prompt estimate; the
+ * DENIAL does not: a turn is refused (BudgetExhaustedError, never
+ * dispatched) only when the remainder cannot buy the floor at zero
+ * input, which is exact. Denying on the estimate would kill turns the
+ * budget still funds, including the DEF-7 forced finish paid from the
+ * released finalize reserve; when the estimate says the prompt alone
+ * spends the remainder, the turn dispatches AT the floor and the exact
+ * layers (2 and 3) settle the difference. A configured per-turn cap
+ * below the floor is a ConfigError before any wire call: the provider
+ * would reject every dispatch, so failing typed beats paying for a
+ * guaranteed 400. A no-op without a hook or when the hook reports no
+ * bound. The clamp touches only the wire request, exactly like
+ * limits.maxOutputTokensPerTurn above it; identity is computed at the
+ * ctx layer and never sees it.
  */
 function applyOutputBudget(
   req: ChatRequest,
   target: PhaseTarget,
   budget: BudgetHooks | undefined,
 ): ChatRequest {
+  const floor = outputFloorOf(target);
+  if (req.maxOutputTokens !== undefined && req.maxOutputTokens < floor) {
+    throw new ConfigError(
+      `the per-turn output cap ${String(req.maxOutputTokens)} is below the ${String(floor)} ` +
+        `token output floor of ${target.resolved.ref}; the provider would reject every ` +
+        'dispatch, so raise limits.maxOutputTokensPerTurn to at least the floor',
+    );
+  }
   const hook = budget?.maxAffordableOutputTokens;
   if (hook === undefined) {
     return req;
@@ -815,15 +845,18 @@ function applyOutputBudget(
   if (affordable === undefined) {
     return req;
   }
-  if (affordable < 1) {
+  if (affordable < floor) {
     const zeroInputAffordable = hook(target.resolved.ref, 0);
-    if (zeroInputAffordable !== undefined && zeroInputAffordable < 1) {
+    if (zeroInputAffordable !== undefined && zeroInputAffordable < floor) {
       throw new BudgetExhaustedError(
-        `the remaining budget cannot afford one output token from ${target.resolved.ref}; ` +
-          'the turn was not dispatched',
+        floor === 1
+          ? `the remaining budget cannot afford one output token from ${target.resolved.ref}; ` +
+              'the turn was not dispatched'
+          : `the remaining budget cannot afford the ${String(floor)} token output floor of ` +
+              `${target.resolved.ref}; the turn was not dispatched`,
       );
     }
-    return { ...req, maxOutputTokens: 1 };
+    return { ...req, maxOutputTokens: floor };
   }
   if (req.maxOutputTokens === undefined || affordable < req.maxOutputTokens) {
     return { ...req, maxOutputTokens: affordable };
@@ -881,6 +914,127 @@ function assistantMsg(turn: CollectedTurn, retained: Part[] = []): Msg {
 }
 
 /**
+ * The adapter parse-failure wrapper, recognized by exact shape: both
+ * first-class wires deliver tool arguments their single strict
+ * JSON.parse rejected as `{__unparsed: raw}` and nothing else.
+ */
+function unparsedMarkerOf(args: unknown): string | undefined {
+  if (typeof args !== 'object' || args === null || Array.isArray(args)) {
+    return undefined;
+  }
+  const keys = Object.keys(args);
+  const raw = (args as { __unparsed?: unknown }).__unparsed;
+  return keys.length === 1 && keys[0] === '__unparsed' && typeof raw === 'string' ? raw : undefined;
+}
+
+/** JSON.parse to a plain object, or undefined; never throws. */
+function parsePlainObject(text: string): Record<string, unknown> | undefined {
+  try {
+    const value: unknown = JSON.parse(text);
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * One bounded deterministic normalization of a near-JSON arguments
+ * string: strip a single markdown fence, cut at the end of the first
+ * balanced top-level object (drops trailing prose), and escape raw
+ * control characters inside string literals (models writing markdown
+ * documents into arguments emit real newlines, which strict JSON
+ * forbids). Truncated payloads stay unbalanced and still fail the
+ * parse; nothing here can invent structure the model did not write.
+ */
+function normalizeNearJson(raw: string): string {
+  let text = raw.trim();
+  const fence = /^```[a-zA-Z]*[\t ]*\r?\n([\s\S]*?)\r?\n?```$/.exec(text);
+  if (fence?.[1] !== undefined) {
+    text = fence[1].trim();
+  }
+  const start = text.indexOf('{');
+  if (start >= 0) {
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let index = start; index < text.length; index += 1) {
+      const char = text[index];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === '\\') {
+        escaped = inString;
+        continue;
+      }
+      if (char === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (inString) {
+        continue;
+      }
+      if (char === '{') {
+        depth += 1;
+      } else if (char === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          text = text.slice(start, index + 1);
+          break;
+        }
+      }
+    }
+  }
+  let escapedText = '';
+  let inString = false;
+  let escaped = false;
+  for (const char of text) {
+    if (!escaped && char === '"') {
+      inString = !inString;
+    }
+    escaped = inString && !escaped && char === '\\';
+    const code = char.codePointAt(0) ?? 0;
+    if (inString && code < 0x20) {
+      escapedText +=
+        char === '\n'
+          ? '\\n'
+          : char === '\r'
+            ? '\\r'
+            : char === '\t'
+              ? '\\t'
+              : `\\u${code.toString(16).padStart(4, '0')}`;
+    } else {
+      escapedText += char;
+    }
+  }
+  return escapedText;
+}
+
+/**
+ * The deterministic second chance (the v1.74 experiment review, P1.5):
+ * a strict re-parse of the wrapped raw string, then one normalization
+ * pass. The v1.74 experiment durably proved three complete coordination
+ * drafts were recoverable this way and were thrown away instead. Only a
+ * plain object counts; the recovered value still faces the tool schema
+ * at the caller.
+ */
+function recoverUnparsedArgs(
+  raw: string,
+): { value: Record<string, unknown>; pass: 'strict' | 'normalized' } | undefined {
+  const strict = parsePlainObject(raw);
+  if (strict !== undefined) {
+    return { value: strict, pass: 'strict' };
+  }
+  const normalized = parsePlainObject(normalizeNearJson(raw));
+  if (normalized !== undefined) {
+    return { value: normalized, pass: 'normalized' };
+  }
+  return undefined;
+}
+
+/**
  * Executes one model-issued tool call to a tool-result part. Failures are
  * surfaced to the model as error tool results and never thrown past
  * policy: unknown names, argument-validation issues, ModelRetry (bounded
@@ -920,7 +1074,33 @@ async function executeToolCall(options: {
   if (def === undefined) {
     return finish({ error: `unknown tool '${call.name}'` }, 'error');
   }
-  const validation = await validateSchemaSpec(def.parameters, call.args);
+  let validation = await validateSchemaSpec(def.parameters, call.args);
+  if (!validation.valid) {
+    // The second chance for adapter-wrapped unparsed arguments (the
+    // v1.74 experiment review, P1.5). Order matters: a schema that
+    // legitimately accepts the wrapper shape already validated above
+    // and is never rewritten; recovery is adopted only when the
+    // recovered object itself passes the schema, so a failed recovery
+    // keeps the original error result byte for byte. Deterministic
+    // from the durable arguments alone: replay and resume recover
+    // identically, and nothing journals.
+    const unparsedRaw = unparsedMarkerOf(call.args);
+    const recovered = unparsedRaw === undefined ? undefined : recoverUnparsedArgs(unparsedRaw);
+    if (recovered !== undefined) {
+      const revalidation = await validateSchemaSpec(def.parameters, recovered.value);
+      if (revalidation.valid) {
+        validation = revalidation;
+        options.events?.emit({
+          type: 'log',
+          level: 'warn',
+          msg:
+            `arguments for '${call.name}' arrived unparsed (${String(unparsedRaw?.length ?? 0)} ` +
+            `chars) and were recovered by a ${recovered.pass} JSON pass; the recovered object ` +
+            'passed the tool schema and the call executed',
+        });
+      }
+    }
+  }
   if (!validation.valid) {
     return finish(
       {
