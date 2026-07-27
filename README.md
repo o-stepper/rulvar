@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The sixty seven rounds, verbatim in this repository's history:
+The sixty eight rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                            | Shipped as |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -281,6 +281,7 @@ The sixty seven rounds, verbatim in this repository's history:
 | v1.84.0       | 6932a9f (#434): the six-item sweep: typed-throw classification, sandbox ambient clocks, the server rejection zombie, the work budget and mutation gates               | v1.85.0    |
 | v1.85.0       | 2f71894 (#437): the adaptive tool budget: headroom-funded tool-call grants at the cap, the pressure snapshot, extension-aware preflight projections                   | v1.86.0    |
 | v1.86.0       | c4c02b1 (#440): the finalization window with typed refusals over a reserved bookkeeping tail, the bare cap linter, the synthesis reserve lifecycle                    | v1.87.0    |
+| v1.87.0       | 3b339d9 (#443): the declared evidence floor against the tool cap, the exact-fill parity proof, the direct container protocol-ledger conformance                       | v1.88.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
