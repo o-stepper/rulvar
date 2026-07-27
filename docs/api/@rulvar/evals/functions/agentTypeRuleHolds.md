@@ -10,7 +10,7 @@
 function agentTypeRuleHolds(baseline, informed): boolean;
 ```
 
-Defined in: [packages/evals/src/checkpoint.ts:138](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/checkpoint.ts#L138)
+Defined in: [packages/evals/src/checkpoint.ts:156](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/checkpoint.ts#L156)
 
 The OQ-09 criterion 2 rule (as amended 2026-07-12): match-or-beat at
 105 percent of baseline cost, OR at least 15 points better at 115

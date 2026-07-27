@@ -118,6 +118,15 @@ export interface SweepCellReport {
    */
   exhaustedRuns?: number;
   /**
+   * Count of case results whose TARGET run settled neither ok nor
+   * exhausted ('error', 'cancelled', 'suspended'): measurement
+   * artifacts, not model quality. Exactly like exhaustedRuns, any such
+   * run suppresses the cell's claim: a passRate deflated by a provider
+   * failure or a host cancellation must not become a committed model
+   * weakness (cycle 81).
+   */
+  nonOkRuns?: number;
+  /**
    * Count of result rows whose grading stopped on a judge budget event
    * (per-run judge ceiling or envelope refusal of a judge run). The
    * paid target evidence stays on those rows; the cell emits no claim.
@@ -229,6 +238,9 @@ export async function runSweepMatrix(
         },
       );
       const exhaustedRuns = suite.results.filter((result) => result.status === 'exhausted').length;
+      const nonOkRuns = suite.results.filter(
+        (result) => result.status !== 'ok' && result.status !== 'exhausted',
+      ).length;
       const judgeIncompleteRuns = suite.results.filter(
         (result) => result.incomplete !== undefined,
       ).length;
@@ -246,6 +258,7 @@ export async function runSweepMatrix(
         totalCostUsd: suite.totalCostUsd,
         caseNames: suite.results.map((result) => result.name),
         ...(exhaustedRuns === 0 ? {} : { exhaustedRuns }),
+        ...(nonOkRuns === 0 ? {} : { nonOkRuns }),
         ...(judgeIncompleteRuns === 0 ? {} : { judgeIncompleteRuns }),
         ...(suite.refusal === undefined
           ? {}
@@ -262,6 +275,7 @@ export async function runSweepMatrix(
       const complete =
         cell.n === cell.plannedN &&
         exhaustedRuns === 0 &&
+        nonOkRuns === 0 &&
         judgeIncompleteRuns === 0 &&
         suite.refusal === undefined;
       if (polarity !== undefined && cell.n > 0 && complete) {

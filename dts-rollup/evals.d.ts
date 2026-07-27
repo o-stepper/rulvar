@@ -421,7 +421,8 @@ interface RunBenchmarkOptions {
   /**
   * Aggregate debit-only envelope: every target and judge run
   * authorizes its ceiling here BEFORE starting, exactly like the eval
-  * runners. A target-run refusal throws SweepBudgetError; a judge-run
+  * runners. A target-run refusal ends the series monotonically
+  * (report.refusal) with every completed repeat preserved; a judge-run
   * refusal rejects that run from scoring as 'judge:refused'.
   */
   envelope?: SpendEnvelope;
@@ -520,13 +521,26 @@ interface BenchmarkReport {
   /** Every target and judge run, scored or rejected (honest spend). */
   totalCostUsd: number;
   judgeCostUsd: number;
+  /**
+  * Present when the aggregate envelope refused a TARGET run before it
+  * started (cycle 81): the series ends there and every completed
+  * repeat stays on the report, mirroring the eval suite's monotone
+  * refusal instead of a throw destroying the paid evidence. Judge
+  * refusals never appear here; they reject their own run as
+  * 'judge:refused'.
+  */
+  refusal?: {
+    atOrdinal: number;
+    detail: string;
+  };
   fingerprint: BenchmarkFingerprint;
 }
 /**
 * Runs the spec's repeats sequentially and reports the verified series.
 * Throws only for spec defects (invalid repeats, a throwing grader or
-* extractor) and for a target-run envelope refusal; everything a run
-* does wrong lands in its record instead.
+* extractor); everything a run does wrong lands in its record, and a
+* target-run envelope refusal ends the series monotonically with the
+* completed repeats preserved (report.refusal).
 */
 declare function runBenchmark(engine: Engine, spec: BenchmarkSpec, options?: RunBenchmarkOptions): Promise<BenchmarkReport>;
 //#endregion
@@ -622,6 +636,15 @@ interface SweepCellReport {
   */
   exhaustedRuns?: number;
   /**
+  * Count of case results whose TARGET run settled neither ok nor
+  * exhausted ('error', 'cancelled', 'suspended'): measurement
+  * artifacts, not model quality. Exactly like exhaustedRuns, any such
+  * run suppresses the cell's claim: a passRate deflated by a provider
+  * failure or a host cancellation must not become a committed model
+  * weakness (cycle 81).
+  */
+  nonOkRuns?: number;
+  /**
   * Count of result rows whose grading stopped on a judge budget event
   * (per-run judge ceiling or envelope refusal of a judge run). The
   * paid target evidence stays on those rows; the cell emits no claim.
@@ -707,6 +730,15 @@ interface CheckpointCell {
   recommended: boolean;
   baseline: CheckpointArm;
   treatment: CheckpointArm;
+  /**
+  * Either arm carried a measurement artifact (an envelope refusal, an
+  * incomplete row, or a target that settled non-ok): the arms are not
+  * comparable, the cell can never pass, and criterion 1 fails
+  * (cycle 81). Without this, an envelope drained by the baseline left
+  * an EMPTY refused treatment arm (n 0, cost 0) that mechanically beat
+  * any baseline under the cheaper-at-equal-quality branch.
+  */
+  contaminated?: true;
   passed: boolean;
 }
 interface CriterionOneReport {
@@ -716,11 +748,15 @@ interface CriterionOneReport {
   pooledBaseline: CheckpointArm;
   pooledTreatment: CheckpointArm;
   pooledHolds: boolean;
+  /** Cells with a contaminated arm; present when nonzero (cycle 81). */
+  contaminatedCells?: number;
   passed: boolean;
 }
 interface CriterionTwoReport {
   baseline: CheckpointArm;
   informed: CheckpointArm;
+  /** Either arm carried a measurement artifact; the criterion cannot pass. */
+  contaminated?: true;
   passed: boolean;
 }
 interface CheckpointReport {

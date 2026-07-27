@@ -231,3 +231,39 @@ describe('sweep threshold validation (v1.28.0 review P2)', () => {
     expect(report.claims.map((claim) => claim.polarity)).toEqual(['weakness']);
   });
 });
+
+describe('claim contamination by non-ok targets (cycle 81)', () => {
+  it('a target that settles error suppresses the cell claim instead of minting a false weakness', async () => {
+    const boom = defineWorkflow({ name: 'sweep-boom' }, async () => {
+      await Promise.resolve();
+      throw new Error('provider melted mid-run');
+    });
+    const pool: SweepPool = {
+      models: [{ model: FAKE_MODEL_REF }],
+      cases: [
+        {
+          taskClass: 'extraction',
+          case: { workflow: mathWorkflow, args: null, graders: [goldenGrader({ answer: 42 })] },
+        },
+        {
+          taskClass: 'extraction',
+          case: { workflow: boom, args: null, graders: [goldenGrader({ answer: 42 })] },
+        },
+      ],
+    };
+    const report = await runSweepMatrix(pool, {
+      reportId: 'contamination-1',
+      committerId: 'ci',
+      observedAt: '2026-07-27',
+      engineFor: () => engineOver([new FakeAdapter({ agents: { worker: { answer: 42 } } })]),
+    });
+    const cell = report.cells[0];
+    // The degraded passRate crosses the weakness band, but half the
+    // measurement is a run that never settled ok: committing it would
+    // blame the model for a provider failure, exactly like the
+    // exhausted suppression above it.
+    expect(cell?.passRate).toBe(0.5);
+    expect(cell?.nonOkRuns).toBe(1);
+    expect(report.claims).toEqual([]);
+  });
+});

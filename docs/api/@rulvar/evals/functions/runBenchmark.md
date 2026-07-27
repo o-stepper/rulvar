@@ -13,12 +13,13 @@ function runBenchmark(
 options?): Promise<BenchmarkReport>;
 ```
 
-Defined in: [packages/evals/src/benchmark.ts:314](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/benchmark.ts#L314)
+Defined in: [packages/evals/src/benchmark.ts:325](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/benchmark.ts#L325)
 
 Runs the spec's repeats sequentially and reports the verified series.
 Throws only for spec defects (invalid repeats, a throwing grader or
-extractor) and for a target-run envelope refusal; everything a run
-does wrong lands in its record instead.
+extractor); everything a run does wrong lands in its record, and a
+target-run envelope refusal ends the series monotonically with the
+completed repeats preserved (report.refusal).
 
 ## Parameters
 

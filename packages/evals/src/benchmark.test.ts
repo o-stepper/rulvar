@@ -9,13 +9,7 @@ import { defineWorkflow, hashRunOutput } from '@rulvar/core';
 import { createTestEngine, FAKE_MODEL_REF } from '@rulvar/testing';
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  judgeGrader,
-  rubricGrader,
-  runBenchmark,
-  SpendEnvelope,
-  SweepBudgetError,
-} from './index.js';
+import { judgeGrader, rubricGrader, runBenchmark, SpendEnvelope } from './index.js';
 
 const stable = defineWorkflow({ name: 'stable' }, async (ctx) => {
   const analysis = await ctx.agent('analyze the corpus', { agentType: 'worker' });
@@ -198,15 +192,28 @@ describe('runBenchmark', () => {
     expect(report.runs[0]?.rejectedReasons).toContain('grader:rubric');
   });
 
-  it('the envelope refuses a target run loudly and a judge run as a typed rejection', async () => {
-    // Target refusal: the envelope cannot cover even the first run.
-    await expect(
-      runBenchmark(
-        workerEngine(),
-        { name: 'capped', workflow: stable, args: null, repeats: 1 },
-        { budgetUsd: 5, envelope: new SpendEnvelope(1) },
-      ),
-    ).rejects.toThrow(SweepBudgetError);
+  it('the envelope refuses a target run monotonically and a judge run as a typed rejection', async () => {
+    // Target refusal mid-series (cycle 81): the series ends there and
+    // everything already paid stays on the report, mirroring the eval
+    // suite's monotone refusal, instead of a throw destroying the
+    // evidence of the completed repeats.
+    const partial = await runBenchmark(
+      workerEngine(),
+      { name: 'capped-mid', workflow: stable, args: null, repeats: 2 },
+      { budgetUsd: 1, envelope: new SpendEnvelope(1) },
+    );
+    expect(partial.runs).toHaveLength(1);
+    expect(partial.scored).toBe(1);
+    expect(partial.refusal?.atOrdinal).toBe(2);
+    expect(partial.refusal?.detail).toContain('sweep envelope exhausted');
+    // A refusal before the first run still returns the (empty) report.
+    const empty = await runBenchmark(
+      workerEngine(),
+      { name: 'capped', workflow: stable, args: null, repeats: 1 },
+      { budgetUsd: 5, envelope: new SpendEnvelope(1) },
+    );
+    expect(empty.runs).toHaveLength(0);
+    expect(empty.refusal?.atOrdinal).toBe(1);
     // Judge refusal: the target fits, the judge does not; the run stays
     // recorded and rejected instead of throwing.
     const report = await runBenchmark(

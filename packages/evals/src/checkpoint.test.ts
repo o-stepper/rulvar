@@ -28,9 +28,12 @@ import {
   agentTypeRuleHolds,
   rungRuleHolds,
   runValueCheckpoint,
+  type CheckpointCell,
   type CheckpointPool,
+  type CheckpointReport,
   type OrchestratedCase,
 } from './checkpoint.js';
+import { SpendEnvelope } from './envelope.js';
 import type { SweepCase, SweepModel } from './sweeps.js';
 
 const PRICING = {
@@ -310,5 +313,72 @@ describe('the value checkpoint (M12-T01; OQ-09)', () => {
     expect(report.criterion2).toBeUndefined();
     expect(report.passed).toBe(false);
     expect(renderCheckpointReport(report)).toContain('NOT MEASURED');
+  });
+});
+
+describe('arm contamination (cycle 81)', () => {
+  it('an envelope-refused treatment arm cannot pass the rung rule', async () => {
+    const pool: CheckpointPool = {
+      ladders: [
+        {
+          name: 'workerLadder',
+          startTier: 1,
+          rungs: [{ model: 'fake:cheap' }, { model: 'fake:strong' }],
+        },
+      ],
+      evalCases: [1, 2].map((i) => ({
+        taskClass: 'extraction',
+        case: workerCase(
+          `hopeless-${String(i)}`,
+          `Extract the answer from record ${String(i)} as JSON.`,
+          { answer: 999 },
+        ),
+      })),
+    };
+    const report = await runValueCheckpoint(pool, {
+      snapshot: snapshotOf([measuredClaim('cheap-strong', 'fake:cheap')]),
+      observedAt: '2026-07-27',
+      engineFor: memberEngine,
+      suite: { budgetUsd: 0.05, envelope: new SpendEnvelope(0.1) },
+    });
+    const cell = report.criterion1.cells[0];
+    expect(cell?.recommended).toBe(true);
+    // The envelope was drained by the baseline arm, so the treatment arm
+    // was refused before measuring anything: an empty arm (n 0, cost 0)
+    // must never beat a baseline that actually ran.
+    expect(cell?.treatment.n).toBe(0);
+    expect(cell?.contaminated).toBe(true);
+    expect(cell?.passed).toBe(false);
+    expect(report.criterion1.passed).toBe(false);
+  });
+
+  it('the render counts recommended cells, not all cells (cycle 81)', () => {
+    const arm = { passRate: 1, totalCostUsd: 1, n: 4 };
+    const cellOf = (recommended: boolean, passed: boolean): CheckpointCell => ({
+      ladder: 'L',
+      taskClass: 'extraction',
+      defaultTier: 1,
+      treatmentTier: recommended ? 0 : 1,
+      recommended,
+      baseline: arm,
+      treatment: arm,
+      passed,
+    });
+    const report: CheckpointReport = {
+      observedAt: '2026-07-27',
+      criterion1: {
+        cells: [cellOf(true, true), cellOf(false, false)],
+        cellsPassed: 1,
+        majorityHolds: true,
+        pooledBaseline: arm,
+        pooledTreatment: arm,
+        pooledHolds: true,
+        passed: true,
+      },
+      passed: false,
+    };
+    // A neutral (unrecommended) cell is excluded from the majority, so
+    // the render must not count it in the denominator either.
+    expect(renderCheckpointReport(report)).toContain('(1/1 recommended cells');
   });
 });
