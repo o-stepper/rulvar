@@ -269,7 +269,13 @@ export class AdmissionController {
     maxChildrenPerNode?: number;
     childBudgetFraction?: number;
     flatReserveUsd?: number;
-    /** Per-orchestrate spawn cap (maxSpawns); engine lifetime cap applies regardless. */
+    /**
+     * Controller-lifetime cap on ADMITTED spawns, enforced at this
+     * controller's own gate with the 'lifetime' reject reason, for
+     * hosts driving an AdmissionController directly. Engine runs do
+     * not wire this option: they cap total spawns through the budget
+     * (`budgetDefaults.lifetimeSpawnCap`, the same 'lifetime' reason).
+     */
     maxTotalSpawns?: number;
     mintId?: () => string;
     /**

@@ -31,7 +31,7 @@ Defined in: `packages/core/dist/index.d.ts`
 | `options.lineage.limits?` | \| `Partial`\&lt;[`EscalationLimits`](/api/@rulvar/rulvar/interfaces/EscalationLimits.md)\&gt; \| `Record`\&lt;`string`, `unknown`\&gt; | - |
 | `options.maxChildrenPerNode?` | `number` | - |
 | `options.maxDepth?` | `number` | - |
-| `options.maxTotalSpawns?` | `number` | - |
+| `options.maxTotalSpawns?` | `number` | Controller-lifetime cap on ADMITTED spawns, enforced at this controller's own gate with the 'lifetime' reject reason, for hosts driving an AdmissionController directly. Engine runs do not wire this option: they cap total spawns through the budget (`budgetDefaults.lifetimeSpawnCap`, the same 'lifetime' reason). |
 | `options.mintId?` | () => `string` | - |
 
 #### Returns

@@ -665,6 +665,62 @@ describe('generation identity and sweep hygiene (v1.25.0 scale review)', () => {
   });
 });
 
+describe('createWorker retention under load (cycle 80)', () => {
+  it('retention still runs while every concurrency slot is busy', async () => {
+    const path = dbPath();
+    const store = new SqliteStore({ path, now: wallClock });
+    const gated = gatedWorkflow();
+    const plain = defineWorkflow({ name: 'plain' }, async (ctx) => {
+      await ctx.agent('quick check');
+      return 'done';
+    }) as unknown as Workflow<never, unknown>;
+    const engine = createEngine({
+      adapters: [
+        new FakeAdapter({
+          agents: {
+            // The post-resolution agent hangs (abort-aware through the
+            // adapter's abort race), pinning the only concurrency slot.
+            post: () => new Promise(() => undefined),
+            '*': 'queued analysis',
+          },
+        }),
+      ],
+      stores: { journal: store },
+      defaults: {
+        routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF },
+        workflows: { gated, plain },
+      },
+    });
+    // 'a-...' sorts before 'z-...' (listRuns orders by run_id), so the
+    // sweep meets the resumable run first and fills the only slot.
+    const hang = engine.run(
+      gated as unknown as Workflow<unknown, unknown>,
+      { item: 1 },
+      {
+        runId: 'a-hanging-run',
+      },
+    );
+    expect((await hang.result).status).toBe('suspended');
+    const done = engine.run(plain as unknown as Workflow<unknown, unknown>, undefined, {
+      runId: 'z-settled-run',
+    });
+    expect((await done.result).status).toBe('ok');
+    await offlineResolve(store, 'a-hanging-run', { approved: true });
+
+    const worker = createWorker(engine, {
+      store,
+      argsFor: () => ({ item: 1 }),
+      retention: (meta) => meta.status === 'ok',
+    });
+    expect(await worker.sweep()).toBe(1);
+    expect(worker.active()).toEqual(['a-hanging-run']);
+    // The settled run was retention-deleted DURING the same sweep, even
+    // though the single concurrency slot was already busy.
+    expect((await store.listRuns()).map((meta) => meta.runId)).toEqual(['a-hanging-run']);
+    await worker.stop();
+  });
+});
+
 describe('createWorker stop discipline (cycle 79)', () => {
   it('stop() during an in-flight sweep picks nothing new and leaves nothing live', async () => {
     const path = dbPath();

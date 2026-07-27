@@ -114,7 +114,7 @@ const triage = defineWorkflow(
 );
 ```
 
-The MCP client connects lazily on the first `tools()` call. `tools/list` is fetched with cursor pagination until exhaustion (an absent or empty `nextCursor` both end the walk, so a server echoing an empty cursor cannot spin the import) and cached per MCP session, so repeated spawns against the same server do not re-list.
+The MCP client connects lazily on the first `tools()` call. `tools/list` is fetched with cursor pagination until exhaustion (an absent or empty `nextCursor` both end the walk, so a server echoing an empty cursor cannot spin the import) and cached per MCP session, so repeated spawns against the same server do not re-list; concurrent cold snapshots share one in-flight fetch instead of each sweeping the list.
 
 ## The permission chain
 

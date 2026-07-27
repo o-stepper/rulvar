@@ -187,6 +187,34 @@ describe('AdmissionController', () => {
     ).not.toThrow();
   });
 
+  it("maxTotalSpawns caps admitted spawns at the controller's own gate with 'lifetime' (cycle 80)", () => {
+    // The engine does not wire this option (engine runs cap totals
+    // through budgetDefaults.lifetimeSpawnCap); it is the public knob
+    // for hosts driving an AdmissionController directly, pinned here.
+    const budget = new RunBudget({});
+    let next = 0;
+    const admission = new AdmissionController({
+      budget,
+      maxTotalSpawns: 1,
+      flatReserveUsd: 0,
+      mintId: () => `01CAP${String(next++).padStart(21, '0')}`,
+    });
+    const first = admission.admit({
+      origin: 'ctx.workflow',
+      name: 'c0',
+      childScope: 'wf:c0:0',
+      parentAccountScope: 'run',
+    });
+    expect(first.verdict.kind).toBe('admit');
+    const second = admission.admit({
+      origin: 'ctx.workflow',
+      name: 'c1',
+      childScope: 'wf:c1:0',
+      parentAccountScope: 'run',
+    });
+    expect(second.verdict).toEqual({ kind: 'reject', reason: { code: 'lifetime' } });
+  });
+
   it('rejects the seventeenth child of one node with quota', () => {
     const { admission } = makeController();
     for (let i = 0; i < DEFAULT_MAX_CHILDREN_PER_NODE; i += 1) {

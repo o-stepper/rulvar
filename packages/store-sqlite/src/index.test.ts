@@ -31,8 +31,10 @@ registerConformance(
 );
 
 registerConformance(
-  leasableStoreConformance(() => new SqliteStore({ path: ':memory:', ttlMs: 150 }), {
-    ttlMs: 150,
+  // The split pairing (cycle 80): mandatory checks on a ttl no stall can
+  // cross; the wall-clock expiry check gets its own short-ttl store.
+  leasableStoreConformance(() => new SqliteStore({ path: ':memory:', ttlMs: 600_000 }), {
+    expiry: { ttlMs: 600, mk: () => new SqliteStore({ path: ':memory:', ttlMs: 600 }) },
   }),
   { describe, it },
 );

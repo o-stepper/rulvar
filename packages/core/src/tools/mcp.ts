@@ -163,6 +163,9 @@ export function mcp(cfg: McpConfig): McpToolSource {
   // the bump must not pin its (already stale) list as the session cache,
   // or the invalidation is lost until the NEXT notification (cycle 79).
   let generation = 0;
+  // Concurrent cold tools() calls share one fetch instead of each
+  // sweeping tools/list (cycle 80).
+  let inFlight: Promise<ToolDef[]> | undefined;
 
   const connect = async (): Promise<Client> => {
     const client = new Client({ name: 'rulvar', version: '1.0.0' });
@@ -279,20 +282,31 @@ export function mcp(cfg: McpConfig): McpToolSource {
       if (cache !== undefined) {
         return cache;
       }
-      clientPromise ??= connect();
-      const client = await clientPromise;
-      const fetchedAt = generation;
-      const wireTools = await listAll(client);
-      const denySet = new Set(cfg.deny ?? []);
-      const allowSet = cfg.allow === undefined ? undefined : new Set(cfg.allow);
-      const admitted = wireTools.filter(
-        (wire) => !denySet.has(wire.name) && (allowSet === undefined || allowSet.has(wire.name)),
-      );
-      const defs = admitted.map((wire) => toDef(client, wire));
-      if (generation === fetchedAt) {
-        cache = defs;
+      if (inFlight !== undefined) {
+        return inFlight;
       }
-      return defs;
+      const fetch = (async (): Promise<ToolDef[]> => {
+        clientPromise ??= connect();
+        const client = await clientPromise;
+        const fetchedAt = generation;
+        const wireTools = await listAll(client);
+        const denySet = new Set(cfg.deny ?? []);
+        const allowSet = cfg.allow === undefined ? undefined : new Set(cfg.allow);
+        const admitted = wireTools.filter(
+          (wire) => !denySet.has(wire.name) && (allowSet === undefined || allowSet.has(wire.name)),
+        );
+        const defs = admitted.map((wire) => toDef(client, wire));
+        if (generation === fetchedAt) {
+          cache = defs;
+        }
+        return defs;
+      })();
+      inFlight = fetch;
+      try {
+        return await fetch;
+      } finally {
+        inFlight = undefined;
+      }
     },
     close: async () => {
       const pending = clientPromise;

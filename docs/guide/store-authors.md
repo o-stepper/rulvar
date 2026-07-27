@@ -262,12 +262,14 @@ registerConformance(
 );
 
 registerConformance(
-  leasableStoreConformance(() => new CommunityMemoryStore({ ttlMs: 150 }), { ttlMs: 150 }),
+  leasableStoreConformance(() => new CommunityMemoryStore({ ttlMs: 600_000 }), {
+    expiry: { ttlMs: 300, mk: () => new CommunityMemoryStore({ ttlMs: 300 }) },
+  }),
   { describe, it },
 );
 ```
 
-The factory you pass must return a **fresh, isolated store on every call**; checks run against independent instances, so a file-backed store should create a new temp directory per call. Passing `ttlMs` to `leasableStoreConformance` enables the wall-clock expiry and renew-keeps-held checks; keep it small (about 150 ms) so the suite stays fast. Outside a test framework, every suite also runs standalone:
+The factory you pass must return a **fresh, isolated store on every call**; checks run against independent instances, so a file-backed store should create a new temp directory per call. The lease suite takes a split pairing: the mandatory checks follow a no-wall-clock convention, so give the main factory a ttl no scheduler stall can cross (minutes), and hand the wall-clock expiry and renew-keeps-held check its own short-ttl store through `expiry` (a few hundred milliseconds keeps the suite fast; a slow transport deserves more margin). The legacy single-`ttlMs` form still works but couples every check to the short ttl, and one CI stall past it can expire a just-acquired lease inside a check that never meant to test expiry. Outside a test framework, every suite also runs standalone:
 
 ```ts
 const suite = journalStoreConformance(() => new CommunityMemoryStore());
