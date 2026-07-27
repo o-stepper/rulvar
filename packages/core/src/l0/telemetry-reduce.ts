@@ -14,7 +14,7 @@
  * end never arrived stay `open: true` instead of being guessed at).
  */
 import type { Usage } from './messages.js';
-import type { WorkflowEvent } from './events.js';
+import type { ToolBudgetSummary, WorkflowEvent } from './events.js';
 
 const ZERO: Usage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
 
@@ -61,6 +61,11 @@ export interface AgentInvocationRow {
   costUsd: number;
   usageApprox: boolean;
   retryCount: number;
+  /**
+   * The tool budget pressure snapshot (RV304), carried through from the
+   * live agent:end. Absent on replayed rows and unbounded loops.
+   */
+  toolBudget?: ToolBudgetSummary;
   replayed: boolean;
   /** True when the span's agent:end never arrived. */
   open: boolean;
@@ -176,6 +181,9 @@ export function reduceInvocationTable(events: Iterable<WorkflowEvent>): Invocati
         row.costUsd = event.costUsd;
         row.usageApprox = event.usageApprox === true;
         row.retryCount = event.retryCount ?? 0;
+        if (event.toolBudget !== undefined) {
+          row.toolBudget = event.toolBudget;
+        }
         totalCostUsd += event.costUsd;
         break;
       }

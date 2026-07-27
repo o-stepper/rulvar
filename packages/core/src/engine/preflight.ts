@@ -398,6 +398,21 @@ interface QuotaShape {
  * regardless of mix. A free tool (unit cost 0) lifts the units bound
  * entirely for calls of that tool.
  */
+/**
+ * maxToolCalls at the fully extended cap (RV301): the projections
+ * assume every grant lands, because quota demand and the checkpoint
+ * loss window must hold at the worst case, not the base cap.
+ */
+function extendedMaxToolCalls(limits: EffectiveUsageLimits): number | undefined {
+  if (limits.maxToolCalls === undefined) {
+    return undefined;
+  }
+  const extension = limits.toolBudgetExtension;
+  return extension === undefined
+    ? limits.maxToolCalls
+    : limits.maxToolCalls + extension.maxExtensions * extension.increment;
+}
+
 function overallExecutedCeiling(
   limits: EffectiveUsageLimits,
   toolCeilings: PreflightToolCeiling[],
@@ -407,9 +422,8 @@ function overallExecutedCeiling(
       row.ceiling === null ? best : best === null ? row.ceiling : Math.max(best, row.ceiling),
     null,
   );
-  return limits.maxToolCalls !== undefined && (overall === null || limits.maxToolCalls < overall)
-    ? limits.maxToolCalls
-    : overall;
+  const callCap = extendedMaxToolCalls(limits);
+  return callCap !== undefined && (overall === null || callCap < overall) ? callCap : overall;
 }
 
 /**
@@ -480,8 +494,12 @@ function toolCeilingsOf(limits: EffectiveUsageLimits): PreflightToolCeiling[] {
         terms.push({ boundBy: 'toolUnits', ceiling: Math.floor(limits.toolUnits.max / cost) });
       }
     }
-    if (limits.maxToolCalls !== undefined) {
-      terms.push({ boundBy: 'maxToolCalls', ceiling: limits.maxToolCalls });
+    const callCap = extendedMaxToolCalls(limits);
+    if (callCap !== undefined) {
+      // The fully extended cap (RV301): a grant only ever raises the
+      // executed-call limiter, so the ceiling it contributes is the
+      // worst case, like every other projection here.
+      terms.push({ boundBy: 'maxToolCalls', ceiling: callCap });
     }
     if (terms.length === 0) {
       rows.push({ tool, ceiling: null });
@@ -893,6 +911,34 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
           `checkpoint exists, and a kill mid-batch re-pays every executed call on resume`,
         spawn: label,
       });
+    }
+    if (limits.toolBudgetExtension !== undefined) {
+      if (limits.maxToolCalls === undefined) {
+        say({
+          severity: 'warning',
+          code: 'inert-tool-budget-extension',
+          message:
+            `spawn '${label}' sets toolBudgetExtension without maxToolCalls: the extension ` +
+            `only ever raises the executed-call cap, so there is nothing to extend`,
+          spawn: label,
+        });
+      } else {
+        // Transparency, not a mistake (RV301): the worst case is the
+        // fully extended cap, which every projection above already
+        // assumes.
+        const { increment, maxExtensions } = limits.toolBudgetExtension;
+        say({
+          severity: 'info',
+          code: 'tool-budget-extension-exposure',
+          message:
+            `spawn '${label}': toolBudgetExtension can raise maxToolCalls ` +
+            `${String(limits.maxToolCalls)} by up to ${String(maxExtensions * increment)} ` +
+            `extra calls (${String(maxExtensions)} grants of ${String(increment)}); every ` +
+            `grant is admitted only under remaining budget headroom, and the projections ` +
+            `already assume the fully extended cap`,
+          spawn: label,
+        });
+      }
     }
     if (
       limits.finalizationReserve !== undefined &&

@@ -649,6 +649,25 @@ export class RunBudget {
    * onUsage covers that hole), or when output is free. Zero or negative
    * means the turn cannot be dispatched within the budget.
    */
+  /**
+   * The tightest chain headroom of `accountScope` in plain USD (RV301):
+   * exactly the remaining money the output clamp below prices, before
+   * any pricing. Undefined when every account on the chain is uncapped;
+   * never negative. The tool budget extension admits a grant against
+   * this number.
+   */
+  remainingUsd(accountScope: string = ROOT_ACCOUNT): number | undefined {
+    let remaining: number | undefined;
+    for (const account of this.chainOf(accountScope)) {
+      if (account.ceilingUsd === undefined) {
+        continue;
+      }
+      const headroom = account.ceilingUsd - account.spentUsd - account.synthesisReserveUsd;
+      remaining = remaining === undefined ? headroom : Math.min(remaining, headroom);
+    }
+    return remaining === undefined ? undefined : Math.max(0, remaining);
+  }
+
   maxAffordableOutputTokens(
     servedBy: ModelRef,
     estimatedInputTokens: number,
@@ -658,18 +677,11 @@ export class RunBudget {
     if (pricing === undefined) {
       return undefined;
     }
-    let remainingUsd: number | undefined;
-    for (const account of this.chainOf(accountScope)) {
-      if (account.ceilingUsd === undefined) {
-        continue;
-      }
-      const headroom = account.ceilingUsd - account.spentUsd - account.synthesisReserveUsd;
-      remainingUsd = remainingUsd === undefined ? headroom : Math.min(remainingUsd, headroom);
-    }
+    const remainingUsd = this.remainingUsd(accountScope);
     if (remainingUsd === undefined) {
       return undefined;
     }
-    return affordableOutputTokens(pricing, Math.max(0, remainingUsd), estimatedInputTokens);
+    return affordableOutputTokens(pricing, remainingUsd, estimatedInputTokens);
   }
 
   /**

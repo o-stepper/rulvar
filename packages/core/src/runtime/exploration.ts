@@ -62,20 +62,26 @@ export interface ExplorationGuardConfig {
   toolUnits?: { max: number; costs?: Record<string, number> };
 }
 
-/** True when any exploration guard field asks for tracking. */
+/**
+ * True when any exploration guard field asks for tracking. The tool
+ * budget extension (RV301) counts too: its requireNewEvidence admission
+ * reads the guard's evidence chain.
+ */
 export function explorationTrackingEnabled(limits: {
   maxRepeatedToolSignature?: number;
   maxNoNewEvidenceCalls?: number;
   toolBudgetNotices?: boolean;
   maxCallsPerTool?: Record<string, number>;
   toolUnits?: { max: number; costs?: Record<string, number> };
+  toolBudgetExtension?: { increment: number; maxExtensions: number };
 }): boolean {
   return (
     limits.maxRepeatedToolSignature !== undefined ||
     limits.maxNoNewEvidenceCalls !== undefined ||
     limits.toolBudgetNotices === true ||
     limits.maxCallsPerTool !== undefined ||
-    limits.toolUnits !== undefined
+    limits.toolUnits !== undefined ||
+    limits.toolBudgetExtension !== undefined
   );
 }
 
@@ -241,6 +247,17 @@ export class ExplorationGuard {
     return this.config.toolUnits !== undefined && this.unitsUsed >= this.config.toolUnits.max;
   }
 
+  /**
+   * Distinct successful result digests seen this invocation: the
+   * extension's requireNewEvidence admission compares snapshots of this
+   * count (RV301). A result JCS cannot digest never counts, so a grant
+   * fails closed there, unlike the guards, which fail open: a denied
+   * grant only restores the pre-extension expiry.
+   */
+  evidenceCount(): number {
+    return this.seenDigests.size;
+  }
+
   /** The abort message for a tripped no-new-evidence guard. */
   describeTrip(): string {
     return (
@@ -300,5 +317,24 @@ export function toolBudgetNoticeText(used: number, max: number): string {
     `Tool budget notice: ${String(used)} of ${String(max)} tool calls used; ` +
     `${String(remaining)} remaining. Prioritize the highest value calls and finish with ` +
     `what you have.`
+  );
+}
+
+/**
+ * The model-visible extension notice (RV301): announces one grant with
+ * the exact new counts. Deterministic for given counts, like the budget
+ * notice above.
+ */
+export function toolBudgetExtensionNoticeText(
+  grant: number,
+  maxExtensions: number,
+  used: number,
+  cap: number,
+): string {
+  const remaining = Math.max(0, cap - used);
+  return (
+    `Tool budget extended: grant ${String(grant)} of ${String(maxExtensions)}; ` +
+    `${String(used)} of ${String(cap)} tool calls used, ${String(remaining)} remaining. ` +
+    `The budget headroom permits continued work; prioritize the highest value calls.`
   );
 }

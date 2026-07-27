@@ -1925,6 +1925,9 @@ export function createCtx(
         beforeTurn: () => internals.budget.beforeTurn(budgetAccount),
         maxAffordableOutputTokens: (servedBy, estimatedInputTokens) =>
           internals.budget.maxAffordableOutputTokens(servedBy, estimatedInputTokens, budgetAccount),
+        // The extension's grant admission (RV301): the same chain
+        // headroom the clamp above prices.
+        remainingUsd: () => internals.budget.remainingUsd(budgetAccount),
         onUsage: (usage, servedBy) => internals.budget.onUsage(usage, servedBy, budgetAccount),
         // Layer 3 severs through the whole account chain: the account's
         // own subtree signal composed with the run root (M6-T06).
@@ -2403,6 +2406,9 @@ export function createCtx(
         // Present live whenever any exploration guard limit was
         // configured (RV-210); journaled only with the guard abort.
         ...(result.exploration === undefined ? {} : { exploration: result.exploration }),
+        // The pressure snapshot (RV304): live telemetry only, exactly
+        // like retryCount; a replayed agent:end omits it.
+        ...(result.toolBudget === undefined ? {} : { toolBudget: result.toolBudget }),
       },
       spanId,
     );

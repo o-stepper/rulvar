@@ -21,7 +21,8 @@
 
 Your workflow is an ordinary async function. Your infrastructure is a directory of JSONL
 files (or SQLite). And through crashes, edits, and redeploys, one invariant holds:
-**a completed LLM call is never paid for twice.** No server, no database, no control plane.
+**an LLM call the journal recorded as complete is never paid for twice.** No server, no
+database, no control plane.
 
 ## Why Rulvar
 

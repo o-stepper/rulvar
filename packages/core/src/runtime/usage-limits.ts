@@ -90,6 +90,33 @@ export interface UsageLimits {
    * conversation, so enabling it changes recorded model requests.
    */
   finalizationReserve?: { maxOutputTokens?: number };
+  /**
+   * The adaptive tool budget (RV301, the seventh comparison experiment):
+   * when maxToolCalls expires but the run still has money and the agent
+   * still makes progress, the runtime grants `increment` more executed
+   * calls instead of ending the invocation, up to `maxExtensions` grants.
+   * A grant is admitted only when the remaining chain budget (the same
+   * arithmetic the per-turn output clamp reads) is above zero, or above
+   * `minHeadroomUsd` when declared, and, unless `requireNewEvidence` is
+   * set to false, only when at least one novel tool result digest arrived
+   * since the previous grant (the exploration guard's evidence chain).
+   * Each grant is announced to the model as a plain user message with the
+   * exact new counts, so pacing stays possible; on resume the grants
+   * re-derive conservatively from the restored executed-call count.
+   * Extends maxToolCalls only, never toolUnits. Off by default: the
+   * grant notices enter the conversation, so enabling it changes
+   * recorded model requests.
+   */
+  toolBudgetExtension?: {
+    /** Executed calls added per grant. */
+    increment: number;
+    /** Hard bound on grants per invocation. */
+    maxExtensions: number;
+    /** Grant only at or above this remaining chain headroom, in USD. */
+    minHeadroomUsd?: number;
+    /** Default true: a grant needs new evidence since the last one. */
+    requireNewEvidence?: boolean;
+  };
 }
 
 export const DEFAULT_MAX_TURNS = 32;
@@ -110,6 +137,12 @@ export interface EffectiveUsageLimits {
   maxCallsPerTool?: Record<string, number>;
   toolUnits?: { max: number; costs?: Record<string, number> };
   finalizationReserve?: { maxOutputTokens?: number };
+  toolBudgetExtension?: {
+    increment: number;
+    maxExtensions: number;
+    minHeadroomUsd?: number;
+    requireNewEvidence?: boolean;
+  };
 }
 
 /**
@@ -166,6 +199,10 @@ export function mergeUsageLimits(
   const finalizationReserve = pick('finalizationReserve');
   if (finalizationReserve !== undefined) {
     merged.finalizationReserve = finalizationReserve;
+  }
+  const toolBudgetExtension = pick('toolBudgetExtension');
+  if (toolBudgetExtension !== undefined) {
+    merged.toolBudgetExtension = toolBudgetExtension;
   }
   return merged;
 }
@@ -247,6 +284,38 @@ export function validateUsageLimits(limits: UsageLimits, site: string): void {
       requirePositiveInteger(
         maxOutputTokens as number,
         `${site}.finalizationReserve.maxOutputTokens`,
+      );
+    }
+  }
+  if (limits.toolBudgetExtension !== undefined) {
+    const extension: unknown = limits.toolBudgetExtension;
+    if (typeof extension !== 'object' || extension === null || Array.isArray(extension)) {
+      throw new ConfigError(
+        `${site}.toolBudgetExtension must be ` +
+          `{ increment, maxExtensions, minHeadroomUsd?, requireNewEvidence? }`,
+      );
+    }
+    const { increment, maxExtensions, minHeadroomUsd, requireNewEvidence } = extension as {
+      increment?: unknown;
+      maxExtensions?: unknown;
+      minHeadroomUsd?: unknown;
+      requireNewEvidence?: unknown;
+    };
+    requirePositiveInteger(increment as number, `${site}.toolBudgetExtension.increment`);
+    requirePositiveInteger(maxExtensions as number, `${site}.toolBudgetExtension.maxExtensions`);
+    if (
+      minHeadroomUsd !== undefined &&
+      (typeof minHeadroomUsd !== 'number' || !Number.isFinite(minHeadroomUsd) || minHeadroomUsd < 0)
+    ) {
+      throw new ConfigError(
+        `${site}.toolBudgetExtension.minHeadroomUsd must be a finite nonnegative USD amount, ` +
+          `got ${typeof minHeadroomUsd === 'number' ? String(minHeadroomUsd) : typeof minHeadroomUsd}`,
+      );
+    }
+    if (requireNewEvidence !== undefined && typeof requireNewEvidence !== 'boolean') {
+      throw new ConfigError(
+        `${site}.toolBudgetExtension.requireNewEvidence must be a boolean; ` +
+          `got ${typeof requireNewEvidence}`,
       );
     }
   }
