@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.84.0
+
+#### Patch Changes
+
+- @rulvar/core@1.84.0
+
 ### 1.83.0
 
 #### Patch Changes
@@ -1009,6 +1015,16 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.84.0
+
+#### Minor Changes
+
+- bc9105f: First-class doctrine parity for the bridge (the cycle 82 deep review). An error finish now ships the provider's usage as a usage event ahead of the terminal error, so a failed stream's paid tokens land on the meter instead of billing zero. Unparseable client tool arguments ship the `{__unparsed: raw}` wrapper the engine's deterministic second chance repairs, instead of destroying the whole paid turn with a terminal error, and history projection unwraps the wrapper back to the raw text the model wrote (the openai wire's imitation guard, mirrored). Retention fidelity: a retained errored provider-executed tool result reinserts as `error-json` instead of a success, preliminary provider-executed results are no longer retained (only the final result is), and a reasoning segment still open at finish is flushed into retention instead of silently dropped. A stream that drains without a finish part under a requested abort now ends silently (the v1.27.0 posture) instead of minting a fake transport error, and the bridge cancels the wrapped V4 stream on early termination instead of abandoning the provider connection until GC.
+
+#### Patch Changes
+
+- @rulvar/core@1.84.0
+
 ### 1.83.0
 
 #### Patch Changes
@@ -1857,6 +1873,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.84.0
+
+#### Patch Changes
+
+- @rulvar/core@1.84.0
 
 ### 1.83.0
 
@@ -3033,6 +3055,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.84.0
 
 ### 1.83.0
 
@@ -4578,6 +4602,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.84.0
+
 ### 1.83.0
 
 ### 1.82.0
@@ -4846,6 +4872,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.84.0
+
+#### Patch Changes
+
+- @rulvar/core@1.84.0
+- @rulvar/testing@1.84.0
 
 ### 1.83.0
 
@@ -5897,6 +5930,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.84.0
+
+#### Patch Changes
+
+- @rulvar/core@1.84.0
+
 ### 1.83.0
 
 #### Patch Changes
@@ -6131,6 +6170,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.84.0
+
+#### Patch Changes
+
+- @rulvar/core@1.84.0
 
 ### 1.83.0
 
@@ -7140,6 +7185,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.84.0
+
+#### Patch Changes
+
+- @rulvar/core@1.84.0
+
 ### 1.83.0
 
 #### Patch Changes
@@ -8109,6 +8160,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.84.0
+
+#### Patch Changes
+
+- @rulvar/core@1.84.0
+- eslint-plugin-rulvar@1.84.0
 
 ### 1.83.0
 
@@ -9112,6 +9170,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.84.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.84.0
+- @rulvar/core@1.84.0
+- @rulvar/openai@1.84.0
 
 ### 1.83.0
 
@@ -10292,6 +10358,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.84.0
+
+#### Patch Changes
+
+- @rulvar/core@1.84.0
+
 ### 1.83.0
 
 #### Patch Changes
@@ -11249,6 +11321,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.84.0
+
+#### Patch Changes
+
+- @rulvar/core@1.84.0
+
 ### 1.83.0
 
 #### Patch Changes
@@ -11504,6 +11582,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.84.0
+
+#### Patch Changes
+
+- @rulvar/core@1.84.0
 
 ### 1.83.0
 
@@ -12399,6 +12483,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.84.0
+
+#### Patch Changes
+
+- @rulvar/core@1.84.0
 
 ### 1.83.0
 
