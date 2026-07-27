@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.82.0
+
+#### Patch Changes
+
+- Updated dependencies [9cc5d66]
+  - @rulvar/core@1.82.0
+
 ### 1.81.2
 
 #### Patch Changes
@@ -996,6 +1003,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.82.0
+
+#### Patch Changes
+
+- Updated dependencies [9cc5d66]
+  - @rulvar/core@1.82.0
+
 ### 1.81.2
 
 #### Patch Changes
@@ -1831,6 +1845,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.82.0
+
+#### Patch Changes
+
+- 9cc5d66: The free-cleanup harvest (cycle 80). `leasableStoreConformance` gains the `expiry` option: the mandatory lease checks follow the suite's no-wall-clock convention, so the harness now hands them a store whose ttl no scheduler stall can cross, and only the wall-clock expiry check keeps a short-ttl store of its own; the legacy single-`ttlMs` pairing let one CI stall past 150 ms expire a just-acquired lease inside a fencing check (the flake observed on Node 22). All three shipped harnesses move to the split pairing, and the store-authors guide stops recommending the flaky shape. In `@rulvar/cli`, worker retention is no longer slot-bound: a worker whose every concurrency slot is busy still applies retention over settled runs during its sweeps instead of starving until idle. In `@rulvar/core`, concurrent cold `tools()` calls on an MCP source share one in-flight `tools/list` fetch instead of each sweeping the list, and `AdmissionController`'s `maxTotalSpawns` TSDoc now tells the truth: it is the controller-lifetime cap on admitted spawns for hosts driving the controller directly (pinned by a test), while engine runs cap totals through `budgetDefaults.lifetimeSpawnCap`; the old comment claimed it was the per-orchestrate `maxSpawns`.
+- Updated dependencies [9cc5d66]
+  - @rulvar/core@1.82.0
 
 ### 1.81.2
 
@@ -2993,6 +3015,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.82.0
+
+#### Patch Changes
+
+- 9cc5d66: The free-cleanup harvest (cycle 80). `leasableStoreConformance` gains the `expiry` option: the mandatory lease checks follow the suite's no-wall-clock convention, so the harness now hands them a store whose ttl no scheduler stall can cross, and only the wall-clock expiry check keeps a short-ttl store of its own; the legacy single-`ttlMs` pairing let one CI stall past 150 ms expire a just-acquired lease inside a fencing check (the flake observed on Node 22). All three shipped harnesses move to the split pairing, and the store-authors guide stops recommending the flaky shape. In `@rulvar/cli`, worker retention is no longer slot-bound: a worker whose every concurrency slot is busy still applies retention over settled runs during its sweeps instead of starving until idle. In `@rulvar/core`, concurrent cold `tools()` calls on an MCP source share one in-flight `tools/list` fetch instead of each sweeping the list, and `AdmissionController`'s `maxTotalSpawns` TSDoc now tells the truth: it is the controller-lifetime cap on admitted spawns for hosts driving the controller directly (pinned by a test), while engine runs cap totals through `budgetDefaults.lifetimeSpawnCap`; the old comment claimed it was the per-orchestrate `maxSpawns`.
 
 ### 1.81.2
 
@@ -4530,6 +4558,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.82.0
+
 ### 1.81.2
 
 ### 1.81.1
@@ -4794,6 +4824,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.82.0
+
+#### Patch Changes
+
+- Updated dependencies [9cc5d66]
+  - @rulvar/core@1.82.0
+  - @rulvar/testing@1.82.0
 
 ### 1.81.2
 
@@ -5826,6 +5864,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.82.0
+
+#### Patch Changes
+
+- Updated dependencies [9cc5d66]
+  - @rulvar/core@1.82.0
+
 ### 1.81.2
 
 #### Patch Changes
@@ -6047,6 +6092,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.82.0
+
+#### Patch Changes
+
+- Updated dependencies [9cc5d66]
+  - @rulvar/core@1.82.0
 
 ### 1.81.2
 
@@ -7043,6 +7095,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.82.0
+
+#### Patch Changes
+
+- Updated dependencies [9cc5d66]
+  - @rulvar/core@1.82.0
+
 ### 1.81.2
 
 #### Patch Changes
@@ -7999,6 +8058,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.82.0
+
+#### Patch Changes
+
+- Updated dependencies [9cc5d66]
+  - @rulvar/core@1.82.0
+  - eslint-plugin-rulvar@1.82.0
 
 ### 1.81.2
 
@@ -8987,6 +9054,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.82.0
+
+#### Patch Changes
+
+- Updated dependencies [9cc5d66]
+  - @rulvar/core@1.82.0
+  - @rulvar/anthropic@1.82.0
+  - @rulvar/openai@1.82.0
 
 ### 1.81.2
 
@@ -10150,6 +10226,17 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.82.0
+
+#### Minor Changes
+
+- 9cc5d66: The free-cleanup harvest (cycle 80). `leasableStoreConformance` gains the `expiry` option: the mandatory lease checks follow the suite's no-wall-clock convention, so the harness now hands them a store whose ttl no scheduler stall can cross, and only the wall-clock expiry check keeps a short-ttl store of its own; the legacy single-`ttlMs` pairing let one CI stall past 150 ms expire a just-acquired lease inside a fencing check (the flake observed on Node 22). All three shipped harnesses move to the split pairing, and the store-authors guide stops recommending the flaky shape. In `@rulvar/cli`, worker retention is no longer slot-bound: a worker whose every concurrency slot is busy still applies retention over settled runs during its sweeps instead of starving until idle. In `@rulvar/core`, concurrent cold `tools()` calls on an MCP source share one in-flight `tools/list` fetch instead of each sweeping the list, and `AdmissionController`'s `maxTotalSpawns` TSDoc now tells the truth: it is the controller-lifetime cap on admitted spawns for hosts driving the controller directly (pinned by a test), while engine runs cap totals through `budgetDefaults.lifetimeSpawnCap`; the old comment claimed it was the per-orchestrate `maxSpawns`.
+
+#### Patch Changes
+
+- Updated dependencies [9cc5d66]
+  - @rulvar/core@1.82.0
+
 ### 1.81.2
 
 #### Patch Changes
@@ -11090,6 +11177,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.82.0
+
+#### Patch Changes
+
+- Updated dependencies [9cc5d66]
+  - @rulvar/core@1.82.0
+
 ### 1.81.2
 
 #### Patch Changes
@@ -11332,6 +11426,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.82.0
+
+#### Patch Changes
+
+- Updated dependencies [9cc5d66]
+  - @rulvar/core@1.82.0
 
 ### 1.81.2
 
@@ -12214,6 +12315,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.82.0
+
+#### Patch Changes
+
+- Updated dependencies [9cc5d66]
+  - @rulvar/core@1.82.0
 
 ### 1.81.2
 
