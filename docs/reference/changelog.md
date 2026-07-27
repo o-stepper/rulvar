@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.81.1
+
+#### Patch Changes
+
+- Updated dependencies [c030982]
+  - @rulvar/core@1.81.1
+
 ### 1.81.0
 
 #### Patch Changes
@@ -982,6 +989,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.81.1
+
+#### Patch Changes
+
+- Updated dependencies [c030982]
+  - @rulvar/core@1.81.1
+
 ### 1.81.0
 
 #### Patch Changes
@@ -1803,6 +1817,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.81.1
+
+#### Patch Changes
+
+- Updated dependencies [c030982]
+  - @rulvar/core@1.81.1
 
 ### 1.81.0
 
@@ -2950,6 +2971,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.81.1
+
+#### Patch Changes
+
+- c030982: The side-effect ledger records the outcome a dispatch actually had: a tool whose stdout violates the result protocol (non-JSON output from a clean exit) now ledgers `error` instead of `ok`, in both the subprocess and container executors, and the executor conformance kit pins it as check e12. In `@rulvar/core`, `stripFencedBlocks` closes fences in CRLF text (a trailing carriage return no longer keeps a fence open and swallows the rest of the document), which `fencedCode: 'excluded'` validators and `headingStructureValidator` inherit. Docs drift closed alongside: the package count, tables, and dependency graphs catch up to `@rulvar/executor` and `@rulvar/store-postgres`, the durability page reflects the shipped data protection hooks instead of denying them, and the architecture page no longer claims only the in-process executor exists.
 
 ### 1.81.0
 
@@ -4475,6 +4502,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.81.1
+
 ### 1.81.0
 
 ### 1.80.0
@@ -4735,6 +4764,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.81.1
+
+#### Patch Changes
+
+- Updated dependencies [c030982]
+  - @rulvar/core@1.81.1
+  - @rulvar/testing@1.81.1
 
 ### 1.81.0
 
@@ -5751,6 +5788,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.81.1
+
+#### Patch Changes
+
+- c030982: The side-effect ledger records the outcome a dispatch actually had: a tool whose stdout violates the result protocol (non-JSON output from a clean exit) now ledgers `error` instead of `ok`, in both the subprocess and container executors, and the executor conformance kit pins it as check e12. In `@rulvar/core`, `stripFencedBlocks` closes fences in CRLF text (a trailing carriage return no longer keeps a fence open and swallows the rest of the document), which `fencedCode: 'excluded'` validators and `headingStructureValidator` inherit. Docs drift closed alongside: the package count, tables, and dependency graphs catch up to `@rulvar/executor` and `@rulvar/store-postgres`, the durability page reflects the shipped data protection hooks instead of denying them, and the architecture page no longer claims only the in-process executor exists.
+- Updated dependencies [c030982]
+  - @rulvar/core@1.81.1
+
 ### 1.81.0
 
 #### Patch Changes
@@ -5957,6 +6002,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.81.1
+
+#### Patch Changes
+
+- Updated dependencies [c030982]
+  - @rulvar/core@1.81.1
 
 ### 1.81.0
 
@@ -6939,6 +6991,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.81.1
+
+#### Patch Changes
+
+- Updated dependencies [c030982]
+  - @rulvar/core@1.81.1
+
 ### 1.81.0
 
 #### Patch Changes
@@ -7881,6 +7940,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.81.1
+
+#### Patch Changes
+
+- Updated dependencies [c030982]
+  - @rulvar/core@1.81.1
+  - eslint-plugin-rulvar@1.81.1
 
 ### 1.81.0
 
@@ -8853,6 +8920,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.81.1
+
+#### Patch Changes
+
+- Updated dependencies [c030982]
+  - @rulvar/core@1.81.1
+  - @rulvar/anthropic@1.81.1
+  - @rulvar/openai@1.81.1
 
 ### 1.81.0
 
@@ -9998,6 +10074,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.81.1
+
+#### Patch Changes
+
+- Updated dependencies [c030982]
+  - @rulvar/core@1.81.1
+
 ### 1.81.0
 
 #### Patch Changes
@@ -10924,6 +11007,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.81.1
+
+#### Patch Changes
+
+- Updated dependencies [c030982]
+  - @rulvar/core@1.81.1
+
 ### 1.81.0
 
 #### Patch Changes
@@ -11152,6 +11242,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.81.1
+
+#### Patch Changes
+
+- Updated dependencies [c030982]
+  - @rulvar/core@1.81.1
 
 ### 1.81.0
 
@@ -12020,6 +12117,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.81.1
+
+#### Patch Changes
+
+- Updated dependencies [c030982]
+  - @rulvar/core@1.81.1
 
 ### 1.81.0
 
