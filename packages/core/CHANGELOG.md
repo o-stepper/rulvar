@@ -1,5 +1,7 @@
 # @rulvar/core
 
+## 1.83.0
+
 ## 1.82.0
 
 ### Patch Changes

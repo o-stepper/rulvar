@@ -18,6 +18,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.83.0
+
+#### Patch Changes
+
+- @rulvar/core@1.83.0
+
 ### 1.82.0
 
 #### Patch Changes
@@ -1003,6 +1009,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.83.0
+
+#### Patch Changes
+
+- @rulvar/core@1.83.0
+
 ### 1.82.0
 
 #### Patch Changes
@@ -1845,6 +1857,12 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.83.0
+
+#### Patch Changes
+
+- @rulvar/core@1.83.0
 
 ### 1.82.0
 
@@ -3015,6 +3033,8 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.83.0
 
 ### 1.82.0
 
@@ -4558,6 +4578,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.83.0
+
 ### 1.82.0
 
 ### 1.81.2
@@ -4824,6 +4846,17 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.83.0
+
+#### Minor Changes
+
+- ca9cf6c: The deep review of the eval package (cycle 81), three fail-closed gaps in the measurement-to-belief pipeline. `runSweepMatrix` no longer mints a claim from a cell containing a target that settled neither ok nor exhausted: an 'error', 'cancelled', or 'suspended' target is a measurement artifact, and a passRate deflated by a provider failure or a host cancellation could previously commit a false weakness through the eval-committer gate; such runs are now counted in the new `nonOkRuns` cell field and suppress the claim exactly like `exhaustedRuns`. `runValueCheckpoint` marks a cell or criterion `contaminated` when either A/B arm carried a measurement artifact (an envelope refusal, an incomplete row, a non-ok target): the arms are not comparable, the verdict can never pass, and criterion 1 fails with `contaminatedCells` reported; previously an envelope drained by the baseline left an empty refused treatment arm (n 0, cost 0) that mechanically beat any baseline under the cheaper-at-equal-quality branch, passing the gate on nothing. `runBenchmark` ends a series monotonically on a target-run envelope refusal (`report.refusal`, every completed repeat preserved) instead of throwing away the paid evidence, mirroring the eval suite's refusal contract; judge refusals keep rejecting their own run as 'judge:refused'. Also: `renderCheckpointReport` counts recommended cells in its criterion 1 denominator instead of all cells (neutral cells are excluded from the majority), contaminated cells render marked, and the missing-rung error names the tier that is actually absent.
+
+#### Patch Changes
+
+- @rulvar/core@1.83.0
+- @rulvar/testing@1.83.0
 
 ### 1.82.0
 
@@ -5864,6 +5897,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.83.0
+
+#### Patch Changes
+
+- @rulvar/core@1.83.0
+
 ### 1.82.0
 
 #### Patch Changes
@@ -6092,6 +6131,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.83.0
+
+#### Patch Changes
+
+- @rulvar/core@1.83.0
 
 ### 1.82.0
 
@@ -7095,6 +7140,12 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.83.0
+
+#### Patch Changes
+
+- @rulvar/core@1.83.0
+
 ### 1.82.0
 
 #### Patch Changes
@@ -8058,6 +8109,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.83.0
+
+#### Patch Changes
+
+- @rulvar/core@1.83.0
+- eslint-plugin-rulvar@1.83.0
 
 ### 1.82.0
 
@@ -9054,6 +9112,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.83.0
+
+#### Patch Changes
+
+- @rulvar/anthropic@1.83.0
+- @rulvar/core@1.83.0
+- @rulvar/openai@1.83.0
 
 ### 1.82.0
 
@@ -10226,6 +10292,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.83.0
+
+#### Patch Changes
+
+- @rulvar/core@1.83.0
+
 ### 1.82.0
 
 #### Minor Changes
@@ -11177,6 +11249,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.83.0
+
+#### Patch Changes
+
+- @rulvar/core@1.83.0
+
 ### 1.82.0
 
 #### Patch Changes
@@ -11426,6 +11504,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.83.0
+
+#### Patch Changes
+
+- @rulvar/core@1.83.0
 
 ### 1.82.0
 
@@ -12315,6 +12399,12 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.83.0
+
+#### Patch Changes
+
+- @rulvar/core@1.83.0
 
 ### 1.82.0
 
