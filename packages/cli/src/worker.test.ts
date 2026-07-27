@@ -664,3 +664,44 @@ describe('generation identity and sweep hygiene (v1.25.0 scale review)', () => {
     await worker.stop();
   });
 });
+
+describe('createWorker stop discipline (cycle 79)', () => {
+  it('stop() during an in-flight sweep picks nothing new and leaves nothing live', async () => {
+    const path = dbPath();
+    let openGate: () => void = () => undefined;
+    let gateArmed = false;
+    const gate = new Promise<void>((resolve) => {
+      openGate = resolve;
+    });
+    class GatedStore extends SqliteStore {
+      override async listRuns(
+        ...args: Parameters<SqliteStore['listRuns']>
+      ): ReturnType<SqliteStore['listRuns']> {
+        if (gateArmed) {
+          await gate;
+        }
+        return super.listRuns(...args);
+      }
+    }
+    const store = new GatedStore({ path, now: wallClock });
+    const gated = gatedWorkflow();
+    const engine = makeEngine(store, { gated });
+    const first = engine.run(gated as unknown as Workflow<unknown, unknown>, { item: 3 });
+    expect((await first.result).status).toBe('suspended');
+
+    const worker = createWorker(engine, { store, argsFor: () => ({ item: 3 }) });
+    gateArmed = true;
+    // The sweep parks inside listRuns; stop() arrives while it scans.
+    const sweepP = worker.sweep();
+    await new Promise((resolve) => setImmediate(resolve));
+    const stopP = worker.stop();
+    openGate();
+    await stopP;
+    // A stopped worker must not have picked the suspended run after the
+    // cancel snapshot: nothing counted, nothing live, no lease held.
+    expect(await sweepP).toBe(0);
+    expect(worker.active()).toEqual([]);
+    const probe = await store.acquire(first.runId, 'probe');
+    await store.release(probe);
+  });
+});

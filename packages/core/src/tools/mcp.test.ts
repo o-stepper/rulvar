@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
@@ -202,6 +202,75 @@ describe('mcp ToolSource (M3-T04)', () => {
     const source = mcp({ transport: 'inprocess', server: lowLevel });
     const toolset = await resolveToolset([source], SESSION);
     expect(toolset.tools.map((def) => def.name).sort()).toEqual(['one', 'two']);
+  });
+
+  it('a listChanged racing the first tools/list is not clobbered by the stale cache write (cycle 79)', async () => {
+    const lowLevel = new Server(
+      { name: 'racy', version: '1.0.0' },
+      { capabilities: { tools: { listChanged: true } } },
+    );
+    const alpha = { name: 'alpha', description: 'a', inputSchema: { type: 'object' as const } };
+    const beta = { name: 'beta', description: 'b', inputSchema: { type: 'object' as const } };
+    let listCalls = 0;
+    lowLevel.setRequestHandler(ListToolsRequestSchema, async () => {
+      listCalls += 1;
+      if (listCalls === 1) {
+        // The change lands on the wire BEFORE the first list response, so
+        // the client's invalidation handler runs before the source can
+        // cache the list it fetched.
+        await lowLevel.sendToolListChanged();
+        return { tools: [alpha] };
+      }
+      return { tools: [alpha, beta] };
+    });
+    const source = mcp({ transport: 'inprocess', server: lowLevel });
+    const first = await source.tools(SESSION);
+    expect(first.map((def) => def.name)).toEqual(['alpha']);
+    // The invalidation must survive: the next snapshot refetches.
+    const second = await source.tools(SESSION);
+    expect(second.map((def) => def.name).sort()).toEqual(['alpha', 'beta']);
+  });
+
+  it('an empty-string nextCursor terminates pagination instead of looping forever (cycle 79)', async () => {
+    const lowLevel = new Server(
+      { name: 'sloppy-pager', version: '1.0.0' },
+      { capabilities: { tools: {} } },
+    );
+    lowLevel.setRequestHandler(ListToolsRequestSchema, () => ({
+      tools: [{ name: 'only', description: 'x', inputSchema: { type: 'object' as const } }],
+      nextCursor: '',
+    }));
+    const source = mcp({ transport: 'inprocess', server: lowLevel });
+    const defs = await source.tools(SESSION);
+    expect(defs.map((def) => def.name)).toEqual(['only']);
+  });
+
+  // The pinned SDK's client enforces this (-32600) before the source
+  // sees the result; the test pins that enforcement so the M5-T10 SDK v2
+  // migration (risk R1) cannot silently downgrade it to bare text.
+  it('a declared outputSchema with no structuredContent in the result is an error, not silent text (cycle 79)', async () => {
+    const lowLevel = new Server(
+      { name: 'schema-violator', version: '1.0.0' },
+      { capabilities: { tools: {} } },
+    );
+    lowLevel.setRequestHandler(ListToolsRequestSchema, () => ({
+      tools: [
+        {
+          name: 'typed_but_bare',
+          description: 'declares structure, returns text',
+          inputSchema: { type: 'object' as const },
+          outputSchema: { type: 'object' as const },
+        },
+      ],
+    }));
+    lowLevel.setRequestHandler(CallToolRequestSchema, () => ({
+      content: [{ type: 'text' as const, text: 'just text' }],
+    }));
+    const source = mcp({ transport: 'inprocess', server: lowLevel });
+    const defs = await source.tools(SESSION);
+    await expect(defs[0]?.execute({}, toolContext())).rejects.toThrow(
+      /did not return structured content/,
+    );
   });
 
   it('an imported name that stays illegal after prefixing is a ConfigError', async () => {

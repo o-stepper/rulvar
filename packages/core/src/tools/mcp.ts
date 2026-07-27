@@ -159,6 +159,10 @@ export function mcp(cfg: McpConfig): McpToolSource {
   validateConfig(cfg);
   let clientPromise: Promise<Client> | undefined;
   let cache: ToolDef[] | undefined;
+  // Bumped by every listChanged notification: a fetch that began before
+  // the bump must not pin its (already stale) list as the session cache,
+  // or the invalidation is lost until the NEXT notification (cycle 79).
+  let generation = 0;
 
   const connect = async (): Promise<Client> => {
     const client = new Client({ name: 'rulvar', version: '1.0.0' });
@@ -189,6 +193,7 @@ export function mcp(cfg: McpConfig): McpToolSource {
     client.setNotificationHandler(ToolListChangedNotificationSchema, () => {
       // Invalidates the session cache; in-flight agents keep their
       // spawn-time snapshot.
+      generation += 1;
       cache = undefined;
     });
     return client;
@@ -201,7 +206,9 @@ export function mcp(cfg: McpConfig): McpToolSource {
       const page = await client.listTools(cursor === undefined ? {} : { cursor });
       tools.push(...(page.tools as unknown as WireTool[]));
       cursor = page.nextCursor;
-    } while (cursor !== undefined);
+      // An empty cursor is exhaustion: a server echoing '' forever would
+      // otherwise spin this loop on microtasks and starve the event loop.
+    } while (cursor !== undefined && cursor !== '');
     return tools;
   };
 
@@ -257,6 +264,10 @@ export function mcp(cfg: McpConfig): McpToolSource {
           }
           return result.structuredContent;
         }
+        // A declared outputSchema with NO structuredContent in the result
+        // is rejected by the pinned SDK client itself (-32600) before this
+        // point; the cycle 79 test pins that enforcement so the M5-T10 v2
+        // migration cannot silently drop it.
         return mapContent(result);
       },
     });
@@ -270,14 +281,18 @@ export function mcp(cfg: McpConfig): McpToolSource {
       }
       clientPromise ??= connect();
       const client = await clientPromise;
+      const fetchedAt = generation;
       const wireTools = await listAll(client);
       const denySet = new Set(cfg.deny ?? []);
       const allowSet = cfg.allow === undefined ? undefined : new Set(cfg.allow);
       const admitted = wireTools.filter(
         (wire) => !denySet.has(wire.name) && (allowSet === undefined || allowSet.has(wire.name)),
       );
-      cache = admitted.map((wire) => toDef(client, wire));
-      return cache;
+      const defs = admitted.map((wire) => toDef(client, wire));
+      if (generation === fetchedAt) {
+        cache = defs;
+      }
+      return defs;
     },
     close: async () => {
       const pending = clientPromise;
