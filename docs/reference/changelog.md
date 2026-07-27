@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.81.2
+
+#### Patch Changes
+
+- Updated dependencies [296885b]
+  - @rulvar/core@1.81.2
+
 ### 1.81.1
 
 #### Patch Changes
@@ -989,6 +996,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.81.2
+
+#### Patch Changes
+
+- Updated dependencies [296885b]
+  - @rulvar/core@1.81.2
+
 ### 1.81.1
 
 #### Patch Changes
@@ -1817,6 +1831,14 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.81.2
+
+#### Patch Changes
+
+- 296885b: Three defects from a deep review of the MCP bus and the queue worker (cycle 79). In `@rulvar/cli`, `createWorker().stop()` now waits out a sweep that is still scanning the store before taking its cancel snapshot, and a sweep observes the stop before every lease: previously a stop() racing an in-flight sweep could resolve while that sweep went on to lease and drive a new run, leaving a live run and a held lease behind a "stopped" worker. In `@rulvar/core`, the MCP tool source no longer loses a `listChanged` notification that races the in-flight `tools/list` fetch (the fetched list is served but never pinned as the session cache, so the next snapshot refetches), and cursor pagination treats an empty `nextCursor` as exhaustion instead of spinning the import loop forever on a server that echoes it. A regression test also pins the SDK-level rejection of a declared `outputSchema` with no `structuredContent`, guarding the planned SDK v2 migration.
+- Updated dependencies [296885b]
+  - @rulvar/core@1.81.2
 
 ### 1.81.1
 
@@ -2971,6 +2993,12 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.81.2
+
+#### Patch Changes
+
+- 296885b: Three defects from a deep review of the MCP bus and the queue worker (cycle 79). In `@rulvar/cli`, `createWorker().stop()` now waits out a sweep that is still scanning the store before taking its cancel snapshot, and a sweep observes the stop before every lease: previously a stop() racing an in-flight sweep could resolve while that sweep went on to lease and drive a new run, leaving a live run and a held lease behind a "stopped" worker. In `@rulvar/core`, the MCP tool source no longer loses a `listChanged` notification that races the in-flight `tools/list` fetch (the fetched list is served but never pinned as the session cache, so the next snapshot refetches), and cursor pagination treats an empty `nextCursor` as exhaustion instead of spinning the import loop forever on a server that echoes it. A regression test also pins the SDK-level rejection of a declared `outputSchema` with no `structuredContent`, guarding the planned SDK v2 migration.
 
 ### 1.81.1
 
@@ -4502,6 +4530,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.81.2
+
 ### 1.81.1
 
 ### 1.81.0
@@ -4764,6 +4794,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.81.2
+
+#### Patch Changes
+
+- Updated dependencies [296885b]
+  - @rulvar/core@1.81.2
+  - @rulvar/testing@1.81.2
 
 ### 1.81.1
 
@@ -5788,6 +5826,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.81.2
+
+#### Patch Changes
+
+- Updated dependencies [296885b]
+  - @rulvar/core@1.81.2
+
 ### 1.81.1
 
 #### Patch Changes
@@ -6002,6 +6047,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.81.2
+
+#### Patch Changes
+
+- Updated dependencies [296885b]
+  - @rulvar/core@1.81.2
 
 ### 1.81.1
 
@@ -6991,6 +7043,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.81.2
+
+#### Patch Changes
+
+- Updated dependencies [296885b]
+  - @rulvar/core@1.81.2
+
 ### 1.81.1
 
 #### Patch Changes
@@ -7940,6 +7999,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.81.2
+
+#### Patch Changes
+
+- Updated dependencies [296885b]
+  - @rulvar/core@1.81.2
+  - eslint-plugin-rulvar@1.81.2
 
 ### 1.81.1
 
@@ -8920,6 +8987,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.81.2
+
+#### Patch Changes
+
+- Updated dependencies [296885b]
+  - @rulvar/core@1.81.2
+  - @rulvar/anthropic@1.81.2
+  - @rulvar/openai@1.81.2
 
 ### 1.81.1
 
@@ -10074,6 +10150,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.81.2
+
+#### Patch Changes
+
+- Updated dependencies [296885b]
+  - @rulvar/core@1.81.2
+
 ### 1.81.1
 
 #### Patch Changes
@@ -11007,6 +11090,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.81.2
+
+#### Patch Changes
+
+- Updated dependencies [296885b]
+  - @rulvar/core@1.81.2
+
 ### 1.81.1
 
 #### Patch Changes
@@ -11242,6 +11332,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.81.2
+
+#### Patch Changes
+
+- Updated dependencies [296885b]
+  - @rulvar/core@1.81.2
 
 ### 1.81.1
 
@@ -12117,6 +12214,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.81.2
+
+#### Patch Changes
+
+- Updated dependencies [296885b]
+  - @rulvar/core@1.81.2
 
 ### 1.81.1
 
