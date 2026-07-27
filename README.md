@@ -189,7 +189,7 @@ Rulvar predates Build Week; everything from v1.4.0 through v1.37.0 shipped insid
 submission window (July 13-21, 2026), the releases since then keep the same cadence,
 and the collaboration below is the part of that work done with Codex.
 
-**Codex was the project's independent QA engineer.** Forty eight times, the
+**Codex was the project's independent QA engineer.** Forty nine times, the
 freshly shipped release was handed to Codex (session
 `019f65d7-4599-7d93-97dc-9dd4a5dc66f9`). Each round, Codex ran the full offline matrix
 plus live end-to-end orchestrations against real GPT-5.6 (Sol orchestrating; Luna,
@@ -277,6 +277,7 @@ The sixty five rounds, verbatim in this repository's history:
 | v1.81.2       | 9cc5d66 (#425): the lease conformance expiry split (the CI flake root-caused), slot-independent worker retention, the single-flight MCP list                          | v1.82.0    |
 | v1.82.0       | ca9cf6c (#428): fail-closed eval measurements: nonOk sweep suppression, checkpoint arm contamination, the monotone benchmark refusal (the evals review)               | v1.83.0    |
 | v1.83.0       | bc9105f (#431): first-class doctrine for the AI SDK bridge: honest error-finish billing, the unparsed second chance, retention fidelity, teardown                     | v1.84.0    |
+| v1.84.0       | 6932a9f (#434): the six-item sweep: typed-throw classification, sandbox ambient clocks, the server rejection zombie, the work budget and mutation gates               | v1.85.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
