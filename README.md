@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The sixty five rounds, verbatim in this repository's history:
+The sixty six rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                            | Shipped as |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -279,6 +279,7 @@ The sixty five rounds, verbatim in this repository's history:
 | v1.82.0       | ca9cf6c (#428): fail-closed eval measurements: nonOk sweep suppression, checkpoint arm contamination, the monotone benchmark refusal (the evals review)               | v1.83.0    |
 | v1.83.0       | bc9105f (#431): first-class doctrine for the AI SDK bridge: honest error-finish billing, the unparsed second chance, retention fidelity, teardown                     | v1.84.0    |
 | v1.84.0       | 6932a9f (#434): the six-item sweep: typed-throw classification, sandbox ambient clocks, the server rejection zombie, the work budget and mutation gates               | v1.85.0    |
+| v1.85.0       | 2f71894 (#437): the adaptive tool budget: headroom-funded tool-call grants at the cap, the pressure snapshot, extension-aware preflight projections                   | v1.86.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
