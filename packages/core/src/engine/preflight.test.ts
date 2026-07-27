@@ -1464,3 +1464,80 @@ describe('the synthesis reserve finding (the sixth comparison experiment, cycle 
     expect(report.findings.find((f) => f.code === 'synthesis-reserve-unfunded')).toBeUndefined();
   });
 });
+
+describe('the tool budget extension projection (RV301, the seventh comparison experiment)', () => {
+  it('the projections assume the fully extended cap', () => {
+    const adapter = scriptedAdapter(() => ({ text: 'unused' }));
+    const report = preflightEstimate({
+      engine: { adapters: [adapter], defaults: { routing: { loop: SERVED } } },
+      run: { budgetUsd: 5 },
+      spawns: [
+        {
+          label: 'worker',
+          limits: {
+            maxTurns: 20,
+            maxToolCalls: 5,
+            toolBudgetExtension: { increment: 2, maxExtensions: 3 },
+          },
+        },
+      ],
+    });
+    // 5 base calls + 3 grants x 2 = 11 executed calls, + the final
+    // no-tool turn = 12 projected provider turns.
+    expect(report.spawns[0]?.executedToolCallCeiling).toBe(11);
+    expect(report.spawns[0]?.projectedProviderTurns).toBe(12);
+    const checkpointWarning = report.findings.find(
+      (entry) => entry.code === 'tool-cap-before-checkpoint',
+    );
+    expect(checkpointWarning?.message).toContain('11 calls');
+  });
+
+  it('the exposure is an info finding naming the worst case', () => {
+    const adapter = scriptedAdapter(() => ({ text: 'unused' }));
+    const report = preflightEstimate({
+      engine: { adapters: [adapter], defaults: { routing: { loop: SERVED } } },
+      run: { budgetUsd: 5 },
+      spawns: [
+        {
+          label: 'worker',
+          limits: {
+            maxTurns: 20,
+            maxToolCalls: 5,
+            toolBudgetExtension: { increment: 2, maxExtensions: 3 },
+          },
+        },
+      ],
+    });
+    const finding = report.findings.find(
+      (entry) => entry.code === 'tool-budget-extension-exposure',
+    );
+    expect(finding?.severity).toBe('info');
+    expect(finding?.spawn).toBe('worker');
+    expect(finding?.message).toContain('up to 6 extra calls');
+    expect(finding?.message).toContain('remaining budget headroom');
+  });
+
+  it('an extension without maxToolCalls is inert and warned', () => {
+    const adapter = scriptedAdapter(() => ({ text: 'unused' }));
+    const report = preflightEstimate({
+      engine: { adapters: [adapter], defaults: { routing: { loop: SERVED } } },
+      run: { budgetUsd: 5 },
+      spawns: [
+        {
+          label: 'worker',
+          limits: {
+            maxTurns: 4,
+            toolBudgetExtension: { increment: 2, maxExtensions: 3 },
+          },
+        },
+      ],
+    });
+    const finding = report.findings.find((entry) => entry.code === 'inert-tool-budget-extension');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.spawn).toBe('worker');
+    expect(report.spawns[0]?.executedToolCallCeiling).toBeNull();
+    expect(report.findings.some((entry) => entry.code === 'tool-budget-extension-exposure')).toBe(
+      false,
+    );
+  });
+});

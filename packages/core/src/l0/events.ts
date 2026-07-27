@@ -109,6 +109,43 @@ export interface ExplorationSummary {
 }
 
 /**
+ * The tool budget pressure snapshot (RV304, the seventh comparison
+ * experiment): how close one agent invocation came to its tool budget,
+ * visible BEFORE the terminal 'limit' a starved worker would settle
+ * with. Attached to the full AgentResult and to the live `agent:end`
+ * event whenever maxToolCalls, toolUnits, or toolBudgetExtension is
+ * configured. Live telemetry only, exactly like transportRetries: never
+ * journaled, absent on a replayed result.
+ */
+export interface ToolBudgetSummary {
+  /** Executed tool calls (the loop's own counter). */
+  used: number;
+  /**
+   * The effective executed-call cap at the end: maxToolCalls plus every
+   * granted extension. Absent when only toolUnits bounds the loop.
+   */
+  cap?: number;
+  /** Weighted units spent; present when toolUnits is configured. */
+  unitsUsed?: number;
+  /** The weighted budget; present when toolUnits is configured. */
+  unitsMax?: number;
+  /**
+   * Extension grants used, restored grants included; present exactly
+   * when toolBudgetExtension is configured (RV301).
+   */
+  extensionsGranted?: number;
+  /**
+   * Notice thresholds (fractions of the cap) whose notices entered the
+   * conversation; present when at least one fired.
+   */
+  noticesFired?: number[];
+  /** Present and true when the finalization reserve summary turn ran. */
+  finalizationReserveUsed?: boolean;
+  /** The tool budget limiter that ended the loop, on that 'limit' only. */
+  limiter?: 'maxToolCalls' | 'toolUnits';
+}
+
+/**
  * Agent lifecycle. One logical agent dispatch emits EXACTLY ONE
  * `agent:start`/`agent:end` pair on its span (the start carries the
  * primary role), and each model invocation phase inside the span
@@ -194,6 +231,12 @@ export type AgentEvents =
        * terminal error payload.
        */
       exploration?: ExplorationSummary;
+      /**
+       * The tool budget pressure snapshot (RV304). Present live whenever
+       * a tool budget limiter or the extension was configured; live
+       * telemetry only, absent on replay.
+       */
+      toolBudget?: ToolBudgetSummary;
     }
   | { type: 'agent:error'; agentType: string; label?: string; error: WireError; willRetry: boolean }
   | { type: 'agent:schema-retry'; agentType: string; attempt: number; maxAttempts: number }

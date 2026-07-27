@@ -49,6 +49,7 @@ type AgentEvents =
   label?: string;
   retryCount?: number;
   status: string;
+  toolBudget?: ToolBudgetSummary;
   type: "agent:end";
   usage: Usage;
   usageApprox?: boolean;
@@ -183,6 +184,7 @@ vocabulary.
   label?: string;
   retryCount?: number;
   status: string;
+  toolBudget?: ToolBudgetSummary;
   type: "agent:end";
   usage: Usage;
   usageApprox?: boolean;
@@ -198,6 +200,7 @@ vocabulary.
 | `label?` | `string` | - | `packages/core/dist/index.d.ts` |
 | `retryCount?` | `number` | Total transport retries across the span's activations. Present only when greater than zero; live telemetry only, never journaled, so a replayed agent:end omits it (absent means "zero or unknown"). | `packages/core/dist/index.d.ts` |
 | `status` | `string` | - | `packages/core/dist/index.d.ts` |
+| `toolBudget?` | [`ToolBudgetSummary`](/api/@rulvar/rulvar/interfaces/ToolBudgetSummary.md) | The tool budget pressure snapshot (RV304). Present live whenever a tool budget limiter or the extension was configured; live telemetry only, absent on replay. | `packages/core/dist/index.d.ts` |
 | `type` | `"agent:end"` | - | `packages/core/dist/index.d.ts` |
 | `usage` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | - | `packages/core/dist/index.d.ts` |
 | `usageApprox?` | `boolean` | Present and true when this agent's usage is approximate rather than reported by the provider (the turn was cut by a transport failure, a ceiling that severed the stream, or an abort). Absent means the provider reported the usage exactly. Mirrors the terminal journal entry's usageApprox. | `packages/core/dist/index.d.ts` |

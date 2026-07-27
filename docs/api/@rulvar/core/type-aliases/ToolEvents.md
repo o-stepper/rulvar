@@ -26,7 +26,7 @@ type ToolEvents =
 };
 ```
 
-Defined in: [packages/core/src/l0/events.ts:204](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L204)
+Defined in: [packages/core/src/l0/events.ts:247](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L247)
 
 Tool lifecycle (emitters arrive with the tool system, M3).
 
@@ -62,12 +62,12 @@ Tool lifecycle (emitters arrive with the tool system, M3).
 
 | Name | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| `advisory?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [packages/core/src/l0/events.ts:220](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L220) |
-| `decidedBy?` | `string` | - | [packages/core/src/l0/events.ts:218](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L218) |
-| `durationMs` | `number` | - | [packages/core/src/l0/events.ts:210](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L210) |
-| `guard?` | `"repeated-signature"` | Present when an exploration guard (RV-210), not the permission chain, denied the call: the outcome is 'denied' and the call was never dispatched. | [packages/core/src/l0/events.ts:226](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L226) |
-| `outcome` | `"ok"` \| `"error"` \| `"denied"` | - | [packages/core/src/l0/events.ts:209](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L209) |
-| `rule?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [packages/core/src/l0/events.ts:219](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L219) |
-| `toolName` | `string` | - | [packages/core/src/l0/events.ts:208](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L208) |
-| `type` | `"tool:end"` | - | [packages/core/src/l0/events.ts:207](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L207) |
-| `verdict?` | `"allow"` \| `"deny"` \| `"ask"` | Audit fields (M5-T05): the chain verdict, the deciding layer, the matched rule, and advisory domain-rule matches. Telemetry, never identity; ask verdicts additionally journal as suspended approvals. | [packages/core/src/l0/events.ts:217](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L217) |
+| `advisory?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [packages/core/src/l0/events.ts:263](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L263) |
+| `decidedBy?` | `string` | - | [packages/core/src/l0/events.ts:261](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L261) |
+| `durationMs` | `number` | - | [packages/core/src/l0/events.ts:253](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L253) |
+| `guard?` | `"repeated-signature"` | Present when an exploration guard (RV-210), not the permission chain, denied the call: the outcome is 'denied' and the call was never dispatched. | [packages/core/src/l0/events.ts:269](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L269) |
+| `outcome` | `"ok"` \| `"error"` \| `"denied"` | - | [packages/core/src/l0/events.ts:252](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L252) |
+| `rule?` | [`Json`](/api/@rulvar/core/type-aliases/Json.md) | - | [packages/core/src/l0/events.ts:262](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L262) |
+| `toolName` | `string` | - | [packages/core/src/l0/events.ts:251](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L251) |
+| `type` | `"tool:end"` | - | [packages/core/src/l0/events.ts:250](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L250) |
+| `verdict?` | `"allow"` \| `"deny"` \| `"ask"` | Audit fields (M5-T05): the chain verdict, the deciding layer, the matched rule, and advisory domain-rule matches. Telemetry, never identity; ask verdicts additionally journal as suspended approvals. | [packages/core/src/l0/events.ts:260](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L260) |

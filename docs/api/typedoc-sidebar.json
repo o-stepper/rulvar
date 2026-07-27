@@ -1499,6 +1499,10 @@
             "link": "/api/@rulvar/core/interfaces/TerminationLimits.md"
           },
           {
+            "text": "ToolBudgetSummary",
+            "link": "/api/@rulvar/core/interfaces/ToolBudgetSummary.md"
+          },
+          {
             "text": "ToolCallRequest",
             "link": "/api/@rulvar/core/interfaces/ToolCallRequest.md"
           },
@@ -5843,6 +5847,10 @@
           {
             "text": "TerminationLimits",
             "link": "/api/@rulvar/rulvar/interfaces/TerminationLimits.md"
+          },
+          {
+            "text": "ToolBudgetSummary",
+            "link": "/api/@rulvar/rulvar/interfaces/ToolBudgetSummary.md"
           },
           {
             "text": "ToolCallRequest",

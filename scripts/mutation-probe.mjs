@@ -66,6 +66,15 @@ const MUTATIONS = [
     test: 'packages/core/src/engine/stream-terminal-contract.test.ts',
   },
   {
+    id: 'extension-headroom-admission',
+    doctrine: 'a tool budget grant is admitted only with remaining budget headroom (RV301)',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '    const remaining = options.budget?.remainingUsd?.();\n    if (remaining !== undefined) {',
+    replace:
+      '    const remaining = options.budget?.remainingUsd?.();\n    if (false && remaining !== undefined) {',
+    test: 'packages/core/src/runtime/tool-budget-extension.test.ts',
+  },
+  {
     id: 'sweep-claim-suppression',
     doctrine: 'a cell with non-ok targets never mints a model claim (cycle 81)',
     file: 'packages/evals/src/sweeps.ts',

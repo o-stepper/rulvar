@@ -1,6 +1,6 @@
 ---
 title: Stores
-description: Where run truth lives - the five-method journal store SPI, leases with fencing epochs for queue workers, transcript and model-knowledge stores, and the shipped in-memory, JSONL, and SQLite implementations.
+description: Where run truth lives - the five-method journal store SPI, leases with fencing epochs for queue workers, transcript and model-knowledge stores, and the shipped in-memory, JSONL, SQLite, and PostgreSQL implementations.
 ---
 
 # Stores

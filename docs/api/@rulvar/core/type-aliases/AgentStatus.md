@@ -10,4 +10,4 @@
 type AgentStatus = "ok" | "error" | "limit" | "cancelled" | "skipped" | "escalated";
 ```
 
-Defined in: [packages/core/src/runtime/agent-loop.ts:79](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L79)
+Defined in: [packages/core/src/runtime/agent-loop.ts:81](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/runtime/agent-loop.ts#L81)

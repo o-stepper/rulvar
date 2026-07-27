@@ -63,9 +63,11 @@ import {
   crossedNoticeThresholds,
   ExplorationGuard,
   explorationTrackingEnabled,
+  toolBudgetExtensionNoticeText,
   toolBudgetNoticeText,
   type ExplorationSummary,
 } from './exploration.js';
+import type { ToolBudgetSummary } from '../l0/events.js';
 import { NoProgressDetector, type AbortClass } from './no-progress.js';
 import { latestProgressReport, type ProgressReport } from '../tools/progress.js';
 import {
@@ -191,6 +193,13 @@ export interface AgentResult<T> {
    */
   exploration?: ExplorationSummary;
   /**
+   * The tool budget pressure snapshot (RV304): present live whenever
+   * maxToolCalls, toolUnits, or toolBudgetExtension is configured. Live
+   * telemetry only, exactly like transportRetries: never journaled,
+   * absent on a replayed result.
+   */
+  toolBudget?: ToolBudgetSummary;
+  /**
    * The structured terminal partial (RV-210 close-out): the LAST
    * successful `report_progress` call of the invocation, present only on
    * a 'limit' terminal (cap expiry or an engine-decided abort) whose
@@ -273,6 +282,13 @@ export interface BudgetHooks {
     servedBy: ModelRef,
     estimatedInputTokens: number,
   ) => number | undefined;
+  /**
+   * The remaining chain headroom in USD (RV301): the same arithmetic
+   * the output bound above reads, before pricing. Undefined = no
+   * ceiling anywhere on the chain. The tool budget extension admits a
+   * grant against it.
+   */
+  remainingUsd?: () => number | undefined;
   /** Live usage accounting; layer 3 may respond by aborting `signal`. */
   onUsage(usage: Usage, servedBy: ModelRef): void;
   /** Layer 3: the ceiling AbortSignal. */
@@ -1387,6 +1403,30 @@ export async function runAgent<S extends SchemaSpec>(
   // before (no summary field, no notice messages, no denial results).
   const guard = explorationTrackingEnabled(limits) ? new ExplorationGuard(limits) : undefined;
   /**
+   * The adaptive tool budget (RV301, the seventh comparison experiment):
+   * the run that motivated it starved two mandatory workers at a fixed
+   * 84-call cap while 38% of the USD ceiling sat unspent. A grant at the
+   * expiry converts that headroom into `increment` more executed calls,
+   * bounded by `maxExtensions`, admitted only with money remaining and
+   * (by default) new evidence since the last grant. Grants re-derive
+   * conservatively from the restored executed-call count on resume, so
+   * nothing new is journaled or checkpointed.
+   */
+  const extension = limits.toolBudgetExtension;
+  let extensionGrants = 0;
+  let extensionEvidenceAtLastGrant = 0;
+  const pendingExtensionNotices: string[] = [];
+  const effectiveMaxToolCalls = (): number | undefined =>
+    limits.maxToolCalls === undefined
+      ? undefined
+      : extension === undefined
+        ? limits.maxToolCalls
+        : limits.maxToolCalls + extensionGrants * extension.increment;
+  /** The limiter that ended the loop; rides the RV304 pressure snapshot. */
+  let limitLimiter: 'maxToolCalls' | 'toolUnits' | undefined;
+  /** True once the finalization reserve summary turn actually ran. */
+  let reserveSummaryRan = false;
+  /**
    * The exact limiter behind a tool-budget expiry, with its counts: the
    * wording rides the finalization-reserve instruction and the 'limit'
    * terminal's errorMessage (P1.1 criterion: the terminal names the
@@ -1394,7 +1434,7 @@ export async function runAgent<S extends SchemaSpec>(
    */
   const toolBudgetDetail = (limiter: 'maxToolCalls' | 'toolUnits'): string => {
     if (limiter === 'maxToolCalls') {
-      return `maxToolCalls (${String(toolCallsUsed)}/${String(limits.maxToolCalls ?? 0)})`;
+      return `maxToolCalls (${String(toolCallsUsed)}/${String(effectiveMaxToolCalls() ?? 0)})`;
     }
     const max = limits.toolUnits?.max ?? 0;
     const used = guard === undefined ? max : (guard.summary(toolCallsUsed).toolUnitsUsed ?? max);
@@ -1433,6 +1473,56 @@ export async function runAgent<S extends SchemaSpec>(
       role: 'user',
       parts: [{ type: 'text', text: toolBudgetNoticeText(toolCallsUsed, limits.maxToolCalls) }],
     });
+  };
+  /**
+   * One extension grant (RV301), attempted exactly at a maxToolCalls
+   * expiry inside the dispatch walk. The notice text is queued rather
+   * than pushed: a user message may not interleave a tool batch, so the
+   * queue flushes with the budget notices after the batch's results
+   * join the history.
+   */
+  const tryToolBudgetGrant = (): boolean => {
+    if (extension === undefined || limits.maxToolCalls === undefined) {
+      return false;
+    }
+    if (extensionGrants >= extension.maxExtensions) {
+      return false;
+    }
+    if (extension.requireNewEvidence !== false) {
+      const evidence = guard?.evidenceCount() ?? 0;
+      if (evidence <= extensionEvidenceAtLastGrant) {
+        return false;
+      }
+    }
+    // The same chain arithmetic the per-turn output clamp reads:
+    // undefined means no ceiling anywhere on the chain, which is
+    // unlimited headroom by definition.
+    const remaining = options.budget?.remainingUsd?.();
+    if (remaining !== undefined) {
+      const floor = extension.minHeadroomUsd ?? 0;
+      if (floor > 0 ? remaining < floor : remaining <= 0) {
+        return false;
+      }
+    }
+    extensionGrants += 1;
+    extensionEvidenceAtLastGrant = guard?.evidenceCount() ?? 0;
+    const cap = limits.maxToolCalls + extensionGrants * extension.increment;
+    pendingExtensionNotices.push(
+      toolBudgetExtensionNoticeText(extensionGrants, extension.maxExtensions, toolCallsUsed, cap),
+    );
+    events?.emit({
+      type: 'log',
+      level: 'info',
+      msg:
+        `tool budget extended (grant ${String(extensionGrants)}/` +
+        `${String(extension.maxExtensions)}): maxToolCalls now ${String(cap)}`,
+    });
+    return true;
+  };
+  const flushExtensionNotices = (): void => {
+    for (const text of pendingExtensionNotices.splice(0)) {
+      messages.push({ role: 'user', parts: [{ type: 'text', text }] });
+    }
   };
   const modelRetryCounts = new Map<string, number>();
   // Compaction state (M4-T03): the estimate is the last loop turn's
@@ -1499,6 +1589,23 @@ export async function runAgent<S extends SchemaSpec>(
       for (const threshold of crossedNoticeThresholds(toolCallsUsed, limits.maxToolCalls)) {
         firedNotices.add(threshold);
       }
+    }
+    // Grants re-derive from the restored count alone (RV301): executed
+    // calls beyond the base cap can only have been admitted by grants,
+    // so ceil over the increment reproduces at least the grants that
+    // funded them. Conservative like the guard-state rebuild: a grant
+    // whose calls never executed before the kill is not counted, and
+    // the next live expiry re-admits it under the current headroom.
+    if (
+      extension !== undefined &&
+      limits.maxToolCalls !== undefined &&
+      toolCallsUsed > limits.maxToolCalls
+    ) {
+      extensionGrants = Math.min(
+        extension.maxExtensions,
+        Math.ceil((toolCallsUsed - limits.maxToolCalls) / extension.increment),
+      );
+      extensionEvidenceAtLastGrant = guard?.evidenceCount() ?? 0;
     }
   }
 
@@ -1624,12 +1731,26 @@ export async function runAgent<S extends SchemaSpec>(
     };
     let terminalAdmitted = false;
     for (const [index, call] of calls.entries()) {
-      const expiredLimiter: 'maxToolCalls' | 'toolUnits' | undefined =
-        limits.maxToolCalls !== undefined && toolCallsUsed >= limits.maxToolCalls
+      const expiryOf = (): 'maxToolCalls' | 'toolUnits' | undefined => {
+        const cap = effectiveMaxToolCalls();
+        return cap !== undefined && toolCallsUsed >= cap
           ? 'maxToolCalls'
           : guard !== undefined && guard.unitsExhausted()
             ? 'toolUnits'
             : undefined;
+      };
+      let expiredLimiter = expiryOf();
+      if (
+        expiredLimiter === 'maxToolCalls' &&
+        call.name !== options.terminalTool?.name &&
+        tryToolBudgetGrant()
+      ) {
+        // The grant lifted the call cap (RV301); only an independently
+        // exhausted unit budget can still close this call. A terminal
+        // call never spends a grant: it already rides the budget
+        // exemption below.
+        expiredLimiter = expiryOf();
+      }
       if (expiredLimiter !== undefined) {
         // Expiry of a tool budget is terminal 'limit': paid partial
         // work; already-executed results stand. The one exemption is the
@@ -1951,6 +2072,9 @@ export async function runAgent<S extends SchemaSpec>(
       await saveBoundary();
     } else if (limitHit) {
       status = 'limit';
+      if (limiter !== undefined) {
+        limitLimiter = limiter;
+      }
       if (guardTrip === true && guard !== undefined) {
         abortClass = 'exploration';
         agentError = { kind: 'terminal', retryable: false };
@@ -1967,6 +2091,7 @@ export async function runAgent<S extends SchemaSpec>(
         reserveRequest = { limiter, skipped: skipped ?? 0 };
       }
     } else {
+      flushExtensionNotices();
       maybePushBudgetNotice();
       await saveBoundary();
     }
@@ -2666,6 +2791,9 @@ export async function runAgent<S extends SchemaSpec>(
       }
       if (limitHit) {
         status = 'limit';
+        if (limiter !== undefined) {
+          limitLimiter = limiter;
+        }
         if (guardTrip === true && guard !== undefined) {
           abortClass = 'exploration';
           agentError = { kind: 'terminal', retryable: false };
@@ -2683,9 +2811,10 @@ export async function runAgent<S extends SchemaSpec>(
         }
         break;
       }
-      // Soft tool-budget visibility (RV-210): the notice joins the
-      // conversation before the boundary checkpoint, so a resume
-      // rebuilds the same history.
+      // Soft tool-budget visibility (RV-210/RV301): the grant and
+      // budget notices join the conversation before the boundary
+      // checkpoint, so a resume rebuilds the same history.
+      flushExtensionNotices();
       maybePushBudgetNotice();
       // Compaction check at the tool turn boundary (M4-T03): the
       // estimate is the last loop turn's usage against the loop model's
@@ -3025,6 +3154,7 @@ export async function runAgent<S extends SchemaSpec>(
         });
       }
       if (reserveDispatch !== undefined) {
+        reserveSummaryRan = true;
         const { outcome, target: reserveTarget } = reserveDispatch;
         servedBy = reserveTarget.resolved.ref;
         usageApprox = usageApprox || outcome.usageApprox;
@@ -3429,6 +3559,37 @@ export async function runAgent<S extends SchemaSpec>(
   }
   if (guard !== undefined) {
     result.exploration = guard.summary(toolCallsUsed);
+  }
+  // The pressure snapshot (RV304): present exactly when a tool budget
+  // limiter or the extension is configured, so unbounded loops (and
+  // every pre-existing envelope) stay byte identical.
+  if (
+    limits.maxToolCalls !== undefined ||
+    limits.toolUnits !== undefined ||
+    extension !== undefined
+  ) {
+    const toolBudget: ToolBudgetSummary = { used: toolCallsUsed };
+    const cap = effectiveMaxToolCalls();
+    if (cap !== undefined) {
+      toolBudget.cap = cap;
+    }
+    if (limits.toolUnits !== undefined) {
+      toolBudget.unitsUsed = guard?.summary(toolCallsUsed).toolUnitsUsed ?? 0;
+      toolBudget.unitsMax = limits.toolUnits.max;
+    }
+    if (extension !== undefined) {
+      toolBudget.extensionsGranted = extensionGrants;
+    }
+    if (firedNotices.size > 0) {
+      toolBudget.noticesFired = [...firedNotices].sort((a, b) => a - b);
+    }
+    if (reserveSummaryRan) {
+      toolBudget.finalizationReserveUsed = true;
+    }
+    if (limitLimiter !== undefined) {
+      toolBudget.limiter = limitLimiter;
+    }
+    result.toolBudget = toolBudget;
   }
   if (limitPartial !== undefined) {
     result.partial = limitPartial;

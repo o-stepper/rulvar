@@ -23,6 +23,11 @@ Defined in: `packages/core/dist/index.d.ts`
 | <a id="property-noprogressturns"></a> `noProgressTurns?` | `number` | Default DEFAULT_NO_PROGRESS_TURNS. | `packages/core/dist/index.d.ts` |
 | <a id="property-streamidletimeoutms"></a> `streamIdleTimeoutMs` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-timeoutms"></a> `timeoutMs?` | `number` | - | `packages/core/dist/index.d.ts` |
+| <a id="property-toolbudgetextension"></a> `toolBudgetExtension?` | \{ `increment`: `number`; `maxExtensions`: `number`; `minHeadroomUsd?`: `number`; `requireNewEvidence?`: `boolean`; \} | - | `packages/core/dist/index.d.ts` |
+| `toolBudgetExtension.increment` | `number` | - | `packages/core/dist/index.d.ts` |
+| `toolBudgetExtension.maxExtensions` | `number` | - | `packages/core/dist/index.d.ts` |
+| `toolBudgetExtension.minHeadroomUsd?` | `number` | - | `packages/core/dist/index.d.ts` |
+| `toolBudgetExtension.requireNewEvidence?` | `boolean` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-toolbudgetnotices"></a> `toolBudgetNotices?` | `boolean` | RV-210 exploration guards; absent = off. | `packages/core/dist/index.d.ts` |
 | <a id="property-toolunits"></a> `toolUnits?` | \{ `costs?`: `Record`\&lt;`string`, `number`\&gt;; `max`: `number`; \} | - | `packages/core/dist/index.d.ts` |
 | `toolUnits.costs?` | `Record`\&lt;`string`, `number`\&gt; | - | `packages/core/dist/index.d.ts` |
