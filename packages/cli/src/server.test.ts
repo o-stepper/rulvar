@@ -1065,3 +1065,69 @@ describe('terminal drain, per-client pending bound, cap validation (v1.26.0 deep
     }
   });
 });
+
+describe('a tracked run whose result REJECTS (cycle 83)', () => {
+  /** A server over a store whose leases another process can hold. */
+  function assembleLeased(): { store: SqliteStore; server: RulvarServer } {
+    const store = new SqliteStore({ path: ':memory:' });
+    const engine = createEngine({
+      adapters: [new FakeAdapter({ agents: { '*': 'analysis' } })],
+      stores: { journal: store },
+      defaults: { routing: { loop: FAKE_MODEL_REF, extract: FAKE_MODEL_REF } },
+    });
+    const simple = defineWorkflow({ name: 'simple' }, async (ctx) =>
+      ctx.agent('analyze'),
+    ) as unknown as Workflow<never, unknown>;
+    return { store, server: createServer({ engine, workflows: { simple } }) };
+  }
+
+  it('answers with the typed failure instead of reporting running forever', async () => {
+    // The genesis ownership boot refuses a run another process owns and
+    // rejects handle.result with ZERO writes. The server only ever
+    // listened to the fulfilled branch, so the run it just accepted
+    // stayed 'running' for the life of the process.
+    const { store, server } = assembleLeased();
+    await store.acquire('taken-run', 'another-process');
+    const started = await post(server, '/runs', {
+      workflow: 'simple',
+      options: { runId: 'taken-run' },
+    });
+    expect(started.status).toBe(201);
+
+    let body: Record<string, unknown> | undefined;
+    for (let attempt = 0; attempt < 100 && body === undefined; attempt += 1) {
+      const seen = await bodyOf(await get(server, '/runs/taken-run'));
+      if (seen.status !== 'running') {
+        body = seen;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    expect(body?.status).toBe('error');
+    const error = body?.error as { code?: string; message?: string } | undefined;
+    expect(error?.code).toBe('lease_held');
+    expect(error?.message).toMatch(/taken-run/);
+  });
+
+  it('closes the SSE stream of a run that will never settle', async () => {
+    const { store, server } = assembleLeased();
+    await store.acquire('taken-stream', 'another-process');
+    await post(server, '/runs', { workflow: 'simple', options: { runId: 'taken-stream' } });
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const seen = await bodyOf(await get(server, '/runs/taken-stream'));
+      if (seen.status !== 'running') {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    const events = await get(server, '/runs/taken-stream/events');
+    // Bounded read: an unterminated stream must fail the assertion, not
+    // hang the suite (a stalled stream would park this test forever).
+    const text = await Promise.race([
+      events.text(),
+      new Promise<string>((resolve) => setTimeout(() => resolve('STREAM NEVER CLOSED'), 1_000)),
+    ]);
+    expect(text).not.toBe('STREAM NEVER CLOSED');
+    expect(text).toMatch(/lease/i);
+  });
+});

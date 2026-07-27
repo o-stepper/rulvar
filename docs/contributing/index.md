@@ -102,6 +102,20 @@ merged before the deviating code lands.
   a named suite.
 - Pack gates: publint and @arethetypeswrong/cli on packed tarballs, plus
   the umbrella install smoke test.
+- The engine work budget and the mutation probe in one job
+  (`node scripts/perf-budget.mjs`, `node scripts/mutation-probe.mjs`).
+  The budget counts the WORK a fixed set of offline runs performs
+  (journal appends, journal loads, provider dispatches, emitted events)
+  against a committed baseline, and probes the event drain and the replay
+  fold for superlinear growth by comparing per-unit time at two sizes in
+  one process; counts are exact (refreeze deliberately with
+  `node scripts/perf-budget.mjs --update`), the ratio bound is loose
+  enough that a noisy runner cannot flake it. The mutation probe rewrites
+  one doctrine-bearing line at a time (a Usage invariant, a fail-closed
+  suppression, an error classification) and requires the owning test file
+  to go red, so a suite that stopped defending a rule is reported by name
+  instead of passing quietly. Ship a new fail-closed rule, add its
+  mutation to the manifest.
 - Changeset presence, the changesets fixed-group check, and frozen-fixture
   write protection.
 - Rolled-up `.d.ts` drift gate: `dts-rollup/` is regenerated in CI and a

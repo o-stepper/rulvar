@@ -10,7 +10,7 @@
 const DEFAULT_MAX_PENDING_EVENTS_PER_CLIENT: 10000 = 10_000;
 ```
 
-Defined in: [packages/cli/src/server.ts:139](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/server.ts#L139)
+Defined in: [packages/cli/src/server.ts:140](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/server.ts#L140)
 
 The default per-connection pending-frame bound: generous enough that
 a reading consumer never notices (a normal reader keeps the queue

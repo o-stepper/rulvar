@@ -115,6 +115,33 @@ jobs:
       - run: pnpm exec turbo build
       - run: pnpm exec vitest run
 
+  # The engine work budget (cycle 83): a committed baseline of the work
+  # a fixed set of offline runs performs (journal appends, journal loads,
+  # provider dispatches, emitted events), plus a superlinear-scaling probe
+  # for the event drain and the replay fold. Counts, not milliseconds, so
+  # the gate is exact and cannot flake on a noisy runner; the scaling
+  # probe compares per-unit RATIOS at two sizes in one process, which is
+  # machine independent.
+  perf-budget:
+    name: Engine work budget
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo build
+      - run: node scripts/perf-budget.mjs
+      # The mutation probe rides the same job: it rewrites one
+      # doctrine-bearing line at a time and requires the owning test file
+      # to go red, so a suite that stopped defending a fail-closed rule
+      # is reported by name instead of passing quietly. About twenty
+      # seconds; the manifest is hand-picked, never generated.
+      - run: node scripts/mutation-probe.mjs
+
   # The complete defect cassette catalog in ONE job, replay-strict with
   # zero live calls (docs/09 section 6 rules; docs/10 M9 row; the 1.0
   # gate in docs/12 section 5). The audit asserts every docs/09 catalog

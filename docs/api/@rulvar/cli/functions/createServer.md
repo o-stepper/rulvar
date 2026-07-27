@@ -10,7 +10,7 @@
 function createServer(options): RulvarServer;
 ```
 
-Defined in: [packages/cli/src/server.ts:265](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/server.ts#L265)
+Defined in: [packages/cli/src/server.ts:274](https://github.com/o-stepper/rulvar/blob/main/packages/cli/src/server.ts#L274)
 
 ## Parameters
 

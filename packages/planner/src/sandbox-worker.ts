@@ -172,6 +172,54 @@ function main(port: NodeMessagePort, init: SandboxInitMessage): void {
   Reflect.set(globalThis, 'eval', undefined);
   Reflect.set(globalThis, 'Function', undefined);
 
+  // The ambient nondeterminism the scrub above missed (the cycle 83
+  // re-audit). Replacing Date.now closes only the property lookup: a
+  // bare `new Date()` reads the system clock directly in V8 and never
+  // consults it, `performance.now` is a second live clock, and WebCrypto
+  // is raw entropy. Each is the FIRST idiom a machine-written script
+  // reaches for (`new Date().toISOString()` for a timestamp,
+  // `crypto.randomUUID()` for an id), and each silently produced a run
+  // that could not reproduce on replay. They now draw from the same
+  // seeded stream as everything else.
+  const RealDate = Date;
+  Reflect.set(
+    globalThis,
+    'Date',
+    new Proxy(RealDate, {
+      // Only the ZERO-ARGUMENT forms read the clock; an explicit
+      // timestamp or date string stays a pure conversion.
+      construct: (target, args: unknown[], newTarget): object =>
+        Reflect.construct(target, args.length === 0 ? [shimNow()] : args, newTarget) as object,
+      apply: () => new RealDate(shimNow()).toString(),
+    }),
+  );
+  const performanceRef = Reflect.get(globalThis, 'performance') as { now?: unknown } | undefined;
+  if (typeof performanceRef === 'object' && performanceRef !== null) {
+    // Monotonic and seed-derived: the logical clock minus the segment's
+    // own base, so the shape (a small ascending millisecond count) still
+    // matches what a script measuring a duration expects.
+    const origin = logicalNow;
+    Reflect.set(performanceRef, 'now', () => shimNow() - origin);
+  }
+  const cryptoRef = Reflect.get(globalThis, 'crypto') as object | undefined;
+  if (typeof cryptoRef === 'object' && cryptoRef !== null) {
+    Reflect.set(cryptoRef, 'randomUUID', shimUuid);
+    // Byte draws advance the SAME stream, so a resumed segment replays
+    // them identically; they are not mirrored individually (a 32 byte
+    // draw would mint 32 journal entries to record what the seed
+    // already determines).
+    Reflect.set(cryptoRef, 'getRandomValues', (view: unknown) => {
+      if (!ArrayBuffer.isView(view)) {
+        throw new TypeError('crypto.getRandomValues expects a typed array');
+      }
+      const bytes = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+      for (let i = 0; i < bytes.length; i += 1) {
+        bytes[i] = Math.floor(next() * 256);
+      }
+      return view;
+    });
+  }
+
   // The AsyncFunction constructor the worker uses to compile the body, taken
   // from a prototype BEFORE the reconstruction path is tamed below.
   const asyncProto = Object.getPrototypeOf(shimAsyncMarker) as {

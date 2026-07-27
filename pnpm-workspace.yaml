@@ -13,27 +13,27 @@ allowBuilds:
   esbuild: true
 
 catalog:
-  '@ai-sdk/google': ^4.0.0
-  '@ai-sdk/provider': ^4.0.0
-  '@anthropic-ai/sdk': ^0.110.0
+  '@ai-sdk/google': ^4.0.24
+  '@ai-sdk/provider': ^4.0.3
+  '@anthropic-ai/sdk': ^0.115.0
   '@modelcontextprotocol/sdk': ^1.29.0
-  '@arethetypeswrong/cli': ^0.18.4
-  '@changesets/cli': ^2.31.0
-  '@eslint/js': ^9.39.4
-  '@types/estree': ^1.0.6
-  '@types/node': ^22.20.0
+  '@arethetypeswrong/cli': ^0.18.5
+  '@changesets/cli': ^2.31.1
+  '@eslint/js': ^9.39.5
+  '@types/estree': ^1.0.9
+  '@types/node': ^22.20.1
   '@vitest/coverage-v8': ^4.1.10
   acorn: ^8.17.0
-  arktype: ^2.2.2
-  eslint: ^9.39.4
-  fast-check: ^4.8.0
-  openai: ^6.45.0
-  prettier: ^3.9.4
-  publint: ^0.3.21
-  tsdown: ^0.22.3
-  turbo: ^2.10.3
+  arktype: ^2.2.3
+  eslint: ^9.39.5
+  fast-check: ^4.9.0
+  openai: ^6.49.0
+  prettier: ^3.9.6
+  publint: ^0.3.22
+  tsdown: ^0.22.14
+  turbo: ^2.10.7
   typescript: ~6.0.3
-  typescript-eslint: ^8.63.0
+  typescript-eslint: ^8.65.0
   valibot: ^1.4.2
   vitest: ^4.1.10
   zod: ^4.4.3
@@ -80,3 +80,12 @@ overrides:
   fast-uri: '^3.1.4'
   dompurify: '^3.4.12'
   '@hono/node-server': '^2.0.5'
+  # tsdown is the .d.ts GENERATOR, and two artifacts are frozen against
+  # the exact one that produced them: the committed dts-rollup baseline
+  # and, hard, the published @rulvar/compat tarball (a published compat
+  # version must repack byte identical). 0.22.14 only reindents JSDoc in
+  # generated declarations, which is cosmetic and yet moves every one of
+  # those bytes. Upgrading is therefore a deliberate act (refreeze the
+  # baseline, cut a real compat release), never a drive-by minor, so the
+  # resolution is pinned here while the catalog floor stays a caret.
+  tsdown: '0.22.3'

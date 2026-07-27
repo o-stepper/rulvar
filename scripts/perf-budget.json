@@ -1,0 +1,15 @@
+{
+  "comment": "Committed work-unit baseline for scripts/perf-budget.mjs: the journal appends, journal loads, provider dispatches, and emitted events a fixed set of offline runs performs. Exact match, not a tolerance: these counts are deterministic, so any movement is a real change in how much work the engine does per turn. Refreeze deliberately with --update and explain the diff in the PR.",
+  "scenarios": {
+    "turns": {
+      "journalAppends": 7,
+      "journalLoads": 0,
+      "providerDispatches": 3,
+      "events": 23
+    },
+    "resume": {
+      "firstSegmentDispatches": 1,
+      "resumedSegmentDispatches": 0
+    }
+  }
+}
