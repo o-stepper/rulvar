@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.88.0
+
+#### Patch Changes
+
+- Updated dependencies [3b339d9]
+  - @rulvar/core@1.88.0
+
 ### 1.87.0
 
 #### Patch Changes
@@ -1046,6 +1053,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.88.0
+
+#### Patch Changes
+
+- Updated dependencies [3b339d9]
+  - @rulvar/core@1.88.0
+
 ### 1.87.0
 
 #### Patch Changes
@@ -1925,6 +1939,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.88.0
+
+#### Patch Changes
+
+- Updated dependencies [3b339d9]
+  - @rulvar/core@1.88.0
 
 ### 1.87.0
 
@@ -3140,6 +3161,20 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.88.0
+
+#### Minor Changes
+
+- 3b339d9: The evidence floor, the exact-fill parity proof, and the direct container e12 (PR III of the seventh-comparison-experiment plan: RV303, RV307, RV308, and the recommended tool budget posture).
+
+  RV303, the declared evidence contract: `AgentProfile.evidenceContract` and `PreflightSpawnSpec.evidenceContract` (`{ minEntries, estCallsPerEntry?, overheadCalls? }`, the spawn declaration winning over the profile's, `researchAgentProfile` passing it through) declare how many evidence entries a spawn MUST record. Preflight compares the resulting call floor (`minEntries * estCallsPerEntry + overheadCalls`, defaults 3 and 8, exported as `DEFAULT_EVIDENCE_CALLS_PER_ENTRY` and `DEFAULT_EVIDENCE_OVERHEAD_CALLS`) against the spawn's effective executed-call ceiling (weighted units and extension grants included) and warns `tool-cap-below-evidence-floor` when the cap cannot fit the contract. Purely declarative, validated typed at both intake boundaries; the runtime never enforces it. The experiment relation nobody computed: 14 mandatory entries against a cap two workers exhausted at 10.
+
+  RV307, the exact-fill parity proof (the judge's P1.8): a scenario suite pinning that the strict-at-fill admission projection and the live layer-2 gate deny THE SAME child for THE SAME reason on one set of numbers, at the exact-fill boundary specifically, while the below-fill retry admits in both layers, riding the existing slot-ledger guarantees (a rejection burns no `maxSpawns` slot; resume recounts journaled admits only).
+
+  RV308, the direct container e12 (the judge's P1.9): the container executor now carries a DIRECT conformance test for the protocol-failure-at-clean-exit-0 case (typed `protocol` error, ledger outcome `error` with `exitCode: 0`), both against the daemonless docker stub (runs everywhere) and against the real daemon (docker-gated), instead of relying on source symmetry with the subprocess executor.
+
+  Docs: the new "The recommended tool budget posture" section in the agents guide (default no cap: the USD ceiling plus exploration guards bound spend; a cap is a safety valve, never bare, always with notices, an extension, a reserve or window, and a deliberate salvage decision; the full findings table), cross-linked from the budgets guide findings enumeration.
 
 ### 1.87.0
 
@@ -4725,6 +4760,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.88.0
+
 ### 1.87.0
 
 ### 1.86.0
@@ -5001,6 +5038,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.88.0
+
+#### Patch Changes
+
+- Updated dependencies [3b339d9]
+  - @rulvar/core@1.88.0
+  - @rulvar/testing@1.88.0
 
 ### 1.87.0
 
@@ -6083,6 +6128,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.88.0
+
+#### Patch Changes
+
+- Updated dependencies [3b339d9]
+  - @rulvar/core@1.88.0
+
 ### 1.87.0
 
 #### Patch Changes
@@ -6344,6 +6396,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.88.0
+
+#### Patch Changes
+
+- Updated dependencies [3b339d9]
+  - @rulvar/core@1.88.0
 
 ### 1.87.0
 
@@ -7380,6 +7439,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.88.0
+
+#### Patch Changes
+
+- Updated dependencies [3b339d9]
+  - @rulvar/core@1.88.0
+
 ### 1.87.0
 
 #### Patch Changes
@@ -8376,6 +8442,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.88.0
+
+#### Patch Changes
+
+- Updated dependencies [3b339d9]
+  - @rulvar/core@1.88.0
+  - eslint-plugin-rulvar@1.88.0
 
 ### 1.87.0
 
@@ -9422,6 +9496,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.88.0
+
+#### Patch Changes
+
+- Updated dependencies [3b339d9]
+  - @rulvar/core@1.88.0
+  - @rulvar/anthropic@1.88.0
+  - @rulvar/openai@1.88.0
 
 ### 1.87.0
 
@@ -10637,6 +10720,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.88.0
+
+#### Patch Changes
+
+- Updated dependencies [3b339d9]
+  - @rulvar/core@1.88.0
+
 ### 1.87.0
 
 #### Patch Changes
@@ -11621,6 +11711,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.88.0
+
+#### Patch Changes
+
+- Updated dependencies [3b339d9]
+  - @rulvar/core@1.88.0
+
 ### 1.87.0
 
 #### Patch Changes
@@ -11903,6 +12000,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.88.0
+
+#### Patch Changes
+
+- Updated dependencies [3b339d9]
+  - @rulvar/core@1.88.0
 
 ### 1.87.0
 
@@ -12825,6 +12929,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.88.0
+
+#### Patch Changes
+
+- Updated dependencies [3b339d9]
+  - @rulvar/core@1.88.0
 
 ### 1.87.0
 
