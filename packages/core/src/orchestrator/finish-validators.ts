@@ -116,7 +116,7 @@ export type SectionMatchMode = 'anywhere' | 'line';
 export type FencedCodeMode = 'counted' | 'excluded';
 
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
-const FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
+const FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})[ \t]*\r?$/;
 
 /**
  * Removes fenced code blocks from a text, the delimiter lines
@@ -125,7 +125,8 @@ const FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
  * fence opens at a line starting (after at most three spaces) with
  * three or more backticks or tildes, an optional info string allowed;
  * it closes at the next line carrying only at least as many of the
- * SAME character; an unclosed fence runs to the end of the text.
+ * SAME character (a trailing carriage return from CRLF text does not
+ * keep a fence open); an unclosed fence runs to the end of the text.
  * Indented (four space) code blocks are not treated as code. This is
  * the exact exclusion the `fencedCode: 'excluded'` validator option
  * applies, exported so custom host validators can stay symmetric.

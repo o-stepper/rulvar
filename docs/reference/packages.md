@@ -5,9 +5,9 @@ description: The authoritative table of every Rulvar package, with layer placeme
 
 # Packages
 
-Rulvar ships as fourteen packages from a single monorepo: thirteen under the `@rulvar` npm scope, plus `eslint-plugin-rulvar`, which follows the ESLint plugin naming convention. The packages release lockstep at one version, currently <!-- version:lockstep -->1.81.0<!-- /version -->, with a single exemption: `@rulvar/compat` is versioned independently and currently sits at <!-- version:compat -->0.1.1<!-- /version -->. Every package is ESM only, requires Node.js >= 22.12.0, and is licensed Apache-2.0.
+Rulvar ships as sixteen packages from a single monorepo: fifteen under the `@rulvar` npm scope, plus `eslint-plugin-rulvar`, which follows the ESLint plugin naming convention. The packages release lockstep at one version, currently <!-- version:lockstep -->1.81.0<!-- /version -->, with a single exemption: `@rulvar/compat` is versioned independently and currently sits at <!-- version:compat -->0.1.1<!-- /version -->. Every package is ESM only, requires Node.js >= 22.12.0, and is licensed Apache-2.0.
 
-A fifteenth npm name exists: the unscoped `rulvar`, a pointer package that re-exports the umbrella so a bare install still lands on the real library. Documentation and install commands always use the scoped names.
+A seventeenth npm name exists: the unscoped `rulvar`, a pointer package that re-exports the umbrella so a bare install still lands on the real library. Documentation and install commands always use the scoped names.
 
 ::: tip
 Looking for the generated TypeScript signatures? Every package has an index in the [API reference](/api/); each package name in the table below links to its index.
@@ -48,7 +48,7 @@ The Layer column in the table below uses the labels of the architecture's layer 
 | Label | Name | What lives there |
 |---|---|---|
 | L0 | contracts | Message and part types, the journal entry form, usage and error types, and the SPI interfaces (provider adapter, journal and transcript stores, model knowledge store, script runner, tool source, isolation provider) |
-| L1 | leaves | Provider adapters and stores; they depend only on the L0 contracts |
+| L1 | leaves | Provider adapters, stores, and tool executors; they depend on the contracts and public factories, never on each other |
 | L2 | kernel | The journal kernel (content keys, scope paths, the replay predicate, the budget ledger) and the model router with the capability and price registry |
 | L3 | execution | The tool system, the MCP bus, and the agent runtime |
 | L4 | orchestration | The run engine, ctx primitives, the concurrency scheduler, the three-layer budget, the event stream, and the dynamic orchestrator |
@@ -65,6 +65,8 @@ The Layer column in the table below uses the labels of the architecture's layer 
 | [`@rulvar/openai`](/api/@rulvar/openai/) | L1 | First-class adapter for the OpenAI Responses API (reasoning items, strict json_schema), plus the factory for any OpenAI-compatible endpoint with an explicit id and baseURL | `openai`, `openaiCompatible` | `@rulvar/core`, `openai` |
 | [`@rulvar/bridge-ai-sdk`](/api/@rulvar/bridge-ai-sdk/) | L1 | Wraps a Vercel AI SDK `LanguageModelV4` model as a Rulvar provider adapter, covering the long tail of providers; the dependency pins the `@ai-sdk/provider` v4 major and the bridge checks `specificationVersion` at runtime, so an unsupported model interface fails typed instead of half-working. The highest-churn package by design | `bridgeAiSdk` | `@rulvar/core`, `@ai-sdk/provider` |
 | [`@rulvar/store-sqlite`](/api/@rulvar/store-sqlite/) | L1 | SQLite journal store implementing the storage SPI with the lease capability and a fencing epoch, on the builtin node:sqlite driver; the reference implementation for community stores | `SqliteStore` | `@rulvar/core` |
+| [`@rulvar/store-postgres`](/api/@rulvar/store-postgres/) | L1 | PostgreSQL journal store implementing `JournalStore` and `LeasableStore` with the fencing epoch over node-postgres, every run-scoped mutation serialized on a per-run advisory transaction lock, for multi-process and multi-host deployments | `PostgresStore` | `@rulvar/core`, `pg` |
+| [`@rulvar/executor`](/api/@rulvar/executor/) | L1 | Reference isolated tool executors behind the `ToolExecutorProvider` SPI, so hostile or model-generated tool work runs out of process: the subprocess adapter (replaced environment, ephemeral workdir, hard timeout, output cap, per-call short-lived credentials) and the docker container adapter (network off, read-only filesystem), the side-effect ledger, and the executable executor conformance kit | `subprocessExecutor`, `subprocessTool`, `containerExecutor`, `memoryEffectLedger`, `executorConformance` | `@rulvar/core` |
 | [`@rulvar/store-conformance`](/api/@rulvar/store-conformance/) | L6 | The executable conformance kit for store adapters: append atomicity, total per-run order, read-your-writes, payload opacity, lease fencing, and golden fold-state fixtures | `journalStoreConformance`, `leasableStoreConformance`, `registerConformance` | `@rulvar/core` |
 | [`@rulvar/compat`](/api/@rulvar/compat/) | L2 extension | Frozen key-derivation profiles for journal hashVersions that leave the engine's support window, attached at engine construction via `extraDerivers`. Independently versioned. Re-exports the [`KeyDeriver`](/api/@rulvar/core/interfaces/KeyDeriver) type, whose reference page lives with `@rulvar/core` | `deriverV0Synthetic` | `@rulvar/core` |
 | [`@rulvar/plan`](/api/@rulvar/plan/) | L4 extension | The adaptive orchestration extension for the dynamic orchestrator: PlanRunner, the run ledger, escalation extensions, and model ladder configuration; built entirely on the public core API | `planRunner`, `orchestratePlanned`, `buildPlanTools` | `@rulvar/core` |
@@ -89,6 +91,8 @@ graph TD
   openai --> core
   bridge["@rulvar/bridge-ai-sdk"] --> core
   sqlite["@rulvar/store-sqlite"] --> core
+  postgres["@rulvar/store-postgres"] --> core
+  executor["@rulvar/executor"] --> core
   conformance["@rulvar/store-conformance"] --> core
   compat["@rulvar/compat"] --> core
   plan["@rulvar/plan"] --> core

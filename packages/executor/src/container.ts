@@ -222,7 +222,12 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
               `${tail === '' ? '' : `: ${tail}`}`,
           );
         }
-        return parseToolResult(child.stdout, request.tool) as Json;
+        try {
+          return parseToolResult(child.stdout, request.tool) as Json;
+        } catch (err) {
+          outcome = 'error';
+          throw err;
+        }
       } finally {
         const durationMs = now() - startedAt;
         if (options.ledger !== undefined) {

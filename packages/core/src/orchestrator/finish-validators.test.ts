@@ -272,6 +272,19 @@ describe('fence awareness and line anchoring (cycle 74)', () => {
     expect(stripFencedBlocks('a\n```\nnever closed')).toBe('a');
   });
 
+  it('closes a fence whose delimiter line ends in CRLF instead of swallowing the rest (cycle 78)', () => {
+    const body = ['alpha', '```js', 'fenced', '```', 'beta', 'gamma'].join('\r\n');
+    expect(stripFencedBlocks(body)).toBe('alpha\r\nbeta\r\ngamma');
+    // Trailing blanks before the carriage return still close, per the LF rule.
+    expect(stripFencedBlocks('a\r\n~~~\r\ncode\r\n~~~  \r\nb')).toBe('a\r\nb');
+  });
+
+  it('headingStructureValidator judges CRLF text whole: a closed fence no longer swallows declared headings (cycle 78)', () => {
+    const validator = headingStructureValidator({ sections: ['## One', '## Two'] });
+    const body = ['## One', '```', '## Fake', '```', 'body', '## Two', 'tail'].join('\r\n');
+    expect(validator.validate(text(body)).ok).toBe(true);
+  });
+
   it("requiredSectionsValidator match 'line' demands the marker as its own line", () => {
     const validator = requiredSectionsValidator({ sections: ['## Findings'], match: 'line' });
     expect(validator.validate(text("We will fill the '## Findings' part later.")).ok).toBe(false);

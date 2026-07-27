@@ -357,6 +357,28 @@ export function executorConformance(
         );
       },
     },
+    {
+      id: 'e12',
+      title: 'ledgers a protocol failure as an error outcome, never ok',
+      async run() {
+        const ledger = memoryEffectLedger();
+        const provider = factory({ command: runtime, args: baseArgs, ledger });
+        const err = await asExecutorError(
+          'e12',
+          provider.run(request('sloppy', { behavior: 'garbage' }, { idempotencyKey: 'k-proto' })),
+        );
+        ensure(err.code === 'protocol', 'e12', `expected code 'protocol', got '${err.code}'`);
+        const rows = ledger.entries();
+        ensure(rows.length === 1, 'e12', `expected 1 ledger record, got ${rows.length}`);
+        ensure(
+          rows[0]?.outcome === 'error',
+          'e12',
+          `a protocol failure must ledger outcome 'error', got '${String(rows[0]?.outcome)}'`,
+        );
+        // The child itself exited clean; only its result violated the protocol.
+        ensure(rows[0]?.exitCode === 0, 'e12', 'the clean exit code must still be recorded');
+      },
+    },
   ];
 
   return {
