@@ -18,6 +18,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/anthropic
 
+### 1.86.0
+
+#### Patch Changes
+
+- Updated dependencies [2f71894]
+  - @rulvar/core@1.86.0
+
 ### 1.85.0
 
 #### Patch Changes
@@ -1032,6 +1039,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
 
 ## @rulvar/bridge-ai-sdk
 
+### 1.86.0
+
+#### Patch Changes
+
+- Updated dependencies [2f71894]
+  - @rulvar/core@1.86.0
+
 ### 1.85.0
 
 #### Patch Changes
@@ -1897,6 +1911,13 @@ below mirror each package's `CHANGELOG.md` as written by Changesets.
   - @rulvar/core@0.1.0
 
 ## @rulvar/cli
+
+### 1.86.0
+
+#### Patch Changes
+
+- Updated dependencies [2f71894]
+  - @rulvar/core@1.86.0
 
 ### 1.85.0
 
@@ -3098,6 +3119,16 @@ maintained by hand.
   aged out of the support window yet.
 
 ## @rulvar/core
+
+### 1.86.0
+
+#### Minor Changes
+
+- 2f71894: The adaptive tool budget and the pressure snapshot (RV301/RV304, the seventh comparison experiment). `limits.toolBudgetExtension: { increment, maxExtensions, minHeadroomUsd?, requireNewEvidence? }` converts remaining budget headroom into more executed tool calls at a `maxToolCalls` expiry instead of settling `limit`: up to `maxExtensions` grants of `increment` calls, each admitted only with chain headroom remaining (the same arithmetic the per-turn output clamp prices, now exposed as `RunBudget.remainingUsd` and the `BudgetHooks.remainingUsd` seam), by default only with new evidence since the previous grant (the exploration guard's digest chain; a result the canonical serialization cannot digest fails the grant closed), announced to the model as a deterministic user message with the exact new counts, and re-derived conservatively from the restored executed-call count on resume, so nothing new is journaled or checkpointed. A terminal `finish` never spends a grant (it already rides the v1.79 budget exemption), `toolUnits` is never extended, and an invocation without the field stays byte identical. The experiment that motivated it starved two of four mandatory workers at a fixed 84-call cap while $3.85 of the $10 ceiling sat unspent.
+
+  Preflight assumes the fully extended cap in every projection (executed-call ceilings, projected provider turns, quota windows, the checkpoint loss window) and adds two findings: `inert-tool-budget-extension` (warning; an extension with no `maxToolCalls` to extend) and `tool-budget-extension-exposure` (info; the declared worst case).
+
+  Every invocation with `maxToolCalls`, `toolUnits`, or the extension configured now carries the `toolBudget` pressure snapshot — `{ used, cap?, unitsUsed?, unitsMax?, extensionsGranted?, noticesFired?, finalizationReserveUsed?, limiter? }` — on the full `AgentResult`, the live `agent:end` event, and the invocation table's agent rows, so a host sees cap pressure before a starved worker ever settles `limit`. Live telemetry only, exactly like `transportRetries`: never journaled, absent on a replayed result. The synthesis reserve lifecycle telemetry (the judge's P1.7) is deliberately deferred to the next cycle. Docs: the stores guide frontmatter now names PostgreSQL beside the other shipped stores, and the README states the exact never-pay-twice boundary (recorded as complete), matching the durability guide.
 
 ### 1.85.0
 
@@ -4659,6 +4690,8 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## eslint-plugin-rulvar
 
+### 1.86.0
+
 ### 1.85.0
 
 ### 1.84.0
@@ -4931,6 +4964,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   ULID). Placeholder scaffolds only: no public API ships in this release.
 
 ## @rulvar/evals
+
+### 1.86.0
+
+#### Patch Changes
+
+- Updated dependencies [2f71894]
+  - @rulvar/core@1.86.0
+  - @rulvar/testing@1.86.0
 
 ### 1.85.0
 
@@ -5997,6 +6038,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/executor
 
+### 1.86.0
+
+#### Patch Changes
+
+- Updated dependencies [2f71894]
+  - @rulvar/core@1.86.0
+
 ### 1.85.0
 
 #### Patch Changes
@@ -6244,6 +6292,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@1.59.0
 
 ## @rulvar/openai
+
+### 1.86.0
+
+#### Patch Changes
+
+- Updated dependencies [2f71894]
+  - @rulvar/core@1.86.0
 
 ### 1.85.0
 
@@ -7266,6 +7321,13 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
 
 ## @rulvar/plan
 
+### 1.86.0
+
+#### Patch Changes
+
+- Updated dependencies [2f71894]
+  - @rulvar/core@1.86.0
+
 ### 1.85.0
 
 #### Patch Changes
@@ -8248,6 +8310,14 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - @rulvar/core@0.1.0
 
 ## @rulvar/planner
+
+### 1.86.0
+
+#### Patch Changes
+
+- Updated dependencies [2f71894]
+  - @rulvar/core@1.86.0
+  - eslint-plugin-rulvar@1.86.0
 
 ### 1.85.0
 
@@ -9278,6 +9348,15 @@ priceUsd)` is the pure fold for STORED runs: byModel and totals from
   - eslint-plugin-rulvar@0.1.0
 
 ## @rulvar/rulvar
+
+### 1.86.0
+
+#### Patch Changes
+
+- Updated dependencies [2f71894]
+  - @rulvar/core@1.86.0
+  - @rulvar/anthropic@1.86.0
+  - @rulvar/openai@1.86.0
 
 ### 1.85.0
 
@@ -10475,6 +10554,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-conformance
 
+### 1.86.0
+
+#### Patch Changes
+
+- Updated dependencies [2f71894]
+  - @rulvar/core@1.86.0
+
 ### 1.85.0
 
 #### Patch Changes
@@ -11445,6 +11531,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
 
 ## @rulvar/store-postgres
 
+### 1.86.0
+
+#### Patch Changes
+
+- Updated dependencies [2f71894]
+  - @rulvar/core@1.86.0
+
 ### 1.85.0
 
 #### Patch Changes
@@ -11713,6 +11806,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@1.57.0
 
 ## @rulvar/store-sqlite
+
+### 1.86.0
+
+#### Patch Changes
+
+- Updated dependencies [2f71894]
+  - @rulvar/core@1.86.0
 
 ### 1.85.0
 
@@ -12621,6 +12721,13 @@ PATH]` (no aliases), a line-oriented TUI progress renderer over the
   - @rulvar/core@0.1.0
 
 ## @rulvar/testing
+
+### 1.86.0
+
+#### Patch Changes
+
+- Updated dependencies [2f71894]
+  - @rulvar/core@1.86.0
 
 ### 1.85.0
 
