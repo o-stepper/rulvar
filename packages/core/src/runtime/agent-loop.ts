@@ -14,6 +14,7 @@ import {
   BudgetExhaustedError,
   ConfigError,
   NonSerializableValueError,
+  RulvarError,
   type AgentError,
   type Issue,
   type WireError,
@@ -702,12 +703,25 @@ async function streamTurn(
     }
   } catch (thrown) {
     if (!combined.aborted) {
-      wireError = {
-        code: 'agent',
-        message: thrown instanceof Error ? thrown.message : String(thrown),
-        retryable: true,
-        data: { kind: 'transport' },
-      };
+      wireError =
+        thrown instanceof RulvarError
+          ? // A TYPED throw carries its own class verdict and keeps it
+            // (the cycle 83 review): laundering a ConfigError into a
+            // retryable transport fault made the engine retry a
+            // deterministic misconfiguration through the whole backoff
+            // ladder and then FAIL OVER onto a fallback model, serving
+            // the run from a model the caller never asked for while the
+            // real fault (a bridge model mismatch, an unsupported role,
+            // a contradicting namespaced option) vanished behind a
+            // generic transport message. Errors that ARE retryable by
+            // class (a lost lease) keep retrying exactly as before.
+            thrown.toWire()
+          : {
+              code: 'agent',
+              message: thrown instanceof Error ? thrown.message : String(thrown),
+              retryable: true,
+              data: { kind: 'transport' },
+            };
     }
   } finally {
     if (idleTimer !== undefined) {

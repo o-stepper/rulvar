@@ -212,6 +212,39 @@ describe('WorkerSandboxRunner (M6-T02)', () => {
     expect(randoms).toEqual([value.viaMathRandom]);
   });
 
+  it('routes the ambient clocks and WebCrypto through the seeded stream too (cycle 83)', async () => {
+    // The realm scrub replaced Date.now and Math.random, but `new Date()`
+    // never consults Date.now (V8 reads the system clock directly),
+    // performance.now is a second live clock, and WebCrypto is raw
+    // entropy. A machine-written script reaching for any of those idioms
+    // used to poison the run's reproducibility silently.
+    const script = compileScript(
+      [
+        'const viaNewDate = new Date().getTime();',
+        'const viaIso = new Date().toISOString();',
+        'const viaPerf = performance.now();',
+        'const viaCryptoUuid = crypto.randomUUID();',
+        'const bytes = new Uint8Array(4);',
+        'crypto.getRandomValues(bytes);',
+        'return { viaNewDate, viaIso, viaPerf, viaCryptoUuid, bytes: Array.from(bytes) };',
+      ].join('\n'),
+    );
+    const runOnce = async (): Promise<Record<string, unknown>> => {
+      const { engine } = makeEngine();
+      const outcome = await engine.run(script, null, { runId: 'ambient-1' }).result;
+      expect(outcome.status).toBe('ok');
+      return outcome.value as Record<string, unknown>;
+    };
+    const first = await runOnce();
+    const second = await runOnce();
+    // Two fresh runs of one runId agree on every ambient value.
+    expect(second).toEqual(first);
+    // And the clock is the seeded logical one, not the wall clock.
+    expect(Math.abs((first.viaNewDate as number) - Date.now())).toBeGreaterThan(1_000_000);
+    expect(first.viaCryptoUuid).toMatch(/^[0-9a-f-]{36}$/);
+    expect((first.bytes as number[]).some((byte) => byte !== 0)).toBe(true);
+  });
+
   it('produces identical journals across two fresh runs with one runId', async () => {
     const script = compileScript(
       [

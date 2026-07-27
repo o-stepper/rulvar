@@ -56,6 +56,7 @@ import {
   type RunOutcome,
   type SchemaSpec,
   type Usage,
+  type WireError,
   type Workflow,
   type WorkflowEvent,
   type WorkflowRegistry,
@@ -176,7 +177,15 @@ interface TrackedRun {
   handle: RunHandle<unknown>;
   /** The latest settled outcome; undefined while a segment is in flight. */
   outcome?: RunOutcome<unknown>;
-  /** True once the run settled with a non-suspended status. */
+  /**
+   * The segment REJECTED instead of settling (the cycle 83 review): a
+   * genesis-ownership refusal at boot (another process owns the run), a
+   * withheld settlement whose durable write failed, any typed boot
+   * failure. There is no RunOutcome to serve, so the tracked run carries
+   * the wire error and answers 'error' instead of 'running' forever.
+   */
+  rejection?: WireError;
+  /** True once the run settled with a non-suspended status, or rejected. */
   done: boolean;
   /** Serializes resolve-then-maybe-resume sections per run. */
   queue: Promise<unknown>;
@@ -320,6 +329,29 @@ export function createServer(options: CreateServerOptions): RulvarServer {
     })().catch(() => {
       pumpFailed = true;
     });
+    /**
+     * The terminal release cascade shared by the settle and the
+     * rejection paths: durable retention first (deletes the record AND
+     * untracks), then memory retention (untracks only), then the
+     * settled cap. It runs after the drain so the released buffer is
+     * the full one.
+     */
+    const releaseAfterTerminal = async (): Promise<void> => {
+      const meta =
+        options.retention === undefined && options.memoryRetention === undefined
+          ? undefined
+          : await metaOf(run.runId);
+      if (meta !== undefined && options.retention?.(meta) === true) {
+        await engine.deleteRun(run.runId);
+        runs.delete(run.runId);
+        return;
+      }
+      if (meta !== undefined && options.memoryRetention?.(meta) === true) {
+        runs.delete(run.runId);
+        return;
+      }
+      enforceTrackedCap();
+    };
     void handle.result
       .then(async (outcome) => {
         // The outcome is authoritative immediately (GET /runs/:id and
@@ -347,28 +379,37 @@ export function createServer(options: CreateServerOptions): RulvarServer {
           );
         }
         run.feeds.clear();
-        // The retention cascade at the terminal settle: durable
-        // retention first (deletes the record AND untracks), then
-        // memory retention (untracks only), then the settled cap. It
-        // runs after the drain so the released buffer is the full one.
-        void (async () => {
-          const meta =
-            options.retention === undefined && options.memoryRetention === undefined
-              ? undefined
-              : await metaOf(run.runId);
-          if (meta !== undefined && options.retention?.(meta) === true) {
-            await engine.deleteRun(run.runId);
-            runs.delete(run.runId);
-            return;
-          }
-          if (meta !== undefined && options.memoryRetention?.(meta) === true) {
-            runs.delete(run.runId);
-            return;
-          }
-          enforceTrackedCap();
-        })().catch(() => undefined);
-      })
+        // The retention cascade at the terminal settle.
+        void releaseAfterTerminal().catch(() => undefined);
+      }, handleRejection)
       .catch(() => undefined);
+
+    /**
+     * The segment rejected: no outcome will ever arrive. The engine
+     * closes the segment's surfaces before every rejection (the boot
+     * refusal explicitly, the withheld settlement after run:end), so
+     * awaiting the pump here delivers whatever tail exists and then
+     * terminates. Without this branch the tracked run stayed 'running'
+     * for the life of the process, its SSE connections never closed,
+     * and neither retention nor the settled cap could ever release it.
+     */
+    async function handleRejection(thrown: unknown): Promise<void> {
+      await pump;
+      run.done = true;
+      run.rejection =
+        thrown instanceof RulvarError
+          ? thrown.toWire()
+          : {
+              code: 'error',
+              message: thrown instanceof Error ? thrown.message : String(thrown),
+              retryable: false,
+            };
+      for (const feed of [...run.feeds]) {
+        feed(null, `run failed before settling: ${run.rejection.message}`);
+      }
+      run.feeds.clear();
+      await releaseAfterTerminal();
+    }
   }
 
   function track(
@@ -447,6 +488,18 @@ export function createServer(options: CreateServerOptions): RulvarServer {
     const run = runs.get(runId);
     if (run !== undefined) {
       const outcome = run.outcome;
+      if (run.rejection !== undefined) {
+        // A segment that rejected has no outcome to report; the typed
+        // wire error is the honest answer (the journal, where anything
+        // was written at all, stays the durable record).
+        return json(200, {
+          runId,
+          status: 'error',
+          workflow: run.workflowName,
+          live: true,
+          error: run.rejection,
+        });
+      }
       if (outcome === undefined) {
         return json(200, { runId, status: 'running', workflow: run.workflowName, live: true });
       }
@@ -578,6 +631,13 @@ export function createServer(options: CreateServerOptions): RulvarServer {
           controller.enqueue(encoder.encode(sseFrame(run.buffer[i])));
         }
         if (run.done) {
+          if (run.rejection !== undefined) {
+            // A late subscriber to a run that never settled gets the
+            // reason, not an empty stream that looks like a clean end.
+            controller.enqueue(
+              encoder.encode(`: run failed before settling: ${run.rejection.message}\n\n`),
+            );
+          }
           controller.close();
           return;
         }
@@ -639,7 +699,10 @@ export function createServer(options: CreateServerOptions): RulvarServer {
         return json(409, {
           error: {
             code: 'config',
-            message: `run '${run.runId}' already settled '${run.outcome?.status ?? 'unknown'}'`,
+            message:
+              run.rejection === undefined
+                ? `run '${run.runId}' already settled '${run.outcome?.status ?? 'unknown'}'`
+                : `run '${run.runId}' failed before settling: ${run.rejection.message}`,
           },
         });
       }

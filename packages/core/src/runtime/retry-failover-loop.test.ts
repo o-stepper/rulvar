@@ -7,9 +7,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import type { WireError } from '../l0/errors.js';
+import { ConfigError, LeaseHeldError, type WireError } from '../l0/errors.js';
+import type { ChatEvent, ChatRequest } from '../l0/messages.js';
+import type { ProviderAdapter } from '../l0/spi/provider.js';
 import type { ResolvedInvocation } from '../model/router.js';
-import { recordingSink, scriptedAdapter } from '../engine/test-harness.js';
+import { recordingSink, scriptedAdapter, testCaps } from '../engine/test-harness.js';
 import { runAgent } from './agent-loop.js';
 import { mergeUsageLimits } from './usage-limits.js';
 
@@ -228,6 +230,88 @@ describe('transport failover (M4-T04)', () => {
     expect(primary.calls).toHaveLength(3);
     expect(backup.calls).toHaveLength(3);
     expect(result.servedBy).toBe('backup:model-b');
+  });
+});
+
+describe('a typed error thrown out of stream() (cycle 83)', () => {
+  /** An adapter whose stream() throws before yielding anything. */
+  const throwingAdapter = (
+    thrown: unknown,
+    id = 'fake',
+  ): ProviderAdapter & { calls: ChatRequest[] } => {
+    const calls: ChatRequest[] = [];
+    return {
+      id,
+      calls,
+      caps: () => testCaps(),
+      // eslint-disable-next-line require-yield
+      async *stream(req: ChatRequest): AsyncIterable<ChatEvent> {
+        calls.push(req);
+        await Promise.resolve();
+        throw thrown;
+      },
+    };
+  };
+
+  it('a ConfigError is terminal and keeps its typed code instead of being retried as transport', async () => {
+    // The bridge's model mismatch, the openai wire's unsupported role,
+    // a namespaced option contradicting a canonical field: deterministic
+    // misconfigurations that fail identically on every try.
+    const adapter = throwingAdapter(new ConfigError('adapter wraps model a, was asked for b'));
+    const slept: number[] = [];
+    const result = await runAgent({
+      prompt: 'x',
+      adapter,
+      resolved: resolvedOf('fake:model'),
+      limits: mergeUsageLimits(),
+      retry: instantRetry(slept),
+    });
+    expect(result.status).toBe('error');
+    expect(adapter.calls).toHaveLength(1);
+    expect(slept).toEqual([]);
+    expect(result.errorMessage).toBe('adapter wraps model a, was asked for b');
+  });
+
+  it('a ConfigError never triggers failover onto a different model', async () => {
+    // Serving the run from a fallback would hide the misconfiguration
+    // behind a model the caller never asked for.
+    const primary = throwingAdapter(new ConfigError('primary is misconfigured'));
+    const backup = scriptedAdapter(() => ({ text: 'served by backup' }), { id: 'backup' });
+    const result = await runAgent({
+      prompt: 'x',
+      adapter: primary,
+      resolved: resolvedOf('fake:model'),
+      fallbacks: [{ adapter: backup, resolved: resolvedOf('backup:model-b') }],
+      limits: mergeUsageLimits(),
+      retry: instantRetry([]),
+    });
+    expect(result.status).toBe('error');
+    expect(backup.calls).toHaveLength(0);
+    expect(result.servedBy).toBe('fake:model');
+  });
+
+  it('a retryable typed error (a lost lease) still retries, and an untyped throw stays transport', async () => {
+    const leaseAdapter = throwingAdapter(new LeaseHeldError('epoch superseded'));
+    const result = await runAgent({
+      prompt: 'x',
+      adapter: leaseAdapter,
+      resolved: resolvedOf('fake:model'),
+      limits: mergeUsageLimits(),
+      retry: instantRetry([]),
+    });
+    expect(result.status).toBe('error');
+    expect(leaseAdapter.calls).toHaveLength(3);
+
+    const plain = throwingAdapter(new Error('socket hang up'));
+    const untyped = await runAgent({
+      prompt: 'x',
+      adapter: plain,
+      resolved: resolvedOf('fake:model'),
+      limits: mergeUsageLimits(),
+      retry: instantRetry([]),
+    });
+    expect(untyped.status).toBe('error');
+    expect(plain.calls).toHaveLength(3);
   });
 });
 

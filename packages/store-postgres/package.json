@@ -32,11 +32,11 @@
     "pg": "^8.22.0"
   },
   "devDependencies": {
+    "@rulvar/store-conformance": "workspace:*",
     "@types/node": "catalog:",
-    "@types/pg": "^8.16.0",
+    "@types/pg": "^8.20.0",
     "tsdown": "catalog:",
-    "typescript": "catalog:",
-    "@rulvar/store-conformance": "workspace:*"
+    "typescript": "catalog:"
   },
   "repository": {
     "type": "git",

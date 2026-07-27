@@ -230,6 +230,8 @@ A resolution against an already-closed suspension is never an error that damages
 
 Typed engine errors map onto status codes with a `{ error: WireError }` body: configuration and invalid-resolution errors answer `400`, a held lease or a journal outside the compatibility window answers `409`, anything else `500`.
 
+A segment can also fail without ever producing an outcome: the genesis ownership boot refuses a run another process owns (with zero writes), and a settlement whose durable write failed is withheld deliberately. `GET /runs/:id` reports those as `status: "error"` carrying the typed wire error, connected SSE streams close with a comment naming the failure, a late subscriber gets that comment instead of an empty stream, and the tracked run becomes eligible for retention and the settled cap like any other terminal run. Where anything was written at all, the journal stays the durable record: a withheld settlement re-settles by replay on `rulvar resume` without paying for a provider call.
+
 Retention comes in two decoupled kinds, both opt-in and both evaluated when a tracked run settles terminally:
 
 - `retention: (meta) => boolean` is DURABLE retention: a true verdict applies `engine.deleteRun` (transcripts first, then the journal) and untracks the run. This deletes the record itself.
