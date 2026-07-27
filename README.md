@@ -189,7 +189,7 @@ Rulvar predates Build Week; everything from v1.4.0 through v1.37.0 shipped insid
 submission window (July 13-21, 2026), the releases since then keep the same cadence,
 and the collaboration below is the part of that work done with Codex.
 
-**Codex was the project's independent QA engineer.** Forty five times, the
+**Codex was the project's independent QA engineer.** Forty six times, the
 freshly shipped release was handed to Codex (session
 `019f65d7-4599-7d93-97dc-9dd4a5dc66f9`). Each round, Codex ran the full offline matrix
 plus live end-to-end orchestrations against real GPT-5.6 (Sol orchestrating; Luna,
@@ -274,6 +274,7 @@ The sixty five rounds, verbatim in this repository's history:
 | v1.80.0       | ce4c392 (#416): the maxSpawns slot ledger of admitted children, the headingStructureValidator stock validator, and the durable schemaRecoveredFinishExchanges counter | v1.81.0    |
 | v1.81.0       | c030982 (#419): the true outcome in the isolated-executor ledger (a protocol failure ledgers error, conformance e12), CRLF close fences, the package docs catch-up    | v1.81.1    |
 | v1.81.1       | 296885b (#422): the worker stop sweep race, the lost mid-fetch listChanged invalidation, and the empty-cursor pagination spin (the bus and worker review)             | v1.81.2    |
+| v1.81.2       | 9cc5d66 (#425): the lease conformance expiry split (the CI flake root-caused), slot-independent worker retention, the single-flight MCP list                          | v1.82.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
