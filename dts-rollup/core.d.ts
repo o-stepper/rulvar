@@ -5467,6 +5467,7 @@ declare class AdmissionController {
   private readonly maxChildrenPerNode;
   private readonly childBudgetFraction;
   private readonly flatReserveUsd;
+  private readonly maxTotalSpawns?;
   private readonly mintId;
   private readonly journalView?;
   private readonly lineageIndex?;
@@ -5481,6 +5482,14 @@ declare class AdmissionController {
     maxChildrenPerNode?: number;
     childBudgetFraction?: number;
     flatReserveUsd?: number;
+    /**
+    * Controller-lifetime cap on ADMITTED spawns, enforced at this
+    * controller's own gate with the 'lifetime' reject reason, for
+    * hosts driving an AdmissionController directly. Engine runs do
+    * not wire this option: they cap total spawns through the budget
+    * (`budgetDefaults.lifetimeSpawnCap`, the same 'lifetime' reason).
+    */
+    maxTotalSpawns?: number;
     mintId?: () => string;
     /**
     * The lineage binding (DEF-3): a journal view for the pure counter
