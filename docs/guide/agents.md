@@ -203,6 +203,40 @@ Two compositions matter. With [the tool budget extension](#the-tool-budget-exten
 
 On resume the window state re-derives from the restored counts alone (a segment restored inside the window keeps refusing without re-announcing), the snapshot below reports `finalizationWindowEntered: true` once it ever activated, and an invocation without the field behaves byte-identically to before; enabling it changes recorded model requests, exactly like `toolBudgetNotices`. Preflight adds three findings: `inert-finalization-window` (warning) for a window with no tool budget to reserve a tail of, `finalization-window-covers-cap` (warning) when `reserveCalls` is not below the budget (the window would govern from the first call), and `finalization-window-empty-allowlist` (warning) for an explicit empty `allow`.
 
+## The recommended tool budget posture
+
+The vocabulary above accumulated one field at a time; this is the position the seventh comparison experiment earned. That run capped four mandatory research workers at a fixed 84 calls each, two of them starved (one at 10 of its 14 required evidence entries) and settled `limit` into salvage, while 38% of the run's USD ceiling sat unspent. The cap was doing quality regulation, which is the money's job.
+
+**Default: no cap.** `maxToolCalls` is unlimited when absent, and that is the recommended state. Spend is already bounded by the run's `budgetUsd` ceiling (the only bound that measures what you actually pay), looping is bounded by the [exploration guards](#exploration-guards) (`maxRepeatedToolSignature`, `maxNoNewEvidenceCalls`, per-tool caps, weighted `toolUnits` with free bookkeeping tools), and `maxTurns` (default 32) backstops everything. An uncapped worker under a ceiling and guards stops for a REASON: no money, no progress, or no turns, never an arbitrary count.
+
+**A cap is a safety valve, not a regulator.** When you do cap (a fixed-cost harness, a comparison experiment, an adapter you distrust), never cap bare. A bare cap expires as a silent hard `limit` the model never saw coming, which is exactly the failure the linter now names (`bare-tool-cap`). Pair the cap with:
+
+- `toolBudgetNotices` so the model can pace itself before the edge;
+- [`toolBudgetExtension`](#the-tool-budget-extension) so remaining money converts into remaining work instead of expiring unspent;
+- a [`finalizationReserve`](#the-finalization-reserve) or a [`finalizationWindow`](#the-finalization-window) so the ending is a recorded summary, not a cut;
+- at the orchestrate layer, a DELIBERATE salvage decision (`acceptPartialChildren`, `acceptValidatedTerminalOutputOnLimit`): salvage saved the experiment's run, and an advisory report may accept it, while an authoritative path should demand `ok` without salvage.
+
+**Declare what the cap must fit.** A research spawn with a mandated evidence contract should declare it (`evidenceContract: { minEntries }` on the profile or the preflight spawn), so `tool-cap-below-evidence-floor` relates the cap to the work before any paid call: 14 entries at about 3 calls each plus overhead do not fit 40 calls, and preflight can say so statically.
+
+The full linter vocabulary over tool budgets, all declared-input findings from [the preflight estimator](/guide/budgets#the-preflight-estimator):
+
+| Finding                            | Severity | It means                                                                        |
+| ---------------------------------- | -------- | ------------------------------------------------------------------------------- |
+| `bare-tool-cap`                    | warning  | a positive cap with no softener at all; expiry will be silent and hard           |
+| `tool-cap-below-evidence-floor`    | warning  | the declared evidence contract cannot fit under the effective ceiling            |
+| `tool-cap-before-checkpoint`       | warning  | the whole budget fits one parallel batch before any checkpoint exists            |
+| `weighted-units-bind-first`        | warning  | `toolUnits` stops a tool earlier than its nominal caps suggest                   |
+| `tool-unaffordable`                | warning  | a tool's unit cost exceeds the whole unit budget; it can never execute           |
+| `inert-tool-budget-notices`        | warning  | notices without `maxToolCalls`; they never fire                                  |
+| `inert-tool-budget-extension`      | warning  | an extension with no `maxToolCalls` to extend                                    |
+| `inert-finalization-reserve`       | warning  | a reserve with no tool budget limiter to fire on                                 |
+| `inert-finalization-window`        | warning  | a window with no tool budget to reserve a tail of                                |
+| `finalization-window-covers-cap`   | warning  | `reserveCalls` at or above the budget; the window governs from call one          |
+| `finalization-window-empty-allowlist` | warning | an explicit empty `allow`; only the terminal tool remains callable            |
+| `tool-budget-extension-exposure`   | info     | the worst-case extra calls every projection already assumes                      |
+| `per-tool-cap-unreachable`         | info     | a per-tool cap another limiter already stops short of                            |
+| `capped-children-without-salvage`  | info     | capped children under a declared acceptance with both salvage arms off           |
+
 ## Output truncation
 
 A schema-less turn (no schema, no required terminal tool) whose provider completion ends with finish reason `max-tokens` and no visible text settles `limit` with `abortClass: 'output-truncated'`, never `ok` with an empty value. An empty truncated turn usually means the whole allowance went to reasoning: high-effort adaptive thinking shares the output-token allowance with the visible answer. When a `finalize` role is routed the check moves to the synthesis invocation, because its text, not the loop turn's, is the schema-less answer. A max-tokens turn **with** visible text still settles `ok` and keeps the partial text.

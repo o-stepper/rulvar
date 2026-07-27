@@ -22,6 +22,7 @@ import {
   requireNonNegativeInteger,
   requireNonNegativeNumber,
   requirePositiveInteger,
+  validateEvidenceContract,
 } from '../l0/validate-numbers.js';
 import type { WorkflowEventBody } from '../l0/events.js';
 import type { InvocationRole, ModelRef, ModelSpec, Usage } from '../l0/messages.js';
@@ -801,6 +802,12 @@ export function createEngine(options: CreateEngineOptions): Engine {
       requireFraction(
         profile.compaction.threshold,
         `createEngine defaults.profiles['${name}'].compaction.threshold`,
+      );
+    }
+    if (profile.evidenceContract !== undefined) {
+      validateEvidenceContract(
+        profile.evidenceContract,
+        `createEngine defaults.profiles['${name}'].evidenceContract`,
       );
     }
   }

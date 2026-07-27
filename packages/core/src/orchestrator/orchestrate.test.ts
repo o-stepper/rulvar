@@ -2998,3 +2998,98 @@ describe('the synthesis reserve lifecycle (RV304 second half, judge P1.7)', () =
     }
   });
 });
+
+describe('exact fill parity between the projection and the live gate (RV307, judge P1.8)', () => {
+  // One set of numbers, both layers: root ceiling 1.0, an explicit
+  // 0.2 orchestrator cap whose exact-fill hint holds 0.2, so the static
+  // child remainder is 0.8. The 'worker' child declares estCost 0.8
+  // (exact fill: certain live rejection, because the paid coordination
+  // turn always shrinks the live remainder first), the 'retry' child
+  // declares 0.7 and fits in both layers.
+  const PARITY_PROFILES = {
+    worker: { description: 'the exact-fill child', estCost: 0.8 },
+    retry: { description: 'the below-fill retry', estCost: 0.7 },
+  };
+
+  it('the projection denies the exact-fill child and admits the retry', async () => {
+    const { preflightEstimate } = await import('../engine/preflight.js');
+    const report = preflightEstimate({
+      engine: {
+        adapters: [scriptedAdapter(() => ({ text: 'unused' }))],
+        defaults: {
+          routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+          profiles: PARITY_PROFILES,
+        },
+      },
+      run: { budgetUsd: 1 },
+      orchestrator: { budget: { capUsd: 0.2, capFraction: 1.0 } },
+      spawns: [
+        { label: 'worker', profile: 'worker', estCost: 0.8 },
+        { label: 'retry', profile: 'retry', estCost: 0.7 },
+      ],
+    });
+    expect(report.admission.wave.map((row) => [row.label, row.admitted, row.deniedBy])).toEqual([
+      ['orchestrator', true, undefined],
+      ['worker', false, 'budget'],
+      ['retry', true, undefined],
+    ]);
+    expect(report.findings.some((entry) => entry.code === 'partial-admission')).toBe(true);
+  });
+
+  it('the live gate rejects and admits the same children for the same reason', async () => {
+    let orchTurn = 0;
+    const adapter = scriptedAdapter((req): ScriptedTurn => {
+      if (agentTypeOf(req) !== '') {
+        return { text: 'done', usage: { inputTokens: 10, outputTokens: 5 } };
+      }
+      orchTurn += 1;
+      if (orchTurn === 1) {
+        return {
+          toolCalls: [
+            { name: 'spawn_agent', args: { agentType: 'worker', prompt: 'the exact fill' } },
+            { name: 'spawn_agent', args: { agentType: 'retry', prompt: 'the retry' } },
+          ],
+          usage: { inputTokens: 1000, outputTokens: 400 },
+        };
+      }
+      if (orchTurn === 2) {
+        return { toolCall: { name: 'await_all', args: { handles: handlesIn(req) } } };
+      }
+      return { toolCall: { name: 'finish', args: { result: 'parity held' } } };
+    });
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: { loop: 'fake:model', orchestrate: 'fake:model' },
+      profiles: PARITY_PROFILES,
+      budgetUsd: 1,
+    });
+    const wf = makeOrchestratorWorkflow('goal', {
+      budget: { capUsd: 0.2, capFraction: 1.0 },
+    });
+    const outcome = await executeWorkflow(internals, wf, undefined);
+    expect(outcome).toBe('parity held');
+    const verdicts = admissionEntries(await store.load('test-run')).map((entry) => {
+      const value = entry.value as {
+        spec?: { agentType?: string };
+        decision: { verdict: { kind: string; reason?: { code?: string } } };
+      };
+      return {
+        agentType: value.spec?.agentType,
+        kind: value.decision.verdict.kind,
+        ...(value.decision.verdict.reason?.code === undefined
+          ? {}
+          : { code: value.decision.verdict.reason.code }),
+      };
+    });
+    // The SAME split the projection promised: the exact-fill child dies
+    // with reason budget, the retry admits.
+    expect(verdicts).toEqual([
+      { agentType: 'worker', kind: 'reject', code: 'budget' },
+      { agentType: 'retry', kind: 'admit' },
+    ]);
+    // The rejection reached the model typed, never as a torn run.
+    const orchCalls = adapter.calls.filter((r) => agentTypeOf(r) === '');
+    const firstResults = JSON.stringify(orchCalls[1]?.messages.at(-1)?.parts);
+    expect(firstResults).toContain('budget');
+  });
+});

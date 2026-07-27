@@ -10,7 +10,7 @@
 function reviewAgentProfile(options?): AgentProfile;
 ```
 
-Defined in: [packages/core/src/engine/profile-templates.ts:165](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/profile-templates.ts#L165)
+Defined in: [packages/core/src/engine/profile-templates.ts:173](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/profile-templates.ts#L173)
 
 The review child template: the caller's task tools plus the progress
 contract, with [REVIEW\_PROFILE\_LIMITS](/api/@rulvar/core/variables/REVIEW_PROFILE_LIMITS.md) as the stop conditions

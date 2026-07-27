@@ -141,6 +141,15 @@ const MUTATIONS = [
     replace: '',
     test: 'packages/core/src/orchestrator/orchestrate.test.ts',
   },
+  {
+    id: 'evidence-floor-warning',
+    doctrine:
+      'a cap that cannot fit the declared evidence contract is warned, never silent (RV303)',
+    file: 'packages/core/src/engine/preflight.ts',
+    find: '      if (executedToolCallCeiling < floor) {',
+    replace: '      if (false) {',
+    test: 'packages/core/src/engine/preflight.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);

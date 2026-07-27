@@ -10,7 +10,7 @@
 function agentResultWire(result, fallbackMessage): WireError;
 ```
 
-Defined in: [packages/core/src/engine/ctx.ts:307](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L307)
+Defined in: [packages/core/src/engine/ctx.ts:333](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/ctx.ts#L333)
 
 Projects a settled AgentResult's error to its wire form, carrying the
 engine-decided abort class in data. AgentError itself has no data

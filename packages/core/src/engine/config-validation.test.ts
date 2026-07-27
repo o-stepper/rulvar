@@ -93,6 +93,15 @@ describe('createEngine numeric option validation (v1.34.0 review P2-3/P2-4)', ()
     expect(() => profile({ escalation: { flavor: 'B', deadlineMs: Number.NaN } })).toThrow(
       /defaults\.profiles\['writer'\]\.escalation\.deadlineMs must be a positive integer/,
     );
+    expect(() => profile({ evidenceContract: { minEntries: 0 } })).toThrow(
+      /defaults\.profiles\['writer'\]\.evidenceContract\.minEntries/,
+    );
+    expect(() => profile({ evidenceContract: { minEntries: 5, estCallsPerEntry: 0 } })).toThrow(
+      /defaults\.profiles\['writer'\]\.evidenceContract\.estCallsPerEntry/,
+    );
+    expect(() => profile({ evidenceContract: { minEntries: 5, overheadCalls: 1.5 } })).toThrow(
+      /defaults\.profiles\['writer'\]\.evidenceContract\.overheadCalls/,
+    );
     expect(() => profile({ compaction: { threshold: 1.2 } })).toThrow(
       /defaults\.profiles\['writer'\]\.compaction\.threshold must be a fraction in \(0, 1\]/,
     );
