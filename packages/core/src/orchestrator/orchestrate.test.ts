@@ -2830,3 +2830,171 @@ describe('the synthesis budget reserve (the sixth comparison experiment, cycle 7
     expect(adapter.calls).toHaveLength(0);
   });
 });
+
+describe('the synthesis reserve lifecycle (RV304 second half, judge P1.7)', () => {
+  const ROUTING = {
+    loop: 'fake:model',
+    orchestrate: 'fake:model',
+    synthesize: 'fake:model',
+  } as const;
+  const promptOf = (req: ChatRequest): string => {
+    const user = req.messages.find((message) => message.role === 'user');
+    const part = user?.parts.find((p) => p.type === 'text');
+    return (part as { text?: string } | undefined)?.text ?? '';
+  };
+  const isSynthesisReq = (req: ChatRequest): boolean => /synthesis invocation/.test(promptOf(req));
+
+  /** The reserve adapter of the sixth-experiment suite, verbatim shape. */
+  function lifecycleAdapter(): ReturnType<typeof scriptedAdapter> {
+    let coordination = 0;
+    return scriptedAdapter(
+      (req): ScriptedTurn => {
+        const cap = req.maxOutputTokens;
+        if (isSynthesisReq(req)) {
+          if (cap !== undefined && cap < 62000) {
+            return {
+              finish: 'max-tokens',
+              usage: { inputTokens: 500, outputTokens: Math.min(cap, 200) },
+            };
+          }
+          return {
+            toolCall: {
+              name: 'finish',
+              args: {
+                result:
+                  'final report ' +
+                  Array.from({ length: 40 }, (unused, i) => `w${String(i)}`).join(' '),
+              },
+            },
+            usage: { inputTokens: 500, outputTokens: 62000 },
+          };
+        }
+        coordination += 1;
+        if (coordination === 1) {
+          const desired = 140000;
+          const out = cap === undefined ? desired : Math.min(desired, Math.floor(cap * 0.98));
+          return {
+            text: 'coordination analysis',
+            usage: { inputTokens: 1000, outputTokens: out },
+          };
+        }
+        return {
+          toolCall: {
+            name: 'finish',
+            args: {
+              result:
+                'the draft ' + Array.from({ length: 30 }, (unused, i) => `d${String(i)}`).join(' '),
+            },
+          },
+          usage: { inputTokens: 400, outputTokens: 400 },
+        };
+      },
+      { caps: testCaps({ maxOutputTokens: 200000 }) },
+    );
+  }
+
+  const lifecycleWorkflow = (options: {
+    synthesisReserveUsd?: number;
+    capUsd: number;
+    acceptance?: boolean;
+  }): ReturnType<typeof makeOrchestratorWorkflow> =>
+    makeOrchestratorWorkflow('compose the assessment', {
+      budget: {
+        capUsd: options.capUsd,
+        capFraction: 1.0,
+        ...(options.synthesisReserveUsd === undefined
+          ? {}
+          : { synthesisReserveUsd: options.synthesisReserveUsd }),
+      },
+      synthesis: { limits: { maxTurns: 2 }, estCost: 0.05 },
+      finishValidation: { validators: [wordCountValidator({ min: 20 })] },
+      ...(options.acceptance === true ? { acceptance: { childPolicy: 'all-ok' as const } } : {}),
+    });
+
+  const reserveDecisionsOf = (entries: JournalEntry[]): JournalEntry[] =>
+    entries.filter(
+      (entry) =>
+        entry.kind === 'decision' &&
+        (entry.value as { decisionType?: string } | undefined)?.decisionType ===
+          'orchestrator_synthesis_reserve',
+    );
+
+  it('the lifecycle is journaled once and rides the acceptance envelope', async () => {
+    const adapter = lifecycleAdapter();
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING,
+      budgetUsd: 10,
+    });
+    const envelope = (await executeWorkflow(
+      internals,
+      lifecycleWorkflow({ capUsd: 2.0, synthesisReserveUsd: 0.7, acceptance: true }),
+      undefined,
+    )) as {
+      completion?: string;
+      synthesisReserve?: {
+        configuredUsd: number;
+        heldUsd: number;
+        releasedUsd: number;
+        remainingBeforeSynthesisUsd?: number;
+        consumedUsd?: number;
+      };
+    };
+    expect(envelope.completion).toBe('complete');
+    expect(envelope.synthesisReserve).toMatchObject({
+      configuredUsd: 0.7,
+      heldUsd: 0.7,
+      releasedUsd: 0.7,
+    });
+    // The hold freed into real headroom, and the synthesis spent most of
+    // it: one 500-in 62000-out turn at the fake pricing.
+    expect(envelope.synthesisReserve?.remainingBeforeSynthesisUsd).toBeGreaterThan(0.62);
+    expect(envelope.synthesisReserve?.consumedUsd).toBeCloseTo(0.6205, 10);
+    const entries = await store.load('test-run');
+    const decisions = reserveDecisionsOf(entries);
+    expect(decisions).toHaveLength(1);
+    expect(decisions[0]?.value).toMatchObject({
+      decisionType: 'orchestrator_synthesis_reserve',
+      configuredUsd: 0.7,
+      heldUsd: 0.7,
+      releasedUsd: 0.7,
+    });
+  });
+
+  it('without acceptance the raw value stays untouched and the journal still carries the decision', async () => {
+    const adapter = lifecycleAdapter();
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING,
+      budgetUsd: 10,
+    });
+    const value = await executeWorkflow(
+      internals,
+      lifecycleWorkflow({ capUsd: 2.0, synthesisReserveUsd: 0.7 }),
+      undefined,
+    );
+    expect(String(value)).toContain('final report');
+    const entries = await store.load('test-run');
+    expect(reserveDecisionsOf(entries)).toHaveLength(1);
+  });
+
+  it('without the reserve the envelope and the journal are byte free of the lifecycle', async () => {
+    const adapter = lifecycleAdapter();
+    const { internals, store } = makeInternals({
+      adapters: [adapter],
+      routing: ROUTING,
+      budgetUsd: 10,
+    });
+    const envelope = await executeWorkflow(
+      internals,
+      lifecycleWorkflow({ capUsd: 5.0, acceptance: true }),
+      undefined,
+    );
+    expect(JSON.stringify(envelope)).not.toContain('synthesisReserve');
+    const entries = await store.load('test-run');
+    expect(reserveDecisionsOf(entries)).toHaveLength(0);
+    for (const entry of entries) {
+      expect(JSON.stringify(entry)).not.toContain('orchestrator_synthesis_reserve');
+    }
+  });
+});

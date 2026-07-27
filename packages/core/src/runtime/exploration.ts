@@ -41,6 +41,9 @@ import type { Msg } from '../l0/messages.js';
 /** The docs anchor cited by guard denials and the guard abort. */
 const GUARD_DOCS_URL = 'https://docs.rulvar.com/guide/agents#exploration-guards';
 
+/** The docs anchor cited by finalization window refusals (RV302). */
+const WINDOW_DOCS_URL = 'https://docs.rulvar.com/guide/agents#the-finalization-window';
+
 export type { ExplorationSummary } from '../l0/events.js';
 
 /** The guard's per-call verdict before dispatch. */
@@ -248,6 +251,18 @@ export class ExplorationGuard {
   }
 
   /**
+   * Weighted units still spendable, floored at zero; undefined without
+   * toolUnits configured. The finalization window (RV302) reads this on
+   * every call evaluation, so it stays an O(1) counter, unlike the
+   * allocating summary().
+   */
+  unitsRemaining(): number | undefined {
+    return this.config.toolUnits === undefined
+      ? undefined
+      : Math.max(0, this.config.toolUnits.max - this.unitsUsed);
+  }
+
+  /**
    * Distinct successful result digests seen this invocation: the
    * extension's requireNewEvidence admission compares snapshots of this
    * count (RV301). A result JCS cannot digest never counts, so a grant
@@ -336,5 +351,41 @@ export function toolBudgetExtensionNoticeText(
     `Tool budget extended: grant ${String(grant)} of ${String(maxExtensions)}; ` +
     `${String(used)} of ${String(cap)} tool calls used, ${String(remaining)} remaining. ` +
     `The budget headroom permits continued work; prioritize the highest value calls.`
+  );
+}
+
+/** The budget dimension a finalization window statement names (RV302). */
+export type FinalizationWindowBudget = 'tool calls' | 'tool units';
+
+/**
+ * The one-time model-visible window notice (RV302). Deterministic for
+ * given counts, like the notices above.
+ */
+export function finalizationWindowNoticeText(
+  remaining: number,
+  reserve: number,
+  budget: FinalizationWindowBudget,
+): string {
+  return (
+    `Finalization window: ${String(Math.max(0, remaining))} of the reserved final ` +
+    `${String(reserve)} ${budget} remain. Only finalization tools (and the terminal tool) ` +
+    `may execute now; record your evidence and finish with what you have.`
+  );
+}
+
+/**
+ * The typed window refusal a non-allowlisted call receives (RV302):
+ * the same posture as the guard denials above, visible to the model,
+ * never terminal, consuming no budget.
+ */
+export function finalizationWindowRefusalText(
+  name: string,
+  reserve: number,
+  budget: FinalizationWindowBudget,
+): string {
+  return (
+    `finalization window: the last ${String(reserve)} ${budget} are reserved for ` +
+    `finalization tools, and '${name}' is not in the window allowlist. Record your ` +
+    `evidence with the allowed tools and call the terminal tool (${WINDOW_DOCS_URL}).`
   );
 }

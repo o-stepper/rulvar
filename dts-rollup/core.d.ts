@@ -3579,6 +3579,11 @@ interface ToolBudgetSummary {
   noticesFired?: number[];
   /** Present and true when the finalization reserve summary turn ran. */
   finalizationReserveUsed?: boolean;
+  /**
+  * Present and true when the finalization window activated at least
+  * once this invocation (RV302).
+  */
+  finalizationWindowEntered?: boolean;
   /** The tool budget limiter that ended the loop, on that 'limit' only. */
   limiter?: "maxToolCalls" | "toolUnits";
 }
@@ -3710,11 +3715,12 @@ type ToolEvents = {
   rule?: Json;
   advisory?: Json;
   /**
-  * Present when an exploration guard (RV-210), not the permission
-  * chain, denied the call: the outcome is 'denied' and the call was
-  * never dispatched.
+  * Present when an engine guard, not the permission chain, denied
+  * the call: the exploration guards (RV-210) or the finalization
+  * window (RV302). The outcome is 'denied' and the call was never
+  * dispatched.
   */
-  guard?: "repeated-signature";
+  guard?: "repeated-signature" | "per-tool-cap" | "finalization-window";
 };
 /**
 * Bare-nondeterminism detection (RV-209). Emitted LIVE by the segment
@@ -4106,6 +4112,27 @@ interface UsageLimits {
     minHeadroomUsd?: number; /** Default true: a grant needs new evidence since the last one. */
     requireNewEvidence?: boolean;
   };
+  /**
+  * The finalization window (RV302, the seventh comparison experiment):
+  * once the remaining tool budget (executed calls against the effective
+  * maxToolCalls, or remaining weighted units against toolUnits.max,
+  * whichever is closer) drops to `reserveCalls`, only finalization
+  * tools may execute. A call outside the window's allowlist receives a
+  * typed error tool result naming the window (visible to the model,
+  * never terminal, consuming no budget), and the model is told ONCE,
+  * via a plain user message, to record its evidence and finish. The
+  * allowlist defaults to the tools priced at toolUnits cost 0 (the
+  * free bookkeeping tools); the engine terminal tool is always
+  * admitted regardless. With toolBudgetExtension configured, remaining
+  * money converts into a grant BEFORE any window refusal, so the
+  * window binds only when the extension is exhausted or denied. Off by
+  * default: the refusals and the notice enter the conversation, so
+  * enabling it changes recorded model requests.
+  */
+  finalizationWindow?: {
+    /** How many trailing executed calls (or units) the window reserves. */reserveCalls: number; /** Tool names allowed inside the window; default: zero-cost tools. */
+    allow?: string[];
+  };
 }
 declare const DEFAULT_MAX_TURNS = 32;
 declare const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 12e4;
@@ -4134,6 +4161,10 @@ interface EffectiveUsageLimits {
     maxExtensions: number;
     minHeadroomUsd?: number;
     requireNewEvidence?: boolean;
+  };
+  finalizationWindow?: {
+    reserveCalls: number;
+    allow?: string[];
   };
 }
 /**
@@ -9233,6 +9264,19 @@ interface PreflightOrchestratorSpec {
   * root, so only they subtract it from spawn-admission headroom.
   */
   extension?: boolean;
+  /**
+  * The OrchestrateAcceptance slice the estimator judges (RV305):
+  * declaring it lets preflight relate capped children to the salvage
+  * arms. Absent, the salvage findings stay silent, exactly like every
+  * other undeclared input.
+  */
+  acceptance?: {
+    childPolicy?: "all-ok" | {
+      minSuccessful: number;
+    };
+    acceptPartialChildren?: boolean;
+    acceptValidatedTerminalOutputOnLimit?: boolean;
+  };
   /**
   * The separate synthesis invocation (RV-211), when the orchestration
   * configures one (the v1.71 experiment review: the run ceiling used

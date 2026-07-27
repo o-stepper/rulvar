@@ -124,6 +124,23 @@ const MUTATIONS = [
     // The sandbox worker executes from dist: the probe rebuilds it.
     build: '@rulvar/planner',
   },
+  {
+    id: 'finalization-window-refusal',
+    doctrine: 'a non-allowlisted call inside the finalization window is refused typed (RV302)',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '          if (windowState !== undefined && !windowAllows(gatedCall.name)) {\n            events?.emit({',
+    replace: '          if (false) {\n            events?.emit({',
+    test: 'packages/core/src/runtime/finalization-window.test.ts',
+  },
+  {
+    id: 'synthesis-reserve-lifecycle-envelope',
+    doctrine:
+      'a configured synthesis reserve reports its lifecycle on the acceptance envelope (RV304)',
+    file: 'packages/core/src/orchestrator/orchestrate.ts',
+    find: '      ...(synthesisReserveLifecycle === undefined\n        ? {}\n        : { synthesisReserve: synthesisReserveLifecycle }),',
+    replace: '',
+    test: 'packages/core/src/orchestrator/orchestrate.test.ts',
+  },
 ];
 
 const args = process.argv.slice(2);
