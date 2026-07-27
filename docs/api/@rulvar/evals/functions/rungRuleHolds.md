@@ -10,7 +10,7 @@
 function rungRuleHolds(baseline, treatment): boolean;
 ```
 
-Defined in: [packages/evals/src/checkpoint.ts:149](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/checkpoint.ts#L149)
+Defined in: [packages/evals/src/checkpoint.ts:167](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/checkpoint.ts#L167)
 
 The OQ-09 cell rule (shared by the per-cell and pooled verdicts).
 

@@ -39,7 +39,12 @@ import {
   type TaskClass,
 } from '@rulvar/core';
 
-import { runEvalSuite, type EvalCase, type RunEvalSuiteOptions } from './case.js';
+import {
+  runEvalSuite,
+  type EvalCase,
+  type EvalSuiteResult,
+  type RunEvalSuiteOptions,
+} from './case.js';
 import type { SweepCase, SweepModel } from './sweeps.js';
 
 /** One declared checkpoint ladder: rungs are concrete pool members. */
@@ -98,6 +103,15 @@ export interface CheckpointCell {
   recommended: boolean;
   baseline: CheckpointArm;
   treatment: CheckpointArm;
+  /**
+   * Either arm carried a measurement artifact (an envelope refusal, an
+   * incomplete row, or a target that settled non-ok): the arms are not
+   * comparable, the cell can never pass, and criterion 1 fails
+   * (cycle 81). Without this, an envelope drained by the baseline left
+   * an EMPTY refused treatment arm (n 0, cost 0) that mechanically beat
+   * any baseline under the cheaper-at-equal-quality branch.
+   */
+  contaminated?: true;
   passed: boolean;
 }
 
@@ -108,12 +122,16 @@ export interface CriterionOneReport {
   pooledBaseline: CheckpointArm;
   pooledTreatment: CheckpointArm;
   pooledHolds: boolean;
+  /** Cells with a contaminated arm; present when nonzero (cycle 81). */
+  contaminatedCells?: number;
   passed: boolean;
 }
 
 export interface CriterionTwoReport {
   baseline: CheckpointArm;
   informed: CheckpointArm;
+  /** Either arm carried a measurement artifact; the criterion cannot pass. */
+  contaminated?: true;
   passed: boolean;
 }
 
@@ -164,6 +182,20 @@ function armOf(suite: {
   return { passRate: suite.passRate, totalCostUsd: suite.totalCostUsd, n: suite.results.length };
 }
 
+/**
+ * A measurement artifact in an arm invalidates the A/B comparison: an
+ * envelope refusal truncated the arm, a judge budget event forced rows
+ * to fail, or a target settled non-ok (provider failure, ceiling, host
+ * cancellation). Grader failures on ok targets are the HONEST failure
+ * signal and never contaminate.
+ */
+function contaminatedArm(suite: EvalSuiteResult): boolean {
+  return (
+    suite.refusal !== undefined ||
+    suite.results.some((result) => result.status !== 'ok' || result.incomplete !== undefined)
+  );
+}
+
 function pool(arms: CheckpointArm[]): CheckpointArm {
   const n = arms.reduce((sum, arm) => sum + arm.n, 0);
   const passed = arms.reduce((sum, arm) => sum + arm.passRate * arm.n, 0);
@@ -199,17 +231,21 @@ export async function runValueCheckpoint(
       const baseMember = ladder.rungs[ladder.startTier];
       const treatMember = ladder.rungs[treatmentTier];
       if (baseMember === undefined || treatMember === undefined) {
-        throw new Error(`checkpoint: ladder '${ladder.name}' lacks rung ${String(treatmentTier)}`);
+        const missing = baseMember === undefined ? ladder.startTier : treatmentTier;
+        throw new Error(`checkpoint: ladder '${ladder.name}' lacks rung ${String(missing)}`);
       }
-      const baseline = armOf(
-        await runEvalSuite(await options.engineFor(baseMember), cases, options.suite ?? {}),
+      const baselineSuite = await runEvalSuite(
+        await options.engineFor(baseMember),
+        cases,
+        options.suite ?? {},
       );
-      const treatment =
+      const treatmentSuite =
         treatmentTier === ladder.startTier
-          ? baseline
-          : armOf(
-              await runEvalSuite(await options.engineFor(treatMember), cases, options.suite ?? {}),
-            );
+          ? baselineSuite
+          : await runEvalSuite(await options.engineFor(treatMember), cases, options.suite ?? {});
+      const baseline = armOf(baselineSuite);
+      const treatment = armOf(treatmentSuite);
+      const contaminated = contaminatedArm(baselineSuite) || contaminatedArm(treatmentSuite);
       cells.push({
         ladder: ladder.name,
         taskClass,
@@ -218,7 +254,8 @@ export async function runValueCheckpoint(
         recommended: recommendation !== undefined,
         baseline,
         treatment,
-        passed: rungRuleHolds(baseline, treatment),
+        ...(contaminated ? { contaminated: true as const } : {}),
+        passed: !contaminated && rungRuleHolds(baseline, treatment),
       });
     }
   }
@@ -234,6 +271,9 @@ export async function runValueCheckpoint(
   const pooledBaseline = pool(cells.map((cell) => cell.baseline));
   const pooledTreatment = pool(cells.map((cell) => cell.treatment));
   const pooledHolds = rungRuleHolds(pooledBaseline, pooledTreatment);
+  // A contaminated cell also pollutes the pooled totals, so criterion 1
+  // fails outright rather than trusting the aggregate (cycle 81).
+  const contaminatedCells = cells.filter((cell) => cell.contaminated === true).length;
   const criterion1: CriterionOneReport = {
     cells,
     cellsPassed,
@@ -241,26 +281,39 @@ export async function runValueCheckpoint(
     pooledBaseline,
     pooledTreatment,
     pooledHolds,
-    passed: majorityHolds && pooledHolds,
+    ...(contaminatedCells === 0 ? {} : { contaminatedCells }),
+    passed: majorityHolds && pooledHolds && contaminatedCells === 0,
   };
 
   let criterion2: CriterionTwoReport | undefined;
   if (options.orchestrateEngineFor !== undefined && options.orchestratedCases !== undefined) {
     const cases = options.orchestratedCases.map((entry) => entry.case);
     const orchestratedSuite = options.orchestratedSuite ?? options.suite ?? {};
-    const baseline = armOf(
-      await runEvalSuite(await options.orchestrateEngineFor(false), cases, orchestratedSuite),
+    const baselineSuite = await runEvalSuite(
+      await options.orchestrateEngineFor(false),
+      cases,
+      orchestratedSuite,
     );
-    const informed = armOf(
-      await runEvalSuite(await options.orchestrateEngineFor(true), cases, orchestratedSuite),
+    const informedSuite = await runEvalSuite(
+      await options.orchestrateEngineFor(true),
+      cases,
+      orchestratedSuite,
     );
+    const baseline = armOf(baselineSuite);
+    const informed = armOf(informedSuite);
+    const contaminated = contaminatedArm(baselineSuite) || contaminatedArm(informedSuite);
     // The vacuous-pass guard (found by the first live run): two arms
     // of total failures (both at zero pass rate) demonstrate nothing
     // and MUST fail; the card has to win something real.
     criterion2 = {
       baseline,
       informed,
-      passed: informed.n > 0 && informed.passRate > 0 && agentTypeRuleHolds(baseline, informed),
+      ...(contaminated ? { contaminated: true as const } : {}),
+      passed:
+        !contaminated &&
+        informed.n > 0 &&
+        informed.passRate > 0 &&
+        agentTypeRuleHolds(baseline, informed),
     };
   }
 
@@ -282,8 +335,9 @@ export function renderCheckpointReport(report: CheckpointReport): string {
       (report.passed ? 'PASSED' : 'FAILED'),
     '',
     `Criterion 1 (rung selection): ${report.criterion1.passed ? 'holds' : 'fails'} ` +
-      `(${String(report.criterion1.cellsPassed)}/${String(report.criterion1.cells.length)} cells, ` +
-      `pooled ${report.criterion1.pooledHolds ? 'holds' : 'fails'})`,
+      `(${String(report.criterion1.cellsPassed)}/` +
+      `${String(report.criterion1.cells.filter((cell) => cell.recommended).length)} ` +
+      `recommended cells, pooled ${report.criterion1.pooledHolds ? 'holds' : 'fails'})`,
   ];
   for (const cell of report.criterion1.cells) {
     lines.push(
@@ -291,7 +345,8 @@ export function renderCheckpointReport(report: CheckpointReport): string {
         `${percent(cell.baseline.passRate)} at ${usd(cell.baseline.totalCostUsd)}; treatment ` +
         `tier ${String(cell.treatmentTier)}${cell.recommended ? '' : ' (no recommendation)'} ` +
         `${percent(cell.treatment.passRate)} at ${usd(cell.treatment.totalCostUsd)}; ` +
-        `${cell.passed ? 'pass' : 'fail'} (n=${String(cell.baseline.n)})`,
+        `${cell.passed ? 'pass' : 'fail'}${cell.contaminated === true ? ' (contaminated)' : ''} ` +
+        `(n=${String(cell.baseline.n)})`,
     );
   }
   if (report.criterion2 !== undefined) {

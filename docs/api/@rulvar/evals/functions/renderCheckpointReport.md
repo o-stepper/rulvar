@@ -10,7 +10,7 @@
 function renderCheckpointReport(report): string;
 ```
 
-Defined in: [packages/evals/src/checkpoint.ts:279](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/checkpoint.ts#L279)
+Defined in: [packages/evals/src/checkpoint.ts:332](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/checkpoint.ts#L332)
 
 The deterministic render for the M12 gate docs amendment.
 

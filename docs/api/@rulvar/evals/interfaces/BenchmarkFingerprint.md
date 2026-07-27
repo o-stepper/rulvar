@@ -6,7 +6,7 @@
 
 # Interface: BenchmarkFingerprint
 
-Defined in: [packages/evals/src/benchmark.ts:169](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/benchmark.ts#L169)
+Defined in: [packages/evals/src/benchmark.ts:170](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/benchmark.ts#L170)
 
 Where the numbers came from; percentiles without this are hearsay.
 
@@ -14,9 +14,9 @@ Where the numbers came from; percentiles without this are hearsay.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="property-arch"></a> `arch` | `string` | - | [packages/evals/src/benchmark.ts:172](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/benchmark.ts#L172) |
-| <a id="property-labels"></a> `labels?` | `Record`\&lt;`string`, `string`\&gt; | - | [packages/evals/src/benchmark.ts:177](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/benchmark.ts#L177) |
-| <a id="property-node"></a> `node` | `string` | - | [packages/evals/src/benchmark.ts:170](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/benchmark.ts#L170) |
-| <a id="property-packages"></a> `packages` | `Record`\&lt;`string`, `string`\&gt; | Resolved versions of the rulvar packages doing the measuring. | [packages/evals/src/benchmark.ts:174](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/benchmark.ts#L174) |
-| <a id="property-platform"></a> `platform` | `string` | - | [packages/evals/src/benchmark.ts:171](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/benchmark.ts#L171) |
-| <a id="property-startedat"></a> `startedAt?` | `string` | The first run's run:start timestamp (event time, no clock read). | [packages/evals/src/benchmark.ts:176](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/benchmark.ts#L176) |
+| <a id="property-arch"></a> `arch` | `string` | - | [packages/evals/src/benchmark.ts:173](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/benchmark.ts#L173) |
+| <a id="property-labels"></a> `labels?` | `Record`\&lt;`string`, `string`\&gt; | - | [packages/evals/src/benchmark.ts:178](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/benchmark.ts#L178) |
+| <a id="property-node"></a> `node` | `string` | - | [packages/evals/src/benchmark.ts:171](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/benchmark.ts#L171) |
+| <a id="property-packages"></a> `packages` | `Record`\&lt;`string`, `string`\&gt; | Resolved versions of the rulvar packages doing the measuring. | [packages/evals/src/benchmark.ts:175](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/benchmark.ts#L175) |
+| <a id="property-platform"></a> `platform` | `string` | - | [packages/evals/src/benchmark.ts:172](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/benchmark.ts#L172) |
+| <a id="property-startedat"></a> `startedAt?` | `string` | The first run's run:start timestamp (event time, no clock read). | [packages/evals/src/benchmark.ts:177](https://github.com/o-stepper/rulvar/blob/main/packages/evals/src/benchmark.ts#L177) |

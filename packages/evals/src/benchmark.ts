@@ -88,7 +88,8 @@ export interface RunBenchmarkOptions {
   /**
    * Aggregate debit-only envelope: every target and judge run
    * authorizes its ceiling here BEFORE starting, exactly like the eval
-   * runners. A target-run refusal throws SweepBudgetError; a judge-run
+   * runners. A target-run refusal ends the series monotonically
+   * (report.refusal) with every completed repeat preserved; a judge-run
    * refusal rejects that run from scoring as 'judge:refused'.
    */
   envelope?: SpendEnvelope;
@@ -192,6 +193,15 @@ export interface BenchmarkReport {
   /** Every target and judge run, scored or rejected (honest spend). */
   totalCostUsd: number;
   judgeCostUsd: number;
+  /**
+   * Present when the aggregate envelope refused a TARGET run before it
+   * started (cycle 81): the series ends there and every completed
+   * repeat stays on the report, mirroring the eval suite's monotone
+   * refusal instead of a throw destroying the paid evidence. Judge
+   * refusals never appear here; they reject their own run as
+   * 'judge:refused'.
+   */
+  refusal?: { atOrdinal: number; detail: string };
   fingerprint: BenchmarkFingerprint;
 }
 
@@ -308,8 +318,9 @@ function workflowWarningsOf(events: readonly WorkflowEvent[]): number {
 /**
  * Runs the spec's repeats sequentially and reports the verified series.
  * Throws only for spec defects (invalid repeats, a throwing grader or
- * extractor) and for a target-run envelope refusal; everything a run
- * does wrong lands in its record instead.
+ * extractor); everything a run does wrong lands in its record, and a
+ * target-run envelope refusal ends the series monotonically with the
+ * completed repeats preserved (report.refusal).
  */
 export async function runBenchmark(
   engine: Engine,
@@ -325,12 +336,23 @@ export async function runBenchmark(
   let startedAt: string | undefined;
   let totalCostUsd = 0;
   let totalJudgeCostUsd = 0;
+  let refusal: BenchmarkReport['refusal'];
 
   for (let ordinal = 1; ordinal <= spec.repeats; ordinal += 1) {
-    options.envelope?.authorize(
-      options.budgetUsd,
-      `benchmark '${spec.name}' run ${String(ordinal)}`,
-    );
+    try {
+      options.envelope?.authorize(
+        options.budgetUsd,
+        `benchmark '${spec.name}' run ${String(ordinal)}`,
+      );
+    } catch (error) {
+      if (!(error instanceof SweepBudgetError)) {
+        throw error;
+      }
+      // The refused repeat never ran and cost nothing; everything the
+      // series already paid for stays on the report (cycle 81).
+      refusal = { atOrdinal: ordinal, detail: error.message };
+      break;
+    }
     const live = await collectRun(
       engine.run(spec.workflow, spec.args, {
         name: `benchmark:${spec.name}:${String(ordinal)}`,
@@ -495,6 +517,7 @@ export async function runBenchmark(
     metrics: metricSeries,
     totalCostUsd,
     judgeCostUsd: totalJudgeCostUsd,
+    ...(refusal === undefined ? {} : { refusal }),
     fingerprint: {
       node: process.version,
       platform: process.platform,
