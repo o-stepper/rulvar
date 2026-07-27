@@ -1,5 +1,19 @@
 # @rulvar/core
 
+## 1.87.0
+
+### Minor Changes
+
+- c4c02b1: The finalization window, the bare-cap linter, and the synthesis reserve lifecycle (PR II of the seventh-comparison-experiment plan: RV302, RV305, RV306, and the deferred half of RV304).
+
+  RV302, `limits.finalizationWindow: { reserveCalls, allow? }`: once the remaining tool budget (executed calls against the effective `maxToolCalls`, or remaining weighted units against `toolUnits.max`, whichever is closer) drops to `reserveCalls`, only finalization tools may execute. A call outside the allowlist receives a typed refusal (`guard: 'finalization-window'`, visible to the model, never terminal, consuming no budget), and the model is told once, via a plain user message, to record its evidence and finish. The allowlist defaults to the tools priced at `toolUnits` cost 0; the engine terminal tool is always admitted, and `escalate` is structurally exempt. With `toolBudgetExtension` configured, remaining money converts into a grant BEFORE any window refusal, so the two features form one policy: spend the headroom first, then finalize. On resume the window re-arms from the restored counts without re-announcing; without the field every request, journal, and cassette stays byte identical. The `toolBudget` pressure snapshot gains `finalizationWindowEntered`, and the `tool:end` guard union is now honest about all three engine guards (`repeated-signature`, `per-tool-cap`, `finalization-window`).
+
+  RV305, the bare-cap linter: preflight warns `bare-tool-cap` when a positive `maxToolCalls` or a `toolUnits` budget has no softener at all (no `toolBudgetNotices`, no `toolBudgetExtension`, no `finalizationReserve`, no `finalizationWindow`); a cap of 0 is a deliberate no-tools spawn and stays quiet. Orchestrate waves with a DECLARED acceptance additionally get the info `capped-children-without-salvage` when capped children meet a policy with both salvage arms off. The window itself gets three findings: `inert-finalization-window`, `finalization-window-covers-cap`, `finalization-window-empty-allowlist`, and `PreflightOrchestratorSpec` gains the declarable `acceptance` slice.
+
+  RV304 second half (the judge's P1.7): a configured `budget.synthesisReserveUsd` now reports its whole lifecycle `{ configuredUsd, heldUsd, releasedUsd, remainingBeforeSynthesisUsd?, consumedUsd }`, frozen into a journaled decision (`orchestrator_synthesis_reserve`) when the synthesis invocation settles, emitted as a `log` info event, and attached to the acceptance result envelope as `synthesisReserve`. `heldUsd: 0` under a configured reserve makes the silently inert no-cap case visible; a resume reads the frozen decision instead of recomputing. Without a configured reserve nothing is journaled, emitted, or attached.
+
+  RV306: the engine-level terminal-at-exhausted-budget scenario suite (the judge's P0.3): the terminal finish dispatches after the cap through a real engine run with the journal underneath, its validator rejection travels back, the repair lands, batch neighbors get the typed skip, and the non-terminal control still journals `limit`.
+
 ## 1.86.0
 
 ### Minor Changes
