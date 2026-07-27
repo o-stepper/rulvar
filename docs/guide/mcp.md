@@ -114,7 +114,7 @@ const triage = defineWorkflow(
 );
 ```
 
-The MCP client connects lazily on the first `tools()` call. `tools/list` is fetched with cursor pagination until exhaustion and cached per MCP session, so repeated spawns against the same server do not re-list.
+The MCP client connects lazily on the first `tools()` call. `tools/list` is fetched with cursor pagination until exhaustion (an absent or empty `nextCursor` both end the walk, so a server echoing an empty cursor cannot spin the import) and cached per MCP session, so repeated spawns against the same server do not re-list.
 
 ## The permission chain
 
@@ -199,7 +199,7 @@ The toolset snapshot for a given agent spawn is captured at spawn time and stays
 
 Two consequences follow:
 
-- A `listChanged` notification from the server invalidates the session's tool-list cache, affecting subsequently spawned agents only. A mid-run `listChanged` never mutates an in-flight agent's toolset.
+- A `listChanged` notification from the server invalidates the session's tool-list cache, affecting subsequently spawned agents only. A mid-run `listChanged` never mutates an in-flight agent's toolset. The invalidation also survives racing the list fetch itself: a notification that lands while `tools/list` is in flight keeps that fetch from being pinned as the cache, so the next snapshot refetches.
 - Server-side drift of a tool's description or `inputSchema` changes `toolsetHash` and therefore the content key of new spawns. This is intended: a journal is never replayed against a changed contract. It is also why MCP-heavy workflows should pin their server versions; an upgraded server silently invalidates replay for new spawns of agents that import it.
 
 ::: tip Idempotent server tools resume cleanly
