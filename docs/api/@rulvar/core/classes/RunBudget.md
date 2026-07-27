@@ -367,16 +367,7 @@ maxAffordableOutputTokens(
    accountScope?): number | undefined;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:652](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L652)
-
-Layer 2b, the pre-dispatch output bound: the output tokens the
-remaining chain budget (min over capped ancestors of ceiling minus
-spend) still affords from `servedBy` for an estimated prompt, priced
-by the same function as settlement, long-context tiers included.
-Undefined when no account in the chain carries a USD ceiling, when
-the model has no price row (the once-per-model unpriced warning in
-onUsage covers that hole), or when output is free. Zero or negative
-means the turn cannot be dispatched within the budget.
+Defined in: [packages/core/src/engine/budget.ts:671](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L671)
 
 #### Parameters
 
@@ -401,7 +392,7 @@ onUsage(
    accountScope?): void;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:681](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L681)
+Defined in: [packages/core/src/engine/budget.ts:693](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L693)
 
 Live accounting; spend propagates from `accountScope` to every
 ancestor. Crossing a ceiling severs the crossing account's subtree
@@ -553,13 +544,39 @@ fractions never eat finalization money). Undefined when uncapped.
 remaining(): Spend | null;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:766](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L766)
+Defined in: [packages/core/src/engine/budget.ts:778](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L778)
 
 Null when the run has no USD ceiling.
 
 #### Returns
 
 [`Spend`](/api/@rulvar/core/type-aliases/Spend.md) \| `null`
+
+***
+
+### remainingUsd()
+
+```ts
+remainingUsd(accountScope?): number | undefined;
+```
+
+Defined in: [packages/core/src/engine/budget.ts:659](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L659)
+
+The tightest chain headroom of `accountScope` in plain USD (RV301):
+exactly the remaining money the output clamp below prices, before
+any pricing. Undefined when every account on the chain is uncapped;
+never negative. The tool budget extension admits a grant against
+this number.
+
+#### Parameters
+
+| Parameter | Type | Default value |
+| ------ | ------ | ------ |
+| `accountScope` | `string` | `ROOT_ACCOUNT` |
+
+#### Returns
+
+`number` \| `undefined`
 
 ***
 
@@ -591,7 +608,7 @@ The layer-3 signal of one sub-account's subtree, when it exists.
 spent(): Spend;
 ```
 
-Defined in: [packages/core/src/engine/budget.ts:757](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L757)
+Defined in: [packages/core/src/engine/budget.ts:769](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/budget.ts#L769)
 
 #### Returns
 

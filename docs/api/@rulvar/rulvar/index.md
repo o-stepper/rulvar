@@ -336,6 +336,7 @@ const engine = createEngine({
 | [TerminationDeniedValue](/api/@rulvar/rulvar/interfaces/TerminationDeniedValue.md) | The value payload of a termination.denied entry. |
 | [TerminationInitValue](/api/@rulvar/rulvar/interfaces/TerminationInitValue.md) | The value payload of a termination.init entry. |
 | [TerminationLimits](/api/@rulvar/rulvar/interfaces/TerminationLimits.md) | The frozen limits vector written into termination.init. |
+| [ToolBudgetSummary](/api/@rulvar/rulvar/interfaces/ToolBudgetSummary.md) | The tool budget pressure snapshot (RV304, the seventh comparison experiment): how close one agent invocation came to its tool budget, visible BEFORE the terminal 'limit' a starved worker would settle with. Attached to the full AgentResult and to the live `agent:end` event whenever maxToolCalls, toolUnits, or toolBudgetExtension is configured. Live telemetry only, exactly like transportRetries: never journaled, absent on a replayed result. |
 | [ToolCallRequest](/api/@rulvar/rulvar/interfaces/ToolCallRequest.md) | One model-issued tool call as the loop dispatches it. |
 | [ToolContext](/api/@rulvar/rulvar/interfaces/ToolContext.md) | The context handed to execute (and to permission hooks and canUseTool). Deliberately exposes NO spawn primitives: tools are leaves of the call-and-return tree (invariant I3); all spawning flows through Ctx primitives. |
 | [ToolContextSeed](/api/@rulvar/rulvar/interfaces/ToolContextSeed.md) | - |

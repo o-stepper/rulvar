@@ -1,0 +1,30 @@
+[**Rulvar API reference**](../../../index.md)
+
+***
+
+[Rulvar API reference](/api/index.md) / [@rulvar/core](/api/@rulvar/core/index.md) / ToolBudgetSummary
+
+# Interface: ToolBudgetSummary
+
+Defined in: [packages/core/src/l0/events.ts:120](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L120)
+
+The tool budget pressure snapshot (RV304, the seventh comparison
+experiment): how close one agent invocation came to its tool budget,
+visible BEFORE the terminal 'limit' a starved worker would settle
+with. Attached to the full AgentResult and to the live `agent:end`
+event whenever maxToolCalls, toolUnits, or toolBudgetExtension is
+configured. Live telemetry only, exactly like transportRetries: never
+journaled, absent on a replayed result.
+
+## Properties
+
+| Property | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| <a id="property-cap"></a> `cap?` | `number` | The effective executed-call cap at the end: maxToolCalls plus every granted extension. Absent when only toolUnits bounds the loop. | [packages/core/src/l0/events.ts:127](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L127) |
+| <a id="property-extensionsgranted"></a> `extensionsGranted?` | `number` | Extension grants used, restored grants included; present exactly when toolBudgetExtension is configured (RV301). | [packages/core/src/l0/events.ts:136](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L136) |
+| <a id="property-finalizationreserveused"></a> `finalizationReserveUsed?` | `boolean` | Present and true when the finalization reserve summary turn ran. | [packages/core/src/l0/events.ts:143](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L143) |
+| <a id="property-limiter"></a> `limiter?` | `"toolUnits"` \| `"maxToolCalls"` | The tool budget limiter that ended the loop, on that 'limit' only. | [packages/core/src/l0/events.ts:145](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L145) |
+| <a id="property-noticesfired"></a> `noticesFired?` | `number`[] | Notice thresholds (fractions of the cap) whose notices entered the conversation; present when at least one fired. | [packages/core/src/l0/events.ts:141](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L141) |
+| <a id="property-unitsmax"></a> `unitsMax?` | `number` | The weighted budget; present when toolUnits is configured. | [packages/core/src/l0/events.ts:131](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L131) |
+| <a id="property-unitsused"></a> `unitsUsed?` | `number` | Weighted units spent; present when toolUnits is configured. | [packages/core/src/l0/events.ts:129](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L129) |
+| <a id="property-used"></a> `used` | `number` | Executed tool calls (the loop's own counter). | [packages/core/src/l0/events.ts:122](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/l0/events.ts#L122) |

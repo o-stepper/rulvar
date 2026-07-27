@@ -369,15 +369,6 @@ maxAffordableOutputTokens(
 
 Defined in: `packages/core/dist/index.d.ts`
 
-Layer 2b, the pre-dispatch output bound: the output tokens the
-remaining chain budget (min over capped ancestors of ceiling minus
-spend) still affords from `servedBy` for an estimated prompt, priced
-by the same function as settlement, long-context tiers included.
-Undefined when no account in the chain carries a USD ceiling, when
-the model has no price row (the once-per-model unpriced warning in
-onUsage covers that hole), or when output is free. Zero or negative
-means the turn cannot be dispatched within the budget.
-
 #### Parameters
 
 | Parameter | Type |
@@ -560,6 +551,32 @@ Null when the run has no USD ceiling.
 #### Returns
 
 [`Spend`](/api/@rulvar/rulvar/type-aliases/Spend.md) \| `null`
+
+***
+
+### remainingUsd()
+
+```ts
+remainingUsd(accountScope?): number | undefined;
+```
+
+Defined in: `packages/core/dist/index.d.ts`
+
+The tightest chain headroom of `accountScope` in plain USD (RV301):
+exactly the remaining money the output clamp below prices, before
+any pricing. Undefined when every account on the chain is uncapped;
+never negative. The tool budget extension admits a grant against
+this number.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `accountScope?` | `string` |
+
+#### Returns
+
+`number` \| `undefined`
 
 ***
 

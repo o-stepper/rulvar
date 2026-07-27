@@ -24,5 +24,6 @@ One logical agent span.
 | <a id="property-role"></a> `role?` | `string` | The primary role from agent:start. | `packages/core/dist/index.d.ts` |
 | <a id="property-spanid"></a> `spanId` | `string` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-status"></a> `status?` | `string` | From agent:end; absent while the span is open. | `packages/core/dist/index.d.ts` |
+| <a id="property-toolbudget"></a> `toolBudget?` | [`ToolBudgetSummary`](/api/@rulvar/rulvar/interfaces/ToolBudgetSummary.md) | The tool budget pressure snapshot (RV304), carried through from the live agent:end. Absent on replayed rows and unbounded loops. | `packages/core/dist/index.d.ts` |
 | <a id="property-usage"></a> `usage` | [`Usage`](/api/@rulvar/rulvar/type-aliases/Usage.md) | - | `packages/core/dist/index.d.ts` |
 | <a id="property-usageapprox"></a> `usageApprox` | `boolean` | - | `packages/core/dist/index.d.ts` |
