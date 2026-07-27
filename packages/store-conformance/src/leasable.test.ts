@@ -86,9 +86,47 @@ class BrokenFencingStore extends InMemoryLeasableStore {
 }
 
 registerConformance(
-  leasableStoreConformance(() => new InMemoryLeasableStore({ ttlMs: 150 }), { ttlMs: 150 }),
+  // The split pairing (cycle 80): mandatory checks on a ttl no stall can
+  // cross; the wall-clock expiry check gets its own short-ttl store.
+  leasableStoreConformance(() => new InMemoryLeasableStore({ ttlMs: 600_000 }), {
+    expiry: { ttlMs: 300, mk: () => new InMemoryLeasableStore({ ttlMs: 300 }) },
+  }),
   { describe: (name, factory) => describe(`InMemoryLeasableStore ${name}`, factory), it },
 );
+
+describe('the expiry split pairing (cycle 80 deflake)', () => {
+  // A store whose first fenced append stalls past the short ttl: the CI
+  // flake's exact shape, a scheduler stall between acquire and append
+  // expiring the just-acquired lease inside a no-wall-clock check.
+  class StalledStore extends InMemoryLeasableStore {
+    private stalled = false;
+    override async append(runId: string, e: JournalEntry, lease?: Lease): Promise<void> {
+      if (!this.stalled) {
+        this.stalled = true;
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+      return super.append(runId, e, lease);
+    }
+  }
+
+  it('a stall past the ttl breaks the single-ttl pairing inside a no-wall-clock check', async () => {
+    const suite = leasableStoreConformance(() => new StalledStore({ ttlMs: 150 }), {
+      ttlMs: 150,
+    });
+    const tombstone = suite.checks.find((check) => check.id === 'fencing-epoch-tombstone');
+    await expect(tombstone?.run()).rejects.toThrow(/stale fencing epoch/);
+  });
+
+  it('the expiry option gives the wall-clock check its own store; mandatory checks survive the stall', async () => {
+    const suite = leasableStoreConformance(() => new StalledStore({ ttlMs: 600_000 }), {
+      expiry: { ttlMs: 300, mk: () => new InMemoryLeasableStore({ ttlMs: 300 }) },
+    });
+    expect(suite.checks.some((check) => check.id === 'lease-ttl-and-renew-cadence')).toBe(true);
+    for (const check of suite.checks) {
+      await check.run();
+    }
+  });
+});
 
 describe('mutation-tested broken lease stores fail loudly', () => {
   it('a store that accepts stale-epoch appends fails the fencing check', async () => {

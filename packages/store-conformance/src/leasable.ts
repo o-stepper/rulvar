@@ -57,9 +57,20 @@ export function leasableStoreConformance(
   options?: {
     /**
      * The store's configured lease TTL, when known: enables the
-     * wall-clock expiry and renew-keeps-held checks.
+     * wall-clock expiry and renew-keeps-held checks against the MAIN
+     * factory. LEGACY single-ttl pairing: the mandatory checks follow
+     * the suite's no-wall-clock convention, and a short shared ttl lets
+     * one scheduler stall expire a just-acquired lease inside them (the
+     * cycle 80 CI flake). Prefer `expiry`.
      */
     ttlMs?: number;
+    /**
+     * The wall-clock expiry check's OWN store and ttl (cycle 80): hand
+     * the mandatory checks a main factory whose ttl no realistic stall
+     * can cross, and give the expiry check its short-ttl store here.
+     * Wins over `ttlMs` when both are present.
+     */
+    expiry?: { ttlMs: number; mk: StoreFactory<LeasableStore> };
   },
 ): ConformanceSuite {
   const checks: ConformanceCheck[] = [
@@ -191,13 +202,15 @@ export function leasableStoreConformance(
     },
   ];
 
-  const ttlMs = options?.ttlMs;
-  if (ttlMs !== undefined) {
+  const expiry =
+    options?.expiry ?? (options?.ttlMs === undefined ? undefined : { ttlMs: options.ttlMs, mk });
+  if (expiry !== undefined) {
+    const { ttlMs, mk: mkExpiry } = expiry;
     checks.push({
       id: 'lease-ttl-and-renew-cadence',
       title: 'renew at ttl/3 keeps the lease held past ttl; an unrenewed lease expires',
       async run() {
-        const store = await mk();
+        const store = await mkExpiry();
         // Renewed at the mandated cadence: still held after 1.5 * ttl.
         const held = await store.acquire(RUN, 'owner-a');
         const cadence = Math.floor(ttlMs / 3);

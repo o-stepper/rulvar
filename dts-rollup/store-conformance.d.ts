@@ -42,9 +42,23 @@ declare function journalStoreConformance(mk: StoreFactory<JournalStore>): Confor
 declare function leasableStoreConformance(mk: StoreFactory<LeasableStore>, options?: {
   /**
   * The store's configured lease TTL, when known: enables the
-  * wall-clock expiry and renew-keeps-held checks.
+  * wall-clock expiry and renew-keeps-held checks against the MAIN
+  * factory. LEGACY single-ttl pairing: the mandatory checks follow
+  * the suite's no-wall-clock convention, and a short shared ttl lets
+  * one scheduler stall expire a just-acquired lease inside them (the
+  * cycle 80 CI flake). Prefer `expiry`.
   */
   ttlMs?: number;
+  /**
+  * The wall-clock expiry check's OWN store and ttl (cycle 80): hand
+  * the mandatory checks a main factory whose ttl no realistic stall
+  * can cross, and give the expiry check its short-ttl store here.
+  * Wins over `ttlMs` when both are present.
+  */
+  expiry?: {
+    ttlMs: number;
+    mk: StoreFactory<LeasableStore>;
+  };
 }): ConformanceSuite;
 //#endregion
 //#region src/fenced-writes.d.ts

@@ -79,7 +79,14 @@ if (hasDb) {
     { describe, it },
   );
   registerConformance(
-    leasableStoreConformance(() => fresh({ ttlMs: 150 }), { ttlMs: 150 }),
+    // The split pairing (cycle 80 deflake): a CI stall past 150 ms used
+    // to expire a just-acquired lease inside a no-wall-clock check; the
+    // mandatory checks now run on a ttl no stall can cross, and only the
+    // wall-clock expiry check keeps a short-ttl store (1200 ms: within
+    // the default test timeout, with a 800 ms per-renew stall margin).
+    leasableStoreConformance(() => fresh({ ttlMs: 600_000 }), {
+      expiry: { ttlMs: 1200, mk: () => fresh({ ttlMs: 1200 }) },
+    }),
     { describe, it },
   );
   registerConformance(

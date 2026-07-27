@@ -360,7 +360,7 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
       }
     }
     for (const meta of metas) {
-      if (stopping || active.size >= concurrency) {
+      if (stopping) {
         // stop() mid sweep: pick nothing further, so the cancel
         // snapshot it takes after this sweep resolves is complete
         // (cycle 79 review).
@@ -368,10 +368,21 @@ export function createWorker(engine: Engine, options: CreateWorkerOptions): Work
       }
       if (!CANDIDATE_STATUSES.has(meta.status)) {
         // Terminal meta: never resumed, only retention applies here.
+        // Retention is not slot-bound: a worker whose every concurrency
+        // slot is busy still sweeps settled runs, or a loaded worker
+        // would starve its own retention (cycle 80).
         if (options.retention !== undefined && !active.has(meta.runId)) {
           await applyRetention(meta).catch((thrown: unknown) => {
             reportError(meta.runId, thrown);
           });
+        }
+        continue;
+      }
+      if (active.size >= concurrency) {
+        if (options.retention === undefined) {
+          // Without retention only candidates are listed; once the
+          // slots are full there is nothing further to do.
+          break;
         }
         continue;
       }

@@ -245,6 +245,26 @@ describe('mcp ToolSource (M3-T04)', () => {
     expect(defs.map((def) => def.name)).toEqual(['only']);
   });
 
+  it('concurrent cold tools() calls share one in-flight fetch (cycle 80)', async () => {
+    const lowLevel = new Server(
+      { name: 'single-flight', version: '1.0.0' },
+      { capabilities: { tools: {} } },
+    );
+    let listCalls = 0;
+    lowLevel.setRequestHandler(ListToolsRequestSchema, async () => {
+      listCalls += 1;
+      await new Promise((resolve) => setImmediate(resolve));
+      return {
+        tools: [{ name: 'only', description: 'x', inputSchema: { type: 'object' as const } }],
+      };
+    });
+    const source = mcp({ transport: 'inprocess', server: lowLevel });
+    const [first, second] = await Promise.all([source.tools(SESSION), source.tools(SESSION)]);
+    expect(first.map((def) => def.name)).toEqual(['only']);
+    expect(second.map((def) => def.name)).toEqual(['only']);
+    expect(listCalls).toBe(1);
+  });
+
   // The pinned SDK's client enforces this (-32600) before the source
   // sees the result; the test pins that enforcement so the M5-T10 SDK v2
   // migration (risk R1) cannot silently downgrade it to bare text.

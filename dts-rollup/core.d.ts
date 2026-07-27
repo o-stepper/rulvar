@@ -5467,7 +5467,6 @@ declare class AdmissionController {
   private readonly maxChildrenPerNode;
   private readonly childBudgetFraction;
   private readonly flatReserveUsd;
-  private readonly maxTotalSpawns?;
   private readonly mintId;
   private readonly journalView?;
   private readonly lineageIndex?;
@@ -5481,8 +5480,7 @@ declare class AdmissionController {
     maxDepth?: number;
     maxChildrenPerNode?: number;
     childBudgetFraction?: number;
-    flatReserveUsd?: number; /** Per-orchestrate spawn cap (maxSpawns); engine lifetime cap applies regardless. */
-    maxTotalSpawns?: number;
+    flatReserveUsd?: number;
     mintId?: () => string;
     /**
     * The lineage binding (DEF-3): a journal view for the pure counter
