@@ -1,5 +1,12 @@
 # @rulvar/evals
 
+## 1.84.0
+
+### Patch Changes
+
+- @rulvar/core@1.84.0
+- @rulvar/testing@1.84.0
+
 ## 1.83.0
 
 ### Minor Changes
