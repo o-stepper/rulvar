@@ -3322,6 +3322,27 @@ export function makeOrchestratorWorkflow(
      * run falls back to the draft under a journaled decision and a warn
      * log, never silently.
      */
+    /**
+     * The reserve lifecycle snapshot (RV304 second half, the seventh
+     * comparison experiment review, P1.7): configured is the declared
+     * hold, held what actually registered on the cap account (zero when
+     * no cap resolved and the config was silently inert), released
+     * what the synthesis dispatch freed, remainingBeforeSynthesisUsd
+     * the chain headroom the invocation saw right after the release,
+     * and consumedUsd its own priced spend. Frozen into a journaled
+     * decision at first completion, so a resume reports the identical
+     * facts; absent everywhere when no reserve is configured.
+     */
+    let synthesisReserveLifecycle:
+      | {
+          configuredUsd: number;
+          heldUsd: number;
+          releasedUsd: number;
+          remainingBeforeSynthesisUsd?: number;
+          consumedUsd?: number;
+        }
+      | undefined;
+
     const runSynthesis = async (draft: unknown): Promise<unknown> => {
       const spec = opts?.synthesis;
       if (spec === undefined) {
@@ -3445,6 +3466,11 @@ export function makeOrchestratorWorkflow(
         },
         callingState.spanId,
       );
+      const configuredReserveUsd = opts?.budget?.synthesisReserveUsd ?? 0;
+      const heldReserveUsd =
+        orchestratorAccount === undefined
+          ? 0
+          : (internals.budget.accountView(orchestratorAccount)?.synthesisReserveUsd ?? 0);
       const synthesisState: CtxScopeState = { ...callingState };
       if (orchestratorAccount !== undefined) {
         synthesisState.budgetScope = orchestratorAccount;
@@ -3454,6 +3480,12 @@ export function makeOrchestratorWorkflow(
         // remainder.
         internals.budget.releaseSynthesisReserve(orchestratorAccount);
       }
+      const remainingBeforeSynthesisUsd =
+        configuredReserveUsd > 0
+          ? internals.budget.remainingUsd(
+              orchestratorAccount ?? callingState.budgetScope ?? undefined,
+            )
+          : undefined;
       // A validator rejection aborts the synthesis loop exactly like the
       // coordination loop; the caller throws the armed termination.
       const synthesisBreak = validationSpec === undefined ? undefined : validationAbort.signal;
@@ -3495,6 +3527,72 @@ export function makeOrchestratorWorkflow(
         // The synthesis finish rejection (or a defective validator)
         // aborted the invocation; the typed failure wins.
         throw validationTermination;
+      }
+      if (configuredReserveUsd > 0) {
+        // The lifecycle decision (RV304 second half): the first pass
+        // freezes the live numbers; a resume finds the entry by key and
+        // reports the identical facts, immune to price-table or
+        // budget-rebuild drift, exactly like the cap and acceptance
+        // decisions. Only reserve-configured runs journal it.
+        const reserveKey = 'synthesis-reserve-lifecycle';
+        const prior = internals.replayer
+          .snapshot()
+          .find(
+            (entry) =>
+              entry.kind === 'decision' &&
+              entry.scope === callingState.scope &&
+              entry.key === reserveKey,
+          );
+        if (prior !== undefined) {
+          // The frozen facts minus the decision marker: the envelope
+          // block must be byte identical between the first pass and a
+          // resume.
+          const frozen = prior.value as {
+            configuredUsd: number;
+            heldUsd: number;
+            releasedUsd: number;
+            remainingBeforeSynthesisUsd?: number;
+            consumedUsd?: number;
+          };
+          synthesisReserveLifecycle = {
+            configuredUsd: frozen.configuredUsd,
+            heldUsd: frozen.heldUsd,
+            releasedUsd: frozen.releasedUsd,
+            ...(frozen.remainingBeforeSynthesisUsd === undefined
+              ? {}
+              : { remainingBeforeSynthesisUsd: frozen.remainingBeforeSynthesisUsd }),
+            ...(frozen.consumedUsd === undefined ? {} : { consumedUsd: frozen.consumedUsd }),
+          };
+        } else {
+          synthesisReserveLifecycle = {
+            configuredUsd: configuredReserveUsd,
+            heldUsd: heldReserveUsd,
+            releasedUsd: heldReserveUsd,
+            ...(remainingBeforeSynthesisUsd === undefined ? {} : { remainingBeforeSynthesisUsd }),
+            consumedUsd: synthesized.costUsd,
+          };
+          await internals.replayer.appendSinglePhase({
+            scope: callingState.scope,
+            key: reserveKey,
+            kind: 'decision',
+            status: 'ok',
+            spanId: internals.spans.mint(callingState.spanId),
+            site: 'orchestrator-synthesis-reserve',
+            value: {
+              decisionType: 'orchestrator_synthesis_reserve',
+              ...synthesisReserveLifecycle,
+            },
+          });
+        }
+        internals.events.emit(
+          {
+            type: 'log',
+            level: 'info',
+            msg: 'orchestrator synthesis reserve lifecycle',
+            data: { ...synthesisReserveLifecycle },
+          },
+          callingState.spanId,
+        );
       }
       if (synthesized.status === 'ok') {
         return synthesized.output;
@@ -3960,6 +4058,12 @@ export function makeOrchestratorWorkflow(
       ...(envelopeSchemaRecovered === 0
         ? {}
         : { schemaRecoveredFinishExchanges: envelopeSchemaRecovered }),
+      // The reserve lifecycle (RV304 second half): absent without a
+      // configured reserve, so every pre-existing envelope stays byte
+      // identical.
+      ...(synthesisReserveLifecycle === undefined
+        ? {}
+        : { synthesisReserve: synthesisReserveLifecycle }),
     };
   });
 }

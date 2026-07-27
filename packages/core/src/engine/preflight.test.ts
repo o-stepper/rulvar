@@ -1541,3 +1541,146 @@ describe('the tool budget extension projection (RV301, the seventh comparison ex
     );
   });
 });
+
+describe('the finalization window findings (RV302)', () => {
+  const reportOf = (limits: object) =>
+    preflightEstimate({
+      engine: {
+        adapters: [scriptedAdapter(() => ({ text: 'unused' }))],
+        defaults: { routing: { loop: SERVED } },
+      },
+      run: { budgetUsd: 5 },
+      spawns: [{ label: 'worker', limits }],
+    });
+
+  it('a window without any tool budget limiter is inert and warned', () => {
+    const report = reportOf({ maxTurns: 4, finalizationWindow: { reserveCalls: 2 } });
+    const finding = report.findings.find((entry) => entry.code === 'inert-finalization-window');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.spawn).toBe('worker');
+  });
+
+  it('a window at or above the cap governs from the first call and is warned', () => {
+    const report = reportOf({
+      maxTurns: 4,
+      maxToolCalls: 3,
+      finalizationWindow: { reserveCalls: 3 },
+    });
+    const finding = report.findings.find(
+      (entry) => entry.code === 'finalization-window-covers-cap',
+    );
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.spawn).toBe('worker');
+    const smaller = reportOf({
+      maxTurns: 4,
+      maxToolCalls: 3,
+      finalizationWindow: { reserveCalls: 2, allow: ['record'] },
+    });
+    expect(smaller.findings.some((entry) => entry.code === 'finalization-window-covers-cap')).toBe(
+      false,
+    );
+  });
+
+  it('an explicitly empty allowlist is warned: only the terminal tool remains callable', () => {
+    const report = reportOf({
+      maxTurns: 4,
+      maxToolCalls: 6,
+      finalizationWindow: { reserveCalls: 2, allow: [] },
+    });
+    const finding = report.findings.find(
+      (entry) => entry.code === 'finalization-window-empty-allowlist',
+    );
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.spawn).toBe('worker');
+  });
+});
+
+describe('the bare tool cap warning (RV305)', () => {
+  const reportOf = (limits: object) =>
+    preflightEstimate({
+      engine: {
+        adapters: [scriptedAdapter(() => ({ text: 'unused' }))],
+        defaults: { routing: { loop: SERVED } },
+      },
+      run: { budgetUsd: 5 },
+      spawns: [{ label: 'worker', limits }],
+    });
+
+  it('a cap with no softener is warned', () => {
+    const report = reportOf({ maxTurns: 8, maxToolCalls: 6 });
+    const finding = report.findings.find((entry) => entry.code === 'bare-tool-cap');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.spawn).toBe('worker');
+    expect(finding?.message).toContain('maxToolCalls');
+  });
+
+  it('weighted units alone are a bare cap too', () => {
+    const report = reportOf({ maxTurns: 8, toolUnits: { max: 6 } });
+    expect(report.findings.some((entry) => entry.code === 'bare-tool-cap')).toBe(true);
+  });
+
+  it('any softener silences the warning', () => {
+    for (const limits of [
+      { maxTurns: 8, maxToolCalls: 6, toolBudgetNotices: true },
+      { maxTurns: 8, maxToolCalls: 6, finalizationReserve: {} },
+      { maxTurns: 8, maxToolCalls: 6, toolBudgetExtension: { increment: 2, maxExtensions: 1 } },
+      { maxTurns: 8, maxToolCalls: 6, finalizationWindow: { reserveCalls: 2 } },
+    ]) {
+      const report = reportOf(limits);
+      expect(report.findings.some((entry) => entry.code === 'bare-tool-cap')).toBe(false);
+    }
+  });
+
+  it('a zero cap is a deliberate no-tools spawn, never warned', () => {
+    const report = reportOf({ maxTurns: 8, maxToolCalls: 0 });
+    expect(report.findings.some((entry) => entry.code === 'bare-tool-cap')).toBe(false);
+  });
+});
+
+describe('capped children without a salvage policy (RV305, orchestrate)', () => {
+  const reportOf = (acceptance?: {
+    childPolicy?: 'all-ok' | { minSuccessful: number };
+    acceptPartialChildren?: boolean;
+    acceptValidatedTerminalOutputOnLimit?: boolean;
+  }) =>
+    preflightEstimate({
+      engine: {
+        adapters: [scriptedAdapter(() => ({ text: 'unused' }))],
+        defaults: { routing: { loop: SERVED, orchestrate: SERVED } },
+      },
+      run: { budgetUsd: 5 },
+      orchestrator: {
+        budget: { capFraction: 1.0 },
+        ...(acceptance === undefined ? {} : { acceptance }),
+      },
+      spawns: [
+        {
+          label: 'worker',
+          limits: { maxTurns: 8, maxToolCalls: 6, toolBudgetNotices: true },
+        },
+      ],
+    });
+
+  it('a declared acceptance with no salvage over capped children is an info finding', () => {
+    const report = reportOf({ childPolicy: 'all-ok' });
+    const finding = report.findings.find(
+      (entry) => entry.code === 'capped-children-without-salvage',
+    );
+    expect(finding?.severity).toBe('info');
+    expect(finding?.message).toContain('salvage');
+  });
+
+  it('an enabled salvage arm silences it, and so does an undeclared acceptance', () => {
+    const salvaged = reportOf({
+      childPolicy: 'all-ok',
+      acceptValidatedTerminalOutputOnLimit: true,
+    });
+    expect(
+      salvaged.findings.some((entry) => entry.code === 'capped-children-without-salvage'),
+    ).toBe(false);
+    const undeclared = reportOf(undefined);
+    expect(
+      undeclared.findings.some((entry) => entry.code === 'capped-children-without-salvage'),
+    ).toBe(false);
+  });
+});

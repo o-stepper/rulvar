@@ -141,6 +141,11 @@ export interface ToolBudgetSummary {
   noticesFired?: number[];
   /** Present and true when the finalization reserve summary turn ran. */
   finalizationReserveUsed?: boolean;
+  /**
+   * Present and true when the finalization window activated at least
+   * once this invocation (RV302).
+   */
+  finalizationWindowEntered?: boolean;
   /** The tool budget limiter that ended the loop, on that 'limit' only. */
   limiter?: 'maxToolCalls' | 'toolUnits';
 }
@@ -262,11 +267,12 @@ export type ToolEvents =
       rule?: Json;
       advisory?: Json;
       /**
-       * Present when an exploration guard (RV-210), not the permission
-       * chain, denied the call: the outcome is 'denied' and the call was
-       * never dispatched.
+       * Present when an engine guard, not the permission chain, denied
+       * the call: the exploration guards (RV-210) or the finalization
+       * window (RV302). The outcome is 'denied' and the call was never
+       * dispatched.
        */
-      guard?: 'repeated-signature';
+      guard?: 'repeated-signature' | 'per-tool-cap' | 'finalization-window';
     };
 
 /**

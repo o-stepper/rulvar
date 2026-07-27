@@ -63,9 +63,12 @@ import {
   crossedNoticeThresholds,
   ExplorationGuard,
   explorationTrackingEnabled,
+  finalizationWindowNoticeText,
+  finalizationWindowRefusalText,
   toolBudgetExtensionNoticeText,
   toolBudgetNoticeText,
   type ExplorationSummary,
+  type FinalizationWindowBudget,
 } from './exploration.js';
 import type { ToolBudgetSummary } from '../l0/events.js';
 import { NoProgressDetector, type AbortClass } from './no-progress.js';
@@ -1524,6 +1527,86 @@ export async function runAgent<S extends SchemaSpec>(
       messages.push({ role: 'user', parts: [{ type: 'text', text }] });
     }
   };
+  /**
+   * The finalization window (RV302): once the remaining tool budget
+   * drops to reserveCalls, only the allowlisted finalization tools (and
+   * the always-admitted terminal tool) execute; everything else gets a
+   * typed refusal that consumes nothing. The run that motivated it
+   * recorded 10 of 14 evidence entries before the cap: one summary turn
+   * cannot dump a backlog, a reserved tail of bookkeeping calls can.
+   */
+  const finalizationWindow = limits.finalizationWindow;
+  let windowEntered = false;
+  let windowNoticeFired = false;
+  const pendingWindowNotices: string[] = [];
+  /** The tightest remaining budget and which dimension provides it. */
+  const windowRemaining = ():
+    { remaining: number; budget: FinalizationWindowBudget } | undefined => {
+    let best: { remaining: number; budget: FinalizationWindowBudget } | undefined;
+    const cap = effectiveMaxToolCalls();
+    if (cap !== undefined) {
+      best = { remaining: Math.max(0, cap - toolCallsUsed), budget: 'tool calls' };
+    }
+    const units = guard?.unitsRemaining();
+    if (units !== undefined && (best === undefined || units < best.remaining)) {
+      best = { remaining: units, budget: 'tool units' };
+    }
+    return best;
+  };
+  const windowActive = (): { remaining: number; budget: FinalizationWindowBudget } | undefined => {
+    if (finalizationWindow === undefined) {
+      return undefined;
+    }
+    const state = windowRemaining();
+    return state !== undefined && state.remaining <= finalizationWindow.reserveCalls
+      ? state
+      : undefined;
+  };
+  /**
+   * Marks the entry and queues the one-time notice. Queued, not pushed:
+   * a user message may not interleave a tool batch, so the queue
+   * flushes with the other notices after the batch's results join the
+   * history. On resume the flags re-derive from the restored counts and
+   * the notice (already in the restored messages) never re-fires.
+   */
+  const maybeMarkWindowEntry = (): void => {
+    if (finalizationWindow === undefined || windowNoticeFired) {
+      return;
+    }
+    const state = windowActive();
+    if (state === undefined) {
+      return;
+    }
+    windowEntered = true;
+    windowNoticeFired = true;
+    pendingWindowNotices.push(
+      finalizationWindowNoticeText(state.remaining, finalizationWindow.reserveCalls, state.budget),
+    );
+    events?.emit({
+      type: 'log',
+      level: 'info',
+      msg:
+        `finalization window entered: ${String(state.remaining)} of the reserved final ` +
+        `${String(finalizationWindow.reserveCalls)} ${state.budget} remain`,
+    });
+  };
+  const flushWindowNotices = (): void => {
+    for (const text of pendingWindowNotices.splice(0)) {
+      messages.push({ role: 'user', parts: [{ type: 'text', text }] });
+    }
+  };
+  /**
+   * The window allowlist. The terminal and escalate tools never reach
+   * this check: the dispatch walk intercepts both before the window
+   * block, so the exits are structurally exempt rather than listed.
+   */
+  const windowAllows = (name: string): boolean => {
+    const allow = finalizationWindow?.allow;
+    if (allow !== undefined) {
+      return allow.includes(name);
+    }
+    return limits.toolUnits?.costs?.[name] === 0;
+  };
   const modelRetryCounts = new Map<string, number>();
   // Compaction state (M4-T03): the estimate is the last loop turn's
   // inputTokens + outputTokens; points record the turns at which
@@ -1606,6 +1689,13 @@ export async function runAgent<S extends SchemaSpec>(
         Math.ceil((toolCallsUsed - limits.maxToolCalls) / extension.increment),
       );
       extensionEvidenceAtLastGrant = guard?.evidenceCount() ?? 0;
+    }
+    // A segment restored inside the window re-arms silently (RV302):
+    // the entry notice is in the restored messages, so only the flags
+    // re-derive; refusals resume from the very next call.
+    if (windowActive() !== undefined) {
+      windowEntered = true;
+      windowNoticeFired = true;
     }
   }
 
@@ -1988,6 +2078,48 @@ export async function runAgent<S extends SchemaSpec>(
         });
         return { parts, limitHit: false, finished: finishArgs.result ?? null };
       }
+      // The finalization window (RV302), checked after the terminal and
+      // escalate interceptions so control-flow tools are structurally
+      // exempt: a non-allowlisted call inside the window is refused
+      // typed and consumes nothing. With the extension configured,
+      // remaining money converts into a grant FIRST: extending is the
+      // right answer to budget pressure while headroom lasts, and the
+      // window binds only when the grant would not clear it or is
+      // denied.
+      if (finalizationWindow !== undefined) {
+        maybeMarkWindowEntry();
+        let windowState = windowActive();
+        if (windowState !== undefined && !windowAllows(gatedCall.name)) {
+          if (
+            windowState.budget === 'tool calls' &&
+            extension !== undefined &&
+            windowState.remaining + extension.increment > finalizationWindow.reserveCalls &&
+            tryToolBudgetGrant()
+          ) {
+            windowState = windowActive();
+          }
+          if (windowState !== undefined && !windowAllows(gatedCall.name)) {
+            events?.emit({
+              type: 'tool:end',
+              toolName: gatedCall.name,
+              outcome: 'denied',
+              durationMs: now() - gateStartedAt,
+              guard: 'finalization-window',
+            });
+            parts.push(
+              errorPart(call, {
+                error: finalizationWindowRefusalText(
+                  gatedCall.name,
+                  finalizationWindow.reserveCalls,
+                  windowState.budget,
+                ),
+                guard: 'finalization-window',
+              }),
+            );
+            continue;
+          }
+        }
+      }
       // The pre-dispatch exploration guards (RV-210): the call that
       // would exceed its tool's maxCallsPerTool cap, or the per-signature
       // execution cap, is never dispatched; the model receives a typed
@@ -2038,6 +2170,9 @@ export async function runAgent<S extends SchemaSpec>(
         }
       }
     }
+    // A batch whose LAST execution crossed into the window still
+    // announces the entry before the next model turn (RV302).
+    maybeMarkWindowEntry();
     return { parts, limitHit: false };
   };
 
@@ -2092,6 +2227,7 @@ export async function runAgent<S extends SchemaSpec>(
       }
     } else {
       flushExtensionNotices();
+      flushWindowNotices();
       maybePushBudgetNotice();
       await saveBoundary();
     }
@@ -2815,6 +2951,7 @@ export async function runAgent<S extends SchemaSpec>(
       // budget notices join the conversation before the boundary
       // checkpoint, so a resume rebuilds the same history.
       flushExtensionNotices();
+      flushWindowNotices();
       maybePushBudgetNotice();
       // Compaction check at the tool turn boundary (M4-T03): the
       // estimate is the last loop turn's usage against the loop model's
@@ -3585,6 +3722,9 @@ export async function runAgent<S extends SchemaSpec>(
     }
     if (reserveSummaryRan) {
       toolBudget.finalizationReserveUsed = true;
+    }
+    if (windowEntered) {
+      toolBudget.finalizationWindowEntered = true;
     }
     if (limitLimiter !== undefined) {
       toolBudget.limiter = limitLimiter;

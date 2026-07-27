@@ -117,6 +117,29 @@ export interface UsageLimits {
     /** Default true: a grant needs new evidence since the last one. */
     requireNewEvidence?: boolean;
   };
+  /**
+   * The finalization window (RV302, the seventh comparison experiment):
+   * once the remaining tool budget (executed calls against the effective
+   * maxToolCalls, or remaining weighted units against toolUnits.max,
+   * whichever is closer) drops to `reserveCalls`, only finalization
+   * tools may execute. A call outside the window's allowlist receives a
+   * typed error tool result naming the window (visible to the model,
+   * never terminal, consuming no budget), and the model is told ONCE,
+   * via a plain user message, to record its evidence and finish. The
+   * allowlist defaults to the tools priced at toolUnits cost 0 (the
+   * free bookkeeping tools); the engine terminal tool is always
+   * admitted regardless. With toolBudgetExtension configured, remaining
+   * money converts into a grant BEFORE any window refusal, so the
+   * window binds only when the extension is exhausted or denied. Off by
+   * default: the refusals and the notice enter the conversation, so
+   * enabling it changes recorded model requests.
+   */
+  finalizationWindow?: {
+    /** How many trailing executed calls (or units) the window reserves. */
+    reserveCalls: number;
+    /** Tool names allowed inside the window; default: zero-cost tools. */
+    allow?: string[];
+  };
 }
 
 export const DEFAULT_MAX_TURNS = 32;
@@ -142,6 +165,10 @@ export interface EffectiveUsageLimits {
     maxExtensions: number;
     minHeadroomUsd?: number;
     requireNewEvidence?: boolean;
+  };
+  finalizationWindow?: {
+    reserveCalls: number;
+    allow?: string[];
   };
 }
 
@@ -203,6 +230,10 @@ export function mergeUsageLimits(
   const toolBudgetExtension = pick('toolBudgetExtension');
   if (toolBudgetExtension !== undefined) {
     merged.toolBudgetExtension = toolBudgetExtension;
+  }
+  const finalizationWindow = pick('finalizationWindow');
+  if (finalizationWindow !== undefined) {
+    merged.finalizationWindow = finalizationWindow;
   }
   return merged;
 }
@@ -317,6 +348,26 @@ export function validateUsageLimits(limits: UsageLimits, site: string): void {
         `${site}.toolBudgetExtension.requireNewEvidence must be a boolean; ` +
           `got ${typeof requireNewEvidence}`,
       );
+    }
+  }
+  if (limits.finalizationWindow !== undefined) {
+    const window: unknown = limits.finalizationWindow;
+    if (typeof window !== 'object' || window === null || Array.isArray(window)) {
+      throw new ConfigError(`${site}.finalizationWindow must be { reserveCalls, allow? }`);
+    }
+    const { reserveCalls, allow } = window as { reserveCalls?: unknown; allow?: unknown };
+    requirePositiveInteger(reserveCalls as number, `${site}.finalizationWindow.reserveCalls`);
+    if (allow !== undefined) {
+      if (!Array.isArray(allow)) {
+        throw new ConfigError(`${site}.finalizationWindow.allow must be an array of tool names`);
+      }
+      for (const [index, name] of allow.entries()) {
+        if (typeof name !== 'string' || name.length === 0) {
+          throw new ConfigError(
+            `${site}.finalizationWindow.allow[${String(index)}] must be a nonempty tool name`,
+          );
+        }
+      }
     }
   }
 }

@@ -125,6 +125,17 @@ export interface PreflightOrchestratorSpec {
    */
   extension?: boolean;
   /**
+   * The OrchestrateAcceptance slice the estimator judges (RV305):
+   * declaring it lets preflight relate capped children to the salvage
+   * arms. Absent, the salvage findings stay silent, exactly like every
+   * other undeclared input.
+   */
+  acceptance?: {
+    childPolicy?: 'all-ok' | { minSuccessful: number };
+    acceptPartialChildren?: boolean;
+    acceptValidatedTerminalOutputOnLimit?: boolean;
+  };
+  /**
    * The separate synthesis invocation (RV-211), when the orchestration
    * configures one (the v1.71 experiment review: the run ceiling used
    * to stop at the coordination loop, undercounting the synthesis
@@ -716,6 +727,8 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
   const waveGateInputs: Array<{ estCostUsd?: number; budgetUsd?: number }> = [];
   const units: SpawnUnit[] = [];
   const shapes: QuotaShape[] = [];
+  /** Whether any declared spawn caps its tool budget (RV305). */
+  let anyCappedSpawn = false;
   for (const spec of spawnSpecs) {
     const role = spec.role ?? 'loop';
     const label = spec.label ?? role;
@@ -962,6 +975,80 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
         spawn: label,
       });
     }
+    if (limits.finalizationWindow !== undefined) {
+      if (limits.maxToolCalls === undefined && limits.toolUnits === undefined) {
+        say({
+          severity: 'warning',
+          code: 'inert-finalization-window',
+          message:
+            `spawn '${label}' sets finalizationWindow without maxToolCalls or toolUnits: ` +
+            `no tool budget exists for the window to reserve a tail of`,
+          spawn: label,
+        });
+      } else {
+        const reserve = limits.finalizationWindow.reserveCalls;
+        const windowCallCap = extendedMaxToolCalls(limits);
+        const unitsMax = limits.toolUnits?.max;
+        if (
+          (windowCallCap !== undefined && reserve >= windowCallCap) ||
+          (unitsMax !== undefined && reserve >= unitsMax)
+        ) {
+          say({
+            severity: 'warning',
+            code: 'finalization-window-covers-cap',
+            message:
+              `spawn '${label}': finalizationWindow.reserveCalls ${String(reserve)} is not ` +
+              `below the tool budget, so the window governs from the very first call and ` +
+              `nothing but the allowlisted finalization tools ever executes`,
+            spawn: label,
+          });
+        }
+        if (
+          limits.finalizationWindow.allow !== undefined &&
+          limits.finalizationWindow.allow.length === 0
+        ) {
+          say({
+            severity: 'warning',
+            code: 'finalization-window-empty-allowlist',
+            message:
+              `spawn '${label}': finalizationWindow.allow is empty, so inside the window ` +
+              `only the engine terminal tool (when one exists) remains callable and every ` +
+              `other call is refused`,
+            spawn: label,
+          });
+        }
+      }
+    }
+    // The bare cap warning (RV305): the seventh comparison experiment
+    // starved two mandatory workers at a naked 84-call cap while 38% of
+    // the ceiling sat unspent; the reserve-plus-salvage combination is
+    // what saved the run. A cap of 0 is a deliberate no-tools spawn and
+    // stays silent.
+    const positiveCallCap = limits.maxToolCalls !== undefined && limits.maxToolCalls > 0;
+    if (
+      (positiveCallCap || limits.toolUnits !== undefined) &&
+      limits.toolBudgetNotices !== true &&
+      limits.finalizationReserve === undefined &&
+      limits.toolBudgetExtension === undefined &&
+      limits.finalizationWindow === undefined
+    ) {
+      const capText = positiveCallCap
+        ? `maxToolCalls ${String(limits.maxToolCalls)}`
+        : `toolUnits.max ${String(limits.toolUnits?.max ?? 0)}`;
+      say({
+        severity: 'warning',
+        code: 'bare-tool-cap',
+        message:
+          `spawn '${label}' caps its tool budget (${capText}) with no softener: no ` +
+          `toolBudgetNotices, no toolBudgetExtension, no finalizationReserve, no ` +
+          `finalizationWindow. Expiry is a silent hard 'limit' the model never saw coming; ` +
+          `enable a notice or a reserve, or drop the cap and rely on the USD ceiling`,
+        spawn: label,
+      });
+    }
+    if (positiveCallCap || limits.toolUnits !== undefined) {
+      anyCappedSpawn = true;
+    }
     if (unpriced && ceilingUsd !== undefined) {
       say({
         severity: 'warning',
@@ -1031,6 +1118,29 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
   // would fail at spawn time exactly like an unrouted child.
   let orchestratorReserveUsd: number | undefined;
   if (input.orchestrator !== undefined) {
+    // Capped children under a no-salvage acceptance (RV305): a child
+    // that expires settles 'limit' and counts against the policy with
+    // nothing to salvage; the seventh comparison experiment survived
+    // exactly this shape only because salvage was on. Judged only when
+    // the acceptance is DECLARED here, like every declared-input
+    // finding.
+    const acceptance = input.orchestrator.acceptance;
+    if (
+      acceptance !== undefined &&
+      anyCappedSpawn &&
+      acceptance.acceptPartialChildren !== true &&
+      acceptance.acceptValidatedTerminalOutputOnLimit !== true
+    ) {
+      say({
+        severity: 'info',
+        code: 'capped-children-without-salvage',
+        message:
+          'children in the declared wave cap their tool budgets and the declared acceptance ' +
+          'policy enables no salvage arm (acceptPartialChildren, ' +
+          'acceptValidatedTerminalOutputOnLimit): a child that expires settles limit and ' +
+          'counts against the policy with nothing to salvage',
+      });
+    }
     const servedBy = resolveServing(defaults.routing?.orchestrate);
     if (servedBy === undefined) {
       say({

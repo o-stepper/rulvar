@@ -23,6 +23,7 @@ journaled, absent on a replayed result.
 | <a id="property-cap"></a> `cap?` | `number` | The effective executed-call cap at the end: maxToolCalls plus every granted extension. Absent when only toolUnits bounds the loop. | `packages/core/dist/index.d.ts` |
 | <a id="property-extensionsgranted"></a> `extensionsGranted?` | `number` | Extension grants used, restored grants included; present exactly when toolBudgetExtension is configured (RV301). | `packages/core/dist/index.d.ts` |
 | <a id="property-finalizationreserveused"></a> `finalizationReserveUsed?` | `boolean` | Present and true when the finalization reserve summary turn ran. | `packages/core/dist/index.d.ts` |
+| <a id="property-finalizationwindowentered"></a> `finalizationWindowEntered?` | `boolean` | Present and true when the finalization window activated at least once this invocation (RV302). | `packages/core/dist/index.d.ts` |
 | <a id="property-limiter"></a> `limiter?` | `"maxToolCalls"` \| `"toolUnits"` | The tool budget limiter that ended the loop, on that 'limit' only. | `packages/core/dist/index.d.ts` |
 | <a id="property-noticesfired"></a> `noticesFired?` | `number`[] | Notice thresholds (fractions of the cap) whose notices entered the conversation; present when at least one fired. | `packages/core/dist/index.d.ts` |
 | <a id="property-unitsmax"></a> `unitsMax?` | `number` | The weighted budget; present when toolUnits is configured. | `packages/core/dist/index.d.ts` |
