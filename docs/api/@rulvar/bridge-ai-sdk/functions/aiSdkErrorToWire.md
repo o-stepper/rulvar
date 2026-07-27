@@ -10,7 +10,7 @@
 function aiSdkErrorToWire(error): WireError;
 ```
 
-Defined in: [packages/bridge-ai-sdk/src/bridge.ts:819](https://github.com/o-stepper/rulvar/blob/main/packages/bridge-ai-sdk/src/bridge.ts#L819)
+Defined in: [packages/bridge-ai-sdk/src/bridge.ts:875](https://github.com/o-stepper/rulvar/blob/main/packages/bridge-ai-sdk/src/bridge.ts#L875)
 
 Projects a thrown value from the wrapped model into a typed WireError.
 APICallError carries the provider's status and headers: 429 surfaces as

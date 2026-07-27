@@ -230,6 +230,13 @@ export function bridgeAiSdk(
         return;
       }
       if (!mapper.terminal) {
+        if (signal?.aborted === true) {
+          // A requested cancellation is never a provider fault, even
+          // when the aborted transport surfaces as a clean drain rather
+          // than a throw (the v1.27.0 review P1 posture, mirrored from
+          // the two catch paths above).
+          return;
+        }
         // Exactly one terminal event per stream:
         // a V4 stream draining without a finish part is a provider fault.
         yield {
@@ -250,15 +257,24 @@ async function* iterateStream(
   stream: ReadableStream<LanguageModelV4StreamPart>,
 ): AsyncGenerator<LanguageModelV4StreamPart> {
   const reader = stream.getReader();
+  let drained = false;
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) {
+        drained = true;
         return;
       }
       yield value;
     }
   } finally {
+    if (!drained) {
+      // Early exit (a terminal event, the consumer's break, an abort):
+      // cancel tears the provider transport down; abandoning the
+      // undrained body would hold the connection open until GC. Fire
+      // and forget so cleanup can never stall the generator's return.
+      void reader.cancel().catch(() => undefined);
+    }
     reader.releaseLock();
   }
 }
@@ -391,7 +407,7 @@ function mapMessages(messages: Msg[], context: BuildContext): LanguageModelV4Pro
             type: 'tool-call',
             toolCallId: context.ids.wireFor(part.id),
             toolName: part.name,
-            input: part.args,
+            input: unwrapUnparsedArgs(part.args),
           });
         } else if (part.type === 'provider-raw' && part.provider === context.family) {
           const reinserted = reinsertRetained(part.block);
@@ -469,7 +485,12 @@ function reinsertRetained(block: unknown): AssistantContent[number] | undefined 
         type: 'tool-result',
         toolCallId: record.toolCallId as string,
         toolName: record.toolName as string,
-        output: { type: 'json', value: record.result as JSONValue },
+        // Retention recorded isError; honoring it on reinsertion keeps a
+        // failed provider-executed exchange failed in the model's view.
+        output:
+          record.isError === true
+            ? { type: 'error-json', value: record.result as JSONValue }
+            : { type: 'json', value: record.result as JSONValue },
         ...withMeta,
       };
     default:
@@ -486,6 +507,25 @@ function toFileData(data: Uint8Array | string): SharedV4FileDataData | SharedV4F
 
 function stringifyResult(result: unknown): string {
   return typeof result === 'string' ? result : (JSON.stringify(result) ?? 'null');
+}
+
+/**
+ * Projects tool-call arguments back into the V4 prompt. The adapter
+ * parse-failure wrapper ({__unparsed: raw} and nothing else) projects as
+ * the ORIGINAL raw text the model wrote, mirroring the openai wire's
+ * guard from the v1.74 experiment review: re-encoding the internal
+ * wrapper showed the live model {"__unparsed":"..."} as its own past
+ * call and taught it to imitate that shape.
+ */
+function unwrapUnparsedArgs(args: unknown): unknown {
+  if (typeof args === 'object' && args !== null && !Array.isArray(args)) {
+    const keys = Object.keys(args);
+    const raw = (args as { __unparsed?: unknown }).__unparsed;
+    if (keys.length === 1 && keys[0] === '__unparsed' && typeof raw === 'string') {
+      return raw;
+    }
+  }
+  return args;
 }
 
 /** Accumulated reasoning segment awaiting retention at reasoning-end. */
@@ -507,7 +547,6 @@ class StreamMapper {
   private readonly adapterId: string;
   private readonly ids: BridgeIdMap;
   private readonly effortDownmapped: boolean;
-  private readonly toolNames = new Map<string, string>();
   private readonly startedToolWireIds = new Set<string>();
   private readonly providerExecutedWireIds = new Set<string>();
   private readonly reasoning = new Map<string, ReasoningAccumulator>();
@@ -582,7 +621,6 @@ class StreamMapper {
           this.providerExecutedWireIds.add(part.id);
           return [];
         }
-        this.toolNames.set(part.id, part.toolName);
         this.startedToolWireIds.add(part.id);
         return [
           { type: 'tool-call-start', id: this.ids.canonicalFor(part.id), name: part.toolName },
@@ -628,23 +666,25 @@ class StreamMapper {
           events.push({ type: 'tool-call-start', id: canonical, name: part.toolName });
         }
         const parsed = parseToolArgs(part.input);
-        if (parsed.ok) {
-          events.push({ type: 'tool-call-end', id: canonical, args: parsed.value });
-        } else {
-          this.terminal = true;
-          events.push({
-            type: 'error',
-            error: {
-              code: 'agent',
-              message: `bridged tool call '${part.toolName}' carried arguments that are not valid JSON`,
-              retryable: true,
-              data: { kind: 'transport' },
-            },
-          });
-        }
+        events.push({
+          type: 'tool-call-end',
+          id: canonical,
+          // A strict-parse failure ships the first-class wires' wrapper
+          // ({__unparsed: raw} and nothing else) so the engine's
+          // deterministic second chance can repair it (the v1.74
+          // experiment review, P1.5); a terminal error here would
+          // destroy the whole paid turn instead.
+          args: parsed.ok ? parsed.value : { __unparsed: part.input },
+        });
         return events;
       }
       case 'tool-result': {
+        if (part.preliminary === true) {
+          // Preliminary results replace each other and are always
+          // followed by a final one (the V4 contract); retaining every
+          // preview would reinsert duplicate results for one call.
+          return [];
+        }
         // Provider-executed result: retained for round trips, never
         // surfaced as a client tool execution.
         this.retained.push({
@@ -708,6 +748,11 @@ class StreamMapper {
   private mapFinish(part: Extract<LanguageModelV4StreamPart, { type: 'finish' }>): ChatEvent[] {
     if (part.finishReason.unified === 'error') {
       return [
+        // The error finish still carries the provider's bill; shipping
+        // it as a usage event ahead of the terminal error keeps the
+        // failed stream's paid tokens on the meter (the first-class
+        // adapters' early-usage posture), instead of billing zero.
+        { type: 'usage', usage: mapUsage(part.usage) },
         {
           type: 'error',
           error: {
@@ -722,6 +767,17 @@ class StreamMapper {
         },
       ];
     }
+    // Retention is unconditional: a finish landing while a reasoning
+    // segment is still open (length truncation mid-reasoning) must not
+    // lose the accumulated text or its signature metadata.
+    for (const acc of this.reasoning.values()) {
+      this.retained.push({
+        type: 'reasoning',
+        text: acc.text,
+        ...(acc.providerMetadata === undefined ? {} : { providerMetadata: acc.providerMetadata }),
+      });
+    }
+    this.reasoning.clear();
     const finish = mapFinishReason(part.finishReason, this.adapterId);
     const usage = mapUsage(part.usage);
     const bag: Record<string, unknown> = {};

@@ -15,6 +15,8 @@ import { aiSdkErrorToWire, bridgeAiSdk } from './bridge.js';
 
 interface FakeModel extends LanguageModelV4 {
   calls: LanguageModelV4CallOptions[];
+  /** One entry per underlying-stream cancel (the teardown probe). */
+  cancels: unknown[];
 }
 
 function fakeModel(
@@ -22,12 +24,14 @@ function fakeModel(
   overrides: Partial<{ specificationVersion: string; provider: string; modelId: string }> = {},
 ): FakeModel {
   const calls: LanguageModelV4CallOptions[] = [];
+  const cancels: unknown[] = [];
   return {
     specificationVersion: (overrides.specificationVersion ?? 'v4') as 'v4',
     provider: overrides.provider ?? 'fakeprov',
     modelId: overrides.modelId ?? 'fake-model-1',
     supportedUrls: {},
     calls,
+    cancels,
     doGenerate() {
       return Promise.reject(new Error('doGenerate is not used by the bridge'));
     },
@@ -41,6 +45,9 @@ function fakeModel(
               controller.enqueue(part);
             }
             controller.close();
+          },
+          cancel(reason) {
+            cancels.push(reason ?? null);
           },
         }),
       });
@@ -215,6 +222,10 @@ describe('bridgeAiSdk stream mapping', () => {
   });
 
   it('surfaces an error finish, an error part, and a finish-less stream as single terminal errors', async () => {
+    // An error finish still carries the provider's usage telemetry: the
+    // bill for the failed stream travels as a usage event ahead of the
+    // terminal error, exactly like the first-class adapters' early
+    // usage events, so the paid tokens never bill as zero (cycle 82).
     const errorFinish = await collect(
       bridgeAiSdk(
         fakeModel([
@@ -226,8 +237,15 @@ describe('bridgeAiSdk stream mapping', () => {
         ]),
       ).stream({ model: 'fake-model-1', messages: [] }),
     );
-    expect(errorFinish).toHaveLength(1);
-    expect(errorFinish[0]?.type).toBe('error');
+    expect(errorFinish.map((event) => event.type)).toEqual(['usage', 'error']);
+    const bill = errorFinish[0] as Extract<ChatEvent, { type: 'usage' }>;
+    expect(bill.usage).toEqual({
+      inputTokens: 100,
+      outputTokens: 42,
+      cacheReadTokens: 15,
+      cacheWriteTokens: 5,
+      reasoningTokens: 12,
+    });
 
     const errorPart = await collect(
       bridgeAiSdk(
@@ -517,6 +535,200 @@ describe('bridgeAiSdk request projection', () => {
         }),
       ),
     ).rejects.toThrowError(ConfigError);
+  });
+});
+
+describe('first-class doctrine parity (cycle 82)', () => {
+  it('ships unparseable tool arguments as the {__unparsed} wrapper instead of killing the turn', async () => {
+    // The engine's deterministic second chance (the v1.74 experiment
+    // review, P1.5) recognizes exactly {__unparsed: raw}; both
+    // first-class wires deliver it. A terminal error here would destroy
+    // the whole paid turn for a model-behavior quirk the repair path
+    // exists to absorb.
+    const events = await collect(
+      bridgeAiSdk(
+        fakeModel([
+          { type: 'tool-call', toolCallId: 'w9', toolName: 'lookup', input: '{"q": broken' },
+          {
+            type: 'finish',
+            usage: NESTED_USAGE,
+            finishReason: { unified: 'tool-calls', raw: 'tool_use' },
+          },
+        ]),
+      ).stream({ model: 'fake-model-1', messages: [] }),
+    );
+    expect(events.map((event) => event.type)).toEqual([
+      'tool-call-start',
+      'tool-call-end',
+      'finish',
+    ]);
+    expect((events[1] as Extract<ChatEvent, { type: 'tool-call-end' }>).args).toEqual({
+      __unparsed: '{"q": broken',
+    });
+  });
+
+  it('projects a wrapped unparsed tool call back as the raw text the model wrote', async () => {
+    // Mirror of the openai wire's imitation guard: re-encoding the
+    // internal wrapper taught the live model to imitate
+    // {"__unparsed":"..."} as its own past call shape.
+    const model = fakeModel([
+      { type: 'finish', usage: NESTED_USAGE, finishReason: { unified: 'stop', raw: 'stop' } },
+    ]);
+    await collect(
+      bridgeAiSdk(model).stream({
+        model: 'fake-model-1',
+        messages: [
+          {
+            role: 'assistant',
+            parts: [
+              {
+                type: 'tool-call',
+                id: 'canon-1',
+                name: 'lookup',
+                args: { __unparsed: '{"q": broken' },
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    const content = model.calls[0]?.prompt[0]?.content;
+    expect(content).toEqual([
+      { type: 'tool-call', toolCallId: 'canon-1', toolName: 'lookup', input: '{"q": broken' },
+    ]);
+  });
+
+  it('reinserts a retained errored provider-executed result as error-json, not success', async () => {
+    const model = fakeModel([
+      { type: 'finish', usage: NESTED_USAGE, finishReason: { unified: 'stop', raw: 'stop' } },
+    ]);
+    await collect(
+      bridgeAiSdk(model).stream({
+        model: 'fake-model-1',
+        messages: [
+          {
+            role: 'assistant',
+            parts: [
+              {
+                type: 'provider-raw',
+                provider: 'fakeprov',
+                block: {
+                  type: 'tool-result',
+                  toolCallId: 'px',
+                  toolName: 'web_search',
+                  result: { failure: 'quota' },
+                  isError: true,
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(model.calls[0]?.prompt[0]?.content).toEqual([
+      {
+        type: 'tool-result',
+        toolCallId: 'px',
+        toolName: 'web_search',
+        output: { type: 'error-json', value: { failure: 'quota' } },
+      },
+    ]);
+  });
+
+  it('retains only the final provider-executed result when preliminary results stream', async () => {
+    const events = await collect(
+      bridgeAiSdk(
+        fakeModel([
+          {
+            type: 'tool-result',
+            toolCallId: 'px',
+            toolName: 'render',
+            result: { frame: 1 },
+            preliminary: true,
+          },
+          {
+            type: 'tool-result',
+            toolCallId: 'px',
+            toolName: 'render',
+            result: { frame: 2 },
+            preliminary: true,
+          },
+          { type: 'tool-result', toolCallId: 'px', toolName: 'render', result: { frame: 3 } },
+          {
+            type: 'finish',
+            usage: NESTED_USAGE,
+            finishReason: { unified: 'stop', raw: 'stop' },
+          },
+        ]),
+      ).stream({ model: 'fake-model-1', messages: [] }),
+    );
+    const finish = events[0] as Extract<ChatEvent, { type: 'finish' }>;
+    const bag = finish.providerMetadata?.fakeprov as { retainedParts: unknown[] };
+    expect(bag.retainedParts).toEqual([
+      { type: 'tool-result', toolCallId: 'px', toolName: 'render', result: { frame: 3 } },
+    ]);
+  });
+
+  it('flushes an unterminated reasoning segment into retention at finish', async () => {
+    // A finish can land while a reasoning segment is still open (length
+    // truncation mid-reasoning); retention is unconditional, so the
+    // accumulated text and its signature metadata must not vanish.
+    const events = await collect(
+      bridgeAiSdk(
+        fakeModel([
+          {
+            type: 'reasoning-start',
+            id: 'r1',
+            providerMetadata: { fakeprov: { signature: 'sig-9' } },
+          },
+          { type: 'reasoning-delta', id: 'r1', delta: 'partial thought' },
+          {
+            type: 'finish',
+            usage: NESTED_USAGE,
+            finishReason: { unified: 'length', raw: 'MAX_TOKENS' },
+          },
+        ]),
+      ).stream({ model: 'fake-model-1', messages: [] }),
+    );
+    const finish = events.at(-1) as Extract<ChatEvent, { type: 'finish' }>;
+    const bag = finish.providerMetadata?.fakeprov as { retainedParts: unknown[] };
+    expect(bag.retainedParts).toEqual([
+      {
+        type: 'reasoning',
+        text: 'partial thought',
+        providerMetadata: { fakeprov: { signature: 'sig-9' } },
+      },
+    ]);
+  });
+
+  it('ends silently when an aborted stream drains without a finish part', async () => {
+    // The drained-no-finish sibling of the two thrown-abort checks: a
+    // requested cancellation is never a provider fault (the v1.27.0
+    // review P1 posture), so no fake transport error is minted for it.
+    const controller = new AbortController();
+    controller.abort();
+    const events = await collect(
+      bridgeAiSdk(fakeModel([{ type: 'text-delta', id: 't', delta: 'hi' }])).stream(
+        { model: 'fake-model-1', messages: [] },
+        controller.signal,
+      ),
+    );
+    expect(events.map((event) => event.type)).toEqual(['text-delta']);
+  });
+
+  it('cancels the wrapped stream when the bridge terminates before draining it', async () => {
+    // Without the cancel, an early bridge exit (terminal error, engine
+    // break) abandons the provider's HTTP body until GC.
+    const model = fakeModel([
+      { type: 'error', error: new Error('mid-stream failure') },
+      { type: 'text-delta', id: 't', delta: 'never' },
+    ]);
+    const events = await collect(
+      bridgeAiSdk(model).stream({ model: 'fake-model-1', messages: [] }),
+    );
+    expect(events).toHaveLength(1);
+    expect(events[0]?.type).toBe('error');
+    expect(model.cancels).toHaveLength(1);
   });
 });
 
