@@ -185,6 +185,7 @@ const engine = createEngine({
 | [EscalationOptions](/api/@rulvar/rulvar/interfaces/EscalationOptions.md) | - |
 | [EscalationReport](/api/@rulvar/rulvar/interfaces/EscalationReport.md) | - |
 | [EscalationRequest](/api/@rulvar/rulvar/interfaces/EscalationRequest.md) | The model-facing request: the report minus the runtime-filled fields. |
+| [EvidenceContract](/api/@rulvar/rulvar/interfaces/EvidenceContract.md) | A declared evidence floor for preflight to judge tool caps against (RV303). Declarative only; see [AgentProfile.evidenceContract](/api/@rulvar/rulvar/interfaces/AgentProfile.md#property-evidencecontract). |
 | [ExplorationSummary](/api/@rulvar/rulvar/interfaces/ExplorationSummary.md) | The structured exploration summary (RV-210): the engine-side tool exploration counters for one agent invocation. Attached to the full AgentResult and to the live `agent:end` event whenever any exploration guard limit is configured; journaled inside the terminal error payload (and therefore restored on replay) only when the guard itself ended the invocation (abortClass 'exploration'). |
 | [ExtensionAppendInput](/api/@rulvar/rulvar/interfaces/ExtensionAppendInput.md) | One append into an extension-owned sequential scope. |
 | [ExtensionDispatchSpec](/api/@rulvar/rulvar/interfaces/ExtensionDispatchSpec.md) | A child dispatch under an explicit scope (plan/NodeId). |
@@ -516,7 +517,9 @@ const engine = createEngine({
 | [DEFAULT\_CITATION\_SAMPLE](/api/@rulvar/rulvar/variables/DEFAULT_CITATION_SAMPLE.md) | The golden citation sample used with [DEFAULT\_CITATION\_PATTERN](/api/@rulvar/rulvar/variables/DEFAULT_CITATION_PATTERN.md). |
 | [DEFAULT\_COMPACTION\_THRESHOLD](/api/@rulvar/rulvar/variables/DEFAULT_COMPACTION_THRESHOLD.md) | Compaction threshold default, 0.8 of contextWindow. |
 | [DEFAULT\_ESCALATION\_LIMITS](/api/@rulvar/rulvar/variables/DEFAULT_ESCALATION_LIMITS.md) | - |
+| [DEFAULT\_EVIDENCE\_CALLS\_PER\_ENTRY](/api/@rulvar/rulvar/variables/DEFAULT_EVIDENCE_CALLS_PER_ENTRY.md) | Default estimated executed calls per recorded evidence entry (RV303). |
 | [DEFAULT\_EVIDENCE\_MIN\_SHARE](/api/@rulvar/rulvar/variables/DEFAULT_EVIDENCE_MIN_SHARE.md) | The default preserved share, the improvement plan's RV-202 gate. |
+| [DEFAULT\_EVIDENCE\_OVERHEAD\_CALLS](/api/@rulvar/rulvar/variables/DEFAULT_EVIDENCE_OVERHEAD_CALLS.md) | Default estimated non-evidence overhead calls of a research spawn (RV303). |
 | [DEFAULT\_FINISH\_MAX\_REPAIRS](/api/@rulvar/rulvar/variables/DEFAULT_FINISH_MAX_REPAIRS.md) | How many rejected finishes are repaired by default: the plan's repair once. |
 | [DEFAULT\_FLAT\_RESERVE\_USD](/api/@rulvar/rulvar/variables/DEFAULT_FLAT_RESERVE_USD.md) | Last resort of the admission reserve formula. |
 | [DEFAULT\_MAX\_CHILDREN\_PER\_NODE](/api/@rulvar/rulvar/variables/DEFAULT_MAX_CHILDREN_PER_NODE.md) | - |

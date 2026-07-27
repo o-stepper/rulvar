@@ -10,7 +10,7 @@
 function preflightEstimate(input): PreflightReport;
 ```
 
-Defined in: [packages/core/src/engine/preflight.ts:552](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L552)
+Defined in: [packages/core/src/engine/preflight.ts:571](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/preflight.ts#L571)
 
 Computes the preflight report: the effective merged limits per
 declared spawn, the layer-1 admission projection over the declared

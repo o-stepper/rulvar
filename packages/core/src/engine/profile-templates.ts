@@ -25,7 +25,7 @@ import {
   type RepositoryResearchToolsetOptions,
   type ResearchEvidenceEntry,
 } from '../tools/research.js';
-import type { AgentProfile } from './ctx.js';
+import type { AgentProfile, EvidenceContract } from './ctx.js';
 
 /**
  * The research template's stop conditions: a weighted unit budget over
@@ -89,6 +89,13 @@ export interface ResearchAgentProfileOptions extends RepositoryResearchToolsetOp
   limits?: UsageLimits;
   /** Extra tools appended after the research toolset. */
   extraTools?: ToolDef[];
+  /**
+   * The declared evidence floor of the task (RV303), passed through to
+   * {@link AgentProfile.evidenceContract} so preflight can compare it
+   * against the profile's tool budget and warn
+   * `tool-cap-below-evidence-floor` before any paid call.
+   */
+  evidenceContract?: EvidenceContract;
 }
 
 /** What {@link researchAgentProfile} returns: the profile plus the evidence accessor. */
@@ -120,7 +127,7 @@ function mergeLimits(template: UsageLimits, overrides: UsageLimits | undefined):
 export function researchAgentProfile(
   options: ResearchAgentProfileOptions,
 ): ResearchAgentProfileResult {
-  const { description, limits, extraTools, ...toolsetOptions } = options;
+  const { description, limits, extraTools, evidenceContract, ...toolsetOptions } = options;
   const kit = repositoryResearchToolset(toolsetOptions);
   const profile: AgentProfile = {
     description:
@@ -132,6 +139,7 @@ export function researchAgentProfile(
         'report is the structured partial.',
     tools: [...kit.tools, progressReportTool(), ...(extraTools ?? [])],
     limits: mergeLimits(RESEARCH_PROFILE_LIMITS, limits),
+    ...(evidenceContract === undefined ? {} : { evidenceContract }),
   };
   return { profile, evidence: () => kit.evidence() };
 }

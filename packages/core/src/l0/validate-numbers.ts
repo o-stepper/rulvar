@@ -64,3 +64,29 @@ export function requireTimerDelayMs(value: number, site: string): void {
     refuse(site, 'an integer between 1 and 2147483647 ms (the Node timer maximum)', value);
   }
 }
+
+/**
+ * A declared evidence contract (RV303): minEntries and
+ * estCallsPerEntry positive integers, overheadCalls a nonnegative
+ * integer. Shared by the profile intake and the preflight spawn spec so
+ * both boundaries refuse the same shapes with the same wording.
+ */
+export function validateEvidenceContract(value: unknown, site: string): void {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new ConfigError(
+      `${site} must be { minEntries, estCallsPerEntry?, overheadCalls? }; got ${typeof value}`,
+    );
+  }
+  const { minEntries, estCallsPerEntry, overheadCalls } = value as {
+    minEntries?: unknown;
+    estCallsPerEntry?: unknown;
+    overheadCalls?: unknown;
+  };
+  requirePositiveInteger(minEntries as number, `${site}.minEntries`);
+  if (estCallsPerEntry !== undefined) {
+    requirePositiveInteger(estCallsPerEntry as number, `${site}.estCallsPerEntry`);
+  }
+  if (overheadCalls !== undefined) {
+    requireNonNegativeInteger(overheadCalls as number, `${site}.overheadCalls`);
+  }
+}

@@ -24,7 +24,9 @@ import {
   requireNonNegativeInteger,
   requireNonNegativeNumber,
   requirePositiveInteger,
+  validateEvidenceContract,
 } from '../l0/validate-numbers.js';
+import type { EvidenceContract } from './ctx.js';
 import { priceUsdOf, resolvePricing } from '../model/pricing.js';
 import { quotaRuleMatches, type QuotaRule } from '../model/quota.js';
 import {
@@ -101,6 +103,15 @@ export interface PreflightSpawnSpec {
   estInputTokens?: number;
   /** How many spawns of this shape the wave declares; default 1. */
   count?: number;
+  /**
+   * The declared evidence contract this spawn must fill (RV303): wins
+   * over the registered profile's declaration. The estimator compares
+   * the call floor (`minEntries * estCallsPerEntry + overheadCalls`,
+   * defaults 3 and 8) against the spawn's effective executed-call
+   * ceiling and warns `tool-cap-below-evidence-floor` when the cap
+   * cannot fit the contract.
+   */
+  evidenceContract?: EvidenceContract;
 }
 
 /** The OrchestrateOptions slice the estimator consumes. */
@@ -463,6 +474,11 @@ function shapeRunTokens(shape: QuotaShape): number {
 
 const ANY_TOOL = '(any)';
 
+/** Default estimated executed calls per recorded evidence entry (RV303). */
+export const DEFAULT_EVIDENCE_CALLS_PER_ENTRY = 3;
+/** Default estimated non-evidence overhead calls of a research spawn (RV303). */
+export const DEFAULT_EVIDENCE_OVERHEAD_CALLS = 8;
+
 function resolveServing(spec: ModelSpec | undefined): ModelRef | undefined {
   if (spec === undefined) {
     return undefined;
@@ -526,6 +542,9 @@ function validateSpawnSpec(spec: PreflightSpawnSpec, index: number): void {
   const site = `preflight.spawns[${index}]`;
   if (spec.limits !== undefined) {
     validateUsageLimits(spec.limits, `${site}.limits`);
+  }
+  if (spec.evidenceContract !== undefined) {
+    validateEvidenceContract(spec.evidenceContract, `${site}.evidenceContract`);
   }
   if (spec.estCost !== undefined) {
     requireNonNegativeNumber(spec.estCost, `${site}.estCost`);
@@ -1048,6 +1067,30 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     }
     if (positiveCallCap || limits.toolUnits !== undefined) {
       anyCappedSpawn = true;
+    }
+    // The evidence floor (RV303): the experiment relation nobody
+    // computed: 14 mandatory evidence entries against an 84-call cap.
+    // Declared estimates only, in the spirit of every honest floor
+    // here: the spawn declaration wins over the registered profile's.
+    const evidenceContract = spec.evidenceContract ?? profile?.evidenceContract;
+    if (evidenceContract !== undefined && executedToolCallCeiling !== null) {
+      const perEntry = evidenceContract.estCallsPerEntry ?? DEFAULT_EVIDENCE_CALLS_PER_ENTRY;
+      const overhead = evidenceContract.overheadCalls ?? DEFAULT_EVIDENCE_OVERHEAD_CALLS;
+      const floor = evidenceContract.minEntries * perEntry + overhead;
+      if (executedToolCallCeiling < floor) {
+        say({
+          severity: 'warning',
+          code: 'tool-cap-below-evidence-floor',
+          message:
+            `spawn '${label}' declares an evidence contract of ` +
+            `${String(evidenceContract.minEntries)} entries; at ${String(perEntry)} estimated ` +
+            `calls per entry plus ${String(overhead)} overhead calls the floor is ` +
+            `${String(floor)} executed calls, but the effective executed-call ceiling is ` +
+            `${String(executedToolCallCeiling)}: the cap cannot fit the contract; raise the ` +
+            `budget, enable the extension, or lower the contract`,
+          spawn: label,
+        });
+      }
     }
     if (unpriced && ceilingUsd !== undefined) {
       say({

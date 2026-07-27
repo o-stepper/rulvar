@@ -63,6 +63,16 @@ describe('profile templates (RV-210 close-out)', () => {
     expect(() => researchAgentProfile({ root: path.join(dir, 'nope') })).toThrow(ConfigError);
   });
 
+  it('a declared evidence contract rides the profile for preflight to read (RV303)', () => {
+    const { profile } = researchAgentProfile({
+      root: dir,
+      evidenceContract: { minEntries: 12, estCallsPerEntry: 2 },
+    });
+    expect(profile.evidenceContract).toEqual({ minEntries: 12, estCallsPerEntry: 2 });
+    const bare = researchAgentProfile({ root: dir });
+    expect(bare.profile.evidenceContract).toBeUndefined();
+  });
+
   it('implementation and review templates prepend the progress tool over the task tools', () => {
     const impl = implementationAgentProfile();
     expect((impl.tools ?? []).map((def) => (def as { name: string }).name)).toEqual([

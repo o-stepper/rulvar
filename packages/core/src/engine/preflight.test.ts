@@ -1684,3 +1684,143 @@ describe('capped children without a salvage policy (RV305, orchestrate)', () => 
     ).toBe(false);
   });
 });
+
+describe('the evidence floor finding (RV303, the seventh comparison experiment)', () => {
+  const reportOf = (
+    spawn: object,
+    profiles?: Record<string, object>,
+  ): ReturnType<typeof preflightEstimate> =>
+    preflightEstimate({
+      engine: {
+        adapters: [scriptedAdapter(() => ({ text: 'unused' }))],
+        defaults: {
+          routing: { loop: SERVED },
+          ...(profiles === undefined ? {} : { profiles: profiles }),
+        },
+      },
+      run: { budgetUsd: 5 },
+      spawns: [spawn],
+    });
+
+  it('warns when the effective executed ceiling is below the declared evidence floor', () => {
+    // The experiment shape: 14 mandatory entries at the default 3 calls
+    // per entry plus 8 overhead calls = a floor of 50 against the
+    // research template cap of 48.
+    const report = reportOf({
+      label: 'worker',
+      limits: { maxTurns: 24, maxToolCalls: 48, toolBudgetNotices: true },
+      evidenceContract: { minEntries: 14 },
+    });
+    const finding = report.findings.find((entry) => entry.code === 'tool-cap-below-evidence-floor');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.spawn).toBe('worker');
+    expect(finding?.message).toContain('50');
+    expect(finding?.message).toContain('48');
+    expect(finding?.message).toContain('14');
+  });
+
+  it('stays silent at or above the floor and honors the declared estimates', () => {
+    const atFloor = reportOf({
+      label: 'worker',
+      limits: { maxTurns: 24, maxToolCalls: 48, toolBudgetNotices: true },
+      evidenceContract: { minEntries: 13 },
+    });
+    expect(atFloor.findings.some((entry) => entry.code === 'tool-cap-below-evidence-floor')).toBe(
+      false,
+    );
+    const declared = reportOf({
+      label: 'worker',
+      limits: { maxTurns: 24, maxToolCalls: 48, toolBudgetNotices: true },
+      evidenceContract: { minEntries: 14, estCallsPerEntry: 2, overheadCalls: 4 },
+    });
+    expect(declared.findings.some((entry) => entry.code === 'tool-cap-below-evidence-floor')).toBe(
+      false,
+    );
+  });
+
+  it('compares against the binding ceiling: weighted units and the extension both count', () => {
+    const unitsBound = reportOf({
+      label: 'worker',
+      limits: {
+        maxTurns: 24,
+        maxToolCalls: 48,
+        toolBudgetNotices: true,
+        toolUnits: { max: 30 },
+      },
+      evidenceContract: { minEntries: 14 },
+    });
+    const finding = unitsBound.findings.find(
+      (entry) => entry.code === 'tool-cap-below-evidence-floor',
+    );
+    expect(finding?.message).toContain('30');
+    const extended = reportOf({
+      label: 'worker',
+      limits: {
+        maxTurns: 24,
+        maxToolCalls: 40,
+        toolBudgetNotices: true,
+        toolBudgetExtension: { increment: 5, maxExtensions: 2 },
+      },
+      evidenceContract: { minEntries: 14 },
+    });
+    expect(extended.findings.some((entry) => entry.code === 'tool-cap-below-evidence-floor')).toBe(
+      false,
+    );
+  });
+
+  it('reads the contract from the registered profile, and the spawn declaration wins', () => {
+    const profiles = {
+      researcher: {
+        description: 'research',
+        limits: { maxTurns: 24, maxToolCalls: 20, toolBudgetNotices: true },
+        evidenceContract: { minEntries: 10 },
+      },
+    };
+    const viaProfile = reportOf({ label: 'w', profile: 'researcher' }, profiles);
+    expect(
+      viaProfile.findings.some((entry) => entry.code === 'tool-cap-below-evidence-floor'),
+    ).toBe(true);
+    const overridden = reportOf(
+      { label: 'w', profile: 'researcher', evidenceContract: { minEntries: 2 } },
+      profiles,
+    );
+    expect(
+      overridden.findings.some((entry) => entry.code === 'tool-cap-below-evidence-floor'),
+    ).toBe(false);
+  });
+
+  it('an uncapped spawn has no floor to compare and stays silent', () => {
+    const report = reportOf({
+      label: 'worker',
+      limits: { maxTurns: 24 },
+      evidenceContract: { minEntries: 14 },
+    });
+    expect(report.findings.some((entry) => entry.code === 'tool-cap-below-evidence-floor')).toBe(
+      false,
+    );
+  });
+
+  it('rejects a malformed declared contract with a typed ConfigError', () => {
+    expect(() =>
+      reportOf({
+        label: 'worker',
+        limits: { maxTurns: 24, maxToolCalls: 48 },
+        evidenceContract: { minEntries: 0 },
+      }),
+    ).toThrow(/evidenceContract\.minEntries/);
+    expect(() =>
+      reportOf({
+        label: 'worker',
+        limits: { maxTurns: 24, maxToolCalls: 48 },
+        evidenceContract: { minEntries: 5, estCallsPerEntry: 1.5 },
+      }),
+    ).toThrow(/evidenceContract\.estCallsPerEntry/);
+    expect(() =>
+      reportOf({
+        label: 'worker',
+        limits: { maxTurns: 24, maxToolCalls: 48 },
+        evidenceContract: { minEntries: 5, overheadCalls: -1 },
+      }),
+    ).toThrow(/evidenceContract\.overheadCalls/);
+  });
+});

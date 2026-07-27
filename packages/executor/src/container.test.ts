@@ -138,6 +138,39 @@ describe('containerExecutor argv assembly (stubbed docker, no daemon)', () => {
     });
   });
 
+  it('ledgers a protocol failure at clean exit 0 as an error outcome, never ok (RV308, e12 direct)', async () => {
+    // The direct container twin of conformance case e12 (judge P1.9):
+    // the subprocess executor runs the shared battery, the container
+    // executor only shared the source shape until now. The stub stands
+    // in for docker, prints non-protocol garbage, and exits 0.
+    const garbageStub = join(STUB_DIR, 'garbage-stub');
+    writeFileSync(
+      garbageStub,
+      '#!/usr/bin/env node\n' +
+        "process.stdin.resume();process.stdin.on('end',()=>{" +
+        "process.stdout.write('this is not the protocol');process.exit(0);});",
+      'utf8',
+    );
+    chmodSync(garbageStub, 0o755);
+    const ledger = memoryEffectLedger();
+    const executor = containerExecutor({
+      image: 'acme/img',
+      docker: garbageStub,
+      daemonEnv: ['PATH'],
+      ledger,
+    });
+    await expect(executor.run(containerRequest('sloppy'))).rejects.toMatchObject({
+      name: 'ExecutorError',
+      code: 'protocol',
+    });
+    const rows = ledger.entries();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.outcome).toBe('error');
+    // The child itself exited clean; only its result violated the protocol.
+    expect(rows[0]?.exitCode).toBe(0);
+    expect(rows[0]?.executor).toBe('container');
+  });
+
   it('rejects a missing command with a typed config error', async () => {
     const executor = containerExecutor({ image: 'acme/img', docker: STUB, daemonEnv: ['PATH'] });
     await expect(
@@ -252,6 +285,18 @@ describe.skipIf(!RUN_DOCKER)('containerExecutor (docker-gated, RV-216)', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.outcome).toBe('error');
     expect(rows[0]?.executor).toBe('container');
+  }, 60_000);
+
+  it('ledgers a protocol failure at clean exit 0 as an error outcome against the real daemon (RV308)', async () => {
+    const ledger = memoryEffectLedger();
+    const executor = containerExecutor({ image: IMAGE, ledger });
+    await expect(
+      executor.run(request('sloppy', 'echo this-is-not-the-protocol')),
+    ).rejects.toMatchObject({ name: 'ExecutorError', code: 'protocol' });
+    const rows = ledger.entries();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.outcome).toBe('error');
+    expect(rows[0]?.exitCode).toBe(0);
   }, 60_000);
 
   it('exposes ExecutorError for import ergonomics', () => {

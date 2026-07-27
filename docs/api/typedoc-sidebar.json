@@ -919,6 +919,10 @@
             "link": "/api/@rulvar/core/interfaces/EscalationRequest.md"
           },
           {
+            "text": "EvidenceContract",
+            "link": "/api/@rulvar/core/interfaces/EvidenceContract.md"
+          },
+          {
             "text": "ExplorationSummary",
             "link": "/api/@rulvar/core/interfaces/ExplorationSummary.md"
           },
@@ -2179,8 +2183,16 @@
             "link": "/api/@rulvar/core/variables/DEFAULT_ESCALATION_LIMITS.md"
           },
           {
+            "text": "DEFAULT_EVIDENCE_CALLS_PER_ENTRY",
+            "link": "/api/@rulvar/core/variables/DEFAULT_EVIDENCE_CALLS_PER_ENTRY.md"
+          },
+          {
             "text": "DEFAULT_EVIDENCE_MIN_SHARE",
             "link": "/api/@rulvar/core/variables/DEFAULT_EVIDENCE_MIN_SHARE.md"
+          },
+          {
+            "text": "DEFAULT_EVIDENCE_OVERHEAD_CALLS",
+            "link": "/api/@rulvar/core/variables/DEFAULT_EVIDENCE_OVERHEAD_CALLS.md"
           },
           {
             "text": "DEFAULT_FINISH_MAX_REPAIRS",
@@ -5245,6 +5257,10 @@
             "link": "/api/@rulvar/rulvar/interfaces/EscalationRequest.md"
           },
           {
+            "text": "EvidenceContract",
+            "link": "/api/@rulvar/rulvar/interfaces/EvidenceContract.md"
+          },
+          {
             "text": "ExplorationSummary",
             "link": "/api/@rulvar/rulvar/interfaces/ExplorationSummary.md"
           },
@@ -6541,8 +6557,16 @@
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_ESCALATION_LIMITS.md"
           },
           {
+            "text": "DEFAULT_EVIDENCE_CALLS_PER_ENTRY",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_EVIDENCE_CALLS_PER_ENTRY.md"
+          },
+          {
             "text": "DEFAULT_EVIDENCE_MIN_SHARE",
             "link": "/api/@rulvar/rulvar/variables/DEFAULT_EVIDENCE_MIN_SHARE.md"
+          },
+          {
+            "text": "DEFAULT_EVIDENCE_OVERHEAD_CALLS",
+            "link": "/api/@rulvar/rulvar/variables/DEFAULT_EVIDENCE_OVERHEAD_CALLS.md"
           },
           {
             "text": "DEFAULT_FINISH_MAX_REPAIRS",

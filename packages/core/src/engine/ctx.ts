@@ -162,6 +162,32 @@ export interface AgentProfile {
   compaction?: { threshold?: number };
   /** Admission reserve hint in USD (budget layer 1). */
   estCost?: number;
+  /**
+   * The declared evidence contract of the profile's task (RV303, the
+   * seventh comparison experiment): how many evidence entries the
+   * spawned agent MUST record, and the declared call estimates behind
+   * them. Purely declarative, like estCost: the runtime never enforces
+   * it; {@link preflightEstimate} compares the resulting call floor
+   * (`minEntries * estCallsPerEntry + overheadCalls`, defaults 3 and 8)
+   * against the spawn's effective executed-call ceiling and warns
+   * `tool-cap-below-evidence-floor` when the cap cannot fit the
+   * contract. The experiment shape: 14 mandatory entries against an
+   * 84-call cap that two workers exhausted at 10 recorded entries.
+   */
+  evidenceContract?: EvidenceContract;
+}
+
+/**
+ * A declared evidence floor for preflight to judge tool caps against
+ * (RV303). Declarative only; see {@link AgentProfile.evidenceContract}.
+ */
+export interface EvidenceContract {
+  /** Evidence entries the task must record; positive integer. */
+  minEntries: number;
+  /** Estimated executed calls per recorded entry; default 3. */
+  estCallsPerEntry?: number;
+  /** Estimated non-evidence overhead calls; default 8. */
+  overheadCalls?: number;
 }
 
 /**
