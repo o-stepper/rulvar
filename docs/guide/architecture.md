@@ -16,7 +16,7 @@ flowchart TB
     l4["L4 orchestration\nrun engine · ctx · budget · scheduler · event stream · @rulvar/plan"]
     l3["L3 execution\nagent runtime · tool system · MCP bus"]
     l2["L2 kernel\njournal kernel · model router · @rulvar/compat"]
-    l1["L1 leaves\n@rulvar/anthropic · @rulvar/openai · @rulvar/bridge-ai-sdk · @rulvar/store-sqlite · @rulvar/store-postgres"]
+    l1["L1 leaves\n@rulvar/anthropic · @rulvar/openai · @rulvar/bridge-ai-sdk · @rulvar/store-sqlite · @rulvar/store-postgres · @rulvar/executor"]
     l0["L0 contracts\nwire types · SPI interfaces · error taxonomy"]
 
     l6 --> l5 --> l4 --> l3 --> l2 --> l1 --> l0
@@ -81,7 +81,7 @@ The run lifecycle and the entire authoring surface: `defineWorkflow` plus the `c
 
 ### Script runners
 
-The execution seam for workflow bodies, with a type-level split: a `Workflow` is a closure and runs only in process; a `CompiledWorkflow` is source text and is admissible into the worker sandbox. Feeding a closure to the sandbox is impossible by types. `InProcessRunner` (in the core) runs human-authored workflows; `WorkerSandboxRunner` (in `@rulvar/planner`) runs machine-written scripts in a worker thread with a curated global scope: the ctx methods bound as bare globals, `Date.now` and `Math.random` replaced by seeded journaled versions, and no `import`, `fetch`, or `process`. The sandbox is a determinism and blast-radius boundary, not a security boundary: only the in-process tool executor ships today, and worktree isolation covers file changes and the working directory, never processes or the network. Containing hostile tool code requires an executor you build and operate, with its own threat model ([Tools](/guide/tools#executors)). See [Determinism](/guide/determinism).
+The execution seam for workflow bodies, with a type-level split: a `Workflow` is a closure and runs only in process; a `CompiledWorkflow` is source text and is admissible into the worker sandbox. Feeding a closure to the sandbox is impossible by types. `InProcessRunner` (in the core) runs human-authored workflows; `WorkerSandboxRunner` (in `@rulvar/planner`) runs machine-written scripts in a worker thread with a curated global scope: the ctx methods bound as bare globals, `Date.now` and `Math.random` replaced by seeded journaled versions, and no `import`, `fetch`, or `process`. The sandbox is a determinism and blast-radius boundary, not a security boundary: the in-process tool executor stays the default, and worktree isolation covers file changes and the working directory, never processes or the network. Containing hostile tool code takes an out-of-process executor: `@rulvar/executor` ships the subprocess and container references behind the `ToolExecutorProvider` seam ([Isolated executors](/guide/isolated-executor), [Tools](/guide/tools#executors)). See [Determinism](/guide/determinism).
 
 ### Orchestration modes
 
@@ -173,7 +173,7 @@ const run = orchestrate(
 
 ## Package map
 
-Rulvar ships as 14 packages. All release in lockstep with identical versions; the sole exemption is `@rulvar/compat`, which is versioned independently. Install commands always use the scoped form, for example `pnpm add @rulvar/core`; the unscoped npm name is not the library. See [Packages](/reference/packages) and [Versioning](/reference/versioning).
+Rulvar ships as 16 packages. All release in lockstep with identical versions; the sole exemption is `@rulvar/compat`, which is versioned independently. Install commands always use the scoped form, for example `pnpm add @rulvar/core`; the unscoped npm name is not the library. See [Packages](/reference/packages) and [Versioning](/reference/versioning).
 
 | Package | Layer | What it ships |
 |---|---|---|
@@ -184,6 +184,7 @@ Rulvar ships as 14 packages. All release in lockstep with identical versions; th
 | `@rulvar/bridge-ai-sdk` | L1 | Wraps any Vercel AI SDK language model as a `ProviderAdapter` for the long tail of providers; the highest-churn package |
 | `@rulvar/store-sqlite` | L1 | `SqliteStore` implementing `JournalStore` and `LeasableStore` with the fencing epoch; the reference for community stores |
 | `@rulvar/store-postgres` | L1 | `PostgresStore` implementing the same contract over node-postgres, for multi-process and multi-host deployments |
+| `@rulvar/executor` | L1 | Reference isolated tool executors behind the `ToolExecutorProvider` seam: the subprocess and docker container adapters, the side-effect ledger, and the executor conformance kit |
 | `@rulvar/store-conformance` | L6 | Executable conformance kit for store adapters: atomicity, total per-run order, read-your-writes, opaque payloads, fencing |
 | `@rulvar/compat` | L2 ext | Frozen key-derivation profiles for retired journal hash versions; independently versioned; attaches via `extraDerivers` |
 | `@rulvar/plan` | L4 ext | The `planRunner` extension, the run ledger, escalation extensions, and model ladder configuration for the dynamic orchestrator |
@@ -206,6 +207,7 @@ flowchart BT
     bridge["@rulvar/bridge-ai-sdk"] --> core
     sqlite["@rulvar/store-sqlite"] --> core
     postgres["@rulvar/store-postgres"] --> core
+    executor["@rulvar/executor"] --> core
     conform["@rulvar/store-conformance"] --> core
     compat["@rulvar/compat"] --> core
     plan["@rulvar/plan"] --> core
@@ -215,7 +217,9 @@ flowchart BT
     evals["@rulvar/evals"] --> core
     evals --> testing
     cli["@rulvar/cli"] --> core
-    cli -. loaded by the plan command only .-> planner
+    cli -. rulvar plan .-> planner
+    cli -. rulvar kb inbox, kb gate .-> plan
+    cli -. rulvar kb sweep .-> evals
 ```
 
 Every solid arrow is a declared dependency on core types or the public API. `eslint-plugin-rulvar` depends on nothing in Rulvar (ESLint peer only), and `@rulvar/cli` loads `@rulvar/planner` dynamically for the `plan` command alone, so the other commands work without it installed.

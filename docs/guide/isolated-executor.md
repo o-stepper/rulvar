@@ -140,7 +140,7 @@ const suite = executorConformance((cfg) => subprocessExecutor(cfg));
 registerExecutorConformance(suite, { describe, it });
 ```
 
-It drives a provider through the protocol and asserts the properties the seam promises, foremost the gate the epic exists for: a hostile tool cannot read the host's ambient credentials. It also proves the environment allowlist passes named variables through, per-call credentials are injected, the timeout kills a slow tool, the output cap kills a flood, a non-zero exit surfaces typed with its stderr tail, unparseable output is rejected, each call gets a fresh empty workdir that is removed afterward, and every dispatch reaches the ledger. The subprocess reference passes all of it; the container reference additionally proves the network and filesystem isolation only a container can enforce.
+It drives a provider through the protocol and asserts the properties the seam promises, foremost the gate the epic exists for: a hostile tool cannot read the host's ambient credentials. It also proves the environment allowlist passes named variables through, per-call credentials are injected, the timeout kills a slow tool, the output cap kills a flood, a non-zero exit surfaces typed with its stderr tail, unparseable output is rejected, each call gets a fresh empty workdir that is removed afterward, and every dispatch reaches the ledger with the outcome it actually had (a protocol failure ledgers `error`, never `ok`). The subprocess reference passes all of it; the container reference additionally proves the network and filesystem isolation only a container can enforce.
 
 ## Next steps
 
