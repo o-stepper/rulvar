@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The seventy four rounds, verbatim in this repository's history:
+The seventy five rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                            | Shipped as |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -288,6 +288,7 @@ The seventy four rounds, verbatim in this repository's history:
 | v1.91.0       | 351d1f5 (#455): the applied-pricing pin for historically stable invoices; honest executor ledger outcomes on pre-spawn failures                                       | v1.92.0    |
 | v1.92.0       | c62150a (#458): the mid-batch checkpoint boundary bounding the tool-cap-before-checkpoint re-payment window                                                           | v1.93.0    |
 | v1.93.0       | 426e57d (#461): the finite-by-default SSE replay buffer with the exported per-run bound and the explicit migration escape                                             | v1.94.0    |
+| v1.94.0       | 2bda821 (#464): PostgresQuotaLimiter, the multi-host quota reference with admission serialized on a schema-wide advisory lock                                         | v1.95.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
