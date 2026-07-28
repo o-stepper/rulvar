@@ -12,6 +12,7 @@ Defined in: `packages/core/dist/index.d.ts`
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
+| <a id="property-checkpointeverytoolcalls"></a> `checkpointEveryToolCalls?` | `number` | RV408 mid-batch checkpoint cadence; absent = per-turn only. | `packages/core/dist/index.d.ts` |
 | <a id="property-finalizationreserve"></a> `finalizationReserve?` | \{ `maxOutputTokens?`: `number`; \} | - | `packages/core/dist/index.d.ts` |
 | `finalizationReserve.maxOutputTokens?` | `number` | - | `packages/core/dist/index.d.ts` |
 | <a id="property-finalizationwindow"></a> `finalizationWindow?` | \{ `allow?`: `string`[]; `reserveCalls`: `number`; \} | - | `packages/core/dist/index.d.ts` |

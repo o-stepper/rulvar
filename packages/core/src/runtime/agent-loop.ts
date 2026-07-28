@@ -1828,6 +1828,10 @@ export async function runAgent<S extends SchemaSpec>(
       }
     };
     let terminalAdmitted = false;
+    // The mid-batch boundary cadence (RV408): executed calls since the
+    // last durable boundary of THIS batch. Denied, skipped, and refused
+    // calls never advance it; nothing external re-runs for them.
+    let executedSinceBoundary = 0;
     for (const [index, call] of calls.entries()) {
       const expiryOf = (): 'maxToolCalls' | 'toolUnits' | undefined => {
         const cap = effectiveMaxToolCalls();
@@ -2176,6 +2180,30 @@ export async function runAgent<S extends SchemaSpec>(
           // 'exploration' abort class.
           return { parts, limitHit: true, guardTrip: true };
         }
+      }
+      // The mid-batch boundary (RV408, the eighth-experiment review):
+      // with checkpointEveryToolCalls configured, the pending state
+      // lands durably every K executed calls, so a kill inside a large
+      // parallel batch re-pays at most the calls since the last
+      // boundary instead of the whole batch. The SAME pending
+      // vocabulary the ask suspension writes: the restore path reuses
+      // the executed prefix verbatim and re-runs only the tail. The
+      // batch's last call writes none; the turn boundary follows
+      // immediately.
+      executedSinceBoundary += 1;
+      const boundaryCadence = limits.checkpointEveryToolCalls;
+      const next = calls[index + 1];
+      if (
+        boundaryCadence !== undefined &&
+        executedSinceBoundary >= boundaryCadence &&
+        next !== undefined
+      ) {
+        executedSinceBoundary = 0;
+        await saveBoundary({
+          executed: toPendingRecords(parts),
+          awaiting: { id: next.id, name: next.name, args: next.args },
+          remaining: calls.slice(index + 2),
+        });
       }
     }
     // A batch whose LAST execution crossed into the window still

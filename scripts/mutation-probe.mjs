@@ -195,6 +195,14 @@ const MUTATIONS = [
     test: 'packages/core/src/engine/pricing-snapshot.test.ts',
   },
   {
+    id: 'mid-batch-boundary',
+    doctrine: 'the configured cadence durably writes the pending boundary inside a batch (RV408)',
+    file: 'packages/core/src/runtime/agent-loop.ts',
+    find: '      executedSinceBoundary += 1;\n      const boundaryCadence = limits.checkpointEveryToolCalls;',
+    replace: '      executedSinceBoundary += 1;\n      const boundaryCadence = undefined;',
+    test: 'packages/core/src/runtime/mid-batch-checkpoint.test.ts',
+  },
+  {
     id: 'exec-ledger-honest-outcome',
     doctrine: 'a dispatch that never ran ledgers error, never a success (cycle 92)',
     file: 'packages/executor/src/subprocess.ts',

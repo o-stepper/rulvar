@@ -813,6 +813,39 @@ describe('orchestrate-wave parity (the 1.63.0 experiment review, P0.3)', () => {
     );
   });
 
+  it('the mid-batch cadence below the ceiling silences the warning (RV408)', () => {
+    const adapter = scriptedAdapter(() => ({ text: 'unused' }));
+    const mitigated = preflightEstimate({
+      engine: { adapters: [adapter], defaults: { routing: { loop: SERVED } } },
+      run: { budgetUsd: 5 },
+      spawns: [
+        {
+          label: 'worker',
+          limits: { maxTurns: 4, maxToolCalls: 5, checkpointEveryToolCalls: 2 },
+        },
+      ],
+    });
+    expect(mitigated.findings.some((entry) => entry.code === 'tool-cap-before-checkpoint')).toBe(
+      false,
+    );
+
+    // A cadence at or above the ceiling bounds nothing and still warns,
+    // and the warning names the mitigation.
+    const inert = preflightEstimate({
+      engine: { adapters: [adapter], defaults: { routing: { loop: SERVED } } },
+      run: { budgetUsd: 5 },
+      spawns: [
+        {
+          label: 'worker',
+          limits: { maxTurns: 4, maxToolCalls: 5, checkpointEveryToolCalls: 5 },
+        },
+      ],
+    });
+    const finding = inert.findings.find((entry) => entry.code === 'tool-cap-before-checkpoint');
+    expect(finding?.severity).toBe('warning');
+    expect(finding?.message).toContain('checkpointEveryToolCalls');
+  });
+
   it('stays silent on serial adapters, uncapped spawns, and a zero cap', () => {
     const serial = scriptedAdapter(() => ({ text: 'unused' }), {
       caps: testCaps({ supportsParallelTools: false }),

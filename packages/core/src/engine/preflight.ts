@@ -925,7 +925,12 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
     if (
       executedToolCallCeiling !== null &&
       executedToolCallCeiling > 0 &&
-      caps?.supportsParallelTools === true
+      caps?.supportsParallelTools === true &&
+      // The mid-batch boundary (RV408) bounds the re-paid window below
+      // the ceiling: a cadence at or above it mitigates nothing and
+      // still warns.
+      (limits.checkpointEveryToolCalls === undefined ||
+        limits.checkpointEveryToolCalls >= executedToolCallCeiling)
     ) {
       // The experiment review P1.8: the runtime checkpoints once per
       // COMPLETED tool turn, and nothing in the limits vocabulary bounds
@@ -940,7 +945,8 @@ export function preflightEstimate(input: PreflightInput): PreflightReport {
           `spawn '${label}': the whole executed-call budget ` +
           `(${String(executedToolCallCeiling)} calls) fits into one parallel tool batch, and ` +
           `checkpoints write once per completed tool turn: the cap can be reached before any ` +
-          `checkpoint exists, and a kill mid-batch re-pays every executed call on resume`,
+          `checkpoint exists, and a kill mid-batch re-pays every executed call on resume; ` +
+          `bound the window with limits.checkpointEveryToolCalls (RV408)`,
         spawn: label,
       });
     }
