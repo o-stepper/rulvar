@@ -1,5 +1,11 @@
 # @rulvar/cli
 
+## 1.95.0
+
+### Patch Changes
+
+- @rulvar/core@1.95.0
+
 ## 1.94.0
 
 ### Minor Changes
