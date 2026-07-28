@@ -899,6 +899,14 @@
             "link": "/api/@rulvar/core/interfaces/EngineQuotaRuntime.md"
           },
           {
+            "text": "EntryBillingFold",
+            "link": "/api/@rulvar/core/interfaces/EntryBillingFold.md"
+          },
+          {
+            "text": "EntryBillingUnit",
+            "link": "/api/@rulvar/core/interfaces/EntryBillingUnit.md"
+          },
+          {
             "text": "EnvelopeEncryption",
             "link": "/api/@rulvar/core/interfaces/EnvelopeEncryption.md"
           },
@@ -2995,6 +3003,10 @@
           {
             "text": "preflightEstimate",
             "link": "/api/@rulvar/core/functions/preflightEstimate.md"
+          },
+          {
+            "text": "priceEntryBilling",
+            "link": "/api/@rulvar/core/functions/priceEntryBilling.md"
           },
           {
             "text": "priceEntryUsage",
@@ -5285,6 +5297,14 @@
             "link": "/api/@rulvar/rulvar/interfaces/EngineQuotaRuntime.md"
           },
           {
+            "text": "EntryBillingFold",
+            "link": "/api/@rulvar/rulvar/interfaces/EntryBillingFold.md"
+          },
+          {
+            "text": "EntryBillingUnit",
+            "link": "/api/@rulvar/rulvar/interfaces/EntryBillingUnit.md"
+          },
+          {
             "text": "EnvelopeEncryption",
             "link": "/api/@rulvar/rulvar/interfaces/EnvelopeEncryption.md"
           },
@@ -7433,6 +7453,10 @@
           {
             "text": "preflightEstimate",
             "link": "/api/@rulvar/rulvar/functions/preflightEstimate.md"
+          },
+          {
+            "text": "priceEntryBilling",
+            "link": "/api/@rulvar/rulvar/functions/priceEntryBilling.md"
           },
           {
             "text": "priceEntryUsage",

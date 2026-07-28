@@ -13,7 +13,7 @@ function invoiceFromJournal(
    options?): InvoiceExport;
 ```
 
-Defined in: [packages/core/src/engine/invoice.ts:289](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L289)
+Defined in: [packages/core/src/engine/invoice.ts:298](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L298)
 
 The pure invoice fold. Pass the same entries and price table you
 would pass `costReportFromJournal`; the totals are that report's
@@ -28,7 +28,7 @@ exactly as before.
 | Parameter | Type |
 | ------ | ------ |
 | `entries` | readonly [`JournalEntry`](/api/@rulvar/core/type-aliases/JournalEntry.md)[] |
-| `priceUsd` | (`servedBy`, `usage`) => `number` \| `undefined` |
+| `priceUsd` | (`servedBy`, `usage`, `seq?`) => `number` \| `undefined` |
 | `options?` | \{ `pricing?`: [`InvoicePricingProvenance`](/api/@rulvar/core/interfaces/InvoicePricingProvenance.md); \} |
 | `options.pricing?` | [`InvoicePricingProvenance`](/api/@rulvar/core/interfaces/InvoicePricingProvenance.md) |
 

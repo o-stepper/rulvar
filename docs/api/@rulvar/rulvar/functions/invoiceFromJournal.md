@@ -28,7 +28,7 @@ exactly as before.
 | Parameter | Type |
 | ------ | ------ |
 | `entries` | readonly [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md)[] |
-| `priceUsd` | (`servedBy`, `usage`) => `number` \| `undefined` |
+| `priceUsd` | (`servedBy`, `usage`, `seq?`) => `number` \| `undefined` |
 | `options?` | \{ `pricing?`: [`InvoicePricingProvenance`](/api/@rulvar/rulvar/interfaces/InvoicePricingProvenance.md); \} |
 | `options.pricing?` | [`InvoicePricingProvenance`](/api/@rulvar/rulvar/interfaces/InvoicePricingProvenance.md) |
 

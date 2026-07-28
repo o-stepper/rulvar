@@ -100,41 +100,60 @@ describe('the honest invoice (P1.2/P1.3/P1.4)', () => {
     expect(JSON.stringify(invoice)).not.toContain('"matched"');
   });
 
-  it('declares its pricing basis and non-additivity on every export, an empty one included', () => {
+  it('declares its pricing basis and additivity on every export, an empty one included', () => {
+    // retriedEntry's records exactly cover its usage: the per-call
+    // basis is literal, rows sum to the total (RV504).
     const full = invoiceFromJournal([retriedEntry()], tieredPrice);
     expect(full.pricingBasis).toBe('per-call');
-    expect(full.rowUsdNonAdditive).toBe(true);
+    expect(full.rowUsdNonAdditive).toBe(false);
 
     const empty = invoiceFromJournal([], tieredPrice);
     expect(empty.rows).toEqual([]);
     expect(empty.totalUsd).toBe(0);
     expect(empty.pricingBasis).toBe('per-call');
-    expect(empty.rowUsdNonAdditive).toBe(true);
+    expect(empty.rowUsdNonAdditive).toBe(false);
     expect(empty.reconciliationFailures).toBe(0);
   });
 
-  it('under a tiered table row usd stays non-additive while allocatedUsd sums to the total exactly', () => {
+  it('under a tiered table a fully attributed entry prices per call: the tier fires per request (RV504)', () => {
     const invoice = invoiceFromJournal([retriedEntry()], tieredPrice);
-    // Per-call prices: each row is under the long-context threshold.
+    // Each provider call is under the long-context threshold, so no
+    // request was billed at the long-context rate. The pre-RV504 fold
+    // tiered the 600-token aggregate and reported 0.021: 2.8x the sum
+    // of what the calls cost (the ninth-experiment 52% overreport).
     const rowSum = invoice.rows.reduce((acc, row) => acc + (row.usd ?? 0), 0);
     expect(rowSum).toBeCloseTo(0.0075, 12);
-    // The aggregate crossed it: the slice fold prices the whole call
-    // at the long-context rate.
-    expect(invoice.totalUsd).toBe(0.021);
-    expect(rowSum).not.toBe(invoice.totalUsd);
-    // The additive column closes the gap exactly, not approximately.
+    expect(invoice.totalUsd).toBeCloseTo(0.0075, 12);
+    expect(invoice.rowUsdNonAdditive).toBe(false);
+    // The additive column agrees with the per-call prices and still
+    // sums to the total exactly.
+    invoice.rows.forEach((row) => {
+      expect(row.allocatedUsd).toBeCloseTo(row.usd ?? 0, 12);
+    });
     const allocated = invoice.rows.reduce((acc, row) => acc + row.allocatedUsd, 0);
     expect(allocated).toBe(invoice.totalUsd);
-    // Shares stay proportional to the per-call prices.
-    const shares = invoice.rows.map((row) => row.allocatedUsd);
-    expect(shares[0]).toBeCloseTo(0.0028, 12);
-    expect(shares[1]).toBeCloseTo(0.00728, 12);
-    expect(shares[2]).toBeCloseTo(0.01092, 12);
+  });
+
+  it('a partially attributed entry keeps the aggregate basis and says so (RV504)', () => {
+    // Records cover only half the usage: the per-call basis would lie,
+    // so the entry folds exactly as before RV504 and the export keeps
+    // rowUsdNonAdditive true with the unattributed remainder row.
+    const partial = terminalEntry(1, {
+      usage: usageOf(600, 50),
+      providerCalls: [record(1, usageOf(300, 30), { responseId: 'resp_P' })],
+    });
+    const invoice = invoiceFromJournal([partial], tieredPrice);
+    expect(invoice.totalUsd).toBe(0.021);
+    expect(invoice.rowUsdNonAdditive).toBe(true);
+    const remainder = invoice.rows.find((row) => row.reconciliation === 'unattributed');
+    expect(remainder?.usage).toEqual(usageOf(300, 20));
+    const allocated = invoice.rows.reduce((acc, row) => acc + row.allocatedUsd, 0);
+    expect(allocated).toBe(invoice.totalUsd);
   });
 
   it('linear pricing keeps allocatedUsd at the per-call price and the sum exact', () => {
     const invoice = invoiceFromJournal([retriedEntry()], linearPrice);
-    expect(invoice.totalUsd).toBe(0.0075);
+    expect(invoice.totalUsd).toBeCloseTo(0.0075, 12);
     invoice.rows.forEach((row) => {
       expect(row.allocatedUsd).toBeCloseTo(row.usd ?? 0, 12);
     });
@@ -163,9 +182,11 @@ describe('the honest invoice (P1.2/P1.3/P1.4)', () => {
     expect(allocated).toBe(invoice.totalUsd);
   });
 
-  it('falls back to token weights when every row of a slice priced to zero', () => {
+  it('falls back to token weights when every row of an aggregate-basis slice priced to zero', () => {
     // The table prices only long-context aggregates; each per-call row
-    // prices to a legitimate zero.
+    // prices to a legitimate zero. The records cover only part of the
+    // usage, so the entry keeps the aggregate basis (RV504) and the
+    // allocation pool distributes the aggregate by token weights.
     const thresholdOnly = (ref: ModelRef, usage: Usage): number | undefined =>
       ref.startsWith('fake:')
         ? usage.inputTokens > 500
@@ -177,15 +198,19 @@ describe('the honest invoice (P1.2/P1.3/P1.4)', () => {
         usage: usageOf(600, 0),
         providerCalls: [
           record(1, usageOf(200, 0), { responseId: 'resp_A' }),
-          record(2, usageOf(400, 0), { responseId: 'resp_B' }),
+          record(2, usageOf(300, 0), { responseId: 'resp_B' }),
         ],
       }),
     ];
     const invoice = invoiceFromJournal(entries, thresholdOnly);
     expect(invoice.totalUsd).toBe(0.018);
+    expect(invoice.rowUsdNonAdditive).toBe(true);
+    // Rows: two calls plus the 100-token unattributed remainder, all
+    // zero-priced, weighted 200/300/100.
     const shares = invoice.rows.map((row) => row.allocatedUsd);
     expect(shares[0]).toBeCloseTo(0.006, 12);
-    expect(shares[1]).toBeCloseTo(0.012, 12);
+    expect(shares[1]).toBeCloseTo(0.009, 12);
+    expect(shares[2]).toBeCloseTo(0.003, 12);
     const allocated = invoice.rows.reduce((acc, row) => acc + row.allocatedUsd, 0);
     expect(allocated).toBe(invoice.totalUsd);
   });

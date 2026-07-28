@@ -26,7 +26,7 @@ reading this process's live accounts (which a replay never charges).
 | Parameter | Type |
 | ------ | ------ |
 | `entries` | readonly [`JournalEntry`](/api/@rulvar/rulvar/type-aliases/JournalEntry.md)[] |
-| `priceUsd` | (`servedBy`, `usage`) => `number` \| `undefined` |
+| `priceUsd` | (`servedBy`, `usage`, `seq?`) => `number` \| `undefined` |
 
 ## Returns
 

@@ -14,7 +14,7 @@ type InvoiceReconciliation =
   | "unattributed";
 ```
 
-Defined in: [packages/core/src/engine/invoice.ts:54](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L54)
+Defined in: [packages/core/src/engine/invoice.ts:57](https://github.com/o-stepper/rulvar/blob/main/packages/core/src/engine/invoice.ts#L57)
 
 How far a row's identity goes toward provider-side reconciliation.
 `provider-id-present` asserts exactly what it names: the adapter

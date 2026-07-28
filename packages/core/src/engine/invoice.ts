@@ -2,15 +2,18 @@
  * The invoice export (P1.3): a pure fold over terminal entries that
  * turns the per-dispatch reconciliation ledger (`providerCalls`) into
  * one row per billable provider call, so a host can line the run up
- * against the provider's invoice. The totals are the SAME slice fold
+ * against the provider's invoice. The totals are the SAME billing fold
  * `costReportFromJournal` runs, so `totalUsd` here equals
  * `CostReport.grossUsd` (and `netUsd` equals `CostReport.totalUsd`)
- * exactly, never approximately. The export is self-describing about
- * its pricing: `pricingBasis` says per-row `usd` prices each call
- * individually, `rowUsdNonAdditive` says those values need not sum to
- * `totalUsd` (a nonlinear price table, long-context tiers, prices a
- * split differently from its sum), and per-row `allocatedUsd` is the
- * additive column whose flat sum reproduces `totalUsd` exactly.
+ * exactly, never approximately. Since RV504 that fold prices a fully
+ * attributed entry per provider call, so a nonlinear long-context tier
+ * fires per REQUEST (the pricing contract's own semantics) and the
+ * per-call rows ARE the total; the export is self-describing about it:
+ * `pricingBasis` says per-row `usd` prices each call individually,
+ * `rowUsdNonAdditive: false` says the rows sum to `totalUsd` (true
+ * marks an aggregate-priced remainder or legacy entry in the fold),
+ * and per-row `allocatedUsd` is the additive column whose flat sum
+ * reproduces `totalUsd` exactly in every case.
  *
  * Coverage is loss-free by construction: an entry whose records do not
  * cover its usage total (a resume restored from a checkpoint written
@@ -33,7 +36,7 @@
 import { buildAbandonFold } from '../journal/disposition.js';
 import {
   entryUsageSlices,
-  priceEntryUsage,
+  priceEntryBilling,
   type JournalEntry,
   type ProviderCallRecord,
 } from '../l0/entries.js';
@@ -127,12 +130,17 @@ export interface InvoiceExport {
    */
   pricingBasis: 'per-call';
   /**
-   * Always true: per-call `usd` values need not sum to `totalUsd`,
-   * because a nonlinear price table prices an aggregate differently
-   * from the sum of its parts. Sum `allocatedUsd` instead; it exists
-   * precisely so a column sums to the total.
+   * False exactly when every contributing entry's providerCalls fully
+   * cover its usage (RV504): the totals are then the per-call fold
+   * itself, each row's `usd` agrees with its `allocatedUsd`, and the
+   * flat `usd` sum reproduces `totalUsd` up to IEEE association of
+   * the last bits. True when any entry folded on the aggregate basis
+   * (no records, or records that do not cover its usage): a nonlinear
+   * price table then prices an aggregate differently from the sum of
+   * its parts, so sum `allocatedUsd` instead; it exists precisely so
+   * a column sums to the total exactly in every case.
    */
-  rowUsdNonAdditive: true;
+  rowUsdNonAdditive: boolean;
   /** Usage on models absent from pricing, net and abandoned alike; never a silent zero. */
   unpriced: Array<{ model: string; usage: Usage }>;
   /** Rows whose reconciliation is not 'provider-id-present'. */
@@ -204,7 +212,7 @@ function totalTokens(usage: Usage): number {
 function allocateRows(
   rows: InvoiceRow[],
   entries: readonly JournalEntry[],
-  priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined,
+  priceUsd: (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined,
   totalUsd: number,
 ): void {
   if (rows.length === 0) {
@@ -215,9 +223,9 @@ function allocateRows(
     if (entry.status === 'running' || entry.usage === undefined) {
       continue;
     }
-    for (const slice of priceEntryUsage(entry, priceUsd).priced) {
-      const key = allocationKey(entry.seq, slice.servedBy);
-      targets.set(key, (targets.get(key) ?? 0) + slice.usd);
+    for (const unit of priceEntryBilling(entry, priceUsd).units) {
+      const key = allocationKey(entry.seq, unit.servedBy);
+      targets.set(key, (targets.get(key) ?? 0) + unit.usd);
     }
   }
   const pools = new Map<string, InvoiceRow[]>();
@@ -269,11 +277,12 @@ function allocateRows(
 
 /** A single row priced at its own model's rate; broken rates fold as unpriced. */
 function rowUsd(
-  priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined,
+  priceUsd: (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined,
   servedBy: ModelRef,
   usage: Usage,
+  seq: number,
 ): number | undefined {
-  const usd = priceUsd(servedBy, usage);
+  const usd = priceUsd(servedBy, usage, seq);
   return usd !== undefined && Number.isFinite(usd) && usd >= 0 ? usd : undefined;
 }
 
@@ -288,15 +297,22 @@ function rowUsd(
  */
 export function invoiceFromJournal(
   entries: readonly JournalEntry[],
-  priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined,
+  priceUsd: (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined,
   options?: { pricing?: InvoicePricingProvenance },
 ): InvoiceExport {
   const report = costReportFromJournal(entries, priceUsd);
   const abandonFold = buildAbandonFold(entries);
   const rows: InvoiceRow[] = [];
+  // The per-call basis is literal exactly when every contributing entry
+  // is fully attributed (RV504): rows then sum to the total and the
+  // export says so via rowUsdNonAdditive: false.
+  let everyEntryFullyAttributed = true;
   for (const entry of entries) {
     if (entry.status === 'running' || entry.usage === undefined) {
       continue;
+    }
+    if (!priceEntryBilling(entry, priceUsd).fullyAttributed) {
+      everyEntryFullyAttributed = false;
     }
     const abandoned =
       entry.kind !== 'resolution' &&
@@ -306,7 +322,7 @@ export function invoiceFromJournal(
     const mark = abandoned ? ({ abandoned: true } as const) : {};
     const records = entry.providerCalls ?? [];
     for (const record of records) {
-      const usd = rowUsd(priceUsd, record.servedBy, record.usage);
+      const usd = rowUsd(priceUsd, record.servedBy, record.usage, entry.seq);
       const reconciliation: InvoiceReconciliation =
         record.responseId !== undefined
           ? 'provider-id-present'
@@ -343,7 +359,7 @@ export function invoiceFromJournal(
       // invocations): one unattributed row per usage slice keeps the
       // spend visible and the totals loss-free.
       entryUsageSlices(entry).forEach((slice, index) => {
-        const usd = rowUsd(priceUsd, slice.servedBy, slice.usage);
+        const usd = rowUsd(priceUsd, slice.servedBy, slice.usage, entry.seq);
         rows.push({
           ...base,
           ordinal: index + 1,
@@ -365,7 +381,7 @@ export function invoiceFromJournal(
       // The records do not cover the entry's total (a resume restored
       // a pre-ledger checkpoint): the difference is real billed usage,
       // surfaced as an unattributed remainder instead of vanishing.
-      const usd = rowUsd(priceUsd, entry.servedBy, remainder);
+      const usd = rowUsd(priceUsd, entry.servedBy, remainder, entry.seq);
       rows.push({
         ...base,
         ordinal: records.length + 1,
@@ -388,7 +404,7 @@ export function invoiceFromJournal(
     netUsd: report.totalUsd,
     abandonedUsd: report.abandoned.usd,
     pricingBasis: 'per-call',
-    rowUsdNonAdditive: true,
+    rowUsdNonAdditive: !everyEntryFullyAttributed,
     unpriced: [...report.unpriced, ...report.abandoned.unpriced],
     reconciliationFailures: rows.filter((row) => row.reconciliation !== 'provider-id-present')
       .length,

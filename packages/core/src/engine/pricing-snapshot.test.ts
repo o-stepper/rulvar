@@ -17,6 +17,9 @@ import { createEngine } from './engine.js';
 import { defineWorkflow } from './ctx.js';
 import { invoiceFromJournal } from './invoice.js';
 import { journalPricingSnapshot } from './pricing-snapshot.js';
+import { costReportFromJournal } from './cost-report.js';
+import { Replayer } from '../journal/replayer.js';
+import { normalizeEntry } from '../l0/entries.js';
 import { scriptedAdapter, testCaps } from './test-harness.js';
 
 const TABLE_A: PriceTable = {
@@ -179,5 +182,150 @@ describe('the applied-pricing snapshot in the run settle (RV407)', () => {
     expect(priced.pricing?.source).toBe('snapshot');
     expect(priced.pricing?.pricingVersion).toBe('v-a');
     expect(priced.pricing?.rows).toHaveLength(1);
+  });
+});
+
+describe('per-segment pin composition (RV505, the ninth-experiment accounting P1)', () => {
+  const usageEntry = (seq: number, inputTokens: number): JournalEntry => ({
+    hashVersion: 2,
+    spanId: 's0',
+    startedAt: '2026-07-28T00:00:00.000Z',
+    seq,
+    scope: '',
+    key: `agent:${String(seq)}`,
+    ordinal: 0,
+    kind: 'agent',
+    status: 'ok',
+    servedBy: 'fake:model',
+    usage: { inputTokens, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+  });
+  const settleEntry = (
+    seq: number,
+    segment: number,
+    inputUsdPerMTok: number,
+    version: string,
+  ): JournalEntry => ({
+    hashVersion: 2,
+    spanId: 's0',
+    startedAt: '2026-07-28T00:00:00.000Z',
+    seq,
+    scope: '',
+    key: `run-settle:${String(segment)}`,
+    ordinal: 0,
+    kind: 'decision',
+    status: 'ok',
+    value: {
+      decisionType: RUN_SETTLE_DECISION_TYPE,
+      runStatus: 'suspended',
+      segment,
+      pricing: [{ model: 'fake:model', rates: { inputUsdPerMTok, outputUsdPerMTok: 0 } }],
+      pricingVersion: version,
+    },
+  });
+  // Segment 1 settled under 10 USD/MTok; the table rotated; segment 2
+  // settled under 100. Two usage rows of 1M input each.
+  const rotated = (): JournalEntry[] => [
+    usageEntry(0, 1_000_000),
+    settleEntry(1, 1, 10, 'v-a'),
+    usageEntry(2, 1_000_000),
+    settleEntry(3, 2, 100, 'v-b'),
+  ];
+
+  it('prices each row under the pin of its OWN segment, not the last pin', () => {
+    const snapshot = journalPricingSnapshot(rotated());
+    expect(snapshot).toBeDefined();
+    const usage = {
+      inputTokens: 1_000_000,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    };
+    // Seq 0 settled first under v-a: its applied rate is 10.
+    expect(snapshot?.priceUsd('fake:model', usage, 0)).toBe(10);
+    // Seq 2 belongs to the second segment: 100.
+    expect(snapshot?.priceUsd('fake:model', usage, 2)).toBe(100);
+    // A seq-less caller keeps the historical last-pin behavior.
+    expect(snapshot?.priceUsd('fake:model', usage)).toBe(100);
+    expect(snapshot?.pinnedThroughSeq).toBe(3);
+    expect(snapshot?.pricingVersion).toBe('v-b');
+  });
+
+  it('a seq-aware CostReport fold composes the pins: history never re-prices', () => {
+    const entries = rotated();
+    const snapshot = journalPricingSnapshot(entries);
+    const report = costReportFromJournal(entries, snapshot?.priceUsd ?? (() => undefined));
+    // 1M at 10 plus 1M at 100; the pre-RV505 reader priced BOTH at the
+    // last pin (200 total).
+    expect(report.totalUsd).toBe(110);
+  });
+
+  it('a single-pin journal behaves exactly as before', () => {
+    const entries = [usageEntry(0, 1_000_000), settleEntry(1, 1, 10, 'v-a')];
+    const snapshot = journalPricingSnapshot(entries);
+    const usage = {
+      inputTokens: 1_000_000,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    };
+    expect(snapshot?.priceUsd('fake:model', usage, 0)).toBe(10);
+    expect(snapshot?.priceUsd('fake:model', usage)).toBe(10);
+    const report = costReportFromJournal(entries, snapshot?.priceUsd ?? (() => undefined));
+    expect(report.totalUsd).toBe(10);
+  });
+});
+
+describe('rotation across a resume: the outcome mirror composes the pins (RV505 e2e)', () => {
+  it('prices segment one at its own settled rates and segment two at the live table', async () => {
+    const store = new InMemoryStore();
+    const usage = { inputTokens: 1_000_000, outputTokens: 0 };
+    const wf = defineWorkflow({ name: 'rotate' }, async (ctx) => {
+      await ctx.agent('segment one paid work');
+      await ctx.awaitExternal('rotate-gate', { prompt: 'operator continues after the rotation' });
+      await ctx.agent('segment two paid work');
+      return 'done';
+    });
+    const engineA = createEngine({
+      adapters: [scriptedAdapter(() => ({ text: 'one', usage }), { caps: testCaps() })],
+      defaults: { routing: { loop: 'fake:model' } },
+      stores: { journal: store },
+      pricing: TABLE_A,
+    });
+    const first = await engineA.run(wf, undefined, { runId: 'rotate-run' }).result;
+    expect(first.status).toBe('suspended');
+    // 1M input at TABLE_A's 3 USD/MTok.
+    expect(first.cost.totalUsd).toBeCloseTo(3, 10);
+
+    // Offline: the operator resolves the gate over the store, then a
+    // NEW process resumes under the rotated table.
+    const prior = (await store.load('rotate-run')).map((entry) => normalizeEntry(entry));
+    const gateSeq = prior.find((e) => e.kind === 'external' && e.status === 'suspended')?.seq;
+    expect(gateSeq).toBeDefined();
+    const offline = new Replayer({ runId: 'rotate-run', store, priorEntries: prior });
+    const resolution = await offline.resolveSuspended(gateSeq ?? -1, {
+      by: 'external',
+      value: { approved: true },
+    });
+    expect(resolution.applied).toBe(true);
+
+    const engineB = createEngine({
+      adapters: [scriptedAdapter(() => ({ text: 'two', usage }), { caps: testCaps() })],
+      defaults: { routing: { loop: 'fake:model' } },
+      stores: { journal: store },
+      pricing: TABLE_B,
+    });
+    const outcome = await engineB.resume('rotate-run', wf).result;
+    expect(outcome.status).toBe('ok');
+    // Segment one stays at its OWN settled rates (3), segment two at
+    // the live table (30): 33, never 60 (the pre-RV505 last-pin fold
+    // re-priced history under the rotated table).
+    expect(outcome.cost.totalUsd).toBeCloseTo(33, 10);
+
+    // The post-hoc snapshot fold over the finished journal agrees.
+    const entries = (await store.load('rotate-run')).map((entry) => normalizeEntry(entry));
+    const snapshot = journalPricingSnapshot(entries);
+    expect(snapshot).toBeDefined();
+    const report = costReportFromJournal(entries, snapshot?.priceUsd ?? (() => undefined));
+    expect(report.totalUsd).toBeCloseTo(33, 10);
   });
 });

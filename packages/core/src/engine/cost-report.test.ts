@@ -13,7 +13,7 @@ import { JsonlFileStore } from '../stores/jsonl.js';
 import { Replayer } from '../journal/replayer.js';
 import { parseModelRef } from '../model/router.js';
 import { defineWorkflow } from './ctx.js';
-import type { JournalEntry } from '../l0/entries.js';
+import type { JournalEntry, ProviderCallRecord } from '../l0/entries.js';
 import type { ModelRef, Usage } from '../l0/messages.js';
 import { makeOrchestratorWorkflow } from '../orchestrator/orchestrate.js';
 import { createEngine } from './engine.js';
@@ -573,5 +573,84 @@ describe('byRole attribution is exhaustive (v1.59.0 review P0)', () => {
     // The independent journal fold agrees with the live report.
     const independent = costReportFromJournal(await store.load('COST-SYNTH'), priceVia(adapter));
     expect(independent.byRole).toEqual(live);
+  });
+});
+
+describe('the per-call additive fold (RV504, the ninth-experiment accounting P1)', () => {
+  const usageOf = (inputTokens: number, outputTokens: number): Usage => ({
+    inputTokens,
+    outputTokens,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  });
+  const call = (ordinal: number, usage: Usage): ProviderCallRecord => ({
+    ordinal,
+    role: 'loop',
+    servedBy: 'fake:model',
+    attempt: 1,
+    outcome: 'ok',
+    usage,
+  });
+  const entryOf = (seq: number, overrides: Partial<JournalEntry>): JournalEntry => ({
+    hashVersion: 2,
+    spanId: 's0',
+    startedAt: '2026-07-28T00:00:00.000Z',
+    seq,
+    scope: '',
+    key: `agent:${String(seq)}`,
+    ordinal: 0,
+    kind: 'agent',
+    status: 'ok',
+    servedBy: 'fake:model',
+    ...overrides,
+  });
+  // Past 500 input tokens the WHOLE prompt re-prices: the per-request
+  // tier semantics of the pricing contract.
+  const tiered = (ref: ModelRef, usage: Usage): number | undefined => {
+    if (!ref.startsWith('fake:')) return undefined;
+    const long = usage.inputTokens > 500;
+    return (usage.inputTokens * (long ? 30 : 10) + usage.outputTokens * (long ? 60 : 30)) / 1e6;
+  };
+
+  it('prices a fully attributed entry per provider call, never tiering the aggregate', () => {
+    // Two calls of 300 input each: neither crossed the 500 threshold,
+    // so no provider request was billed at the long-context rate. The
+    // pre-RV504 fold tiered the 600 aggregate and reported 52% high.
+    const entry = entryOf(1, {
+      usage: usageOf(600, 40),
+      providerCalls: [call(1, usageOf(300, 20)), call(2, usageOf(300, 20))],
+    });
+    const report = costReportFromJournal([entry], tiered);
+    const perCall = (300 * 10 + 20 * 30) / 1e6;
+    expect(report.totalUsd).toBeCloseTo(2 * perCall, 15);
+    expect(report.totalUsd).toBeLessThan((600 * 30 + 40 * 60) / 1e6);
+    expect(report.byModel['fake:model']).toBeCloseTo(2 * perCall, 15);
+    expect(report.byRole.loop).toBeCloseTo(2 * perCall, 15);
+  });
+
+  it('applies the tier to exactly the call that crossed it', () => {
+    const entry = entryOf(1, {
+      usage: usageOf(900, 0),
+      providerCalls: [call(1, usageOf(600, 0)), call(2, usageOf(300, 0))],
+    });
+    const report = costReportFromJournal([entry], tiered);
+    expect(report.totalUsd).toBeCloseTo((600 * 30) / 1e6 + (300 * 10) / 1e6, 15);
+  });
+
+  it('keeps the aggregate fold for a partially attributed entry, byte for byte', () => {
+    // Records cover only half the usage: the honest basis is unknown,
+    // so the entry folds exactly as before RV504 (aggregate slices).
+    const entry = entryOf(1, {
+      usage: usageOf(600, 40),
+      providerCalls: [call(1, usageOf(300, 20))],
+    });
+    const report = costReportFromJournal([entry], tiered);
+    expect(report.totalUsd).toBe((600 * 30 + 40 * 60) / 1e6);
+  });
+
+  it('keeps the aggregate fold for a legacy entry without provider calls', () => {
+    const entry = entryOf(1, { usage: usageOf(600, 40) });
+    const report = costReportFromJournal([entry], tiered);
+    expect(report.totalUsd).toBe((600 * 30 + 40 * 60) / 1e6);
   });
 });

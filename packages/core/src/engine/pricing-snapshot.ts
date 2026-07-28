@@ -98,15 +98,27 @@ export function snapshotJournalPricing(
 
 /** What `journalPricingSnapshot` rebuilds from a pinned run settle. */
 export interface JournalPricingSnapshot {
-  /** The PriceTable version the settle recorded; absent for caps-only rows. */
+  /** The PriceTable version of the LAST pin; absent for caps-only rows. */
   pricingVersion?: string;
+  /** The last pin's rows: the union covering the whole settled journal. */
   rows: AppliedPricingRow[];
+  /**
+   * The seq of the last pinning settle: rows at or past it belong to a
+   * segment no pin covers yet, so a caller composing with a live table
+   * (the engine's outcome mirror) prefers the live rates there.
+   */
+  pinnedThroughSeq: number;
   /**
    * Prices usage with the PINNED rows only: a model absent from the
    * snapshot folds as unpriced (surfaced, never a silent zero), exactly
-   * the honesty contract of the live fold.
+   * the honesty contract of the live fold. With a `seq`, the row is
+   * priced under the pin of ITS OWN segment (RV505): the first settle
+   * that followed it, which recorded exactly the rates its live debits
+   * used, so a suspend/resume across a price-table rotation never
+   * re-prices settled history. Without a `seq`, the last pin wins, the
+   * historical behavior.
    */
-  priceUsd: (servedBy: ModelRef, usage: Usage) => number | undefined;
+  priceUsd: (servedBy: ModelRef, usage: Usage, seq?: number) => number | undefined;
 }
 
 function pinnedRows(value: unknown): AppliedPricingRow[] | undefined {
@@ -131,18 +143,22 @@ function pinnedRows(value: unknown): AppliedPricingRow[] | undefined {
 }
 
 /**
- * The read side: the LAST run-settle decision carrying a pricing pin
- * wins (each settling segment re-pins the union it applied, so the last
- * one covers every model of the journal it settled). Journals settled
- * before the pin shipped, or without any priced model, return
- * undefined: the caller keeps its current-table fold and its export
- * says so.
+ * The read side. Every settling segment pins the union it applied, and
+ * each pin's settle seq bounds the rows it settled FIRST, so the pins
+ * compose without any journal change (RV505): a seq-aware caller gets
+ * the rates of the row's own segment, and a seq-less caller keeps the
+ * historical last-pin behavior. Journals settled before the pin
+ * shipped, or without any priced model, return undefined: the caller
+ * keeps its current-table fold and its export says so.
  */
 export function journalPricingSnapshot(
   entries: readonly JournalEntry[],
 ): JournalPricingSnapshot | undefined {
-  for (let i = entries.length - 1; i >= 0; i -= 1) {
-    const entry = entries[i];
+  const pins: Array<{ seq: number; byModel: Map<ModelRef, Pricing> }> = [];
+  let last:
+    | { rows: AppliedPricingRow[]; byModel: Map<ModelRef, Pricing>; pricingVersion?: string }
+    | undefined;
+  for (const entry of entries) {
     if (entry?.kind !== 'decision') {
       continue;
     }
@@ -155,14 +171,38 @@ export function journalPricingSnapshot(
       continue;
     }
     const byModel = new Map<ModelRef, Pricing>(rows.map((row) => [row.model, row.rates]));
-    return {
-      ...(typeof value.pricingVersion === 'string' ? { pricingVersion: value.pricingVersion } : {}),
+    pins.push({ seq: entry.seq, byModel });
+    last = {
       rows,
-      priceUsd: (servedBy, usage) => {
-        const rates = byModel.get(servedBy);
-        return rates === undefined ? undefined : priceUsdOf(rates, usage);
-      },
+      byModel,
+      ...(typeof value.pricingVersion === 'string' ? { pricingVersion: value.pricingVersion } : {}),
     };
   }
-  return undefined;
+  if (last === undefined) {
+    return undefined;
+  }
+  const lastByModel = last.byModel;
+  const ratesFor = (servedBy: ModelRef, seq?: number): Pricing | undefined => {
+    if (seq === undefined) {
+      return lastByModel.get(servedBy);
+    }
+    // The first pin whose settle followed the row: that segment's
+    // applied rates. A model the covering pin missed (unpriced then,
+    // priced later) falls back to the last pin, the pre-RV505 answer.
+    for (const pin of pins) {
+      if (pin.seq > seq) {
+        return pin.byModel.get(servedBy) ?? lastByModel.get(servedBy);
+      }
+    }
+    return lastByModel.get(servedBy);
+  };
+  return {
+    ...(last.pricingVersion === undefined ? {} : { pricingVersion: last.pricingVersion }),
+    rows: last.rows,
+    pinnedThroughSeq: pins[pins.length - 1]?.seq ?? 0,
+    priceUsd: (servedBy, usage, seq) => {
+      const rates = ratesFor(servedBy, seq);
+      return rates === undefined ? undefined : priceUsdOf(rates, usage);
+    },
+  };
 }
