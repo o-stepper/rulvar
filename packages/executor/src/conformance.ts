@@ -18,11 +18,16 @@
  *
  * Docs: https://docs.rulvar.com/guide/isolated-executor.
  */
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { IsolatedExecRequest, ToolExecutorProvider } from '@rulvar/core';
-import { ExecutorError, memoryEffectLedger } from './spi.js';
+import {
+  ExecutorError,
+  memoryEffectLedger,
+  type ToolEffectIntent,
+  type ToolEffectLedger,
+} from './spi.js';
 
 /** The executor options the shared contract exercises. */
 export interface ConformanceExecutorConfig {
@@ -32,7 +37,7 @@ export interface ConformanceExecutorConfig {
   credentials?: (request: IsolatedExecRequest) => Record<string, string>;
   timeoutMs?: number;
   maxOutputBytes?: number;
-  ledger?: ReturnType<typeof memoryEffectLedger>;
+  ledger?: ToolEffectLedger;
 }
 
 /** Builds the provider under test from a shared-contract config. */
@@ -377,6 +382,59 @@ export function executorConformance(
         );
         // The child itself exited clean; only its result violated the protocol.
         ensure(rows[0]?.exitCode === 0, 'e12', 'the clean exit code must still be recorded');
+      },
+    },
+    {
+      id: 'e13',
+      title: 'a kill between the effect and the outcome write leaves the orphan intent (RV404)',
+      async run() {
+        // The two-phase contract: the intent lands durably BEFORE the
+        // effect, the outcome after. The kit simulates a host killed
+        // between the phases by DROPPING the outcome write; what must
+        // remain is the orphan intent carrying the full reconciliation
+        // lookup set. Ordering is proven from the workdir: at intent
+        // time the dispatch's working directory exists and is still
+        // empty (the effect below writes its marker into it).
+        const intents: ToolEffectIntent[] = [];
+        const emptyAtIntent: boolean[] = [];
+        let outcomeWrites = 0;
+        const ledger: ToolEffectLedger = {
+          intent(entry) {
+            emptyAtIntent.push(readdirSync(entry.workdir).length === 0);
+            intents.push(entry);
+          },
+          record() {
+            // The simulated kill: the row never lands.
+            outcomeWrites += 1;
+          },
+        };
+        const provider = factory({ command: runtime, args: baseArgs, ledger });
+        const result = (await provider.run(
+          request('effector', { behavior: 'workdir' }, { idempotencyKey: 'k-orphan' }),
+        )) as { before: number };
+        ensure(result.before === 0, 'e13', 'the effect did not run');
+        ensure(intents.length === 1, 'e13', `expected 1 intent, got ${intents.length}`);
+        ensure(
+          emptyAtIntent[0] === true,
+          'e13',
+          'the intent must be recorded BEFORE the effect (the workdir already had content)',
+        );
+        const orphan = intents[0];
+        ensure(
+          orphan?.idempotencyKey === 'k-orphan' &&
+            orphan.tool === 'effector' &&
+            typeof orphan.argsHash === 'string' &&
+            orphan.argsHash.length === 64 &&
+            orphan.runId === 'conf-run' &&
+            orphan.spanId === 'conf-span',
+          'e13',
+          'the orphan intent must carry the full reconciliation lookup set',
+        );
+        ensure(
+          outcomeWrites === 1,
+          'e13',
+          'the executor must still attempt the outcome write exactly once',
+        );
       },
     },
   ];

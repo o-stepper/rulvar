@@ -125,6 +125,32 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
 
       const workdir = await mkdtemp(join(workdirBase, `rulvar-cexec-${request.tool}-`));
       const startedAt = now();
+      const argsHash = hashArgs(request.args);
+      // The two-phase capability (RV404), the exact subprocess twin: the
+      // intent lands durably BEFORE the container launches, a failed
+      // intent write refuses the dispatch typed, and a ledger without
+      // the method keeps the single-record contract byte for byte.
+      if (options.ledger?.intent !== undefined) {
+        try {
+          await options.ledger.intent({
+            idempotencyKey: request.ctx.idempotencyKey,
+            runId: request.ctx.runId,
+            spanId: request.ctx.spanId,
+            tool: request.tool,
+            argsHash,
+            executor: request.executor,
+            workdir,
+            startedAt,
+          });
+        } catch (err) {
+          await rm(workdir, { recursive: true, force: true });
+          throw new ExecutorError(
+            'ledger',
+            `container tool '${request.tool}' was not dispatched: the two-phase ledger ` +
+              `intent write failed (${err instanceof Error ? err.message : String(err)})`,
+          );
+        }
+      }
       let outcome: ToolEffectRecord['outcome'] = 'ok';
       let exitCode: number | null = null;
       let signal: string | null = null;
@@ -236,7 +262,7 @@ export function containerExecutor(options: ContainerExecutorOptions): ToolExecut
             runId: request.ctx.runId,
             spanId: request.ctx.spanId,
             tool: request.tool,
-            argsHash: hashArgs(request.args),
+            argsHash,
             executor: request.executor,
             workdir,
             startedAt,

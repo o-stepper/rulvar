@@ -6,7 +6,7 @@
 
 # Class: ExecutorError
 
-Defined in: [packages/executor/src/spi.ts:36](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L36)
+Defined in: [packages/executor/src/spi.ts:42](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L42)
 
 A failed isolated dispatch. The engine catches whatever a
 ToolExecutorProvider throws and turns it into the call's error tool
@@ -25,7 +25,7 @@ carries a stderr tail on `exit`.
 new ExecutorError(code, message): ExecutorError;
 ```
 
-Defined in: [packages/executor/src/spi.ts:38](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L38)
+Defined in: [packages/executor/src/spi.ts:44](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L44)
 
 #### Parameters
 
@@ -49,7 +49,7 @@ Error.constructor
 | Property | Modifier | Type | Description | Inherited from | Defined in |
 | ------ | ------ | ------ | ------ | ------ | ------ |
 | <a id="property-cause"></a> `cause?` | `public` | `unknown` | - | `Error.cause` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts:24](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es2022.error.d.ts#L24) |
-| <a id="property-code"></a> `code` | `readonly` | [`ExecutorErrorCode`](/api/@rulvar/executor/type-aliases/ExecutorErrorCode.md) | - | - | [packages/executor/src/spi.ts:37](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L37) |
+| <a id="property-code"></a> `code` | `readonly` | [`ExecutorErrorCode`](/api/@rulvar/executor/type-aliases/ExecutorErrorCode.md) | - | - | [packages/executor/src/spi.ts:43](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L43) |
 | <a id="property-message"></a> `message` | `public` | `string` | - | `Error.message` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1075](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1075) |
 | <a id="property-name"></a> `name` | `public` | `string` | - | `Error.name` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1074](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1074) |
 | <a id="property-stack"></a> `stack?` | `public` | `string` | - | `Error.stack` | [node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts:1076](https://github.com/o-stepper/rulvar/blob/main/node\_modules/.pnpm/typescript@6.0.3/node\_modules/typescript/lib/lib.es5.d.ts#L1076) |

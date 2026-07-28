@@ -14,7 +14,8 @@ type ExecutorErrorCode =
   | "output-cap"
   | "exit"
   | "protocol"
-  | "spawn";
+  | "spawn"
+  | "ledger";
 ```
 
 Defined in: [packages/executor/src/spi.ts:14](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/spi.ts#L14)

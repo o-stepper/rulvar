@@ -4,14 +4,21 @@
  * exists for, a hostile tool dispatched by the model cannot read the
  * host's ambient credentials.
  */
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defineWorkflow } from '@rulvar/core';
 import { createTestEngine, fakeToolCalls, type FakeCall } from '@rulvar/testing';
 import { describe, expect, it } from 'vitest';
 import { executorConformance, registerExecutorConformance } from './conformance.js';
-import { ExecutorError, memoryEffectLedger } from './spi.js';
+import {
+  ExecutorError,
+  hashArgs,
+  memoryEffectLedger,
+  type ToolEffectIntent,
+  type ToolEffectLedger,
+  type ToolEffectRecord,
+} from './spi.js';
 import { subprocessExecutor, subprocessTool } from './subprocess.js';
 
 // The shared-contract battery, run against the subprocess reference.
@@ -197,5 +204,107 @@ describe('subprocessTool + engine end-to-end (RV-216)', () => {
     expect(result.sandboxed).toBe(true);
     // The wrapper received the real tool command as its first argv.
     expect(result.wrapped).toBe(process.execPath);
+  });
+});
+
+// Writes a marker file at args.path: observable evidence the EFFECT ran.
+const MARKER = script(
+  'marker.cjs',
+  `const fs=require('node:fs');fs.writeFileSync(args.path,'x');done({touched:true});`,
+);
+
+function markerRequest(effectPath: string, key: string) {
+  return {
+    executor: 'subprocess' as const,
+    tool: 'marker',
+    args: { path: effectPath },
+    spec: { command: process.execPath, args: [MARKER] },
+    ctx: {
+      runId: 'r-intent',
+      spanId: 's-intent',
+      agentType: 'a',
+      idempotencyKey: key,
+      signal: new AbortController().signal,
+      log: () => undefined,
+    },
+  };
+}
+
+describe('the two-phase intent ledger (RV404)', () => {
+  it('records the intent durably before the effect and the outcome after', async () => {
+    const effectPath = join(SCRIPTS, 'effect-two-phase.txt');
+    const intents: ToolEffectIntent[] = [];
+    const outcomes: ToolEffectRecord[] = [];
+    const effectSeenAtIntent: boolean[] = [];
+    const ledger: ToolEffectLedger = {
+      intent(entry) {
+        effectSeenAtIntent.push(existsSync(effectPath));
+        intents.push(entry);
+      },
+      record(entry) {
+        outcomes.push(entry);
+      },
+    };
+    const executor = subprocessExecutor({ ledger });
+    const result = (await executor.run(markerRequest(effectPath, 'k-intent'))) as {
+      touched?: boolean;
+    };
+    expect(result.touched).toBe(true);
+    // The intent fired exactly once, STRICTLY before the effect existed.
+    expect(effectSeenAtIntent).toEqual([false]);
+    expect(existsSync(effectPath)).toBe(true);
+    expect(intents).toHaveLength(1);
+    expect(outcomes).toHaveLength(1);
+    // The intent carries the full reconciliation lookup set, and the
+    // attempt join key (idempotencyKey, startedAt) pairs the phases.
+    expect(intents[0]?.idempotencyKey).toBe('k-intent');
+    expect(intents[0]?.tool).toBe('marker');
+    expect(intents[0]?.runId).toBe('r-intent');
+    expect(intents[0]?.spanId).toBe('s-intent');
+    expect(intents[0]?.executor).toBe('subprocess');
+    expect(intents[0]?.argsHash).toBe(hashArgs({ path: effectPath }));
+    expect(intents[0]?.argsHash).toBe(outcomes[0]?.argsHash);
+    expect(intents[0]?.startedAt).toBe(outcomes[0]?.startedAt);
+    expect(intents[0]?.workdir).toBe(outcomes[0]?.workdir);
+    expect(outcomes[0]?.outcome).toBe('ok');
+  });
+
+  it('keeps the single-record contract for a ledger without the capability', async () => {
+    const effectPath = join(SCRIPTS, 'effect-single-phase.txt');
+    const rows: ToolEffectRecord[] = [];
+    const ledger: ToolEffectLedger = {
+      record(entry) {
+        rows.push(entry);
+      },
+    };
+    const executor = subprocessExecutor({ ledger });
+    const result = (await executor.run(markerRequest(effectPath, 'k-legacy'))) as {
+      touched?: boolean;
+    };
+    expect(result.touched).toBe(true);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.outcome).toBe('ok');
+  });
+
+  it('refuses the dispatch typed when the intent write fails', async () => {
+    const effectPath = join(SCRIPTS, 'effect-refused.txt');
+    const rows: ToolEffectRecord[] = [];
+    const ledger: ToolEffectLedger = {
+      intent() {
+        throw new Error('ledger disk full');
+      },
+      record(entry) {
+        rows.push(entry);
+      },
+    };
+    const executor = subprocessExecutor({ ledger });
+    await expect(executor.run(markerRequest(effectPath, 'k-refused'))).rejects.toMatchObject({
+      name: 'ExecutorError',
+      code: 'ledger',
+    });
+    // Proceeding would open exactly the untracked-effect window the
+    // capability exists to close: nothing was dispatched, no outcome row.
+    expect(existsSync(effectPath)).toBe(false);
+    expect(rows).toHaveLength(0);
   });
 });

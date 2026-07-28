@@ -179,6 +179,14 @@ const MUTATIONS = [
     test: 'packages/core/src/engine/engine-exec-key.test.ts',
   },
   {
+    id: 'exec-intent-before-dispatch',
+    doctrine: 'a two-phase ledger records the intent durably before the external effect (RV404)',
+    file: 'packages/executor/src/subprocess.ts',
+    find: '      if (options.ledger?.intent !== undefined) {',
+    replace: '      if (false) {',
+    test: 'packages/executor/src/subprocess.test.ts',
+  },
+  {
     id: 'exec-key-derivation-stamp',
     doctrine:
       'a fresh run stamps its exec key derivation into RunMeta so resume derives the same keys (RV403)',

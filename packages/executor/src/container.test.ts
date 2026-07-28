@@ -12,7 +12,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { containerExecutor } from './container.js';
-import { ExecutorError, memoryEffectLedger } from './spi.js';
+import {
+  ExecutorError,
+  memoryEffectLedger,
+  type ToolEffectIntent,
+  type ToolEffectLedger,
+  type ToolEffectRecord,
+} from './spi.js';
 import type { IsolatedExecRequest } from '@rulvar/core';
 
 const RUN_DOCKER = process.env.RULVAR_DOCKER_TESTS === '1';
@@ -117,6 +123,37 @@ describe('containerExecutor argv assembly (stubbed docker, no daemon)', () => {
     } finally {
       delete process.env.RV_LEAKED;
     }
+  });
+
+  it('records the intent before the container launch and the outcome after (RV404 twin)', async () => {
+    const phases: string[] = [];
+    const intents: ToolEffectIntent[] = [];
+    const outcomes: ToolEffectRecord[] = [];
+    const ledger: ToolEffectLedger = {
+      intent(entry) {
+        phases.push('intent');
+        intents.push(entry);
+      },
+      record(entry) {
+        phases.push('outcome');
+        outcomes.push(entry);
+      },
+    };
+    const executor = containerExecutor({
+      image: 'acme/img:pinned',
+      docker: STUB,
+      daemonEnv: ['PATH'],
+      ledger,
+    });
+    const result = (await executor.run(containerRequest('probe'))) as { tool: string | null };
+    expect(result.tool).toBe('probe');
+    expect(phases).toEqual(['intent', 'outcome']);
+    expect(intents[0]?.idempotencyKey).toBe('stub-key');
+    expect(intents[0]?.executor).toBe('container');
+    expect(intents[0]?.argsHash).toBe(outcomes[0]?.argsHash);
+    expect(intents[0]?.startedAt).toBe(outcomes[0]?.startedAt);
+    expect(intents[0]?.workdir).toBe(outcomes[0]?.workdir);
+    expect(outcomes[0]?.outcome).toBe('ok');
   });
 
   it('surfaces a non-zero docker exit as a typed error', async () => {

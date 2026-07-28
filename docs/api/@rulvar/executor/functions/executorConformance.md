@@ -10,7 +10,7 @@
 function executorConformance(factory, options?): ExecutorConformanceSuite;
 ```
 
-Defined in: [packages/executor/src/conformance.ts:115](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L115)
+Defined in: [packages/executor/src/conformance.ts:120](https://github.com/o-stepper/rulvar/blob/main/packages/executor/src/conformance.ts#L120)
 
 Builds the conformance suite. `factory` produces the provider under
 test from a shared config; the kit supplies the command (its own

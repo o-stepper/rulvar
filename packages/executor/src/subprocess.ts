@@ -133,6 +133,36 @@ export function subprocessExecutor(options: SubprocessExecutorOptions = {}): Too
       const { command, args } = resolveCommand(request, options);
       const workdir = await mkdtemp(join(workdirBase, `rulvar-exec-${request.tool}-`));
       const startedAt = now();
+      const argsHash = hashArgs(request.args);
+      // The two-phase capability (RV404): the intent lands durably
+      // BEFORE the external effect, so a host crash between the effect
+      // and the outcome row leaves an orphan intent (the reconciliation
+      // signal) instead of an untracked effect. A failed intent write
+      // refuses the dispatch typed: proceeding would open exactly the
+      // window the capability exists to close. A ledger without the
+      // method keeps the historical single-record contract, byte for
+      // byte.
+      if (options.ledger?.intent !== undefined) {
+        try {
+          await options.ledger.intent({
+            idempotencyKey: request.ctx.idempotencyKey,
+            runId: request.ctx.runId,
+            spanId: request.ctx.spanId,
+            tool: request.tool,
+            argsHash,
+            executor: request.executor,
+            workdir,
+            startedAt,
+          });
+        } catch (err) {
+          await rm(workdir, { recursive: true, force: true });
+          throw new ExecutorError(
+            'ledger',
+            `tool '${request.tool}' was not dispatched: the two-phase ledger intent write ` +
+              `failed (${err instanceof Error ? err.message : String(err)})`,
+          );
+        }
+      }
       let outcome: ToolEffectRecord['outcome'] = 'ok';
       let exitCode: number | null = null;
       let signal: string | null = null;
@@ -222,7 +252,7 @@ export function subprocessExecutor(options: SubprocessExecutorOptions = {}): Too
             runId: request.ctx.runId,
             spanId: request.ctx.spanId,
             tool: request.tool,
-            argsHash: hashArgs(request.args),
+            argsHash,
             executor: request.executor,
             workdir,
             startedAt,

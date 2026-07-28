@@ -2,7 +2,7 @@ import { IsolatedExecRequest, IsolatedExecutorTag, SchemaSpec, ToolDef, ToolExec
 
 //#region src/spi.d.ts
 /** Why an isolated dispatch failed. */
-type ExecutorErrorCode = "config" | "timeout" | "aborted" | "output-cap" | "exit" | "protocol" | "spawn";
+type ExecutorErrorCode = "config" | "timeout" | "aborted" | "output-cap" | "exit" | "protocol" | "spawn" | "ledger";
 /**
 * A failed isolated dispatch. The engine catches whatever a
 * ToolExecutorProvider throws and turns it into the call's error tool
@@ -13,8 +13,15 @@ declare class ExecutorError extends Error {
   readonly code: ExecutorErrorCode;
   constructor(code: ExecutorErrorCode, message: string);
 }
-/** One dispatch's side-effect facts, for the ledger. */
-interface ToolEffectRecord {
+/**
+* The pre-dispatch half of a two-phase ledger entry (RV404): everything
+* the executor knows BEFORE the external effect is dispatched, which is
+* exactly the set a host needs to reconcile an orphaned effect with the
+* effect's provider (look the idempotency key up, correlate by tool and
+* argsHash). `startedAt` is the attempt join key: the outcome record of
+* the same attempt carries the identical value.
+*/
+interface ToolEffectIntent {
   /** The stable per-call idempotency key (createEngine derives it). */
   idempotencyKey: string;
   runId: string;
@@ -23,9 +30,12 @@ interface ToolEffectRecord {
   /** sha256 of the canonical arguments: correlates without storing them. */
   argsHash: string;
   executor: IsolatedExecutorTag;
-  /** The ephemeral working directory the dispatch ran in. */
+  /** The ephemeral working directory the dispatch runs in. */
   workdir: string;
   startedAt: number;
+}
+/** One dispatch's side-effect facts, for the ledger. */
+interface ToolEffectRecord extends ToolEffectIntent {
   durationMs: number;
   outcome: "ok" | "error" | "timeout";
   /** Child exit code, or null when terminated by a signal. */
@@ -42,10 +52,28 @@ interface ToolEffectRecord {
 */
 interface ToolEffectLedger {
   record(entry: ToolEffectRecord): void | Promise<void>;
+  /**
+  * The two-phase capability (RV404): when the method is present, the
+  * reference executors durably record the intent BEFORE the external
+  * effect is dispatched (awaited; a failed write refuses the dispatch
+  * with the typed `ledger` code) and the outcome `record` after it. A
+  * host crash between the effect and the outcome row then leaves an
+  * orphan intent, the reconciliation signal, instead of an untracked
+  * effect: an intent whose idempotency key has no outcome row means
+  * "look this key up with the effect's provider before retrying or
+  * compensating". Absent, the ledger keeps the historical
+  * single-record contract and executor behavior is byte-identical.
+  */
+  intent?(entry: ToolEffectIntent): void | Promise<void>;
 }
-/** An in-memory ledger for tests and single-process hosts. */
+/**
+* An in-memory ledger for tests and single-process hosts. It implements
+* the two-phase capability: `intents()` exposes the pre-dispatch rows,
+* `entries()` the outcomes, exactly as before.
+*/
 declare function memoryEffectLedger(): ToolEffectLedger & {
   entries(): readonly ToolEffectRecord[];
+  intents(): readonly ToolEffectIntent[];
 };
 /**
 * A stable content hash of the arguments for the ledger's `argsHash`. It
@@ -197,6 +225,35 @@ interface ContainerExecutorOptions {
 */
 declare function containerExecutor(options: ContainerExecutorOptions): ToolExecutorProvider;
 //#endregion
+//#region src/ledger.d.ts
+/**
+* A two-phase ToolEffectLedger appending JSON lines to `path`
+* (`{ phase: 'intent' | 'outcome', ... }`). Pass it to
+* `subprocessExecutor({ ledger })` or `containerExecutor({ ledger })`;
+* scan it back with {@link loadEffectLedger}.
+*/
+declare function jsonlEffectLedger(path: string): ToolEffectLedger;
+/** What {@link loadEffectLedger} reads back from a JSONL ledger file. */
+interface EffectLedgerScan {
+  intents: ToolEffectIntent[];
+  outcomes: ToolEffectRecord[];
+  /**
+  * The reconciliation signal (RV404): every intent whose idempotency
+  * key has NO outcome row at all. A key with a later outcome (an
+  * at-least-once retry of the same logical call that completed) is not
+  * orphaned: the retry resolved it. For each orphan, look the key up
+  * with the effect's provider before retrying or compensating.
+  */
+  orphanedIntents: ToolEffectIntent[];
+}
+/**
+* Scans a JSONL ledger file into intents, outcomes, and the orphaned
+* intents a host must reconcile. A torn trailing line (the artifact of
+* a crash mid-write) is skipped, never a scan failure: the durable rows
+* before it are exactly what reconciliation needs.
+*/
+declare function loadEffectLedger(path: string): Promise<EffectLedgerScan>;
+//#endregion
 //#region src/conformance.d.ts
 /** The executor options the shared contract exercises. */
 interface ConformanceExecutorConfig {
@@ -206,7 +263,7 @@ interface ConformanceExecutorConfig {
   credentials?: (request: IsolatedExecRequest) => Record<string, string>;
   timeoutMs?: number;
   maxOutputBytes?: number;
-  ledger?: ReturnType<typeof memoryEffectLedger>;
+  ledger?: ToolEffectLedger;
 }
 /** Builds the provider under test from a shared-contract config. */
 type ConformanceExecutorFactory = (config: ConformanceExecutorConfig) => ToolExecutorProvider;
@@ -280,4 +337,4 @@ interface ChildResult {
 */
 declare function runChildProcess(spec: ChildSpec): Promise<ChildResult>;
 //#endregion
-export { type ChildResult, type ChildSpec, type ChildStopReason, type ConformanceExecutorConfig, type ConformanceExecutorFactory, type ContainerExecutorOptions, type ExecutorConformanceCheck, type ExecutorConformanceSuite, ExecutorError, type ExecutorErrorCode, type ExecutorTestRegistrar, type SubprocessCommandSpec, type SubprocessExecutorOptions, type SubprocessToolInit, type ToolEffectLedger, type ToolEffectRecord, containerExecutor, executorConformance, hashArgs, memoryEffectLedger, parseToolResult, registerExecutorConformance, runChildProcess, subprocessExecutor, subprocessTool };
+export { type ChildResult, type ChildSpec, type ChildStopReason, type ConformanceExecutorConfig, type ConformanceExecutorFactory, type ContainerExecutorOptions, type EffectLedgerScan, type ExecutorConformanceCheck, type ExecutorConformanceSuite, ExecutorError, type ExecutorErrorCode, type ExecutorTestRegistrar, type SubprocessCommandSpec, type SubprocessExecutorOptions, type SubprocessToolInit, type ToolEffectIntent, type ToolEffectLedger, type ToolEffectRecord, containerExecutor, executorConformance, hashArgs, jsonlEffectLedger, loadEffectLedger, memoryEffectLedger, parseToolResult, registerExecutorConformance, runChildProcess, subprocessExecutor, subprocessTool };
