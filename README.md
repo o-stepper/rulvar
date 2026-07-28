@@ -199,7 +199,7 @@ wrote a fix specification with reproductions and acceptance criteria. The mainta
 implemented each specification and shipped the next release, which went back to Codex
 for re-audit.
 
-The sixty nine rounds, verbatim in this repository's history:
+The seventy rounds, verbatim in this repository's history:
 
 | Codex audited | Fix commit                                                                                                                                                            | Shipped as |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -283,6 +283,7 @@ The sixty nine rounds, verbatim in this repository's history:
 | v1.86.0       | c4c02b1 (#440): the finalization window with typed refusals over a reserved bookkeeping tail, the bare cap linter, the synthesis reserve lifecycle                    | v1.87.0    |
 | v1.87.0       | 3b339d9 (#443): the declared evidence floor against the tool cap, the exact-fill parity proof, the direct container protocol-ledger conformance                       | v1.88.0    |
 | v1.88.0       | f18b671 (#446): provider-id provenance parity across the bridge, the core, and the failed OpenAI response; the reserve lifecycle journaled on the rejection path      | v1.89.0    |
+| v1.89.0       | 9603940 (#449): incarnation-scoped exec idempotency keys via the versioned RunMeta derivation stamp                                                                   | v1.90.0    |
 
 Highlights Codex caught: GPT-5.6 Luna billed at Sol prices (about 5x) through prefix
 matching; OpenAI cache writes double-billed for a 73.6 percent overreport on a live
